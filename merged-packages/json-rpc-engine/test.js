@@ -6,7 +6,7 @@ test('basic middleware test', function(t){
   let engine = new RpcEngine()
 
   engine.push(function(req, res, next, end){
-    res.result = true
+    res.result = 42
     end()
   })
 
@@ -15,7 +15,7 @@ test('basic middleware test', function(t){
   engine.handle(payload, function(err, res){
     t.ifError(err, 'did not error')
     t.ok(res, 'has res')
-    t.equals(res.result, true, 'has expected result')
+    t.equals(res.result, 42, 'has expected result')
     t.end()
   })
 
@@ -26,7 +26,7 @@ test('interacting middleware test', function(t){
   let engine = new RpcEngine()
 
   engine.push(function(req, res, next, end){
-    req.resultShouldBe = true
+    req.resultShouldBe = 42
     next()
   })
 
@@ -40,7 +40,7 @@ test('interacting middleware test', function(t){
   engine.handle(payload, function(err, res){
     t.ifError(err, 'did not error')
     t.ok(res, 'has res')
-    t.equals(res.result, true, 'has expected result')
+    t.equals(res.result, 42, 'has expected result')
     t.end()
   })
 
@@ -146,6 +146,30 @@ test('return order of events', function(t){
     t.equals(events[2], '3-end', '(event 2) was "3-end"')
     t.equals(events[3], '2-return', '(event 3) was "2-return"')
     t.equals(events[4], '1-return', '(event 4) was "1-return"')
+    t.end()
+  })
+
+})
+
+test('test result override', function(t){
+
+  let engine = new RpcEngine()
+
+  let originalRes = undefined
+  let overrideRes = {}
+
+  engine.push(function(req, res, next, end){
+    originalRes = res
+    end(null, overrideRes)
+  })
+
+  let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+  engine.handle(payload, function(err, res){
+    t.ifError(err, 'did not error')
+    t.ok(res, 'has res')
+    t.ok(res !== originalRes, 'response is NOT original response')
+    t.ok(res === overrideRes, 'response is override response')
     t.end()
   })
 

@@ -50,3 +50,32 @@ engine.push(function(req, res, next, end){
   })
 })
 ```
+
+You can overwrite the response object by calling `end(null, newRes)`.
+
+```js
+engine.push(function(req, res, next, end){
+  var newResponse = {
+    id: req.id,
+    jsonrpc: req.jsonrpc,
+    result: 42,
+  }
+  end(null, newResponse)
+})
+```
+
+### gotchas
+
+Handle errors via `end(err)`, *NOT* `next(err)`.
+
+```js
+/* INCORRECT */
+engine.push(function(req, res, next, end){
+  next(new Error())
+})
+
+/* CORRECT */
+engine.push(function(req, res, next, end){
+  end(new Error())
+})
+```
