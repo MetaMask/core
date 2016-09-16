@@ -174,3 +174,26 @@ test('test result override', function(t){
   })
 
 })
+
+test('test asMiddleware', function(t){
+
+  let engine = new RpcEngine()
+  let subengine = new RpcEngine()
+
+  subengine.push(function(req, res, next, end){
+    res.sawSubengine = true
+    end()
+  })
+
+  engine.push(subengine.asMiddleware())
+
+  let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+  engine.handle(payload, function(err, res){
+    t.ifError(err, 'did not error')
+    t.ok(res, 'has res')
+    t.ok(res.sawSubengine, 'response was handled by nested engine')
+    t.end()
+  })
+
+})
