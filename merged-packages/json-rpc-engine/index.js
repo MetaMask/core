@@ -7,6 +7,13 @@ inherits(RpcEngine, Array)
 
 function RpcEngine(){}
 
+RpcEngine.prototype.asMiddleware = function(){
+  const self = this
+  return function(req, res, next, end){
+    self.handle(req, end)
+  }
+}
+
 RpcEngine.prototype.handle = function(req, cb) {
   const self = this
   // batch request support
@@ -21,7 +28,7 @@ RpcEngine.prototype._handle = function(req, cb) {
   const self = this
   
   // create response obj
-  const res = {
+  let res = {
     id: req.id,
     jsonrpc: req.jsonrpc,
   }
@@ -45,9 +52,10 @@ RpcEngine.prototype._handle = function(req, cb) {
       middlewareIndex++
       next()
     }
-    function end(err){
+    function end(err, response){
       if (err) return next(err)
       isComplete = true
+      if (response) res = response
       next()
     }
   }
