@@ -64,6 +64,14 @@ engine.push(function(req, res, next, end){
 })
 ```
 
+RpcEngines can be nested by converting them to middleware `engine.asMiddleware()`
+
+```js
+let engine = new RpcEngine()
+let subengine = new RpcEngine()
+engine.push(subengine.asMiddleware())
+```
+
 ### gotchas
 
 Handle errors via `end(err)`, *NOT* `next(err)`.
