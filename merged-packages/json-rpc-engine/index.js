@@ -5,13 +5,11 @@ module.exports = RpcEngine
 
 inherits(RpcEngine, Array)
 
-function RpcEngine(){
-  
-}
+function RpcEngine(){}
 
 RpcEngine.prototype.handle = function(req, cb) {
   const self = this
-
+  // batch request support
   if (Array.isArray(req)) {
     async.map(req, self._handle.bind(self), cb)
   } else {
@@ -57,7 +55,7 @@ RpcEngine.prototype._handle = function(req, cb) {
   // climbs the stack calling return handlers
   function runReturnHandlers(err){
     if (err) return cb(err)
-    async.eachSeries(returnHandlers.filter(Boolean), function(handler, next){
+    async.eachSeries(returnHandlers.filter(Boolean).reverse(), function(handler, next){
       handler(next)
     }, competeRequest)
   }
