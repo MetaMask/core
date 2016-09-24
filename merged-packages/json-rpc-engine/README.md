@@ -23,9 +23,9 @@ engine.push(function(req, res, next, end){
 JSON RPC are handled asynchronously, stepping down the stack until complete.
 
 ```js
-let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+let request = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
-engine.handle(payload, function(err, res){
+engine.handle(request, function(err, res){
   // do something with res.result
 })
 ```

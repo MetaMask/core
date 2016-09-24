@@ -26,7 +26,6 @@ RpcEngine.prototype.handle = function(req, cb) {
 
 RpcEngine.prototype._handle = function(req, cb) {
   const self = this
-  
   // create response obj
   let res = {
     id: req.id,
@@ -38,38 +37,36 @@ RpcEngine.prototype._handle = function(req, cb) {
   let returnHandlers = []
   // flag for stack return
   let isComplete = false
-  // the way down
-  async.until(() => isComplete, runMiddleware, runReturnHandlers)
 
-  // runs the next middleware
-  function runMiddleware(next){
-    let currentMiddleware = self[middlewareIndex]
-    if (!currentMiddleware) return next(new Error('RpcEngine - nothing ended request'))
-    currentMiddleware(req, res, nextMiddleware, end)
-    function nextMiddleware(cb){
-      // setup return handler
-      returnHandlers.push(cb)
-      middlewareIndex++
-      next()
+  // down stack of middleware, call and collect optional returnHandlers
+  async.mapSeries(self, function eachMiddleware(middleware, cb){
+    if (isComplete) return cb()
+    middleware(req, res, next, end)
+    function next(returnHandler){
+      // add return handler
+      returnHandlers.push(returnHandler)
+      cb()
     }
     function end(err, response){
-      if (err) return next(err)
+      if (err) return cb(err)
       isComplete = true
       if (response) res = response
-      next()
+      cb()
     }
-  }
+  }, runReturnHandlers)
 
   // climbs the stack calling return handlers
   function runReturnHandlers(err){
     if (err) return cb(err)
-    async.eachSeries(returnHandlers.filter(Boolean).reverse(), function(handler, next){
+    if (!isComplete) return cb(new Error('RpcEngine - nothing ended request'))
+    let backStack = returnHandlers.filter(Boolean).reverse()
+    async.eachSeries(backStack, function(handler, next){
       handler(next)
-    }, competeRequest)
+    }, completeRequest)
   }
 
   // returns the result
-  function competeRequest(){
+  function completeRequest(){
     cb(null, res)
   }
 
