@@ -9,8 +9,13 @@ function RpcEngine(){}
 
 RpcEngine.prototype.asMiddleware = function(){
   const self = this
-  return function(req, res, next, end){
-    self.handle(req, end)
+  return function engineAsMiddleware(req, res, next, end){
+    self.handle(req, function(err, engineRes){
+      if (err) return end(err)
+      // copy engine result onto response
+      res.result = engineRes.result
+      end()
+    })
   }
 }
 
@@ -27,7 +32,7 @@ RpcEngine.prototype.handle = function(req, cb) {
 RpcEngine.prototype._handle = function(req, cb) {
   const self = this
   // create response obj
-  let res = {
+  const res = {
     id: req.id,
     jsonrpc: req.jsonrpc,
   }
@@ -47,10 +52,9 @@ RpcEngine.prototype._handle = function(req, cb) {
       returnHandlers.push(returnHandler)
       cb()
     }
-    function end(err, response){
+    function end(err){
       if (err) return cb(err)
       isComplete = true
-      if (response) res = response
       cb()
     }
   }, runReturnHandlers)

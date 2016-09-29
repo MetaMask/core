@@ -51,19 +51,6 @@ engine.push(function(req, res, next, end){
 })
 ```
 
-You can overwrite the response object by calling `end(null, newRes)`.
-
-```js
-engine.push(function(req, res, next, end){
-  var newResponse = {
-    id: req.id,
-    jsonrpc: req.jsonrpc,
-    result: 42,
-  }
-  end(null, newResponse)
-})
-```
-
 RpcEngines can be nested by converting them to middleware `engine.asMiddleware()`
 
 ```js

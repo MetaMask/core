@@ -151,69 +151,15 @@ test('return order of events', function(t){
 
 })
 
-test('test result override', function(t){
-
-  let engine = new RpcEngine()
-
-  let originalRes = undefined
-  let overrideRes = {}
-
-  engine.push(function(req, res, next, end){
-    originalRes = res
-    end(null, overrideRes)
-  })
-
-  let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
-
-  engine.handle(payload, function(err, res){
-    t.ifError(err, 'did not error')
-    t.ok(res, 'has res')
-    t.ok(res !== originalRes, 'response is NOT original response')
-    t.ok(res === overrideRes, 'response is override response')
-    t.end()
-  })
-
-})
-
-test('test result override in return handlers', function(t){
-
-  let engine = new RpcEngine()
-
-  let originalRes = undefined
-  let overrideRes = {}
-  let resInReturnHandler = undefined
-
-  engine.push(function(req, res, next, end){
-    next(function(cb){
-      resInReturnHandler = res
-      cb()
-    })
-  })
-
-  engine.push(function(req, res, next, end){
-    originalRes = res
-    end(null, overrideRes)
-  })
-
-  let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
-
-  engine.handle(payload, function(err, res){
-    t.ifError(err, 'did not error')
-    t.ok(resInReturnHandler, 'has return handler res')
-    t.ok(resInReturnHandler !== originalRes, 'return handler response is NOT original response')
-    t.ok(resInReturnHandler === overrideRes, 'return handler response is override response')
-    t.end()
-  })
-
-})
-
 test('test asMiddleware', function(t){
 
   let engine = new RpcEngine()
   let subengine = new RpcEngine()
+  let originalReq = undefined
 
   subengine.push(function(req, res, next, end){
-    res.sawSubengine = true
+    originalReq = req
+    res.result = 'saw subengine'
     end()
   })
 
@@ -224,7 +170,9 @@ test('test asMiddleware', function(t){
   engine.handle(payload, function(err, res){
     t.ifError(err, 'did not error')
     t.ok(res, 'has res')
-    t.ok(res.sawSubengine, 'response was handled by nested engine')
+    t.equals(originalReq.id, res.id, 'id matches')
+    t.equals(originalReq.jsonrpc, res.jsonrpc, 'jsonrpc version matches')
+    t.equals(res.result, 'saw subengine', 'response was handled by nested engine')
     t.end()
   })
 
