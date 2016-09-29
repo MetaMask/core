@@ -175,6 +175,38 @@ test('test result override', function(t){
 
 })
 
+test('test result override in return handlers', function(t){
+
+  let engine = new RpcEngine()
+
+  let originalRes = undefined
+  let overrideRes = {}
+  let resInReturnHandler = undefined
+
+  engine.push(function(req, res, next, end){
+    next(function(cb){
+      resInReturnHandler = res
+      cb()
+    })
+  })
+
+  engine.push(function(req, res, next, end){
+    originalRes = res
+    end(null, overrideRes)
+  })
+
+  let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+  engine.handle(payload, function(err, res){
+    t.ifError(err, 'did not error')
+    t.ok(resInReturnHandler, 'has return handler res')
+    t.ok(resInReturnHandler !== originalRes, 'return handler response is NOT original response')
+    t.ok(resInReturnHandler === overrideRes, 'return handler response is override response')
+    t.end()
+  })
+
+})
+
 test('test asMiddleware', function(t){
 
   let engine = new RpcEngine()
