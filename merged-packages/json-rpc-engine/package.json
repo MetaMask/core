@@ -1,7 +1,7 @@
 {
   "name": "json-rpc-engine",
   "version": "1.0.0",
-  "description": "",
+  "description": "a tool for processing JSON RPC",
   "main": "index.js",
   "scripts": {
     "test": "node test.js"
@@ -13,5 +13,13 @@
   },
   "devDependencies": {
     "tape": "^4.6.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kumavis/json-rpc-engine.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kumavis/json-rpc-engine/issues"
+  },
+  "homepage": "https://github.com/kumavis/json-rpc-engine#readme"
 }
