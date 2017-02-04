@@ -1,0 +1,29 @@
+{
+  "name": "eth-block-tracker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "browserify test/basic.js | node"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "babel-preset-es2017": "^6.22.0",
+    "babelify": "^7.3.0",
+    "ethjs-query": "^0.2.4",
+    "tape": "^4.6.3"
+  },
+  "browserify": {
+    "transform": [
+      [
+        "babelify",
+        {
+          "presets": [
+            "es2017"
+          ]
+        }
+      ]
+    ]
+  }
+}
