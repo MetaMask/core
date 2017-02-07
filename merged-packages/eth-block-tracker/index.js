@@ -68,13 +68,11 @@ class RpcBlockTracker extends AsyncEventEmitter {
   }
 
   async _pollForNextBlock () {
-    setTimeout(() => {
-      if (!this._isRunning) return
-      this._performSync()
-    }, this._pollingInterval)
+    setTimeout(() => this._performSync(), this._pollingInterval)
   }
 
   async _performSync () {
+    if (!this._isRunning) return
     const trackingBlock = this.getTrackingBlock()
     if (!trackingBlock) throw new Error('RpcBlockTracker - tracking block is missing')
     const nextNumber = incrementHexNumber(trackingBlock.number)
