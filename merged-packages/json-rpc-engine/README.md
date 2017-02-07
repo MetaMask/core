@@ -11,7 +11,6 @@ let engine = new RpcEngine()
 ```
 
 Build a stack of json rpc processors by pushing in RpcEngine middleware.
-RpcEngine is a subclass of Array so you can perform normal array manipulation functions.
 
 ```js
 engine.push(function(req, res, next, end){
