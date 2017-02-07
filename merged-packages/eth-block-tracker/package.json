@@ -9,9 +9,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "async-eventemitter": "^0.2.2",
     "babel-preset-es2017": "^6.22.0",
     "babelify": "^7.3.0",
-    "ethjs-query": "^0.2.4",
+    "eth-query": "^2.1.0",
+    "ethjs-util": "^0.1.3",
+    "pify": "^2.3.0",
     "tape": "^4.6.3"
   },
   "browserify": {
@@ -25,5 +28,8 @@
         }
       ]
     ]
+  },
+  "devDependencies": {
+    "json-rpc-engine": "^2.0.0"
   }
 }
