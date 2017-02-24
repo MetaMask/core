@@ -1,56 +1,76 @@
 
-ethjs-query
-new BlockTracker({ provider })
+# eth-block-tracker
 
+This module walks the Ethereum blockchain, keeping track of the latest block.
+It uses a web3 provider as a data source and will continuously poll for the next block.
 
+```
+const HttpProvider = require('ethjs-provider-http')
+const BlockTracker = require('eth-block-tracker')
 
+const provider = new HttpProvider('https://mainnet.infura.io')
+const blockTracker = new BlockTracker({ provider })
+blockTracker.on('block', console.log)
+blockTracker.start()
+```
 
+### methods
 
+##### new BlockTracker({ provider, pollingInterval })
 
+creates a new block tracker with `provider` as a data source and
+`pollingInterval` (ms) timeout between polling for the latest block.
 
-//
-// public
-//
+##### getCurrentBlock()
 
-getCurrentBlock()
-start()
-stop()
+synchronous returns the current block. may be `null`.
+
+```js
+console.log(blockTracker.getCurrentBlock())
+```
+
+##### start({ fromBlock })
+
+Start walking from the `fromBlock` (default: `'latest'`) forward.
+`fromBlock` should be a number as a hex encoded string.
+
+```js
+blockTracker.start()
+```
+
+```js
+blockTracker.start({ fromBlock: '0x00' })
+```
+
+##### stop()
+
+Stop walking the blockchain.
+
+```js
+blockTracker.stop()
+```
 
 ### EVENTS
-block <-- every block in order
-fork  <-- common root of fork
-force <-- latest block was forced
-latest  <-- the latest block, possibly skipping blocks
 
-//
-// private
-//
+##### block
 
-async _performSync() {
-  const latestBlock = await this._fetchLatestBlock()
-  return this._considerBlock(latestBlock)
-}
+The `block` event is emitted for every block in order.
+Use this event if you want to operate on every block without missing any.
 
-async _considerBlock(newBlock) {
-  const currentBlock = this.getCurrentBlock()
-  // check if new block should be head
-  if (!difficultyLessThan(currentBlock, newBlock)) {
-    return Promise.resolve()
-  }
-  const blockPath = await _fetchPathBetweenBlocks(currentBlock, newBlock) 
-}
+```js
+blockTracker.on('block',console.log)
+```
 
-_fetchPathBetweenBlocks (startBlock, endBlock) {
-  // walk from end to start
-}
+##### latest
 
-_fetchLatestBlock
+The `latest` event is emitted for every that is detected to be the latest block.
+This means skipping a block if there were two created since the last polling period.
+Use this event if you don't care about stale blocks.
 
-_fetchBlockByHash
+```js
+blockTracker.on('latest',console.log)
+```
 
-_fetchBlockByTag
+### NOTES
 
-poll latest,
-walk back to current block,
-abort if too far?
-ignore if 'latest' if less difficulty
+Does not currently handle forks.
