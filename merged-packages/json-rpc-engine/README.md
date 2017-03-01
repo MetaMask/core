@@ -50,12 +50,14 @@ engine.push(function(req, res, next, end){
 })
 ```
 
-RpcEngines can be nested by converting them to middleware `engine.asMiddleware()`
+RpcEngines can be nested by converting them to middleware `asMiddleware(engine)`
 
 ```js
+const asMiddleware = require('json-rpc-engine/lib/asMiddleware')
+
 let engine = new RpcEngine()
 let subengine = new RpcEngine()
-engine.push(subengine.asMiddleware())
+engine.push(asMiddleware(subengine))
 ```
 
 ### gotchas
