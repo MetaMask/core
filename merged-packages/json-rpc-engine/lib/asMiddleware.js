@@ -5,7 +5,7 @@ function asMiddleware (engine) {
     engine.handle(req, function(err, engineRes){
       if (err) return end(err)
       // copy engine result onto response
-      res.result = engineRes.result
+      Object.assign(res, engineRes)
       end()
     })
   }
