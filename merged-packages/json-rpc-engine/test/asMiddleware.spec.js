@@ -2,15 +2,13 @@ const assert = require('assert')
 const RpcEngine = require('../src/index.js')
 const asMiddleware = require('../src/asMiddleware.js')
 
-describe('asMiddleware', function(){
-
-  it('basic', function(done){
-
+describe('asMiddleware', function () {
+  it('basic', function (done) {
     let engine = new RpcEngine()
     let subengine = new RpcEngine()
-    let originalReq = undefined
+    let originalReq
 
-    subengine.push(function(req, res, next, end){
+    subengine.push(function (req, res, next, end) {
       originalReq = req
       res.result = 'saw subengine'
       end()
@@ -20,7 +18,7 @@ describe('asMiddleware', function(){
 
     let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
-    engine.handle(payload, function(err, res){
+    engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
       assert(res, 'has res')
       assert.equal(originalReq.id, res.id, 'id matches')
@@ -28,16 +26,14 @@ describe('asMiddleware', function(){
       assert.equal(res.result, 'saw subengine', 'response was handled by nested engine')
       done()
     })
-
   })
 
-  it('decorate res', function(done){
-
+  it('decorate res', function (done) {
     let engine = new RpcEngine()
     let subengine = new RpcEngine()
-    let originalReq = undefined
+    let originalReq
 
-    subengine.push(function(req, res, next, end){
+    subengine.push(function (req, res, next, end) {
       originalReq = req
       res.xyz = true
       end()
@@ -47,7 +43,7 @@ describe('asMiddleware', function(){
 
     let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
-    engine.handle(payload, function(err, res){
+    engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
       assert(res, 'has res')
       assert.equal(originalReq.id, res.id, 'id matches')
@@ -55,17 +51,14 @@ describe('asMiddleware', function(){
       assert(res.xyz, 'res non-result prop was transfered')
       done()
     })
-
   })
 
-
-  it('decorate req', function(done){
-
+  it('decorate req', function (done) {
     let engine = new RpcEngine()
     let subengine = new RpcEngine()
-    let originalReq = undefined
+    let originalReq
 
-    subengine.push(function(req, res, next, end){
+    subengine.push(function (req, res, next, end) {
       originalReq = req
       req.xyz = true
       end()
@@ -75,7 +68,7 @@ describe('asMiddleware', function(){
 
     let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
-    engine.handle(payload, function(err, res){
+    engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
       assert(res, 'has res')
       assert.equal(originalReq.id, res.id, 'id matches')
@@ -83,14 +76,12 @@ describe('asMiddleware', function(){
       assert(originalReq.xyz, 'req prop was transfered')
       done()
     })
-
   })
 
-  it('should not error even if end not called', function(done){
-
+  it('should not error even if end not called', function (done) {
     let engine = new RpcEngine()
     let subengine = new RpcEngine()
-    let originalReq = undefined
+    let originalReq
 
     subengine.push((req, res, next, end) => next())
 
@@ -99,12 +90,10 @@ describe('asMiddleware', function(){
 
     let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
-    engine.handle(payload, function(err, res){
+    engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
       assert(res, 'has res')
       done()
     })
-
   })
-
 })

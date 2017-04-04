@@ -1,7 +1,6 @@
 const async = require('async')
 
 class RpcEngine {
-
   constructor () {
     this._middleware = []
   }
@@ -31,7 +30,7 @@ class RpcEngine {
     // create response obj
     const res = {
       id: req.id,
-      jsonrpc: req.jsonrpc,
+      jsonrpc: req.jsonrpc
     }
     // process all middleware
     this._runMiddleware(req, res, (err, isComplete) => {
@@ -57,33 +56,33 @@ class RpcEngine {
     // flow
     async.series([
       runAllMiddleware,
-      runReturnHandlers,
+      runReturnHandlers
     ], completeRequest)
 
     // down stack of middleware, call and collect optional returnHandlers
-    function runAllMiddleware(cb) {
+    function runAllMiddleware (cb) {
       async.mapSeries(self._middleware, eachMiddleware, cb)
     }
 
     // climbs the stack calling return handlers
-    function runReturnHandlers(cb) {
+    function runReturnHandlers (cb) {
       let backStack = returnHandlers.filter(Boolean).reverse()
       async.eachSeries(backStack, (handler, next) => handler(next), completeRequest)
     }
-    
+
     // runs an individual middleware
-    function eachMiddleware(middleware, cb) {
+    function eachMiddleware (middleware, cb) {
       // skip middleware if completed
       if (isComplete) return cb()
       // run individual middleware
       middleware(req, res, next, end)
-      
-      function next(returnHandler) {
+
+      function next (returnHandler) {
         // add return handler
         returnHandlers.push(returnHandler)
         cb()
       }
-      function end(err) {
+      function end (err) {
         if (err) return cb(err)
         // mark as completed
         isComplete = true
@@ -92,12 +91,10 @@ class RpcEngine {
     }
 
     // returns, indicating whether or not it ended
-    function completeRequest() {
+    function completeRequest () {
       cb(null, isComplete)
     }
-
   }
-
 }
 
 module.exports = RpcEngine
