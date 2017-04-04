@@ -83,3 +83,24 @@ test('asMiddleware - decorate req', function(t){
   })
 
 })
+
+test('asMiddleware - should not error even if end not called', function(t){
+
+  let engine = new RpcEngine()
+  let subengine = new RpcEngine()
+  let originalReq = undefined
+
+  subengine.push((req, res, next, end) => next())
+
+  engine.push(asMiddleware(subengine))
+  engine.push((req, res, next, end) => end())
+
+  let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+  engine.handle(payload, function(err, res){
+    t.ifError(err, 'did not error')
+    t.ok(res, 'has res')
+    t.end()
+  })
+
+})

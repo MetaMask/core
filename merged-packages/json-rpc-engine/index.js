@@ -33,6 +33,20 @@ class RpcEngine {
       id: req.id,
       jsonrpc: req.jsonrpc,
     }
+    // process all middleware
+    this._runMiddleware(req, res, (err, isComplete) => {
+      if (err) return cb(err)
+      // fail if not completed
+      if (!isComplete) {
+        return cb(new Error('RpcEngine - nothing ended request'))
+      }
+      // return response
+      cb(null, res)
+    })
+  }
+
+  _runMiddleware (req, res, cb) {
+    const self = this
     // pointer for the stack
     let middlewareIndex = 0
     // for climbing back up the stack
@@ -40,35 +54,46 @@ class RpcEngine {
     // flag for stack return
     let isComplete = false
 
+    // flow
+    async.series([
+      runAllMiddleware,
+      runReturnHandlers,
+    ], completeRequest)
+
     // down stack of middleware, call and collect optional returnHandlers
-    async.mapSeries(this._middleware, function eachMiddleware(middleware, cb){
+    function runAllMiddleware(cb) {
+      async.mapSeries(self._middleware, eachMiddleware, cb)
+    }
+
+    // climbs the stack calling return handlers
+    function runReturnHandlers(cb) {
+      let backStack = returnHandlers.filter(Boolean).reverse()
+      async.eachSeries(backStack, (handler, next) => handler(next), completeRequest)
+    }
+    
+    // runs an individual middleware
+    function eachMiddleware(middleware, cb) {
+      // skip middleware if completed
       if (isComplete) return cb()
+      // run individual middleware
       middleware(req, res, next, end)
-      function next(returnHandler){
+      
+      function next(returnHandler) {
         // add return handler
         returnHandlers.push(returnHandler)
         cb()
       }
-      function end(err){
+      function end(err) {
         if (err) return cb(err)
+        // mark as completed
         isComplete = true
         cb()
       }
-    }, runReturnHandlers)
-
-    // climbs the stack calling return handlers
-    function runReturnHandlers(err){
-      if (err) return cb(err)
-      if (!isComplete) return cb(new Error('RpcEngine - nothing ended request'))
-      let backStack = returnHandlers.filter(Boolean).reverse()
-      async.eachSeries(backStack, function(handler, next){
-        handler(next)
-      }, completeRequest)
     }
 
-    // returns the result
-    function completeRequest(){
-      cb(null, res)
+    // returns, indicating whether or not it ended
+    function completeRequest() {
+      cb(null, isComplete)
     }
 
   }

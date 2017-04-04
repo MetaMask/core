@@ -2,11 +2,13 @@ module.exports = asMiddleware
 
 function asMiddleware (engine) {
   return function engineAsMiddleware(req, res, next, end){
-    engine.handle(req, function(err, engineRes){
+    engine._runMiddleware(req, res, function(err, isComplete){
       if (err) return end(err)
-      // copy engine result onto response
-      Object.assign(res, engineRes)
-      end()
+      if (isComplete) {
+        end()
+      } else {
+        next()
+      }
     })
   }
 }
