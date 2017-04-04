@@ -46,5 +46,8 @@
   "homepage": "https://github.com/kumavis/json-rpc-engine#readme",
   "directories": {
     "test": "test"
-  }
+  },
+  "contributors": [
+    "kumavis <aaron@kumavis.me>"
+  ]
 }
