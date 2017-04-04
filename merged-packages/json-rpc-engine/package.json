@@ -1,6 +1,6 @@
 {
   "name": "json-rpc-engine",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "a tool for processing JSON RPC",
   "main": "src/index.js",
   "scripts": {
