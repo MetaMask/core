@@ -1,3 +1,6 @@
+### build ###
+dist
+
 
 # Created by https://www.gitignore.io/api/osx,node
 
@@ -7,7 +10,8 @@
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*
