@@ -1,5 +1,5 @@
-const RpcEngine = require('../index.js')
-const asMiddleware = require('../lib/asMiddleware.js')
+const RpcEngine = require('../src/index.js')
+const asMiddleware = require('../src/asMiddleware.js')
 const test = require('tape')
 
 test('test asMiddleware', function(t){

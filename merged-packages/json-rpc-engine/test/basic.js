@@ -1,4 +1,4 @@
-const RpcEngine = require('../index.js')
+const RpcEngine = require('../src/index.js')
 const test = require('tape')
 
 test('basic middleware test', function(t){
