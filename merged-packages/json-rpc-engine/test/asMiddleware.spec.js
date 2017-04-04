@@ -1,3 +1,6 @@
+/* eslint-env mocha */
+'use strict'
+
 const assert = require('assert')
 const RpcEngine = require('../src/index.js')
 const asMiddleware = require('../src/asMiddleware.js')
@@ -81,7 +84,6 @@ describe('asMiddleware', function () {
   it('should not error even if end not called', function (done) {
     let engine = new RpcEngine()
     let subengine = new RpcEngine()
-    let originalReq
 
     subengine.push((req, res, next, end) => next())
 

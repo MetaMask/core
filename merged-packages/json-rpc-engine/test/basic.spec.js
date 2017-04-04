@@ -1,3 +1,6 @@
+/* eslint-env mocha */
+'use strict'
+
 const assert = require('assert')
 const RpcEngine = require('../src/index.js')
 
