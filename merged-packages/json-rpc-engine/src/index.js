@@ -1,3 +1,4 @@
+'use strict'
 const async = require('async')
 
 class RpcEngine {
@@ -46,8 +47,6 @@ class RpcEngine {
 
   _runMiddleware (req, res, cb) {
     const self = this
-    // pointer for the stack
-    let middlewareIndex = 0
     // for climbing back up the stack
     let returnHandlers = []
     // flag for stack return
