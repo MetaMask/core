@@ -4,11 +4,16 @@
   "description": "a tool for processing JSON RPC",
   "main": "src/index.js",
   "scripts": {
-    "test": "npm run test-node && npm run test-browser",
-    "test-node": "node test/index.js",
-    "test-browser": "browserify test/index.js | testling"
+    "lint": "aegir-lint",
+    "release": "aegir-release",
+    "build": "aegir-build",
+    "test": "aegir-test",
+    "test:node": "aegir-test node",
+    "test:browser": "aegir-test browser",
+    "coverage": "aegir-coverage",
+    "coverage-publish": "aegir-coverage publish"
   },
-  "author": "",
+  "author": "kumavis",
   "license": "ISC",
   "dependencies": {
     "async": "^2.0.1",
@@ -28,9 +33,8 @@
     ]
   },
   "devDependencies": {
-    "browserify": "^14.1.0",
-    "tape": "^4.6.0",
-    "testling": "^1.7.1"
+    "aegir": "^11.0.1",
+    "browserify": "^14.1.0"
   },
   "repository": {
     "type": "git",
