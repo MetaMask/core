@@ -4,15 +4,33 @@
   "description": "a tool for processing JSON RPC",
   "main": "index.js",
   "scripts": {
-    "test": "node test/index.js"
+    "test": "npm run test-node && npm run test-browser",
+    "test-node": "node test/index.js",
+    "test-browser": "browserify test/index.js | testling"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "async": "^2.0.1"
+    "async": "^2.0.1",
+    "babel-preset-env": "^1.3.2",
+    "babelify": "^7.3.0"
+  },
+  "browserify": {
+    "transform": [
+      [
+        "babelify",
+        {
+          "presets": [
+            "env"
+          ]
+        }
+      ]
+    ]
   },
   "devDependencies": {
-    "tape": "^4.6.0"
+    "browserify": "^14.1.0",
+    "tape": "^4.6.0",
+    "testling": "^1.7.1"
   },
   "repository": {
     "type": "git",
