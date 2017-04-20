@@ -77,6 +77,7 @@ class RpcBlockTracker extends AsyncEventEmitter {
     if (!trackingBlock) throw new Error('RpcBlockTracker - tracking block is missing')
     const nextNumber = incrementHexNumber(trackingBlock.number)
     try {
+      
       const newBlock = await this._fetchBlockByNumber(nextNumber)
       if (newBlock) {
         // set as new tracking block
@@ -91,16 +92,17 @@ class RpcBlockTracker extends AsyncEventEmitter {
       }
 
     } catch (err) {
-
+      
+      // hotfix for https://github.com/ethereumjs/testrpc/issues/290
       if (err.message.includes('index out of range')) {
         // set tracking block as current block
         await this._setCurrentBlock(trackingBlock)
         // setup poll for next block
         this._pollForNextBlock()
-
       } else {
         console.error(err)
       }
+
     }
   }
 
