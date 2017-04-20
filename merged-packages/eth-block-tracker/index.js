@@ -94,7 +94,8 @@ class RpcBlockTracker extends AsyncEventEmitter {
     } catch (err) {
       
       // hotfix for https://github.com/ethereumjs/testrpc/issues/290
-      if (err.message.includes('index out of range')) {
+      if (err.message.includes('index out of range') ||
+          err.message.includes("Couldn't find block by reference")) {
         // set tracking block as current block
         await this._setCurrentBlock(trackingBlock)
         // setup poll for next block
