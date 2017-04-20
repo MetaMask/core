@@ -91,7 +91,16 @@ class RpcBlockTracker extends AsyncEventEmitter {
       }
 
     } catch (err) {
-      if (err) console.error(err)
+
+      if (err.message.includes('index out of range')) {
+        // set tracking block as current block
+        await this._setCurrentBlock(trackingBlock)
+        // setup poll for next block
+        this._pollForNextBlock()
+
+      } else {
+        console.error(err)
+      }
     }
   }
 
