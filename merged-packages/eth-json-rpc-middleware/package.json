@@ -10,11 +10,24 @@
   },
   "author": "",
   "license": "ISC",
-  "description": "",
   "devDependencies": {
     "eth-block-tracker": "^1.0.3",
     "eth-query": "^2.1.0",
     "json-rpc-engine": "^2.1.0",
     "tape": "^4.6.3"
-  }
+  },
+  "dependencies": {
+    "eth-block-tracker": "^1.0.3",
+    "eth-query": "^2.1.0",
+    "tape": "^4.6.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kumavis/eth-json-rpc-middleware.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kumavis/eth-json-rpc-middleware/issues"
+  },
+  "homepage": "https://github.com/kumavis/eth-json-rpc-middleware#readme",
+  "description": ""
 }
