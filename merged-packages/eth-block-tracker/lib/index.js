@@ -2,7 +2,7 @@
 const EthQuery = require('eth-query')
 const AsyncEventEmitter = require('async-eventemitter')
 const pify = require('pify')
-const incrementHexNumber = require('../hexUtils').incrementHexNumber
+const incrementHexNumber = require('./hexUtils').incrementHexNumber
 
 class RpcBlockTracker extends AsyncEventEmitter {
 
@@ -77,7 +77,7 @@ class RpcBlockTracker extends AsyncEventEmitter {
     if (!trackingBlock) throw new Error('RpcBlockTracker - tracking block is missing')
     const nextNumber = incrementHexNumber(trackingBlock.number)
     try {
-      
+
       const newBlock = await this._fetchBlockByNumber(nextNumber)
       if (newBlock) {
         // set as new tracking block
@@ -92,7 +92,7 @@ class RpcBlockTracker extends AsyncEventEmitter {
       }
 
     } catch (err) {
-      
+
       // hotfix for https://github.com/ethereumjs/testrpc/issues/290
       if (err.message.includes('index out of range') ||
           err.message.includes("Couldn't find block by reference")) {
