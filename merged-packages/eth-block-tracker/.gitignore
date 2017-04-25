@@ -1,6 +1,9 @@
 
 # Created by https://www.gitignore.io/api/osx,node
 
+# Build directory
+/build/
+
 ### Node ###
 # Logs
 logs
@@ -33,9 +36,6 @@ bower_components
 
 # Compiled binary addons (http://nodejs.org/api/addons.html)
 build/Release
-
-# babelrc
-.babelrc
 
 # Dependency directories
 node_modules
