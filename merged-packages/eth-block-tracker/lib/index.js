@@ -2,7 +2,7 @@
 const EthQuery = require('eth-query')
 const AsyncEventEmitter = require('async-eventemitter')
 const pify = require('pify')
-const incrementHexNumber = require('./lib/hexUtils').incrementHexNumber
+const incrementHexNumber = require('../hexUtils').incrementHexNumber
 
 class RpcBlockTracker extends AsyncEventEmitter {
 

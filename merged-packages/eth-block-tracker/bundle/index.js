@@ -34,7 +34,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 var EthQuery = require('eth-query');
 var AsyncEventEmitter = require('async-eventemitter');
 var pify = require('pify');
-var incrementHexNumber = require('./lib/hexUtils').incrementHexNumber;
+var incrementHexNumber = require('../hexUtils').incrementHexNumber;
 
 var RpcBlockTracker = function (_AsyncEventEmitter) {
   (0, _inherits3.default)(RpcBlockTracker, _AsyncEventEmitter);
