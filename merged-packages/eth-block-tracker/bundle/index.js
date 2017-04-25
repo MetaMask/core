@@ -1,117 +1,356 @@
+'use strict';
+
+var _regenerator = require('babel-runtime/regenerator');
+
+var _regenerator2 = _interopRequireDefault(_regenerator);
+
+var _asyncToGenerator2 = require('babel-runtime/helpers/asyncToGenerator');
+
+var _asyncToGenerator3 = _interopRequireDefault(_asyncToGenerator2);
+
+var _getPrototypeOf = require('babel-runtime/core-js/object/get-prototype-of');
+
+var _getPrototypeOf2 = _interopRequireDefault(_getPrototypeOf);
+
+var _classCallCheck2 = require('babel-runtime/helpers/classCallCheck');
+
+var _classCallCheck3 = _interopRequireDefault(_classCallCheck2);
+
+var _createClass2 = require('babel-runtime/helpers/createClass');
+
+var _createClass3 = _interopRequireDefault(_createClass2);
+
+var _possibleConstructorReturn2 = require('babel-runtime/helpers/possibleConstructorReturn');
+
+var _possibleConstructorReturn3 = _interopRequireDefault(_possibleConstructorReturn2);
+
+var _inherits2 = require('babel-runtime/helpers/inherits');
+
+var _inherits3 = _interopRequireDefault(_inherits2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 // const EthQuery = require('ethjs-query')
-const EthQuery = require('eth-query');
-const AsyncEventEmitter = require('async-eventemitter');
-const pify = require('pify');
-const incrementHexNumber = require('./lib/hexUtils').incrementHexNumber;
+var EthQuery = require('eth-query');
+var AsyncEventEmitter = require('async-eventemitter');
+var pify = require('pify');
+var incrementHexNumber = require('./lib/hexUtils').incrementHexNumber;
 
-class RpcBlockTracker extends AsyncEventEmitter {
+var RpcBlockTracker = function (_AsyncEventEmitter) {
+  (0, _inherits3.default)(RpcBlockTracker, _AsyncEventEmitter);
 
-  constructor(opts = {}) {
-    super();
+  function RpcBlockTracker() {
+    var opts = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+    (0, _classCallCheck3.default)(this, RpcBlockTracker);
+
+    var _this = (0, _possibleConstructorReturn3.default)(this, (RpcBlockTracker.__proto__ || (0, _getPrototypeOf2.default)(RpcBlockTracker)).call(this));
+
     if (!opts.provider) throw new Error('RpcBlockTracker - no provider specified.');
-    this._query = new EthQuery(opts.provider);
+    _this._query = new EthQuery(opts.provider);
     // config
-    this._pollingInterval = opts.pollingInterval || 800;
+    _this._pollingInterval = opts.pollingInterval || 800;
     // state
-    this._trackingBlock = null;
-    this._currentBlock = null;
-    this._isRunning = false;
+    _this._trackingBlock = null;
+    _this._currentBlock = null;
+    _this._isRunning = false;
     // bind methods for cleaner syntax later
-    this.emit = this.emit.bind(this);
-    this._performSync = this._performSync.bind(this);
+    _this.emit = _this.emit.bind(_this);
+    _this._performSync = _this._performSync.bind(_this);
+    return _this;
   }
 
-  getTrackingBlock() {
-    return this._trackingBlock;
-  }
-
-  getCurrentBlock() {
-    return this._currentBlock;
-  }
-
-  async start(opts = {}) {
-    // abort if already started
-    if (this._isRunning) return;
-    this._isRunning = true;
-    // if this._currentBlock
-    if (opts.fromBlock) {
-      // use specified start point
-      await this._setTrackingBlock((await this._fetchBlockByNumber(opts.fromBlock)));
-    } else {
-      // or query for latest
-      await this._setTrackingBlock((await this._fetchLatestBlock()));
+  (0, _createClass3.default)(RpcBlockTracker, [{
+    key: 'getTrackingBlock',
+    value: function getTrackingBlock() {
+      return this._trackingBlock;
     }
-    this._performSync().catch(err => {
-      if (err) console.error(err);
-    });
-  }
-
-  stop() {
-    this._isRunning = false;
-  }
-
-  //
-  // private
-  //
-
-  async _setTrackingBlock(newBlock) {
-    if (this._trackingBlock && this._trackingBlock.hash === newBlock.hash) return;
-    this._trackingBlock = newBlock;
-    await pify(this.emit)('block', newBlock);
-  }
-
-  async _setCurrentBlock(newBlock) {
-    if (this._currentBlock && this._currentBlock.hash === newBlock.hash) return;
-    this._currentBlock = newBlock;
-    await pify(this.emit)('latest', newBlock);
-  }
-
-  async _pollForNextBlock() {
-    setTimeout(() => this._performSync(), this._pollingInterval);
-  }
-
-  async _performSync() {
-    if (!this._isRunning) return;
-    const trackingBlock = this.getTrackingBlock();
-    if (!trackingBlock) throw new Error('RpcBlockTracker - tracking block is missing');
-    const nextNumber = incrementHexNumber(trackingBlock.number);
-    try {
-
-      const newBlock = await this._fetchBlockByNumber(nextNumber);
-      if (newBlock) {
-        // set as new tracking block
-        await this._setTrackingBlock(newBlock);
-        // ask for next block
-        this._performSync();
-      } else {
-        // set tracking block as current block
-        await this._setCurrentBlock(trackingBlock);
-        // setup poll for next block
-        this._pollForNextBlock();
-      }
-    } catch (err) {
-
-      // hotfix for https://github.com/ethereumjs/testrpc/issues/290
-      if (err.message.includes('index out of range') || err.message.includes("Couldn't find block by reference")) {
-        // set tracking block as current block
-        await this._setCurrentBlock(trackingBlock);
-        // setup poll for next block
-        this._pollForNextBlock();
-      } else {
-        console.error(err);
-      }
+  }, {
+    key: 'getCurrentBlock',
+    value: function getCurrentBlock() {
+      return this._currentBlock;
     }
-  }
+  }, {
+    key: 'start',
+    value: function () {
+      var _ref = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee() {
+        var opts = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+        return _regenerator2.default.wrap(function _callee$(_context) {
+          while (1) {
+            switch (_context.prev = _context.next) {
+              case 0:
+                if (!this._isRunning) {
+                  _context.next = 2;
+                  break;
+                }
 
-  _fetchLatestBlock() {
-    return pify(this._query.getBlockByNumber).call(this._query, 'latest', false);
-  }
+                return _context.abrupt('return');
 
-  _fetchBlockByNumber(hexNumber) {
-    return pify(this._query.getBlockByNumber).call(this._query, hexNumber, false);
-  }
+              case 2:
+                this._isRunning = true;
+                // if this._currentBlock
 
-}
+                if (!opts.fromBlock) {
+                  _context.next = 12;
+                  break;
+                }
+
+                _context.t0 = this;
+                _context.next = 7;
+                return this._fetchBlockByNumber(opts.fromBlock);
+
+              case 7:
+                _context.t1 = _context.sent;
+                _context.next = 10;
+                return _context.t0._setTrackingBlock.call(_context.t0, _context.t1);
+
+              case 10:
+                _context.next = 18;
+                break;
+
+              case 12:
+                _context.t2 = this;
+                _context.next = 15;
+                return this._fetchLatestBlock();
+
+              case 15:
+                _context.t3 = _context.sent;
+                _context.next = 18;
+                return _context.t2._setTrackingBlock.call(_context.t2, _context.t3);
+
+              case 18:
+                this._performSync().catch(function (err) {
+                  if (err) console.error(err);
+                });
+
+              case 19:
+              case 'end':
+                return _context.stop();
+            }
+          }
+        }, _callee, this);
+      }));
+
+      function start() {
+        return _ref.apply(this, arguments);
+      }
+
+      return start;
+    }()
+  }, {
+    key: 'stop',
+    value: function stop() {
+      this._isRunning = false;
+    }
+
+    //
+    // private
+    //
+
+  }, {
+    key: '_setTrackingBlock',
+    value: function () {
+      var _ref2 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee2(newBlock) {
+        return _regenerator2.default.wrap(function _callee2$(_context2) {
+          while (1) {
+            switch (_context2.prev = _context2.next) {
+              case 0:
+                if (!(this._trackingBlock && this._trackingBlock.hash === newBlock.hash)) {
+                  _context2.next = 2;
+                  break;
+                }
+
+                return _context2.abrupt('return');
+
+              case 2:
+                this._trackingBlock = newBlock;
+                _context2.next = 5;
+                return pify(this.emit)('block', newBlock);
+
+              case 5:
+              case 'end':
+                return _context2.stop();
+            }
+          }
+        }, _callee2, this);
+      }));
+
+      function _setTrackingBlock(_x3) {
+        return _ref2.apply(this, arguments);
+      }
+
+      return _setTrackingBlock;
+    }()
+  }, {
+    key: '_setCurrentBlock',
+    value: function () {
+      var _ref3 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee3(newBlock) {
+        return _regenerator2.default.wrap(function _callee3$(_context3) {
+          while (1) {
+            switch (_context3.prev = _context3.next) {
+              case 0:
+                if (!(this._currentBlock && this._currentBlock.hash === newBlock.hash)) {
+                  _context3.next = 2;
+                  break;
+                }
+
+                return _context3.abrupt('return');
+
+              case 2:
+                this._currentBlock = newBlock;
+                _context3.next = 5;
+                return pify(this.emit)('latest', newBlock);
+
+              case 5:
+              case 'end':
+                return _context3.stop();
+            }
+          }
+        }, _callee3, this);
+      }));
+
+      function _setCurrentBlock(_x4) {
+        return _ref3.apply(this, arguments);
+      }
+
+      return _setCurrentBlock;
+    }()
+  }, {
+    key: '_pollForNextBlock',
+    value: function () {
+      var _ref4 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee4() {
+        var _this2 = this;
+
+        return _regenerator2.default.wrap(function _callee4$(_context4) {
+          while (1) {
+            switch (_context4.prev = _context4.next) {
+              case 0:
+                setTimeout(function () {
+                  return _this2._performSync();
+                }, this._pollingInterval);
+
+              case 1:
+              case 'end':
+                return _context4.stop();
+            }
+          }
+        }, _callee4, this);
+      }));
+
+      function _pollForNextBlock() {
+        return _ref4.apply(this, arguments);
+      }
+
+      return _pollForNextBlock;
+    }()
+  }, {
+    key: '_performSync',
+    value: function () {
+      var _ref5 = (0, _asyncToGenerator3.default)(_regenerator2.default.mark(function _callee5() {
+        var trackingBlock, nextNumber, newBlock;
+        return _regenerator2.default.wrap(function _callee5$(_context5) {
+          while (1) {
+            switch (_context5.prev = _context5.next) {
+              case 0:
+                if (this._isRunning) {
+                  _context5.next = 2;
+                  break;
+                }
+
+                return _context5.abrupt('return');
+
+              case 2:
+                trackingBlock = this.getTrackingBlock();
+
+                if (trackingBlock) {
+                  _context5.next = 5;
+                  break;
+                }
+
+                throw new Error('RpcBlockTracker - tracking block is missing');
+
+              case 5:
+                nextNumber = incrementHexNumber(trackingBlock.number);
+                _context5.prev = 6;
+                _context5.next = 9;
+                return this._fetchBlockByNumber(nextNumber);
+
+              case 9:
+                newBlock = _context5.sent;
+
+                if (!newBlock) {
+                  _context5.next = 16;
+                  break;
+                }
+
+                _context5.next = 13;
+                return this._setTrackingBlock(newBlock);
+
+              case 13:
+                // ask for next block
+                this._performSync();
+                _context5.next = 19;
+                break;
+
+              case 16:
+                _context5.next = 18;
+                return this._setCurrentBlock(trackingBlock);
+
+              case 18:
+                // setup poll for next block
+                this._pollForNextBlock();
+
+              case 19:
+                _context5.next = 30;
+                break;
+
+              case 21:
+                _context5.prev = 21;
+                _context5.t0 = _context5['catch'](6);
+
+                if (!(_context5.t0.message.includes('index out of range') || _context5.t0.message.includes("Couldn't find block by reference"))) {
+                  _context5.next = 29;
+                  break;
+                }
+
+                _context5.next = 26;
+                return this._setCurrentBlock(trackingBlock);
+
+              case 26:
+                // setup poll for next block
+                this._pollForNextBlock();
+                _context5.next = 30;
+                break;
+
+              case 29:
+                console.error(_context5.t0);
+
+              case 30:
+              case 'end':
+                return _context5.stop();
+            }
+          }
+        }, _callee5, this, [[6, 21]]);
+      }));
+
+      function _performSync() {
+        return _ref5.apply(this, arguments);
+      }
+
+      return _performSync;
+    }()
+  }, {
+    key: '_fetchLatestBlock',
+    value: function _fetchLatestBlock() {
+      return pify(this._query.getBlockByNumber).call(this._query, 'latest', false);
+    }
+  }, {
+    key: '_fetchBlockByNumber',
+    value: function _fetchBlockByNumber(hexNumber) {
+      return pify(this._query.getBlockByNumber).call(this._query, hexNumber, false);
+    }
+  }]);
+  return RpcBlockTracker;
+}(AsyncEventEmitter);
 
 module.exports = RpcBlockTracker;
 

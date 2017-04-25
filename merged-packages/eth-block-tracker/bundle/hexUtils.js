@@ -1,7 +1,9 @@
-const ethjsUtil = require('ethjs-util');
+'use strict';
+
+var ethjsUtil = require('ethjs-util');
 
 module.exports = {
-  incrementHexNumber
+  incrementHexNumber: incrementHexNumber
 };
 
 function incrementHexNumber(hexNum) {
