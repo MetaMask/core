@@ -5,8 +5,8 @@
   "main": "bundle/index.js",
   "scripts": {
     "test": "browserify test/basic.js | node",
-    "compile": "babel --presets es2015,stage-3 -d dist/ lib/",
-    "prepublish": "npm run compile"
+    "compile": "babel --presets es2015,stage-3 --plugins transform-runtime -d dist/ lib/",
+    "prepublishonly": "npm run compile"
   },
   "author": "",
   "license": "ISC",
@@ -17,18 +17,6 @@
     "ethjs-util": "^0.1.3",
     "pify": "^2.3.0",
     "tape": "^4.6.3"
-  },
-  "browserify": {
-    "transform": [
-      [
-        "babelify",
-        {
-          "presets": [
-            "es2015"
-          ]
-        }
-      ]
-    ]
   },
   "devDependencies": {
     "babel-cli": "^6.24.1",
