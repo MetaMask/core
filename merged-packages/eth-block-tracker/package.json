@@ -2,7 +2,7 @@
   "name": "eth-block-tracker",
   "version": "1.0.14",
   "description": "This module walks the Ethereum blockchain, keeping track of the latest block. It uses a web3 provider as a data source and will continuously poll for the next block.",
-  "main": "bundle/index.js",
+  "main": "dist/index.js",
   "scripts": {
     "test": "browserify test/basic.js | node",
     "compile": "babel --presets es2015,stage-3 --plugins transform-runtime -d dist/ lib/",
