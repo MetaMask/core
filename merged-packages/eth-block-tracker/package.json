@@ -5,8 +5,8 @@
   "main": "bundle/index.js",
   "scripts": {
     "test": "browserify test/basic.js | node",
-    "compile": "babel --presets es2015,stage-3 -d dist/ lib/",
-    "prepublish": "npm run compile"
+    "compile": "babel --presets es2015,stage-3 --plugins transform-runtime -d dist/ lib/",
+    "prepublishonly": "npm run compile"
   },
   "author": "",
   "license": "ISC",
