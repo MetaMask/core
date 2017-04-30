@@ -102,6 +102,7 @@ class RpcBlockTracker extends AsyncEventEmitter {
         this._pollForNextBlock()
       } else {
         console.error(err)
+        this._pollForNextBlock()
       }
 
     }
