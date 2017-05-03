@@ -5,7 +5,7 @@ a tool for processing JSON RPC
 ### usage
 
 ```js
-const RpcEngine = require('rpc-engine')
+const RpcEngine = require('json-rpc-engine')
 
 let engine = new RpcEngine()
 ```
