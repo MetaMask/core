@@ -70,8 +70,10 @@ test('param validity', (t) => {
   blockTracker.once('block', () => {
     t.pass('saw 1st block')
     blockTracker._query.getBlockByNumber = methodCache
+    blockTracker.stop()
     t.end()
   })
 
   blockTracker.start({ fromBlock: '0x01' })
 })
+
