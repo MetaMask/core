@@ -6,7 +6,7 @@ module.exports = {
 }
 
 function incrementHexNumber(hexNum) {
-  return ethjsUtil.intToHex((parseInt(hexNum, 16) + 1))
+  return formatHex(ethjsUtil.intToHex((parseInt(hexNum, 16) + 1)))
 }
 
 function formatHex (hexNum) {
