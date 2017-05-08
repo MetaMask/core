@@ -1,4 +1,5 @@
 const incrementHexNumber = require('../../lib/hexUtils').incrementHexNumber
+const formatHex = require('../../lib/hexUtils').formatHex
 
 module.exports = class TestBlockMiddleware {
 
@@ -17,7 +18,7 @@ module.exports = class TestBlockMiddleware {
     this.currentBlock = newBlock
     this._blockchain[newBlock.number] = newBlock
   }
-  
+
   createMiddleware() {
     return (req, res, next, end) => {
       if (req.method !== 'eth_getBlockByNumber') return next()
@@ -34,6 +35,7 @@ module.exports = class TestBlockMiddleware {
 }
 
 function createBlock(blockParams){
+  blockParams.number = formatHex(blockParams.number)
   const hash = '0x'+Math.floor(Math.random()*Number.MAX_SAFE_INTEGER).toString(16)
   return Object.assign({
     hash: hash,
