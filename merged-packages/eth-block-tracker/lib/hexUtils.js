@@ -1,3 +1,5 @@
+'use strict'
+
 const ethjsUtil = require('ethjs-util')
 
 module.exports = {
