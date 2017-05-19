@@ -6,7 +6,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "node test/block-ref.js"
+    "test": "node test/index.js"
   },
   "author": "",
   "license": "ISC",
