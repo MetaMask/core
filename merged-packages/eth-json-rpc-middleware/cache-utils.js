@@ -9,10 +9,10 @@ module.exports = {
   cacheTypeForPayload: cacheTypeForPayload,
 }
 
-function cacheIdentifierForPayload(payload){
-  var simpleParams = paramsWithoutBlockTag(payload)
+function cacheIdentifierForPayload(payload, skipBlockRef){
+  const simpleParams = skipBlockRef ? paramsWithoutBlockTag(payload) : payload.params
   if (canCache(payload)) {
-    return payload.method+':' + stringify(simpleParams)
+    return payload.method + ':' + stringify(simpleParams)
   } else {
     return null
   }
@@ -23,25 +23,25 @@ function canCache(payload){
 }
 
 function blockTagForPayload(payload){
-  var index = blockTagParamIndex(payload);
+  let index = blockTagParamIndex(payload)
 
   // Block tag param not passed.
   if (index >= payload.params.length) {
-    return null;
+    return null
   }
 
-  return payload.params[index];
+  return payload.params[index]
 }
 
 function paramsWithoutBlockTag(payload){
-  var index = blockTagParamIndex(payload);
+  let index = blockTagParamIndex(payload)
 
   // Block tag param not passed.
   if (index >= payload.params.length) {
-    return payload.params;
+    return payload.params
   }
 
-  return payload.params.slice(0,index);
+  return payload.params.slice(0,index)
 }
 
 function blockTagParamIndex(payload){
