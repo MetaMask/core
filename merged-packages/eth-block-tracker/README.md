@@ -58,7 +58,7 @@ The `block` event is emitted for every block in order.
 Use this event if you want to operate on every block without missing any.
 
 ```js
-blockTracker.on('block',console.log)
+blockTracker.on('block', (newBlock) => console.log(newBlock))
 ```
 
 ##### latest
@@ -68,7 +68,15 @@ This means skipping a block if there were two created since the last polling per
 Use this event if you don't care about stale blocks.
 
 ```js
-blockTracker.on('latest',console.log)
+blockTracker.on('latest', (newBlock) => console.log(newBlock))
+```
+
+##### sync
+
+The `sync` event is emitted the same as "latest" but includes the previous block.
+
+```js
+blockTracker.on('latest', ({ newBlock, oldBlock }) => console.log(newBlock, oldBlock))
 ```
 
 ### NOTES

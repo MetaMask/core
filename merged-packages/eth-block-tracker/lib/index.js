@@ -11,9 +11,11 @@ class RpcBlockTracker extends AsyncEventEmitter {
     if (!opts.provider) throw new Error('RpcBlockTracker - no provider specified.')
     this._query = new EthQuery(opts.provider)
     // config
-    this._pollingInterval = opts.pollingInterval || 800
+    this._pollingInterval = opts.pollingInterval || 800 // 8 sec
+    this._syncingTimeout = opts.syncingTimeout || 60 * 1e3 // 1 min
     // state
     this._trackingBlock = null
+    this._trackingBlockTimestamp = null
     this._currentBlock = null
     this._isRunning = false
     // bind methods for cleaner syntax later
@@ -57,14 +59,31 @@ class RpcBlockTracker extends AsyncEventEmitter {
 
   async _setTrackingBlock (newBlock) {
     if (this._trackingBlock && (this._trackingBlock.hash === newBlock.hash)) return
-    this._trackingBlock = newBlock
-    await pify(this.emit)('block', newBlock)
+    // check for large timestamp lapse
+    const previous = this._trackingBlockTimestamp
+    const now = Date.now()
+    // check for desynchronization (computer sleep or no internet)
+    if (previous && (now - previous) > this._syncingTimeout) {
+      this._trackingBlockTimestamp = null
+      await this._warpToLatest()
+    } else {
+      this._trackingBlock = newBlock
+      this._trackingBlockTimestamp = now
+      await pify(this.emit)('block', newBlock)
+    }
   }
 
   async _setCurrentBlock (newBlock) {
     if (this._currentBlock && (this._currentBlock.hash === newBlock.hash)) return
+    const oldBlock = this._currentBlock
     this._currentBlock = newBlock
     await pify(this.emit)('latest', newBlock)
+    await pify(this.emit)('sync', { newBlock, oldBlock })
+  }
+
+  async _warpToLatest() {
+    // set latest as tracking block
+    await this._setTrackingBlock(await this._fetchLatestBlock())
   }
 
   async _pollForNextBlock () {
