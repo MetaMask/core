@@ -2,7 +2,8 @@
 const EthQuery = require('eth-query')
 const AsyncEventEmitter = require('async-eventemitter')
 const pify = require('pify')
-const incrementHexNumber = require('./hexUtils').incrementHexNumber
+const hexUtils = require('./hexUtils')
+const incrementHexNumber = hexUtils.incrementHexNumber
 
 class RpcBlockTracker extends AsyncEventEmitter {
 
@@ -121,6 +122,7 @@ class RpcBlockTracker extends AsyncEventEmitter {
         this._pollForNextBlock()
       } else {
         console.error(err)
+        this._pollForNextBlock()
       }
 
     }
@@ -131,7 +133,8 @@ class RpcBlockTracker extends AsyncEventEmitter {
   }
 
   _fetchBlockByNumber (hexNumber) {
-    return pify(this._query.getBlockByNumber).call(this._query, hexNumber, false)
+    const cleanHex = hexUtils.formatHex(hexNumber)
+    return pify(this._query.getBlockByNumber).call(this._query, cleanHex, false)
   }
 
 }
