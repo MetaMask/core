@@ -129,12 +129,12 @@ class RpcBlockTracker extends AsyncEventEmitter {
   }
 
   _fetchLatestBlock () {
-    return pify(this._query.getBlockByNumber).call(this._query, 'latest', false)
+    return pify(this._query.getBlockByNumber).call(this._query, 'latest', true)
   }
 
   _fetchBlockByNumber (hexNumber) {
     const cleanHex = hexUtils.formatHex(hexNumber)
-    return pify(this._query.getBlockByNumber).call(this._query, cleanHex, false)
+    return pify(this._query.getBlockByNumber).call(this._query, cleanHex, true)
   }
 
 }
