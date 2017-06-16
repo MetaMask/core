@@ -6,7 +6,7 @@
   "scripts": {
     "test": "npm run compile && browserify test/basic.js | node",
     "compile": "babel --presets es2015,stage-3 --plugins transform-runtime -d dist/ lib/",
-    "prepublishonly": "npm run compile"
+    "prepublishOnly": "npm run compile"
   },
   "author": "",
   "license": "ISC",
