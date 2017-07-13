@@ -6,10 +6,10 @@ module.exports = {
   blockTagForPayload: blockTagForPayload,
   paramsWithoutBlockTag: paramsWithoutBlockTag,
   blockTagParamIndex: blockTagParamIndex,
-  cacheTypeForPayload: cacheTypeForPayload,
+  cacheTypeForPayload: cacheTypeForPayload
 }
 
-function cacheIdentifierForPayload(payload, skipBlockRef){
+function cacheIdentifierForPayload (payload, skipBlockRef) {
   const simpleParams = skipBlockRef ? paramsWithoutBlockTag(payload) : payload.params
   if (canCache(payload)) {
     return payload.method + ':' + stringify(simpleParams)
@@ -18,11 +18,11 @@ function cacheIdentifierForPayload(payload, skipBlockRef){
   }
 }
 
-function canCache(payload){
+function canCache (payload) {
   return cacheTypeForPayload(payload) !== 'never'
 }
 
-function blockTagForPayload(payload){
+function blockTagForPayload (payload) {
   let index = blockTagParamIndex(payload)
 
   // Block tag param not passed.
@@ -33,7 +33,7 @@ function blockTagForPayload(payload){
   return payload.params[index]
 }
 
-function paramsWithoutBlockTag(payload){
+function paramsWithoutBlockTag (payload) {
   let index = blockTagParamIndex(payload)
 
   // Block tag param not passed.
@@ -41,11 +41,11 @@ function paramsWithoutBlockTag(payload){
     return payload.params
   }
 
-  return payload.params.slice(0,index)
+  return payload.params.slice(0, index)
 }
 
-function blockTagParamIndex(payload){
-  switch(payload.method) {
+function blockTagParamIndex (payload) {
+  switch (payload.method) {
     // blockTag is second param
     case 'eth_getBalance':
     case 'eth_getCode':
@@ -63,7 +63,7 @@ function blockTagParamIndex(payload){
   }
 }
 
-function cacheTypeForPayload(payload) {
+function cacheTypeForPayload (payload) {
   switch (payload.method) {
     // cache permanently
     case 'web3_clientVersion':
@@ -104,7 +104,6 @@ function cacheTypeForPayload(payload) {
     case 'eth_estimateGas':
     case 'eth_getFilterLogs':
     case 'eth_getLogs':
-    case 'net_peerCount':
     case 'test_blockCache':
       return 'block'
 

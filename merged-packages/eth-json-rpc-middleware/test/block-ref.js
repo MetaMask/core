@@ -32,7 +32,7 @@ test('provider not ready - shouldnt hang non-"latest" requests', (t) => {
 
   // add handler for `test_method`
   dataEngine.push(ScaffoldMiddleware({
-    test_method: true,
+    test_method: true
   }))
 
   // fire request for `test_method`
@@ -42,12 +42,11 @@ test('provider not ready - shouldnt hang non-"latest" requests', (t) => {
     t.equal(res.result, true, 'Response result is correct.')
     t.end()
   })
-
 })
 
 // util
 
-function createTestSetup() {
+function createTestSetup () {
   // raw data source
   const { engine: dataEngine, testBlockSource } = createEngineForTestData()
   const dataProvider = providerFromEngine(dataEngine)
@@ -64,14 +63,14 @@ function createTestSetup() {
   return { engine, provider, dataEngine, dataProvider, query, blockTracker, testBlockSource }
 }
 
-function createEngineForTestData() {
+function createEngineForTestData () {
   const engine = new JsonRpcEngine()
   const testBlockSource = new TestBlockMiddleware()
   engine.push(testBlockSource.createMiddleware())
   return { engine, testBlockSource }
 }
 
-function providerFromEngine(engine) {
+function providerFromEngine (engine) {
   const provider = { sendAsync: engine.handle.bind(engine) }
   return provider
 }

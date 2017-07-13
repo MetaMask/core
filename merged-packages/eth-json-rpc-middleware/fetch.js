@@ -1,5 +1,4 @@
 const fetch = global.fetch || require('fetch-ponyfill')().fetch
-const inherits = require('util').inherits
 const retry = require('async/retry')
 const waterfall = require('async/waterfall')
 const asyncify = require('async/asyncify')
@@ -8,11 +7,7 @@ const promiseToCallback = require('promise-to-callback')
 
 module.exports = createFetchMiddleware
 
-
 function createFetchMiddleware ({ rpcUrl, originHttpHeaderKey }) {
-  rpcUrl = opts.rpcUrl
-  originHttpHeaderKey = opts.originHttpHeaderKey
-
   return (req, res, next, end) => {
     const payload = Object.assign({}, req)
 
@@ -57,9 +52,8 @@ function createFetchMiddleware ({ rpcUrl, originHttpHeaderKey }) {
       // append result and complete
       res.result = result
       end()
-    }))
+    })
   }
-
 }
 
 function checkForHttpErrors (res, cb) {

@@ -2,7 +2,7 @@ const blockTagForPayload = require('./cache-utils').blockTagForPayload
 
 module.exports = waitForBlock
 
-function waitForBlock({ blockTracker }) {
+function waitForBlock ({ blockTracker }) {
   // validate arguments
   if (!blockTracker) {
     throw Error('WaitForBlockMiddleware - mandatory "blockTracker" option is missing.')
@@ -30,7 +30,7 @@ function waitForBlock({ blockTracker }) {
     }
 
     // add requst to queue if blockRef is "latest"
-    function addToQueue(req, res, next, end) {
+    function addToQueue (req, res, next, end) {
       const blockRef = blockTagForPayload(req)
       if (blockRef === 'latest') {
         requestQueue.push([req, res, next, end])

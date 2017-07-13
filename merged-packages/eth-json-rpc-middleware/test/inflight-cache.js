@@ -37,14 +37,14 @@ test('inflight-cache - basic', (t) => {
   // release stalled first request
   releaseStall()
 
-  function firstReqResponse(err, res) {
+  function firstReqResponse (err, res) {
     res1 = res
     t.notOk(err, 'No error in response')
     t.ok(res, 'Has response')
     t.equal(res.result, true, 'Response result is correct.')
   }
 
-  function secondReqResponse(err, res) {
+  function secondReqResponse (err, res) {
     res2 = res
     t.notOk(err, 'No error in response')
     t.ok(res, 'Has response')
@@ -53,12 +53,11 @@ test('inflight-cache - basic', (t) => {
     t.notEqual(res1, res2, 'response objects were unique')
     t.end()
   }
-
 })
 
 // util
 
-function createTestSetup() {
+function createTestSetup () {
   // raw data source
   const { engine: dataEngine, testBlockSource } = createEngineForTestData()
   const dataProvider = providerFromEngine(dataEngine)
@@ -75,14 +74,14 @@ function createTestSetup() {
   return { engine, provider, dataEngine, dataProvider, query, blockTracker, testBlockSource }
 }
 
-function createEngineForTestData() {
+function createEngineForTestData () {
   const engine = new JsonRpcEngine()
   const testBlockSource = new TestBlockMiddleware()
   engine.push(testBlockSource.createMiddleware())
   return { engine, testBlockSource }
 }
 
-function providerFromEngine(engine) {
+function providerFromEngine (engine) {
   const provider = { sendAsync: engine.handle.bind(engine) }
   return provider
 }

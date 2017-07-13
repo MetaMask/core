@@ -2,8 +2,7 @@ const cacheIdentifierForPayload = require('./cache-utils').cacheIdentifierForPay
 
 module.exports = createInflightCache
 
-
-function createInflightCache() {
+function createInflightCache () {
   const inflightRequests = {}
 
   return (req, res, next, end) => {
@@ -36,5 +35,4 @@ function createInflightCache() {
       })
     }
   }
-
 }
