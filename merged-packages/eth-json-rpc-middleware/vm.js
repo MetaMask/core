@@ -2,6 +2,9 @@ const EthQuery = require('eth-query')
 const createVm = require('ethereumjs-vm/lib/hooked').fromWeb3Provider
 const blockFromRpc = require('ethereumjs-block/from-rpc')
 
+module.exports = createVmMiddleware
+
+
 function createVmMiddleware({ provider }){
   const ethQuery = new EthQuery(provider)
 
