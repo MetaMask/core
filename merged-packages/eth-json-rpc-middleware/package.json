@@ -17,8 +17,12 @@
     "tape": "^4.6.3"
   },
   "dependencies": {
+    "async": "^2.5.0",
     "eth-query": "^2.1.0",
+    "fetch-ponyfill": "^4.0.0",
+    "json-rpc-error": "^2.0.0",
     "json-stable-stringify": "^1.0.1",
+    "promise-to-callback": "^1.0.0",
     "tape": "^4.6.3"
   },
   "repository": {
