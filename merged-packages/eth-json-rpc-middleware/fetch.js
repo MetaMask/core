@@ -40,12 +40,12 @@ function createFetchMiddleware ({ rpcUrl, originHttpHeaderKey }) {
         (cb) => promiseToCallback(fetch(rpcUrl, httpReqParams))(cb),
         asyncify((_fetchRes) => { fetchRes = _fetchRes }),
         // check for http errrors
-        (cb) => checkForHttpErrors(fetchRes, cb),
+        (_, cb) => checkForHttpErrors(fetchRes, cb),
         // buffer body
         (cb) => promiseToCallback(fetchRes.text())(cb),
         asyncify((rawBody) => { fetchBody = JSON.parse(rawBody) }),
         // parse response body
-        (cb) => parseResponse(fetchRes, fetchBody, cb)
+        (_, cb) => parseResponse(fetchRes, fetchBody, cb)
       ], cb)
     }, (err, result) => {
       if (err) return end(err)
