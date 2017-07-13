@@ -12,7 +12,7 @@ function createVmMiddleware ({ provider }) {
   return scaffold({
     eth_call: (req, res, next, end) => {
       const blockRef = req.params[1]
-      ethQuery.getBlockByNumber(blockRef, (err, blockParams) => {
+      ethQuery.getBlockByNumber(blockRef, false, (err, blockParams) => {
         if (err) return end(err)
         // create block
         const block = blockFromRpc(blockParams)
@@ -28,7 +28,11 @@ function createVmMiddleware ({ provider }) {
 
   function runVm (req, block, cb) {
     const txParams = req.params[0]
-    const blockRef = block.number.toNumber()
+    const blockRef = req.params[1]
+    // opting to use blockRef as specified
+    // instead of hardening to resolved block's number
+    // for compatiblity with eth-json-rpc-ipfs
+    // const blockRef = block.number.toNumber()
 
     // create vm with state lookup intercepted
     const vm = createVm(provider, blockRef, {
