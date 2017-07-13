@@ -41,6 +41,7 @@ function createVmMiddleware ({ provider }) {
 
     // create tx
     txParams.from = txParams.from || '0x0000000000000000000000000000000000000000'
+    txParams.gasLimit = txParams.gasLimit || ('0x' + block.header.gasLimit.toString('hex'))
     const tx = new FakeTransaction(txParams)
 
     vm.runTx({
