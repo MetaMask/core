@@ -90,7 +90,8 @@ class RpcEngine {
     }
 
     // returns, indicating whether or not it ended
-    function completeRequest () {
+    function completeRequest (err) {
+      if (err) return cb(err)
       cb(null, isComplete)
     }
   }
