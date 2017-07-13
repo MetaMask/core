@@ -1,6 +1,6 @@
 {
   "name": "eth-json-rpc-middleware",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "main": "block-ref.js",
   "directories": {
     "test": "test"
@@ -18,7 +18,9 @@
   },
   "dependencies": {
     "async": "^2.5.0",
-    "eth-query": "^2.1.0",
+    "eth-query": "^2.1.2",
+    "ethereumjs-block": "^1.6.0",
+    "ethereumjs-vm": "^2.1.0",
     "fetch-ponyfill": "^4.0.0",
     "json-rpc-error": "^2.0.0",
     "json-stable-stringify": "^1.0.1",
