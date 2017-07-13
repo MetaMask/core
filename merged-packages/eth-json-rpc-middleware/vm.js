@@ -27,7 +27,7 @@ function createVmMiddleware ({ provider }) {
   })
 
   function runVm (req, block, cb) {
-    const txParams = req.params[0]
+    const txParams = Object.assign({}, req.params[0])
     const blockRef = req.params[1]
     // opting to use blockRef as specified
     // instead of hardening to resolved block's number
@@ -40,6 +40,7 @@ function createVmMiddleware ({ provider }) {
     })
 
     // create tx
+    txParams.from = txParams.from || '0x0000000000000000000000000000000000000000'
     const tx = new FakeTransaction(txParams)
 
     vm.runTx({
