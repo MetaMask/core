@@ -31,7 +31,13 @@ function createFetchMiddleware ({ rpcUrl, originHttpHeaderKey }) {
     retry({
       times: 5,
       interval: 1000,
-      errorFilter: (err) => err.message.includes('Gateway timeout')
+      errorFilter: (err) => {
+        // ignore server overload errors
+        err.message.includes('Gateway timeout')
+        // ignore server sent html error pages
+        // or truncated json responses
+        || err.message.includes('JSON')
+      },
     }, (cb) => {
       let fetchRes
       let fetchBody
