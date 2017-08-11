@@ -5,12 +5,40 @@ module.exports = class TestBlockMiddleware {
 
   constructor() {
     this._blockchain = {}
+    this._pendingTxs = []
     this.setCurrentBlock(createBlock({ number: '0x01' }))
   }
 
   nextBlock() {
+    // prepare next block
     const nextNumber = incrementHexNumber(this.currentBlock.number)
-    this.setCurrentBlock(createBlock({ number: nextNumber }))
+    const nextBlock = createBlock({ number: nextNumber })
+    // import pending txs into block
+    nextBlock.transactions = this._pendingTxs
+    this._pendingTxs = []
+    // set as current block
+    this.setCurrentBlock(nextBlock)
+  }
+
+  addTx (txParams) {
+    const newTx = Object.assign({
+      // defaults
+      address: randomHash(),
+      topics: [
+        randomHash(),
+        randomHash(),
+        randomHash()
+      ],
+      data: randomHash(),
+      blockNumber: '0xdeadbeef',
+      logIndex: '0xdeadbeef',
+      blockHash: '0x7c337eac9e3ec7bc99a1d911d326389558c9086afca7480a19698a16e40b2e0a',
+      transactionHash: '0xd81da851bd3f4094d52cb86929e2ea3732a60ba7c184b853795fc5710a68b5fa',
+      transactionIndex: '0x0'
+      // provided
+    }, txParams)
+    this._pendingTxs.push(newTx)
+    return newTx
   }
 
   setCurrentBlock(blockParams) {
