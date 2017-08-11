@@ -88,3 +88,11 @@ function createBlock(blockParams){
     uncles: [],
   }, blockParams)
 }
+
+function randomHash(){
+  return intToHex(Math.floor(Math.random()*Number.MAX_SAFE_INTEGER))
+}
+
+function intToHex(int){
+  return '0x'+int.toString(16)
+}
