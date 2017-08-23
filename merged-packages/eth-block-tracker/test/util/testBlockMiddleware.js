@@ -23,7 +23,7 @@ module.exports = class TestBlockMiddleware {
   addTx (txParams) {
     const newTx = Object.assign({
       // defaults
-      address: randomHash(),
+      address: randomAddress(),
       topics: [
         randomHash(),
         randomHash(),
@@ -33,7 +33,7 @@ module.exports = class TestBlockMiddleware {
       blockNumber: '0xdeadbeef',
       logIndex: '0xdeadbeef',
       blockHash: '0x7c337eac9e3ec7bc99a1d911d326389558c9086afca7480a19698a16e40b2e0a',
-      transactionHash: '0xd81da851bd3f4094d52cb86929e2ea3732a60ba7c184b853795fc5710a68b5fa',
+      hash: randomHash(),
       transactionIndex: '0x0'
       // provided
     }, txParams)
@@ -89,10 +89,14 @@ function createBlock(blockParams){
   }, blockParams)
 }
 
-function randomHash(){
-  return intToHex(Math.floor(Math.random()*Number.MAX_SAFE_INTEGER))
+function randomAddress() {
+  return '0x' + randomBuffer(20).toString('hex')
 }
 
-function intToHex(int){
-  return '0x'+int.toString(16)
+function randomBuffer(len) {
+  return Buffer.from(Array(len).fill().map(() => Math.floor(256*Math.random())))
+}
+
+function randomHash(){
+  return '0x' + randomBuffer(32).toString('hex')
 }
