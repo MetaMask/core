@@ -1,0 +1,29 @@
+{
+  "name": "json-rpc-middleware-stream",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "eth-block-tracker": "^2.1.2",
+    "ethjs-query": "^0.2.9",
+    "readable-stream": "^2.3.3",
+    "json-rpc-engine": "^3.0.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kumavis/json-rpc-middleware-stream.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kumavis/json-rpc-middleware-stream/issues"
+  },
+  "homepage": "https://github.com/kumavis/json-rpc-middleware-stream#readme"
+}
