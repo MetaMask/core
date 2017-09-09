@@ -12,7 +12,7 @@ class RpcBlockTracker extends AsyncEventEmitter {
     if (!opts.provider) throw new Error('RpcBlockTracker - no provider specified.')
     this._query = new EthQuery(opts.provider)
     // config
-    this._pollingInterval = opts.pollingInterval || 800 // 8 sec
+    this._pollingInterval = opts.pollingInterval || 4e3 // 4 sec
     this._syncingTimeout = opts.syncingTimeout || 60 * 1e3 // 1 min
     // state
     this._trackingBlock = null
