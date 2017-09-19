@@ -26,8 +26,8 @@ function createStreamMiddleware() {
     const context = idMap[res.id]
     if (!context) cb(new Error(`StreamMiddleware - Unknown response id ${res.id}`))
     delete idMap[res.id]
-    // TODO: copy whole res onto original res
-    context.res.result = res.result
+    // copy whole res onto original res
+    Object.assign(context.res, res)
     // run callback on empty stack,
     // prevent internal stream-handler from catching errors
     setTimeout(context.end)
