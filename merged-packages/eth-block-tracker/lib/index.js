@@ -32,6 +32,15 @@ class RpcBlockTracker extends AsyncEventEmitter {
     return this._currentBlock
   }
 
+  async awaitCurrentBlock () {
+    // return if available
+    if (this._currentBlock) return this._currentBlock
+    // wait for "sync" event
+    await new Promise(resolve => this.once('sync', resolve))
+    // return newly set current block
+    return this._currentBlock
+  }
+
   async start (opts = {}) {
     // abort if already started
     if (this._isRunning) return
