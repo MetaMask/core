@@ -54,7 +54,7 @@ function createVmMiddleware ({ provider }) {
       if (results.error) {
         return cb(new Error('VM error: ' + results.error))
       }
-      if (results.vm && results.vm.exception !== 1) {
+      if (results.vm && results.vm.exception !== 1 && results.vm.exceptionError !== 'invalid opcode') {
         return cb(new Error('VM Exception while executing ' + req.method + ': ' + results.vm.exceptionError))
       }
 
