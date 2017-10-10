@@ -1,15 +1,24 @@
+const EventEmitter = require('events')
 const EthQuery = require('eth-query')
+const ethUtil = require('ethereumjs-util')
 
 // this is a really minimal shim
-// doesnt handle block tracking
+// not really tested, i hope it works
 // sorry
 
-function providerEngineSubproviderAsMiddle({ subprovider, provider }) {
+function providerEngineSubproviderAsMiddle({ subprovider, provider, blockTracker }) {
   const ethQuery = new EthQuery(provider)
+  // create a provider-engine interface
+  const engine = new EventEmitter()
+  // note: ethQuery fills in omitted params like id
+  engine.sendAsync = ethQuery.sendAsync.bind(ethQuery)
+  // forward events
+  blockTracker.on('sync', engine.emit.bind(self, 'sync'))
+  blockTracker.on('latest', engine.emit.bind(self, 'latest'))
+  blockTracker.on('block', engine.emit.bind(self, 'rawBlock'))
+  blockTracker.on('block', (block) => engine.emit('block', toBufferBlock(block)))
   // set engine
-  subprovider.engine = provider
-  // ethQuery fills in omitted params like id
-  subprovider.emitPayload = ethQuery.sendAsync.bind(ethQuery)
+  subprovider.setEngine(engine)
 
   // create middleware
   return (req, res, next, end) => {
@@ -28,5 +37,28 @@ function providerEngineSubproviderAsMiddle({ subprovider, provider }) {
       res.result = result
       end()
     }
+  }
+}
+
+function toBufferBlock (jsonBlock) {
+  return {
+    number:           ethUtil.toBuffer(jsonBlock.number),
+    hash:             ethUtil.toBuffer(jsonBlock.hash),
+    parentHash:       ethUtil.toBuffer(jsonBlock.parentHash),
+    nonce:            ethUtil.toBuffer(jsonBlock.nonce),
+    sha3Uncles:       ethUtil.toBuffer(jsonBlock.sha3Uncles),
+    logsBloom:        ethUtil.toBuffer(jsonBlock.logsBloom),
+    transactionsRoot: ethUtil.toBuffer(jsonBlock.transactionsRoot),
+    stateRoot:        ethUtil.toBuffer(jsonBlock.stateRoot),
+    receiptsRoot:     ethUtil.toBuffer(jsonBlock.receiptRoot || jsonBlock.receiptsRoot),
+    miner:            ethUtil.toBuffer(jsonBlock.miner),
+    difficulty:       ethUtil.toBuffer(jsonBlock.difficulty),
+    totalDifficulty:  ethUtil.toBuffer(jsonBlock.totalDifficulty),
+    size:             ethUtil.toBuffer(jsonBlock.size),
+    extraData:        ethUtil.toBuffer(jsonBlock.extraData),
+    gasLimit:         ethUtil.toBuffer(jsonBlock.gasLimit),
+    gasUsed:          ethUtil.toBuffer(jsonBlock.gasUsed),
+    timestamp:        ethUtil.toBuffer(jsonBlock.timestamp),
+    transactions:     jsonBlock.transactions,
   }
 }
