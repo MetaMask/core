@@ -6,6 +6,9 @@ const ethUtil = require('ethereumjs-util')
 // not really tested, i hope it works
 // sorry
 
+module.exports = providerEngineSubproviderAsMiddle
+
+
 function providerEngineSubproviderAsMiddle({ subprovider, provider, blockTracker }) {
   const ethQuery = new EthQuery(provider)
   // create a provider-engine interface
