@@ -6,7 +6,7 @@ function createStatsMiddleware () {
     const startTime = Date.now()
     next((done) => {
       const endTime = Date.now()
-      const elapsed = startTime - endTime
+      const elapsed = endTime - startTime
       res.timeElapsed = elapsed
       done()
     })
