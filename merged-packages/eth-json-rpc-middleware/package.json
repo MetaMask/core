@@ -1,6 +1,6 @@
 {
   "name": "eth-json-rpc-middleware",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "main": "block-ref.js",
   "directories": {
     "test": "test"
