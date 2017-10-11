@@ -16,9 +16,9 @@ function providerEngineSubproviderAsMiddle({ subprovider, provider, blockTracker
   // note: ethQuery fills in omitted params like id
   engine.sendAsync = ethQuery.sendAsync.bind(ethQuery)
   // forward events
-  blockTracker.on('sync', engine.emit.bind(self, 'sync'))
-  blockTracker.on('latest', engine.emit.bind(self, 'latest'))
-  blockTracker.on('block', engine.emit.bind(self, 'rawBlock'))
+  blockTracker.on('sync', engine.emit.bind(engine, 'sync'))
+  blockTracker.on('latest', engine.emit.bind(engine, 'latest'))
+  blockTracker.on('block', engine.emit.bind(engine, 'rawBlock'))
   blockTracker.on('block', (block) => engine.emit('block', toBufferBlock(block)))
   // set engine
   subprovider.setEngine(engine)
