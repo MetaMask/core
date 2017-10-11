@@ -29,6 +29,7 @@ function providerEngineSubproviderAsMiddle({ subprovider, provider, blockTracker
     subprovider.handleRequest(req, subproviderNext, subproviderEnd)
     // adapter for next handler
     function subproviderNext(nextHandler) {
+      if (!nextHandler) return next()
       next((done) => {
         nextHandler(res.error, res.result, done)
       })
