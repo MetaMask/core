@@ -23,6 +23,24 @@ describe('basic tests', function () {
     })
   })
 
+  it('allow null result', function (done) {
+    let engine = new RpcEngine()
+
+    engine.push(function (req, res, next, end) {
+      res.result = null
+      end()
+    })
+
+    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, function (err, res) {
+      assert.ifError(err, 'did not error')
+      assert(res, 'has res')
+      assert.equal(res.result, null, 'has expected result')
+      done()
+    })
+  })
+
   it('interacting middleware test', function (done) {
     let engine = new RpcEngine()
 

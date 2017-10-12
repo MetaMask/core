@@ -52,7 +52,7 @@ class RpcEngine {
 
     function checkForCompletion({ isComplete, returnHandlers }, cb) {
       // fail if not completed
-      if (!res.error && !res.result) {
+      if (!('result' in res) && !('error' in res)) {
         return cb(new Error('RpcEngine - response has no error or result'))
       }
       if (!isComplete) {
