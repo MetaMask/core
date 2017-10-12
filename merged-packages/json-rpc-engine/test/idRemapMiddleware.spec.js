@@ -21,7 +21,6 @@ describe('idRemapMiddleware tests', function () {
     })
     engine.push(createIdRemapMiddleware())
     engine.push(function (req, res, next, end) {
-      console.log('RESULT HERE')
       observedIds.after.req = req.id
       observedIds.after.res = res.id
       // set result so it doesnt error
