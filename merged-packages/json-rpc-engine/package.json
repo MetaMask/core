@@ -4,14 +4,16 @@
   "description": "a tool for processing JSON RPC",
   "main": "src/index.js",
   "scripts": {
-    "lint": "aegir-lint",
-    "release": "aegir-release",
-    "build": "aegir-build",
-    "test": "aegir-test",
-    "test:node": "aegir-test node",
-    "test:browser": "aegir-test browser",
-    "coverage": "aegir-coverage",
-    "coverage-publish": "aegir-coverage publish"
+    "lint": "aegir lint",
+    "build": "aegir build",
+    "test": "aegir test",
+    "test:node": "aegir test --target node",
+    "test:browser": "aegir test --target browser",
+    "release": "aegir release",
+    "release-minor": "aegir release --type minor",
+    "release-major": "aegir release --type major",
+    "coverage": "aegir coverage",
+    "coverage-publish": "aegir coverage --provider coveralls"
   },
   "author": "kumavis",
   "license": "ISC",
@@ -34,7 +36,7 @@
     ]
   },
   "devDependencies": {
-    "aegir": "^11.0.1",
+    "aegir": "^12.0.8",
     "browserify": "^14.1.0"
   },
   "repository": {
