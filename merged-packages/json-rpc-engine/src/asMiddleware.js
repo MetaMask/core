@@ -4,12 +4,14 @@ module.exports = asMiddleware
 
 function asMiddleware (engine) {
   return function engineAsMiddleware (req, res, next, end) {
-    engine._runMiddleware(req, res, function (err, isComplete) {
+    engine._runMiddlewareDown(req, res, function (err, { isComplete, returnHandlers }) {
       if (err) return end(err)
       if (isComplete) {
         end()
       } else {
-        next()
+        next((cb) => {
+          engine._runReturnHandlersUp(returnHandlers, cb)
+        })
       }
     })
   }

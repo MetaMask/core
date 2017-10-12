@@ -90,6 +90,7 @@ describe('basic tests', function () {
     })
 
     engine.push(function (req, res, next, end) {
+      res.result = true
       end()
     })
 
@@ -126,6 +127,7 @@ describe('basic tests', function () {
 
     engine.push(function (req, res, next, end) {
       events.push('3-end')
+      res.result = true
       end()
     })
 

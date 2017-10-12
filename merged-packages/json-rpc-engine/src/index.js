@@ -34,40 +34,47 @@ class RpcEngine {
       jsonrpc: req.jsonrpc
     }
     // process all middleware
-    this._runMiddleware(req, res, (err, isComplete) => {
+    this._runMiddleware(req, res, (err) => {
       if (err) return cb(err)
-      // fail if not completed
-      if (!isComplete) {
-        return cb(new Error('RpcEngine - nothing ended request'))
-      }
       // return response
       cb(null, res)
     })
   }
 
-  _runMiddleware (req, res, cb) {
-    const self = this
+  _runMiddleware (req, res, onDone) {
+    // flow
+    async.waterfall([
+      (cb) => this._runMiddlewareDown(req, res, cb),
+      checkForCompletion,
+      (returnHandlers, cb) => this._runReturnHandlersUp(returnHandlers, cb),
+    ], onDone)
+
+    function checkForCompletion({ isComplete, returnHandlers }, cb) {
+      // fail if not completed
+      if (!res.error && !res.result) {
+        return cb(new Error('RpcEngine - response has no error or result'))
+      }
+      if (!isComplete) {
+        return cb(new Error('RpcEngine - nothing ended request'))
+      }
+      // continue
+      return cb(null, returnHandlers)
+    }
+
+    function runReturnHandlers (returnHandlers, cb) {
+      async.eachSeries(returnHandlers, (handler, next) => handler(next), onDone)
+    }
+  }
+
+  // walks down stack of middleware
+  _runMiddlewareDown (req, res, onDone) {
     // for climbing back up the stack
-    let returnHandlers = []
+    let allReturnHandlers = []
     // flag for stack return
     let isComplete = false
 
-    // flow
-    async.series([
-      runAllMiddleware,
-      runReturnHandlers
-    ], completeRequest)
-
-    // down stack of middleware, call and collect optional returnHandlers
-    function runAllMiddleware (cb) {
-      async.mapSeries(self._middleware, eachMiddleware, cb)
-    }
-
-    // climbs the stack calling return handlers
-    function runReturnHandlers (cb) {
-      let backStack = returnHandlers.filter(Boolean).reverse()
-      async.eachSeries(backStack, (handler, next) => handler(next), completeRequest)
-    }
+    // down stack of middleware, call and collect optional allReturnHandlers
+    async.mapSeries(this._middleware, eachMiddleware, completeRequest)
 
     // runs an individual middleware
     function eachMiddleware (middleware, cb) {
@@ -78,7 +85,7 @@ class RpcEngine {
 
       function next (returnHandler) {
         // add return handler
-        returnHandlers.push(returnHandler)
+        allReturnHandlers.push(returnHandler)
         cb()
       }
       function end (err) {
@@ -91,9 +98,15 @@ class RpcEngine {
 
     // returns, indicating whether or not it ended
     function completeRequest (err) {
-      if (err) return cb(err)
-      cb(null, isComplete)
+      if (err) return onDone(err)
+      const returnHandlers = allReturnHandlers.filter(Boolean).reverse()
+      onDone(null, { isComplete, returnHandlers })
     }
+  }
+
+  // climbs the stack calling return handlers
+  _runReturnHandlersUp (returnHandlers, cb) {
+    async.eachSeries(returnHandlers, (handler, next) => handler(next), cb)
   }
 }
 
