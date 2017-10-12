@@ -1,5 +1,6 @@
 'use strict'
 const async = require('async')
+const JsonRpcError = require('json-rpc-error')
 
 class RpcEngine {
   constructor () {
@@ -98,7 +99,12 @@ class RpcEngine {
 
     // returns, indicating whether or not it ended
     function completeRequest (err) {
-      if (err) return onDone(err)
+      if (err) {
+        // prepare error message
+        res.error = new JsonRpcError.InternalError(err)
+        // return error-first and res with err
+        return onDone(err, res)
+      }
       const returnHandlers = allReturnHandlers.filter(Boolean).reverse()
       onDone(null, { isComplete, returnHandlers })
     }
