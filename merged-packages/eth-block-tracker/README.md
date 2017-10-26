@@ -76,7 +76,7 @@ blockTracker.on('latest', (newBlock) => console.log(newBlock))
 The `sync` event is emitted the same as "latest" but includes the previous block.
 
 ```js
-blockTracker.on('latest', ({ newBlock, oldBlock }) => console.log(newBlock, oldBlock))
+blockTracker.on('sync', ({ newBlock, oldBlock }) => console.log(newBlock, oldBlock))
 ```
 
 ### NOTES
