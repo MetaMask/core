@@ -161,7 +161,7 @@ class RpcBlockTracker extends AsyncEventEmitter {
   async _initSubscription() {
     this._provider.on('data', this._handleNewBlockNotification)
 
-    result = await pify(this._provider.sendAsync || this._provider.send)({
+    let result = await pify(this._provider.sendAsync || this._provider.send)({
       jsonrpc: '2.0',
       id: new Date().getTime(),
       method: 'eth_subscribe',
