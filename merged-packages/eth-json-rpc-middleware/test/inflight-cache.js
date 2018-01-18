@@ -1,6 +1,6 @@
 const test = require('tape')
 const JsonRpcEngine = require('json-rpc-engine')
-const asMiddleware = require('json-rpc-engine/lib/asMiddleware')
+const asMiddleware = require('json-rpc-engine/src/asMiddleware')
 const RpcBlockTracker = require('eth-block-tracker')
 const EthQuery = require('eth-query')
 const TestBlockMiddleware = require('eth-block-tracker/test/util/testBlockMiddleware')
