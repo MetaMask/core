@@ -1,5 +1,9 @@
+const createScaffoldMiddleware = require('json-rpc-engine/src/createScaffoldMiddleware')
+const EthTx = require('ethereumjs-tx')
+const ethUtil = require('ethereumjs-util')
 const incrementHexNumber = require('../../lib/hexUtils').incrementHexNumber
 const formatHex = require('../../lib/hexUtils').formatHex
+
 
 module.exports = class TestBlockMiddleware {
 
@@ -48,16 +52,50 @@ module.exports = class TestBlockMiddleware {
   }
 
   createMiddleware() {
-    return (req, res, next, end) => {
-      if (req.method !== 'eth_getBlockByNumber') return next()
-      const blockRef = req.params[0]
-      if (blockRef === 'latest') {
-        res.result = this.currentBlock
-      } else {
-        res.result = this._blockchain[blockRef]
-      }
-      end()
-    }
+    return createScaffoldMiddleware({
+
+      eth_getBlockByNumber: (req, res, next, end) => {
+        const blockRef = req.params[0]
+        if (blockRef === 'latest') {
+          res.result = this.currentBlock
+        } else {
+          res.result = this._blockchain[blockRef]
+        }
+        end()
+      },
+
+      eth_sendRawTransaction: (req, res, next, end) => {
+        const rawTx = req.params[0]
+        const rawTxBuffer = ethUtil.toBuffer(rawTx)
+        const tx = new EthTx(rawTxBuffer)
+        const txHash = tx.hash()
+        const txJson = {
+          // raw data
+          nonce: ethUtil.bufferToHex(tx.nonce),
+          gasLimit: ethUtil.bufferToHex(tx.gasLimit),
+          gasPrice: ethUtil.bufferToHex(tx.gasPrice),
+          to: ethUtil.bufferToHex(tx.to),
+          value: ethUtil.bufferToHex(tx.value),
+          data: ethUtil.bufferToHex(tx.data),
+          v: ethUtil.bufferToHex(tx.v),
+          r: ethUtil.bufferToHex(tx.r),
+          s: ethUtil.bufferToHex(tx.s),
+          chainId: tx.chainId,
+          // meta
+          hash: txHash,
+          address: ethUtil.bufferToHex(tx.from),
+          topics: [],
+          logIndex: '0xdeadbeef',
+          transactionIndex: '0x' + this._pendingTxs.length.toString(16),
+          blockNumber: this.currentBlock.number,
+          blockHash: this.currentBlock.hash,
+        }
+        this.addTx(txJson)
+        res.result = txHash
+        end()
+      },
+
+    })
   }
 
 }
