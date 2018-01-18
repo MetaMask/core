@@ -53,10 +53,14 @@ class RpcEngine {
     function checkForCompletion({ isComplete, returnHandlers }, cb) {
       // fail if not completed
       if (!('result' in res) && !('error' in res)) {
-        return cb(new Error('RpcEngine - response has no error or result'))
+        const requestBody = JSON.stringify(req, null, 2)
+        const message = 'JsonRpcEngine - response has no error or result for request:\n' + requestBody
+        return cb(new Error(message))
       }
       if (!isComplete) {
-        return cb(new Error('RpcEngine - nothing ended request'))
+        const requestBody = JSON.stringify(req, null, 2)
+        const message = 'JsonRpcEngine - nothing ended request:\n' + requestBody
+        return cb(new Error(message))
       }
       // continue
       return cb(null, returnHandlers)
