@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "aegir lint",
     "build": "aegir build",
-    "test": "aegir test",
+    "test": "npm run test:node",
     "test:node": "aegir test --target node",
     "test:browser": "aegir test --target browser",
     "release": "aegir release",
