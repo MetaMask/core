@@ -64,6 +64,23 @@ describe('basic tests', function () {
     })
   })
 
+  it('erroring middleware test', function (done) {
+    let engine = new RpcEngine()
+
+    engine.push(function (req, res, next, end) {
+      end(new Error('no bueno'))
+    })
+
+    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, function (err, res) {
+      assert(err, 'did error')
+      assert(res, 'does have response')
+      assert(res.error, 'does have error on response')
+      done()
+    })
+  })
+
   it('empty middleware test', function (done) {
     let engine = new RpcEngine()
 

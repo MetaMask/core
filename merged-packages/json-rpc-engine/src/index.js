@@ -1,6 +1,5 @@
 'use strict'
 const async = require('async')
-const JsonRpcError = require('json-rpc-error')
 
 class RpcEngine {
   constructor () {
@@ -36,9 +35,8 @@ class RpcEngine {
     }
     // process all middleware
     this._runMiddleware(req, res, (err) => {
-      if (err) return cb(err)
       // return response
-      cb(null, res)
+      cb(err, res)
     })
   }
 
@@ -105,7 +103,10 @@ class RpcEngine {
     function completeRequest (err) {
       if (err) {
         // prepare error message
-        res.error = new JsonRpcError.InternalError(err)
+        res.error = {
+          code: err.code || -32603,
+          message: err.stack,
+        }
         // return error-first and res with err
         return onDone(err, res)
       }
