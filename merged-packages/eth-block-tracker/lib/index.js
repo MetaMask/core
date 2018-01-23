@@ -10,6 +10,7 @@ class RpcBlockTracker extends AsyncEventEmitter {
   constructor(opts = {}) {
     super()
     if (!opts.provider) throw new Error('RpcBlockTracker - no provider specified.')
+    this._provider = opts.provider
     this._query = new EthQuery(opts.provider)
     // config
     this._pollingInterval = opts.pollingInterval || 4e3 // 4 sec
@@ -22,6 +23,7 @@ class RpcBlockTracker extends AsyncEventEmitter {
     // bind methods for cleaner syntax later
     this.emit = this.emit.bind(this)
     this._performSync = this._performSync.bind(this)
+    this._handleNewBlockNotification = this._handleNewBlockNotification.bind(this)
   }
 
   getTrackingBlock () {
@@ -53,14 +55,21 @@ class RpcBlockTracker extends AsyncEventEmitter {
       // or query for latest
       await this._setTrackingBlock(await this._fetchLatestBlock())
     }
-    this._performSync()
-    .catch((err) => {
-      if (err) console.error(err)
-    })
+    if (this._provider.on) {
+      await this._initSubscription()
+    } else {
+      this._performSync()
+        .catch((err) => {
+          if (err) console.error(err)
+        })
+    }
   }
 
-  stop () {
+  async stop () {
     this._isRunning = false
+    if (this._provider.on) {
+      await this._removeSubscription()
+    }
   }
 
   //
@@ -135,6 +144,50 @@ class RpcBlockTracker extends AsyncEventEmitter {
       }
 
     }
+  }
+
+  async _handleNewBlockNotification(err, notification) {
+    if (notification.id != this._subscriptionId)
+      return // this notification isn't for us
+
+    if (err) {
+      await pify(this.emit)('error', err)
+      await this._removeSubscription()
+    }
+
+    await this._setTrackingBlock(await this._fetchBlockByNumber(notification.result.number))
+  }
+
+  async _initSubscription() {
+    this._provider.on('data', this._handleNewBlockNotification)
+
+    let result = await pify(this._provider.sendAsync || this._provider.send)({
+      jsonrpc: '2.0',
+      id: new Date().getTime(),
+      method: 'eth_subscribe',
+      params: [
+        'newHeads'
+      ],
+    })
+
+    this._subscriptionId = result.result
+  }
+
+  async _removeSubscription() {
+    if (!this._subscriptionId) throw new Error("Not subscribed.")
+
+    this._provider.removeListener('data', this._handleNewBlockNotification)
+
+    await pify(this._provider.sendAsync || this._provider.send)({
+      jsonrpc: '2.0',
+      id: new Date().getTime(),
+      method: 'eth_unsubscribe',
+      params: [
+        this._subscriptionId
+      ],
+    })
+
+    delete this._subscriptionId
   }
 
   _fetchLatestBlock () {
