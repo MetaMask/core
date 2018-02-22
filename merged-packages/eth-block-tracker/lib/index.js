@@ -1,11 +1,11 @@
 // const EthQuery = require('ethjs-query')
 const EthQuery = require('eth-query')
-const AsyncEventEmitter = require('async-eventemitter')
+const EventEmitter = require('events')
 const pify = require('pify')
 const hexUtils = require('./hexUtils')
 const incrementHexNumber = hexUtils.incrementHexNumber
 
-class RpcBlockTracker extends AsyncEventEmitter {
+class RpcBlockTracker extends EventEmitter {
 
   constructor(opts = {}) {
     super()
