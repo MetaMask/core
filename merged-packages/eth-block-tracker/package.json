@@ -11,7 +11,7 @@
     "bundle-main": "browserify -s EthBlockTracker -e lib/index.js -t [ babelify --presets [ es2015 ] ] > dist/EthBlockTracker.js"
   },
   "author": "kumavis",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "eth-query": "^2.1.0",
     "ethereumjs-tx": "^1.3.3",
