@@ -39,7 +39,7 @@ class RpcBlockTracker extends EventEmitter {
     // return if available
     if (this._currentBlock) return this._currentBlock
     // wait for "sync" event
-    await new Promise(resolve => this.once('sync', resolve))
+    await new Promise(resolve => this.once('latest', resolve))
     // return newly set current block
     return this._currentBlock
   }
