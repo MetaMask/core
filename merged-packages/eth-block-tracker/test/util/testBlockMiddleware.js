@@ -1,8 +1,8 @@
 const createScaffoldMiddleware = require('json-rpc-engine/src/createScaffoldMiddleware')
 const EthTx = require('ethereumjs-tx')
 const ethUtil = require('ethereumjs-util')
-const incrementHexNumber = require('../../lib/hexUtils').incrementHexNumber
-const formatHex = require('../../lib/hexUtils').formatHex
+const incrementHexNumber = require('../../src/hexUtils').incrementHexNumber
+const formatHex = require('../../src/hexUtils').formatHex
 
 
 module.exports = class TestBlockMiddleware {
