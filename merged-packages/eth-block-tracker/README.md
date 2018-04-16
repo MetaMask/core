@@ -29,6 +29,11 @@ synchronous returns the current block. may be `null`.
 console.log(blockTracker.getCurrentBlock())
 ```
 
+##### awaitCurrentBlock()
+
+returns a promise. asynchronously returns the current block.
+if not yet available, it will wait until it has the latest block.
+
 ##### start({ fromBlock })
 
 Start walking from the `fromBlock` (default: `'latest'`) forward.
@@ -81,4 +86,4 @@ blockTracker.on('sync', ({ newBlock, oldBlock }) => console.log(newBlock, oldBlo
 
 ### NOTES
 
-Does not currently handle forks.
+Does not currently handle block reorgs.
