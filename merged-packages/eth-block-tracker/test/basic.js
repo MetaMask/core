@@ -1,5 +1,5 @@
 const test = require('tape')
-const RpcBlockTracker = require('../dist/index')
+const RpcBlockTracker = require('../lib/index')
 const JsonRpcEngine = require('json-rpc-engine')
 const TestBlockMiddleware = require('./util/testBlockMiddleware')
 
@@ -26,18 +26,18 @@ test('basic tests - walking', (t) => {
   }
   const blockTracker = new RpcBlockTracker({ provider })
 
-  blockTracker.once('block', () => {
-    t.pass('saw 1st block')
-    blockTracker.once('block', () => {
-      t.pass('saw 2nd block')
-      blockTracker.once('block', () => {
-        t.pass('saw 3rd block')
+  blockTracker.once('block', (block) => {
+    t.ok(block, 'saw 1st block')
+    blockTracker.once('block', (block) => {
+      t.ok(block, 'saw 2nd block')
+      blockTracker.once('block', (block) => {
+        t.ok(block, 'saw 3rd block')
       })
     })
   })
 
-  blockTracker.once('latest', () => {
-    t.pass('saw latest block')
+  blockTracker.once('latest', (block) => {
+    t.ok(block, 'saw latest block')
     blockTracker.stop()
     t.end()
   })
@@ -47,7 +47,6 @@ test('basic tests - walking', (t) => {
 })
 
 test('param validity', (t) => {
-
   const engine = new JsonRpcEngine()
   const testBlockSource = new TestBlockMiddleware()
   testBlockSource.nextBlock()
@@ -67,8 +66,8 @@ test('param validity', (t) => {
   }
   blockTracker._query.getBlockByNumber = fakeMethod
 
-  blockTracker.once('block', () => {
-    t.pass('saw 1st block')
+  blockTracker.once('block', (block) => {
+    t.ok(block, 'saw 1st block')
     blockTracker._query.getBlockByNumber = methodCache
     blockTracker.stop()
     t.end()
@@ -76,4 +75,3 @@ test('param validity', (t) => {
 
   blockTracker.start({ fromBlock: '0x01' })
 })
-
