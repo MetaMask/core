@@ -31,13 +31,14 @@ console.log(blockTracker.getCurrentBlock())
 
 ##### awaitCurrentBlock()
 
-returns a promise. asynchronously returns the current block.
+Returns a promise. asynchronously returns the current block.
 if not yet available, it will wait until it has the latest block.
 
 ##### start({ fromBlock })
 
 Start walking from the `fromBlock` (default: `'latest'`) forward.
 `fromBlock` should be a number as a hex encoded string.
+Returns a promise which is rejected if an error in encountered.
 
 ```js
 blockTracker.start()
