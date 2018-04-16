@@ -4,6 +4,8 @@ const EventEmitter = require('events')
 const pify = require('pify')
 const hexUtils = require('./hexUtils')
 const incrementHexNumber = hexUtils.incrementHexNumber
+const sec = 1000
+const min = 60 * sec
 
 class RpcBlockTracker extends EventEmitter {
 
@@ -13,15 +15,14 @@ class RpcBlockTracker extends EventEmitter {
     this._provider = opts.provider
     this._query = new EthQuery(opts.provider)
     // config
-    this._pollingInterval = opts.pollingInterval || 4e3 // 4 sec
-    this._syncingTimeout = opts.syncingTimeout || 60 * 1e3 // 1 min
+    this._pollingInterval = opts.pollingInterval || 4 * sec
+    this._syncingTimeout = opts.syncingTimeout || 1 * min
     // state
     this._trackingBlock = null
     this._trackingBlockTimestamp = null
     this._currentBlock = null
     this._isRunning = false
     // bind methods for cleaner syntax later
-    this.emit = this.emit.bind(this)
     this._performSync = this._performSync.bind(this)
     this._handleNewBlockNotification = this._handleNewBlockNotification.bind(this)
   }
@@ -88,7 +89,7 @@ class RpcBlockTracker extends EventEmitter {
     } else {
       this._trackingBlock = newBlock
       this._trackingBlockTimestamp = now
-      await pify(this.emit)('block', newBlock)
+      this.emit('block', newBlock)
     }
   }
 
@@ -96,8 +97,8 @@ class RpcBlockTracker extends EventEmitter {
     if (this._currentBlock && (this._currentBlock.hash === newBlock.hash)) return
     const oldBlock = this._currentBlock
     this._currentBlock = newBlock
-    await pify(this.emit)('latest', newBlock)
-    await pify(this.emit)('sync', { newBlock, oldBlock })
+    this.emit('latest', newBlock)
+    this.emit('sync', { newBlock, oldBlock })
   }
 
   async _warpToLatest() {
@@ -151,7 +152,7 @@ class RpcBlockTracker extends EventEmitter {
       return // this notification isn't for us
 
     if (err) {
-      await pify(this.emit)('error', err)
+      this.emit('error', err)
       await this._removeSubscription()
     }
 
