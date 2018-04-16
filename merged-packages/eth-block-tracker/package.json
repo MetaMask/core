@@ -2,13 +2,15 @@
   "name": "eth-block-tracker",
   "version": "2.3.0",
   "description": "This module walks the Ethereum blockchain, keeping track of the latest block. It uses a web3 provider as a data source and will continuously poll for the next block.",
-  "main": "dist/index.js",
+  "main": "lib/index.js",
   "scripts": {
-    "test": "npm run compile && browserify test/basic.js | node",
-    "compile": "babel --presets es2015,stage-3 --plugins transform-runtime -d dist/ lib/",
-    "prepare": "npm run compile"
+    "test": "npm run build && node test/index.js",
+    "prepublish": "npm run build",
+    "build": "mkdir -p ./dist && npm run bundle",
+    "bundle": "babel lib -d dist/es5/ && npm run bundle-main",
+    "bundle-main": "browserify -s EthBlockTracker -e lib/index.js -t [ babelify --presets [ es2015 ] ] > dist/EthBlockTracker.js"
   },
-  "author": "",
+  "author": "kumavis",
   "license": "ISC",
   "dependencies": {
     "eth-query": "^2.1.0",
