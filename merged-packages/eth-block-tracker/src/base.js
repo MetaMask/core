@@ -16,7 +16,7 @@ class BaseBlockTracker extends EventEmitter {
   constructor(opts = {}) {
     super()
     // config
-    this._blockFreshnessDuration = opts.blockFreshnessDuration || 20 * sec
+    this._blockResetDuration = opts.blockResetDuration || 20 * sec
     // state
     this._blockResetTimeout
     this._currentBlock = null
@@ -135,7 +135,7 @@ class BaseBlockTracker extends EventEmitter {
     // clear any existing timeout
     this._cancelBlockResetTimeout()
     // clear latest block when stale
-    this._blockResetTimeout = setTimeout(this._resetCurrentBlock, this._blockFreshnessDuration)
+    this._blockResetTimeout = setTimeout(this._resetCurrentBlock, this._blockResetDuration)
     // nodejs - dont hold process open
     if (this._blockResetTimeout.unref) {
       this._blockResetTimeout.unref()

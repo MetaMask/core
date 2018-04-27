@@ -91,9 +91,9 @@ module.exports = (test, testLabel, BaseBlockTracker) => {
       }
     }
 
-    const blockFreshnessDuration = 100
+    const blockResetDuration = 100
     const blockTracker = new TestBlockTracker({
-      blockFreshnessDuration,
+      blockResetDuration,
     })
 
     try {
@@ -107,7 +107,7 @@ module.exports = (test, testLabel, BaseBlockTracker) => {
       t.equal(blockTracker.isRunning(), false, 'block tracker is still stopped')
       t.ok(blockTracker.getCurrentBlock(), 'block tracker has a current block')
 
-      await timeout(blockFreshnessDuration)
+      await timeout(blockResetDuration)
       t.equal(blockFetchs, 1, 'block-tracker still has fetched only one block')
       t.equal(blockTracker.isRunning(), false, 'block tracker is still stopped')
       t.notOk(blockTracker.getCurrentBlock(), 'block tracker has no current block')
@@ -143,9 +143,9 @@ module.exports = (test, testLabel, BaseBlockTracker) => {
       }
     }
 
-    const blockFreshnessDuration = 100
+    const blockResetDuration = 100
     const blockTracker = new TestBlockTracker({
-      blockFreshnessDuration,
+      blockResetDuration,
     })
     t.equal(blockTracker.isRunning(), false, 'block tracker is stopped after creation')
     t.notOk(blockTracker.getCurrentBlock(), 'block tracker has no current block')
