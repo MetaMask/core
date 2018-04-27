@@ -33,6 +33,11 @@ console.log(blockTracker.getCurrentBlock())
 Asynchronously returns the latest block.
 if not immediately available, it will fetch one.
 
+##### async checkForLatestBlock()
+
+Tells the block tracker to ask for a new block immediately, in addition to its normal polling interval.
+Useful if you received a hint of a new block (e.g. via `tx.blockNumber` from `getTransactionByHash`).
+Will resolve to the new latest block when its done polling.
 
 ### EVENTS
 
@@ -51,6 +56,14 @@ The `sync` event is emitted the same as "latest" but includes the previous block
 
 ```js
 blockTracker.on('sync', ({ newBlock, oldBlock }) => console.log(newBlock, oldBlock))
+```
+
+##### error
+
+The `error` event means an error occurred while polling for the latest block.
+
+```js
+blockTracker.on('error', (err) => console.error(err))
 ```
 
 ### NOTES

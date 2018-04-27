@@ -25,6 +25,16 @@ class PollingBlockTracker extends BaseBlockTracker {
   }
 
   //
+  // public
+  //
+
+  // trigger block polling
+  async checkForLatestBlock() {
+    await this._updateLatestBlock()
+    return await this.getLatestBlock()
+  }
+
+  //
   // private
   //
 
