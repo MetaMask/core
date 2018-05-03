@@ -4,10 +4,8 @@ Significant rewrite of `eth-block-tracker`. Primary reason was optimizing networ
 
 BlockTrackers no longer have manual stop/start methods, they now automatically start and stop based on listener count for the `latest` and `sync` events. You can force a stop by calling the `EventEmitter` method `removeAllListeners`.
 
-Transaction bodies have been removed from blocks. Blocks contain transaction hashes.
-
-Block walking behavior has been removed. We now just use the block returned for the "latest" parameter.
-Along with this the `block` event has been removed, please use `latest` or `sync`.
+Events now only return the block number. Internal polling is done via `eth_blockNumber`.
+The `block` event has been removed, please use `latest` or `sync`.
 
 - added isRunning
 - added `error` event
