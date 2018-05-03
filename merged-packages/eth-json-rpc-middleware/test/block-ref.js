@@ -1,11 +1,12 @@
 const test = require('tape')
 const JsonRpcEngine = require('json-rpc-engine')
-const asMiddleware = require('json-rpc-engine/src/asMiddleware')
 const RpcBlockTracker = require('eth-block-tracker')
 const EthQuery = require('eth-query')
-const TestBlockMiddleware = require('eth-block-tracker/test/util/testBlockMiddleware')
+const GanacheCore = require('ganache-core')
 const BlockRefMiddleware = require('../block-ref')
 const ScaffoldMiddleware = require('../scaffold')
+const providerFromEngine = require('../providerFromEngine')
+const providerAsMiddleware = require('../providerAsMiddleware')
 
 test('contructor - no opts', (t) => {
   t.plan(1)
@@ -28,15 +29,10 @@ test('contructor - empty opts', (t) => {
 test('provider not ready - shouldnt hang non-"latest" requests', (t) => {
   t.plan(3)
 
-  const { engine, dataEngine, testBlockSource } = createTestSetup()
-
-  // add handler for `test_method`
-  dataEngine.push(ScaffoldMiddleware({
-    test_method: true
-  }))
+  const { engine, testBlockSource } = createTestSetup()
 
   // fire request for `test_method`
-  engine.handle({ id: 1, method: 'test_method', params: [] }, (err, res) => {
+  engine.handle({ id: 1, method: 'net_listening', params: [] }, (err, res) => {
     t.notOk(err, 'No error in response')
     t.ok(res, 'Has response')
     t.equal(res.result, true, 'Response result is correct.')
@@ -48,8 +44,7 @@ test('provider not ready - shouldnt hang non-"latest" requests', (t) => {
 
 function createTestSetup () {
   // raw data source
-  const { engine: dataEngine, testBlockSource } = createEngineForTestData()
-  const dataProvider = providerFromEngine(dataEngine)
+  const dataProvider = GanacheCore.provider()
   // create block tracker
   const blockTracker = new RpcBlockTracker({ provider: dataProvider })
   // create higher level
@@ -58,19 +53,7 @@ function createTestSetup () {
   // add block ref middleware
   engine.push(BlockRefMiddleware({ blockTracker }))
   // add data source
-  engine.push(asMiddleware(dataEngine))
+  engine.push(providerAsMiddleware(dataProvider))
   const query = new EthQuery(provider)
-  return { engine, provider, dataEngine, dataProvider, query, blockTracker, testBlockSource }
-}
-
-function createEngineForTestData () {
-  const engine = new JsonRpcEngine()
-  const testBlockSource = new TestBlockMiddleware()
-  engine.push(testBlockSource.createMiddleware())
-  return { engine, testBlockSource }
-}
-
-function providerFromEngine (engine) {
-  const provider = { sendAsync: engine.handle.bind(engine) }
-  return provider
+  return { engine, provider, dataProvider, query, blockTracker }
 }
