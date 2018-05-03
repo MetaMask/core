@@ -120,7 +120,8 @@ class BaseBlockTracker extends EventEmitter {
 
   _newPotentialLatest (newBlock) {
     const currentBlock = this._currentBlock
-    if (currentBlock && newBlock.hash === currentBlock.hash) return
+    // only update if blok number is higher
+    if (currentBlock && (hexToInt(newBlock) <= hexToInt(currentBlock))) return
     this._setCurrentBlock(newBlock)
   }
 
@@ -153,3 +154,7 @@ class BaseBlockTracker extends EventEmitter {
 }
 
 module.exports = BaseBlockTracker
+
+function hexToInt(hexInt) {
+  return Number.parseInt(hexInt, 16)
+}

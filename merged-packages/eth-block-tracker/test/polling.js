@@ -33,7 +33,7 @@ module.exports = (test, testLabel, PollingBlockTracker) => {
       await triggerNextBlock(provider)
       const lastBlock = await newLatestBlock(blockTracker)
       t.equal(blocks.length, 3, 'saw only 5th block')
-      t.equal(Number.parseInt(lastBlock.number, 16), 4, 'saw correct block, with number 4')
+      t.equal(Number.parseInt(lastBlock, 16), 4, 'saw correct block, with number 4')
 
       blockTracker.removeAllListeners()
       t.equal(blockTracker.isRunning(), false, 'PollingBlockTracker stops after all listeners are removed')
