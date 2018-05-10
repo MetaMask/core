@@ -11,7 +11,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "eth-block-tracker": "^1.1.3",
+    "eth-block-tracker": "metamask/eth-block-tracker#acbcfda348c309ece0fb96fad78d4861d08f5a91",
     "eth-query": "^2.1.0",
     "ganache-core": "^2.1.0",
     "tape": "^4.6.3"
