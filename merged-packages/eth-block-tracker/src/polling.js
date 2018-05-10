@@ -69,7 +69,7 @@ class PollingBlockTracker extends BaseBlockTracker {
 module.exports = PollingBlockTracker
 
 function timeout (duration, unref) {
-  new Promise(resolve => {
+  return new Promise(resolve => {
     const timoutRef = setTimeout(resolve, duration)
     // don't keep process open
     if (timoutRef.unref && unref) {
