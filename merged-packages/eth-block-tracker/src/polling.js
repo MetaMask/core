@@ -2,7 +2,6 @@ const EthQuery = require('eth-query')
 const EventEmitter = require('events')
 const pify = require('pify')
 const BaseBlockTracker = require('./base')
-const timeout = (duration) => new Promise(resolve => setTimeout(resolve, duration))
 
 const sec = 1000
 const min = 60 * sec
@@ -13,6 +12,7 @@ class PollingBlockTracker extends BaseBlockTracker {
     // parse + validate args
     if (!opts.provider) throw new Error('PollingBlockTracker - no provider specified.')
     const pollingInterval = opts.pollingInterval || 20 * sec
+    const keepEventLoopActive = opts.keepEventLoopActive !== undefined ? opts.keepEventLoopActive : true
     // BaseBlockTracker constructor
     super(Object.assign({
       blockResetDuration: pollingInterval,
@@ -20,6 +20,7 @@ class PollingBlockTracker extends BaseBlockTracker {
     // config
     this._provider = opts.provider
     this._pollingInterval = pollingInterval
+    this._keepEventLoopActive = keepEventLoopActive
     // util
     this._query = new EthQuery(this._provider)
   }
@@ -49,7 +50,7 @@ class PollingBlockTracker extends BaseBlockTracker {
       } catch (err) {
         this.emit('error', err)
       }
-      await timeout(this._pollingInterval)
+      await timeout(this._pollingInterval, !this._keepEventLoopActive)
     }
   }
 
@@ -66,3 +67,13 @@ class PollingBlockTracker extends BaseBlockTracker {
 }
 
 module.exports = PollingBlockTracker
+
+function timeout (duration, unref) {
+  new Promise(resolve => {
+    const timoutRef = setTimeout(resolve, duration)
+    // don't keep process open
+    if (timoutRef.unref && unref) {
+      timoutRef.unref()
+    }
+  })
+}
