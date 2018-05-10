@@ -40,7 +40,7 @@ function paramsWithoutBlockTag (payload) {
   if (index >= payload.params.length) {
     return payload.params
   }
-  
+
   // eth_getBlockByNumber has the block tag first, then the optional includeTx? param
   if (payload.method === 'eth_getBlockByNumber') {
     return payload.params.slice(1)
@@ -51,15 +51,17 @@ function paramsWithoutBlockTag (payload) {
 
 function blockTagParamIndex (payload) {
   switch (payload.method) {
-    // blockTag is second param
+    // blockTag is at index 2
+    case 'eth_getStorageAt':
+      return 2
+    // blockTag is at index 1
     case 'eth_getBalance':
     case 'eth_getCode':
     case 'eth_getTransactionCount':
-    case 'eth_getStorageAt':
     case 'eth_call':
     case 'eth_estimateGas':
       return 1
-    // blockTag is first param
+    // blockTag is at index 0
     case 'eth_getBlockByNumber':
       return 0
     // there is no blockTag
