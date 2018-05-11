@@ -14,7 +14,9 @@ function createBlockRefRewriteMiddleware (opts = {}) {
     // skip if method does not include blockRef
     if (blockRefIndex === undefined) return next()
     // skip if not "latest"
-    const blockRef = req.params[blockRefIndex]
+    let blockRef = req.params[blockRefIndex]
+    // omitted blockRef implies "latest"
+    if (blockRef === undefined) blockRef = 'latest'
     if (blockRef !== 'latest') return next()
     // rewrite blockRef to block-tracker's block number
     const latestBlockNumber = await blockTracker.getLatestBlock()

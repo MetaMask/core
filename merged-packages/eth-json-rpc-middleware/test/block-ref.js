@@ -54,7 +54,27 @@ test('should rewrite "latest" blockRef to current block', async (t) => {
     const res = await pify(engine.handle).call(engine, origReq)
     t.equal(origReq.params[1], 'latest', 'Original request unchanged')
     const matchingHit = hitTracker.getHits(origReq.method)[0]
-    t.equal(matchingHit.params[1], '0x00', 'Original request params rewritten')
+    t.equal(matchingHit.params[1], '0x00', 'Original request params rewritten internally')
+    t.ok(res, 'Has response')
+  } catch (err) {
+    t.ifError(err, 'Should not encounter error')
+  }
+  t.end()
+})
+
+test('should add blockRef for omitted blockRef param', async (t) => {
+  t.plan(5)
+  const { engine, query, hitTracker } = createTestSetup()
+
+  try {
+    const accounts = await query.accounts()
+    t.ok(accounts.length > 0, 'Should have accounts')
+    const origReq = { id: 1, method: 'eth_getBalance', params: [accounts[0]] }
+    const res = await pify(engine.handle).call(engine, origReq)
+    t.equal(origReq.params[1], undefined, 'Original request unchanged')
+    t.equal(origReq.params.length, 1, 'Original request unchanged')
+    const matchingHit = hitTracker.getHits(origReq.method)[0]
+    t.equal(matchingHit.params[1], '0x00', 'Original request params rewritten internally')
     t.ok(res, 'Has response')
   } catch (err) {
     t.ifError(err, 'Should not encounter error')
