@@ -1,18 +1,20 @@
 const test = require('tape')
 const JsonRpcEngine = require('json-rpc-engine')
-const RpcBlockTracker = require('eth-block-tracker')
-const EthQuery = require('eth-query')
+const BlockTracker = require('eth-block-tracker')
 const GanacheCore = require('ganache-core')
-const BlockRefMiddleware = require('../block-ref')
+const pify = require('pify')
+const EthQuery = require('ethjs-query')
+const createBlockRefMiddleware = require('../block-ref')
 const ScaffoldMiddleware = require('../scaffold')
 const providerFromEngine = require('../providerFromEngine')
 const providerAsMiddleware = require('../providerAsMiddleware')
+const createHitTrackerMiddleware = require('./util/createHitTrackerMiddleware')
 
 test('contructor - no opts', (t) => {
   t.plan(1)
 
   t.throws(() => {
-    BlockRefMiddleware()
+    createBlockRefMiddleware()
   }, Error, 'Constructor without options fails')
   t.end()
 })
@@ -21,23 +23,44 @@ test('contructor - empty opts', (t) => {
   t.plan(1)
 
   t.throws(() => {
-    BlockRefMiddleware({})
+    createBlockRefMiddleware({})
   }, Error, 'Constructor without empty options')
   t.end()
 })
 
-test('provider not ready - shouldnt hang non-"latest" requests', (t) => {
-  t.plan(3)
+// test('provider not ready - shouldnt hang non-"latest" requests', async (t) => {
+//   t.plan(3)
+//   const { engine } = createTestSetup()
+//
+//   try {
+//     const res = await pify(engine.handle).call(engine, { id: 1, method: 'net_listening', params: [] })
+//     console.log(res)
+//     t.ok(res, 'Has response')
+//     t.equal(res.result, true, 'Response result is correct.')
+//   } catch (err) {
+//     t.ifError(err, 'No error in response')
+//   }
+//   t.end()
+// })
 
-  const { engine, testBlockSource } = createTestSetup()
+test('should rewrite "latest" blockRef to current block', async (t) => {
+  t.plan(4)
+  const { engine, query, hitTracker } = createTestSetup()
 
-  // fire request for `test_method`
-  engine.handle({ id: 1, method: 'net_listening', params: [] }, (err, res) => {
-    t.notOk(err, 'No error in response')
+  try {
+    const accounts = await query.accounts()
+    t.ok(accounts.length > 0, 'Should have accounts')
+    const origReq = { id: 1, method: 'eth_getBalance', params: [accounts[0], 'latest'] }
+    console.log(origReq)
+    const res = await pify(engine.handle).call(engine, origReq)
+    t.equal(origReq.params[1], 'latest', 'Original request unchanged')
+    const matchingHit = hitTracker.getHits(origReq.method)[0]
+    t.equal(matchingHit.params[1], '0x00', 'Original request params rewritten')
     t.ok(res, 'Has response')
-    t.equal(res.result, true, 'Response result is correct.')
-    t.end()
-  })
+  } catch (err) {
+    t.ifError(err, 'Should not encounter error')
+  }
+  t.end()
 })
 
 // util
@@ -46,14 +69,17 @@ function createTestSetup () {
   // raw data source
   const dataProvider = GanacheCore.provider()
   // create block tracker
-  const blockTracker = new RpcBlockTracker({ provider: dataProvider })
+  const blockTracker = new BlockTracker({ provider: dataProvider })
   // create higher level
   const engine = new JsonRpcEngine()
   const provider = providerFromEngine(engine)
   // add block ref middleware
-  engine.push(BlockRefMiddleware({ blockTracker }))
+  engine.push(createBlockRefMiddleware({ blockTracker }))
+  // hit tracker
+  const hitTracker = createHitTrackerMiddleware()
+  engine.push(hitTracker)
   // add data source
   engine.push(providerAsMiddleware(dataProvider))
   const query = new EthQuery(provider)
-  return { engine, provider, dataProvider, query, blockTracker }
+  return { engine, provider, dataProvider, query, blockTracker, hitTracker }
 }

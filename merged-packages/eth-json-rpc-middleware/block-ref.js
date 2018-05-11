@@ -1,23 +1,25 @@
-const waitForBlock = require('./waitForBlock')
+const createAsyncMiddleware = require('json-rpc-engine/src/createAsyncMiddleware')
 const blockTagParamIndex = require('./cache-utils').blockTagParamIndex
 
-module.exports = BlockRefRewriteMiddleware
+module.exports = createBlockRefRewriteMiddleware
 
-function BlockRefRewriteMiddleware ({ blockTracker }) {
+function createBlockRefRewriteMiddleware (opts = {}) {
+  const { blockTracker } = opts
   if (!blockTracker) {
     throw Error('BlockRefRewriteMiddleware - mandatory "blockTracker" option is missing.')
   }
 
-  return waitForBlock({ blockTracker })(handleRequest)
-
-  // if blockRef is "latest", rewrite to latest block number
-  function handleRequest (req, res, next, end) {
+  return createAsyncMiddleware(async (req, res, next) => {
     const blockRefIndex = blockTagParamIndex(req)
+    // skip if method does not include blockRef
+    if (blockRefIndex === undefined) return next()
+    // skip if not "latest"
     const blockRef = req.params[blockRefIndex]
-    if (blockRef === 'latest') {
-      let block = blockTracker.getCurrentBlock()
-      req.params[blockRefIndex] = block.number
-    }
+    if (blockRef !== 'latest') return next()
+    // rewrite blockRef to block-tracker's block number
+    const latestBlockNumber = await blockTracker.getLatestBlock()
+    req.params[blockRefIndex] = latestBlockNumber
     next()
-  }
+  })
+
 }
