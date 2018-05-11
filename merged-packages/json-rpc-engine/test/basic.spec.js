@@ -41,6 +41,26 @@ describe('basic tests', function () {
     })
   })
 
+  it('basic middleware test', function (done) {
+    let engine = new RpcEngine()
+
+    engine.push(function (req, res, next, end) {
+      req.method = 'banana'
+      res.result = 42
+      end()
+    })
+
+    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, function (err, res) {
+      assert.ifError(err, 'did not error')
+      assert(res, 'has res')
+      assert.equal(res.result, 42, 'has expected result')
+      assert.equal(payload.method, 'hello', 'original request object is not mutated by middleware')
+      done()
+    })
+  })
+
   it('interacting middleware test', function (done) {
     let engine = new RpcEngine()
 
