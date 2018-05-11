@@ -7,6 +7,7 @@ const pify = require('pify')
 const createBlockCacheMiddleware = require('../block-cache')
 const providerFromEngine = require('../providerFromEngine')
 const providerAsMiddleware = require('../providerAsMiddleware')
+const createHitTrackerMiddleware = require('./util/createHitTrackerMiddleware')
 
 //
 // basic cache
@@ -159,8 +160,13 @@ async function cacheTest(label, basePayloads, shouldCache) {
       // setup engine
       const engine = new JsonRpcEngine()
       engine.push(createBlockCacheMiddleware({ blockTracker }))
-      const hitCountMiddleware = createHitCountMiddleware()
+      const hitCountMiddleware = createHitTrackerMiddleware()
       engine.push(hitCountMiddleware)
+      const dummyResultMiddleware = (req, res, next, end) => {
+        res.result = true
+        end()
+      }
+      engine.push(dummyResultMiddleware)
 
       // prepare payloads
       const payload1 = Object.assign({}, (Array.isArray(basePayloads) ? basePayloads[0] : basePayloads), { id: 1, jsonrpc: '2.0' })
@@ -171,15 +177,15 @@ async function cacheTest(label, basePayloads, shouldCache) {
       const res1 = await pify(engine.handle).call(engine, payload1)
       t.ifError(res1.error, `${label} - res1 should not have error`)
       t.ok(res1.result !== undefined, `${label} - res1 should have result`)
-      t.equal(hitCountMiddleware.hits[payload1.method], 1, `${label} - should hit dataProvider`)
+      t.equal(hitCountMiddleware.hits[payload1.method].length, 1, `${label} - should hit dataProvider`)
       // second try, cache miss
       const res2 = await pify(engine.handle).call(engine, payload2)
       t.ifError(res2.error, `${label} - res2 should not have error`)
       t.ok(res2.result !== undefined, `${label} - res2 should have result`)
       if (shouldCache) {
-        t.equal(hitCountMiddleware.hits[payload2.method], 1, `${label} - should NOT hit dataProvider`)
+        t.equal(hitCountMiddleware.hits[payload2.method].length, 1, `${label} - should NOT hit dataProvider`)
       } else {
-        t.equal(hitCountMiddleware.hits[payload2.method], 2, `${label} - should again hit dataProvider`)
+        t.equal(hitCountMiddleware.hits[payload2.method].length, 2, `${label} - should again hit dataProvider`)
       }
     } catch (err) {
       t.fail(err)
@@ -187,36 +193,3 @@ async function cacheTest(label, basePayloads, shouldCache) {
     t.end()
   })
 }
-
-function createHitCountMiddleware() {
-  const hits = {}
-  const middleware = (req, res, next, end) => {
-    // mark hit for method
-    let hitCount = hits[req.method] || 0
-    hitCount++
-    hits[req.method] = hitCount
-    // return dummy result
-    res.result = true
-    end()
-  }
-  middleware.hits = hits
-  return middleware
-}
-
-// // util
-//
-// function createTestSetup () {
-//   // raw data source
-//   const dataProvider = GanacheCore.provider()
-//   // create block tracker
-//   const blockTracker = new BlockTracker({ provider: dataProvider })
-//   // create higher level
-//   const engine = new JsonRpcEngine()
-//   const provider = providerFromEngine(engine)
-//   // add block ref middleware
-//   engine.push(BlockRefMiddleware({ blockTracker }))
-//   // add data source
-//   engine.push(providerAsMiddleware(dataProvider))
-//   const query = new EthQuery(provider)
-//   return { engine, provider, dataProvider, query, blockTracker }
-// }
