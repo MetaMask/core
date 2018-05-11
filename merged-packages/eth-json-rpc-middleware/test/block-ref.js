@@ -51,7 +51,6 @@ test('should rewrite "latest" blockRef to current block', async (t) => {
     const accounts = await query.accounts()
     t.ok(accounts.length > 0, 'Should have accounts')
     const origReq = { id: 1, method: 'eth_getBalance', params: [accounts[0], 'latest'] }
-    console.log(origReq)
     const res = await pify(engine.handle).call(engine, origReq)
     t.equal(origReq.params[1], 'latest', 'Original request unchanged')
     const matchingHit = hitTracker.getHits(origReq.method)[0]
