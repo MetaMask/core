@@ -68,7 +68,10 @@ function createTestSetup () {
   // raw data source
   const dataProvider = GanacheCore.provider()
   // create block tracker
-  const blockTracker = new BlockTracker({ provider: dataProvider })
+  const blockTracker = new BlockTracker({
+    provider: dataProvider,
+    pollingInterval: 100,
+  })
   // create higher level
   const engine = new JsonRpcEngine()
   const provider = providerFromEngine(engine)
