@@ -177,15 +177,15 @@ async function cacheTest(label, basePayloads, shouldCache) {
       const res1 = await pify(engine.handle).call(engine, payload1)
       t.ifError(res1.error, `${label} - res1 should not have error`)
       t.ok(res1.result !== undefined, `${label} - res1 should have result`)
-      t.equal(hitCountMiddleware.hits[payload1.method].length, 1, `${label} - should hit dataProvider`)
+      t.equal(hitCountMiddleware.getHits(payload1.method).length, 1, `${label} - should hit dataProvider`)
       // second try, cache miss
       const res2 = await pify(engine.handle).call(engine, payload2)
       t.ifError(res2.error, `${label} - res2 should not have error`)
       t.ok(res2.result !== undefined, `${label} - res2 should have result`)
       if (shouldCache) {
-        t.equal(hitCountMiddleware.hits[payload2.method].length, 1, `${label} - should NOT hit dataProvider`)
+        t.equal(hitCountMiddleware.getHits(payload2.method).length, 1, `${label} - should NOT hit dataProvider`)
       } else {
-        t.equal(hitCountMiddleware.hits[payload2.method].length, 2, `${label} - should again hit dataProvider`)
+        t.equal(hitCountMiddleware.getHits(payload2.method).length, 2, `${label} - should again hit dataProvider`)
       }
     } catch (err) {
       t.fail(err)
