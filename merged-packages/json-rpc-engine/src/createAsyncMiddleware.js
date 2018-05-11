@@ -5,25 +5,32 @@ module.exports = createAsyncMiddleware
 
 function createAsyncMiddleware(asyncMiddleware) {
   return (req, res, next, end) => {
-    let nextHandlerOnDone = null
+    let nextDonePromise = null
     const finishedPromise = asyncMiddleware(req, res, getNextPromise)
     promiseToCallback(finishedPromise)((err) => {
       // async middleware ended
-      if (nextHandlerOnDone) {
+      if (nextDonePromise) {
+        console.log('detected next was called')
         // next handler was called - complete nextHandler
-        nextHandlerOnDone(err)
+        promiseToCallback(nextDonePromise)((nextErr, nextHandlerSignalDone) => {
+          if (nextErr) return done(nextErr)
+          nextHandlerSignalDone(err)
+        })
       } else {
         // next handler was not called - complete middleware
         end(err)
       }
     })
 
-    function getNextPromise() {
+    async function getNextPromise() {
+      nextDonePromise = getNextDoneCallback()
+      await nextDonePromise
+      return undefined
+    }
+
+    function getNextDoneCallback() {
       return new Promise((resolve) => {
-        next((cb) => {
-          nextHandlerOnDone = cb
-          resolve()
-        })
+        next((cb) => resolve(cb))
       })
     }
   }

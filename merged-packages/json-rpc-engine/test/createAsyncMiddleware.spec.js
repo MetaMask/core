@@ -90,4 +90,24 @@ describe('createAsyncMiddleware tests', function () {
       done()
     })
   })
+
+  it('doesnt await next', function (done) {
+    let engine = new RpcEngine()
+
+    engine.push(createAsyncMiddleware(async (req, res, next) => {
+      next()
+    }))
+
+    engine.push(function (req, res, next, end) {
+      res.result = 1234
+      end()
+    })
+
+    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, function (err, res) {
+      assert.ifError(err, 'has err')
+      done()
+    })
+  })
 })
