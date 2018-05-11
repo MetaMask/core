@@ -1,9 +1,10 @@
 const test = require('tape')
 const JsonRpcEngine = require('json-rpc-engine')
 const asMiddleware = require('json-rpc-engine/src/asMiddleware')
-const RpcBlockTracker = require('eth-block-tracker')
+const BlockTracker = require('eth-block-tracker')
 const EthQuery = require('eth-query')
-const TestBlockMiddleware = require('eth-block-tracker/test/util/testBlockMiddleware')
+const GanacheCore = require('ganache-core')
+const providerAsMiddleware = require('../providerAsMiddleware')
 const createInflightCacheMiddleware = require('../inflight-cache')
 const createScaffoldMiddleware = require('../scaffold')
 
@@ -59,26 +60,17 @@ test('inflight-cache - basic', (t) => {
 
 function createTestSetup () {
   // raw data source
-  const { engine: dataEngine, testBlockSource } = createEngineForTestData()
-  const dataProvider = providerFromEngine(dataEngine)
+  const dataProvider = GanacheCore.provider()
   // create block tracker
-  const blockTracker = new RpcBlockTracker({ provider: dataProvider })
+  const blockTracker = new BlockTracker({
+    provider: dataProvider,
+    pollingInterval: 100,
+  })
   // create higher level
   const engine = new JsonRpcEngine()
   const provider = providerFromEngine(engine)
-  // add block ref middleware
-  // engine.push(BlockRefMiddleware({ blockTracker }))
-  // add data source
-  // engine.push(asMiddleware(dataEngine))
   const query = new EthQuery(provider)
-  return { engine, provider, dataEngine, dataProvider, query, blockTracker, testBlockSource }
-}
-
-function createEngineForTestData () {
-  const engine = new JsonRpcEngine()
-  const testBlockSource = new TestBlockMiddleware()
-  engine.push(testBlockSource.createMiddleware())
-  return { engine, testBlockSource }
+  return { engine, provider, dataProvider, query, blockTracker }
 }
 
 function providerFromEngine (engine) {
