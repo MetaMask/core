@@ -2,9 +2,9 @@ const test = require('tape')
 const JsonRpcEngine = require('json-rpc-engine')
 const asMiddleware = require('json-rpc-engine/src/asMiddleware')
 const BlockTracker = require('eth-block-tracker')
-const EthQuery = require('eth-query')
 const GanacheCore = require('ganache-core')
 const providerAsMiddleware = require('../providerAsMiddleware')
+const providerFromEngine = require('../providerFromEngine')
 const createInflightCacheMiddleware = require('../inflight-cache')
 const createScaffoldMiddleware = require('../scaffold')
 
@@ -69,11 +69,5 @@ function createTestSetup () {
   // create higher level
   const engine = new JsonRpcEngine()
   const provider = providerFromEngine(engine)
-  const query = new EthQuery(provider)
-  return { engine, provider, dataProvider, query, blockTracker }
-}
-
-function providerFromEngine (engine) {
-  const provider = { sendAsync: engine.handle.bind(engine) }
-  return provider
+  return { engine, provider, dataProvider, blockTracker }
 }
