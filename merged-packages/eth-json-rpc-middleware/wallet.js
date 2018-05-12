@@ -101,7 +101,7 @@ function createWalletMiddleware(opts = {}) {
     //
     // That means when the first param is definitely an address,
     // and the second param is definitely not, but is hex.
-    if (resemblesAddress(firstParam) && resemblesData(secondParam)) {
+    if (resemblesAddress(firstParam) && !resemblesAddress(secondParam)) {
       let warning = `The eth_personalSign method requires params ordered `
       warning += `[message, address]. This was previously handled incorrectly, `
       warning += `and has been corrected automatically. `
@@ -150,8 +150,12 @@ function createWalletMiddleware(opts = {}) {
     const accounts = await getAccounts()
     const normalizedAccounts = accounts.map(address => address.toLowerCase())
     const normalizedAddress =  address.toLowerCase()
-    if (!normalizedAccounts.includes(normalizedAddress)) throw new Error('WalletMiddleware - Invalid Sender.')
+    if (!normalizedAccounts.includes(normalizedAddress)) throw new Error('WalletMiddleware - Invalid "from" address.')
   }
 
+}
 
+function resemblesAddress (string) {
+  // hex prefix 2 + 20 bytes
+  return string.length === (2 + 20 * 2)
 }

@@ -9,6 +9,11 @@ const providerFromEngine = require('../providerFromEngine')
 // const createScaffoldMiddleware = require('../scaffold')
 const createWalletMiddleware = require('../wallet')
 
+const testAddresses = ['0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb', '0x1234362ef32bcd26d3dd18ca749378213625ba0b']
+const testUnkownAddress = '0xbadbadbadbadbadbadbadbadbadbadbadbadbad6'
+const testTxHash = '0xceb3240213640d89419829f3e8011d015af7a7ab3b54c14fdf125620ce5b8697'
+const testMsgSig = '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c'
+
 //
 // accounts
 //
@@ -20,19 +25,121 @@ accountsTest({
 
 accountsTest({
   testLabel: 'one account',
-  accounts: ['0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb'],
+  accounts: testAddresses.slice(0, 1),
 })
 
 accountsTest({
   testLabel: 'two account',
-  accounts: ['0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb', '0x1234362ef32bcd26d3dd18ca749378213625ba0b'],
+  accounts: testAddresses.slice(0, 2),
+})
+
+//
+// tx signatures
+//
+
+transactionTest({
+  testLabel: 'no address',
+  txParams: {
+    from: undefined,
+  },
+  accounts: testAddresses,
+  fromAddressIsValid: true,
+})
+
+transactionTest({
+  testLabel: 'valid address',
+  txParams: {
+    from: testAddresses[0],
+  },
+  accounts: testAddresses,
+  fromAddressIsValid: true,
+})
+
+transactionTest({
+  testLabel: 'invalid address',
+  txParams: {
+    from: testUnkownAddress,
+  },
+  accounts: testAddresses,
+  fromAddressIsValid: false,
 })
 
 //
 // message signature
 //
 
-ecRecoverTest({
+// eth_sign
+
+ethSignTest({
+  testLabel: 'eth_sign - no address',
+  address: null,
+  accounts: testAddresses.slice(),
+  fromAddressIsValid: true,
+})
+
+ethSignTest({
+  testLabel: 'eth_sign - valid address',
+  address: testAddresses[0],
+  accounts: testAddresses.slice(),
+  fromAddressIsValid: true,
+})
+
+ethSignTest({
+  testLabel: 'eth_sign - invalid address',
+  address: testUnkownAddress,
+  accounts: testAddresses.slice(),
+  fromAddressIsValid: false,
+})
+
+// eth_signTypedData
+
+ethSignTypedDataTest({
+  testLabel: 'eth_signTypedData - no address',
+  address: null,
+  accounts: testAddresses.slice(),
+  fromAddressIsValid: true,
+})
+
+ethSignTypedDataTest({
+  testLabel: 'eth_signTypedData - valid address',
+  address: testAddresses[0],
+  accounts: testAddresses.slice(),
+  fromAddressIsValid: true,
+})
+
+ethSignTypedDataTest({
+  testLabel: 'eth_signTypedData - invalid address',
+  address: testUnkownAddress,
+  accounts: testAddresses.slice(),
+  fromAddressIsValid: false,
+})
+
+// personal_sign
+
+personalSignTest({
+  testLabel: 'personal_sign - no address',
+  address: null,
+  accounts: testAddresses.slice(),
+  fromAddressIsValid: true,
+})
+
+personalSignTest({
+  testLabel: 'personal_sign - valid address',
+  address: testAddresses[0],
+  accounts: testAddresses.slice(),
+  fromAddressIsValid: true,
+})
+
+personalSignTest({
+  testLabel: 'personal_sign - invalid address',
+  address: testUnkownAddress,
+  accounts: testAddresses.slice(),
+  fromAddressIsValid: false,
+})
+
+// personal_ecRecover
+
+personalRecoverTest({
   testLabel: 'geth kumavis manual I recover',
   // "hello world"
   message: '0x68656c6c6f20776f726c64',
@@ -40,7 +147,7 @@ ecRecoverTest({
   addressHex: '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
 })
 
-ecRecoverTest({
+personalRecoverTest({
   testLabel: 'geth kumavis manual II recover',
   // message from parity's test - note result is different than what they are testing against
   // https://github.com/ethcore/parity/blob/5369a129ae276d38f3490abb18c5093b338246e0/rpc/src/v1/tests/mocked/eth.rs#L301-L317
@@ -52,7 +159,7 @@ ecRecoverTest({
 // test util
 
 function accountsTest({ testLabel, accounts }) {
-  const { engine, query, ganacheQuery } = createTestSetup()
+  const { engine, query } = createTestSetup()
 
   const getAccounts = async () => accounts.slice()
   engine.push(createWalletMiddleware({ getAccounts }))
@@ -75,8 +182,163 @@ function accountsTest({ testLabel, accounts }) {
   })
 }
 
+function ethSignTest({ testLabel, address, accounts, fromAddressIsValid }) {
+  const { engine, query } = createTestSetup()
 
-function ecRecoverTest({ testLabel, addressHex, message, signature }) {
+  const witnessedMsgParams = []
+
+  const getAccounts = async () => accounts.slice()
+  const processEthSignMessage = async (msgParams) => {
+    witnessedMsgParams.push(msgParams)
+    return testMsgSig
+  }
+  engine.push(createWalletMiddleware({ getAccounts, processEthSignMessage }))
+
+  test(testLabel, async (t) => {
+    try {
+      const message = 'haay wuurl'
+      const payload = { method: 'eth_sign', params: [address, message] }
+      const signMsgResponse = await pify(engine.handle).call(engine, payload)
+      const signMsgResult = signMsgResponse.result
+      if (fromAddressIsValid) {
+        t.ok(signMsgResult, 'got result')
+        t.equal(signMsgResult, testMsgSig, 'got expected msg sig')
+        t.equal(witnessedMsgParams.length, 1, 'witnessed one sig request')
+        const msgParams = witnessedMsgParams[0]
+        t.deepEqual(msgParams, { from: address, data: message }, 'witnessed msgParams matches input')
+      } else {
+        t.fail('should have validated that fromAddress is invalid')
+      }
+    } catch (err) {
+      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid "from" address.')) {
+        t.pass('correctly errored on invalid sender.')
+      } else {
+        t.ifError(err)
+      }
+    }
+    t.end()
+  })
+}
+
+function ethSignTypedDataTest({ testLabel, address, accounts, fromAddressIsValid }) {
+  const { engine, query } = createTestSetup()
+
+  const witnessedMsgParams = []
+
+  const getAccounts = async () => accounts.slice()
+  const processTypedMessage = async (msgParams) => {
+    witnessedMsgParams.push(msgParams)
+    return testMsgSig
+  }
+  engine.push(createWalletMiddleware({ getAccounts, processTypedMessage }))
+
+  test(testLabel, async (t) => {
+    try {
+      const message = [
+        {
+          type: 'string',
+          name: 'message',
+          value: 'Hi, Alice!',
+        },
+      ]
+      const payload = { method: 'eth_signTypedData', params: [message, address] }
+      const signMsgResponse = await pify(engine.handle).call(engine, payload)
+      const signMsgResult = signMsgResponse.result
+      if (fromAddressIsValid) {
+        t.ok(signMsgResult, 'got result')
+        t.equal(signMsgResult, testMsgSig, 'got expected msg sig')
+        t.equal(witnessedMsgParams.length, 1, 'witnessed one sig request')
+        const msgParams = witnessedMsgParams[0]
+        t.deepEqual(msgParams, { from: address, data: message }, 'witnessed msgParams matches input')
+      } else {
+        t.fail('should have validated that fromAddress is invalid')
+      }
+    } catch (err) {
+      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid "from" address.')) {
+        t.pass('correctly errored on invalid sender.')
+      } else {
+        t.ifError(err)
+      }
+    }
+    t.end()
+  })
+}
+
+function personalSignTest({ testLabel, address, accounts, fromAddressIsValid }) {
+  const { engine, query } = createTestSetup()
+
+  const witnessedMsgParams = []
+
+  const getAccounts = async () => accounts.slice()
+  const processPersonalMessage = async (msgParams) => {
+    witnessedMsgParams.push(msgParams)
+    return testMsgSig
+  }
+  engine.push(createWalletMiddleware({ getAccounts, processPersonalMessage }))
+
+  test(testLabel, async (t) => {
+    try {
+      const message = 'haay wuurl'
+      const payload = { method: 'personal_sign', params: [message, address] }
+      const signMsgResponse = await pify(engine.handle).call(engine, payload)
+      const signMsgResult = signMsgResponse.result
+      if (fromAddressIsValid) {
+        t.ok(signMsgResult, 'got result')
+        t.equal(signMsgResult, testMsgSig, 'got expected msg sig')
+        t.equal(witnessedMsgParams.length, 1, 'witnessed one sig request')
+        const msgParams = witnessedMsgParams[0]
+        t.deepEqual(msgParams, { from: address, data: message }, 'witnessed msgParams matches input')
+      } else {
+        t.fail('should have validated that fromAddress is invalid')
+      }
+    } catch (err) {
+      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid "from" address.')) {
+        t.pass('correctly errored on invalid sender.')
+      } else {
+        t.ifError(err)
+      }
+    }
+    t.end()
+  })
+}
+
+function transactionTest({ testLabel, txParams, accounts, fromAddressIsValid }) {
+  const { engine, query } = createTestSetup()
+
+  const witnessedTxParams = []
+
+  const getAccounts = async () => accounts.slice()
+  const processTransaction = async (txParams) => {
+    witnessedTxParams.push(txParams)
+    return testTxHash
+  }
+  engine.push(createWalletMiddleware({ getAccounts, processTransaction }))
+
+  test(testLabel, async (t) => {
+    try {
+      const payload = { method: 'eth_sendTransaction', params: [txParams] }
+      const sendTxResponse = await pify(engine.handle).call(engine, payload)
+      const sendTxResult = sendTxResponse.result
+      if (fromAddressIsValid) {
+        t.ok(sendTxResult, 'got result')
+        t.equal(sendTxResult, testTxHash, 'got expected tx hash')
+        t.equal(witnessedTxParams.length, 1, 'witnessed one tx request')
+        t.deepEqual(witnessedTxParams[0], txParams, 'witnessed txParams matches input')
+      } else {
+        t.fail('should have validated that fromAddress is invalid')
+      }
+    } catch (err) {
+      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid "from" address.')) {
+        t.pass('correctly errored on invalid sender.')
+      } else {
+        t.ifError(err)
+      }
+    }
+    t.end()
+  })
+}
+
+function personalRecoverTest({ testLabel, addressHex, message, signature }) {
   const { engine, ganacheQuery } = createTestSetup()
 
   // setup wallet middleware
