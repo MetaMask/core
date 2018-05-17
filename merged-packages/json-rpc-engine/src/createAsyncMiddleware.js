@@ -10,7 +10,6 @@ function createAsyncMiddleware(asyncMiddleware) {
     promiseToCallback(finishedPromise)((err) => {
       // async middleware ended
       if (nextDonePromise) {
-        console.log('detected next was called')
         // next handler was called - complete nextHandler
         promiseToCallback(nextDonePromise)((nextErr, nextHandlerSignalDone) => {
           if (nextErr) return done(nextErr)
