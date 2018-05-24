@@ -12,7 +12,12 @@ function createAsyncMiddleware(asyncMiddleware) {
       if (nextDonePromise) {
         // next handler was called - complete nextHandler
         promiseToCallback(nextDonePromise)((nextErr, nextHandlerSignalDone) => {
-          if (nextErr) return done(nextErr)
+          // nextErr is only present if something went really wrong
+          // if an error is thrown after `await next()` it appears as `err` and not `nextErr`
+          if (nextErr) {
+            console.error(nextErr)
+            return end(nextErr)
+          }
           nextHandlerSignalDone(err)
         })
       } else {
