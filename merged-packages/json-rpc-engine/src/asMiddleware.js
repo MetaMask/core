@@ -7,7 +7,7 @@ function asMiddleware (engine) {
     engine._runMiddlewareDown(req, res, function (err, { isComplete, returnHandlers }) {
       if (err) return end(err)
       if (isComplete) {
-        end()
+        engine._runReturnHandlersUp(returnHandlers, end)
       } else {
         next((cb) => {
           engine._runReturnHandlersUp(returnHandlers, cb)

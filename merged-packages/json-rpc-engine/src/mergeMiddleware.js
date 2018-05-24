@@ -1,3 +1,4 @@
+const each = require('async/each')
 const JsonRpcEngine = require('./index')
 const asMiddleware = require('./asMiddleware')
 

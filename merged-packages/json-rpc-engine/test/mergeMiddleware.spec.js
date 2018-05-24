@@ -3,21 +3,20 @@
 
 const assert = require('assert')
 const RpcEngine = require('../src/index.js')
-const asMiddleware = require('../src/asMiddleware.js')
+const mergeMiddleware = require('../src/mergeMiddleware.js')
 
-describe('asMiddleware', function () {
+describe('mergeMiddleware', function () {
   it('basic', function (done) {
     let engine = new RpcEngine()
-    let subengine = new RpcEngine()
     let originalReq
 
-    subengine.push(function (req, res, next, end) {
-      originalReq = req
-      res.result = 'saw subengine'
-      end()
-    })
-
-    engine.push(asMiddleware(subengine))
+    engine.push(mergeMiddleware([
+      function (req, res, next, end) {
+        originalReq = req
+        res.result = 'saw merged middleware'
+        end()
+      }
+    ]))
 
     let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
@@ -26,24 +25,52 @@ describe('asMiddleware', function () {
       assert(res, 'has res')
       assert.equal(originalReq.id, res.id, 'id matches')
       assert.equal(originalReq.jsonrpc, res.jsonrpc, 'jsonrpc version matches')
-      assert.equal(res.result, 'saw subengine', 'response was handled by nested engine')
+      assert.equal(res.result, 'saw merged middleware', 'response was handled by nested middleware')
+      done()
+    })
+  })
+
+  it('handles next handler correctly for multiple merged', function (done) {
+    let engine = new RpcEngine()
+
+    engine.push(mergeMiddleware([
+      (req, res, next, end) => {
+        next((cb) => {
+          console.log('ayyy')
+          res.copy = res.result
+          cb()
+        })
+      },
+      (req, res, next, end) => {
+        console.log('handled')
+        res.result = true
+        end()
+      }
+    ]))
+
+    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, function (err, res) {
+      assert.ifError(err, 'did not error')
+      assert(res, 'has res')
+      console.log(res.result, res.copy)
+      assert.equal(res.result, res.copy, 'copied result correctly')
       done()
     })
   })
 
   it('decorate res', function (done) {
     let engine = new RpcEngine()
-    let subengine = new RpcEngine()
     let originalReq
 
-    subengine.push(function (req, res, next, end) {
-      originalReq = req
-      res.xyz = true
-      res.result = true
-      end()
-    })
-
-    engine.push(asMiddleware(subengine))
+    engine.push(mergeMiddleware([
+      function (req, res, next, end) {
+        originalReq = req
+        res.xyz = true
+        res.result = true
+        end()
+      }
+    ]))
 
     let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
@@ -59,17 +86,16 @@ describe('asMiddleware', function () {
 
   it('decorate req', function (done) {
     let engine = new RpcEngine()
-    let subengine = new RpcEngine()
     let originalReq
 
-    subengine.push(function (req, res, next, end) {
-      originalReq = req
-      req.xyz = true
-      res.result = true
-      end()
-    })
-
-    engine.push(asMiddleware(subengine))
+    engine.push(mergeMiddleware([
+      function (req, res, next, end) {
+        originalReq = req
+        req.xyz = true
+        res.result = true
+        end()
+      }
+    ]))
 
     let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
@@ -85,11 +111,10 @@ describe('asMiddleware', function () {
 
   it('should not error even if end not called', function (done) {
     let engine = new RpcEngine()
-    let subengine = new RpcEngine()
 
-    subengine.push((req, res, next, end) => next())
-
-    engine.push(asMiddleware(subengine))
+    engine.push(mergeMiddleware([
+      (req, res, next, end) => next()
+    ]))
     engine.push((req, res, next, end) => {
       res.result = true
       end()
@@ -104,49 +129,21 @@ describe('asMiddleware', function () {
     })
   })
 
-  it('handles next handler correctly when nested', function (done) {
+  it('handles next handler correctly across middleware', function (done) {
     let engine = new RpcEngine()
-    let subengine = new RpcEngine()
 
-    subengine.push((req, res, next, end) => {
-      next((cb) => {
-        res.copy = res.result
-        cb()
-      })
-    })
-
-    engine.push(asMiddleware(subengine))
+    engine.push(mergeMiddleware([
+      (req, res, next, end) => {
+        next((cb) => {
+          res.copy = res.result
+          cb()
+        })
+      }
+    ]))
     engine.push((req, res, next, end) => {
       res.result = true
       end()
     })
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
-
-    engine.handle(payload, function (err, res) {
-      assert.ifError(err, 'did not error')
-      assert(res, 'has res')
-      assert.equal(res.result, res.copy, 'copied result correctly')
-      done()
-    })
-  })
-
-  it('handles next handler correctly when flat', function (done) {
-    let engine = new RpcEngine()
-    let subengine = new RpcEngine()
-
-    subengine.push((req, res, next, end) => {
-      next((cb) => {
-        res.copy = res.result
-        cb()
-      })
-    })
-
-    subengine.push((req, res, next, end) => {
-      res.result = true
-      end()
-    })
-
-    engine.push(asMiddleware(subengine))
     let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
