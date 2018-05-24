@@ -7,6 +7,15 @@ const promiseToCallback = require('promise-to-callback')
 
 module.exports = createFetchMiddleware
 
+const RETRIABLE_ERRORS = [
+  // ignore server overload errors
+  'Gateway timeout',
+  'ETIMEDOUT',
+  // ignore server sent html error pages
+  // or truncated json responses
+  'SyntaxError',
+]
+
 function createFetchMiddleware ({ rpcUrl, originHttpHeaderKey }) {
   return (req, res, next, end) => {
     const payload = Object.assign({}, req)
@@ -32,13 +41,8 @@ function createFetchMiddleware ({ rpcUrl, originHttpHeaderKey }) {
       times: 5,
       interval: 1000,
       errorFilter: (err) => {
-        return (
-          // ignore server overload errors
-          err.message.includes('Gateway timeout')
-          // ignore server sent html error pages
-          // or truncated json responses
-          || err.message.includes('JSON')
-        )
+        const errMsg = err.toString()
+        return RETRIABLE_ERRORS.some(phrase => errMsg.includes(phrase))
       },
     }, (cb) => {
       let fetchRes
