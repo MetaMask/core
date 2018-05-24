@@ -49,7 +49,7 @@ function createWalletMiddleware(opts = {}) {
     if (!processTransaction) throw new Error('WalletMiddleware - opts.processTransaction not provided')
     const txParams = req.params[0] || {}
     await validateSender(txParams.from)
-    res.result = await processTransaction(txParams)
+    res.result = await processTransaction(txParams, req)
   }
 
   //
@@ -69,7 +69,7 @@ function createWalletMiddleware(opts = {}) {
     })
 
     await validateSender(address)
-    res.result = await processEthSignMessage(msgParams)
+    res.result = await processEthSignMessage(msgParams, req)
   }
 
   async function signTypedData (req, res) {
@@ -83,7 +83,7 @@ function createWalletMiddleware(opts = {}) {
     })
 
     await validateSender(address)
-    res.result = await processTypedMessage(msgParams)
+    res.result = await processTypedMessage(msgParams, req)
   }
 
   async function personalSign (req, res) {
@@ -121,7 +121,7 @@ function createWalletMiddleware(opts = {}) {
     })
 
     await validateSender(address)
-    res.result = await processPersonalMessage(msgParams)
+    res.result = await processPersonalMessage(msgParams, req)
   }
 
   async function personalRecover(req, res) {
