@@ -7,10 +7,20 @@
     "precommit": "lint-staged",
     "tslint": "tslint --project .",
     "build": "tsc",
-    "test": "npm run build && jest --coverage",
-    "prettier": "prettier {*,**/*}.{json,ts} --write"
+    "test": "jest --coverage",
+    "prettier": "prettier **/*.ts --write"
   },
   "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "ts"
+    ],
+    "transform": {
+      "^.+\\.tsx?$": "ts-jest"
+    },
+    "testMatch": [
+      "**/*.test.ts"
+    ],
     "coverageThreshold": {
       "global": {
         "branches": 100,
@@ -33,17 +43,17 @@
       "prettier --write",
       "tslint",
       "git add"
-    ],
-    "*.json": [
-      "prettier --write",
-      "git add"
     ]
   },
   "devDependencies": {
+    "@types/jest": "^22.2.3",
+    "@types/sinon": "^5.0.0",
     "husky": "^0.14.3",
     "jest": "^22.1.4",
     "lint-staged": "^6.1.0",
     "prettier": "^1.10.2",
+    "sinon": "^5.0.10",
+    "ts-jest": "^22.4.6",
     "tslint": "^5.10.0",
     "tslint-config-prettier": "^1.13.0",
     "typescript": "^2.8.3"

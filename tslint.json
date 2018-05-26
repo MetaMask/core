@@ -4,6 +4,15 @@
 		"tslint-config-prettier"
 	],
 	"rules": {
-		"no-console": [false]
+		"indent": [true, "tabs"],
+		"interface-name": [false],
+		"member-access": [true, "no-public"],
+		"member-ordering": [false],
+		"no-console": [false],
+		"no-empty-interface": [false],
+		"no-implicit-dependencies": [false],
+		"no-object-literal-type-assertion": [false],
+		"no-unused-expression": [true, "allow-fast-null-checks"],
+		"semicolon": [true, "always"]
 	}
 }
