@@ -1,0 +1,51 @@
+{
+  "name": "metamask-core",
+  "version": "1.0.0",
+  "description": "Platform-agnonstic core library powering the MetaMask platform",
+  "license": "MIT",
+  "scripts": {
+    "precommit": "lint-staged",
+    "tslint": "tslint --project .",
+    "build": "tsc",
+    "test": "npm run build && jest --coverage",
+    "prettier": "prettier {*,**/*}.{json,ts} --write"
+  },
+  "jest": {
+    "coverageThreshold": {
+      "global": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      }
+    }
+  },
+  "prettier": {
+    "arrowParens": "always",
+    "parser": "typescript",
+    "printWidth": 120,
+    "singleQuote": true,
+    "tabWidth": 4,
+    "useTabs": true
+  },
+  "lint-staged": {
+    "*.ts": [
+      "prettier --write",
+      "tslint",
+      "git add"
+    ],
+    "*.json": [
+      "prettier --write",
+      "git add"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^0.14.3",
+    "jest": "^22.1.4",
+    "lint-staged": "^6.1.0",
+    "prettier": "^1.10.2",
+    "tslint": "^5.10.0",
+    "tslint-config-prettier": "^1.13.0",
+    "typescript": "^2.8.3"
+  }
+}

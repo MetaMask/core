@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"experimentalDecorators": true,
+		"importHelpers": true,
+		"module": "umd",
+		"moduleResolution": "node",
+		"outDir": "dist",
+		"removeComments": false,
+		"sourceMap": true,
+		"strict": true,
+		"target": "es6"
+	},
+	"include": [
+		"./src/**/*.ts"
+	]
+}
