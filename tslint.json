@@ -4,6 +4,7 @@
 		"tslint-config-prettier"
 	],
 	"rules": {
+		"forin": [false],
 		"indent": [true, "tabs"],
 		"interface-name": [false],
 		"member-access": [true, "no-public"],
@@ -13,6 +14,7 @@
 		"no-implicit-dependencies": [false],
 		"no-object-literal-type-assertion": [false],
 		"no-unused-expression": [true, "allow-fast-null-checks"],
-		"semicolon": [true, "always"]
+		"semicolon": [true, "always"],
+		"trailing-comma": [true, "never"]
 	}
 }

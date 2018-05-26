@@ -10,7 +10,7 @@ describe('BaseController', () => {
 	});
 
 	it('should set and merge state', () => {
-		const controller = new BaseController({});
+		const controller = new BaseController();
 		controller.mergeState(STATE);
 		expect(controller.state).toEqual(STATE);
 	});
@@ -29,7 +29,7 @@ describe('BaseController', () => {
 	});
 
 	it('should notify listeners on merge', () => {
-		const controller = new BaseController({});
+		const controller = new BaseController();
 		const listener = stub();
 		controller.subscribe(listener);
 		controller.mergeState(STATE);
@@ -38,7 +38,7 @@ describe('BaseController', () => {
 	});
 
 	it('should not notify unsubscribed listeners', () => {
-		const controller = new BaseController({});
+		const controller = new BaseController();
 		const listener = stub();
 		controller.subscribe(listener);
 		controller.unsubscribe(listener);
@@ -48,7 +48,7 @@ describe('BaseController', () => {
 	});
 
 	it('should not notify listeners when disabled dynamically', () => {
-		const controller = new BaseController({});
+		const controller = new BaseController();
 		controller.disabled = true;
 		const listener = stub();
 		controller.subscribe(listener);
@@ -57,7 +57,7 @@ describe('BaseController', () => {
 	});
 
 	it('should not notify listeners when disabled by default', () => {
-		const controller = new BaseController({}, { disabled: true });
+		const controller = new BaseController(undefined, { disabled: true });
 		const listener = stub();
 		controller.subscribe(listener);
 		controller.notify();

@@ -1,14 +1,22 @@
 type Listener<T> = (state: T) => void;
 
 /**
+ * @type BaseConfig
+ *
  * Base controller configuration
+ *
+ * @property disabled - Determines if listeners are notified of state changes
  */
 export interface BaseConfig {
 	disabled?: boolean;
 }
 
 /**
+ * @type BaseState
+ *
  * Base state representation
+ *
+ * @property name - Unique name associated with this state data
  */
 export interface BaseState {
 	name?: string;
@@ -33,9 +41,9 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	 * @param state - Initial state to set on this controller
 	 * @param config - Controller configuration
 	 */
-	constructor(initialState: S, config?: C) {
+	constructor(initialState?: S, config?: C) {
 		this.disabled = config && config.disabled;
-		this.state = initialState;
+		this.state = initialState || ({} as S);
 	}
 
 	/**
