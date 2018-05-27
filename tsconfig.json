@@ -10,7 +10,19 @@
 		"strict": true,
 		"target": "es6"
 	},
+	"typedocOptions": {
+		"exclude": "**/*.test.ts",
+		"excludeNotExported": true,
+		"excludePrivate": true,
+		"hideGenerator": true,
+		"mode": "modules",
+		"out": "docs",
+		"theme": "default"
+	},
 	"include": [
 		"./src/**/*.ts"
+	],
+	"exclude": [
+		"./src/**/*.test.ts"
 	]
 }

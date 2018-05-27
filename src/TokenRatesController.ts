@@ -36,7 +36,7 @@ export interface TokenRatesConfig extends BaseConfig {
  * @property contractExchangeRates - Hash of token contract addresses to exchange rates
  */
 export interface TokenRatesState extends BaseState {
-	contractExchangeRates: { [key: string]: number };
+	contractExchangeRates: { [address: string]: number };
 }
 
 /**
@@ -67,8 +67,8 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 	 * @param interval - Polling interval used to fetch new token rates
 	 */
 	set interval(interval: number) {
-		this.handle && clearInterval(this.handle);
-		this.handle = setInterval(() => {
+		this.handle && window.clearInterval(this.handle);
+		this.handle = window.setInterval(() => {
 			this.updateExchangeRates();
 		}, interval);
 	}
@@ -107,7 +107,7 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 		if (this.disabled) {
 			return;
 		}
-		const contractExchangeRates: { [key: string]: number } = {};
+		const contractExchangeRates: { [address: string]: number } = {};
 		for (const i in this.tokenList) {
 			const address = this.tokenList[i].address;
 			contractExchangeRates[address] = await this.fetchExchangeRate(address);

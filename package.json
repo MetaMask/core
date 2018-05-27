@@ -5,10 +5,11 @@
   "license": "MIT",
   "scripts": {
     "precommit": "lint-staged",
-    "tslint": "tslint --project .",
-    "build": "tsc",
+    "lint": "tslint --project .",
     "test": "jest --coverage",
-    "prettier": "prettier **/*.ts --write"
+    "prettier": "prettier **/*.ts --write --ignore-path=.gitignore",
+    "build": "tsc",
+    "doc": "typedoc src/"
   },
   "jest": {
     "moduleFileExtensions": [
@@ -47,7 +48,7 @@
   },
   "devDependencies": {
     "@types/jest": "^22.2.3",
-    "@types/sinon": "^5.0.0",
+    "@types/sinon": "^4.3.3",
     "husky": "^0.14.3",
     "isomorphic-fetch": "^2.2.1",
     "jest": "^22.1.4",
@@ -57,6 +58,7 @@
     "ts-jest": "^22.4.6",
     "tslint": "^5.10.0",
     "tslint-config-prettier": "^1.13.0",
+    "typedoc": "^0.11.1",
     "typescript": "^2.8.3"
   }
 }
