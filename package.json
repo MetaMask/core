@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "precommit": "lint-staged",
-    "lint": "tslint --project .",
+    "lint": "tslint src/**/*.ts",
     "test": "jest --coverage",
     "prettier": "prettier **/*.ts --write --ignore-path=.gitignore",
     "build": "tsc",

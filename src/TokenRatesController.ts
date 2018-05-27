@@ -1,7 +1,5 @@
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 
-const DEFAULT_UPDATE_INTERVAL = 1000;
-
 /**
  * @type Token
  *
@@ -20,18 +18,20 @@ export interface Token {
 /**
  * @type TokenRatesConfig
  *
- * TokenRates controller configuration
+ * Token rates controller configuration
  *
  * @property interval - Polling interval used to fetch new token rates
+ * @property tokens - List of tokens to track exchange rates for
  */
 export interface TokenRatesConfig extends BaseConfig {
 	interval?: number;
+	tokens?: Token[];
 }
 
 /**
  * @type TokenRatesState
  *
- * TokenRatesController state
+ * Token rates controller state
  *
  * @property contractExchangeRates - Hash of token contract addresses to exchange rates
  */
@@ -40,8 +40,7 @@ export interface TokenRatesState extends BaseState {
 }
 
 /**
- * Controller class that polls for token exchange
- * rates based on the current account's token list
+ * Controller class that polls for token exchange rates based on a token list
  */
 export class TokenRatesController extends BaseController<TokenRatesState, TokenRatesConfig> {
 	private handle?: number;
@@ -52,13 +51,27 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 	}
 
 	/**
-	 * Creates a TokenRatesController
-	 *
-	 * @param config - Options to configure this controller
+	 * Default options used to configure this controller
 	 */
-	constructor(initialState?: TokenRatesState, config?: TokenRatesConfig) {
-		super(initialState, config);
-		this.interval = (config && config.interval) || DEFAULT_UPDATE_INTERVAL;
+	defaultConfig = {
+		interval: 1000,
+		tokens: []
+	};
+
+	/**
+	 * Default state set on this controller
+	 */
+	defaultState = { contractExchangeRates: {} };
+
+	/**
+	 * Creates a TokenRatesController instance
+	 *
+	 * @param state - Initial state to set on this controller
+	 * @param config - Initial options used to configure this controller
+	 */
+	constructor(state?: TokenRatesState, config?: TokenRatesConfig) {
+		super(state, config);
+		this.initialize();
 	}
 
 	/**
@@ -112,7 +125,7 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 			const address = this.tokenList[i].address;
 			contractExchangeRates[address] = await this.fetchExchangeRate(address);
 		}
-		this.mergeState({ contractExchangeRates });
+		this.update({ contractExchangeRates });
 	}
 }
 

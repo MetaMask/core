@@ -5,65 +5,104 @@ type Listener<T> = (state: T) => void;
  *
  * Base controller configuration
  *
- * @property disabled - Determines if listeners are notified of state changes
+ * @property disabled - Determines if this controller is enabled
  */
 export interface BaseConfig {
 	disabled?: boolean;
 }
 
 /**
- * @type BaseState
+ * @type BaseStaate
  *
  * Base state representation
  *
- * @property name - Unique name associated with this state data
+ * @property name - Unique name for this controller
  */
 export interface BaseState {
 	name?: string;
 }
 
 /**
- * Controller class that provides subscription capabilities and
- * defines a standard interface other controllers must implement
+ * Controller class that provides configuration, state management, and subscriptions
  */
 export class BaseController<S extends BaseState, C extends BaseConfig> {
-	private internalState: S = {} as S;
-	private listeners: Array<Listener<S>> = [];
+	/**
+	 * Default options used to configure this controller
+	 */
+	defaultConfig: C = {} as C;
+
+	/**
+	 * Default state set on this controller
+	 */
+	defaultState: S = {} as S;
 
 	/**
 	 * Determines if listeners are notified of state changes
 	 */
-	disabled?: boolean;
+	disabled = false;
+
+	private initialConfig: C;
+	private initialState: S;
+	private internalConfig: C = this.defaultConfig;
+	private internalState: S = this.defaultState;
+	private listeners: Array<Listener<S>> = [];
 
 	/**
-	 * Creates a BaseController
+	 * Creates a BaseController instance
 	 *
 	 * @param state - Initial state to set on this controller
-	 * @param config - Controller configuration
+	 * @param config - Initial options used to configure this controller
 	 */
-	constructor(initialState?: S, config?: C) {
-		this.disabled = config && config.disabled;
-		this.state = initialState || ({} as S);
+	constructor(state: S = {} as S, config: C = {} as C) {
+		// Use assign since generics can't be spread: https://git.io/vpRhY
+		/* tslint:disable:prefer-object-spread */
+		this.initialState = state;
+		this.initialConfig = config;
 	}
 
 	/**
-	 * Retrieves internal state
+	 * Enables the controller
 	 *
-	 * @returns - Current internal state
+	 * @returns This controller instance
+	 */
+	protected initialize(): BaseController<S, C> {
+		this.internalState = this.defaultState;
+		this.internalConfig = this.defaultConfig;
+		this.configure(this.initialConfig);
+		this.update(this.initialState);
+		return this;
+	}
+
+	/**
+	 * Retrieves current controller configuration options
+	 *
+	 * @returns - Current configuration
+	 */
+	get config(): C {
+		return this.internalConfig;
+	}
+
+	/**
+	 * Retrieves current controller state
+	 *
+	 * @returns - Current state
 	 */
 	get state(): S {
 		return this.internalState;
 	}
 
 	/**
-	 * Updates internal state
+	 * Updates controller configuration
 	 *
-	 * @param state - New state to store
+	 * @param config - New configuration options
+	 * @param overwrite - Overwrite config instead of merging
 	 */
-	set state(state: S) {
-		/* tslint:disable-next-line:prefer-object-spread */
-		this.internalState = Object.assign({}, state);
-		this.notify();
+	configure(config: Partial<C>, overwrite = false) {
+		this.internalConfig = overwrite ? (config as C) : Object.assign(this.internalConfig, config);
+
+		for (const key in this.internalConfig) {
+			(this as any)[key as string] = this.internalConfig[key];
+		}
 	}
 
 	/**
@@ -100,11 +139,14 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	}
 
 	/**
-	 * Merges new state on top of existing state
+	 * Updates controller state
+	 *
+	 * @param state - New state
+	 * @param overwrite - Overwrite state instead of merging
 	 */
-	mergeState(partialState: S) {
-		/* tslint:disable-next-line:prefer-object-spread */
-		this.state = Object.assign(this.internalState, partialState);
+	update(state: Partial<S>, overwrite = false) {
+		this.internalState = overwrite ? Object.assign({}, state as S) : Object.assign({}, this.internalState, state);
+		this.notify();
 	}
 }
 

@@ -1,22 +1,43 @@
 import { stub } from 'sinon';
-import BaseController from './BaseController';
+import BaseController, { BaseConfig, BaseState } from './BaseController';
 
 const STATE = { name: 'foo' };
+const CONFIG = { disabled: true };
+
+class TestController extends BaseController<BaseState, BaseConfig> {
+	constructor(state?, config?) {
+		super(state, config);
+		this.initialize();
+	}
+}
 
 describe('BaseController', () => {
 	it('should set initial state', () => {
-		const controller = new BaseController(STATE);
+		const controller = new TestController(STATE);
 		expect(controller.state).toEqual(STATE);
 	});
 
-	it('should set and merge state', () => {
-		const controller = new BaseController();
-		controller.mergeState(STATE);
+	it('should set initial config', () => {
+		const controller = new TestController(undefined, CONFIG);
+		expect(controller.config).toEqual(CONFIG);
+	});
+
+	it('should overwrite state', () => {
+		const controller = new TestController();
+		expect(controller.state).toEqual({});
+		controller.update(STATE, true);
 		expect(controller.state).toEqual(STATE);
+	});
+
+	it('should overwrite config', () => {
+		const controller = new TestController();
+		expect(controller.config).toEqual({});
+		controller.configure(CONFIG, true);
+		expect(controller.config).toEqual(CONFIG);
 	});
 
 	it('should notify all listeners', () => {
-		const controller = new BaseController(STATE);
+		const controller = new TestController(STATE);
 		const listenerOne = stub();
 		const listenerTwo = stub();
 		controller.subscribe(listenerOne);
@@ -28,38 +49,12 @@ describe('BaseController', () => {
 		expect(listenerTwo.getCall(0).args[0]).toEqual(STATE);
 	});
 
-	it('should notify listeners on merge', () => {
-		const controller = new BaseController();
-		const listener = stub();
-		controller.subscribe(listener);
-		controller.mergeState(STATE);
-		expect(listener.calledOnce).toBe(true);
-		expect(listener.getCall(0).args[0]).toEqual(STATE);
-	});
-
 	it('should not notify unsubscribed listeners', () => {
-		const controller = new BaseController();
+		const controller = new TestController();
 		const listener = stub();
 		controller.subscribe(listener);
 		controller.unsubscribe(listener);
 		controller.unsubscribe(() => null);
-		controller.notify();
-		expect(listener.called).toBe(false);
-	});
-
-	it('should not notify listeners when disabled dynamically', () => {
-		const controller = new BaseController();
-		controller.disabled = true;
-		const listener = stub();
-		controller.subscribe(listener);
-		controller.notify();
-		expect(listener.called).toBe(false);
-	});
-
-	it('should not notify listeners when disabled by default', () => {
-		const controller = new BaseController(undefined, { disabled: true });
-		const listener = stub();
-		controller.subscribe(listener);
 		controller.notify();
 		expect(listener.called).toBe(false);
 	});
