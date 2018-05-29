@@ -14,6 +14,13 @@ describe('ComposableController', () => {
 		});
 	});
 
+	it('should get and set new stores', () => {
+		const controller = new ComposableController();
+		const addressBook = new AddressBookController();
+		controller.stores = [addressBook];
+		expect(controller.stores).toEqual([addressBook]);
+	});
+
 	it('should notify listeners of nested state change', () => {
 		const addressBookController = new AddressBookController();
 		const controller = new ComposableController([addressBookController]);
