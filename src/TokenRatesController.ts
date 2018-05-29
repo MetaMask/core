@@ -40,7 +40,7 @@ export interface TokenRatesState extends BaseState {
 }
 
 /**
- * Controller class that polls for token exchange rates based on a token list
+ * Controller that passively polls on a set interval for token-to-fiat exchange rates
  */
 export class TokenRatesController extends BaseController<TokenRatesState, TokenRatesConfig> {
 	private handle?: number;

@@ -25,7 +25,7 @@ export interface AddressBookState extends BaseState {
 }
 
 /**
- * Controller class that manages a list of recipient addresses
+ * Controller that manages a list of recipient addresses associated with nicknames
  */
 export class AddressBookController extends BaseController<AddressBookState, BaseConfig> {
 	private addressBook = new Map<string, ContactEntry>();

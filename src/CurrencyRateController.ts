@@ -27,7 +27,7 @@ export interface CurrencyRateState extends BaseState {
 }
 
 /**
- * Controller class that polls for an ETH-to-currency exchange rate
+ * Controller that passively polls on a set interval for an ETH-to-fiat exchange rate
  */
 export class CurrencyRateController extends BaseController<CurrencyRateState, CurrencyRateConfig> {
 	private activeCurrency: string = '';
