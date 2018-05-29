@@ -1,7 +1,7 @@
 {
-  "name": "metamask-core",
+  "name": "@metamask/gaba",
   "version": "1.0.0",
-  "description": "Platform-agnonstic core library powering the MetaMask platform",
+  "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "license": "MIT",
   "scripts": {
     "precommit": "lint-staged",
