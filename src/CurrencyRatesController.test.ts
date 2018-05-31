@@ -20,7 +20,7 @@ describe('CurrencyRateController', () => {
 	});
 
 	it('should poll on correct interval', () => {
-		const mock = stub(window, 'setInterval');
+		const mock = stub(global, 'setInterval');
 		/* tslint:disable-next-line:no-unused-expression */
 		new CurrencyRateController(undefined, { interval: 1337 });
 		expect(mock.getCall(0).args[1]).toBe(1337);
@@ -60,7 +60,7 @@ describe('CurrencyRateController', () => {
 	});
 
 	it('should clear previous interval', () => {
-		const mock = stub(window, 'clearInterval');
+		const mock = stub(global, 'clearInterval');
 		const controller = new CurrencyRateController(undefined, { interval: 1337 });
 		controller.interval = 1338;
 		expect(mock.called).toBe(true);

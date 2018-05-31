@@ -43,7 +43,7 @@ export interface TokenRatesState extends BaseState {
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
  */
 export class TokenRatesController extends BaseController<TokenRatesState, TokenRatesConfig> {
-	private handle?: number;
+	private handle?: NodeJS.Timer;
 	private tokenList: Token[] = [];
 
 	private getPricingURL(address: string) {
@@ -80,8 +80,8 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 	 * @param interval - Polling interval used to fetch new token rates
 	 */
 	set interval(interval: number) {
-		this.handle && window.clearInterval(this.handle);
-		this.handle = window.setInterval(() => {
+		this.handle && clearInterval(this.handle);
+		this.handle = setInterval(() => {
 			this.updateExchangeRates();
 		}, interval);
 	}

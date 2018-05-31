@@ -48,7 +48,8 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	private listeners: Array<Listener<S>> = [];
 
 	/**
-	 * Creates a BaseController instance
+	 * Creates a BaseController instance. Both initial state and initial
+	 * configuration options are merged with defaults upon initialization.
 	 *
 	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
@@ -61,7 +62,9 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	}
 
 	/**
-	 * Enables the controller
+	 * Enables the controller. This sets each config option as a member
+	 * variable on this instance and triggers any defined setters. This
+	 * also sets initial state and triggers any listeners.
 	 *
 	 * @returns This controller instance
 	 */

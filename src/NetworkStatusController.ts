@@ -50,7 +50,7 @@ const DOWN_NETWORK_STATUS: NetworkStatus = {
  * Controller that passively polls on a set interval for network status of providers
  */
 export class NetworkStatusController extends BaseController<NetworkStatusState, NetworkStatusConfig> {
-	private handle?: number;
+	private handle?: NodeJS.Timer;
 
 	/**
 	 * Default options used to configure this controller
@@ -83,8 +83,8 @@ export class NetworkStatusController extends BaseController<NetworkStatusState, 
 	 * @param interval - Polling interval used to fetch network status
 	 */
 	set interval(interval: number) {
-		this.handle && window.clearInterval(this.handle);
-		this.handle = window.setInterval(() => {
+		this.handle && clearInterval(this.handle);
+		this.handle = setInterval(() => {
 			this.updateNetworkStatuses();
 		}, interval);
 	}

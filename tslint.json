@@ -13,7 +13,9 @@
 		"no-empty-interface": [false],
 		"no-implicit-dependencies": [false],
 		"no-object-literal-type-assertion": [false],
+		"no-submodule-imports": [false],
 		"no-unused-expression": [true, "allow-fast-null-checks"],
+		"no-var-requires": [false],
 		"semicolon": [true, "always"],
 		"trailing-comma": [true, "never"]
 	}

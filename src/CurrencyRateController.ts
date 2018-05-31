@@ -31,7 +31,7 @@ export interface CurrencyRateState extends BaseState {
  */
 export class CurrencyRateController extends BaseController<CurrencyRateState, CurrencyRateConfig> {
 	private activeCurrency: string = '';
-	private handle?: number;
+	private handle?: NodeJS.Timer;
 
 	private getPricingURL(currency: string) {
 		return `https://api.infura.io/v1/ticker/eth${currency.toLowerCase()}`;
@@ -70,8 +70,8 @@ export class CurrencyRateController extends BaseController<CurrencyRateState, Cu
 	 * @param interval - Polling interval used to fetch new token rates
 	 */
 	set interval(interval: number) {
-		this.handle && window.clearInterval(this.handle);
-		this.handle = window.setInterval(() => {
+		this.handle && clearInterval(this.handle);
+		this.handle = setInterval(() => {
 			this.updateExchangeRate();
 		}, interval);
 	}
