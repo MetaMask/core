@@ -59,7 +59,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateState, Cu
 	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
 	 */
-	constructor(state?: CurrencyRateState, config?: CurrencyRateConfig) {
+	constructor(state?: Partial<CurrencyRateState>, config?: CurrencyRateConfig) {
 		super(state, config);
 		this.initialize();
 	}

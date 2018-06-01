@@ -50,7 +50,7 @@ export class NetworkController extends BaseController<NetworkState, NetworkConfi
 		}
 	};
 
-	constructor(state?: NetworkState, config?: NetworkConfig) {
+	constructor(state?: Partial<NetworkState>, config?: NetworkConfig) {
 		super(state, config);
 		this.initialize();
 	}

@@ -54,11 +54,11 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
 	 */
-	constructor(state: S = {} as S, config: C = {} as C) {
+	constructor(state: Partial<S> = {} as S, config: Partial<C> = {} as C) {
 		// Use assign since generics can't be spread: https://git.io/vpRhY
 		/* tslint:disable:prefer-object-spread */
-		this.initialState = state;
-		this.initialConfig = config;
+		this.initialState = state as S;
+		this.initialConfig = config as C;
 	}
 
 	/**

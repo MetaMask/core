@@ -69,7 +69,7 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
 	 */
-	constructor(state?: TokenRatesState, config?: TokenRatesConfig) {
+	constructor(state?: Partial<TokenRatesState>, config?: TokenRatesConfig) {
 		super(state, config);
 		this.initialize();
 	}

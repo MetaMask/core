@@ -40,7 +40,7 @@ export class AddressBookController extends BaseController<AddressBookState, Base
 	 *
 	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state?: AddressBookState) {
+	constructor(state?: Partial<AddressBookState>) {
 		super(state);
 		this.initialize();
 	}

@@ -72,7 +72,7 @@ export class NetworkStatusController extends BaseController<NetworkStatusState, 
 	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
 	 */
-	constructor(state?: NetworkStatusState, config?: NetworkStatusConfig) {
+	constructor(state?: Partial<NetworkStatusState>, config?: NetworkStatusConfig) {
 		super(state, config);
 		this.initialize();
 	}
