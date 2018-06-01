@@ -55,7 +55,7 @@ export class NetworkStatusController extends BaseController<NetworkStatusState, 
 	/**
 	 * Default options used to configure this controller
 	 */
-	defaultConfig = { interval: 1000 };
+	defaultConfig = { interval: 180000 };
 
 	/**
 	 * Default state set on this controller
@@ -83,6 +83,7 @@ export class NetworkStatusController extends BaseController<NetworkStatusState, 
 	 * @param interval - Polling interval used to fetch network status
 	 */
 	set interval(interval: number) {
+		this.updateNetworkStatuses();
 		this.handle && clearInterval(this.handle);
 		this.handle = setInterval(() => {
 			this.updateNetworkStatuses();

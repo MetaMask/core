@@ -21,7 +21,7 @@ describe('NetworkStatusController', () => {
 
 	it('should set default config', () => {
 		const controller = new NetworkStatusController();
-		expect(controller.config).toEqual({ interval: 1000 });
+		expect(controller.config).toEqual({ interval: 180000 });
 	});
 
 	it('should poll on correct interval', () => {
