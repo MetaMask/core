@@ -5,7 +5,7 @@ const STATE = { name: 'foo' };
 const CONFIG = { disabled: true };
 
 class TestController extends BaseController<BaseState, BaseConfig> {
-	constructor(state?, config?) {
+	constructor(state?: BaseState, config?: BaseConfig) {
 		super(state, config);
 		this.initialize();
 	}

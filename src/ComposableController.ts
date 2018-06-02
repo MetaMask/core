@@ -1,50 +1,73 @@
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 
 /**
+ * Child controller instances keyed by controller name
+ */
+export interface ChildControllerContext {
+	[key: string]: BaseController<any, any>;
+}
+
+/**
  * Controller that can be used to compose mutiple controllers together
  */
 export class ComposableController extends BaseController<BaseState, BaseConfig> {
 	/**
 	 * Array of stores to compose together
 	 */
-	internalStores: Array<BaseController<any, any>> = [];
+	context: ChildControllerContext = {};
 
 	/**
 	 * Creates a ComposableController instance
 	 *
-	 * @param stores - Array of stores to compose together
+	 * @param controllers - Map of names to controller instances
 	 */
-	constructor(stores: Array<BaseController<any, any>> = []) {
+	constructor(controllers: ChildControllerContext = {}) {
 		super();
 		this.initialize();
-		this.stores = stores;
+		this.controllers = controllers;
 	}
 
 	/**
-	 * Get current list of composed stores
+	 * Get current map of child composed store instances
 	 *
-	 * @returns List of composed stores
+	 * @returns Map of names to controller instances
 	 */
-	get stores() {
-		return this.internalStores;
+	get controllers() {
+		return this.context;
 	}
 
 	/**
-	 * Set new list of composed stores
+	 * Set new map of controller instances
 	 *
-	 * @param stores - New list of composed stores
+	 * @param controllers - Map of names to controller instsances
 	 */
-	set stores(stores: Array<BaseController<any, any>>) {
-		this.internalStores = stores;
+	set controllers(controllers: ChildControllerContext) {
+		this.context = controllers;
 
-		let initialState = {};
-		stores.forEach((store) => {
-			initialState = { ...initialState, ...store.state };
-			store.subscribe((state) => {
-				this.update(state);
+		const initialState: ChildControllerContext = {};
+		for (const name in controllers) {
+			controllers[name].context = this.context;
+			initialState[name] = controllers[name].state;
+			controllers[name].subscribe((state) => {
+				this.update({ [name]: state });
 			});
-		});
+		}
 		this.update(initialState, true);
+	}
+
+	/**
+	 * Flat state representation, one that isn't keyed
+	 * of controller name. Instead, all child controller state is merged
+	 * together into a single, flat object.
+	 *
+	 * @returns Merged state representation of all child controllers
+	 */
+	get flatState() {
+		let flatState = {};
+		for (const name in this.context) {
+			flatState = { ...flatState, ...this.context[name].state };
+		}
+		return flatState;
 	}
 }
 

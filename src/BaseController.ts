@@ -1,3 +1,5 @@
+import { ChildControllerContext } from './ComposableController';
+
 type Listener<T> = (state: T) => void;
 
 /**
@@ -26,6 +28,13 @@ export interface BaseState {
  * Controller class that provides configuration, state management, and subscriptions
  */
 export class BaseController<S extends BaseState, C extends BaseConfig> {
+	/**
+	 * Map of all sibling child controllers keyed by name if this
+	 * controller is composed using a ComposableController, allowing
+	 * any API on any sibling controller to be accessed
+	 */
+	context: ChildControllerContext = {};
+
 	/**
 	 * Default options used to configure this controller
 	 */

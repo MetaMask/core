@@ -18,18 +18,27 @@ View the [API documentation](https://bitpshr.github.io/gaba/) for information on
 		AddressBookController,
 		ComposableController,
 		CurrencyRateController,
+		NetworkController,
 		NetworkStatusController,
 		TokenRatesController
 	} from '@metamask/gaba';
 
-	const datamodel = new ComposableController([
-		new AddressBookController(),
-		new CurrencyRateController(),
-		new NetworkStatusController,
-		new TokenRatesController()
-	]);
+	const datamodel = new ComposableController({
+		address: new AddressBookController(),
+		currency: new CurrencyRateController(),
+		network: new NetworkController(),
+		networkStatus: new NetworkStatusController(),
+		tokenRates: new TokenRatesController()
+	});
 	
-	datamodel.subscribe((state) => { /* data model has changed */ });
+	datamodel.subscribe((state) => {
+		/* data model has changed */
+		console.log(state);
+		console.log(datamodel.flatState);
+	});
+
+	/* Child controller APIs are exposed through ComposableController's context property */
+	datamodel.context.address.set('0x1337', 'someNickname');
     ```
 
 ## License

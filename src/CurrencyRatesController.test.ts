@@ -56,7 +56,7 @@ describe('CurrencyRateController', () => {
 		});
 		controller.fetchExchangeRate = stub();
 		await controller.updateExchangeRate();
-		expect(controller.fetchExchangeRate.called).toBe(false);
+		expect((controller.fetchExchangeRate as any).called).toBe(false);
 	});
 
 	it('should clear previous interval', () => {
