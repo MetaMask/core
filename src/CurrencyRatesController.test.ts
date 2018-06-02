@@ -7,7 +7,8 @@ describe('CurrencyRateController', () => {
 		const controller = new CurrencyRateController();
 		expect(controller.state).toEqual({
 			conversionDate: 0,
-			conversionRate: 0
+			conversionRate: 0,
+			currentCurrency: 'usd'
 		});
 	});
 
@@ -15,7 +16,7 @@ describe('CurrencyRateController', () => {
 		const controller = new CurrencyRateController();
 		expect(controller.config).toEqual({
 			currency: 'usd',
-			interval: 1000
+			interval: 180000
 		});
 	});
 

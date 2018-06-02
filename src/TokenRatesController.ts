@@ -24,8 +24,8 @@ export interface Token {
  * @property tokens - List of tokens to track exchange rates for
  */
 export interface TokenRatesConfig extends BaseConfig {
-	interval?: number;
-	tokens?: Token[];
+	interval: number;
+	tokens: Token[];
 }
 
 /**
@@ -51,26 +51,18 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 	}
 
 	/**
-	 * Default options used to configure this controller
-	 */
-	defaultConfig = {
-		interval: 1000,
-		tokens: []
-	};
-
-	/**
-	 * Default state set on this controller
-	 */
-	defaultState = { contractExchangeRates: {} };
-
-	/**
 	 * Creates a TokenRatesController instance
 	 *
 	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
 	 */
-	constructor(state?: Partial<TokenRatesState>, config?: TokenRatesConfig) {
+	constructor(state?: Partial<TokenRatesState>, config?: Partial<TokenRatesConfig>) {
 		super(state, config);
+		this.defaultConfig = {
+			interval: 180000,
+			tokens: []
+		};
+		this.defaultState = { contractExchangeRates: {} };
 		this.initialize();
 	}
 

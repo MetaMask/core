@@ -43,15 +43,12 @@ export class NetworkController extends BaseController<NetworkState, NetworkConfi
 
 	provider: any;
 
-	defaultState: NetworkState = {
-		network: 'loading',
-		provider: {
-			type: 'rinkeby'
-		}
-	};
-
-	constructor(state?: Partial<NetworkState>, config?: NetworkConfig) {
+	constructor(state?: Partial<NetworkState>, config?: Partial<NetworkConfig>) {
 		super(state, config);
+		this.defaultState = {
+			network: 'loading',
+			provider: { type: 'rinkeby' }
+		};
 		this.initialize();
 	}
 

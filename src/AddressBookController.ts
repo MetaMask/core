@@ -31,17 +31,13 @@ export class AddressBookController extends BaseController<AddressBookState, Base
 	private addressBook = new Map<string, ContactEntry>();
 
 	/**
-	 * Default state set on this controller
-	 */
-	defaultState = { addressBook: [] };
-
-	/**
 	 * Creates a AddressBookController instance
 	 *
 	 * @param state - Initial state to set on this controller
 	 */
 	constructor(state?: Partial<AddressBookState>) {
 		super(state);
+		this.defaultState = { addressBook: [] };
 		this.initialize();
 	}
 

@@ -23,7 +23,7 @@ export interface NetworkStatus {
  * @property interval - Polling interval used to fetch network status
  */
 export interface NetworkStatusConfig extends BaseConfig {
-	interval?: number;
+	interval: number;
 }
 
 /**
@@ -53,27 +53,19 @@ export class NetworkStatusController extends BaseController<NetworkStatusState, 
 	private handle?: NodeJS.Timer;
 
 	/**
-	 * Default options used to configure this controller
-	 */
-	defaultConfig = { interval: 180000 };
-
-	/**
-	 * Default state set on this controller
-	 */
-	defaultState = {
-		networkStatus: {
-			infura: DOWN_NETWORK_STATUS
-		}
-	};
-
-	/**
 	 * Creates a NetworkStatusController instance
 	 *
 	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
 	 */
-	constructor(state?: Partial<NetworkStatusState>, config?: NetworkStatusConfig) {
+	constructor(state?: Partial<NetworkStatusState>, config?: Partial<NetworkStatusConfig>) {
 		super(state, config);
+		this.defaultConfig = { interval: 180000 };
+		this.defaultState = {
+			networkStatus: {
+				infura: DOWN_NETWORK_STATUS
+			}
+		};
 		this.initialize();
 	}
 
