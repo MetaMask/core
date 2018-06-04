@@ -1,7 +1,10 @@
 import { EventEmitter } from 'events';
 import { ChildControllerContext } from './ComposableController';
 
-type Listener<T> = (state: T) => void;
+/**
+ * State change callbacks
+ */
+export type Listener<T> = (state: T) => void;
 
 /**
  * @type BaseConfig
