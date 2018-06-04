@@ -101,7 +101,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateState, Cu
 					currentCurrency: this.activeCurrency
 				};
 			} else {
-			/* istanbul ignore next */
+				/* istanbul ignore next */
 				return fallback;
 			}
 		} catch (error) {

@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 import { ChildControllerContext } from './ComposableController';
 
 type Listener<T> = (state: T) => void;
@@ -27,7 +28,7 @@ export interface BaseState {
 /**
  * Controller class that provides configuration, state management, and subscriptions
  */
-export class BaseController<S extends BaseState, C extends BaseConfig> {
+export class BaseController<S extends BaseState, C extends BaseConfig> extends EventEmitter {
 	/**
 	 * Map of all sibling child controllers keyed by name if this
 	 * controller is composed using a ComposableController, allowing
@@ -54,7 +55,7 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	private initialState: S;
 	private internalConfig: C = this.defaultConfig;
 	private internalState: S = this.defaultState;
-	private listeners: Array<Listener<S>> = [];
+	private internalListeners: Array<Listener<S>> = [];
 
 	/**
 	 * Creates a BaseController instance. Both initial state and initial
@@ -64,6 +65,7 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	 * @param config - Initial options used to configure this controller
 	 */
 	constructor(state: Partial<S> = {} as S, config: Partial<C> = {} as C) {
+		super();
 		// Use assign since generics can't be spread: https://git.io/vpRhY
 		/* tslint:disable:prefer-object-spread */
 		this.initialState = state as S;
@@ -124,7 +126,7 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 		if (this.disabled) {
 			return;
 		}
-		this.listeners.forEach((listener) => {
+		this.internalListeners.forEach((listener) => {
 			listener(this.internalState);
 		});
 	}
@@ -135,7 +137,7 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	 * @param listener - Callback triggered when state changes
 	 */
 	subscribe(listener: Listener<S>) {
-		this.listeners.push(listener);
+		this.internalListeners.push(listener);
 	}
 
 	/**
@@ -145,8 +147,8 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	 * @returns - True if a listener is found and unsubscribed
 	 */
 	unsubscribe(listener: Listener<S>): boolean {
-		const index = this.listeners.findIndex((cb) => listener === cb);
-		index > -1 && this.listeners.splice(index, 1);
+		const index = this.internalListeners.findIndex((cb) => listener === cb);
+		index > -1 && this.internalListeners.splice(index, 1);
 		return index > -1 ? true : false;
 	}
 
