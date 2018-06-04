@@ -3,4 +3,5 @@ export * from './BaseController';
 export * from './ComposableController';
 export * from './CurrencyRateController';
 export * from './NetworkStatusController';
+export * from './PhishingController';
 export * from './TokenRatesController';

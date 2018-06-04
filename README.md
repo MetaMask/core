@@ -10,7 +10,7 @@ View the [API documentation](https://bitpshr.github.io/gaba/) for information on
 
 1. Install the package.
     ```
-    npm i @metamask/gaba
+    npm i gaba
     ```
 2. Compose stores to create a data model.
     ```js
@@ -21,7 +21,7 @@ View the [API documentation](https://bitpshr.github.io/gaba/) for information on
 		NetworkController,
 		NetworkStatusController,
 		TokenRatesController
-	} from '@metamask/gaba';
+	} from 'gaba';
 
 	const datamodel = new ComposableController({
 		address: new AddressBookController(),
