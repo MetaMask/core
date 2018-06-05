@@ -69,7 +69,7 @@ export class PhishingController extends BaseController<PhishingState, PhishingCo
 	/**
 	 * Sets a new polling interval
 	 *
-	 * @param interval - Polling interval used to fetch new exchange rates
+	 * @param interval - Polling interval used to fetch new approval lists
 	 */
 	set interval(interval: number) {
 		this.handle && clearInterval(this.handle);
