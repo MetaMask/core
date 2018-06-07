@@ -1,5 +1,7 @@
 const cacheUtils = require('./cache-utils.js')
 const createAsyncMiddleware = require('json-rpc-engine/src/createAsyncMiddleware')
+// `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
+const emptyValues = [undefined, null, '\u003cnil\u003e']
 
 module.exports = createBlockCacheMiddleware
 
@@ -52,7 +54,7 @@ function createBlockCacheMiddleware(opts = {}) {
       // wait for other middleware to handle request
       await next()
       // abort if other middleware did not fill in a result
-      if (res.result === undefined) return
+      if (emptyValues.includes(res.result)) return
       // add result to cache
       await strategy.set(req, requestedBlockNumber, res.result)
     } else {
