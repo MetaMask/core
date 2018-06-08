@@ -118,7 +118,9 @@ export class BaseController<S extends BaseState, C extends BaseConfig> extends E
 		this.internalConfig = overwrite ? (config as C) : Object.assign(this.internalConfig, config);
 
 		for (const key in this.internalConfig) {
-			(this as any)[key as string] = this.internalConfig[key];
+			if (typeof this.internalConfig[key] !== 'undefined') {
+				(this as any)[key as string] = this.internalConfig[key];
+			}
 		}
 	}
 
