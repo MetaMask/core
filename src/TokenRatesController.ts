@@ -98,7 +98,7 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 		try {
 			const response = await fetch(this.getPricingURL(address));
 			const json = await response.json();
-			return json && json.length ? json[0].averagePrice : 0;
+			return json && json.length ? json[0].averagePrice : /* istanbul ignore next */ 0;
 		} catch (error) {
 			/* istanbul ignore next */
 			return 0;
