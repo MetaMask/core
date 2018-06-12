@@ -59,9 +59,9 @@ function blockTagParamIndex (payload) {
     case 'eth_getCode':
     case 'eth_getTransactionCount':
     case 'eth_call':
-    case 'eth_estimateGas':
       return 1
     // blockTag is at index 0
+    case 'eth_estimateGas':
     case 'eth_getBlockByNumber':
       return 0
     // there is no blockTag
