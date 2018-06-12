@@ -1,6 +1,6 @@
 ![gaba logo](https://raw.githubusercontent.com/metamask/gaba/master/logo.png)
 
-The **GABA** engine is a collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets. Every module exposes a common store interface for configuration, state management, and subscription. Modules are single-purpose and can be composed together into a single store that can be used as a robust data model for wallet frontends regardless of their intended platform.
+The **GABA** engine is a collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets.
 
 [![Build Status](https://travis-ci.org/MetaMask/gaba.svg?branch=master)](https://travis-ci.org/MetaMask/gaba)
 [![codecov](https://codecov.io/gh/MetaMask/gaba/branch/master/graph/badge.svg)](https://codecov.io/gh/MetaMask/gaba)
@@ -16,6 +16,7 @@ The **GABA** engine is a collection of platform-agnostic modules for creating se
     - [Subscription](#subscription)
     - [Composition](#composition)
 - [TypeScript](#why-typescript)
+- [API documentation](#api-documentation)
 - [License](#license)
 
 ## Usage
@@ -247,6 +248,12 @@ TypeScript automatically transpiles the latest ECMAScript language features to a
 - Superset of JavaScript, so all JS is valid TS
 
 All of these features of a statically-typed language like TypeScript combine to form codebases consisting of strict contractural relationships between every module in an application. Changes are less intimidating since unnoticed side effects are difficult to introduce, documentation can be generated with less verbose syntax (TSDoc is JSDoc without the types since it can infer them), editors provide autocompletion of both public module members and of local and NPM dependencies, and an upgrade to TypeScript can be incremental as demonstrated in this PR.
+
+## API documentation
+
+API documentation is auto-generated for the GABA package on every commit to the `master` branch.
+
+[View API documentation](https://metamask.github.io/gaba/)
 
 ## License
 
