@@ -1,4 +1,3 @@
-import { EventEmitter } from 'events';
 import { ChildControllerContext } from './ComposableController';
 
 /**
@@ -31,7 +30,7 @@ export interface BaseState {
 /**
  * Controller class that provides configuration, state management, and subscriptions
  */
-export class BaseController<S extends BaseState, C extends BaseConfig> extends EventEmitter {
+export class BaseController<S extends BaseState, C extends BaseConfig> {
 	/**
 	 * Map of all sibling child controllers keyed by name if this
 	 * controller is composed using a ComposableController, allowing
@@ -68,7 +67,6 @@ export class BaseController<S extends BaseState, C extends BaseConfig> extends E
 	 * @param config - Initial options used to configure this controller
 	 */
 	constructor(state: Partial<S> = {} as S, config: Partial<C> = {} as C) {
-		super();
 		// Use assign since generics can't be spread: https://git.io/vpRhY
 		/* tslint:disable:prefer-object-spread */
 		this.initialState = state as S;
