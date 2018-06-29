@@ -31,7 +31,7 @@ export class AddressBookController extends BaseController<AddressBookState, Base
 	private addressBook = new Map<string, ContactEntry>();
 
 	/**
-	 * Creates a AddressBookController instance
+	 * Creates an AddressBookController instance
 	 *
 	 * @param state - Initial state to set on this controller
 	 */

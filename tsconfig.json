@@ -4,6 +4,7 @@
 		"importHelpers": true,
 		"module": "umd",
 		"moduleResolution": "node",
+		"noImplicitAny": true,
 		"outDir": "dist",
 		"removeComments": false,
 		"sourceMap": true,

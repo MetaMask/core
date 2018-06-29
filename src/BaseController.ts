@@ -80,7 +80,7 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	 *
 	 * @returns This controller instance
 	 */
-	protected initialize(): BaseController<S, C> {
+	protected initialize() {
 		this.internalState = this.defaultState;
 		this.internalConfig = this.defaultConfig;
 		this.configure(this.initialConfig);
@@ -93,7 +93,7 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	 *
 	 * @returns - Current configuration
 	 */
-	get config(): C {
+	get config() {
 		return this.internalConfig;
 	}
 
@@ -102,7 +102,7 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	 *
 	 * @returns - Current state
 	 */
-	get state(): S {
+	get state() {
 		return this.internalState;
 	}
 
@@ -149,7 +149,7 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	 * @param listener - Callback to remove
 	 * @returns - True if a listener is found and unsubscribed
 	 */
-	unsubscribe(listener: Listener<S>): boolean {
+	unsubscribe(listener: Listener<S>) {
 		const index = this.internalListeners.findIndex((cb) => listener === cb);
 		index > -1 && this.internalListeners.splice(index, 1);
 		return index > -1 ? true : false;

@@ -107,6 +107,8 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 
 	/**
 	 * Updates exchange rates for all tokens
+	 *
+	 * @returns Promise resolving when this operation completes
 	 */
 	async updateExchangeRates() {
 		if (this.disabled) {

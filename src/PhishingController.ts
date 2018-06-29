@@ -85,12 +85,14 @@ export class PhishingController extends BaseController<PhishingState, PhishingCo
 	 * @param origin - Domain origin of a website
 	 * @returns - True if the origin is an unapproved origin
 	 */
-	test(origin: string) {
+	test(origin: string): boolean {
 		return this.detector.check(origin).result;
 	}
 
 	/**
 	 * Updates lists of approved and unapproved website origins
+	 *
+	 * @returns Promise resolving when this operation completes
 	 */
 	async updatePhishingLists() {
 		let phishing;

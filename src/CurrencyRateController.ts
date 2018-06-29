@@ -111,6 +111,8 @@ export class CurrencyRateController extends BaseController<CurrencyRateState, Cu
 
 	/**
 	 * Updates exchange rates for the current currency
+	 *
+	 * @returns Promise resolving when this operation completes
 	 */
 	async updateExchangeRate() {
 		if (this.disabled) {
