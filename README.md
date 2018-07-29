@@ -71,6 +71,14 @@ import CurrencyRateController from 'gaba';
 
 The CurrencyRateController passively polls for an ETH-to-fiat exchange rate based on a chosen currency.
 
+### NetworkController
+
+```ts
+import NetworkController from 'gaba';
+```
+
+The NetworkController is responsible for creating an underlying provider and for refreshing its configuration.
+
 ### NetworkStatusController
 
 ```ts
@@ -86,6 +94,14 @@ import PhishingController from 'gaba';
 ```
 
 The PhishingController passively polls for community-maintained lists of approved and unapproved website origins.
+
+### PreferencesController
+
+```ts
+import PreferencesController from 'gaba';
+```
+
+The PreferencesController manages agnostic global settings and exposes convenience methods for updating them.
 
 ### ShapeShiftController
 
