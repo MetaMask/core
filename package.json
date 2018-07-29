@@ -7,7 +7,7 @@
     "precommit": "lint-staged",
     "lint": "tslint src/**/*.ts",
     "test": "jest --coverage",
-    "prettier": "prettier **/*.ts --write --ignore-path=.gitignore",
+    "format": "prettier **/*.ts --write --ignore-path=.gitignore",
     "build": "tsc && cp package.json dist/.",
     "doc": "typedoc src/ && touch docs/.nojekyll"
   },

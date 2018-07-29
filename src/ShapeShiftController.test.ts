@@ -20,7 +20,7 @@ const PENDING_TX_ALT = {
 	time: Date.now()
 };
 
-describe('NetworkStatusController', () => {
+describe('ShapeShiftController', () => {
 	it('should set default state', () => {
 		const controller = new ShapeShiftController();
 		expect(controller.state).toEqual({ shapeShiftTxList: [] });

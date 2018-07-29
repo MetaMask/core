@@ -180,6 +180,7 @@ export class BlockHistoryController extends BaseController<BlockHistoryState, Bl
 		this.internalBlockTracker && this.internalBlockTracker.removeAllListeners();
 		this.internalBlockTracker = blockTracker;
 		this.internalBlockTracker.on('block', this.onBlock.bind(this));
+		!this.backfilled && this.backfill();
 	}
 
 	/**

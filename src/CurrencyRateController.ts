@@ -1,4 +1,6 @@
+import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
+import { safelyExecute } from './util';
 
 /**
  * @type CurrencyRateConfig
@@ -62,13 +64,13 @@ export class CurrencyRateController extends BaseController<CurrencyRateState, Cu
 	/**
 	 * Sets a new polling interval
 	 *
-	 * @param interval - Polling interval used to fetch new exchange rates
+	 * @param interval - Polling interval used to fetch new exchange rate
 	 */
 	set interval(interval: number) {
 		this.handle && clearInterval(this.handle);
-		this.updateExchangeRate();
+		safelyExecute(() => this.updateExchangeRate());
 		this.handle = setInterval(() => {
-			this.updateExchangeRate();
+			safelyExecute(() => this.updateExchangeRate());
 		}, interval);
 	}
 
@@ -79,7 +81,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateState, Cu
 	 */
 	set currency(currency: string) {
 		this.activeCurrency = currency;
-		this.updateExchangeRate();
+		safelyExecute(() => this.updateExchangeRate());
 	}
 
 	/**
@@ -89,37 +91,27 @@ export class CurrencyRateController extends BaseController<CurrencyRateState, Cu
 	 * @returns - Promise resolving to exchange rate for given currecy
 	 */
 	async fetchExchangeRate(currency: string): Promise<CurrencyRateState> {
-		const fallback = { conversionDate: 0, conversionRate: 0, currentCurrency: this.activeCurrency };
-		try {
-			const response = await fetch(this.getPricingURL(currency));
-			const json = await response.json();
-			/* istanbul ignore next */
-			if (json && json.bid) {
-				return {
-					conversionDate: Number(json.timestamp),
-					conversionRate: Number(json.bid),
-					currentCurrency: this.activeCurrency
-				};
-			} else {
-				/* istanbul ignore next */
-				return fallback;
-			}
-		} catch (error) {
-			return fallback;
-		}
+		const response = await fetch(this.getPricingURL(currency));
+		const json = await response.json();
+		return {
+			conversionDate: Number(json.timestamp),
+			conversionRate: Number(json.bid),
+			currentCurrency: this.activeCurrency
+		};
 	}
 
 	/**
-	 * Updates exchange rates for the current currency
+	 * Updates exchange rate for the current currency
 	 *
-	 * @returns Promise resolving when this operation completes
+	 * @returns Promise resolving to currency data or undefined if disabled
 	 */
-	async updateExchangeRate() {
+	async updateExchangeRate(): Promise<CurrencyRateState | void> {
 		if (this.disabled) {
 			return;
 		}
 		const { conversionDate, conversionRate } = await this.fetchExchangeRate(this.activeCurrency);
 		this.update({ conversionDate, conversionRate, currentCurrency: this.activeCurrency });
+		return this.state;
 	}
 }
 

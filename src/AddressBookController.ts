@@ -34,9 +34,10 @@ export class AddressBookController extends BaseController<AddressBookState, Base
 	 * Creates an AddressBookController instance
 	 *
 	 * @param state - Initial state to set on this controller
+	 * @param config - Initial options used to configure this controller
 	 */
-	constructor(state?: Partial<AddressBookState>) {
-		super(state);
+	constructor(state?: Partial<AddressBookState>, config?: Partial<BaseConfig>) {
+		super(state, config);
 		this.defaultState = { addressBook: [] };
 		this.initialize();
 	}

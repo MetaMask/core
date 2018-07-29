@@ -45,9 +45,6 @@ describe('CurrencyRateController', () => {
 		expect(controller.state.conversionRate).toEqual(0);
 		await controller.updateExchangeRate();
 		expect(controller.state.conversionRate).toBeGreaterThan(0);
-		controller.currency = 'foo';
-		await controller.updateExchangeRate();
-		expect(controller.state.conversionRate).toEqual(0);
 	});
 
 	it('should not update rates if disabled', async () => {

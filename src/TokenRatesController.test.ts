@@ -1,5 +1,7 @@
 import 'isomorphic-fetch';
-import { stub } from 'sinon';
+import { mock, stub } from 'sinon';
+import ComposableController from './ComposableController';
+import PreferencesController from './PreferencesController';
 import TokenRatesController from './TokenRatesController';
 
 describe('TokenRatesController', () => {
@@ -12,25 +14,26 @@ describe('TokenRatesController', () => {
 		const controller = new TokenRatesController();
 		expect(controller.config).toEqual({
 			interval: 180000,
+			preferencesKey: 'preferences',
 			tokens: []
 		});
 	});
 
 	it('should poll on correct interval', () => {
-		const mock = stub(global, 'setInterval');
+		const func = stub(global, 'setInterval');
 		/* tslint:disable-next-line:no-unused-expression */
 		new TokenRatesController(undefined, { interval: 1337 });
-		expect(mock.getCall(0).args[1]).toBe(1337);
-		mock.restore();
+		expect(func.getCall(0).args[1]).toBe(1337);
+		func.restore();
 	});
 
 	it('should update rates on interval', () => {
 		return new Promise((resolve) => {
 			const controller = new TokenRatesController(undefined, { interval: 10 });
-			const mock = stub(controller, 'updateExchangeRates');
+			const func = stub(controller, 'updateExchangeRates');
 			setTimeout(() => {
-				expect(mock.called).toBe(true);
-				mock.restore();
+				expect(func.called).toBe(true);
+				func.restore();
 				resolve();
 			}, 20);
 		});
@@ -60,10 +63,21 @@ describe('TokenRatesController', () => {
 	});
 
 	it('should clear previous interval', () => {
-		const mock = stub(global, 'clearInterval');
+		const func = stub(global, 'clearInterval');
 		const controller = new TokenRatesController(undefined, { interval: 1337 });
 		controller.interval = 1338;
-		expect(mock.called).toBe(true);
-		mock.restore();
+		expect(func.called).toBe(true);
+		func.restore();
+	});
+
+	it('should subscribe to new sibling preference controllers', async () => {
+		const preferences = new PreferencesController();
+		const controller = new TokenRatesController();
+		const composedController = new ComposableController({
+			controller,
+			preferences
+		});
+		preferences.setFeatureFlag('foo', true);
+		expect(controller.context.preferences.state.featureFlags.foo).toBe(true);
 	});
 });

@@ -1,3 +1,4 @@
+import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 
 /**

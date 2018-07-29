@@ -1,4 +1,6 @@
+import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
+import { safelyExecute } from './util';
 
 /**
  * @type ShapeShiftTransaction
@@ -67,16 +69,14 @@ export class ShapeShiftController extends BaseController<ShapeShiftState, ShapeS
 	}
 
 	private async updateTransaction(transaction: ShapeShiftTransaction) {
-		try {
+		return safelyExecute(async () => {
 			const response = await fetch(this.getUpdateURL(transaction));
 			transaction.response = await response.json();
 			if (transaction.response && transaction.response.status === 'complete') {
 				transaction.time = Date.now();
 			}
 			return transaction;
-		} catch (error) {
-			/* tslint:disable-next-line:no-empty */
-		}
+		});
 	}
 
 	/**

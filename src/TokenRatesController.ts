@@ -1,4 +1,7 @@
+import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
+import { PreferencesController } from './PreferencesController';
+import { safelyExecute } from './util';
 
 /**
  * @type Token
@@ -21,10 +24,12 @@ export interface Token {
  * Token rates controller configuration
  *
  * @property interval - Polling interval used to fetch new token rates
+ * @property preferencesKey - Context key of a sibling preferences controller
  * @property tokens - List of tokens to track exchange rates for
  */
 export interface TokenRatesConfig extends BaseConfig {
 	interval: number;
+	preferencesKey: string;
 	tokens: Token[];
 }
 
@@ -46,6 +51,11 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 	private handle?: NodeJS.Timer;
 	private tokenList: Token[] = [];
 
+	/**
+	 * Context key of a sibling preferences controller
+	 */
+	preferencesKey?: string;
+
 	private getPricingURL(address: string) {
 		return `https://metamask.balanc3.net/prices?from=${address}&to=ETH&autoConversion=false&summaryOnly=true`;
 	}
@@ -60,6 +70,7 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 		super(state, config);
 		this.defaultConfig = {
 			interval: 180000,
+			preferencesKey: 'preferences',
 			tokens: []
 		};
 		this.defaultState = { contractExchangeRates: {} };
@@ -73,8 +84,9 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 	 */
 	set interval(interval: number) {
 		this.handle && clearInterval(this.handle);
+		safelyExecute(() => this.updateExchangeRates());
 		this.handle = setInterval(() => {
-			this.updateExchangeRates();
+			safelyExecute(() => this.updateExchangeRates());
 		}, interval);
 	}
 
@@ -85,7 +97,7 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 	 */
 	set tokens(tokens: Token[]) {
 		this.tokenList = tokens;
-		this.updateExchangeRates();
+		safelyExecute(() => this.updateExchangeRates());
 	}
 
 	/**
@@ -95,14 +107,21 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 	 * @returns - Promise resolving to exchange rate for given contract address
 	 */
 	async fetchExchangeRate(address: string): Promise<number> {
-		try {
-			const response = await fetch(this.getPricingURL(address));
-			const json = await response.json();
-			return json && json.length ? json[0].averagePrice : /* istanbul ignore next */ 0;
-		} catch (error) {
-			/* istanbul ignore next */
-			return 0;
-		}
+		const response = await fetch(this.getPricingURL(address));
+		const json = await response.json();
+		return json && json.length ? json[0].averagePrice : /* istanbul ignore next */ 0;
+	}
+
+	/**
+	 * Extension point called if and when this controller is composed
+	 * with other controllers using a ComposableController
+	 */
+	onComposed() {
+		const preferences = (this.preferencesKey && this.context[this.preferencesKey]) as PreferencesController;
+		preferences &&
+			preferences.subscribe(({ tokens }) => {
+				this.configure({ tokens });
+			});
 	}
 
 	/**

@@ -2,7 +2,7 @@ import 'isomorphic-fetch';
 import { stub } from 'sinon';
 import PhishingController from './PhishingController';
 
-describe('NetworkStatusController', () => {
+describe('PhishingController', () => {
 	it('should set default state', () => {
 		const controller = new PhishingController();
 		expect(controller.state.phishing).toHaveProperty('blacklist');

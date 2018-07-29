@@ -51,6 +51,7 @@ export class ComposableController extends BaseController<BaseState, BaseConfig> 
 			controllers[name].subscribe((state) => {
 				this.update({ [name]: state });
 			});
+			controllers[name].onComposed();
 		}
 		this.update(initialState, true);
 	}

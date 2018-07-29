@@ -4,7 +4,7 @@ install:
 - travis_retry npm install -g codecov
 - travis_retry npm install
 script:
-- npm run prettier
+- npm run format
 - npm run lint
 - npm run test
 - npm run doc

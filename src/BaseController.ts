@@ -135,6 +135,14 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	}
 
 	/**
+	 * Extension point called if and when this controller is composed
+	 * with other controllers using a ComposableController
+	 */
+	onComposed() {
+		/* tslint:disable-next-line:no-empty */
+	}
+
+	/**
 	 * Adds new listener to be notified of state changes
 	 *
 	 * @param listener - Callback triggered when state changes

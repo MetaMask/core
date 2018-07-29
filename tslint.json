@@ -1,7 +1,6 @@
 {
     "extends": [
-		"tslint:latest",
-		"tslint-config-prettier"
+		"tslint:recommended"
 	],
 	"rules": {
 		"forin": [false],
@@ -16,6 +15,8 @@
 		"no-submodule-imports": [false],
 		"no-unused-expression": [true, "allow-fast-null-checks"],
 		"no-var-requires": [false],
+		"ordered-imports": [false],
+		"quotemark": [true, "single", "jsx-double"],
 		"semicolon": [true, "always"],
 		"trailing-comma": [true, "never"]
 	}
