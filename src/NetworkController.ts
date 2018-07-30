@@ -55,26 +55,6 @@ export class NetworkController extends BaseController<NetworkState, NetworkConfi
 	private ethQuery: any;
 	private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 
-	/**
-	 * Ethereum provider object for the current network
-	 */
-	provider: any;
-
-	/**
-	 * Creates a NetworkController instance
-	 *
-	 * @param state - Initial state to set on this controller
-	 * @param config - Initial options used to configure this controller
-	 */
-	constructor(state?: Partial<NetworkState>, config?: Partial<NetworkConfig>) {
-		super(state, config);
-		this.defaultState = {
-			network: 'loading',
-			provider: { type: 'rinkeby' }
-		};
-		this.initialize();
-	}
-
 	private initializeProvider(type: NetworkType, rpcTarget?: string) {
 		switch (type) {
 			case 'kovan':
@@ -144,6 +124,26 @@ export class NetworkController extends BaseController<NetworkState, NetworkConfi
 
 	private verifyNetwork() {
 		this.state.network === 'loading' && this.lookupNetwork();
+	}
+
+	/**
+	 * Ethereum provider object for the current network
+	 */
+	provider: any;
+
+	/**
+	 * Creates a NetworkController instance
+	 *
+	 * @param state - Initial state to set on this controller
+	 * @param config - Initial options used to configure this controller
+	 */
+	constructor(state?: Partial<NetworkState>, config?: Partial<NetworkConfig>) {
+		super(state, config);
+		this.defaultState = {
+			network: 'loading',
+			provider: { type: 'rinkeby' }
+		};
+		this.initialize();
 	}
 
 	/**

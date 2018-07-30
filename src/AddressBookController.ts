@@ -43,13 +43,10 @@ export class AddressBookController extends BaseController<AddressBookState, Base
 	}
 
 	/**
-	 * Add or update a contact entry by address
-	 *
-	 * @param address - Recipient address to add or update
-	 * @param name - Nickname to associate with this address
+	 * Remove all contract entries
 	 */
-	set(address: string, name: string) {
-		this.addressBook.set(address, { address, name });
+	clear() {
+		this.addressBook.clear();
 		this.update({ addressBook: Array.from(this.addressBook.values()) });
 	}
 
@@ -64,10 +61,13 @@ export class AddressBookController extends BaseController<AddressBookState, Base
 	}
 
 	/**
-	 * Remove all contract entries
+	 * Add or update a contact entry by address
+	 *
+	 * @param address - Recipient address to add or update
+	 * @param name - Nickname to associate with this address
 	 */
-	clear() {
-		this.addressBook.clear();
+	set(address: string, name: string) {
+		this.addressBook.set(address, { address, name });
 		this.update({ addressBook: Array.from(this.addressBook.values()) });
 	}
 }

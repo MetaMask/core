@@ -2,7 +2,6 @@ import { Block } from './BlockHistoryController';
 
 const BN = require('ethereumjs-util').BN;
 const percentile = require('percentile');
-
 const GWEI_BN = new BN('1000000000');
 
 /**

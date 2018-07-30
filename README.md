@@ -79,6 +79,14 @@ import CurrencyRateController from 'gaba';
 
 The CurrencyRateController passively polls for an ETH-to-fiat exchange rate based on a chosen currency.
 
+### KeyringController
+
+```ts
+import KeyringController from 'gaba';
+```
+
+The KeyringController is responsible for establishing and managing Ethereum address-based identities.
+
 ### NetworkController
 
 ```ts
@@ -125,7 +133,13 @@ The ShapeShiftController exposes functions for creating ShapeShift purchases and
 import TokenRatesController from 'gaba';
 ```
 
-The TokenRatesController passively polls for token-to-ETH exchange rates based on a list of available tokens.
+### util
+
+```ts
+import util from 'gaba';
+```
+
+The util module exposes a set of utility functions for common operations like gas estimation and generating crypto-buying URLs.
 
 ## Concepts
 

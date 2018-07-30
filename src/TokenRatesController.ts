@@ -51,14 +51,14 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 	private handle?: NodeJS.Timer;
 	private tokenList: Token[] = [];
 
+	private getPricingURL(address: string) {
+		return `https://metamask.balanc3.net/prices?from=${address}&to=ETH&autoConversion=false&summaryOnly=true`;
+	}
+
 	/**
 	 * Context key of a sibling preferences controller
 	 */
 	preferencesKey?: string;
-
-	private getPricingURL(address: string) {
-		return `https://metamask.balanc3.net/prices?from=${address}&to=ETH&autoConversion=false&summaryOnly=true`;
-	}
 
 	/**
 	 * Creates a TokenRatesController instance
