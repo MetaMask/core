@@ -101,6 +101,17 @@ export class CurrencyRateController extends BaseController<CurrencyRateState, Cu
 	}
 
 	/**
+	 * Sets a new currency to track and fetches its exchange rate
+	 *
+	 * @param currency - ISO 4217 currency code
+	 * @returns - Promise resolving to exchange rate for given currecy
+	 */
+	async updateCurrency(currency: string): Promise<CurrencyRateState | void> {
+		this.configure({ currency });
+		return this.updateExchangeRate();
+	}
+
+	/**
 	 * Updates exchange rate for the current currency
 	 *
 	 * @returns Promise resolving to currency data or undefined if disabled

@@ -12,7 +12,7 @@ export interface ChildControllerContext {
  */
 export class ComposableController extends BaseController<BaseState, BaseConfig> {
 	/**
-	 * Array of stores to compose together
+	 * Map of stores to compose together
 	 */
 	context: ChildControllerContext = {};
 

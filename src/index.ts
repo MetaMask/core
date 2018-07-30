@@ -4,6 +4,7 @@ export * from './BaseController';
 export * from './BlockHistoryController';
 export * from './ComposableController';
 export * from './CurrencyRateController';
+export * from './KeyringController';
 export * from './NetworkController';
 export * from './NetworkStatusController';
 export * from './PhishingController';
