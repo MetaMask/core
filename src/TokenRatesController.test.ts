@@ -1,5 +1,4 @@
-import 'isomorphic-fetch';
-import { mock, stub } from 'sinon';
+import { stub } from 'sinon';
 import ComposableController from './ComposableController';
 import PreferencesController from './PreferencesController';
 import TokenRatesController from './TokenRatesController';
@@ -73,10 +72,8 @@ describe('TokenRatesController', () => {
 	it('should subscribe to new sibling preference controllers', async () => {
 		const preferences = new PreferencesController();
 		const controller = new TokenRatesController();
-		const composedController = new ComposableController({
-			controller,
-			preferences
-		});
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController({ controller, preferences });
 		preferences.setFeatureFlag('foo', true);
 		expect(controller.context.preferences.state.featureFlags.foo).toBe(true);
 	});

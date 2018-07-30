@@ -1,4 +1,3 @@
-import 'isomorphic-fetch';
 import { stub } from 'sinon';
 import NetworkStatusController from './NetworkStatusController';
 

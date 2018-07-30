@@ -1,3 +1,4 @@
+export * from './AccountTrackerController';
 export * from './AddressBookController';
 export * from './BaseController';
 export * from './BlockHistoryController';

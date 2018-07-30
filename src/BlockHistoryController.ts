@@ -93,7 +93,7 @@ export class BlockHistoryController extends BaseController<BlockHistoryState, Bl
 				const blocksToFetch = Math.min(currentBlockNumber, this.internalBlockDepth);
 				const blockNumbers = Array(blocksToFetch)
 					.fill(null)
-					.map((_: Block, index: number) => currentBlockNumber - 1);
+					.map((_: Block) => currentBlockNumber - 1);
 				const newBlocks = await Promise.all(
 					blockNumbers.map((blockNumber: number) => this.getBlockByNumber(blockNumber))
 				);

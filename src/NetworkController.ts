@@ -1,4 +1,3 @@
-import { EventEmitter } from 'events';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 
 const EthQuery = require('eth-query');

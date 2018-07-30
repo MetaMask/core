@@ -1,5 +1,3 @@
-import 'isomorphic-fetch';
-import { stub } from 'sinon';
 import AddressBookController from './AddressBookController';
 
 describe('AddressBookController', () => {

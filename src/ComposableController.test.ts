@@ -1,4 +1,3 @@
-import 'isomorphic-fetch';
 import { stub } from 'sinon';
 import AddressBookController from './AddressBookController';
 import ComposableController from './ComposableController';
@@ -6,7 +5,6 @@ import TokenRatesController from './TokenRatesController';
 
 describe('ComposableController', () => {
 	it('should compose controller state', () => {
-		const controllerEmpty = new ComposableController();
 		const controller = new ComposableController({
 			address: new AddressBookController(),
 			tokenRates: new TokenRatesController()
@@ -18,7 +16,6 @@ describe('ComposableController', () => {
 	});
 
 	it('should compose flat controller state', () => {
-		const controllerEmpty = new ComposableController();
 		const controller = new ComposableController({
 			address: new AddressBookController(),
 			tokenRates: new TokenRatesController()

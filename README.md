@@ -47,6 +47,14 @@ The **GABA** engine is a collection of platform-agnostic modules for creating se
 
 The GABA engine consists of a collection of modules that each expose uniform APIs for common operations like configuration, state management, and subscription.
 
+### AccountTrackerController
+
+```ts
+import AccountTrackerController from '';
+```
+
+The AccountTrackerController tracks information associated with specific Ethereum accounts.
+
 ### AddressBookController
 
 ```ts

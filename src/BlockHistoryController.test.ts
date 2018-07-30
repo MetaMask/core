@@ -28,7 +28,7 @@ describe('BlockHistoryController', () => {
 		return new Promise((resolve) => {
 			const blockTracker = new BlockTracker({ provider: PROVIDER });
 			const controller = new BlockHistoryController(undefined, { blockTracker, provider: PROVIDER });
-			controller.subscribe((state) => {
+			controller.subscribe(() => {
 				setTimeout(() => {
 					blockTracker.emit('block', { number: 1337, transactions: [] });
 					const [block] = controller.state.recentBlocks.slice(-1);

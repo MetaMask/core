@@ -1,5 +1,3 @@
-import 'isomorphic-fetch';
-
 import { getOnce } from 'fetch-mock';
 import { stub } from 'sinon';
 import ShapeShiftController from './ShapeShiftController';
@@ -7,14 +5,6 @@ import ShapeShiftController from './ShapeShiftController';
 const PENDING_TX = {
 	depositAddress: 'foo',
 	depositType: 'bar',
-	key: 'shapeshift',
-	response: undefined,
-	time: Date.now()
-};
-
-const PENDING_TX_ALT = {
-	depositAddress: 'uh',
-	depositType: 'oh',
 	key: 'shapeshift',
 	response: undefined,
 	time: Date.now()

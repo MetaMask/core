@@ -135,7 +135,6 @@ export class PreferencesController extends BaseController<PreferencesState, Base
 		const oldFeatureFlags = this.state.featureFlags;
 		const featureFlags = { ...oldFeatureFlags, ...{ [feature]: activated } };
 		this.update({ featureFlags });
-		return featureFlags;
 	}
 
 	/**

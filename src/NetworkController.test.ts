@@ -1,4 +1,3 @@
-import 'isomorphic-fetch';
 import { stub } from 'sinon';
 import NetworkController, { ProviderConfig } from './NetworkController';
 const Web3ProviderEngine = require('web3-provider-engine');
