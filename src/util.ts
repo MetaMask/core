@@ -6,37 +6,12 @@ const percentile = require('percentile');
 const GWEI_BN = new BN('1000000000');
 
 /**
- * Wrap legacy controllers using internal obs-stores with a GABA API
- *
- * @param legacy - Legacy controller to wrap
- * @returns - GABA-compatible proxy around legacy controller
- */
-export function gaba(legacy: any) {
-	const proxy = new Proxy(legacy, {
-		get(target, name) {
-			switch (name) {
-				case 'data':
-					return target.memStore.getState();
-				case 'subscribe':
-					return (...args: any[]) => legacy.memStore.subscribe.apply(legacy, args);
-				case 'onComposed':
-					return () => {
-						/* tslint:disable-next-line:no-empty */
-					};
-			}
-			return target[name];
-		}
-	});
-	proxy.subscribe = legacy.memStore.subscribe;
-	return proxy;
-}
-
-/**
  * Return a URL that can be used to obtain ETH for a given network
  *
  * @param networkCode - Network code of desired network
  * @param address - Address to deposit obtained ETH
  * @param amount - How much ETH is desired
+ * @returns - URL to buy ETH based on network
  */
 export function getBuyURL(networkCode = '1', address?: string, amount = 5) {
 	switch (networkCode) {
@@ -56,6 +31,7 @@ export function getBuyURL(networkCode = '1', address?: string, amount = 5) {
  * Calculates lowest gas price that would've been included in 50% of recent blocks
  *
  * @param recentBlocks - List of recent blocks
+ * @returns - Gas price based on recent blocks
  */
 export function getGasPrice(recentBlocks: Block[]) {
 	if (recentBlocks.length === 0) {
