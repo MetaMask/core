@@ -39,10 +39,10 @@ describe('CurrencyRateController', () => {
 		});
 	});
 
-	it('should update exchange rate', async () => {
+	it('should update currency', async () => {
 		const controller = new CurrencyRateController(undefined, { interval: 10 });
 		expect(controller.state.conversionRate).toEqual(0);
-		await controller.updateExchangeRate();
+		await controller.updateCurrency('eur');
 		expect(controller.state.conversionRate).toBeGreaterThan(0);
 	});
 

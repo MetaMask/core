@@ -33,7 +33,7 @@ export interface Block {
 	difficulty: string;
 	extraData: string;
 	gasLimit: string;
-	gasPrices: number[];
+	gasPrices: string[];
 	gasUsed: string;
 	hash: string;
 	logsBloom: string;
