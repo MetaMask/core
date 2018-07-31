@@ -1,7 +1,7 @@
 {
 	"compilerOptions": {
 		"experimentalDecorators": true,
-		"importHelpers": true,
+		"importHelpers": false,
 		"module": "umd",
 		"moduleResolution": "node",
 		"noImplicitAny": true,

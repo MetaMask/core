@@ -77,7 +77,6 @@
     "ethereumjs-util": "^5.2.0",
     "ethereumjs-wallet": "0.6.0",
     "percentile": "^1.2.1",
-    "tslib": "^1.9.2",
     "web3-provider-engine": "^14.0.5"
   }
 }
