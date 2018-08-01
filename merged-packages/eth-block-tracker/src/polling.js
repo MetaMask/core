@@ -1,14 +1,12 @@
 const EthQuery = require('eth-query')
-const EventEmitter = require('events')
 const pify = require('pify')
 const BaseBlockTracker = require('./base')
 
 const sec = 1000
-const min = 60 * sec
 
 class PollingBlockTracker extends BaseBlockTracker {
 
-  constructor(opts = {}) {
+  constructor (opts = {}) {
     // parse + validate args
     if (!opts.provider) throw new Error('PollingBlockTracker - no provider specified.')
     const pollingInterval = opts.pollingInterval || 20 * sec
@@ -30,7 +28,7 @@ class PollingBlockTracker extends BaseBlockTracker {
   //
 
   // trigger block polling
-  async checkForLatestBlock() {
+  async checkForLatestBlock () {
     await this._updateLatestBlock()
     return await this.getLatestBlock()
   }
@@ -39,7 +37,7 @@ class PollingBlockTracker extends BaseBlockTracker {
   // private
   //
 
-  _start() {
+  _start () {
     this._performSync().catch(err => this.emit('error', err))
   }
 
