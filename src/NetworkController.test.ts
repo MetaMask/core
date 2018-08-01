@@ -77,19 +77,20 @@ describe('NetworkController', () => {
 	});
 
 	it('should verify the network on a new block', () => {
-		const controller = new NetworkController();
+		const controller = new NetworkController({ network: 'loading' });
+		controller.lookupNetwork();
 		controller.providerConfig = {} as ProviderConfig;
 		controller.lookupNetwork = stub();
 		controller.provider.emit('block', {});
-		expect((controller.lookupNetwork as any).calledOnce).toBe(true);
+		expect((controller.lookupNetwork as any).called).toBe(true);
 	});
 
-	it('should verify the network on an error', () => {
-		const controller = new NetworkController();
+	it('should verify the network on an error', async () => {
+		const controller = new NetworkController({ network: 'loading' });
 		controller.providerConfig = {} as ProviderConfig;
 		controller.lookupNetwork = stub();
 		controller.provider.emit('error', {});
-		expect((controller.lookupNetwork as any).calledOnce).toBe(true);
+		expect((controller.lookupNetwork as any).called).toBe(true);
 	});
 
 	it('should look up the network', () => {
@@ -99,7 +100,7 @@ describe('NetworkController', () => {
 			setTimeout(() => {
 				expect(controller.state.network !== 'loading').toBe(true);
 				resolve();
-			}, 2000);
+			}, 4500);
 		});
 	});
 });

@@ -179,6 +179,15 @@ export class KeyringController extends BaseController<KeyringState, KeyringConfi
 	}
 
 	/**
+	 * Returns the public addresses of all accounts for the current keyring
+	 *
+	 * @returns - A promise resolving to an array of addresses
+	 */
+	getAccounts(): Promise<string> {
+		return this.keyring.getAccounts;
+	}
+
+	/**
 	 * Imports an account with the specified import strategy
 	 *
 	 * @param strategy - Import strategy name
@@ -299,11 +308,12 @@ export class KeyringController extends BaseController<KeyringState, KeyringConfi
 			throw new Error('Seed phrase imported incorrect number of accounts.');
 		}
 
-		for (const i of testAccounts) {
-			if (testAccounts[i].toLowerCase() !== accounts[i].toLowerCase()) {
+		testAccounts.forEach((account: string, i: number) => {
+			if (account.toLowerCase() !== accounts[i].toLowerCase()) {
 				throw new Error('Seed phrase imported different accounts.');
 			}
-		}
+		});
+
 		return seedWords;
 	}
 }

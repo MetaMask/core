@@ -1,4 +1,4 @@
-import BlockHistoryController, { BlockHistoryState } from './BlockHistoryController';
+import BlockHistoryController from './BlockHistoryController';
 
 import { EventEmitter } from 'events';
 import { stub } from 'sinon';
@@ -57,25 +57,10 @@ describe('BlockHistoryController', () => {
 	});
 
 	it('should splice recent blocks if new depth is less than old depth', () => {
-		return new Promise((resolve) => {
-			const blockTracker = new BlockTracker({ provider: PROVIDER });
-			const controller = new BlockHistoryController(undefined, {
-				blockDepth: 50,
-				blockTracker,
-				provider: PROVIDER
-			});
-			function onChange(state: BlockHistoryState) {
-				controller.unsubscribe(onChange);
-				expect(state.recentBlocks.length).toBe(50);
-				controller.blockDepth = 25;
-				setTimeout(() => {
-					expect(controller.state.recentBlocks.length).toBe(25);
-					resolve();
-				});
-			}
-			controller.subscribe(onChange);
-			blockTracker.emit('block', { number: TEST_BLOCK_NUMBER.toString(16) });
-		});
+		const controller = new BlockHistoryController();
+		controller.update({ recentBlocks: [{} as any, {} as any, {} as any] });
+		controller.blockDepth = 1;
+		expect(controller.state.recentBlocks.length).toBe(1);
 	});
 
 	it('should remove old block tracker listeners', () => {
