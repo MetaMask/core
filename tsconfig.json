@@ -2,7 +2,7 @@
 	"compilerOptions": {
 		"experimentalDecorators": true,
 		"importHelpers": false,
-		"module": "es6",
+		"module": "umd",
 		"moduleResolution": "node",
 		"noImplicitAny": true,
 		"noUnusedLocals": true,
