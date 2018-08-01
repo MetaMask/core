@@ -79,6 +79,12 @@ export class NetworkController extends BaseController<NetworkState, NetworkConfi
 		this.lookupNetwork();
 	}
 
+	private registerProvider() {
+		this.provider.on('block', this.verifyNetwork.bind(this));
+		this.provider.on('error', this.verifyNetwork.bind(this));
+		this.ethQuery = new EthQuery(this.provider);
+	}
+
 	private setupInfuraProvider(type: NetworkType) {
 		const infuraProvider = createInfuraProvider({ network: type });
 		const infuraSubprovider = new Subprovider(infuraProvider);
@@ -109,6 +115,7 @@ export class NetworkController extends BaseController<NetworkState, NetworkConfi
 	private updateProvider(provider: any) {
 		this.provider && this.provider.stop();
 		this.provider = provider;
+		this.registerProvider();
 	}
 
 	private verifyNetwork() {
@@ -144,9 +151,7 @@ export class NetworkController extends BaseController<NetworkState, NetworkConfi
 		this.internalProviderConfig = providerConfig;
 		const { type, rpcTarget } = this.state.provider;
 		this.initializeProvider(type, rpcTarget);
-		this.provider.on('block', this.verifyNetwork.bind(this));
-		this.provider.on('error', this.verifyNetwork.bind(this));
-		this.ethQuery = new EthQuery(this.provider);
+		this.registerProvider();
 		this.lookupNetwork();
 	}
 

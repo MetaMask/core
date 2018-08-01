@@ -87,6 +87,7 @@ export class BlockHistoryController extends BaseController<BlockHistoryState, Bl
 	private internalBlockTracker: any;
 
 	private backfill() {
+		this.backfilled = false;
 		this.internalBlockTracker &&
 			this.internalBlockTracker.once('block', async (block: Block) => {
 				const currentBlockNumber = Number.parseInt(block.number, 16);
@@ -180,7 +181,7 @@ export class BlockHistoryController extends BaseController<BlockHistoryState, Bl
 		this.internalBlockTracker && this.internalBlockTracker.removeAllListeners();
 		this.internalBlockTracker = blockTracker;
 		this.internalBlockTracker.on('block', this.onBlock.bind(this));
-		!this.backfilled && this.backfill();
+		this.backfill();
 	}
 
 	/**
@@ -190,6 +191,7 @@ export class BlockHistoryController extends BaseController<BlockHistoryState, Bl
 	 */
 	set provider(provider: any) {
 		this.ethQuery = new EthQuery(provider);
+		this.backfill();
 	}
 }
 
