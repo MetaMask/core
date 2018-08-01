@@ -1,5 +1,3 @@
-import * as util from './util';
-
 export * from './AccountTrackerController';
 export * from './AddressBookController';
 export * from './BaseController';
@@ -13,4 +11,4 @@ export * from './PhishingController';
 export * from './PreferencesController';
 export * from './ShapeShiftController';
 export * from './TokenRatesController';
-export { util };
+export * from './util';

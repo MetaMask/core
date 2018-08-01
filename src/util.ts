@@ -67,3 +67,9 @@ export async function safelyExecute(operation: () => Promise<any>) {
 		/* tslint:disable-next-line:no-empty */
 	}
 }
+
+export default {
+	getBuyURL,
+	getGasPrice,
+	safelyExecute
+};
