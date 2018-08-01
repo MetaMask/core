@@ -107,18 +107,7 @@ export class NetworkController extends BaseController<NetworkState, NetworkConfi
 	}
 
 	private updateProvider(provider: any) {
-		if (this.provider) {
-			const oldBlockTracker = this.provider._blockTracker;
-			const newBlockTracker = provider._blockTracker;
-			Object.keys(oldBlockTracker._events).forEach((event) => {
-				const listeners = oldBlockTracker.listeners(event);
-				listeners.forEach((listener: EventListener) => {
-					newBlockTracker.on(event, listener);
-					oldBlockTracker.removeListener(event, listener);
-				});
-			});
-			this.provider.stop();
-		}
+		this.provider && this.provider.stop();
 		this.provider = provider;
 	}
 

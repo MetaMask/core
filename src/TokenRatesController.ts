@@ -1,6 +1,6 @@
 import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
-import { PreferencesController } from './PreferencesController';
+import PreferencesController from './PreferencesController';
 import { safelyExecute } from './util';
 
 /**
