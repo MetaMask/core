@@ -20,7 +20,7 @@
       "^.+\\.tsx?$": "ts-jest"
     },
     "testMatch": [
-      "**/*.test.ts"
+      "**/TransactionController.test.ts"
     ],
     "coverageThreshold": {
       "global": {
@@ -76,6 +76,7 @@
     "eth-query": "^2.1.2",
     "ethereumjs-util": "^5.2.0",
     "ethereumjs-wallet": "0.6.0",
+    "ethjs-query": "^0.3.8",
     "percentile": "^1.2.1",
     "web3-provider-engine": "^14.0.5"
   }
