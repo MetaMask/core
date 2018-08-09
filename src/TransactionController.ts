@@ -282,8 +282,9 @@ export class TransactionController extends BaseController<TransactionState, Tran
 			return;
 		}
 		transactionMeta.status = 'rejected';
-		this.updateTransaction(transactionMeta);
 		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+		const transactions = this.state.transactions.filter(({ id }) => id !== transactionID);
+		this.update({ transactions });
 	}
 
 	/**
@@ -299,8 +300,14 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		if (!originalTransactionMeta) {
 			return;
 		}
-		const newTransactionMeta: TransactionMeta = { ...originalTransactionMeta };
-		newTransactionMeta.lastGasPrice = newTransactionMeta.transaction.gasPrice;
+		const newTransactionMeta: TransactionMeta = {
+			id: random(),
+			networkID: originalTransactionMeta.networkID,
+			status: 'unapproved',
+			time: Date.now(),
+			transaction: originalTransactionMeta.transaction
+		};
+		newTransactionMeta.lastGasPrice = originalTransactionMeta.transaction.gasPrice;
 		transactions.push(newTransactionMeta);
 		this.update({ transactions });
 
@@ -324,6 +331,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	 */
 	updateTransaction(transactionMeta: TransactionMeta) {
 		const { transactions } = this.state;
+		transactionMeta.transaction = normalizeTransaction(transactionMeta.transaction);
 		validateTransaction(transactionMeta.transaction);
 		const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
 		transactions[index] = transactionMeta;
