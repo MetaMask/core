@@ -160,9 +160,9 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	}
 
 	/**
-	 * Add a new unapproved transaction to state. Parameters will be validated and
-	 * a unique transaction id will be generated. A `<tx.id>:unapproved` hub event
-	 * will be emitted.
+	 * Add a new unapproved transaction to state. Parameters will be validated, a
+	 * unique transaction id will be generated, and gas and gasPrice will be calculated
+	 * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
 	 *
 	 * @param transaction - Transaction object to add
 	 * @param origin - Domain origin to append to the generated TransactionMeta
@@ -216,14 +216,13 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	}
 
 	/**
-	 * Approves a transaction based on its transaction ID and updates it in state.
-	 * If this is not a retry transaction, a nonce will be generated based on
-	 * the highest local or remote nonce, plus any pending transactions. The
-	 * transaction is signed using the sign configuratoin property, then
-	 * published to the blockchain. A `<tx.id>:finished` hub event is fired
-	 * after success or failure.
+	 * Approves a transaction and updates it's status in state. If this is not a
+	 * retry transaction, a nonce will be generated. The transaction is signed
+	 * using the sign configuration property, then published to the blockchain.
+	 * A `<tx.id>:finished` hub event is fired after success or failure.
 	 *
 	 * @param transactionID - ID of the transaction to approve
+	 * @returns - Promise resolving when this operation completes
 	 */
 	async approveTransaction(transactionID: string) {
 		const { transactions } = this.state;
@@ -236,8 +235,9 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		try {
 			// Approve transaction
 			transactionMeta.status = 'approved';
-			transactionMeta.transaction.nonce = transactionMeta.lastGasPrice ?
-				nonce : ethUtil.addHexPrefix((await this.getNonce(from)).toString(16));
+			transactionMeta.transaction.nonce = transactionMeta.lastGasPrice
+				? nonce
+				: ethUtil.addHexPrefix((await this.getNonce(from)).toString(16));
 			transactionMeta.transaction.chainId = currentNetworkID;
 
 			// Sign transaction
@@ -271,7 +271,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	}
 
 	/**
-	 * Cancels a transaction based on its ID by setting its status to rejected
+	 * Cancels a transaction based on its ID by setting its status to "rejected"
 	 * and emitting a `<tx.id>:finished` hub event.
 	 *
 	 * @param transactionID - ID of the transaction to cancel
@@ -335,7 +335,9 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	 */
 	wipeTransactions() {
 		const network = (this.networkKey && this.context[this.networkKey]) as NetworkController;
-		if (!network) { return; }
+		if (!network) {
+			return;
+		}
 		const currentNetworkID = network.state.network;
 		const newTransactions = this.state.transactions.filter(({ networkID }) => networkID !== currentNetworkID);
 		this.update({ transactions: newTransactions });
