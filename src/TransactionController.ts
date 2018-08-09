@@ -104,16 +104,16 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		/* istanbul ignore next */
 		const transactionCount = await this.ethQuery.getTransactionCount(address, blockNumber || 'latest');
 		const currentNetworkNonce = transactionCount.toNumber();
-
+		// Get highest confirmed nonce
 		const confirmedTransactions = this.state.transactions.filter(({ status }) => status === 'confirmed');
 		const confirmedNonces = confirmedTransactions.map(({ transaction }) => parseInt(transaction.nonce!, 16));
 		const currentConfirmedNonce = Math.max.apply(null, confirmedNonces);
-
+		// Get highest between confirmed and network nonce
 		let suggestedNonce = Math.max(currentNetworkNonce, currentConfirmedNonce);
-
+		// Get all pending nonces
 		const pendingTransactions = this.state.transactions.filter(({ status }) => status === 'submitted');
 		const pendingNonces = pendingTransactions.map(({ transaction }) => parseInt(transaction.nonce!, 16));
-
+		// For every pending nonce, increment suggested nonce
 		while (pendingNonces.indexOf(suggestedNonce) !== -1) {
 			/* istanbul ignore next */
 			suggestedNonce++;
