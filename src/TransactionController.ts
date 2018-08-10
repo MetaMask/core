@@ -1,11 +1,11 @@
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import NetworkController from './NetworkController';
 import { EventEmitter } from 'events';
-import { normalizeTransaction, validateTransaction } from './util';
+import { BNToHex, fractionBN, hexToBN, normalizeTransaction, validateTransaction } from './util';
 
 const EthQuery = require('ethjs-query');
 const Transaction = require('ethereumjs-tx');
-const ethUtil = require('ethereumjs-util');
+const { addHexPrefix, bufferToHex } = require('ethereumjs-util');
 const random = require('uuid/v1');
 
 /**
@@ -43,7 +43,7 @@ export interface Transaction {
  * @property lastGasPrice - Last gas price used for retried transactions
  * @property networkID - Network code as per EIP-155 for this transaction
  * @property origin - Origin this transaction was sent from
- * @property rawTransaction - Reference to the raw underlying transaction
+ * @property rawTransaction - Hex representation of the underlying transaction
  * @property status - String status of this transaction
  * @property time - Timestamp associated with this transaction
  * @property transaction - Underlying Transaction object
@@ -58,7 +58,7 @@ export interface TransactionMeta {
 	lastGasPrice?: string;
 	networkID?: string;
 	origin?: string;
-	rawTransaction?: Transaction;
+	rawTransaction?: string;
 	status: string;
 	time: number;
 	transaction: Transaction;
@@ -99,26 +99,76 @@ export interface TransactionState extends BaseState {
 export class TransactionController extends BaseController<TransactionState, TransactionConfig> {
 	private ethQuery: any;
 
+	private addGasPadding(gas: string, gasLimit: string) {
+		const estimatedGas = addHexPrefix(gas);
+		const initialGasLimitBN = hexToBN(estimatedGas);
+		const blockGasLimitBN = hexToBN(gasLimit);
+		const upperGasLimitBN = blockGasLimitBN.muln(0.9);
+		const bufferedGasLimitBN = initialGasLimitBN.muln(1.5);
+
+		if (initialGasLimitBN.gt(upperGasLimitBN)) {
+			return BNToHex(initialGasLimitBN);
+		}
+		if (bufferedGasLimitBN.lt(upperGasLimitBN)) {
+			return BNToHex(bufferedGasLimitBN);
+		}
+		return BNToHex(upperGasLimitBN);
+	}
+
+	async getGas(transactionMeta: TransactionMeta) {
+		const { gasLimit } = await this.ethQuery.getBlockByNumber('latest', true);
+
+		// Ensure a value is defined
+		const {
+			transaction: { gas, to, value },
+			transaction
+		} = transactionMeta;
+		if (typeof value === 'undefined') {
+			transaction.value = '0x0';
+		}
+
+		// Use gas if already defined
+		if (typeof gas !== 'undefined') {
+			return gas;
+		}
+
+		// Use 21000 GWEI for "simple" transactions
+		const code = to ? await this.ethQuery.getCode(to) : undefined;
+		if (to && (!code || code === '0x')) {
+			return '0x5208';
+		}
+
+		// Manually estimate gas as last resort
+		const gasLimitBN = hexToBN(gasLimit);
+		const saferGasLimitBN = fractionBN(gasLimitBN, 19, 20);
+		transaction.gas = BNToHex(saferGasLimitBN);
+		const gasHex = await this.ethQuery.estimateGas(transaction);
+		return this.addGasPadding(addHexPrefix(gasHex), gasLimit);
+	}
+
 	private async getNonce(address: string): Promise<number> {
+		// Get highest network nonce
 		const { number: blockNumber } = await this.blockTracker.awaitCurrentBlock();
-		/* istanbul ignore next */
-		const transactionCount = await this.ethQuery.getTransactionCount(address, blockNumber || 'latest');
+		const transactionCount = await this.ethQuery.getTransactionCount(address, blockNumber);
 		const currentNetworkNonce = transactionCount.toNumber();
+
 		// Get highest confirmed nonce
 		const confirmedTransactions = this.state.transactions.filter(({ status }) => status === 'confirmed');
-		const confirmedNonces = confirmedTransactions.map(({ transaction }) => parseInt(transaction.nonce!, 16));
+		const confirmedNonces = confirmedTransactions.map(({ transaction: { nonce } }) => parseInt(nonce!, 16));
 		const currentConfirmedNonce = Math.max.apply(null, confirmedNonces);
+
 		// Get highest between confirmed and network nonce
 		let suggestedNonce = Math.max(currentNetworkNonce, currentConfirmedNonce);
+
 		// Get all pending nonces
 		const pendingTransactions = this.state.transactions.filter(({ status }) => status === 'submitted');
-		const pendingNonces = pendingTransactions.map(({ transaction }) => parseInt(transaction.nonce!, 16));
+		const pendingNonces = pendingTransactions.map(({ transaction: { nonce } }) => parseInt(nonce!, 16));
+
 		// For every pending nonce, increment suggested nonce
 		while (pendingNonces.indexOf(suggestedNonce) !== -1) {
 			/* istanbul ignore next */
 			suggestedNonce++;
 		}
-
 		return suggestedNonce;
 	}
 
@@ -168,7 +218,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	 * @param origin - Domain origin to append to the generated TransactionMeta
 	 * @returns - Promise resolving to the transaction hash if approved or an Error if rejected or failed
 	 */
-	addTransaction(transaction: Transaction, origin?: string) {
+	async addTransaction(transaction: Transaction, origin?: string) {
 		// Normalize transaction parameters
 		const network = (this.networkKey && this.context[this.networkKey]) as NetworkController;
 		const { transactions } = this.state;
@@ -188,8 +238,11 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		};
 
 		// TODO: Add gas and gasPrice
-		// transaction.gas = this.getGas(transactionMeta);
-		// transaction.gasPrice = transaction.gasPrice || await this.ethQuery.gasPrice();
+		if (typeof transaction.gasPrice === 'undefined') {
+			transaction.gasPrice = addHexPrefix((await this.ethQuery.gasPrice()).toString(16));
+		}
+
+		transaction.gas = await this.getGas(transactionMeta);
 
 		// Add TransactionMeta to state
 		transactions.push(transactionMeta);
@@ -237,7 +290,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 			transactionMeta.status = 'approved';
 			transactionMeta.transaction.nonce = transactionMeta.lastGasPrice
 				? nonce
-				: ethUtil.addHexPrefix((await this.getNonce(from)).toString(16));
+				: addHexPrefix((await this.getNonce(from)).toString(16));
 			transactionMeta.transaction.chainId = currentNetworkID;
 
 			// Sign transaction
@@ -248,7 +301,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 			await this.sign(ethTransaction, transactionMeta.transaction.from!);
 			transactionMeta.status = 'signed';
 			this.updateTransaction(transactionMeta);
-			const rawTransaction = ethUtil.bufferToHex(ethTransaction.serialize());
+			const rawTransaction = bufferToHex(ethTransaction.serialize());
 
 			// Publish transaction
 			transactionMeta.rawTransaction = rawTransaction;
