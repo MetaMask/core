@@ -141,11 +141,15 @@ The ShapeShiftController exposes functions for creating ShapeShift purchases and
 import TokenRatesController from 'gaba';
 ```
 
+The TokenRatesController passively polls on a set interval for token-to-fiat exchange rates.
+
 ### TransactionController
 
 ```ts
 import TransactionController from 'gaba';
 ```
+
+The TransactionController is responsible for submitting and managing transactions.
 
 ### util
 
