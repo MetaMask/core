@@ -187,6 +187,10 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	 */
 	constructor(state?: Partial<TransactionState>, config?: Partial<TransactionConfig>) {
 		super(state, config);
+		/* istanbul ignore if */
+		if (!process.env.ETHERSCAN_API_KEY) {
+			throw new Error('No Etherscan API key found.');
+		}
 		this.defaultConfig = {
 			interval: 5000,
 			provider: undefined
@@ -357,7 +361,8 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		const root = getEtherscanURL(currentNetworkID);
 
 		const response = await fetch(
-			`${root}?module=account&action=txlist&address=${selectedAddress}&startblock=${start}&endblock=${end}&sort=asc&apikey=1YW9UKTPGGV9K9GR7E916UQ5W26A1P42T5`
+			`${root}?module=account&action=txlist&address=${selectedAddress}&startblock=` +
+				`${start}&endblock=${end}&sort=asc&apikey=${process.env.ETHERSCAN_API_KEY}`
 		);
 		const json = await response.json();
 		const confirmedHashes = json.result.map(({ hash }: any) => hash);

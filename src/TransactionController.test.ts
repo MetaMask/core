@@ -36,6 +36,10 @@ const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const PROVIDER = new HttpProvider('https://ropsten.infura.io');
 
 describe('TransactionController', () => {
+	beforeAll(() => {
+		process.env.ETHERSCAN_API_KEY = '1337';
+	});
+
 	beforeEach(() => {
 		for (const key in mockFlags) {
 			mockFlags[key] = null;
