@@ -83,7 +83,7 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	 * variable on this instance and triggers any defined setters. This
 	 * also sets initial state and triggers any listeners.
 	 *
-	 * @returns This controller instance
+	 * @returns - This controller instance
 	 */
 	protected initialize() {
 		this.internalState = this.defaultState;

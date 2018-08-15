@@ -109,6 +109,10 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 		return json && json.length ? json[0].averagePrice : /* istanbul ignore next */ 0;
 	}
 
+	/**
+	 * Extension point called if and when this controller is composed
+	 * with other controllers using a ComposableController
+	 */
 	onComposed() {
 		super.onComposed();
 		const preferences = this.context.PreferencesController as PreferencesController;

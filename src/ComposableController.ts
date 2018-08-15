@@ -35,18 +35,18 @@ export class ComposableController extends BaseController<any, any> {
 	}
 
 	/**
-	 * Get current map of child composed store instances
+	 * Get current list of child composed store instances
 	 *
-	 * @returns Map of names to controller instances
+	 * @returns - List of names to controller instances
 	 */
 	get controllers() {
 		return this.internalControllers;
 	}
 
 	/**
-	 * Set new map of controller instances
+	 * Set new list of controller instances
 	 *
-	 * @param controllers - Map of names to controller instsances
+	 * @param controllers - List of names to controller instsances
 	 */
 	set controllers(controllers: ControllerList) {
 		this.internalControllers = controllers;
@@ -73,7 +73,7 @@ export class ComposableController extends BaseController<any, any> {
 	 * of controller name. Instead, all child controller state is merged
 	 * together into a single, flat object.
 	 *
-	 * @returns Merged state representation of all child controllers
+	 * @returns - Merged state representation of all child controllers
 	 */
 	get flatState() {
 		let flatState = {};

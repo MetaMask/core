@@ -128,7 +128,7 @@ export class ShapeShiftController extends BaseController<ShapeShiftState, ShapeS
 	/**
 	 * Updates list of ShapeShift transactions
 	 *
-	 * @returns Promise resolving when this operation completes
+	 * @returns - Promise resolving when this operation completes
 	 */
 	async updateTransactionList() {
 		const { shapeShiftTxList } = this.state;
