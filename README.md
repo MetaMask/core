@@ -242,16 +242,16 @@ Because each GABA module maintains its own state and subscriptions, it would be 
 The ComposableController is initialized by passing an array of GABA module instances:
 
 ```ts
-    import {
-        ComposableController,
-        NetworkStatusController,
-        TokenRatesController
-    } from 'gaba';
+import {
+	ComposableController,
+	NetworkStatusController,
+	TokenRatesController
+} from 'gaba';
 
-    const datamodel = new ComposableController([
-		new NetworkStatusController(),
-		new TokenRatesController()
-    ]);
+const datamodel = new ComposableController([
+	new NetworkStatusController(),
+	new TokenRatesController()
+]);
 ```
 
 The resulting composed module exposes the same APIs as every other GABA module for configuration, state management, and subscription:
