@@ -80,6 +80,7 @@
     "ethereumjs-util": "^5.2.0",
     "ethereumjs-wallet": "0.6.0",
     "ethjs-query": "^0.3.8",
+    "jest-fetch-mock": "^1.6.5",
     "node-webcrypto-ossl": "^1.0.37",
     "pbkdf2": "^3.0.16",
     "percentile": "^1.2.1",

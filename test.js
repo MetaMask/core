@@ -125,7 +125,6 @@ const preferences = new PreferencesController();
 const blockHistory = new BlockHistoryController(undefined, { blockTracker, provider });
 
 const transaction = new TransactionController(undefined, {
-	blockTracker,
 	sign: keyring.keyring.signTransaction.bind(keyring.keyring),
     provider: network.provider
 });

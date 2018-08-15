@@ -50,7 +50,6 @@ export interface Transaction {
  *
  * @property error - Synthesized error information for failed transactions
  * @property id - Generated UUID associated with this transaction
- * @property lastGasPrice - Last gas price used for retried transactions
  * @property networkID - Network code as per EIP-155 for this transaction
  * @property origin - Origin this transaction was sent from
  * @property rawTransaction - Hex representation of the underlying transaction
@@ -65,7 +64,6 @@ export interface TransactionMeta {
 		stack?: string;
 	};
 	id: string;
-	lastGasPrice?: string;
 	networkID?: string;
 	origin?: string;
 	rawTransaction?: string;
@@ -115,9 +113,11 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		const upperGasLimitBN = blockGasLimitBN.muln(0.9);
 		const bufferedGasLimitBN = initialGasLimitBN.muln(1.5);
 
+		/* istanbul ignore if */
 		if (initialGasLimitBN.gt(upperGasLimitBN)) {
 			return BNToHex(initialGasLimitBN);
 		}
+		/* istanbul ignore if */
 		if (bufferedGasLimitBN.lt(upperGasLimitBN)) {
 			return BNToHex(bufferedGasLimitBN);
 		}
@@ -134,7 +134,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
 	}
 
-	async getGas(transactionMeta: TransactionMeta) {
+	private async getGas(transactionMeta: TransactionMeta) {
 		const { gasLimit } = await this.ethQuery.getBlockByNumber('latest', true);
 		const {
 			transaction: { gas, to, value },
@@ -149,7 +149,9 @@ export class TransactionController extends BaseController<TransactionState, Tran
 			return gas;
 		}
 
+		/* istanbul ignore next */
 		const code = to ? await this.ethQuery.getCode(to) : undefined;
+		/* istanbul ignore if */
 		if (to && (!code || code === '0x')) {
 			return '0x5208';
 		}
@@ -159,37 +161,6 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		transaction.gas = BNToHex(saferGasLimitBN);
 		const gasHex = await this.ethQuery.estimateGas(transaction);
 		return this.addGasPadding(addHexPrefix(gasHex), gasLimit);
-	}
-
-	private async queryTransactionStatuses() {
-		const { transactions } = this.state;
-
-		const preferences = this.context.PreferencesController as PreferencesController;
-		const selectedAddress = preferences && preferences.state.selectedAddress;
-		if (!selectedAddress) {
-			return;
-		}
-
-		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
-		const { number: blockNumber } = blockHistory.state.recentBlocks[blockHistory.state.recentBlocks.length - 1];
-		const start = Math.max(0, parseInt(blockNumber, 16) - 100);
-		const end = parseInt(blockNumber, 16) + 10;
-		const network = this.context.NetworkController as NetworkController;
-		const currentNetworkID = network ? network.state.network : '1';
-		const root = getEtherscanURL(currentNetworkID);
-
-		const response = await fetch(
-			`${root}?module=account&action=txlist&address=${selectedAddress}&startblock=${start}&endblock=${end}&sort=asc&apikey=1YW9UKTPGGV9K9GR7E916UQ5W26A1P42T5`
-		);
-		const json = await response.json();
-		const confirmedHashes = json.result.map(({ hash }: any) => hash);
-		transactions.forEach((meta, index) => {
-			const isConfirmed = confirmedHashes.indexOf(meta.transactionHash);
-			if (meta.networkID === currentNetworkID && meta.status === 'submitted' && isConfirmed) {
-				transactions[index].status = 'confirmed';
-				this.hub.emit(`${meta.id}:confirmed`, meta);
-			}
-		});
 	}
 
 	/**
@@ -279,11 +250,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 			return Promise.reject(error);
 		}
 
-		transactions.push(transactionMeta);
-		this.update({ transactions });
-		this.hub.emit(`unapprovedTransaction`, transactionMeta);
-
-		return new Promise((resolve, reject) => {
+		const promise = new Promise((resolve, reject) => {
 			this.hub.once(`${transactionMeta.id}:finished`, (meta: TransactionMeta) => {
 				switch (meta.status) {
 					case 'submitted':
@@ -292,11 +259,14 @@ export class TransactionController extends BaseController<TransactionState, Tran
 						return reject(new Error('User rejected the transaction.'));
 					case 'failed':
 						return reject(new Error(meta.error!.message));
-					default:
-						return reject(new Error(`Unknown problem: ${JSON.stringify(meta.transaction)}.`));
 				}
 			});
 		});
+
+		transactions.push(transactionMeta);
+		this.update({ transactions });
+		this.hub.emit(`unapprovedTransaction`, transactionMeta);
+		return promise;
 	}
 
 	/**
@@ -314,16 +284,16 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		const currentNetworkID = network ? network.state.network : '1';
 		const index = transactions.findIndex(({ id }) => transactionID === id);
 		const transactionMeta = transactions[index];
-		const { from, nonce } = transactionMeta.transaction;
+		const { from } = transactionMeta.transaction;
 
 		try {
 			if (!this.sign) {
 				throw new Error('No sign method defined.');
 			}
 			transactionMeta.status = 'approved';
-			transactionMeta.transaction.nonce = transactionMeta.lastGasPrice
-				? nonce
-				: addHexPrefix((await this.ethQuery.getTransactionCount(from, 'pending')).toNumber().toString(16));
+			transactionMeta.transaction.nonce = addHexPrefix(
+				(await this.ethQuery.getTransactionCount(from, 'pending')
+			).toNumber().toString(16));
 			transactionMeta.transaction.chainId = parseInt(currentNetworkID, undefined);
 
 			const ethTransaction = new Transaction({ ...transactionMeta.transaction });
@@ -359,6 +329,44 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
 		const transactions = this.state.transactions.filter(({ id }) => id !== transactionID);
 		this.update({ transactions });
+	}
+
+	/**
+	 * Resiliently checks all submitted transactions for confirmations in the past 100
+	 * blocks and updates their state accordingly
+	 *
+	 * @returns - Promise resolving when this operation completes
+	 */
+	async queryTransactionStatuses() {
+		const { transactions } = this.state;
+
+		const preferences = this.context.PreferencesController as PreferencesController;
+		const selectedAddress = preferences && preferences.state.selectedAddress;
+		if (!selectedAddress) {
+			return;
+		}
+
+		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
+		const { number: blockNumber } = blockHistory.state.recentBlocks[blockHistory.state.recentBlocks.length - 1];
+		const start = Math.max(0, parseInt(blockNumber, 16) - 100);
+		const end = parseInt(blockNumber, 16) + 10;
+		const network = this.context.NetworkController as NetworkController;
+		/* istanbul ignore next */
+		const currentNetworkID = network ? network.state.network : '1';
+		const root = getEtherscanURL(currentNetworkID);
+
+		const response = await fetch(
+			`${root}?module=account&action=txlist&address=${selectedAddress}&startblock=${start}&endblock=${end}&sort=asc&apikey=1YW9UKTPGGV9K9GR7E916UQ5W26A1P42T5`
+		);
+		const json = await response.json();
+		const confirmedHashes = json.result.map(({ hash }: any) => hash);
+		transactions.forEach((meta, index) => {
+			const isConfirmed = confirmedHashes.indexOf(meta.transactionHash) > -1;
+			if (meta.networkID === currentNetworkID && meta.status === 'submitted' && isConfirmed) {
+				transactions[index].status = 'confirmed';
+				this.hub.emit(`${meta.id}:confirmed`, meta);
+			}
+		});
 	}
 
 	/**

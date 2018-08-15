@@ -1,4 +1,4 @@
-import BaseController, { BaseConfig, BaseState } from './BaseController';
+import BaseController from './BaseController';
 
 /**
  * Child controller instances keyed by controller name
@@ -8,10 +8,16 @@ export interface ChildControllerContext {
 }
 
 /**
+ * List of child controller instances
+ */
+export type ControllerList = Array<BaseController<any, any>>;
+
+/**
  * Controller that can be used to compose mutiple controllers together
  */
-export class ComposableController extends BaseController<BaseState, BaseConfig> {
-	private internalControllers: Array<BaseController<BaseState, BaseConfig>> = [];
+export class ComposableController extends BaseController<any, any> {
+	private internalControllers: ControllerList = [];
+
 	/**
 	 * Map of stores to compose together
 	 */
@@ -22,7 +28,7 @@ export class ComposableController extends BaseController<BaseState, BaseConfig> 
 	 *
 	 * @param controllers - Map of names to controller instances
 	 */
-	constructor(controllers: Array<BaseController<BaseState, BaseConfig>> = []) {
+	constructor(controllers: ControllerList = []) {
 		super();
 		this.initialize();
 		this.controllers = controllers;
@@ -42,10 +48,10 @@ export class ComposableController extends BaseController<BaseState, BaseConfig> 
 	 *
 	 * @param controllers - Map of names to controller instsances
 	 */
-	set controllers(controllers: Array<BaseController<BaseState, BaseConfig>>) {
+	set controllers(controllers: ControllerList) {
 		this.internalControllers = controllers;
 		const context: ChildControllerContext = {};
-		const initialState: { [key: string]: BaseState } = {};
+		const initialState: { [key: string]: any } = {};
 		this.context = context;
 		controllers.forEach((controller) => {
 			const name = controller.constructor.name;
