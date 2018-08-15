@@ -13,4 +13,5 @@ export * from './PhishingController';
 export * from './PreferencesController';
 export * from './ShapeShiftController';
 export * from './TokenRatesController';
+export * from './TransactionController';
 export { util };

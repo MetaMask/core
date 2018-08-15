@@ -2,6 +2,7 @@ import 'isomorphic-fetch';
 import AccountTrackerController from './AccountTrackerController';
 import BaseController, { BaseConfig, BaseState, Listener } from './BaseController';
 import PreferencesController from './PreferencesController';
+import { Transaction } from './TransactionController';
 
 const Keyring = require('eth-keyring-controller');
 const Mutex = require('await-semaphore').Mutex;
@@ -226,6 +227,17 @@ export class KeyringController extends BaseController<KeyringState, BaseConfig> 
 	 */
 	setLocked(): Promise<KeyringState> {
 		return this.keyring.setLocked();
+	}
+
+	/**
+	 * Signs a transaction by calling down into a specific keyring
+	 *
+	 * @param transaction - Transaction object to sign
+	 * @param from - Address to sign from, should be in keychain
+	 * @returns - Promise resolving to a signed transaction string
+	 */
+	signTransaction(transaction: Transaction, from: string) {
+		return this.keyring.signTransaction(transaction, from);
 	}
 
 	/**
