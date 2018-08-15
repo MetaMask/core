@@ -85,11 +85,25 @@ export class BlockHistoryController extends BaseController<BlockHistoryState, Bl
 	private ethQuery: any;
 	private internalBlockDepth = 0;
 	private internalBlockTracker: any;
+	private processing: Promise<void> | undefined;
 
 	private backfill() {
-		this.backfilled = false;
-		this.internalBlockTracker &&
-			this.internalBlockTracker.once('block', async (block: Block) => {
+		if (!this.internalBlockTracker || !this.ethQuery) {
+			return;
+		}
+		this.processing = new Promise(async (done, fail) => {
+			try {
+				this.backfilled = false;
+				const block = (await new Promise((resolve, reject) => {
+					this.ethQuery.getBlockByNumber('latest', true, (error: Error, latestBlock: Block) => {
+						/* istanbul ignore if */
+						if (error) {
+							reject(error);
+							return;
+						}
+						resolve(latestBlock);
+					});
+				})) as Block;
 				const currentBlockNumber = Number.parseInt(block.number, 16);
 				const blocksToFetch = Math.min(currentBlockNumber, this.internalBlockDepth);
 				const blockNumbers = Array(blocksToFetch)
@@ -106,7 +120,12 @@ export class BlockHistoryController extends BaseController<BlockHistoryState, Bl
 				});
 				this.update({ recentBlocks });
 				this.backfilled = true;
-			});
+				done();
+			} catch (error) {
+				/* istanbul ignore next */
+				fail(error);
+			}
+		});
 	}
 
 	private getBlockByNumber(blockNumber: number): Promise<Block> {
@@ -155,7 +174,6 @@ export class BlockHistoryController extends BaseController<BlockHistoryState, Bl
 			provider: undefined
 		};
 		this.initialize();
-		this.backfill();
 	}
 
 	/**
@@ -192,6 +210,17 @@ export class BlockHistoryController extends BaseController<BlockHistoryState, Bl
 	set provider(provider: any) {
 		this.ethQuery = new EthQuery(provider);
 		this.backfill();
+	}
+
+	/**
+	 * Returns the latest block for the current network
+	 *
+	 * @returns - Promise resolving to the latest block
+	 */
+	async getLatestBlock() {
+		await this.processing;
+		const { recentBlocks } = this.state;
+		return recentBlocks[recentBlocks.length - 1];
 	}
 }
 

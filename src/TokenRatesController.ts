@@ -24,12 +24,10 @@ export interface Token {
  * Token rates controller configuration
  *
  * @property interval - Polling interval used to fetch new token rates
- * @property preferencesKey - Context key of a sibling preferences controller
  * @property tokens - List of tokens to track exchange rates for
  */
 export interface TokenRatesConfig extends BaseConfig {
 	interval: number;
-	preferencesKey: string;
 	tokens: Token[];
 }
 
@@ -56,9 +54,9 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 	}
 
 	/**
-	 * Context key of a sibling preferences controller
+	 * List of required sibling controllers this controller needs to function
 	 */
-	preferencesKey?: string;
+	requiredControllers = ['PreferencesController'];
 
 	/**
 	 * Creates a TokenRatesController instance
@@ -70,7 +68,6 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 		super(state, config);
 		this.defaultConfig = {
 			interval: 180000,
-			preferencesKey: 'preferences',
 			tokens: []
 		};
 		this.defaultState = { contractExchangeRates: {} };
@@ -117,11 +114,11 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 	 * with other controllers using a ComposableController
 	 */
 	onComposed() {
-		const preferences = (this.preferencesKey && this.context[this.preferencesKey]) as PreferencesController;
-		preferences &&
-			preferences.subscribe(({ tokens }) => {
-				this.configure({ tokens });
-			});
+		super.onComposed();
+		const preferences = this.context.PreferencesController as PreferencesController;
+		preferences.subscribe(({ tokens }) => {
+			this.configure({ tokens });
+		});
 	}
 
 	/**

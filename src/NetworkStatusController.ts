@@ -102,7 +102,7 @@ export class NetworkStatusController extends BaseController<NetworkStatusState, 
 	/**
 	 * Updates network status for all providers
 	 *
-	 * @returns Promise resolving when this operation completes
+	 * @returns - Promise resolving when this operation completes
 	 */
 	async updateNetworkStatuses() {
 		if (this.disabled) {

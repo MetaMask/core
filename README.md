@@ -35,10 +35,10 @@ The **GABA** engine is a collection of platform-agnostic modules for creating se
 		TokenRatesController
 	} from 'gaba';
 
-	const datamodel = new ComposableController({
-		networkStatus: new NetworkStatusController(),
-		tokenRates: new TokenRatesController()
-	});
+	const datamodel = new ComposableController([
+		new NetworkStatusController(),
+		new TokenRatesController()
+	]);
 	
 	datamodel.subscribe((state) => {/* data model has changed */});
     ```
@@ -70,6 +70,14 @@ import BlockHistoryController from 'gaba';
 ```
 
 The BlockHistoryController maintains a set number of past blocks that are backfilled upon initialization.
+
+### ComposableController
+
+```ts
+import ComposableController from 'gaba';
+```
+
+The ComposableController can be used to compose mutiple controllers together into a single controller.
 
 ### CurrencyRateController
 
@@ -132,6 +140,16 @@ The ShapeShiftController exposes functions for creating ShapeShift purchases and
 ```ts
 import TokenRatesController from 'gaba';
 ```
+
+The TokenRatesController passively polls on a set interval for token-to-fiat exchange rates.
+
+### TransactionController
+
+```ts
+import TransactionController from 'gaba';
+```
+
+The TransactionController is responsible for submitting and managing transactions.
 
 ### util
 
@@ -225,19 +243,19 @@ controller.unsubscribe(onChange);
 
 Because each GABA module maintains its own state and subscriptions, it would be tedious to initialize and subscribe to every available module independently. To solve this issue, the ComposableController can be used to compose multiple GABA modules into a single controller.
 
-The ComposableController is initialized by passing an object mapping unique names to child GABA module instances:
+The ComposableController is initialized by passing an array of GABA module instances:
 
 ```ts
-    import {
-        ComposableController,
-        NetworkStatusController,
-        TokenRatesController
-    } from 'gaba';
+import {
+	ComposableController,
+	NetworkStatusController,
+	TokenRatesController
+} from 'gaba';
 
-    const datamodel = new ComposableController({
-        networkStatus: new NetworkStatusController(),
-        tokenRates: new TokenRatesController()
-    });
+const datamodel = new ComposableController([
+	new NetworkStatusController(),
+	new TokenRatesController()
+]);
 ```
 
 The resulting composed module exposes the same APIs as every other GABA module for configuration, state management, and subscription:
@@ -246,14 +264,14 @@ The resulting composed module exposes the same APIs as every other GABA module f
 datamodel.subscribe((state) => { /* some child state has changed */ });
 ```
 
-The internal state maintained by a ComposableController will be keyed by the same object keys used during initialization. It's also possible to access the `flatState` instance variable that is a convenience accessor for merged child state:
+The internal state maintained by a ComposableController will be keyed by child controller class name. It's also possible to access the `flatState` instance variable that is a convenience accessor for merged child state:
 
 ```ts
-console.log(datamodel.state); // {networkStatus: {...}, tokenRates: {...}}
+console.log(datamodel.state); // {NetworkController: {...}, TokenRatesController: {...}}
 console.log(datamodel.flatState); // {infura: {...}, contractExchangeRates: [...]}
 ```
 
-**Advanced Note:** The object used to initialize a ComposableController is cached as a `context` instance variable on both the ComposableController itself as well as all child GABA modules. This means that child modules can call methods on other sibling modules through the `context` variable, e.g. `this.context.someController.someMethod()`.
+**Advanced Note:** The ComposableController builds a map of all child controllers keyed by controller name. This object is cached as a `context` instance variable on both the ComposableController itself as well as all child GABA modules. This means that child modules can call methods on other sibling modules through the `context` variable, e.g. `this.context.SomeController.someMethod()`.
 
 ## Why TypeScript?
 

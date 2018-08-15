@@ -1,4 +1,4 @@
-import BaseController, { BaseConfig, BaseState } from './BaseController';
+import BaseController from './BaseController';
 
 /**
  * Child controller instances keyed by controller name
@@ -8,9 +8,16 @@ export interface ChildControllerContext {
 }
 
 /**
+ * List of child controller instances
+ */
+export type ControllerList = Array<BaseController<any, any>>;
+
+/**
  * Controller that can be used to compose mutiple controllers together
  */
-export class ComposableController extends BaseController<BaseState, BaseConfig> {
+export class ComposableController extends BaseController<any, any> {
+	private internalControllers: ControllerList = [];
+
 	/**
 	 * Map of stores to compose together
 	 */
@@ -21,38 +28,43 @@ export class ComposableController extends BaseController<BaseState, BaseConfig> 
 	 *
 	 * @param controllers - Map of names to controller instances
 	 */
-	constructor(controllers: ChildControllerContext = {}) {
+	constructor(controllers: ControllerList = []) {
 		super();
 		this.initialize();
 		this.controllers = controllers;
 	}
 
 	/**
-	 * Get current map of child composed store instances
+	 * Get current list of child composed store instances
 	 *
-	 * @returns Map of names to controller instances
+	 * @returns - List of names to controller instances
 	 */
 	get controllers() {
-		return this.context;
+		return this.internalControllers;
 	}
 
 	/**
-	 * Set new map of controller instances
+	 * Set new list of controller instances
 	 *
-	 * @param controllers - Map of names to controller instsances
+	 * @param controllers - List of names to controller instsances
 	 */
-	set controllers(controllers: ChildControllerContext) {
-		this.context = controllers;
-
-		const initialState: ChildControllerContext = {};
-		for (const name in controllers) {
-			controllers[name].context = this.context;
-			initialState[name] = controllers[name].state;
-			controllers[name].subscribe((state) => {
+	set controllers(controllers: ControllerList) {
+		this.internalControllers = controllers;
+		const context: ChildControllerContext = {};
+		const initialState: { [key: string]: any } = {};
+		this.context = context;
+		controllers.forEach((controller) => {
+			const name = controller.constructor.name;
+			this.context[name] = controller;
+			initialState[name] = controller.state;
+			controller.context = this.context;
+			controller.subscribe((state) => {
 				this.update({ [name]: state });
 			});
-			controllers[name].onComposed();
-		}
+		});
+		controllers.forEach((controller) => {
+			controller.onComposed();
+		});
 		this.update(initialState, true);
 	}
 
@@ -61,7 +73,7 @@ export class ComposableController extends BaseController<BaseState, BaseConfig> 
 	 * of controller name. Instead, all child controller state is merged
 	 * together into a single, flat object.
 	 *
-	 * @returns Merged state representation of all child controllers
+	 * @returns - Merged state representation of all child controllers
 	 */
 	get flatState() {
 		let flatState = {};
