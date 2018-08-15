@@ -11,6 +11,7 @@ export interface ChildControllerContext {
  * Controller that can be used to compose mutiple controllers together
  */
 export class ComposableController extends BaseController<BaseState, BaseConfig> {
+	private internalControllers: Array<BaseController<BaseState, BaseConfig>> = [];
 	/**
 	 * Map of stores to compose together
 	 */
@@ -21,7 +22,7 @@ export class ComposableController extends BaseController<BaseState, BaseConfig> 
 	 *
 	 * @param controllers - Map of names to controller instances
 	 */
-	constructor(controllers: ChildControllerContext = {}) {
+	constructor(controllers: Array<BaseController<BaseState, BaseConfig>> = []) {
 		super();
 		this.initialize();
 		this.controllers = controllers;
@@ -33,7 +34,7 @@ export class ComposableController extends BaseController<BaseState, BaseConfig> 
 	 * @returns Map of names to controller instances
 	 */
 	get controllers() {
-		return this.context;
+		return this.internalControllers;
 	}
 
 	/**
@@ -41,18 +42,23 @@ export class ComposableController extends BaseController<BaseState, BaseConfig> 
 	 *
 	 * @param controllers - Map of names to controller instsances
 	 */
-	set controllers(controllers: ChildControllerContext) {
-		this.context = controllers;
-
-		const initialState: ChildControllerContext = {};
-		for (const name in controllers) {
-			controllers[name].context = this.context;
-			initialState[name] = controllers[name].state;
-			controllers[name].subscribe((state) => {
+	set controllers(controllers: Array<BaseController<BaseState, BaseConfig>>) {
+		this.internalControllers = controllers;
+		const context: ChildControllerContext = {};
+		const initialState: {[key: string]: BaseState} = {};
+		this.context = context;
+		controllers.forEach((controller) => {
+			const name = controller.constructor.name;
+			this.context[name] = controller;
+			initialState[name] = controller.state;
+			controller.context = this.context;
+			controller.subscribe((state) => {
 				this.update({ [name]: state });
 			});
-			controllers[name].onComposed();
-		}
+		});
+		controllers.forEach((controller) => {
+			controller.onComposed();
+		});
 		this.update(initialState, true);
 	}
 

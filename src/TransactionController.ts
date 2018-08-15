@@ -1,13 +1,22 @@
+import { EventEmitter } from 'events';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
+import BlockHistoryController from './BlockHistoryController';
 import NetworkController from './NetworkController';
 import PreferencesController from './PreferencesController';
-import { BNToHex, fractionBN, getEtherscanURL, hexToBN, normalizeTransaction, safelyExecute, validateTransaction } from './util';
-import { EventEmitter } from 'events';
+import {
+	BNToHex,
+	fractionBN,
+	getEtherscanURL,
+	hexToBN,
+	normalizeTransaction,
+	safelyExecute,
+	validateTransaction
+} from './util';
 
 const EthQuery = require('ethjs-query');
 const Transaction = require('ethereumjs-tx');
-const { addHexPrefix, bufferToHex } = require('ethereumjs-util');
 const random = require('uuid/v1');
+const { addHexPrefix, bufferToHex } = require('ethereumjs-util');
 
 /**
  * @type Transaction
@@ -71,18 +80,12 @@ export interface TransactionMeta {
  *
  * Transaction controller configuration
  *
- * @property blockTracker - Contains methods for tracking blocks and querying the blockchain
  * @property interval - Polling interval used to fetch new currency rate
- * @property networkKey - Context key of a sibling network controller
- * @property preferencesKey - Context key of a sibling preferences controller
  * @property provider - Provider used to create a new underlying EthQuery instance
  * @property sign - Method used to sign transactions
  */
 export interface TransactionConfig extends BaseConfig {
-	blockTracker: any;
 	interval: number;
-	networkKey: string;
-	preferencesKey: string;
 	provider: any;
 	sign?: (transaction: Transaction, from: string) => Promise<any>;
 }
@@ -161,18 +164,23 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	private async queryTransactionStatuses() {
 		const { transactions } = this.state;
 
-		const preferences = (this.preferencesKey && this.context[this.preferencesKey]) as PreferencesController;
+		const preferences = this.context.PreferencesController as PreferencesController;
 		const selectedAddress = preferences && preferences.state.selectedAddress;
-		if (!selectedAddress) { return; }
+		if (!selectedAddress) {
+			return;
+		}
 
-		const { number: blockNumber }: any = await (new Promise((resolve) => { this.blockTracker.on('block', resolve); }));
+		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
+		const { number: blockNumber } = blockHistory.state.recentBlocks[blockHistory.state.recentBlocks.length - 1];
 		const start = Math.max(0, parseInt(blockNumber, 16) - 100);
 		const end = parseInt(blockNumber, 16) + 10;
-		const network = (this.networkKey && this.context[this.networkKey]) as NetworkController;
+		const network = this.context.NetworkController as NetworkController;
 		const currentNetworkID = network ? network.state.network : '1';
 		const root = getEtherscanURL(currentNetworkID);
 
-		const response = await fetch(`${root}?module=account&action=txlist&address=${selectedAddress}&startblock=${start}&endblock=${end}&sort=asc&apikey=1YW9UKTPGGV9K9GR7E916UQ5W26A1P42T5`);
+		const response = await fetch(
+			`${root}?module=account&action=txlist&address=${selectedAddress}&startblock=${start}&endblock=${end}&sort=asc&apikey=1YW9UKTPGGV9K9GR7E916UQ5W26A1P42T5`
+		);
 		const json = await response.json();
 		const confirmedHashes = json.result.map(({ hash }: any) => hash);
 		transactions.forEach((meta, index) => {
@@ -185,24 +193,18 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	}
 
 	/**
-	 * Contains methods for tracking blocks and querying the blockchain
-	 */
-	blockTracker?: any;
-
-	/**
 	 * EventEmitter instance used to listen to specific transactional events
 	 */
 	hub = new EventEmitter();
 
 	/**
-	 * Context key of a sibling network controller
+	 * List of required sibling controllers this controller needs to function
 	 */
-	networkKey?: string;
-
-	/**
-	 * Context key of a sibling preferences controller
-	 */
-	preferencesKey?: string;
+	requiredControllers = [
+		'BlockHistoryController',
+		'NetworkController',
+		'PreferencesController'
+	];
 
 	/**
 	 * Method used to sign transactions
@@ -218,10 +220,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	constructor(state?: Partial<TransactionState>, config?: Partial<TransactionConfig>) {
 		super(state, config);
 		this.defaultConfig = {
-			blockTracker: undefined,
 			interval: 5000,
-			networkKey: 'network',
-			preferencesKey: 'preferences',
 			provider: undefined
 		};
 		this.defaultState = { transactions: [] };
@@ -260,7 +259,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	 * @returns - Promise resolving to the transaction hash if approved or an Error if rejected or failed
 	 */
 	async addTransaction(transaction: Transaction, origin?: string) {
-		const network = (this.networkKey && this.context[this.networkKey]) as NetworkController;
+		const network = this.context.NetworkController as NetworkController;
 		const { transactions } = this.state;
 		transaction = normalizeTransaction(transaction);
 		validateTransaction(transaction);
@@ -315,7 +314,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	 */
 	async approveTransaction(transactionID: string) {
 		const { transactions } = this.state;
-		const network = (this.networkKey && this.context[this.networkKey]) as NetworkController;
+		const network = this.context.NetworkController as NetworkController;
 		const currentNetworkID = network ? network.state.network : '1';
 		const index = transactions.findIndex(({ id }) => transactionID === id);
 		const transactionMeta = transactions[index];
@@ -328,7 +327,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 			transactionMeta.status = 'approved';
 			transactionMeta.transaction.nonce = transactionMeta.lastGasPrice
 				? nonce
-				: addHexPrefix(((await this.ethQuery.getTransactionCount(from, 'pending')).toNumber()).toString(16));
+				: addHexPrefix((await this.ethQuery.getTransactionCount(from, 'pending')).toNumber().toString(16));
 			transactionMeta.transaction.chainId = parseInt(currentNetworkID, undefined);
 
 			const ethTransaction = new Transaction({ ...transactionMeta.transaction });
@@ -384,7 +383,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	 * Removes all transactions from state based on the current network
 	 */
 	wipeTransactions() {
-		const network = (this.networkKey && this.context[this.networkKey]) as NetworkController;
+		const network = this.context.NetworkController as NetworkController;
 		if (!network) {
 			return;
 		}

@@ -88,6 +88,7 @@ global.atob = require('atob');
 // // // const encryptor = require('eth-keyring-controller/test/lib/mock-encryptor');
 
 const AccountTrackerController = require('./dist/AccountTrackerController.js').default;
+const BlockHistoryController = require('./dist/BlockHistoryController.js').default;
 const ComposableController = require('./dist/ComposableController.js').default;
 const KeyringController = require('./dist/KeyringController.js').default;
 const NetworkController = require('./dist/NetworkController.js').default;
@@ -121,6 +122,7 @@ const accountTracker = new AccountTrackerController(undefined, { blockTracker, p
 // const keyring = new KeyringController(undefined, { encryptor });
 const keyring = new KeyringController();
 const preferences = new PreferencesController();
+const blockHistory = new BlockHistoryController(undefined, { blockTracker, provider });
 
 const transaction = new TransactionController(undefined, {
 	blockTracker,
@@ -128,13 +130,14 @@ const transaction = new TransactionController(undefined, {
     provider: network.provider
 });
 
-const datamodel = new ComposableController({
+const datamodel = new ComposableController([
 	accountTracker,
+	blockHistory,
 	keyring,
 	network,
 	preferences,
 	transaction
-});
+]);
 
 async function add() {
 	await keyring.createNewVaultAndKeychain('foo');

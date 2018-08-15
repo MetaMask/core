@@ -18,19 +18,6 @@ export enum KeyringTypes {
 }
 
 /**
- * @type KeyringConfig
- *
- * Keyring controller configuration
- *
- * @property accountTrackerKey - Context key of a sibling account tracker controller
- * @property preferencesKey - Context key of a sibling preferences controller
- */
-export interface KeyringConfig extends BaseConfig {
-	accountTrackerKey: string;
-	preferencesKey: string;
-}
-
-/**
  * @type KeyringState
  *
  * Keyring controller state
@@ -48,19 +35,17 @@ export interface KeyringState extends BaseState {
 /**
  * Controller resposible for establishing and managing user identity
  */
-export class KeyringController extends BaseController<KeyringState, KeyringConfig> {
+export class KeyringController extends BaseController<KeyringState, BaseConfig> {
 	private keyring: any;
 	private mutex = new Mutex();
 
 	/**
-	 * Context key of a sibling account tracker controller
+	 * List of required sibling controllers this controller needs to function
 	 */
-	accountTrackerKey?: string;
-
-	/**
-	 * Context key of a sibling preferences controller
-	 */
-	preferencesKey?: string;
+	requiredControllers = [
+		'AccountTrackerController',
+		'PreferencesController'
+	];
 
 	/**
 	 * Creates a KeyringController instance
@@ -68,12 +53,8 @@ export class KeyringController extends BaseController<KeyringState, KeyringConfi
 	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
 	 */
-	constructor(state?: Partial<KeyringState>, config?: Partial<KeyringConfig>) {
+	constructor(state?: Partial<KeyringState>, config?: Partial<BaseConfig>) {
 		super(state, config);
-		this.defaultConfig = {
-			accountTrackerKey: 'accountTracker',
-			preferencesKey: 'preferences'
-		};
 		this.defaultState = {
 			isUnlocked: false,
 			keyringTypes: [KeyringTypes.simple, KeyringTypes.hd],
@@ -98,7 +79,7 @@ export class KeyringController extends BaseController<KeyringState, KeyringConfi
 	 * @returns - Promise resolving when the account is added
 	 */
 	async addNewAccount() {
-		const preferences = (this.preferencesKey && this.context[this.preferencesKey]) as PreferencesController;
+		const preferences = this.context.PreferencesController as PreferencesController;
 		const primaryKeyring = this.keyring.getKeyringsByType('HD Key Tree')[0];
 		if (!primaryKeyring) {
 			throw new Error('No HD keyring found');
@@ -126,7 +107,7 @@ export class KeyringController extends BaseController<KeyringState, KeyringConfi
 	 * @returns - Promise resolving to th restored keychain object
 	 */
 	async createNewVaultAndRestore(password: string, seed: string) {
-		const preferences = (this.preferencesKey && this.context[this.preferencesKey]) as PreferencesController;
+		const preferences = this.context.PreferencesController as PreferencesController;
 		const releaseLock = await this.mutex.acquire();
 		try {
 			preferences.updateIdentities([]);
@@ -148,7 +129,7 @@ export class KeyringController extends BaseController<KeyringState, KeyringConfi
 	 * @returns - Newly-created keychain object
 	 */
 	async createNewVaultAndKeychain(password: string) {
-		const preferences = (this.preferencesKey && this.context[this.preferencesKey]) as PreferencesController;
+		const preferences = this.context.PreferencesController as PreferencesController;
 		const releaseLock = await this.mutex.acquire();
 		try {
 			let vault;
@@ -196,7 +177,7 @@ export class KeyringController extends BaseController<KeyringState, KeyringConfi
 	 */
 	async importAccountWithStrategy(strategy: string, args: any[]) {
 		let privateKey;
-		const preferences = (this.preferencesKey && this.context[this.preferencesKey]) as PreferencesController;
+		const preferences = this.context.PreferencesController as PreferencesController;
 		switch (strategy) {
 			case 'privateKey':
 				const [importedKey] = args;
@@ -234,9 +215,8 @@ export class KeyringController extends BaseController<KeyringState, KeyringConfi
 	 * @returns - Promise resolving when this account removal completes
 	 */
 	async removeAccount(address: string) {
-		const preferences = (this.preferencesKey && this.context[this.preferencesKey]) as PreferencesController;
-		const accountTracker = (this.accountTrackerKey &&
-			this.context[this.accountTrackerKey]) as AccountTrackerController;
+		const preferences = this.context.PreferencesController as PreferencesController;
+		const accountTracker = this.context.AccountTrackerController as AccountTrackerController;
 		preferences.removeIdentity(address);
 		accountTracker.remove(address);
 		await this.keyring.removeAccount(address);
@@ -258,7 +238,7 @@ export class KeyringController extends BaseController<KeyringState, KeyringConfi
 	 * @returns - Promise resolving to the current state
 	 */
 	async submitPassword(password: string) {
-		const preferences = (this.preferencesKey && this.context[this.preferencesKey]) as PreferencesController;
+		const preferences = this.context.PreferencesController as PreferencesController;
 		await this.keyring.submitPassword(password);
 		const accounts = await this.keyring.getAccounts();
 		await preferences.syncIdentities(accounts);

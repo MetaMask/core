@@ -53,6 +53,11 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	 */
 	disabled = false;
 
+	/**
+	 * List of required sibling controllers this controller needs to function
+	 */
+	requiredControllers: string[] = [];
+
 	private initialConfig: C;
 	private initialState: S;
 	private internalConfig: C = this.defaultConfig;
@@ -139,7 +144,11 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	 * with other controllers using a ComposableController
 	 */
 	onComposed() {
-		/* tslint:disable-next-line:no-empty */
+		this.requiredControllers.forEach((name) => {
+			if (!this.context[name]) {
+				throw new Error(`${this.constructor.name} must be composed with ${name}.`);
+			}
+		});
 	}
 
 	/**
