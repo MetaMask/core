@@ -1,7 +1,8 @@
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import NetworkController from './NetworkController';
+import PreferencesController from './PreferencesController';
+import { BNToHex, fractionBN, getEtherscanURL, hexToBN, normalizeTransaction, safelyExecute, validateTransaction } from './util';
 import { EventEmitter } from 'events';
-import { BNToHex, fractionBN, hexToBN, normalizeTransaction, validateTransaction } from './util';
 
 const EthQuery = require('ethjs-query');
 const Transaction = require('ethereumjs-tx');
@@ -23,7 +24,7 @@ const random = require('uuid/v1');
  * @property value - Value associated with this transaction
  */
 export interface Transaction {
-	chainId?: string;
+	chainId?: number;
 	data?: string;
 	from: string;
 	gas?: string;
@@ -52,7 +53,7 @@ export interface Transaction {
 export interface TransactionMeta {
 	error?: {
 		message: string;
-		stack: string;
+		stack?: string;
 	};
 	id: string;
 	lastGasPrice?: string;
@@ -71,13 +72,17 @@ export interface TransactionMeta {
  * Transaction controller configuration
  *
  * @property blockTracker - Contains methods for tracking blocks and querying the blockchain
+ * @property interval - Polling interval used to fetch new currency rate
  * @property networkKey - Context key of a sibling network controller
+ * @property preferencesKey - Context key of a sibling preferences controller
  * @property provider - Provider used to create a new underlying EthQuery instance
  * @property sign - Method used to sign transactions
  */
 export interface TransactionConfig extends BaseConfig {
 	blockTracker: any;
+	interval: number;
 	networkKey: string;
+	preferencesKey: string;
 	provider: any;
 	sign?: (transaction: Transaction, from: string) => Promise<any>;
 }
@@ -98,6 +103,7 @@ export interface TransactionState extends BaseState {
  */
 export class TransactionController extends BaseController<TransactionState, TransactionConfig> {
 	private ethQuery: any;
+	private handle?: NodeJS.Timer;
 
 	private addGasPadding(gas: string, gasLimit: string) {
 		const estimatedGas = addHexPrefix(gas);
@@ -115,30 +121,36 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		return BNToHex(upperGasLimitBN);
 	}
 
+	private failTransaction(transactionMeta: TransactionMeta, error: Error) {
+		transactionMeta.status = 'failed';
+		transactionMeta.error = {
+			message: error.toString(),
+			stack: error.stack
+		};
+		this.updateTransaction(transactionMeta);
+		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+	}
+
 	async getGas(transactionMeta: TransactionMeta) {
 		const { gasLimit } = await this.ethQuery.getBlockByNumber('latest', true);
-
-		// Ensure a value is defined
 		const {
 			transaction: { gas, to, value },
 			transaction
 		} = transactionMeta;
+
 		if (typeof value === 'undefined') {
 			transaction.value = '0x0';
 		}
 
-		// Use gas if already defined
 		if (typeof gas !== 'undefined') {
 			return gas;
 		}
 
-		// Use 21000 GWEI for "simple" transactions
 		const code = to ? await this.ethQuery.getCode(to) : undefined;
 		if (to && (!code || code === '0x')) {
 			return '0x5208';
 		}
 
-		// Manually estimate gas as last resort
 		const gasLimitBN = hexToBN(gasLimit);
 		const saferGasLimitBN = fractionBN(gasLimitBN, 19, 20);
 		transaction.gas = BNToHex(saferGasLimitBN);
@@ -146,30 +158,30 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		return this.addGasPadding(addHexPrefix(gasHex), gasLimit);
 	}
 
-	private async getNonce(address: string): Promise<number> {
-		// Get highest network nonce
-		const { number: blockNumber } = await this.blockTracker.awaitCurrentBlock();
-		const transactionCount = await this.ethQuery.getTransactionCount(address, blockNumber);
-		const currentNetworkNonce = transactionCount.toNumber();
+	private async queryTransactionStatuses() {
+		const { transactions } = this.state;
 
-		// Get highest confirmed nonce
-		const confirmedTransactions = this.state.transactions.filter(({ status }) => status === 'confirmed');
-		const confirmedNonces = confirmedTransactions.map(({ transaction: { nonce } }) => parseInt(nonce!, 16));
-		const currentConfirmedNonce = Math.max.apply(null, confirmedNonces);
+		const preferences = (this.preferencesKey && this.context[this.preferencesKey]) as PreferencesController;
+		const selectedAddress = preferences && preferences.state.selectedAddress;
+		if (!selectedAddress) { return; }
 
-		// Get highest between confirmed and network nonce
-		let suggestedNonce = Math.max(currentNetworkNonce, currentConfirmedNonce);
+		const { number: blockNumber }: any = await (new Promise((resolve) => { this.blockTracker.on('block', resolve); }));
+		const start = Math.max(0, parseInt(blockNumber, 16) - 100);
+		const end = parseInt(blockNumber, 16) + 10;
+		const network = (this.networkKey && this.context[this.networkKey]) as NetworkController;
+		const currentNetworkID = network ? network.state.network : '1';
+		const root = getEtherscanURL(currentNetworkID);
 
-		// Get all pending nonces
-		const pendingTransactions = this.state.transactions.filter(({ status }) => status === 'submitted');
-		const pendingNonces = pendingTransactions.map(({ transaction: { nonce } }) => parseInt(nonce!, 16));
-
-		// For every pending nonce, increment suggested nonce
-		while (pendingNonces.indexOf(suggestedNonce) !== -1) {
-			/* istanbul ignore next */
-			suggestedNonce++;
-		}
-		return suggestedNonce;
+		const response = await fetch(`${root}?module=account&action=txlist&address=${selectedAddress}&startblock=${start}&endblock=${end}&sort=asc&apikey=1YW9UKTPGGV9K9GR7E916UQ5W26A1P42T5`);
+		const json = await response.json();
+		const confirmedHashes = json.result.map(({ hash }: any) => hash);
+		transactions.forEach((meta, index) => {
+			const isConfirmed = confirmedHashes.indexOf(meta.transactionHash);
+			if (meta.networkID === currentNetworkID && meta.status === 'submitted' && isConfirmed) {
+				transactions[index].status = 'confirmed';
+				this.hub.emit(`${meta.id}:confirmed`, meta);
+			}
+		});
 	}
 
 	/**
@@ -188,6 +200,11 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	networkKey?: string;
 
 	/**
+	 * Context key of a sibling preferences controller
+	 */
+	preferencesKey?: string;
+
+	/**
 	 * Method used to sign transactions
 	 */
 	sign?: (transaction: Transaction, from: string) => Promise<void>;
@@ -202,11 +219,35 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		super(state, config);
 		this.defaultConfig = {
 			blockTracker: undefined,
+			interval: 5000,
 			networkKey: 'network',
+			preferencesKey: 'preferences',
 			provider: undefined
 		};
 		this.defaultState = { transactions: [] };
 		this.initialize();
+	}
+
+	/**
+	 * Sets a new polling interval
+	 *
+	 * @param interval - Polling interval used to fetch new exchange rate
+	 */
+	set interval(interval: number) {
+		this.handle && clearInterval(this.handle);
+		safelyExecute(() => this.queryTransactionStatuses());
+		this.handle = setInterval(() => {
+			safelyExecute(() => this.queryTransactionStatuses());
+		}, interval);
+	}
+
+	/**
+	 * Sets a new provider
+	 *
+	 * @param provider - Provider used to create a new underlying EthQuery instance
+	 */
+	set provider(provider: any) {
+		this.ethQuery = new EthQuery(provider);
 	}
 
 	/**
@@ -219,48 +260,43 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	 * @returns - Promise resolving to the transaction hash if approved or an Error if rejected or failed
 	 */
 	async addTransaction(transaction: Transaction, origin?: string) {
-		// Normalize transaction parameters
 		const network = (this.networkKey && this.context[this.networkKey]) as NetworkController;
 		const { transactions } = this.state;
 		transaction = normalizeTransaction(transaction);
-
-		// Validate transaction parameters
 		validateTransaction(transaction);
 
-		// Build TransactionMeta
 		const transactionMeta = {
 			id: random(),
-			networkID: network ? network.state.network : '0',
+			networkID: network ? network.state.network : '1',
 			origin,
 			status: 'unapproved',
 			time: Date.now(),
 			transaction
 		};
 
-		// TODO: Add gas and gasPrice
-		if (typeof transaction.gasPrice === 'undefined') {
-			transaction.gasPrice = addHexPrefix((await this.ethQuery.gasPrice()).toString(16));
+		try {
+			if (typeof transaction.gasPrice === 'undefined') {
+				transaction.gasPrice = addHexPrefix((await this.ethQuery.gasPrice()).toString(16));
+			}
+			transaction.gas = await this.getGas(transactionMeta);
+		} catch (error) {
+			this.failTransaction(transactionMeta, error);
+			return Promise.reject(error);
 		}
 
-		transaction.gas = await this.getGas(transactionMeta);
-
-		// Add TransactionMeta to state
 		transactions.push(transactionMeta);
 		this.update({ transactions });
+		this.hub.emit(`unapprovedTransaction`, transactionMeta);
 
-		// Notify external listeners of the new transaction
-		this.hub.emit(`${transactionMeta.id}:unapproved`, transactionMeta);
-
-		// Return a promise resolving once the transaction is submitted, rejected, or fails
 		return new Promise((resolve, reject) => {
-			this.hub.once(`${transactionMeta.id}:finished`, ({ error, hash, status }, meta) => {
-				switch (status) {
+			this.hub.once(`${transactionMeta.id}:finished`, (meta: TransactionMeta) => {
+				switch (meta.status) {
 					case 'submitted':
-						return resolve(hash);
+						return resolve(meta.transactionHash);
 					case 'rejected':
 						return reject(new Error('User rejected the transaction.'));
 					case 'failed':
-						return reject(new Error(error.message));
+						return reject(new Error(meta.error!.message));
 					default:
 						return reject(new Error(`Unknown problem: ${JSON.stringify(meta.transaction)}.`));
 				}
@@ -280,30 +316,27 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	async approveTransaction(transactionID: string) {
 		const { transactions } = this.state;
 		const network = (this.networkKey && this.context[this.networkKey]) as NetworkController;
-		const currentNetworkID = network ? network.state.network : '0';
+		const currentNetworkID = network ? network.state.network : '1';
 		const index = transactions.findIndex(({ id }) => transactionID === id);
 		const transactionMeta = transactions[index];
 		const { from, nonce } = transactionMeta.transaction;
 
 		try {
-			// Approve transaction
+			if (!this.sign) {
+				throw new Error('No sign method defined.');
+			}
 			transactionMeta.status = 'approved';
 			transactionMeta.transaction.nonce = transactionMeta.lastGasPrice
 				? nonce
-				: addHexPrefix((await this.getNonce(from)).toString(16));
-			transactionMeta.transaction.chainId = currentNetworkID;
+				: addHexPrefix(((await this.ethQuery.getTransactionCount(from, 'pending')).toNumber()).toString(16));
+			transactionMeta.transaction.chainId = parseInt(currentNetworkID, undefined);
 
-			// Sign transaction
 			const ethTransaction = new Transaction({ ...transactionMeta.transaction });
-			if (!this.sign) {
-				return;
-			}
-			await this.sign(ethTransaction, transactionMeta.transaction.from!);
+			await this.sign(ethTransaction, transactionMeta.transaction.from);
 			transactionMeta.status = 'signed';
 			this.updateTransaction(transactionMeta);
 			const rawTransaction = bufferToHex(ethTransaction.serialize());
 
-			// Publish transaction
 			transactionMeta.rawTransaction = rawTransaction;
 			this.updateTransaction(transactionMeta);
 			const transactionHash = await this.ethQuery.sendRawTransaction(rawTransaction);
@@ -312,14 +345,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 			this.updateTransaction(transactionMeta);
 			this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
 		} catch (error) {
-			// Fail transaction
-			transactionMeta.status = 'failed';
-			transactionMeta.error = {
-				message: error.toString(),
-				stack: error.stack
-			};
-			this.updateTransaction(transactionMeta);
-			this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+			this.failTransaction(transactionMeta, error);
 		}
 	}
 
@@ -338,43 +364,6 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
 		const transactions = this.state.transactions.filter(({ id }) => id !== transactionID);
 		this.update({ transactions });
-	}
-
-	/**
-	 * Retries a transaction by duplicating it and adding it as a new transaction
-	 * to state. This allows a transaction to be submitted a second time with a
-	 * new gas price. A `<tx.id>:unapproved` hub event will be emitted.
-	 *
-	 * @param transactionID - ID if the transaction to retry
-	 */
-	retryTransaction(transactionID: string) {
-		const { transactions } = this.state;
-		const originalTransactionMeta = this.state.transactions.find(({ id }) => id === transactionID);
-		if (!originalTransactionMeta) {
-			return;
-		}
-		const newTransactionMeta: TransactionMeta = {
-			id: random(),
-			networkID: originalTransactionMeta.networkID,
-			status: 'unapproved',
-			time: Date.now(),
-			transaction: originalTransactionMeta.transaction
-		};
-		newTransactionMeta.lastGasPrice = originalTransactionMeta.transaction.gasPrice;
-		transactions.push(newTransactionMeta);
-		this.update({ transactions });
-
-		// Notify external listeners of the new transaction
-		this.hub.emit(`${newTransactionMeta.id}:unapproved`, newTransactionMeta);
-	}
-
-	/**
-	 * Sets a new provider
-	 *
-	 * @param provider - Provider used to create a new underlying EthQuery instance
-	 */
-	set provider(provider: any) {
-		this.ethQuery = new EthQuery(provider);
 	}
 
 	/**
