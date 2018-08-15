@@ -66,7 +66,7 @@ describe('BaseController', () => {
 		const controller = new TestController();
 		expect(() => {
 			/* tslint:disable:no-unused-expression */
-			new ComposableController([ controller ]);
+			new ComposableController([controller]);
 		}).toThrow();
 	});
 });

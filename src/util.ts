@@ -1,10 +1,7 @@
-import { Block } from './BlockHistoryController';
 import { Transaction } from './TransactionController';
 
 const { addHexPrefix, BN, isValidAddress, stripHexPrefix } = require('ethereumjs-util');
-const percentile = require('percentile');
 
-const GWEI_BN = new BN('1000000000');
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
 	data: (data: string) => addHexPrefix(data),
 	from: (from: string) => addHexPrefix(from).toLowerCase(),

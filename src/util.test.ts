@@ -1,6 +1,6 @@
 import * as util from './util';
 
-const { addHexPrefix, BN, isValidAddress, stripHexPrefix } = require('ethereumjs-util');
+const { BN } = require('ethereumjs-util');
 
 describe('util', () => {
 	it('BNToHex', () => {
@@ -77,13 +77,17 @@ describe('util', () => {
 		});
 
 		it('should throw if no data', () => {
-			expect(() => util.validateTransaction({
-				from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-				to: '0x'
-			} as any)).toThrow();
-			expect(() => util.validateTransaction({
-				from: '0x3244e191f1b4903970224322180f1fbbc415696b'
-			} as any)).toThrow();
+			expect(() =>
+				util.validateTransaction({
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+					to: '0x'
+				} as any)
+			).toThrow();
+			expect(() =>
+				util.validateTransaction({
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+				} as any)
+			).toThrow();
 		});
 
 		it('should delete data', () => {
@@ -97,23 +101,29 @@ describe('util', () => {
 		});
 
 		it('should throw if invalid to address', () => {
-			expect(() => util.validateTransaction({
-				from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-				to: '1337'
-			} as any)).toThrow();
+			expect(() =>
+				util.validateTransaction({
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+					to: '1337'
+				} as any)
+			).toThrow();
 		});
 
 		it('should throw if value includes dashes', () => {
-			expect(() => util.validateTransaction({
-				from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-				to: '0x3244e191f1b4903970224322180f1fbbc415696b',
-				value: '133-7'
-			} as any)).toThrow();
-			expect(() => util.validateTransaction({
-				from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-				to: '0x3244e191f1b4903970224322180f1fbbc415696b',
-				value: '133.7'
-			} as any)).toThrow();
+			expect(() =>
+				util.validateTransaction({
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+					to: '0x3244e191f1b4903970224322180f1fbbc415696b',
+					value: '133-7'
+				} as any)
+			).toThrow();
+			expect(() =>
+				util.validateTransaction({
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+					to: '0x3244e191f1b4903970224322180f1fbbc415696b',
+					value: '133.7'
+				} as any)
+			).toThrow();
 		});
 	});
 });

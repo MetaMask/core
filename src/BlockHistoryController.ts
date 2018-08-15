@@ -88,7 +88,9 @@ export class BlockHistoryController extends BaseController<BlockHistoryState, Bl
 	private processing: Promise<void> | undefined;
 
 	private backfill() {
-		if (!this.internalBlockTracker || !this.ethQuery) { return; }
+		if (!this.internalBlockTracker || !this.ethQuery) {
+			return;
+		}
 		this.processing = new Promise(async (done, fail) => {
 			try {
 				this.backfilled = false;
