@@ -13,7 +13,6 @@ describe('TokenRatesController', () => {
 		const controller = new TokenRatesController();
 		expect(controller.config).toEqual({
 			interval: 180000,
-			preferencesKey: 'preferences',
 			tokens: []
 		});
 	});
@@ -73,8 +72,8 @@ describe('TokenRatesController', () => {
 		const preferences = new PreferencesController();
 		const controller = new TokenRatesController();
 		/* tslint:disable-next-line:no-unused-expression */
-		new ComposableController([ controller, preferences ]);
+		new ComposableController([controller, preferences]);
 		preferences.setFeatureFlag('foo', true);
-		expect(controller.context.preferences.state.featureFlags.foo).toBe(true);
+		expect(controller.context.PreferencesController.state.featureFlags.foo).toBe(true);
 	});
 });

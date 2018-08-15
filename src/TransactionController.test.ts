@@ -1,28 +1,36 @@
 import { stub } from 'sinon';
 import TransactionController from './TransactionController';
 
-const mockFlags: {[key: string]: any} = {
+const mockFlags: { [key: string]: any } = {
 	estimateGas: null
 };
 
-jest.mock('ethjs-query', () => jest.fn().mockImplementation(() => {
-	return {
-		estimateGas: () => {
-			if (mockFlags.estimateGas) {
-				throw new Error(mockFlags.estimateGas);
-			}
-			return '0x0';
-		},
-		gasPrice: () => '0x0',
-		getBlockByNumber: () => ({ gasLimit: '0x0' }),
-		getCode: () => '0x0',
-		getTransactionCount: () => ({ toNumber: () => 1337 }),
-		sendRawTransaction: () => new Promise((resolve) => { resolve('1337'); })
-	};
-}));
+jest.mock('ethjs-query', () =>
+	jest.fn().mockImplementation(() => {
+		return {
+			estimateGas: () => {
+				if (mockFlags.estimateGas) {
+					throw new Error(mockFlags.estimateGas);
+				}
+				return '0x0';
+			},
+			gasPrice: () => '0x0',
+			getBlockByNumber: () => ({ gasLimit: '0x0' }),
+			getCode: () => '0x0',
+			getTransactionCount: () => ({ toNumber: () => 1337 }),
+			sendRawTransaction: () =>
+				new Promise((resolve) => {
+					resolve('1337');
+				})
+		};
+	})
+);
 
 const HttpProvider = require('ethjs-provider-http');
-const MOCK_BLOCK_HISTORY = { state: { recentBlocks: [{ number: '0x0' }] } };
+const MOCK_BLOCK_HISTORY = {
+	getLatestBlock: () => ({ gasLimit: '0x0' }),
+	state: { recentBlocks: [{ number: '0x0' }] }
+};
 const MOCK_NETWORK = { state: { network: '3' } };
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const PROVIDER = new HttpProvider('https://ropsten.infura.io');
@@ -97,7 +105,10 @@ describe('TransactionController', () => {
 		return new Promise((resolve) => {
 			const controller = new TransactionController(undefined, { provider: PROVIDER });
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-			controller.context = { NetworkController: MOCK_NETWORK } as any;
+			controller.context = {
+				BlockHistoryController: MOCK_BLOCK_HISTORY,
+				NetworkController: MOCK_NETWORK
+			} as any;
 			controller.hub.on('unapprovedTransaction', () => {
 				expect(controller.state.transactions[0].transaction.from).toBe(from);
 				expect(controller.state.transactions[0].networkID).toBe(MOCK_NETWORK.state.network);
@@ -114,6 +125,7 @@ describe('TransactionController', () => {
 	it('should cancel a transaction', () => {
 		return new Promise((resolve) => {
 			const controller = new TransactionController(undefined, { provider: PROVIDER });
+			controller.context = { BlockHistoryController: MOCK_BLOCK_HISTORY } as any;
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			controller.hub.on('unapprovedTransaction', () => {
 				controller.cancelTransaction('foo');
@@ -135,7 +147,10 @@ describe('TransactionController', () => {
 		return new Promise((resolve) => {
 			const controller = new TransactionController(undefined, { provider: PROVIDER });
 			controller.wipeTransactions();
-			controller.context = { NetworkController: MOCK_NETWORK } as any;
+			controller.context = {
+				BlockHistoryController: MOCK_BLOCK_HISTORY,
+				NetworkController: MOCK_NETWORK
+			} as any;
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			controller.hub.on('unapprovedTransaction', () => {
 				controller.wipeTransactions();
@@ -153,7 +168,9 @@ describe('TransactionController', () => {
 		return new Promise((resolve) => {
 			const controller = new TransactionController(undefined, {
 				provider: PROVIDER,
-				sign: async () => { throw new Error('foo'); }
+				sign: async () => {
+					throw new Error('foo');
+				}
 			});
 			controller.context = { NetworkController: MOCK_NETWORK } as any;
 			const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
@@ -193,6 +210,7 @@ describe('TransactionController', () => {
 			const controller = new TransactionController(undefined, {
 				provider: PROVIDER
 			});
+			controller.context = { BlockHistoryController: MOCK_BLOCK_HISTORY } as any;
 			const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
 			const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			controller.hub.on('unapprovedTransaction', () => {
@@ -201,7 +219,6 @@ describe('TransactionController', () => {
 					expect(transaction.from).toBe(from);
 					expect(transaction.to).toBe(to);
 					expect(status).toBe('failed');
-
 				});
 				controller.approveTransaction(controller.state.transactions[0].id);
 			});
@@ -220,7 +237,10 @@ describe('TransactionController', () => {
 				sign: async (transaction: any) => transaction
 			});
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-			controller.context = { NetworkController: MOCK_NETWORK } as any;
+			controller.context = {
+				BlockHistoryController: MOCK_BLOCK_HISTORY,
+				NetworkController: MOCK_NETWORK
+			} as any;
 			controller.hub.on('unapprovedTransaction', () => {
 				controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
 					const { transaction, status } = controller.state.transactions[0];

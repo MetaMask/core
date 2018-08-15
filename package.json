@@ -20,7 +20,7 @@
       "^.+\\.tsx?$": "ts-jest"
     },
     "testMatch": [
-      "**/TransactionController.test.ts"
+      "**/*.test.ts"
     ],
     "coverageThreshold": {
       "global": {

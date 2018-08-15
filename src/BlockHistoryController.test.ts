@@ -6,7 +6,6 @@ import { stub } from 'sinon';
 const BlockTracker = require('eth-block-tracker');
 const HttpProvider = require('ethjs-provider-http');
 
-const TEST_BLOCK_NUMBER = 3394900;
 const PROVIDER = new HttpProvider('https://ropsten.infura.io');
 
 describe('BlockHistoryController', () => {
@@ -24,6 +23,16 @@ describe('BlockHistoryController', () => {
 		});
 	});
 
+	it('should not update state if not backfilled', () => {
+		return new Promise((resolve) => {
+			const blockTracker = new BlockTracker({ provider: PROVIDER });
+			const controller = new BlockHistoryController(undefined, { blockTracker });
+			blockTracker.emit('block', { number: 1337, transactions: [] });
+			expect(controller.state.recentBlocks).toEqual([]);
+			resolve();
+		});
+	});
+
 	it('should add new block to recentBlocks state', () => {
 		return new Promise((resolve) => {
 			const blockTracker = new BlockTracker({ provider: PROVIDER });
@@ -36,7 +45,6 @@ describe('BlockHistoryController', () => {
 					resolve();
 				});
 			});
-			blockTracker.emit('block', { number: TEST_BLOCK_NUMBER.toString(16) });
 		});
 	});
 
@@ -52,7 +60,6 @@ describe('BlockHistoryController', () => {
 				expect(state.recentBlocks.length).toBe(50);
 				resolve();
 			});
-			blockTracker.emit('block', { number: TEST_BLOCK_NUMBER.toString(16) });
 		});
 	});
 
@@ -69,5 +76,12 @@ describe('BlockHistoryController', () => {
 		const controller = new BlockHistoryController(undefined, { blockTracker: mockBlockTracker });
 		controller.blockTracker = new EventEmitter();
 		expect((mockBlockTracker.removeAllListeners as any).called).toBe(true);
+	});
+
+	it('should get latest block', async () => {
+		const blockTracker = new BlockTracker({ provider: PROVIDER });
+		const controller = new BlockHistoryController(undefined, { blockTracker, provider: PROVIDER });
+		const block = await controller.getLatestBlock();
+		expect(block).toHaveProperty('number');
 	});
 });

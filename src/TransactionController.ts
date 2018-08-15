@@ -135,7 +135,8 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	}
 
 	private async getGas(transactionMeta: TransactionMeta) {
-		const { gasLimit } = await this.ethQuery.getBlockByNumber('latest', true);
+		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
+		const { gasLimit } = await blockHistory.getLatestBlock();
 		const {
 			transaction: { gas, to, value },
 			transaction
@@ -292,8 +293,8 @@ export class TransactionController extends BaseController<TransactionState, Tran
 			}
 			transactionMeta.status = 'approved';
 			transactionMeta.transaction.nonce = addHexPrefix(
-				(await this.ethQuery.getTransactionCount(from, 'pending')
-			).toNumber().toString(16));
+				(await this.ethQuery.getTransactionCount(from, 'pending')).toNumber().toString(16)
+			);
 			transactionMeta.transaction.chainId = parseInt(currentNetworkID, undefined);
 
 			const ethTransaction = new Transaction({ ...transactionMeta.transaction });
@@ -347,7 +348,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		}
 
 		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
-		const { number: blockNumber } = blockHistory.state.recentBlocks[blockHistory.state.recentBlocks.length - 1];
+		const { number: blockNumber } = await blockHistory.getLatestBlock();
 		const start = Math.max(0, parseInt(blockNumber, 16) - 100);
 		const end = parseInt(blockNumber, 16) + 10;
 		const network = this.context.NetworkController as NetworkController;

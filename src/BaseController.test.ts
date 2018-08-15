@@ -1,10 +1,13 @@
 import { stub } from 'sinon';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
+import ComposableController from './ComposableController';
 
 const STATE = { name: 'foo' };
 const CONFIG = { disabled: true };
 
 class TestController extends BaseController<BaseState, BaseConfig> {
+	requiredControllers = ['Foo'];
+
 	constructor(state?: BaseState, config?: BaseConfig) {
 		super(state, config);
 		this.initialize();
@@ -57,5 +60,13 @@ describe('BaseController', () => {
 		controller.unsubscribe(() => null);
 		controller.notify();
 		expect(listener.called).toBe(false);
+	});
+
+	it('should throw if siblings are missing dependencies', () => {
+		const controller = new TestController();
+		expect(() => {
+			/* tslint:disable:no-unused-expression */
+			new ComposableController([ controller ]);
+		}).toThrow();
 	});
 });

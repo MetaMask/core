@@ -47,7 +47,8 @@ describe('ComposableController', () => {
 			new PreferencesController(),
 			new TokenRatesController()
 		]);
-		const addressContext = controller.context.TokenRatesController.context.AddressBookController as AddressBookController;
+		const addressContext = controller.context.TokenRatesController.context
+			.AddressBookController as AddressBookController;
 		expect(addressContext).toBeDefined();
 		addressContext.set('1337', 'foo');
 		expect(controller.flatState).toEqual({
@@ -64,13 +65,13 @@ describe('ComposableController', () => {
 	it('should get and set new stores', () => {
 		const controller = new ComposableController();
 		const addressBook = new AddressBookController();
-		controller.controllers = [ addressBook ];
-		expect(controller.controllers).toEqual([ addressBook ]);
+		controller.controllers = [addressBook];
+		expect(controller.controllers).toEqual([addressBook]);
 	});
 
 	it('should notify listeners of nested state change', () => {
 		const addressBookController = new AddressBookController();
-		const controller = new ComposableController([ addressBookController ]);
+		const controller = new ComposableController([addressBookController]);
 		const listener = stub();
 		controller.subscribe(listener);
 		addressBookController.set('1337', 'foo');

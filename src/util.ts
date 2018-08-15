@@ -82,34 +82,6 @@ export function getEtherscanURL(networkCode = '1') {
 }
 
 /**
- * Calculates lowest gas price that would've been included in 50% of recent blocks
- *
- * @param recentBlocks - List of recent blocks
- * @returns - Gas price based on recent blocks
- */
-export function getGasPrice(recentBlocks: Block[]) {
-	if (recentBlocks.length === 0) {
-		return `0x${GWEI_BN.toString(16)}`;
-	}
-
-	const lowestPrices = recentBlocks
-		.map((block) => {
-			if (!block.gasPrices || block.gasPrices.length < 1) {
-				return GWEI_BN;
-			}
-			return block.gasPrices
-				.map((hexPrefix) => hexPrefix.substr(2))
-				.map((hex) => new BN(hex, 16))
-				.sort((a, b) => (a.gt(b) ? 1 : -1))[0];
-		})
-		.map((num) => num.div(GWEI_BN).toNumber());
-
-	const percentileNum = percentile(50, lowestPrices);
-	const percentileNumBn = new BN(percentileNum);
-	return `0x${percentileNumBn.mul(GWEI_BN).toString(16)}`;
-}
-
-/**
  * Converts a hex string to a BN object
  *
  * @param inputHex - Number represented as a hex string
@@ -161,7 +133,7 @@ export function validateTransaction(transaction: Transaction) {
 	if (!transaction.from || typeof transaction.from !== 'string' || !isValidAddress(transaction.from)) {
 		throw new Error(`Invalid "from" address: ${transaction.from} must be a valid string.`);
 	}
-	if (transaction.to === '0x' || transaction.to === null) {
+	if (transaction.to === '0x' || transaction.to === undefined) {
 		if (transaction.data) {
 			delete transaction.to;
 		} else {
@@ -186,7 +158,6 @@ export default {
 	fractionBN,
 	getBuyURL,
 	getEtherscanURL,
-	getGasPrice,
 	hexToBN,
 	normalizeTransaction,
 	safelyExecute,
