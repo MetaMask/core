@@ -45,7 +45,7 @@ export class ComposableController extends BaseController<BaseState, BaseConfig> 
 	set controllers(controllers: Array<BaseController<BaseState, BaseConfig>>) {
 		this.internalControllers = controllers;
 		const context: ChildControllerContext = {};
-		const initialState: {[key: string]: BaseState} = {};
+		const initialState: { [key: string]: BaseState } = {};
 		this.context = context;
 		controllers.forEach((controller) => {
 			const name = controller.constructor.name;

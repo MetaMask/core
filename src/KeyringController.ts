@@ -42,10 +42,7 @@ export class KeyringController extends BaseController<KeyringState, BaseConfig> 
 	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
-	requiredControllers = [
-		'AccountTrackerController',
-		'PreferencesController'
-	];
+	requiredControllers = ['AccountTrackerController', 'PreferencesController'];
 
 	/**
 	 * Creates a KeyringController instance

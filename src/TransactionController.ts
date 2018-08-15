@@ -200,11 +200,7 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
-	requiredControllers = [
-		'BlockHistoryController',
-		'NetworkController',
-		'PreferencesController'
-	];
+	requiredControllers = ['BlockHistoryController', 'NetworkController', 'PreferencesController'];
 
 	/**
 	 * Method used to sign transactions
