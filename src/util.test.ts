@@ -24,14 +24,6 @@ describe('util', () => {
 		expect(util.getBuyURL('42')).toBe('https://github.com/kovan-testnet/faucet');
 	});
 
-	it('getEtherscanURL', () => {
-		expect(util.getEtherscanURL(undefined)).toBe('https://api.etherscan.io/api');
-		expect(util.getEtherscanURL('1')).toBe('https://api.etherscan.io/api');
-		expect(util.getEtherscanURL('3')).toBe('https://api-ropsten.etherscan.io/api');
-		expect(util.getEtherscanURL('4')).toBe('https://api-rinkeby.etherscan.io/api');
-		expect(util.getEtherscanURL('42')).toBe('https://api-kovan.etherscan.io/api');
-	});
-
 	it('hexToBN', () => {
 		expect(util.hexToBN('0x1337').toNumber()).toBe(4919);
 	});

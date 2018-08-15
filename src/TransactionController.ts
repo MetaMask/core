@@ -3,15 +3,7 @@ import BaseController, { BaseConfig, BaseState } from './BaseController';
 import BlockHistoryController from './BlockHistoryController';
 import NetworkController from './NetworkController';
 import PreferencesController from './PreferencesController';
-import {
-	BNToHex,
-	fractionBN,
-	getEtherscanURL,
-	hexToBN,
-	normalizeTransaction,
-	safelyExecute,
-	validateTransaction
-} from './util';
+import { BNToHex, fractionBN, hexToBN, normalizeTransaction, safelyExecute, validateTransaction } from './util';
 
 const EthQuery = require('ethjs-query');
 const Transaction = require('ethereumjs-tx');
@@ -187,10 +179,6 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	 */
 	constructor(state?: Partial<TransactionState>, config?: Partial<TransactionConfig>) {
 		super(state, config);
-		/* istanbul ignore if */
-		if (!process.env.ETHERSCAN_API_KEY) {
-			throw new Error('No Etherscan API key found.');
-		}
 		this.defaultConfig = {
 			interval: 5000,
 			provider: undefined
@@ -352,22 +340,20 @@ export class TransactionController extends BaseController<TransactionState, Tran
 		}
 
 		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
-		const { number: blockNumber } = await blockHistory.getLatestBlock();
-		const start = Math.max(0, parseInt(blockNumber, 16) - 100);
-		const end = parseInt(blockNumber, 16) + 10;
 		const network = this.context.NetworkController as NetworkController;
 		/* istanbul ignore next */
 		const currentNetworkID = network ? network.state.network : '1';
-		const root = getEtherscanURL(currentNetworkID);
 
-		const response = await fetch(
-			`${root}?module=account&action=txlist&address=${selectedAddress}&startblock=` +
-				`${start}&endblock=${end}&sort=asc&apikey=${process.env.ETHERSCAN_API_KEY}`
-		);
-		const json = await response.json();
-		const confirmedHashes = json.result.map(({ hash }: any) => hash);
+		const confirmedHashes = blockHistory.state.recentBlocks
+			.reduce((hashes: string[], block) => {
+				return hashes.concat(block.transactions);
+			}, [])
+			.map((transaction: any) => transaction && transaction.hash);
+
+		console.log(confirmedHashes);
+
 		transactions.forEach((meta, index) => {
-			const isConfirmed = confirmedHashes.indexOf(meta.transactionHash) > -1;
+			const isConfirmed = confirmedHashes.indexOf(meta.transactionHash!) > -1;
 			if (meta.networkID === currentNetworkID && meta.status === 'submitted' && isConfirmed) {
 				transactions[index].status = 'confirmed';
 				this.hub.emit(`${meta.id}:confirmed`, meta);

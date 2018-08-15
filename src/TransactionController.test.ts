@@ -29,28 +29,17 @@ jest.mock('ethjs-query', () =>
 const HttpProvider = require('ethjs-provider-http');
 const MOCK_BLOCK_HISTORY = {
 	getLatestBlock: () => ({ gasLimit: '0x0' }),
-	state: { recentBlocks: [{ number: '0x0' }] }
+	state: { recentBlocks: [{ number: '0x0', transactions: [{ hash: '1337' }] }] }
 };
 const MOCK_NETWORK = { state: { network: '3' } };
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const PROVIDER = new HttpProvider('https://ropsten.infura.io');
 
 describe('TransactionController', () => {
-	beforeAll(() => {
-		process.env.ETHERSCAN_API_KEY = '1337';
-	});
-
 	beforeEach(() => {
 		for (const key in mockFlags) {
 			mockFlags[key] = null;
 		}
-		window.fetch = jest.fn().mockImplementation(() => ({
-			json() {
-				return {
-					result: [{ hash: '1337' }]
-				};
-			}
-		}));
 	});
 
 	it('should set default state', () => {

@@ -60,25 +60,6 @@ export function getBuyURL(networkCode = '1', address?: string, amount = 5) {
 }
 
 /**
- * Return a URL that can be used to make API requests against Etherscan
- *
- * @param networkCode - Network code of desired network
- * @returns - URL to query Etherscan API
- */
-export function getEtherscanURL(networkCode = '1') {
-	switch (networkCode) {
-		case '1':
-			return 'https://api.etherscan.io/api';
-		case '3':
-			return 'https://api-ropsten.etherscan.io/api';
-		case '4':
-			return 'https://api-rinkeby.etherscan.io/api';
-		case '42':
-			return 'https://api-kovan.etherscan.io/api';
-	}
-}
-
-/**
  * Converts a hex string to a BN object
  *
  * @param inputHex - Number represented as a hex string
@@ -154,7 +135,6 @@ export default {
 	BNToHex,
 	fractionBN,
 	getBuyURL,
-	getEtherscanURL,
 	hexToBN,
 	normalizeTransaction,
 	safelyExecute,
