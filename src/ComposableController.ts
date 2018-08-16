@@ -28,9 +28,8 @@ export class ComposableController extends BaseController<any, any> {
 	 *
 	 * @param controllers - Map of names to controller instances
 	 */
-	constructor(controllers: ControllerList = [], , initialState = {}) {
+	constructor(controllers: ControllerList = []) {
 		super();
-		this.initialState = {}
 		this.initialize();
 		this.controllers = controllers;
 	}
@@ -52,7 +51,7 @@ export class ComposableController extends BaseController<any, any> {
 	set controllers(controllers: ControllerList) {
 		this.internalControllers = controllers;
 		const context: ChildControllerContext = {};
-		const initialState: { [key: string]: any } = this.initialState;
+		const initialState: { [key: string]: any } = {};
 		this.context = context;
 		controllers.forEach((controller) => {
 			const name = controller.constructor.name;
@@ -67,7 +66,6 @@ export class ComposableController extends BaseController<any, any> {
 			controller.onComposed();
 		});
 		this.update(initialState, true);
-		this.initialState = {};
 	}
 
 	/**
