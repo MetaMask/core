@@ -68,7 +68,7 @@ export class KeyringController extends BaseController<KeyringState, BaseConfig> 
 	 * @returns - Current state
 	 */
 	get state(): KeyringState {
-		return this.keyring.memStore.getState();
+		return this.keyring.store.getState();
 	}
 
 	/**
@@ -260,7 +260,7 @@ export class KeyringController extends BaseController<KeyringState, BaseConfig> 
 	 * @param listener - Callback triggered when state changes
 	 */
 	subscribe(listener: Listener<KeyringState>) {
-		this.keyring.memStore.subscribe(listener);
+		this.keyring.store.subscribe(listener);
 	}
 
 	/**
@@ -270,7 +270,7 @@ export class KeyringController extends BaseController<KeyringState, BaseConfig> 
 	 * @returns - True if a listener is found and unsubscribed
 	 */
 	unsubscribe(listener: Listener<KeyringState>) {
-		return this.keyring.memStore.unsubscribe(listener);
+		return this.keyring.store.unsubscribe(listener);
 	}
 
 	/**
