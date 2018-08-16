@@ -51,7 +51,7 @@ const LOCALHOST_RPC_URL = 'http://localhost:8545';
 /**
  * Controller that creates and manages an Ethereum network provider
  */
-export class NetworkController extends BaseController<NetworkState, NetworkConfig> {
+export class NetworkController extends BaseController<NetworkConfig, NetworkState> {
 	private ethQuery: any;
 	private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 
@@ -130,11 +130,11 @@ export class NetworkController extends BaseController<NetworkState, NetworkConfi
 	/**
 	 * Creates a NetworkController instance
 	 *
-	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
+	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state?: Partial<NetworkState>, config?: Partial<NetworkConfig>) {
-		super(state, config);
+	constructor(config?: Partial<NetworkConfig>, state?: Partial<NetworkState>) {
+		super(config, state);
 		this.defaultState = {
 			network: 'loading',
 			provider: { type: 'rinkeby' }

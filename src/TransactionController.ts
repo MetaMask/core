@@ -94,7 +94,7 @@ export interface TransactionState extends BaseState {
 /**
  * Controller responsible for submitting and managing transactions
  */
-export class TransactionController extends BaseController<TransactionState, TransactionConfig> {
+export class TransactionController extends BaseController<TransactionConfig, TransactionState> {
 	private ethQuery: any;
 	private handle?: NodeJS.Timer;
 
@@ -174,11 +174,11 @@ export class TransactionController extends BaseController<TransactionState, Tran
 	/**
 	 * Creates a TransactionController instance
 	 *
-	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
+	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state?: Partial<TransactionState>, config?: Partial<TransactionConfig>) {
-		super(state, config);
+	constructor(config?: Partial<TransactionConfig>, state?: Partial<TransactionState>) {
+		super(config, state);
 		this.defaultConfig = {
 			interval: 5000,
 			provider: undefined
@@ -349,8 +349,6 @@ export class TransactionController extends BaseController<TransactionState, Tran
 				return hashes.concat(block.transactions);
 			}, [])
 			.map((transaction: any) => transaction && transaction.hash);
-
-		console.log(confirmedHashes);
 
 		transactions.forEach((meta, index) => {
 			const isConfirmed = confirmedHashes.indexOf(meta.transactionHash!) > -1;

@@ -22,14 +22,14 @@ describe('CurrencyRateController', () => {
 	it('should poll on correct interval', () => {
 		const mock = stub(global, 'setInterval');
 		/* tslint:disable-next-line:no-unused-expression */
-		new CurrencyRateController(undefined, { interval: 1337 });
+		new CurrencyRateController({ interval: 1337 });
 		expect(mock.getCall(0).args[1]).toBe(1337);
 		mock.restore();
 	});
 
 	it('should update rate on interval', () => {
 		return new Promise((resolve) => {
-			const controller = new CurrencyRateController(undefined, { interval: 10 });
+			const controller = new CurrencyRateController({ interval: 10 });
 			const mock = stub(controller, 'updateExchangeRate');
 			setTimeout(() => {
 				expect(mock.called).toBe(true);
@@ -40,14 +40,14 @@ describe('CurrencyRateController', () => {
 	});
 
 	it('should update currency', async () => {
-		const controller = new CurrencyRateController(undefined, { interval: 10 });
+		const controller = new CurrencyRateController({ interval: 10 });
 		expect(controller.state.conversionRate).toEqual(0);
 		await controller.updateCurrency('eur');
 		expect(controller.state.conversionRate).toBeGreaterThan(0);
 	});
 
 	it('should not update rates if disabled', async () => {
-		const controller = new CurrencyRateController(undefined, {
+		const controller = new CurrencyRateController({
 			disabled: true,
 			interval: 10
 		});
@@ -58,7 +58,7 @@ describe('CurrencyRateController', () => {
 
 	it('should clear previous interval', () => {
 		const mock = stub(global, 'clearInterval');
-		const controller = new CurrencyRateController(undefined, { interval: 1337 });
+		const controller = new CurrencyRateController({ interval: 1337 });
 		controller.interval = 1338;
 		expect(mock.called).toBe(true);
 		mock.restore();

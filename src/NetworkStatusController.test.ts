@@ -26,14 +26,14 @@ describe('NetworkStatusController', () => {
 	it('should poll on correct interval', () => {
 		const mock = stub(global, 'setInterval');
 		/* tslint:disable-next-line:no-unused-expression */
-		new NetworkStatusController(undefined, { interval: 1337 });
+		new NetworkStatusController({ interval: 1337 });
 		expect(mock.getCall(0).args[1]).toBe(1337);
 		mock.restore();
 	});
 
 	it('should check network statuses on interval', () => {
 		return new Promise((resolve) => {
-			const controller = new NetworkStatusController(undefined, { interval: 10 });
+			const controller = new NetworkStatusController({ interval: 10 });
 			const mock = stub(controller, 'updateNetworkStatuses');
 			setTimeout(() => {
 				expect(mock.called).toBe(true);
@@ -53,7 +53,7 @@ describe('NetworkStatusController', () => {
 	});
 
 	it('should not update infura rate if disabled', async () => {
-		const controller = new NetworkStatusController(undefined, { disabled: true });
+		const controller = new NetworkStatusController({ disabled: true });
 		controller.updateInfuraStatus = stub();
 		await controller.updateNetworkStatuses();
 		expect((controller.updateInfuraStatus as any).called).toBe(false);
@@ -61,7 +61,7 @@ describe('NetworkStatusController', () => {
 
 	it('should clear previous interval', () => {
 		const mock = stub(global, 'clearInterval');
-		const controller = new NetworkStatusController(undefined, { interval: 1337 });
+		const controller = new NetworkStatusController({ interval: 1337 });
 		controller.interval = 1338;
 		expect(mock.called).toBe(true);
 		mock.restore();

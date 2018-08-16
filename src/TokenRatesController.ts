@@ -45,7 +45,7 @@ export interface TokenRatesState extends BaseState {
 /**
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
  */
-export class TokenRatesController extends BaseController<TokenRatesState, TokenRatesConfig> {
+export class TokenRatesController extends BaseController<TokenRatesConfig, TokenRatesState> {
 	private handle?: NodeJS.Timer;
 	private tokenList: Token[] = [];
 
@@ -61,11 +61,11 @@ export class TokenRatesController extends BaseController<TokenRatesState, TokenR
 	/**
 	 * Creates a TokenRatesController instance
 	 *
-	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
+	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state?: Partial<TokenRatesState>, config?: Partial<TokenRatesConfig>) {
-		super(state, config);
+	constructor(config?: Partial<TokenRatesConfig>, state?: Partial<TokenRatesState>) {
+		super(config, state);
 		this.defaultConfig = {
 			interval: 180000,
 			tokens: []

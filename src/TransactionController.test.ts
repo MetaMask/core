@@ -58,14 +58,14 @@ describe('TransactionController', () => {
 	it('should poll on correct interval', () => {
 		const func = stub(global, 'setInterval');
 		/* tslint:disable-next-line:no-unused-expression */
-		new TransactionController(undefined, { interval: 1337 });
+		new TransactionController({ interval: 1337 });
 		expect(func.getCall(0).args[1]).toBe(1337);
 		func.restore();
 	});
 
 	it('should update rates on interval', () => {
 		return new Promise((resolve) => {
-			const controller = new TransactionController(undefined, { interval: 10 });
+			const controller = new TransactionController({ interval: 10 });
 			const func = stub(controller, 'queryTransactionStatuses');
 			setTimeout(() => {
 				expect(func.called).toBe(true);
@@ -77,7 +77,7 @@ describe('TransactionController', () => {
 
 	it('should clear previous interval', () => {
 		const func = stub(global, 'clearInterval');
-		const controller = new TransactionController(undefined, { interval: 1337 });
+		const controller = new TransactionController({ interval: 1337 });
 		controller.interval = 1338;
 		expect(func.called).toBe(true);
 		func.restore();
@@ -96,7 +96,7 @@ describe('TransactionController', () => {
 
 	it('should add a valid transaction', () => {
 		return new Promise((resolve) => {
-			const controller = new TransactionController(undefined, { provider: PROVIDER });
+			const controller = new TransactionController({ provider: PROVIDER });
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			controller.context = {
 				BlockHistoryController: MOCK_BLOCK_HISTORY,
@@ -117,7 +117,7 @@ describe('TransactionController', () => {
 
 	it('should cancel a transaction', () => {
 		return new Promise((resolve) => {
-			const controller = new TransactionController(undefined, { provider: PROVIDER });
+			const controller = new TransactionController({ provider: PROVIDER });
 			controller.context = { BlockHistoryController: MOCK_BLOCK_HISTORY } as any;
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			controller.hub.on('unapprovedTransaction', () => {
@@ -138,7 +138,7 @@ describe('TransactionController', () => {
 
 	it('should wipe transactions', () => {
 		return new Promise((resolve) => {
-			const controller = new TransactionController(undefined, { provider: PROVIDER });
+			const controller = new TransactionController({ provider: PROVIDER });
 			controller.wipeTransactions();
 			controller.context = {
 				BlockHistoryController: MOCK_BLOCK_HISTORY,
@@ -159,7 +159,7 @@ describe('TransactionController', () => {
 
 	it('should fail to approve an invalid transaction', () => {
 		return new Promise((resolve) => {
-			const controller = new TransactionController(undefined, {
+			const controller = new TransactionController({
 				provider: PROVIDER,
 				sign: async () => {
 					throw new Error('foo');
@@ -183,7 +183,7 @@ describe('TransactionController', () => {
 
 	it('should fail transaction if gas calculation fails', () => {
 		return new Promise(async (resolve) => {
-			const controller = new TransactionController(undefined, { provider: PROVIDER });
+			const controller = new TransactionController({ provider: PROVIDER });
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			controller.context = { NetworkController: MOCK_NETWORK } as any;
 			mockFlags.estimateGas = 'Uh oh';
@@ -200,7 +200,7 @@ describe('TransactionController', () => {
 
 	it('should fail if no sign method defined', () => {
 		return new Promise(async (resolve) => {
-			const controller = new TransactionController(undefined, {
+			const controller = new TransactionController({
 				provider: PROVIDER
 			});
 			controller.context = { BlockHistoryController: MOCK_BLOCK_HISTORY } as any;
@@ -225,7 +225,7 @@ describe('TransactionController', () => {
 
 	it('should approve a transaction', () => {
 		return new Promise((resolve) => {
-			const controller = new TransactionController(undefined, {
+			const controller = new TransactionController({
 				provider: PROVIDER,
 				sign: async (transaction: any) => transaction
 			});

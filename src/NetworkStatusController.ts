@@ -50,17 +50,17 @@ const DOWN_NETWORK_STATUS: NetworkStatus = {
 /**
  * Controller that passively polls on a set interval for network status of providers
  */
-export class NetworkStatusController extends BaseController<NetworkStatusState, NetworkStatusConfig> {
+export class NetworkStatusController extends BaseController<NetworkStatusConfig, NetworkStatusState> {
 	private handle?: NodeJS.Timer;
 
 	/**
 	 * Creates a NetworkStatusController instance
 	 *
-	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
+	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state?: Partial<NetworkStatusState>, config?: Partial<NetworkStatusConfig>) {
-		super(state, config);
+	constructor(config?: Partial<NetworkStatusConfig>, state?: Partial<NetworkStatusState>) {
+		super(config, state);
 		this.defaultConfig = { interval: 180000 };
 		this.defaultState = {
 			networkStatus: {

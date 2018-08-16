@@ -24,14 +24,14 @@ describe('ShapeShiftController', () => {
 	it('should poll on correct interval', () => {
 		const mock = stub(global, 'setInterval');
 		/* tslint:disable-next-line:no-unused-expression */
-		new ShapeShiftController(undefined, { interval: 1337 });
+		new ShapeShiftController({ interval: 1337 });
 		expect(mock.getCall(0).args[1]).toBe(1337);
 		mock.restore();
 	});
 
 	it('should update transaction list on interval', () => {
 		return new Promise((resolve) => {
-			const controller = new ShapeShiftController(undefined, { interval: 10 });
+			const controller = new ShapeShiftController({ interval: 10 });
 			const mock = stub(controller, 'updateTransactionList');
 			setTimeout(() => {
 				expect(mock.called).toBe(true);
@@ -42,7 +42,7 @@ describe('ShapeShiftController', () => {
 	});
 
 	it('should not update infura rate if disabled', async () => {
-		const controller = new ShapeShiftController({ shapeShiftTxList: [PENDING_TX] }, { disabled: true });
+		const controller = new ShapeShiftController({ disabled: true }, { shapeShiftTxList: [PENDING_TX] });
 		controller.update = stub();
 		await controller.updateTransactionList();
 		expect((controller.update as any).called).toBe(false);
@@ -50,14 +50,14 @@ describe('ShapeShiftController', () => {
 
 	it('should clear previous interval', () => {
 		const clearInterval = stub(global, 'clearInterval');
-		const controller = new ShapeShiftController(undefined, { interval: 1337 });
+		const controller = new ShapeShiftController({ interval: 1337 });
 		controller.interval = 1338;
 		expect(clearInterval.called).toBe(true);
 		clearInterval.restore();
 	});
 
 	it('should update lists', async () => {
-		const controller = new ShapeShiftController({ shapeShiftTxList: [PENDING_TX] });
+		const controller = new ShapeShiftController(undefined, { shapeShiftTxList: [PENDING_TX] });
 		getOnce('begin:https://shapeshift.io', () => ({
 			body: JSON.stringify({ status: 'pending' })
 		}));

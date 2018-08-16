@@ -57,7 +57,7 @@ export interface ShapeShiftState extends BaseState {
 /**
  * Controller that passively polls on a set interval for ShapeShift transactions
  */
-export class ShapeShiftController extends BaseController<ShapeShiftState, ShapeShiftConfig> {
+export class ShapeShiftController extends BaseController<ShapeShiftConfig, ShapeShiftState> {
 	private handle?: NodeJS.Timer;
 
 	private getPendingTransactions() {
@@ -82,11 +82,11 @@ export class ShapeShiftController extends BaseController<ShapeShiftState, ShapeS
 	/**
 	 * Creates a ShapeShiftController instance
 	 *
-	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
+	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state?: Partial<ShapeShiftState>, config?: Partial<ShapeShiftConfig>) {
-		super(state, config);
+	constructor(config?: Partial<ShapeShiftConfig>, state?: Partial<ShapeShiftState>) {
+		super(config, state);
 		this.defaultConfig = { interval: 3000 };
 		this.defaultState = { shapeShiftTxList: [] };
 		this.initialize();

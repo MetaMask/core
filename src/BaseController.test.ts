@@ -5,23 +5,23 @@ import ComposableController from './ComposableController';
 const STATE = { name: 'foo' };
 const CONFIG = { disabled: true };
 
-class TestController extends BaseController<BaseState, BaseConfig> {
+class TestController extends BaseController<BaseConfig, BaseState> {
 	requiredControllers = ['Foo'];
 
-	constructor(state?: BaseState, config?: BaseConfig) {
-		super(state, config);
+	constructor(config?: BaseConfig, state?: BaseState) {
+		super(config, state);
 		this.initialize();
 	}
 }
 
 describe('BaseController', () => {
 	it('should set initial state', () => {
-		const controller = new TestController(STATE);
+		const controller = new TestController(undefined, STATE);
 		expect(controller.state).toEqual(STATE);
 	});
 
 	it('should set initial config', () => {
-		const controller = new TestController(undefined, CONFIG);
+		const controller = new TestController(CONFIG);
 		expect(controller.config).toEqual(CONFIG);
 	});
 
@@ -40,7 +40,7 @@ describe('BaseController', () => {
 	});
 
 	it('should notify all listeners', () => {
-		const controller = new TestController(STATE);
+		const controller = new TestController(undefined, STATE);
 		const listenerOne = stub();
 		const listenerTwo = stub();
 		controller.subscribe(listenerOne);

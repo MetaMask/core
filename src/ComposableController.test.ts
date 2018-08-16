@@ -69,6 +69,21 @@ describe('ComposableController', () => {
 		expect(controller.controllers).toEqual([addressBook]);
 	});
 
+	it('should set initial state', () => {
+		const state = {
+			AddressBookController: {
+				addressBook: [
+					{
+						address: 'bar',
+						name: 'foo'
+					}
+				]
+			}
+		};
+		const controller = new ComposableController([new AddressBookController()], state);
+		expect(controller.state).toEqual(state);
+	});
+
 	it('should notify listeners of nested state change', () => {
 		const addressBookController = new AddressBookController();
 		const controller = new ComposableController([addressBookController]);

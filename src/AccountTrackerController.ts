@@ -33,7 +33,7 @@ export interface AccountTrackerState extends BaseState {
 /**
  * Controller that tracks information associated with specific Ethereum accounts
  */
-export class AccountTrackerController extends BaseController<AccountTrackerState, AccountTrackerConfig> {
+export class AccountTrackerController extends BaseController<AccountTrackerConfig, AccountTrackerState> {
 	private currentBlockNumber: string | undefined;
 	private ethQuery: any;
 	private internalBlockTracker: any;
@@ -77,11 +77,11 @@ export class AccountTrackerController extends BaseController<AccountTrackerState
 	/**
 	 * Creates an AccountTrackerController instance
 	 *
-	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
+	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state?: Partial<AccountTrackerState>, config?: Partial<AccountTrackerConfig>) {
-		super(state, config);
+	constructor(config?: Partial<AccountTrackerConfig>, state?: Partial<AccountTrackerState>) {
+		super(config, state);
 		this.defaultState = {
 			accounts: {},
 			currentBlockGasLimit: ''

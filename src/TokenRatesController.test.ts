@@ -20,14 +20,14 @@ describe('TokenRatesController', () => {
 	it('should poll on correct interval', () => {
 		const func = stub(global, 'setInterval');
 		/* tslint:disable-next-line:no-unused-expression */
-		new TokenRatesController(undefined, { interval: 1337 });
+		new TokenRatesController({ interval: 1337 });
 		expect(func.getCall(0).args[1]).toBe(1337);
 		func.restore();
 	});
 
 	it('should update rates on interval', () => {
 		return new Promise((resolve) => {
-			const controller = new TokenRatesController(undefined, { interval: 10 });
+			const controller = new TokenRatesController({ interval: 10 });
 			const func = stub(controller, 'updateExchangeRates');
 			setTimeout(() => {
 				expect(func.called).toBe(true);
@@ -39,7 +39,7 @@ describe('TokenRatesController', () => {
 
 	it('should update all rates', async () => {
 		const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-		const controller = new TokenRatesController(undefined, { interval: 10 });
+		const controller = new TokenRatesController({ interval: 10 });
 		expect(controller.state.contractExchangeRates).toEqual({});
 		controller.tokens = [{ address, decimals: 18, symbol: 'EOS' }, { address: 'bar', decimals: 0, symbol: '' }];
 		await controller.updateExchangeRates();
@@ -50,7 +50,7 @@ describe('TokenRatesController', () => {
 	});
 
 	it('should not update rates if disabled', async () => {
-		const controller = new TokenRatesController(undefined, {
+		const controller = new TokenRatesController({
 			disabled: true,
 			interval: 10,
 			tokens: [{ address: 'bar', decimals: 0, symbol: '' }]
@@ -62,7 +62,7 @@ describe('TokenRatesController', () => {
 
 	it('should clear previous interval', () => {
 		const func = stub(global, 'clearInterval');
-		const controller = new TokenRatesController(undefined, { interval: 1337 });
+		const controller = new TokenRatesController({ interval: 1337 });
 		controller.interval = 1338;
 		expect(func.called).toBe(true);
 		func.restore();

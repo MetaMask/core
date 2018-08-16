@@ -24,15 +24,15 @@ export interface PreferencesState extends BaseState {
 /**
  * Controller that stores shared settings and exposes convenience methods
  */
-export class PreferencesController extends BaseController<PreferencesState, BaseConfig> {
+export class PreferencesController extends BaseController<BaseConfig, PreferencesState> {
 	/**
 	 * Creates a PreferencesController instance
 	 *
-	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
+	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state?: Partial<PreferencesState>) {
-		super(state);
+	constructor(config?: Partial<BaseConfig>, state?: Partial<PreferencesState>) {
+		super(config, state);
 		this.defaultState = {
 			featureFlags: {},
 			identities: {},

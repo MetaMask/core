@@ -23,20 +23,16 @@ export enum KeyringTypes {
  *
  * Keyring controller state
  *
- * @property isUnlocked - Determines if this keyring is unlocked
- * @property keyringTypes - List of available keyring types
- * @property keyrings - List of keyrings
+ * @property vault - Encrypted string representing keyring data
  */
 export interface KeyringState extends BaseState {
-	isUnlocked: boolean;
-	keyringTypes: KeyringTypes[];
-	keyrings: any[];
+	vault?: string;
 }
 
 /**
  * Controller resposible for establishing and managing user identity
  */
-export class KeyringController extends BaseController<KeyringState, BaseConfig> {
+export class KeyringController extends BaseController<BaseConfig, KeyringState> {
 	private keyring: any;
 	private mutex = new Mutex();
 
@@ -48,16 +44,11 @@ export class KeyringController extends BaseController<KeyringState, BaseConfig> 
 	/**
 	 * Creates a KeyringController instance
 	 *
-	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
+	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state?: Partial<KeyringState>, config?: Partial<BaseConfig>) {
-		super(state, config);
-		this.defaultState = {
-			isUnlocked: false,
-			keyringTypes: [KeyringTypes.simple, KeyringTypes.hd],
-			keyrings: []
-		};
+	constructor(config?: Partial<BaseConfig>, state?: Partial<KeyringState>) {
+		super(config, state);
 		this.keyring = new Keyring({ ...{ initState: state }, ...config });
 		this.initialize();
 	}

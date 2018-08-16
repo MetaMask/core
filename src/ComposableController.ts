@@ -16,6 +16,7 @@ export type ControllerList = Array<BaseController<any, any>>;
  * Controller that can be used to compose mutiple controllers together
  */
 export class ComposableController extends BaseController<any, any> {
+	private cachedState: any;
 	private internalControllers: ControllerList = [];
 
 	/**
@@ -27,11 +28,14 @@ export class ComposableController extends BaseController<any, any> {
 	 * Creates a ComposableController instance
 	 *
 	 * @param controllers - Map of names to controller instances
+	 * @param initialState - Initial state keyed by child controller name
 	 */
-	constructor(controllers: ControllerList = []) {
+	constructor(controllers: ControllerList = [], initialState?: any) {
 		super();
 		this.initialize();
+		this.cachedState = initialState;
 		this.controllers = controllers;
+		this.cachedState = undefined;
 	}
 
 	/**
@@ -50,14 +54,13 @@ export class ComposableController extends BaseController<any, any> {
 	 */
 	set controllers(controllers: ControllerList) {
 		this.internalControllers = controllers;
-		const context: ChildControllerContext = {};
-		const initialState: { [key: string]: any } = {};
-		this.context = context;
+		const initialState: any = {};
 		controllers.forEach((controller) => {
 			const name = controller.constructor.name;
 			this.context[name] = controller;
-			initialState[name] = controller.state;
 			controller.context = this.context;
+			this.cachedState && this.cachedState[name] && controller.update(this.cachedState[name]);
+			initialState[name] = controller.state;
 			controller.subscribe((state) => {
 				this.update({ [name]: state });
 			});

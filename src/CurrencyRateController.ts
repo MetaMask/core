@@ -33,7 +33,7 @@ export interface CurrencyRateState extends BaseState {
 /**
  * Controller that passively polls on a set interval for an ETH-to-fiat exchange rate
  */
-export class CurrencyRateController extends BaseController<CurrencyRateState, CurrencyRateConfig> {
+export class CurrencyRateController extends BaseController<CurrencyRateConfig, CurrencyRateState> {
 	private activeCurrency: string = '';
 	private handle?: NodeJS.Timer;
 
@@ -44,11 +44,11 @@ export class CurrencyRateController extends BaseController<CurrencyRateState, Cu
 	/**
 	 * Creates a CurrencyRateController instance
 	 *
-	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
+	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state?: Partial<CurrencyRateState>, config?: Partial<CurrencyRateConfig>) {
-		super(state, config);
+	constructor(config?: Partial<CurrencyRateConfig>, state?: Partial<CurrencyRateState>) {
+		super(config, state);
 		this.defaultConfig = {
 			currency: 'usd',
 			interval: 180000

@@ -18,14 +18,14 @@ describe('PhishingController', () => {
 	it('should poll on correct interval', () => {
 		const mock = stub(global, 'setInterval');
 		/* tslint:disable-next-line:no-unused-expression */
-		new PhishingController(undefined, { interval: 1337 });
+		new PhishingController({ interval: 1337 });
 		expect(mock.getCall(0).args[1]).toBe(1337);
 		mock.restore();
 	});
 
 	it('should update lists on interval', () => {
 		return new Promise((resolve) => {
-			const controller = new PhishingController(undefined, { interval: 10 });
+			const controller = new PhishingController({ interval: 10 });
 			const mock = stub(controller, 'updatePhishingLists');
 			setTimeout(() => {
 				expect(mock.called).toBe(true);
@@ -46,7 +46,7 @@ describe('PhishingController', () => {
 	});
 
 	it('should not update infura rate if disabled', async () => {
-		const controller = new PhishingController(undefined, { disabled: true });
+		const controller = new PhishingController({ disabled: true });
 		controller.update({}, true);
 		await controller.updatePhishingLists();
 		expect(controller.state.phishing).toBe(undefined);
@@ -54,7 +54,7 @@ describe('PhishingController', () => {
 
 	it('should clear previous interval', () => {
 		const mock = stub(global, 'clearInterval');
-		const controller = new PhishingController(undefined, { interval: 1337 });
+		const controller = new PhishingController({ interval: 1337 });
 		controller.interval = 1338;
 		expect(mock.called).toBe(true);
 		mock.restore();

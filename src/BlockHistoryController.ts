@@ -80,7 +80,7 @@ export interface BlockHistoryState extends BaseState {
 /**
  * Controller responsible for maintaining a set number of past blocks
  */
-export class BlockHistoryController extends BaseController<BlockHistoryState, BlockHistoryConfig> {
+export class BlockHistoryController extends BaseController<BlockHistoryConfig, BlockHistoryState> {
 	private backfilled = false;
 	private ethQuery: any;
 	private internalBlockDepth = 0;
@@ -162,11 +162,11 @@ export class BlockHistoryController extends BaseController<BlockHistoryState, Bl
 	/**
 	 * Creates a BlockHistoryController instance
 	 *
-	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
+	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state?: Partial<BlockHistoryState>, config?: Partial<BlockHistoryConfig>) {
-		super(state, config);
+	constructor(config?: Partial<BlockHistoryConfig>, state?: Partial<BlockHistoryState>) {
+		super(config, state);
 		this.defaultState = { recentBlocks: [] };
 		this.defaultConfig = {
 			blockDepth: 40,

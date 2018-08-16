@@ -23,37 +23,37 @@ describe('NetworkController', () => {
 	});
 
 	it('should create a provider instance for kovan infura network', () => {
-		const controller = new NetworkController({ network: '0', provider: { type: 'kovan' } });
+		const controller = new NetworkController(undefined, { network: '0', provider: { type: 'kovan' } });
 		controller.providerConfig = {} as ProviderConfig;
 		expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
 	});
 
 	it('should create a provider instance for rinkeby infura network', () => {
-		const controller = new NetworkController({ network: '0', provider: { type: 'rinkeby' } });
+		const controller = new NetworkController(undefined, { network: '0', provider: { type: 'rinkeby' } });
 		controller.providerConfig = {} as ProviderConfig;
 		expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
 	});
 
 	it('should create a provider instance for ropsten infura network', () => {
-		const controller = new NetworkController({ network: '0', provider: { type: 'ropsten' } });
+		const controller = new NetworkController(undefined, { network: '0', provider: { type: 'ropsten' } });
 		controller.providerConfig = {} as ProviderConfig;
 		expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
 	});
 
 	it('should create a provider instance for mainnet infura network', () => {
-		const controller = new NetworkController({ network: '0', provider: { type: 'mainnet' } });
+		const controller = new NetworkController(undefined, { network: '0', provider: { type: 'mainnet' } });
 		controller.providerConfig = {} as ProviderConfig;
 		expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
 	});
 
 	it('should create a provider instance for local network', () => {
-		const controller = new NetworkController({ network: '0', provider: { type: 'localhost' } });
+		const controller = new NetworkController(undefined, { network: '0', provider: { type: 'localhost' } });
 		controller.providerConfig = {} as ProviderConfig;
 		expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
 	});
 
 	it('should create a provider instance for rpc network', () => {
-		const controller = new NetworkController({
+		const controller = new NetworkController(undefined, {
 			network: '0',
 			provider: {
 				rpcTarget: RPC_TARGET,
@@ -77,7 +77,7 @@ describe('NetworkController', () => {
 	});
 
 	it('should verify the network on a new block', () => {
-		const controller = new NetworkController({ network: 'loading' });
+		const controller = new NetworkController(undefined, { network: 'loading' });
 		controller.lookupNetwork();
 		controller.providerConfig = {} as ProviderConfig;
 		controller.lookupNetwork = stub();
@@ -86,7 +86,7 @@ describe('NetworkController', () => {
 	});
 
 	it('should verify the network on an error', async () => {
-		const controller = new NetworkController({ network: 'loading' });
+		const controller = new NetworkController(undefined, { network: 'loading' });
 		controller.providerConfig = {} as ProviderConfig;
 		controller.lookupNetwork = stub();
 		controller.provider.emit('error', {});

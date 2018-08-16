@@ -26,7 +26,7 @@ describe('BlockHistoryController', () => {
 	it('should not update state if not backfilled', () => {
 		return new Promise((resolve) => {
 			const blockTracker = new BlockTracker({ provider: PROVIDER });
-			const controller = new BlockHistoryController(undefined, { blockTracker });
+			const controller = new BlockHistoryController({ blockTracker });
 			blockTracker.emit('block', { number: 1337, transactions: [] });
 			expect(controller.state.recentBlocks).toEqual([]);
 			resolve();
@@ -36,7 +36,7 @@ describe('BlockHistoryController', () => {
 	it('should add new block to recentBlocks state', () => {
 		return new Promise((resolve) => {
 			const blockTracker = new BlockTracker({ provider: PROVIDER });
-			const controller = new BlockHistoryController(undefined, { blockTracker, provider: PROVIDER });
+			const controller = new BlockHistoryController({ blockTracker, provider: PROVIDER });
 			controller.subscribe(() => {
 				setTimeout(() => {
 					blockTracker.emit('block', { number: 1337, transactions: [] });
@@ -51,7 +51,7 @@ describe('BlockHistoryController', () => {
 	it('should backfill correct number of blocks', () => {
 		return new Promise((resolve) => {
 			const blockTracker = new BlockTracker({ provider: PROVIDER });
-			const controller = new BlockHistoryController(undefined, {
+			const controller = new BlockHistoryController({
 				blockDepth: 50,
 				blockTracker,
 				provider: PROVIDER
@@ -73,14 +73,14 @@ describe('BlockHistoryController', () => {
 	it('should remove old block tracker listeners', () => {
 		const mockBlockTracker = new EventEmitter();
 		mockBlockTracker.removeAllListeners = stub();
-		const controller = new BlockHistoryController(undefined, { blockTracker: mockBlockTracker });
+		const controller = new BlockHistoryController({ blockTracker: mockBlockTracker });
 		controller.blockTracker = new EventEmitter();
 		expect((mockBlockTracker.removeAllListeners as any).called).toBe(true);
 	});
 
 	it('should get latest block', async () => {
 		const blockTracker = new BlockTracker({ provider: PROVIDER });
-		const controller = new BlockHistoryController(undefined, { blockTracker, provider: PROVIDER });
+		const controller = new BlockHistoryController({ blockTracker, provider: PROVIDER });
 		const block = await controller.getLatestBlock();
 		expect(block).toHaveProperty('number');
 	});

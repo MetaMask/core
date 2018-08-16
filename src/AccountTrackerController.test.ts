@@ -20,13 +20,13 @@ describe('AccountTrackerController', () => {
 	it('should remove old block tracker listeners', () => {
 		const mockBlockTracker = new EventEmitter();
 		mockBlockTracker.removeAllListeners = stub();
-		const controller = new AccountTrackerController(undefined, { blockTracker: mockBlockTracker });
+		const controller = new AccountTrackerController({ blockTracker: mockBlockTracker });
 		controller.blockTracker = new EventEmitter();
 		expect((mockBlockTracker.removeAllListeners as any).called).toBe(true);
 	});
 
 	it('should sync addresses', () => {
-		const controller = new AccountTrackerController({ accounts: { bar: {}, foo: {} } }, { provider, blockTracker });
+		const controller = new AccountTrackerController({ provider, blockTracker }, { accounts: { bar: {}, foo: {} } });
 		blockTracker.emit('block', { number: 1337, transactions: [] });
 		controller.sync(['foo', 'baz']);
 		expect(controller.state.accounts).toEqual({ foo: {}, baz: {} });

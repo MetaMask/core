@@ -30,7 +30,7 @@ export interface BaseState {
 /**
  * Controller class that provides configuration, state management, and subscriptions
  */
-export class BaseController<S extends BaseState, C extends BaseConfig> {
+export class BaseController<C extends BaseConfig, S extends BaseState> {
 	/**
 	 * Map of all sibling child controllers keyed by name if this
 	 * controller is composed using a ComposableController, allowing
@@ -68,10 +68,10 @@ export class BaseController<S extends BaseState, C extends BaseConfig> {
 	 * Creates a BaseController instance. Both initial state and initial
 	 * configuration options are merged with defaults upon initialization.
 	 *
-	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
+	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state: Partial<S> = {} as S, config: Partial<C> = {} as C) {
+	constructor(config: Partial<C> = {} as C, state: Partial<S> = {} as S) {
 		// Use assign since generics can't be spread: https://git.io/vpRhY
 		/* tslint:disable:prefer-object-spread */
 		this.initialState = state as S;

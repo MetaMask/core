@@ -27,17 +27,17 @@ export interface AddressBookState extends BaseState {
 /**
  * Controller that manages a list of recipient addresses associated with nicknames
  */
-export class AddressBookController extends BaseController<AddressBookState, BaseConfig> {
+export class AddressBookController extends BaseController<BaseConfig, AddressBookState> {
 	private addressBook = new Map<string, ContactEntry>();
 
 	/**
 	 * Creates an AddressBookController instance
 	 *
-	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
+	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state?: Partial<AddressBookState>, config?: Partial<BaseConfig>) {
-		super(state, config);
+	constructor(config?: Partial<BaseConfig>, state?: Partial<AddressBookState>) {
+		super(config, state);
 		this.defaultState = { addressBook: [] };
 		this.initialize();
 	}

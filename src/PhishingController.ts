@@ -50,18 +50,18 @@ export interface PhishingState extends BaseState {
 /**
  * Controller that passively polls on a set interval for approved and unapproved website origins
  */
-export class PhishingController extends BaseController<PhishingState, PhishingConfig> {
+export class PhishingController extends BaseController<PhishingConfig, PhishingState> {
 	private detector: any;
 	private handle?: NodeJS.Timer;
 
 	/**
 	 * Creates a PhishingController instance
 	 *
-	 * @param state - Initial state to set on this controller
 	 * @param config - Initial options used to configure this controller
+	 * @param state - Initial state to set on this controller
 	 */
-	constructor(state?: Partial<PhishingState>, config?: Partial<PhishingConfig>) {
-		super(state, config);
+	constructor(config?: Partial<PhishingConfig>, state?: Partial<PhishingState>) {
+		super(config, state);
 		this.defaultConfig = { interval: 180000 };
 		this.defaultState = { phishing: DEFAULT_PHISHING_RESPONSE };
 		this.detector = new PhishingDetector(this.defaultState.phishing);
