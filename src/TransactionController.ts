@@ -5,7 +5,7 @@ import NetworkController from './NetworkController';
 import PreferencesController from './PreferencesController';
 import { BNToHex, fractionBN, hexToBN, normalizeTransaction, safelyExecute, validateTransaction } from './util';
 
-const EthQuery = require('ethjs-query');
+const EthQuery = require('eth-query');
 const Transaction = require('ethereumjs-tx');
 const random = require('uuid/v1');
 const { addHexPrefix, bufferToHex } = require('ethereumjs-util');
@@ -152,7 +152,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		}
 
 		/* istanbul ignore next */
-		const code = to ? await this.ethQuery.getCode(to) : undefined;
+		const code = to ? await this.query('getCode', [to]) : undefined;
 		/* istanbul ignore if */
 		if (to && (!code || code === '0x')) {
 			return '0x5208';
@@ -161,8 +161,20 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const gasLimitBN = hexToBN(gasLimit);
 		const saferGasLimitBN = fractionBN(gasLimitBN, 19, 20);
 		transaction.gas = BNToHex(saferGasLimitBN);
-		const gasHex = await this.ethQuery.estimateGas(transaction);
+		const gasHex = await this.query('estimateGas', [transaction]);
 		return this.addGasPadding(addHexPrefix(gasHex), gasLimit);
+	}
+
+	private query(method: string, args: any[] = []): Promise<any> {
+		return new Promise((resolve, reject) => {
+			this.ethQuery[method](...args, (error: Error, result: any) => {
+				if (error) {
+					reject(error);
+					return;
+				}
+				resolve(result);
+			});
+		});
 	}
 
 	/**
@@ -244,7 +256,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 
 		try {
 			if (typeof transaction.gasPrice === 'undefined') {
-				transaction.gasPrice = addHexPrefix((await this.ethQuery.gasPrice()).toString(16));
+				transaction.gasPrice = await this.query('gasPrice');
 			}
 			transaction.gas = await this.getGas(transactionMeta);
 		} catch (error) {
@@ -293,9 +305,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 				throw new Error('No sign method defined.');
 			}
 			transactionMeta.status = 'approved';
-			transactionMeta.transaction.nonce = addHexPrefix(
-				(await this.ethQuery.getTransactionCount(from, 'pending')).toNumber().toString(16)
-			);
+			transactionMeta.transaction.nonce = await this.query('getTransactionCount', [from, 'pending']);
 			transactionMeta.transaction.chainId = parseInt(currentNetworkID, undefined);
 
 			const ethTransaction = new Transaction({ ...transactionMeta.transaction });
@@ -306,7 +316,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 
 			transactionMeta.rawTransaction = rawTransaction;
 			this.updateTransaction(transactionMeta);
-			const transactionHash = await this.ethQuery.sendRawTransaction(rawTransaction);
+			const transactionHash = await this.query('sendRawTransaction', [rawTransaction]);
 			transactionMeta.transactionHash = transactionHash;
 			transactionMeta.status = 'submitted';
 			this.updateTransaction(transactionMeta);

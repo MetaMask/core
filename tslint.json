@@ -18,6 +18,7 @@
 		"ordered-imports": [false],
 		"quotemark": [true, "single", "jsx-double"],
 		"semicolon": [true, "always"],
-		"trailing-comma": [true, "never"]
+		"trailing-comma": [true, "never"],
+		"variable-name": [false]
 	}
 }

@@ -5,23 +5,27 @@ const mockFlags: { [key: string]: any } = {
 	estimateGas: null
 };
 
-jest.mock('ethjs-query', () =>
+jest.mock('eth-query', () =>
 	jest.fn().mockImplementation(() => {
 		return {
-			estimateGas: () => {
+			estimateGas: (_transaction: any, callback: any) => {
 				if (mockFlags.estimateGas) {
-					throw new Error(mockFlags.estimateGas);
+					callback(new Error(mockFlags.estimateGas));
 				}
-				return '0x0';
+				callback(undefined, '0x0');
 			},
-			gasPrice: () => '0x0',
-			getBlockByNumber: () => ({ gasLimit: '0x0' }),
-			getCode: () => '0x0',
-			getTransactionCount: () => ({ toNumber: () => 1337 }),
-			sendRawTransaction: () =>
-				new Promise((resolve) => {
-					resolve('1337');
-				})
+			gasPrice: (callback: any) => {
+				callback(undefined, '0x0');
+			},
+			getCode: (_to: any, callback: any) => {
+				callback(undefined, '0x0');
+			},
+			getTransactionCount: (_from: any, _to: any, callback: any) => {
+				callback(undefined, '0x0');
+			},
+			sendRawTransaction: (_transaction: any, callback: any) => {
+				callback(undefined, '1337');
+			}
 		};
 	})
 );
