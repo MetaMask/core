@@ -89,95 +89,87 @@ describe('TransactionController', () => {
 			try {
 				await controller.addTransaction({ from: 'foo' } as any);
 			} catch (error) {
+				expect(error.message).toContain('Invalid "from" address');
 				resolve();
 			}
 		});
 	});
 
-	it('should add a valid transaction', () => {
-		return new Promise((resolve) => {
-			const controller = new TransactionController({ provider: PROVIDER });
-			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
-				NetworkController: MOCK_NETWORK
-			} as any;
-			controller.hub.on('unapprovedTransaction', () => {
-				expect(controller.state.transactions[0].transaction.from).toBe(from);
-				expect(controller.state.transactions[0].networkID).toBe(MOCK_NETWORK.state.network);
-				expect(controller.state.transactions[0].status).toBe('unapproved');
-				resolve();
-			});
-			controller.addTransaction({
-				from,
-				to: from
-			});
+	it('should add a valid transaction', async () => {
+		const controller = new TransactionController({ provider: PROVIDER });
+		const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+		controller.context = {
+			BlockHistoryController: MOCK_BLOCK_HISTORY,
+			NetworkController: MOCK_NETWORK
+		} as any;
+		await controller.addTransaction({
+			from,
+			to: from
 		});
+		expect(controller.state.transactions[0].transaction.from).toBe(from);
+		expect(controller.state.transactions[0].networkID).toBe(MOCK_NETWORK.state.network);
+		expect(controller.state.transactions[0].status).toBe('unapproved');
 	});
 
 	it('should cancel a transaction', () => {
-		return new Promise((resolve) => {
+		return new Promise(async (resolve) => {
 			const controller = new TransactionController({ provider: PROVIDER });
 			controller.context = { BlockHistoryController: MOCK_BLOCK_HISTORY } as any;
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-			controller.hub.on('unapprovedTransaction', () => {
-				controller.cancelTransaction('foo');
-				controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
-					expect(controller.state.transactions[0].transaction.from).toBe(from);
-					expect(controller.state.transactions[0].status).toBe('rejected');
-				});
-				controller.cancelTransaction(controller.state.transactions[0].id);
-			});
-			const promise = controller.addTransaction({
+			const { result } = await controller.addTransaction({
 				from,
 				to: from
 			});
-			promise.catch(resolve);
+			controller.cancelTransaction('foo');
+			controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
+				expect(controller.state.transactions[0].transaction.from).toBe(from);
+				expect(controller.state.transactions[0].status).toBe('rejected');
+			});
+			controller.cancelTransaction(controller.state.transactions[0].id);
+			result.catch((error) => {
+				expect(error.message).toContain('User rejected the transaction');
+				resolve();
+			});
 		});
 	});
 
-	it('should wipe transactions', () => {
-		return new Promise((resolve) => {
-			const controller = new TransactionController({ provider: PROVIDER });
-			controller.wipeTransactions();
-			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
-				NetworkController: MOCK_NETWORK
-			} as any;
-			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-			controller.hub.on('unapprovedTransaction', () => {
-				controller.wipeTransactions();
-				expect(controller.state.transactions.length).toBe(0);
-				resolve();
-			});
-			controller.addTransaction({
-				from,
-				to: from
-			});
+	it('should wipe transactions', async () => {
+		const controller = new TransactionController({ provider: PROVIDER });
+		controller.wipeTransactions();
+		controller.context = {
+			BlockHistoryController: MOCK_BLOCK_HISTORY,
+			NetworkController: MOCK_NETWORK
+		} as any;
+		const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+		await controller.addTransaction({
+			from,
+			to: from
 		});
+		controller.wipeTransactions();
+		expect(controller.state.transactions.length).toBe(0);
 	});
 
 	it('should fail to approve an invalid transaction', () => {
-		return new Promise((resolve) => {
+		return new Promise(async (resolve) => {
 			const controller = new TransactionController({
 				provider: PROVIDER,
-				sign: async () => {
+				sign: () => {
 					throw new Error('foo');
 				}
 			});
-			controller.context = { NetworkController: MOCK_NETWORK } as any;
+			controller.context = { BlockHistoryController: MOCK_BLOCK_HISTORY } as any;
 			const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
 			const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-			controller.hub.on('unapprovedTransaction', () => {
-				controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
-					const { transaction, status } = controller.state.transactions[0];
-					expect(transaction.from).toBe(from);
-					expect(transaction.to).toBe(to);
-					expect(status).toBe('failed');
-				});
-				controller.approveTransaction(controller.state.transactions[0].id);
+			const { result } = await controller.addTransaction({ from, to });
+			result.catch((error) => {
+				const { transaction, status } = controller.state.transactions[0];
+				expect(transaction.from).toBe(from);
+				expect(transaction.to).toBe(to);
+				expect(status).toBe('failed');
+				expect(error.message).toContain('foo');
+				resolve();
 			});
-			controller.addTransaction({ from, to }).catch(resolve);
+			await controller.approveTransaction(controller.state.transactions[0].id);
 		});
 	});
 
@@ -185,7 +177,10 @@ describe('TransactionController', () => {
 		return new Promise(async (resolve) => {
 			const controller = new TransactionController({ provider: PROVIDER });
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-			controller.context = { NetworkController: MOCK_NETWORK } as any;
+			controller.context = {
+				BlockHistoryController: MOCK_BLOCK_HISTORY,
+				NetworkController: MOCK_NETWORK
+			} as any;
 			mockFlags.estimateGas = 'Uh oh';
 			try {
 				await controller.addTransaction({
@@ -193,6 +188,7 @@ describe('TransactionController', () => {
 					to: from
 				});
 			} catch (error) {
+				expect(error.message).toContain('Uh oh');
 				resolve();
 			}
 		});
@@ -206,25 +202,21 @@ describe('TransactionController', () => {
 			controller.context = { BlockHistoryController: MOCK_BLOCK_HISTORY } as any;
 			const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
 			const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-			controller.hub.on('unapprovedTransaction', () => {
-				controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
-					const { transaction, status } = controller.state.transactions[0];
-					expect(transaction.from).toBe(from);
-					expect(transaction.to).toBe(to);
-					expect(status).toBe('failed');
-				});
-				controller.approveTransaction(controller.state.transactions[0].id);
-			});
-			try {
-				await controller.addTransaction({ from, to });
-			} catch (error) {
+			const { result } = await controller.addTransaction({ from, to });
+			result.catch((error) => {
+				const { transaction, status } = controller.state.transactions[0];
+				expect(transaction.from).toBe(from);
+				expect(transaction.to).toBe(to);
+				expect(status).toBe('failed');
+				expect(error.message).toContain('No sign method defined');
 				resolve();
-			}
+			});
+			await controller.approveTransaction(controller.state.transactions[0].id);
 		});
 	});
 
 	it('should approve a transaction', () => {
-		return new Promise((resolve) => {
+		return new Promise(async (resolve) => {
 			const controller = new TransactionController({
 				provider: PROVIDER,
 				sign: async (transaction: any) => transaction
@@ -234,22 +226,20 @@ describe('TransactionController', () => {
 				BlockHistoryController: MOCK_BLOCK_HISTORY,
 				NetworkController: MOCK_NETWORK
 			} as any;
-			controller.hub.on('unapprovedTransaction', () => {
-				controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
-					const { transaction, status } = controller.state.transactions[0];
-					expect(transaction.from).toBe(from);
-					expect(status).toBe('submitted');
-					resolve();
-				});
-				controller.approveTransaction(controller.state.transactions[0].id);
-			});
-			controller.addTransaction({
+			await controller.addTransaction({
 				from,
 				gas: '0x0',
 				gasPrice: '0x0',
 				to: from,
 				value: '0x0'
 			});
+			controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
+				const { transaction, status } = controller.state.transactions[0];
+				expect(transaction.from).toBe(from);
+				expect(status).toBe('submitted');
+				resolve();
+			});
+			controller.approveTransaction(controller.state.transactions[0].id);
 		});
 	});
 

@@ -11,6 +11,15 @@ const random = require('uuid/v1');
 const { addHexPrefix, bufferToHex } = require('ethereumjs-util');
 
 /**
+ * @type Result
+ *
+ * @property result - Promise resolving to a new transaction hash
+ */
+export interface Result {
+	result: Promise<string>;
+}
+
+/**
  * @type Transaction
  *
  * Transaction representation
@@ -216,9 +225,9 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 *
 	 * @param transaction - Transaction object to add
 	 * @param origin - Domain origin to append to the generated TransactionMeta
-	 * @returns - Promise resolving to the transaction hash if approved or an Error if rejected or failed
+	 * @returns - Object containing a promise resolving to the transaction hash if approved
 	 */
-	async addTransaction(transaction: Transaction, origin?: string) {
+	async addTransaction(transaction: Transaction, origin?: string): Promise<Result> {
 		const network = this.context.NetworkController as NetworkController;
 		const { transactions } = this.state;
 		transaction = normalizeTransaction(transaction);
@@ -243,7 +252,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 			return Promise.reject(error);
 		}
 
-		const promise = new Promise((resolve, reject) => {
+		const result: Promise<string> = new Promise((resolve, reject) => {
 			this.hub.once(`${transactionMeta.id}:finished`, (meta: TransactionMeta) => {
 				switch (meta.status) {
 					case 'submitted':
@@ -259,7 +268,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		transactions.push(transactionMeta);
 		this.update({ transactions });
 		this.hub.emit(`unapprovedTransaction`, transactionMeta);
-		return promise;
+		return { result };
 	}
 
 	/**
