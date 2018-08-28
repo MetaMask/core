@@ -1,6 +1,4 @@
 import AccountTrackerController from './AccountTrackerController';
-import { EventEmitter } from 'events';
-import { stub } from 'sinon';
 const HttpProvider = require('ethjs-provider-http');
 const provider = new HttpProvider('https://ropsten.infura.io');
 
