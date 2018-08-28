@@ -2,6 +2,8 @@ import BaseController, { BaseConfig, BaseState } from './BaseController';
 import { ContactEntry } from './AddressBookController';
 import { Token } from './TokenRatesController';
 
+const { toChecksumAddress } = require('ethereumjs-util');
+
 /**
  * @type PreferencesState
  *
@@ -51,6 +53,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	addIdentities(addresses: string[]) {
 		const { identities } = this.state;
 		addresses.forEach((address) => {
+			address = toChecksumAddress(address);
 			if (identities[address]) {
 				return;
 			}
@@ -69,6 +72,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @returns - Current token list
 	 */
 	addToken(address: string, symbol: string, decimals: number) {
+		address = toChecksumAddress(address);
 		const newEntry: Token = { address, symbol, decimals };
 		const tokens = this.state.tokens;
 		const previousEntry = tokens.find((token) => token.address === address);
@@ -90,6 +94,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @param address - Address of the identity to remove
 	 */
 	removeIdentity(address: string) {
+		address = toChecksumAddress(address);
 		const { identities } = this.state;
 		if (!identities[address]) {
 			return;
@@ -107,6 +112,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @param address - Hex address of the token contract
 	 */
 	removeToken(address: string) {
+		address = toChecksumAddress(address);
 		const oldTokens = this.state.tokens;
 		const tokens = oldTokens.filter((token) => token.address !== address);
 		this.update({ tokens });
@@ -119,6 +125,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @param label - New label to assign
 	 */
 	setAccountLabel(address: string, label: string) {
+		address = toChecksumAddress(address);
 		const identities = this.state.identities;
 		identities[address] = identities[address] || {};
 		identities[address].name = label;
@@ -144,6 +151,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @returns - Newly-selected address after syncing
 	 */
 	syncIdentities(addresses: string[]) {
+		addresses = addresses.map((address: string) => toChecksumAddress(address));
 		const { identities, lostIdentities } = this.state;
 		const newlyLost: { [address: string]: ContactEntry } = {};
 
@@ -176,6 +184,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @param addresses - List of addresses to use as a basis for each identity
 	 */
 	updateIdentities(addresses: string[]) {
+		addresses = addresses.map((address: string) => toChecksumAddress(address));
 		const oldIdentities = this.state.identities;
 		const identities = addresses.reduce((ids: { [address: string]: ContactEntry }, address, index) => {
 			ids[address] = {

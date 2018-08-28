@@ -115,9 +115,6 @@ export class BlockHistoryController extends BaseController<BlockHistoryConfig, B
 				const filledBlocks = newBlocks.filter((newBlock) => newBlock);
 				filledBlocks.sort((a, b) => (a.number < b.number ? /* istanbul ignore next */ -1 : 1));
 				const recentBlocks = filledBlocks.map((filledBlock) => this.mapGasPrices(filledBlock));
-				recentBlocks.forEach((pricedBlock) => {
-					delete pricedBlock.transactions;
-				});
 				this.update({ recentBlocks });
 				this.backfilled = true;
 				done();

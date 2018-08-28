@@ -17,8 +17,8 @@ describe('PreferencesController', () => {
 		controller.addIdentities(['foo']);
 		controller.addIdentities(['foo']);
 		expect(controller.state.identities).toEqual({
-			foo: {
-				address: 'foo',
+			['0xfoO']: {
+				address: '0xfoO',
 				name: 'Account 1'
 			}
 		});
@@ -28,13 +28,13 @@ describe('PreferencesController', () => {
 		const controller = new PreferencesController();
 		controller.addToken('foo', 'bar', 2);
 		expect(controller.state.tokens[0]).toEqual({
-			address: 'foo',
+			address: '0xfoO',
 			decimals: 2,
 			symbol: 'bar'
 		});
 		controller.addToken('foo', 'baz', 2);
 		expect(controller.state.tokens[0]).toEqual({
-			address: 'foo',
+			address: '0xfoO',
 			decimals: 2,
 			symbol: 'baz'
 		});
@@ -43,12 +43,12 @@ describe('PreferencesController', () => {
 	it('should remove identity', () => {
 		const controller = new PreferencesController();
 		controller.addIdentities(['foo', 'bar', 'baz']);
-		controller.update({ selectedAddress: 'foo' });
+		controller.update({ selectedAddress: '0xfoO' });
 		controller.removeIdentity('foo');
 		controller.removeIdentity('baz');
 		controller.removeIdentity('foo');
-		expect(typeof controller.state.identities.foo).toBe('undefined');
-		expect(controller.state.selectedAddress).toBe('bar');
+		expect(typeof controller.state.identities['0xfoO']).toBe('undefined');
+		expect(controller.state.selectedAddress).toBe('0xbar');
 	});
 
 	it('should remove token', () => {
@@ -63,8 +63,8 @@ describe('PreferencesController', () => {
 		controller.addIdentities(['foo']);
 		controller.setAccountLabel('foo', 'bar');
 		controller.setAccountLabel('baz', 'qux');
-		expect(controller.state.identities.foo.name).toBe('bar');
-		expect(controller.state.identities.baz.name).toBe('qux');
+		expect(controller.state.identities['0xfoO'].name).toBe('bar');
+		expect(controller.state.identities['0xBaZ'].name).toBe('qux');
 	});
 
 	it('should set identity label', () => {
@@ -72,22 +72,22 @@ describe('PreferencesController', () => {
 		controller.addIdentities(['foo', 'bar']);
 		controller.syncIdentities(['foo', 'bar']);
 		expect(controller.state.identities).toEqual({
-			bar: { address: 'bar', name: 'Account 2' },
-			foo: { address: 'foo', name: 'Account 1' }
+			['0xbar']: { address: '0xbar', name: 'Account 2' },
+			['0xfoO']: { address: '0xfoO', name: 'Account 1' }
 		});
 		controller.syncIdentities(['foo']);
 		expect(controller.state.identities).toEqual({
-			foo: { address: 'foo', name: 'Account 1' }
+			['0xfoO']: { address: '0xfoO', name: 'Account 1' }
 		});
-		expect(controller.state.selectedAddress).toBe('foo');
+		expect(controller.state.selectedAddress).toBe('0xfoO');
 	});
 
 	it('should update existing identities', () => {
 		const controller = new PreferencesController();
 		controller.updateIdentities(['foo', 'bar']);
 		expect(controller.state.identities).toEqual({
-			bar: { address: 'bar', name: 'Account 2' },
-			foo: { address: 'foo', name: 'Account 1' }
+			['0xbar']: { address: '0xbar', name: 'Account 2' },
+			['0xfoO']: { address: '0xfoO', name: 'Account 1' }
 		});
 	});
 });

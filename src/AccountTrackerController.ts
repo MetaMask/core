@@ -1,20 +1,30 @@
 import BaseController, { BaseConfig, BaseState } from './BaseController';
-import { Block } from './BlockHistoryController';
-import { safelyExecute } from './util';
+import PreferencesController from './PreferencesController';
+import { BNToHex, safelyExecute } from './util';
 
-const EthQuery = require('eth-query');
+const EthjsQuery = require('ethjs-query');
+const BlockTracker = require('eth-block-tracker');
+
+/**
+ * @type AccountInformation
+ *
+ * Account information object
+ *
+ * @property balance - Hex string of an account balancec in wei
+ */
+export interface AccountInformation {
+	balance: string;
+}
 
 /**
  * @type AccountTrackerConfig
  *
  * Account tracker controller configuration
  *
- * @property blockTracker - Contains methods for tracking blocks and querying the blockchain
  * @property provider - Provider used to create a new underlying EthQuery instance
  */
 export interface AccountTrackerConfig extends BaseConfig {
-	blockTracker: any;
-	provider: any;
+	provider?: any;
 }
 
 /**
@@ -22,82 +32,53 @@ export interface AccountTrackerConfig extends BaseConfig {
  *
  * Account tracker controller state
  *
- * @property accounts - Network ID as per net_version
- * @property currentBlockGasLimit - Hex string gas limit of the current block
+ * @property accounts - Map of addresses to account information
  */
 export interface AccountTrackerState extends BaseState {
-	accounts: { [address: string]: any };
-	currentBlockGasLimit: string;
+	accounts: { [address: string]: AccountInformation };
 }
 
 /**
- * Controller that tracks information associated with specific Ethereum accounts
+ * Controller that tracks information for all accounts in the current keychain
  */
 export class AccountTrackerController extends BaseController<AccountTrackerConfig, AccountTrackerState> {
-	private currentBlockNumber: string | undefined;
-	private ethQuery: any;
-	private internalBlockTracker: any;
+	private blockTracker: any;
+	private ethjsQuery: any;
 
-	private async getAccount(address: string) {
-		return new Promise((resolve) => {
-			this.ethQuery.getBalance(
-				address,
-				/* istanbul ignore next */ (balance: string) => {
-					resolve(balance);
-				}
-			);
-		});
-	}
-
-	private onBlock({ number: blockNumber, gasLimit }: Block) {
-		this.currentBlockNumber = blockNumber;
-		this.update({ currentBlockGasLimit: gasLimit });
-		this.updateAccounts();
-	}
-
-	private async updateAccount(address: string) {
+	private syncAccounts() {
+		const {
+			state: { identities }
+		} = this.context.PreferencesController as PreferencesController;
 		const { accounts } = this.state;
-		const account = await this.getAccount(address);
-		/* istanbul ignore next */
-		if (accounts[address]) {
-			accounts[address] = account;
-			this.update({ accounts });
-		}
-	}
-
-	private async updateAccounts() {
-		const { accounts } = this.state;
-		safelyExecute(async () => {
-			for (const address in accounts) {
-				await this.updateAccount(address);
-			}
+		const addresses = Object.keys(identities);
+		const existing = Object.keys(accounts);
+		const newAddresses = addresses.filter((address) => existing.indexOf(address) === -1);
+		const oldAddresses = existing.filter((address) => addresses.indexOf(address) === -1);
+		newAddresses.forEach((address) => {
+			accounts[address] = { balance: '0x0' };
 		});
+		oldAddresses.forEach((address) => {
+			delete accounts[address];
+		});
+		this.update({ accounts });
 	}
 
 	/**
-	 * Creates an AccountTrackerController instance
+	 * List of required sibling controllers this controller needs to function
+	 */
+	requiredControllers = ['PreferencesController'];
+
+	/**
+	 * Creates an AccountTracker instance
 	 *
 	 * @param config - Initial options used to configure this controller
 	 * @param state - Initial state to set on this controller
 	 */
 	constructor(config?: Partial<AccountTrackerConfig>, state?: Partial<AccountTrackerState>) {
 		super(config, state);
-		this.defaultState = {
-			accounts: {},
-			currentBlockGasLimit: ''
-		};
+		this.defaultConfig = {};
+		this.defaultState = { accounts: {} };
 		this.initialize();
-	}
-
-	/**
-	 * Sets a new BlockTracker instance
-	 *
-	 * @param blockTracker - Contains methods for tracking blocks and querying the blockchain
-	 */
-	set blockTracker(blockTracker: any) {
-		this.internalBlockTracker && this.internalBlockTracker.removeAllListeners();
-		this.internalBlockTracker = blockTracker;
-		this.internalBlockTracker.on('block', this.onBlock.bind(this));
 	}
 
 	/**
@@ -106,49 +87,25 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 	 * @param provider - Provider used to create a new underlying EthQuery instance
 	 */
 	set provider(provider: any) {
-		this.ethQuery = new EthQuery(provider);
+		this.blockTracker && /* istanbul ignore next */ this.blockTracker.removeAllListeners();
+		this.ethjsQuery = new EthjsQuery(provider);
+		this.blockTracker = new BlockTracker({ provider });
+		this.blockTracker.on('block', this.refresh.bind(this));
+		this.blockTracker.start();
 	}
 
 	/**
-	 * Tracks a new account, which will have a balance if the current network has a block
-	 *
-	 * @param address - Hex address of a new account to add
+	 * Refreshes all accounts in the current keychain
 	 */
-	add(address: string) {
+	async refresh() {
+		this.syncAccounts();
 		const { accounts } = this.state;
-		accounts[address] = {};
-		this.update({ accounts });
-		this.currentBlockNumber && this.updateAccount(address);
-	}
-
-	/**
-	 * Stops tracking an account
-	 *
-	 * @param address - Hex address of a old account to remove
-	 */
-	remove(address: string) {
-		const { accounts } = this.state;
-		delete accounts[address];
-		this.update({ accounts });
-	}
-
-	/**
-	 * Synchronizes the current address list with external identities
-	 *
-	 * @param addresses - List of addresses to sync
-	 */
-	sync(addresses: string[]) {
-		const { accounts } = this.state;
-		const existing = Object.keys(accounts);
-		const newAddresses = addresses.filter((address) => existing.indexOf(address) === -1);
-		const oldAddresses = existing.filter((address) => addresses.indexOf(address) === -1);
-		newAddresses.forEach((address) => {
-			this.add(address);
-		});
-		oldAddresses.forEach((address) => {
-			this.remove(address);
-		});
-		this.updateAccounts();
+		for (const address in accounts) {
+			await safelyExecute(async () => {
+				const balance = await this.ethjsQuery.getBalance(address);
+				accounts[address] = { balance: BNToHex(balance) };
+			});
+		}
 	}
 }
 

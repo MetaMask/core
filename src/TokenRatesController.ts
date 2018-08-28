@@ -44,6 +44,7 @@ export interface TokenRatesState extends BaseState {
 
 /**
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
+ * for tokens stored in the PreferencesController
  */
 export class TokenRatesController extends BaseController<TokenRatesConfig, TokenRatesState> {
 	private handle?: NodeJS.Timer;
