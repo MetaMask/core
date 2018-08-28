@@ -107,7 +107,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 	/**
 	 * Refreshes all accounts in the current keychain
 	 */
-	async refresh() {
+	refresh = async () => {
 		this.syncAccounts();
 		const { accounts } = this.state;
 		for (const address in accounts) {
@@ -116,7 +116,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 				accounts[address] = { balance: BNToHex(balance) };
 			});
 		}
-	}
+	};
 }
 
 export default AccountTrackerController;
