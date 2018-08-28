@@ -1,4 +1,8 @@
 import AccountTrackerController from './AccountTrackerController';
+import PreferencesController from './PreferencesController';
+import ComposableController from './ComposableController';
+import { stub } from 'sinon';
+
 const HttpProvider = require('ethjs-provider-http');
 const provider = new HttpProvider('https://ropsten.infura.io');
 
@@ -31,5 +35,15 @@ describe('AccountTrackerController', () => {
 		controller.context = { PreferencesController: { state: { identities: { baz: {} } } } } as any;
 		controller.refresh();
 		expect(controller.state.accounts).toEqual({ baz: { balance: '0x0' } });
+	});
+
+	it('should subscribe to new sibling preference controllers', async () => {
+		const preferences = new PreferencesController();
+		const controller = new AccountTrackerController({ provider });
+		controller.refresh = stub();
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([controller, preferences]);
+		preferences.setFeatureFlag('foo', true);
+		expect((controller.refresh as any).called).toBe(true);
 	});
 });
