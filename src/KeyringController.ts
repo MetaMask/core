@@ -1,5 +1,4 @@
 import 'isomorphic-fetch';
-import AccountTrackerController from './AccountTrackerController';
 import BaseController, { BaseConfig, BaseState, Listener } from './BaseController';
 import PreferencesController from './PreferencesController';
 import { Transaction } from './TransactionController';
@@ -39,7 +38,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
-	requiredControllers = ['AccountTrackerController', 'PreferencesController'];
+	requiredControllers = ['PreferencesController'];
 
 	/**
 	 * Creates a KeyringController instance
@@ -205,9 +204,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 */
 	async removeAccount(address: string) {
 		const preferences = this.context.PreferencesController as PreferencesController;
-		const accountTracker = this.context.AccountTrackerController as AccountTrackerController;
 		preferences.removeIdentity(address);
-		accountTracker.remove(address);
 		await this.keyring.removeAccount(address);
 	}
 
