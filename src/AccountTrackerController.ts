@@ -89,6 +89,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 		super.onComposed();
 		const preferences = this.context.PreferencesController as PreferencesController;
 		preferences.subscribe(this.refresh);
+		this.refresh();
 	}
 
 	/**

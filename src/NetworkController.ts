@@ -140,6 +140,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 			provider: { type: 'rinkeby' }
 		};
 		this.initialize();
+		this.refreshNetwork();
 	}
 
 	/**
@@ -159,6 +160,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	 * Refreshes the current network code
 	 */
 	lookupNetwork() {
+		/* istanbul ignore if */
 		if (!this.ethQuery || !this.ethQuery.sendAsync) {
 			return;
 		}
