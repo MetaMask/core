@@ -117,6 +117,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 				accounts[address] = { balance: BNToHex(balance) };
 			});
 		}
+		/* tslint:disable-next-line */
 	};
 }
 
