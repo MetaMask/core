@@ -278,7 +278,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		});
 
 		transactions.push(transactionMeta);
-		this.update({ transactions });
+		this.update({ transactions: [...transactions] });
 		this.hub.emit(`unapprovedTransaction`, transactionMeta);
 		return { result };
 	}
@@ -389,7 +389,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		validateTransaction(transactionMeta.transaction);
 		const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
 		transactions[index] = transactionMeta;
-		this.update({ transactions });
+		this.update({ transactions: [...transactions] });
 	}
 
 	/**

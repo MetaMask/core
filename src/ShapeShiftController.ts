@@ -122,7 +122,7 @@ export class ShapeShiftController extends BaseController<ShapeShiftConfig, Shape
 		};
 
 		shapeShiftTxList.push(transaction);
-		this.update({ shapeShiftTxList });
+		this.update({ shapeShiftTxList: [...shapeShiftTxList] });
 	}
 
 	/**
@@ -138,7 +138,7 @@ export class ShapeShiftController extends BaseController<ShapeShiftConfig, Shape
 			return;
 		}
 		await Promise.all(pendingTx.map((tx) => this.updateTransaction(tx)));
-		this.update({ shapeShiftTxList });
+		this.update({ shapeShiftTxList: [...shapeShiftTxList] });
 	}
 }
 

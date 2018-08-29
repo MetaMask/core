@@ -60,7 +60,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 		oldAddresses.forEach((address) => {
 			delete accounts[address];
 		});
-		this.update({ accounts });
+		this.update({ accounts: { ...accounts } });
 	}
 
 	/**

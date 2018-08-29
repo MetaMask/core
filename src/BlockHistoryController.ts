@@ -153,7 +153,7 @@ export class BlockHistoryController extends BaseController<BlockHistoryConfig, B
 		while (recentBlocks.length > this.internalBlockDepth) {
 			recentBlocks.shift();
 		}
-		this.update({ recentBlocks });
+		this.update({ recentBlocks: [...recentBlocks] });
 	}
 
 	/**
@@ -183,7 +183,7 @@ export class BlockHistoryController extends BaseController<BlockHistoryConfig, B
 		this.internalBlockDepth = blockDepth;
 		if (recentBlocks.length > blockDepth) {
 			recentBlocks = recentBlocks.slice(0, blockDepth);
-			this.update({ recentBlocks });
+			this.update({ recentBlocks: [...recentBlocks] });
 		}
 	}
 

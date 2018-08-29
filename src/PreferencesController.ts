@@ -60,7 +60,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 			const identityCount = Object.keys(identities).length;
 			identities[address] = { name: `Account ${identityCount + 1}`, address };
 		});
-		this.update({ identities });
+		this.update({ identities: { ...identities } });
 	}
 
 	/**
@@ -84,8 +84,9 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 			tokens.push(newEntry);
 		}
 
-		this.update({ tokens });
-		return tokens;
+		const newTokens = [...tokens];
+		this.update({ tokens: newTokens });
+		return newTokens;
 	}
 
 	/**
@@ -100,7 +101,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 			return;
 		}
 		delete identities[address];
-		this.update({ identities });
+		this.update({ identities: { ...identities } });
 		if (address === this.state.selectedAddress) {
 			this.update({ selectedAddress: Object.keys(identities)[0] });
 		}
@@ -129,7 +130,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 		const identities = this.state.identities;
 		identities[address] = identities[address] || {};
 		identities[address].name = label;
-		this.update({ identities });
+		this.update({ identities: { ...identities } });
 	}
 
 	/**
@@ -168,7 +169,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 			}
 		}
 
-		this.update({ identities, lostIdentities });
+		this.update({ identities: { ...identities }, lostIdentities: { ...lostIdentities } });
 		this.addIdentities(addresses);
 
 		if (addresses.indexOf(this.state.selectedAddress) === -1) {
