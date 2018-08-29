@@ -140,7 +140,6 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 			provider: { type: 'rinkeby' }
 		};
 		this.initialize();
-		this.refreshNetwork();
 	}
 
 	/**
