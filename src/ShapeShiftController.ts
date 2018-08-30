@@ -80,6 +80,11 @@ export class ShapeShiftController extends BaseController<ShapeShiftConfig, Shape
 	}
 
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'ShapeShiftController';
+
+	/**
 	 * Creates a ShapeShiftController instance
 	 *
 	 * @param config - Initial options used to configure this controller

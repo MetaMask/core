@@ -157,6 +157,11 @@ export class BlockHistoryController extends BaseController<BlockHistoryConfig, B
 	}
 
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'BlockHistoryController';
+
+	/**
 	 * Creates a BlockHistoryController instance
 	 *
 	 * @param config - Initial options used to configure this controller

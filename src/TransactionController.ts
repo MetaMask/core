@@ -183,6 +183,11 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	hub = new EventEmitter();
 
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'TransactionController';
+
+	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
 	requiredControllers = ['BlockHistoryController', 'NetworkController', 'PreferencesController'];

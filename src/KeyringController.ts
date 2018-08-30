@@ -36,6 +36,11 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	private mutex = new Mutex();
 
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'KeyringController';
+
+	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
 	requiredControllers = ['PreferencesController'];

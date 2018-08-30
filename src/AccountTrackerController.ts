@@ -64,6 +64,11 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 	}
 
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'AccountTrackerController';
+
+	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
 	requiredControllers = ['PreferencesController'];
@@ -82,17 +87,6 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 	}
 
 	/**
-	 * Extension point called if and when this controller is composed
-	 * with other controllers using a ComposableController
-	 */
-	onComposed() {
-		super.onComposed();
-		const preferences = this.context.PreferencesController as PreferencesController;
-		preferences.subscribe(this.refresh);
-		this.refresh();
-	}
-
-	/**
 	 * Sets a new provider
 	 *
 	 * @param provider - Provider used to create a new underlying EthQuery instance
@@ -103,6 +97,17 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 		this.blockTracker = new BlockTracker({ provider });
 		this.blockTracker.on('block', this.refresh.bind(this));
 		this.blockTracker.start();
+	}
+
+	/**
+	 * Extension point called if and when this controller is composed
+	 * with other controllers using a ComposableController
+	 */
+	onComposed() {
+		super.onComposed();
+		const preferences = this.context.PreferencesController as PreferencesController;
+		preferences.subscribe(this.refresh);
+		this.refresh();
 	}
 
 	/**

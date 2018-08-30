@@ -55,6 +55,11 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	}
 
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'TokenRatesController';
+
+	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
 	requiredControllers = ['PreferencesController'];

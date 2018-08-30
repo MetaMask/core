@@ -25,6 +25,11 @@ export class ComposableController extends BaseController<any, any> {
 	context: ChildControllerContext = {};
 
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'ComposableController';
+
+	/**
 	 * Creates a ComposableController instance
 	 *
 	 * @param controllers - Map of names to controller instances
@@ -56,7 +61,7 @@ export class ComposableController extends BaseController<any, any> {
 		this.internalControllers = controllers;
 		const initialState: any = {};
 		controllers.forEach((controller) => {
-			const name = controller.constructor.name;
+			const name = controller.name;
 			this.context[name] = controller;
 			controller.context = this.context;
 			this.cachedState && this.cachedState[name] && controller.update(this.cachedState[name]);

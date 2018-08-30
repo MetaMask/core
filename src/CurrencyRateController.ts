@@ -42,6 +42,11 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	}
 
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'CurrencyRateController';
+
+	/**
 	 * Creates a CurrencyRateController instance
 	 *
 	 * @param config - Initial options used to configure this controller

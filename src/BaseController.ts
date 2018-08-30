@@ -54,6 +54,11 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
 	disabled = false;
 
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'BaseController';
+
+	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
 	requiredControllers: string[] = [];
@@ -146,7 +151,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
 	onComposed() {
 		this.requiredControllers.forEach((name) => {
 			if (!this.context[name]) {
-				throw new Error(`${this.constructor.name} must be composed with ${name}.`);
+				throw new Error(`${this.name} must be composed with ${name}.`);
 			}
 		});
 	}

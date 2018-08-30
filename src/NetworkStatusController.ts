@@ -54,6 +54,11 @@ export class NetworkStatusController extends BaseController<NetworkStatusConfig,
 	private handle?: NodeJS.Timer;
 
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'NetworkStatusController';
+
+	/**
 	 * Creates a NetworkStatusController instance
 	 *
 	 * @param config - Initial options used to configure this controller

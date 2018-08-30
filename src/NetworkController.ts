@@ -123,6 +123,11 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	}
 
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'NetworkController';
+
+	/**
 	 * Ethereum provider object for the current network
 	 */
 	provider: any;

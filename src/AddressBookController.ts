@@ -31,6 +31,11 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	private addressBook = new Map<string, ContactEntry>();
 
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'AddressBookController';
+
+	/**
 	 * Creates an AddressBookController instance
 	 *
 	 * @param config - Initial options used to configure this controller

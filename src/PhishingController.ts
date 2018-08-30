@@ -55,6 +55,11 @@ export class PhishingController extends BaseController<PhishingConfig, PhishingS
 	private handle?: NodeJS.Timer;
 
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'PhishingController';
+
+	/**
 	 * Creates a PhishingController instance
 	 *
 	 * @param config - Initial options used to configure this controller

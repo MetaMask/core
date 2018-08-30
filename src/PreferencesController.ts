@@ -28,6 +28,11 @@ export interface PreferencesState extends BaseState {
  */
 export class PreferencesController extends BaseController<BaseConfig, PreferencesState> {
 	/**
+	 * Name of this controller used during composition
+	 */
+	name = 'PreferencesController';
+
+	/**
 	 * Creates a PreferencesController instance
 	 *
 	 * @param config - Initial options used to configure this controller
