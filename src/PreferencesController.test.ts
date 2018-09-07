@@ -54,6 +54,16 @@ describe('PreferencesController', () => {
 		});
 	});
 
+	it('should request collectible custom data', () => {
+		// TODO test again when this is working
+		const controller = new PreferencesController();
+		expect(controller.requestNFTCustomInformation('foo', 1)).toEqual({
+			image:
+				'https://storage.googleapis.com/ck-kitty-image/0x06012c8cf97bead5deae237070f9587f8e7a266d/423007.svg',
+			name: 'Some name'
+		});
+	});
+
 	it('should remove identity', () => {
 		const controller = new PreferencesController();
 		controller.addIdentities(['foo', 'bar', 'baz']);
