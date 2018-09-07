@@ -1,9 +1,11 @@
 import PreferencesController from './PreferencesController';
+import { stub } from 'sinon';
 
 describe('PreferencesController', () => {
 	it('should set default state', () => {
 		const controller = new PreferencesController();
 		expect(controller.state).toEqual({
+			collectibles: [],
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
@@ -37,6 +39,18 @@ describe('PreferencesController', () => {
 			address: '0xfoO',
 			decimals: 2,
 			symbol: 'baz'
+		});
+	});
+
+	it('should add collectible', () => {
+		const controller = new PreferencesController();
+		stub(controller, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		controller.addCollectible('foo', 1234);
+		expect(controller.state.collectibles[0]).toEqual({
+			address: '0xfoO',
+			image: 'url',
+			name: 'name',
+			tokenId: 1234
 		});
 	});
 

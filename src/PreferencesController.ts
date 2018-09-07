@@ -14,13 +14,32 @@ const { toChecksumAddress } = require('ethereumjs-util');
  * @property lostIdentities - Map of lost addresses to ContactEntry objects
  * @property selectedAddress - Current coinbase account
  * @property tokens - List of tokens associated with the active vault
+ * @property collectibles - List of collectibles associated with the active vault
  */
 export interface PreferencesState extends BaseState {
+	collectibles: Collectible[];
 	featureFlags: { [feature: string]: boolean };
 	identities: { [address: string]: ContactEntry };
 	lostIdentities: { [address: string]: ContactEntry };
 	selectedAddress: string;
 	tokens: Token[];
+}
+
+/**
+ * @type Collectible
+ *
+ * Collectible representation
+ *
+ * @property address - Hex address of a ERC721 contract
+ * @property tokenId - The NFT identifier
+ * @property name - Name associated with this tokenId and contract address
+ * @property image - Uri of custom NFT image associated with this tokenId
+ */
+export interface Collectible {
+	address: string;
+	tokenId: number;
+	name: string;
+	image: string;
 }
 
 /**
@@ -41,6 +60,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	constructor(config?: Partial<BaseConfig>, state?: Partial<PreferencesState>) {
 		super(config, state);
 		this.defaultState = {
+			collectibles: [],
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
@@ -92,6 +112,38 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 		const newTokens = [...tokens];
 		this.update({ tokens: newTokens });
 		return newTokens;
+	}
+
+	/**
+	 * Adds a collectible to the stored collectible list
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @param tokenId - The NFT identifier
+	 * @returns - Current collectible list
+	 */
+	addCollectible(address: string, tokenId: number) {
+		address = toChecksumAddress(address);
+		const { name, image } = this.requestNFTCustomInformation(address, tokenId);
+		const newEntry: Collectible = { address, tokenId, name, image };
+		const collectibles = this.state.collectibles;
+
+		const newCollectibles = [...collectibles, newEntry];
+		this.update({ collectibles: newCollectibles });
+		return newCollectibles;
+	}
+
+	/**
+	 * Request NFT custom information of a collectible
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @param tokenId - The NFT identifier
+	 * @returns - Current collectible list
+	 */
+	requestNFTCustomInformation(address: string, tokenId: number) {
+		// Request custom information, `tokenMetadata` or `tokenURI`
+		const randomCK =
+			'https://storage.googleapis.com/ck-kitty-image/0x06012c8cf97bead5deae237070f9587f8e7a266d/423007.svg';
+		return { name: 'Some name', image: randomCK };
 	}
 
 	/**
