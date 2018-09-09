@@ -1,7 +1,9 @@
+import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import { ContactEntry } from './AddressBookController';
 import { Token } from './TokenRatesController';
 
+const contractMap = require('eth-contract-metadata');
 const { toChecksumAddress } = require('ethereumjs-util');
 
 /**
@@ -121,9 +123,9 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @param tokenId - The NFT identifier
 	 * @returns - Current collectible list
 	 */
-	addCollectible(address: string, tokenId: number) {
+	async addCollectible(address: string, tokenId: number) {
 		address = toChecksumAddress(address);
-		const { name, image } = this.requestNFTCustomInformation(address, tokenId);
+		const { name, image } = await this.requestNFTCustomInformation(address, tokenId);
 		const newEntry: Collectible = { address, tokenId, name, image };
 		const collectibles = this.state.collectibles;
 
@@ -137,13 +139,38 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 *
 	 * @param address - Hex address of the collectible contract
 	 * @param tokenId - The NFT identifier
-	 * @returns - Current collectible list
+	 * @returns - Current collectible name and image
 	 */
-	requestNFTCustomInformation(address: string, tokenId: number) {
+	async requestNFTCustomInformation(address: string, tokenId: number) {
 		// Request custom information, `tokenMetadata` or `tokenURI`
-		const randomCK =
-			'https://storage.googleapis.com/ck-kitty-image/0x06012c8cf97bead5deae237070f9587f8e7a266d/423007.svg';
-		return { name: 'Some name', image: randomCK };
+		if (address in contractMap && contractMap[address].erc721) {
+			// check directly on API
+			const contract = contractMap[address];
+			const api = contract.api;
+			const { name, image } = await this.fetchCollectibleBasicInformation(api, tokenId);
+			return { name, image };
+		} else {
+			// try to get tokenURI
+			const name = 'Undefined';
+			const image = undefined;
+			return { name, image };
+		}
+	}
+
+	/**
+	 * Fetch NFT basic information, name and image url
+	 *
+	 * @param api - API url to fetch custom collectible information
+	 * @param tokenId - The NFT identifier
+	 * @returns - Current collectible name and image
+	 */
+	async fetchCollectibleBasicInformation(api: string, tokenId: number) {
+		const response = await fetch(`${api}${tokenId}`);
+		const json = await response.json();
+		return {
+			image: json.image_url,
+			name: json.name
+		};
 	}
 
 	/**
