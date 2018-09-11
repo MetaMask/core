@@ -45,9 +45,25 @@ export interface Collectible {
 }
 
 /**
+ * @type CollectibleCustomInformation
+ *
+ * Collectible custom information
+ *
+ * @property name - Collectible custom name
+ * @property image - Image custom image URI
+ */
+export interface CollectibleCustomInformation extends BaseState {
+	name: string;
+	image: string;
+}
+
+/**
  * Controller that stores shared settings and exposes convenience methods
  */
 export class PreferencesController extends BaseController<BaseConfig, PreferencesState> {
+	private getCollectibleApi(api: string, tokenId: number): string {
+		return `${api}${tokenId}`;
+	}
 	/**
 	 * Name of this controller used during composition
 	 */
@@ -125,6 +141,12 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 */
 	async addCollectible(address: string, tokenId: number) {
 		address = toChecksumAddress(address);
+		const existingEntry = this.state.collectibles.filter(
+			(collectible) => collectible.address === address && collectible.tokenId === tokenId
+		);
+		if (existingEntry.length > 0) {
+			return;
+		}
 		const { name, image } = await this.requestNFTCustomInformation(address, tokenId);
 		const newEntry: Collectible = { address, tokenId, name, image };
 		const collectibles = this.state.collectibles;
@@ -141,19 +163,14 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @param tokenId - The NFT identifier
 	 * @returns - Current collectible name and image
 	 */
-	async requestNFTCustomInformation(address: string, tokenId: number) {
-		// Request custom information, `tokenMetadata` or `tokenURI`
+	async requestNFTCustomInformation(address: string, tokenId: number): Promise<CollectibleCustomInformation> {
 		if (address in contractMap && contractMap[address].erc721) {
-			// check directly on API
 			const contract = contractMap[address];
 			const api = contract.api;
 			const { name, image } = await this.fetchCollectibleBasicInformation(api, tokenId);
 			return { name, image };
 		} else {
-			// try to get tokenURI
-			const name = 'Undefined';
-			const image = undefined;
-			return { name, image };
+			return { name: '', image: '' };
 		}
 	}
 
@@ -164,13 +181,10 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @param tokenId - The NFT identifier
 	 * @returns - Current collectible name and image
 	 */
-	async fetchCollectibleBasicInformation(api: string, tokenId: number) {
-		const response = await fetch(`${api}${tokenId}`);
+	async fetchCollectibleBasicInformation(api: string, tokenId: number): Promise<CollectibleCustomInformation> {
+		const response = await fetch(this.getCollectibleApi(api, tokenId));
 		const json = await response.json();
-		return {
-			image: json.image_url,
-			name: json.name
-		};
+		return json ? { image: json.image_url, name: json.name } : /* istanbul ignore next */ { image: '', name: '' };
 	}
 
 	/**
@@ -178,6 +192,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 *
 	 * @param address - Address of the identity to remove
 	 */
+
 	removeIdentity(address: string) {
 		address = toChecksumAddress(address);
 		const { identities } = this.state;
@@ -199,8 +214,23 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	removeToken(address: string) {
 		address = toChecksumAddress(address);
 		const oldTokens = this.state.tokens;
-		const tokens = oldTokens.filter((token) => token.address !== address);
-		this.update({ tokens });
+		const newTokens = oldTokens.filter((token) => token.address !== address);
+		this.update({ tokens: newTokens });
+	}
+
+	/**
+	 * Removes a collectible from the stored token list
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @param tokenId - Token identifier of the collectible
+	 */
+	removeCollectible(address: string, tokenId: number) {
+		address = toChecksumAddress(address);
+		const oldCollectibles = this.state.collectibles;
+		const newCollectibles = oldCollectibles.filter(
+			(collectible) => !(collectible.address === address && collectible.tokenId === tokenId)
+		);
+		this.update({ collectibles: newCollectibles });
 	}
 
 	/**
