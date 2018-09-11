@@ -17,8 +17,7 @@ describe('ComposableController', () => {
 				featureFlags: {},
 				identities: {},
 				lostIdentities: {},
-				selectedAddress: '',
-				tokens: []
+				selectedAddress: ''
 			},
 			TokenRatesController: { contractExchangeRates: {} }
 		});
@@ -36,8 +35,7 @@ describe('ComposableController', () => {
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
-			selectedAddress: '',
-			tokens: []
+			selectedAddress: ''
 		});
 	});
 
@@ -57,8 +55,7 @@ describe('ComposableController', () => {
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
-			selectedAddress: '',
-			tokens: []
+			selectedAddress: ''
 		});
 	});
 

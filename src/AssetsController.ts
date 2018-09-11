@@ -1,6 +1,8 @@
+import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import { Token } from './TokenRatesController';
 
+const contractMap = require('eth-contract-metadata');
 const { toChecksumAddress } = require('ethereumjs-util');
 
 /**
@@ -50,6 +52,10 @@ export interface AssetsState extends BaseState {
  * Controller that stores assets and exposes convenience methods
  */
 export class AssetsController extends BaseController<BaseConfig, AssetsState> {
+	private getCollectibleApi(api: string, tokenId: number): string {
+		return `${api}${tokenId}`;
+	}
+
 	/**
 	 * Name of this controller used during composition
 	 */
@@ -97,6 +103,45 @@ export class AssetsController extends BaseController<BaseConfig, AssetsState> {
 	}
 
 	/**
+	 * Adds a collectible to the stored collectible list
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @param tokenId - The NFT identifier
+	 * @returns - Current collectible list
+	 */
+	async addCollectible(address: string, tokenId: number): Promise<Collectible[]> {
+		address = toChecksumAddress(address);
+		const collectibles = this.state.collectibles;
+		const existingEntry = this.state.collectibles.filter(
+			(collectible) => collectible.address === address && collectible.tokenId === tokenId
+		);
+		if (existingEntry.length > 0) {
+			return collectibles;
+		}
+		const { name, image } = await this.requestNFTCustomInformation(address, tokenId);
+		const newEntry: Collectible = { address, tokenId, name, image };
+
+		const newCollectibles = [...collectibles, newEntry];
+		this.update({ collectibles: newCollectibles });
+		return newCollectibles;
+	}
+
+	/**
+	 * Removes a collectible from the stored token list
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @param tokenId - Token identifier of the collectible
+	 */
+	removeCollectible(address: string, tokenId: number) {
+		address = toChecksumAddress(address);
+		const oldCollectibles = this.state.collectibles;
+		const newCollectibles = oldCollectibles.filter(
+			(collectible) => !(collectible.address === address && collectible.tokenId === tokenId)
+		);
+		this.update({ collectibles: newCollectibles });
+	}
+
+	/**
 	 * Removes a token from the stored token list
 	 *
 	 * @param address - Hex address of the token contract
@@ -106,6 +151,42 @@ export class AssetsController extends BaseController<BaseConfig, AssetsState> {
 		const oldTokens = this.state.tokens;
 		const tokens = oldTokens.filter((token) => token.address !== address);
 		this.update({ tokens });
+	}
+
+	/**
+	 * Request NFT custom information of a collectible
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @param tokenId - The NFT identifier
+	 * @returns - Current collectible name and image
+	 */
+	async requestNFTCustomInformation(address: string, tokenId: number): Promise<CollectibleCustomInformation> {
+		if (address in contractMap && contractMap[address].erc721) {
+			const contract = contractMap[address];
+			const api = contract.api;
+			const { name, image } = await this.fetchCollectibleBasicInformation(api, tokenId);
+			return { name, image };
+		} else {
+			return { name: '', image: '' };
+		}
+	}
+
+	/**
+	 * Fetch NFT basic information, name and image url
+	 *
+	 * @param api - API url to fetch custom collectible information
+	 * @param tokenId - The NFT identifier
+	 * @returns - Current collectible name and image
+	 */
+	async fetchCollectibleBasicInformation(api: string, tokenId: number): Promise<CollectibleCustomInformation> {
+		try {
+			const response = await fetch(this.getCollectibleApi(api, tokenId));
+			const json = await response.json();
+			return { image: json.image_url, name: json.name };
+		} catch (error) {
+			/* istanbul ignore next */
+			return { image: '', name: '' };
+		}
 	}
 }
 
