@@ -1,6 +1,5 @@
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import { ContactEntry } from './AddressBookController';
-import { Token } from './TokenRatesController';
 
 const { toChecksumAddress } = require('ethereumjs-util');
 
@@ -13,14 +12,12 @@ const { toChecksumAddress } = require('ethereumjs-util');
  * @property identities - Map of addresses to ContactEntry objects
  * @property lostIdentities - Map of lost addresses to ContactEntry objects
  * @property selectedAddress - Current coinbase account
- * @property tokens - List of tokens associated with the active vault
  */
 export interface PreferencesState extends BaseState {
 	featureFlags: { [feature: string]: boolean };
 	identities: { [address: string]: ContactEntry };
 	lostIdentities: { [address: string]: ContactEntry };
 	selectedAddress: string;
-	tokens: Token[];
 }
 
 /**
@@ -44,8 +41,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
-			selectedAddress: '',
-			tokens: []
+			selectedAddress: ''
 		};
 		this.initialize();
 	}
@@ -69,32 +65,6 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	}
 
 	/**
-	 * Adds a token to the stored token list
-	 *
-	 * @param address - Hex address of the token contract
-	 * @param symbol - Symbol of the token
-	 * @param decimals - Number of decimals the token uses
-	 * @returns - Current token list
-	 */
-	addToken(address: string, symbol: string, decimals: number) {
-		address = toChecksumAddress(address);
-		const newEntry: Token = { address, symbol, decimals };
-		const tokens = this.state.tokens;
-		const previousEntry = tokens.find((token) => token.address === address);
-
-		if (previousEntry) {
-			const previousIndex = tokens.indexOf(previousEntry);
-			tokens[previousIndex] = newEntry;
-		} else {
-			tokens.push(newEntry);
-		}
-
-		const newTokens = [...tokens];
-		this.update({ tokens: newTokens });
-		return newTokens;
-	}
-
-	/**
 	 * Removes an identity from state
 	 *
 	 * @param address - Address of the identity to remove
@@ -110,18 +80,6 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 		if (address === this.state.selectedAddress) {
 			this.update({ selectedAddress: Object.keys(identities)[0] });
 		}
-	}
-
-	/**
-	 * Removes a token from the stored token list
-	 *
-	 * @param address - Hex address of the token contract
-	 */
-	removeToken(address: string) {
-		address = toChecksumAddress(address);
-		const oldTokens = this.state.tokens;
-		const tokens = oldTokens.filter((token) => token.address !== address);
-		this.update({ tokens });
 	}
 
 	/**
