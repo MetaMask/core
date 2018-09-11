@@ -7,27 +7,6 @@ const contractMap = require('eth-contract-metadata');
 const { toChecksumAddress } = require('ethereumjs-util');
 
 /**
- * @type PreferencesState
- *
- * Preferences controller state
- *
- * @property featureFlags - Map of specific features to enable or disable
- * @property identities - Map of addresses to ContactEntry objects
- * @property lostIdentities - Map of lost addresses to ContactEntry objects
- * @property selectedAddress - Current coinbase account
- * @property tokens - List of tokens associated with the active vault
- * @property collectibles - List of collectibles associated with the active vault
- */
-export interface PreferencesState extends BaseState {
-	collectibles: Collectible[];
-	featureFlags: { [feature: string]: boolean };
-	identities: { [address: string]: ContactEntry };
-	lostIdentities: { [address: string]: ContactEntry };
-	selectedAddress: string;
-	tokens: Token[];
-}
-
-/**
  * @type Collectible
  *
  * Collectible representation
@@ -35,7 +14,7 @@ export interface PreferencesState extends BaseState {
  * @property address - Hex address of a ERC721 contract
  * @property tokenId - The NFT identifier
  * @property name - Name associated with this tokenId and contract address
- * @property image - Uri of custom NFT image associated with this tokenId
+ * @property image - URI of custom NFT image associated with this tokenId
  */
 export interface Collectible {
 	address: string;
@@ -55,6 +34,27 @@ export interface Collectible {
 export interface CollectibleCustomInformation extends BaseState {
 	name: string;
 	image: string;
+}
+
+/**
+ * @type PreferencesState
+ *
+ * Preferences controller state
+ *
+ * @property featureFlags - Map of specific features to enable or disable
+ * @property identities - Map of addresses to ContactEntry objects
+ * @property lostIdentities - Map of lost addresses to ContactEntry objects
+ * @property selectedAddress - Current coinbase account
+ * @property tokens - List of tokens associated with the active vault
+ * @property collectibles - List of collectibles associated with the active vault
+ */
+export interface PreferencesState extends BaseState {
+	collectibles: Collectible[];
+	featureFlags: { [feature: string]: boolean };
+	identities: { [address: string]: ContactEntry };
+	lostIdentities: { [address: string]: ContactEntry };
+	selectedAddress: string;
+	tokens: Token[];
 }
 
 /**
@@ -139,17 +139,17 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @param tokenId - The NFT identifier
 	 * @returns - Current collectible list
 	 */
-	async addCollectible(address: string, tokenId: number) {
+	async addCollectible(address: string, tokenId: number): Promise<Collectible[]> {
 		address = toChecksumAddress(address);
+		const collectibles = this.state.collectibles;
 		const existingEntry = this.state.collectibles.filter(
 			(collectible) => collectible.address === address && collectible.tokenId === tokenId
 		);
 		if (existingEntry.length > 0) {
-			return;
+			return collectibles;
 		}
 		const { name, image } = await this.requestNFTCustomInformation(address, tokenId);
 		const newEntry: Collectible = { address, tokenId, name, image };
-		const collectibles = this.state.collectibles;
 
 		const newCollectibles = [...collectibles, newEntry];
 		this.update({ collectibles: newCollectibles });
@@ -182,9 +182,14 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @returns - Current collectible name and image
 	 */
 	async fetchCollectibleBasicInformation(api: string, tokenId: number): Promise<CollectibleCustomInformation> {
-		const response = await fetch(this.getCollectibleApi(api, tokenId));
-		const json = await response.json();
-		return json ? { image: json.image_url, name: json.name } : /* istanbul ignore next */ { image: '', name: '' };
+		try {
+			const response = await fetch(this.getCollectibleApi(api, tokenId));
+			const json = await response.json();
+			return { image: json.image_url, name: json.name };
+		} catch (error) {
+			/* istanbul ignore next */
+			return { image: '', name: '' };
+		}
 	}
 
 	/**
@@ -192,7 +197,6 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 *
 	 * @param address - Address of the identity to remove
 	 */
-
 	removeIdentity(address: string) {
 		address = toChecksumAddress(address);
 		const { identities } = this.state;
