@@ -1,6 +1,6 @@
 import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
-import PreferencesController from './PreferencesController';
+import AssetsController from './AssetsController';
 import { safelyExecute } from './util';
 
 /**
@@ -44,7 +44,7 @@ export interface TokenRatesState extends BaseState {
 
 /**
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
- * for tokens stored in the PreferencesController
+ * for tokens stored in the AssetsController
  */
 export class TokenRatesController extends BaseController<TokenRatesConfig, TokenRatesState> {
 	private handle?: NodeJS.Timer;
@@ -62,7 +62,7 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
-	requiredControllers = ['PreferencesController'];
+	requiredControllers = ['AssetsController'];
 
 	/**
 	 * Creates a TokenRatesController instance
@@ -121,8 +121,8 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	 */
 	onComposed() {
 		super.onComposed();
-		const preferences = this.context.PreferencesController as PreferencesController;
-		preferences.subscribe(({ tokens }) => {
+		const assets = this.context.AssetsController as AssetsController;
+		assets.subscribe(({ tokens }) => {
 			this.configure({ tokens });
 		});
 	}

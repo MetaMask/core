@@ -1,7 +1,7 @@
 import { stub } from 'sinon';
 import AssetsController from './AssetsController';
 
-describe('PreferencesController', () => {
+describe('AssetsController', () => {
 	let assetsController: AssetsController;
 	beforeEach(() => {
 		assetsController = new AssetsController();

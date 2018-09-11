@@ -3,16 +3,19 @@ import AddressBookController from './AddressBookController';
 import ComposableController from './ComposableController';
 import PreferencesController from './PreferencesController';
 import TokenRatesController from './TokenRatesController';
+import { AssetsController } from './AssetsController';
 
 describe('ComposableController', () => {
 	it('should compose controller state', () => {
 		const controller = new ComposableController([
 			new AddressBookController(),
+			new AssetsController(),
 			new PreferencesController(),
 			new TokenRatesController()
 		]);
 		expect(controller.state).toEqual({
 			AddressBookController: { addressBook: [] },
+			AssetsController: { collectibles: [], tokens: [] },
 			PreferencesController: {
 				featureFlags: {},
 				identities: {},
@@ -26,22 +29,26 @@ describe('ComposableController', () => {
 	it('should compose flat controller state', () => {
 		const controller = new ComposableController([
 			new AddressBookController(),
+			new AssetsController(),
 			new PreferencesController(),
 			new TokenRatesController()
 		]);
 		expect(controller.flatState).toEqual({
 			addressBook: [],
+			collectibles: [],
 			contractExchangeRates: {},
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
-			selectedAddress: ''
+			selectedAddress: '',
+			tokens: []
 		});
 	});
 
 	it('should expose sibling context', () => {
 		const controller = new ComposableController([
 			new AddressBookController(),
+			new AssetsController(),
 			new PreferencesController(),
 			new TokenRatesController()
 		]);
@@ -51,11 +58,13 @@ describe('ComposableController', () => {
 		addressContext.set('1337', 'foo');
 		expect(controller.flatState).toEqual({
 			addressBook: [{ address: '1337', name: 'foo' }],
+			collectibles: [],
 			contractExchangeRates: {},
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
-			selectedAddress: ''
+			selectedAddress: '',
+			tokens: []
 		});
 	});
 
