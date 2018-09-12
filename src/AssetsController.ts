@@ -1,5 +1,6 @@
 import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
+import PreferencesController from './PreferencesController';
 import { Token } from './TokenRatesController';
 
 const contractMap = require('eth-contract-metadata');
@@ -30,9 +31,20 @@ export interface Collectible {
  * @property name - Collectible custom name
  * @property image - Image custom image URI
  */
-export interface CollectibleCustomInformation extends BaseState {
+export interface CollectibleCustomInformation {
 	name: string;
 	image: string;
+}
+
+/**
+ * @type AssetsConfig
+ *
+ * Assets controller configuration
+ *
+ * @property selectedAddress - Vault selected address
+ */
+export interface AssetsConfig extends BaseConfig {
+	selectedAddress: string;
 }
 
 /**
@@ -51,7 +63,7 @@ export interface AssetsState extends BaseState {
 /**
  * Controller that stores assets and exposes convenience methods
  */
-export class AssetsController extends BaseController<BaseConfig, AssetsState> {
+export class AssetsController extends BaseController<AssetsConfig, AssetsState> {
 	private getCollectibleApi(api: string, tokenId: number): string {
 		return `${api}${tokenId}`;
 	}
@@ -62,6 +74,11 @@ export class AssetsController extends BaseController<BaseConfig, AssetsState> {
 	name = 'AssetsController';
 
 	/**
+	 * List of required sibling controllers this controller needs to function
+	 */
+	requiredControllers = ['PreferencesController'];
+
+	/**
 	 * Creates a AssetsController instance
 	 *
 	 * @param config - Initial options used to configure this controller
@@ -69,6 +86,9 @@ export class AssetsController extends BaseController<BaseConfig, AssetsState> {
 	 */
 	constructor(config?: Partial<BaseConfig>, state?: Partial<AssetsState>) {
 		super(config, state);
+		this.defaultConfig = {
+			selectedAddress: ''
+		};
 		this.defaultState = {
 			collectibles: [],
 			tokens: []
@@ -187,6 +207,36 @@ export class AssetsController extends BaseController<BaseConfig, AssetsState> {
 			/* istanbul ignore next */
 			return { image: '', name: '' };
 		}
+	}
+
+	/**
+	 * Extension point called if and when this controller is composed
+	 * with other controllers using a ComposableController
+	 */
+	onComposed() {
+		super.onComposed();
+		const preferences = this.context.PreferencesController as PreferencesController;
+		preferences.subscribe(({ selectedAddress }) => {
+			this.configure({ selectedAddress });
+		});
+	}
+
+	/**
+	 * Retrieves current controller state tokens
+	 *
+	 * @returns - Current state tokens
+	 */
+	get tokens(): Token[] {
+		return this.state.tokens;
+	}
+
+	/**
+	 * Retrieves current controller state collectibles
+	 *
+	 * @returns - Current state collectibles
+	 */
+	get collectibles(): Collectible[] {
+		return this.state.collectibles;
 	}
 }
 

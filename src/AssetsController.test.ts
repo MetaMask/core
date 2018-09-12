@@ -1,5 +1,10 @@
 import { stub } from 'sinon';
 import AssetsController from './AssetsController';
+import ComposableController from './ComposableController';
+import PreferencesController from './PreferencesController';
+
+const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
+const COLLECTIBLES = [{ address: '0xfoO', image: 'url', name: 'name', tokenId: 1234 }];
 
 describe('AssetsController', () => {
 	let assetsController: AssetsController;
@@ -75,5 +80,21 @@ describe('AssetsController', () => {
 			image: '',
 			name: ''
 		});
+	});
+
+	it('should subscribe to new sibling preference controllers', async () => {
+		const preferences = new PreferencesController();
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assetsController, preferences]);
+		preferences.setFeatureFlag('foo', true);
+		expect(assetsController.context.PreferencesController.state.featureFlags.foo).toBe(true);
+	});
+
+	it('should return correct assets state', async () => {
+		stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		await assetsController.addCollectible('foo', 1234);
+		assetsController.addToken('foo', 'bar', 2);
+		expect(assetsController.tokens).toEqual(TOKENS);
+		expect(assetsController.collectibles).toEqual(COLLECTIBLES);
 	});
 });
