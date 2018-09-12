@@ -34,10 +34,48 @@ describe('AssetsController', () => {
 		});
 	});
 
+	it('should add token by selected address', () => {
+		const preferences = new PreferencesController();
+		const firstAddress = '0x123';
+		const secondAddress = '0x321';
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assetsController, preferences]);
+		preferences.update({ selectedAddress: firstAddress });
+		assetsController.addToken('foo', 'bar', 2);
+		preferences.update({ selectedAddress: secondAddress });
+		expect(assetsController.tokens.length).toEqual(0);
+		preferences.update({ selectedAddress: firstAddress });
+		expect(assetsController.tokens[0]).toEqual({
+			address: '0xfoO',
+			decimals: 2,
+			symbol: 'bar'
+		});
+	});
+
 	it('should remove token', () => {
 		assetsController.addToken('foo', 'bar', 2);
 		assetsController.removeToken('foo');
 		expect(assetsController.tokens.length).toBe(0);
+	});
+
+	it('should remove token by selected address', () => {
+		const preferences = new PreferencesController();
+		const firstAddress = '0x123';
+		const secondAddress = '0x321';
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assetsController, preferences]);
+		preferences.update({ selectedAddress: firstAddress });
+		assetsController.addToken('fou', 'baz', 2);
+		preferences.update({ selectedAddress: secondAddress });
+		assetsController.addToken('foo', 'bar', 2);
+		assetsController.removeToken('0xfoO');
+		expect(assetsController.tokens.length).toEqual(0);
+		preferences.update({ selectedAddress: firstAddress });
+		expect(assetsController.tokens[0]).toEqual({
+			address: '0xFOu',
+			decimals: 2,
+			symbol: 'baz'
+		});
 	});
 
 	it('should remove collectible', async () => {

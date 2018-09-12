@@ -232,7 +232,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	get tokens(): Token[] {
 		const selectedAddress = this.config.selectedAddress;
-		return this.state.tokens[selectedAddress];
+		const tokens = this.state.tokens;
+		const addressTokens = tokens[selectedAddress] || [];
+		return addressTokens;
 	}
 
 	/**
