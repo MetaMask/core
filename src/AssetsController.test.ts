@@ -14,6 +14,7 @@ describe('AssetsController', () => {
 
 	it('should set default state', () => {
 		expect(assetsController.state).toEqual({
+			allCollectibles: {},
 			allTokens: {},
 			collectibles: [],
 			tokens: []
@@ -79,12 +80,6 @@ describe('AssetsController', () => {
 		});
 	});
 
-	it('should remove collectible', async () => {
-		await assetsController.addCollectible('0xfoO', 1234);
-		assetsController.removeCollectible('0xfoO', 1234);
-		expect(assetsController.state.collectibles.length).toBe(0);
-	});
-
 	it('should add collectible', async () => {
 		stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
 		await assetsController.addCollectible('foo', 1234);
@@ -93,6 +88,60 @@ describe('AssetsController', () => {
 			image: 'url',
 			name: 'name',
 			tokenId: 1234
+		});
+	});
+
+	it('should add collectible by selected address', async () => {
+		const preferences = new PreferencesController();
+		const firstAddress = '0x123';
+		const secondAddress = '0x321';
+		stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assetsController, preferences]);
+		preferences.update({ selectedAddress: firstAddress });
+		await assetsController.addCollectible('foo', 1234);
+		preferences.update({ selectedAddress: secondAddress });
+		expect(assetsController.state.collectibles.length).toEqual(0);
+		preferences.update({ selectedAddress: firstAddress });
+		expect(assetsController.state.collectibles[0]).toEqual({
+			address: '0xfoO',
+			image: 'url',
+			name: 'name',
+			tokenId: 1234
+		});
+	});
+
+	it('should remove collectible', () => {
+		stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		assetsController.addCollectible('0xfoO', 1234);
+		assetsController.removeCollectible('0xfoO', 1234);
+		expect(assetsController.state.collectibles.length).toBe(0);
+	});
+
+	it('should remove collectible by selected address', async () => {
+		const preferences = new PreferencesController();
+		stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		const firstAddress = '0x123';
+		const secondAddress = '0x321';
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assetsController, preferences]);
+		preferences.update({ selectedAddress: firstAddress });
+
+		await assetsController.addCollectible('fou', 4321);
+
+		preferences.update({ selectedAddress: secondAddress });
+
+		await assetsController.addCollectible('foo', 1234);
+
+		assetsController.removeCollectible('0xfoO', 1234);
+
+		expect(assetsController.state.collectibles.length).toEqual(0);
+		preferences.update({ selectedAddress: firstAddress });
+		expect(assetsController.state.collectibles[0]).toEqual({
+			address: '0xFOu',
+			image: 'url',
+			name: 'name',
+			tokenId: 4321
 		});
 	});
 
@@ -134,6 +183,6 @@ describe('AssetsController', () => {
 		await assetsController.addCollectible('foo', 1234);
 		assetsController.addToken('foo', 'bar', 2);
 		expect(assetsController.state.tokens).toEqual(TOKENS);
-		expect(assetsController.collectibles).toEqual(COLLECTIBLES);
+		expect(assetsController.state.collectibles).toEqual(COLLECTIBLES);
 	});
 });

@@ -57,6 +57,7 @@ export interface AssetsConfig extends BaseConfig {
  */
 export interface AssetsState extends BaseState {
 	allTokens: { [key: string]: Token[] };
+	allCollectibles: { [key: string]: Collectible[] };
 	collectibles: Collectible[];
 	tokens: Token[];
 }
@@ -91,6 +92,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			selectedAddress: ''
 		};
 		this.defaultState = {
+			allCollectibles: {},
 			allTokens: {},
 			collectibles: [],
 			tokens: []
@@ -137,17 +139,21 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	async addCollectible(address: string, tokenId: number): Promise<Collectible[]> {
 		address = toChecksumAddress(address);
 		const collectibles = this.state.collectibles;
-		const existingEntry = this.state.collectibles.filter(
+		const allCollectibles = this.state.allCollectibles;
+		const selectedAddress = this.config.selectedAddress;
+		const existingEntry = this.state.collectibles.find(
 			(collectible) => collectible.address === address && collectible.tokenId === tokenId
 		);
-		if (existingEntry.length > 0) {
+
+		if (existingEntry) {
 			return collectibles;
 		}
 		const { name, image } = await this.requestNFTCustomInformation(address, tokenId);
 		const newEntry: Collectible = { address, tokenId, name, image };
 
 		const newCollectibles = [...collectibles, newEntry];
-		this.update({ collectibles: newCollectibles });
+		const newAllCollectibles = { ...allCollectibles, [selectedAddress]: newCollectibles };
+		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
 		return newCollectibles;
 	}
 
@@ -160,10 +166,15 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	removeCollectible(address: string, tokenId: number) {
 		address = toChecksumAddress(address);
 		const oldCollectibles = this.state.collectibles;
+		const allCollectibles = this.state.allCollectibles;
+		const selectedAddress = this.config.selectedAddress;
+
 		const newCollectibles = oldCollectibles.filter(
 			(collectible) => !(collectible.address === address && collectible.tokenId === tokenId)
 		);
-		this.update({ collectibles: newCollectibles });
+
+		const newAllCollectibles = { ...allCollectibles, [selectedAddress]: newCollectibles };
+		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
 	}
 
 	/**
@@ -176,6 +187,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const oldTokens = this.state.tokens;
 		const allTokens = this.state.allTokens;
 		const selectedAddress = this.config.selectedAddress;
+
 		const newTokens = oldTokens.filter((token) => token.address !== address);
 		const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newTokens } };
 		this.update({ allTokens: newAllTokens, tokens: newTokens });
@@ -226,18 +238,13 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const preferences = this.context.PreferencesController as PreferencesController;
 		preferences.subscribe(({ selectedAddress }) => {
 			const allTokens = this.state.allTokens;
+			const allCollectibles = this.state.allCollectibles;
 			this.configure({ selectedAddress });
-			this.update({ tokens: allTokens[selectedAddress] || [] });
+			this.update({
+				collectibles: allCollectibles[selectedAddress] || [],
+				tokens: allTokens[selectedAddress] || []
+			});
 		});
-	}
-
-	/**
-	 * Retrieves current controller state collectibles
-	 *
-	 * @returns - Current state collectibles
-	 */
-	get collectibles(): Collectible[] {
-		return this.state.collectibles;
 	}
 }
 
