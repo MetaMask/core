@@ -121,8 +121,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			tokens.push(newEntry);
 		}
 
-		const newTokens = { ...allTokens, ...{ [selectedAddress]: tokens } };
-		this.update({ allTokens: newTokens });
+		const newAllTokens = { ...allTokens, ...{ [selectedAddress]: tokens } };
+		const newTokens = [...tokens];
+		this.update({ allTokens: newAllTokens, tokens: newTokens });
 		return newTokens;
 	}
 
