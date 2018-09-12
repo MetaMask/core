@@ -14,9 +14,11 @@ const { addHexPrefix, bufferToHex } = require('ethereumjs-util');
  * @type Result
  *
  * @property result - Promise resolving to a new transaction hash
+ * @property transactionMeta - Meta information about this new transaction
  */
 export interface Result {
 	result: Promise<string>;
+	transactionMeta: TransactionMeta;
 }
 
 /**
@@ -285,7 +287,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		transactions.push(transactionMeta);
 		this.update({ transactions: [...transactions] });
 		this.hub.emit(`unapprovedTransaction`, transactionMeta);
-		return { result };
+		return { result, transactionMeta };
 	}
 
 	/**
