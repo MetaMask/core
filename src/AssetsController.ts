@@ -57,7 +57,7 @@ export interface AssetsConfig extends BaseConfig {
  */
 export interface AssetsState extends BaseState {
 	collectibles: Collectible[];
-	tokens: Token[];
+	tokens: { [key: string]: Token[] };
 }
 
 /**
@@ -91,7 +91,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		};
 		this.defaultState = {
 			collectibles: [],
-			tokens: []
+			tokens: { '': [] }
 		};
 		this.initialize();
 	}
@@ -107,17 +107,19 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	addToken(address: string, symbol: string, decimals: number) {
 		address = toChecksumAddress(address);
 		const newEntry: Token = { address, symbol, decimals };
-		const tokens = this.state.tokens;
-		const previousEntry = tokens.find((token) => token.address === address);
+		const addressTokens = this.tokens;
+		const previousEntry = addressTokens.find((token) => token.address === address);
 
 		if (previousEntry) {
-			const previousIndex = tokens.indexOf(previousEntry);
-			tokens[previousIndex] = newEntry;
+			const previousIndex = addressTokens.indexOf(previousEntry);
+			addressTokens[previousIndex] = newEntry;
 		} else {
-			tokens.push(newEntry);
+			addressTokens.push(newEntry);
 		}
 
-		const newTokens = [...tokens];
+		const tokens = this.state.tokens;
+		const selectedAddress = this.config.selectedAddress;
+		const newTokens = { ...tokens, ...{ [selectedAddress]: addressTokens } };
 		this.update({ tokens: newTokens });
 		return newTokens;
 	}
@@ -168,9 +170,11 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	removeToken(address: string) {
 		address = toChecksumAddress(address);
-		const oldTokens = this.state.tokens;
-		const tokens = oldTokens.filter((token) => token.address !== address);
-		this.update({ tokens });
+		const oldTokens = this.tokens;
+		const addressTokens = oldTokens.filter((token) => token.address !== address);
+		const tokens = this.state.tokens;
+		const selectedAddress = this.config.selectedAddress;
+		this.update({ tokens: { ...tokens, ...{ [selectedAddress]: addressTokens } } });
 	}
 
 	/**
@@ -227,7 +231,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @returns - Current state tokens
 	 */
 	get tokens(): Token[] {
-		return this.state.tokens;
+		const selectedAddress = this.config.selectedAddress;
+		return this.state.tokens[selectedAddress];
 	}
 
 	/**

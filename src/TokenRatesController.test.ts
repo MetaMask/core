@@ -76,7 +76,8 @@ describe('TokenRatesController', () => {
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([controller, assets, preferences]);
 		assets.addToken('0xfoO', 'FOO', 18);
-		const tokens = controller.context.AssetsController.state.tokens;
+		const selectedAddress = controller.context.AssetsController.config.selectedAddress;
+		const tokens = controller.context.AssetsController.state.tokens[selectedAddress];
 		const found = tokens.filter((token: Token) => token.address === '0xfoO');
 		expect(found.length > 0).toBe(true);
 	});

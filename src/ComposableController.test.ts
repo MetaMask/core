@@ -15,7 +15,7 @@ describe('ComposableController', () => {
 		]);
 		expect(controller.state).toEqual({
 			AddressBookController: { addressBook: [] },
-			AssetsController: { collectibles: [], tokens: [] },
+			AssetsController: { collectibles: [], tokens: { '': [] } },
 			PreferencesController: {
 				featureFlags: {},
 				identities: {},
@@ -41,7 +41,7 @@ describe('ComposableController', () => {
 			identities: {},
 			lostIdentities: {},
 			selectedAddress: '',
-			tokens: []
+			tokens: { '': [] }
 		});
 	});
 
@@ -64,7 +64,7 @@ describe('ComposableController', () => {
 			identities: {},
 			lostIdentities: {},
 			selectedAddress: '',
-			tokens: []
+			tokens: { '': [] }
 		});
 	});
 

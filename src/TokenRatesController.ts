@@ -122,8 +122,8 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	onComposed() {
 		super.onComposed();
 		const assets = this.context.AssetsController as AssetsController;
-		assets.subscribe(({ tokens }) => {
-			this.configure({ tokens });
+		assets.subscribe(() => {
+			this.configure({ tokens: assets.tokens });
 		});
 	}
 

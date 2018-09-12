@@ -15,19 +15,19 @@ describe('AssetsController', () => {
 	it('should set default state', () => {
 		expect(assetsController.state).toEqual({
 			collectibles: [],
-			tokens: []
+			tokens: { '': [] }
 		});
 	});
 
 	it('should add token', () => {
 		assetsController.addToken('foo', 'bar', 2);
-		expect(assetsController.state.tokens[0]).toEqual({
+		expect(assetsController.tokens[0]).toEqual({
 			address: '0xfoO',
 			decimals: 2,
 			symbol: 'bar'
 		});
 		assetsController.addToken('foo', 'baz', 2);
-		expect(assetsController.state.tokens[0]).toEqual({
+		expect(assetsController.tokens[0]).toEqual({
 			address: '0xfoO',
 			decimals: 2,
 			symbol: 'baz'
@@ -37,13 +37,13 @@ describe('AssetsController', () => {
 	it('should remove token', () => {
 		assetsController.addToken('foo', 'bar', 2);
 		assetsController.removeToken('foo');
-		expect(assetsController.state.tokens.length).toBe(0);
+		expect(assetsController.tokens.length).toBe(0);
 	});
 
 	it('should remove collectible', async () => {
 		await assetsController.addCollectible('0xfoO', 1234);
 		assetsController.removeCollectible('0xfoO', 1234);
-		expect(assetsController.state.tokens.length).toBe(0);
+		expect(assetsController.state.collectibles.length).toBe(0);
 	});
 
 	it('should add collectible', async () => {
