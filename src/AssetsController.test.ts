@@ -14,20 +14,21 @@ describe('AssetsController', () => {
 
 	it('should set default state', () => {
 		expect(assetsController.state).toEqual({
+			allTokens: {},
 			collectibles: [],
-			tokens: { '': [] }
+			tokens: []
 		});
 	});
 
 	it('should add token', () => {
 		assetsController.addToken('foo', 'bar', 2);
-		expect(assetsController.tokens[0]).toEqual({
+		expect(assetsController.state.tokens[0]).toEqual({
 			address: '0xfoO',
 			decimals: 2,
 			symbol: 'bar'
 		});
 		assetsController.addToken('foo', 'baz', 2);
-		expect(assetsController.tokens[0]).toEqual({
+		expect(assetsController.state.tokens[0]).toEqual({
 			address: '0xfoO',
 			decimals: 2,
 			symbol: 'baz'
@@ -43,9 +44,9 @@ describe('AssetsController', () => {
 		preferences.update({ selectedAddress: firstAddress });
 		assetsController.addToken('foo', 'bar', 2);
 		preferences.update({ selectedAddress: secondAddress });
-		expect(assetsController.tokens.length).toEqual(0);
+		expect(assetsController.state.tokens.length).toEqual(0);
 		preferences.update({ selectedAddress: firstAddress });
-		expect(assetsController.tokens[0]).toEqual({
+		expect(assetsController.state.tokens[0]).toEqual({
 			address: '0xfoO',
 			decimals: 2,
 			symbol: 'bar'
@@ -54,8 +55,8 @@ describe('AssetsController', () => {
 
 	it('should remove token', () => {
 		assetsController.addToken('foo', 'bar', 2);
-		assetsController.removeToken('foo');
-		expect(assetsController.tokens.length).toBe(0);
+		assetsController.removeToken('0xfoO');
+		expect(assetsController.state.tokens.length).toBe(0);
 	});
 
 	it('should remove token by selected address', () => {
@@ -69,9 +70,9 @@ describe('AssetsController', () => {
 		preferences.update({ selectedAddress: secondAddress });
 		assetsController.addToken('foo', 'bar', 2);
 		assetsController.removeToken('0xfoO');
-		expect(assetsController.tokens.length).toEqual(0);
+		expect(assetsController.state.tokens.length).toEqual(0);
 		preferences.update({ selectedAddress: firstAddress });
-		expect(assetsController.tokens[0]).toEqual({
+		expect(assetsController.state.tokens[0]).toEqual({
 			address: '0xFOu',
 			decimals: 2,
 			symbol: 'baz'
@@ -132,7 +133,7 @@ describe('AssetsController', () => {
 		stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
 		await assetsController.addCollectible('foo', 1234);
 		assetsController.addToken('foo', 'bar', 2);
-		expect(assetsController.tokens).toEqual(TOKENS);
+		expect(assetsController.state.tokens).toEqual(TOKENS);
 		expect(assetsController.collectibles).toEqual(COLLECTIBLES);
 	});
 });

@@ -15,7 +15,7 @@ describe('ComposableController', () => {
 		]);
 		expect(controller.state).toEqual({
 			AddressBookController: { addressBook: [] },
-			AssetsController: { collectibles: [], tokens: { '': [] } },
+			AssetsController: { allTokens: {}, collectibles: [], tokens: [] },
 			PreferencesController: {
 				featureFlags: {},
 				identities: {},
@@ -35,13 +35,14 @@ describe('ComposableController', () => {
 		]);
 		expect(controller.flatState).toEqual({
 			addressBook: [],
+			allTokens: {},
 			collectibles: [],
 			contractExchangeRates: {},
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
 			selectedAddress: '',
-			tokens: { '': [] }
+			tokens: []
 		});
 	});
 
@@ -58,13 +59,14 @@ describe('ComposableController', () => {
 		addressContext.set('1337', 'foo');
 		expect(controller.flatState).toEqual({
 			addressBook: [{ address: '1337', name: 'foo' }],
+			allTokens: {},
 			collectibles: [],
 			contractExchangeRates: {},
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
 			selectedAddress: '',
-			tokens: { '': [] }
+			tokens: []
 		});
 	});
 

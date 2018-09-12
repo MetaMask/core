@@ -123,7 +123,7 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 		super.onComposed();
 		const assets = this.context.AssetsController as AssetsController;
 		assets.subscribe(() => {
-			this.configure({ tokens: assets.tokens });
+			this.configure({ tokens: assets.state.tokens });
 		});
 	}
 
