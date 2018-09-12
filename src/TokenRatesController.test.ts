@@ -1,6 +1,5 @@
 import { stub } from 'sinon';
 import ComposableController from './ComposableController';
-import PreferencesController from './PreferencesController';
 import TokenRatesController, { Token } from './TokenRatesController';
 import { AssetsController } from './AssetsController';
 
