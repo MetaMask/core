@@ -4,18 +4,24 @@ import ComposableController from './ComposableController';
 import PreferencesController from './PreferencesController';
 import TokenRatesController from './TokenRatesController';
 import { AssetsController } from './AssetsController';
+import { NetworkController } from './NetworkController';
 
 describe('ComposableController', () => {
 	it('should compose controller state', () => {
 		const controller = new ComposableController([
 			new AddressBookController(),
 			new AssetsController(),
+			new NetworkController(),
 			new PreferencesController(),
 			new TokenRatesController()
 		]);
 		expect(controller.state).toEqual({
 			AddressBookController: { addressBook: [] },
 			AssetsController: { allTokens: {}, allCollectibles: {}, collectibles: [], tokens: [] },
+			NetworkController: {
+				network: 'loading',
+				provider: { type: 'rinkeby' }
+			},
 			PreferencesController: {
 				featureFlags: {},
 				identities: {},
@@ -30,6 +36,7 @@ describe('ComposableController', () => {
 		const controller = new ComposableController([
 			new AddressBookController(),
 			new AssetsController(),
+			new NetworkController(),
 			new PreferencesController(),
 			new TokenRatesController()
 		]);
@@ -42,6 +49,8 @@ describe('ComposableController', () => {
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
+			network: 'loading',
+			provider: { type: 'rinkeby' },
 			selectedAddress: '',
 			tokens: []
 		});
@@ -51,6 +60,7 @@ describe('ComposableController', () => {
 		const controller = new ComposableController([
 			new AddressBookController(),
 			new AssetsController(),
+			new NetworkController(),
 			new PreferencesController(),
 			new TokenRatesController()
 		]);
@@ -67,6 +77,8 @@ describe('ComposableController', () => {
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
+			network: 'loading',
+			provider: { type: 'rinkeby' },
 			selectedAddress: '',
 			tokens: []
 		});

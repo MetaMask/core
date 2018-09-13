@@ -3,6 +3,7 @@ import ComposableController from './ComposableController';
 import TokenRatesController, { Token } from './TokenRatesController';
 import { AssetsController } from './AssetsController';
 import { PreferencesController } from './PreferencesController';
+import { NetworkController } from './NetworkController';
 
 describe('TokenRatesController', () => {
 	it('should set default state', () => {
@@ -72,9 +73,10 @@ describe('TokenRatesController', () => {
 	it('should subscribe to new sibling assets controllers', async () => {
 		const assets = new AssetsController();
 		const controller = new TokenRatesController();
+		const network = new NetworkController();
 		const preferences = new PreferencesController();
 		/* tslint:disable-next-line:no-unused-expression */
-		new ComposableController([controller, assets, preferences]);
+		new ComposableController([controller, assets, network, preferences]);
 		assets.addToken('0xfoO', 'FOO', 18);
 		const tokens = controller.context.AssetsController.state.tokens;
 		const found = tokens.filter((token: Token) => token.address === '0xfoO');
