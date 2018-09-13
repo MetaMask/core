@@ -14,7 +14,9 @@
   "jest": {
     "moduleFileExtensions": [
       "js",
-      "ts"
+      "ts",
+      "json",
+      "node"
     ],
     "transform": {
       "^.+\\.tsx?$": "ts-jest"
@@ -79,6 +81,7 @@
     "ethereumjs-util": "^5.2.0",
     "ethereumjs-wallet": "0.6.0",
     "ethjs-query": "^0.3.8",
+    "human-standard-token-abi": "^2.0.0",
     "percentile": "^1.2.1",
     "web3": "^1.0.0-beta.36",
     "web3-provider-engine": "^14.0.5"

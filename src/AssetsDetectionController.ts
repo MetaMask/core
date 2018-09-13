@@ -4,8 +4,9 @@ import AssetsController, { Collectible } from './AssetsController';
 import NetworkController from './NetworkController';
 import PreferencesController from './PreferencesController';
 import { safelyExecute } from './util';
+
 const contractMap = require('eth-contract-metadata');
-const { toChecksumAddress } = require('ethereumjs-util');
+const abiERC20 = require('human-standard-token-abi');
 import Web3 = require('web3');
 import { Token } from './TokenRatesController';
 
@@ -20,6 +21,7 @@ const MAINNET = 'mainnet';
  * @property collectibles - List of collectibles associated with the active vault
  * @property interval - Polling interval used to fetch new token rates
  * @property networkType - Network ID as per net_version
+ * @property provider - Provider used to create a new web3 instance
  * @property selectedAddress - Vault selected address
  * @property tokens - List of tokens associated with the active vault
  */
@@ -28,6 +30,7 @@ export interface AssetsDetectionConfig extends BaseConfig {
 	interval: number;
 	networkType: string;
 	selectedAddress: string;
+	provider: any;
 	tokens: Token[];
 }
 
@@ -36,6 +39,7 @@ export interface AssetsDetectionConfig extends BaseConfig {
  */
 export class AssetsDetectionController extends BaseController<AssetsDetectionConfig, BaseState> {
 	private handle?: NodeJS.Timer;
+	private web3: any;
 
 	/**
 	 * Name of this controller used during composition
@@ -59,6 +63,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			collectibles: [],
 			interval: DEFAULT_INTERVAL,
 			networkType: '',
+			provider: undefined,
 			selectedAddress: '',
 			tokens: []
 		};
@@ -78,6 +83,18 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		}, interval);
 	}
 
+	/**
+	 * Sets a new provider
+	 *
+	 * @property provider - Provider used to create a new underlying EthQuery instance
+	 */
+	set provider(provider: any) {
+		this.web3 = new Web3(provider);
+	}
+
+	/**
+	 * Detect assets owned by current account on mainnet
+	 */
 	async detectAssets() {
 		if (this.config.networkType !== MAINNET) {
 			return;
@@ -86,21 +103,59 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		this.detectCollectibles();
 	}
 
-	async detectTokens() {
+	/**
+	 * For each token that is not owned by current account on mainnet
+	 * trigger balance detection for it
+	 */
+	detectTokens() {
 		const tokensAddresses = this.config.tokens.filter((token) => token.address);
 		for (const contractAddress in contractMap) {
 			const contract = contractMap[contractAddress];
 			if (contract.erc20 && !(contractAddress in tokensAddresses)) {
-				this.detectTokenBalance();
+				this.detectTokenBalance(contractAddress);
 			}
 		}
 	}
 
-	async detectTokenBalance() {
-		return;
+	/**
+	 * Detect balance of current account in token contract
+	 */
+	detectTokenBalance(contractAddress: string) {
+		const selectedAddress = this.config.selectedAddress;
+		const contract = new this.web3.eth.Contract(abiERC20, contractAddress);
+		/* istanbul ignore next */
+		contract.methods
+			.balanceOf(selectedAddress)
+			.call()
+			.then((res: any) => {
+				if (!res.isZero()) {
+					const assets = this.context.AssetsController as AssetsController;
+					assets.addToken(
+						contractAddress,
+						contractMap[contractAddress].symbol,
+						contractMap[contractAddress].decimals
+					);
+				}
+			});
 	}
 
+	/**
+	 * For each collectible contract checks if there are new collectibles owned
+	 * by current account on mainnet, triggering ownership detection for each contract
+	 */
 	async detectCollectibles() {
+		for (const contractAddress in contractMap) {
+			const contract = contractMap[contractAddress];
+			if (contract.erc721) {
+				this.detectCollectibleOwnership();
+			}
+		}
+	}
+
+	/**
+	 * Detect new collectibles owned by current account in collectible contract
+	 */
+	async detectCollectibleOwnership() {
 		return;
 	}
 
@@ -114,7 +169,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		const network = this.context.NetworkController as NetworkController;
 		const assets = this.context.AssetsController as AssetsController;
 		assets.subscribe(({ collectibles, tokens }) => {
-			this.config({ collectibles, tokens });
+			this.configure({ collectibles, tokens });
 		});
 		preferences.subscribe(({ selectedAddress }) => {
 			this.configure({ selectedAddress, interval: DEFAULT_INTERVAL });
@@ -122,7 +177,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		});
 		network.subscribe(({ provider }) => {
 			const networkType = provider.type;
-			this.configure({ networkType, interval: DEFAULT_INTERVAL });
+			this.configure({ provider, networkType, interval: DEFAULT_INTERVAL });
 			this.detectAssets();
 		});
 	}
