@@ -1,8 +1,8 @@
 import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import PreferencesController from './PreferencesController';
+import NetworkController from './NetworkController';
 import { Token } from './TokenRatesController';
-import { NetworkController } from './NetworkController';
 
 const contractMap = require('eth-contract-metadata');
 const { toChecksumAddress } = require('ethereumjs-util');
@@ -55,6 +55,8 @@ export interface AssetsConfig extends BaseConfig {
  *
  * Assets controller state
  *
+ * @property allTokens - Object containing tokens per account and network
+ * @property allCollectibles - Object containing collectibles per account and network
  * @property collectibles - List of collectibles associated with the active vault
  * @property tokens - List of tokens associated with the active vault
  */
