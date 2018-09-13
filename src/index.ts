@@ -3,6 +3,7 @@ import * as util from './util';
 export * from './AccountTrackerController';
 export * from './AddressBookController';
 export * from './AssetsController';
+export * from './AssetsDetectionController';
 export * from './BaseController';
 export * from './BlockHistoryController';
 export * from './ComposableController';
