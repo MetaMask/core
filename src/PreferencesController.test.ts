@@ -7,8 +7,7 @@ describe('PreferencesController', () => {
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
-			selectedAddress: '',
-			tokens: []
+			selectedAddress: ''
 		});
 	});
 
@@ -24,22 +23,6 @@ describe('PreferencesController', () => {
 		});
 	});
 
-	it('should add token', () => {
-		const controller = new PreferencesController();
-		controller.addToken('foo', 'bar', 2);
-		expect(controller.state.tokens[0]).toEqual({
-			address: '0xfoO',
-			decimals: 2,
-			symbol: 'bar'
-		});
-		controller.addToken('foo', 'baz', 2);
-		expect(controller.state.tokens[0]).toEqual({
-			address: '0xfoO',
-			decimals: 2,
-			symbol: 'baz'
-		});
-	});
-
 	it('should remove identity', () => {
 		const controller = new PreferencesController();
 		controller.addIdentities(['foo', 'bar', 'baz']);
@@ -49,13 +32,6 @@ describe('PreferencesController', () => {
 		controller.removeIdentity('foo');
 		expect(typeof controller.state.identities['0xfoO']).toBe('undefined');
 		expect(controller.state.selectedAddress).toBe('0xbar');
-	});
-
-	it('should remove token', () => {
-		const controller = new PreferencesController();
-		controller.addToken('foo', 'bar', 2);
-		controller.removeToken('foo');
-		expect(controller.state.tokens.length).toBe(0);
 	});
 
 	it('should set identity label', () => {

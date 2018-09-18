@@ -3,22 +3,30 @@ import AddressBookController from './AddressBookController';
 import ComposableController from './ComposableController';
 import PreferencesController from './PreferencesController';
 import TokenRatesController from './TokenRatesController';
+import { AssetsController } from './AssetsController';
+import { NetworkController } from './NetworkController';
 
 describe('ComposableController', () => {
 	it('should compose controller state', () => {
 		const controller = new ComposableController([
 			new AddressBookController(),
+			new AssetsController(),
+			new NetworkController(),
 			new PreferencesController(),
 			new TokenRatesController()
 		]);
 		expect(controller.state).toEqual({
 			AddressBookController: { addressBook: [] },
+			AssetsController: { allTokens: {}, allCollectibles: {}, collectibles: [], tokens: [] },
+			NetworkController: {
+				network: 'loading',
+				provider: { type: 'rinkeby' }
+			},
 			PreferencesController: {
 				featureFlags: {},
 				identities: {},
 				lostIdentities: {},
-				selectedAddress: '',
-				tokens: []
+				selectedAddress: ''
 			},
 			TokenRatesController: { contractExchangeRates: {} }
 		});
@@ -27,15 +35,22 @@ describe('ComposableController', () => {
 	it('should compose flat controller state', () => {
 		const controller = new ComposableController([
 			new AddressBookController(),
+			new AssetsController(),
+			new NetworkController(),
 			new PreferencesController(),
 			new TokenRatesController()
 		]);
 		expect(controller.flatState).toEqual({
 			addressBook: [],
+			allCollectibles: {},
+			allTokens: {},
+			collectibles: [],
 			contractExchangeRates: {},
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
+			network: 'loading',
+			provider: { type: 'rinkeby' },
 			selectedAddress: '',
 			tokens: []
 		});
@@ -44,6 +59,8 @@ describe('ComposableController', () => {
 	it('should expose sibling context', () => {
 		const controller = new ComposableController([
 			new AddressBookController(),
+			new AssetsController(),
+			new NetworkController(),
 			new PreferencesController(),
 			new TokenRatesController()
 		]);
@@ -53,10 +70,15 @@ describe('ComposableController', () => {
 		addressContext.set('1337', 'foo');
 		expect(controller.flatState).toEqual({
 			addressBook: [{ address: '1337', name: 'foo' }],
+			allCollectibles: {},
+			allTokens: {},
+			collectibles: [],
 			contractExchangeRates: {},
 			featureFlags: {},
 			identities: {},
 			lostIdentities: {},
+			network: 'loading',
+			provider: { type: 'rinkeby' },
 			selectedAddress: '',
 			tokens: []
 		});
