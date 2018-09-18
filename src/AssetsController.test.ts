@@ -124,7 +124,7 @@ describe('AssetsController', () => {
 	});
 
 	it('should add collectible', async () => {
-		stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		await assetsController.addCollectible('foo', 1234);
 		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0xfoO',
@@ -139,7 +139,7 @@ describe('AssetsController', () => {
 		const network = new NetworkController();
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
-		stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assetsController, network, preferences]);
 		preferences.update({ selectedAddress: firstAddress });
@@ -160,7 +160,7 @@ describe('AssetsController', () => {
 		const network = new NetworkController();
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
-		stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assetsController, network, preferences]);
 		network.update({ provider: { type: firstNetworkType } });
@@ -177,7 +177,7 @@ describe('AssetsController', () => {
 	});
 
 	it('should remove collectible', () => {
-		stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		assetsController.addCollectible('0xfoO', 1234);
 		assetsController.removeCollectible('0xfoO', 1234);
 		expect(assetsController.state.collectibles.length).toBe(0);
@@ -186,7 +186,7 @@ describe('AssetsController', () => {
 	it('should remove collectible by selected address', async () => {
 		const preferences = new PreferencesController();
 		const network = new NetworkController();
-		stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
 		/* tslint:disable-next-line:no-unused-expression */
@@ -209,7 +209,7 @@ describe('AssetsController', () => {
 	it('should remove collectible by provider type', async () => {
 		const preferences = new PreferencesController();
 		const network = new NetworkController();
-		stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
 		/* tslint:disable-next-line:no-unused-expression */
@@ -231,27 +231,30 @@ describe('AssetsController', () => {
 	});
 
 	it('should not add duplicated collectible', async () => {
-		const func = stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		const func = stub(assetsController, 'requestNFTCustomInformation' as any).returns({
+			image: 'url',
+			name: 'name'
+		});
 		await assetsController.addCollectible('foo', 1234);
 		await assetsController.addCollectible('foo', 1234);
 		expect(assetsController.state.collectibles.length).toEqual(1);
 		func.restore();
 	});
 
-	it('should request collectible custom data if address in contract metadata', async () => {
-		expect(
-			await assetsController.requestNFTCustomInformation('0x06012c8cf97BEaD5deAe237070F9587f8E7A266d', 740632)
-		).not.toEqual({
+	it('should request collectible default data and handle on adding collectible', async () => {
+		await assetsController.addCollectible('0x06012c8cf97BEaD5deAe237070F9587f8E7A266d', 740632);
+		expect(assetsController.state.collectibles[0]).not.toEqual({
+			address: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
 			image: '',
-			name: ''
+			name: '',
+			tokenId: 740632
 		});
-	});
-
-	it('should request collectible default data if address not in contract metadata', async () => {
-		const { name, image } = await assetsController.requestNFTCustomInformation('foo', 1);
-		expect({ name, image }).toEqual({
+		await assetsController.addCollectible('foo', 1);
+		expect(assetsController.state.collectibles[1]).toEqual({
+			address: '0xfoO',
 			image: '',
-			name: ''
+			name: '',
+			tokenId: 1
 		});
 	});
 
@@ -269,7 +272,7 @@ describe('AssetsController', () => {
 	});
 
 	it('should return correct assets state', async () => {
-		stub(assetsController, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		await assetsController.addCollectible('foo', 1234);
 		assetsController.addToken('foo', 'bar', 2);
 		expect(assetsController.state.tokens).toEqual(TOKENS);
