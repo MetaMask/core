@@ -1,8 +1,8 @@
 import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import PreferencesController from './PreferencesController';
+import NetworkController, { NetworkType } from './NetworkController';
 import { Token } from './TokenRatesController';
-import { NetworkController } from './NetworkController';
 
 const contractMap = require('eth-contract-metadata');
 const { toChecksumAddress } = require('ethereumjs-util');
@@ -46,7 +46,7 @@ export interface CollectibleCustomInformation {
  * @property selectedAddress - Vault selected address
  */
 export interface AssetsConfig extends BaseConfig {
-	networkType: string;
+	networkType: NetworkType;
 	selectedAddress: string;
 }
 
@@ -55,6 +55,8 @@ export interface AssetsConfig extends BaseConfig {
  *
  * Assets controller state
  *
+ * @property allTokens - Object containing tokens per account and network
+ * @property allCollectibles - Object containing collectibles per account and network
  * @property collectibles - List of collectibles associated with the active vault
  * @property tokens - List of tokens associated with the active vault
  */
@@ -71,6 +73,45 @@ export interface AssetsState extends BaseState {
 export class AssetsController extends BaseController<AssetsConfig, AssetsState> {
 	private getCollectibleApi(api: string, tokenId: number): string {
 		return `${api}${tokenId}`;
+	}
+
+	/**
+	 * Request NFT custom information, name and image url
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @param tokenId - The NFT identifier
+	 * @returns - Promise resolving to the current collectible name and image
+	 */
+	private async requestNFTCustomInformation(address: string, tokenId: number): Promise<CollectibleCustomInformation> {
+		if (address in contractMap && contractMap[address].erc721) {
+			const contract = contractMap[address];
+			const api = contract.api;
+			const { name, image } = await this.fetchCollectibleBasicInformation(api, tokenId);
+			return { name, image };
+		} else {
+			return { name: '', image: '' };
+		}
+	}
+
+	/**
+	 * Fetch NFT basic information, name and image url
+	 *
+	 * @param api - API url to fetch custom collectible information
+	 * @param tokenId - The NFT identifier
+	 * @returns - Promise resolving to the current collectible name and image
+	 */
+	private async fetchCollectibleBasicInformation(
+		api: string,
+		tokenId: number
+	): Promise<CollectibleCustomInformation> {
+		try {
+			const response = await fetch(this.getCollectibleApi(api, tokenId));
+			const json = await response.json();
+			return { image: json.image_url, name: json.name };
+		} catch (error) {
+			/* istanbul ignore next */
+			return { image: '', name: '' };
+		}
 	}
 
 	/**
@@ -92,7 +133,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	constructor(config?: Partial<BaseConfig>, state?: Partial<AssetsState>) {
 		super(config, state);
 		this.defaultConfig = {
-			networkType: '',
+			networkType: 'rinkeby',
 			selectedAddress: ''
 		};
 		this.defaultState = {
@@ -114,10 +155,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	addToken(address: string, symbol: string, decimals: number) {
 		address = toChecksumAddress(address);
-		const tokens = this.state.tokens;
-		const allTokens = this.state.allTokens;
-		const selectedAddress = this.config.selectedAddress;
-		const networkType = this.config.networkType;
+		const { allTokens, tokens } = this.state;
+		const { networkType, selectedAddress } = this.config;
 		const newEntry: Token = { address, symbol, decimals };
 		const previousEntry = tokens.find((token) => token.address === address);
 		if (previousEntry) {
@@ -139,14 +178,12 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 *
 	 * @param address - Hex address of the collectible contract
 	 * @param tokenId - The NFT identifier
-	 * @returns - Current collectible list
+	 * @returns - Promise resolving to the current collectible list
 	 */
 	async addCollectible(address: string, tokenId: number): Promise<Collectible[]> {
 		address = toChecksumAddress(address);
-		const collectibles = this.state.collectibles;
-		const allCollectibles = this.state.allCollectibles;
-		const selectedAddress = this.config.selectedAddress;
-		const networkType = this.config.networkType;
+		const { allCollectibles, collectibles } = this.state;
+		const { networkType, selectedAddress } = this.config;
 		const existingEntry = collectibles.find(
 			(collectible) => collectible.address === address && collectible.tokenId === tokenId
 		);
@@ -170,11 +207,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	removeToken(address: string) {
 		address = toChecksumAddress(address);
-		const oldTokens = this.state.tokens;
-		const allTokens = this.state.allTokens;
-		const selectedAddress = this.config.selectedAddress;
-		const networkType = this.config.networkType;
-		const newTokens = oldTokens.filter((token) => token.address !== address);
+		const { allTokens, tokens } = this.state;
+		const { networkType, selectedAddress } = this.config;
+		const newTokens = tokens.filter((token) => token.address !== address);
 		const addressTokens = allTokens[selectedAddress];
 		const newAddressTokens = { ...addressTokens, ...{ [networkType]: newTokens } };
 		const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newAddressTokens } };
@@ -189,53 +224,15 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	removeCollectible(address: string, tokenId: number) {
 		address = toChecksumAddress(address);
-		const oldCollectibles = this.state.collectibles;
-		const allCollectibles = this.state.allCollectibles;
-		const selectedAddress = this.config.selectedAddress;
-		const networkType = this.config.networkType;
-		const newCollectibles = oldCollectibles.filter(
+		const { allCollectibles, collectibles } = this.state;
+		const { networkType, selectedAddress } = this.config;
+		const newCollectibles = collectibles.filter(
 			(collectible) => !(collectible.address === address && collectible.tokenId === tokenId)
 		);
 		const addressCollectibles = allCollectibles[selectedAddress];
 		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
 		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
 		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
-	}
-
-	/**
-	 * Request NFT custom information of a collectible
-	 *
-	 * @param address - Hex address of the collectible contract
-	 * @param tokenId - The NFT identifier
-	 * @returns - Current collectible name and image
-	 */
-	async requestNFTCustomInformation(address: string, tokenId: number): Promise<CollectibleCustomInformation> {
-		if (address in contractMap && contractMap[address].erc721) {
-			const contract = contractMap[address];
-			const api = contract.api;
-			const { name, image } = await this.fetchCollectibleBasicInformation(api, tokenId);
-			return { name, image };
-		} else {
-			return { name: '', image: '' };
-		}
-	}
-
-	/**
-	 * Fetch NFT basic information, name and image url
-	 *
-	 * @param api - API url to fetch custom collectible information
-	 * @param tokenId - The NFT identifier
-	 * @returns - Current collectible name and image
-	 */
-	async fetchCollectibleBasicInformation(api: string, tokenId: number): Promise<CollectibleCustomInformation> {
-		try {
-			const response = await fetch(this.getCollectibleApi(api, tokenId));
-			const json = await response.json();
-			return { image: json.image_url, name: json.name };
-		} catch (error) {
-			/* istanbul ignore next */
-			return { image: '', name: '' };
-		}
 	}
 
 	/**
@@ -247,9 +244,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const preferences = this.context.PreferencesController as PreferencesController;
 		const network = this.context.NetworkController as NetworkController;
 		preferences.subscribe(({ selectedAddress }) => {
-			const allTokens = this.state.allTokens;
-			const allCollectibles = this.state.allCollectibles;
-			const networkType = this.config.networkType;
+			const { allCollectibles, allTokens } = this.state;
+			const { networkType } = this.config;
 			this.configure({ selectedAddress });
 			this.update({
 				collectibles: (allCollectibles[selectedAddress] && allCollectibles[selectedAddress][networkType]) || [],
@@ -257,9 +253,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			});
 		});
 		network.subscribe(({ provider }) => {
-			const allTokens = this.state.allTokens;
-			const allCollectibles = this.state.allCollectibles;
-			const selectedAddress = this.config.selectedAddress;
+			const { allCollectibles, allTokens } = this.state;
+			const { selectedAddress } = this.config;
 			const networkType = provider.type;
 			this.configure({ networkType });
 			this.update({
