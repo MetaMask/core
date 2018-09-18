@@ -76,6 +76,45 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	}
 
 	/**
+	 * Request NFT custom information, name and image url
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @param tokenId - The NFT identifier
+	 * @returns - Promise resolving to the current collectible name and image
+	 */
+	private async requestNFTCustomInformation(address: string, tokenId: number): Promise<CollectibleCustomInformation> {
+		if (address in contractMap && contractMap[address].erc721) {
+			const contract = contractMap[address];
+			const api = contract.api;
+			const { name, image } = await this.fetchCollectibleBasicInformation(api, tokenId);
+			return { name, image };
+		} else {
+			return { name: '', image: '' };
+		}
+	}
+
+	/**
+	 * Fetch NFT basic information, name and image url
+	 *
+	 * @param api - API url to fetch custom collectible information
+	 * @param tokenId - The NFT identifier
+	 * @returns - Promise resolving to the current collectible name and image
+	 */
+	private async fetchCollectibleBasicInformation(
+		api: string,
+		tokenId: number
+	): Promise<CollectibleCustomInformation> {
+		try {
+			const response = await fetch(this.getCollectibleApi(api, tokenId));
+			const json = await response.json();
+			return { image: json.image_url, name: json.name };
+		} catch (error) {
+			/* istanbul ignore next */
+			return { image: '', name: '' };
+		}
+	}
+
+	/**
 	 * Name of this controller used during composition
 	 */
 	name = 'AssetsController';
@@ -139,7 +178,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 *
 	 * @param address - Hex address of the collectible contract
 	 * @param tokenId - The NFT identifier
-	 * @returns - Current collectible list
+	 * @returns - Promise resolving to the current collectible list
 	 */
 	async addCollectible(address: string, tokenId: number): Promise<Collectible[]> {
 		address = toChecksumAddress(address);
@@ -194,42 +233,6 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
 		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
 		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
-	}
-
-	/**
-	 * Request NFT custom information of a collectible
-	 *
-	 * @param address - Hex address of the collectible contract
-	 * @param tokenId - The NFT identifier
-	 * @returns - Current collectible name and image
-	 */
-	async requestNFTCustomInformation(address: string, tokenId: number): Promise<CollectibleCustomInformation> {
-		if (address in contractMap && contractMap[address].erc721) {
-			const contract = contractMap[address];
-			const api = contract.api;
-			const { name, image } = await this.fetchCollectibleBasicInformation(api, tokenId);
-			return { name, image };
-		} else {
-			return { name: '', image: '' };
-		}
-	}
-
-	/**
-	 * Fetch NFT basic information, name and image url
-	 *
-	 * @param api - API url to fetch custom collectible information
-	 * @param tokenId - The NFT identifier
-	 * @returns - Current collectible name and image
-	 */
-	async fetchCollectibleBasicInformation(api: string, tokenId: number): Promise<CollectibleCustomInformation> {
-		try {
-			const response = await fetch(this.getCollectibleApi(api, tokenId));
-			const json = await response.json();
-			return { image: json.image_url, name: json.name };
-		} catch (error) {
-			/* istanbul ignore next */
-			return { image: '', name: '' };
-		}
 	}
 
 	/**
