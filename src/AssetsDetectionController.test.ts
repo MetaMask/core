@@ -92,7 +92,7 @@ describe('AssetsDetectionController', () => {
 		const address = '0x123';
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assets, assetsDetectionController, network, preferences]);
-		sandbox.stub(assets, 'requestNFTCustomInformation').returns({ name: 'name', image: 'url' });
+		sandbox.stub(assets, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		preferences.update({ selectedAddress: address });
 		expect(assetsDetectionController.context.PreferencesController.state.selectedAddress).toEqual(address);
 		network.update({ provider: { type: networkType } });
