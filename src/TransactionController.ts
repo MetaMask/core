@@ -137,36 +137,6 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
 	}
 
-	private async getGas(transactionMeta: TransactionMeta) {
-		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
-		const { gasLimit } = await blockHistory.getLatestBlock();
-		const {
-			transaction: { gas, to, value },
-			transaction
-		} = transactionMeta;
-
-		if (typeof value === 'undefined') {
-			transaction.value = '0x0';
-		}
-
-		if (typeof gas !== 'undefined') {
-			return gas;
-		}
-
-		/* istanbul ignore next */
-		const code = to ? await this.query('getCode', [to]) : undefined;
-		/* istanbul ignore if */
-		if (to && (!code || code === '0x')) {
-			return '0x5208';
-		}
-
-		const gasLimitBN = hexToBN(gasLimit);
-		const saferGasLimitBN = fractionBN(gasLimitBN, 19, 20);
-		transaction.gas = BNToHex(saferGasLimitBN);
-		const gasHex = await this.query('estimateGas', [transaction]);
-		return this.addGasPadding(addHexPrefix(gasHex), gasLimit);
-	}
-
 	private query(method: string, args: any[] = []): Promise<any> {
 		return new Promise((resolve, reject) => {
 			this.ethQuery[method](...args, (error: Error, result: any) => {
@@ -265,7 +235,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 			if (typeof transaction.gasPrice === 'undefined') {
 				transaction.gasPrice = await this.query('gasPrice');
 			}
-			transaction.gas = await this.getGas(transactionMeta);
+			transaction.gas = await this.estimateGas(transaction);
 		} catch (error) {
 			this.failTransaction(transactionMeta, error);
 			return Promise.reject(error);
@@ -348,6 +318,39 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
 		const transactions = this.state.transactions.filter(({ id }) => id !== transactionID);
 		this.update({ transactions });
+	}
+
+	/**
+	 * Estimates required gas for a given transaction
+	 *
+	 * @param transaction - Transaction object to estimate gas for
+	 * @returns - Promise resolving to estimated gas price in hex
+	 */
+	async estimateGas(transaction: Transaction) {
+		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
+		const { gasLimit } = await blockHistory.getLatestBlock();
+		const { gas, to, value } = transaction;
+
+		if (typeof value === 'undefined') {
+			transaction.value = '0x0';
+		}
+
+		if (typeof gas !== 'undefined') {
+			return gas;
+		}
+
+		/* istanbul ignore next */
+		const code = to ? await this.query('getCode', [to]) : undefined;
+		/* istanbul ignore if */
+		if (to && (!code || code === '0x')) {
+			return '0x5208';
+		}
+
+		const gasLimitBN = hexToBN(gasLimit);
+		const saferGasLimitBN = fractionBN(gasLimitBN, 19, 20);
+		transaction.gas = BNToHex(saferGasLimitBN);
+		const gasHex = await this.query('estimateGas', [transaction]);
+		return this.addGasPadding(addHexPrefix(gasHex), gasLimit);
 	}
 
 	/**
