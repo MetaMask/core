@@ -204,10 +204,9 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		};
 
 		try {
-			if (typeof transaction.gasPrice === 'undefined') {
-				transaction.gasPrice = await this.query('gasPrice');
-			}
-			transaction.gas = await this.estimateGas(transaction);
+			const { gas, gasPrice } = await this.estimateGas(transaction);
+			transaction.gas = gas;
+			transaction.gasPrice = gasPrice;
 		} catch (error) {
 			this.failTransaction(transactionMeta, error);
 			return Promise.reject(error);
@@ -297,17 +296,18 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 * Estimates required gas for a given transaction
 	 *
 	 * @param transaction - Transaction object to estimate gas for
-	 * @returns - Promise resolving to estimated gas price in hex
+	 * @returns - Promise resolving to an object containing gas and gasPrice
 	 */
 	async estimateGas(transaction: Transaction) {
 		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
 		const estimatedTransaction = { ...transaction };
 		const { gasLimit } = await blockHistory.getLatestBlock();
-		const { gas, to, value } = estimatedTransaction;
+		const { gas, gasPrice: providedGasPrice, to, value } = estimatedTransaction;
+		const gasPrice = typeof providedGasPrice === 'undefined' ? await this.query('gasPrice') : providedGasPrice;
 
 		// 1. If gas is already defined on the transaction, use it
 		if (typeof gas !== 'undefined') {
-			return gas;
+			return { gas, gasPrice };
 		}
 
 		// 2. If this is not a contract address, use 0x5208 / 21000
@@ -315,7 +315,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const code = to ? await this.query('getCode', [to]) : undefined;
 		/* istanbul ignore next */
 		if (to && (!code || code === '0x')) {
-			return '0x5208';
+			return { gas: '0x5208', gasPrice };
 		}
 
 		// 3. If this is a contract address, safely estimate gas using RPC
@@ -330,13 +330,13 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const paddedGasBN = gasBN.muln(1.5);
 		/* istanbul ignore next */
 		if (gasBN.gt(maxGasBN)) {
-			return addHexPrefix(gasHex);
+			return { gas: addHexPrefix(gasHex), gasPrice };
 		}
 		/* istanbul ignore next */
 		if (paddedGasBN.lt(maxGasBN)) {
-			return addHexPrefix(BNToHex(paddedGasBN));
+			return { gas: addHexPrefix(BNToHex(paddedGasBN)), gasPrice };
 		}
-		return addHexPrefix(BNToHex(maxGasBN));
+		return { gas: addHexPrefix(BNToHex(maxGasBN)), gasPrice };
 	}
 
 	/**
