@@ -7,7 +7,7 @@ import { safelyExecute } from './util';
 
 const contractMap = require('eth-contract-metadata');
 const abiERC20 = require('human-standard-token-abi');
-import Web3 = require('web3');
+const Web3 = require('web3');
 import { Token } from './TokenRatesController';
 
 const DEFAULT_INTERVAL = 18000;
@@ -67,6 +67,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			selectedAddress: '',
 			tokens: []
 		};
+		this.web3 = new Web3();
 		this.initialize();
 	}
 
@@ -89,7 +90,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * @property provider - Provider used to create a new underlying EthQuery instance
 	 */
 	set provider(provider: any) {
-		this.web3 = new Web3(provider);
+		this.web3.setProvider(provider);
 	}
 
 	/**
@@ -122,21 +123,11 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 */
 	detectTokenBalance(contractAddress: string) {
 		const selectedAddress = this.config.selectedAddress;
-		const contract = new this.web3.eth.Contract(abiERC20, contractAddress);
-		/* istanbul ignore next */
-		contract.methods
-			.balanceOf(selectedAddress)
-			.call()
-			.then((res: any) => {
-				if (!res.isZero()) {
-					const assets = this.context.AssetsController as AssetsController;
-					assets.addToken(
-						contractAddress,
-						contractMap[contractAddress].symbol,
-						contractMap[contractAddress].decimals
-					);
-				}
-			});
+		const contract = this.web3.eth.contract(abiERC20).at(contractAddress);
+		contract.balanceOf(selectedAddress, (error: any, result: any) => {
+			/*should add token if balance found */
+			console.log(result, error);
+		});
 	}
 
 	/**

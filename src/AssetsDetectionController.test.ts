@@ -66,6 +66,23 @@ describe('AssetsDetectionController', () => {
 		expect(detectCollectibles.called).toBe(false);
 	});
 
+	it('should  and add tokens on interval when mainnet', () => {
+		const clock = sandbox.useFakeTimers();
+		assetsDetectionController = new AssetsDetectionController({ provider, networkType: 'mainnet' });
+		const assets = new AssetsController();
+		const network = new NetworkController();
+		const preferences = new PreferencesController();
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assets, assetsDetectionController, network, preferences]);
+		preferences.update({ selectedAddress: '0xde01e52811baa6a4a23a9634179ebe8f77b6d89b' });
+		assetsDetectionController.configure({ provider: network.provider });
+		assetsDetectionController.detectTokenBalance('0x0D262e5dC4A06a0F1c90cE79C7a60C09DfC884E4');
+		const detectCollectibles = sandbox.stub(assetsDetectionController, 'detectCollectibles');
+		clock.tick(18001);
+		expect(assets.state.tokens).toEqual([]);
+		expect(detectCollectibles.called).toBe(true);
+	});
+
 	it('should detect and add tokens on interval when mainnet', () => {
 		const clock = sandbox.useFakeTimers();
 		assetsDetectionController = new AssetsDetectionController({ provider, networkType: 'mainnet' });
