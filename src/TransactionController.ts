@@ -1,8 +1,7 @@
 import { EventEmitter } from 'events';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import BlockHistoryController from './BlockHistoryController';
-import NetworkController from './NetworkController';
-import PreferencesController from './PreferencesController';
+import NetworkController, { NetworkState } from './NetworkController';
 import { BNToHex, fractionBN, hexToBN, normalizeTransaction, safelyExecute, validateTransaction } from './util';
 
 const EthQuery = require('eth-query');
@@ -109,24 +108,6 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	private ethQuery: any;
 	private handle?: NodeJS.Timer;
 
-	private addGasPadding(gas: string, gasLimit: string) {
-		const estimatedGas = addHexPrefix(gas);
-		const initialGasLimitBN = hexToBN(estimatedGas);
-		const blockGasLimitBN = hexToBN(gasLimit);
-		const upperGasLimitBN = blockGasLimitBN.muln(0.9);
-		const bufferedGasLimitBN = initialGasLimitBN.muln(1.5);
-
-		/* istanbul ignore if */
-		if (initialGasLimitBN.gt(upperGasLimitBN)) {
-			return BNToHex(initialGasLimitBN);
-		}
-		/* istanbul ignore if */
-		if (bufferedGasLimitBN.lt(upperGasLimitBN)) {
-			return BNToHex(bufferedGasLimitBN);
-		}
-		return BNToHex(upperGasLimitBN);
-	}
-
 	private failTransaction(transactionMeta: TransactionMeta, error: Error) {
 		transactionMeta.status = 'failed';
 		transactionMeta.error = {
@@ -162,7 +143,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
-	requiredControllers = ['BlockHistoryController', 'NetworkController', 'PreferencesController'];
+	requiredControllers = ['BlockHistoryController', 'NetworkController'];
 
 	/**
 	 * Method used to sign transactions
@@ -188,7 +169,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	/**
 	 * Sets a new polling interval
 	 *
-	 * @param interval - Polling interval used to fetch new exchange rate
+	 * @param interval - Polling interval used to fetch new transaction statuses
 	 */
 	set interval(interval: number) {
 		this.handle && clearInterval(this.handle);
@@ -196,15 +177,6 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		this.handle = setInterval(() => {
 			safelyExecute(() => this.queryTransactionStatuses());
 		}, interval);
-	}
-
-	/**
-	 * Sets a new provider
-	 *
-	 * @param provider - Provider used to create a new underlying EthQuery instance
-	 */
-	set provider(provider: any) {
-		this.ethQuery = new EthQuery(provider);
 	}
 
 	/**
@@ -224,7 +196,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 
 		const transactionMeta = {
 			id: random(),
-			networkID: network ? network.state.network : '1',
+			networkID: network ? network.state.network : /* istanbul ignore next */ '1',
 			origin,
 			status: 'unapproved',
 			time: Date.now(),
@@ -272,6 +244,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	async approveTransaction(transactionID: string) {
 		const { transactions } = this.state;
 		const network = this.context.NetworkController as NetworkController;
+		/* istanbul ignore next */
 		const currentNetworkID = network ? network.state.network : '1';
 		const index = transactions.findIndex(({ id }) => transactionID === id);
 		const transactionMeta = transactions[index];
@@ -328,50 +301,69 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 */
 	async estimateGas(transaction: Transaction) {
 		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
+		const estimatedTransaction = { ...transaction };
 		const { gasLimit } = await blockHistory.getLatestBlock();
-		const { gas, to, value } = transaction;
+		const { gas, to, value } = estimatedTransaction;
 
-		if (typeof value === 'undefined') {
-			transaction.value = '0x0';
-		}
-
+		// 1. If gas is already defined on the transaction, use it
 		if (typeof gas !== 'undefined') {
 			return gas;
 		}
 
+		// 2. If this is not a contract address, use 0x5208 / 21000
 		/* istanbul ignore next */
 		const code = to ? await this.query('getCode', [to]) : undefined;
-		/* istanbul ignore if */
+		/* istanbul ignore next */
 		if (to && (!code || code === '0x')) {
 			return '0x5208';
 		}
 
+		// 3. If this is a contract address, safely estimate gas using RPC
+		estimatedTransaction.value = typeof value === 'undefined' ? '0x0' : /* istanbul ignore next */ value;
 		const gasLimitBN = hexToBN(gasLimit);
-		const saferGasLimitBN = fractionBN(gasLimitBN, 19, 20);
-		transaction.gas = BNToHex(saferGasLimitBN);
-		const gasHex = await this.query('estimateGas', [transaction]);
-		return this.addGasPadding(addHexPrefix(gasHex), gasLimit);
+		estimatedTransaction.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
+		const gasHex = await this.query('estimateGas', [estimatedTransaction]);
+
+		// 4. Pad estimated gas without exceeding the most recent block gasLimit
+		const gasBN = hexToBN(gasHex);
+		const maxGasBN = gasLimitBN.muln(0.9);
+		const paddedGasBN = gasBN.muln(1.5);
+		/* istanbul ignore next */
+		if (gasBN.gt(maxGasBN)) {
+			return addHexPrefix(gasHex);
+		}
+		/* istanbul ignore next */
+		if (paddedGasBN.lt(maxGasBN)) {
+			return addHexPrefix(BNToHex(paddedGasBN));
+		}
+		return addHexPrefix(BNToHex(maxGasBN));
 	}
 
 	/**
-	 * Resiliently checks all submitted transactions for confirmations in the past 100
-	 * blocks and updates their state accordingly
+	 * Extension point called if and when this controller is composed
+	 * with other controllers using a ComposableController
+	 */
+	onComposed() {
+		super.onComposed();
+		const network = this.context.NetworkController as NetworkController;
+		const onProviderUpdate = ({ provider }: NetworkState) => {
+			this.ethQuery = provider ? new EthQuery(provider) : /* istanbul ignore next */ null;
+		};
+		onProviderUpdate(network.state);
+		network.subscribe(onProviderUpdate);
+	}
+
+	/**
+	 * Resiliently checks all submitted transactions for confirmations in all
+	 * blocks maintained in a sibling BlockHistoryController
 	 *
 	 * @returns - Promise resolving when this operation completes
 	 */
 	async queryTransactionStatuses() {
 		const { transactions } = this.state;
-
-		const preferences = this.context.PreferencesController as PreferencesController;
-		const selectedAddress = preferences && preferences.state.selectedAddress;
-		if (!selectedAddress) {
-			return;
-		}
-
 		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
 		const network = this.context.NetworkController as NetworkController;
-		/* istanbul ignore next */
-		const currentNetworkID = network ? network.state.network : '1';
+		const currentNetworkID = network.state.network;
 
 		const confirmedHashes = blockHistory.state.recentBlocks
 			.reduce((hashes: string[], block) => {
@@ -403,9 +395,16 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	}
 
 	/**
-	 * Removes all transactions from state based on the current network
+	 * Removes all transactions from state, optionally based on the current network
+	 *
+	 * @param ignoreNetwork - Ignores network
 	 */
-	wipeTransactions() {
+	wipeTransactions(ignoreNetwork?: boolean) {
+		/* istanbul ignore next */
+		if (ignoreNetwork) {
+			this.update({ transactions: [] });
+			return;
+		}
 		const network = this.context.NetworkController as NetworkController;
 		if (!network) {
 			return;

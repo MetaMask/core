@@ -35,9 +35,14 @@ const MOCK_BLOCK_HISTORY = {
 	getLatestBlock: () => ({ gasLimit: '0x0' }),
 	state: { recentBlocks: [{ number: '0x0', transactions: [{ hash: '1337' }] }] }
 };
-const MOCK_NETWORK = { state: { network: '3' } };
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const PROVIDER = new HttpProvider('https://ropsten.infura.io');
+const MOCK_NETWORK = {
+	state: { network: '3', provider: PROVIDER },
+	subscribe: () => {
+		/* eslint-disable-line no-empty */
+	}
+};
 
 describe('TransactionController', () => {
 	beforeEach(() => {
@@ -106,6 +111,7 @@ describe('TransactionController', () => {
 			BlockHistoryController: MOCK_BLOCK_HISTORY,
 			NetworkController: MOCK_NETWORK
 		} as any;
+		controller.onComposed();
 		await controller.addTransaction({
 			from,
 			to: from
@@ -118,7 +124,11 @@ describe('TransactionController', () => {
 	it('should cancel a transaction', () => {
 		return new Promise(async (resolve) => {
 			const controller = new TransactionController({ provider: PROVIDER });
-			controller.context = { BlockHistoryController: MOCK_BLOCK_HISTORY } as any;
+			controller.context = {
+				BlockHistoryController: MOCK_BLOCK_HISTORY,
+				NetworkController: MOCK_NETWORK
+			} as any;
+			controller.onComposed();
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			const { result } = await controller.addTransaction({
 				from,
@@ -144,6 +154,7 @@ describe('TransactionController', () => {
 			BlockHistoryController: MOCK_BLOCK_HISTORY,
 			NetworkController: MOCK_NETWORK
 		} as any;
+		controller.onComposed();
 		const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 		await controller.addTransaction({
 			from,
@@ -161,7 +172,11 @@ describe('TransactionController', () => {
 					throw new Error('foo');
 				}
 			});
-			controller.context = { BlockHistoryController: MOCK_BLOCK_HISTORY } as any;
+			controller.context = {
+				BlockHistoryController: MOCK_BLOCK_HISTORY,
+				NetworkController: MOCK_NETWORK
+			} as any;
+			controller.onComposed();
 			const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
 			const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			const { result } = await controller.addTransaction({ from, to });
@@ -185,6 +200,7 @@ describe('TransactionController', () => {
 				BlockHistoryController: MOCK_BLOCK_HISTORY,
 				NetworkController: MOCK_NETWORK
 			} as any;
+			controller.onComposed();
 			mockFlags.estimateGas = 'Uh oh';
 			try {
 				await controller.addTransaction({
@@ -203,7 +219,11 @@ describe('TransactionController', () => {
 			const controller = new TransactionController({
 				provider: PROVIDER
 			});
-			controller.context = { BlockHistoryController: MOCK_BLOCK_HISTORY } as any;
+			controller.context = {
+				BlockHistoryController: MOCK_BLOCK_HISTORY,
+				NetworkController: MOCK_NETWORK
+			} as any;
+			controller.onComposed();
 			const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
 			const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			const { result } = await controller.addTransaction({ from, to });
@@ -230,6 +250,7 @@ describe('TransactionController', () => {
 				BlockHistoryController: MOCK_BLOCK_HISTORY,
 				NetworkController: MOCK_NETWORK
 			} as any;
+			controller.onComposed();
 			await controller.addTransaction({
 				from,
 				gas: '0x0',
