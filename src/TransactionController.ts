@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import BlockHistoryController from './BlockHistoryController';
-import NetworkController, { NetworkState } from './NetworkController';
+import NetworkController from './NetworkController';
 import { BNToHex, fractionBN, hexToBN, normalizeTransaction, safelyExecute, validateTransaction } from './util';
 
 const EthQuery = require('eth-query');
