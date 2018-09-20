@@ -346,10 +346,10 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	onComposed() {
 		super.onComposed();
 		const network = this.context.NetworkController as NetworkController;
-		const onProviderUpdate = ({ provider }: NetworkState) => {
-			this.ethQuery = provider ? new EthQuery(provider) : /* istanbul ignore next */ null;
+		const onProviderUpdate = () => {
+			this.ethQuery = network.provider ? new EthQuery(network.provider) : /* istanbul ignore next */ null;
 		};
-		onProviderUpdate(network.state);
+		onProviderUpdate();
 		network.subscribe(onProviderUpdate);
 	}
 

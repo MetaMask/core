@@ -38,7 +38,8 @@ const MOCK_BLOCK_HISTORY = {
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const PROVIDER = new HttpProvider('https://ropsten.infura.io');
 const MOCK_NETWORK = {
-	state: { network: '3', provider: PROVIDER },
+	provider: PROVIDER,
+	state: { network: '3' },
 	subscribe: () => {
 		/* eslint-disable-line no-empty */
 	}
