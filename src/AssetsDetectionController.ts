@@ -1,3 +1,4 @@
+const Web3 = require('web3');
 import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import AssetsController, { Collectible } from './AssetsController';
@@ -7,7 +8,6 @@ import { safelyExecute } from './util';
 
 const contractMap = require('eth-contract-metadata');
 const abiERC20 = require('human-standard-token-abi');
-const Web3 = require('web3');
 import { Token } from './TokenRatesController';
 
 const DEFAULT_INTERVAL = 180000;
@@ -89,6 +89,8 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * @property provider - Provider used to create a new underlying EthQuery instance
 	 */
 	set provider(provider: any) {
+		/* https://github.com/ethereum/web3.js/issues/1119 */
+		Web3.providers.HttpProvider.prototype.sendAsync = Web3.providers.HttpProvider.prototype.send;
 		this.web3 = new Web3(provider);
 	}
 
@@ -121,6 +123,9 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * Detect balance of current account in token contract
 	 */
 	async detectTokenBalance(contractAddress: string) {
+		if (!this.web3) {
+			return;
+		}
 		const selectedAddress = this.config.selectedAddress;
 		const contract = this.web3.eth.contract(abiERC20).at(contractAddress);
 		const assetsController = this.context.AssetsController as AssetsController;
