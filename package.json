@@ -83,11 +83,7 @@
     "ethjs-query": "^0.3.8",
     "human-standard-token-abi": "^2.0.0",
     "percentile": "^1.2.1",
-    "web3-provider-engine": "^14.0.5",
-    "web3-typescript-typings": "^0.10.2"
-  },
-  "peerDependencies": {
-    "web3": "^0.20.1"
-  },
-  "postinstall": "rm -f node_modules/web3/index.d.ts"
+    "web3": "^0.20.7",
+    "web3-provider-engine": "^14.0.5"
+  }
 }

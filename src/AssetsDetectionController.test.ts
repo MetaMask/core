@@ -4,11 +4,10 @@ import { NetworkController } from './NetworkController';
 import { PreferencesController } from './PreferencesController';
 import { ComposableController } from './ComposableController';
 import { AssetsController } from './AssetsController';
-
-const DEFAULT_INTERVAL = 18000;
 const HttpProvider = require('ethjs-provider-http');
-const provider = new HttpProvider('https://ropsten.infura.io');
 
+const DEFAULT_INTERVAL = 180000;
+const PROVIDER = new HttpProvider('https://ropsten.infura.io');
 const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
 const COLLECTIBLES = [{ address: '0xfoO', image: 'url', name: 'name', tokenId: 1234 }];
 
@@ -17,7 +16,7 @@ describe('AssetsDetectionController', () => {
 	const sandbox = createSandbox();
 
 	beforeEach(() => {
-		assetsDetectionController = new AssetsDetectionController({ provider });
+		assetsDetectionController = new AssetsDetectionController({ provider: PROVIDER });
 	});
 
 	afterEach(() => {
@@ -43,7 +42,6 @@ describe('AssetsDetectionController', () => {
 		/* tslint:disable-next-line:no-unused-expression */
 		new AssetsDetectionController({ interval: 1337 });
 		expect(func.getCall(0).args[1]).toBe(1337);
-		func.restore();
 	});
 
 	it('should detect assets on interval when mainnet', () => {
@@ -51,7 +49,7 @@ describe('AssetsDetectionController', () => {
 		assetsDetectionController = new AssetsDetectionController({ networkType: 'mainnet' });
 		const detectTokens = sandbox.stub(assetsDetectionController, 'detectTokens').returns(null);
 		const detectCollectibles = sandbox.stub(assetsDetectionController, 'detectCollectibles').returns(null);
-		clock.tick(18001);
+		clock.tick(180001);
 		expect(detectTokens.called).toBe(true);
 		expect(detectCollectibles.called).toBe(true);
 	});
@@ -61,31 +59,31 @@ describe('AssetsDetectionController', () => {
 		assetsDetectionController = new AssetsDetectionController({ networkType: 'rinkeby' });
 		const detectTokens = sandbox.stub(assetsDetectionController, 'detectTokens').returns(null);
 		const detectCollectibles = sandbox.stub(assetsDetectionController, 'detectCollectibles').returns(null);
-		clock.tick(18001);
+		clock.tick(180001);
 		expect(detectTokens.called).toBe(false);
 		expect(detectCollectibles.called).toBe(false);
 	});
 
 	it('should  and add tokens on interval when mainnet', () => {
 		const clock = sandbox.useFakeTimers();
-		assetsDetectionController = new AssetsDetectionController({ provider, networkType: 'mainnet' });
+		assetsDetectionController = new AssetsDetectionController({ provider: PROVIDER, networkType: 'mainnet' });
 		const assets = new AssetsController();
 		const network = new NetworkController();
 		const preferences = new PreferencesController();
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assets, assetsDetectionController, network, preferences]);
 		preferences.update({ selectedAddress: '0xde01e52811baa6a4a23a9634179ebe8f77b6d89b' });
-		assetsDetectionController.configure({ provider: network.provider });
+		assetsDetectionController.configure({ provider: PROVIDER });
 		assetsDetectionController.detectTokenBalance('0x0D262e5dC4A06a0F1c90cE79C7a60C09DfC884E4');
 		const detectCollectibles = sandbox.stub(assetsDetectionController, 'detectCollectibles');
-		clock.tick(18001);
+		clock.tick(180001);
 		expect(assets.state.tokens).toEqual([]);
 		expect(detectCollectibles.called).toBe(true);
 	});
 
 	it('should detect and add tokens on interval when mainnet', () => {
 		const clock = sandbox.useFakeTimers();
-		assetsDetectionController = new AssetsDetectionController({ provider, networkType: 'mainnet' });
+		assetsDetectionController = new AssetsDetectionController({ provider: PROVIDER, networkType: 'mainnet' });
 		const assets = new AssetsController();
 		const network = new NetworkController();
 		const preferences = new PreferencesController();
@@ -96,7 +94,7 @@ describe('AssetsDetectionController', () => {
 			.withArgs('0x0D262e5dC4A06a0F1c90cE79C7a60C09DfC884E4')
 			.returns(assets.addToken('0xfoO', 'bar', 2));
 		const detectCollectibles = sandbox.stub(assetsDetectionController, 'detectCollectibles');
-		clock.tick(18001);
+		clock.tick(180001);
 		expect(assets.state.tokens).toEqual(TOKENS);
 		expect(detectCollectibles.called).toBe(true);
 	});

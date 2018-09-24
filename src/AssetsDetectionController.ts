@@ -10,7 +10,7 @@ const abiERC20 = require('human-standard-token-abi');
 const Web3 = require('web3');
 import { Token } from './TokenRatesController';
 
-const DEFAULT_INTERVAL = 18000;
+const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 
 /**
@@ -67,7 +67,6 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			selectedAddress: '',
 			tokens: []
 		};
-		this.web3 = new Web3();
 		this.initialize();
 	}
 
@@ -90,7 +89,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * @property provider - Provider used to create a new underlying EthQuery instance
 	 */
 	set provider(provider: any) {
-		this.web3.setProvider(provider);
+		this.web3 = new Web3(provider);
 	}
 
 	/**
@@ -108,7 +107,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * For each token that is not owned by current account on mainnet
 	 * trigger balance detection for it
 	 */
-	detectTokens() {
+	async detectTokens() {
 		const tokensAddresses = this.config.tokens.filter((token) => token.address);
 		for (const contractAddress in contractMap) {
 			const contract = contractMap[contractAddress];
@@ -121,12 +120,23 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	/**
 	 * Detect balance of current account in token contract
 	 */
-	detectTokenBalance(contractAddress: string) {
+	async detectTokenBalance(contractAddress: string) {
 		const selectedAddress = this.config.selectedAddress;
 		const contract = this.web3.eth.contract(abiERC20).at(contractAddress);
+		const assetsController = this.context.AssetsController as AssetsController;
 		contract.balanceOf(selectedAddress, (error: any, result: any) => {
-			/*should add token if balance found */
-			console.log(result, error);
+			/* istanbul ignore next */
+			if (!error) {
+				if (!result.isZero()) {
+					assetsController.addToken(
+						contractAddress,
+						contractMap[contractAddress].symbol,
+						contractMap[contractAddress].decimals
+					);
+				}
+			} else {
+				throw new Error(`${this.name} in detectTokenBalance.`);
+			}
 		});
 	}
 
