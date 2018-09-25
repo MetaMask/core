@@ -1,13 +1,13 @@
 const EthQuery = require('eth-query')
-const EventEmitter = require('events')
 const pify = require('pify')
+const SafeEventEmitter = require('./safe-ee')
 
 const sec = 1000
 
 const calculateSum = (accumulator, currentValue) => accumulator + currentValue
 const blockTrackerEvents = ['sync', 'latest']
 
-class BaseBlockTracker extends EventEmitter {
+class BaseBlockTracker extends SafeEventEmitter {
 
   //
   // public
