@@ -1,15 +1,14 @@
-const Web3 = require('web3');
 import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import AssetsController, { Collectible } from './AssetsController';
 import NetworkController from './NetworkController';
 import PreferencesController from './PreferencesController';
 import { safelyExecute } from './util';
-
-const contractMap = require('eth-contract-metadata');
-const abiERC20 = require('human-standard-token-abi');
 import { Token } from './TokenRatesController';
 
+const Web3 = require('web3');
+const contractMap = require('eth-contract-metadata');
+const abiERC20 = require('human-standard-token-abi');
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 
@@ -89,7 +88,6 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * @property provider - Provider used to create a new underlying EthQuery instance
 	 */
 	set provider(provider: any) {
-		/* https://github.com/ethereum/web3.js/issues/1119 */
 		Web3.providers.HttpProvider.prototype.sendAsync = Web3.providers.HttpProvider.prototype.send;
 		this.web3 = new Web3(provider);
 	}
@@ -114,7 +112,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		for (const contractAddress in contractMap) {
 			const contract = contractMap[contractAddress];
 			if (contract.erc20 && !(contractAddress in tokensAddresses)) {
-				this.detectTokenBalance(contractAddress);
+				await this.detectTokenBalance(contractAddress);
 			}
 		}
 	}
@@ -126,23 +124,33 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		if (!this.web3) {
 			return;
 		}
-		const selectedAddress = this.config.selectedAddress;
-		const contract = this.web3.eth.contract(abiERC20).at(contractAddress);
-		const assetsController = this.context.AssetsController as AssetsController;
-		contract.balanceOf(selectedAddress, (error: any, result: any) => {
-			/* istanbul ignore next */
-			if (!error) {
-				if (!result.isZero()) {
-					assetsController.addToken(
-						contractAddress,
-						contractMap[contractAddress].symbol,
-						contractMap[contractAddress].decimals
-					);
-				}
-			} else {
-				throw new Error(`${this.name} in detectTokenBalance.`);
+		try {
+			const selectedAddress = this.config.selectedAddress;
+			const assetsController = this.context.AssetsController as AssetsController;
+			const contract = this.web3.eth.contract(abiERC20).at(contractAddress);
+			const balance = (await new Promise((resolve, reject) => {
+				contract.balanceOf(selectedAddress, (error: Error, result: any) => {
+					/* istanbul ignore next */
+					if (error) {
+						reject(error);
+						return;
+					}
+					resolve(result);
+				});
+			})) as any;
+			if (!balance.isZero()) {
+				assetsController.addToken(
+					contractAddress,
+					contractMap[contractAddress].symbol,
+					contractMap[contractAddress].decimals
+				);
 			}
-		});
+		} catch (error) {
+			/* Ignoring errors, waiting for */
+			/* https://github.com/ethereum/web3.js/issues/1119 */
+			/* istanbul ignore next */
+			return;
+		}
 	}
 
 	/**

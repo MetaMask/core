@@ -8,6 +8,7 @@ const HttpProvider = require('ethjs-provider-http');
 
 const DEFAULT_INTERVAL = 180000;
 const PROVIDER = new HttpProvider('https://ropsten.infura.io');
+const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
 const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
 const COLLECTIBLES = [{ address: '0xfoO', image: 'url', name: 'name', tokenId: 1234 }];
 
@@ -83,7 +84,10 @@ describe('AssetsDetectionController', () => {
 
 	it('should detect and add tokens on interval when mainnet', () => {
 		const clock = sandbox.useFakeTimers();
-		assetsDetectionController = new AssetsDetectionController({ provider: PROVIDER, networkType: 'mainnet' });
+		assetsDetectionController = new AssetsDetectionController({
+			networkType: 'mainnet',
+			provider: MAINNET_PROVIDER
+		});
 		const assets = new AssetsController();
 		const network = new NetworkController();
 		const preferences = new PreferencesController();
@@ -97,6 +101,24 @@ describe('AssetsDetectionController', () => {
 		clock.tick(180001);
 		expect(assets.state.tokens).toEqual(TOKENS);
 		expect(detectCollectibles.called).toBe(true);
+	});
+
+	it('should detect respond accordingly on interval when mainnet', async () => {
+		assetsDetectionController = new AssetsDetectionController({ provider: MAINNET_PROVIDER });
+		const assets = new AssetsController();
+		const network = new NetworkController();
+		const preferences = new PreferencesController();
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assets, assetsDetectionController, network, preferences]);
+		preferences.update({ selectedAddress: '0xd0a6e6c54dbc68db5db3a091b171a77407ff7ccf' });
+		await assetsDetectionController.detectTokenBalance('0x86Fa049857E0209aa7D9e616F7eb3b3B78ECfdb0');
+		expect(assets.state.tokens).toEqual([
+			{
+				address: '0x86Fa049857E0209aa7D9e616F7eb3b3B78ECfdb0',
+				decimals: 18,
+				symbol: 'EOS'
+			}
+		]);
 	});
 
 	it('should subscribe to new sibling preference controllers', async () => {
