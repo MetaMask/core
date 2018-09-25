@@ -1,6 +1,5 @@
 'use strict'
 const async = require('async')
-const clone = require('clone')
 
 class RpcEngine {
   constructor () {
@@ -30,7 +29,7 @@ class RpcEngine {
 
   _handle (_req, cb) {
     // clone request object
-    const req = clone(_req)
+    const req = { ..._req }
     // create response obj
     const res = {
       id: req.id,
