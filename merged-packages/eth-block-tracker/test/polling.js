@@ -48,6 +48,52 @@ module.exports = (test, testLabel, PollingBlockTracker) => {
     t.end()
   })
 
+  test(`${testLabel} - error catch`, async (t) => {
+    const provider = GanacheCore.provider()
+    const blockTracker = new PollingBlockTracker({
+      provider,
+      pollingInterval: 100,
+    })
+
+    // ignore our error if registered as an uncaughtException
+    process.on('uncaughtException', ignoreError)
+    function ignoreError(err) {
+      // ignore our error
+      if (err.message.includes('boom')) return
+      // otherwise fail
+      t.ifError(err)
+    }
+
+    try {
+      // keep the block tracker polling
+      blockTracker.on('latest', () => { })
+      // throw error in handler in attempt to break block tracker
+      blockTracker.once('latest', () => { throw new Error('boom') })
+
+      // emit and observe a block
+      const nextBlockPromise = nextBlockSeen(blockTracker)
+      await triggerNextBlock(provider)
+      await nextBlockPromise
+
+      // emit and observe another block
+      const nextNextBlockPromise = nextBlockSeen(blockTracker)
+      await triggerNextBlock(provider)
+      await nextNextBlockPromise
+
+    } catch (err) {
+      t.ifError(err)
+    }
+
+    // setTimeout so we dont remove the uncaughtException handler before
+    // the SafeEventEmitter emits the event on next tick
+    setTimeout(() => {
+      // cleanup
+      process.removeListener('uncaughtException', ignoreError)
+      blockTracker.removeAllListeners()
+      t.end()
+    })
+  })
+
 }
 
 async function triggerNextBlock(provider) {
@@ -56,4 +102,10 @@ async function triggerNextBlock(provider) {
 
 async function newLatestBlock(blockTracker) {
   return await pify(blockTracker.once, { errorFirst: false }).call(blockTracker, 'latest')
+}
+
+async function nextBlockSeen(blockTracker) {
+  return new Promise((resolve) => {
+    blockTracker.once('latest', resolve)
+  })
 }
