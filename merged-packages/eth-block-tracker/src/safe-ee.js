@@ -8,8 +8,9 @@ var ReflectApply = R && typeof R.apply === 'function'
 }
 
 class SafeEventEmitter extends EventEmitter {
-  // copied from https://github.com/Gozala/events/blob/master/events.js
   emit (type) {
+    // copied from https://github.com/Gozala/events/blob/master/events.js
+    // modified lines are commented with "edited:"
     var args = [];
     for (var i = 1; i < arguments.length; i++) args.push(arguments[i]);
     var doError = (type === 'error');
@@ -42,11 +43,13 @@ class SafeEventEmitter extends EventEmitter {
       return false;
 
     if (typeof handler === 'function') {
+      // edited: using safeApply
       safeApply(handler, this, args);
     } else {
       var len = handler.length;
       var listeners = arrayClone(handler, len);
       for (var i = 0; i < len; ++i)
+        // edited: using safeApply
         safeApply(listeners[i], this, args);
     }
 
