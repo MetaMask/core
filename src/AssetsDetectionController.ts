@@ -9,6 +9,7 @@ import { Token } from './TokenRatesController';
 const Web3 = require('web3');
 const contractMap = require('eth-contract-metadata');
 const abiERC20 = require('human-standard-token-abi');
+const abiERC721 = require('human-standard-collectible-abi');
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 
@@ -88,7 +89,6 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * @property provider - Provider used to create a new underlying EthQuery instance
 	 */
 	set provider(provider: any) {
-		Web3.providers.HttpProvider.prototype.sendAsync = Web3.providers.HttpProvider.prototype.send;
 		this.web3 = new Web3(provider);
 	}
 
@@ -158,10 +158,11 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * by current account on mainnet, triggering ownership detection for each contract
 	 */
 	async detectCollectibles() {
+		console.log('detectCollectibles');
 		for (const contractAddress in contractMap) {
 			const contract = contractMap[contractAddress];
 			if (contract.erc721) {
-				this.detectCollectibleOwnership();
+				this.detectCollectibleOwnership(contractAddress);
 			}
 		}
 	}
@@ -169,8 +170,53 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	/**
 	 * Detect new collectibles owned by current account in collectible contract
 	 */
-	async detectCollectibleOwnership() {
-		return;
+	async detectCollectibleOwnership(contractAddress: string) {
+		console.log('detectCollectibleOwnership');
+
+		if (!this.web3) {
+			return;
+		}
+		try {
+			const selectedAddress = '0xb1690c08e213a35ed9bab7b318de14420fb57d8c';
+			const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
+
+			const balance = (await new Promise((resolve, reject) => {
+				contract.balanceOf(selectedAddress, (error: Error, result: any) => {
+					/* istanbul ignore next */
+					if (error) {
+						reject(error);
+						return;
+					}
+					resolve(result);
+				});
+			})) as any;
+
+			if (!balance.isZero()) {
+				console.log('!balance.isZero', balance);
+				const indexes: number[] = Array.from(Array(balance.toNumber()).keys());
+				const promisesArray = indexes.map(async (index) => {
+					await new Promise((resolve, reject) => {
+						contract.tokenOfOwnerByIndex(selectedAddress, index, (error: Error, result: any) => {
+							/* istanbul ignore next */
+							console.log(result, error);
+							if (error) {
+								reject(error);
+								return;
+							}
+							console.log('tokenOfOwnerByIndex', result);
+							resolve(result);
+						});
+					});
+				});
+				console.log(await Promise.all(promisesArray));
+			}
+		} catch (error) {
+			/* Ignoring errors, waiting for */
+			/* https://github.com/ethereum/web3.js/issues/1119 */
+			/* istanbul ignore next */
+			console.log(error);
+			return;
+		}
 	}
 
 	/**

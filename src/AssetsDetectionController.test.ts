@@ -97,10 +97,8 @@ describe('AssetsDetectionController', () => {
 			.stub(assetsDetectionController, 'detectTokenBalance')
 			.withArgs('0x0D262e5dC4A06a0F1c90cE79C7a60C09DfC884E4')
 			.returns(assets.addToken('0xfoO', 'bar', 2));
-		const detectCollectibles = sandbox.stub(assetsDetectionController, 'detectCollectibles');
 		clock.tick(180001);
 		expect(assets.state.tokens).toEqual(TOKENS);
-		expect(detectCollectibles.called).toBe(true);
 	});
 
 	it('should detect respond accordingly on interval when mainnet', async () => {
