@@ -28,8 +28,8 @@ class RpcEngine {
   //
 
   _handle (_req, cb) {
-    // clone request object
-    const req = { ..._req }
+    // shallow clone request object
+    const req = Object.assign({}, _req)
     // create response obj
     const res = {
       id: req.id,
