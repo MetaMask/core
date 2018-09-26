@@ -58,7 +58,6 @@ class SafeEventEmitter extends EventEmitter {
 }
 
 function safeApply(handler, context, args) {
-  // setTimeout(() => ReflectApply(handler, context, args))
   try {
     ReflectApply(handler, context, args)
   } catch (err) {
