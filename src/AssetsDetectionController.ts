@@ -158,7 +158,6 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * by current account on mainnet, triggering ownership detection for each contract
 	 */
 	async detectCollectibles() {
-		console.log('detectCollectibles');
 		for (const contractAddress in contractMap) {
 			const contract = contractMap[contractAddress];
 			if (contract.erc721) {
@@ -167,54 +166,73 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		}
 	}
 
-	/**
-	 * Detect new collectibles owned by current account in collectible contract
-	 */
-	async detectCollectibleOwnership(contractAddress: string) {
-		console.log('detectCollectibleOwnership');
-
+	async detectCollectibleBalance(contractAddress: string): Promise<number> {
 		if (!this.web3) {
-			return;
+			return 0;
 		}
+		let balance: any = 0;
 		try {
-			const selectedAddress = '0xb1690c08e213a35ed9bab7b318de14420fb57d8c';
+			const selectedAddress = this.config.selectedAddress;
 			const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
-
-			const balance = (await new Promise((resolve, reject) => {
+			balance = (await new Promise<any>((resolve, reject) => {
 				contract.balanceOf(selectedAddress, (error: Error, result: any) => {
 					/* istanbul ignore next */
 					if (error) {
 						reject(error);
 						return;
 					}
-					resolve(result);
+					resolve(result.toNumber());
 				});
 			})) as any;
-
-			if (!balance.isZero()) {
-				console.log('!balance.isZero', balance);
-				const indexes: number[] = Array.from(Array(balance.toNumber()).keys());
-				const promisesArray = indexes.map(async (index) => {
-					await new Promise((resolve, reject) => {
-						contract.tokenOfOwnerByIndex(selectedAddress, index, (error: Error, result: any) => {
-							/* istanbul ignore next */
-							console.log(result, error);
-							if (error) {
-								reject(error);
-								return;
-							}
-							console.log('tokenOfOwnerByIndex', result);
-							resolve(result);
-						});
-					});
-				});
-				console.log(await Promise.all(promisesArray));
-			}
+			return balance;
 		} catch (error) {
 			/* Ignoring errors, waiting for */
 			/* https://github.com/ethereum/web3.js/issues/1119 */
 			/* istanbul ignore next */
-			console.log(error);
+			return balance;
+		}
+	}
+
+	/**
+	 * Detect new collectibles owned by current account in collectible contract
+	 */
+	async detectCollectibleOwnership(contractAddress: string) {
+		if (!this.web3) {
+			return;
+		}
+		try {
+			const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
+			const selectedAddress = this.config.selectedAddress;
+			const assetsController = this.context.AssetsController as AssetsController;
+
+			this.detectCollectibleBalance(contractAddress).then((balance) => {
+				if (balance !== 0) {
+					const indexes: number[] = Array.from(Array(balance).keys());
+					const promises: Array<Promise<void>> = [];
+					indexes.forEach((index) => {
+						promises.push(
+							new Promise<any>((resolve, reject) => {
+								contract.tokenOfOwnerByIndex(selectedAddress, index, (error: Error, result: any) => {
+									/* istanbul ignore next */
+									if (error) {
+										reject(error);
+										return;
+									}
+									const tokenId = result.toNumber();
+									assetsController.addCollectible(contractAddress, tokenId);
+									resolve();
+								});
+							})
+						);
+					});
+					Promise.all(promises);
+				}
+				return 0;
+			});
+		} catch (error) {
+			/* Ignoring errors, waiting for */
+			/* https://github.com/ethereum/web3.js/issues/1119 */
+			/* istanbul ignore next */
 			return;
 		}
 	}
@@ -236,9 +254,12 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			this.detectAssets();
 		});
 		network.subscribe(({ provider }) => {
+			const lastNetworkType = this.config.networkType;
+			if (lastNetworkType === provider.type) {
+				return;
+			}
 			const networkType = provider.type;
 			this.configure({ provider, networkType, interval: DEFAULT_INTERVAL });
-			this.detectAssets();
 		});
 	}
 }
