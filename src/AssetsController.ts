@@ -3,6 +3,7 @@ import BaseController, { BaseConfig, BaseState } from './BaseController';
 import PreferencesController from './PreferencesController';
 import NetworkController, { NetworkType } from './NetworkController';
 import { Token } from './TokenRatesController';
+import { AssetsDetectionController } from './AssetsDetectionController';
 
 const contractMap = require('eth-contract-metadata');
 const { toChecksumAddress } = require('ethereumjs-util');
@@ -22,6 +23,17 @@ export interface Collectible {
 	tokenId: number;
 	name: string;
 	image: string;
+}
+
+export interface MappedContract {
+	name: string;
+	logo?: string;
+	address?: string;
+	symbol?: string;
+	decimals?: number;
+	api?: string;
+	erc20?: boolean;
+	erc721?: boolean;
 }
 
 /**
@@ -71,8 +83,14 @@ export interface AssetsState extends BaseState {
  * Controller that stores assets and exposes convenience methods
  */
 export class AssetsController extends BaseController<AssetsConfig, AssetsState> {
-	private getCollectibleApi(api: string, tokenId: number): string {
-		return `${api}${tokenId}`;
+	private async getCollectibleApi(contract: MappedContract, tokenId: number): Promise<string> {
+		if (contract.api) {
+			return `${contract.api}${tokenId}`;
+		} else if (contract.address) {
+			const assetsDetection = this.context.AssetsDetectionController as AssetsDetectionController;
+			return await assetsDetection.getTokenURI(contract.address, tokenId);
+		}
+		return '';
 	}
 
 	/**
@@ -85,8 +103,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	private async requestNFTCustomInformation(address: string, tokenId: number): Promise<CollectibleCustomInformation> {
 		if (address in contractMap && contractMap[address].erc721) {
 			const contract = contractMap[address];
-			const api = contract.api;
-			const { name, image } = await this.fetchCollectibleBasicInformation(api, tokenId);
+			contract.address = address;
+			const { name, image } = await this.fetchCollectibleBasicInformation(contract, tokenId);
 			return { name, image };
 		} else {
 			return { name: '', image: '' };
@@ -96,21 +114,27 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	/**
 	 * Fetch NFT basic information, name and image url
 	 *
-	 * @param api - API url to fetch custom collectible information
+	 * @param contract - API url to fetch custom collectible information
 	 * @param tokenId - The NFT identifier
 	 * @returns - Promise resolving to the current collectible name and image
 	 */
 	private async fetchCollectibleBasicInformation(
-		api: string,
+		contract: MappedContract,
 		tokenId: number
 	): Promise<CollectibleCustomInformation> {
 		try {
-			const response = await fetch(this.getCollectibleApi(api, tokenId));
+			const tokenURI = await this.getCollectibleApi(contract, tokenId);
+			if (tokenURI.length === 0) {
+				return { image: '', name: contract.name };
+			}
+			const response = await fetch(tokenURI);
+
 			const json = await response.json();
-			return { image: json.image_url, name: json.name };
+			const imageParam = json.hasOwnProperty('image') ? 'image' : 'image_url';
+			return { image: json[imageParam], name: json.name };
 		} catch (error) {
 			/* istanbul ignore next */
-			return { image: '', name: '' };
+			return { image: '', name: contract.name };
 		}
 	}
 

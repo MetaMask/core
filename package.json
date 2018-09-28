@@ -81,7 +81,7 @@
     "ethereumjs-util": "^5.2.0",
     "ethereumjs-wallet": "0.6.0",
     "ethjs-query": "^0.3.8",
-    "human-standard-collectible-abi": "^1.0.0",
+    "human-standard-collectible-abi": "^1.0.2",
     "human-standard-token-abi": "^2.0.0",
     "percentile": "^1.2.1",
     "web3": "^0.20.7",

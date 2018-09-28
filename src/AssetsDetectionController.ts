@@ -12,6 +12,8 @@ const abiERC20 = require('human-standard-token-abi');
 const abiERC721 = require('human-standard-collectible-abi');
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
+const ERC721METADATA_INTERFACE_ID = '0x5b5e139f';
+const ERC721ENUMERABLE_INTERFACE_ID = '0x780e9d63';
 
 /**
  * @type AssetsConfig
@@ -77,7 +79,6 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 */
 	set interval(interval: number) {
 		this.handle && clearInterval(this.handle);
-		safelyExecute(() => this.detectAssets());
 		this.handle = setInterval(() => {
 			safelyExecute(() => this.detectAssets());
 		}, interval);
@@ -93,6 +94,100 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	}
 
 	/**
+	 * Gets balance or count for current account on specific asset contract, defaults to ERC20
+	 *
+	 * @param contractAddress - Asset contract address
+	 * @param EIP - Asset EIP identifier
+	 * @returns - Balance for current account on specific asset contract
+	 */
+	private async detectContractBalance(contractAddress: string, EIP?: string): Promise<number> {
+		if (!this.web3) {
+			return 0;
+		}
+		let abi;
+		switch (EIP) {
+			case '721':
+				abi = abiERC721;
+			default:
+				abi = abiERC20;
+		}
+		const contract = this.web3.eth.contract(abi).at(contractAddress);
+		const selectedAddress = this.config.selectedAddress;
+		try {
+			const bigNumber = (await new Promise((resolve, reject) => {
+				contract.balanceOf(selectedAddress, (error: Error, result: any) => {
+					/* istanbul ignore next */
+					if (error) {
+						reject(error);
+						return;
+					}
+					resolve(result);
+				});
+			})) as any;
+			const balance = bigNumber.toNumber();
+			return balance;
+		} catch (error) {
+			return 0;
+		}
+	}
+
+	/**
+	 *
+	 * Query if a contract implements an interface
+	 *
+	 * @param interfaceId - Interface identifier
+	 * @param contractAddress - Asset contract address
+	 * @returns - If the contract implements `interfaceID`
+	 */
+	private async contractSupportsInterface(interfaceId: string, contractAddress: string): Promise<boolean> {
+		if (!this.web3) {
+			return false;
+		}
+		try {
+			const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
+			const supports = await new Promise<boolean>((resolve, reject) => {
+				contract.supportsInterface(interfaceId, (error: Error, result: any) => {
+					/* istanbul ignore next */
+					if (error) {
+						reject(error);
+						return;
+					}
+					resolve(result);
+				});
+			});
+			return supports;
+		} catch (error) {
+			/* Ignoring errors, waiting for */
+			/* https://github.com/ethereum/web3.js/issues/1119 */
+			/* istanbul ignore next */
+			return false;
+		}
+	}
+
+	/**
+	 * Enumerate assets assigned to an owner
+	 *
+	 * @param contractAddress - ERC721 asset contract address
+	 * @param index - A counter less than `balanceOf(owner)`
+	 * @returns - Token identifier for the 'index'th asset assigned to 'contractAddress'
+	 */
+	private getCollectibleTokenId(contractAddress: string, index: number): Promise<number> {
+		const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
+		const selectedAddress = this.config.selectedAddress;
+		return new Promise<any>((resolve, reject) => {
+			contract.tokenOfOwnerByIndex(selectedAddress, index, (error: Error, result: any) => {
+				/* istanbul ignore next */
+				if (error) {
+					reject(error);
+					return;
+				}
+				const tokenId = result.toNumber();
+				resolve(tokenId);
+			});
+		});
+	}
+
+	/**
 	 * Detect assets owned by current account on mainnet
 	 */
 	async detectAssets() {
@@ -104,58 +199,39 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	}
 
 	/**
-	 * For each token that is not owned by current account on mainnet
-	 * trigger balance detection for it
+	 * Triggers asset ERC20 token auto detection for each contract address on contract metadata
 	 */
 	async detectTokens() {
 		const tokensAddresses = this.config.tokens.filter((token) => token.address);
 		for (const contractAddress in contractMap) {
 			const contract = contractMap[contractAddress];
 			if (contract.erc20 && !(contractAddress in tokensAddresses)) {
-				await this.detectTokenBalance(contractAddress);
+				await this.detectTokenOwnership(contractAddress);
 			}
 		}
 	}
 
 	/**
-	 * Detect balance of current account in token contract
+	 * Detect if current account has balance on ERC20 asset contract. I
+	 * If that is the case, it adds the token to state
+	 *
+	 * @param contractAddress - Asset ERC20 contract address
 	 */
-	async detectTokenBalance(contractAddress: string) {
-		if (!this.web3) {
-			return;
-		}
-		try {
-			const selectedAddress = this.config.selectedAddress;
-			const assetsController = this.context.AssetsController as AssetsController;
-			const contract = this.web3.eth.contract(abiERC20).at(contractAddress);
-			const balance = (await new Promise((resolve, reject) => {
-				contract.balanceOf(selectedAddress, (error: Error, result: any) => {
-					/* istanbul ignore next */
-					if (error) {
-						reject(error);
-						return;
-					}
-					resolve(result);
-				});
-			})) as any;
-			if (!balance.isZero()) {
-				assetsController.addToken(
-					contractAddress,
-					contractMap[contractAddress].symbol,
-					contractMap[contractAddress].decimals
-				);
-			}
-		} catch (error) {
-			/* Ignoring errors, waiting for */
-			/* https://github.com/ethereum/web3.js/issues/1119 */
-			/* istanbul ignore next */
-			return;
+	async detectTokenOwnership(contractAddress: string) {
+		const assetsController = this.context.AssetsController as AssetsController;
+		const balance = await this.detectContractBalance(contractAddress, '20');
+		if (balance !== 0) {
+			assetsController.addToken(
+				contractAddress,
+				contractMap[contractAddress].symbol,
+				contractMap[contractAddress].decimals
+			);
 		}
 	}
 
 	/**
-	 * For each collectible contract checks if there are new collectibles owned
-	 * by current account on mainnet, triggering ownership detection for each contract
+	 * Triggers asset ERC721 token auto detection for each contract address on contract metadata
+	 *
 	 */
 	async detectCollectibles() {
 		for (const contractAddress in contractMap) {
@@ -166,74 +242,66 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		}
 	}
 
-	async detectCollectibleBalance(contractAddress: string): Promise<number> {
+	/**
+	 * Query for a URI for a given asset
+	 *
+	 * @param contractAddress - ERC721 asset contract address
+	 * @param tokenId - ERC721 asset identifier
+	 * @returns - Promise resolving to the 'tokenURI'
+	 */
+	async getTokenURI(contractAddress: string, tokenId: number): Promise<string> {
 		if (!this.web3) {
-			return 0;
+			return '';
 		}
-		let balance: any = 0;
 		try {
-			const selectedAddress = this.config.selectedAddress;
 			const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
-			balance = (await new Promise<any>((resolve, reject) => {
-				contract.balanceOf(selectedAddress, (error: Error, result: any) => {
-					/* istanbul ignore next */
-					if (error) {
-						reject(error);
-						return;
-					}
-					resolve(result.toNumber());
+			const supports = await this.contractSupportsInterface(ERC721METADATA_INTERFACE_ID, contractAddress);
+			if (supports) {
+				const URI = await new Promise<string>((resolve, reject) => {
+					contract.tokenURI(tokenId, (error: Error, result: any) => {
+						/* istanbul ignore next */
+						if (error) {
+							reject(error);
+							return;
+						}
+						resolve(result);
+					});
 				});
-			})) as any;
-			return balance;
+				if (URI) {
+					return URI;
+				}
+			}
+			return '';
 		} catch (error) {
 			/* Ignoring errors, waiting for */
 			/* https://github.com/ethereum/web3.js/issues/1119 */
 			/* istanbul ignore next */
-			return balance;
+			return '';
 		}
 	}
 
 	/**
-	 * Detect new collectibles owned by current account in collectible contract
+	 * Detect collectibles owned by current account
+	 *
+	 * @param contractAddress - ERC721 asset contract address
 	 */
 	async detectCollectibleOwnership(contractAddress: string) {
-		if (!this.web3) {
-			return;
-		}
-		try {
-			const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
-			const selectedAddress = this.config.selectedAddress;
-			const assetsController = this.context.AssetsController as AssetsController;
-
-			this.detectCollectibleBalance(contractAddress).then((balance) => {
-				if (balance !== 0) {
-					const indexes: number[] = Array.from(Array(balance).keys());
-					const promises: Array<Promise<void>> = [];
-					indexes.forEach((index) => {
-						promises.push(
-							new Promise<any>((resolve, reject) => {
-								contract.tokenOfOwnerByIndex(selectedAddress, index, (error: Error, result: any) => {
-									/* istanbul ignore next */
-									if (error) {
-										reject(error);
-										return;
-									}
-									const tokenId = result.toNumber();
-									assetsController.addCollectible(contractAddress, tokenId);
-									resolve();
-								});
-							})
-						);
-					});
-					Promise.all(promises);
+		const supportsEnumerable = await this.contractSupportsInterface(ERC721ENUMERABLE_INTERFACE_ID, contractAddress);
+		if (supportsEnumerable) {
+			const balance = await this.detectContractBalance(contractAddress, '721');
+			if (balance !== 0) {
+				const assetsController = this.context.AssetsController as AssetsController;
+				const bal = balance > 10 ? 10 : balance;
+				const indexes: number[] = Array.from(Array(bal).keys());
+				const promises = indexes.map((index) => {
+					return this.getCollectibleTokenId(contractAddress, index);
+				});
+				const tokenIds = await Promise.all(promises);
+				let tokenId: any;
+				for (tokenId in tokenIds) {
+					await assetsController.addCollectible(contractAddress, tokenIds[tokenId]);
 				}
-				return 0;
-			});
-		} catch (error) {
-			/* Ignoring errors, waiting for */
-			/* https://github.com/ethereum/web3.js/issues/1119 */
-			/* istanbul ignore next */
-			return;
+			}
 		}
 	}
 
@@ -250,16 +318,19 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			this.configure({ collectibles, tokens });
 		});
 		preferences.subscribe(({ selectedAddress }) => {
-			this.configure({ selectedAddress, interval: DEFAULT_INTERVAL });
-			this.detectAssets();
+			const actualSelectedAddress = this.config.selectedAddress;
+			if (selectedAddress !== actualSelectedAddress) {
+				this.configure({ selectedAddress });
+				this.detectAssets();
+			}
 		});
 		network.subscribe(({ provider }) => {
 			const lastNetworkType = this.config.networkType;
-			if (lastNetworkType === provider.type) {
-				return;
+			if (lastNetworkType !== provider.type) {
+				const networkType = provider.type;
+				this.configure({ provider, networkType });
+				this.detectAssets();
 			}
-			const networkType = provider.type;
-			this.configure({ provider, networkType, interval: DEFAULT_INTERVAL });
 		});
 	}
 }
