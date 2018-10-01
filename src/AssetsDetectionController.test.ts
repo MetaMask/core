@@ -75,7 +75,7 @@ describe('AssetsDetectionController', () => {
 		new ComposableController([assets, assetsDetectionController, network, preferences]);
 		preferences.update({ selectedAddress: '0xde01e52811baa6a4a23a9634179ebe8f77b6d89b' });
 		assetsDetectionController.configure({ provider: PROVIDER });
-		assetsDetectionController.detectTokenBalance('0x0D262e5dC4A06a0F1c90cE79C7a60C09DfC884E4');
+		assetsDetectionController.detectTokenOwnership('0x0D262e5dC4A06a0F1c90cE79C7a60C09DfC884E4');
 		const detectCollectibles = sandbox.stub(assetsDetectionController, 'detectCollectibles');
 		clock.tick(180001);
 		expect(assets.state.tokens).toEqual([]);
@@ -94,7 +94,7 @@ describe('AssetsDetectionController', () => {
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assets, assetsDetectionController, network, preferences]);
 		sandbox
-			.stub(assetsDetectionController, 'detectTokenBalance')
+			.stub(assetsDetectionController, 'detectTokenOwnership')
 			.withArgs('0x0D262e5dC4A06a0F1c90cE79C7a60C09DfC884E4')
 			.returns(assets.addToken('0xfoO', 'bar', 2));
 		clock.tick(180001);
@@ -109,7 +109,7 @@ describe('AssetsDetectionController', () => {
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assets, assetsDetectionController, network, preferences]);
 		preferences.update({ selectedAddress: '0xd0a6e6c54dbc68db5db3a091b171a77407ff7ccf' });
-		await assetsDetectionController.detectTokenBalance('0x86Fa049857E0209aa7D9e616F7eb3b3B78ECfdb0');
+		await assetsDetectionController.detectTokenOwnership('0x86Fa049857E0209aa7D9e616F7eb3b3B78ECfdb0');
 		expect(assets.state.tokens).toEqual([
 			{
 				address: '0x86Fa049857E0209aa7D9e616F7eb3b3B78ECfdb0',

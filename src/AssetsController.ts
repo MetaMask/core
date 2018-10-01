@@ -88,7 +88,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			return `${contract.api}${tokenId}`;
 		} else if (contract.address) {
 			const assetsDetection = this.context.AssetsDetectionController as AssetsDetectionController;
-			return await assetsDetection.getTokenURI(contract.address, tokenId);
+			return await assetsDetection.getCollectibleTokenURI(contract.address, tokenId);
 		}
 		return '';
 	}

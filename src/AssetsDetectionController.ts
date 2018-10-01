@@ -14,6 +14,8 @@ const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 const ERC721METADATA_INTERFACE_ID = '0x5b5e139f';
 const ERC721ENUMERABLE_INTERFACE_ID = '0x780e9d63';
+const ERC20EIP = '20';
+const ERC721EIP = '721';
 
 /**
  * @type AssetsConfig
@@ -106,7 +108,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		}
 		let abi;
 		switch (EIP) {
-			case '721':
+			case ERC721EIP:
 				abi = abiERC721;
 			default:
 				abi = abiERC20;
@@ -219,7 +221,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 */
 	async detectTokenOwnership(contractAddress: string) {
 		const assetsController = this.context.AssetsController as AssetsController;
-		const balance = await this.detectContractBalance(contractAddress, '20');
+		const balance = await this.detectContractBalance(contractAddress, ERC20EIP);
 		if (balance !== 0) {
 			assetsController.addToken(
 				contractAddress,
@@ -237,7 +239,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		for (const contractAddress in contractMap) {
 			const contract = contractMap[contractAddress];
 			if (contract.erc721) {
-				this.detectCollectibleOwnership(contractAddress);
+				await this.detectCollectibleOwnership(contractAddress);
 			}
 		}
 	}
@@ -249,7 +251,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * @param tokenId - ERC721 asset identifier
 	 * @returns - Promise resolving to the 'tokenURI'
 	 */
-	async getTokenURI(contractAddress: string, tokenId: number): Promise<string> {
+	async getCollectibleTokenURI(contractAddress: string, tokenId: number): Promise<string> {
 		if (!this.web3) {
 			return '';
 		}
@@ -288,7 +290,8 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	async detectCollectibleOwnership(contractAddress: string) {
 		const supportsEnumerable = await this.contractSupportsInterface(ERC721ENUMERABLE_INTERFACE_ID, contractAddress);
 		if (supportsEnumerable) {
-			const balance = await this.detectContractBalance(contractAddress, '721');
+			const balance = await this.detectContractBalance(contractAddress, ERC721EIP);
+			console.log('detectContractBalance', balance);
 			if (balance !== 0) {
 				const assetsController = this.context.AssetsController as AssetsController;
 				const bal = balance > 10 ? 10 : balance;
