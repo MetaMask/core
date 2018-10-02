@@ -32,6 +32,8 @@ export interface MappedContract {
 	symbol?: string;
 	decimals?: number;
 	api?: string;
+	collectibles_api?: string;
+	owner_api: string;
 	erc20?: boolean;
 	erc721?: boolean;
 }
@@ -85,7 +87,7 @@ export interface AssetsState extends BaseState {
 export class AssetsController extends BaseController<AssetsConfig, AssetsState> {
 	private async getCollectibleApi(contract: MappedContract, tokenId: number): Promise<string> {
 		if (contract.api) {
-			return `${contract.api}${tokenId}`;
+			return `${contract.api + contract.collectibles_api}${tokenId}`;
 		} else if (contract.address) {
 			const assetsDetection = this.context.AssetsDetectionController as AssetsDetectionController;
 			return await assetsDetection.getCollectibleTokenURI(contract.address, tokenId);

@@ -18,6 +18,17 @@ const ERC20EIP = '20';
 const ERC721EIP = '721';
 
 /**
+ * @type CollectibleEntry
+ *
+ * Collectible minimal representation expected on collectibles api
+ *
+ * @property id - Collectible identifier
+ */
+export interface CollectibleEntry {
+	id: number;
+}
+
+/**
  * @type AssetsConfig
  *
  * Assets controller configuration
@@ -291,21 +302,50 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		const supportsEnumerable = await this.contractSupportsInterface(ERC721ENUMERABLE_INTERFACE_ID, contractAddress);
 		if (supportsEnumerable) {
 			const balance = await this.detectContractBalance(contractAddress, ERC721EIP);
-			console.log('detectContractBalance', balance);
 			if (balance !== 0) {
 				const assetsController = this.context.AssetsController as AssetsController;
-				const bal = balance > 10 ? 10 : balance;
+				const bal = balance > 3 ? 3 : balance;
 				const indexes: number[] = Array.from(Array(bal).keys());
 				const promises = indexes.map((index) => {
 					return this.getCollectibleTokenId(contractAddress, index);
 				});
 				const tokenIds = await Promise.all(promises);
-				let tokenId: any;
-				for (tokenId in tokenIds) {
+				for (const tokenId in tokenIds) {
 					await assetsController.addCollectible(contractAddress, tokenIds[tokenId]);
 				}
 			}
+		} else if (contractMap[contractAddress].api) {
+			await this.fetchUserCollectibles(contractAddress);
 		}
+	}
+
+	/**
+	 * Fetch NFT basic information, name and image url
+	 *
+	 * @param contract - API url to fetch custom collectible information
+	 * @param tokenId - The NFT identifier
+	 * @returns - Promise resolving to the current collectible name and image
+	 */
+	private async fetchUserCollectibles(contractAddress: string) {
+		try {
+			const assetsController = this.context.AssetsController as AssetsController;
+			const selectedAddress = this.config.selectedAddress;
+			const contract = contractMap[contractAddress];
+			const userApi = contract.api + contract.owner_api + selectedAddress;
+			const response = await fetch(userApi);
+			const json = await response.json();
+			const collectiblesJson = json[contract.collectibles_entry];
+			const collectiblesLength = collectiblesJson.length < 3 ? collectiblesJson.length : 3;
+			let index = 0;
+			while (index < collectiblesLength) {
+				const collectibleEntry: CollectibleEntry = collectiblesJson[index];
+				await assetsController.addCollectible(contractAddress, collectibleEntry.id);
+				index += 1;
+			}
+		} catch (error) {
+			/* istanbul ignore next */
+		}
+		return true;
 	}
 
 	/**
