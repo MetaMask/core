@@ -3,6 +3,7 @@ const http = require('http')
 const concat = require('concat-stream')
 const series = require('async/series')
 const url = require('url')
+const btoa = require('btoa')
 const createFetchMiddleware = require('../fetch')
 const { createFetchConfigFromReq } = createFetchMiddleware
 
@@ -51,6 +52,33 @@ test('fetch - origin header', (t) => {
       'x-dapp-origin': 'happydapp.gov',
     },
     body: JSON.stringify(reqSanitized),
+  })
+  t.end()
+
+})
+
+test('fetch - auth in url', (t) => {
+
+  const req = {
+    method: 'eth_getBlockByNumber',
+    params: ['0x482103', true],
+  }
+
+  const rpcUrl = 'https://user:password@www.xyz.io:3456/rabbit'
+  const normalizedUrl = 'https://www.xyz.io:3456/rabbit'
+  const encodedAuth = btoa('user:password')
+
+  const { fetchUrl, fetchParams } = createFetchConfigFromReq({ req, rpcUrl })
+
+  t.equals(fetchUrl, normalizedUrl)
+  t.deepEquals(fetchParams, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization': `Basic ${encodedAuth}`,
+    },
+    body: JSON.stringify(req),
   })
   t.end()
 

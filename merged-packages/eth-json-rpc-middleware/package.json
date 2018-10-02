@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "concat-stream": "^1.6.2",
     "eth-block-tracker": "metamask/eth-block-tracker#acbcfda348c309ece0fb96fad78d4861d08f5a91",
     "eth-query": "^2.1.0",
     "ethjs-query": "^0.3.8",
@@ -19,6 +20,7 @@
   },
   "dependencies": {
     "async": "^2.5.0",
+    "btoa": "^1.2.1",
     "clone": "^2.1.1",
     "eth-query": "^2.1.2",
     "eth-sig-util": "^1.4.2",

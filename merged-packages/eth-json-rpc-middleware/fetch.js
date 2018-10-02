@@ -1,9 +1,11 @@
 const fetch = global.fetch || require('fetch-ponyfill')().fetch
+const url = require('url')
 const retry = require('async/retry')
 const waterfall = require('async/waterfall')
 const asyncify = require('async/asyncify')
 const JsonRpcError = require('json-rpc-error')
 const promiseToCallback = require('promise-to-callback')
+const btoa = require('btoa')
 
 module.exports = createFetchMiddleware
 module.exports.createFetchConfigFromReq = createFetchConfigFromReq
@@ -18,7 +20,8 @@ const RETRIABLE_ERRORS = [
 ]
 
 function createFetchConfigFromReq({ req, rpcUrl, originHttpHeaderKey }) {
-  const fetchUrl = rpcUrl
+  const parsedUrl = url.parse(rpcUrl)
+  const fetchUrl = normalizeUrlFromParsed(parsedUrl)
 
   // prepare payload
   const payload = Object.assign({}, req)
@@ -28,6 +31,7 @@ function createFetchConfigFromReq({ req, rpcUrl, originHttpHeaderKey }) {
   // serialize request body
   const serializedPayload = JSON.stringify(payload)
 
+  // configure fetch params
   const fetchParams = {
     method: 'POST',
     headers: {
@@ -37,12 +41,30 @@ function createFetchConfigFromReq({ req, rpcUrl, originHttpHeaderKey }) {
     body: serializedPayload,
   }
 
+  // encoded auth details as header (not allowed in fetch url)
+  if (parsedUrl.auth) {
+    const encodedAuth = btoa(parsedUrl.auth)
+    fetchParams.headers['Authorization'] = `Basic ${encodedAuth}`
+  }
+
   // optional: add request origin as header
   if (originHttpHeaderKey && originDomain) {
     fetchParams.headers[originHttpHeaderKey] = originDomain
   }
 
   return { fetchUrl, fetchParams }
+}
+
+function normalizeUrlFromParsed(parsedUrl) {
+  let result = ''
+  result += parsedUrl.protocol
+  if (parsedUrl.slashes) result += '//'
+  result += parsedUrl.hostname
+  if (parsedUrl.port) {
+    result += `:${parsedUrl.port}`
+  }
+  result += `${parsedUrl.path}`
+  return result
 }
 
 function createFetchMiddleware ({ rpcUrl, originHttpHeaderKey }) {
