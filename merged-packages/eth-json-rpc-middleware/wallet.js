@@ -31,13 +31,13 @@ function createWalletMiddleware(opts = {}) {
 
   async function lookupAccounts(req, res) {
     if (!getAccounts) throw new Error('WalletMiddleware - opts.getAccounts not provided')
-    const accounts = await getAccounts()
+    const accounts = await getAccounts(req)
     res.result = accounts
   }
 
   async function lookupDefaultAccount(req, res) {
     if (!getAccounts) throw new Error('WalletMiddleware - opts.getAccounts not provided')
-    const accounts = await getAccounts()
+    const accounts = await getAccounts(req)
     res.result = accounts[0] || null
   }
 
@@ -48,7 +48,7 @@ function createWalletMiddleware(opts = {}) {
   async function sendTransaction(req, res) {
     if (!processTransaction) throw new Error('WalletMiddleware - opts.processTransaction not provided')
     const txParams = req.params[0] || {}
-    await validateSender(txParams.from)
+    await validateSender(txParams.from, req)
     res.result = await processTransaction(txParams, req)
   }
 
@@ -68,7 +68,7 @@ function createWalletMiddleware(opts = {}) {
       data: message,
     })
 
-    await validateSender(address)
+    await validateSender(address, req)
     res.result = await processEthSignMessage(msgParams, req)
   }
 
@@ -82,7 +82,7 @@ function createWalletMiddleware(opts = {}) {
       data: message,
     })
 
-    await validateSender(address)
+    await validateSender(address, req)
     res.result = await processTypedMessage(msgParams, req)
   }
 
@@ -120,7 +120,7 @@ function createWalletMiddleware(opts = {}) {
       data: message,
     })
 
-    await validateSender(address)
+    await validateSender(address, req)
     res.result = await processPersonalMessage(msgParams, req)
   }
 
@@ -142,12 +142,12 @@ function createWalletMiddleware(opts = {}) {
   // utility
   //
 
-  async function validateSender(address) {
+  async function validateSender(address, req) {
     // allow unspecified address (allow transaction signer to insert default)
     if (!address) return
     // ensure address is included in provided accounts
     if (!getAccounts) throw new Error('WalletMiddleware - opts.getAccounts not provided')
-    const accounts = await getAccounts()
+    const accounts = await getAccounts(req)
     const normalizedAccounts = accounts.map(address => address.toLowerCase())
     const normalizedAddress =  address.toLowerCase()
     if (!normalizedAccounts.includes(normalizedAddress)) throw new Error('WalletMiddleware - Invalid "from" address.')
