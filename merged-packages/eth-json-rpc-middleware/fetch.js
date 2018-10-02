@@ -6,6 +6,7 @@ const JsonRpcError = require('json-rpc-error')
 const promiseToCallback = require('promise-to-callback')
 
 module.exports = createFetchMiddleware
+module.exports.createFetchConfigFromReq = createFetchConfigFromReq
 
 const RETRIABLE_ERRORS = [
   // ignore server overload errors
@@ -16,26 +17,38 @@ const RETRIABLE_ERRORS = [
   'SyntaxError',
 ]
 
+function createFetchConfigFromReq({ req, rpcUrl, originHttpHeaderKey }) {
+  const fetchUrl = rpcUrl
+
+  // prepare payload
+  const payload = Object.assign({}, req)
+  // extract 'origin' parameter from request
+  const originDomain = payload.origin
+  delete payload.origin
+  // serialize request body
+  const serializedPayload = JSON.stringify(payload)
+
+  const fetchParams = {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: serializedPayload,
+  }
+
+  // optional: add request origin as header
+  if (originHttpHeaderKey && originDomain) {
+    fetchParams.headers[originHttpHeaderKey] = originDomain
+  }
+
+  return { fetchUrl, fetchParams }
+}
+
 function createFetchMiddleware ({ rpcUrl, originHttpHeaderKey }) {
   return (req, res, next, end) => {
-    const payload = Object.assign({}, req)
 
-    // extract 'origin' parameter from request
-    const originDomain = payload.origin
-    delete payload.origin
-
-    const httpReqParams = {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    }
-
-    if (originHttpHeaderKey && originDomain) {
-      httpReqParams.headers[originHttpHeaderKey] = originDomain
-    }
+    const { fetchUrl, fetchParams } = createFetchConfigFromReq({ req, rpcUrl, originHttpHeaderKey })
 
     retry({
       times: 5,
@@ -49,7 +62,7 @@ function createFetchMiddleware ({ rpcUrl, originHttpHeaderKey }) {
       let fetchBody
       waterfall([
         // make request
-        (cb) => promiseToCallback(fetch(rpcUrl, httpReqParams))(cb),
+        (cb) => promiseToCallback(fetch(fetchUrl, fetchParams))(cb),
         asyncify((_fetchRes) => { fetchRes = _fetchRes }),
         // check for http errrors
         (_, cb) => checkForHttpErrors(fetchRes, cb),
