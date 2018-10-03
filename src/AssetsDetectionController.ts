@@ -55,6 +55,126 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	private web3: any;
 
 	/**
+	 * Get user information API for collectibles based on API provided in contract metadata
+	 *
+	 * @param contractAddress - ERC721 asset contract address
+	 * @returns - User information URI
+	 */
+	private getCollectibleUserApi(contractAddress: string) {
+		const contract = contractMap[contractAddress];
+		if (!contract.api || !contract.owner_api) {
+			return '';
+		}
+		const selectedAddress = this.config.selectedAddress;
+		const collectibleUserApi = contract.api + contract.owner_api + selectedAddress;
+		return collectibleUserApi;
+	}
+
+	/**
+	 *
+	 * Query if a contract implements an interface
+	 *
+	 * @param contractAddress - Asset contract address
+	 * @param interfaceId - Interface identifier
+	 * @returns - If the contract implements `interfaceID`
+	 */
+	private async contractSupportsInterface(contractAddress: string, interfaceId: string): Promise<boolean> {
+		if (!this.web3) {
+			return false;
+		}
+		try {
+			const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
+			const supports = (await new Promise<boolean>((resolve, reject) => {
+				contract.supportsInterface(interfaceId, (error: Error, result: any) => {
+					/* istanbul ignore next */
+					if (error) {
+						reject(error);
+						return;
+					}
+					resolve(result);
+				});
+			})) as boolean;
+			return supports;
+		} catch (error) {
+			/* istanbul ignore next */
+			return false;
+		}
+	}
+
+	/**
+	 * Enumerate assets assigned to an owner
+	 *
+	 * @param contractAddress - ERC721 asset contract address
+	 * @param index - A collectible counter less than `balanceOf(owner)`
+	 * @returns - Token identifier for the 'index'th asset assigned to 'contractAddress'
+	 */
+	private async getCollectibleTokenId(contractAddress: string, index: number): Promise<number> {
+		const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
+		const selectedAddress = this.config.selectedAddress;
+		return new Promise<number>((resolve, reject) => {
+			contract.tokenOfOwnerByIndex(selectedAddress, index, (error: Error, result: any) => {
+				/* istanbul ignore next */
+				if (error) {
+					reject(error);
+					return;
+				}
+				resolve(result.toNumber());
+			});
+		});
+	}
+
+	/**
+	 * Get current account collectibles ids, if ERC721Enumerable interface implemented
+	 *
+	 * @param contractAddress - ERC721 asset contract address
+	 */
+	private async getAccountEnumerableCollectiblesIds(contractAddress: string): Promise<CollectibleEntry[]> {
+		const collectibleEntries: CollectibleEntry[] = [];
+		try {
+			const balance = await this.contractBalanceOf(contractAddress);
+			if (balance !== 0) {
+				const indexes: number[] = Array.from(new Array(balance), (_, index) => index);
+				const promises = indexes.map((index) => {
+					return this.getCollectibleTokenId(contractAddress, index);
+				});
+				const tokenIds = await Promise.all(promises);
+				for (const key in tokenIds) {
+					collectibleEntries.push({ id: tokenIds[key] });
+				}
+			}
+			return collectibleEntries;
+		} catch (error) {
+			/* istanbul ignore next */
+			return collectibleEntries;
+		}
+	}
+
+	/**
+	 * Get current account collectibles, using collectible API
+	 * if there is one defined in contract metadata
+	 *
+	 * @param contractAddress - ERC721 asset contract address
+	 */
+	private async getAccountApiCollectiblesIds(contractAddress: string): Promise<CollectibleEntry[]> {
+		const collectibleEntries: CollectibleEntry[] = [];
+		try {
+			const contract = contractMap[contractAddress];
+			const collectibleUserApi = this.getCollectibleUserApi(contractAddress);
+			const response = await fetch(collectibleUserApi);
+			const json = await response.json();
+			const collectiblesJson = json[contract.collectibles_entry];
+			for (const key in collectiblesJson) {
+				const collectibleEntry: CollectibleEntry = collectiblesJson[key];
+				collectibleEntries.push({ id: collectibleEntry.id });
+			}
+			return collectibleEntries;
+		} catch (error) {
+			/* istanbul ignore next */
+			return collectibleEntries;
+		}
+	}
+
+	/**
 	 * Name of this controller used during composition
 	 */
 	name = 'AssetsDetectionController';
@@ -105,24 +225,12 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	}
 
 	/**
-	 * Get user information API for collectibles based on API
-	 *
-	 * @param contractAddress - ERC721 asset contract address
-	 */
-	private getCollectibleUserApi(contractAddress: string) {
-		const selectedAddress = this.config.selectedAddress;
-		const contract = contractMap[contractAddress];
-		const collectibleUserApi = contract.api + contract.owner_api + selectedAddress;
-		return collectibleUserApi;
-	}
-
-	/**
-	 * Gets balance or count for current account on specific asset contract
+	 * Get balance or count for current account on specific asset contract
 	 *
 	 * @param contractAddress - Asset contract address
 	 * @returns - Balance for current account on specific asset contract
 	 */
-	private async contractBalanceOf(contractAddress: string): Promise<number> {
+	async contractBalanceOf(contractAddress: string): Promise<number> {
 		if (!this.web3) {
 			return 0;
 		}
@@ -141,60 +249,9 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			})) as any;
 			return balance.toNumber();
 		} catch (error) {
+			/* istanbul ignore next */
 			return 0;
 		}
-	}
-
-	/**
-	 *
-	 * Query if a contract implements an interface
-	 *
-	 * @param contractAddress - Asset contract address
-	 * @param interfaceId - Interface identifier
-	 * @returns - If the contract implements `interfaceID`
-	 */
-	private async contractSupportsInterface(contractAddress: string, interfaceId: string): Promise<boolean> {
-		if (!this.web3) {
-			return false;
-		}
-		try {
-			const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
-			const supports = await new Promise<boolean>((resolve, reject) => {
-				contract.supportsInterface(interfaceId, (error: Error, result: any) => {
-					/* istanbul ignore next */
-					if (error) {
-						reject(error);
-						return;
-					}
-					resolve(result);
-				});
-			});
-			return supports;
-		} catch (error) {
-			return false;
-		}
-	}
-
-	/**
-	 * Enumerate assets assigned to an owner
-	 *
-	 * @param contractAddress - ERC721 asset contract address
-	 * @param index - A counter less than `balanceOf(owner)`
-	 * @returns - Token identifier for the 'index'th asset assigned to 'contractAddress'
-	 */
-	private getCollectibleTokenId(contractAddress: string, index: number): Promise<number> {
-		const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
-		const selectedAddress = this.config.selectedAddress;
-		return new Promise<number>((resolve, reject) => {
-			contract.tokenOfOwnerByIndex(selectedAddress, index, (error: Error, result: any) => {
-				/* istanbul ignore next */
-				if (error) {
-					reject(error);
-					return;
-				}
-				resolve(result.toNumber());
-			});
-		});
 	}
 
 	/**
@@ -209,7 +266,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	}
 
 	/**
-	 * Triggers asset ERC20 token auto detection for each contract address on contract metadata
+	 * Triggers asset ERC20 token auto detection for each contract address in contract metadata
 	 */
 	async detectTokens() {
 		const tokensAddresses = this.config.tokens.filter((token) => token.address);
@@ -222,8 +279,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	}
 
 	/**
-	 * Detect if current account has balance on ERC20 asset contract. I
-	 * If that is the case, it adds the token to state
+	 * Detect if current account is owner of ERC20 token, if that is the case, adds it to state
 	 *
 	 * @param contractAddress - Asset ERC20 contract address
 	 */
@@ -240,8 +296,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	}
 
 	/**
-	 * Triggers asset ERC721 token auto detection for each contract address on contract metadata
-	 *
+	 * Triggers asset ERC721 token auto detection for each contract address in contract metadata
 	 */
 	async detectCollectibles() {
 		for (const contractAddress in contractMap) {
@@ -253,7 +308,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	}
 
 	/**
-	 * Query for a URI for a given asset
+	 * Query for tokenURI for a given asset
 	 *
 	 * @param contractAddress - ERC721 asset contract address
 	 * @param tokenId - ERC721 asset identifier
@@ -264,71 +319,45 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			return '';
 		}
 		try {
-			const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
 			const supports = await this.contractSupportsInterface(contractAddress, ERC721METADATA_INTERFACE_ID);
-			if (supports) {
-				const URI = (await new Promise<string>((resolve, reject) => {
-					contract.tokenURI(tokenId, (error: Error, result: any) => {
-						/* istanbul ignore next */
-						if (error) {
-							reject(error);
-							return;
-						}
-						resolve(result);
-					});
-				})) as string;
-				return URI;
+			if (!supports) {
+				return '';
 			}
-			return '';
+			const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
+			const URI = (await new Promise<string>((resolve, reject) => {
+				contract.tokenURI(tokenId, (error: Error, result: any) => {
+					/* istanbul ignore next */
+					if (error) {
+						reject(error);
+						return;
+					}
+					resolve(result);
+				});
+			})) as string;
+			return URI;
 		} catch (error) {
+			/* istanbul ignore next */
 			return '';
 		}
 	}
 
 	/**
-	 * Detect collectibles owned by current account
+	 * Detect if current account is owner of ERC721 token, if that is the case, adds it to state
+	 *
 	 *
 	 * @param contractAddress - ERC721 asset contract address
 	 */
 	async detectCollectibleOwnership(contractAddress: string) {
 		const supportsEnumerable = await this.contractSupportsInterface(contractAddress, ERC721ENUMERABLE_INTERFACE_ID);
+		let collectibleIds: CollectibleEntry[] = [];
 		if (supportsEnumerable) {
-			const balance = await this.contractBalanceOf(contractAddress);
-			if (balance !== 0) {
-				const assetsController = this.context.AssetsController as AssetsController;
-				const indexes: number[] = Array.from(new Array(balance), (_, index) => index);
-				const promises = indexes.map((index) => {
-					return this.getCollectibleTokenId(contractAddress, index);
-				});
-				const tokenIds = await Promise.all(promises);
-				for (const tokenId in tokenIds) {
-					await assetsController.addCollectible(contractAddress, tokenIds[tokenId]);
-				}
-			}
+			collectibleIds = await this.getAccountEnumerableCollectiblesIds(contractAddress);
 		} else if (contractMap[contractAddress].api) {
-			await this.fetchUserCollectibles(contractAddress);
+			collectibleIds = await this.getAccountApiCollectiblesIds(contractAddress);
 		}
-	}
-
-	/**
-	 * Fetch collectible basic information, name and image url from API provided in contract metadata
-	 *
-	 * @param contractAddress - ERC721 asset contract address
-	 */
-	private async fetchUserCollectibles(contractAddress: string) {
-		try {
-			const assetsController = this.context.AssetsController as AssetsController;
-			const contract = contractMap[contractAddress];
-			const collectibleUserApi = this.getCollectibleUserApi(contractAddress);
-			const response = await fetch(collectibleUserApi);
-			const json = await response.json();
-			const collectiblesJson = json[contract.collectibles_entry];
-			for (const key in collectiblesJson) {
-				const collectibleEntry: CollectibleEntry = collectiblesJson[key];
-				await assetsController.addCollectible(contractAddress, collectibleEntry.id);
-			}
-		} catch (error) {
-			/* istanbul ignore next */
+		const assetsController = this.context.AssetsController as AssetsController;
+		for (const key in collectibleIds.slice(0, 3)) {
+			await assetsController.addCollectible(contractAddress, collectibleIds[key].id);
 		}
 	}
 
