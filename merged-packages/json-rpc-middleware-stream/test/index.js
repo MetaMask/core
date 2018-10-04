@@ -101,3 +101,23 @@ test('server notification', (t) => {
   // receive notification
   jsonRpcConnection.stream.write(notif)
 })
+
+
+test('server notification in stream', (t) => {
+  const engine = new RpcEngine()
+
+  const stream = createEngineStream({ engine })
+  const notif = { jsonrpc: '2.0', method: 'test_notif' }
+
+  // listen for incomming requests
+  stream.once('data', (_notif) => {
+    t.deepEqual(notif, _notif, 'got the expected notification')
+    t.end()
+  })
+
+  stream.on('error', (err) => {
+    t.fail(error.message)
+  })
+
+  engine.emit('notification', notif)
+})

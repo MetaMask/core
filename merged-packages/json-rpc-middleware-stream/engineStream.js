@@ -4,8 +4,14 @@ module.exports = createEngineStream
 
 function createEngineStream({ engine }) {
   if (!engine) throw new Error('Missing engine parameter!')
-
-  return new DuplexStream({ objectMode: true, read, write })
+  const stream = new DuplexStream({ objectMode: true, read, write })
+  // forward notifications
+  if (engine.on) {
+    engine.on('notification', (message) => {
+      stream.push(message)
+    })
+  }
+  return stream
 
   function read () {
     return false
