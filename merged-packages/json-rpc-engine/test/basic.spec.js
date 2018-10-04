@@ -134,6 +134,18 @@ describe('basic tests', function () {
     })
   })
 
+  it('basic notifications', function (done) {
+    const engine = new RpcEngine()
+
+    engine.once('notification', (notif) => {
+      assert.equal(notif.method, 'test_notif')
+      done()
+    })
+
+    const payload = { jsonrpc: '2.0', method: 'test_notif' }
+    engine.emit('notification', payload)
+  })
+
   it('return handlers test', function (done) {
     let engine = new RpcEngine()
 

@@ -1,8 +1,10 @@
 'use strict'
 const async = require('async')
+const SafeEventEmitter = require('safe-event-emitter')
 
-class RpcEngine {
+class RpcEngine extends SafeEventEmitter {
   constructor () {
+    super()
     this._middleware = []
   }
 
