@@ -96,6 +96,7 @@ describe('AssetsDetectionController', () => {
 
 	it('should identify when an interface is supported by collectible contract', async () => {
 		assetsDetectionController.configure({ provider: MAINNET_PROVIDER });
+		sandbox.stub(assetsDetectionController, 'contractBalanceOf').returns(1);
 		const getAccountEnumerableCollectiblesIds = sandbox
 			.stub(assetsDetectionController, 'getAccountEnumerableCollectiblesIds' as any)
 			.returns([]);
@@ -201,7 +202,7 @@ describe('AssetsDetectionController', () => {
 		expect(tokenURI).toBe('https://api.godsunchained.com/card/111');
 	});
 
-	it('should get correct token ids if contract supports enumerable interface', async () => {
+	it('should get correct collectible token ids if contract supports enumerable interface', async () => {
 		const holder = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
 		assetsDetectionController.configure({ provider: MAINNET_PROVIDER, selectedAddress: holder });
 		const assets = new AssetsController();
@@ -222,7 +223,7 @@ describe('AssetsDetectionController', () => {
 		]);
 	});
 
-	it('should not get token ids if contract supports enumerable interface with no balance', async () => {
+	it('should not get collectible token ids if contract supports enumerable interface with no balance', async () => {
 		const holder = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
 		assetsDetectionController.configure({ provider: MAINNET_PROVIDER, selectedAddress: holder });
 		const assets = new AssetsController();
@@ -238,7 +239,7 @@ describe('AssetsDetectionController', () => {
 		expect(getCollectibleTokenId.called).toBe(false);
 	});
 
-	it('should get correct token ids if contract does not support enumerable interface', async () => {
+	it('should get correct collectible token ids if contract is not well defined in contract metadata', async () => {
 		const holder = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
 		assetsDetectionController.configure({ provider: MAINNET_PROVIDER, selectedAddress: holder });
 		const assets = new AssetsController();
@@ -268,6 +269,25 @@ describe('AssetsDetectionController', () => {
 		await assetsDetectionController.detectCollectibleOwnership(CKADDRESS);
 		expect(assetsDetectionController.config.collectibles).toEqual([]);
 		expect(getCollectibleUserApi.called).toBe(false);
+	});
+
+	it('should get correct collectible token ids if contract does not support enumerable interface', async () => {
+		const holder = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
+		assetsDetectionController.configure({ provider: MAINNET_PROVIDER, selectedAddress: holder });
+		const getAccountEnumerableCollectiblesIds = sandbox.stub(
+			assetsDetectionController,
+			'getAccountEnumerableCollectiblesIds' as any
+		);
+		const getAccountApiCollectiblesIds = sandbox.stub(
+			assetsDetectionController,
+			'getAccountApiCollectiblesIds' as any
+		);
+		sandbox.stub(assetsDetectionController, 'contractBalanceOf').returns(1);
+		sandbox.stub(assetsDetectionController, 'contractSupportsInterface' as any).returns(false);
+		await assetsDetectionController.detectCollectibleOwnership('0x0');
+		expect(assetsDetectionController.config.collectibles).toEqual([]);
+		expect(getAccountEnumerableCollectiblesIds.called).toBe(false);
+		expect(getAccountApiCollectiblesIds.called).toBe(false);
 	});
 
 	it('should subscribe to new sibling detecting assets when network or account changes', async () => {
