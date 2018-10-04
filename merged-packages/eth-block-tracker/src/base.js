@@ -1,6 +1,6 @@
 const EthQuery = require('eth-query')
 const pify = require('pify')
-const SafeEventEmitter = require('./safe-ee')
+const SafeEventEmitter = require('safe-event-emitter')
 
 const sec = 1000
 

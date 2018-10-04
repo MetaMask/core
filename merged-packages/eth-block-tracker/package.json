@@ -17,7 +17,8 @@
     "eth-json-rpc-infura": "^3.1.0",
     "eth-query": "^2.1.0",
     "events": "^3.0.0",
-    "pify": "^3.0.0"
+    "pify": "^3.0.0",
+    "safe-event-emitter": "^1.0.1"
   },
   "devDependencies": {
     "babel-cli": "^6.24.1",
