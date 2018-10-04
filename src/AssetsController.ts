@@ -33,7 +33,7 @@ export interface MappedContract {
 	decimals?: number;
 	api?: string;
 	collectibles_api?: string;
-	owner_api: string;
+	owner_api?: string;
 	erc20?: boolean;
 	erc721?: boolean;
 }
@@ -92,7 +92,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param tokenId - ERC721 asset identifier
 	 * @returns - Collectibble tokenURI
 	 */
-	private async getCollectibleApi(contract: MappedContract, tokenId: number): Promise<string> {
+	private async getCollectibleURI(contract: MappedContract, tokenId: number): Promise<string> {
 		if (contract.api) {
 			return `${contract.api + contract.collectibles_api}${tokenId}`;
 		} else {
@@ -131,7 +131,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		tokenId: number
 	): Promise<CollectibleCustomInformation> {
 		try {
-			const tokenURI = await this.getCollectibleApi(contract, tokenId);
+			const tokenURI = await this.getCollectibleURI(contract, tokenId);
 			const response = await fetch(tokenURI);
 			const json = await response.json();
 			const imageParam = json.hasOwnProperty('image') ? 'image' : 'image_url';

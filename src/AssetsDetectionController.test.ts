@@ -9,6 +9,8 @@ const HttpProvider = require('ethjs-provider-http');
 const DEFAULT_INTERVAL = 180000;
 const PROVIDER = new HttpProvider('https://ropsten.infura.io');
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
+const GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
+const CKADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
 
 describe('AssetsDetectionController', () => {
 	let assetsDetectionController: AssetsDetectionController;
@@ -55,7 +57,7 @@ describe('AssetsDetectionController', () => {
 
 	it('should not detect assets on interval when not mainnet', () => {
 		const clock = sandbox.useFakeTimers();
-		assetsDetectionController = new AssetsDetectionController({ networkType: 'rinkeby' });
+		assetsDetectionController.configure({ networkType: 'rinkeby' });
 		const detectTokens = sandbox.stub(assetsDetectionController, 'detectTokens').returns(null);
 		const detectCollectibles = sandbox.stub(assetsDetectionController, 'detectCollectibles').returns(null);
 		clock.tick(180001);
@@ -63,23 +65,22 @@ describe('AssetsDetectionController', () => {
 		expect(detectCollectibles.called).toBe(false);
 	});
 
-	it('should d and add tokens on interval when mainnet', () => {
+	it('should detect and add tokens on interval when mainnet', () => {
 		const clock = sandbox.useFakeTimers();
-		assetsDetectionController = new AssetsDetectionController({ provider: PROVIDER, networkType: 'mainnet' });
+		assetsDetectionController.configure({ selectedAddress: '0x1234' });
+		assetsDetectionController.configure({ provider: PROVIDER, networkType: 'mainnet' });
 		const assets = new AssetsController();
 		const network = new NetworkController();
 		const preferences = new PreferencesController();
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assets, assetsDetectionController, network, preferences]);
-		preferences.update({ selectedAddress: '0x1234' });
-		assetsDetectionController.configure({ provider: PROVIDER });
 		clock.tick(180001);
 		expect(assets.state.tokens).toEqual([]);
 		expect(assets.state.collectibles).toEqual([]);
 	});
 
 	it('should detect token accordingly on interval when mainnet', async () => {
-		assetsDetectionController = new AssetsDetectionController({ provider: MAINNET_PROVIDER });
+		assetsDetectionController.configure({ provider: MAINNET_PROVIDER });
 		const assets = new AssetsController();
 		const network = new NetworkController();
 		const preferences = new PreferencesController();
@@ -93,70 +94,180 @@ describe('AssetsDetectionController', () => {
 		]);
 	});
 
-	it('should detect collectible when interface supported accordingly on interval when mainnet', async () => {
-		assetsDetectionController = new AssetsDetectionController({ provider: MAINNET_PROVIDER });
+	it('should identify when an interface is supported by collectible contract', async () => {
+		assetsDetectionController.configure({ provider: MAINNET_PROVIDER });
+		const getAccountEnumerableCollectiblesIds = sandbox
+			.stub(assetsDetectionController, 'getAccountEnumerableCollectiblesIds' as any)
+			.returns([]);
+		const getAccountApiCollectiblesIds = sandbox
+			.stub(assetsDetectionController, 'getAccountApiCollectiblesIds' as any)
+			.returns([]);
+		await assetsDetectionController.detectCollectibleOwnership(CKADDRESS);
+		expect(getAccountApiCollectiblesIds.called).toBe(true);
+		expect(getAccountEnumerableCollectiblesIds.called).toBe(false);
+		await assetsDetectionController.detectCollectibleOwnership(GODSADDRESS);
+		expect(getAccountApiCollectiblesIds.calledTwice).toBe(false);
+		expect(getAccountEnumerableCollectiblesIds.called).toBe(true);
+	});
+
+	it('should identify when there is balance in contract', async () => {
+		const notHolder = '0x1234';
+		assetsDetectionController.configure({ provider: MAINNET_PROVIDER, selectedAddress: notHolder });
+		const GODSAddress = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
+		const balance = await assetsDetectionController.contractBalanceOf(GODSAddress);
+		expect(balance).toBe(0);
+	});
+
+	it('should detect and add tokens', async () => {
+		const notHolder = '0xfoo';
+		assetsDetectionController.configure({ provider: MAINNET_PROVIDER, selectedAddress: notHolder });
 		const assets = new AssetsController();
 		const network = new NetworkController();
 		const preferences = new PreferencesController();
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assets, assetsDetectionController, network, preferences]);
-		sandbox.stub(assetsDetectionController, 'contractBalanceOf').returns(1);
-		sandbox.stub(assetsDetectionController, 'contractSupportsInterface' as any).returns(true);
-		preferences.update({ selectedAddress: '0x9a90bd8d1149a88b42a99cf62215ad955d6f498a' });
-		await assetsDetectionController.detectCollectibleOwnership('0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab');
-		expect(assets.state.collectibles.length).toEqual(1);
+		const OMGAddress = '0xd26114cd6EE289AccF82350c8d8487fedB8A0C07';
+		sandbox
+			.stub(assetsDetectionController, 'contractBalanceOf')
+			.returns(0)
+			.withArgs(OMGAddress)
+			.returns(1);
+		await assetsDetectionController.detectTokens();
+		expect(assetsDetectionController.config.tokens).toEqual([
+			{ address: '0xd26114cd6EE289AccF82350c8d8487fedB8A0C07', symbol: 'OMG', decimals: 18 }
+		]);
 	});
 
-	it('should detect collectible when interface not supported accordingly on interval when mainnet', async () => {
-		jest.setTimeout(20000);
-		assetsDetectionController = new AssetsDetectionController({ provider: MAINNET_PROVIDER });
+	it('should detect and add collectible from contract metadata api', async () => {
+		assetsDetectionController.configure({ provider: MAINNET_PROVIDER });
 		const assets = new AssetsController();
 		const network = new NetworkController();
 		const preferences = new PreferencesController();
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assets, assetsDetectionController, network, preferences]);
+		sandbox
+			.stub(assetsDetectionController, 'contractBalanceOf')
+			.returns(0)
+			.withArgs(CKADDRESS)
+			.returns(1);
+		sandbox.stub(assetsDetectionController, 'contractSupportsInterface' as any).returns(false);
+		sandbox
+			.stub(assetsDetectionController, 'getAccountApiCollectiblesIds' as any)
+			.withArgs(CKADDRESS)
+			.returns([{ id: 111 }]);
+		await assetsDetectionController.detectCollectibles();
+		expect(assetsDetectionController.config.collectibles).toEqual([
+			{
+				address: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
+				image: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/111.png',
+				name: 'Reachy',
+				tokenId: 111
+			}
+		]);
+	});
+
+	it('should detect and add collectible from contract interaction', async () => {
+		assetsDetectionController.configure({ provider: MAINNET_PROVIDER });
+		const assets = new AssetsController();
+		const network = new NetworkController();
+		const preferences = new PreferencesController();
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assets, assetsDetectionController, network, preferences]);
+		sandbox
+			.stub(assetsDetectionController, 'contractBalanceOf')
+			.returns(0)
+			.withArgs(GODSADDRESS)
+			.returns(1);
+		sandbox.stub(assetsDetectionController, 'contractSupportsInterface' as any).returns(true);
+		sandbox
+			.stub(assetsDetectionController, 'getAccountEnumerableCollectiblesIds' as any)
+			.withArgs(GODSADDRESS)
+			.returns([{ id: 111 }]);
+		await assetsDetectionController.detectCollectibles();
+		expect(assetsDetectionController.config.collectibles).toEqual([
+			{
+				address: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
+				image: 'https://api.godsunchained.com/v0/image/355?format=card&quality=diamond',
+				name: 'Eager Gryphon',
+				tokenId: 111
+			}
+		]);
+	});
+
+	it('should get token uri correctly', async () => {
+		assetsDetectionController.configure({ provider: MAINNET_PROVIDER });
+		sandbox.stub(assetsDetectionController, 'contractSupportsInterface' as any).returns(true);
+		const tokenURI = await assetsDetectionController.getCollectibleTokenURI(GODSADDRESS, 111);
+		expect(tokenURI).toBe('https://api.godsunchained.com/card/111');
+	});
+
+	it('should get correct token ids if contract supports enumerable interface', async () => {
+		const holder = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
+		assetsDetectionController.configure({ provider: MAINNET_PROVIDER, selectedAddress: holder });
+		const assets = new AssetsController();
+		const network = new NetworkController();
+		const preferences = new PreferencesController();
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assets, assetsDetectionController, network, preferences]);
+		sandbox.stub(assetsDetectionController, 'contractSupportsInterface' as any).returns(true);
+		sandbox.stub(assetsDetectionController, 'contractBalanceOf').returns(1);
+		await assetsDetectionController.detectCollectibleOwnership(GODSADDRESS);
+		expect(assetsDetectionController.config.collectibles).toEqual([
+			{
+				address: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
+				image: 'https://api.godsunchained.com/v0/image/380?format=card&quality=plain',
+				name: 'First Pheonix',
+				tokenId: 0
+			}
+		]);
+	});
+
+	it('should not get token ids if contract supports enumerable interface with no balance', async () => {
+		const holder = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
+		assetsDetectionController.configure({ provider: MAINNET_PROVIDER, selectedAddress: holder });
+		const assets = new AssetsController();
+		const network = new NetworkController();
+		const preferences = new PreferencesController();
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assets, assetsDetectionController, network, preferences]);
+		sandbox.stub(assetsDetectionController, 'contractSupportsInterface' as any).returns(true);
+		sandbox.stub(assetsDetectionController, 'contractBalanceOf').returns(0);
+		const getCollectibleTokenId = sandbox.stub(assetsDetectionController, 'getCollectibleTokenId' as any);
+		await assetsDetectionController.detectCollectibleOwnership(GODSADDRESS);
+		expect(assetsDetectionController.config.collectibles).toEqual([]);
+		expect(getCollectibleTokenId.called).toBe(false);
+	});
+
+	it('should get correct token ids if contract does not support enumerable interface', async () => {
+		const holder = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
+		assetsDetectionController.configure({ provider: MAINNET_PROVIDER, selectedAddress: holder });
+		const assets = new AssetsController();
+		const network = new NetworkController();
+		const preferences = new PreferencesController();
+		sandbox.stub(assets, 'fetchCollectibleBasicInformation' as any).returns({ name: '', image: '' });
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assets, assetsDetectionController, network, preferences]);
 		sandbox.stub(assetsDetectionController, 'contractBalanceOf').returns(1);
 		sandbox.stub(assetsDetectionController, 'contractSupportsInterface' as any).returns(false);
-		sandbox
-			.stub(assetsDetectionController, 'getCollectibleUserApi' as any)
-			.returns(
-				'https://api.cryptokitties.co/kitties?owner_wallet_address=0xb1690C08E213a35Ed9bAb7B318DE14420FB57d8C'
-			);
-		await assetsDetectionController.detectCollectibleOwnership('0x06012c8cf97BEaD5deAe237070F9587f8E7A266d');
-		expect(assets.state.collectibles.length).not.toEqual(0);
+		await assetsDetectionController.detectCollectibleOwnership(CKADDRESS);
+		expect(assetsDetectionController.config.collectibles).not.toBe([]);
 	});
 
-	it('should detect collectible when interface not supported accordingly on interval when mainnet', async () => {
-		jest.setTimeout(20000);
-		assetsDetectionController = new AssetsDetectionController({ provider: MAINNET_PROVIDER });
+	it('should not get correct token ids if contract does not support enumerable interface with no balance', async () => {
+		const holder = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
+		assetsDetectionController.configure({ provider: MAINNET_PROVIDER, selectedAddress: holder });
 		const assets = new AssetsController();
 		const network = new NetworkController();
 		const preferences = new PreferencesController();
+		sandbox.stub(assets, 'fetchCollectibleBasicInformation' as any).returns({ name: '', image: '' });
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assets, assetsDetectionController, network, preferences]);
-		sandbox
-			.stub(assetsDetectionController, 'getCollectibleUserApi' as any)
-			.returns(
-				'https://api.cryptokitties.co/kitties?owner_wallet_address=0xb1690C08E213a35Ed9bAb7B318DE14420FB57d8C'
-			);
-
-		await assetsDetectionController.detectCollectibleOwnership('0x06012c8cf97BEaD5deAe237070F9587f8E7A266d');
-		expect(assets.state.collectibles.length).not.toEqual(0);
-	});
-
-	it('should not detect assets when no balance', async () => {
-		assetsDetectionController = new AssetsDetectionController({ provider: MAINNET_PROVIDER });
-		const assets = new AssetsController();
-		const network = new NetworkController();
-		const preferences = new PreferencesController();
-		/* tslint:disable-next-line:no-unused-expression */
-		new ComposableController([assets, assetsDetectionController, network, preferences]);
-		preferences.update({ selectedAddress: '0x606af0bd4501855914b50e2672c5926b896737ef' });
 		sandbox.stub(assetsDetectionController, 'contractBalanceOf').returns(0);
-		await assetsDetectionController.detectTokens();
-		await assetsDetectionController.detectCollectibles();
-		expect(assets.state.collectibles.length).toEqual(0);
-		expect(assets.state.tokens.length).toEqual(0);
+		sandbox.stub(assetsDetectionController, 'contractSupportsInterface' as any).returns(false);
+		const getCollectibleUserApi = sandbox.stub(assetsDetectionController, 'getCollectibleUserApi' as any);
+		await assetsDetectionController.detectCollectibleOwnership(CKADDRESS);
+		expect(assetsDetectionController.config.collectibles).toEqual([]);
+		expect(getCollectibleUserApi.called).toBe(false);
 	});
 
 	it('should subscribe to new sibling detecting assets when network or account changes', async () => {

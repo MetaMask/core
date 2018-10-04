@@ -6,7 +6,7 @@
   "scripts": {
     "precommit": "lint-staged",
     "lint": "tslint src/**/*.ts",
-    "test": "jest --coverage",
+    "test": "jest --no-cache --coverage",
     "format": "prettier **/*.ts --write --ignore-path=.gitignore",
     "build": "tsc && cp package.json dist/.",
     "doc": "typedoc src/ && touch docs/.nojekyll"
@@ -54,6 +54,7 @@
     "@types/node": "^10.1.4",
     "@types/sinon": "^4.3.3",
     "@types/web3": "^1.0.6",
+    "bignumber.js": "^7.2.1",
     "ethjs-provider-http": "^0.1.6",
     "fetch-mock": "^6.4.3",
     "husky": "^0.14.3",

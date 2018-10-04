@@ -62,10 +62,6 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 */
 	private getCollectibleUserApi(contractAddress: string) {
 		const contract = contractMap[contractAddress];
-		/* istanbul ignore if */
-		if (!contract.api || !contract.owner_api) {
-			return '';
-		}
 		const selectedAddress = this.config.selectedAddress;
 		const collectibleUserApi = contract.api + contract.owner_api + selectedAddress;
 		return collectibleUserApi;
@@ -111,7 +107,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		const selectedAddress = this.config.selectedAddress;
 		return new Promise<number>((resolve, reject) => {
 			contract.tokenOfOwnerByIndex(selectedAddress, index, (error: Error, result: any) => {
-				/* istanbul ignore next */
+				/* istanbul ignore if */
 				if (error) {
 					reject(error);
 					return;
@@ -158,15 +154,17 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	private async getAccountApiCollectiblesIds(contractAddress: string): Promise<CollectibleEntry[]> {
 		const collectibleEntries: CollectibleEntry[] = [];
 		try {
+			const balance = await this.contractBalanceOf(contractAddress);
 			const contract = contractMap[contractAddress];
-			const collectibleUserApi = this.getCollectibleUserApi(contractAddress);
-			const response = await fetch(collectibleUserApi);
-			const json = await response.json();
-			const collectiblesJson = json[contract.collectibles_entry];
-			/* istanbul ignore next */
-			for (const key in collectiblesJson) {
-				const collectibleEntry: CollectibleEntry = collectiblesJson[key];
-				collectibleEntries.push({ id: collectibleEntry.id });
+			if (balance !== 0 && contract.api && contract.owner_api) {
+				const collectibleUserApi = this.getCollectibleUserApi(contractAddress);
+				const response = await fetch(collectibleUserApi);
+				const json = await response.json();
+				const collectiblesJson = json[contract.collectibles_entry];
+				for (const key in collectiblesJson) {
+					const collectibleEntry: CollectibleEntry = collectiblesJson[key];
+					collectibleEntries.push({ id: collectibleEntry.id });
+				}
 			}
 			return collectibleEntries;
 		} catch (error) {
@@ -237,7 +235,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			const selectedAddress = this.config.selectedAddress;
 			const balance = (await new Promise((resolve, reject) => {
 				contract.balanceOf(selectedAddress, (error: Error, result: any) => {
-					/* istanbul ignore next */
+					/* istanbul ignore if */
 					if (error) {
 						reject(error);
 						return;
@@ -322,7 +320,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
 			const URI = (await new Promise<string>((resolve, reject) => {
 				contract.tokenURI(tokenId, (error: Error, result: any) => {
-					/* istanbul ignore next */
+					/* istanbul ignore if */
 					if (error) {
 						reject(error);
 						return;
