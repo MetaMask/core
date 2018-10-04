@@ -77,7 +77,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 *
 	 * @param contractAddress - Asset contract address
 	 * @param interfaceId - Interface identifier
-	 * @returns - If the contract implements `interfaceID`
+	 * @returns - Promise resolving to if the contract implements `interfaceID`
 	 */
 	private async contractSupportsInterface(contractAddress: string, interfaceId: string): Promise<boolean> {
 		try {
@@ -104,7 +104,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 *
 	 * @param contractAddress - ERC721 asset contract address
 	 * @param index - A collectible counter less than `balanceOf(owner)`
-	 * @returns - Token identifier for the 'index'th asset assigned to 'contractAddress'
+	 * @returns - Promise resolving to token identifier for the 'index'th asset assigned to 'contractAddress'
 	 */
 	private async getCollectibleTokenId(contractAddress: string, index: number): Promise<number> {
 		const contract = this.web3.eth.contract(abiERC721).at(contractAddress);
@@ -125,6 +125,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * Get current account collectibles ids, if ERC721Enumerable interface implemented
 	 *
 	 * @param contractAddress - ERC721 asset contract address
+	 * @return - Promise resolving to collectibles entries array
 	 */
 	private async getAccountEnumerableCollectiblesIds(contractAddress: string): Promise<CollectibleEntry[]> {
 		const collectibleEntries: CollectibleEntry[] = [];
@@ -152,6 +153,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * if there is one defined in contract metadata
 	 *
 	 * @param contractAddress - ERC721 asset contract address
+	 * @returns - Promise resolving to collectibles entries array
 	 */
 	private async getAccountApiCollectiblesIds(contractAddress: string): Promise<CollectibleEntry[]> {
 		const collectibleEntries: CollectibleEntry[] = [];
@@ -227,7 +229,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * Get balance or count for current account on specific asset contract
 	 *
 	 * @param contractAddress - Asset contract address
-	 * @returns - Balance for current account on specific asset contract
+	 * @returns - Promise resolving to balance for current account on specific asset contract
 	 */
 	async contractBalanceOf(contractAddress: string): Promise<number> {
 		try {
