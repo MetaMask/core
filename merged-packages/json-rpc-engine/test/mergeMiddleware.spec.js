@@ -36,13 +36,11 @@ describe('mergeMiddleware', function () {
     engine.push(mergeMiddleware([
       (req, res, next, end) => {
         next((cb) => {
-          console.log('ayyy')
           res.copy = res.result
           cb()
         })
       },
       (req, res, next, end) => {
-        console.log('handled')
         res.result = true
         end()
       }
@@ -53,7 +51,6 @@ describe('mergeMiddleware', function () {
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
       assert(res, 'has res')
-      console.log(res.result, res.copy)
       assert.equal(res.result, res.copy, 'copied result correctly')
       done()
     })
