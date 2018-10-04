@@ -11,11 +11,12 @@
     "eth-block-tracker": "^2.1.2",
     "ethjs-query": "^0.2.9",
     "json-rpc-engine": "^3.0.1",
-    "readable-stream": "^2.3.3"
+    "readable-stream": "^2.3.3",
+    "safe-event-emitter": "^1.0.1"
   },
   "devDependencies": {},
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test/index.js"
   },
   "repository": {
     "type": "git",

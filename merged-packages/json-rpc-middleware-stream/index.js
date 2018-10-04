@@ -1,10 +1,17 @@
+const SafeEventEmitter = require('safe-event-emitter')
 const DuplexStream = require('readable-stream').Duplex
 
 module.exports = createStreamMiddleware
 
 function createStreamMiddleware() {
   const idMap = {}
-  const stream = new DuplexStream({ objectMode: true, read, write })
+  const stream = new DuplexStream({
+    objectMode: true,
+    read: readNoop,
+    write: processMessage,
+  })
+
+  const events = new SafeEventEmitter()
 
   const middleware = (req, res, next, end) => {
     // write req to stream
@@ -13,26 +20,41 @@ function createStreamMiddleware() {
     idMap[req.id] = { req, res, next, end }
   }
 
-  middleware.stream = stream
-  
-  return middleware
+  return { events, middleware, stream }
 
-  function read () {
+  function readNoop () {
     return false
   }
 
-  function write (res, encoding, cb) {
-    // console.log(res, encoding, cb)
+  function processMessage (res, encoding, cb) {
+    let err
+    try {
+      const isNotification = !res.id
+      if (isNotification) {
+        processNotification(res)
+      } else {
+        processResponse(res)
+      }
+    } catch (_err) {
+      err = _err
+    }
+    // continue processing stream
+    cb(err)
+  }
+
+  function processResponse(res) {
     const context = idMap[res.id]
-    if (!context) cb(new Error(`StreamMiddleware - Unknown response id ${res.id}`))
+    if (!context) throw new Error(`StreamMiddleware - Unknown response id ${res.id}`)
     delete idMap[res.id]
     // copy whole res onto original res
     Object.assign(context.res, res)
     // run callback on empty stack,
     // prevent internal stream-handler from catching errors
     setTimeout(context.end)
-    // continue processing stream
-    cb()
+  }
+
+  function processNotification(res) {
+    events.emit('notification', res)
   }
 
 }

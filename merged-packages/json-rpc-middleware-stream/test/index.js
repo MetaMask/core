@@ -1,23 +1,23 @@
 const test = require('tape')
 const RpcEngine = require('json-rpc-engine')
-const createStreamMiddleware = require('../index')
+const createJsonRpcStream = require('../index')
 const createEngineStream = require('../engineStream')
 
 test('middleware - raw test', (t) => {
 
-  const middleware = createStreamMiddleware()
+  const jsonRpcConnection = createJsonRpcStream()
   const req = { id: 1, jsonrpc: '2.0', method: 'test' }
   const initRes = { id: 1, jsonrpc: '2.0' }
   const res = { id: 1, jsonrpc: '2.0', result: 'test' }
 
   // listen for incomming requests
-  middleware.stream.on('data', (_req) => {
+  jsonRpcConnection.stream.on('data', (_req) => {
     t.equal(req, _req, 'got the expected request')
-    middleware.stream.write(res)
+    jsonRpcConnection.stream.write(res)
   })
 
   // run middleware, expect end fn to be called
-  middleware(req, initRes, () => {
+  jsonRpcConnection.middleware(req, initRes, () => {
     t.fail('should not call next')
   }, (err) => {
     t.notOk(err, 'should not error')
@@ -58,8 +58,8 @@ test('middleware and engine to stream', (t) => {
 
   // create guest
   const engineA = new RpcEngine()
-  const middleware = createStreamMiddleware()
-  engineA.push(middleware)
+  const jsonRpcConnection = createJsonRpcStream()
+  engineA.push(jsonRpcConnection.middleware)
 
   // create host
   const engineB = new RpcEngine()
@@ -69,7 +69,7 @@ test('middleware and engine to stream', (t) => {
   })
 
   // connect both
-  const clientSideStream = middleware.stream
+  const clientSideStream = jsonRpcConnection.stream
   const hostSideStream = createEngineStream({ engine: engineB })
   clientSideStream
   .pipe(hostSideStream)
