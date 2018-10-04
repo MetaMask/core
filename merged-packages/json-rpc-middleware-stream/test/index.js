@@ -86,3 +86,18 @@ test('middleware and engine to stream', (t) => {
   })
 
 })
+
+test('server notification', (t) => {
+  t.plan(1)
+
+  const jsonRpcConnection = createJsonRpcStream()
+  const notif = { jsonrpc: '2.0', method: 'test_notif' }
+
+  jsonRpcConnection.events.once('notification', (message) => {
+    t.equals(message.method, notif.method)
+    t.end()
+  })
+
+  // receive notification
+  jsonRpcConnection.stream.write(notif)
+})
