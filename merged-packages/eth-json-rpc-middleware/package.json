@@ -35,6 +35,7 @@
     "json-stable-stringify": "^1.0.1",
     "pify": "^3.0.0",
     "promise-to-callback": "^1.0.0",
+    "safe-event-emitter": "^1.0.1",
     "tape": "^4.6.3"
   },
   "repository": {
