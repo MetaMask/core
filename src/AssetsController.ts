@@ -28,7 +28,7 @@ export interface Collectible {
 export interface MappedContract {
 	name: string;
 	logo?: string;
-	address?: string;
+	address: string;
 	symbol?: string;
 	decimals?: number;
 	api?: string;
@@ -85,14 +85,20 @@ export interface AssetsState extends BaseState {
  * Controller that stores assets and exposes convenience methods
  */
 export class AssetsController extends BaseController<AssetsConfig, AssetsState> {
+	/**
+	 * Get collectible tokenURI API
+	 *
+	 * @param contractAddress - ERC721 asset contract address
+	 * @param tokenId - ERC721 asset identifier
+	 * @returns - Collectibble tokenURI
+	 */
 	private async getCollectibleApi(contract: MappedContract, tokenId: number): Promise<string> {
 		if (contract.api) {
 			return `${contract.api + contract.collectibles_api}${tokenId}`;
-		} else if (contract.address) {
+		} else {
 			const assetsDetection = this.context.AssetsDetectionController as AssetsDetectionController;
 			return await assetsDetection.getCollectibleTokenURI(contract.address, tokenId);
 		}
-		return '';
 	}
 
 	/**
@@ -126,11 +132,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	): Promise<CollectibleCustomInformation> {
 		try {
 			const tokenURI = await this.getCollectibleApi(contract, tokenId);
-			if (tokenURI.length === 0) {
-				return { image: '', name: contract.name };
-			}
 			const response = await fetch(tokenURI);
-
 			const json = await response.json();
 			const imageParam = json.hasOwnProperty('image') ? 'image' : 'image_url';
 			return { image: json[imageParam], name: json.name };
