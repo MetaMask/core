@@ -5,9 +5,9 @@ import { PreferencesController } from './PreferencesController';
 import { ComposableController } from './ComposableController';
 import { AssetsController } from './AssetsController';
 import { AssetsContractController } from './AssetsContractController';
-import BigNumber from 'bignumber.js';
-const HttpProvider = require('ethjs-provider-http');
 
+const BN = require('ethereumjs-util').BN;
+const HttpProvider = require('ethjs-provider-http');
 const DEFAULT_INTERVAL = 180000;
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
 const GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
@@ -100,9 +100,9 @@ describe('AssetsDetectionController', () => {
 		assetsDetection.configure({ networkType: 'mainnet' });
 		sandbox
 			.stub(assetsContract, 'getBalanceOf')
-			.returns(new BigNumber(0))
+			.returns(new BN(0))
 			.withArgs('0x6810e776880C02933D47DB1b9fc05908e5386b96')
-			.returns(new BigNumber(1));
+			.returns(new BN(1));
 		await assetsDetection.detectTokens();
 		expect(assets.state.tokens).toEqual([
 			{
@@ -119,7 +119,7 @@ describe('AssetsDetectionController', () => {
 			selectedAddress: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d'
 		});
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
-		sandbox.stub(assetsContract, 'getBalanceOf').returns(new BigNumber(1));
+		sandbox.stub(assetsContract, 'getBalanceOf').returns(new BN(1));
 		sandbox.stub(assetsContract, 'getCollectibleTokenId').returns(new Promise((resolve) => resolve(0)));
 		await assetsDetection.detectCollectibleOwnership(GODSADDRESS);
 		expect(assets.state.collectibles).toEqual([
@@ -139,7 +139,7 @@ describe('AssetsDetectionController', () => {
 			selectedAddress: '0xb161330dc0d6a9e1cb441b3f2593ba689136b4e4'
 		});
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
-		sandbox.stub(assetsContract, 'getBalanceOf').returns(new BigNumber(1));
+		sandbox.stub(assetsContract, 'getBalanceOf').returns(new BN(1));
 		sandbox.stub(assetsContract, 'getCollectibleTokenId').returns(new Promise((resolve) => resolve(0)));
 		await assetsDetection.detectCollectibleOwnership(CKADDRESS);
 		expect(assets.state.collectibles).not.toEqual([]);
@@ -151,7 +151,7 @@ describe('AssetsDetectionController', () => {
 			selectedAddress: '0xb1690C08E213a35Ed9bAb7B318DE14420FB57d8C'
 		});
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
-		sandbox.stub(assetsContract, 'getBalanceOf').returns(new BigNumber(0));
+		sandbox.stub(assetsContract, 'getBalanceOf').returns(new BN(0));
 		const contractSupportsEnumerableInterface = sandbox
 			.stub(assetsContract, 'contractSupportsEnumerableInterface')
 			.returns(false);
@@ -164,7 +164,7 @@ describe('AssetsDetectionController', () => {
 	it('should not detect asset ownership when address in contract metadata', async () => {
 		assetsDetection.configure({ networkType: 'mainnet' });
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
-		sandbox.stub(assetsContract, 'getBalanceOf').returns(new BigNumber(1));
+		sandbox.stub(assetsContract, 'getBalanceOf').returns(new BN(1));
 		const getEnumerableCollectiblesIds = sandbox
 			.stub(assetsDetection, 'getEnumerableCollectiblesIds' as any)
 			.returns(false);

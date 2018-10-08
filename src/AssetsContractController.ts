@@ -1,7 +1,7 @@
 import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
-import BigNumber from 'bignumber.js';
 
+const BN = require('ethereumjs-util').BN;
 const Web3 = require('web3');
 const abiERC20 = require('human-standard-token-abi');
 const abiERC721 = require('human-standard-collectible-abi');
@@ -112,15 +112,15 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 * @param selectedAddress - Current account public address
 	 * @returns - Promise resolving to balance for current account on specific asset contract
 	 */
-	async getBalanceOf(address: string, selectedAddress: string): Promise<BigNumber> {
+	async getBalanceOf(address: string, selectedAddress: string): Promise<typeof BN> {
 		/* istanbul ignore if */
 		if (!this.web3) {
-			return new BigNumber(0);
+			return new BN(0);
 		}
 		try {
 			const contract = this.web3.eth.contract(abiERC20).at(address);
-			return await new Promise<BigNumber>((resolve, reject) => {
-				contract.balanceOf(selectedAddress, (error: Error, result: BigNumber) => {
+			return await new Promise<typeof BN>((resolve, reject) => {
+				contract.balanceOf(selectedAddress, (error: Error, result: typeof BN) => {
 					/* istanbul ignore if */
 					if (error) {
 						reject(error);
@@ -132,7 +132,7 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 		} catch (error) {
 			/* istanbul ignore next */
 			/* waiting for https://github.com/ethereum/web3.js/issues/1119 */
-			return new BigNumber(0);
+			return new BN(0);
 		}
 	}
 
@@ -147,7 +147,7 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	getCollectibleTokenId(address: string, selectedAddress: string, index: number): Promise<number> {
 		const contract = this.web3.eth.contract(abiERC721).at(address);
 		return new Promise<number>((resolve, reject) => {
-			contract.tokenOfOwnerByIndex(selectedAddress, index, (error: Error, result: BigNumber) => {
+			contract.tokenOfOwnerByIndex(selectedAddress, index, (error: Error, result: typeof BN) => {
 				/* istanbul ignore if */
 				if (error) {
 					reject(error);
