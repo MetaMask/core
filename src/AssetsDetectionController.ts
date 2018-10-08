@@ -81,7 +81,6 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			return collectibleEntries;
 		} catch (error) {
 			/* istanbul ignore next */
-
 			return collectibleEntries;
 		}
 	}
