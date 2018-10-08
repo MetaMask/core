@@ -212,7 +212,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * Triggers asset ERC20 token auto detection for each contract address in contract metadata
 	 */
 	async detectTokens() {
-		const tokensAddresses = this.config.tokens.filter((token) => token.address);
+		const tokensAddresses = this.config.tokens.filter(/* istanbul ignore next*/ (token) => token.address);
 		for (const address in contractMap) {
 			const contract = contractMap[address];
 			if (contract.erc20 && !(address in tokensAddresses)) {
