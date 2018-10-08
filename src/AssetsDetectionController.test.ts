@@ -39,7 +39,7 @@ describe('AssetsDetectionController', () => {
 	it('should set default config', () => {
 		expect(assetsDetection.config).toEqual({
 			interval: DEFAULT_INTERVAL,
-			networkType: '',
+			providerType: '',
 			selectedAddress: '',
 			tokens: []
 		});
@@ -55,7 +55,7 @@ describe('AssetsDetectionController', () => {
 
 	it('should poll and detect assets on interval while mainnet', () => {
 		const clock = sandbox.useFakeTimers();
-		assetsDetection.configure({ networkType: 'mainnet' });
+		assetsDetection.configure({ providerType: 'mainnet' });
 		const detectTokens = sandbox.stub(assetsDetection, 'detectTokens').returns(null);
 		const detectCollectibles = sandbox.stub(assetsDetection, 'detectCollectibles').returns(null);
 		clock.tick(180001);
@@ -70,7 +70,7 @@ describe('AssetsDetectionController', () => {
 		clock.tick(180001);
 		expect(detectTokens.called).toBe(false);
 		expect(detectCollectibles.called).toBe(false);
-		assetsDetection.configure({ networkType: 'mainnet' });
+		assetsDetection.configure({ providerType: 'mainnet' });
 		clock.tick(180001);
 		expect(detectTokens.called).toBe(true);
 		expect(detectCollectibles.called).toBe(true);
@@ -78,7 +78,7 @@ describe('AssetsDetectionController', () => {
 
 	it('should call detect tokens correctly', () => {
 		const clock = sandbox.useFakeTimers();
-		assetsDetection.configure({ networkType: 'mainnet' });
+		assetsDetection.configure({ providerType: 'mainnet' });
 		const detectTokenOwnership = sandbox.stub(assetsDetection, 'detectTokenOwnership').returns(null);
 		const detectCollectibles = sandbox.stub(assetsDetection, 'detectCollectibles').returns(null);
 		clock.tick(180001);
@@ -88,7 +88,7 @@ describe('AssetsDetectionController', () => {
 
 	it('should call detect collectibles correctly', () => {
 		const clock = sandbox.useFakeTimers();
-		assetsDetection.configure({ networkType: 'mainnet' });
+		assetsDetection.configure({ providerType: 'mainnet' });
 		const detectTokens = sandbox.stub(assetsDetection, 'detectTokens').returns(null);
 		const detectCollectibleOwnership = sandbox.stub(assetsDetection, 'detectCollectibleOwnership').returns(null);
 		clock.tick(180001);
@@ -97,7 +97,7 @@ describe('AssetsDetectionController', () => {
 	});
 
 	it('should detect tokens correctly', async () => {
-		assetsDetection.configure({ networkType: 'mainnet' });
+		assetsDetection.configure({ providerType: 'mainnet' });
 		sandbox
 			.stub(assetsContract, 'getBalanceOf')
 			.returns(new BN(0))
@@ -115,7 +115,7 @@ describe('AssetsDetectionController', () => {
 
 	it('should detect enumerable collectibles correctly', async () => {
 		assetsDetection.configure({
-			networkType: 'mainnet',
+			providerType: 'mainnet',
 			selectedAddress: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d'
 		});
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
@@ -135,7 +135,7 @@ describe('AssetsDetectionController', () => {
 	it('should detect not enumerable collectibles correctly', async () => {
 		jest.setTimeout(30000);
 		assetsDetection.configure({
-			networkType: 'mainnet',
+			providerType: 'mainnet',
 			selectedAddress: '0xb161330dc0d6a9e1cb441b3f2593ba689136b4e4'
 		});
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
@@ -147,7 +147,7 @@ describe('AssetsDetectionController', () => {
 
 	it('should not detect asset ownership when no balance of', async () => {
 		assetsDetection.configure({
-			networkType: 'mainnet',
+			providerType: 'mainnet',
 			selectedAddress: '0xb1690C08E213a35Ed9bAb7B318DE14420FB57d8C'
 		});
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
@@ -162,7 +162,7 @@ describe('AssetsDetectionController', () => {
 	});
 
 	it('should not detect asset ownership when address in contract metadata', async () => {
-		assetsDetection.configure({ networkType: 'mainnet' });
+		assetsDetection.configure({ providerType: 'mainnet' });
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
 		sandbox.stub(assetsContract, 'getBalanceOf').returns(new BN(1));
 		const getEnumerableCollectiblesIds = sandbox
@@ -174,7 +174,7 @@ describe('AssetsDetectionController', () => {
 		expect(getApiCollectiblesIds.called).toBe(false);
 	});
 
-	it('should subscribe to new sibling detecting assets when network or account changes', async () => {
+	it('should subscribe to new sibling detecting assets when account changes', async () => {
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'mainnet';
 		const firstAddress = '0x123';
@@ -187,9 +187,7 @@ describe('AssetsDetectionController', () => {
 		preferences.update({ selectedAddress: firstAddress });
 		expect(assetsDetection.context.PreferencesController.state.selectedAddress).toEqual(firstAddress);
 		network.update({ provider: { type: secondNetworkType } });
-		network.update({ provider: { type: secondNetworkType } });
 		expect(assetsDetection.context.NetworkController.state.provider.type).toEqual(secondNetworkType);
-		expect(detectAssets.calledThrice).toBe(true);
 		network.update({ provider: { type: firstNetworkType } });
 		expect(assetsDetection.context.NetworkController.state.provider.type).toEqual(firstNetworkType);
 		assets.update({ tokens: TOKENS });

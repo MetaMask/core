@@ -28,13 +28,13 @@ export interface CollectibleEntry {
  * Assets controller configuration
  *
  * @property interval - Polling interval used to fetch new token rates
- * @property networkType - Network ID as per net_version
+ * @property providerType - Provider type network ID as per net_version
  * @property selectedAddress - Vault selected address
  * @property tokens - List of tokens associated with the active vault
  */
 export interface AssetsDetectionConfig extends BaseConfig {
 	interval: number;
-	networkType: string;
+	providerType: string;
 	selectedAddress: string;
 	tokens: Token[];
 }
@@ -136,7 +136,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		super(config, state);
 		this.defaultConfig = {
 			interval: DEFAULT_INTERVAL,
-			networkType: '',
+			providerType: '',
 			selectedAddress: '',
 			tokens: []
 		};
@@ -179,15 +179,18 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		const assetsContractController = this.context.AssetsContractController as AssetsContractController;
 		const assetsController = this.context.AssetsController as AssetsController;
 		const { selectedAddress } = this.config;
-		const contractApiDefined = contractMap[address] && contractMap[address].api && contractMap[address].owner_api;
 		const balance = await assetsContractController.getBalanceOf(address, selectedAddress);
 		if (balance.toNumber() !== 0) {
-			const supportsEnumerable = await assetsContractController.contractSupportsEnumerableInterface(address);
 			let collectibleIds: CollectibleEntry[] = [];
-			if (supportsEnumerable) {
-				collectibleIds = await this.getEnumerableCollectiblesIds(address);
-			} else if (contractApiDefined) {
+			const contractApiDefined =
+				contractMap[address] && contractMap[address].api && contractMap[address].owner_api;
+			if (contractApiDefined) {
 				collectibleIds = await this.getApiCollectiblesIds(address);
+			} else {
+				const supportsEnumerable = await assetsContractController.contractSupportsEnumerableInterface(address);
+				if (supportsEnumerable) {
+					collectibleIds = await this.getEnumerableCollectiblesIds(address);
+				}
 			}
 			for (const key in collectibleIds) {
 				await assetsController.addCollectible(address, collectibleIds[key].id);
@@ -200,7 +203,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 */
 	async detectAssets() {
 		/* istanbul ignore if */
-		if (this.config.networkType !== MAINNET) {
+		if (this.config.providerType !== MAINNET) {
 			return;
 		}
 		this.detectTokens();
@@ -252,12 +255,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			}
 		});
 		network.subscribe(({ provider }) => {
-			const lastNetworkType = this.config.networkType;
-			if (lastNetworkType !== provider.type) {
-				const networkType = provider.type;
-				this.configure({ networkType });
-				this.detectAssets();
-			}
+			this.configure({ providerType: provider.type });
 		});
 	}
 }

@@ -17,7 +17,7 @@ export interface BaseConfig {
 }
 
 /**
- * @type BaseStaate
+ * @type BaseState
  *
  * Base state representation
  *
