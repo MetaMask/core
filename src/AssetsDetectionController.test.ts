@@ -1,4 +1,5 @@
 import { createSandbox } from 'sinon';
+import { getOnce } from 'fetch-mock';
 import { AssetsDetectionController } from './AssetsDetectionController';
 import { NetworkController } from './NetworkController';
 import { PreferencesController } from './PreferencesController';
@@ -133,16 +134,34 @@ describe('AssetsDetectionController', () => {
 	});
 
 	it('should detect not enumerable collectibles correctly', async () => {
-		jest.setTimeout(30000);
+		getOnce(
+			'https://api.cryptokitties.co/kitties?owner_wallet_address=0xb161330dc0d6a9e1cb441b3f2593ba689136b4e4',
+			() => ({
+				body: JSON.stringify({ offset: 0, limit: 12, kitties: [{ id: 411073 }] })
+			})
+		);
+		getOnce('https://api.cryptokitties.co/kitties/411073', () => ({
+			body: JSON.stringify({
+				id: 411073,
+				image_url: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/411073.svg',
+				name: 'TestName'
+			})
+		}));
 		assetsDetection.configure({
 			providerType: 'mainnet',
 			selectedAddress: '0xb161330dc0d6a9e1cb441b3f2593ba689136b4e4'
 		});
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
 		sandbox.stub(assetsContract, 'getBalanceOf').returns(new BN(1));
-		sandbox.stub(assetsContract, 'getCollectibleTokenId').returns(new Promise((resolve) => resolve(0)));
 		await assetsDetection.detectCollectibleOwnership(CKADDRESS);
-		expect(assets.state.collectibles).not.toEqual([]);
+		expect(assets.state.collectibles).toEqual([
+			{
+				address: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
+				image: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/411073.svg',
+				name: 'TestName',
+				tokenId: 411073
+			}
+		]);
 	});
 
 	it('should not detect asset ownership when no balance of', async () => {

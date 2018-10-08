@@ -1,4 +1,5 @@
 import { stub } from 'sinon';
+import { getOnce } from 'fetch-mock';
 import AssetsController from './AssetsController';
 import ComposableController from './ComposableController';
 import PreferencesController from './PreferencesController';
@@ -14,8 +15,15 @@ const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
 
 describe('AssetsController', () => {
 	let assetsController: AssetsController;
+	let preferences: PreferencesController;
+	let network: NetworkController;
+	let assetsContract: AssetsContractController;
+
 	beforeEach(() => {
 		assetsController = new AssetsController();
+		preferences = new PreferencesController();
+		network = new NetworkController();
+		assetsContract = new AssetsContractController();
 	});
 
 	it('should set default state', () => {
@@ -43,9 +51,6 @@ describe('AssetsController', () => {
 	});
 
 	it('should add token by selected address', () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		const assetsContract = new AssetsContractController();
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
 		/* tslint:disable-next-line:no-unused-expression */
@@ -63,9 +68,6 @@ describe('AssetsController', () => {
 	});
 
 	it('should add token by provider type', () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		const assetsContract = new AssetsContractController();
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
 		/* tslint:disable-next-line:no-unused-expression */
@@ -89,9 +91,6 @@ describe('AssetsController', () => {
 	});
 
 	it('should remove token by selected address', () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		const assetsContract = new AssetsContractController();
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
 		/* tslint:disable-next-line:no-unused-expression */
@@ -111,9 +110,6 @@ describe('AssetsController', () => {
 	});
 
 	it('should remove token by provider type', () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		const assetsContract = new AssetsContractController();
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
 		/* tslint:disable-next-line:no-unused-expression */
@@ -133,9 +129,6 @@ describe('AssetsController', () => {
 	});
 
 	it('should add collectible', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		const assetsContract = new AssetsContractController();
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assetsController, assetsContract, network, preferences]);
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
@@ -151,9 +144,6 @@ describe('AssetsController', () => {
 	});
 
 	it('should add collectible with enumerable support but no tokenURI', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		const assetsContract = new AssetsContractController();
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assetsController, assetsContract, network, preferences]);
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
@@ -169,9 +159,6 @@ describe('AssetsController', () => {
 	});
 
 	it('should add collectible with tokenURI, metadata and enumerable support', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		const assetsContract = new AssetsContractController();
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assetsController, assetsContract, network, preferences]);
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
@@ -187,9 +174,13 @@ describe('AssetsController', () => {
 	});
 
 	it('should add collectible with no tokenURI with no enumerable neither metadata support', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		const assetsContract = new AssetsContractController();
+		getOnce('https://api.cryptokitties.co/kitties/1', () => ({
+			body: JSON.stringify({
+				id: 1,
+				image_url: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1.png',
+				name: 'Genesis'
+			})
+		}));
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assetsController, assetsContract, network, preferences]);
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
@@ -205,9 +196,6 @@ describe('AssetsController', () => {
 	});
 
 	it('should add collectible by selected address', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		const assetsContract = new AssetsContractController();
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
 		stub(assetsController, 'getCollectibleCustomInformation' as any).returns({ name: 'name', image: 'url' });
@@ -227,9 +215,6 @@ describe('AssetsController', () => {
 	});
 
 	it('should add collectible by provider type', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		const assetsContract = new AssetsContractController();
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
 		stub(assetsController, 'getCollectibleCustomInformation' as any).returns({ name: 'name', image: 'url' });
@@ -256,9 +241,6 @@ describe('AssetsController', () => {
 	});
 
 	it('should remove collectible by selected address', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		const assetsContract = new AssetsContractController();
 		stub(assetsController, 'getCollectibleCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
@@ -280,9 +262,6 @@ describe('AssetsController', () => {
 	});
 
 	it('should remove collectible by provider type', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		const assetsContract = new AssetsContractController();
 		stub(assetsController, 'getCollectibleCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
@@ -316,11 +295,18 @@ describe('AssetsController', () => {
 	});
 
 	it('should request collectible default data and handle on adding collectible', async () => {
+		getOnce('https://api.cryptokitties.co/kitties/740632', () => ({
+			body: JSON.stringify({
+				id: 1,
+				image_url: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1.png',
+				name: 'TestName'
+			})
+		}));
 		await assetsController.addCollectible('0x06012c8cf97BEaD5deAe237070F9587f8E7A266d', 740632);
-		expect(assetsController.state.collectibles[0]).not.toEqual({
+		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
-			image: '',
-			name: '',
+			image: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1.png',
+			name: 'TestName',
 			tokenId: 740632
 		});
 		await assetsController.addCollectible('foo', 1);
@@ -333,9 +319,6 @@ describe('AssetsController', () => {
 	});
 
 	it('should subscribe to new sibling preference controllers', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		const assetsContract = new AssetsContractController();
 		const networkType = 'rinkeby';
 		const address = '0x123';
 		/* tslint:disable-next-line:no-unused-expression */

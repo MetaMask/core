@@ -20,13 +20,9 @@ describe('AssetsContractController', () => {
 	it('should determine if contract supports interface correctly', async () => {
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
 		const CKSupportsEnumerable = await assetsContract.contractSupportsEnumerableInterface(CKADDRESS);
-		const CKSupportsMetadata = await assetsContract.contractSupportsMetadataInterface(CKADDRESS);
 		const GODSSupportsEnumerable = await assetsContract.contractSupportsEnumerableInterface(GODSADDRESS);
-		const GODSSupportsMetadata = await assetsContract.contractSupportsMetadataInterface(GODSADDRESS);
 		expect(CKSupportsEnumerable).toBe(false);
-		expect(CKSupportsMetadata).toBe(false);
 		expect(GODSSupportsEnumerable).toBe(true);
-		expect(GODSSupportsMetadata).toBe(true);
 	});
 
 	it('should get balance of contract correctly', async () => {
