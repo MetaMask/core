@@ -96,7 +96,7 @@ function createTestSetup () {
   const engine = new JsonRpcEngine()
   const provider = providerFromEngine(engine)
   // add block ref middleware
-  engine.push(createBlockRefMiddleware({ blockTracker }))
+  engine.push(createBlockRefMiddleware({ provider, blockTracker }))
   // hit tracker
   const hitTracker = createHitTrackerMiddleware()
   engine.push(hitTracker)

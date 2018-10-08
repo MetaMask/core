@@ -5,6 +5,14 @@ const blockTagParamIndex = require('./cache-utils').blockTagParamIndex
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
 const emptyValues = [undefined, null, '\u003cnil\u003e']
 
+//
+// BlockReEmitMiddleware handles requests with "latest" block references by
+// creating a new request with an explicit block number provided by a
+// blockTracker. It will retry a request that returns with an empty response.
+// Its useful for dealing with load-balanced ethereum JSON RPC
+// nodes that are not always in sync with each other.
+//
+
 module.exports = createBlockReEmitMiddleware
 
 function createBlockReEmitMiddleware (opts = {}) {
@@ -21,10 +29,12 @@ function createBlockReEmitMiddleware (opts = {}) {
     // omitted blockRef implies "latest"
     if (blockRef === undefined) blockRef = 'latest'
     if (blockRef !== 'latest') return next()
+    // lookup latest block
+    const latestBlockNumber = await blockTracker.getLatestBlock()
     // re-emit request with specific block-ref
     const childRequest = clone(req)
-    const latestBlockNumber = await blockTracker.getLatestBlock()
     childRequest.params[blockRefIndex] = latestBlockNumber
+    // attempt child request until non-empty response is received
     const childRes = await retry(10, async () => {
       const childRes = await pify(provider.sendAsync).call(provider, childRequest)
       // verify result
