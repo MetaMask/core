@@ -15,6 +15,7 @@ export * from './NetworkStatusController';
 export * from './PhishingController';
 export * from './PreferencesController';
 export * from './ShapeShiftController';
+export * from './TokenBalancesController';
 export * from './TokenRatesController';
 export * from './TransactionController';
 export { util };
