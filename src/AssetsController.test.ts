@@ -166,7 +166,7 @@ describe('AssetsController', () => {
 		expect(assetsController.state.collectibles).toEqual([
 			{
 				address: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-				image: 'https://api.godsunchained.com/v0/image/7?format=card&quality=diamond',
+				image: 'https://api.godsunchained.com/v0/image/7',
 				name: 'Broken Harvester',
 				tokenId: 1
 			}

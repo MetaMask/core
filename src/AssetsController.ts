@@ -4,6 +4,7 @@ import PreferencesController from './PreferencesController';
 import NetworkController, { NetworkType } from './NetworkController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
+import { manageCollectibleImage } from './util';
 
 const contractMap = require('eth-contract-metadata');
 const { toChecksumAddress } = require('ethereumjs-util');
@@ -124,9 +125,10 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 				const response = await fetch(tokenURI);
 				const json = await response.json();
 				const imageParam = json.hasOwnProperty('image') ? 'image' : 'image_url';
-				return { image: json[imageParam], name: json.name };
+				const collectibleImage = manageCollectibleImage(address, json[imageParam]);
+				return { image: collectibleImage, name: json.name };
 			} catch (error) {
-				return { name: contractMap[address].name, image: '' };
+				return { image: '', name: contractMap[address].name };
 			}
 		}
 		/* istanbul ignore */

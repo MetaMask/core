@@ -28,6 +28,14 @@ describe('util', () => {
 		expect(util.hexToBN('0x1337').toNumber()).toBe(4919);
 	});
 
+	describe('manageCollectibleImage', () => {
+		const address1 = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
+		const address2 = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ac';
+		const image = 'https://api.godsunchained.com/v0/image/351?format=card&quality=diamond';
+		expect(util.manageCollectibleImage(address1, image)).toEqual('https://api.godsunchained.com/v0/image/351');
+		expect(util.manageCollectibleImage(address2, image)).toEqual(image);
+	});
+
 	it('normalizeTransaction', () => {
 		const normalized = util.normalizeTransaction({
 			data: 'data',

@@ -126,7 +126,7 @@ describe('AssetsDetectionController', () => {
 		expect(assets.state.collectibles).toEqual([
 			{
 				address: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-				image: 'https://api.godsunchained.com/v0/image/380?format=card&quality=plain',
+				image: 'https://api.godsunchained.com/v0/image/380',
 				name: 'First Pheonix',
 				tokenId: 0
 			}

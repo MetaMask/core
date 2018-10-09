@@ -71,7 +71,6 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
 	 */
 	set interval(interval: number) {
 		this.handle && clearInterval(this.handle);
-		safelyExecute(() => this.updateBalances());
 		this.handle = setInterval(() => {
 			safelyExecute(() => this.updateBalances());
 		}, interval);
@@ -105,8 +104,9 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
 	onComposed() {
 		super.onComposed();
 		const assets = this.context.AssetsController as AssetsController;
-		assets.subscribe(() => {
-			this.configure({ tokens: assets.state.tokens });
+		assets.subscribe(({ tokens }) => {
+			this.configure({ tokens });
+			this.updateBalances();
 		});
 	}
 }
