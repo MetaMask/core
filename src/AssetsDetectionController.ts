@@ -203,7 +203,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 */
 	async detectAssets() {
 		/* istanbul ignore if */
-		if (this.config.providerType !== MAINNET) {
+		if (this.config.providerType !== MAINNET || this.disabled) {
 			return;
 		}
 		this.detectTokens();
