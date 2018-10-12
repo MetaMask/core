@@ -32,7 +32,7 @@ function createRetryOnEmptyMiddleware (opts = {}) {
     if (blockRef === 'latest') return next()
     // skip if blockRef is not a valid reference
     const blockRefNumber = Number.parseInt(blockRef.slice(2), 16)
-    if (Number.isNaN(blockRefNumber)) return next
+    if (Number.isNaN(blockRefNumber)) return next()
     // lookup latest block
     const latestBlockNumberHex = await blockTracker.getLatestBlock()
     const latestBlockNumber = Number.parseInt(latestBlockNumberHex.slice(2), 16)
