@@ -5,7 +5,7 @@ const blockTagParamIndex = require('./cache-utils').blockTagParamIndex
 
 //
 // RetryOnEmptyMiddleware will retry any request with an empty response that has
-// a block reference at or lower than the blockTracker's latest block.
+// a numbered block reference at or lower than the blockTracker's latest block.
 // Its useful for dealing with load-balanced ethereum JSON RPC
 // nodes that are not always in sync with each other.
 //
@@ -29,8 +29,9 @@ function createRetryOnEmptyMiddleware (opts = {}) {
     let blockRef = req.params[blockRefIndex]
     // omitted blockRef implies "latest"
     if (blockRef === undefined) blockRef = 'latest'
-    if (blockRef === 'latest') return next()
-    // skip if blockRef is not a valid reference
+    // skip if non-number block reference
+    if (['latest', 'pending'].includes(blockRef)) return next()
+    // skip if block refernce is not a valid number
     const blockRefNumber = Number.parseInt(blockRef.slice(2), 16)
     if (Number.isNaN(blockRefNumber)) return next()
     // lookup latest block
