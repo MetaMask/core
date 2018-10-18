@@ -9,12 +9,14 @@ const { toChecksumAddress } = require('ethereumjs-util');
  * Preferences controller state
  *
  * @property featureFlags - Map of specific features to enable or disable
+ * @property frequentRpcList - A list of custom RPCs to provide the user
  * @property identities - Map of addresses to ContactEntry objects
  * @property lostIdentities - Map of lost addresses to ContactEntry objects
  * @property selectedAddress - Current coinbase account
  */
 export interface PreferencesState extends BaseState {
 	featureFlags: { [feature: string]: boolean };
+	frequentRpcList: string[];
 	identities: { [address: string]: ContactEntry };
 	lostIdentities: { [address: string]: ContactEntry };
 	selectedAddress: string;
@@ -39,6 +41,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 		super(config, state);
 		this.defaultState = {
 			featureFlags: {},
+			frequentRpcList: [],
 			identities: {},
 			lostIdentities: {},
 			selectedAddress: ''
@@ -159,6 +162,45 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 			return ids;
 		}, {});
 		this.update({ identities });
+	}
+
+	/**
+	 * Adds custom RPC URL to state
+	 *
+	 * @param url - Custom RPC URL
+	 */
+	addToFrequentRpcList(url: string) {
+		if (url === 'http://localhost:8545') {
+			return;
+		}
+		const newFrequentRpcList = this.state.frequentRpcList;
+		const index = newFrequentRpcList.findIndex((element) => {
+			return element === url;
+		});
+		if (index !== -1) {
+			newFrequentRpcList.splice(index, 1);
+		}
+		newFrequentRpcList.push(url);
+		this.update({ frequentRpcList: newFrequentRpcList });
+	}
+
+	/**
+	 * Removes custom RPC URL from state
+	 *
+	 * @param url - Custom RPC URL
+	 */
+	removeFromFrequentRpcList(url: string) {
+		if (url === 'http://localhost:8545') {
+			return;
+		}
+		const newFrequentRpcList = this.state.frequentRpcList;
+		const index = newFrequentRpcList.findIndex((element) => {
+			return element === url;
+		});
+		if (index !== -1) {
+			newFrequentRpcList.splice(index, 1);
+		}
+		this.update({ frequentRpcList: newFrequentRpcList });
 	}
 }
 

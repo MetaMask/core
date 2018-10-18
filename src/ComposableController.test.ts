@@ -24,6 +24,7 @@ describe('ComposableController', () => {
 			},
 			PreferencesController: {
 				featureFlags: {},
+				frequentRpcList: [],
 				identities: {},
 				lostIdentities: {},
 				selectedAddress: ''
@@ -47,6 +48,7 @@ describe('ComposableController', () => {
 			collectibles: [],
 			contractExchangeRates: {},
 			featureFlags: {},
+			frequentRpcList: [],
 			identities: {},
 			lostIdentities: {},
 			network: 'loading',
@@ -75,6 +77,7 @@ describe('ComposableController', () => {
 			collectibles: [],
 			contractExchangeRates: {},
 			featureFlags: {},
+			frequentRpcList: [],
 			identities: {},
 			lostIdentities: {},
 			network: 'loading',
