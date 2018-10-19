@@ -14,7 +14,9 @@
   "jest": {
     "moduleFileExtensions": [
       "js",
-      "ts"
+      "ts",
+      "json",
+      "node"
     ],
     "transform": {
       "^.+\\.tsx?$": "ts-jest"
@@ -51,6 +53,7 @@
     "@types/jest": "^22.2.3",
     "@types/node": "^10.1.4",
     "@types/sinon": "^4.3.3",
+    "@types/web3": "^1.0.6",
     "ethjs-provider-http": "^0.1.6",
     "fetch-mock": "^6.4.3",
     "husky": "^0.14.3",
@@ -78,7 +81,10 @@
     "ethereumjs-util": "^5.2.0",
     "ethereumjs-wallet": "0.6.0",
     "ethjs-query": "^0.3.8",
+    "human-standard-collectible-abi": "^1.0.2",
+    "human-standard-token-abi": "^2.0.0",
     "percentile": "^1.2.1",
+    "web3": "^0.20.7",
     "web3-provider-engine": "^14.0.5"
   }
 }

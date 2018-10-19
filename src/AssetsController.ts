@@ -3,6 +3,8 @@ import BaseController, { BaseConfig, BaseState } from './BaseController';
 import PreferencesController from './PreferencesController';
 import NetworkController, { NetworkType } from './NetworkController';
 import { Token } from './TokenRatesController';
+import { AssetsContractController } from './AssetsContractController';
+import { manageCollectibleImage } from './util';
 
 const contractMap = require('eth-contract-metadata');
 const { toChecksumAddress } = require('ethereumjs-util');
@@ -22,6 +24,35 @@ export interface Collectible {
 	tokenId: number;
 	name: string;
 	image: string;
+}
+
+/**
+ * @type MappedContract
+ *
+ * Contract information representation that is found in contractMap
+ *
+ * @property name - Contract name
+ * @property logo - Contract logo
+ * @property address - Contract address
+ * @property symbol - Contract symbol
+ * @property decimals - Contract decimals
+ * @property api - Contract api, in case of a collectible contract
+ * @property collectibles_api - Contract API specific endpoint to get collectibles information, as custom information
+ * @property owner_api - Contract API specific endpoint to get owner information, as quantity of assets owned
+ * @property erc20 - Whether is ERC20 asset
+ * @property erc721 - Whether is ERC721 asset
+ */
+export interface MappedContract {
+	name: string;
+	logo?: string;
+	address: string;
+	symbol?: string;
+	decimals?: number;
+	api?: string;
+	collectibles_api?: string;
+	owner_api?: string;
+	erc20?: boolean;
+	erc721?: boolean;
 }
 
 /**
@@ -71,8 +102,24 @@ export interface AssetsState extends BaseState {
  * Controller that stores assets and exposes convenience methods
  */
 export class AssetsController extends BaseController<AssetsConfig, AssetsState> {
-	private getCollectibleApi(api: string, tokenId: number): string {
-		return `${api}${tokenId}`;
+	/**
+	 * Get collectible tokenURI API
+	 *
+	 * @param contractAddress - ERC721 asset contract address
+	 * @param tokenId - ERC721 asset identifier
+	 * @returns - Collectible tokenURI
+	 */
+	private async getCollectibleTokenURI(contract: MappedContract, tokenId: number): Promise<string> {
+		if (contract.api && contract.collectibles_api) {
+			return `${contract.api + contract.collectibles_api}${tokenId}`;
+		}
+		const assetsContract = this.context.AssetsContractController as AssetsContractController;
+		const supportsMetadata = await assetsContract.contractSupportsMetadataInterface(contract.address);
+		/* istanbul ignore if */
+		if (!supportsMetadata) {
+			return '';
+		}
+		return await assetsContract.getCollectibleTokenURI(contract.address, tokenId);
 	}
 
 	/**
@@ -82,36 +129,26 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param tokenId - The NFT identifier
 	 * @returns - Promise resolving to the current collectible name and image
 	 */
-	private async requestNFTCustomInformation(address: string, tokenId: number): Promise<CollectibleCustomInformation> {
-		if (address in contractMap && contractMap[address].erc721) {
-			const contract = contractMap[address];
-			const api = contract.api;
-			const { name, image } = await this.fetchCollectibleBasicInformation(api, tokenId);
-			return { name, image };
-		} else {
-			return { name: '', image: '' };
-		}
-	}
-
-	/**
-	 * Fetch NFT basic information, name and image url
-	 *
-	 * @param api - API url to fetch custom collectible information
-	 * @param tokenId - The NFT identifier
-	 * @returns - Promise resolving to the current collectible name and image
-	 */
-	private async fetchCollectibleBasicInformation(
-		api: string,
+	private async getCollectibleCustomInformation(
+		address: string,
 		tokenId: number
 	): Promise<CollectibleCustomInformation> {
-		try {
-			const response = await fetch(this.getCollectibleApi(api, tokenId));
-			const json = await response.json();
-			return { image: json.image_url, name: json.name };
-		} catch (error) {
-			/* istanbul ignore next */
-			return { image: '', name: '' };
+		if (address in contractMap && contractMap[address].erc721) {
+			try {
+				const contract = contractMap[address];
+				contract.address = address;
+				const tokenURI = await this.getCollectibleTokenURI(contract, tokenId);
+				const response = await fetch(tokenURI);
+				const json = await response.json();
+				const imageParam = json.hasOwnProperty('image') ? 'image' : 'image_url';
+				const collectibleImage = manageCollectibleImage(address, json[imageParam]);
+				return { image: collectibleImage, name: json.name };
+			} catch (error) {
+				return { image: '', name: contractMap[address].name };
+			}
 		}
+		/* istanbul ignore */
+		return { name: '', image: '' };
 	}
 
 	/**
@@ -122,7 +159,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
-	requiredControllers = ['NetworkController', 'PreferencesController'];
+	requiredControllers = ['AssetsContractController', 'NetworkController', 'PreferencesController'];
 
 	/**
 	 * Creates a AssetsController instance
@@ -190,7 +227,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		if (existingEntry) {
 			return collectibles;
 		}
-		const { name, image } = await this.requestNFTCustomInformation(address, tokenId);
+		const { name, image } = await this.getCollectibleCustomInformation(address, tokenId);
 		const newEntry: Collectible = { address, tokenId, name, image };
 		const newCollectibles = [...collectibles, newEntry];
 		const addressCollectibles = allCollectibles[selectedAddress];

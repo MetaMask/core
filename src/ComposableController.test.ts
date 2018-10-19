@@ -5,18 +5,21 @@ import PreferencesController from './PreferencesController';
 import TokenRatesController from './TokenRatesController';
 import { AssetsController } from './AssetsController';
 import { NetworkController } from './NetworkController';
+import { AssetsContractController } from './AssetsContractController';
 
 describe('ComposableController', () => {
 	it('should compose controller state', () => {
 		const controller = new ComposableController([
 			new AddressBookController(),
 			new AssetsController(),
+			new AssetsContractController(),
 			new NetworkController(),
 			new PreferencesController(),
 			new TokenRatesController()
 		]);
 		expect(controller.state).toEqual({
 			AddressBookController: { addressBook: [] },
+			AssetsContractController: {},
 			AssetsController: { allTokens: {}, allCollectibles: {}, collectibles: [], tokens: [] },
 			NetworkController: {
 				network: 'loading',
@@ -36,6 +39,7 @@ describe('ComposableController', () => {
 		const controller = new ComposableController([
 			new AddressBookController(),
 			new AssetsController(),
+			new AssetsContractController(),
 			new NetworkController(),
 			new PreferencesController(),
 			new TokenRatesController()
@@ -60,6 +64,7 @@ describe('ComposableController', () => {
 		const controller = new ComposableController([
 			new AddressBookController(),
 			new AssetsController(),
+			new AssetsContractController(),
 			new NetworkController(),
 			new PreferencesController(),
 			new TokenRatesController()
