@@ -1,10 +1,6 @@
 const fetch = global.fetch || require('fetch-ponyfill')().fetch
 const url = require('url')
-const retry = require('async/retry')
-const waterfall = require('async/waterfall')
-const asyncify = require('async/asyncify')
 const JsonRpcError = require('json-rpc-error')
-const promiseToCallback = require('promise-to-callback')
 const btoa = require('btoa')
 const createAsyncMiddleware = require('json-rpc-engine/src/createAsyncMiddleware')
 
