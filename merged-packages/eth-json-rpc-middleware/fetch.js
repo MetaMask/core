@@ -15,6 +15,8 @@ const RETRIABLE_ERRORS = [
   // ignore server sent html error pages
   // or truncated json responses
   'failed to parse response body',
+  // ignore errors where http req failed to establish
+  'Failed to fetch',
 ]
 
 function createFetchMiddleware ({ rpcUrl, originHttpHeaderKey }) {
