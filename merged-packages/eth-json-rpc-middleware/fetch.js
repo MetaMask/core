@@ -6,6 +6,8 @@ const asyncify = require('async/asyncify')
 const JsonRpcError = require('json-rpc-error')
 const promiseToCallback = require('promise-to-callback')
 const btoa = require('btoa')
+const createAsyncMiddleware = require('json-rpc-engine/src/createAsyncMiddleware')
+
 
 module.exports = createFetchMiddleware
 module.exports.createFetchConfigFromReq = createFetchConfigFromReq
@@ -16,8 +18,70 @@ const RETRIABLE_ERRORS = [
   'ETIMEDOUT',
   // ignore server sent html error pages
   // or truncated json responses
-  'SyntaxError',
+  'failed to parse response body',
 ]
+
+function createFetchMiddleware ({ rpcUrl, originHttpHeaderKey }) {
+  return createAsyncMiddleware(async (req, res, next) => {
+    const { fetchUrl, fetchParams } = createFetchConfigFromReq({ req, rpcUrl, originHttpHeaderKey })
+
+    // attempt request multiple times
+    const maxAttempts = 5
+    const retryInterval = 1000
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const fetchRes = await fetch(fetchUrl, fetchParams)
+        // check for http errrors
+        checkForHttpErrors(fetchRes)
+        // parse response body
+        const rawBody = await fetchRes.text()
+        let fetchBody
+        try {
+          fetchBody = JSON.parse(rawBody)
+        } catch (_) {
+          throw new Error(`FetchMiddleware - failed to parse response body: "${rawBody}"`)
+        }
+        const result = parseResponse(fetchRes, fetchBody)
+        // set result and exit retry loop
+        res.result = result
+        return
+      } catch (err) {
+        const errMsg = err.toString()
+        const isRetriable = RETRIABLE_ERRORS.some(phrase => errMsg.includes(phrase))
+        // re-throw error if not retriable
+        if (!isRetriable) throw err
+      }
+      // delay before retrying
+      await timeout(retryInterval)
+    }
+  })
+}
+
+function checkForHttpErrors (fetchRes) {
+  // check for errors
+  switch (fetchRes.status) {
+    case 405:
+      throw new JsonRpcError.MethodNotFound()
+
+    case 418:
+      throw createRatelimitError()
+
+    case 503:
+    case 504:
+      throw createTimeoutError()
+  }
+}
+
+function parseResponse (fetchRes, body) {
+  // check for error code
+  if (fetchRes.status !== 200) {
+    throw new JsonRpcError.InternalError(body)
+  }
+  // check for rpc error
+  if (body.error) throw new JsonRpcError.InternalError(body.error)
+  // return successful result
+  return body.result
+}
 
 function createFetchConfigFromReq({ req, rpcUrl, originHttpHeaderKey }) {
   const parsedUrl = url.parse(rpcUrl)
@@ -67,71 +131,6 @@ function normalizeUrlFromParsed(parsedUrl) {
   return result
 }
 
-function createFetchMiddleware ({ rpcUrl, originHttpHeaderKey }) {
-  return (req, res, next, end) => {
-
-    const { fetchUrl, fetchParams } = createFetchConfigFromReq({ req, rpcUrl, originHttpHeaderKey })
-
-    retry({
-      times: 5,
-      interval: 1000,
-      errorFilter: (err) => {
-        const errMsg = err.toString()
-        return RETRIABLE_ERRORS.some(phrase => errMsg.includes(phrase))
-      },
-    }, (cb) => {
-      let fetchRes
-      let fetchBody
-      waterfall([
-        // make request
-        (cb) => promiseToCallback(fetch(fetchUrl, fetchParams))(cb),
-        asyncify((_fetchRes) => { fetchRes = _fetchRes }),
-        // check for http errrors
-        (_, cb) => checkForHttpErrors(fetchRes, cb),
-        // buffer body
-        (cb) => promiseToCallback(fetchRes.text())(cb),
-        asyncify((rawBody) => { fetchBody = JSON.parse(rawBody) }),
-        // parse response body
-        (_, cb) => parseResponse(fetchRes, fetchBody, cb)
-      ], cb)
-    }, (err, result) => {
-      if (err) return end(err)
-      // append result and complete
-      res.result = result
-      end()
-    })
-  }
-}
-
-function checkForHttpErrors (res, cb) {
-  // check for errors
-  switch (res.status) {
-    case 405:
-      return cb(new JsonRpcError.MethodNotFound())
-
-    case 418:
-      return cb(createRatelimitError())
-
-    case 503:
-    case 504:
-      return cb(createTimeoutError())
-
-    default:
-      return cb()
-  }
-}
-
-function parseResponse (res, body, cb) {
-  // check for error code
-  if (res.status !== 200) {
-    return cb(new JsonRpcError.InternalError(body))
-  }
-  // check for rpc error
-  if (body.error) return cb(new JsonRpcError.InternalError(body.error))
-  // return successful result
-  cb(null, body.result)
-}
-
 function createRatelimitError () {
   let msg = `Request is being rate limited.`
   const err = new Error(msg)
@@ -143,4 +142,8 @@ function createTimeoutError () {
   msg += `This can happen when querying logs over too wide a block range.`
   const err = new Error(msg)
   return new JsonRpcError.InternalError(err)
+}
+
+function timeout(duration) {
+  return new Promise(resolve => setTimeout(resolve, duration))
 }

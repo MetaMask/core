@@ -104,7 +104,7 @@ test('fetch - server test', (t) => {
     makeRequest,
     closeServer,
   ], (err) => {
-    t.ifError(err)
+    t.ifError(err, 'should not error')
     // validate request
     t.equals(serverSideRequest.headers['accept'], 'application/json')
     t.equals(serverSideRequest.headers['content-type'], 'application/json')
