@@ -136,12 +136,12 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 		if (this.disabled) {
 			return;
 		}
-		const contractExchangeRates: { [address: string]: number } = {};
+		const newContractExchangeRates: { [address: string]: number } = {};
 		for (const i in this.tokenList) {
 			const address = this.tokenList[i].address;
-			contractExchangeRates[address] = await this.fetchExchangeRate(address);
+			newContractExchangeRates[address] = await this.fetchExchangeRate(address);
 		}
-		this.update({ contractExchangeRates });
+		this.update({ contractExchangeRates: newContractExchangeRates });
 	}
 }
 

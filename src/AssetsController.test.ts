@@ -1,16 +1,29 @@
 import { stub } from 'sinon';
+import { getOnce } from 'fetch-mock';
 import AssetsController from './AssetsController';
 import ComposableController from './ComposableController';
 import PreferencesController from './PreferencesController';
 import { NetworkController } from './NetworkController';
+import { AssetsContractController } from './AssetsContractController';
 
+const HttpProvider = require('ethjs-provider-http');
 const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
 const COLLECTIBLES = [{ address: '0xfoO', image: 'url', name: 'name', tokenId: 1234 }];
+const GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
+const CKADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
+const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
 
 describe('AssetsController', () => {
 	let assetsController: AssetsController;
+	let preferences: PreferencesController;
+	let network: NetworkController;
+	let assetsContract: AssetsContractController;
+
 	beforeEach(() => {
 		assetsController = new AssetsController();
+		preferences = new PreferencesController();
+		network = new NetworkController();
+		assetsContract = new AssetsContractController();
 	});
 
 	it('should set default state', () => {
@@ -38,12 +51,10 @@ describe('AssetsController', () => {
 	});
 
 	it('should add token by selected address', () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
 		/* tslint:disable-next-line:no-unused-expression */
-		new ComposableController([assetsController, network, preferences]);
+		new ComposableController([assetsController, assetsContract, network, preferences]);
 		preferences.update({ selectedAddress: firstAddress });
 		assetsController.addToken('foo', 'bar', 2);
 		preferences.update({ selectedAddress: secondAddress });
@@ -57,12 +68,10 @@ describe('AssetsController', () => {
 	});
 
 	it('should add token by provider type', () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
 		/* tslint:disable-next-line:no-unused-expression */
-		new ComposableController([assetsController, network, preferences]);
+		new ComposableController([assetsController, assetsContract, network, preferences]);
 		network.update({ provider: { type: firstNetworkType } });
 		assetsController.addToken('foo', 'bar', 2);
 		network.update({ provider: { type: secondNetworkType } });
@@ -82,12 +91,10 @@ describe('AssetsController', () => {
 	});
 
 	it('should remove token by selected address', () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
 		/* tslint:disable-next-line:no-unused-expression */
-		new ComposableController([assetsController, network, preferences]);
+		new ComposableController([assetsController, assetsContract, network, preferences]);
 		preferences.update({ selectedAddress: firstAddress });
 		assetsController.addToken('fou', 'baz', 2);
 		preferences.update({ selectedAddress: secondAddress });
@@ -103,12 +110,10 @@ describe('AssetsController', () => {
 	});
 
 	it('should remove token by provider type', () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
 		/* tslint:disable-next-line:no-unused-expression */
-		new ComposableController([assetsController, network, preferences]);
+		new ComposableController([assetsController, assetsContract, network, preferences]);
 		network.update({ provider: { type: firstNetworkType } });
 		assetsController.addToken('fou', 'baz', 2);
 		network.update({ provider: { type: secondNetworkType } });
@@ -124,24 +129,78 @@ describe('AssetsController', () => {
 	});
 
 	it('should add collectible', async () => {
-		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assetsController, assetsContract, network, preferences]);
+		assetsContract.configure({ provider: MAINNET_PROVIDER });
 		await assetsController.addCollectible('foo', 1234);
-		expect(assetsController.state.collectibles[0]).toEqual({
-			address: '0xfoO',
-			image: 'url',
-			name: 'name',
-			tokenId: 1234
-		});
+		expect(assetsController.state.collectibles).toEqual([
+			{
+				address: '0xfoO',
+				image: '',
+				name: '',
+				tokenId: 1234
+			}
+		]);
+	});
+
+	it('should add collectible with enumerable support but no tokenURI', async () => {
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assetsController, assetsContract, network, preferences]);
+		assetsContract.configure({ provider: MAINNET_PROVIDER });
+		await assetsController.addCollectible('0x8c9b261Faef3b3C2e64ab5E58e04615F8c788099', 1);
+		expect(assetsController.state.collectibles).toEqual([
+			{
+				address: '0x8c9b261Faef3b3C2e64ab5E58e04615F8c788099',
+				image: '',
+				name: 'LucidSight-MLB-NFT',
+				tokenId: 1
+			}
+		]);
+	});
+
+	it('should add collectible with tokenURI, metadata and enumerable support', async () => {
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assetsController, assetsContract, network, preferences]);
+		assetsContract.configure({ provider: MAINNET_PROVIDER });
+		await assetsController.addCollectible(GODSADDRESS, 1);
+		expect(assetsController.state.collectibles).toEqual([
+			{
+				address: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
+				image: 'https://api.godsunchained.com/v0/image/7',
+				name: 'Broken Harvester',
+				tokenId: 1
+			}
+		]);
+	});
+
+	it('should add collectible with no tokenURI with no enumerable neither metadata support', async () => {
+		getOnce('https://api.cryptokitties.co/kitties/1', () => ({
+			body: JSON.stringify({
+				id: 1,
+				image_url: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1.png',
+				name: 'Genesis'
+			})
+		}));
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([assetsController, assetsContract, network, preferences]);
+		assetsContract.configure({ provider: MAINNET_PROVIDER });
+		await assetsController.addCollectible(CKADDRESS, 1);
+		expect(assetsController.state.collectibles).toEqual([
+			{
+				address: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
+				image: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1.png',
+				name: 'Genesis',
+				tokenId: 1
+			}
+		]);
 	});
 
 	it('should add collectible by selected address', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
-		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
+		stub(assetsController, 'getCollectibleCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		/* tslint:disable-next-line:no-unused-expression */
-		new ComposableController([assetsController, network, preferences]);
+		new ComposableController([assetsController, assetsContract, network, preferences]);
 		preferences.update({ selectedAddress: firstAddress });
 		await assetsController.addCollectible('foo', 1234);
 		preferences.update({ selectedAddress: secondAddress });
@@ -156,13 +215,11 @@ describe('AssetsController', () => {
 	});
 
 	it('should add collectible by provider type', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
-		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
+		stub(assetsController, 'getCollectibleCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		/* tslint:disable-next-line:no-unused-expression */
-		new ComposableController([assetsController, network, preferences]);
+		new ComposableController([assetsController, assetsContract, network, preferences]);
 		network.update({ provider: { type: firstNetworkType } });
 		await assetsController.addCollectible('foo', 1234);
 		network.update({ provider: { type: secondNetworkType } });
@@ -177,20 +234,18 @@ describe('AssetsController', () => {
 	});
 
 	it('should remove collectible', () => {
-		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
+		stub(assetsController, 'getCollectibleCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		assetsController.addCollectible('0xfoO', 1234);
 		assetsController.removeCollectible('0xfoO', 1234);
 		expect(assetsController.state.collectibles.length).toBe(0);
 	});
 
 	it('should remove collectible by selected address', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
+		stub(assetsController, 'getCollectibleCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
 		/* tslint:disable-next-line:no-unused-expression */
-		new ComposableController([assetsController, network, preferences]);
+		new ComposableController([assetsController, assetsContract, network, preferences]);
 		preferences.update({ selectedAddress: firstAddress });
 		await assetsController.addCollectible('fou', 4321);
 		preferences.update({ selectedAddress: secondAddress });
@@ -207,13 +262,11 @@ describe('AssetsController', () => {
 	});
 
 	it('should remove collectible by provider type', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
-		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
+		stub(assetsController, 'getCollectibleCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
 		/* tslint:disable-next-line:no-unused-expression */
-		new ComposableController([assetsController, network, preferences]);
+		new ComposableController([assetsController, assetsContract, network, preferences]);
 		network.update({ provider: { type: firstNetworkType } });
 		await assetsController.addCollectible('fou', 4321);
 		network.update({ provider: { type: secondNetworkType } });
@@ -231,7 +284,7 @@ describe('AssetsController', () => {
 	});
 
 	it('should not add duplicated collectible', async () => {
-		const func = stub(assetsController, 'requestNFTCustomInformation' as any).returns({
+		const func = stub(assetsController, 'getCollectibleCustomInformation' as any).returns({
 			image: 'url',
 			name: 'name'
 		});
@@ -242,11 +295,18 @@ describe('AssetsController', () => {
 	});
 
 	it('should request collectible default data and handle on adding collectible', async () => {
+		getOnce('https://api.cryptokitties.co/kitties/740632', () => ({
+			body: JSON.stringify({
+				id: 1,
+				image_url: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1.png',
+				name: 'TestName'
+			})
+		}));
 		await assetsController.addCollectible('0x06012c8cf97BEaD5deAe237070F9587f8E7A266d', 740632);
-		expect(assetsController.state.collectibles[0]).not.toEqual({
+		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
-			image: '',
-			name: '',
+			image: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1.png',
+			name: 'TestName',
 			tokenId: 740632
 		});
 		await assetsController.addCollectible('foo', 1);
@@ -259,12 +319,10 @@ describe('AssetsController', () => {
 	});
 
 	it('should subscribe to new sibling preference controllers', async () => {
-		const preferences = new PreferencesController();
-		const network = new NetworkController();
 		const networkType = 'rinkeby';
 		const address = '0x123';
 		/* tslint:disable-next-line:no-unused-expression */
-		new ComposableController([assetsController, network, preferences]);
+		new ComposableController([assetsController, assetsContract, network, preferences]);
 		preferences.update({ selectedAddress: address });
 		expect(assetsController.context.PreferencesController.state.selectedAddress).toEqual(address);
 		network.update({ provider: { type: networkType } });
@@ -272,7 +330,7 @@ describe('AssetsController', () => {
 	});
 
 	it('should return correct assets state', async () => {
-		stub(assetsController, 'requestNFTCustomInformation' as any).returns({ name: 'name', image: 'url' });
+		stub(assetsController, 'getCollectibleCustomInformation' as any).returns({ name: 'name', image: 'url' });
 		await assetsController.addCollectible('foo', 1234);
 		assetsController.addToken('foo', 'bar', 2);
 		expect(assetsController.state.tokens).toEqual(TOKENS);
