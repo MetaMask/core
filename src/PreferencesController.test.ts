@@ -5,6 +5,7 @@ describe('PreferencesController', () => {
 		const controller = new PreferencesController();
 		expect(controller.state).toEqual({
 			featureFlags: {},
+			frequentRpcList: [],
 			identities: {},
 			lostIdentities: {},
 			selectedAddress: ''
@@ -65,5 +66,24 @@ describe('PreferencesController', () => {
 			['0xbar']: { address: '0xbar', name: 'Account 2' },
 			['0xfoO']: { address: '0xfoO', name: 'Account 1' }
 		});
+	});
+
+	it('should add custom rpc url', () => {
+		const controller = new PreferencesController();
+		controller.addToFrequentRpcList('rpc_url');
+		controller.addToFrequentRpcList('http://localhost:8545');
+		expect(controller.state.frequentRpcList).toEqual(['rpc_url']);
+		controller.addToFrequentRpcList('rpc_url');
+		expect(controller.state.frequentRpcList).toEqual(['rpc_url']);
+	});
+
+	it('should remove custom rpc url', () => {
+		const controller = new PreferencesController();
+		controller.addToFrequentRpcList('rpc_url');
+		expect(controller.state.frequentRpcList).toEqual(['rpc_url']);
+		controller.removeFromFrequentRpcList('other_rpc_url');
+		controller.removeFromFrequentRpcList('http://localhost:8545');
+		controller.removeFromFrequentRpcList('rpc_url');
+		expect(controller.state.frequentRpcList).toEqual([]);
 	});
 });

@@ -199,7 +199,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 		this.update({
 			provider: {
 				...this.state.provider,
-				...{ rpcTarget }
+				...{ type: 'rpc', rpcTarget }
 			}
 		});
 		this.refreshNetwork();
