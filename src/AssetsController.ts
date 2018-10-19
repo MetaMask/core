@@ -26,6 +26,22 @@ export interface Collectible {
 	image: string;
 }
 
+/**
+ * @type MappedContract
+ *
+ * Contract information representation that is found in contractMap
+ *
+ * @property name - Contract name
+ * @property logo - Contract logo
+ * @property address - Contract address
+ * @property symbol - Contract symbol
+ * @property decimals - Contract decimals
+ * @property api - Contract api, in case of a collectible contract
+ * @property collectibles_api - Contract API specific endpoint to get collectibles information, as custom information
+ * @property owner_api - Contract API specific endpoint to get owner information, as quantity of assets owned
+ * @property erc20 - Whether is ERC20 asset
+ * @property erc721 - Whether is ERC721 asset
+ */
 export interface MappedContract {
 	name: string;
 	logo?: string;
