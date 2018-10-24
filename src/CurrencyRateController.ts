@@ -34,7 +34,6 @@ export interface CurrencyRateState extends BaseState {
  * Controller that passively polls on a set interval for an ETH-to-fiat exchange rate
  */
 export class CurrencyRateController extends BaseController<CurrencyRateConfig, CurrencyRateState> {
-	private activeCurrency: string = '';
 	private handle?: NodeJS.Timer;
 
 	private getPricingURL(currency: string) {
@@ -85,7 +84,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	 * @param currency - ISO 4217 currency code
 	 */
 	set currency(currency: string) {
-		this.activeCurrency = currency;
+		this.update({ currentCurrency: currency });
 		safelyExecute(() => this.updateExchangeRate());
 	}
 
@@ -93,7 +92,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	 * Fetches the exchange rate for a given currency
 	 *
 	 * @param currency - ISO 4217 currency code
-	 * @returns - Promise resolving to exchange rate for given currecy
+	 * @returns - Promise resolving to exchange rate for given currency
 	 */
 	async fetchExchangeRate(currency: string): Promise<CurrencyRateState> {
 		const response = await fetch(this.getPricingURL(currency));
@@ -101,7 +100,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 		return {
 			conversionDate: Number(json.timestamp),
 			conversionRate: Number(json.bid),
-			currentCurrency: this.activeCurrency
+			currentCurrency: currency
 		};
 	}
 
@@ -109,7 +108,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	 * Sets a new currency to track and fetches its exchange rate
 	 *
 	 * @param currency - ISO 4217 currency code
-	 * @returns - Promise resolving to exchange rate for given currecy
+	 * @returns - Promise resolving to exchange rate for given currency
 	 */
 	async updateCurrency(currency: string): Promise<CurrencyRateState | void> {
 		this.configure({ currency });
@@ -125,8 +124,9 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 		if (this.disabled) {
 			return;
 		}
-		const { conversionDate, conversionRate } = await this.fetchExchangeRate(this.activeCurrency);
-		this.update({ conversionDate, conversionRate, currentCurrency: this.activeCurrency });
+		const { currentCurrency } = this.state;
+		const { conversionDate, conversionRate } = await this.fetchExchangeRate(currentCurrency);
+		this.update({ conversionDate, conversionRate });
 		return this.state;
 	}
 }
