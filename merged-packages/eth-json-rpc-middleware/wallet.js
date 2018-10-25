@@ -79,6 +79,7 @@ function createWalletMiddleware(opts = {}) {
     const from = req.from
     const message = req.params[0]
     const address = req.params[1]
+    const version = 'V1'
     const extraParams = req.params[2] || {}
     const msgParams = Object.assign({}, extraParams, {
       from: address,
@@ -87,7 +88,7 @@ function createWalletMiddleware(opts = {}) {
 
     await validateSender(address, req)
     await validateSender(from, req)
-    res.result = await processTypedMessage(msgParams, req)
+    res.result = await processTypedMessage(msgParams, req, version)
   }
 
   async function signTypedDataV3 (req, res) {
