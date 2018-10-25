@@ -18,14 +18,31 @@ export enum KeyringTypes {
 }
 
 /**
+ * @type KeyringObject
+ *
+ * Keyring object
+ *
+ * @property type - Keyring type
+ * @property accounts - Associated accounts
+ * @function getAccounts - Get associated accounts
+ */
+export interface KeyringObject {
+	type: string;
+	accounts: string[];
+	getAccounts(): string[];
+}
+
+/**
  * @type KeyringState
  *
  * Keyring controller state
  *
  * @property vault - Encrypted string representing keyring data
+ * @property keyrings - Group of accounts
  */
 export interface KeyringState extends BaseState {
 	vault?: string;
+	keyrings: object;
 }
 
 /**
@@ -54,7 +71,9 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	constructor(config?: Partial<BaseConfig>, state?: Partial<KeyringState>) {
 		super(config, state);
 		this.keyring = new Keyring({ ...{ initState: state }, ...config });
-		this.keyrings = [];
+		this.defaultState = {
+			keyrings: []
+		};
 		this.initialize();
 		this.fullUpdate();
 	}
@@ -301,17 +320,19 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 
 		return seedWords;
 	}
-	
-	async fullUpdate(){
-		this.keyrings = await Promise.all(this.keyring.keyrings.map(async (keyring, index) => {
-			return {
-			  index,
-			  type: keyring.type,
-			  accounts: await keyring.getAccounts(),
-			}
-		  }))
-		this.update({});
-		return this.keyring.fullUpdate()
+
+	async fullUpdate() {
+		const keyrings = await Promise.all(
+			this.keyring.keyrings.map(async (keyring: KeyringObject, index: number) => {
+				return {
+					accounts: await keyring.getAccounts(),
+					index,
+					type: keyring.type
+				};
+			})
+		);
+		this.update({ keyrings });
+		return this.keyring.fullUpdate();
 	}
 }
 
