@@ -8,6 +8,7 @@ function createWalletMiddleware(opts = {}) {
   // parse + validate options
   const getAccounts = opts.getAccounts
   const processTypedMessage = opts.processTypedMessage
+  const processTypedMessageV3 = opts.processTypedMessageV3
   const processPersonalMessage = opts.processPersonalMessage
   const processEthSignMessage = opts.processEthSignMessage
   const processTransaction = opts.processTransaction
@@ -21,6 +22,7 @@ function createWalletMiddleware(opts = {}) {
     // message signatures
     'eth_sign': createAsyncMiddleware(ethSign),
     'eth_signTypedData': createAsyncMiddleware(signTypedData),
+    'eth_signTypedData_v3': createAsyncMiddleware(signTypedDataV3),
     'personal_sign': createAsyncMiddleware(personalSign),
     'personal_ecRecover': createAsyncMiddleware(personalRecover),
   })
@@ -74,8 +76,10 @@ function createWalletMiddleware(opts = {}) {
 
   async function signTypedData (req, res) {
     if (!processTypedMessage) throw new Error('WalletMiddleware - opts.processTypedMessage not provided')
+    const from = req.from
     const message = req.params[0]
     const address = req.params[1]
+    const version = 'V1'
     const extraParams = req.params[2] || {}
     const msgParams = Object.assign({}, extraParams, {
       from: address,
@@ -83,7 +87,24 @@ function createWalletMiddleware(opts = {}) {
     })
 
     await validateSender(address, req)
-    res.result = await processTypedMessage(msgParams, req)
+    await validateSender(from, req)
+    res.result = await processTypedMessage(msgParams, req, version)
+  }
+
+  async function signTypedDataV3 (req, res) {
+    if (!processTypedMessageV3) throw new Error('WalletMiddleware - opts.processTypedMessage not provided')
+    const from = req.from
+    const message = req.params[1]
+    const address = req.params[0]
+    const version = 'V3'
+    await validateSender(address, req)
+    await validateSender(from, req)
+    const msgParams = {
+      data: message,
+      from: address,
+      version
+    }
+    res.result = await processTypedMessageV3(msgParams, req, version)
   }
 
   async function personalSign (req, res) {
