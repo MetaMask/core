@@ -101,6 +101,11 @@ module.exports = (test, testLabel, PollingBlockTracker) => {
       pollingInterval: 100,
     })
 
+    // measure if errors are reported to the console
+    const consoleErrors = []
+    const originalConsoleErrorMethod = console.error
+    console.error = (err) => consoleErrors.push(err)
+
     // override _fetchLatestBlock to throw an error
     const originalFetchLatestBlock = blockTracker._fetchLatestBlock
     blockTracker._fetchLatestBlock = async () => {
@@ -111,16 +116,21 @@ module.exports = (test, testLabel, PollingBlockTracker) => {
     }
 
     try {
-      console.log('Note: we expect an error to be logged below')
       const latestBlock = await blockTracker.getLatestBlock()
       t.ok(latestBlock, 'got a block back')
-
+      t.ok(consoleErrors.length, 1, 'saw expected console error')
     } catch (err) {
       t.ifError(err)
     }
 
-    blockTracker.removeAllListeners()
-    t.end()
+    // setTimeout so we dont remove the uncaughtException handler before
+    // the SafeEventEmitter emits the event on next tick
+    setTimeout(() => {
+      // cleanup
+      console.error = originalConsoleErrorMethod
+      blockTracker.removeAllListeners()
+      t.end()
+    })
   })
 
 }
