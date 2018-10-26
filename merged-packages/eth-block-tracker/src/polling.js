@@ -48,7 +48,12 @@ class PollingBlockTracker extends BaseBlockTracker {
       try {
         await this._updateLatestBlock()
       } catch (err) {
-        this.emit('error', err)
+        const newErr = new Error(`PollingBlockTracker - encountered an error while attempting to update latest block:\n${err.stack}`)
+        try {
+          this.emit('error', newErr)
+        } catch (emitErr) {
+          console.error(newErr)
+        }
       }
       await timeout(this._pollingInterval, !this._keepEventLoopActive)
     }

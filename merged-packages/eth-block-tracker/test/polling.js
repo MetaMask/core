@@ -111,6 +111,7 @@ module.exports = (test, testLabel, PollingBlockTracker) => {
     }
 
     try {
+      console.log('Note: we expect an error to be logged below')
       const latestBlock = await blockTracker.getLatestBlock()
       t.ok(latestBlock, 'got a block back')
 
