@@ -94,6 +94,34 @@ module.exports = (test, testLabel, PollingBlockTracker) => {
     })
   })
 
+  test(`${testLabel} - _fetchLatestBlock error handling`, async (t) => {
+    const provider = GanacheCore.provider()
+    const blockTracker = new PollingBlockTracker({
+      provider,
+      pollingInterval: 100,
+    })
+
+    // override _fetchLatestBlock to throw an error
+    const originalFetchLatestBlock = blockTracker._fetchLatestBlock
+    blockTracker._fetchLatestBlock = async () => {
+      // restore fetch method
+      blockTracker._fetchLatestBlock = originalFetchLatestBlock
+      // throw error to try and break block tracker
+      throw new Error('TestError')
+    }
+
+    try {
+      const latestBlock = await blockTracker.getLatestBlock()
+      t.ok(latestBlock, 'got a block back')
+
+    } catch (err) {
+      t.ifError(err)
+    }
+
+    blockTracker.removeAllListeners()
+    t.end()
+  })
+
 }
 
 async function triggerNextBlock(provider) {
