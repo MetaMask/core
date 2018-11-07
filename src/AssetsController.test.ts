@@ -159,6 +159,9 @@ describe('AssetsController', () => {
 	});
 
 	it('should add collectible with tokenURI, metadata and enumerable support', async () => {
+		getOnce('https://api.godsunchained.com/card/1', () => ({
+			body: JSON.stringify({ image: 'https://api.godsunchained.com/v0/image/7', name: 'Broken Harvester' })
+		}));
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assetsController, assetsContract, network, preferences]);
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
