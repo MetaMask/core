@@ -115,6 +115,9 @@ describe('AssetsDetectionController', () => {
 	});
 
 	it('should detect enumerable collectibles correctly', async () => {
+		getOnce('https://api.godsunchained.com/card/0', () => ({
+			body: JSON.stringify({ image: 'https://api.godsunchained.com/v0/image/380', name: 'First Pheonix' })
+		}));
 		assetsDetection.configure({
 			providerType: 'mainnet',
 			selectedAddress: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d'
