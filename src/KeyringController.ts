@@ -72,19 +72,11 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 		super(config, state);
 		this.keyring = new Keyring({ ...{ initState: state }, ...config });
 		this.defaultState = {
+			...this.keyring.store.getState(),
 			keyrings: []
 		};
 		this.initialize();
 		this.fullUpdate();
-	}
-
-	/**
-	 * Retrieves keyring's state
-	 *
-	 * @returns - Current state
-	 */
-	get state(): KeyringState {
-		return this.keyring.store.getState();
 	}
 
 	/**
