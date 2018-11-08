@@ -323,7 +323,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 				};
 			})
 		);
-		this.update({ keyrings });
+		this.update({ keyrings: [...keyrings] });
 		return this.keyring.fullUpdate();
 	}
 }
