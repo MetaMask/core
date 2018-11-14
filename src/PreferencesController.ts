@@ -108,7 +108,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	setFeatureFlag(feature: string, activated: boolean) {
 		const oldFeatureFlags = this.state.featureFlags;
 		const featureFlags = { ...oldFeatureFlags, ...{ [feature]: activated } };
-		this.update({ featureFlags });
+		this.update({ featureFlags: { ...featureFlags } });
 	}
 
 	/**
@@ -161,7 +161,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 			};
 			return ids;
 		}, {});
-		this.update({ identities });
+		this.update({ identities: { ...identities } });
 	}
 
 	/**
@@ -173,15 +173,15 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 		if (url === 'http://localhost:8545') {
 			return;
 		}
-		const newFrequentRpcList = this.state.frequentRpcList;
-		const index = newFrequentRpcList.findIndex((element) => {
+		const frequentRpcList = this.state.frequentRpcList;
+		const index = frequentRpcList.findIndex((element) => {
 			return element === url;
 		});
 		if (index !== -1) {
-			newFrequentRpcList.splice(index, 1);
+			frequentRpcList.splice(index, 1);
 		}
-		newFrequentRpcList.push(url);
-		this.update({ frequentRpcList: newFrequentRpcList });
+		frequentRpcList.push(url);
+		this.update({ frequentRpcList: [...frequentRpcList] });
 	}
 
 	/**
@@ -193,14 +193,14 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 		if (url === 'http://localhost:8545') {
 			return;
 		}
-		const newFrequentRpcList = this.state.frequentRpcList;
-		const index = newFrequentRpcList.findIndex((element) => {
+		const frequentRpcList = this.state.frequentRpcList;
+		const index = frequentRpcList.findIndex((element) => {
 			return element === url;
 		});
 		if (index !== -1) {
-			newFrequentRpcList.splice(index, 1);
+			frequentRpcList.splice(index, 1);
 		}
-		this.update({ frequentRpcList: newFrequentRpcList });
+		this.update({ frequentRpcList: [...frequentRpcList] });
 	}
 }
 
