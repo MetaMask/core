@@ -3,6 +3,7 @@ import BaseController, { BaseConfig, BaseState, Listener } from './BaseControlle
 import PreferencesController from './PreferencesController';
 import { Transaction } from './TransactionController';
 
+const { toChecksumAddress } = require('ethereumjs-util');
 const Keyring = require('eth-keyring-controller');
 const Mutex = require('await-semaphore').Mutex;
 const Wallet = require('ethereumjs-wallet');
@@ -317,7 +318,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 		const keyrings = await Promise.all(
 			this.keyring.keyrings.map(async (keyring: KeyringObject, index: number) => {
 				return {
-					accounts: await keyring.getAccounts(),
+					accounts: await keyring.getAccounts().map((address) => toChecksumAddress(address)),
 					index,
 					type: keyring.type
 				};
