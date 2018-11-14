@@ -3,6 +3,7 @@ import BaseController, { BaseConfig, BaseState, Listener } from './BaseControlle
 import PreferencesController from './PreferencesController';
 import { Transaction } from './TransactionController';
 
+const { toChecksumAddress } = require('ethereumjs-util');
 const Keyring = require('eth-keyring-controller');
 const Mutex = require('await-semaphore').Mutex;
 const Wallet = require('ethereumjs-wallet');
@@ -18,14 +19,31 @@ export enum KeyringTypes {
 }
 
 /**
+ * @type KeyringObject
+ *
+ * Keyring object
+ *
+ * @property type - Keyring type
+ * @property accounts - Associated accounts
+ * @function getAccounts - Get associated accounts
+ */
+export interface KeyringObject {
+	type: string;
+	accounts: string[];
+	getAccounts(): string[];
+}
+
+/**
  * @type KeyringState
  *
  * Keyring controller state
  *
  * @property vault - Encrypted string representing keyring data
+ * @property keyrings - Group of accounts
  */
 export interface KeyringState extends BaseState {
 	vault?: string;
+	keyrings: object;
 }
 
 /**
@@ -54,16 +72,12 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	constructor(config?: Partial<BaseConfig>, state?: Partial<KeyringState>) {
 		super(config, state);
 		this.keyring = new Keyring({ ...{ initState: state }, ...config });
+		this.defaultState = {
+			...this.keyring.store.getState(),
+			keyrings: []
+		};
 		this.initialize();
-	}
-
-	/**
-	 * Retrieves keyring's state
-	 *
-	 * @returns - Current state
-	 */
-	get state(): KeyringState {
-		return this.keyring.store.getState();
+		this.fullUpdate();
 	}
 
 	/**
@@ -89,6 +103,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 				preferences.update({ selectedAddress });
 			}
 		});
+		return this.fullUpdate();
 	}
 
 	/**
@@ -128,7 +143,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 			let vault;
 			const accounts = await this.keyring.getAccounts();
 			if (accounts.length > 0) {
-				vault = await this.keyring.fullUpdate();
+				vault = await this.fullUpdate();
 			} else {
 				vault = await this.keyring.createNewVaultAndKeychain(password);
 				preferences.updateIdentities(await this.keyring.getAccounts());
@@ -244,7 +259,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 		await this.keyring.submitPassword(password);
 		const accounts = await this.keyring.getAccounts();
 		await preferences.syncIdentities(accounts);
-		return this.keyring.fullUpdate();
+		return this.fullUpdate();
 	}
 
 	/**
@@ -297,6 +312,20 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 		});
 
 		return seedWords;
+	}
+
+	async fullUpdate() {
+		const keyrings = await Promise.all(
+			this.keyring.keyrings.map(async (keyring: KeyringObject, index: number) => {
+				return {
+					accounts: await keyring.getAccounts().map((address) => toChecksumAddress(address)),
+					index,
+					type: keyring.type
+				};
+			})
+		);
+		this.update({ keyrings: [...keyrings] });
+		return this.keyring.fullUpdate();
 	}
 }
 
