@@ -1,6 +1,6 @@
 import { Transaction } from './TransactionController';
-
-const { addHexPrefix, BN, isValidAddress, stripHexPrefix } = require('ethereumjs-util');
+import { MessageParams } from './MessageManager';
+const { addHexPrefix, BN, isValidAddress, stripHexPrefix, isHexString } = require('ethereumjs-util');
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
 	data: (data: string) => addHexPrefix(data),
@@ -128,6 +128,15 @@ export function validateTransaction(transaction: Transaction) {
 		if (value.includes('.')) {
 			throw new Error(`Invalid "value": ${value} number must be denominated in wei.`);
 		}
+	}
+}
+
+export function validateEthSignMessageData(messageData: MessageParams) {
+	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
+		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
+	}
+	if (!messageData.data || typeof messageData.data !== 'string' || isHexString(messageData.data)) {
+		throw new Error(`Invalid message "data": ${messageData.data} must be a valid string.`);
 	}
 }
 
