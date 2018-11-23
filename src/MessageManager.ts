@@ -31,7 +31,7 @@ export interface Message {
  *
  * @property metamaskId - Added for tracking and identification within MetaMask
  * @property data - A hex string conversion of the raw buffer data of the signature request
- * @property origin - Added for request origin identification
+ * @property origin? - Added for request origin identification
  */
 export interface MessageParams {
 	metamaskId: number;
@@ -182,7 +182,7 @@ export class MessageManager extends BaseController<MessageManagerConfig, Message
 	 */
 	addUnapprovedMessageAsync(messageParams: MessageParams, req?: OriginalRequest) {
 		return new Promise((resolve, reject) => {
-			const messageId = this.addUnapprovedMessageAsync(messageParams, req);
+			const messageId = this.addUnapprovedMessage(messageParams, req);
 			this.hub.once(`${messageId}:finished`, (data: Message) => {
 				switch (data.status) {
 					case 'signed':
