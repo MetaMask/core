@@ -1,4 +1,3 @@
-import { stub } from 'sinon';
 import MessageManager from './MessageManager';
 
 describe('MessageManager', () => {

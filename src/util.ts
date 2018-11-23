@@ -1,6 +1,6 @@
 import { Transaction } from './TransactionController';
 import { MessageParams } from './MessageManager';
-const { addHexPrefix, BN, bufferToHex, isValidAddress, stripHexPrefix, isHexString } = require('ethereumjs-util');
+const { addHexPrefix, BN, bufferToHex, isValidAddress, stripHexPrefix } = require('ethereumjs-util');
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
 	data: (data: string) => addHexPrefix(data),
