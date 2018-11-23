@@ -1,7 +1,6 @@
 import { EventEmitter } from 'events';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
-import { validateEthSignMessageData } from './util';
-const ethUtil = require('ethereumjs-util');
+import { validateEthSignMessageData, normalizeMessageData } from './util';
 const random = require('uuid/v1');
 
 /**
@@ -70,14 +69,6 @@ export interface OriginalRequest {
 }
 
 /**
- * @type MessageManagerConfig
- *
- * Message Manager configuration
- *
- */
-export interface MessageManagerConfig extends BaseConfig {}
-
-/**
  * @type MessageManagerState
  *
  * Message Manager state
@@ -93,7 +84,7 @@ export interface MessageManagerState extends BaseState {
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
-export class MessageManager extends BaseController<MessageManagerConfig, MessageManagerState> {
+export class MessageManager extends BaseController<BaseConfig, MessageManagerState> {
 	private messages: Message[];
 
 	/**
@@ -104,7 +95,6 @@ export class MessageManager extends BaseController<MessageManagerConfig, Message
 		const unapprovedMessages = this.getUnapprovedMessages();
 		const unapprovedMessagesCount = this.getUnapprovedMessagesCount();
 		this.update({ unapprovedMessages, unapprovedMessagesCount });
-		this.hub.emit('updateBadge');
 	}
 
 	/**
@@ -115,6 +105,7 @@ export class MessageManager extends BaseController<MessageManagerConfig, Message
 	 */
 	private setMessageStatus(messageId: string, status: string) {
 		const message = this.getMessage(messageId);
+		/* istanbul ignore if */
 		if (!message) {
 			throw new Error(`MessageManager - Message not found for id: ${messageId}.`);
 		}
@@ -134,6 +125,7 @@ export class MessageManager extends BaseController<MessageManagerConfig, Message
 	 */
 	private updateMessage(message: Message) {
 		const index = this.messages.findIndex((msg) => message.id === msg.id);
+		/* istanbul ignore next */
 		if (index !== -1) {
 			this.messages[index] = message;
 		}
@@ -156,7 +148,7 @@ export class MessageManager extends BaseController<MessageManagerConfig, Message
 	 * @param config - Initial options used to configure this controller
 	 * @param state - Initial state to set on this controller
 	 */
-	constructor(config?: Partial<MessageManagerConfig>, state?: Partial<MessageManagerState>) {
+	constructor(config?: Partial<BaseConfig>, state?: Partial<MessageManagerState>) {
 		super(config, state);
 		this.defaultState = {
 			unapprovedMessages: {},
@@ -188,7 +180,7 @@ export class MessageManager extends BaseController<MessageManagerConfig, Message
 			.reduce((result: { [key: string]: Message }, message: Message) => {
 				result[message.id] = message;
 				return result;
-			}, {});
+			}, {}) as { [key: string]: Message };
 	}
 
 	/**
@@ -199,7 +191,7 @@ export class MessageManager extends BaseController<MessageManagerConfig, Message
 	 * @param req? - The original request object possibly containing the origin
 	 * @returns - Promise resolving to the raw data of the signature request
 	 */
-	addUnapprovedMessageAsync(messageParams: MessageParams, req?: OriginalRequest) {
+	addUnapprovedMessageAsync(messageParams: MessageParams, req?: OriginalRequest): Promise<string> {
 		return new Promise((resolve, reject) => {
 			validateEthSignMessageData(messageParams);
 			const messageId = this.addUnapprovedMessage(messageParams, req);
@@ -233,7 +225,7 @@ export class MessageManager extends BaseController<MessageManagerConfig, Message
 		if (req) {
 			messageParams.origin = req.origin;
 		}
-		messageParams.data = this.normalizeMessageData(messageParams.data);
+		messageParams.data = normalizeMessageData(messageParams.data);
 		// create txData obj with parameters and meta data
 		const messageId = random();
 		const messageData: Message = {
@@ -250,8 +242,8 @@ export class MessageManager extends BaseController<MessageManagerConfig, Message
 	}
 
 	/**
-	 * Adds a passed Message to this.messages, and calls this._saveMessageList() to save
-	 * the unapproved Messages from that list to this.memStore.
+	 * Adds a passed Message to this.messages, and calls this.saveMessageList() to save
+	 * the unapproved Messages from that list to this.messages.
 	 *
 	 * @param {Message} message The Message to add to this.messages
 	 *
@@ -278,15 +270,16 @@ export class MessageManager extends BaseController<MessageManagerConfig, Message
 	 * and returns a promise with any the message params modified for proper signing.
 	 *
 	 * @param messageParams - The messageParams to be used when eth_sign is called,
-	 * plus data added by MetaMask.
+	 * plus data added by MetaMask
+	 * @returns - Promise resolving to the messageParams with the metamaskId property removed
 	 */
-	approveMessage(messageParams: MessageParamsMetamask) {
+	approveMessage(messageParams: MessageParamsMetamask): Promise<MessageParams> {
 		this.setMessageStatusApproved(messageParams.metamaskId);
-		return this.prepsMessageForSigning(messageParams);
+		return this.prepMessageForSigning(messageParams);
 	}
 
 	/**
-	 * Sets a Message status to 'approved' via a call to this.setMessageStatus
+	 * Sets a Message status to 'approved' via a call to this.setMessageStatus.
 	 *
 	 * @param messageId - The id of the Message to approve
 	 */
@@ -297,13 +290,14 @@ export class MessageManager extends BaseController<MessageManagerConfig, Message
 	/**
 	 * Sets a Message status to 'signed' via a call to this.setMessageStatus and updates
 	 * that Message in this.messages by adding the raw signature data of the signature
-	 * request to the Message
+	 * request to the Message.
 	 *
 	 * @param messageId - The id of the Message to sign
 	 * @param rawSig - The raw data of the signature request
 	 */
 	setMessageStatusSigned(messageId: string, rawSig: string) {
 		const message = this.getMessage(messageId);
+		/* istanbul ignore if */
 		if (!message) {
 			return;
 		}
@@ -319,7 +313,7 @@ export class MessageManager extends BaseController<MessageManagerConfig, Message
 	 * @param messageParams - The messageParams to modify
 	 * @returns - Promise resolving to the messageParams with the metamaskId property removed
 	 */
-	prepsMessageForSigning(messageParams: MessageParamsMetamask): Promise<MessageParams> {
+	prepMessageForSigning(messageParams: MessageParamsMetamask): Promise<MessageParams> {
 		delete messageParams.metamaskId;
 		return Promise.resolve(messageParams);
 	}
@@ -331,24 +325,6 @@ export class MessageManager extends BaseController<MessageManagerConfig, Message
 	 */
 	rejectMessage(messageId: string) {
 		this.setMessageStatus(messageId, 'rejected');
-	}
-
-	/**
-	 * A helper function that converts raw buffer data to a hex, or just returns the data if
-	 * it is already formatted as a hex.
-	 *
-	 * @param data - The buffer data to convert to a hex
-	 * @returns - A hex string conversion of the buffer data
-	 *
-	 */
-	normalizeMessageData(data: string) {
-		if (data.slice(0, 2) === '0x') {
-			// data is already hex
-			return data;
-		} else {
-			// data is unicode, convert to hex
-			return ethUtil.bufferToHex(Buffer.from(data, 'utf8'));
-		}
 	}
 }
 

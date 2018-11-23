@@ -10,6 +10,7 @@ export * from './BlockHistoryController';
 export * from './ComposableController';
 export * from './CurrencyRateController';
 export * from './KeyringController';
+export * from './MessageManager';
 export * from './NetworkController';
 export * from './NetworkStatusController';
 export * from './PhishingController';

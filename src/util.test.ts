@@ -126,4 +126,56 @@ describe('util', () => {
 			).toThrow();
 		});
 	});
+
+	it('normalizeMessageData', () => {
+		const firstNormalized = util.normalizeMessageData('somedata');
+		const secondNormalized = util.normalizeMessageData('0xsomedata');
+		expect(firstNormalized).toEqual('0x736f6d6564617461');
+		expect(secondNormalized).toEqual('0xsomedata');
+	});
+
+	describe('validateEthMessageData', () => {
+		it('should throw if no from address', () => {
+			expect(() =>
+				util.validateEthSignMessageData({
+					data: '0xsomdata'
+				} as any)
+			).toThrow();
+		});
+
+		it('should throw if invalid from address', () => {
+			expect(() =>
+				util.validateEthSignMessageData({
+					data: '0xsomedata',
+					from: '3244e191f1b4903970224322180f1fbbc415696b'
+				} as any)
+			).toThrow();
+		});
+
+		it('should throw if invalid type from address', () => {
+			expect(() =>
+				util.validateEthSignMessageData({
+					data: '0xsomedata',
+					from: 123
+				} as any)
+			).toThrow();
+		});
+
+		it('should throw if no data', () => {
+			expect(() =>
+				util.validateEthSignMessageData({
+					data: '0xsomdata'
+				} as any)
+			).toThrow();
+		});
+
+		it('should throw if invalid tyoe data', () => {
+			expect(() =>
+				util.validateEthSignMessageData({
+					data: 123,
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+				} as any)
+			).toThrow();
+		});
+	});
 });

@@ -1,6 +1,6 @@
 import { Transaction } from './TransactionController';
 import { MessageParams } from './MessageManager';
-const { addHexPrefix, BN, isValidAddress, stripHexPrefix, isHexString } = require('ethereumjs-util');
+const { addHexPrefix, BN, bufferToHex, isValidAddress, stripHexPrefix, isHexString } = require('ethereumjs-util');
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
 	data: (data: string) => addHexPrefix(data),
@@ -131,11 +131,35 @@ export function validateTransaction(transaction: Transaction) {
 	}
 }
 
+/**
+ * A helper function that converts raw buffer data to a hex, or just returns the data if
+ * it is already formatted as a hex.
+ *
+ * @param data - The buffer data to convert to a hex
+ * @returns - A hex string conversion of the buffer data
+ *
+ */
+export function normalizeMessageData(data: string) {
+	if (data.slice(0, 2) === '0x') {
+		// data is already hex
+		return data;
+	} else {
+		// data is unicode, convert to hex
+		return bufferToHex(Buffer.from(data, 'utf8'));
+	}
+}
+
+/**
+ * Validates a MessageParams object for required properties and throws in
+ * the event of any validation error.
+ *
+ * @param messageData - MessageParams object to validate
+ */
 export function validateEthSignMessageData(messageData: MessageParams) {
 	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
 		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
 	}
-	if (!messageData.data || typeof messageData.data !== 'string' || isHexString(messageData.data)) {
+	if (!messageData.data || typeof messageData.data !== 'string') {
 		throw new Error(`Invalid message "data": ${messageData.data} must be a valid string.`);
 	}
 }
