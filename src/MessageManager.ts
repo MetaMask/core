@@ -236,8 +236,7 @@ export class MessageManager extends BaseController<BaseConfig, MessageManagerSta
 			type: 'eth_sign'
 		};
 		this.addMessage(messageData);
-		// signal update
-		this.hub.emit('update');
+		this.hub.emit(`unapprovedMessage`, { ...messageParams, ...{ metamaskId: messageId } });
 		return messageId;
 	}
 
