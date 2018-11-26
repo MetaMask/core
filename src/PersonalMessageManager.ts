@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
-import { validateEthSignMessageData, normalizeMessageData } from './util';
+import { validatePersonalSignMessageData, normalizeMessageData } from './util';
 const random = require('uuid/v1');
 
 /**
@@ -69,14 +69,14 @@ export interface OriginalRequest {
 }
 
 /**
- * @type MessageManagerState
+ * @type PersonalMessageManagerState
  *
  * Message Manager state
  *
  * @property unapprovedMessages - A collection of all Messages in the 'unapproved' state
  * @property unapprovedMessagesCount - The count of all Messages in this.memStore.unapprobedMessages
  */
-export interface MessageManagerState extends BaseState {
+export interface PersonalMessageManagerState extends BaseState {
 	unapprovedMessages: { [key: string]: Message };
 	unapprovedMessagesCount: number;
 }
@@ -84,7 +84,7 @@ export interface MessageManagerState extends BaseState {
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
-export class MessageManager extends BaseController<BaseConfig, MessageManagerState> {
+export class PersonalMessageManager extends BaseController<BaseConfig, PersonalMessageManagerState> {
 	private messages: Message[];
 
 	/**
@@ -107,7 +107,7 @@ export class MessageManager extends BaseController<BaseConfig, MessageManagerSta
 		const message = this.getMessage(messageId);
 		/* istanbul ignore if */
 		if (!message) {
-			throw new Error(`MessageManager - Message not found for id: ${messageId}.`);
+			throw new Error(`PersonalMessageManager - Message not found for id: ${messageId}.`);
 		}
 		message.status = status;
 		this.updateMessage(message);
@@ -140,15 +140,15 @@ export class MessageManager extends BaseController<BaseConfig, MessageManagerSta
 	/**
 	 * Name of this controller used during composition
 	 */
-	name = 'MessageManager';
+	name = 'PersonalMessageManager';
 
 	/**
-	 * Creates a MessageManager instance
+	 * Creates a PersonalMessageManager instance
 	 *
 	 * @param config - Initial options used to configure this controller
 	 * @param state - Initial state to set on this controller
 	 */
-	constructor(config?: Partial<BaseConfig>, state?: Partial<MessageManagerState>) {
+	constructor(config?: Partial<BaseConfig>, state?: Partial<PersonalMessageManagerState>) {
 		super(config, state);
 		this.defaultState = {
 			unapprovedMessages: {},
@@ -193,7 +193,7 @@ export class MessageManager extends BaseController<BaseConfig, MessageManagerSta
 	 */
 	addUnapprovedMessageAsync(messageParams: MessageParams, req?: OriginalRequest): Promise<string> {
 		return new Promise((resolve, reject) => {
-			validateEthSignMessageData(messageParams);
+			validatePersonalSignMessageData(messageParams);
 			const messageId = this.addUnapprovedMessage(messageParams, req);
 			this.hub.once(`${messageId}:finished`, (data: Message) => {
 				switch (data.status) {
@@ -327,4 +327,4 @@ export class MessageManager extends BaseController<BaseConfig, MessageManagerSta
 	}
 }
 
-export default MessageManager;
+export default PersonalMessageManager;

@@ -1,18 +1,18 @@
-import MessageManager from './MessageManager';
+import PersonalMessageManager from './PersonalMessageManager';
 
-describe('MessageManager', () => {
+describe('PersonalMessageManager', () => {
 	it('should set default state', () => {
-		const controller = new MessageManager();
+		const controller = new PersonalMessageManager();
 		expect(controller.state).toEqual({ unapprovedMessages: {}, unapprovedMessagesCount: 0 });
 	});
 
 	it('should set default config', () => {
-		const controller = new MessageManager();
+		const controller = new PersonalMessageManager();
 		expect(controller.config).toEqual({});
 	});
 
 	it('should add a valid message', async () => {
-		const controller = new MessageManager();
+		const controller = new PersonalMessageManager();
 		const messageId = '1';
 		const from = '0x0123';
 		const messageData = '0x123';
@@ -43,7 +43,7 @@ describe('MessageManager', () => {
 
 	it('should reject a message', () => {
 		return new Promise(async (resolve) => {
-			const controller = new MessageManager();
+			const controller = new PersonalMessageManager();
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			const data = '0x879a053d4800c6354e76c7985a865d2922c82fb5b';
 			const result = controller.addUnapprovedMessageAsync({
@@ -66,7 +66,7 @@ describe('MessageManager', () => {
 
 	it('should sign a message', () => {
 		return new Promise(async (resolve) => {
-			const controller = new MessageManager();
+			const controller = new PersonalMessageManager();
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			const data = '0x879a053d4800c6354e76c7985a865d2922c82fb5b';
 			const rawSig = '0x5f7a0';
@@ -90,7 +90,7 @@ describe('MessageManager', () => {
 
 	it('should throw when unapproved finishes', () => {
 		return new Promise(async (resolve) => {
-			const controller = new MessageManager();
+			const controller = new PersonalMessageManager();
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			const data = '0x879a053d4800c6354e76c7985a865d2922c82fb5b';
 			const result = controller.addUnapprovedMessageAsync({
@@ -108,7 +108,7 @@ describe('MessageManager', () => {
 	});
 
 	it('should add a valid unapproved message', async () => {
-		const controller = new MessageManager();
+		const controller = new PersonalMessageManager();
 		const messageStatus = 'unapproved';
 		const messageType = 'eth_sign';
 		const messageParams = {
@@ -132,7 +132,7 @@ describe('MessageManager', () => {
 		const from = 'foo';
 		const messageData = '0x123';
 		return new Promise(async (resolve) => {
-			const controller = new MessageManager();
+			const controller = new PersonalMessageManager();
 			try {
 				await controller.addUnapprovedMessageAsync({
 					data: messageData,
@@ -160,7 +160,7 @@ describe('MessageManager', () => {
 			time: 123,
 			type: 'eth_sign'
 		};
-		const controller = new MessageManager();
+		const controller = new PersonalMessageManager();
 		controller.addMessage(firstMessage);
 		controller.addMessage(secondMessage);
 		expect(controller.getUnapprovedMessagesCount()).toEqual(2);
@@ -171,7 +171,7 @@ describe('MessageManager', () => {
 	});
 
 	it('should approve message', async () => {
-		const controller = new MessageManager();
+		const controller = new PersonalMessageManager();
 		const firstMessage = { from: 'foo', data: '0x123' };
 		const messageId = controller.addUnapprovedMessage(firstMessage);
 		const messageParams = await controller.approveMessage({ ...firstMessage, metamaskId: messageId });
@@ -184,7 +184,7 @@ describe('MessageManager', () => {
 	});
 
 	it('should set message status signed', () => {
-		const controller = new MessageManager();
+		const controller = new PersonalMessageManager();
 		const firstMessage = { from: 'foo', data: '0x123' };
 		const rawSig = '0x5f7a0';
 		const messageId = controller.addUnapprovedMessage(firstMessage);
@@ -199,7 +199,7 @@ describe('MessageManager', () => {
 	});
 
 	it('should reject message', () => {
-		const controller = new MessageManager();
+		const controller = new PersonalMessageManager();
 		const firstMessage = { from: 'foo', data: '0x123' };
 		const messageId = controller.addUnapprovedMessage(firstMessage);
 		controller.rejectMessage(messageId);

@@ -1,6 +1,7 @@
 import { Transaction } from './TransactionController';
-import { MessageParams } from './MessageManager';
-const { addHexPrefix, BN, bufferToHex, isValidAddress, stripHexPrefix } = require('ethereumjs-util');
+import { MessageParams } from './PersonalMessageManager';
+const { addHexPrefix, BN, isValidAddress, stripHexPrefix, bufferToHex } = require('ethereumjs-util');
+const hexRe = /^[0-9A-Fa-f]+$/g;
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
 	data: (data: string) => addHexPrefix(data),
@@ -132,7 +133,7 @@ export function validateTransaction(transaction: Transaction) {
 }
 
 /**
- * A helper function that converts raw buffer data to a hex, or just returns the data if
+ * A helper function that converts rawmessageData buffer data to a hex, or just returns the data if
  * it is already formatted as a hex.
  *
  * @param data - The buffer data to convert to a hex
@@ -140,13 +141,15 @@ export function validateTransaction(transaction: Transaction) {
  *
  */
 export function normalizeMessageData(data: string) {
-	if (data.slice(0, 2) === '0x') {
-		// data is already hex
-		return data;
-	} else {
-		// data is unicode, convert to hex
-		return bufferToHex(Buffer.from(data, 'utf8'));
+	try {
+		const stripped = stripHexPrefix(data);
+		if (stripped.match(hexRe)) {
+			return addHexPrefix(stripped);
+		}
+	} catch (e) {
+		/* istanbul ignore next */
 	}
+	return bufferToHex(Buffer.from(data, 'utf8'));
 }
 
 /**
@@ -155,7 +158,7 @@ export function normalizeMessageData(data: string) {
  *
  * @param messageData - MessageParams object to validate
  */
-export function validateEthSignMessageData(messageData: MessageParams) {
+export function validatePersonalSignMessageData(messageData: MessageParams) {
 	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
 		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
 	}
