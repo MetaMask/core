@@ -2,7 +2,7 @@ import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState, Listener } from './BaseController';
 import PreferencesController from './PreferencesController';
 import { Transaction } from './TransactionController';
-import { MessageParams } from './MessageManager';
+import { MessageParams } from './PersonalMessageManager';
 
 const { toChecksumAddress } = require('ethereumjs-util');
 const Keyring = require('eth-keyring-controller');
