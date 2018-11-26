@@ -255,7 +255,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @returns - Promise resolving to a signed message string
 	 */
 	signPersonalMessage(messageParams: MessageParams) {
-		return this.keyring.personalSignMessage(messageParams);
+		return this.keyring.signPersonalMessage(messageParams);
 	}
 
 	/**
