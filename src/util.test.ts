@@ -136,6 +136,11 @@ describe('util', () => {
 		expect(secondNormalized).toEqual('0x736f6d6564617461');
 	});
 
+	it('messageHexToString', () => {
+		const str = util.hexToText('68656c6c6f207468657265');
+		expect(str).toEqual('hello there');
+	});
+
 	describe('validateEthMessageData', () => {
 		it('should throw if no from address', () => {
 			expect(() =>

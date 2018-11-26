@@ -18,7 +18,7 @@ describe('PersonalMessageManager', () => {
 		const messageData = '0x123';
 		const messageTime = Date.now();
 		const messageStatus = 'unapproved';
-		const messageType = 'eth_sign';
+		const messageType = 'personal_sign';
 		controller.addMessage({
 			id: messageId,
 			messageParams: {
@@ -110,7 +110,7 @@ describe('PersonalMessageManager', () => {
 	it('should add a valid unapproved message', async () => {
 		const controller = new PersonalMessageManager();
 		const messageStatus = 'unapproved';
-		const messageType = 'eth_sign';
+		const messageType = 'personal_sign';
 		const messageParams = {
 			data: '0x123',
 			from: '0xfoO'
@@ -151,14 +151,14 @@ describe('PersonalMessageManager', () => {
 			messageParams: { from: '0x1', data: '0x123' },
 			status: 'unapproved',
 			time: 123,
-			type: 'eth_sign'
+			type: 'personal_sign'
 		};
 		const secondMessage = {
 			id: '2',
 			messageParams: { from: '0x1', data: '0x321' },
 			status: 'unapproved',
 			time: 123,
-			type: 'eth_sign'
+			type: 'personal_sign'
 		};
 		const controller = new PersonalMessageManager();
 		controller.addMessage(firstMessage);

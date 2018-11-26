@@ -6,13 +6,13 @@ const random = require('uuid/v1');
 /**
  * @type Message
  *
- * Represents, and contains data about, an 'eth_sign' type signature request. These are created when a signature for
- * an eth_sign call is requested.
+ * Represents, and contains data about, an 'personal_sign' type signature request.
+ * These are created when a signature for an personal_sign call is requested.
  *
  * @property id - An id to track and identify the message object
- * @property messageParams - The parameters to pass to the eth_sign method once the signature request is approved
+ * @property messageParams - The parameters to pass to the personal_sign method once the signature request is approved
  * @property type - The json-prc signing method for which a signature request has been made.
- * A 'Message' with always have a 'eth_sign' type
+ * A 'Message' with always have a 'personal_sign' type
  * @property rawSig - Raw data of the signature request
  */
 export interface Message {
@@ -27,7 +27,7 @@ export interface Message {
 /**
  * @type MessageParams
  *
- * Represents, the parameters to pass to the eth_sign method once the signature request is approved.
+ * Represents, the parameters to pass to the personal_sign method once the signature request is approved.
  *
  * @property data - A hex string conversion of the raw buffer data of the signature request
  * @property from - Address to sign this message from
@@ -42,7 +42,7 @@ export interface MessageParams {
 /**
  * @type MessageParamsMetamask
  *
- * Represents, the parameters to pass to the eth_sign method once the signature request is approved
+ * Represents, the parameters to pass to the personal_sign method once the signature request is approved
  * plus data added by MetaMask.
  *
  * @property metamaskId - Added for tracking and identification within MetaMask
@@ -187,7 +187,7 @@ export class PersonalMessageManager extends BaseController<BaseConfig, PersonalM
 	 * Creates a new Message with an 'unapproved' status using the passed messageParams.
 	 * this.addMessage is called to add the new Message to this.messages, and to save the unapproved Messages.
 	 *
-	 * @param messageParams - The params for the eth_sign call to be made after the message is approved
+	 * @param messageParams - The params for the personal_sign call to be made after the message is approved
 	 * @param req? - The original request object possibly containing the origin
 	 * @returns - Promise resolving to the raw data of the signature request
 	 */
@@ -200,10 +200,12 @@ export class PersonalMessageManager extends BaseController<BaseConfig, PersonalM
 					case 'signed':
 						return resolve(data.rawSig);
 					case 'rejected':
-						return reject(new Error('MetaMask Message Signature: User denied message signature.'));
+						return reject(new Error('MetaMask Personal Message Signature: User denied message signature.'));
 					default:
 						return reject(
-							new Error(`MetaMask Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`)
+							new Error(
+								`MetaMask Personal Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`
+							)
 						);
 				}
 			});
@@ -215,7 +217,7 @@ export class PersonalMessageManager extends BaseController<BaseConfig, PersonalM
 	 * this.addMessage is called to add the new Message to this.messages, and to save the
 	 * unapproved Messages.
 	 *
-	 * @param messageParams - The params for the eth_sign call to be made after the message
+	 * @param messageParams - The params for the personal_sign call to be made after the message
 	 * is approved
 	 * @param req? - The original request object possibly containing the origin
 	 * @returns - The id of the newly created message
@@ -233,7 +235,7 @@ export class PersonalMessageManager extends BaseController<BaseConfig, PersonalM
 			messageParams,
 			status: 'unapproved',
 			time: Date.now(),
-			type: 'eth_sign'
+			type: 'personal_sign'
 		};
 		this.addMessage(messageData);
 		this.hub.emit(`unapprovedMessage`, { ...messageParams, ...{ metamaskId: messageId } });
@@ -268,7 +270,7 @@ export class PersonalMessageManager extends BaseController<BaseConfig, PersonalM
 	 * Approves a Message. Sets the message status via a call to this.setMessageStatusApproved,
 	 * and returns a promise with any the message params modified for proper signing.
 	 *
-	 * @param messageParams - The messageParams to be used when eth_sign is called,
+	 * @param messageParams - The messageParams to be used when personal_sign is called,
 	 * plus data added by MetaMask
 	 * @returns - Promise resolving to the messageParams with the metamaskId property removed
 	 */

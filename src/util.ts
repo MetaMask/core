@@ -72,6 +72,24 @@ export function hexToBN(inputHex: string) {
 }
 
 /**
+ * A helper function that converts hex data to human readable string
+ *
+ * @param hex - The hex string to convert to string
+ * @returns - A human readable string conversion
+ *
+ */
+export function hexToText(hex: string) {
+	try {
+		const stripped = stripHexPrefix(hex);
+		const buff = Buffer.from(stripped, 'hex');
+		return buff.toString('utf8');
+	} catch (e) {
+		/* istanbul ignore next */
+		return hex;
+	}
+}
+
+/**
  * Normalizes properties on a Transaction object
  *
  * @param transaction - Transaction object to normalize
@@ -190,6 +208,7 @@ export default {
 	fractionBN,
 	getBuyURL,
 	hexToBN,
+	hexToText,
 	manageCollectibleImage,
 	normalizeTransaction,
 	safelyExecute,
