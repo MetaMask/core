@@ -7,17 +7,17 @@ describe('CurrencyRateController', () => {
 		expect(controller.state).toEqual({
 			conversionDate: 0,
 			conversionRate: 0,
-			currentBaseAsset: 'eth',
-			currentCurrency: 'usd'
+			currentCurrency: 'usd',
+			nativeCurrency: 'eth'
 		});
 	});
 
 	it('should set default config', () => {
 		const controller = new CurrencyRateController();
 		expect(controller.config).toEqual({
-			baseAsset: 'eth',
-			currency: 'usd',
-			interval: 180000
+			currentCurrency: 'usd',
+			interval: 180000,
+			nativeCurrency: 'eth'
 		});
 	});
 
@@ -41,13 +41,6 @@ describe('CurrencyRateController', () => {
 		});
 	});
 
-	it('should update currency', async () => {
-		const controller = new CurrencyRateController({ interval: 10 });
-		expect(controller.state.conversionRate).toEqual(0);
-		await controller.updateCurrency('eur');
-		expect(controller.state.conversionRate).toBeGreaterThan(0);
-	});
-
 	it('should not update rates if disabled', async () => {
 		const controller = new CurrencyRateController({
 			disabled: true,
@@ -67,8 +60,8 @@ describe('CurrencyRateController', () => {
 	});
 
 	it('should use default base asset', async () => {
-		const baseAsset = 'FOO';
-		const controller = new CurrencyRateController({ baseAsset });
+		const nativeCurrency = 'FOO';
+		const controller = new CurrencyRateController({ nativeCurrency });
 		const mock = stub(window, 'fetch');
 		(window.fetch as SinonStub).returns(
 			Promise.resolve({
@@ -77,6 +70,6 @@ describe('CurrencyRateController', () => {
 		);
 		await controller.fetchExchangeRate('usd');
 		mock.restore();
-		expect(mock.getCall(0).args[0]).toContain(baseAsset);
+		expect(mock.getCall(0).args[0]).toContain(nativeCurrency);
 	});
 });
