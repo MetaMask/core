@@ -7,15 +7,17 @@ describe('CurrencyRateController', () => {
 		expect(controller.state).toEqual({
 			conversionDate: 0,
 			conversionRate: 0,
-			currentCurrency: 'usd'
+			currentCurrency: 'usd',
+			nativeCurrency: 'eth'
 		});
 	});
 
 	it('should set default config', () => {
 		const controller = new CurrencyRateController();
 		expect(controller.config).toEqual({
-			currency: 'usd',
-			interval: 180000
+			currentCurrency: 'usd',
+			interval: 180000,
+			nativeCurrency: 'eth'
 		});
 	});
 
@@ -39,13 +41,6 @@ describe('CurrencyRateController', () => {
 		});
 	});
 
-	it('should update currency', async () => {
-		const controller = new CurrencyRateController({ interval: 10 });
-		expect(controller.state.conversionRate).toEqual(0);
-		await controller.updateCurrency('eur');
-		expect(controller.state.conversionRate).toBeGreaterThan(0);
-	});
-
 	it('should not update rates if disabled', async () => {
 		const controller = new CurrencyRateController({
 			disabled: true,
@@ -62,5 +57,24 @@ describe('CurrencyRateController', () => {
 		controller.interval = 1338;
 		expect(mock.called).toBe(true);
 		mock.restore();
+	});
+
+	it('should update currency', async () => {
+		const controller = new CurrencyRateController({ interval: 10 });
+		expect(controller.state.conversionRate).toEqual(0);
+		await controller.updateExchangeRate();
+		expect(controller.state.conversionRate).toBeGreaterThan(0);
+	});
+
+	it('should use default base asset', async () => {
+		const nativeCurrency = 'FOO';
+		const controller = new CurrencyRateController({ nativeCurrency });
+		const mock = stub(window, 'fetch');
+		mock.resolves({
+			json: () => ({ USD: 1337 })
+		});
+		await controller.fetchExchangeRate('usd');
+		mock.restore();
+		expect(mock.getCall(0).args[0]).toContain(nativeCurrency);
 	});
 });
