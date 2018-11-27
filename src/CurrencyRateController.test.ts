@@ -1,4 +1,4 @@
-import { stub, SinonStub } from 'sinon';
+import { stub } from 'sinon';
 import CurrencyRateController from './CurrencyRateController';
 
 describe('CurrencyRateController', () => {
