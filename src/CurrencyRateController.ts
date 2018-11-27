@@ -7,10 +7,12 @@ import { safelyExecute } from './util';
  *
  * Currency rate controller configuration
  *
+ * @property baseAsset - Symbol for the base asset used for conversion
  * @property currency - Currently-active ISO 4217 currency code
  * @property interval - Polling interval used to fetch new currency rate
  */
 export interface CurrencyRateConfig extends BaseConfig {
+	baseAsset: string;
 	currency: string;
 	interval: number;
 }
@@ -21,24 +23,28 @@ export interface CurrencyRateConfig extends BaseConfig {
  * Currency rate controller state
  *
  * @property conversionDate - Timestamp of conversion rate expressed in ms since UNIX epoch
- * @property conversionRate - Conversion rate from ETH to the selected currency
+ * @property conversionRate - Conversion rate from current base asset to the current currency
+ * @property currentBaseAsset - Symbol for the base asset used for conversion
  * @property currentCurrency - Currently-active ISO 4217 currency code
  */
 export interface CurrencyRateState extends BaseState {
 	conversionDate: number;
 	conversionRate: number;
+	currentBaseAsset: string;
 	currentCurrency: string;
 }
 
 /**
- * Controller that passively polls on a set interval for an ETH-to-fiat exchange rate
+ * Controller that passively polls on a set interval for an exchange rate from the current base
+ * asset to the current currency
  */
 export class CurrencyRateController extends BaseController<CurrencyRateConfig, CurrencyRateState> {
-	private activeCurrency: string = '';
+	private activeBaseAsset = '';
+	private activeCurrency = '';
 	private handle?: NodeJS.Timer;
 
-	private getPricingURL(currency: string) {
-		return `https://api.infura.io/v1/ticker/eth${currency.toLowerCase()}`;
+	private getPricingURL(currency: string, baseAsset: string) {
+		return `https://min-api.cryptocompare.com/data/price?fsym=${baseAsset.toUpperCase()}&tsyms=${currency.toUpperCase()}`;
 	}
 
 	/**
@@ -55,15 +61,37 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	constructor(config?: Partial<CurrencyRateConfig>, state?: Partial<CurrencyRateState>) {
 		super(config, state);
 		this.defaultConfig = {
+			baseAsset: 'eth',
 			currency: 'usd',
 			interval: 180000
 		};
 		this.defaultState = {
 			conversionDate: 0,
 			conversionRate: 0,
+			currentBaseAsset: this.defaultConfig.baseAsset,
 			currentCurrency: this.defaultConfig.currency
 		};
 		this.initialize();
+	}
+
+	/**
+	 * Sets a new base asset
+	 *
+	 * @param symbol - Symbol for the base asset
+	 */
+	set baseAsset(symbol: string) {
+		this.activeBaseAsset = symbol;
+		safelyExecute(() => this.updateExchangeRate());
+	}
+
+	/**
+	 * Sets a currency to track
+	 *
+	 * @param currency - ISO 4217 currency code
+	 */
+	set currency(currency: string) {
+		this.activeCurrency = currency;
+		safelyExecute(() => this.updateExchangeRate());
 	}
 
 	/**
@@ -80,28 +108,20 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	}
 
 	/**
-	 * Sets a currency to track a exchange rate for
-	 *
-	 * @param currency - ISO 4217 currency code
-	 */
-	set currency(currency: string) {
-		this.activeCurrency = currency;
-		safelyExecute(() => this.updateExchangeRate());
-	}
-
-	/**
 	 * Fetches the exchange rate for a given currency
 	 *
 	 * @param currency - ISO 4217 currency code
-	 * @returns - Promise resolving to exchange rate for given currecy
+	 * @param baseAsset - Symbol for base asset
+	 * @returns - Promise resolving to exchange rate for given currency
 	 */
-	async fetchExchangeRate(currency: string): Promise<CurrencyRateState> {
-		const response = await fetch(this.getPricingURL(currency));
+	async fetchExchangeRate(currency: string, baseAsset = this.activeBaseAsset): Promise<CurrencyRateState> {
+		const response = await fetch(this.getPricingURL(currency, baseAsset));
 		const json = await response.json();
 		return {
-			conversionDate: Number(json.timestamp),
-			conversionRate: Number(json.bid),
-			currentCurrency: this.activeCurrency
+			conversionDate: Date.now(),
+			conversionRate: Number(json[currency.toUpperCase()]),
+			currentBaseAsset: this.activeBaseAsset,
+			currentCurrency: currency
 		};
 	}
 
@@ -109,7 +129,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	 * Sets a new currency to track and fetches its exchange rate
 	 *
 	 * @param currency - ISO 4217 currency code
-	 * @returns - Promise resolving to exchange rate for given currecy
+	 * @returns - Promise resolving to exchange rate for given currency
 	 */
 	async updateCurrency(currency: string): Promise<CurrencyRateState | void> {
 		this.configure({ currency });
@@ -122,11 +142,19 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	 * @returns Promise resolving to currency data or undefined if disabled
 	 */
 	async updateExchangeRate(): Promise<CurrencyRateState | void> {
-		if (this.disabled) {
+		if (this.disabled || !this.activeCurrency || !this.activeBaseAsset) {
 			return;
 		}
-		const { conversionDate, conversionRate } = await this.fetchExchangeRate(this.activeCurrency);
-		this.update({ conversionDate, conversionRate, currentCurrency: this.activeCurrency });
+		const { conversionDate, conversionRate } = await this.fetchExchangeRate(
+			this.activeCurrency,
+			this.activeBaseAsset
+		);
+		this.update({
+			conversionDate,
+			conversionRate,
+			currentBaseAsset: this.activeBaseAsset,
+			currentCurrency: this.activeCurrency
+		});
 		return this.state;
 	}
 }

@@ -318,7 +318,9 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 		const keyrings = await Promise.all(
 			this.keyring.keyrings.map(async (keyring: KeyringObject, index: number) => {
 				const keyringAccounts = await keyring.getAccounts();
-				const accounts = Array.isArray(keyringAccounts) ? keyringAccounts.map((address) => toChecksumAddress(address)) : [];
+				const accounts = Array.isArray(keyringAccounts)
+					? keyringAccounts.map((address) => toChecksumAddress(address))
+					: [];
 				return {
 					accounts,
 					index,

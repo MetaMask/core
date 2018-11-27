@@ -1,4 +1,4 @@
-import { stub } from 'sinon';
+import { stub, SinonStub } from 'sinon';
 import CurrencyRateController from './CurrencyRateController';
 
 describe('CurrencyRateController', () => {
@@ -7,6 +7,7 @@ describe('CurrencyRateController', () => {
 		expect(controller.state).toEqual({
 			conversionDate: 0,
 			conversionRate: 0,
+			currentBaseAsset: 'eth',
 			currentCurrency: 'usd'
 		});
 	});
@@ -14,6 +15,7 @@ describe('CurrencyRateController', () => {
 	it('should set default config', () => {
 		const controller = new CurrencyRateController();
 		expect(controller.config).toEqual({
+			baseAsset: 'eth',
 			currency: 'usd',
 			interval: 180000
 		});
@@ -62,5 +64,19 @@ describe('CurrencyRateController', () => {
 		controller.interval = 1338;
 		expect(mock.called).toBe(true);
 		mock.restore();
+	});
+
+	it('should use default base asset', async () => {
+		const baseAsset = 'FOO';
+		const controller = new CurrencyRateController({ baseAsset });
+		const mock = stub(window, 'fetch');
+		(window.fetch as SinonStub).returns(
+			Promise.resolve({
+				json: () => ({ USD: 1337 })
+			})
+		);
+		await controller.fetchExchangeRate('usd');
+		mock.restore();
+		expect(mock.getCall(0).args[0]).toContain(baseAsset);
 	});
 });
