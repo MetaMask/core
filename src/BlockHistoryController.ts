@@ -114,7 +114,8 @@ export class BlockHistoryController extends BaseController<BlockHistoryConfig, B
 					blockNumbers.map((blockNumber: number) => this.getBlockByNumber(blockNumber))
 				);
 				const filledBlocks = newBlocks.filter((newBlock) => newBlock);
-				filledBlocks.sort((a, b) => (a.number < b.number ? /* istanbul ignore next */ -1 : 1));
+				/* istanbul ignore next */
+				filledBlocks.sort((a, b) => (a.number < b.number ? -1 : 1));
 				const recentBlocks = filledBlocks.map((filledBlock) => this.mapGasPrices(filledBlock));
 				this.update({ recentBlocks });
 				this.backfilled = true;
