@@ -160,9 +160,9 @@ export class PersonalMessageManager extends BaseController<BaseConfig, PersonalM
 	}
 
 	/**
-	 * A getter for the number of 'unapproved' Messages in state messages
+	 * A getter for the number of 'unapproved' Messages in this.messages
 	 *
-	 * @returns - The number of 'unapproved' Messages in state messages
+	 * @returns - The number of 'unapproved' Messages in this.messages
 	 *
 	 */
 	getUnapprovedMessagesCount() {
