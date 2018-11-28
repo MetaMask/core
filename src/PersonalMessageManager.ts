@@ -95,6 +95,7 @@ export class PersonalMessageManager extends BaseController<BaseConfig, PersonalM
 		const unapprovedMessages = this.getUnapprovedMessages();
 		const unapprovedMessagesCount = this.getUnapprovedMessagesCount();
 		this.update({ unapprovedMessages, unapprovedMessagesCount });
+		this.hub.emit('updateBadge');
 	}
 
 	/**
