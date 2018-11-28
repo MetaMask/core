@@ -6,13 +6,13 @@ const random = require('uuid/v1');
 /**
  * @type Message
  *
- * Represents, and contains data about, an 'personal_sign' type signature request.
+ * Represents and contains data about a 'personal_sign' type signature request.
  * These are created when a signature for an personal_sign call is requested.
  *
  * @property id - An id to track and identify the message object
  * @property messageParams - The parameters to pass to the personal_sign method once the signature request is approved
  * @property type - The json-prc signing method for which a signature request has been made.
- * A 'Message' with always have a 'personal_sign' type
+ * A 'Message' which always has a 'personal_sign' type
  * @property rawSig - Raw data of the signature request
  */
 export interface Message {
@@ -27,7 +27,7 @@ export interface Message {
 /**
  * @type MessageParams
  *
- * Represents, the parameters to pass to the personal_sign method once the signature request is approved.
+ * Represents the parameters to pass to the personal_sign method once the signature request is approved.
  *
  * @property data - A hex string conversion of the raw buffer data of the signature request
  * @property from - Address to sign this message from
@@ -42,7 +42,7 @@ export interface MessageParams {
 /**
  * @type MessageParamsMetamask
  *
- * Represents, the parameters to pass to the personal_sign method once the signature request is approved
+ * Represents the parameters to pass to the personal_sign method once the signature request is approved
  * plus data added by MetaMask.
  *
  * @property metamaskId - Added for tracking and identification within MetaMask
@@ -60,7 +60,7 @@ export interface MessageParamsMetamask {
 /**
  * @type OriginalRequest
  *
- * Represents, the original request object for adding a message.
+ * Represents the original request object for adding a message.
  *
  * @property origin? - Is it is specified, represents the origin
  */
