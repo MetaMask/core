@@ -8,7 +8,9 @@
     "lint": "tslint src/**/*.ts",
     "test": "jest --coverage",
     "format": "prettier **/*.ts --write --ignore-path=.gitignore",
-    "build": "tsc && cp package.json dist/.",
+    "build": "rm -rf dist && tsc && cp package.json dist/.",
+    "build:watch": "npm run build && tsc -w",
+    "build:link": "npm run build && cd dist && npm link && rm -rf node_modules && cd ..",
     "doc": "typedoc src/ && touch docs/.nojekyll"
   },
   "jest": {
