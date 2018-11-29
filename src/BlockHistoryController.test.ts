@@ -49,15 +49,20 @@ describe('BlockHistoryController', () => {
 	});
 
 	it('should backfill correct number of blocks', () => {
+		const blockDepth = 50;
 		return new Promise((resolve) => {
 			const blockTracker = new BlockTracker({ provider: PROVIDER });
 			const controller = new BlockHistoryController({
-				blockDepth: 50,
+				blockDepth,
 				blockTracker,
 				provider: PROVIDER
 			});
 			controller.subscribe((state) => {
-				expect(state.recentBlocks.length).toBe(50);
+				const { recentBlocks } = state;
+				const firstBlockNumber = parseInt(recentBlocks[0].number, 16);
+				const lastBlockNumber = parseInt(recentBlocks[recentBlocks.length - 1].number, 16);
+				expect(recentBlocks.length).toBe(blockDepth);
+				expect(lastBlockNumber).toBe(firstBlockNumber + (blockDepth - 1));
 				resolve();
 			});
 		});

@@ -106,14 +106,16 @@ export class BlockHistoryController extends BaseController<BlockHistoryConfig, B
 				})) as Block;
 				const currentBlockNumber = Number.parseInt(block.number, 16);
 				const blocksToFetch = Math.min(currentBlockNumber, this.internalBlockDepth);
+				const previousBlockNumber = currentBlockNumber - 1;
 				const blockNumbers = Array(blocksToFetch)
 					.fill(null)
-					.map((_: Block) => currentBlockNumber - 1);
+					.map((_: Block, index: number) => previousBlockNumber - index);
 				const newBlocks = await Promise.all(
 					blockNumbers.map((blockNumber: number) => this.getBlockByNumber(blockNumber))
 				);
 				const filledBlocks = newBlocks.filter((newBlock) => newBlock);
-				filledBlocks.sort((a, b) => (a.number < b.number ? /* istanbul ignore next */ -1 : 1));
+				/* istanbul ignore next */
+				filledBlocks.sort((a, b) => (a.number < b.number ? -1 : 1));
 				const recentBlocks = filledBlocks.map((filledBlock) => this.mapGasPrices(filledBlock));
 				this.update({ recentBlocks });
 				this.backfilled = true;
