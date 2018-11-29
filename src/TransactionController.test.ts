@@ -17,8 +17,14 @@ jest.mock('eth-query', () =>
 			gasPrice: (callback: any) => {
 				callback(undefined, '0x0');
 			},
+			getBlockByNumber: (_blocknumber: any, callback: any) => {
+				callback(undefined, { gasLimit: '0x0' });
+			},
 			getCode: (_to: any, callback: any) => {
 				callback(undefined, '0x0');
+			},
+			getTransactionByHash: (_hash: any, callback: any) => {
+				callback(undefined, { blockNumber: '0x1' });
 			},
 			getTransactionCount: (_from: any, _to: any, callback: any) => {
 				callback(undefined, '0x0');
@@ -31,10 +37,6 @@ jest.mock('eth-query', () =>
 );
 
 const HttpProvider = require('ethjs-provider-http');
-const MOCK_BLOCK_HISTORY = {
-	getLatestBlock: () => ({ gasLimit: '0x0' }),
-	state: { recentBlocks: [{ number: '0x0', transactions: [{ hash: '1337' }] }] }
-};
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const PROVIDER = new HttpProvider('https://ropsten.infura.io');
 const MOCK_NETWORK = {
@@ -73,7 +75,7 @@ describe('TransactionController', () => {
 		func.restore();
 	});
 
-	it('should update rates on interval', () => {
+	it('should check transaction statuses on interval', () => {
 		return new Promise((resolve) => {
 			const controller = new TransactionController({ interval: 10 });
 			const func = stub(controller, 'queryTransactionStatuses');
@@ -109,7 +111,6 @@ describe('TransactionController', () => {
 		const controller = new TransactionController({ provider: PROVIDER });
 		const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 		controller.context = {
-			BlockHistoryController: MOCK_BLOCK_HISTORY,
 			NetworkController: MOCK_NETWORK
 		} as any;
 		controller.onComposed();
@@ -126,7 +127,6 @@ describe('TransactionController', () => {
 		return new Promise(async (resolve) => {
 			const controller = new TransactionController({ provider: PROVIDER });
 			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
 				NetworkController: MOCK_NETWORK
 			} as any;
 			controller.onComposed();
@@ -152,7 +152,6 @@ describe('TransactionController', () => {
 		const controller = new TransactionController({ provider: PROVIDER });
 		controller.wipeTransactions();
 		controller.context = {
-			BlockHistoryController: MOCK_BLOCK_HISTORY,
 			NetworkController: MOCK_NETWORK
 		} as any;
 		controller.onComposed();
@@ -174,7 +173,6 @@ describe('TransactionController', () => {
 				}
 			});
 			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
 				NetworkController: MOCK_NETWORK
 			} as any;
 			controller.onComposed();
@@ -198,7 +196,6 @@ describe('TransactionController', () => {
 			const controller = new TransactionController({ provider: PROVIDER });
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
 				NetworkController: MOCK_NETWORK
 			} as any;
 			controller.onComposed();
@@ -221,7 +218,6 @@ describe('TransactionController', () => {
 				provider: PROVIDER
 			});
 			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
 				NetworkController: MOCK_NETWORK
 			} as any;
 			controller.onComposed();
@@ -248,7 +244,6 @@ describe('TransactionController', () => {
 			});
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
 				NetworkController: MOCK_NETWORK
 			} as any;
 			controller.onComposed();
@@ -271,13 +266,16 @@ describe('TransactionController', () => {
 
 	it('should query transaction statuses', () => {
 		return new Promise((resolve) => {
-			const controller = new TransactionController();
+			const controller = new TransactionController({
+				provider: PROVIDER,
+				sign: async (transaction: any) => transaction
+			});
 			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
-				NetworkController: MOCK_NETWORK,
-				PreferencesController: MOCK_PRFERENCES
+				NetworkController: MOCK_NETWORK
 			} as any;
+			controller.onComposed();
 			controller.state.transactions.push({
+				from: MOCK_PRFERENCES.state.selectedAddress,
 				id: 'foo',
 				networkID: '3',
 				status: 'submitted',

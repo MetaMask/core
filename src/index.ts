@@ -6,7 +6,6 @@ export * from './AssetsContractController';
 export * from './AssetsController';
 export * from './AssetsDetectionController';
 export * from './BaseController';
-export * from './BlockHistoryController';
 export * from './ComposableController';
 export * from './CurrencyRateController';
 export * from './KeyringController';
