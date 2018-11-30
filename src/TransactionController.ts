@@ -65,6 +65,7 @@ export interface Transaction {
  * @property time - Timestamp associated with this transaction
  * @property transaction - Underlying Transaction object
  * @property transactionHash - Hash of a successful transaction
+ * @property blockNumber - Number of the block where the transaction has been included
  */
 export interface TransactionMeta {
 	error?: {
@@ -79,6 +80,7 @@ export interface TransactionMeta {
 	time: number;
 	transaction: Transaction;
 	transactionHash?: string;
+	blockNumber?: string;
 }
 
 /**
@@ -420,6 +422,14 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		this.update({ transactions: newTransactions });
 	}
 
+	/**
+	 * Gets all transactions from etherscan for a specific address
+	 * optionally starting from a specific block
+	 *
+	 * @param address - string representing the address to fetch the transactions from
+	 * @param fromBlock - string representing the block number (optional)
+	 * @returns - Promise resolving to an string containing the block number of the latest incoming transaction.
+	 */
 	async fetchAll(address: string, fromBlock?: string) {
 		const network = this.context.NetworkController;
 		const currentNetworkID = network.state.network;
@@ -469,6 +479,14 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		return null;
 	}
 
+	/**
+	 * Normalizes the transaction information from etherscan
+	 * to be compatible with the TransactionMeta interface
+	 *
+	 * @param txMeta - Object containing the transaction information
+	 * @param currentNetworkID - string representing the current network id
+	 * @returns - TransactionMeta
+	 */
 	_normalizeTxFromEtherscan(txMeta: any, currentNetworkID: string) {
 		const ts = parseInt(txMeta.timeStamp, 10) * 1000;
 		/* istanbul ignore next */
@@ -492,6 +510,12 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		};
 	}
 
+	/**
+	 * Gets the etherscan API url based on the current network
+	 *
+	 * @param currentNetworkID - string representing the current network id
+	 * @returns - String representing the etherscan API url for the current network
+	 */
 	_getEtherscanApiUrl(currentNetworkID: string) {
 		/* istanbul ignore next */
 		return NETWORK_API_URLS[currentNetworkID] ? NETWORK_API_URLS[currentNetworkID] : null;
