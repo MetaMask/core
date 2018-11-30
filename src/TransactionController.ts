@@ -139,6 +139,48 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	}
 
 	/**
+	 * Normalizes the transaction information from etherscan
+	 * to be compatible with the TransactionMeta interface
+	 *
+	 * @param txMeta - Object containing the transaction information
+	 * @param currentNetworkID - string representing the current network id
+	 * @returns - TransactionMeta
+	 */
+	private normalizeTxFromEtherscan(txMeta: any, currentNetworkID: string): TransactionMeta {
+		const ts = parseInt(txMeta.timeStamp, 10) * 1000;
+		/* istanbul ignore next */
+		const status = txMeta.isError === '0' ? 'confirmed' : 'failed';
+		return {
+			blockNumber: txMeta.blockNumber,
+			id: random({ msecs: ts }),
+			networkID: currentNetworkID,
+			rawTransaction: '',
+			status,
+			time: ts,
+			transaction: {
+				from: txMeta.from,
+				gas: BNToHex(new BN(txMeta.gas)),
+				gasPrice: BNToHex(new BN(txMeta.gasPrice)),
+				nonce: BNToHex(new BN(txMeta.nonce)),
+				to: txMeta.to,
+				value: BNToHex(new BN(txMeta.value))
+			},
+			transactionHash: txMeta.hash
+		};
+	}
+
+	/**
+	 * Gets the etherscan API url based on the current network
+	 *
+	 * @param currentNetworkID - string representing the current network id
+	 * @returns - String representing the etherscan API url for the current network
+	 */
+	private getEtherscanApiUrl(currentNetworkID: string): string {
+		/* istanbul ignore next */
+		return NETWORK_API_URLS[currentNetworkID] ? NETWORK_API_URLS[currentNetworkID] : null;
+	}
+
+	/**
 	 * EventEmitter instance used to listen to specific transactional events
 	 */
 	hub = new EventEmitter();
@@ -367,7 +409,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 *
 	 * @returns - Promise resolving when this operation completes
 	 */
-	async queryTransactionStatuses() {
+	async queryTransactionStatuses(): Promise<any> {
 		const { transactions } = this.state;
 		const network = this.context.NetworkController;
 		const currentNetworkID = network.state.network;
@@ -430,10 +472,10 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 * @param fromBlock - string representing the block number (optional)
 	 * @returns - Promise resolving to an string containing the block number of the latest incoming transaction.
 	 */
-	async fetchAll(address: string, fromBlock?: string) {
+	async fetchAll(address: string, fromBlock?: string): Promise<any> {
 		const network = this.context.NetworkController;
 		const currentNetworkID = network.state.network;
-		const apiUrl = this._getEtherscanApiUrl(currentNetworkID);
+		const apiUrl = this.getEtherscanApiUrl(currentNetworkID);
 		/* istanbul ignore next */
 		if (!apiUrl) {
 			return null;
@@ -445,23 +487,25 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		}
 		const response = await fetch(url);
 		const parsedResponse = await response.json();
-		/* istanbul ignore next */
+		/* istanbul ignore else */
 		if (parsedResponse.status !== '0' && parsedResponse.result.length > 0) {
 			const remoteTxList: any = {};
 			const remoteTxs = parsedResponse.result.map((tx: any) => {
 				remoteTxList[tx.hash] = 1;
-				return this._normalizeTxFromEtherscan(tx, currentNetworkID);
+				return this.normalizeTxFromEtherscan(tx, currentNetworkID);
 			});
 
 			const localTxs = this.state.transactions.filter(
+				/* istanbul ignore next */
 				(tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]
 			);
 
 			const allTxs = [...remoteTxs, ...localTxs];
-			allTxs.sort((a, b) => (a.time < b.time ? -1 : 1));
+			allTxs.sort((a, b) => (/* istanbul ignore next */ a.time < b.time ? -1 : 1));
 
 			let latestIncomingTxBlockNumber: any = null;
 			allTxs.forEach((tx) => {
+				/* istanbul ignore next */
 				if (tx.transaction.to.toLowerCase() === address.toLowerCase()) {
 					if (
 						!latestIncomingTxBlockNumber ||
@@ -477,48 +521,6 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		}
 		/* istanbul ignore next */
 		return null;
-	}
-
-	/**
-	 * Normalizes the transaction information from etherscan
-	 * to be compatible with the TransactionMeta interface
-	 *
-	 * @param txMeta - Object containing the transaction information
-	 * @param currentNetworkID - string representing the current network id
-	 * @returns - TransactionMeta
-	 */
-	_normalizeTxFromEtherscan(txMeta: any, currentNetworkID: string) {
-		const ts = parseInt(txMeta.timeStamp, 10) * 1000;
-		/* istanbul ignore next */
-		const status = txMeta.isError === '0' ? 'confirmed' : 'failed';
-		return {
-			blockNumber: txMeta.blockNumber,
-			id: random({ msecs: ts }),
-			networkID: currentNetworkID,
-			rawTransaction: '',
-			status,
-			time: ts,
-			transaction: {
-				from: txMeta.from,
-				gas: BNToHex(new BN(txMeta.gas)),
-				gasPrice: BNToHex(new BN(txMeta.gasPrice)),
-				nonce: BNToHex(new BN(txMeta.nonce)),
-				to: txMeta.to,
-				value: BNToHex(new BN(txMeta.value))
-			},
-			transactionHash: txMeta.hash
-		};
-	}
-
-	/**
-	 * Gets the etherscan API url based on the current network
-	 *
-	 * @param currentNetworkID - string representing the current network id
-	 * @returns - String representing the etherscan API url for the current network
-	 */
-	_getEtherscanApiUrl(currentNetworkID: string) {
-		/* istanbul ignore next */
-		return NETWORK_API_URLS[currentNetworkID] ? NETWORK_API_URLS[currentNetworkID] : null;
 	}
 }
 

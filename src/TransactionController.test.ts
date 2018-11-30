@@ -56,7 +56,7 @@ const MOCK_NETWORK = {
 	}
 };
 
-const MOCK_FETCH_TX_HISTORY_DATA = {
+const MOCK_FETCH_TX_HISTORY_DATA_OK = {
 	message: 'OK',
 	result: [
 		{
@@ -99,6 +99,10 @@ const MOCK_FETCH_TX_HISTORY_DATA = {
 		}
 	],
 	status: '1'
+};
+
+const MOCK_FETCH_TX_HISTORY_DATA_ERROR = {
+	status: '0'
 };
 
 describe('TransactionController', () => {
@@ -345,7 +349,7 @@ describe('TransactionController', () => {
 	});
 
 	it('should fetch all the transactions from an address, including incoming transactions', async () => {
-		globalAny.fetch = mockFetch(MOCK_FETCH_TX_HISTORY_DATA);
+		globalAny.fetch = mockFetch(MOCK_FETCH_TX_HISTORY_DATA_OK);
 		const controller = new TransactionController({ provider: PROVIDER });
 		controller.wipeTransactions();
 		controller.context = {
@@ -355,8 +359,25 @@ describe('TransactionController', () => {
 		expect(controller.state.transactions.length).toBe(0);
 
 		const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
-		await controller.fetchAll(from);
+		const latestBlock = await controller.fetchAll(from);
 		expect(controller.state.transactions.length).toBe(2);
+		expect(latestBlock).toBe('4535101');
 		expect(controller.state.transactions[0].transaction.to).toBe(from);
+	});
+
+	it('should return ', async () => {
+		globalAny.fetch = mockFetch(MOCK_FETCH_TX_HISTORY_DATA_ERROR);
+		const controller = new TransactionController({ provider: PROVIDER });
+		controller.wipeTransactions();
+		controller.context = {
+			NetworkController: MOCK_NETWORK
+		} as any;
+		controller.onComposed();
+		expect(controller.state.transactions.length).toBe(0);
+
+		const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+		const result = await controller.fetchAll(from);
+		expect(controller.state.transactions.length).toBe(0);
+		expect(result).toBe(null);
 	});
 });
