@@ -9,6 +9,7 @@ export * from './BaseController';
 export * from './ComposableController';
 export * from './CurrencyRateController';
 export * from './KeyringController';
+export * from './PersonalMessageManager';
 export * from './NetworkController';
 export * from './NetworkStatusController';
 export * from './PhishingController';

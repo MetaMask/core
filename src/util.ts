@@ -1,6 +1,7 @@
 import { Transaction } from './TransactionController';
-
-const { addHexPrefix, BN, isValidAddress, stripHexPrefix } = require('ethereumjs-util');
+import { MessageParams } from './PersonalMessageManager';
+const { addHexPrefix, BN, isValidAddress, stripHexPrefix, bufferToHex } = require('ethereumjs-util');
+const hexRe = /^[0-9A-Fa-f]+$/g;
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
 	data: (data: string) => addHexPrefix(data),
@@ -71,6 +72,24 @@ export function hexToBN(inputHex: string) {
 }
 
 /**
+ * A helper function that converts hex data to human readable string
+ *
+ * @param hex - The hex string to convert to string
+ * @returns - A human readable string conversion
+ *
+ */
+export function hexToText(hex: string) {
+	try {
+		const stripped = stripHexPrefix(hex);
+		const buff = Buffer.from(stripped, 'hex');
+		return buff.toString('utf8');
+	} catch (e) {
+		/* istanbul ignore next */
+		return hex;
+	}
+}
+
+/**
  * Normalizes properties on a Transaction object
  *
  * @param transaction - Transaction object to normalize
@@ -132,6 +151,41 @@ export function validateTransaction(transaction: Transaction) {
 }
 
 /**
+ * A helper function that converts rawmessageData buffer data to a hex, or just returns the data if
+ * it is already formatted as a hex.
+ *
+ * @param data - The buffer data to convert to a hex
+ * @returns - A hex string conversion of the buffer data
+ *
+ */
+export function normalizeMessageData(data: string) {
+	try {
+		const stripped = stripHexPrefix(data);
+		if (stripped.match(hexRe)) {
+			return addHexPrefix(stripped);
+		}
+	} catch (e) {
+		/* istanbul ignore next */
+	}
+	return bufferToHex(Buffer.from(data, 'utf8'));
+}
+
+/**
+ * Validates a MessageParams object for required properties and throws in
+ * the event of any validation error.
+ *
+ * @param messageData - MessageParams object to validate
+ */
+export function validatePersonalSignMessageData(messageData: MessageParams) {
+	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
+		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
+	}
+	if (!messageData.data || typeof messageData.data !== 'string') {
+		throw new Error(`Invalid message "data": ${messageData.data} must be a valid string.`);
+	}
+}
+
+/**
  * Modifies collectible images URI in case is necessary
  *
  * @param address - Collectible address
@@ -154,6 +208,7 @@ export default {
 	fractionBN,
 	getBuyURL,
 	hexToBN,
+	hexToText,
 	manageCollectibleImage,
 	normalizeTransaction,
 	safelyExecute,
