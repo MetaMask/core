@@ -2,6 +2,7 @@ import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState, Listener } from './BaseController';
 import PreferencesController from './PreferencesController';
 import { Transaction } from './TransactionController';
+import { MessageParams } from './PersonalMessageManager';
 
 const { toChecksumAddress } = require('ethereumjs-util');
 const Keyring = require('eth-keyring-controller');
@@ -235,6 +236,26 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 */
 	setLocked(): Promise<KeyringState> {
 		return this.keyring.setLocked();
+	}
+
+	/**
+	 * Signs message by calling down into a specific keyring
+	 *
+	 * @param messageParams - MessageParams object to sign
+	 * @returns - Promise resolving to a signed message string
+	 */
+	signMessage(messageParams: MessageParams) {
+		return this.keyring.signMessage(messageParams);
+	}
+
+	/**
+	 * Signs message by calling down into a specific keyring
+	 *
+	 * @param messageParams - MessageParams object to sign
+	 * @returns - Promise resolving to a signed message string
+	 */
+	signPersonalMessage(messageParams: MessageParams) {
+		return this.keyring.signPersonalMessage(messageParams);
 	}
 
 	/**
