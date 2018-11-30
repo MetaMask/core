@@ -1,6 +1,6 @@
 import { Transaction } from './TransactionController';
 import { MessageParams } from './PersonalMessageManager';
-import { TypedMessageParams, TypedData } from './TypedMessageManager';
+import { TypedMessageParams } from './TypedMessageManager';
 const sigUtil = require('eth-sig-util');
 const jsonschema = require('jsonschema');
 const { addHexPrefix, BN, isValidAddress, stripHexPrefix, bufferToHex } = require('ethereumjs-util');
@@ -195,7 +195,7 @@ export function validatePersonalSignMessageData(messageData: MessageParams) {
  * @param messageData - TypedMessageParams object to validate
  * @param activeChainId - Active chain id
  */
-export function validateTypedSignMessageV1Data(messageData: TypedMessageParams) {
+export function validateTypedSignMessageDataV1(messageData: TypedMessageParams) {
 	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
 		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
 	}
@@ -216,7 +216,7 @@ export function validateTypedSignMessageV1Data(messageData: TypedMessageParams) 
  * @param messageData - TypedMessageParams object to validate
  * @param activeChainId - Active chain id
  */
-export function validateTypedSignMessageV3Data(messageData: TypedMessageParams, activeChainId: number) {
+export function validateTypedSignMessageDataV3(messageData: TypedMessageParams, activeChainId: number) {
 	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
 		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
 	}
@@ -267,6 +267,6 @@ export default {
 	normalizeTransaction,
 	safelyExecute,
 	validateTransaction,
-	validateTypedSignMessageV1Data,
-	validateTypedSignMessageV3Data
+	validateTypedSignMessageDataV1,
+	validateTypedSignMessageDataV3
 };

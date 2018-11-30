@@ -189,7 +189,7 @@ describe('util', () => {
 	describe('validateTypedMessageDataV1', () => {
 		it('should throw if no from address legacy', () => {
 			expect(() =>
-				util.validateTypedSignMessageV1Data({
+				util.validateTypedSignMessageDataV1({
 					data: []
 				} as any)
 			).toThrow('Invalid "from" address:');
@@ -197,7 +197,7 @@ describe('util', () => {
 
 		it('should throw if invalid from address', () => {
 			expect(() =>
-				util.validateTypedSignMessageV1Data({
+				util.validateTypedSignMessageDataV1({
 					data: [],
 					from: '3244e191f1b4903970224322180f1fbbc415696b'
 				} as any)
@@ -206,7 +206,7 @@ describe('util', () => {
 
 		it('should throw if invalid type from address', () => {
 			expect(() =>
-				util.validateTypedSignMessageV1Data({
+				util.validateTypedSignMessageDataV1({
 					data: [],
 					from: 123
 				} as any)
@@ -215,7 +215,7 @@ describe('util', () => {
 
 		it('should throw if incorrect data', () => {
 			expect(() =>
-				util.validateTypedSignMessageV1Data({
+				util.validateTypedSignMessageDataV1({
 					data: '0x879a05',
 					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
 				} as any)
@@ -224,7 +224,7 @@ describe('util', () => {
 
 		it('should throw if no data', () => {
 			expect(() =>
-				util.validateTypedSignMessageV1Data({
+				util.validateTypedSignMessageDataV1({
 					data: '0x879a05',
 					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
 				} as any)
@@ -233,7 +233,7 @@ describe('util', () => {
 
 		it('should throw if invalid type data', () => {
 			expect(() =>
-				util.validateTypedSignMessageV1Data({
+				util.validateTypedSignMessageDataV1({
 					data: [],
 					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
 				} as any)
@@ -246,7 +246,7 @@ describe('util', () => {
 			'{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","version":"1","chainId":1,"verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"},"message":{"from":{"name":"Cow","wallet":"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},"to":{"name":"Bob","wallet":"0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},"contents":"Hello, Bob!"}}';
 		it('should throw if no from address', () => {
 			expect(() =>
-				util.validateTypedSignMessageV3Data(
+				util.validateTypedSignMessageDataV3(
 					{
 						data: '0x879a05'
 					} as any,
@@ -257,7 +257,7 @@ describe('util', () => {
 
 		it('should throw if invalid from address', () => {
 			expect(() =>
-				util.validateTypedSignMessageV3Data(
+				util.validateTypedSignMessageDataV3(
 					{
 						data: '0x879a05',
 						from: '3244e191f1b4903970224322180f1fbbc415696b'
@@ -269,7 +269,7 @@ describe('util', () => {
 
 		it('should throw if invalid type from address', () => {
 			expect(() =>
-				util.validateTypedSignMessageV3Data(
+				util.validateTypedSignMessageDataV3(
 					{
 						data: '0x879a05',
 						from: 123
@@ -281,7 +281,7 @@ describe('util', () => {
 
 		it('should throw if array data', () => {
 			expect(() =>
-				util.validateTypedSignMessageV3Data(
+				util.validateTypedSignMessageDataV3(
 					{
 						data: [],
 						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
@@ -293,7 +293,7 @@ describe('util', () => {
 
 		it('should throw if no array data', () => {
 			expect(() =>
-				util.validateTypedSignMessageV3Data(
+				util.validateTypedSignMessageDataV3(
 					{
 						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
 					} as any,
@@ -304,7 +304,7 @@ describe('util', () => {
 
 		it('should throw if no json valid data', () => {
 			expect(() =>
-				util.validateTypedSignMessageV3Data(
+				util.validateTypedSignMessageDataV3(
 					{
 						data: 'uh oh',
 						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
@@ -316,7 +316,7 @@ describe('util', () => {
 
 		it('should throw if data not in typed message schema', () => {
 			expect(() =>
-				util.validateTypedSignMessageV3Data(
+				util.validateTypedSignMessageDataV3(
 					{
 						data: '{"greetings":"I am Alice"}',
 						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
@@ -328,7 +328,7 @@ describe('util', () => {
 
 		it('should throw if signing in a different chainId', () => {
 			expect(() =>
-				util.validateTypedSignMessageV3Data(
+				util.validateTypedSignMessageDataV3(
 					{
 						data: dataTyped,
 						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
@@ -340,7 +340,7 @@ describe('util', () => {
 
 		it('should not throw if data is correct', () => {
 			expect(() =>
-				util.validateTypedSignMessageV3Data(
+				util.validateTypedSignMessageDataV3(
 					{
 						data: dataTyped,
 						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
