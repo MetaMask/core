@@ -299,7 +299,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 */
 	async estimateGas(transaction: Transaction) {
 		const estimatedTransaction = { ...transaction };
-		const { gasLimit } = await this.query('getBlockByNumber', ['latest']);
+		const { gasLimit } = await this.query('getBlockByNumber', ['latest', false]);
 		const { gas, gasPrice: providedGasPrice, to, value } = estimatedTransaction;
 		const gasPrice = typeof providedGasPrice === 'undefined' ? await this.query('gasPrice') : providedGasPrice;
 
