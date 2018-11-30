@@ -242,6 +242,8 @@ describe('util', () => {
 	});
 
 	describe('validateTypedMessageDataV3', () => {
+		const dataTyped =
+			'{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","version":"1","chainId":1,"verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"},"message":{"from":{"name":"Cow","wallet":"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},"to":{"name":"Bob","wallet":"0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},"contents":"Hello, Bob!"}}';
 		it('should throw if no from address', () => {
 			expect(() =>
 				util.validateTypedSignMessageV3Data(
@@ -322,6 +324,30 @@ describe('util', () => {
 					1
 				)
 			).toThrow('Data must conform to EIP-712 schema.');
+		});
+
+		it('should throw if signing in a different chainId', () => {
+			expect(() =>
+				util.validateTypedSignMessageV3Data(
+					{
+						data: dataTyped,
+						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+					} as any,
+					2
+				)
+			).toThrow('Provided chainId (1) must match the active chainId (2)');
+		});
+
+		it('should not throw if data is correct', () => {
+			expect(() =>
+				util.validateTypedSignMessageV3Data(
+					{
+						data: dataTyped,
+						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+					} as any,
+					1
+				)
+			).not.toThrow();
 		});
 	});
 });

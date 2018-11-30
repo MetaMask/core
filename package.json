@@ -86,6 +86,7 @@
     "human-standard-collectible-abi": "^1.0.2",
     "human-standard-token-abi": "^2.0.0",
     "isomorphic-fetch": "^2.2.1",
+    "jsonschema": "^1.2.4",
     "percentile": "^1.2.1",
     "uuid": "^3.3.2",
     "web3": "^0.20.7",

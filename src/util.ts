@@ -1,7 +1,8 @@
 import { Transaction } from './TransactionController';
 import { MessageParams } from './PersonalMessageManager';
-import { TypedMessageParams } from './TypedMessageManager';
+import { TypedMessageParams, TypedData } from './TypedMessageManager';
 const sigUtil = require('eth-sig-util');
+const jsonschema = require('jsonschema');
 const { addHexPrefix, BN, isValidAddress, stripHexPrefix, bufferToHex } = require('ethereumjs-util');
 const hexRe = /^[0-9A-Fa-f]+$/g;
 
@@ -228,9 +229,8 @@ export function validateTypedSignMessageV3Data(messageData: TypedMessageParams, 
 	} catch (e) {
 		throw new Error('Data must be passed as a valid JSON string.');
 	}
-	try {
-		// jsonschema.validate(data, sigUtil.TYPED_MESSAGE_SCHEMA)
-	} catch (e) {
+	const validation = jsonschema.validate(data, sigUtil.TYPED_MESSAGE_SCHEMA);
+	if (validation.errors.length > 0) {
 		throw new Error('Data must conform to EIP-712 schema. See https://git.io/fNtcx.');
 	}
 	const chainId = data.domain.chainId;
