@@ -1,6 +1,5 @@
 import { EventEmitter } from 'events';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
-import BlockHistoryController from './BlockHistoryController';
 import NetworkController from './NetworkController';
 import { BNToHex, fractionBN, hexToBN, normalizeTransaction, safelyExecute, validateTransaction } from './util';
 
@@ -143,7 +142,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
-	requiredControllers = ['BlockHistoryController', 'NetworkController'];
+	requiredControllers = ['NetworkController'];
 
 	/**
 	 * Method used to sign transactions
@@ -299,9 +298,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 * @returns - Promise resolving to an object containing gas and gasPrice
 	 */
 	async estimateGas(transaction: Transaction) {
-		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
 		const estimatedTransaction = { ...transaction };
-		const { gasLimit } = await blockHistory.getLatestBlock();
+		const { gasLimit } = await this.query('getBlockByNumber', ['latest', false]);
 		const { gas, gasPrice: providedGasPrice, to, value } = estimatedTransaction;
 		const gasPrice = typeof providedGasPrice === 'undefined' ? await this.query('gasPrice') : providedGasPrice;
 
@@ -354,30 +352,31 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	}
 
 	/**
-	 * Resiliently checks all submitted transactions for confirmations in all
-	 * blocks maintained in a sibling BlockHistoryController
+	 * Resiliently checks all submitted transactions on the blockchain
+	 * and verifies that it has been included in a block
+	 * when that happens, the tx status is updated to confirmed
 	 *
 	 * @returns - Promise resolving when this operation completes
 	 */
 	async queryTransactionStatuses() {
 		const { transactions } = this.state;
-		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
-		const network = this.context.NetworkController as NetworkController;
+		const network = this.context.NetworkController;
 		const currentNetworkID = network.state.network;
-
-		const confirmedHashes = blockHistory.state.recentBlocks
-			.reduce((hashes: string[], block) => {
-				return hashes.concat(block.transactions);
-			}, [])
-			.map((transaction: any) => transaction && transaction.hash);
-
-		transactions.forEach((meta, index) => {
-			const isConfirmed = confirmedHashes.indexOf(meta.transactionHash!) > -1;
-			if (meta.networkID === currentNetworkID && meta.status === 'submitted' && isConfirmed) {
-				transactions[index].status = 'confirmed';
-				this.hub.emit(`${meta.id}:confirmed`, meta);
-			}
-		});
+		safelyExecute(() =>
+			Promise.all(
+				transactions.map(async (meta, index) => {
+					if (meta.status === 'submitted' && meta.networkID === currentNetworkID) {
+						const txObj = await this.query('getTransactionByHash', [meta.transactionHash]);
+						/* istanbul ignore else */
+						if (txObj && txObj.blockNumber) {
+							transactions[index].status = 'confirmed';
+							this.hub.emit(`${meta.id}:confirmed`, meta);
+						}
+					}
+				})
+			)
+		);
+		this.update({ transactions: [...transactions] });
 	}
 
 	/**
