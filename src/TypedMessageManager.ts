@@ -51,7 +51,7 @@ export interface TypedMessageParams {
  * plus data added by MetaMask.
  *
  * @property metamaskId - Added for tracking and identification within MetaMask
- * @property data - A hex string conversion of the raw buffer data of the signature request
+ * @property data - A hex string conversion of the raw buffer or array of objects of data of the signature request
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  * @property version - Compatibility version EIP712
@@ -77,12 +77,12 @@ export interface OriginalRequest {
 }
 
 /**
- * @type PersonalMessageManagerState
+ * @type TypedMessageManagerState
  *
- * Message Manager state
+ * Typed Message Manager state
  *
  * @property unapprovedMessages - A collection of all Messages in the 'unapproved' state
- * @property unapprovedMessagesCount - The count of all Messages in this.memStore.unapprobedMessages
+ * @property unapprovedMessagesCount - The count of all Messages in this.unapprovedMessages
  */
 export interface TypedMessageManagerState extends BaseState {
 	unapprovedMessages: { [key: string]: TypedMessage };
@@ -212,14 +212,14 @@ export class TypedMessageManager extends BaseController<BaseConfig, TypedMessage
 		req?: OriginalRequest
 	): Promise<string> {
 		return new Promise((resolve, reject) => {
-			const network = this.context.NetworkController as NetworkController;
-			/* istanbul ignore next */
-			const currentNetworkID = network ? network.state.network : '1';
-			const chainId = parseInt(currentNetworkID, undefined);
 			if (version === 'V1') {
 				validateTypedSignMessageDataV1(messageParams);
 			}
 			if (version === 'V3') {
+				const network = this.context.NetworkController as NetworkController;
+				/* istanbul ignore next */
+				const currentNetworkID = network ? network.state.network : '1';
+				const chainId = parseInt(currentNetworkID, undefined);
 				validateTypedSignMessageDataV3(messageParams, chainId);
 			}
 			const messageId = this.addUnapprovedMessage(messageParams, version, req);
@@ -228,13 +228,13 @@ export class TypedMessageManager extends BaseController<BaseConfig, TypedMessage
 					case 'signed':
 						return resolve(data.rawSig);
 					case 'rejected':
-						return reject(new Error('MetaMask Personal Message Signature: User denied message signature.'));
+						return reject(new Error('MetaMask Typed Message Signature: User denied message signature.'));
 					case 'errored':
-						return reject(new Error(`MetaMask Message Signature: ${data.error}`));
+						return reject(new Error(`MetaMask Typed Message Signature: ${data.error}`));
 					default:
 						return reject(
 							new Error(
-								`MetaMask Personal Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`
+								`MetaMask Typed Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`
 							)
 						);
 				}
@@ -247,7 +247,7 @@ export class TypedMessageManager extends BaseController<BaseConfig, TypedMessage
 	 * this.addMessage is called to add the new TypedMessage to this.messages, and to save the
 	 * unapproved TypedMessages.
 	 *
-	 * @param messageParams - The params for the eth_signTypedData call to be made after the message
+	 * @param messageParams - The params for the 'eth_signTypedData' call to be made after the message
 	 * is approved
 	 * @param version - Compatibility version EIP712
 	 * @param req? - The original request object possibly containing the origin
@@ -299,7 +299,7 @@ export class TypedMessageManager extends BaseController<BaseConfig, TypedMessage
 	 * Approves a TypedMessage. Sets the message status via a call to this.setMessageStatusApproved,
 	 * and returns a promise with any the message params modified for proper signing.
 	 *
-	 * @param messageParams - The messageParams to be used when personal_sign is called,
+	 * @param messageParams - The messageParams to be used when 'eth_signTypedData' is called,
 	 * plus data added by MetaMask
 	 * @returns - Promise resolving to the messageParams with the metamaskId property removed
 	 */
@@ -354,7 +354,7 @@ export class TypedMessageManager extends BaseController<BaseConfig, TypedMessage
 	}
 
 	/**
-	 * Removes the metamaskId and version property from passed messageParams and returns a promise which
+	 * Removes the metamaskId and version properties from passed messageParams and returns a promise which
 	 * resolves the updated messageParams
 	 *
 	 * @param messageParams - The messageParams to modify
