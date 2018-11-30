@@ -185,4 +185,143 @@ describe('util', () => {
 			).toThrow();
 		});
 	});
+
+	describe('validateTypedMessageDataV1', () => {
+		it('should throw if no from address legacy', () => {
+			expect(() =>
+				util.validateTypedSignMessageV1Data({
+					data: []
+				} as any)
+			).toThrow('Invalid "from" address:');
+		});
+
+		it('should throw if invalid from address', () => {
+			expect(() =>
+				util.validateTypedSignMessageV1Data({
+					data: [],
+					from: '3244e191f1b4903970224322180f1fbbc415696b'
+				} as any)
+			).toThrow('Invalid "from" address:');
+		});
+
+		it('should throw if invalid type from address', () => {
+			expect(() =>
+				util.validateTypedSignMessageV1Data({
+					data: [],
+					from: 123
+				} as any)
+			).toThrow('Invalid "from" address:');
+		});
+
+		it('should throw if incorrect data', () => {
+			expect(() =>
+				util.validateTypedSignMessageV1Data({
+					data: '0x879a05',
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+				} as any)
+			).toThrow('Invalid message "data":');
+		});
+
+		it('should throw if no data', () => {
+			expect(() =>
+				util.validateTypedSignMessageV1Data({
+					data: '0x879a05',
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+				} as any)
+			).toThrow('Invalid message "data":');
+		});
+
+		it('should throw if invalid type data', () => {
+			expect(() =>
+				util.validateTypedSignMessageV1Data({
+					data: [],
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+				} as any)
+			).toThrow('Expected EIP712 typed data.');
+		});
+	});
+
+	describe('validateTypedMessageDataV3', () => {
+		it('should throw if no from address', () => {
+			expect(() =>
+				util.validateTypedSignMessageV3Data(
+					{
+						data: '0x879a05'
+					} as any,
+					1
+				)
+			).toThrow('Invalid "from" address:');
+		});
+
+		it('should throw if invalid from address', () => {
+			expect(() =>
+				util.validateTypedSignMessageV3Data(
+					{
+						data: '0x879a05',
+						from: '3244e191f1b4903970224322180f1fbbc415696b'
+					} as any,
+					1
+				)
+			).toThrow('Invalid "from" address:');
+		});
+
+		it('should throw if invalid type from address', () => {
+			expect(() =>
+				util.validateTypedSignMessageV3Data(
+					{
+						data: '0x879a05',
+						from: 123
+					} as any,
+					1
+				)
+			).toThrow('Invalid "from" address:');
+		});
+
+		it('should throw if array data', () => {
+			expect(() =>
+				util.validateTypedSignMessageV3Data(
+					{
+						data: [],
+						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+					} as any,
+					1
+				)
+			).toThrow('Invalid message "data":');
+		});
+
+		it('should throw if no array data', () => {
+			expect(() =>
+				util.validateTypedSignMessageV3Data(
+					{
+						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+					} as any,
+					1
+				)
+			).toThrow('Invalid message "data":');
+		});
+
+		it('should throw if no json valid data', () => {
+			expect(() =>
+				util.validateTypedSignMessageV3Data(
+					{
+						data: 'uh oh',
+						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+					} as any,
+					1
+				)
+			).toThrow('Data must be passed as a valid JSON string.');
+		});
+
+		it('should throw if data not in typed message schema', () => {
+			expect(() =>
+				util.validateTypedSignMessageV3Data(
+					{
+						data: '{"greetings":"I am Alice"}',
+						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+					} as any,
+					1
+				)
+			).toThrow('Data must conform to EIP-712 schema.');
+		});
+	});
 });

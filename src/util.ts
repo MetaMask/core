@@ -1,5 +1,7 @@
 import { Transaction } from './TransactionController';
 import { MessageParams } from './PersonalMessageManager';
+import { TypedMessageParams } from './TypedMessageManager';
+const sigUtil = require('eth-sig-util');
 const { addHexPrefix, BN, isValidAddress, stripHexPrefix, bufferToHex } = require('ethereumjs-util');
 const hexRe = /^[0-9A-Fa-f]+$/g;
 
@@ -186,6 +188,58 @@ export function validatePersonalSignMessageData(messageData: MessageParams) {
 }
 
 /**
+ * Validates a TypedMessageParams object for required properties and throws in
+ * the event of any validation error for eth_signTypedMessage_V1.
+ *
+ * @param messageData - TypedMessageParams object to validate
+ * @param activeChainId - Active chain id
+ */
+export function validateTypedSignMessageV1Data(messageData: TypedMessageParams) {
+	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
+		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
+	}
+	if (!messageData.data || !Array.isArray(messageData.data)) {
+		throw new Error(`Invalid message "data": ${messageData.data} must be a valid array.`);
+	}
+	try {
+		sigUtil.typedSignatureHash(messageData.data);
+	} catch (e) {
+		throw new Error(`Expected EIP712 typed data.`);
+	}
+}
+
+/**
+ * Validates a TypedMessageParams object for required properties and throws in
+ * the event of any validation error for eth_signTypedMessage_V3.
+ *
+ * @param messageData - TypedMessageParams object to validate
+ * @param activeChainId - Active chain id
+ */
+export function validateTypedSignMessageV3Data(messageData: TypedMessageParams, activeChainId: number) {
+	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
+		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
+	}
+	if (!messageData.data || typeof messageData.data !== 'string') {
+		throw new Error(`Invalid message "data": ${messageData.data} must be a valid array.`);
+	}
+	let data;
+	try {
+		data = JSON.parse(messageData.data);
+	} catch (e) {
+		throw new Error('Data must be passed as a valid JSON string.');
+	}
+	try {
+		// jsonschema.validate(data, sigUtil.TYPED_MESSAGE_SCHEMA)
+	} catch (e) {
+		throw new Error('Data must conform to EIP-712 schema. See https://git.io/fNtcx.');
+	}
+	const chainId = data.domain.chainId;
+	if (chainId !== activeChainId) {
+		throw new Error(`Provided chainId (${chainId}) must match the active chainId (${activeChainId})`);
+	}
+}
+
+/**
  * Modifies collectible images URI in case is necessary
  *
  * @param address - Collectible address
@@ -212,5 +266,7 @@ export default {
 	manageCollectibleImage,
 	normalizeTransaction,
 	safelyExecute,
-	validateTransaction
+	validateTransaction,
+	validateTypedSignMessageV1Data,
+	validateTypedSignMessageV3Data
 };
