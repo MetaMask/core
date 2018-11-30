@@ -17,7 +17,7 @@ jest.mock('eth-query', () =>
 			gasPrice: (callback: any) => {
 				callback(undefined, '0x0');
 			},
-			getBlockByNumber: (_blocknumber: any, callback: any) => {
+			getBlockByNumber: (_blocknumber: any, _fetchTxs: boolean, callback: any) => {
 				callback(undefined, { gasLimit: '0x0' });
 			},
 			getCode: (_to: any, callback: any) => {
