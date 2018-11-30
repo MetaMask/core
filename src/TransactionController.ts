@@ -308,7 +308,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 */
 	async estimateGas(transaction: Transaction) {
 		const estimatedTransaction = { ...transaction };
-		const { gasLimit } = await this.query('getBlockByNumber', ['latest']);
+		const { gasLimit } = await this.query('getBlockByNumber', ['latest', false]);
 		const { gas, gasPrice: providedGasPrice, to, value } = estimatedTransaction;
 		const gasPrice = typeof providedGasPrice === 'undefined' ? await this.query('gasPrice') : providedGasPrice;
 
@@ -371,20 +371,20 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const { transactions } = this.state;
 		const network = this.context.NetworkController;
 		const currentNetworkID = network.state.network;
-		transactions.forEach(async (meta, index) => {
-			if (meta.status === 'submitted' && meta.networkID === currentNetworkID) {
-				try {
-					const txObj = await this.query('getTransactionByHash', [meta.transactionHash]);
-					/* istanbul ignore else */
-					if (txObj && txObj.blockNumber) {
-						transactions[index].status = 'confirmed';
-						this.hub.emit(`${meta.id}:confirmed`, meta);
+		safelyExecute(() =>
+			Promise.all(
+				transactions.map(async (meta, index) => {
+					if (meta.status === 'submitted' && meta.networkID === currentNetworkID) {
+						const txObj = await this.query('getTransactionByHash', [meta.transactionHash]);
+						/* istanbul ignore else */
+						if (txObj && txObj.blockNumber) {
+							transactions[index].status = 'confirmed';
+							this.hub.emit(`${meta.id}:confirmed`, meta);
+						}
 					}
-				} catch (e) {
-					/* istanbul ignore next */
-				}
-			}
-		});
+				})
+			)
+		);
 		this.update({ transactions: [...transactions] });
 	}
 
