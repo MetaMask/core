@@ -1,5 +1,6 @@
 import { stub } from 'sinon';
 import TransactionController from './TransactionController';
+const globalAny: any = global;
 
 const mockFlags: { [key: string]: any } = {
 	estimateGas: null
@@ -344,8 +345,7 @@ describe('TransactionController', () => {
 	});
 
 	it('should fetch all the transactions from an address, including incoming transactions', async () => {
-		global.fetch = mockFetch(MOCK_FETCH_TX_HISTORY_DATA);
-
+		globalAny.fetch = mockFetch(MOCK_FETCH_TX_HISTORY_DATA);
 		const controller = new TransactionController({ provider: PROVIDER });
 		controller.wipeTransactions();
 		controller.context = {
