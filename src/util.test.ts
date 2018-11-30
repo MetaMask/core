@@ -141,7 +141,7 @@ describe('util', () => {
 		expect(str).toEqual('hello there');
 	});
 
-	describe('validateEthMessageData', () => {
+	describe('validatePersonalSignMessageData', () => {
 		it('should throw if no from address', () => {
 			expect(() =>
 				util.validatePersonalSignMessageData({
