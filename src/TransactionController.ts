@@ -6,7 +6,14 @@ import { BNToHex, fractionBN, hexToBN, normalizeTransaction, safelyExecute, vali
 const EthQuery = require('eth-query');
 const Transaction = require('ethereumjs-tx');
 const random = require('uuid/v1');
-const { addHexPrefix, bufferToHex } = require('ethereumjs-util');
+const { addHexPrefix, bufferToHex, BN } = require('ethereumjs-util');
+
+const NETWORK_API_URLS: any = {
+	1: 'https://api.etherscan.io',
+	3: 'http://api-ropsten.etherscan.io',
+	4: 'https://api-rinkeby.etherscan.io',
+	42: 'http://api-kovan.etherscan.io'
+};
 
 /**
  * @type Result
@@ -411,6 +418,83 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const currentNetworkID = network.state.network;
 		const newTransactions = this.state.transactions.filter(({ networkID }) => networkID !== currentNetworkID);
 		this.update({ transactions: newTransactions });
+	}
+
+	async fetchAll(address: string, fromBlock?: string) {
+		const network = this.context.NetworkController;
+		const currentNetworkID = network.state.network;
+		const apiUrl = this._getEtherscanApiUrl(currentNetworkID);
+		/* istanbul ignore next */
+		if (!apiUrl) {
+			return null;
+		}
+		let url = `${apiUrl}/api?module=account&action=txlist&address=${address}&tag=latest&page=1`;
+		/* istanbul ignore next */
+		if (fromBlock) {
+			url += `&startBlock=${fromBlock}`;
+		}
+		const response = await fetch(url);
+		const parsedResponse = await response.json();
+		/* istanbul ignore next */
+		if (parsedResponse.status !== '0' && parsedResponse.result.length > 0) {
+			const remoteTxList: any = {};
+			const remoteTxs = parsedResponse.result.map((tx: any) => {
+				remoteTxList[tx.hash] = 1;
+				return this._normalizeTxFromEtherscan(tx, currentNetworkID);
+			});
+
+			const localTxs = this.state.transactions.filter(
+				(tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]
+			);
+
+			const allTxs = [...remoteTxs, ...localTxs];
+			allTxs.sort((a, b) => (a.time < b.time ? -1 : 1));
+
+			let latestIncomingTxBlockNumber: any = null;
+			allTxs.forEach((tx) => {
+				if (tx.transaction.to.toLowerCase() === address.toLowerCase()) {
+					if (
+						!latestIncomingTxBlockNumber ||
+						parseInt(latestIncomingTxBlockNumber, 10) < parseInt(tx.blockNumber, 10)
+					) {
+						latestIncomingTxBlockNumber = tx.blockNumber;
+					}
+				}
+			});
+
+			this.update({ transactions: allTxs });
+			return latestIncomingTxBlockNumber;
+		}
+		/* istanbul ignore next */
+		return null;
+	}
+
+	_normalizeTxFromEtherscan(txMeta: any, currentNetworkID: string) {
+		const ts = parseInt(txMeta.timeStamp, 10) * 1000;
+		/* istanbul ignore next */
+		const status = txMeta.isError === '0' ? 'confirmed' : 'failed';
+		return {
+			blockNumber: txMeta.blockNumber,
+			id: random({ msecs: ts }),
+			networkID: currentNetworkID,
+			rawTransaction: '',
+			status,
+			time: ts,
+			transaction: {
+				from: txMeta.from,
+				gas: BNToHex(new BN(txMeta.gas)),
+				gasPrice: BNToHex(new BN(txMeta.gasPrice)),
+				nonce: BNToHex(new BN(txMeta.nonce)),
+				to: txMeta.to,
+				value: BNToHex(new BN(txMeta.value))
+			},
+			transactionHash: txMeta.hash
+		};
+	}
+
+	_getEtherscanApiUrl(currentNetworkID: string) {
+		/* istanbul ignore next */
+		return NETWORK_API_URLS[currentNetworkID] ? NETWORK_API_URLS[currentNetworkID] : null;
 	}
 }
 
