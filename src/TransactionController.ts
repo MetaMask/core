@@ -490,9 +490,13 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		/* istanbul ignore else */
 		if (parsedResponse.status !== '0' && parsedResponse.result.length > 0) {
 			const remoteTxList: any = {};
-			const remoteTxs = parsedResponse.result.map((tx: any) => {
-				remoteTxList[tx.hash] = 1;
-				return this.normalizeTxFromEtherscan(tx, currentNetworkID);
+			const remoteTxs: any = [];
+			parsedResponse.result.forEach((tx: any) => {
+				/* istanbul ignore else */
+				if (!remoteTxList[tx.hash]) {
+					remoteTxs.push(this.normalizeTxFromEtherscan(tx, currentNetworkID));
+					remoteTxList[tx.hash] = 1;
+				}
 			});
 
 			const localTxs = this.state.transactions.filter(
