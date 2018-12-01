@@ -268,14 +268,15 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	signTypedMessage(messageParams: MessageParams, version: string) {
 		try {
 			const address = sigUtil.normalize(messageParams.from);
-			const privKey = this.exportAccount(address);
+			const privateKey = this.exportAccount(address);
 			switch (version) {
 				case 'V1':
-					return sigUtil.signTypedDataLegacy(privKey, { data: messageParams.data });
+					return sigUtil.signTypedDataLegacy(privateKey, { data: messageParams.data });
 				case 'V3':
-					return sigUtil.signTypedData(privKey, { data: messageParams.data });
+					return sigUtil.signTypedData(privateKey, { data: messageParams.data });
 			}
 		} catch (error) {
+			/* istanbul ignore next */
 			return error;
 		}
 	}
