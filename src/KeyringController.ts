@@ -3,7 +3,7 @@ import BaseController, { BaseConfig, BaseState, Listener } from './BaseControlle
 import PreferencesController from './PreferencesController';
 import { Transaction } from './TransactionController';
 import { MessageParams } from './PersonalMessageManager';
-
+const sigUtil = require('eth-sig-util');
 const { toChecksumAddress } = require('ethereumjs-util');
 const Keyring = require('eth-keyring-controller');
 const Mutex = require('await-semaphore').Mutex;
@@ -249,13 +249,35 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	}
 
 	/**
-	 * Signs message by calling down into a specific keyring
+	 * Signs personal message by calling down into a specific keyring
 	 *
 	 * @param messageParams - MessageParams object to sign
 	 * @returns - Promise resolving to a signed message string
 	 */
 	signPersonalMessage(messageParams: MessageParams) {
 		return this.keyring.signPersonalMessage(messageParams);
+	}
+
+	/**
+	 * Signs typed message by calling down into a specific keyring
+	 *
+	 * @param messageParams - MessageParams object to sign
+	 * @param version - Compatibility version EIP712
+	 * @returns - Promise resolving to a signed message string or an error if any
+	 */
+	signTypedMessage(messageParams: MessageParams, version: string) {
+		try {
+			const address = sigUtil.normalize(messageParams.from);
+			const privKey = this.exportAccount(address);
+			switch (version) {
+				case 'V1':
+					return sigUtil.signTypedDataLegacy(privKey, { data: messageParams.data });
+				case 'V3':
+					return sigUtil.signTypedData(privKey, { data: messageParams.data });
+			}
+		} catch (error) {
+			return error;
+		}
 	}
 
 	/**
