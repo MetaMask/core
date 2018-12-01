@@ -161,7 +161,7 @@ describe('TypedMessageManager', () => {
 			});
 			controller.setMessageStatusErrored(keys[0], 'error message');
 			result.catch((error) => {
-				expect(error.message).toContain('MetaMask Message Signature: error message');
+				expect(error.message).toContain('MetaMask Typed Message Signature: error message');
 				resolve();
 			});
 		});
