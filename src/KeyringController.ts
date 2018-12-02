@@ -265,15 +265,16 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @param version - Compatibility version EIP712
 	 * @returns - Promise resolving to a signed message string or an error if any
 	 */
-	signTypedMessage(messageParams: MessageParams, version: string) {
+	async signTypedMessage(messageParams: MessageParams, version: string) {
 		try {
 			const address = sigUtil.normalize(messageParams.from);
-			const privateKey = this.exportAccount(address);
+			const privateKey = await this.exportAccount(address);
+			const privateKeyBuffer = ethUtil.toBuffer(ethUtil.addHexPrefix(privateKey));
 			switch (version) {
 				case 'V1':
-					return sigUtil.signTypedDataLegacy(privateKey, { data: messageParams.data });
+					return sigUtil.signTypedDataLegacy(privateKeyBuffer, { data: messageParams.data });
 				case 'V3':
-					return sigUtil.signTypedData(privateKey, { data: messageParams.data });
+					return sigUtil.signTypedData(privateKeyBuffer, { data: messageParams.data });
 			}
 		} catch (error) {
 			/* istanbul ignore next */

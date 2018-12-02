@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import { validateTypedSignMessageDataV3, validateTypedSignMessageDataV1 } from './util';
 import NetworkController from './NetworkController';
-
+import { OriginalRequest } from './PersonalMessageManager';
 const random = require('uuid/v1');
 
 /**
@@ -63,17 +63,6 @@ export interface TypedMessageParamsMetamask {
 	from: string;
 	origin?: string;
 	version: string;
-}
-
-/**
- * @type OriginalRequest
- *
- * Represents the original request object for adding a message.
- *
- * @property origin? - Is it is specified, represents the origin
- */
-export interface OriginalRequest {
-	origin?: string;
 }
 
 /**
