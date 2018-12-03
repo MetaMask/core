@@ -50,7 +50,7 @@ const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const PROVIDER = new HttpProvider('https://ropsten.infura.io');
 const MOCK_NETWORK = {
 	provider: PROVIDER,
-	state: { network: '3' },
+	state: { network: '3', provider: { type: 'ropsten' } },
 	subscribe: () => {
 		/* eslint-disable-line no-empty */
 	}
