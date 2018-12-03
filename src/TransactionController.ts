@@ -496,7 +496,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 * @param fromBlock - string representing the block number (optional)
 	 * @returns - Promise resolving to an string containing the block number of the latest incoming transaction.
 	 */
-	async fetchAll(address: string, fromBlock?: string): Promise<string> {
+	async fetchAll(address: string, fromBlock?: string): Promise<string | null> {
 		const network = this.context.NetworkController;
 		const currentNetworkID = network.state.network;
 		const networkType = network.state.provider.type;
@@ -504,7 +504,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		let etherscanSubdomain = 'api';
 		const supportedNetworkIds = ['1', '3', '4', '42'];
 		/* istanbul ignore next */
-		if (!supportedNetworkIds.includes(currentNetworkID)) {
+		if (supportedNetworkIds.indexOf(currentNetworkID) === -1) {
 			return null;
 		}
 		/* istanbul ignore next */
@@ -544,13 +544,14 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 			const allTxs = [...remoteTxs, ...localTxs];
 			allTxs.sort((a, b) => (/* istanbul ignore next */ a.time < b.time ? -1 : 1));
 
-			let latestIncomingTxBlockNumber: string = null;
+			let latestIncomingTxBlockNumber: string | null = null;
 			allTxs.forEach((tx) => {
 				/* istanbul ignore next */
 				if (tx.transaction.to && tx.transaction.to.toLowerCase() === address.toLowerCase()) {
 					if (
-						!latestIncomingTxBlockNumber ||
-						(tx.blockNumber && parseInt(latestIncomingTxBlockNumber, 10) < parseInt(tx.blockNumber, 10))
+						tx.blockNumber &&
+						(!latestIncomingTxBlockNumber ||
+							parseInt(latestIncomingTxBlockNumber, 10) < parseInt(tx.blockNumber, 10))
 					) {
 						latestIncomingTxBlockNumber = tx.blockNumber;
 					}
