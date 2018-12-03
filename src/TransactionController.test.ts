@@ -378,6 +378,6 @@ describe('TransactionController', () => {
 		const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 		const result = await controller.fetchAll(from);
 		expect(controller.state.transactions.length).toBe(0);
-		expect(result).toBe(null);
+		expect(result).toBe(undefined);
 	});
 });
