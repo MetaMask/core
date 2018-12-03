@@ -274,7 +274,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 				case 'V1':
 					return sigUtil.signTypedDataLegacy(privateKeyBuffer, { data: messageParams.data });
 				case 'V3':
-					return sigUtil.signTypedData(privateKeyBuffer, { data: messageParams.data });
+					return sigUtil.signTypedData(privateKeyBuffer, { data: JSON.parse(messageParams.data) });
 			}
 		} catch (error) {
 			/* istanbul ignore next */
