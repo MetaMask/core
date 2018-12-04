@@ -51,7 +51,6 @@ export interface KeyringState extends BaseState {
  * Controller resposible for establishing and managing user identity
  */
 export class KeyringController extends BaseController<BaseConfig, KeyringState> {
-	private keyring: any;
 	private mutex = new Mutex();
 
 	/**
