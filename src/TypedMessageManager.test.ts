@@ -1,5 +1,16 @@
 import TypedMessageManager from './TypedMessageManager';
-
+const typedMessage = [
+	{
+		name: 'Message',
+		type: 'string',
+		value: 'Hi, Alice!'
+	},
+	{
+		name: 'A number',
+		type: 'uint32',
+		value: '1337'
+	}
+];
 describe('TypedMessageManager', () => {
 	it('should set default state', () => {
 		const controller = new TypedMessageManager();
@@ -18,18 +29,7 @@ describe('TypedMessageManager', () => {
 		const messageTime = Date.now();
 		const messageStatus = 'unapproved';
 		const messageType = 'eth_signTypedData';
-		const messageData = [
-			{
-				name: 'Message',
-				type: 'string',
-				value: 'Hi, Alice!'
-			},
-			{
-				name: 'A number',
-				type: 'uint32',
-				value: '1337'
-			}
-		];
+		const messageData = typedMessage;
 		controller.addMessage({
 			id: messageId,
 			messageParams: {
@@ -57,18 +57,7 @@ describe('TypedMessageManager', () => {
 			const controller = new TypedMessageManager();
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			const version = 'V1';
-			const messageData = [
-				{
-					name: 'Message',
-					type: 'string',
-					value: 'Hi, Alice!'
-				},
-				{
-					name: 'A number',
-					type: 'uint32',
-					value: '1337'
-				}
-			];
+			const messageData = typedMessage;
 			const result = controller.addUnapprovedMessageAsync(
 				{
 					data: messageData,
@@ -96,18 +85,7 @@ describe('TypedMessageManager', () => {
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			const version = 'V1';
 			const rawSig = '0x5f7a0';
-			const messageData = [
-				{
-					name: 'Message',
-					type: 'string',
-					value: 'Hi, Alice!'
-				},
-				{
-					name: 'A number',
-					type: 'uint32',
-					value: '1337'
-				}
-			];
+			const messageData = typedMessage;
 			const result = controller.addUnapprovedMessageAsync(
 				{
 					data: messageData,
@@ -134,18 +112,7 @@ describe('TypedMessageManager', () => {
 			const controller = new TypedMessageManager();
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			const version = 'V1';
-			const messageData = [
-				{
-					name: 'Message',
-					type: 'string',
-					value: 'Hi, Alice!'
-				},
-				{
-					name: 'A number',
-					type: 'uint32',
-					value: '1337'
-				}
-			];
+			const messageData = typedMessage;
 			const result = controller.addUnapprovedMessageAsync(
 				{
 					data: messageData,
@@ -172,18 +139,7 @@ describe('TypedMessageManager', () => {
 			const controller = new TypedMessageManager();
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			const version = 'V1';
-			const messageData = [
-				{
-					name: 'Message',
-					type: 'string',
-					value: 'Hi, Alice!'
-				},
-				{
-					name: 'A number',
-					type: 'uint32',
-					value: '1337'
-				}
-			];
+			const messageData = typedMessage;
 			const result = controller.addUnapprovedMessageAsync(
 				{
 					data: messageData,
@@ -206,18 +162,7 @@ describe('TypedMessageManager', () => {
 		const messageStatus = 'unapproved';
 		const messageType = 'eth_signTypedData';
 		const version = 'version';
-		const messageData = [
-			{
-				name: 'Message',
-				type: 'string',
-				value: 'Hi, Alice!'
-			},
-			{
-				name: 'A number',
-				type: 'uint32',
-				value: '1337'
-			}
-		];
+		const messageData = typedMessage;
 		const messageParams = {
 			data: messageData,
 			from: '0xfoO'
@@ -258,18 +203,7 @@ describe('TypedMessageManager', () => {
 
 	it('should throw when adding invalid typed message', () => {
 		const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-		const messageData = [
-			{
-				name: 'Message',
-				type: 'string',
-				value: 'Hi, Alice!'
-			},
-			{
-				name: 'A number',
-				type: 'uint32',
-				value: '1337'
-			}
-		];
+		const messageData = typedMessage;
 		const version = 'V3';
 		return new Promise(async (resolve) => {
 			const controller = new TypedMessageManager();
@@ -339,18 +273,7 @@ describe('TypedMessageManager', () => {
 
 	it('should approve typed message', async () => {
 		const controller = new TypedMessageManager();
-		const messageData = [
-			{
-				name: 'Message',
-				type: 'string',
-				value: 'Hi, Alice!'
-			},
-			{
-				name: 'A number',
-				type: 'uint32',
-				value: '1337'
-			}
-		];
+		const messageData = typedMessage;
 		const firstMessage = { from: '0xfoO', data: messageData };
 		const version = 'V1';
 		const messageId = controller.addUnapprovedMessage(firstMessage, version);
@@ -365,18 +288,7 @@ describe('TypedMessageManager', () => {
 
 	it('should set message status signed', () => {
 		const controller = new TypedMessageManager();
-		const messageData = [
-			{
-				name: 'Message',
-				type: 'string',
-				value: 'Hi, Alice!'
-			},
-			{
-				name: 'A number',
-				type: 'uint32',
-				value: '1337'
-			}
-		];
+		const messageData = typedMessage;
 		const firstMessage = { from: '0xfoO', data: messageData };
 		const version = 'V1';
 		const rawSig = '0x5f7a0';
@@ -392,18 +304,7 @@ describe('TypedMessageManager', () => {
 
 	it('should reject message', () => {
 		const controller = new TypedMessageManager();
-		const messageData = [
-			{
-				name: 'Message',
-				type: 'string',
-				value: 'Hi, Alice!'
-			},
-			{
-				name: 'A number',
-				type: 'uint32',
-				value: '1337'
-			}
-		];
+		const messageData = typedMessage;
 		const firstMessage = { from: '0xfoO', data: messageData };
 		const version = 'V1';
 		const messageId = controller.addUnapprovedMessage(firstMessage, version);
@@ -417,18 +318,7 @@ describe('TypedMessageManager', () => {
 
 	it('should set message status errored', () => {
 		const controller = new TypedMessageManager();
-		const messageData = [
-			{
-				name: 'Message',
-				type: 'string',
-				value: 'Hi, Alice!'
-			},
-			{
-				name: 'A number',
-				type: 'uint32',
-				value: '1337'
-			}
-		];
+		const messageData = typedMessage;
 		const firstMessage = { from: '0xfoO', data: messageData };
 		const version = 'V1';
 		const messageId = controller.addUnapprovedMessage(firstMessage, version);
