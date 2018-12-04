@@ -34,7 +34,8 @@ export interface TypedMessage {
  *
  * Represents the parameters to pass to the eth_signTypedData method once the signature request is approved.
  *
- * @property data - A hex string conversion of the raw buffer data of the signature request
+ * @property data - A hex string conversion of the raw buffer or an object containing data of the signature
+ * request depending on version
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  */
@@ -47,11 +48,12 @@ export interface TypedMessageParams {
 /**
  * @type TypedMessageParamsMetamask
  *
- * Represents the parameters to pass to the personal_sign method once the signature request is approved
+ * Represents the parameters to pass to the eth_signTypedData method once the signature request is approved
  * plus data added by MetaMask.
  *
  * @property metamaskId - Added for tracking and identification within MetaMask
- * @property data - A hex string conversion of the raw buffer or array of objects of data of the signature request
+ * @property data - A hex string conversion of the raw buffer or an object containing data of the signature
+ * request depending on version
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  * @property version - Compatibility version EIP712
@@ -70,8 +72,8 @@ export interface TypedMessageParamsMetamask {
  *
  * Typed Message Manager state
  *
- * @property unapprovedMessages - A collection of all Messages in the 'unapproved' state
- * @property unapprovedMessagesCount - The count of all Messages in this.unapprovedMessages
+ * @property unapprovedMessages - A collection of all TypedMessages in the 'unapproved' state
+ * @property unapprovedMessagesCount - The count of all TypedMessages in this.unapprovedMessages
  */
 export interface TypedMessageManagerState extends BaseState {
 	unapprovedMessages: { [key: string]: TypedMessage };
@@ -277,7 +279,7 @@ export class TypedMessageManager extends BaseController<BaseConfig, TypedMessage
 	 *
 	 * @param messageId - The id of the TypedMessage to get
 	 * @returns - The TypedMessage with the id that matches the passed messageId, or undefined
-	 * if no Message has that id.
+	 * if no TypedMessage has that id.
 	 *
 	 */
 	getMessage(messageId: string) {
