@@ -277,8 +277,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 					return sigUtil.signTypedData(privateKeyBuffer, { data: JSON.parse(messageParams.data) });
 			}
 		} catch (error) {
-			/* istanbul ignore next */
-			return error;
+			throw new Error('Keyring Controller signTypedMessage: ' + error);
 		}
 	}
 
