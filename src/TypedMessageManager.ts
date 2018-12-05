@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import { validateTypedSignMessageDataV3, validateTypedSignMessageDataV1 } from './util';
 import NetworkController from './NetworkController';
-import { OriginalRequest } from './PersonalMessageManager';
+import MessageManager, { Message, MessageParams, MessageParamsMetamask, OriginalRequest } from './MessageManager';
 const random = require('uuid/v1');
 
 /**
@@ -19,8 +19,7 @@ const random = require('uuid/v1');
  * A 'TypedMessage' which always has a 'eth_signTypedData' type
  * @property rawSig - Raw data of the signature request
  */
-export interface TypedMessage {
-	id: string;
+export interface TypedMessage extends Message {
 	error?: string;
 	messageParams: TypedMessageParams;
 	time: number;
@@ -39,10 +38,8 @@ export interface TypedMessage {
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  */
-export interface TypedMessageParams {
+export interface TypedMessageParams extends MessageParams {
 	data: object[] | string;
-	from: string;
-	origin?: string;
 }
 
 /**
@@ -59,82 +56,17 @@ export interface TypedMessageParams {
  * @property origin? - Added for request origin identification
  * @property version - Compatibility version EIP712
  */
-export interface TypedMessageParamsMetamask extends TypedMessage {
+export interface TypedMessageParamsMetamask extends MessageParamsMetamask {
+	data: object[] | string;
 	metamaskId: string;
 	error?: string;
 	version: string;
 }
 
 /**
- * @type TypedMessageManagerState
- *
- * Typed Message Manager state
- *
- * @property unapprovedMessages - A collection of all TypedMessages in the 'unapproved' state
- * @property unapprovedMessagesCount - The count of all TypedMessages in this.unapprovedMessages
- */
-export interface TypedMessageManagerState extends BaseState {
-	unapprovedMessages: { [key: string]: TypedMessage };
-	unapprovedMessagesCount: number;
-}
-
-/**
  * Controller in charge of managing - storing, adding, removing, updating - TypedMessages.
  */
-export class TypedMessageManager extends BaseController<BaseConfig, TypedMessageManagerState> {
-	private messages: TypedMessage[];
-
-	/**
-	 * Saves the unapproved TypedMessages, and their count to state
-	 *
-	 */
-	private saveMessageList() {
-		const unapprovedMessages = this.getUnapprovedMessages();
-		const unapprovedMessagesCount = this.getUnapprovedMessagesCount();
-		this.update({ unapprovedMessages, unapprovedMessagesCount });
-		this.hub.emit('updateBadge');
-	}
-
-	/**
-	 * Updates the status of a TypedMessage in this.messages
-	 *
-	 * @param messageId - The id of the TypedMessage to update
-	 * @param status - The new status of the TypedMessage
-	 */
-	private setMessageStatus(messageId: string, status: string) {
-		const message = this.getMessage(messageId);
-		/* istanbul ignore if */
-		if (!message) {
-			throw new Error(`TypedMessageManager - Message not found for id: ${messageId}.`);
-		}
-		message.status = status;
-		this.updateMessage(message);
-		this.hub.emit(`${messageId}:${status}`, message);
-		if (status === 'rejected' || status === 'signed' || status === 'errored') {
-			this.hub.emit(`${messageId}:finished`, message);
-		}
-	}
-
-	/**
-	 * Sets a TypedMessage in this.messages to the passed TypedMessage if the ids are equal.
-	 * Then saves the unapprovedMessage list to storage
-	 *
-	 * @param message - A TypedMessage that will replace an existing TypedMessage (with the id) in this.messages
-	 */
-	private updateMessage(message: TypedMessage) {
-		const index = this.messages.findIndex((msg) => message.id === msg.id);
-		/* istanbul ignore next */
-		if (index !== -1) {
-			this.messages[index] = message;
-		}
-		this.saveMessageList();
-	}
-
-	/**
-	 * EventEmitter instance used to listen to specific message events
-	 */
-	hub = new EventEmitter();
-
+export class TypedMessageManager extends MessageManager<TypedMessage, TypedMessageParams, TypedMessageParamsMetamask> {
 	/**
 	 * Name of this controller used during composition
 	 */
@@ -144,47 +76,6 @@ export class TypedMessageManager extends BaseController<BaseConfig, TypedMessage
 	 * List of required sibling controllers this controller needs to function
 	 */
 	requiredControllers = ['NetworkController'];
-
-	/**
-	 * Creates a TypedMessageManager instance
-	 *
-	 * @param config - Initial options used to configure this controller
-	 * @param state - Initial state to set on this controller
-	 */
-	constructor(config?: Partial<BaseConfig>, state?: Partial<TypedMessageManager>) {
-		super(config, state);
-		this.defaultState = {
-			unapprovedMessages: {},
-			unapprovedMessagesCount: 0
-		};
-		this.messages = [];
-		this.initialize();
-	}
-
-	/**
-	 * A getter for the number of 'unapproved' TypedMessages in this.messages
-	 *
-	 * @returns - The number of 'unapproved' TypedMessages in this.messages
-	 *
-	 */
-	getUnapprovedMessagesCount() {
-		return Object.keys(this.getUnapprovedMessages()).length;
-	}
-
-	/**
-	 * A getter for the 'unapproved' TypedMessages in state messages
-	 *
-	 * @returns - An index of TypedMessage ids to TypedMessages, for all 'unapproved' TypedMessages in this.messages
-	 *
-	 */
-	getUnapprovedMessages() {
-		return this.messages
-			.filter((message) => message.status === 'unapproved')
-			.reduce((result: { [key: string]: TypedMessage }, message: TypedMessage) => {
-				result[message.id] = message;
-				return result;
-			}, {}) as { [key: string]: TypedMessage };
-	}
 
 	/**
 	 * Creates a new TypedMessage with an 'unapproved' status using the passed messageParams.
@@ -261,52 +152,6 @@ export class TypedMessageManager extends BaseController<BaseConfig, TypedMessage
 	}
 
 	/**
-	 * Adds a passed TypedMessage to this.messages, and calls this.saveMessageList() to save
-	 * the unapproved TypedMessages from that list to this.messages.
-	 *
-	 * @param {Message} message The Message to add to this.messages
-	 *
-	 */
-	addMessage(message: TypedMessage) {
-		this.messages.push(message);
-		this.saveMessageList();
-	}
-
-	/**
-	 * Returns a specified TypedMessage.
-	 *
-	 * @param messageId - The id of the TypedMessage to get
-	 * @returns - The TypedMessage with the id that matches the passed messageId, or undefined
-	 * if no TypedMessage has that id.
-	 *
-	 */
-	getMessage(messageId: string) {
-		return this.messages.find((message) => message.id === messageId);
-	}
-
-	/**
-	 * Approves a TypedMessage. Sets the message status via a call to this.setMessageStatusApproved,
-	 * and returns a promise with any the message params modified for proper signing.
-	 *
-	 * @param messageParams - The messageParams to be used when 'eth_signTypedData' is called,
-	 * plus data added by MetaMask
-	 * @returns - Promise resolving to the messageParams with the metamaskId property removed
-	 */
-	approveMessage(messageParams: TypedMessageParamsMetamask): Promise<TypedMessageParams> {
-		this.setMessageStatusApproved(messageParams.metamaskId);
-		return this.prepMessageForSigning(messageParams);
-	}
-
-	/**
-	 * Sets a TypedMessage status to 'approved' via a call to this.setMessageStatus.
-	 *
-	 * @param messageId - The id of the TypedMessage to approve
-	 */
-	setMessageStatusApproved(messageId: string) {
-		this.setMessageStatus(messageId, 'approved');
-	}
-
-	/**
 	 * Sets a TypedMessage status to 'errored' via a call to this.setMessageStatus.
 	 *
 	 * @param messageId - The id of the TypedMessage to error
@@ -321,25 +166,6 @@ export class TypedMessageManager extends BaseController<BaseConfig, TypedMessage
 		message.error = error;
 		this.updateMessage(message);
 		this.setMessageStatus(messageId, 'errored');
-	}
-
-	/**
-	 * Sets a TypedMessage status to 'signed' via a call to this.setMessageStatus and updates
-	 * that TypedMessage in this.messages by adding the raw signature data of the signature
-	 * request to the TypedMessage.
-	 *
-	 * @param messageId - The id of the TypedMessage to sign
-	 * @param rawSig - The raw data of the signature request
-	 */
-	setMessageStatusSigned(messageId: string, rawSig: string) {
-		const message = this.getMessage(messageId);
-		/* istanbul ignore if */
-		if (!message) {
-			return;
-		}
-		message.rawSig = rawSig;
-		this.updateMessage(message);
-		this.setMessageStatus(messageId, 'signed');
 	}
 
 	/**

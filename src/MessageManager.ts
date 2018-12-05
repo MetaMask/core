@@ -19,14 +19,12 @@ export interface OriginalRequest {
  * These are created when a signature for an personal_sign call is requested.
  *
  * @property id - An id to track and identify the message object
- * @property messageParams - The parameters to pass to the personal_sign method once the signature request is approved
  * @property type - The json-prc signing method for which a signature request has been made.
  * A 'Message' which always has a 'personal_sign' type
  * @property rawSig - Raw data of the signature request
  */
 export interface Message {
 	id: string;
-	messageParams: MessageParams;
 	time: number;
 	status: string;
 	type: string;
@@ -53,7 +51,6 @@ export interface MessageParams {
  * plus data added by MetaMask.
  *
  * @property metamaskId - Added for tracking and identification within MetaMask
- * @property data - A hex string conversion of the raw buffer data of the signature request
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  */
@@ -77,7 +74,7 @@ export interface MessageManagerState<M extends Message> extends BaseState {
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
-export class MessageManager<
+export abstract class MessageManager<
 	M extends Message,
 	P extends MessageParams,
 	PM extends MessageParamsMetamask
@@ -253,10 +250,7 @@ export class MessageManager<
 	 * @param messageParams - The messageParams to modify
 	 * @returns - Promise resolving to the messageParams with the metamaskId property removed
 	 */
-	prepMessageForSigning(messageParams: PM): Promise<P> {
-		delete messageParams.metamaskId;
-		return Promise.resolve(messageParams);
-	}
+	abstract prepMessageForSigning(messageParams: PM): Promise<P>;
 
 	/**
 	 * Sets a Message status to 'rejected' via a call to this.setMessageStatus.

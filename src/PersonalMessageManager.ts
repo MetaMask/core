@@ -3,6 +3,22 @@ import MessageManager, { Message, MessageParams, MessageParamsMetamask, Original
 const random = require('uuid/v1');
 
 /**
+ * @type Message
+ *
+ * Represents and contains data about a 'personal_sign' type signature request.
+ * These are created when a signature for an personal_sign call is requested.
+ *
+ * @property id - An id to track and identify the message object
+ * @property messageParams - The parameters to pass to the personal_sign method once the signature request is approved
+ * @property type - The json-prc signing method for which a signature request has been made.
+ * A 'Message' which always has a 'personal_sign' type
+ * @property rawSig - Raw data of the signature request
+ */
+export interface PersonalMessage extends Message {
+	messageParams: PersonalMessageParams;
+}
+
+/**
  * @type PersonalMessageParams
  *
  * Represents the parameters to pass to the personal_sign method once the signature request is approved.
@@ -16,9 +32,28 @@ export interface PersonalMessageParams extends MessageParams {
 }
 
 /**
+ * @type MessageParamsMetamask
+ *
+ * Represents the parameters to pass to the personal_sign method once the signature request is approved
+ * plus data added by MetaMask.
+ *
+ * @property metamaskId - Added for tracking and identification within MetaMask
+ * @property data - A hex string conversion of the raw buffer data of the signature request
+ * @property from - Address to sign this message from
+ * @property origin? - Added for request origin identification
+ */
+export interface PersonalMessageParamsMetamask extends MessageParamsMetamask {
+	data: string;
+}
+
+/**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
-export class PersonalMessageManager extends MessageManager<Message, PersonalMessageParams, MessageParamsMetamask> {
+export class PersonalMessageManager extends MessageManager<
+	PersonalMessage,
+	PersonalMessageParams,
+	PersonalMessageParamsMetamask
+> {
 	/**
 	 * Name of this controller used during composition
 	 */
@@ -69,7 +104,7 @@ export class PersonalMessageManager extends MessageManager<Message, PersonalMess
 		}
 		messageParams.data = normalizeMessageData(messageParams.data);
 		const messageId = random();
-		const messageData: Message = {
+		const messageData: PersonalMessage = {
 			id: messageId,
 			messageParams,
 			status: 'unapproved',
@@ -79,6 +114,18 @@ export class PersonalMessageManager extends MessageManager<Message, PersonalMess
 		this.addMessage(messageData);
 		this.hub.emit(`unapprovedMessage`, { ...messageParams, ...{ metamaskId: messageId } });
 		return messageId;
+	}
+
+	/**
+	 * Removes the metamaskId property from passed messageParams and returns a promise which
+	 * resolves the updated messageParams
+	 *
+	 * @param messageParams - The messageParams to modify
+	 * @returns - Promise resolving to the messageParams with the metamaskId property removed
+	 */
+	prepMessageForSigning(messageParams: PersonalMessageParamsMetamask): Promise<PersonalMessageParams> {
+		delete messageParams.metamaskId;
+		return Promise.resolve(messageParams);
 	}
 }
 
