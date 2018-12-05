@@ -1,13 +1,12 @@
 import { EventEmitter } from 'events';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
-import BlockHistoryController from './BlockHistoryController';
 import NetworkController from './NetworkController';
 import { BNToHex, fractionBN, hexToBN, normalizeTransaction, safelyExecute, validateTransaction } from './util';
 
 const EthQuery = require('eth-query');
 const Transaction = require('ethereumjs-tx');
 const random = require('uuid/v1');
-const { addHexPrefix, bufferToHex } = require('ethereumjs-util');
+const { addHexPrefix, bufferToHex, BN } = require('ethereumjs-util');
 
 /**
  * @type Result
@@ -59,6 +58,7 @@ export interface Transaction {
  * @property time - Timestamp associated with this transaction
  * @property transaction - Underlying Transaction object
  * @property transactionHash - Hash of a successful transaction
+ * @property blockNumber - Number of the block where the transaction has been included
  */
 export interface TransactionMeta {
 	error?: {
@@ -73,6 +73,50 @@ export interface TransactionMeta {
 	time: number;
 	transaction: Transaction;
 	transactionHash?: string;
+	blockNumber?: string;
+}
+
+/**
+ * @type EtherscanTransactionMeta
+ *
+ * EtherscanTransactionMeta representation
+ * @property blockNumber - Number of the block where the transaction has been included
+ * @property timeStamp - Timestamp associated with this transaction
+ * @property hash - Hash of a successful transaction
+ * @property nonce - Nonce of the transaction
+ * @property blockHash - Hash of the block where the transaction has been included
+ * @property transactionIndex - Etherscan internal index for this transaction
+ * @property from - Address to send this transaction from
+ * @property to - Address to send this transaction to
+ * @property gas - Gas to send with this transaction
+ * @property gasPrice - Price of gas with this transaction
+ * @property isError - Synthesized error information for failed transactions
+ * @property txreceipt_status - Receipt status for this transaction
+ * @property input - input of the transaction
+ * @property contractAddress - Address of the contract
+ * @property cumulativeGasUsed - Amount of gas used
+ * @property confirmations - Number of confirmations
+ *
+ */
+export interface EtherscanTransactionMeta {
+	blockNumber: string;
+	timeStamp: string;
+	hash: string;
+	nonce: string;
+	blockHash: string;
+	transactionIndex: string;
+	from: string;
+	to: string;
+	value: string;
+	gas: string;
+	gasPrice: string;
+	isError: string;
+	txreceipt_status: string;
+	input: string;
+	contractAddress: string;
+	cumulativeGasUsed: string;
+	gasUsed: string;
+	confirmations: string;
 }
 
 /**
@@ -131,6 +175,36 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	}
 
 	/**
+	 * Normalizes the transaction information from etherscan
+	 * to be compatible with the TransactionMeta interface
+	 *
+	 * @param txMeta - Object containing the transaction information
+	 * @param currentNetworkID - string representing the current network id
+	 * @returns - TransactionMeta
+	 */
+	private normalizeTxFromEtherscan(txMeta: EtherscanTransactionMeta, currentNetworkID: string): TransactionMeta {
+		const time = parseInt(txMeta.timeStamp, 10) * 1000;
+		/* istanbul ignore next */
+		const status = txMeta.isError === '0' ? 'confirmed' : 'failed';
+		return {
+			blockNumber: txMeta.blockNumber,
+			id: random({ msecs: time }),
+			networkID: currentNetworkID,
+			status,
+			time,
+			transaction: {
+				from: txMeta.from,
+				gas: BNToHex(new BN(txMeta.gas)),
+				gasPrice: BNToHex(new BN(txMeta.gasPrice)),
+				nonce: BNToHex(new BN(txMeta.nonce)),
+				to: txMeta.to,
+				value: BNToHex(new BN(txMeta.value))
+			},
+			transactionHash: txMeta.hash
+		};
+	}
+
+	/**
 	 * EventEmitter instance used to listen to specific transactional events
 	 */
 	hub = new EventEmitter();
@@ -143,7 +217,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
-	requiredControllers = ['BlockHistoryController', 'NetworkController'];
+	requiredControllers = ['NetworkController'];
 
 	/**
 	 * Method used to sign transactions
@@ -299,9 +373,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 * @returns - Promise resolving to an object containing gas and gasPrice
 	 */
 	async estimateGas(transaction: Transaction) {
-		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
 		const estimatedTransaction = { ...transaction };
-		const { gasLimit } = await blockHistory.getLatestBlock();
+		const { gasLimit } = await this.query('getBlockByNumber', ['latest', false]);
 		const { gas, gasPrice: providedGasPrice, to, value } = estimatedTransaction;
 		const gasPrice = typeof providedGasPrice === 'undefined' ? await this.query('gasPrice') : providedGasPrice;
 
@@ -354,30 +427,31 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	}
 
 	/**
-	 * Resiliently checks all submitted transactions for confirmations in all
-	 * blocks maintained in a sibling BlockHistoryController
+	 * Resiliently checks all submitted transactions on the blockchain
+	 * and verifies that it has been included in a block
+	 * when that happens, the tx status is updated to confirmed
 	 *
 	 * @returns - Promise resolving when this operation completes
 	 */
 	async queryTransactionStatuses() {
 		const { transactions } = this.state;
-		const blockHistory = this.context.BlockHistoryController as BlockHistoryController;
-		const network = this.context.NetworkController as NetworkController;
+		const network = this.context.NetworkController;
 		const currentNetworkID = network.state.network;
-
-		const confirmedHashes = blockHistory.state.recentBlocks
-			.reduce((hashes: string[], block) => {
-				return hashes.concat(block.transactions);
-			}, [])
-			.map((transaction: any) => transaction && transaction.hash);
-
-		transactions.forEach((meta, index) => {
-			const isConfirmed = confirmedHashes.indexOf(meta.transactionHash!) > -1;
-			if (meta.networkID === currentNetworkID && meta.status === 'submitted' && isConfirmed) {
-				transactions[index].status = 'confirmed';
-				this.hub.emit(`${meta.id}:confirmed`, meta);
-			}
-		});
+		safelyExecute(() =>
+			Promise.all(
+				transactions.map(async (meta, index) => {
+					if (meta.status === 'submitted' && meta.networkID === currentNetworkID) {
+						const txObj = await this.query('getTransactionByHash', [meta.transactionHash]);
+						/* istanbul ignore else */
+						if (txObj && txObj.blockNumber) {
+							transactions[index].status = 'confirmed';
+							this.hub.emit(`${meta.id}:confirmed`, meta);
+						}
+					}
+				})
+			)
+		);
+		this.update({ transactions: [...transactions] });
 	}
 
 	/**
@@ -412,6 +486,83 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const currentNetworkID = network.state.network;
 		const newTransactions = this.state.transactions.filter(({ networkID }) => networkID !== currentNetworkID);
 		this.update({ transactions: newTransactions });
+	}
+
+	/**
+	 * Gets all transactions from etherscan for a specific address
+	 * optionally starting from a specific block
+	 *
+	 * @param address - string representing the address to fetch the transactions from
+	 * @param fromBlock - string representing the block number (optional)
+	 * @returns - Promise resolving to an string containing the block number of the latest incoming transaction.
+	 */
+	async fetchAll(address: string, fromBlock?: string): Promise<string | void> {
+		const network = this.context.NetworkController;
+		const currentNetworkID = network.state.network;
+		const networkType = network.state.provider.type;
+
+		let etherscanSubdomain = 'api';
+		const supportedNetworkIds = ['1', '3', '4', '42'];
+		/* istanbul ignore next */
+		if (supportedNetworkIds.indexOf(currentNetworkID) === -1) {
+			return;
+		}
+		/* istanbul ignore next */
+		if (networkType !== 'mainnet') {
+			etherscanSubdomain = `api-${networkType}`;
+		}
+		const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
+
+		/* istanbul ignore next */
+		if (!apiUrl) {
+			return;
+		}
+		let url = `${apiUrl}/api?module=account&action=txlist&address=${address}&tag=latest&page=1`;
+		/* istanbul ignore next */
+		if (fromBlock) {
+			url += `&startBlock=${fromBlock}`;
+		}
+		const response = await fetch(url);
+		const parsedResponse = await response.json();
+		/* istanbul ignore else */
+		if (parsedResponse.status !== '0' && parsedResponse.result.length > 0) {
+			const remoteTxList: { [key: string]: number } = {};
+			const remoteTxs: TransactionMeta[] = [];
+			parsedResponse.result.forEach((tx: EtherscanTransactionMeta) => {
+				/* istanbul ignore else */
+				if (!remoteTxList[tx.hash]) {
+					remoteTxs.push(this.normalizeTxFromEtherscan(tx, currentNetworkID));
+					remoteTxList[tx.hash] = 1;
+				}
+			});
+
+			const localTxs = this.state.transactions.filter(
+				/* istanbul ignore next */
+				(tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]
+			);
+
+			const allTxs = [...remoteTxs, ...localTxs];
+			allTxs.sort((a, b) => (/* istanbul ignore next */ a.time < b.time ? -1 : 1));
+
+			let latestIncomingTxBlockNumber: string | undefined;
+			allTxs.forEach((tx) => {
+				/* istanbul ignore next */
+				if (tx.transaction.to && tx.transaction.to.toLowerCase() === address.toLowerCase()) {
+					if (
+						tx.blockNumber &&
+						(!latestIncomingTxBlockNumber ||
+							parseInt(latestIncomingTxBlockNumber, 10) < parseInt(tx.blockNumber, 10))
+					) {
+						latestIncomingTxBlockNumber = tx.blockNumber;
+					}
+				}
+			});
+
+			this.update({ transactions: allTxs });
+			return latestIncomingTxBlockNumber;
+		}
+		/* istanbul ignore next */
+		return;
 	}
 }
 

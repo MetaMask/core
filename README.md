@@ -64,14 +64,6 @@ import AddressBookController from 'gaba';
 
 The AddressBookController exposes functions for managing a list of recipient addresses and associated nicknames.
 
-### BlockHistoryController
-
-```ts
-import BlockHistoryController from 'gaba';
-```
-
-The BlockHistoryController maintains a set number of past blocks that are backfilled upon initialization.
-
 ### ComposableController
 
 ```ts
