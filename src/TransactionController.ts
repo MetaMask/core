@@ -509,7 +509,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		}
 		/* istanbul ignore next */
 		if (networkType !== 'mainnet') {
-			etherscanSubdomain = 'api-${network-type}';
+			etherscanSubdomain = `api-${networkType}`;
 		}
 		const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
 
