@@ -1,5 +1,5 @@
 import { Transaction } from './TransactionController';
-import { MessageParams } from './PersonalMessageManager';
+import { PersonalMessageParams } from './PersonalMessageManager';
 import { TypedMessageParams } from './TypedMessageManager';
 const sigUtil = require('eth-sig-util');
 const jsonschema = require('jsonschema');
@@ -174,12 +174,12 @@ export function normalizeMessageData(data: string) {
 }
 
 /**
- * Validates a MessageParams object for required properties and throws in
+ * Validates a PersonalMessageParams object for required properties and throws in
  * the event of any validation error.
  *
- * @param messageData - MessageParams object to validate
+ * @param messageData - PersonalMessageParams object to validate
  */
-export function validatePersonalSignMessageData(messageData: MessageParams) {
+export function validatePersonalSignMessageData(messageData: PersonalMessageParams) {
 	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
 		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
 	}
