@@ -54,16 +54,14 @@ export interface TypedMessageParams {
  * @property metamaskId - Added for tracking and identification within MetaMask
  * @property data - A hex string conversion of the raw buffer or an object containing data of the signature
  * request depending on version
+ * @property error? - Added for message errored
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  * @property version - Compatibility version EIP712
  */
-export interface TypedMessageParamsMetamask {
+export interface TypedMessageParamsMetamask extends TypedMessage {
 	metamaskId: string;
-	data: object[] | string;
 	error?: string;
-	from: string;
-	origin?: string;
 	version: string;
 }
 
