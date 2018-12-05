@@ -1,5 +1,3 @@
-import { EventEmitter } from 'events';
-import BaseController, { BaseConfig, BaseState } from './BaseController';
 import { validateTypedSignMessageDataV3, validateTypedSignMessageDataV1 } from './util';
 import NetworkController from './NetworkController';
 import MessageManager, { Message, MessageParams, MessageParamsMetamask, OriginalRequest } from './MessageManager';
@@ -179,15 +177,6 @@ export class TypedMessageManager extends MessageManager<TypedMessage, TypedMessa
 		delete messageParams.metamaskId;
 		delete messageParams.version;
 		return Promise.resolve(messageParams);
-	}
-
-	/**
-	 * Sets a TypedMessage status to 'rejected' via a call to this.setMessageStatus.
-	 *
-	 * @param messageId - The id of the TypedMessage to reject.
-	 */
-	rejectMessage(messageId: string) {
-		this.setMessageStatus(messageId, 'rejected');
 	}
 }
 
