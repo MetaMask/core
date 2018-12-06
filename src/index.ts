@@ -18,4 +18,5 @@ export * from './ShapeShiftController';
 export * from './TokenBalancesController';
 export * from './TokenRatesController';
 export * from './TransactionController';
+export * from './TypedMessageManager';
 export { util };

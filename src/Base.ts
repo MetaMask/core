@@ -65,8 +65,8 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
 	 * @param state - Initial state to set on this controller
 	 */
 	constructor(config?: C, state?: S) {
-        this.configure(Object.assign(this.defaultConfig, config));
-        this.update(Object.assign(this.defaultState, state));
+		this.configure(Object.assign(this.defaultConfig, config));
+		this.update(Object.assign(this.defaultState, state));
 	}
 
 	/**
@@ -104,16 +104,16 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
 	 * @param overwrite - Overwrite config instead of merging
 	 */
 	configure(config: Partial<C>, overwrite = false) {
-        // console.log('1', config)
-        this.internalConfig = overwrite ? (config as C) : Object.assign(this.internalConfig, config);
-        // console.log('2', this.internalConfig)
+		// console.log('1', config)
+		this.internalConfig = overwrite ? (config as C) : Object.assign(this.internalConfig, config);
+		// console.log('2', this.internalConfig)
 
 		for (const key in this.internalConfig) {
 			if (typeof this.internalConfig[key] !== 'undefined') {
 				(this as any)[key as string] = this.internalConfig[key];
 			}
-        }
-        // console.log('3', this.config)
+		}
+		// console.log('3', this.config)
 	}
 
 	/**
