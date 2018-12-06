@@ -2,7 +2,8 @@ import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState, Listener } from './BaseController';
 import PreferencesController from './PreferencesController';
 import { Transaction } from './TransactionController';
-import { MessageParams } from './PersonalMessageManager';
+import { PersonalMessageParams } from './PersonalMessageManager';
+import { TypedMessageParams } from './TypedMessageManager';
 const sigUtil = require('eth-sig-util');
 const { toChecksumAddress } = require('ethereumjs-util');
 const Keyring = require('eth-keyring-controller');
@@ -241,31 +242,31 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	/**
 	 * Signs message by calling down into a specific keyring
 	 *
-	 * @param messageParams - MessageParams object to sign
+	 * @param messageParams - PersonalMessageParams object to sign
 	 * @returns - Promise resolving to a signed message string
 	 */
-	signMessage(messageParams: MessageParams) {
+	signMessage(messageParams: PersonalMessageParams) {
 		return this.keyring.signMessage(messageParams);
 	}
 
 	/**
 	 * Signs personal message by calling down into a specific keyring
 	 *
-	 * @param messageParams - MessageParams object to sign
+	 * @param messageParams - PersonalMessageParams object to sign
 	 * @returns - Promise resolving to a signed message string
 	 */
-	signPersonalMessage(messageParams: MessageParams) {
+	signPersonalMessage(messageParams: PersonalMessageParams) {
 		return this.keyring.signPersonalMessage(messageParams);
 	}
 
 	/**
 	 * Signs typed message by calling down into a specific keyring
 	 *
-	 * @param messageParams - MessageParams object to sign
+	 * @param messageParams - TypedMessageParams object to sign
 	 * @param version - Compatibility version EIP712
 	 * @returns - Promise resolving to a signed message string or an error if any
 	 */
-	async signTypedMessage(messageParams: MessageParams, version: string) {
+	async signTypedMessage(messageParams: TypedMessageParams, version: string) {
 		try {
 			const address = sigUtil.normalize(messageParams.from);
 			const privateKey = await this.exportAccount(address);
@@ -274,7 +275,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 				case 'V1':
 					return sigUtil.signTypedDataLegacy(privateKeyBuffer, { data: messageParams.data });
 				case 'V3':
-					return sigUtil.signTypedData(privateKeyBuffer, { data: JSON.parse(messageParams.data) });
+					return sigUtil.signTypedData(privateKeyBuffer, { data: JSON.parse(messageParams.data as string) });
 			}
 		} catch (error) {
 			throw new Error('Keyring Controller signTypedMessage: ' + error);
