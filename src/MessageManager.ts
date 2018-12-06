@@ -15,12 +15,12 @@ export interface OriginalRequest {
 /**
  * @type Message
  *
- * Represents and contains data about a 'personal_sign' type signature request.
+ * Represents and contains data about a signing type signature request.
  * These are created when a signature for an personal_sign call is requested.
  *
  * @property id - An id to track and identify the message object
  * @property type - The json-prc signing method for which a signature request has been made.
- * A 'Message' which always has a 'personal_sign' type
+ * A 'Message' which always has a signing type
  * @property rawSig - Raw data of the signature request
  */
 export interface Message {
@@ -47,7 +47,7 @@ export interface MessageParams {
 /**
  * @type MessageParamsMetamask
  *
- * Represents the parameters to pass to the personal_sign method once the signature request is approved
+ * Represents the parameters to pass to the signing method once the signature request is approved
  * plus data added by MetaMask.
  *
  * @property metamaskId - Added for tracking and identification within MetaMask
@@ -206,7 +206,7 @@ export abstract class MessageManager<
 	 * Approves a Message. Sets the message status via a call to this.setMessageStatusApproved,
 	 * and returns a promise with any the message params modified for proper signing.
 	 *
-	 * @param messageParams - The messageParams to be used when personal_sign is called,
+	 * @param messageParams - The messageParams to be used when signing method is called,
 	 * plus data added by MetaMask
 	 * @returns - Promise resolving to the messageParams with the metamaskId property removed
 	 */
