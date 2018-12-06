@@ -1,5 +1,6 @@
 import { stub } from 'sinon';
 import TransactionController from './TransactionController';
+const globalAny: any = global;
 
 const mockFlags: { [key: string]: any } = {
 	estimateGas: null
@@ -17,8 +18,14 @@ jest.mock('eth-query', () =>
 			gasPrice: (callback: any) => {
 				callback(undefined, '0x0');
 			},
+			getBlockByNumber: (_blocknumber: any, _fetchTxs: boolean, callback: any) => {
+				callback(undefined, { gasLimit: '0x0' });
+			},
 			getCode: (_to: any, callback: any) => {
 				callback(undefined, '0x0');
+			},
+			getTransactionByHash: (_hash: any, callback: any) => {
+				callback(undefined, { blockNumber: '0x1' });
 			},
 			getTransactionCount: (_from: any, _to: any, callback: any) => {
 				callback(undefined, '0x0');
@@ -30,19 +37,72 @@ jest.mock('eth-query', () =>
 	})
 );
 
+function mockFetch(data: any) {
+	return jest.fn().mockImplementation(() =>
+		Promise.resolve({
+			json: () => data,
+			ok: true
+		})
+	);
+}
 const HttpProvider = require('ethjs-provider-http');
-const MOCK_BLOCK_HISTORY = {
-	getLatestBlock: () => ({ gasLimit: '0x0' }),
-	state: { recentBlocks: [{ number: '0x0', transactions: [{ hash: '1337' }] }] }
-};
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const PROVIDER = new HttpProvider('https://ropsten.infura.io');
 const MOCK_NETWORK = {
 	provider: PROVIDER,
-	state: { network: '3' },
+	state: { network: '3', provider: { type: 'ropsten' } },
 	subscribe: () => {
 		/* eslint-disable-line no-empty */
 	}
+};
+
+const MOCK_FETCH_TX_HISTORY_DATA_OK = {
+	message: 'OK',
+	result: [
+		{
+			blockNumber: '4535101',
+			confirmations: '10',
+			contractAddress: '',
+			cumulativeGasUsed: '120607',
+			from: '0xe46abaf75cfbff815c0b7ffed6f02b0760ea27f1',
+			gas: '335208',
+			gasPrice: '10000000000',
+			gasUsed: '21000',
+			hash: '0xa9d17df83756011ea63e1f0ca50a6627df7cac9806809e36680fcf4e88cb9dae',
+			input: '0x',
+			isError: '0',
+			nonce: '9',
+			timeStamp: '1543596286',
+			to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+			transactionIndex: '2',
+			txreceipt_status: '1',
+			value: '100000000000000000'
+		},
+		{
+			blockNumber: '4535108',
+			confirmations: '3',
+			contractAddress: '',
+			cumulativeGasUsed: '693910',
+			from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+			gas: '335208',
+			gasPrice: '20000000000',
+			gasUsed: '21000',
+			hash: '0x342e9d73e10004af41d04973339fc7219dbadcbb5629730cfe65e9f9cb15ff92',
+			input: '0x',
+			isError: '0',
+			nonce: '0',
+			timeStamp: '1543596378',
+			to: '0xb2d191b6fe03c5b8a1ab249cfe88c37553357a23',
+			transactionIndex: '12',
+			txreceipt_status: '1',
+			value: '50000000000000000'
+		}
+	],
+	status: '1'
+};
+
+const MOCK_FETCH_TX_HISTORY_DATA_ERROR = {
+	status: '0'
 };
 
 describe('TransactionController', () => {
@@ -73,7 +133,7 @@ describe('TransactionController', () => {
 		func.restore();
 	});
 
-	it('should update rates on interval', () => {
+	it('should check transaction statuses on interval', () => {
 		return new Promise((resolve) => {
 			const controller = new TransactionController({ interval: 10 });
 			const func = stub(controller, 'queryTransactionStatuses');
@@ -109,7 +169,6 @@ describe('TransactionController', () => {
 		const controller = new TransactionController({ provider: PROVIDER });
 		const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 		controller.context = {
-			BlockHistoryController: MOCK_BLOCK_HISTORY,
 			NetworkController: MOCK_NETWORK
 		} as any;
 		controller.onComposed();
@@ -126,7 +185,6 @@ describe('TransactionController', () => {
 		return new Promise(async (resolve) => {
 			const controller = new TransactionController({ provider: PROVIDER });
 			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
 				NetworkController: MOCK_NETWORK
 			} as any;
 			controller.onComposed();
@@ -152,7 +210,6 @@ describe('TransactionController', () => {
 		const controller = new TransactionController({ provider: PROVIDER });
 		controller.wipeTransactions();
 		controller.context = {
-			BlockHistoryController: MOCK_BLOCK_HISTORY,
 			NetworkController: MOCK_NETWORK
 		} as any;
 		controller.onComposed();
@@ -174,7 +231,6 @@ describe('TransactionController', () => {
 				}
 			});
 			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
 				NetworkController: MOCK_NETWORK
 			} as any;
 			controller.onComposed();
@@ -198,7 +254,6 @@ describe('TransactionController', () => {
 			const controller = new TransactionController({ provider: PROVIDER });
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
 				NetworkController: MOCK_NETWORK
 			} as any;
 			controller.onComposed();
@@ -221,7 +276,6 @@ describe('TransactionController', () => {
 				provider: PROVIDER
 			});
 			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
 				NetworkController: MOCK_NETWORK
 			} as any;
 			controller.onComposed();
@@ -248,7 +302,6 @@ describe('TransactionController', () => {
 			});
 			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
 				NetworkController: MOCK_NETWORK
 			} as any;
 			controller.onComposed();
@@ -271,13 +324,16 @@ describe('TransactionController', () => {
 
 	it('should query transaction statuses', () => {
 		return new Promise((resolve) => {
-			const controller = new TransactionController();
+			const controller = new TransactionController({
+				provider: PROVIDER,
+				sign: async (transaction: any) => transaction
+			});
 			controller.context = {
-				BlockHistoryController: MOCK_BLOCK_HISTORY,
-				NetworkController: MOCK_NETWORK,
-				PreferencesController: MOCK_PRFERENCES
+				NetworkController: MOCK_NETWORK
 			} as any;
+			controller.onComposed();
 			controller.state.transactions.push({
+				from: MOCK_PRFERENCES.state.selectedAddress,
 				id: 'foo',
 				networkID: '3',
 				status: 'submitted',
@@ -290,5 +346,38 @@ describe('TransactionController', () => {
 			});
 			controller.queryTransactionStatuses();
 		});
+	});
+
+	it('should fetch all the transactions from an address, including incoming transactions', async () => {
+		globalAny.fetch = mockFetch(MOCK_FETCH_TX_HISTORY_DATA_OK);
+		const controller = new TransactionController({ provider: PROVIDER });
+		controller.wipeTransactions();
+		controller.context = {
+			NetworkController: MOCK_NETWORK
+		} as any;
+		controller.onComposed();
+		expect(controller.state.transactions.length).toBe(0);
+
+		const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+		const latestBlock = await controller.fetchAll(from);
+		expect(controller.state.transactions.length).toBe(2);
+		expect(latestBlock).toBe('4535101');
+		expect(controller.state.transactions[0].transaction.to).toBe(from);
+	});
+
+	it('should return ', async () => {
+		globalAny.fetch = mockFetch(MOCK_FETCH_TX_HISTORY_DATA_ERROR);
+		const controller = new TransactionController({ provider: PROVIDER });
+		controller.wipeTransactions();
+		controller.context = {
+			NetworkController: MOCK_NETWORK
+		} as any;
+		controller.onComposed();
+		expect(controller.state.transactions.length).toBe(0);
+
+		const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+		const result = await controller.fetchAll(from);
+		expect(controller.state.transactions.length).toBe(0);
+		expect(result).toBe(undefined);
 	});
 });

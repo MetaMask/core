@@ -11,7 +11,7 @@ const Mutex = require('await-semaphore').Mutex;
 const Wallet = require('ethereumjs-wallet');
 const ethUtil = require('ethereumjs-util');
 const importers = require('ethereumjs-wallet/thirdparty');
-
+const privates = new WeakMap();
 /**
  * Available keyring types
  */
@@ -52,7 +52,6 @@ export interface KeyringState extends BaseState {
  * Controller resposible for establishing and managing user identity
  */
 export class KeyringController extends BaseController<BaseConfig, KeyringState> {
-	private keyring: any;
 	private mutex = new Mutex();
 
 	/**
@@ -73,9 +72,9 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 */
 	constructor(config?: Partial<BaseConfig>, state?: Partial<KeyringState>) {
 		super(config, state);
-		this.keyring = new Keyring({ ...{ initState: state }, ...config });
+		privates.set(this, { keyring: new Keyring(Object.assign({ initState: state }, config)) });
 		this.defaultState = {
-			...this.keyring.store.getState(),
+			...privates.get(this).keyring.store.getState(),
 			keyrings: []
 		};
 		this.initialize();
@@ -89,13 +88,13 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 */
 	async addNewAccount() {
 		const preferences = this.context.PreferencesController as PreferencesController;
-		const primaryKeyring = this.keyring.getKeyringsByType('HD Key Tree')[0];
+		const primaryKeyring = privates.get(this).keyring.getKeyringsByType('HD Key Tree')[0];
 		if (!primaryKeyring) {
 			throw new Error('No HD keyring found');
 		}
-		const oldAccounts = await this.keyring.getAccounts();
-		await this.keyring.addNewAccount(primaryKeyring);
-		const newAccounts = await this.keyring.getAccounts();
+		const oldAccounts = await privates.get(this).keyring.getAccounts();
+		await privates.get(this).keyring.addNewAccount(primaryKeyring);
+		const newAccounts = await privates.get(this).keyring.getAccounts();
 
 		await this.verifySeedPhrase();
 
@@ -121,8 +120,8 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 		const releaseLock = await this.mutex.acquire();
 		try {
 			preferences.updateIdentities([]);
-			const vault = await this.keyring.createNewVaultAndRestore(password, seed);
-			preferences.updateIdentities(await this.keyring.getAccounts());
+			const vault = await privates.get(this).keyring.createNewVaultAndRestore(password, seed);
+			preferences.updateIdentities(await privates.get(this).keyring.getAccounts());
 			preferences.update({ selectedAddress: Object.keys(preferences.state.identities)[0] });
 			releaseLock();
 			return vault;
@@ -143,12 +142,12 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 		const releaseLock = await this.mutex.acquire();
 		try {
 			let vault;
-			const accounts = await this.keyring.getAccounts();
+			const accounts = await privates.get(this).keyring.getAccounts();
 			if (accounts.length > 0) {
 				vault = await this.fullUpdate();
 			} else {
-				vault = await this.keyring.createNewVaultAndKeychain(password);
-				preferences.updateIdentities(await this.keyring.getAccounts());
+				vault = await privates.get(this).keyring.createNewVaultAndKeychain(password);
+				preferences.updateIdentities(await privates.get(this).keyring.getAccounts());
 				preferences.update({ selectedAddress: Object.keys(preferences.state.identities)[0] });
 			}
 			releaseLock();
@@ -166,7 +165,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @returns - Promise resolving to the private key for an address
 	 */
 	exportAccount(address: string): Promise<string> {
-		return this.keyring.exportAccount(address);
+		return privates.get(this).keyring.exportAccount(address);
 	}
 
 	/**
@@ -175,7 +174,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @returns - A promise resolving to an array of addresses
 	 */
 	getAccounts(): Promise<string> {
-		return this.keyring.getAccounts;
+		return privates.get(this).keyring.getAccounts;
 	}
 
 	/**
@@ -211,9 +210,9 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 				privateKey = ethUtil.bufferToHex(wallet.getPrivateKey());
 				break;
 		}
-		const newKeyring = await this.keyring.addNewKeyring(KeyringTypes.simple, [privateKey]);
+		const newKeyring = await privates.get(this).keyring.addNewKeyring(KeyringTypes.simple, [privateKey]);
 		const accounts = await newKeyring.getAccounts();
-		const allAccounts = await this.keyring.getAccounts();
+		const allAccounts = await privates.get(this).keyring.getAccounts();
 		preferences.updateIdentities(allAccounts);
 		preferences.update({ selectedAddress: accounts[0] });
 	}
@@ -227,7 +226,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	async removeAccount(address: string) {
 		const preferences = this.context.PreferencesController as PreferencesController;
 		preferences.removeIdentity(address);
-		await this.keyring.removeAccount(address);
+		await privates.get(this).keyring.removeAccount(address);
 	}
 
 	/**
@@ -236,7 +235,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @returns - Promise resolving to current state
 	 */
 	setLocked(): Promise<KeyringState> {
-		return this.keyring.setLocked();
+		return privates.get(this).keyring.setLocked();
 	}
 
 	/**
@@ -246,7 +245,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @returns - Promise resolving to a signed message string
 	 */
 	signMessage(messageParams: PersonalMessageParams) {
-		return this.keyring.signMessage(messageParams);
+		return privates.get(this).keyring.signMessage(messageParams);
 	}
 
 	/**
@@ -256,7 +255,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @returns - Promise resolving to a signed message string
 	 */
 	signPersonalMessage(messageParams: PersonalMessageParams) {
-		return this.keyring.signPersonalMessage(messageParams);
+		return privates.get(this).keyring.signPersonalMessage(messageParams);
 	}
 
 	/**
@@ -290,7 +289,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @returns - Promise resolving to a signed transaction string
 	 */
 	signTransaction(transaction: Transaction, from: string) {
-		return this.keyring.signTransaction(transaction, from);
+		return privates.get(this).keyring.signTransaction(transaction, from);
 	}
 
 	/**
@@ -301,8 +300,8 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 */
 	async submitPassword(password: string) {
 		const preferences = this.context.PreferencesController as PreferencesController;
-		await this.keyring.submitPassword(password);
-		const accounts = await this.keyring.getAccounts();
+		await privates.get(this).keyring.submitPassword(password);
+		const accounts = await privates.get(this).keyring.getAccounts();
 		await preferences.syncIdentities(accounts);
 		return this.fullUpdate();
 	}
@@ -313,7 +312,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @param listener - Callback triggered when state changes
 	 */
 	subscribe(listener: Listener<KeyringState>) {
-		this.keyring.store.subscribe(listener);
+		privates.get(this).keyring.store.subscribe(listener);
 	}
 
 	/**
@@ -323,7 +322,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @returns - True if a listener is found and unsubscribed
 	 */
 	unsubscribe(listener: Listener<KeyringState>) {
-		return this.keyring.store.unsubscribe(listener);
+		return privates.get(this).keyring.store.unsubscribe(listener);
 	}
 
 	/**
@@ -332,7 +331,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @returns - Promise resolving if the verification succeeds
 	 */
 	async verifySeedPhrase() {
-		const primaryKeyring = this.keyring.getKeyringsByType(KeyringTypes.hd)[0];
+		const primaryKeyring = privates.get(this).keyring.getKeyringsByType(KeyringTypes.hd)[0];
 		if (!primaryKeyring) {
 			throw new Error('No HD keyring found.');
 		}
@@ -343,7 +342,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 			throw new Error('Cannot verify an empty keyring.');
 		}
 
-		const TestKeyringClass = this.keyring.getKeyringClassForType(KeyringTypes.hd);
+		const TestKeyringClass = privates.get(this).keyring.getKeyringClassForType(KeyringTypes.hd);
 		const testKeyring = new TestKeyringClass({ mnemonic: seedWords, numberOfAccounts: accounts.length });
 		const testAccounts = await testKeyring.getAccounts();
 		if (testAccounts.length !== accounts.length) {
@@ -361,7 +360,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 
 	async fullUpdate() {
 		const keyrings = await Promise.all(
-			this.keyring.keyrings.map(async (keyring: KeyringObject, index: number) => {
+			privates.get(this).keyring.keyrings.map(async (keyring: KeyringObject, index: number) => {
 				const keyringAccounts = await keyring.getAccounts();
 				const accounts = Array.isArray(keyringAccounts)
 					? keyringAccounts.map((address) => toChecksumAddress(address))
@@ -374,7 +373,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 			})
 		);
 		this.update({ keyrings: [...keyrings] });
-		return this.keyring.fullUpdate();
+		return privates.get(this).keyring.fullUpdate();
 	}
 }
 
