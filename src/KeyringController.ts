@@ -159,6 +159,15 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	}
 
 	/**
+	 * Returns the status of the vault
+	 *
+	 * @returns - Boolean returning true if the vault is unlocked
+	 */
+	isUnlocked(): boolean {
+		return privates.get(this).keyring.memStore.getState().isUnlocked;
+	}
+
+	/**
 	 * Gets the private key from the keyring controlling an address
 	 *
 	 * @param address - Address to export
