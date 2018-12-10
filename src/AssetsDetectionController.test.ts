@@ -10,6 +10,7 @@ import { AssetsContractController } from './AssetsContractController';
 const BN = require('ethereumjs-util').BN;
 const HttpProvider = require('ethjs-provider-http');
 const DEFAULT_INTERVAL = 180000;
+const MAINNET = 'mainnet';
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
 const GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
 const CKADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
@@ -34,13 +35,13 @@ describe('AssetsDetectionController', () => {
 	});
 
 	afterEach(() => {
-		sandbox.restore();
+		sandbox.reset();
 	});
 
 	it('should set default config', () => {
 		expect(assetsDetection.config).toEqual({
 			interval: DEFAULT_INTERVAL,
-			providerType: '',
+			networkType: 'ropsten',
 			selectedAddress: '',
 			tokens: []
 		});
@@ -56,7 +57,7 @@ describe('AssetsDetectionController', () => {
 
 	it('should poll and detect assets on interval while mainnet', () => {
 		const clock = sandbox.useFakeTimers();
-		assetsDetection.configure({ providerType: 'mainnet' });
+		assetsDetection.configure({ networkType: MAINNET });
 		const detectTokens = sandbox.stub(assetsDetection, 'detectTokens').returns(null);
 		const detectCollectibles = sandbox.stub(assetsDetection, 'detectCollectibles').returns(null);
 		clock.tick(180001);
@@ -71,7 +72,7 @@ describe('AssetsDetectionController', () => {
 		clock.tick(180001);
 		expect(detectTokens.called).toBe(false);
 		expect(detectCollectibles.called).toBe(false);
-		assetsDetection.configure({ providerType: 'mainnet' });
+		assetsDetection.configure({ networkType: MAINNET });
 		clock.tick(180001);
 		expect(detectTokens.called).toBe(true);
 		expect(detectCollectibles.called).toBe(true);
@@ -79,7 +80,7 @@ describe('AssetsDetectionController', () => {
 
 	it('should call detect tokens correctly', () => {
 		const clock = sandbox.useFakeTimers();
-		assetsDetection.configure({ providerType: 'mainnet' });
+		assetsDetection.configure({ networkType: MAINNET });
 		const detectTokenOwnership = sandbox.stub(assetsDetection, 'detectTokenOwnership').returns(null);
 		const detectCollectibles = sandbox.stub(assetsDetection, 'detectCollectibles').returns(null);
 		clock.tick(180001);
@@ -89,7 +90,7 @@ describe('AssetsDetectionController', () => {
 
 	it('should call detect collectibles correctly', () => {
 		const clock = sandbox.useFakeTimers();
-		assetsDetection.configure({ providerType: 'mainnet' });
+		assetsDetection.configure({ networkType: MAINNET });
 		const detectTokens = sandbox.stub(assetsDetection, 'detectTokens').returns(null);
 		const detectCollectibleOwnership = sandbox.stub(assetsDetection, 'detectCollectibleOwnership').returns(null);
 		clock.tick(180001);
@@ -98,7 +99,7 @@ describe('AssetsDetectionController', () => {
 	});
 
 	it('should detect tokens correctly', async () => {
-		assetsDetection.configure({ providerType: 'mainnet' });
+		assetsDetection.configure({ networkType: MAINNET });
 		sandbox
 			.stub(assetsContract, 'getBalanceOf')
 			.returns(new BN(0))
@@ -115,15 +116,15 @@ describe('AssetsDetectionController', () => {
 	});
 
 	it('should detect enumerable collectibles correctly', async () => {
-		getOnce('https://api.godsunchained.com/card/0', () => ({
-			body: JSON.stringify({ image: 'https://api.godsunchained.com/v0/image/380', name: 'First Pheonix' })
-		}));
 		assetsDetection.configure({
-			providerType: 'mainnet',
+			networkType: MAINNET,
 			selectedAddress: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d'
 		});
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
-		sandbox.stub(assetsContract, 'getBalanceOf').returns(new BN(1));
+		getOnce('https://api.godsunchained.com/card/0', () => ({
+			body: JSON.stringify({ image: 'https://api.godsunchained.com/v0/image/380', name: 'First Pheonix' })
+		}));
+		sandbox.stub(assetsContract, 'getBalanceOf').returns(new Promise((resolve) => resolve(new BN(2))));
 		sandbox.stub(assetsContract, 'getCollectibleTokenId').returns(new Promise((resolve) => resolve(0)));
 		await assetsDetection.detectCollectibleOwnership(GODSADDRESS);
 		expect(assets.state.collectibles).toEqual([
@@ -151,7 +152,7 @@ describe('AssetsDetectionController', () => {
 			})
 		}));
 		assetsDetection.configure({
-			providerType: 'mainnet',
+			networkType: MAINNET,
 			selectedAddress: '0xb161330dc0d6a9e1cb441b3f2593ba689136b4e4'
 		});
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
@@ -169,7 +170,7 @@ describe('AssetsDetectionController', () => {
 
 	it('should not detect asset ownership when no balance of', async () => {
 		assetsDetection.configure({
-			providerType: 'mainnet',
+			networkType: MAINNET,
 			selectedAddress: '0xb1690C08E213a35Ed9bAb7B318DE14420FB57d8C'
 		});
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
@@ -183,15 +184,15 @@ describe('AssetsDetectionController', () => {
 		expect(addToken.called).toBe(false);
 	});
 
-	it('should not detect asset ownership when address in contract metadata', async () => {
-		assetsDetection.configure({ providerType: 'mainnet' });
+	it('should not detect asset ownership when address not in contract metadata', async () => {
+		assetsDetection.configure({ networkType: MAINNET });
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
 		sandbox.stub(assetsContract, 'getBalanceOf').returns(new BN(1));
 		const getEnumerableCollectiblesIds = sandbox
 			.stub(assetsDetection, 'getEnumerableCollectiblesIds' as any)
 			.returns(false);
 		const getApiCollectiblesIds = sandbox.stub(assetsDetection, 'getApiCollectiblesIds' as any).returns(false);
-		await assetsDetection.detectCollectibleOwnership('0xfoo');
+		await assetsDetection.detectCollectibleOwnership('0xb1690C08E213a35Ed9bAb7B318DE14420FB57d8C');
 		expect(getEnumerableCollectiblesIds.called).toBe(false);
 		expect(getApiCollectiblesIds.called).toBe(false);
 	});
