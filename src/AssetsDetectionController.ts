@@ -166,7 +166,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		const assetsContractController = this.context.AssetsContractController as AssetsContractController;
 		const { selectedAddress } = this.config;
 		const balance = await assetsContractController.getBalanceOf(address, selectedAddress);
-		if (balance.toNumber() !== 0) {
+		if (!balance.isZero()) {
 			await assetsController.addToken(address, contractMap[address].symbol, contractMap[address].decimals);
 		}
 	}
@@ -181,7 +181,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		const assetsController = this.context.AssetsController as AssetsController;
 		const { selectedAddress } = this.config;
 		const balance = await assetsContractController.getBalanceOf(address, selectedAddress);
-		if (balance.toNumber() !== 0) {
+		if (!balance.isZero()) {
 			let collectibleIds: CollectibleEntry[] = [];
 			const contractApiDefined =
 				contractMap[address] && contractMap[address].api && contractMap[address].owner_api;

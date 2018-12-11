@@ -100,7 +100,7 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 *
 	 * @param address - Asset contract address
 	 * @param selectedAddress - Current account public address
-	 * @returns - Promise resolving to balance for current account on specific asset contract
+	 * @returns - Promise resolving to BN object containing balance for current account on specific asset contract
 	 */
 	async getBalanceOf(address: string, selectedAddress: string): Promise<typeof BN> {
 		const contract = this.web3.eth.contract(abiERC20).at(address);
