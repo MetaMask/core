@@ -6,6 +6,17 @@ import CurrencyRateController from './CurrencyRateController';
 const { toChecksumAddress } = require('ethereumjs-util');
 
 /**
+ * @type Balanc3Response
+ *
+ * Balanc3 API response representation
+ *
+ * @property prices - Array of prices, corresponding to objects with pair and price
+ */
+export interface Balanc3Response {
+	prices: Array<{ pair: string; price: number }>;
+}
+
+/**
  * @type Token
  *
  * Token representation
@@ -108,12 +119,12 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	}
 
 	/**
-	 * Fetches a token exchange rate by address
+	 * Fetches a pairs of token address and native currency
 	 *
-	 * @param query - Query according to tokens in tokenList
+	 * @param query - Query according to tokens in tokenList and native currency
 	 * @returns - Promise resolving to exchange rates for given pairs
 	 */
-	async fetchExchangeRate(query: string): Promise<{ prices: Array<{ pair: string; price: number }> }> {
+	async fetchExchangeRate(query: string): Promise<Balanc3Response> {
 		const response = await fetch(this.getPricingURL(query));
 		const json = await response.json();
 		return json;
