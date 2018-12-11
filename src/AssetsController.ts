@@ -121,7 +121,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		if (!supportsMetadata) {
 			return '';
 		}
-		return await assetsContract.getCollectibleTokenURI(contract.address, tokenId);
+		const tokenURI = await assetsContract.getCollectibleTokenURI(contract.address, tokenId);
+		return tokenURI;
 	}
 
 	/**

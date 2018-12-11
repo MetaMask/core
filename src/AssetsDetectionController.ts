@@ -219,7 +219,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		for (const address in contractMap) {
 			const contract = contractMap[address];
 			if (contract.erc20 && !(address in tokensAddresses)) {
-				await this.detectTokenOwnership(address);
+				await safelyExecute(async () => await this.detectTokenOwnership(address));
 			}
 		}
 	}
@@ -231,7 +231,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		for (const address in contractMap) {
 			const contract = contractMap[address];
 			if (contract.erc721) {
-				await this.detectCollectibleOwnership(address);
+				await safelyExecute(async () => await this.detectCollectibleOwnership(address));
 			}
 		}
 	}
