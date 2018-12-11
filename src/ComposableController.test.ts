@@ -6,6 +6,7 @@ import TokenRatesController from './TokenRatesController';
 import { AssetsController } from './AssetsController';
 import { NetworkController } from './NetworkController';
 import { AssetsContractController } from './AssetsContractController';
+import CurrencyRateController from './CurrencyRateController';
 
 describe('ComposableController', () => {
 	it('should compose controller state', () => {
@@ -13,6 +14,7 @@ describe('ComposableController', () => {
 			new AddressBookController(),
 			new AssetsController(),
 			new AssetsContractController(),
+			new CurrencyRateController(),
 			new NetworkController(),
 			new PreferencesController(),
 			new TokenRatesController()
@@ -21,6 +23,12 @@ describe('ComposableController', () => {
 			AddressBookController: { addressBook: [] },
 			AssetsContractController: {},
 			AssetsController: { allTokens: {}, allCollectibles: {}, collectibles: [], tokens: [] },
+			CurrencyRateController: {
+				conversionDate: 0,
+				conversionRate: 0,
+				currentCurrency: 'usd',
+				nativeCurrency: 'eth'
+			},
 			NetworkController: {
 				network: 'loading',
 				provider: { type: 'rinkeby' }
@@ -41,6 +49,7 @@ describe('ComposableController', () => {
 			new AddressBookController(),
 			new AssetsController(),
 			new AssetsContractController(),
+			new CurrencyRateController(),
 			new NetworkController(),
 			new PreferencesController(),
 			new TokenRatesController()
@@ -51,10 +60,14 @@ describe('ComposableController', () => {
 			allTokens: {},
 			collectibles: [],
 			contractExchangeRates: {},
+			conversionDate: 0,
+			conversionRate: 0,
+			currentCurrency: 'usd',
 			featureFlags: {},
 			frequentRpcList: [],
 			identities: {},
 			lostIdentities: {},
+			nativeCurrency: 'eth',
 			network: 'loading',
 			provider: { type: 'rinkeby' },
 			selectedAddress: '',
@@ -67,6 +80,7 @@ describe('ComposableController', () => {
 			new AddressBookController(),
 			new AssetsController(),
 			new AssetsContractController(),
+			new CurrencyRateController(),
 			new NetworkController(),
 			new PreferencesController(),
 			new TokenRatesController()
@@ -81,10 +95,14 @@ describe('ComposableController', () => {
 			allTokens: {},
 			collectibles: [],
 			contractExchangeRates: {},
+			conversionDate: 0,
+			conversionRate: 0,
+			currentCurrency: 'usd',
 			featureFlags: {},
 			frequentRpcList: [],
 			identities: {},
 			lostIdentities: {},
+			nativeCurrency: 'eth',
 			network: 'loading',
 			provider: { type: 'rinkeby' },
 			selectedAddress: '',
