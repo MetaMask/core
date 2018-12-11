@@ -97,7 +97,7 @@ describe('TokenBalancesController', () => {
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assets, assetsContract, network, preferences, tokenBalances]);
 		const updateBalances = sandbox.stub(tokenBalances, 'updateBalances');
-		assets.addToken('0xfoO', 'FOO', 18);
+		await assets.addToken('0xfoO', 'FOO', 18);
 		const tokens = tokenBalances.context.AssetsController.state.tokens;
 		const found = tokens.filter((token: Token) => token.address === '0xfoO');
 		expect(found.length > 0).toBe(true);

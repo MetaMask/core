@@ -167,7 +167,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		const { selectedAddress } = this.config;
 		const balance = await assetsContractController.getBalanceOf(address, selectedAddress);
 		if (balance.toNumber() !== 0) {
-			assetsController.addToken(address, contractMap[address].symbol, contractMap[address].decimals);
+			await assetsController.addToken(address, contractMap[address].symbol, contractMap[address].decimals);
 		}
 	}
 

@@ -79,7 +79,7 @@ describe('TokenRatesController', () => {
 		const preferences = new PreferencesController();
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([controller, assets, assetsContract, network, preferences]);
-		assets.addToken('0xfoO', 'FOO', 18);
+		await assets.addToken('0xfoO', 'FOO', 18);
 		const tokens = controller.context.AssetsController.state.tokens;
 		const found = tokens.filter((token: Token) => token.address === '0xfoO');
 		expect(found.length > 0).toBe(true);

@@ -42,14 +42,14 @@ describe('AssetsController', () => {
 		});
 	});
 
-	it('should add token', () => {
-		assetsController.addToken('foo', 'bar', 2);
+	it('should add token', async () => {
+		await assetsController.addToken('foo', 'bar', 2);
 		expect(assetsController.state.tokens[0]).toEqual({
 			address: '0xfoO',
 			decimals: 2,
 			symbol: 'bar'
 		});
-		assetsController.addToken('foo', 'baz', 2);
+		await assetsController.addToken('foo', 'baz', 2);
 		expect(assetsController.state.tokens[0]).toEqual({
 			address: '0xfoO',
 			decimals: 2,
@@ -57,12 +57,12 @@ describe('AssetsController', () => {
 		});
 	});
 
-	it('should add token by selected address', () => {
+	it('should add token by selected address', async () => {
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
 
 		preferences.update({ selectedAddress: firstAddress });
-		assetsController.addToken('foo', 'bar', 2);
+		await assetsController.addToken('foo', 'bar', 2);
 		preferences.update({ selectedAddress: secondAddress });
 		expect(assetsController.state.tokens.length).toEqual(0);
 		preferences.update({ selectedAddress: firstAddress });
@@ -73,11 +73,11 @@ describe('AssetsController', () => {
 		});
 	});
 
-	it('should add token by provider type', () => {
+	it('should add token by provider type', async () => {
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
 		network.update({ provider: { type: firstNetworkType } });
-		assetsController.addToken('foo', 'bar', 2);
+		await assetsController.addToken('foo', 'bar', 2);
 		network.update({ provider: { type: secondNetworkType } });
 		expect(assetsController.state.tokens.length).toEqual(0);
 		network.update({ provider: { type: firstNetworkType } });
@@ -88,19 +88,19 @@ describe('AssetsController', () => {
 		});
 	});
 
-	it('should remove token', () => {
-		assetsController.addToken('foo', 'bar', 2);
+	it('should remove token', async () => {
+		await assetsController.addToken('foo', 'bar', 2);
 		assetsController.removeToken('0xfoO');
 		expect(assetsController.state.tokens.length).toBe(0);
 	});
 
-	it('should remove token by selected address', () => {
+	it('should remove token by selected address', async () => {
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
 		preferences.update({ selectedAddress: firstAddress });
-		assetsController.addToken('fou', 'baz', 2);
+		await assetsController.addToken('fou', 'baz', 2);
 		preferences.update({ selectedAddress: secondAddress });
-		assetsController.addToken('foo', 'bar', 2);
+		await assetsController.addToken('foo', 'bar', 2);
 		assetsController.removeToken('0xfoO');
 		expect(assetsController.state.tokens.length).toEqual(0);
 		preferences.update({ selectedAddress: firstAddress });
@@ -111,13 +111,13 @@ describe('AssetsController', () => {
 		});
 	});
 
-	it('should remove token by provider type', () => {
+	it('should remove token by provider type', async () => {
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
 		network.update({ provider: { type: firstNetworkType } });
-		assetsController.addToken('fou', 'baz', 2);
+		await assetsController.addToken('fou', 'baz', 2);
 		network.update({ provider: { type: secondNetworkType } });
-		assetsController.addToken('foo', 'bar', 2);
+		await assetsController.addToken('foo', 'bar', 2);
 		assetsController.removeToken('0xfoO');
 		expect(assetsController.state.tokens.length).toEqual(0);
 		network.update({ provider: { type: firstNetworkType } });
@@ -228,11 +228,11 @@ describe('AssetsController', () => {
 		});
 	});
 
-	it('should remove collectible', () => {
+	it('should remove collectible', async () => {
 		sandbox
 			.stub(assetsController, 'getCollectibleCustomInformation' as any)
 			.returns({ name: 'name', image: 'url' });
-		assetsController.addCollectible('0xfoO', 1234);
+		await assetsController.addCollectible('0xfoO', 1234);
 		assetsController.removeCollectible('0xfoO', 1234);
 		expect(assetsController.state.collectibles.length).toBe(0);
 	});
@@ -329,7 +329,7 @@ describe('AssetsController', () => {
 			.stub(assetsController, 'getCollectibleCustomInformation' as any)
 			.returns({ name: 'name', image: 'url' });
 		await assetsController.addCollectible('foo', 1234);
-		assetsController.addToken('foo', 'bar', 2);
+		await assetsController.addToken('foo', 'bar', 2);
 		expect(assetsController.state.tokens).toEqual(TOKENS);
 		expect(assetsController.state.collectibles).toEqual(COLLECTIBLES);
 	});

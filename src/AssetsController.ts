@@ -8,6 +8,7 @@ import { manageCollectibleImage } from './util';
 
 const contractMap = require('eth-contract-metadata');
 const { toChecksumAddress } = require('ethereumjs-util');
+const Mutex = require('await-semaphore').Mutex;
 
 /**
  * @type Collectible
@@ -102,6 +103,7 @@ export interface AssetsState extends BaseState {
  * Controller that stores assets and exposes convenience methods
  */
 export class AssetsController extends BaseController<AssetsConfig, AssetsState> {
+	private mutex = new Mutex();
 	/**
 	 * Get collectible tokenURI API
 	 *
@@ -190,7 +192,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param decimals - Number of decimals the token uses
 	 * @returns - Current token list
 	 */
-	addToken(address: string, symbol: string, decimals: number) {
+	async addToken(address: string, symbol: string, decimals: number) {
+		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
 		const { allTokens, tokens } = this.state;
 		const { networkType, selectedAddress } = this.config;
@@ -207,6 +210,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newAddressTokens } };
 		const newTokens = [...tokens];
 		this.update({ allTokens: newAllTokens, tokens: newTokens });
+		releaseLock();
 		return newTokens;
 	}
 
@@ -218,6 +222,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @returns - Promise resolving to the current collectible list
 	 */
 	async addCollectible(address: string, tokenId: number): Promise<Collectible[]> {
+		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
 		const { allCollectibles, collectibles } = this.state;
 		const { networkType, selectedAddress } = this.config;
@@ -225,6 +230,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			(collectible) => collectible.address === address && collectible.tokenId === tokenId
 		);
 		if (existingEntry) {
+			releaseLock();
 			return collectibles;
 		}
 		const { name, image } = await this.getCollectibleCustomInformation(address, tokenId);
@@ -234,6 +240,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
 		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
 		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
+		releaseLock();
 		return newCollectibles;
 	}
 
