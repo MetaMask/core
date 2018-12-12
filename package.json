@@ -90,6 +90,6 @@
     "percentile": "^1.2.1",
     "uuid": "^3.3.2",
     "web3": "^0.20.7",
-    "web3-provider-engine": "^14.0.5"
+    "web3-provider-engine": "github:metamask/provider-engine#feature/getaccounts-payload"
   }
 }
