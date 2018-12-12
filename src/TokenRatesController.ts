@@ -2,6 +2,19 @@ import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import AssetsController from './AssetsController';
 import { safelyExecute } from './util';
+import CurrencyRateController from './CurrencyRateController';
+const { toChecksumAddress } = require('ethereumjs-util');
+
+/**
+ * @type Balanc3Response
+ *
+ * Balanc3 API response representation
+ *
+ * @property prices - Array of prices, corresponding to objects with pair and price
+ */
+export interface Balanc3Response {
+	prices: Array<{ pair: string; price: number }>;
+}
 
 /**
  * @type Token
@@ -28,6 +41,7 @@ export interface Token {
  */
 export interface TokenRatesConfig extends BaseConfig {
 	interval: number;
+	nativeCurrency: string;
 	tokens: Token[];
 }
 
@@ -50,8 +64,8 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	private handle?: NodeJS.Timer;
 	private tokenList: Token[] = [];
 
-	private getPricingURL(address: string) {
-		return `https://metamask.balanc3.net/prices?from=${address}&to=ETH&autoConversion=false&summaryOnly=true`;
+	private getPricingURL(query: string) {
+		return `https://exchanges.balanc3.net/pie?${query}&autoConversion=true`;
 	}
 
 	/**
@@ -62,7 +76,7 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	/**
 	 * List of required sibling controllers this controller needs to function
 	 */
-	requiredControllers = ['AssetsController'];
+	requiredControllers = ['AssetsController', 'CurrencyRateController'];
 
 	/**
 	 * Creates a TokenRatesController instance
@@ -74,6 +88,7 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 		super(config, state);
 		this.defaultConfig = {
 			interval: 180000,
+			nativeCurrency: 'eth',
 			tokens: []
 		};
 		this.defaultState = { contractExchangeRates: {} };
@@ -104,15 +119,15 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	}
 
 	/**
-	 * Fetches a token exchange rate by address
+	 * Fetches a pairs of token address and native currency
 	 *
-	 * @param address - Token contract address
-	 * @returns - Promise resolving to exchange rate for given contract address
+	 * @param query - Query according to tokens in tokenList and native currency
+	 * @returns - Promise resolving to exchange rates for given pairs
 	 */
-	async fetchExchangeRate(address: string): Promise<number> {
-		const response = await fetch(this.getPricingURL(address));
+	async fetchExchangeRate(query: string): Promise<Balanc3Response> {
+		const response = await fetch(this.getPricingURL(query));
 		const json = await response.json();
-		return json && json.length ? json[0].averagePrice : /* istanbul ignore next */ 0;
+		return json;
 	}
 
 	/**
@@ -122,8 +137,12 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	onComposed() {
 		super.onComposed();
 		const assets = this.context.AssetsController as AssetsController;
+		const currencyRate = this.context.CurrencyRateController as CurrencyRateController;
 		assets.subscribe(() => {
 			this.configure({ tokens: assets.state.tokens });
+		});
+		currencyRate.subscribe(() => {
+			this.configure({ nativeCurrency: currencyRate.state.nativeCurrency });
 		});
 	}
 
@@ -133,14 +152,18 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	 * @returns Promise resolving when this operation completes
 	 */
 	async updateExchangeRates() {
-		if (this.disabled) {
+		if (this.disabled || this.tokenList.length === 0) {
 			return;
 		}
 		const newContractExchangeRates: { [address: string]: number } = {};
-		for (const i in this.tokenList) {
-			const address = this.tokenList[i].address;
-			newContractExchangeRates[address] = await this.fetchExchangeRate(address);
-		}
+		const { nativeCurrency } = this.config;
+		const pairs = this.tokenList.map((token) => `pairs[]=${token.address}/${nativeCurrency}`);
+		const query = pairs.join('&');
+		const { prices = [] } = await this.fetchExchangeRate(query);
+		prices.forEach(({ pair, price }) => {
+			const address = toChecksumAddress(pair.split('/')[0].toLowerCase());
+			newContractExchangeRates[address] = typeof price === 'number' ? price : 0;
+		});
 		this.update({ contractExchangeRates: newContractExchangeRates });
 	}
 }
