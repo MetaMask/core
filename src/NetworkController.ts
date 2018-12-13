@@ -168,11 +168,11 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	 * Refreshes the current network code
 	 */
 	async lookupNetwork() {
-		const releaseLock = await this.mutex.acquire();
 		/* istanbul ignore if */
 		if (!this.ethQuery || !this.ethQuery.sendAsync) {
 			return;
 		}
+		const releaseLock = await this.mutex.acquire();
 		this.ethQuery.sendAsync({ method: 'net_version' }, (error: Error, network: string) => {
 			this.update({ network: error ? /* istanbul ignore next*/ 'loading' : network });
 			releaseLock();
