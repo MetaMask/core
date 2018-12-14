@@ -168,13 +168,30 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	}
 
 	/**
+	 * Gets the seed phrase of the HD keyring
+	 *
+	 * @param password - Password of the keyring
+	 * @returns - Promise resolving to the seed phrase
+	 */
+	exportSeedPhrase(password: string): Promise<string> {
+		if (privates.get(this).keyring.password === password) {
+			return privates.get(this).keyring.keyrings[0].mnemonic;
+		}
+		throw new Error('Invalid password');
+	}
+
+	/**
 	 * Gets the private key from the keyring controlling an address
 	 *
+	 * @param password - Password of the keyring
 	 * @param address - Address to export
 	 * @returns - Promise resolving to the private key for an address
 	 */
-	exportAccount(address: string): Promise<string> {
-		return privates.get(this).keyring.exportAccount(address);
+	exportAccount(password: string, address: string): Promise<string> {
+		if (privates.get(this).keyring.password === password) {
+			return privates.get(this).keyring.exportAccount(address);
+		}
+		throw new Error('Invalid password');
 	}
 
 	/**
@@ -277,7 +294,8 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	async signTypedMessage(messageParams: TypedMessageParams, version: string) {
 		try {
 			const address = sigUtil.normalize(messageParams.from);
-			const privateKey = await this.exportAccount(address);
+			const password = privates.get(this).keyring.password;
+			const privateKey = await this.exportAccount(password, address);
 			const privateKeyBuffer = ethUtil.toBuffer(ethUtil.addHexPrefix(privateKey));
 			switch (version) {
 				case 'V1':
