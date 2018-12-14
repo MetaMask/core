@@ -1,6 +1,6 @@
 {
   "name": "gaba",
-  "version": "1.0.0-beta.47",
+  "version": "1.0.0-beta.50",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "license": "MIT",
   "scripts": {
@@ -90,6 +90,6 @@
     "percentile": "^1.2.1",
     "uuid": "^3.3.2",
     "web3": "^0.20.7",
-    "web3-provider-engine": "^14.0.5"
+    "web3-provider-engine": "github:metamask/provider-engine#feature/getaccounts-payload"
   }
 }

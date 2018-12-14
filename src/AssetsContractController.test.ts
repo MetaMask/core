@@ -28,7 +28,7 @@ describe('AssetsContractController', () => {
 	it('should get balance of contract correctly', async () => {
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
 		const CKBalance = await assetsContract.getBalanceOf(CKADDRESS, '0xb1690c08e213a35ed9bab7b318de14420fb57d8c');
-		const CKNoBalance = await assetsContract.getBalanceOf(CKADDRESS, '0xfoO');
+		const CKNoBalance = await assetsContract.getBalanceOf(CKADDRESS, '0xb1690c08e213a35ed9bab7b318de14420fb57d81');
 		expect(CKBalance.toNumber()).not.toEqual(0);
 		expect(CKNoBalance.toNumber()).toEqual(0);
 	});

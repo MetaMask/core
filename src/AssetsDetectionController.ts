@@ -6,6 +6,7 @@ import PreferencesController from './PreferencesController';
 import AssetsContractController from './AssetsContractController';
 import { safelyExecute } from './util';
 import { Token } from './TokenRatesController';
+import { NetworkType } from './NetworkController';
 
 const contractMap = require('eth-contract-metadata');
 const DEFAULT_INTERVAL = 180000;
@@ -28,13 +29,13 @@ export interface CollectibleEntry {
  * Assets controller configuration
  *
  * @property interval - Polling interval used to fetch new token rates
- * @property providerType - Provider type network ID as per net_version
+ * @property networkType - Network type ID as per net_version
  * @property selectedAddress - Vault selected address
  * @property tokens - List of tokens associated with the active vault
  */
 export interface AssetsDetectionConfig extends BaseConfig {
 	interval: number;
-	providerType: string;
+	networkType: NetworkType;
 	selectedAddress: string;
 	tokens: Token[];
 }
@@ -136,7 +137,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		super(config, state);
 		this.defaultConfig = {
 			interval: DEFAULT_INTERVAL,
-			providerType: '',
+			networkType: 'ropsten',
 			selectedAddress: '',
 			tokens: []
 		};
@@ -165,8 +166,8 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		const assetsContractController = this.context.AssetsContractController as AssetsContractController;
 		const { selectedAddress } = this.config;
 		const balance = await assetsContractController.getBalanceOf(address, selectedAddress);
-		if (balance.toNumber() !== 0) {
-			assetsController.addToken(address, contractMap[address].symbol, contractMap[address].decimals);
+		if (!balance.isZero()) {
+			await assetsController.addToken(address, contractMap[address].symbol, contractMap[address].decimals);
 		}
 	}
 
@@ -180,7 +181,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		const assetsController = this.context.AssetsController as AssetsController;
 		const { selectedAddress } = this.config;
 		const balance = await assetsContractController.getBalanceOf(address, selectedAddress);
-		if (balance.toNumber() !== 0) {
+		if (!balance.isZero()) {
 			let collectibleIds: CollectibleEntry[] = [];
 			const contractApiDefined =
 				contractMap[address] && contractMap[address].api && contractMap[address].owner_api;
@@ -203,7 +204,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 */
 	async detectAssets() {
 		/* istanbul ignore if */
-		if (this.config.providerType !== MAINNET || this.disabled) {
+		if (this.config.networkType !== MAINNET || this.disabled) {
 			return;
 		}
 		this.detectTokens();
@@ -218,7 +219,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		for (const address in contractMap) {
 			const contract = contractMap[address];
 			if (contract.erc20 && !(address in tokensAddresses)) {
-				await this.detectTokenOwnership(address);
+				await safelyExecute(async () => await this.detectTokenOwnership(address));
 			}
 		}
 	}
@@ -230,7 +231,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		for (const address in contractMap) {
 			const contract = contractMap[address];
 			if (contract.erc721) {
-				await this.detectCollectibleOwnership(address);
+				await safelyExecute(async () => await this.detectCollectibleOwnership(address));
 			}
 		}
 	}
@@ -255,7 +256,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			}
 		});
 		network.subscribe(({ provider }) => {
-			this.configure({ providerType: provider.type });
+			this.configure({ networkType: provider.type });
 		});
 	}
 }

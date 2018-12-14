@@ -34,27 +34,17 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 * @returns - Promise resolving to whether the contract implements `interfaceID`
 	 */
 	private async contractSupportsInterface(address: string, interfaceId: string): Promise<boolean> {
-		/* istanbul ignore if */
-		if (!this.web3) {
-			return false;
-		}
-		try {
-			const contract = this.web3.eth.contract(abiERC721).at(address);
-			return await new Promise<boolean>((resolve, reject) => {
-				contract.supportsInterface(interfaceId, (error: Error, result: boolean) => {
-					/* istanbul ignore if */
-					if (error) {
-						reject(error);
-						return;
-					}
-					resolve(result);
-				});
+		const contract = this.web3.eth.contract(abiERC721).at(address);
+		return new Promise<boolean>((resolve, reject) => {
+			contract.supportsInterface(interfaceId, (error: Error, result: boolean) => {
+				/* istanbul ignore if */
+				if (error) {
+					reject(error);
+					return;
+				}
+				resolve(result);
 			});
-		} catch (error) {
-			/* istanbul ignore next */
-			/* waiting for https://github.com/ethereum/web3.js/issues/1119 */
-			return false;
-		}
+		});
 	}
 
 	/**
@@ -110,30 +100,20 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 *
 	 * @param address - Asset contract address
 	 * @param selectedAddress - Current account public address
-	 * @returns - Promise resolving to balance for current account on specific asset contract
+	 * @returns - Promise resolving to BN object containing balance for current account on specific asset contract
 	 */
 	async getBalanceOf(address: string, selectedAddress: string): Promise<typeof BN> {
-		/* istanbul ignore if */
-		if (!this.web3) {
-			return new BN(0);
-		}
-		try {
-			const contract = this.web3.eth.contract(abiERC20).at(address);
-			return await new Promise<typeof BN>((resolve, reject) => {
-				contract.balanceOf(selectedAddress, (error: Error, result: typeof BN) => {
-					/* istanbul ignore if */
-					if (error) {
-						reject(error);
-						return;
-					}
-					resolve(result);
-				});
+		const contract = this.web3.eth.contract(abiERC20).at(address);
+		return new Promise<typeof BN>((resolve, reject) => {
+			contract.balanceOf(selectedAddress, (error: Error, result: typeof BN) => {
+				/* istanbul ignore if */
+				if (error) {
+					reject(error);
+					return;
+				}
+				resolve(result);
 			});
-		} catch (error) {
-			/* istanbul ignore next */
-			/* waiting for https://github.com/ethereum/web3.js/issues/1119 */
-			return new BN(0);
-		}
+		});
 	}
 
 	/**
@@ -166,27 +146,17 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 * @returns - Promise resolving to the 'tokenURI'
 	 */
 	async getCollectibleTokenURI(address: string, tokenId: number): Promise<string> {
-		/* istanbul ignore if */
-		if (!this.web3) {
-			return '';
-		}
-		try {
-			const contract = this.web3.eth.contract(abiERC721).at(address);
-			return await new Promise<string>((resolve, reject) => {
-				contract.tokenURI(tokenId, (error: Error, result: string) => {
-					/* istanbul ignore if */
-					if (error) {
-						reject(error);
-						return;
-					}
-					resolve(result);
-				});
+		const contract = this.web3.eth.contract(abiERC721).at(address);
+		return new Promise<string>((resolve, reject) => {
+			contract.tokenURI(tokenId, (error: Error, result: string) => {
+				/* istanbul ignore if */
+				if (error) {
+					reject(error);
+					return;
+				}
+				resolve(result);
 			});
-		} catch (error) {
-			/* istanbul ignore next */
-			/* waiting for https://github.com/ethereum/web3.js/issues/1119 */
-			return '';
-		}
+		});
 	}
 }
 

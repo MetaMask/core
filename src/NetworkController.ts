@@ -4,6 +4,7 @@ const EthQuery = require('eth-query');
 const Subprovider = require('web3-provider-engine/subproviders/provider.js');
 const createInfuraProvider = require('eth-json-rpc-infura/src/createProvider');
 const createMetamaskProvider = require('web3-provider-engine//zero.js');
+const Mutex = require('await-semaphore').Mutex;
 
 /**
  * Human-readable network name
@@ -54,6 +55,7 @@ const LOCALHOST_RPC_URL = 'http://localhost:8545';
 export class NetworkController extends BaseController<NetworkConfig, NetworkState> {
 	private ethQuery: any;
 	private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
+	private mutex = new Mutex();
 
 	private initializeProvider(type: NetworkType, rpcTarget?: string) {
 		switch (type) {
@@ -165,13 +167,15 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	/**
 	 * Refreshes the current network code
 	 */
-	lookupNetwork() {
+	async lookupNetwork() {
 		/* istanbul ignore if */
 		if (!this.ethQuery || !this.ethQuery.sendAsync) {
 			return;
 		}
+		const releaseLock = await this.mutex.acquire();
 		this.ethQuery.sendAsync({ method: 'net_version' }, (error: Error, network: string) => {
 			this.update({ network: error ? /* istanbul ignore next*/ 'loading' : network });
+			releaseLock();
 		});
 	}
 
