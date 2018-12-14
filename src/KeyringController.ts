@@ -141,15 +141,10 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 		const preferences = this.context.PreferencesController as PreferencesController;
 		const releaseLock = await this.mutex.acquire();
 		try {
-			let vault;
-			const accounts = await privates.get(this).keyring.getAccounts();
-			if (accounts.length > 0) {
-				vault = await this.fullUpdate();
-			} else {
-				vault = await privates.get(this).keyring.createNewVaultAndKeychain(password);
-				preferences.updateIdentities(await privates.get(this).keyring.getAccounts());
-				preferences.update({ selectedAddress: Object.keys(preferences.state.identities)[0] });
-			}
+			const vault = await privates.get(this).keyring.createNewVaultAndKeychain(password);
+			preferences.updateIdentities(await privates.get(this).keyring.getAccounts());
+			preferences.update({ selectedAddress: Object.keys(preferences.state.identities)[0] });
+			this.fullUpdate();
 			releaseLock();
 			return vault;
 		} catch (err) {
