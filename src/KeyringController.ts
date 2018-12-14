@@ -123,6 +123,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 			const vault = await privates.get(this).keyring.createNewVaultAndRestore(password, seed);
 			preferences.updateIdentities(await privates.get(this).keyring.getAccounts());
 			preferences.update({ selectedAddress: Object.keys(preferences.state.identities)[0] });
+			this.fullUpdate();
 			releaseLock();
 			return vault;
 		} catch (err) {
