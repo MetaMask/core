@@ -193,6 +193,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 			status,
 			time,
 			transaction: {
+				data: txMeta.input,
 				from: txMeta.from,
 				gas: BNToHex(new BN(txMeta.gas)),
 				gasPrice: BNToHex(new BN(txMeta.gasPrice)),
