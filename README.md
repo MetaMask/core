@@ -15,10 +15,11 @@ The **GABA** engine is a collection of platform-agnostic modules for creating se
     - [State management](#state-management)
     - [Subscription](#subscription)
     - [Composition](#composition)
-- [TypeScript](#why-typescript)
 - [Linking](#linking-during-development)
 - [API documentation](#api-documentation)
 - [License](#license)
+- [Appendix](#appendix)
+    - [TypeScript](#why-typescript)
 
 ## Usage
 
@@ -266,7 +267,37 @@ console.log(datamodel.flatState); // {infura: {...}, contractExchangeRates: [...
 
 **Advanced Note:** The ComposableController builds a map of all child controllers keyed by controller name. This object is cached as a `context` instance variable on both the ComposableController itself as well as all child GABA modules. This means that child modules can call methods on other sibling modules through the `context` variable, e.g. `this.context.SomeController.someMethod()`.
 
-## Why TypeScript?
+
+
+## Linking during development
+
+Linking GABA into other projects involves a special NPM command to ensure that dependencies are not duplicated. This is because GABA ships modules that are transpiled but not bundled, and [NPM does not deduplicate](https://github.com/npm/npm/issues/7742) linked dependency trees.
+
+1. Link GABA.
+
+	```sh
+	$ npm run build:link
+	```
+
+2. Link into other projects.
+
+	```sh
+	$ npm link gaba
+	```
+
+## API documentation
+
+API documentation is auto-generated for the GABA package on every commit to the `master` branch.
+
+[View API documentation](https://metamask.github.io/gaba/)
+
+## License
+
+[MIT](./LICENSE)
+
+## Appendix
+
+### Why TypeScript?
 
 The GABA engine is written using [TypeScript](https://www.typescriptlang.org/). Despite its arguably steeper learning curve compared to JavaScript, TypeScript offers an objectively safer development experience that directly improves the reliability and maintainability of a large codebase.
 
@@ -298,28 +329,4 @@ TypeScript automatically transpiles the latest ECMAScript language features to a
 
 All of these features of a statically-typed language like TypeScript combine to form codebases consisting of strict contractural relationships between every module in an application. Changes are less intimidating since unnoticed side effects are difficult to introduce, documentation can be generated with less verbose syntax (TSDoc is JSDoc without the types since it can infer them), editors provide autocompletion of both public module members and of local and NPM dependencies, and an upgrade to TypeScript can be incremental as demonstrated in this PR.
 
-## Linking during development
 
-Linking GABA into other projects involves a special NPM command to ensure that dependencies are not duplicated. This is because GABA ships modules that are transpiled but not bundled, and [NPM does not deduplicate](https://github.com/npm/npm/issues/7742) linked dependency trees.
-
-1. Link GABA.
-
-	```sh
-	$ npm run build:link
-	```
-
-2. Link into other projects.
-
-	```sh
-	$ npm link gaba
-	```
-
-## API documentation
-
-API documentation is auto-generated for the GABA package on every commit to the `master` branch.
-
-[View API documentation](https://metamask.github.io/gaba/)
-
-## License
-
-[MIT](./LICENSE)
