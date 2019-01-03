@@ -95,8 +95,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 		this.blockTracker && /* istanbul ignore next */ this.blockTracker.removeAllListeners();
 		this.ethjsQuery = new EthjsQuery(provider);
 		this.blockTracker = new BlockTracker({ provider });
-		this.blockTracker.on('block', this.refresh.bind(this));
-		this.blockTracker.start();
+		this.blockTracker.on('latest', this.refresh.bind(this));
 	}
 
 	/**
