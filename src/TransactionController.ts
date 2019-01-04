@@ -439,7 +439,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const network = this.context.NetworkController;
 		const currentNetworkID = network.state.network;
 		let gotUpdates = false;
-		safelyExecute(() =>
+		await safelyExecute(() =>
 			Promise.all(
 				transactions.map(async (meta, index) => {
 					if (meta.status === 'submitted' && meta.networkID === currentNetworkID) {
@@ -454,7 +454,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 				})
 			)
 		);
-		/* istanbul ignore next */
+		/* istanbul ignore else */
 		if (gotUpdates) {
 			this.update({ transactions: [...transactions] });
 		}

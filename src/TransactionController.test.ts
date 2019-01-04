@@ -153,6 +153,18 @@ describe('TransactionController', () => {
 		func.restore();
 	});
 
+	it('should not update the state if there are no updates on transaction statuses', () => {
+		return new Promise((resolve) => {
+			const controller = new TransactionController({ interval: 10 });
+			const func = stub(controller, 'update');
+			setTimeout(() => {
+				expect(func.called).toBe(false);
+				func.restore();
+				resolve();
+			}, 20);
+		});
+	});
+
 	it('should throw when adding invalid transaction', () => {
 		return new Promise(async (resolve) => {
 			const controller = new TransactionController();
@@ -340,6 +352,7 @@ describe('TransactionController', () => {
 				transactionHash: '1337'
 			} as any);
 			controller.state.transactions.push({} as any);
+
 			controller.hub.once(`${controller.state.transactions[0].id}:confirmed`, () => {
 				expect(controller.state.transactions[0].status).toBe('confirmed');
 				resolve();
