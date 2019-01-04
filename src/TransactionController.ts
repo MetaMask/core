@@ -454,6 +454,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 				})
 			)
 		);
+		/* istanbul ignore next */
 		if (gotUpdates) {
 			this.update({ transactions: [...transactions] });
 		}
