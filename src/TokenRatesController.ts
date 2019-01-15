@@ -65,7 +65,7 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	private tokenList: Token[] = [];
 
 	private getPricingURL(query: string) {
-		return `https://exchanges.balanc3.net/pie?${query}&autoConversion=true`;
+		return `https://exchanges.balanc3.net/pie?${query}&autoConversion=false`;
 	}
 
 	/**
