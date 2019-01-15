@@ -438,7 +438,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const { transactions } = this.state;
 		const network = this.context.NetworkController;
 		const currentNetworkID = network.state.network;
-		safelyExecute(() =>
+		let gotUpdates = false;
+		await safelyExecute(() =>
 			Promise.all(
 				transactions.map(async (meta, index) => {
 					if (meta.status === 'submitted' && meta.networkID === currentNetworkID) {
@@ -447,12 +448,16 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 						if (txObj && txObj.blockNumber) {
 							transactions[index].status = 'confirmed';
 							this.hub.emit(`${meta.id}:confirmed`, meta);
+							gotUpdates = true;
 						}
 					}
 				})
 			)
 		);
-		this.update({ transactions: [...transactions] });
+		/* istanbul ignore else */
+		if (gotUpdates) {
+			this.update({ transactions: [...transactions] });
+		}
 	}
 
 	/**
