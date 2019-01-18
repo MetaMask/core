@@ -48,4 +48,10 @@ describe('AssetsContractController', () => {
 		const tokenId = await assetsContract.getCollectibleTokenURI(GODSADDRESS, 0);
 		expect(tokenId).toEqual('https://api.godsunchained.com/card/0');
 	});
+
+	it('should get collectible ownership', async () => {
+		assetsContract.configure({ provider: MAINNET_PROVIDER });
+		const tokenId = await assetsContract.getOwnerOf(GODSADDRESS, 148332);
+		expect(tokenId).not.toEqual('');
+	});
 });
