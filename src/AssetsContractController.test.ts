@@ -53,6 +53,6 @@ describe('AssetsContractController', () => {
 	it('should get balances in a single call', async () => {
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
 		const balances = await assetsContract.getBalancesInSingleCall(DAI_ADDRESS, [DAI_ADDRESS]);
-		expect(balances['0xE46aBAf75cFbFF815c0b7FfeD6F02B0760eA27f1']).not.toEqual(0);
+		expect(balances[DAI_ADDRESS]).not.toEqual(0);
 	});
 });
