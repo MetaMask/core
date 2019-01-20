@@ -5,10 +5,10 @@ const BN = require('ethereumjs-util').BN;
 const Web3 = require('web3');
 const abiERC20 = require('human-standard-token-abi');
 const abiERC721 = require('human-standard-collectible-abi');
-const abiSingleCallContract = require('single-call-balance-checker-abi');
+const abiSingleCallBalancesContract = require('single-call-balance-checker-abi');
 const ERC721METADATA_INTERFACE_ID = '0x5b5e139f';
 const ERC721ENUMERABLE_INTERFACE_ID = '0x780e9d63';
-const SINGLE_CALL_MAINNET_ADDRESS = '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39';
+const SINGLE_CALL_BALANCES_ADDRESS = '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39';
 
 /**
  * @type AssetsContractConfig
@@ -178,7 +178,7 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 * @returns - Promise resolving to the 'tokenURI'
 	 */
 	async getBalancesInSingleCall(selectedAddress: string, tokensToDetect: string[]) {
-		const contract = this.web3.eth.contract(abiSingleCallContract).at(SINGLE_CALL_MAINNET_ADDRESS);
+		const contract = this.web3.eth.contract(abiSingleCallBalancesContract).at(SINGLE_CALL_BALANCES_ADDRESS);
 		return new Promise<BalanceMap>((resolve, reject) => {
 			contract.balances([selectedAddress], tokensToDetect, (error: Error, result: string) => {
 				/* istanbul ignore if */
