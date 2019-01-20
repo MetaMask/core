@@ -3,6 +3,7 @@ const HttpProvider = require('ethjs-provider-http');
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
 const GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
 const CKADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
+const DAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
 
 describe('AssetsContractController', () => {
 	let assetsContract: AssetsContractController;
@@ -47,5 +48,11 @@ describe('AssetsContractController', () => {
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
 		const tokenId = await assetsContract.getCollectibleTokenURI(GODSADDRESS, 0);
 		expect(tokenId).toEqual('https://api.godsunchained.com/card/0');
+	});
+
+	it('should get balances in a single call', async () => {
+		assetsContract.configure({ provider: MAINNET_PROVIDER });
+		const balances = await assetsContract.getBalancesInSingleCall(DAI_ADDRESS, [DAI_ADDRESS]);
+		expect(balances['0xE46aBAf75cFbFF815c0b7FfeD6F02B0760eA27f1']).not.toEqual(0);
 	});
 });

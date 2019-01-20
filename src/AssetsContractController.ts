@@ -5,8 +5,10 @@ const BN = require('ethereumjs-util').BN;
 const Web3 = require('web3');
 const abiERC20 = require('human-standard-token-abi');
 const abiERC721 = require('human-standard-collectible-abi');
+const abiSingleCallContract = require('single-call-balance-checker-abi');
 const ERC721METADATA_INTERFACE_ID = '0x5b5e139f';
 const ERC721ENUMERABLE_INTERFACE_ID = '0x780e9d63';
+const SINGLE_CALL_MAINNET_ADDRESS = '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39';
 
 /**
  * @type AssetsContractConfig
@@ -17,6 +19,17 @@ const ERC721ENUMERABLE_INTERFACE_ID = '0x780e9d63';
  */
 export interface AssetsContractConfig extends BaseConfig {
 	provider: any;
+}
+
+/**
+ * @type BalanceMap
+ *
+ * Key value object containing the balance for each tokenAddress
+ *
+ * @property [tokenAddress] - Address of the token
+ */
+export interface BalanceMap {
+	[tokenAddress: string]: string;
 }
 
 /**
@@ -155,6 +168,33 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 					return;
 				}
 				resolve(result);
+			});
+		});
+	}
+
+	/**
+	 * Returns contract instance of
+	 *
+	 * @returns - Promise resolving to the 'tokenURI'
+	 */
+	async getBalancesInSingleCall(selectedAddress: string, tokensToDetect: string[]) {
+		const contract = this.web3.eth.contract(abiSingleCallContract).at(SINGLE_CALL_MAINNET_ADDRESS);
+		return new Promise<BalanceMap>((resolve, reject) => {
+			contract.balances([selectedAddress], tokensToDetect, (error: Error, result: string) => {
+				/* istanbul ignore if */
+				if (error) {
+					reject(error);
+					return;
+				}
+				const nonZeroBalances: BalanceMap = {};
+				tokensToDetect.forEach((tokenAddress, index) => {
+					const balance: typeof BN = result[index];
+					/* istanbul ignore else */
+					if (!balance.isZero()) {
+						nonZeroBalances[tokenAddress] = balance;
+					}
+				});
+				resolve(nonZeroBalances);
 			});
 		});
 	}

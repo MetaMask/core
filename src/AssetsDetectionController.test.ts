@@ -81,10 +81,10 @@ describe('AssetsDetectionController', () => {
 	it('should call detect tokens correctly', () => {
 		const clock = sandbox.useFakeTimers();
 		assetsDetection.configure({ networkType: MAINNET });
-		const detectTokenOwnership = sandbox.stub(assetsDetection, 'detectTokenOwnership').returns(null);
+		const detectTokens = sandbox.stub(assetsDetection, 'detectTokens').returns(null);
 		const detectCollectibles = sandbox.stub(assetsDetection, 'detectCollectibles').returns(null);
 		clock.tick(180001);
-		expect(detectTokenOwnership.called).toBe(true);
+		expect(detectTokens.called).toBe(true);
 		expect(detectCollectibles.called).toBe(true);
 	});
 
@@ -98,13 +98,33 @@ describe('AssetsDetectionController', () => {
 		expect(detectTokens.called).toBe(true);
 	});
 
-	it('should detect tokens correctly', async () => {
+	it('should be able to detectTokenOwnership correctly', async () => {
 		assetsDetection.configure({ networkType: MAINNET });
 		sandbox
 			.stub(assetsContract, 'getBalanceOf')
+			.withArgs('0x')
 			.returns(new BN(0))
 			.withArgs('0x6810e776880C02933D47DB1b9fc05908e5386b96')
 			.returns(new BN(1));
+
+		await assetsDetection.detectTokenOwnership('0x');
+		expect(assets.state.tokens).toEqual([]);
+
+		await assetsDetection.detectTokenOwnership('0x6810e776880C02933D47DB1b9fc05908e5386b96');
+		expect(assets.state.tokens).toEqual([
+			{
+				address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
+				decimals: 18,
+				symbol: 'GNO'
+			}
+		]);
+	});
+
+	it('should detect tokens correctly', async () => {
+		assetsDetection.configure({ networkType: MAINNET });
+		sandbox
+			.stub(assetsContract, 'getBalancesInSingleCall')
+			.returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
 		await assetsDetection.detectTokens();
 		expect(assets.state.tokens).toEqual([
 			{
