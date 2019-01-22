@@ -216,11 +216,25 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 */
 	async detectTokens() {
 		const tokensAddresses = this.config.tokens.filter(/* istanbul ignore next*/ (token) => token.address);
+		const tokensToDetect = [];
 		for (const address in contractMap) {
 			const contract = contractMap[address];
 			if (contract.erc20 && !(address in tokensAddresses)) {
-				await safelyExecute(async () => await this.detectTokenOwnership(address));
+				tokensToDetect.push(address);
 			}
+		}
+
+		const assetsContractController = this.context.AssetsContractController as AssetsContractController;
+		const { selectedAddress } = this.config;
+
+		const balances = await assetsContractController.getBalancesInSingleCall(selectedAddress, tokensToDetect);
+		const assetsController = this.context.AssetsController as AssetsController;
+		for (const tokenAddress in balances) {
+			await assetsController.addToken(
+				tokenAddress,
+				contractMap[tokenAddress].symbol,
+				contractMap[tokenAddress].decimals
+			);
 		}
 	}
 
