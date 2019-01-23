@@ -173,6 +173,27 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	}
 
 	/**
+	 * Query for owner for a given ERC721 asset
+	 *
+	 * @param address - ERC721 asset contract address
+	 * @param tokenId - ERC721 asset identifier
+	 * @returns - Promise resolving to the owner address
+	 */
+	async getOwnerOf(address: string, tokenId: number): Promise<string> {
+		const contract = this.web3.eth.contract(abiERC721).at(address);
+		return new Promise<string>((resolve, reject) => {
+			contract.ownerOf(tokenId, (error: Error, result: string) => {
+				/* istanbul ignore if */
+				if (error) {
+					reject(error);
+					return;
+				}
+				resolve(result);
+			});
+		});
+	}
+
+	/**
 	 * Returns contract instance of
 	 *
 	 * @returns - Promise resolving to the 'tokenURI'

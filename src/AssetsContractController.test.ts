@@ -50,6 +50,12 @@ describe('AssetsContractController', () => {
 		expect(tokenId).toEqual('https://api.godsunchained.com/card/0');
 	});
 
+	it('should get collectible ownership', async () => {
+		assetsContract.configure({ provider: MAINNET_PROVIDER });
+		const tokenId = await assetsContract.getOwnerOf(GODSADDRESS, 148332);
+		expect(tokenId).not.toEqual('');
+	});
+
 	it('should get balances in a single call', async () => {
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
 		const balances = await assetsContract.getBalancesInSingleCall(DAI_ADDRESS, [DAI_ADDRESS]);
