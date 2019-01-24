@@ -35,6 +35,7 @@ describe('AssetsController', () => {
 
 	it('should set default state', () => {
 		expect(assetsController.state).toEqual({
+			allCollectibleContracts: [],
 			allCollectibles: {},
 			allTokens: {},
 			collectibles: [],
@@ -313,6 +314,58 @@ describe('AssetsController', () => {
 			name: '',
 			tokenId: 1
 		});
+	});
+
+	it('should add collectible contract', async () => {
+		await assetsController.addCollectibleContract('0x8C9b', 'name', 'NM', 'logo', 'description', 10);
+		expect(assetsController.state.allCollectibleContracts).toEqual([
+			{
+				address: '0x8C9b',
+				description: 'description',
+				logo: 'logo',
+				name: 'name',
+				symbol: 'NM',
+				total_supply: 10
+			}
+		]);
+	});
+
+	it('should not add  duplicated collectible contract', async () => {
+		await assetsController.addCollectibleContract('0x8C9b', 'name', 'NM', 'logo', 'description', 10);
+		await assetsController.addCollectibleContract('0x8C9b', 'name', 'NM', 'logo', 'description', 10);
+		expect(assetsController.state.allCollectibleContracts).toEqual([
+			{
+				address: '0x8C9b',
+				description: 'description',
+				logo: 'logo',
+				name: 'name',
+				symbol: 'NM',
+				total_supply: 10
+			}
+		]);
+	});
+
+	it('should remove collectible contract', async () => {
+		await assetsController.addCollectibleContract('0x8c9b', 'name', 'NM', 'logo', 'description', 10);
+		await assetsController.addCollectibleContract(
+			'0x8c9C',
+			'other name',
+			'ON',
+			'other logo',
+			'other description',
+			11
+		);
+		await assetsController.removeCollectibleContract('0x8c9b');
+		expect(assetsController.state.allCollectibleContracts).toEqual([
+			{
+				address: '0x8c9C',
+				description: 'other description',
+				logo: 'other logo',
+				name: 'other name',
+				symbol: 'ON',
+				total_supply: 11
+			}
+		]);
 	});
 
 	it('should subscribe to new sibling preference controllers', async () => {

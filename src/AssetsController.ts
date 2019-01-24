@@ -57,6 +57,27 @@ export interface MappedContract {
 }
 
 /**
+ * @type CollectibleContract
+ *
+ * Collectible contract information representation
+ *
+ * @property name - Contract name
+ * @property logo - Contract logo
+ * @property address - Contract address
+ * @property symbol - Contract symbol
+ * @property description - Contract description
+ * @property total_supply - Contract total_supply
+ */
+export interface CollectibleContract {
+	name: string;
+	logo: string;
+	address: string;
+	symbol: string;
+	description: string;
+	total_supply: number;
+}
+
+/**
  * @type CollectibleCustomInformation
  *
  * Collectible custom information
@@ -88,12 +109,14 @@ export interface AssetsConfig extends BaseConfig {
  * Assets controller state
  *
  * @property allTokens - Object containing tokens per account and network
+ * @property allCollectibleContracts - Object containing collectibles contract information
  * @property allCollectibles - Object containing collectibles per account and network
  * @property collectibles - List of collectibles associated with the active vault
  * @property tokens - List of tokens associated with the active vault
  */
 export interface AssetsState extends BaseState {
 	allTokens: { [key: string]: { [key: string]: Token[] } };
+	allCollectibleContracts: CollectibleContract[];
 	allCollectibles: { [key: string]: { [key: string]: Collectible[] } };
 	collectibles: Collectible[];
 	tokens: Token[];
@@ -177,6 +200,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			selectedAddress: ''
 		};
 		this.defaultState = {
+			allCollectibleContracts: [],
 			allCollectibles: {},
 			allTokens: {},
 			collectibles: [],
@@ -246,6 +270,41 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	}
 
 	/**
+	 * Adds a collectible contract to the stored collectible contracts list
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @param name - Name of the collectible contract
+	 * @param symbol - Symbol of the collectible contract
+	 * @param logo - Logo url of the collectible contract
+	 * @param description - Description of the collectible contract
+	 * @returns - Promise resolving to the current collectible contracts list
+	 */
+	async addCollectibleContract(
+		address: string,
+		name: string,
+		symbol: string,
+		logo: string,
+		description: string,
+		total_supply: number
+	): Promise<CollectibleContract[]> {
+		const releaseLock = await this.mutex.acquire();
+		address = toChecksumAddress(address);
+		const { allCollectibleContracts } = this.state;
+		const existingEntry = allCollectibleContracts.find(
+			(collectibleContract) => collectibleContract.address === address
+		);
+		if (existingEntry) {
+			releaseLock();
+			return allCollectibleContracts;
+		}
+		const newEntry: CollectibleContract = { address, logo, name, symbol, description, total_supply };
+		const newCollectibleContracts = [...allCollectibleContracts, newEntry];
+		this.update({ allCollectibleContracts: newCollectibleContracts });
+		releaseLock();
+		return newCollectibleContracts;
+	}
+
+	/**
 	 * Removes a token from the stored token list
 	 *
 	 * @param address - Hex address of the token contract
@@ -278,6 +337,22 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
 		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
 		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
+	}
+
+	/**
+	 * Removes a collectible contract to the stored collectible contracts list
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @returns - Promise resolving to the current collectible contracts list
+	 */
+	async removeCollectibleContract(address: string): Promise<CollectibleContract[]> {
+		address = toChecksumAddress(address);
+		const { allCollectibleContracts } = this.state;
+		const newCollectibleContracts = allCollectibleContracts.filter(
+			(collectibleContract) => !(collectibleContract.address === address)
+		);
+		this.update({ allCollectibleContracts: newCollectibleContracts });
+		return newCollectibleContracts;
 	}
 
 	/**
