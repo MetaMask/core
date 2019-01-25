@@ -66,7 +66,7 @@ export interface MappedContract {
  * @property address - Contract address
  * @property symbol - Contract symbol
  * @property description - Contract description
- * @property total_supply - Contract total_supply
+ * @property totalSupply - Contract total supply
  */
 export interface CollectibleContract {
 	name: string;
@@ -74,7 +74,7 @@ export interface CollectibleContract {
 	address: string;
 	symbol: string;
 	description: string;
-	total_supply: number;
+	totalSupply: number;
 }
 
 /**
@@ -285,7 +285,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		symbol: string,
 		logo: string,
 		description: string,
-		total_supply: number
+		totalSupply: number
 	): Promise<CollectibleContract[]> {
 		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
@@ -297,7 +297,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			releaseLock();
 			return allCollectibleContracts;
 		}
-		const newEntry: CollectibleContract = { address, logo, name, symbol, description, total_supply };
+		const newEntry: CollectibleContract = { address, logo, name, symbol, description, totalSupply };
 		const newCollectibleContracts = [...allCollectibleContracts, newEntry];
 		this.update({ allCollectibleContracts: newCollectibleContracts });
 		releaseLock();

@@ -325,7 +325,7 @@ describe('AssetsController', () => {
 				logo: 'logo',
 				name: 'name',
 				symbol: 'NM',
-				total_supply: 10
+				totalSupply: 10
 			}
 		]);
 	});
@@ -340,7 +340,7 @@ describe('AssetsController', () => {
 				logo: 'logo',
 				name: 'name',
 				symbol: 'NM',
-				total_supply: 10
+				totalSupply: 10
 			}
 		]);
 	});
@@ -363,7 +363,7 @@ describe('AssetsController', () => {
 				logo: 'other logo',
 				name: 'other name',
 				symbol: 'ON',
-				total_supply: 11
+				totalSupply: 11
 			}
 		]);
 	});
