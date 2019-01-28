@@ -92,9 +92,9 @@ describe('AssetsDetectionController', () => {
 		const clock = sandbox.useFakeTimers();
 		assetsDetection.configure({ networkType: MAINNET });
 		const detectTokens = sandbox.stub(assetsDetection, 'detectTokens').returns(null);
-		const detectCollectibleOwnership = sandbox.stub(assetsDetection, 'detectCollectibleOwnership').returns(null);
+		const detectCollectibles = sandbox.stub(assetsDetection, 'detectCollectibles').returns(null);
 		clock.tick(180001);
-		expect(detectCollectibleOwnership.called).toBe(true);
+		expect(detectCollectibles.called).toBe(true);
 		expect(detectTokens.called).toBe(true);
 	});
 
@@ -150,6 +150,7 @@ describe('AssetsDetectionController', () => {
 		expect(assets.state.collectibles).toEqual([
 			{
 				address: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
+				description: '',
 				image: 'https://api.godsunchained.com/v0/image/380',
 				name: 'First Pheonix',
 				tokenId: 0
@@ -181,6 +182,7 @@ describe('AssetsDetectionController', () => {
 		expect(assets.state.collectibles).toEqual([
 			{
 				address: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
+				description: '',
 				image: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/411073.svg',
 				name: 'TestName',
 				tokenId: 411073

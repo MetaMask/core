@@ -8,7 +8,7 @@ import { AssetsContractController } from './AssetsContractController';
 
 const HttpProvider = require('ethjs-provider-http');
 const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
-const COLLECTIBLES = [{ address: '0xfoO', image: 'url', name: 'name', tokenId: 1234 }];
+const COLLECTIBLES = [{ address: '0xfoO', description: undefined, image: 'url', name: 'name', tokenId: 1234 }];
 const GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
 const CKADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
@@ -135,6 +135,7 @@ describe('AssetsController', () => {
 		expect(assetsController.state.collectibles).toEqual([
 			{
 				address: '0xfoO',
+				description: '',
 				image: '',
 				name: '',
 				tokenId: 1234
@@ -148,6 +149,7 @@ describe('AssetsController', () => {
 		expect(assetsController.state.collectibles).toEqual([
 			{
 				address: '0x8c9b261Faef3b3C2e64ab5E58e04615F8c788099',
+				description: '',
 				image: '',
 				name: 'LucidSight-MLB-NFT',
 				tokenId: 1
@@ -164,6 +166,7 @@ describe('AssetsController', () => {
 		expect(assetsController.state.collectibles).toEqual([
 			{
 				address: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
+				description: '',
 				image: 'https://api.godsunchained.com/v0/image/7',
 				name: 'Broken Harvester',
 				tokenId: 1
@@ -184,6 +187,7 @@ describe('AssetsController', () => {
 		expect(assetsController.state.collectibles).toEqual([
 			{
 				address: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
+				description: '',
 				image: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1.png',
 				name: 'Genesis',
 				tokenId: 1
@@ -204,6 +208,7 @@ describe('AssetsController', () => {
 		preferences.update({ selectedAddress: firstAddress });
 		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0xfoO',
+			description: undefined,
 			image: 'url',
 			name: 'name',
 			tokenId: 1234
@@ -223,6 +228,7 @@ describe('AssetsController', () => {
 		network.update({ provider: { type: firstNetworkType } });
 		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0xfoO',
+			description: undefined,
 			image: 'url',
 			name: 'name',
 			tokenId: 1234
@@ -253,6 +259,7 @@ describe('AssetsController', () => {
 		preferences.update({ selectedAddress: firstAddress });
 		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0xFOu',
+			description: undefined,
 			image: 'url',
 			name: 'name',
 			tokenId: 4321
@@ -275,6 +282,7 @@ describe('AssetsController', () => {
 		network.update({ provider: { type: firstNetworkType } });
 		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0xFOu',
+			description: undefined,
 			image: 'url',
 			name: 'name',
 			tokenId: 4321
@@ -303,6 +311,7 @@ describe('AssetsController', () => {
 		await assetsController.addCollectible('0x06012c8cf97BEaD5deAe237070F9587f8E7A266d', 740632);
 		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
+			description: '',
 			image: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1.png',
 			name: 'TestName',
 			tokenId: 740632
@@ -310,6 +319,7 @@ describe('AssetsController', () => {
 		await assetsController.addCollectible('foo', 1);
 		expect(assetsController.state.collectibles[1]).toEqual({
 			address: '0xfoO',
+			description: '',
 			image: '',
 			name: '',
 			tokenId: 1

@@ -1,6 +1,6 @@
 import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
-import AssetsController from './AssetsController';
+import AssetsController, { Collectible } from './AssetsController';
 import NetworkController from './NetworkController';
 import PreferencesController from './PreferencesController';
 import AssetsContractController from './AssetsContractController';
@@ -40,11 +40,32 @@ export interface AssetsDetectionConfig extends BaseConfig {
 	tokens: Token[];
 }
 
+export interface ApiCollectibleResponse {
+	token_id: string;
+	image_url: string;
+	name: string;
+	description: string;
+	assetContract: { [address: string]: string };
+}
+
 /**
  * Controller that passively polls on a set interval for assets auto detection
  */
 export class AssetsDetectionController extends BaseController<AssetsDetectionConfig, BaseState> {
 	private handle?: NodeJS.Timer;
+
+	private getOwnerCollectiblesApi(address: string) {
+		return `https://api.opensea.io/api/v1/assets?owner=${address}`;
+	}
+
+	private async getOwnerCollectibles() {
+		const { selectedAddress } = this.config;
+		const api = this.getOwnerCollectiblesApi(selectedAddress);
+		const response = await fetch(api);
+		const collectiblesArray = await response.json();
+		const collectibles = collectiblesArray.assets;
+		return collectibles;
+	}
 
 	/**
 	 * Get user information API for collectibles based on API provided in contract metadata
@@ -242,12 +263,18 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * Triggers asset ERC721 token auto detection for each contract address in contract metadata
 	 */
 	async detectCollectibles() {
-		for (const address in contractMap) {
-			const contract = contractMap[address];
-			if (contract.erc721) {
-				await safelyExecute(async () => await this.detectCollectibleOwnership(address));
-			}
-		}
+		const assetsController = this.context.AssetsController as AssetsController;
+		const collectibles = await this.getOwnerCollectibles();
+		collectibles.map((collectible: ApiCollectibleResponse) => {
+			const {
+				token_id,
+				image_url,
+				name,
+				description,
+				assetContract: { address }
+			} = collectible;
+			assetsController.addCollectible(address, Number(token_id), { name, description, image: image_url });
+		});
 	}
 
 	/**

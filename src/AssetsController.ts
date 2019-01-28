@@ -16,15 +16,17 @@ const Mutex = require('await-semaphore').Mutex;
  * Collectible representation
  *
  * @property address - Hex address of a ERC721 contract
- * @property tokenId - The NFT identifier
+ * @property description - The collectible description
+ * @property image - URI of custom collectible image associated with this tokenId
  * @property name - Name associated with this tokenId and contract address
- * @property image - URI of custom NFT image associated with this tokenId
+ * @property tokenId - The collectible identifier
  */
 export interface Collectible {
 	address: string;
-	tokenId: number;
-	name: string;
+	description: string;
 	image: string;
+	name: string;
+	tokenId: number;
 }
 
 /**
@@ -82,12 +84,14 @@ export interface CollectibleContract {
  *
  * Collectible custom information
  *
+ * @property description - The collectible description
  * @property name - Collectible custom name
  * @property image - Image custom image URI
  */
 export interface CollectibleCustomInformation {
-	name: string;
+	description: string;
 	image: string;
+	name: string;
 }
 
 /**
@@ -149,10 +153,10 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	}
 
 	/**
-	 * Request NFT custom information, name and image url
+	 * Request collectible custom information, name and image url
 	 *
 	 * @param address - Hex address of the collectible contract
-	 * @param tokenId - The NFT identifier
+	 * @param tokenId - The collectible identifier
 	 * @returns - Promise resolving to the current collectible name and image
 	 */
 	private async getCollectibleCustomInformation(
@@ -168,13 +172,14 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 				const json = await response.json();
 				const imageParam = json.hasOwnProperty('image') ? 'image' : 'image_url';
 				const collectibleImage = manageCollectibleImage(address, json[imageParam]);
-				return { image: collectibleImage, name: json.name };
+				const description = '';
+				return { image: collectibleImage, name: json.name, description };
 			} catch (error) {
-				return { image: '', name: contractMap[address].name };
+				return { image: '', name: contractMap[address].name, description: '' };
 			}
 		}
 		/* istanbul ignore */
-		return { name: '', image: '' };
+		return { name: '', image: '', description: '' };
 	}
 
 	/**
@@ -243,10 +248,15 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * Adds a collectible to the stored collectible list
 	 *
 	 * @param address - Hex address of the collectible contract
-	 * @param tokenId - The NFT identifier
+	 * @param tokenId - The collectible identifier
+	 * @param opts - Collectible optional information (name, image and description)
 	 * @returns - Promise resolving to the current collectible list
 	 */
-	async addCollectible(address: string, tokenId: number): Promise<Collectible[]> {
+	async addCollectible(
+		address: string,
+		tokenId: number,
+		opts?: CollectibleCustomInformation
+	): Promise<Collectible[]> {
 		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
 		const { allCollectibles, collectibles } = this.state;
@@ -258,8 +268,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			releaseLock();
 			return collectibles;
 		}
-		const { name, image } = await this.getCollectibleCustomInformation(address, tokenId);
-		const newEntry: Collectible = { address, tokenId, name, image };
+		const { name, image, description } = opts ? opts : await this.getCollectibleCustomInformation(address, tokenId);
+		const newEntry: Collectible = { address, tokenId, name, image, description };
 		const newCollectibles = [...collectibles, newEntry];
 		const addressCollectibles = allCollectibles[selectedAddress];
 		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
