@@ -1,6 +1,6 @@
 import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
-import AssetsController, { Collectible } from './AssetsController';
+import AssetsController from './AssetsController';
 import NetworkController from './NetworkController';
 import PreferencesController from './PreferencesController';
 import AssetsContractController from './AssetsContractController';
@@ -40,12 +40,23 @@ export interface AssetsDetectionConfig extends BaseConfig {
 	tokens: Token[];
 }
 
+/**
+ * @type ApiCollectibleResponse
+ *
+ * Collectible object coming from OpenSea api
+ *
+ * @property token_id - The collectible identifier
+ * @property image_preview_url - URI of collectible image associated with this collectible
+ * @property name - The collectible name
+ * @property description - The collectible description
+ * @property assetContract - The collectible contract basic information, in this case the address
+ */
 export interface ApiCollectibleResponse {
 	token_id: string;
-	image_url: string;
+	image_preview_url: string;
 	name: string;
 	description: string;
-	assetContract: { [address: string]: string };
+	asset_contract: { [address: string]: string };
 }
 
 /**
@@ -268,12 +279,12 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		collectibles.map((collectible: ApiCollectibleResponse) => {
 			const {
 				token_id,
-				image_url,
+				image_preview_url,
 				name,
 				description,
-				assetContract: { address }
+				asset_contract: { address }
 			} = collectible;
-			assetsController.addCollectible(address, Number(token_id), { name, description, image: image_url });
+			assetsController.addCollectible(address, Number(token_id), { name, description, image: image_preview_url });
 		});
 	}
 
