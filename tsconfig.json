@@ -11,7 +11,8 @@
 		"removeComments": false,
 		"sourceMap": true,
 		"strict": true,
-		"target": "es6"
+		"target": "es6",
+		"lib": ["es6", "dom", "es2017"]
 	},
 	"typedocOptions": {
 		"exclude": "**/*.test.ts",

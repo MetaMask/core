@@ -69,6 +69,10 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		return `https://api.opensea.io/api/v1/assets?owner=${address}`;
 	}
 
+	private getAssetContractApi(contractAddress: string) {
+		return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
+	}
+
 	private async getOwnerCollectibles() {
 		const { selectedAddress } = this.config;
 		const api = this.getOwnerCollectiblesApi(selectedAddress);
@@ -76,6 +80,15 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		const collectiblesArray = await response.json();
 		const collectibles = collectiblesArray.assets;
 		return collectibles;
+	}
+
+	private async getCollectibleContract(contractAddress: string) {
+		const api = this.getAssetContractApi(contractAddress);
+		console.log('api', api);
+		const response = await fetch(api);
+		const collectibleContractObject = await response.json();
+		const collectibleContractInformation = collectibleContractObject;
+		return collectibleContractInformation;
 	}
 
 	/**
@@ -276,15 +289,31 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	async detectCollectibles() {
 		const assetsController = this.context.AssetsController as AssetsController;
 		const collectibles = await this.getOwnerCollectibles();
-		collectibles.map((collectible: ApiCollectibleResponse) => {
-			const {
-				token_id,
-				image_preview_url,
-				name,
-				description,
-				asset_contract: { address }
-			} = collectible;
-			assetsController.addCollectible(address, Number(token_id), { name, description, image: image_preview_url });
+		const collectibleContractAddresses = await collectibles.reduce(
+			async (list: string[], collectible: ApiCollectibleResponse) => {
+				const {
+					token_id,
+					image_preview_url,
+					name,
+					description,
+					asset_contract: { address }
+				} = collectible;
+				await assetsController.addCollectible(address, Number(token_id), {
+					description,
+					image: image_preview_url,
+					name
+				});
+				if (!list.includes(address)) {
+					list.push(address);
+				}
+				return list;
+			},
+			[]
+		);
+		collectibleContractAddresses.map(async (address: string) => {
+			const information = await this.getCollectibleContract(address);
+			const { name, symbol, image_url, description, total_supply } = information;
+			assetsController.addCollectibleContract(address, name, symbol, image_url, description, total_supply);
 		});
 	}
 
