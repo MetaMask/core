@@ -172,6 +172,34 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 		});
 	}
 
+	async getCollectibleContractName(address: string): Promise<string> {
+		const contract = this.web3.eth.contract(abiERC721).at(address);
+		return new Promise<string>((resolve, reject) => {
+			contract.name((error: Error, result: string) => {
+				/* istanbul ignore if */
+				if (error) {
+					reject(error);
+					return;
+				}
+				resolve(result);
+			});
+		});
+	}
+
+	async getCollectibleContractSymbol(address: string): Promise<string> {
+		const contract = this.web3.eth.contract(abiERC721).at(address);
+		return new Promise<string>((resolve, reject) => {
+			contract.symbol((error: Error, result: string) => {
+				/* istanbul ignore if */
+				if (error) {
+					reject(error);
+					return;
+				}
+				resolve(result);
+			});
+		});
+	}
+
 	/**
 	 * Query for owner for a given ERC721 asset
 	 *

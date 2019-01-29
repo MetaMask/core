@@ -79,7 +79,7 @@ export interface CollectibleContract {
 }
 
 /**
- * @type CollectibleCustomInformation
+ * @type CollectibleInformation
  *
  * Collectible custom information
  *
@@ -87,7 +87,7 @@ export interface CollectibleContract {
  * @property name - Collectible custom name
  * @property image - Image custom image URI
  */
-export interface CollectibleCustomInformation {
+export interface CollectibleInformation {
 	description: string;
 	image: string;
 	name: string;
@@ -130,18 +130,12 @@ export interface AssetsState extends BaseState {
  */
 export class AssetsController extends BaseController<AssetsConfig, AssetsState> {
 	private mutex = new Mutex();
-	/**
-	 * Get collectible api following OpenSea API
-	 *
-	 * @param contractAddress - ERC721 asset contract address
-	 * @param tokenId - ERC721 asset identifier
-	 * @returns - Collectible tokenURI
-	 */
+
 	private getCollectibleApi(contractAddress: string, tokenId: number) {
 		return `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
 	}
 
-	private getAssetContractApi(contractAddress: string) {
+	private getCollectibleContractInformationApi(contractAddress: string) {
 		return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
 	}
 
@@ -164,32 +158,51 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	}
 
 	/**
-	 * Request collectible custom information, name and image url
+	 * Request individual collectible information from OpenSea api
 	 *
-	 * @param address - Hex address of the collectible contract
+	 * @param contractAddress - Hex address of the collectible contract
 	 * @param tokenId - The collectible identifier
 	 * @returns - Promise resolving to the current collectible name and image
 	 */
-	private async getCollectibleCustomInformation(
-		address: string,
-		tokenId: number
-	): Promise<CollectibleCustomInformation> {
+	private async getCollectibleInformationFromApi(contractAddress: string, tokenId: number) {
+		const tokenURI = this.getCollectibleApi(contractAddress, tokenId);
+		const response = await fetch(tokenURI);
+		const object = await response.json();
+		const { name, description, image_preview_url } = object;
+		return { image: image_preview_url, name, description };
+	}
+
+	/**
+	 * Request individual collectible information from contracts that follows Metadata Interface
+	 *
+	 * @param contractAddress - Hex address of the collectible contract
+	 * @param tokenId - The collectible identifier
+	 * @returns - Promise resolving to the current collectible name and image
+	 */
+	private async getCollectibleInformationFromTokenURI(contractAddress: string, tokenId: number) {
+		const tokenURI = await this.getCollectibleTokenURI(contractAddress, tokenId);
+		const response = await fetch(tokenURI);
+		const json = await response.json();
+		const imageParam = json.hasOwnProperty('image') ? 'image' : 'image_url';
+		const collectibleImage = manageCollectibleImage(contractAddress, json[imageParam]);
+		return { image: collectibleImage, name: json.name, description: '' };
+	}
+
+	/**
+	 * Request individual collectible information (name, image url and description)
+	 *
+	 * @param contractAddress - Hex address of the collectible contract
+	 * @param tokenId - The collectible identifier
+	 * @returns - Promise resolving to the current collectible name and image
+	 */
+	private async getCollectibleInformation(contractAddress: string, tokenId: number): Promise<CollectibleInformation> {
 		// First try with OpenSea
 		try {
-			const tokenURI = this.getCollectibleApi(address, tokenId);
-			const response = await fetch(tokenURI);
-			const object = await response.json();
-			const { name, description, image_preview_url } = object;
-			return { image: image_preview_url, name, description };
+			return await this.getCollectibleInformationFromApi(contractAddress, tokenId);
 		} catch (e) {
 			// Then following ERC721 standard
 			try {
-				const tokenURI = await this.getCollectibleTokenURI(address, tokenId);
-				const response = await fetch(tokenURI);
-				const json = await response.json();
-				const imageParam = json.hasOwnProperty('image') ? 'image' : 'image_url';
-				const collectibleImage = manageCollectibleImage(address, json[imageParam]);
-				return { image: collectibleImage, name: json.name, description: '' };
+				return await this.getCollectibleInformationFromTokenURI(contractAddress, tokenId);
 			} catch (error) {
 				/* istanbul ignore */
 				return { name: '', image: '', description: '' };
@@ -197,12 +210,29 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		}
 	}
 
-	private async getCollectibleContract(contractAddress: string) {
-		const api = this.getAssetContractApi(contractAddress);
-		const response = await fetch(api);
-		const collectibleContractObject = await response.json();
-		const collectibleContractInformation = collectibleContractObject;
-		return collectibleContractInformation;
+	/**
+	 * Request collectible contract information from OpenSea api
+	 *
+	 * @param contractAddress - Hex address of the collectible contract
+	 * @returns - Promise resolving to the collectible contract name, image and description
+	 */
+	private async getCollectibleContractInformation(contractAddress: string) {
+		try {
+			const api = this.getCollectibleContractInformationApi(contractAddress);
+			const response = await fetch(api);
+			const collectibleContractObject = await response.json();
+			const collectibleContractInformation = collectibleContractObject;
+			return collectibleContractInformation;
+		} catch (e) {
+			try {
+				const assetsContractController = this.context.AssetsContractController as AssetsContractController;
+				const name = await assetsContractController.getCollectibleContractName(contractAddress);
+				const symbol = await assetsContractController.getCollectibleContractSymbol(contractAddress);
+				return { name, symbol, description: undefined, total_supply: undefined };
+			} catch (e) {
+				return { name: contractAddress, symbol: undefined, description: undefined, total_supply: undefined };
+			}
+		}
 	}
 
 	/**
@@ -275,11 +305,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param opts - Collectible optional information (name, image and description)
 	 * @returns - Promise resolving to the current collectible list
 	 */
-	async addCollectible(
-		address: string,
-		tokenId: number,
-		opts?: CollectibleCustomInformation
-	): Promise<Collectible[]> {
+	async addCollectible(address: string, tokenId: number, opts?: CollectibleInformation): Promise<Collectible[]> {
 		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
 		const { allCollectibles, collectibles } = this.state;
@@ -291,7 +317,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			releaseLock();
 			return collectibles;
 		}
-		const { name, image, description } = opts ? opts : await this.getCollectibleCustomInformation(address, tokenId);
+		const { name, image, description } = opts ? opts : await this.getCollectibleInformation(address, tokenId);
 		const newEntry: Collectible = { address, tokenId, name, image, description };
 		const newCollectibles = [...collectibles, newEntry];
 		const addressCollectibles = allCollectibles[selectedAddress];
@@ -319,7 +345,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			releaseLock();
 			return allCollectibleContracts;
 		}
-		const { name, symbol, image_url, description, total_supply } = await this.getCollectibleContract(address);
+		const { name, symbol, image_url, description, total_supply } = await this.getCollectibleContractInformation(
+			address
+		);
 		const newEntry: CollectibleContract = {
 			address,
 			description,
