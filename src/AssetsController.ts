@@ -114,13 +114,15 @@ export interface AssetsConfig extends BaseConfig {
  * @property allTokens - Object containing tokens per account and network
  * @property allCollectibleContracts - Object containing collectibles contract information
  * @property allCollectibles - Object containing collectibles per account and network
+ * @property collectibleContracts - List of collectibles contracts associated with the active vault
  * @property collectibles - List of collectibles associated with the active vault
  * @property tokens - List of tokens associated with the active vault
  */
 export interface AssetsState extends BaseState {
 	allTokens: { [key: string]: { [key: string]: Token[] } };
-	allCollectibleContracts: CollectibleContract[];
+	allCollectibleContracts: { [key: string]: { [key: string]: CollectibleContract[] } };
 	allCollectibles: { [key: string]: { [key: string]: Collectible[] } };
+	collectibleContracts: CollectibleContract[];
 	collectibles: Collectible[];
 	tokens: Token[];
 }
@@ -258,9 +260,10 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			selectedAddress: ''
 		};
 		this.defaultState = {
-			allCollectibleContracts: [],
+			allCollectibleContracts: {},
 			allCollectibles: {},
 			allTokens: {},
+			collectibleContracts: [],
 			collectibles: [],
 			tokens: []
 		};
@@ -337,13 +340,14 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	async addCollectibleContract(address: string): Promise<CollectibleContract[]> {
 		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
-		const { allCollectibleContracts } = this.state;
-		const existingEntry = allCollectibleContracts.find(
+		const { allCollectibleContracts, collectibleContracts } = this.state;
+		const { networkType, selectedAddress } = this.config;
+		const existingEntry = collectibleContracts.find(
 			(collectibleContract) => collectibleContract.address === address
 		);
 		if (existingEntry) {
 			releaseLock();
-			return allCollectibleContracts;
+			return collectibleContracts;
 		}
 		const { name, symbol, image_url, description, total_supply } = await this.getCollectibleContractInformation(
 			address
@@ -356,8 +360,20 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			symbol,
 			totalSupply: total_supply
 		};
-		const newCollectibleContracts = [...allCollectibleContracts, newEntry];
-		this.update({ allCollectibleContracts: newCollectibleContracts });
+		const newCollectibleContracts = [...collectibleContracts, newEntry];
+		const addressCollectibleContracts = allCollectibleContracts[selectedAddress];
+		const newAddressCollectibleContracts = {
+			...addressCollectibleContracts,
+			...{ [networkType]: newCollectibleContracts }
+		};
+		const newAllCollectibleContracts = {
+			...allCollectibleContracts,
+			...{ [selectedAddress]: newAddressCollectibleContracts }
+		};
+		this.update({
+			allCollectibleContracts: newAllCollectibleContracts,
+			collectibleContracts: newCollectibleContracts
+		});
 		releaseLock();
 		return newCollectibleContracts;
 	}
@@ -405,11 +421,24 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	async removeCollectibleContract(address: string): Promise<CollectibleContract[]> {
 		address = toChecksumAddress(address);
-		const { allCollectibleContracts } = this.state;
-		const newCollectibleContracts = allCollectibleContracts.filter(
+		const { allCollectibleContracts, collectibleContracts } = this.state;
+		const { networkType, selectedAddress } = this.config;
+		const newCollectibleContracts = collectibleContracts.filter(
 			(collectibleContract) => !(collectibleContract.address === address)
 		);
-		this.update({ allCollectibleContracts: newCollectibleContracts });
+		const addressCollectibleContracts = allCollectibleContracts[selectedAddress];
+		const newAddressCollectibleContracts = {
+			...addressCollectibleContracts,
+			...{ [networkType]: newCollectibleContracts }
+		};
+		const newAllCollectibleContracts = {
+			...allCollectibleContracts,
+			...{ [selectedAddress]: newAddressCollectibleContracts }
+		};
+		this.update({
+			allCollectibleContracts: newAllCollectibleContracts,
+			collectibleContracts: newCollectibleContracts
+		});
 		return newCollectibleContracts;
 	}
 
@@ -422,20 +451,28 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const preferences = this.context.PreferencesController as PreferencesController;
 		const network = this.context.NetworkController as NetworkController;
 		preferences.subscribe(({ selectedAddress }) => {
-			const { allCollectibles, allTokens } = this.state;
+			const { allCollectibleContracts, allCollectibles, allTokens } = this.state;
 			const { networkType } = this.config;
 			this.configure({ selectedAddress });
 			this.update({
+				collectibleContracts:
+					(allCollectibleContracts[selectedAddress] &&
+						allCollectibleContracts[selectedAddress][networkType]) ||
+					[],
 				collectibles: (allCollectibles[selectedAddress] && allCollectibles[selectedAddress][networkType]) || [],
 				tokens: (allTokens[selectedAddress] && allTokens[selectedAddress][networkType]) || []
 			});
 		});
 		network.subscribe(({ provider }) => {
-			const { allCollectibles, allTokens } = this.state;
+			const { allCollectibleContracts, allCollectibles, allTokens } = this.state;
 			const { selectedAddress } = this.config;
 			const networkType = provider.type;
 			this.configure({ networkType });
 			this.update({
+				collectibleContracts:
+					(allCollectibleContracts[selectedAddress] &&
+						allCollectibleContracts[selectedAddress][networkType]) ||
+					[],
 				collectibles: (allCollectibles[selectedAddress] && allCollectibles[selectedAddress][networkType]) || [],
 				tokens: (allTokens[selectedAddress] && allTokens[selectedAddress][networkType]) || []
 			});
