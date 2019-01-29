@@ -172,6 +172,12 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 		});
 	}
 
+	/**
+	 * Query for name for a given asset
+	 *
+	 * @param address - ERC721 asset contract address
+	 * @returns - Promise resolving to the 'name'
+	 */
 	async getCollectibleContractName(address: string): Promise<string> {
 		const contract = this.web3.eth.contract(abiERC721).at(address);
 		return new Promise<string>((resolve, reject) => {
@@ -186,6 +192,12 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 		});
 	}
 
+	/**
+	 * Query for symbol for a given asset
+	 *
+	 * @param address - ERC721 asset contract address
+	 * @returns - Promise resolving to the 'symbol'
+	 */
 	async getCollectibleContractSymbol(address: string): Promise<string> {
 		const contract = this.web3.eth.contract(abiERC721).at(address);
 		return new Promise<string>((resolve, reject) => {

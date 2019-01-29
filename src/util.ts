@@ -124,6 +124,18 @@ export async function safelyExecute(operation: () => Promise<any>) {
 }
 
 /**
+ * Execute fetch and return object response
+ *
+ * @param request - Request information
+ * @returns - Promise resolving to the result object of fetch
+ */
+export async function handleFetch(request: string) {
+	const response = await fetch(request);
+	const object = await response.json();
+	return object;
+}
+
+/**
  * Validates a Transaction object for required properties and throws in
  * the event of any validation error.
  *
@@ -261,6 +273,7 @@ export default {
 	BNToHex,
 	fractionBN,
 	getBuyURL,
+	handleFetch,
 	hexToBN,
 	hexToText,
 	manageCollectibleImage,

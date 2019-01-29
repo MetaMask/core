@@ -326,51 +326,6 @@ describe('AssetsController', () => {
 		});
 	});
 
-	it('should add collectible contract', async () => {
-		await assetsController.addCollectibleContract('0x8C9b');
-		expect(assetsController.state.allCollectibleContracts).toEqual([
-			{
-				address: '0x8C9b',
-				description: 'description',
-				logo: 'logo',
-				name: 'name',
-				symbol: 'NM',
-				totalSupply: 10
-			}
-		]);
-	});
-
-	it('should not add  duplicated collectible contract', async () => {
-		await assetsController.addCollectibleContract('0x8C9b');
-		await assetsController.addCollectibleContract('0x8C9b');
-		expect(assetsController.state.allCollectibleContracts).toEqual([
-			{
-				address: '0x8C9b',
-				description: 'description',
-				logo: 'logo',
-				name: 'name',
-				symbol: 'NM',
-				totalSupply: 10
-			}
-		]);
-	});
-
-	it('should remove collectible contract', async () => {
-		await assetsController.addCollectibleContract('0x8c9b');
-		await assetsController.addCollectibleContract('0x8c9C');
-		await assetsController.removeCollectibleContract('0x8c9b');
-		expect(assetsController.state.allCollectibleContracts).toEqual([
-			{
-				address: '0x8c9C',
-				description: 'other description',
-				logo: 'other logo',
-				name: 'other name',
-				symbol: 'ON',
-				totalSupply: 11
-			}
-		]);
-	});
-
 	it('should subscribe to new sibling preference controllers', async () => {
 		const networkType = 'rinkeby';
 		const address = '0x123';

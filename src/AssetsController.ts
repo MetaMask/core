@@ -4,7 +4,7 @@ import PreferencesController from './PreferencesController';
 import NetworkController, { NetworkType } from './NetworkController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
-import { manageCollectibleImage } from './util';
+import { manageCollectibleImage, safelyExecute, handleFetch } from './util';
 
 const { toChecksumAddress } = require('ethereumjs-util');
 const Mutex = require('await-semaphore').Mutex;
@@ -168,9 +168,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	private async getCollectibleInformationFromApi(contractAddress: string, tokenId: number) {
 		const tokenURI = this.getCollectibleApi(contractAddress, tokenId);
-		const response = await fetch(tokenURI);
-		const object = await response.json();
-		const { name, description, image_preview_url } = object;
+		const { name, description, image_preview_url } = await handleFetch(tokenURI);
 		return { image: image_preview_url, name, description };
 	}
 
@@ -183,11 +181,10 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	private async getCollectibleInformationFromTokenURI(contractAddress: string, tokenId: number) {
 		const tokenURI = await this.getCollectibleTokenURI(contractAddress, tokenId);
-		const response = await fetch(tokenURI);
-		const json = await response.json();
-		const imageParam = json.hasOwnProperty('image') ? 'image' : 'image_url';
-		const collectibleImage = manageCollectibleImage(contractAddress, json[imageParam]);
-		return { image: collectibleImage, name: json.name, description: '' };
+		const object = await handleFetch(tokenURI);
+		const imageParam = object.hasOwnProperty('image') ? 'image' : 'image_url';
+		const collectibleImage = manageCollectibleImage(contractAddress, object[imageParam]);
+		return { image: collectibleImage, name: object.name, description: '' };
 	}
 
 	/**
@@ -198,18 +195,48 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @returns - Promise resolving to the current collectible name and image
 	 */
 	private async getCollectibleInformation(contractAddress: string, tokenId: number): Promise<CollectibleInformation> {
+		let information;
 		// First try with OpenSea
-		try {
+		information = await safelyExecute(async () => {
 			return await this.getCollectibleInformationFromApi(contractAddress, tokenId);
-		} catch (e) {
-			// Then following ERC721 standard
-			try {
-				return await this.getCollectibleInformationFromTokenURI(contractAddress, tokenId);
-			} catch (error) {
-				/* istanbul ignore */
-				return { name: '', image: '', description: '' };
-			}
+		});
+		if (information) {
+			return information;
 		}
+		// Then following ERC721 standard
+		information = await safelyExecute(async () => {
+			return await this.getCollectibleInformationFromTokenURI(contractAddress, tokenId);
+		});
+		if (information) {
+			return information;
+		}
+		/* istanbul ignore */
+		return { name: '', image: '', description: '' };
+	}
+
+	/**
+	 * Request collectible contract information from OpenSea api
+	 *
+	 * @param contractAddress - Hex address of the collectible contract
+	 * @returns - Promise resolving to the current collectible name and image
+	 */
+	private async getCollectibleContractInformationFromApi(contractAddress: string) {
+		const api = this.getCollectibleContractInformationApi(contractAddress);
+		const collectibleContractObject = await handleFetch(api);
+		return collectibleContractObject;
+	}
+
+	/**
+	 * Request collectible contract information from the contract itself
+	 *
+	 * @param contractAddress - Hex address of the collectible contract
+	 * @returns - Promise resolving to the current collectible name and image
+	 */
+	private async getCollectibleContractInformationFromContract(contractAddress: string) {
+		const assetsContractController = this.context.AssetsContractController as AssetsContractController;
+		const name = await assetsContractController.getCollectibleContractName(contractAddress);
+		const symbol = await assetsContractController.getCollectibleContractSymbol(contractAddress);
+		return { name, symbol, description: undefined, total_supply: undefined };
 	}
 
 	/**
@@ -219,22 +246,153 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @returns - Promise resolving to the collectible contract name, image and description
 	 */
 	private async getCollectibleContractInformation(contractAddress: string) {
-		try {
-			const api = this.getCollectibleContractInformationApi(contractAddress);
-			const response = await fetch(api);
-			const collectibleContractObject = await response.json();
-			const collectibleContractInformation = collectibleContractObject;
-			return collectibleContractInformation;
-		} catch (e) {
-			try {
-				const assetsContractController = this.context.AssetsContractController as AssetsContractController;
-				const name = await assetsContractController.getCollectibleContractName(contractAddress);
-				const symbol = await assetsContractController.getCollectibleContractSymbol(contractAddress);
-				return { name, symbol, description: undefined, total_supply: undefined };
-			} catch (e) {
-				return { name: contractAddress, symbol: undefined, description: undefined, total_supply: undefined };
-			}
+		let information;
+		// First try with OpenSea
+		information = await safelyExecute(async () => {
+			return await this.getCollectibleContractInformationFromApi(contractAddress);
+		});
+		if (information) {
+			return information;
 		}
+		// Then following ERC721 standard
+		information = await safelyExecute(async () => {
+			return await this.getCollectibleContractInformationFromContract(contractAddress);
+		});
+		if (information) {
+			return information;
+		}
+		/* istanbul ignore */
+		return { name: '', image: '', description: '' };
+	}
+
+	/**
+	 * Adds an individual collectible to the stored collectible list
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @param tokenId - The collectible identifier
+	 * @param opts - Collectible optional information (name, image and description)
+	 * @returns - Promise resolving to the current collectible list
+	 */
+	private async addIndividualCollectible(
+		address: string,
+		tokenId: number,
+		opts?: CollectibleInformation
+	): Promise<Collectible[]> {
+		const releaseLock = await this.mutex.acquire();
+		address = toChecksumAddress(address);
+		const { allCollectibles, collectibles } = this.state;
+		const { networkType, selectedAddress } = this.config;
+		const existingEntry = collectibles.find(
+			(collectible) => collectible.address === address && collectible.tokenId === tokenId
+		);
+		if (existingEntry) {
+			releaseLock();
+			return collectibles;
+		}
+		const { name, image, description } = opts ? opts : await this.getCollectibleInformation(address, tokenId);
+		const newEntry: Collectible = { address, tokenId, name, image, description };
+		const newCollectibles = [...collectibles, newEntry];
+		const addressCollectibles = allCollectibles[selectedAddress];
+		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
+		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
+		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
+		releaseLock();
+		return newCollectibles;
+	}
+
+	/**
+	 * Adds a collectible contract to the stored collectible contracts list
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @returns - Promise resolving to the current collectible contracts list
+	 */
+	private async addCollectibleContract(address: string): Promise<CollectibleContract[]> {
+		const releaseLock = await this.mutex.acquire();
+		address = toChecksumAddress(address);
+		const { allCollectibleContracts, collectibleContracts } = this.state;
+		const { networkType, selectedAddress } = this.config;
+		const existingEntry = collectibleContracts.find(
+			(collectibleContract) => collectibleContract.address === address
+		);
+		if (existingEntry) {
+			releaseLock();
+			return collectibleContracts;
+		}
+		const { name, symbol, image_url, description, total_supply } = await this.getCollectibleContractInformation(
+			address
+		);
+		const newEntry: CollectibleContract = {
+			address,
+			description,
+			logo: image_url,
+			name,
+			symbol,
+			totalSupply: total_supply
+		};
+		const newCollectibleContracts = [...collectibleContracts, newEntry];
+		const addressCollectibleContracts = allCollectibleContracts[selectedAddress];
+		const newAddressCollectibleContracts = {
+			...addressCollectibleContracts,
+			...{ [networkType]: newCollectibleContracts }
+		};
+		const newAllCollectibleContracts = {
+			...allCollectibleContracts,
+			...{ [selectedAddress]: newAddressCollectibleContracts }
+		};
+		this.update({
+			allCollectibleContracts: newAllCollectibleContracts,
+			collectibleContracts: newCollectibleContracts
+		});
+		releaseLock();
+		return newCollectibleContracts;
+	}
+
+	/**
+	 * Removes an individual collectible from the stored token list
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @param tokenId - Token identifier of the collectible
+	 */
+	private removeIndividualCollectible(address: string, tokenId: number) {
+		address = toChecksumAddress(address);
+		const { allCollectibles, collectibles } = this.state;
+		const { networkType, selectedAddress } = this.config;
+		const newCollectibles = collectibles.filter(
+			(collectible) => !(collectible.address === address && collectible.tokenId === tokenId)
+		);
+		const addressCollectibles = allCollectibles[selectedAddress];
+		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
+		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
+		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
+	}
+
+	/**
+	 * Removes a collectible contract to the stored collectible contracts list
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @returns - Promise resolving to the current collectible contracts list
+	 */
+	private removeCollectibleContract(address: string): CollectibleContract[] {
+		address = toChecksumAddress(address);
+		const { allCollectibleContracts, collectibleContracts } = this.state;
+		const { networkType, selectedAddress } = this.config;
+		const newCollectibleContracts = collectibleContracts.filter(
+			(collectibleContract) => !(collectibleContract.address === address)
+		);
+		const addressCollectibleContracts = allCollectibleContracts[selectedAddress];
+		const newAddressCollectibleContracts = {
+			...addressCollectibleContracts,
+			...{ [networkType]: newCollectibleContracts }
+		};
+		const newAllCollectibleContracts = {
+			...allCollectibleContracts,
+			...{ [selectedAddress]: newAddressCollectibleContracts }
+		};
+		this.update({
+			allCollectibleContracts: newAllCollectibleContracts,
+			collectibleContracts: newCollectibleContracts
+		});
+		return newCollectibleContracts;
 	}
 
 	/**
@@ -301,81 +459,22 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	}
 
 	/**
-	 * Adds a collectible to the stored collectible list
+	 * Adds a collectible and respective collectible contract to the stored collectible and collectible contracts lists
 	 *
 	 * @param address - Hex address of the collectible contract
 	 * @param tokenId - The collectible identifier
 	 * @param opts - Collectible optional information (name, image and description)
 	 * @returns - Promise resolving to the current collectible list
 	 */
-	async addCollectible(address: string, tokenId: number, opts?: CollectibleInformation): Promise<Collectible[]> {
-		const releaseLock = await this.mutex.acquire();
-		address = toChecksumAddress(address);
-		const { allCollectibles, collectibles } = this.state;
-		const { networkType, selectedAddress } = this.config;
-		const existingEntry = collectibles.find(
-			(collectible) => collectible.address === address && collectible.tokenId === tokenId
-		);
-		if (existingEntry) {
-			releaseLock();
-			return collectibles;
-		}
-		const { name, image, description } = opts ? opts : await this.getCollectibleInformation(address, tokenId);
-		const newEntry: Collectible = { address, tokenId, name, image, description };
-		const newCollectibles = [...collectibles, newEntry];
-		const addressCollectibles = allCollectibles[selectedAddress];
-		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
-		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
-		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
-		releaseLock();
-		return newCollectibles;
-	}
-
-	/**
-	 * Adds a collectible contract to the stored collectible contracts list
-	 *
-	 * @param address - Hex address of the collectible contract
-	 * @returns - Promise resolving to the current collectible contracts list
-	 */
-	async addCollectibleContract(address: string): Promise<CollectibleContract[]> {
-		const releaseLock = await this.mutex.acquire();
-		address = toChecksumAddress(address);
-		const { allCollectibleContracts, collectibleContracts } = this.state;
-		const { networkType, selectedAddress } = this.config;
-		const existingEntry = collectibleContracts.find(
+	async addCollectible(address: string, tokenId: number, opts?: CollectibleInformation) {
+		await this.addIndividualCollectible(address, tokenId, opts);
+		const { collectibleContracts } = this.state;
+		const newCollectibleContract = collectibleContracts.find(
 			(collectibleContract) => collectibleContract.address === address
 		);
-		if (existingEntry) {
-			releaseLock();
-			return collectibleContracts;
+		if (!newCollectibleContract) {
+			await this.addCollectibleContract(address);
 		}
-		const { name, symbol, image_url, description, total_supply } = await this.getCollectibleContractInformation(
-			address
-		);
-		const newEntry: CollectibleContract = {
-			address,
-			description,
-			logo: image_url,
-			name,
-			symbol,
-			totalSupply: total_supply
-		};
-		const newCollectibleContracts = [...collectibleContracts, newEntry];
-		const addressCollectibleContracts = allCollectibleContracts[selectedAddress];
-		const newAddressCollectibleContracts = {
-			...addressCollectibleContracts,
-			...{ [networkType]: newCollectibleContracts }
-		};
-		const newAllCollectibleContracts = {
-			...allCollectibleContracts,
-			...{ [selectedAddress]: newAddressCollectibleContracts }
-		};
-		this.update({
-			allCollectibleContracts: newAllCollectibleContracts,
-			collectibleContracts: newCollectibleContracts
-		});
-		releaseLock();
-		return newCollectibleContracts;
 	}
 
 	/**
@@ -401,45 +500,12 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param tokenId - Token identifier of the collectible
 	 */
 	removeCollectible(address: string, tokenId: number) {
-		address = toChecksumAddress(address);
-		const { allCollectibles, collectibles } = this.state;
-		const { networkType, selectedAddress } = this.config;
-		const newCollectibles = collectibles.filter(
-			(collectible) => !(collectible.address === address && collectible.tokenId === tokenId)
-		);
-		const addressCollectibles = allCollectibles[selectedAddress];
-		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
-		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
-		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
-	}
-
-	/**
-	 * Removes a collectible contract to the stored collectible contracts list
-	 *
-	 * @param address - Hex address of the collectible contract
-	 * @returns - Promise resolving to the current collectible contracts list
-	 */
-	async removeCollectibleContract(address: string): Promise<CollectibleContract[]> {
-		address = toChecksumAddress(address);
-		const { allCollectibleContracts, collectibleContracts } = this.state;
-		const { networkType, selectedAddress } = this.config;
-		const newCollectibleContracts = collectibleContracts.filter(
-			(collectibleContract) => !(collectibleContract.address === address)
-		);
-		const addressCollectibleContracts = allCollectibleContracts[selectedAddress];
-		const newAddressCollectibleContracts = {
-			...addressCollectibleContracts,
-			...{ [networkType]: newCollectibleContracts }
-		};
-		const newAllCollectibleContracts = {
-			...allCollectibleContracts,
-			...{ [selectedAddress]: newAddressCollectibleContracts }
-		};
-		this.update({
-			allCollectibleContracts: newAllCollectibleContracts,
-			collectibleContracts: newCollectibleContracts
-		});
-		return newCollectibleContracts;
+		this.removeIndividualCollectible(address, tokenId);
+		const { collectibles } = this.state;
+		const remainingCollectible = collectibles.find((collectible) => collectible.address === address);
+		if (!remainingCollectible) {
+			this.removeCollectibleContract(address);
+		}
 	}
 
 	/**

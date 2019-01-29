@@ -184,30 +184,24 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		}
 		const assetsController = this.context.AssetsController as AssetsController;
 		const collectibles = await this.getOwnerCollectibles();
-		const collectibleContractAddresses = await collectibles.reduce(
-			async (list: string[], collectible: ApiCollectibleResponse) => {
-				const {
-					token_id,
-					image_preview_url,
-					name,
-					description,
-					asset_contract: { address }
-				} = collectible;
-				await assetsController.addCollectible(address, Number(token_id), {
-					description,
-					image: image_preview_url,
-					name
-				});
-				if (!list.includes(address)) {
-					list.push(address);
-				}
-				return list;
-			},
-			[]
-		);
-		collectibleContractAddresses.map(async (address: string) => {
-			assetsController.addCollectibleContract(address);
-		});
+		await collectibles.reduce(async (list: string[], collectible: ApiCollectibleResponse) => {
+			const {
+				token_id,
+				image_preview_url,
+				name,
+				description,
+				asset_contract: { address }
+			} = collectible;
+			await assetsController.addCollectible(address, Number(token_id), {
+				description,
+				image: image_preview_url,
+				name
+			});
+			if (!list.includes(address)) {
+				list.push(address);
+			}
+			return list;
+		}, []);
 	}
 
 	/**
