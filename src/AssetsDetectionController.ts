@@ -84,7 +84,6 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 
 	private async getCollectibleContract(contractAddress: string) {
 		const api = this.getAssetContractApi(contractAddress);
-		console.log('api', api);
 		const response = await fetch(api);
 		const collectibleContractObject = await response.json();
 		const collectibleContractInformation = collectibleContractObject;

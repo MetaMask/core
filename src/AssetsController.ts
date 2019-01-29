@@ -6,7 +6,6 @@ import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
 import { manageCollectibleImage } from './util';
 
-const contractMap = require('eth-contract-metadata');
 const { toChecksumAddress } = require('ethereumjs-util');
 const Mutex = require('await-semaphore').Mutex;
 
@@ -132,23 +131,31 @@ export interface AssetsState extends BaseState {
 export class AssetsController extends BaseController<AssetsConfig, AssetsState> {
 	private mutex = new Mutex();
 	/**
-	 * Get collectible tokenURI API
+	 * Get collectible api following OpenSea API
 	 *
 	 * @param contractAddress - ERC721 asset contract address
 	 * @param tokenId - ERC721 asset identifier
 	 * @returns - Collectible tokenURI
 	 */
-	private async getCollectibleTokenURI(contract: MappedContract, tokenId: number): Promise<string> {
-		if (contract.api && contract.collectibles_api) {
-			return `${contract.api + contract.collectibles_api}${tokenId}`;
-		}
+	private getCollectibleApi(contractAddress: string, tokenId: number) {
+		return `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
+	}
+
+	/**
+	 * Get collectible tokenURI API following ERC721
+	 *
+	 * @param contractAddress - ERC721 asset contract address
+	 * @param tokenId - ERC721 asset identifier
+	 * @returns - Collectible tokenURI
+	 */
+	private async getCollectibleTokenURI(contractAddress: string, tokenId: number): Promise<string> {
 		const assetsContract = this.context.AssetsContractController as AssetsContractController;
-		const supportsMetadata = await assetsContract.contractSupportsMetadataInterface(contract.address);
+		const supportsMetadata = await assetsContract.contractSupportsMetadataInterface(contractAddress);
 		/* istanbul ignore if */
 		if (!supportsMetadata) {
 			return '';
 		}
-		const tokenURI = await assetsContract.getCollectibleTokenURI(contract.address, tokenId);
+		const tokenURI = await assetsContract.getCollectibleTokenURI(contractAddress, tokenId);
 		return tokenURI;
 	}
 
@@ -163,23 +170,27 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		address: string,
 		tokenId: number
 	): Promise<CollectibleCustomInformation> {
-		if (address in contractMap && contractMap[address].erc721) {
+		// First try with OpenSea
+		try {
+			const tokenURI = this.getCollectibleApi(address, tokenId);
+			const response = await fetch(tokenURI);
+			const object = await response.json();
+			const { name, description, image_preview_url } = object;
+			return { image: image_preview_url, name, description };
+		} catch (e) {
+			// Then following ERC721 standard
 			try {
-				const contract = contractMap[address];
-				contract.address = address;
-				const tokenURI = await this.getCollectibleTokenURI(contract, tokenId);
+				const tokenURI = await this.getCollectibleTokenURI(address, tokenId);
 				const response = await fetch(tokenURI);
 				const json = await response.json();
 				const imageParam = json.hasOwnProperty('image') ? 'image' : 'image_url';
 				const collectibleImage = manageCollectibleImage(address, json[imageParam]);
-				const description = '';
-				return { image: collectibleImage, name: json.name, description };
+				return { image: collectibleImage, name: json.name, description: '' };
 			} catch (error) {
-				return { image: '', name: contractMap[address].name, description: '' };
+				/* istanbul ignore */
+				return { name: '', image: '', description: '' };
 			}
 		}
-		/* istanbul ignore */
-		return { name: '', image: '', description: '' };
 	}
 
 	/**
