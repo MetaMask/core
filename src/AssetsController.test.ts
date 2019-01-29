@@ -327,7 +327,7 @@ describe('AssetsController', () => {
 	});
 
 	it('should add collectible contract', async () => {
-		await assetsController.addCollectibleContract('0x8C9b', 'name', 'NM', 'logo', 'description', 10);
+		await assetsController.addCollectibleContract('0x8C9b');
 		expect(assetsController.state.allCollectibleContracts).toEqual([
 			{
 				address: '0x8C9b',
@@ -341,8 +341,8 @@ describe('AssetsController', () => {
 	});
 
 	it('should not add  duplicated collectible contract', async () => {
-		await assetsController.addCollectibleContract('0x8C9b', 'name', 'NM', 'logo', 'description', 10);
-		await assetsController.addCollectibleContract('0x8C9b', 'name', 'NM', 'logo', 'description', 10);
+		await assetsController.addCollectibleContract('0x8C9b');
+		await assetsController.addCollectibleContract('0x8C9b');
 		expect(assetsController.state.allCollectibleContracts).toEqual([
 			{
 				address: '0x8C9b',
@@ -356,15 +356,8 @@ describe('AssetsController', () => {
 	});
 
 	it('should remove collectible contract', async () => {
-		await assetsController.addCollectibleContract('0x8c9b', 'name', 'NM', 'logo', 'description', 10);
-		await assetsController.addCollectibleContract(
-			'0x8c9C',
-			'other name',
-			'ON',
-			'other logo',
-			'other description',
-			11
-		);
+		await assetsController.addCollectibleContract('0x8c9b');
+		await assetsController.addCollectibleContract('0x8c9C');
 		await assetsController.removeCollectibleContract('0x8c9b');
 		expect(assetsController.state.allCollectibleContracts).toEqual([
 			{

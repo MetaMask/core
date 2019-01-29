@@ -69,10 +69,6 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		return `https://api.opensea.io/api/v1/assets?owner=${address}`;
 	}
 
-	private getAssetContractApi(contractAddress: string) {
-		return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
-	}
-
 	private async getOwnerCollectibles() {
 		const { selectedAddress } = this.config;
 		const api = this.getOwnerCollectiblesApi(selectedAddress);
@@ -80,14 +76,6 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		const collectiblesArray = await response.json();
 		const collectibles = collectiblesArray.assets;
 		return collectibles;
-	}
-
-	private async getCollectibleContract(contractAddress: string) {
-		const api = this.getAssetContractApi(contractAddress);
-		const response = await fetch(api);
-		const collectibleContractObject = await response.json();
-		const collectibleContractInformation = collectibleContractObject;
-		return collectibleContractInformation;
 	}
 
 	/**
@@ -310,9 +298,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			[]
 		);
 		collectibleContractAddresses.map(async (address: string) => {
-			const information = await this.getCollectibleContract(address);
-			const { name, symbol, image_url, description, total_supply } = information;
-			assetsController.addCollectibleContract(address, name, symbol, image_url, description, total_supply);
+			assetsController.addCollectibleContract(address);
 		});
 	}
 

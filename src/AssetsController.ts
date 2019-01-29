@@ -141,6 +141,10 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		return `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
 	}
 
+	private getAssetContractApi(contractAddress: string) {
+		return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
+	}
+
 	/**
 	 * Get collectible tokenURI API following ERC721
 	 *
@@ -191,6 +195,14 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 				return { name: '', image: '', description: '' };
 			}
 		}
+	}
+
+	private async getCollectibleContract(contractAddress: string) {
+		const api = this.getAssetContractApi(contractAddress);
+		const response = await fetch(api);
+		const collectibleContractObject = await response.json();
+		const collectibleContractInformation = collectibleContractObject;
+		return collectibleContractInformation;
 	}
 
 	/**
@@ -294,20 +306,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * Adds a collectible contract to the stored collectible contracts list
 	 *
 	 * @param address - Hex address of the collectible contract
-	 * @param name - Name of the collectible contract
-	 * @param symbol - Symbol of the collectible contract
-	 * @param logo - Logo url of the collectible contract
-	 * @param description - Description of the collectible contract
 	 * @returns - Promise resolving to the current collectible contracts list
 	 */
-	async addCollectibleContract(
-		address: string,
-		name: string,
-		symbol: string,
-		logo: string,
-		description: string,
-		totalSupply: number
-	): Promise<CollectibleContract[]> {
+	async addCollectibleContract(address: string): Promise<CollectibleContract[]> {
 		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
 		const { allCollectibleContracts } = this.state;
@@ -318,7 +319,15 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			releaseLock();
 			return allCollectibleContracts;
 		}
-		const newEntry: CollectibleContract = { address, logo, name, symbol, description, totalSupply };
+		const { name, symbol, image_url, description, total_supply } = await this.getCollectibleContract(address);
+		const newEntry: CollectibleContract = {
+			address,
+			description,
+			logo: image_url,
+			name,
+			symbol,
+			totalSupply: total_supply
+		};
 		const newCollectibleContracts = [...allCollectibleContracts, newEntry];
 		this.update({ allCollectibleContracts: newCollectibleContracts });
 		releaseLock();
