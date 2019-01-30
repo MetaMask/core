@@ -5,10 +5,12 @@ import { PreferencesController } from './PreferencesController';
 import { ComposableController } from './ComposableController';
 import { AssetsController } from './AssetsController';
 import { AssetsContractController } from './AssetsContractController';
+import { getOnce } from 'fetch-mock';
 
 const BN = require('ethereumjs-util').BN;
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
+const ROPSTEN = 'ropsten';
 const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
 
 describe('AssetsDetectionController', () => {
@@ -27,6 +29,45 @@ describe('AssetsDetectionController', () => {
 		assetsContract = new AssetsContractController();
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assets, assetsContract, assetsDetection, network, preferences]);
+
+		getOnce(
+			'https://api.opensea.io/api/v1/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff',
+			() => ({
+				body: JSON.stringify({
+					description: 'Description',
+					image_url: 'url',
+					name: 'Name',
+					symbol: 'FOO',
+					total_supply: 0
+				})
+			}),
+			{ overwriteRoutes: true }
+		);
+
+		getOnce(
+			'https://api.opensea.io/api/v1/assets?owner=',
+			() => ({
+				body: JSON.stringify({
+					assets: [
+						{
+							asset_contract: {
+								address: '0x1d963688fe2209a98db35c67a041524822cf04ff'
+							},
+							image_preview_url: 'image/2577.png',
+							token_id: '2577'
+						},
+						{
+							asset_contract: {
+								address: '0x1d963688fe2209a98db35c67a041524822cf04ff'
+							},
+							image_preview_url: 'image/2574.png',
+							token_id: '2574'
+						}
+					]
+				})
+			}),
+			{ overwriteRoutes: true }
+		);
 	});
 
 	afterEach(() => {
@@ -60,6 +101,13 @@ describe('AssetsDetectionController', () => {
 		expect(detectCollectibles.called).toBe(true);
 	});
 
+	it('should detect mainnet correctly', () => {
+		assetsDetection.configure({ networkType: MAINNET });
+		expect(assetsDetection.isMainnet()).toEqual(true);
+		assetsDetection.configure({ networkType: ROPSTEN });
+		expect(assetsDetection.isMainnet()).toEqual(false);
+	});
+
 	it('should detect assets only while mainnet', () => {
 		const clock = sandbox.useFakeTimers();
 		const detectTokens = sandbox.stub(assetsDetection, 'detectTokens').returns(null);
@@ -91,6 +139,27 @@ describe('AssetsDetectionController', () => {
 		clock.tick(180001);
 		expect(detectCollectibles.called).toBe(true);
 		expect(detectTokens.called).toBe(true);
+	});
+
+	it('should detect and add collectibles correctly', async () => {
+		assetsDetection.configure({ networkType: MAINNET });
+		await assetsDetection.detectCollectibles();
+		expect(assets.state.collectibles).toEqual([
+			{
+				address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
+				description: undefined,
+				image: 'image/2577.png',
+				name: undefined,
+				tokenId: 2577
+			},
+			{
+				address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
+				description: undefined,
+				image: 'image/2574.png',
+				name: undefined,
+				tokenId: 2574
+			}
+		]);
 	});
 
 	it('should detect tokens correctly', async () => {

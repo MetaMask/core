@@ -138,6 +138,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * Detect assets owned by current account on mainnet
 	 */
 	async detectAssets() {
+		/* istanbul ignore if */
 		if (!this.isMainnet()) {
 			return;
 		}
@@ -149,6 +150,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * Triggers asset ERC20 token auto detection for each contract address in contract metadata on mainnet
 	 */
 	async detectTokens() {
+		/* istanbul ignore if */
 		if (!this.isMainnet()) {
 			return;
 		}
@@ -179,12 +181,13 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * Triggers asset ERC721 token auto detection suing OpenSea on mainnet
 	 */
 	async detectCollectibles() {
+		/* istanbul ignore if */
 		if (!this.isMainnet()) {
 			return;
 		}
 		const assetsController = this.context.AssetsController as AssetsController;
 		const collectibles = await this.getOwnerCollectibles();
-		await collectibles.reduce(async (list: string[], collectible: ApiCollectibleResponse) => {
+		const addCollectiblesPromises = collectibles.map(async (collectible: ApiCollectibleResponse) => {
 			const {
 				token_id,
 				image_preview_url,
@@ -197,11 +200,8 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 				image: image_preview_url,
 				name
 			});
-			if (!list.includes(address)) {
-				list.push(address);
-			}
-			return list;
-		}, []);
+		});
+		await Promise.all(addCollectiblesPromises);
 	}
 
 	/**

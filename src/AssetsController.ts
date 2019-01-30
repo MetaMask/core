@@ -182,9 +182,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	private async getCollectibleInformationFromTokenURI(contractAddress: string, tokenId: number) {
 		const tokenURI = await this.getCollectibleTokenURI(contractAddress, tokenId);
 		const object = await handleFetch(tokenURI);
-		const imageParam = object.hasOwnProperty('image') ? 'image' : 'image_url';
-		const collectibleImage = manageCollectibleImage(contractAddress, object[imageParam]);
-		return { image: collectibleImage, name: object.name, description: '' };
+		const image = object.hasOwnProperty('image') ? 'image' : 'image_url';
+		return { image: object[image], name: object.name, description: '' };
 	}
 
 	/**
@@ -210,7 +209,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		if (information) {
 			return information;
 		}
-		/* istanbul ignore */
+		/* istanbul ignore next */
 		return { name: '', image: '', description: '' };
 	}
 
@@ -261,7 +260,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		if (information) {
 			return information;
 		}
-		/* istanbul ignore */
+		/* istanbul ignore next */
 		return { name: '', image: '', description: '' };
 	}
 
@@ -467,6 +466,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @returns - Promise resolving to the current collectible list
 	 */
 	async addCollectible(address: string, tokenId: number, opts?: CollectibleInformation) {
+		address = toChecksumAddress(address);
 		await this.addIndividualCollectible(address, tokenId, opts);
 		const { collectibleContracts } = this.state;
 		const newCollectibleContract = collectibleContracts.find(
@@ -500,6 +500,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param tokenId - Token identifier of the collectible
 	 */
 	removeCollectible(address: string, tokenId: number) {
+		address = toChecksumAddress(address);
 		this.removeIndividualCollectible(address, tokenId);
 		const { collectibles } = this.state;
 		const remainingCollectible = collectibles.find((collectible) => collectible.address === address);
