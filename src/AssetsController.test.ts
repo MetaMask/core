@@ -50,7 +50,7 @@ describe('AssetsController', () => {
 					image_url: 'url',
 					name: 'Name',
 					symbol: 'FOU',
-					total_supply: 0
+					total_supply: 10
 				})
 			}),
 			{ overwriteRoutes: true }
@@ -244,7 +244,7 @@ describe('AssetsController', () => {
 			description: 'Description',
 			image: 'url',
 			name: 'Name',
-			tokenId: 1
+			tokenId: 10
 		});
 	});
 
@@ -262,11 +262,35 @@ describe('AssetsController', () => {
 		});
 		expect(assetsController.state.collectibleContracts[0]).toEqual({
 			address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
-			description: undefined,
-			logo: undefined,
+			description: '',
+			logo: '',
 			name: 'KudosToken',
 			symbol: 'KDO',
-			totalSupply: undefined
+			totalSupply: ''
+		});
+	});
+
+	it('should add collectible and get collectible contract with no information if no contract nor api', async () => {
+		assetsContract.configure({ provider: MAINNET_PROVIDER });
+		sandbox.stub(assetsController, 'getCollectibleContractInformationFromApi' as any).returns(undefined);
+		sandbox.stub(assetsController, 'getCollectibleInformationFromApi' as any).returns(undefined);
+		sandbox.stub(assetsController, 'getCollectibleInformationFromTokenURI' as any).returns(undefined);
+		sandbox.stub(assetsController, 'getCollectibleContractInformationFromContract' as any).returns(undefined);
+		await assetsController.addCollectible('0x2aE', 1203);
+		expect(assetsController.state.collectibles[0]).toEqual({
+			address: '0x2aE',
+			description: '',
+			image: '',
+			name: '',
+			tokenId: 1203
+		});
+		expect(assetsController.state.collectibleContracts[0]).toEqual({
+			address: '0x2aE',
+			description: '',
+			logo: '',
+			name: '',
+			symbol: '',
+			totalSupply: ''
 		});
 	});
 

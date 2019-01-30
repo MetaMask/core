@@ -29,35 +29,6 @@ export interface Collectible {
 }
 
 /**
- * @type MappedContract
- *
- * Contract information representation that is found in contractMap
- *
- * @property name - Contract name
- * @property logo - Contract logo
- * @property address - Contract address
- * @property symbol - Contract symbol
- * @property decimals - Contract decimals
- * @property api - Contract api, in case of a collectible contract
- * @property collectibles_api - Contract API specific endpoint to get collectibles information, as custom information
- * @property owner_api - Contract API specific endpoint to get owner information, as quantity of assets owned
- * @property erc20 - Whether is ERC20 asset
- * @property erc721 - Whether is ERC721 asset
- */
-export interface MappedContract {
-	name: string;
-	logo?: string;
-	address: string;
-	symbol?: string;
-	decimals?: number;
-	api?: string;
-	collectibles_api?: string;
-	owner_api?: string;
-	erc20?: boolean;
-	erc721?: boolean;
-}
-
-/**
  * @type CollectibleContract
  *
  * Collectible contract information representation
@@ -75,7 +46,26 @@ export interface CollectibleContract {
 	address: string;
 	symbol: string;
 	description: string;
-	totalSupply: number;
+	totalSupply: string;
+}
+
+/**
+ * @type ApiCollectibleContractResponse
+ *
+ * Collectible contract object coming from OpenSea api
+ *
+ * @property description - The collectible identifier
+ * @property image_url - URI of collectible image associated with this collectible
+ * @property name - The collectible name
+ * @property description - The collectible description
+ * @property total_supply - Contract total supply
+ */
+export interface ApiCollectibleContractResponse {
+	description: string;
+	image_url: string;
+	name: string;
+	symbol: string;
+	total_supply: string;
 }
 
 /**
@@ -182,7 +172,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	private async getCollectibleInformationFromTokenURI(contractAddress: string, tokenId: number) {
 		const tokenURI = await this.getCollectibleTokenURI(contractAddress, tokenId);
 		const object = await handleFetch(tokenURI);
-		const image = object.hasOwnProperty('image') ? 'image' : 'image_url';
+		const image = object.hasOwnProperty('image') ? 'image' : /* istanbul ignore next */ 'image_url';
 		return { image: object[image], name: object.name, description: '' };
 	}
 
@@ -219,10 +209,13 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param contractAddress - Hex address of the collectible contract
 	 * @returns - Promise resolving to the current collectible name and image
 	 */
-	private async getCollectibleContractInformationFromApi(contractAddress: string) {
+	private async getCollectibleContractInformationFromApi(
+		contractAddress: string
+	): Promise<ApiCollectibleContractResponse> {
 		const api = this.getCollectibleContractInformationApi(contractAddress);
 		const collectibleContractObject = await handleFetch(api);
-		return collectibleContractObject;
+		const { name, symbol, image_url, description, total_supply } = collectibleContractObject;
+		return { name, symbol, image_url, description, total_supply };
 	}
 
 	/**
@@ -231,11 +224,13 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param contractAddress - Hex address of the collectible contract
 	 * @returns - Promise resolving to the current collectible name and image
 	 */
-	private async getCollectibleContractInformationFromContract(contractAddress: string) {
+	private async getCollectibleContractInformationFromContract(
+		contractAddress: string
+	): Promise<ApiCollectibleContractResponse> {
 		const assetsContractController = this.context.AssetsContractController as AssetsContractController;
 		const name = await assetsContractController.getCollectibleContractName(contractAddress);
 		const symbol = await assetsContractController.getCollectibleContractSymbol(contractAddress);
-		return { name, symbol, description: undefined, total_supply: undefined };
+		return { name, symbol, image_url: '', description: '', total_supply: '' };
 	}
 
 	/**
@@ -244,7 +239,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param contractAddress - Hex address of the collectible contract
 	 * @returns - Promise resolving to the collectible contract name, image and description
 	 */
-	private async getCollectibleContractInformation(contractAddress: string) {
+	private async getCollectibleContractInformation(contractAddress: string): Promise<ApiCollectibleContractResponse> {
 		let information;
 		// First try with OpenSea
 		information = await safelyExecute(async () => {
@@ -261,7 +256,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			return information;
 		}
 		/* istanbul ignore next */
-		return { name: '', image: '', description: '' };
+		return { name: '', symbol: '', image_url: '', description: '', total_supply: '' };
 	}
 
 	/**
