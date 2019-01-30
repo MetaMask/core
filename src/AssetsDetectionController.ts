@@ -13,14 +13,22 @@ const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 
 /**
- * @type CollectibleEntry
+ * @type ApiCollectibleResponse
  *
- * Collectible minimal representation expected on collectibles api
+ * Collectible object coming from OpenSea api
  *
- * @property id - Collectible identifier
+ * @property token_id - The collectible identifier
+ * @property image_preview_url - URI of collectible image associated with this collectible
+ * @property name - The collectible name
+ * @property description - The collectible description
+ * @property assetContract - The collectible contract basic information, in this case the address
  */
-export interface CollectibleEntry {
-	id: number;
+export interface ApiCollectibleResponse {
+	token_id: string;
+	image_preview_url: string;
+	name: string;
+	description: string;
+	asset_contract: { [address: string]: string };
 }
 
 /**
@@ -38,25 +46,6 @@ export interface AssetsDetectionConfig extends BaseConfig {
 	networkType: NetworkType;
 	selectedAddress: string;
 	tokens: Token[];
-}
-
-/**
- * @type ApiCollectibleResponse
- *
- * Collectible object coming from OpenSea api
- *
- * @property token_id - The collectible identifier
- * @property image_preview_url - URI of collectible image associated with this collectible
- * @property name - The collectible name
- * @property description - The collectible description
- * @property assetContract - The collectible contract basic information, in this case the address
- */
-export interface ApiCollectibleResponse {
-	token_id: string;
-	image_preview_url: string;
-	name: string;
-	description: string;
-	asset_contract: { [address: string]: string };
 }
 
 /**
