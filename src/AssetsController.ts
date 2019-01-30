@@ -156,7 +156,10 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param tokenId - The collectible identifier
 	 * @returns - Promise resolving to the current collectible name and image
 	 */
-	private async getCollectibleInformationFromApi(contractAddress: string, tokenId: number) {
+	private async getCollectibleInformationFromApi(
+		contractAddress: string,
+		tokenId: number
+	): Promise<CollectibleInformation> {
 		const tokenURI = this.getCollectibleApi(contractAddress, tokenId);
 		const { name, description, image_preview_url } = await handleFetch(tokenURI);
 		return { image: image_preview_url, name, description };
@@ -169,7 +172,10 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param tokenId - The collectible identifier
 	 * @returns - Promise resolving to the current collectible name and image
 	 */
-	private async getCollectibleInformationFromTokenURI(contractAddress: string, tokenId: number) {
+	private async getCollectibleInformationFromTokenURI(
+		contractAddress: string,
+		tokenId: number
+	): Promise<CollectibleInformation> {
 		const tokenURI = await this.getCollectibleTokenURI(contractAddress, tokenId);
 		const object = await handleFetch(tokenURI);
 		const image = object.hasOwnProperty('image') ? 'image' : /* istanbul ignore next */ 'image_url';
@@ -430,7 +436,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param decimals - Number of decimals the token uses
 	 * @returns - Current token list
 	 */
-	async addToken(address: string, symbol: string, decimals: number) {
+	async addToken(address: string, symbol: string, decimals: number): Promise<Token[]> {
 		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
 		const { allTokens, tokens } = this.state;

@@ -240,7 +240,7 @@ describe('AssetsController', () => {
 			description: 'Description',
 			image: 'url',
 			name: 'Name',
-			tokenId: 10
+			tokenId: 1
 		});
 	});
 
