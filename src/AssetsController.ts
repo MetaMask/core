@@ -234,8 +234,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		contractAddress: string
 	): Promise<ApiCollectibleContractResponse> {
 		const assetsContractController = this.context.AssetsContractController as AssetsContractController;
-		const name = await assetsContractController.getCollectibleContractName(contractAddress);
-		const symbol = await assetsContractController.getCollectibleContractSymbol(contractAddress);
+		const name = await assetsContractController.getAssetName(contractAddress);
+		const symbol = await assetsContractController.getAssetSymbol(contractAddress);
 		return { name, symbol, image_url: '', description: '', total_supply: '' };
 	}
 

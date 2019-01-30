@@ -52,13 +52,19 @@ describe('AssetsContractController', () => {
 
 	it('should get collectible name', async () => {
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
-		const name = await assetsContract.getCollectibleContractName(GODSADDRESS);
+		const name = await assetsContract.getAssetName(GODSADDRESS);
 		expect(name).toEqual('Gods Unchained');
 	});
 	it('should get collectible symbol', async () => {
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
-		const symbol = await assetsContract.getCollectibleContractSymbol(GODSADDRESS);
+		const symbol = await assetsContract.getAssetSymbol(GODSADDRESS);
 		expect(symbol).toEqual('GODS');
+	});
+
+	it('should get token decimals', async () => {
+		assetsContract.configure({ provider: MAINNET_PROVIDER });
+		const symbol = await assetsContract.getTokenDecimals(DAI_ADDRESS);
+		expect(Number(symbol)).toEqual(18);
 	});
 
 	it('should get collectible ownership', async () => {

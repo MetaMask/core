@@ -173,12 +173,32 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	}
 
 	/**
+	 * Query for name for a given ERC20 asset
+	 *
+	 * @param address - ERC20 asset contract address
+	 * @returns - Promise resolving to the 'decimals'
+	 */
+	async getTokenDecimals(address: string): Promise<string> {
+		const contract = this.web3.eth.contract(abiERC20).at(address);
+		return new Promise<string>((resolve, reject) => {
+			contract.decimals((error: Error, result: string) => {
+				/* istanbul ignore if */
+				if (error) {
+					reject(error);
+					return;
+				}
+				resolve(result);
+			});
+		});
+	}
+
+	/**
 	 * Query for name for a given asset
 	 *
-	 * @param address - ERC721 asset contract address
+	 * @param address - ERC721 or ERC20 asset contract address
 	 * @returns - Promise resolving to the 'name'
 	 */
-	async getCollectibleContractName(address: string): Promise<string> {
+	async getAssetName(address: string): Promise<string> {
 		const contract = this.web3.eth.contract(abiERC721).at(address);
 		return new Promise<string>((resolve, reject) => {
 			contract.name((error: Error, result: string) => {
@@ -195,10 +215,10 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	/**
 	 * Query for symbol for a given asset
 	 *
-	 * @param address - ERC721 asset contract address
+	 * @param address - ERC721 or ERC20 asset contract address
 	 * @returns - Promise resolving to the 'symbol'
 	 */
-	async getCollectibleContractSymbol(address: string): Promise<string> {
+	async getAssetSymbol(address: string): Promise<string> {
 		const contract = this.web3.eth.contract(abiERC721).at(address);
 		return new Promise<string>((resolve, reject) => {
 			contract.symbol((error: Error, result: string) => {
