@@ -7,10 +7,6 @@ import { NetworkController } from './NetworkController';
 import { AssetsContractController } from './AssetsContractController';
 
 const HttpProvider = require('ethjs-provider-http');
-const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
-const COLLECTIBLES = [{ address: '0xfoO', description: undefined, image: 'url', name: 'name', tokenId: 1234 }];
-const GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
-const CKADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
 const KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
 

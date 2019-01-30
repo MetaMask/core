@@ -4,7 +4,7 @@ import PreferencesController from './PreferencesController';
 import NetworkController, { NetworkType } from './NetworkController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
-import { manageCollectibleImage, safelyExecute, handleFetch } from './util';
+import { safelyExecute, handleFetch } from './util';
 
 const { toChecksumAddress } = require('ethereumjs-util');
 const Mutex = require('await-semaphore').Mutex;

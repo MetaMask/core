@@ -251,24 +251,6 @@ export function validateTypedSignMessageDataV3(messageData: TypedMessageParams, 
 	}
 }
 
-/**
- * Modifies collectible images URI in case is necessary
- *
- * @param address - Collectible address
- * @param image - Initial image URI given by collectible tokenURI
- * @returns - Modified image URI
- */
-export function manageCollectibleImage(address: string, image: string) {
-	const GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
-	let collectibleImage;
-	if (address === GODSADDRESS) {
-		collectibleImage = image.split('?')[0];
-	} else {
-		collectibleImage = image;
-	}
-	return collectibleImage;
-}
-
 export default {
 	BNToHex,
 	fractionBN,
@@ -276,7 +258,6 @@ export default {
 	handleFetch,
 	hexToBN,
 	hexToText,
-	manageCollectibleImage,
 	normalizeTransaction,
 	safelyExecute,
 	validateTransaction,
