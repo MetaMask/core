@@ -252,18 +252,18 @@ describe('AssetsController', () => {
 		await assetsController.addCollectible(KUDOSADDRESS, 1203);
 		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
-			description: '',
+			description: undefined,
 			image: 'Kudos Image',
 			name: 'Kudos Name',
 			tokenId: 1203
 		});
 		expect(assetsController.state.collectibleContracts[0]).toEqual({
 			address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
-			description: '',
-			logo: '',
+			description: undefined,
+			logo: undefined,
 			name: 'KudosToken',
 			symbol: 'KDO',
-			totalSupply: ''
+			totalSupply: undefined
 		});
 	});
 
@@ -276,18 +276,18 @@ describe('AssetsController', () => {
 		await assetsController.addCollectible('0x2aE', 1203);
 		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0x2aE',
-			description: '',
-			image: '',
-			name: '',
+			description: undefined,
+			image: undefined,
+			name: undefined,
 			tokenId: 1203
 		});
 		expect(assetsController.state.collectibleContracts[0]).toEqual({
 			address: '0x2aE',
-			description: '',
-			logo: '',
-			name: '',
-			symbol: '',
-			totalSupply: ''
+			description: undefined,
+			logo: undefined,
+			name: undefined,
+			symbol: undefined,
+			totalSupply: undefined
 		});
 	});
 

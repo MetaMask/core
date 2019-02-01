@@ -22,9 +22,9 @@ const Mutex = require('await-semaphore').Mutex;
  */
 export interface Collectible {
 	address: string;
-	description: string;
-	image: string;
-	name: string;
+	description?: string;
+	image?: string;
+	name?: string;
 	tokenId: number;
 }
 
@@ -41,12 +41,12 @@ export interface Collectible {
  * @property totalSupply - Contract total supply
  */
 export interface CollectibleContract {
-	name: string;
-	logo: string;
+	name?: string;
+	logo?: string;
 	address: string;
-	symbol: string;
-	description: string;
-	totalSupply: string;
+	symbol?: string;
+	description?: string;
+	totalSupply?: string;
 }
 
 /**
@@ -61,11 +61,11 @@ export interface CollectibleContract {
  * @property total_supply - Contract total supply
  */
 export interface ApiCollectibleContractResponse {
-	description: string;
-	image_url: string;
-	name: string;
-	symbol: string;
-	total_supply: string;
+	description?: string;
+	image_url?: string;
+	name?: string;
+	symbol?: string;
+	total_supply?: string;
 }
 
 /**
@@ -78,9 +78,9 @@ export interface ApiCollectibleContractResponse {
  * @property image - Image custom image URI
  */
 export interface CollectibleInformation {
-	description: string;
-	image: string;
-	name: string;
+	description?: string;
+	image?: string;
+	name?: string;
 }
 
 /**
@@ -179,7 +179,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const tokenURI = await this.getCollectibleTokenURI(contractAddress, tokenId);
 		const object = await handleFetch(tokenURI);
 		const image = object.hasOwnProperty('image') ? 'image' : /* istanbul ignore next */ 'image_url';
-		return { image: object[image], name: object.name, description: '' };
+		return { image: object[image], name: object.name };
 	}
 
 	/**
@@ -206,7 +206,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			return information;
 		}
 		/* istanbul ignore next */
-		return { name: '', image: '', description: '' };
+		return {};
 	}
 
 	/**
@@ -236,7 +236,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const assetsContractController = this.context.AssetsContractController as AssetsContractController;
 		const name = await assetsContractController.getAssetName(contractAddress);
 		const symbol = await assetsContractController.getAssetSymbol(contractAddress);
-		return { name, symbol, image_url: '', description: '', total_supply: '' };
+		return { name, symbol };
 	}
 
 	/**
@@ -262,7 +262,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			return information;
 		}
 		/* istanbul ignore next */
-		return { name: '', symbol: '', image_url: '', description: '', total_supply: '' };
+		return {};
 	}
 
 	/**
@@ -289,7 +289,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			releaseLock();
 			return collectibles;
 		}
-		const { name, image, description } = opts ? opts : await this.getCollectibleInformation(address, tokenId);
+		const collectibleInformation = await this.getCollectibleInformation(address, tokenId);
+		const { name, image, description } = opts ? opts : collectibleInformation;
 		const newEntry: Collectible = { address, tokenId, name, image, description };
 		const newCollectibles = [...collectibles, newEntry];
 		const addressCollectibles = allCollectibles[selectedAddress];
@@ -318,9 +319,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			releaseLock();
 			return collectibleContracts;
 		}
-		const { name, symbol, image_url, description, total_supply } = await this.getCollectibleContractInformation(
-			address
-		);
+		const contractInformation = await this.getCollectibleContractInformation(address);
+		const { name, symbol, image_url, description, total_supply } = contractInformation;
 		const newEntry: CollectibleContract = {
 			address,
 			description,
