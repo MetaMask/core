@@ -12,6 +12,7 @@ const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 const ROPSTEN = 'ropsten';
 const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
+const OPEN_SEA_API = 'https://api.opensea.io/api/v1/';
 
 describe('AssetsDetectionController', () => {
 	let assetsDetection: AssetsDetectionController;
@@ -31,7 +32,7 @@ describe('AssetsDetectionController', () => {
 		new ComposableController([assets, assetsContract, assetsDetection, network, preferences]);
 
 		getOnce(
-			'https://api.opensea.io/api/v1/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff',
+			OPEN_SEA_API + 'asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff',
 			() => ({
 				body: JSON.stringify({
 					description: 'Description',
@@ -45,7 +46,7 @@ describe('AssetsDetectionController', () => {
 		);
 
 		getOnce(
-			'https://api.opensea.io/api/v1/assets?owner=',
+			OPEN_SEA_API + 'assets?owner=',
 			() => ({
 				body: JSON.stringify({
 					assets: [

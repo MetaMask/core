@@ -9,6 +9,7 @@ import { AssetsContractController } from './AssetsContractController';
 const HttpProvider = require('ethjs-provider-http');
 const KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
+const OPEN_SEA_API = 'https://api.opensea.io/api/v1/';
 
 describe('AssetsController', () => {
 	let assetsController: AssetsController;
@@ -26,7 +27,7 @@ describe('AssetsController', () => {
 		new ComposableController([assetsController, assetsContract, network, preferences]);
 
 		getOnce(
-			'https://api.opensea.io/api/v1/asset_contract/0xfoO',
+			OPEN_SEA_API + 'asset_contract/0xfoO',
 			() => ({
 				body: JSON.stringify({
 					description: 'Description',
@@ -39,7 +40,7 @@ describe('AssetsController', () => {
 			{ overwriteRoutes: true }
 		);
 		getOnce(
-			'https://api.opensea.io/api/v1/asset_contract/0xFOu',
+			OPEN_SEA_API + 'asset_contract/0xFOu',
 			() => ({
 				body: JSON.stringify({
 					description: 'Description',
@@ -52,7 +53,7 @@ describe('AssetsController', () => {
 			{ overwriteRoutes: true }
 		);
 		getOnce(
-			'https://api.opensea.io/api/v1/asset/0xfoO/1',
+			OPEN_SEA_API + 'asset/0xfoO/1',
 			() => ({
 				body: JSON.stringify({
 					description: 'Description',
@@ -63,7 +64,7 @@ describe('AssetsController', () => {
 			{ overwriteRoutes: true }
 		);
 		getOnce(
-			'https://api.opensea.io/api/v1/asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203',
+			OPEN_SEA_API + 'asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203',
 			() => ({
 				body: JSON.stringify({
 					description: 'Kudos Description',
@@ -84,14 +85,14 @@ describe('AssetsController', () => {
 			{ overwriteRoutes: true }
 		);
 		getOnce(
-			'https://api.opensea.io/api/v1/asset/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/798958393',
+			OPEN_SEA_API + 'asset/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/798958393',
 			() => ({
 				throws: new TypeError('Failed to fetch')
 			}),
 			{ overwriteRoutes: true }
 		);
 		getOnce(
-			'https://api.opensea.io/api/v1/asset_contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
+			OPEN_SEA_API + 'asset_contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
 			() => ({
 				throws: new TypeError('Failed to fetch')
 			}),
