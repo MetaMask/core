@@ -13,14 +13,22 @@ const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 
 /**
- * @type CollectibleEntry
+ * @type ApiCollectibleResponse
  *
- * Collectible minimal representation expected on collectibles api
+ * Collectible object coming from OpenSea api
  *
- * @property id - Collectible identifier
+ * @property token_id - The collectible identifier
+ * @property image_preview_url - URI of collectible image associated with this collectible
+ * @property name - The collectible name
+ * @property description - The collectible description
+ * @property assetContract - The collectible contract basic information, in this case the address
  */
-export interface CollectibleEntry {
-	id: number;
+export interface ApiCollectibleResponse {
+	token_id: string;
+	image_preview_url: string;
+	name: string;
+	description: string;
+	asset_contract: { [address: string]: string };
 }
 
 /**
@@ -46,70 +54,17 @@ export interface AssetsDetectionConfig extends BaseConfig {
 export class AssetsDetectionController extends BaseController<AssetsDetectionConfig, BaseState> {
 	private handle?: NodeJS.Timer;
 
-	/**
-	 * Get user information API for collectibles based on API provided in contract metadata
-	 *
-	 * @param address - ERC721 asset contract address
-	 * @returns - User information URI
-	 */
-	private getCollectibleUserApi(address: string) {
-		const contract = contractMap[address];
+	private getOwnerCollectiblesApi(address: string) {
+		return `https://api.opensea.io/api/v1/assets?owner=${address}`;
+	}
+
+	private async getOwnerCollectibles() {
 		const { selectedAddress } = this.config;
-		const collectibleUserApi = contract.api + contract.owner_api + selectedAddress;
-		return collectibleUserApi;
-	}
-
-	/**
-	 * Get current account collectibles ids, if ERC721Enumerable interface implemented
-	 *
-	 * @param address - ERC721 asset contract address
-	 * @return - Promise resolving to collectibles entries array
-	 */
-	private async getEnumerableCollectiblesIds(address: string): Promise<CollectibleEntry[]> {
-		const assetsContractController = this.context.AssetsContractController as AssetsContractController;
-		const collectibleEntries: CollectibleEntry[] = [];
-		try {
-			const { selectedAddress } = this.config;
-			const balance = await assetsContractController.getBalanceOf(address, selectedAddress);
-			const indexes: number[] = Array.from(new Array(balance.toNumber()), (_, index) => index);
-			const promises = indexes.map((index) => {
-				return assetsContractController.getCollectibleTokenId(address, selectedAddress, index);
-			});
-			const tokenIds = await Promise.all(promises);
-			for (const key in tokenIds) {
-				collectibleEntries.push({ id: tokenIds[key] });
-			}
-			return collectibleEntries;
-		} catch (error) {
-			/* istanbul ignore next */
-			return collectibleEntries;
-		}
-	}
-
-	/**
-	 * Get current account collectibles, using collectible API
-	 * if there is one defined in contract metadata
-	 *
-	 * @param address - ERC721 asset contract address
-	 * @returns - Promise resolving to collectibles entries array
-	 */
-	private async getApiCollectiblesIds(address: string): Promise<CollectibleEntry[]> {
-		const contract = contractMap[address];
-		const collectibleEntries: CollectibleEntry[] = [];
-		try {
-			const collectibleUserApi = this.getCollectibleUserApi(address);
-			const response = await fetch(collectibleUserApi);
-			const json = await response.json();
-			const collectiblesJson = json[contract.collectibles_entry];
-			for (const key in collectiblesJson) {
-				const collectibleEntry: CollectibleEntry = collectiblesJson[key];
-				collectibleEntries.push({ id: collectibleEntry.id });
-			}
-			return collectibleEntries;
-		} catch (error) {
-			/* istanbul ignore next */
-			return collectibleEntries;
-		}
+		const api = this.getOwnerCollectiblesApi(selectedAddress);
+		const response = await fetch(api);
+		const collectiblesArray = await response.json();
+		const collectibles = collectiblesArray.assets;
+		return collectibles;
 	}
 
 	/**
@@ -157,46 +112,15 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	}
 
 	/**
-	 * Detect if current account is owner of ERC20 token. If is the case, adds it to state
+	 * Checks whether network is mainnet or not
 	 *
-	 * @param address - Asset ERC20 contract address
+	 * @returns - Whether current network is mainnet
 	 */
-	async detectTokenOwnership(address: string) {
-		const assetsController = this.context.AssetsController as AssetsController;
-		const assetsContractController = this.context.AssetsContractController as AssetsContractController;
-		const { selectedAddress } = this.config;
-		const balance = await assetsContractController.getBalanceOf(address, selectedAddress);
-		if (!balance.isZero()) {
-			await assetsController.addToken(address, contractMap[address].symbol, contractMap[address].decimals);
+	isMainnet() {
+		if (this.config.networkType !== MAINNET || this.disabled) {
+			return false;
 		}
-	}
-
-	/**
-	 * Detect if current account is owner of ERC721 token. If is the case, adds it to state
-	 *
-	 * @param address - ERC721 asset contract address
-	 */
-	async detectCollectibleOwnership(address: string) {
-		const assetsContractController = this.context.AssetsContractController as AssetsContractController;
-		const assetsController = this.context.AssetsController as AssetsController;
-		const { selectedAddress } = this.config;
-		const balance = await assetsContractController.getBalanceOf(address, selectedAddress);
-		if (!balance.isZero()) {
-			let collectibleIds: CollectibleEntry[] = [];
-			const contractApiDefined =
-				contractMap[address] && contractMap[address].api && contractMap[address].owner_api;
-			if (contractApiDefined) {
-				collectibleIds = await this.getApiCollectiblesIds(address);
-			} else {
-				const supportsEnumerable = await assetsContractController.contractSupportsEnumerableInterface(address);
-				if (supportsEnumerable) {
-					collectibleIds = await this.getEnumerableCollectiblesIds(address);
-				}
-			}
-			for (const key in collectibleIds) {
-				await assetsController.addCollectible(address, collectibleIds[key].id);
-			}
-		}
+		return true;
 	}
 
 	/**
@@ -204,7 +128,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 */
 	async detectAssets() {
 		/* istanbul ignore if */
-		if (this.config.networkType !== MAINNET || this.disabled) {
+		if (!this.isMainnet()) {
 			return;
 		}
 		this.detectTokens();
@@ -212,9 +136,13 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	}
 
 	/**
-	 * Triggers asset ERC20 token auto detection for each contract address in contract metadata
+	 * Triggers asset ERC20 token auto detection for each contract address in contract metadata on mainnet
 	 */
 	async detectTokens() {
+		/* istanbul ignore if */
+		if (!this.isMainnet()) {
+			return;
+		}
 		const tokensAddresses = this.config.tokens.filter(/* istanbul ignore next*/ (token) => token.address);
 		const tokensToDetect = [];
 		for (const address in contractMap) {
@@ -239,15 +167,30 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	}
 
 	/**
-	 * Triggers asset ERC721 token auto detection for each contract address in contract metadata
+	 * Triggers asset ERC721 token auto detection suing OpenSea on mainnet
 	 */
 	async detectCollectibles() {
-		for (const address in contractMap) {
-			const contract = contractMap[address];
-			if (contract.erc721) {
-				await safelyExecute(async () => await this.detectCollectibleOwnership(address));
-			}
+		/* istanbul ignore if */
+		if (!this.isMainnet()) {
+			return;
 		}
+		const assetsController = this.context.AssetsController as AssetsController;
+		const collectibles = await this.getOwnerCollectibles();
+		const addCollectiblesPromises = collectibles.map(async (collectible: ApiCollectibleResponse) => {
+			const {
+				token_id,
+				image_preview_url,
+				name,
+				description,
+				asset_contract: { address }
+			} = collectible;
+			await assetsController.addCollectible(address, Number(token_id), {
+				description,
+				image: image_preview_url,
+				name
+			});
+		});
+		await Promise.all(addCollectiblesPromises);
 	}
 
 	/**

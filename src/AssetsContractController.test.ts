@@ -50,6 +50,23 @@ describe('AssetsContractController', () => {
 		expect(tokenId).toEqual('https://api.godsunchained.com/card/0');
 	});
 
+	it('should get collectible name', async () => {
+		assetsContract.configure({ provider: MAINNET_PROVIDER });
+		const name = await assetsContract.getAssetName(GODSADDRESS);
+		expect(name).toEqual('Gods Unchained');
+	});
+	it('should get collectible symbol', async () => {
+		assetsContract.configure({ provider: MAINNET_PROVIDER });
+		const symbol = await assetsContract.getAssetSymbol(GODSADDRESS);
+		expect(symbol).toEqual('GODS');
+	});
+
+	it('should get token decimals', async () => {
+		assetsContract.configure({ provider: MAINNET_PROVIDER });
+		const symbol = await assetsContract.getTokenDecimals(DAI_ADDRESS);
+		expect(Number(symbol)).toEqual(18);
+	});
+
 	it('should get collectible ownership', async () => {
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
 		const tokenId = await assetsContract.getOwnerOf(GODSADDRESS, 148332);

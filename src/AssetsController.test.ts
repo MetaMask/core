@@ -7,11 +7,9 @@ import { NetworkController } from './NetworkController';
 import { AssetsContractController } from './AssetsContractController';
 
 const HttpProvider = require('ethjs-provider-http');
-const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
-const COLLECTIBLES = [{ address: '0xfoO', image: 'url', name: 'name', tokenId: 1234 }];
-const GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
-const CKADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
+const KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
+const OPEN_SEA_API = 'https://api.opensea.io/api/v1/';
 
 describe('AssetsController', () => {
 	let assetsController: AssetsController;
@@ -27,6 +25,79 @@ describe('AssetsController', () => {
 		assetsContract = new AssetsContractController();
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([assetsController, assetsContract, network, preferences]);
+
+		getOnce(
+			OPEN_SEA_API + 'asset_contract/0xfoO',
+			() => ({
+				body: JSON.stringify({
+					description: 'Description',
+					image_url: 'url',
+					name: 'Name',
+					symbol: 'FOO',
+					total_supply: 0
+				})
+			}),
+			{ overwriteRoutes: true }
+		);
+		getOnce(
+			OPEN_SEA_API + 'asset_contract/0xFOu',
+			() => ({
+				body: JSON.stringify({
+					description: 'Description',
+					image_url: 'url',
+					name: 'Name',
+					symbol: 'FOU',
+					total_supply: 10
+				})
+			}),
+			{ overwriteRoutes: true }
+		);
+		getOnce(
+			OPEN_SEA_API + 'asset/0xfoO/1',
+			() => ({
+				body: JSON.stringify({
+					description: 'Description',
+					image_preview_url: 'url',
+					name: 'Name'
+				})
+			}),
+			{ overwriteRoutes: true }
+		);
+		getOnce(
+			OPEN_SEA_API + 'asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203',
+			() => ({
+				body: JSON.stringify({
+					description: 'Kudos Description',
+					image_preview_url: 'Kudos url',
+					name: 'Kudos Name'
+				})
+			}),
+			{ overwriteRoutes: true }
+		);
+		getOnce(
+			'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
+			() => ({
+				body: JSON.stringify({
+					image: 'Kudos Image',
+					name: 'Kudos Name'
+				})
+			}),
+			{ overwriteRoutes: true }
+		);
+		getOnce(
+			OPEN_SEA_API + 'asset/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/798958393',
+			() => ({
+				throws: new TypeError('Failed to fetch')
+			}),
+			{ overwriteRoutes: true }
+		);
+		getOnce(
+			OPEN_SEA_API + 'asset_contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
+			() => ({
+				throws: new TypeError('Failed to fetch')
+			}),
+			{ overwriteRoutes: true }
+		);
 	});
 
 	afterEach(() => {
@@ -35,9 +106,10 @@ describe('AssetsController', () => {
 
 	it('should set default state', () => {
 		expect(assetsController.state).toEqual({
-			allCollectibleContracts: [],
+			allCollectibleContracts: {},
 			allCollectibles: {},
 			allTokens: {},
+			collectibleContracts: [],
 			collectibles: [],
 			tokens: []
 		});
@@ -129,74 +201,102 @@ describe('AssetsController', () => {
 		});
 	});
 
-	it('should add collectible', async () => {
-		assetsContract.configure({ provider: MAINNET_PROVIDER });
-		await assetsController.addCollectible('foo', 1234);
-		expect(assetsController.state.collectibles).toEqual([
-			{
-				address: '0xfoO',
-				image: '',
-				name: '',
-				tokenId: 1234
-			}
-		]);
+	it('should add collectible and collectible contract', async () => {
+		await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+		expect(assetsController.state.collectibles[0]).toEqual({
+			address: '0xfoO',
+			description: 'description',
+			image: 'image',
+			name: 'name',
+			tokenId: 1
+		});
+		expect(assetsController.state.collectibleContracts[0]).toEqual({
+			address: '0xfoO',
+			description: 'Description',
+			logo: 'url',
+			name: 'Name',
+			symbol: 'FOO',
+			totalSupply: 0
+		});
 	});
 
-	it('should add collectible with enumerable support but no tokenURI', async () => {
-		assetsContract.configure({ provider: MAINNET_PROVIDER });
-		await assetsController.addCollectible('0x8c9b261Faef3b3C2e64ab5E58e04615F8c788099', 1);
-		expect(assetsController.state.collectibles).toEqual([
-			{
-				address: '0x8c9b261Faef3b3C2e64ab5E58e04615F8c788099',
-				image: '',
-				name: 'LucidSight-MLB-NFT',
-				tokenId: 1
-			}
-		]);
+	it('should not duplicate collectible nor collectible contract if already added', async () => {
+		await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+		await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+		expect(assetsController.state.collectibles.length).toEqual(1);
+		expect(assetsController.state.collectibleContracts.length).toEqual(1);
 	});
 
-	it('should add collectible with tokenURI, metadata and enumerable support', async () => {
-		getOnce('https://api.godsunchained.com/card/1', () => ({
-			body: JSON.stringify({ image: 'https://api.godsunchained.com/v0/image/7', name: 'Broken Harvester' })
-		}));
-		assetsContract.configure({ provider: MAINNET_PROVIDER });
-		await assetsController.addCollectible(GODSADDRESS, 1);
-		expect(assetsController.state.collectibles).toEqual([
-			{
-				address: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-				image: 'https://api.godsunchained.com/v0/image/7',
-				name: 'Broken Harvester',
-				tokenId: 1
-			}
-		]);
+	it('should not add collectible contract if collectible contract already exists', async () => {
+		await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+		await assetsController.addCollectible('foo', 2, { name: 'name', image: 'image', description: 'description' });
+		expect(assetsController.state.collectibles.length).toEqual(2);
+		expect(assetsController.state.collectibleContracts.length).toEqual(1);
 	});
 
-	it('should add collectible with no tokenURI with no enumerable neither metadata support', async () => {
-		getOnce('https://api.cryptokitties.co/kitties/1', () => ({
-			body: JSON.stringify({
-				id: 1,
-				image_url: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1.png',
-				name: 'Genesis'
-			})
-		}));
+	it('should add collectible and get information from OpenSea', async () => {
+		await assetsController.addCollectible('foo', 1);
+		expect(assetsController.state.collectibles[0]).toEqual({
+			address: '0xfoO',
+			description: 'Description',
+			image: 'url',
+			name: 'Name',
+			tokenId: 1
+		});
+	});
+
+	it('should add collectible and get collectible contract information from contract', async () => {
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
-		await assetsController.addCollectible(CKADDRESS, 1);
-		expect(assetsController.state.collectibles).toEqual([
-			{
-				address: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
-				image: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1.png',
-				name: 'Genesis',
-				tokenId: 1
-			}
-		]);
+		sandbox.stub(assetsController, 'getCollectibleContractInformationFromApi' as any).returns(undefined);
+		sandbox.stub(assetsController, 'getCollectibleInformationFromApi' as any).returns(undefined);
+		await assetsController.addCollectible(KUDOSADDRESS, 1203);
+		expect(assetsController.state.collectibles[0]).toEqual({
+			address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+			description: undefined,
+			image: 'Kudos Image',
+			name: 'Kudos Name',
+			tokenId: 1203
+		});
+		expect(assetsController.state.collectibleContracts[0]).toEqual({
+			address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+			description: undefined,
+			logo: undefined,
+			name: 'KudosToken',
+			symbol: 'KDO',
+			totalSupply: undefined
+		});
+	});
+
+	it('should add collectible and get collectible contract with no information if no contract nor api', async () => {
+		assetsContract.configure({ provider: MAINNET_PROVIDER });
+		sandbox.stub(assetsController, 'getCollectibleContractInformationFromApi' as any).returns(undefined);
+		sandbox.stub(assetsController, 'getCollectibleInformationFromApi' as any).returns(undefined);
+		sandbox.stub(assetsController, 'getCollectibleInformationFromTokenURI' as any).returns(undefined);
+		sandbox.stub(assetsController, 'getCollectibleContractInformationFromContract' as any).returns(undefined);
+		await assetsController.addCollectible('0x2aE', 1203);
+		expect(assetsController.state.collectibles[0]).toEqual({
+			address: '0x2aE',
+			description: undefined,
+			image: undefined,
+			name: undefined,
+			tokenId: 1203
+		});
+		expect(assetsController.state.collectibleContracts[0]).toEqual({
+			address: '0x2aE',
+			description: undefined,
+			logo: undefined,
+			name: undefined,
+			symbol: undefined,
+			totalSupply: undefined
+		});
 	});
 
 	it('should add collectible by selected address', async () => {
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
 		sandbox
-			.stub(assetsController, 'getCollectibleCustomInformation' as any)
-			.returns({ name: 'name', image: 'url' });
+			.stub(assetsController, 'getCollectibleInformation' as any)
+			.returns({ name: 'name', image: 'url', description: 'description' });
 		preferences.update({ selectedAddress: firstAddress });
 		await assetsController.addCollectible('foo', 1234);
 		preferences.update({ selectedAddress: secondAddress });
@@ -204,6 +304,7 @@ describe('AssetsController', () => {
 		preferences.update({ selectedAddress: firstAddress });
 		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0xfoO',
+			description: 'description',
 			image: 'url',
 			name: 'name',
 			tokenId: 1234
@@ -214,8 +315,8 @@ describe('AssetsController', () => {
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
 		sandbox
-			.stub(assetsController, 'getCollectibleCustomInformation' as any)
-			.returns({ name: 'name', image: 'url' });
+			.stub(assetsController, 'getCollectibleInformation' as any)
+			.returns({ name: 'name', image: 'url', description: 'description' });
 		network.update({ provider: { type: firstNetworkType } });
 		await assetsController.addCollectible('foo', 1234);
 		network.update({ provider: { type: secondNetworkType } });
@@ -223,25 +324,32 @@ describe('AssetsController', () => {
 		network.update({ provider: { type: firstNetworkType } });
 		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0xfoO',
+			description: 'description',
 			image: 'url',
 			name: 'name',
 			tokenId: 1234
 		});
 	});
 
-	it('should remove collectible', async () => {
-		sandbox
-			.stub(assetsController, 'getCollectibleCustomInformation' as any)
-			.returns({ name: 'name', image: 'url' });
-		await assetsController.addCollectible('0xfoO', 1234);
-		assetsController.removeCollectible('0xfoO', 1234);
-		expect(assetsController.state.collectibles.length).toBe(0);
+	it('should remove collectible and collectible contract', async () => {
+		await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+		assetsController.removeCollectible('0xfoO', 1);
+		expect(assetsController.state.collectibles.length).toEqual(0);
+		expect(assetsController.state.collectibleContracts.length).toEqual(0);
+	});
+
+	it('should not remove collectible contract if collectible still exists', async () => {
+		await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+		await assetsController.addCollectible('foo', 2, { name: 'name', image: 'image', description: 'description' });
+		assetsController.removeCollectible('0xfoO', 1);
+		expect(assetsController.state.collectibles.length).toEqual(1);
+		expect(assetsController.state.collectibleContracts.length).toEqual(1);
 	});
 
 	it('should remove collectible by selected address', async () => {
 		sandbox
-			.stub(assetsController, 'getCollectibleCustomInformation' as any)
-			.returns({ name: 'name', image: 'url' });
+			.stub(assetsController, 'getCollectibleInformation' as any)
+			.returns({ name: 'name', image: 'url', description: 'description' });
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
 		preferences.update({ selectedAddress: firstAddress });
@@ -253,6 +361,7 @@ describe('AssetsController', () => {
 		preferences.update({ selectedAddress: firstAddress });
 		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0xFOu',
+			description: 'description',
 			image: 'url',
 			name: 'name',
 			tokenId: 4321
@@ -261,8 +370,8 @@ describe('AssetsController', () => {
 
 	it('should remove collectible by provider type', async () => {
 		sandbox
-			.stub(assetsController, 'getCollectibleCustomInformation' as any)
-			.returns({ name: 'name', image: 'url' });
+			.stub(assetsController, 'getCollectibleInformation' as any)
+			.returns({ name: 'name', image: 'url', description: 'description' });
 		const firstNetworkType = 'rinkeby';
 		const secondNetworkType = 'ropsten';
 		network.update({ provider: { type: firstNetworkType } });
@@ -275,97 +384,11 @@ describe('AssetsController', () => {
 		network.update({ provider: { type: firstNetworkType } });
 		expect(assetsController.state.collectibles[0]).toEqual({
 			address: '0xFOu',
+			description: 'description',
 			image: 'url',
 			name: 'name',
 			tokenId: 4321
 		});
-	});
-
-	it('should not add duplicated collectible', async () => {
-		const func = sandbox.stub(assetsController, 'getCollectibleCustomInformation' as any).returns({
-			image: 'url',
-			name: 'name'
-		});
-		await assetsController.addCollectible('foo', 1234);
-		await assetsController.addCollectible('foo', 1234);
-		expect(assetsController.state.collectibles.length).toEqual(1);
-		func.restore();
-	});
-
-	it('should request collectible default data and handle on adding collectible', async () => {
-		getOnce('https://api.cryptokitties.co/kitties/740632', () => ({
-			body: JSON.stringify({
-				id: 1,
-				image_url: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1.png',
-				name: 'TestName'
-			})
-		}));
-		await assetsController.addCollectible('0x06012c8cf97BEaD5deAe237070F9587f8E7A266d', 740632);
-		expect(assetsController.state.collectibles[0]).toEqual({
-			address: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
-			image: 'https://img.cryptokitties.co/0x06012c8cf97bead5deae237070f9587f8e7a266d/1.png',
-			name: 'TestName',
-			tokenId: 740632
-		});
-		await assetsController.addCollectible('foo', 1);
-		expect(assetsController.state.collectibles[1]).toEqual({
-			address: '0xfoO',
-			image: '',
-			name: '',
-			tokenId: 1
-		});
-	});
-
-	it('should add collectible contract', async () => {
-		await assetsController.addCollectibleContract('0x8C9b', 'name', 'NM', 'logo', 'description', 10);
-		expect(assetsController.state.allCollectibleContracts).toEqual([
-			{
-				address: '0x8C9b',
-				description: 'description',
-				logo: 'logo',
-				name: 'name',
-				symbol: 'NM',
-				totalSupply: 10
-			}
-		]);
-	});
-
-	it('should not add  duplicated collectible contract', async () => {
-		await assetsController.addCollectibleContract('0x8C9b', 'name', 'NM', 'logo', 'description', 10);
-		await assetsController.addCollectibleContract('0x8C9b', 'name', 'NM', 'logo', 'description', 10);
-		expect(assetsController.state.allCollectibleContracts).toEqual([
-			{
-				address: '0x8C9b',
-				description: 'description',
-				logo: 'logo',
-				name: 'name',
-				symbol: 'NM',
-				totalSupply: 10
-			}
-		]);
-	});
-
-	it('should remove collectible contract', async () => {
-		await assetsController.addCollectibleContract('0x8c9b', 'name', 'NM', 'logo', 'description', 10);
-		await assetsController.addCollectibleContract(
-			'0x8c9C',
-			'other name',
-			'ON',
-			'other logo',
-			'other description',
-			11
-		);
-		await assetsController.removeCollectibleContract('0x8c9b');
-		expect(assetsController.state.allCollectibleContracts).toEqual([
-			{
-				address: '0x8c9C',
-				description: 'other description',
-				logo: 'other logo',
-				name: 'other name',
-				symbol: 'ON',
-				totalSupply: 11
-			}
-		]);
 	});
 
 	it('should subscribe to new sibling preference controllers', async () => {
@@ -375,15 +398,5 @@ describe('AssetsController', () => {
 		expect(assetsController.context.PreferencesController.state.selectedAddress).toEqual(address);
 		network.update({ provider: { type: networkType } });
 		expect(assetsController.context.NetworkController.state.provider.type).toEqual(networkType);
-	});
-
-	it('should return correct assets state', async () => {
-		sandbox
-			.stub(assetsController, 'getCollectibleCustomInformation' as any)
-			.returns({ name: 'name', image: 'url' });
-		await assetsController.addCollectible('foo', 1234);
-		await assetsController.addToken('foo', 'bar', 2);
-		expect(assetsController.state.tokens).toEqual(TOKENS);
-		expect(assetsController.state.collectibles).toEqual(COLLECTIBLES);
 	});
 });
