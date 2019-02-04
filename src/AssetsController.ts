@@ -289,8 +289,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			releaseLock();
 			return collectibles;
 		}
-		const collectibleInformation = await this.getCollectibleInformation(address, tokenId);
-		const { name, image, description } = opts ? opts : collectibleInformation;
+		const { name, image, description } = opts ? opts : await this.getCollectibleInformation(address, tokenId);
 		const newEntry: Collectible = { address, tokenId, name, image, description };
 		const newCollectibles = [...collectibles, newEntry];
 		const addressCollectibles = allCollectibles[selectedAddress];
