@@ -105,7 +105,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 	}
 
 	/**
-	 * Sets to 10 seconds the amount of time to wait to do a refresh
+	 * Every 10 seconds triggers a 'refresh', then recursively calls itself setting a timeout
 	 */
 	setRefreshTimeout() {
 		this.refresh();
