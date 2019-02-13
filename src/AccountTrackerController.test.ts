@@ -1,7 +1,8 @@
 import AccountTrackerController from './AccountTrackerController';
 import PreferencesController from './PreferencesController';
 import ComposableController from './ComposableController';
-import { stub } from 'sinon';
+import { stub, spy } from 'sinon';
+import { createSandbox } from 'sinon';
 
 const HttpProvider = require('ethjs-provider-http');
 const provider = new HttpProvider('https://ropsten.infura.io');
@@ -45,5 +46,21 @@ describe('AccountTrackerController', () => {
 		new ComposableController([controller, preferences]);
 		preferences.setFeatureFlag('foo', true);
 		expect((controller.refresh as any).called).toBe(true);
+	});
+
+	it('should call refresh every ten seconds', () => {
+		const sandbox = createSandbox();
+		const clock = sandbox.useFakeTimers();
+		const preferences = new PreferencesController();
+		const controller = new AccountTrackerController({ provider });
+		stub(controller, 'refresh');
+		const setRefreshTimeout = spy(controller, 'setRefreshTimeout');
+		/* tslint:disable-next-line:no-unused-expression */
+		new ComposableController([controller, preferences]);
+		expect(setRefreshTimeout.called).toBe(true);
+		clock.tick(1000);
+		expect(setRefreshTimeout.calledTwice).toBe(false);
+		clock.tick(9000);
+		expect(setRefreshTimeout.calledTwice).toBe(true);
 	});
 });

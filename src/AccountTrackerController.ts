@@ -3,7 +3,6 @@ import PreferencesController from './PreferencesController';
 import { BNToHex, safelyExecute } from './util';
 
 const EthjsQuery = require('ethjs-query');
-const BlockTracker = require('eth-block-tracker');
 
 /**
  * @type AccountInformation
@@ -42,7 +41,6 @@ export interface AccountTrackerState extends BaseState {
  * Controller that tracks information for all accounts in the current keychain
  */
 export class AccountTrackerController extends BaseController<AccountTrackerConfig, AccountTrackerState> {
-	private blockTracker: any;
 	private ethjsQuery: any;
 
 	private syncAccounts() {
@@ -92,10 +90,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 	 * @param provider - Provider used to create a new underlying EthQuery instance
 	 */
 	set provider(provider: any) {
-		this.blockTracker && /* istanbul ignore next */ this.blockTracker.removeAllListeners();
 		this.ethjsQuery = new EthjsQuery(provider);
-		this.blockTracker = new BlockTracker({ provider });
-		this.blockTracker.on('latest', this.refresh.bind(this));
 	}
 
 	/**
@@ -106,7 +101,17 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 		super.onComposed();
 		const preferences = this.context.PreferencesController as PreferencesController;
 		preferences.subscribe(this.refresh);
+		this.setRefreshTimeout();
+	}
+
+	/**
+	 * Every 10 seconds triggers a 'refresh', then recursively calls itself setting a timeout
+	 */
+	setRefreshTimeout() {
 		this.refresh();
+		setTimeout(() => {
+			this.setRefreshTimeout();
+		}, 10000);
 	}
 
 	/**
