@@ -19,9 +19,6 @@
   "license": "ISC",
   "dependencies": {
     "async": "^2.0.1",
-    "babel-preset-env": "^1.7.0",
-    "babelify": "^7.3.0",
-    "json-rpc-error": "^2.0.0",
     "promise-to-callback": "^1.0.0",
     "safe-event-emitter": "^1.0.1"
   },
@@ -39,6 +36,8 @@
   },
   "devDependencies": {
     "aegir": "^12.0.8",
+    "babel-preset-env": "^1.7.0",
+    "babelify": "^7.3.0",
     "browserify": "^14.1.0"
   },
   "repository": {
