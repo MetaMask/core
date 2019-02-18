@@ -304,9 +304,10 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * Adds a collectible contract to the stored collectible contracts list
 	 *
 	 * @param address - Hex address of the collectible contract
+	 * @param detection? - Whether the collectible is manually added or auto-detected
 	 * @returns - Promise resolving to the current collectible contracts list
 	 */
-	private async addCollectibleContract(address: string): Promise<CollectibleContract[]> {
+	private async addCollectibleContract(address: string, detection?: boolean): Promise<CollectibleContract[]> {
 		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
 		const { allCollectibleContracts, collectibleContracts } = this.state;
@@ -320,6 +321,12 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		}
 		const contractInformation = await this.getCollectibleContractInformation(address);
 		const { name, symbol, image_url, description, total_supply } = contractInformation;
+		// If being auto-detected opensea information is expected
+		// Oherwise at least name and symbol from contract is needed
+		if ((detection && !image_url) || (!name || !symbol)) {
+			releaseLock();
+			return collectibleContracts;
+		}
 		const newEntry: CollectibleContract = {
 			address,
 			description,
@@ -463,17 +470,17 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param address - Hex address of the collectible contract
 	 * @param tokenId - The collectible identifier
 	 * @param opts - Collectible optional information (name, image and description)
+	 * @param detection? - Whether the collectible is manually added or autodetected
 	 * @returns - Promise resolving to the current collectible list
 	 */
-	async addCollectible(address: string, tokenId: number, opts?: CollectibleInformation) {
+	async addCollectible(address: string, tokenId: number, opts?: CollectibleInformation, detection?: boolean) {
 		address = toChecksumAddress(address);
-		await this.addIndividualCollectible(address, tokenId, opts);
-		const { collectibleContracts } = this.state;
-		const newCollectibleContract = collectibleContracts.find(
-			(collectibleContract) => collectibleContract.address === address
-		);
-		if (!newCollectibleContract) {
-			await this.addCollectibleContract(address);
+		const newCollectibleContracts = await this.addCollectibleContract(address, detection);
+		// If collectible contract was not added, do not add individual collectible
+		const collectibleContract = newCollectibleContracts.find((contract) => contract.address === address);
+		// If collectible contract information, add individual collectible
+		if (collectibleContract) {
+			await this.addIndividualCollectible(address, tokenId, opts);
 		}
 	}
 
