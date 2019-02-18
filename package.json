@@ -59,13 +59,13 @@
     "ethjs-provider-http": "^0.1.6",
     "fetch-mock": "^6.4.3",
     "husky": "^0.14.3",
-    "jest": "^22.1.4",
+    "jest": "^24.1.0",
     "jsdom": "11.11.0",
     "lint-staged": "^6.1.0",
     "prettier": "^1.10.2",
     "scrypt": "github:barrysteyn/node-scrypt#pull/144/head",
     "sinon": "^5.0.10",
-    "ts-jest": "^22.4.6",
+    "ts-jest": "^23.10.5",
     "tslint": "^5.10.0",
     "tslint-config-prettier": "^1.13.0",
     "typedoc": "^0.11.1",
@@ -73,7 +73,7 @@
   },
   "dependencies": {
     "await-semaphore": "^0.1.3",
-    "eth-contract-metadata": "github:estebanmino/eth-contract-metadata#master",
+    "eth-contract-metadata": "github:estebanmino/eth-contract-metadata#e307359ca9ea6be4ded6ac58ac7e16f192ae4e2a",
     "eth-json-rpc-infura": "^3.1.2",
     "eth-keyring-controller": "^4.0.0",
     "eth-phishing-detect": "^1.1.13",
@@ -90,6 +90,6 @@
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^3.3.2",
     "web3": "^0.20.7",
-    "web3-provider-engine": "github:metamask/provider-engine#feature/getaccounts-payload"
+    "web3-provider-engine": "github:metamask/provider-engine#e91367bc2c2535fbf7add06244d9d4ec98620042"
   }
 }
