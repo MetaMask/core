@@ -401,7 +401,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	/**
 	 * Update keyrings in state and calls KeyringController fullUpdate method returning current state
 	 *
-	 * @returns - Promise resolving to KeyringController keyrings current state
+	 * @returns - Promise resolving to current state
 	 */
 	async fullUpdate(): Promise<KeyringMemState> {
 		const keyrings = await Promise.all(
