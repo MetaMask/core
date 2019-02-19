@@ -49,6 +49,21 @@ export interface KeyringState extends BaseState {
 }
 
 /**
+ * @type KeyringMemState
+ *
+ * Keyring mem controller state
+ *
+ * @property isUnlocked - Whether vault is unlocked
+ * @property keyringTypes - Account types
+ * @property keyrings - Group of accounts
+ */
+export interface KeyringMemState extends BaseState {
+	isUnlocked: boolean;
+	keyringTypes: string[];
+	keyrings: object;
+}
+
+/**
  * Controller resposible for establishing and managing user identity
  */
 export class KeyringController extends BaseController<BaseConfig, KeyringState> {
@@ -84,9 +99,9 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	/**
 	 * Adds a new account to the default (first) HD seed phrase keyring
 	 *
-	 * @returns - Promise resolving when the account is added
+	 * @returns - Promise resolving to current state when the account is added
 	 */
-	async addNewAccount() {
+	async addNewAccount(): Promise<KeyringMemState> {
 		const preferences = this.context.PreferencesController as PreferencesController;
 		const primaryKeyring = privates.get(this).keyring.getKeyringsByType('HD Key Tree')[0];
 		if (!primaryKeyring) {
@@ -204,9 +219,9 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 *
 	 * @param strategy - Import strategy name
 	 * @param args - Array of arguments to pass to the underlying stategy
-	 * @returns - Promise resolving when the import is complete
+	 * @returns - Promise resolving to current state when the import is complete
 	 */
-	async importAccountWithStrategy(strategy: string, args: any[]) {
+	async importAccountWithStrategy(strategy: string, args: any[]): Promise<KeyringMemState> {
 		let privateKey;
 		const preferences = this.context.PreferencesController as PreferencesController;
 		switch (strategy) {
@@ -237,18 +252,20 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 		const allAccounts = await privates.get(this).keyring.getAccounts();
 		preferences.updateIdentities(allAccounts);
 		preferences.update({ selectedAddress: accounts[0] });
+		return this.fullUpdate();
 	}
 
 	/**
 	 * Removes an account from keyring state
 	 *
 	 * @param address - Address of the account to remove
-	 * @returns - Promise resolving when this account removal completes
+	 * @returns - Promise resolving current state when this account removal completes
 	 */
-	async removeAccount(address: string) {
+	async removeAccount(address: string): Promise<KeyringMemState> {
 		const preferences = this.context.PreferencesController as PreferencesController;
 		preferences.removeIdentity(address);
 		await privates.get(this).keyring.removeAccount(address);
+		return this.fullUpdate();
 	}
 
 	/**
@@ -256,7 +273,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 *
 	 * @returns - Promise resolving to current state
 	 */
-	setLocked(): Promise<KeyringState> {
+	setLocked(): Promise<KeyringMemState> {
 		return privates.get(this).keyring.setLocked();
 	}
 
@@ -321,7 +338,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @param password - Password to unlock the keychain
 	 * @returns - Promise resolving to the current state
 	 */
-	async submitPassword(password: string) {
+	async submitPassword(password: string): Promise<KeyringMemState> {
 		const preferences = this.context.PreferencesController as PreferencesController;
 		await privates.get(this).keyring.submitPassword(password);
 		const accounts = await privates.get(this).keyring.getAccounts();
@@ -381,7 +398,12 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 		return seedWords;
 	}
 
-	async fullUpdate() {
+	/**
+	 * Update keyrings in state and calls KeyringController fullUpdate method returning current state
+	 *
+	 * @returns - Promise resolving to current state
+	 */
+	async fullUpdate(): Promise<KeyringMemState> {
 		const keyrings = await Promise.all(
 			privates.get(this).keyring.keyrings.map(async (keyring: KeyringObject, index: number) => {
 				const keyringAccounts = await keyring.getAccounts();
