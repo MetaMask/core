@@ -93,6 +93,14 @@ describe('AssetsDetectionController', () => {
 		);
 
 		getOnce(
+			OPEN_SEA_API + 'asset_contract/0x1D963688fe2209a98dB35c67a041524822Cf04ii',
+			() => ({
+				throws: new TypeError('Failed to fetch')
+			}),
+			{ overwriteRoutes: true }
+		);
+
+		getOnce(
 			OPEN_SEA_API + 'assets?owner=0x1',
 			() => ({
 				body: JSON.stringify({
@@ -106,7 +114,7 @@ describe('AssetsDetectionController', () => {
 						},
 						{
 							asset_contract: {
-								address: '0x1d963688FE2209A98db35c67A041524822CF04gg'
+								address: '0x1d963688FE2209A98db35c67A041524822CF04ii'
 							},
 							image_preview_url: 'image/2577.png',
 							token_id: '2578'
@@ -232,8 +240,8 @@ describe('AssetsDetectionController', () => {
 			name: undefined,
 			tokenId: 2574
 		};
-		const collectibleGG2577 = {
-			address: '0x1d963688FE2209A98db35c67A041524822CF04gg',
+		const collectibleII2577 = {
+			address: '0x1D963688fe2209a98dB35c67a041524822Cf04ii',
 			description: undefined,
 			image: 'image/2577.png',
 			name: undefined,
@@ -255,6 +263,14 @@ describe('AssetsDetectionController', () => {
 			symbol: 'GG',
 			totalSupply: 10
 		};
+		const collectibleContractII = {
+			address: '0x1D963688fe2209a98dB35c67a041524822Cf04ii',
+			description: 'Description II',
+			logo: 'url II',
+			name: 'Name II',
+			symbol: 'II',
+			totalSupply: 10
+		};
 		assetsDetection.configure({ selectedAddress: '0x1', networkType: MAINNET });
 		await assetsDetection.detectCollectibles();
 		// First fetch to API, only gets information from contract ending in HH
@@ -274,6 +290,21 @@ describe('AssetsDetectionController', () => {
 			}),
 			{ overwriteRoutes: true }
 		);
+
+		getOnce(
+			OPEN_SEA_API + 'asset_contract/0x1D963688fe2209a98dB35c67a041524822Cf04ii',
+			() => ({
+				body: JSON.stringify({
+					description: 'Description II',
+					image_url: 'url II',
+					name: 'Name II',
+					symbol: 'II',
+					total_supply: 10
+				})
+			}),
+			{ overwriteRoutes: true }
+		);
+
 		getOnce(
 			OPEN_SEA_API + 'assets?owner=0x1',
 			() => ({
@@ -281,14 +312,14 @@ describe('AssetsDetectionController', () => {
 					assets: [
 						{
 							asset_contract: {
-								address: '0x1d963688FE2209A98db35c67A041524822CF04gg'
+								address: '0x1d963688FE2209A98db35c67A041524822CF04ii'
 							},
 							image_preview_url: 'image/2577.png',
 							token_id: '2577'
 						},
 						{
 							asset_contract: {
-								address: '0x1d963688FE2209A98db35c67A041524822CF04gg'
+								address: '0x1D963688fe2209a98dB35c67a041524822Cf04gg'
 							},
 							image_preview_url: 'image/2574.png',
 							token_id: '2574'
@@ -305,9 +336,14 @@ describe('AssetsDetectionController', () => {
 			}),
 			{ overwriteRoutes: true }
 		);
+		// Now user should have respective collectibles
 		await assetsDetection.detectCollectibles();
-		expect(assets.state.collectibleContracts).toEqual([collectibleContractHH, collectibleContractGG]);
-		expect(assets.state.collectibles).toEqual([collectibleHH2574, collectibleGG2577, collectibleGG2574]);
+		expect(assets.state.collectibleContracts).toEqual([
+			collectibleContractHH,
+			collectibleContractII,
+			collectibleContractGG
+		]);
+		expect(assets.state.collectibles).toEqual([collectibleHH2574, collectibleII2577, collectibleGG2574]);
 	});
 
 	it('should detect tokens correctly', async () => {

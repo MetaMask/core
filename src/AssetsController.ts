@@ -202,6 +202,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		information = await safelyExecute(async () => {
 			return await this.getCollectibleInformationFromTokenURI(contractAddress, tokenId);
 		});
+		/* istanbul ignore next */
 		if (information) {
 			return information;
 		}
@@ -323,7 +324,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const { name, symbol, image_url, description, total_supply } = contractInformation;
 		// If being auto-detected opensea information is expected
 		// Oherwise at least name and symbol from contract is needed
-		if (detection && !image_url) {
+		if ((detection && !image_url) || Object.keys(contractInformation).length === 0) {
 			releaseLock();
 			return collectibleContracts;
 		}
