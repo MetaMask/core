@@ -9,7 +9,6 @@ import { AssetsContractController } from './AssetsContractController';
 const HttpProvider = require('ethjs-provider-http');
 const KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
-const ROPSTEN_PROVIDER = new HttpProvider('https://ropsten.infura.io');
 const OPEN_SEA_API = 'https://api.opensea.io/api/v1/';
 
 describe('AssetsController', () => {
