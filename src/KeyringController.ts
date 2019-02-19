@@ -237,6 +237,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 		const allAccounts = await privates.get(this).keyring.getAccounts();
 		preferences.updateIdentities(allAccounts);
 		preferences.update({ selectedAddress: accounts[0] });
+		return this.fullUpdate();
 	}
 
 	/**
@@ -249,6 +250,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 		const preferences = this.context.PreferencesController as PreferencesController;
 		preferences.removeIdentity(address);
 		await privates.get(this).keyring.removeAccount(address);
+		return this.fullUpdate();
 	}
 
 	/**
