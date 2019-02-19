@@ -323,7 +323,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const { name, symbol, image_url, description, total_supply } = contractInformation;
 		// If being auto-detected opensea information is expected
 		// Oherwise at least name and symbol from contract is needed
-		if ((detection && !image_url) || (!name || !symbol)) {
+		if (detection && !image_url) {
 			releaseLock();
 			return collectibleContracts;
 		}

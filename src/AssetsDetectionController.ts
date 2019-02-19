@@ -184,7 +184,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 				description,
 				asset_contract: { address }
 			} = collectible;
-			assetsController.addCollectible(
+			await assetsController.addCollectible(
 				address,
 				Number(token_id),
 				{

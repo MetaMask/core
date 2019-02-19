@@ -69,6 +69,60 @@ describe('AssetsDetectionController', () => {
 			}),
 			{ overwriteRoutes: true }
 		);
+
+		getOnce(
+			OPEN_SEA_API + 'asset_contract/0x1D963688FE2209A98db35c67A041524822cf04Hh',
+			() => ({
+				body: JSON.stringify({
+					description: 'Description HH',
+					image_url: 'url HH',
+					name: 'Name HH',
+					symbol: 'HH',
+					total_supply: 10
+				})
+			}),
+			{ overwriteRoutes: true }
+		);
+
+		getOnce(
+			OPEN_SEA_API + 'asset_contract/0x1d963688FE2209A98db35c67A041524822CF04gg',
+			() => ({
+				throws: new TypeError('Failed to fetch')
+			}),
+			{ overwriteRoutes: true }
+		);
+
+		getOnce(
+			OPEN_SEA_API + 'assets?owner=0x1',
+			() => ({
+				body: JSON.stringify({
+					assets: [
+						{
+							asset_contract: {
+								address: '0x1d963688FE2209A98db35c67A041524822CF04gg'
+							},
+							image_preview_url: 'image/2577.png',
+							token_id: '2577'
+						},
+						{
+							asset_contract: {
+								address: '0x1d963688FE2209A98db35c67A041524822CF04gg'
+							},
+							image_preview_url: 'image/2577.png',
+							token_id: '2578'
+						},
+						{
+							asset_contract: {
+								address: '0x1d963688FE2209A98db35c67A041524822CF04hh'
+							},
+							image_preview_url: 'image/2574.png',
+							token_id: '2574'
+						}
+					]
+				})
+			}),
+			{ overwriteRoutes: true }
+		);
 	});
 
 	afterEach(() => {
@@ -161,6 +215,99 @@ describe('AssetsDetectionController', () => {
 				tokenId: 2574
 			}
 		]);
+	});
+
+	it('should not add collectible if collectible or collectible contract has no information to display', async () => {
+		const collectibleHH2574 = {
+			address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+			description: undefined,
+			image: 'image/2574.png',
+			name: undefined,
+			tokenId: 2574
+		};
+		const collectibleGG2574 = {
+			address: '0x1d963688FE2209A98db35c67A041524822CF04gg',
+			description: undefined,
+			image: 'image/2574.png',
+			name: undefined,
+			tokenId: 2574
+		};
+		const collectibleGG2577 = {
+			address: '0x1d963688FE2209A98db35c67A041524822CF04gg',
+			description: undefined,
+			image: 'image/2577.png',
+			name: undefined,
+			tokenId: 2577
+		};
+		const collectibleContractHH = {
+			address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+			description: 'Description HH',
+			logo: 'url HH',
+			name: 'Name HH',
+			symbol: 'HH',
+			totalSupply: 10
+		};
+		const collectibleContractGG = {
+			address: '0x1d963688FE2209A98db35c67A041524822CF04gg',
+			description: 'Description GG',
+			logo: 'url GG',
+			name: 'Name GG',
+			symbol: 'GG',
+			totalSupply: 10
+		};
+		assetsDetection.configure({ selectedAddress: '0x1', networkType: MAINNET });
+		await assetsDetection.detectCollectibles();
+		// First fetch to API, only gets information from contract ending in HH
+		expect(assets.state.collectibles).toEqual([collectibleHH2574]);
+		expect(assets.state.collectibleContracts).toEqual([collectibleContractHH]);
+		// During next call of assets detection, API succeds returning contract ending in gg information
+		getOnce(
+			OPEN_SEA_API + 'asset_contract/0x1d963688FE2209A98db35c67A041524822CF04gg',
+			() => ({
+				body: JSON.stringify({
+					description: 'Description GG',
+					image_url: 'url GG',
+					name: 'Name GG',
+					symbol: 'GG',
+					total_supply: 10
+				})
+			}),
+			{ overwriteRoutes: true }
+		);
+		getOnce(
+			OPEN_SEA_API + 'assets?owner=0x1',
+			() => ({
+				body: JSON.stringify({
+					assets: [
+						{
+							asset_contract: {
+								address: '0x1d963688FE2209A98db35c67A041524822CF04gg'
+							},
+							image_preview_url: 'image/2577.png',
+							token_id: '2577'
+						},
+						{
+							asset_contract: {
+								address: '0x1d963688FE2209A98db35c67A041524822CF04gg'
+							},
+							image_preview_url: 'image/2574.png',
+							token_id: '2574'
+						},
+						{
+							asset_contract: {
+								address: '0x1d963688FE2209A98db35c67A041524822CF04hh'
+							},
+							image_preview_url: 'image/2574.png',
+							token_id: '2574'
+						}
+					]
+				})
+			}),
+			{ overwriteRoutes: true }
+		);
+		await assetsDetection.detectCollectibles();
+		expect(assets.state.collectibleContracts).toEqual([collectibleContractHH, collectibleContractGG]);
+		expect(assets.state.collectibles).toEqual([collectibleHH2574, collectibleGG2577, collectibleGG2574]);
 	});
 
 	it('should detect tokens correctly', async () => {
