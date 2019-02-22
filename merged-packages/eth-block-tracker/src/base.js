@@ -13,7 +13,7 @@ class BaseBlockTracker extends SafeEventEmitter {
   // public
   //
 
-  constructor(opts = {}) {
+  constructor (opts = {}) {
     super()
     // config
     this._blockResetDuration = opts.blockResetDuration || 20 * sec
@@ -29,7 +29,7 @@ class BaseBlockTracker extends SafeEventEmitter {
     this._setupInternalEvents()
   }
 
-  isRunning() {
+  isRunning () {
     return this._isRunning
   }
 
@@ -47,7 +47,7 @@ class BaseBlockTracker extends SafeEventEmitter {
   }
 
   // dont allow module consumer to remove our internal event listeners
-  removeAllListeners(eventName) {
+  removeAllListeners (eventName) {
     // perform default behavior, preserve fn arity
     if (eventName) {
       super.removeAllListeners(eventName)
@@ -132,7 +132,7 @@ class BaseBlockTracker extends SafeEventEmitter {
     this.emit('sync', { oldBlock, newBlock })
   }
 
-  _setupBlockResetTimeout() {
+  _setupBlockResetTimeout () {
     // clear any existing timeout
     this._cancelBlockResetTimeout()
     // clear latest block when stale
@@ -143,11 +143,11 @@ class BaseBlockTracker extends SafeEventEmitter {
     }
   }
 
-  _cancelBlockResetTimeout() {
+  _cancelBlockResetTimeout () {
     clearTimeout(this._blockResetTimeout)
   }
 
-  _resetCurrentBlock  () {
+  _resetCurrentBlock () {
     this._currentBlock = null
   }
 
