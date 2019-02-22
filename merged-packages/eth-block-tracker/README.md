@@ -15,10 +15,11 @@ blockTracker.on('latest', console.log)
 
 ### methods
 
-##### new PollingBlockTracker({ provider, pollingInterval, keepEventLoopActive })
+##### new PollingBlockTracker({ provider, pollingInterval, retryTimeout, keepEventLoopActive })
 
 creates a new block tracker with `provider` as a data source and
 `pollingInterval` (ms) timeout between polling for the latest block.
+If an Error is encountered when fetching blocks, it will wait `retryTimeout` (ms) before attempting again.
 If `keepEventLoopActive` is false, in Node.js it will [unref the polling timeout](https://nodejs.org/api/timers.html#timers_timeout_unref), allowing the process to exit during the polling interval. defaults to `true`, meaning the process will be kept alive.
 
 ##### getCurrentBlock()
