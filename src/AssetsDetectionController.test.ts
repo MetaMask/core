@@ -54,14 +54,18 @@ describe('AssetsDetectionController', () => {
 							asset_contract: {
 								address: '0x1d963688fe2209a98db35c67a041524822cf04ff'
 							},
+							description: 'Description 2577',
 							image_preview_url: 'image/2577.png',
+							name: 'ID 2577',
 							token_id: '2577'
 						},
 						{
 							asset_contract: {
 								address: '0x1d963688fe2209a98db35c67a041524822cf04ff'
 							},
+							description: 'Description 2574',
 							image_preview_url: 'image/2574.png',
+							name: 'ID 2574',
 							token_id: '2574'
 						}
 					]
@@ -109,21 +113,27 @@ describe('AssetsDetectionController', () => {
 							asset_contract: {
 								address: '0x1d963688FE2209A98db35c67A041524822CF04gg'
 							},
+							description: 'Description 2577',
 							image_preview_url: 'image/2577.png',
+							name: 'ID 2577',
 							token_id: '2577'
 						},
 						{
 							asset_contract: {
 								address: '0x1d963688FE2209A98db35c67A041524822CF04ii'
 							},
-							image_preview_url: 'image/2577.png',
+							description: 'Description 2578',
+							image_preview_url: 'image/2578.png',
+							name: 'ID 2578',
 							token_id: '2578'
 						},
 						{
 							asset_contract: {
 								address: '0x1d963688FE2209A98db35c67A041524822CF04hh'
 							},
+							description: 'Description 2574',
 							image_preview_url: 'image/2574.png',
+							name: 'ID 2574',
 							token_id: '2574'
 						}
 					]
@@ -210,16 +220,16 @@ describe('AssetsDetectionController', () => {
 		expect(assets.state.collectibles).toEqual([
 			{
 				address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
-				description: undefined,
+				description: 'Description 2577',
 				image: 'image/2577.png',
-				name: undefined,
+				name: 'ID 2577',
 				tokenId: 2577
 			},
 			{
 				address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
-				description: undefined,
+				description: 'Description 2574',
 				image: 'image/2574.png',
-				name: undefined,
+				name: 'ID 2574',
 				tokenId: 2574
 			}
 		]);
@@ -228,23 +238,23 @@ describe('AssetsDetectionController', () => {
 	it('should not add collectible if collectible or collectible contract has no information to display', async () => {
 		const collectibleHH2574 = {
 			address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
-			description: undefined,
+			description: 'Description 2574',
 			image: 'image/2574.png',
-			name: undefined,
+			name: 'ID 2574',
 			tokenId: 2574
 		};
 		const collectibleGG2574 = {
 			address: '0x1d963688FE2209A98db35c67A041524822CF04gg',
-			description: undefined,
+			description: 'Description 2574',
 			image: 'image/2574.png',
-			name: undefined,
+			name: 'ID 2574',
 			tokenId: 2574
 		};
 		const collectibleII2577 = {
 			address: '0x1D963688fe2209a98dB35c67a041524822Cf04ii',
-			description: undefined,
+			description: 'Description 2577',
 			image: 'image/2577.png',
-			name: undefined,
+			name: 'ID 2577',
 			tokenId: 2577
 		};
 		const collectibleContractHH = {
@@ -314,21 +324,27 @@ describe('AssetsDetectionController', () => {
 							asset_contract: {
 								address: '0x1d963688FE2209A98db35c67A041524822CF04ii'
 							},
+							description: 'Description 2577',
 							image_preview_url: 'image/2577.png',
+							name: 'ID 2577',
 							token_id: '2577'
 						},
 						{
 							asset_contract: {
 								address: '0x1D963688fe2209a98dB35c67a041524822Cf04gg'
 							},
+							description: 'Description 2574',
 							image_preview_url: 'image/2574.png',
+							name: 'ID 2574',
 							token_id: '2574'
 						},
 						{
 							asset_contract: {
 								address: '0x1d963688FE2209A98db35c67A041524822CF04hh'
 							},
+							description: 'Description 2574',
 							image_preview_url: 'image/2574.png',
+							name: 'ID 2574',
 							token_id: '2574'
 						}
 					]

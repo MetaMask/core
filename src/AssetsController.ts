@@ -272,12 +272,14 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param address - Hex address of the collectible contract
 	 * @param tokenId - The collectible identifier
 	 * @param opts - Collectible optional information (name, image and description)
+	 * @param detection? - Whether the collectible is manually added or autodetected
 	 * @returns - Promise resolving to the current collectible list
 	 */
 	private async addIndividualCollectible(
 		address: string,
 		tokenId: number,
-		opts?: CollectibleInformation
+		opts?: CollectibleInformation,
+		detection?: boolean
 	): Promise<Collectible[]> {
 		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
@@ -291,6 +293,11 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			return collectibles;
 		}
 		const { name, image, description } = opts ? opts : await this.getCollectibleInformation(address, tokenId);
+		// if there is no collectible name or image when auto detecting assets, do not add it and wait for next auto detection
+		if (detection && (!name || !image)) {
+			releaseLock();
+			return collectibles;
+		}
 		const newEntry: Collectible = { address, tokenId, name, image, description };
 		const newCollectibles = [...collectibles, newEntry];
 		const addressCollectibles = allCollectibles[selectedAddress];
@@ -481,7 +488,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const collectibleContract = newCollectibleContracts.find((contract) => contract.address === address);
 		// If collectible contract information, add individual collectible
 		if (collectibleContract) {
-			await this.addIndividualCollectible(address, tokenId, opts);
+			await this.addIndividualCollectible(address, tokenId, opts, detection);
 		}
 	}
 
