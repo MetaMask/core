@@ -553,7 +553,11 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 			let latestIncomingTxBlockNumber: string | undefined;
 			allTxs.forEach((tx) => {
 				/* istanbul ignore next */
-				if (tx.transaction.to && tx.transaction.to.toLowerCase() === address.toLowerCase()) {
+				if (
+					tx.networkID === currentNetworkID &&
+					tx.transaction.to &&
+					tx.transaction.to.toLowerCase() === address.toLowerCase()
+				) {
 					if (
 						tx.blockNumber &&
 						(!latestIncomingTxBlockNumber ||
