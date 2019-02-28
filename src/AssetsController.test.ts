@@ -98,6 +98,19 @@ describe('AssetsController', () => {
 			}),
 			{ overwriteRoutes: true }
 		);
+		getOnce(
+			OPEN_SEA_API + 'asset_contract/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+			() => ({
+				body: JSON.stringify({
+					description: 'Kudos Description',
+					image_url: 'Kudos url',
+					name: 'Kudos',
+					symbol: 'KDO',
+					total_supply: 10
+				})
+			}),
+			{ overwriteRoutes: true }
+		);
 	});
 
 	afterEach(() => {
@@ -267,30 +280,6 @@ describe('AssetsController', () => {
 		});
 	});
 
-	it('should add collectible and get collectible contract with no information if no contract nor api', async () => {
-		assetsContract.configure({ provider: MAINNET_PROVIDER });
-		sandbox.stub(assetsController, 'getCollectibleContractInformationFromApi' as any).returns(undefined);
-		sandbox.stub(assetsController, 'getCollectibleInformationFromApi' as any).returns(undefined);
-		sandbox.stub(assetsController, 'getCollectibleInformationFromTokenURI' as any).returns(undefined);
-		sandbox.stub(assetsController, 'getCollectibleContractInformationFromContract' as any).returns(undefined);
-		await assetsController.addCollectible('0x2aE', 1203);
-		expect(assetsController.state.collectibles[0]).toEqual({
-			address: '0x2aE',
-			description: undefined,
-			image: undefined,
-			name: undefined,
-			tokenId: 1203
-		});
-		expect(assetsController.state.collectibleContracts[0]).toEqual({
-			address: '0x2aE',
-			description: undefined,
-			logo: undefined,
-			name: undefined,
-			symbol: undefined,
-			totalSupply: undefined
-		});
-	});
-
 	it('should add collectible by selected address', async () => {
 		const firstAddress = '0x123';
 		const secondAddress = '0x321';
@@ -329,6 +318,43 @@ describe('AssetsController', () => {
 			name: 'name',
 			tokenId: 1234
 		});
+	});
+
+	it('should not add individual collectible no name nor image when autodetecting', async () => {
+		sandbox
+			.stub(assetsController, 'getCollectibleInformation' as any)
+			.returns({ name: undefined, image: undefined });
+		await assetsController.addCollectible('foo', 1234, undefined, true);
+		expect(assetsController.state.collectibles.length).toEqual(0);
+		expect(assetsController.state.collectibles).toEqual([]);
+		await assetsController.addCollectible('foo', 1234, undefined, false);
+		expect(assetsController.state.collectibles.length).toEqual(1);
+	});
+
+	it('should not add collectibles with no contract information when auto detecting', async () => {
+		await assetsController.addCollectible('0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab', 123, undefined, true);
+		expect(assetsController.state.collectibles).toEqual([]);
+		expect(assetsController.state.collectibleContracts).toEqual([]);
+		await assetsController.addCollectible('0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163', 1203, undefined, true);
+		expect(assetsController.state.collectibles).toEqual([
+			{
+				address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+				description: 'Kudos Description',
+				image: 'Kudos url',
+				name: 'Kudos Name',
+				tokenId: 1203
+			}
+		]);
+		expect(assetsController.state.collectibleContracts).toEqual([
+			{
+				address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+				description: 'Kudos Description',
+				logo: 'Kudos url',
+				name: 'Kudos',
+				symbol: 'KDO',
+				totalSupply: 10
+			}
+		]);
 	});
 
 	it('should remove collectible and collectible contract', async () => {

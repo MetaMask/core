@@ -184,11 +184,16 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 				description,
 				asset_contract: { address }
 			} = collectible;
-			await assetsController.addCollectible(address, Number(token_id), {
-				description,
-				image: image_preview_url,
-				name
-			});
+			await assetsController.addCollectible(
+				address,
+				Number(token_id),
+				{
+					description,
+					image: image_preview_url,
+					name
+				},
+				true
+			);
 		});
 		await Promise.all(addCollectiblesPromises);
 	}
