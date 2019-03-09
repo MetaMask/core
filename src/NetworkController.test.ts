@@ -10,7 +10,7 @@ describe('NetworkController', () => {
 		expect(controller.state).toEqual({
 			network: 'loading',
 			provider: {
-				type: 'rinkeby'
+				type: 'mainnet'
 			}
 		});
 	});
@@ -74,15 +74,6 @@ describe('NetworkController', () => {
 		const controller = new NetworkController();
 		controller.setProviderType('localhost');
 		expect(controller.state.provider.type).toBe('localhost');
-	});
-
-	it('should verify the network on a new block', () => {
-		const controller = new NetworkController(undefined, { network: 'loading' });
-		controller.lookupNetwork();
-		controller.providerConfig = {} as ProviderConfig;
-		controller.lookupNetwork = stub();
-		controller.provider.emit('block', {});
-		expect((controller.lookupNetwork as any).called).toBe(true);
 	});
 
 	it('should verify the network on an error', async () => {
