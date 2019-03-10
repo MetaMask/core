@@ -217,7 +217,6 @@ describe('AssetsDetectionController', () => {
 	it('should detect and add collectibles correctly', async () => {
 		assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
 		await assetsDetection.detectCollectibles();
-		console.log('RECEIVED', assets.state.collectibles);
 		expect(assets.state.collectibles).toEqual([
 			{
 				address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',

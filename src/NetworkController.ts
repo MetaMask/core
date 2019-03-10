@@ -97,7 +97,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 				dataSubprovider: infuraSubprovider,
 				engineParams: {
 					blockTrackerProvider: infuraProvider,
-					pollingInterval: 8000
+					pollingInterval: 12000
 				}
 			}
 		};
@@ -108,7 +108,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 		const config = {
 			...this.internalProviderConfig,
 			...{
-				engineParams: { pollingInterval: 8000 },
+				engineParams: { pollingInterval: 12000 },
 				rpcUrl: rpcTarget
 			}
 		};
