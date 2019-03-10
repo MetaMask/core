@@ -46,7 +46,7 @@ describe('AssetsDetectionController', () => {
 		);
 
 		getOnce(
-			OPEN_SEA_API + 'assets?owner=',
+			OPEN_SEA_API + 'assets?owner=0x1',
 			() => ({
 				body: JSON.stringify({
 					assets: [
@@ -215,24 +215,24 @@ describe('AssetsDetectionController', () => {
 	});
 
 	it('should detect and add collectibles correctly', async () => {
-		assetsDetection.configure({ networkType: MAINNET });
+		assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
 		await assetsDetection.detectCollectibles();
+		console.log('RECEIVED', assets.state.collectibles);
 		expect(assets.state.collectibles).toEqual([
 			{
-				address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
-				description: 'Description 2577',
-				image: 'image/2577.png',
-				name: 'ID 2577',
-				tokenId: 2577
-			},
-			{
-				address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
+				address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
 				description: 'Description 2574',
 				image: 'image/2574.png',
 				name: 'ID 2574',
 				tokenId: 2574
 			}
 		]);
+	});
+
+	it('should not detect and add collectibles if there is no selectedAddress', async () => {
+		assetsDetection.configure({ networkType: MAINNET });
+		await assetsDetection.detectCollectibles();
+		expect(assets.state.collectibles).toEqual([]);
 	});
 
 	it('should not add collectible if collectible or collectible contract has no information to display', async () => {
@@ -363,7 +363,7 @@ describe('AssetsDetectionController', () => {
 	});
 
 	it('should detect tokens correctly', async () => {
-		assetsDetection.configure({ networkType: MAINNET });
+		assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
 		sandbox
 			.stub(assetsContract, 'getBalancesInSingleCall')
 			.returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
@@ -375,6 +375,15 @@ describe('AssetsDetectionController', () => {
 				symbol: 'GNO'
 			}
 		]);
+	});
+
+	it('should not detect tokens if there is no selectedAddress set', async () => {
+		assetsDetection.configure({ networkType: MAINNET });
+		sandbox
+			.stub(assetsContract, 'getBalancesInSingleCall')
+			.returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+		await assetsDetection.detectTokens();
+		expect(assets.state.tokens).toEqual([]);
 	});
 
 	it('should subscribe to new sibling detecting assets when account changes', async () => {

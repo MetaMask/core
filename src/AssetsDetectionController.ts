@@ -154,7 +154,10 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 
 		const assetsContractController = this.context.AssetsContractController as AssetsContractController;
 		const { selectedAddress } = this.config;
-
+		/* istanbul ignore else */
+		if (!selectedAddress) {
+			return;
+		}
 		const balances = await assetsContractController.getBalancesInSingleCall(selectedAddress, tokensToDetect);
 		const assetsController = this.context.AssetsController as AssetsController;
 		for (const tokenAddress in balances) {
@@ -172,6 +175,11 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	async detectCollectibles() {
 		/* istanbul ignore if */
 		if (!this.isMainnet()) {
+			return;
+		}
+		const { selectedAddress } = this.config;
+		/* istanbul ignore else */
+		if (!selectedAddress) {
 			return;
 		}
 		const assetsController = this.context.AssetsController as AssetsController;
