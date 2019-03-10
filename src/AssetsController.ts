@@ -428,7 +428,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	constructor(config?: Partial<BaseConfig>, state?: Partial<AssetsState>) {
 		super(config, state);
 		this.defaultConfig = {
-			networkType: 'ropsten',
+			networkType: 'mainnet',
 			selectedAddress: ''
 		};
 		this.defaultState = {

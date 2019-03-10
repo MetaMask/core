@@ -150,7 +150,7 @@ describe('AssetsDetectionController', () => {
 	it('should set default config', () => {
 		expect(assetsDetection.config).toEqual({
 			interval: DEFAULT_INTERVAL,
-			networkType: 'ropsten',
+			networkType: 'mainnet',
 			selectedAddress: '',
 			tokens: []
 		});

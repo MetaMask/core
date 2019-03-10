@@ -92,7 +92,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		super(config, state);
 		this.defaultConfig = {
 			interval: DEFAULT_INTERVAL,
-			networkType: 'ropsten',
+			networkType: 'mainnet',
 			selectedAddress: '',
 			tokens: []
 		};
