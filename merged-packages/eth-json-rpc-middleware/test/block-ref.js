@@ -54,7 +54,7 @@ test('should rewrite "latest" blockRef to current block', async (t) => {
     const res = await pify(engine.handle).call(engine, origReq)
     t.equal(origReq.params[1], 'latest', 'Original request unchanged')
     const matchingHit = hitTracker.getHits(origReq.method)[0]
-    t.equal(matchingHit.params[1], '0x00', 'Original request params rewritten internally')
+    t.equal(matchingHit.params[1], '0x0', 'Original request params rewritten internally')
     t.ok(res, 'Has response')
   } catch (err) {
     t.ifError(err, 'Should not encounter error')
@@ -74,7 +74,7 @@ test('should add blockRef for omitted blockRef param', async (t) => {
     t.equal(origReq.params[1], undefined, 'Original request unchanged')
     t.equal(origReq.params.length, 1, 'Original request unchanged')
     const matchingHit = hitTracker.getHits(origReq.method)[0]
-    t.equal(matchingHit.params[1], '0x00', 'Original request params rewritten internally')
+    t.equal(matchingHit.params[1], '0x0', 'Original request params rewritten internally')
     t.ok(res, 'Has response')
   } catch (err) {
     t.ifError(err, 'Should not encounter error')
