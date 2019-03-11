@@ -7,14 +7,12 @@
     "test": "test"
   },
   "dependencies": {
-    "end-of-stream": "^1.4.0",
-    "eth-block-tracker": "^2.1.2",
-    "ethjs-query": "^0.2.9",
-    "json-rpc-engine": "^3.8.0",
     "readable-stream": "^2.3.3",
     "safe-event-emitter": "^1.0.1"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "json-rpc-engine": "^3.8.0"
+  },
   "scripts": {
     "test": "node test/index.js"
   },
