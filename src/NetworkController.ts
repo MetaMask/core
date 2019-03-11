@@ -84,7 +84,6 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	}
 
 	private registerProvider() {
-		this.provider.on('block', this.verifyNetwork.bind(this));
 		this.provider.on('error', this.verifyNetwork.bind(this));
 		this.ethQuery = new EthQuery(this.provider);
 	}
@@ -98,7 +97,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 				dataSubprovider: infuraSubprovider,
 				engineParams: {
 					blockTrackerProvider: infuraProvider,
-					pollingInterval: 8000
+					pollingInterval: 12000
 				}
 			}
 		};
@@ -109,7 +108,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 		const config = {
 			...this.internalProviderConfig,
 			...{
-				engineParams: { pollingInterval: 8000 },
+				engineParams: { pollingInterval: 12000 },
 				rpcUrl: rpcTarget
 			}
 		};
@@ -146,7 +145,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 		super(config, state);
 		this.defaultState = {
 			network: 'loading',
-			provider: { type: 'rinkeby' }
+			provider: { type: 'mainnet' }
 		};
 		this.initialize();
 	}

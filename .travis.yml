@@ -1,5 +1,5 @@
 language: node_js
-node_js: "node"
+node_js: "8"
 install:
 - travis_retry npm install -g codecov
 - travis_retry npm install

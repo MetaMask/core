@@ -124,6 +124,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 			await safelyExecute(async () => {
 				const balance = await this.ethjsQuery.getBalance(address);
 				accounts[address] = { balance: BNToHex(balance) };
+				this.update({ accounts: { ...accounts } });
 			});
 		}
 		/* tslint:disable-next-line */

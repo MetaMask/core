@@ -38,7 +38,7 @@ describe('ComposableController', () => {
 			},
 			NetworkController: {
 				network: 'loading',
-				provider: { type: 'rinkeby' }
+				provider: { type: 'mainnet' }
 			},
 			PreferencesController: {
 				featureFlags: {},
@@ -78,7 +78,7 @@ describe('ComposableController', () => {
 			lostIdentities: {},
 			nativeCurrency: 'eth',
 			network: 'loading',
-			provider: { type: 'rinkeby' },
+			provider: { type: 'mainnet' },
 			selectedAddress: '',
 			tokens: []
 		});
@@ -115,7 +115,7 @@ describe('ComposableController', () => {
 			lostIdentities: {},
 			nativeCurrency: 'eth',
 			network: 'loading',
-			provider: { type: 'rinkeby' },
+			provider: { type: 'mainnet' },
 			selectedAddress: '',
 			tokens: []
 		});
