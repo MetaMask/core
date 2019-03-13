@@ -1,7 +1,9 @@
+const clone = require('clone')
 const createAsyncMiddleware = require('json-rpc-engine/src/createAsyncMiddleware')
 const cacheIdentifierForPayload = require('./cache-utils').cacheIdentifierForPayload
 
 module.exports = createInflightCache
+
 
 function createInflightCache () {
   const inflightRequests = {}
@@ -35,9 +37,9 @@ function createInflightCache () {
   function createActiveRequestHandler(res, activeRequestHandlers) {
     const { resolve, promise } = deferredPromise()
     activeRequestHandlers.push((handledRes) => {
-      // copy the result and error from the handledRes
-      res.result = handledRes.result
-      res.error = handledRes.error
+      // append a copy of the result and error to the response
+      res.result = clone(handledRes.result)
+      res.error = clone(handledRes.error)
       resolve()
     })
     return promise
