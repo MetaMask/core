@@ -1,4 +1,3 @@
-const EthQuery = require('eth-query')
 const pify = require('pify')
 const BaseBlockTracker = require('./base')
 
@@ -12,6 +11,7 @@ class PollingBlockTracker extends BaseBlockTracker {
     const pollingInterval = opts.pollingInterval || 20 * sec
     const retryTimeout = opts.retryTimeout || pollingInterval / 10
     const keepEventLoopActive = opts.keepEventLoopActive !== undefined ? opts.keepEventLoopActive : true
+    const setSkipCacheFlag = opts.setSkipCacheFlag || false
     // BaseBlockTracker constructor
     super(Object.assign({
       blockResetDuration: pollingInterval,
@@ -21,8 +21,7 @@ class PollingBlockTracker extends BaseBlockTracker {
     this._pollingInterval = pollingInterval
     this._retryTimeout = retryTimeout
     this._keepEventLoopActive = keepEventLoopActive
-    // util
-    this._query = new EthQuery(this._provider)
+    this._setSkipCacheFlag = setSkipCacheFlag
   }
 
   //
@@ -67,7 +66,11 @@ class PollingBlockTracker extends BaseBlockTracker {
   }
 
   async _fetchLatestBlock () {
-    return await pify(this._query.blockNumber).call(this._query)
+    const req = { id: 1, method: 'eth_blockNumber', params: [] }
+    if (this._setSkipCacheFlag) req.skipCache = true
+    const res = await pify((cb) => this._provider.sendAsync(req, cb))()
+    if (res.error) throw new Error(`PollingBlockTracker - encountered error fetching block:\n${res.error}`)
+    return res.result
   }
 
 }
