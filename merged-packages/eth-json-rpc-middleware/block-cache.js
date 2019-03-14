@@ -19,6 +19,8 @@ function createBlockCacheMiddleware(opts = {}) {
   }
 
   return createAsyncMiddleware(async (req, res, next) => {
+    // allow cach to be skipped if so specified
+    if (!req.skipCache) return next()
     // check type and matching strategy
     const type = cacheUtils.cacheTypeForPayload(req)
     const strategy = strategies[type]
