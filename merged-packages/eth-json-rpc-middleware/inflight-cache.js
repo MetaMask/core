@@ -10,7 +10,7 @@ function createInflightCache () {
 
   return createAsyncMiddleware(async (req, res, next) => {
     // allow cach to be skipped if so specified
-    if (!req.skipCache) return next()
+    if (req.skipCache) return next()
     // get cacheId, if cacheable
     const cacheId = cacheIdentifierForPayload(req)
     // if not cacheable, skip
