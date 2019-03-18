@@ -391,7 +391,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		if (!to || (to && !data && (!code || code === '0x'))) {
 			return { gas: '0x5208', gasPrice };
 		}
-
+		// if data, should be hex string format
+		estimatedTransaction.data = !data ? data : /* istanbul ignore next */ addHexPrefix(data);
 		// 3. If this is a contract address, safely estimate gas using RPC
 		estimatedTransaction.value = typeof value === 'undefined' ? '0x0' : /* istanbul ignore next */ value;
 		const gasLimitBN = hexToBN(gasLimit);
