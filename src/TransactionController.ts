@@ -376,7 +376,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	async estimateGas(transaction: Transaction) {
 		const estimatedTransaction = { ...transaction };
 		const { gasLimit } = await this.query('getBlockByNumber', ['latest', false]);
-		const { gas, gasPrice: providedGasPrice, to, value } = estimatedTransaction;
+		const { gas, gasPrice: providedGasPrice, to, value, data } = estimatedTransaction;
 		const gasPrice = typeof providedGasPrice === 'undefined' ? await this.query('gasPrice') : providedGasPrice;
 
 		// 1. If gas is already defined on the transaction, use it
@@ -384,11 +384,11 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 			return { gas, gasPrice };
 		}
 
-		// 2. If to is not defined or this is not a contract address, use 0x5208 / 21000
+		// 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000
 		/* istanbul ignore next */
 		const code = to ? await this.query('getCode', [to]) : undefined;
 		/* istanbul ignore next */
-		if (!to || (to && (!code || code === '0x'))) {
+		if (!to || (to && !data && (!code || code === '0x'))) {
 			return { gas: '0x5208', gasPrice };
 		}
 
