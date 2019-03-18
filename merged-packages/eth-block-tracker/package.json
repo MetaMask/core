@@ -5,11 +5,14 @@
   "main": "src/polling.js",
   "scripts": {
     "test": "npm run build && node test/index.js",
-    "prepublish": "npm run build",
-    "build": "mkdir -p ./dist && npm run bundle",
-    "bundle": "babel src -d dist/es5/ && npm run bundle-polling && npm run bundle-base",
-    "bundle-polling": "browserify -s PollingBlockTracker -e src/polling.js -t [ babelify --presets [ es2015 ] ] > dist/PollingBlockTracker.js",
-    "bundle-base": "browserify -s BaseBlockTracker -e src/base.js -t [ babelify --presets [ es2015 ] ] > dist/BaseBlockTracker.js"
+    "prepublishOnly": "npm run build",
+    "build": "npm run build:clean && npm run build:es5 && npm run build:bundle && npm run build:validate",
+    "build:clean": "rm -rf ./dist && mkdir -p ./dist",
+    "build:es5": "babel ./src -d dist/es5/",
+    "build:bundle": "npm run build:bundle:polling && npm run build:bundle:base",
+    "build:bundle:polling": "browserify -s PollingBlockTracker -e src/polling.js -g babelify > dist/PollingBlockTracker.js",
+    "build:bundle:base": "browserify -s BaseBlockTracker -e src/base.js -g babelify > dist/BaseBlockTracker.js",
+    "build:validate": "uglifyjs dist/es5/**.js > /dev/null"
   },
   "author": "kumavis",
   "license": "MIT",
@@ -19,13 +22,14 @@
     "safe-event-emitter": "^1.0.1"
   },
   "devDependencies": {
-    "eth-json-rpc-infura": "^3.1.2",
     "babel-cli": "^6.24.1",
-    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-env": "^1.7.0",
     "babelify": "^8.0.0",
     "browserify": "^16.2.3",
+    "eth-json-rpc-infura": "^3.1.2",
     "ganache-core": "^2.2.1",
-    "tape": "^4.9.0"
+    "tape": "^4.9.0",
+    "uglify-js": "^3.4.10"
   },
   "directories": {
     "test": "test"
