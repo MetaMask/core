@@ -1,6 +1,6 @@
 {
   "name": "eth-block-tracker",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "description": "A block tracker for the Ethereum blockchain. Keeps track of the latest block.",
   "main": "src/polling.js",
   "scripts": {
