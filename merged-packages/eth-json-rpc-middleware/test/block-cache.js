@@ -32,13 +32,14 @@ cacheTest('getBalance + pending blockTag', {
 
 // blocks
 
+// cache hit, because latest block is #0
 cacheTest('getBlockForNumber for latest then block 0', [{
   method: 'eth_getBlockByNumber',
   params: ['latest'],
 }, {
   method: 'eth_getBlockByNumber',
   params: ['0x0'],
-}], false)
+}], true)
 
 cacheTest('getBlockForNumber for latest then block 1', [{
   method: 'eth_getBlockByNumber',
@@ -94,13 +95,15 @@ cacheTest('getStorageAt for different block should not cache', [{
 // result conditional cache
 //
 
-// tx by hash
+// these tests were imported from provider-engine but rely on state setup we dont have here yet
+
+// // tx by hash
 
 // cacheTest('getTransactionByHash for transaction that doesn\'t exist', {
 //   method: 'eth_getTransactionByHash',
 //   params: ['0x00000000000000000000000000000000000000000000000000deadbeefcafe00'],
 // }, false)
-//
+
 // cacheTest('getTransactionByHash for transaction that\'s pending', {
 //   method: 'eth_getTransactionByHash',
 //   params: ['0x00000000000000000000000000000000000000000000000000deadbeefcafe01'],
@@ -111,7 +114,7 @@ cacheTest('getStorageAt for different block should not cache', [{
 //   params: ['0x00000000000000000000000000000000000000000000000000deadbeefcafe02'],
 // }, true)
 
-// code
+// // code
 
 // cacheTest('getCode for latest block, then for earliest block, should not return cached response on second request', [{
 //   method: 'eth_getCode',
@@ -120,7 +123,7 @@ cacheTest('getStorageAt for different block should not cache', [{
 //   method: 'eth_getCode',
 //   params: ['0x1234', 'earliest'],
 // }], false)
-//
+
 // cacheTest('getCode for a specific block, then for the one before it, should not return cached response on second request', [{
 //   method: 'eth_getCode',
 //   params: ['0x1234', '0x3'],
@@ -128,7 +131,7 @@ cacheTest('getStorageAt for different block should not cache', [{
 //   method: 'eth_getCode',
 //   params: ['0x1234', '0x2'],
 // }], false)
-//
+
 // cacheTest('getCode for a specific block, then the one after it, should return cached response on second request', [{
 //   method: 'eth_getCode',
 //   params: ['0x1234', '0x2'],
@@ -136,7 +139,7 @@ cacheTest('getStorageAt for different block should not cache', [{
 //   method: 'eth_getCode',
 //   params: ['0x1234', '0x3'],
 // }], true)
-//
+
 // cacheTest('getCode for an unspecified block, then for the latest, should return cached response on second request', [{
 //   method: 'eth_getCode',
 //   params: ['0x1234'],
@@ -148,7 +151,7 @@ cacheTest('getStorageAt for different block should not cache', [{
 
 
 async function cacheTest(label, basePayloads, shouldCache) {
-  test('block-cache', async (t) => {
+  test(`block-cache - ${label}`, async (t) => {
     try {
       // setup block tracker
       const dataProvider = GanacheCore.provider()
