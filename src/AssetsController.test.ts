@@ -37,7 +37,7 @@ describe('AssetsController', () => {
 					total_supply: 0
 				})
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 		getOnce(
 			OPEN_SEA_API + 'asset_contract/0xFOu',
@@ -50,7 +50,7 @@ describe('AssetsController', () => {
 					total_supply: 10
 				})
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 		getOnce(
 			OPEN_SEA_API + 'asset/0xfoO/1',
@@ -61,7 +61,7 @@ describe('AssetsController', () => {
 					name: 'Name'
 				})
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 		getOnce(
 			OPEN_SEA_API + 'asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203',
@@ -72,7 +72,7 @@ describe('AssetsController', () => {
 					name: 'Kudos Name'
 				})
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 		getOnce(
 			'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
@@ -82,21 +82,21 @@ describe('AssetsController', () => {
 					name: 'Kudos Name'
 				})
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 		getOnce(
 			OPEN_SEA_API + 'asset/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/798958393',
 			() => ({
 				throws: new TypeError('Failed to fetch')
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 		getOnce(
 			OPEN_SEA_API + 'asset_contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
 			() => ({
 				throws: new TypeError('Failed to fetch')
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 		getOnce(
 			OPEN_SEA_API + 'asset_contract/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
@@ -109,7 +109,7 @@ describe('AssetsController', () => {
 					total_supply: 10
 				})
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 	});
 
