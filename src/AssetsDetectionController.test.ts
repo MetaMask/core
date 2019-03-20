@@ -42,7 +42,7 @@ describe('AssetsDetectionController', () => {
 					total_supply: 0
 				})
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 
 		getOnce(
@@ -71,7 +71,7 @@ describe('AssetsDetectionController', () => {
 					]
 				})
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 
 		getOnce(
@@ -85,7 +85,7 @@ describe('AssetsDetectionController', () => {
 					total_supply: 10
 				})
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 
 		getOnce(
@@ -93,7 +93,7 @@ describe('AssetsDetectionController', () => {
 			() => ({
 				throws: new TypeError('Failed to fetch')
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 
 		getOnce(
@@ -101,7 +101,7 @@ describe('AssetsDetectionController', () => {
 			() => ({
 				throws: new TypeError('Failed to fetch')
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 
 		getOnce(
@@ -139,7 +139,7 @@ describe('AssetsDetectionController', () => {
 					]
 				})
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 	});
 
@@ -297,7 +297,7 @@ describe('AssetsDetectionController', () => {
 					total_supply: 10
 				})
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 
 		getOnce(
@@ -311,7 +311,7 @@ describe('AssetsDetectionController', () => {
 					total_supply: 10
 				})
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 
 		getOnce(
@@ -349,7 +349,7 @@ describe('AssetsDetectionController', () => {
 					]
 				})
 			}),
-			{ overwriteRoutes: true }
+			{ overwriteRoutes: true, method: 'GET' }
 		);
 		// Now user should have respective collectibles
 		await assetsDetection.detectCollectibles();
