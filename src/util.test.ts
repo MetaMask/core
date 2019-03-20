@@ -101,7 +101,7 @@ describe('util', () => {
 			).toThrow();
 		});
 
-		it('should throw if value includes dashes', () => {
+		it('should throw if value is invalid', () => {
 			expect(() =>
 				util.validateTransaction({
 					from: '0x3244e191f1b4903970224322180f1fbbc415696b',
@@ -116,6 +116,27 @@ describe('util', () => {
 					value: '133.7'
 				} as any)
 			).toThrow();
+			expect(() =>
+				util.validateTransaction({
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+					to: '0x3244e191f1b4903970224322180f1fbbc415696b',
+					value: 'hello'
+				} as any)
+			).toThrow();
+			expect(() =>
+				util.validateTransaction({
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+					to: '0x3244e191f1b4903970224322180f1fbbc415696b',
+					value: 'one million dollar$'
+				} as any)
+			).toThrow();
+			expect(() =>
+				util.validateTransaction({
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+					to: '0x3244e191f1b4903970224322180f1fbbc415696b',
+					value: '1'
+				} as any)
+			).not.toThrow();
 		});
 	});
 

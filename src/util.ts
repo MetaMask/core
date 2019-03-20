@@ -162,6 +162,12 @@ export function validateTransaction(transaction: Transaction) {
 		if (value.includes('.')) {
 			throw new Error(`Invalid "value": ${value} number must be denominated in wei.`);
 		}
+		const intValue = parseInt(transaction.value, 10);
+		const isValid =
+			Number.isFinite(intValue) && !Number.isNaN(intValue) && !isNaN(+value) && Number.isSafeInteger(intValue);
+		if (!isValid) {
+			throw new Error(`Invalid "value": ${value} number must be a valid number.`);
+		}
 	}
 }
 
