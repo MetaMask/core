@@ -45,7 +45,7 @@ export interface KeyringObject {
  */
 export interface KeyringState extends BaseState {
 	vault?: string;
-	keyrings: object;
+	keyrings: Keyring[];
 }
 
 /**
@@ -60,13 +60,23 @@ export interface KeyringState extends BaseState {
 export interface KeyringMemState extends BaseState {
 	isUnlocked: boolean;
 	keyringTypes: string[];
-	keyrings: object;
+	keyrings: Keyring[];
+}
+
+export interface KeyringConfig extends BaseConfig {
+	encryptor?: any;
+}
+
+export interface Keyring {
+	accounts: string[];
+	type: string;
+	index?: number;
 }
 
 /**
  * Controller resposible for establishing and managing user identity
  */
-export class KeyringController extends BaseController<BaseConfig, KeyringState> {
+export class KeyringController extends BaseController<KeyringConfig, KeyringState> {
 	private mutex = new Mutex();
 
 	/**
@@ -85,7 +95,7 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @param config - Initial options used to configure this controller
 	 * @param state - Initial state to set on this controller
 	 */
-	constructor(config?: Partial<BaseConfig>, state?: Partial<KeyringState>) {
+	constructor(config?: Partial<KeyringConfig>, state?: Partial<KeyringState>) {
 		super(config, state);
 		privates.set(this, { keyring: new Keyring(Object.assign({ initState: state }, config)) });
 		this.defaultState = {
@@ -404,18 +414,20 @@ export class KeyringController extends BaseController<BaseConfig, KeyringState> 
 	 * @returns - Promise resolving to current state
 	 */
 	async fullUpdate(): Promise<KeyringMemState> {
-		const keyrings = await Promise.all(
-			privates.get(this).keyring.keyrings.map(async (keyring: KeyringObject, index: number) => {
-				const keyringAccounts = await keyring.getAccounts();
-				const accounts = Array.isArray(keyringAccounts)
-					? keyringAccounts.map((address) => toChecksumAddress(address))
-					: [];
-				return {
-					accounts,
-					index,
-					type: keyring.type
-				};
-			})
+		const keyrings: Keyring[] = await Promise.all<Keyring>(
+			privates.get(this).keyring.keyrings.map(
+				async (keyring: KeyringObject, index: number): Promise<Keyring> => {
+					const keyringAccounts = await keyring.getAccounts();
+					const accounts = Array.isArray(keyringAccounts)
+						? keyringAccounts.map((address) => toChecksumAddress(address))
+						: [];
+					return {
+						accounts,
+						index,
+						type: keyring.type
+					};
+				}
+			)
 		);
 		this.update({ keyrings: [...keyrings] });
 		return privates.get(this).keyring.fullUpdate();
