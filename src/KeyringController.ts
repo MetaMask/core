@@ -114,6 +114,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
 	async addNewAccount(): Promise<KeyringMemState> {
 		const preferences = this.context.PreferencesController as PreferencesController;
 		const primaryKeyring = privates.get(this).keyring.getKeyringsByType('HD Key Tree')[0];
+		/* istanbul ignore if */
 		if (!primaryKeyring) {
 			throw new Error('No HD keyring found');
 		}
@@ -151,7 +152,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
 			this.fullUpdate();
 			releaseLock();
 			return vault;
-		} catch (err) {
+		} catch (err) /* istanbul ignore next */ {
 			releaseLock();
 			throw err;
 		}
@@ -173,7 +174,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
 			this.fullUpdate();
 			releaseLock();
 			return vault;
-		} catch (err) {
+		} catch (err) /* istanbul ignore next */ {
 			releaseLock();
 			throw err;
 		}
@@ -194,7 +195,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
 	 * @param password - Password of the keyring
 	 * @returns - Promise resolving to the seed phrase
 	 */
-	exportSeedPhrase(password: string): Promise<string> {
+	exportSeedPhrase(password: string) {
 		if (privates.get(this).keyring.password === password) {
 			return privates.get(this).keyring.keyrings[0].mnemonic;
 		}
@@ -220,8 +221,8 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
 	 *
 	 * @returns - A promise resolving to an array of addresses
 	 */
-	getAccounts(): Promise<string> {
-		return privates.get(this).keyring.getAccounts;
+	getAccounts(): Promise<string[]> {
+		return privates.get(this).keyring.getAccounts();
 	}
 
 	/**
@@ -380,14 +381,16 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
 	 *
 	 * @returns - Promise resolving if the verification succeeds
 	 */
-	async verifySeedPhrase() {
+	async verifySeedPhrase(): Promise<string> {
 		const primaryKeyring = privates.get(this).keyring.getKeyringsByType(KeyringTypes.hd)[0];
+		/* istanbul ignore if */
 		if (!primaryKeyring) {
 			throw new Error('No HD keyring found.');
 		}
 
 		const seedWords = (await primaryKeyring.serialize()).mnemonic;
 		const accounts = await primaryKeyring.getAccounts();
+		/* istanbul ignore if */
 		if (accounts.length === 0) {
 			throw new Error('Cannot verify an empty keyring.');
 		}
@@ -395,11 +398,13 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
 		const TestKeyringClass = privates.get(this).keyring.getKeyringClassForType(KeyringTypes.hd);
 		const testKeyring = new TestKeyringClass({ mnemonic: seedWords, numberOfAccounts: accounts.length });
 		const testAccounts = await testKeyring.getAccounts();
+		/* istanbul ignore if */
 		if (testAccounts.length !== accounts.length) {
 			throw new Error('Seed phrase imported incorrect number of accounts.');
 		}
 
 		testAccounts.forEach((account: string, i: number) => {
+			/* istanbul ignore if */
 			if (account.toLowerCase() !== accounts[i].toLowerCase()) {
 				throw new Error('Seed phrase imported different accounts.');
 			}
@@ -420,7 +425,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
 					const keyringAccounts = await keyring.getAccounts();
 					const accounts = Array.isArray(keyringAccounts)
 						? keyringAccounts.map((address) => toChecksumAddress(address))
-						: [];
+						: /* istanbul ignore next */ [];
 					return {
 						accounts,
 						index,
