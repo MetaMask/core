@@ -63,10 +63,26 @@ export interface KeyringMemState extends BaseState {
 	keyrings: Keyring[];
 }
 
+/**
+ * @type KeyringConfig
+ *
+ * Keyring controller configuration
+ *
+ * @property encryptor - Keyring encryptor
+ */
 export interface KeyringConfig extends BaseConfig {
 	encryptor?: any;
 }
 
+/**
+ * @type Keyring
+ *
+ * Keyring object to return in fullUpdate
+ *
+ * @property type - Keyring type
+ * @property accounts - Associated accounts
+ * @property index - Associated index
+ */
 export interface Keyring {
 	accounts: string[];
 	type: string;
