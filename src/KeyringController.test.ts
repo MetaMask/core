@@ -38,14 +38,6 @@ describe('KeyringController', () => {
 		expect(keyring.type).toEqual('HD Key Tree');
 	});
 
-	it('should not add new account if no primary keyring', async () => {
-		try {
-			await keyringController.addNewAccount();
-		} catch (e) {
-			expect(e.message).toBe('No HD keyring found');
-		}
-	});
-
 	it('should add new account', async () => {
 		const currentKeyringMemState = await keyringController.addNewAccount();
 		expect(initialState.keyrings.length).toBe(1);
@@ -63,30 +55,22 @@ describe('KeyringController', () => {
 		expect(initialState).not.toBe(currentState);
 	});
 
-	it('should set locked correctly', async () => {
+	it('should set locked correctly', () => {
 		keyringController.setLocked();
 		expect(keyringController.isUnlocked()).toBe(false);
 	});
 
-	it('should export seed phrase', async () => {
+	it('should export seed phrase', () => {
 		const seed = keyringController.exportSeedPhrase(password);
 		expect(seed).not.toBe('');
-		try {
-			keyringController.exportSeedPhrase('');
-		} catch (e) {
-			expect(e.message).toBe('Invalid password');
-		}
+		expect(() => keyringController.exportSeedPhrase('')).toThrowError();
 	});
 
 	it('should export account', async () => {
 		const account = initialState.keyrings[0].accounts[0];
 		const newPrivateKey = await keyringController.exportAccount(password, account);
 		expect(newPrivateKey).not.toBe('');
-		try {
-			await keyringController.exportAccount('', account);
-		} catch (e) {
-			expect(e.message).toBe('Invalid password');
-		}
+		expect(() => keyringController.exportAccount('', account)).toThrowError();
 	});
 
 	it('should get accounts', async () => {
@@ -96,16 +80,20 @@ describe('KeyringController', () => {
 	});
 
 	it('should import account with strategy privateKey', async () => {
+		let error1;
 		try {
 			await keyringController.importAccountWithStrategy('privateKey', []);
 		} catch (e) {
-			expect(e.message).toBe('Cannot import an empty key.');
+			error1 = e;
 		}
+		let error2;
 		try {
 			await keyringController.importAccountWithStrategy('privateKey', ['123']);
 		} catch (e) {
-			expect(e.message).toBe('Cannot import invalid private key.');
+			error2 = e;
 		}
+		expect(error1.message).toBe('Cannot import an empty key.');
+		expect(error2.message).toBe('Cannot import invalid private key.');
 		const address = '0x51253087e6f8358b5f10c0a94315d69db3357859';
 		const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
 		const obj = await keyringController.importAccountWithStrategy('privateKey', [privateKey]);
@@ -124,11 +112,13 @@ describe('KeyringController', () => {
 
 	it('should import account with strategy json wrong password', async () => {
 		const somePassword = 'holachao12';
+		let error;
 		try {
 			await keyringController.importAccountWithStrategy('json', [input, somePassword]);
 		} catch (e) {
-			expect(e.message).toBe('Key derivation failed - possibly wrong passphrase');
+			error = e;
 		}
+		expect(error.message).toBe('Key derivation failed - possibly wrong passphrase');
 	});
 
 	it('should remove account', async () => {
@@ -206,16 +196,20 @@ describe('KeyringController', () => {
 	it('should fail when sign typed message format is wrong', async () => {
 		const msgParams = [{}];
 		const account = initialState.keyrings[0].accounts[0];
+		let error1;
 		try {
 			await keyringController.signTypedMessage({ data: msgParams, from: account }, 'V1');
 		} catch (e) {
-			expect(e.message).toContain('Keyring Controller signTypedMessage:');
+			error1 = e;
 		}
+		let error2;
 		try {
 			await keyringController.signTypedMessage({ data: msgParams, from: account }, 'V3');
 		} catch (e) {
-			expect(e.message).toContain('Keyring Controller signTypedMessage:');
+			error2 = e;
 		}
+		expect(error1.message).toContain('Keyring Controller signTypedMessage:');
+		expect(error2.message).toContain('Keyring Controller signTypedMessage:');
 	});
 
 	it('should sign transaction', async () => {
