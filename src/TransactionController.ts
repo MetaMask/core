@@ -577,11 +577,14 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 						latestIncomingTxBlockNumber = tx.blockNumber;
 					}
 				}
-				if (tx.toSmartContract === undefined && tx.transaction.to) {
-					const code = await this.query('getCode', [tx.transaction.to]);
-					tx.toSmartContract = isSmartContractCode(code);
-				} else if (!tx.transaction.to) {
-					tx.toSmartContract = false;
+				/* istanbul ignore else */
+				if (tx.toSmartContract === undefined) {
+					if (tx.transaction.to) {
+						const code = await this.query('getCode', [tx.transaction.to]);
+						tx.toSmartContract = isSmartContractCode(code);
+					} else {
+						tx.toSmartContract = false;
+					}
 				}
 			});
 

@@ -257,6 +257,7 @@ export function validateTypedSignMessageDataV3(messageData: TypedMessageParams, 
  * @returns {string} - Corresponding code to review
  */
 export function isSmartContractCode(code: string) {
+	/* istanbul ignore if */
 	if (!code) {
 		return false;
 	}
