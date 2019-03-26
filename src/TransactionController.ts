@@ -1,7 +1,15 @@
 import { EventEmitter } from 'events';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 import NetworkController from './NetworkController';
-import { BNToHex, fractionBN, hexToBN, normalizeTransaction, safelyExecute, validateTransaction } from './util';
+import {
+	BNToHex,
+	fractionBN,
+	hexToBN,
+	normalizeTransaction,
+	safelyExecute,
+	validateTransaction,
+	isSmartContractCode
+} from './util';
 
 const EthQuery = require('eth-query');
 const Transaction = require('ethereumjs-tx');
@@ -55,7 +63,8 @@ export interface Transaction {
  * @property origin - Origin this transaction was sent from
  * @property rawTransaction - Hex representation of the underlying transaction
  * @property status - String status of this transaction
- * @property time - Timestamp associated with this transaction
+ * @property toSmartContract - Whether transaction receipt is a smart contract
+ * @property status - String status of this transaction
  * @property transaction - Underlying Transaction object
  * @property transactionHash - Hash of a successful transaction
  * @property blockNumber - Number of the block where the transaction has been included
@@ -71,6 +80,7 @@ export interface TransactionMeta {
 	rawTransaction?: string;
 	status: string;
 	time: number;
+	toSmartContract?: boolean;
 	transaction: Transaction;
 	transactionHash?: string;
 	blockNumber?: string;
@@ -552,7 +562,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 			allTxs.sort((a, b) => (/* istanbul ignore next */ a.time < b.time ? -1 : 1));
 
 			let latestIncomingTxBlockNumber: string | undefined;
-			allTxs.forEach((tx) => {
+			allTxs.forEach(async (tx) => {
 				/* istanbul ignore next */
 				if (
 					tx.networkID === currentNetworkID &&
@@ -566,6 +576,12 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 					) {
 						latestIncomingTxBlockNumber = tx.blockNumber;
 					}
+				}
+				if (tx.toSmartContract === undefined && tx.transaction.to) {
+					const code = await this.query('getCode', [tx.transaction.to]);
+					tx.toSmartContract = isSmartContractCode(code);
+				} else if (!tx.transaction.to) {
+					tx.toSmartContract = false;
 				}
 			});
 
