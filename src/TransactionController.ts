@@ -64,7 +64,6 @@ export interface Transaction {
  * @property rawTransaction - Hex representation of the underlying transaction
  * @property status - String status of this transaction
  * @property toSmartContract - Whether transaction receipt is a smart contract
- * @property status - String status of this transaction
  * @property transaction - Underlying Transaction object
  * @property transactionHash - Hash of a successful transaction
  * @property blockNumber - Number of the block where the transaction has been included
