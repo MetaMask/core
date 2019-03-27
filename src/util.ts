@@ -257,6 +257,21 @@ export function validateTypedSignMessageDataV3(messageData: TypedMessageParams, 
 	}
 }
 
+/**
+ * Returns wether the given code corresponds to a smart contract
+ *
+ * @returns {string} - Corresponding code to review
+ */
+export function isSmartContractCode(code: string) {
+	/* istanbul ignore if */
+	if (!code) {
+		return false;
+	}
+	// Geth will return '0x', and ganache-core v2.2.1 will return '0x0'
+	const smartContractCode = code !== '0x' && code !== '0x0';
+	return smartContractCode;
+}
+
 export default {
 	BNToHex,
 	fractionBN,
@@ -264,6 +279,7 @@ export default {
 	handleFetch,
 	hexToBN,
 	hexToText,
+	isSmartContractCode,
 	normalizeTransaction,
 	safelyExecute,
 	validateTransaction,

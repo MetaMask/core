@@ -96,6 +96,24 @@ const MOCK_FETCH_TX_HISTORY_DATA_OK = {
 			transactionIndex: '12',
 			txreceipt_status: '1',
 			value: '50000000000000000'
+		},
+		{
+			blockNumber: '4535105',
+			confirmations: '4',
+			contractAddress: '',
+			cumulativeGasUsed: '693910',
+			from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+			gas: '335208',
+			gasPrice: '20000000000',
+			gasUsed: '21000',
+			hash: '0x342e9d73e10004af41d04973339fc7219dbadcbb5629730cfe65e9f9cb15ff91',
+			input: '0x',
+			isError: '0',
+			nonce: '1',
+			timeStamp: '1543596356',
+			transactionIndex: '13',
+			txreceipt_status: '1',
+			value: '50000000000000000'
 		}
 	],
 	status: '1'
@@ -373,7 +391,7 @@ describe('TransactionController', () => {
 
 		const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 		const latestBlock = await controller.fetchAll(from);
-		expect(controller.state.transactions.length).toBe(2);
+		expect(controller.state.transactions.length).toBe(3);
 		expect(latestBlock).toBe('4535101');
 		expect(controller.state.transactions[0].transaction.to).toBe(from);
 	});
@@ -387,7 +405,6 @@ describe('TransactionController', () => {
 		} as any;
 		controller.onComposed();
 		expect(controller.state.transactions.length).toBe(0);
-
 		const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 		const result = await controller.fetchAll(from);
 		expect(controller.state.transactions.length).toBe(0);

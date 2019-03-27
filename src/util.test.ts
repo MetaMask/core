@@ -362,5 +362,16 @@ describe('util', () => {
 				)
 			).not.toThrow();
 		});
+
+		it('should not throw if data is correct', () => {
+			const toSmartContract1 = util.isSmartContractCode('');
+			const toSmartContract2 = util.isSmartContractCode('0x');
+			const toSmartContract3 = util.isSmartContractCode('0x0');
+			const toSmartContract4 = util.isSmartContractCode('0x01234');
+			expect(toSmartContract1).toBe(false);
+			expect(toSmartContract2).toBe(false);
+			expect(toSmartContract3).toBe(false);
+			expect(toSmartContract4).toBe(true);
+		});
 	});
 });
