@@ -107,7 +107,7 @@ const MOCK_FETCH_TX_HISTORY_DATA_OK = {
 			gasPrice: '20000000000',
 			gasUsed: '21000',
 			hash: '0x342e9d73e10004af41d04973339fc7219dbadcbb5629730cfe65e9f9cb15ff91',
-			input: '0x',
+			input: '0x1',
 			isError: '0',
 			nonce: '1',
 			timeStamp: '1543596356',
