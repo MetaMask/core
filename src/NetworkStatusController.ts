@@ -1,5 +1,6 @@
 import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from './BaseController';
+import { safelyExecute } from './util';
 
 /**
  * Network status code string
@@ -73,19 +74,21 @@ export class NetworkStatusController extends BaseController<NetworkStatusConfig,
 			}
 		};
 		this.initialize();
+		this.poll();
 	}
 
 	/**
-	 * Sets a new polling interval
+	 * starts a new polling interval
 	 *
 	 * @param interval - Polling interval used to fetch network status
 	 */
-	set interval(interval: number) {
-		this.updateNetworkStatuses();
-		this.handle && clearInterval(this.handle);
-		this.handle = setInterval(() => {
-			this.updateNetworkStatuses();
-		}, interval);
+	async poll(interval?: number) {
+		this.config.interval = interval || this.config.interval;
+		this.handle && clearTimeout(this.handle);
+		await safelyExecute(() => this.updateNetworkStatuses());
+		this.handle = setTimeout(() => {
+			this.poll(this.config.interval);
+		}, this.config.interval);
 	}
 
 	/**

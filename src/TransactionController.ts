@@ -239,19 +239,21 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		};
 		this.defaultState = { transactions: [] };
 		this.initialize();
+		this.poll();
 	}
 
 	/**
-	 * Sets a new polling interval
+	 * starts a new polling interval
 	 *
 	 * @param interval - Polling interval used to fetch new transaction statuses
 	 */
-	set interval(interval: number) {
-		this.handle && clearInterval(this.handle);
-		safelyExecute(() => this.queryTransactionStatuses());
-		this.handle = setInterval(() => {
-			safelyExecute(() => this.queryTransactionStatuses());
-		}, interval);
+	async poll(interval?: number) {
+		this.config.interval = interval || this.config.interval;
+		this.handle && clearTimeout(this.handle);
+		await safelyExecute(() => this.queryTransactionStatuses());
+		this.handle = setTimeout(() => {
+			this.poll(this.config.interval);
+		}, this.config.interval);
 	}
 
 	/**

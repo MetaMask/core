@@ -6,6 +6,7 @@ import { ComposableController } from './ComposableController';
 import { AssetsController } from './AssetsController';
 import { AssetsContractController } from './AssetsContractController';
 import { getOnce } from 'fetch-mock';
+import { stub } from 'sinon';
 
 const BN = require('ethereumjs-util').BN;
 const DEFAULT_INTERVAL = 180000;
@@ -156,22 +157,22 @@ describe('AssetsDetectionController', () => {
 		});
 	});
 
-	it('should poll on correct interval', () => {
-		const func = sandbox.stub(global, 'setInterval');
-		/* tslint:disable-next-line:no-unused-expression */
-		new AssetsDetectionController({ interval: 1337 });
-		expect(func.getCall(0).args[1]).toBe(1337);
-		func.restore();
-	});
-
-	it('should poll and detect assets on interval while mainnet', () => {
-		const clock = sandbox.useFakeTimers();
-		assetsDetection.configure({ networkType: MAINNET });
-		const detectTokens = sandbox.stub(assetsDetection, 'detectTokens').returns(null);
-		const detectCollectibles = sandbox.stub(assetsDetection, 'detectCollectibles').returns(null);
-		clock.tick(180001);
-		expect(detectTokens.called).toBe(true);
-		expect(detectCollectibles.called).toBe(true);
+	it('should poll and detect assets on interval while on mainnet', () => {
+		return new Promise((resolve) => {
+			const mockTokens = stub(AssetsDetectionController.prototype, 'detectTokens');
+			const mockCollectibles = stub(AssetsDetectionController.prototype, 'detectCollectibles');
+			// tslint:disable-next-line: no-unused-expression
+			new AssetsDetectionController({ interval: 10 });
+			expect(mockTokens.calledOnce).toBe(true);
+			expect(mockCollectibles.calledOnce).toBe(true);
+			setTimeout(() => {
+				expect(mockTokens.calledTwice).toBe(true);
+				expect(mockCollectibles.calledTwice).toBe(true);
+				mockTokens.restore();
+				mockCollectibles.restore();
+				resolve();
+			}, 15);
+		});
 	});
 
 	it('should detect mainnet correctly', () => {
@@ -181,37 +182,18 @@ describe('AssetsDetectionController', () => {
 		expect(assetsDetection.isMainnet()).toEqual(false);
 	});
 
-	it('should detect assets only while mainnet', () => {
-		const clock = sandbox.useFakeTimers();
-		const detectTokens = sandbox.stub(assetsDetection, 'detectTokens').returns(null);
-		const detectCollectibles = sandbox.stub(assetsDetection, 'detectCollectibles').returns(null);
-		clock.tick(180001);
-		expect(detectTokens.called).toBe(false);
-		expect(detectCollectibles.called).toBe(false);
-		assetsDetection.configure({ networkType: MAINNET });
-		clock.tick(180001);
-		expect(detectTokens.called).toBe(true);
-		expect(detectCollectibles.called).toBe(true);
-	});
-
-	it('should call detect tokens correctly', () => {
-		const clock = sandbox.useFakeTimers();
-		assetsDetection.configure({ networkType: MAINNET });
-		const detectTokens = sandbox.stub(assetsDetection, 'detectTokens').returns(null);
-		const detectCollectibles = sandbox.stub(assetsDetection, 'detectCollectibles').returns(null);
-		clock.tick(180001);
-		expect(detectTokens.called).toBe(true);
-		expect(detectCollectibles.called).toBe(true);
-	});
-
-	it('should call detect collectibles correctly', () => {
-		const clock = sandbox.useFakeTimers();
-		assetsDetection.configure({ networkType: MAINNET });
-		const detectTokens = sandbox.stub(assetsDetection, 'detectTokens').returns(null);
-		const detectCollectibles = sandbox.stub(assetsDetection, 'detectCollectibles').returns(null);
-		clock.tick(180001);
-		expect(detectCollectibles.called).toBe(true);
-		expect(detectTokens.called).toBe(true);
+	it('should not autodetect while not on mainnet', () => {
+		return new Promise((resolve) => {
+			const mockTokens = stub(AssetsDetectionController.prototype, 'detectTokens');
+			const mockCollectibles = stub(AssetsDetectionController.prototype, 'detectCollectibles');
+			// tslint:disable-next-line: no-unused-expression
+			new AssetsDetectionController({ interval: 10, networkType: ROPSTEN });
+			expect(mockTokens.called).toBe(false);
+			expect(mockCollectibles.called).toBe(false);
+			mockTokens.restore();
+			mockCollectibles.restore();
+			resolve();
+		});
 	});
 
 	it('should detect and add collectibles correctly', async () => {

@@ -15,23 +15,31 @@ describe('PhishingController', () => {
 		expect(controller.config).toEqual({ interval: 180000 });
 	});
 
-	it('should poll on correct interval', () => {
-		const mock = stub(global, 'setInterval');
-		/* tslint:disable-next-line:no-unused-expression */
-		new PhishingController({ interval: 1337 });
-		expect(mock.getCall(0).args[1]).toBe(1337);
-		mock.restore();
+	it('should poll and update rate in the right interval', () => {
+		return new Promise((resolve) => {
+			const mock = stub(PhishingController.prototype, 'updatePhishingLists');
+			// tslint:disable-next-line: no-unused-expression
+			new PhishingController({ interval: 10 });
+			expect(mock.called).toBe(true);
+			expect(mock.calledTwice).toBe(false);
+			setTimeout(() => {
+				expect(mock.calledTwice).toBe(true);
+				mock.restore();
+				resolve();
+			}, 15);
+		});
 	});
 
-	it('should update lists on interval', () => {
+	it('should clear previous interval', () => {
+		const mock = stub(global, 'clearTimeout');
+		const controller = new PhishingController({ interval: 1337 });
 		return new Promise((resolve) => {
-			const controller = new PhishingController({ interval: 10 });
-			const mock = stub(controller, 'updatePhishingLists');
 			setTimeout(() => {
+				controller.poll(1338);
 				expect(mock.called).toBe(true);
 				mock.restore();
 				resolve();
-			}, 20);
+			}, 100);
 		});
 	});
 
@@ -52,11 +60,19 @@ describe('PhishingController', () => {
 		expect(controller.state.phishing).toBe(undefined);
 	});
 
-	it('should clear previous interval', () => {
-		const mock = stub(global, 'clearInterval');
-		const controller = new PhishingController({ interval: 1337 });
-		controller.interval = 1338;
-		expect(mock.called).toBe(true);
+	it('should not update rates if disabled', async () => {
+		const mock = stub(window, 'fetch');
+		mock.resolves({
+			json: () => ({})
+		});
+		const controller = new PhishingController({
+			disabled: true,
+			interval: 10
+		});
+		await controller.updatePhishingLists();
+
+		expect(mock.called).toBe(false);
+
 		mock.restore();
 	});
 

@@ -87,12 +87,15 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	constructor(config?: Partial<TokenRatesConfig>, state?: Partial<TokenRatesState>) {
 		super(config, state);
 		this.defaultConfig = {
+			disabled: true,
 			interval: 180000,
 			nativeCurrency: 'eth',
 			tokens: []
 		};
 		this.defaultState = { contractExchangeRates: {} };
 		this.initialize();
+		this.disabled = false;
+		this.poll();
 	}
 
 	/**
@@ -100,12 +103,13 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	 *
 	 * @param interval - Polling interval used to fetch new token rates
 	 */
-	set interval(interval: number) {
-		this.handle && clearInterval(this.handle);
-		safelyExecute(() => this.updateExchangeRates());
-		this.handle = setInterval(() => {
-			safelyExecute(() => this.updateExchangeRates());
-		}, interval);
+	async poll(interval?: number) {
+		this.config.interval = interval || this.config.interval;
+		this.handle && clearTimeout(this.handle);
+		await safelyExecute(() => this.updateExchangeRates());
+		this.handle = setTimeout(() => {
+			this.poll(this.config.interval);
+		}, this.config.interval);
 	}
 
 	/**

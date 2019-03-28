@@ -71,19 +71,21 @@ export class PhishingController extends BaseController<PhishingConfig, PhishingS
 		this.defaultState = { phishing: DEFAULT_PHISHING_RESPONSE };
 		this.detector = new PhishingDetector(this.defaultState.phishing);
 		this.initialize();
+		this.poll();
 	}
 
 	/**
-	 * Sets a new polling interval
+	 * starts a new polling interval
 	 *
 	 * @param interval - Polling interval used to fetch new approval lists
 	 */
-	set interval(interval: number) {
-		this.handle && clearInterval(this.handle);
-		this.updatePhishingLists();
-		this.handle = setInterval(() => {
-			this.updatePhishingLists();
-		}, interval);
+	async poll(interval?: number) {
+		this.config.interval = interval || this.config.interval;
+		this.handle && clearTimeout(this.handle);
+		await safelyExecute(() => this.updatePhishingLists());
+		this.handle = setTimeout(() => {
+			this.poll(this.config.interval);
+		}, this.config.interval);
 	}
 
 	/**
@@ -105,12 +107,11 @@ export class PhishingController extends BaseController<PhishingConfig, PhishingS
 		if (this.disabled) {
 			return;
 		}
-		return safelyExecute(async () => {
-			const response = await fetch('https://api.infura.io/v2/blacklist');
-			const phishing = await response.json();
-			this.detector = new PhishingDetector(phishing);
-			phishing && this.update({ phishing });
-		});
+
+		const response = await fetch('https://api.infura.io/v2/blacklist');
+		const phishing = await response.json();
+		this.detector = new PhishingDetector(phishing);
+		phishing && this.update({ phishing });
 	}
 }
 

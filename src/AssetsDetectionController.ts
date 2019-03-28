@@ -97,18 +97,21 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			tokens: []
 		};
 		this.initialize();
+		this.poll();
 	}
 
 	/**
-	 * Sets a new polling interval
+	 * starts a new polling interval
 	 *
 	 * @param interval - Polling interval used to auto detect assets
 	 */
-	set interval(interval: number) {
-		this.handle && clearInterval(this.handle);
-		this.handle = setInterval(() => {
-			safelyExecute(() => this.detectAssets());
-		}, interval);
+	async poll(interval?: number) {
+		this.config.interval = interval || this.config.interval;
+		this.handle && clearTimeout(this.handle);
+		await safelyExecute(() => this.detectAssets());
+		this.handle = setTimeout(() => {
+			this.poll(this.config.interval);
+		}, this.config.interval);
 	}
 
 	/**
