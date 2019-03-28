@@ -1,5 +1,7 @@
 import BaseController, { BaseConfig, BaseState } from './BaseController';
 
+const { isValidAddress } = require('ethereumjs-util');
+
 /**
  * @type ContactEntry
  *
@@ -70,10 +72,15 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 *
 	 * @param address - Recipient address to add or update
 	 * @param name - Nickname to associate with this address
+	 * @returns - Boolean indicating if the address was successfully set
 	 */
 	set(address: string, name: string) {
+		if (!isValidAddress(address)) {
+			return;
+		}
 		this.addressBook.set(address, { address, name });
 		this.update({ addressBook: Array.from(this.addressBook.values()) });
+		return true;
 	}
 }
 

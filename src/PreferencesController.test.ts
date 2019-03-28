@@ -72,6 +72,7 @@ describe('PreferencesController', () => {
 		const controller = new PreferencesController();
 		controller.addToFrequentRpcList('rpc_url');
 		controller.addToFrequentRpcList('http://localhost:8545');
+		controller.addToFrequentRpcList('http://localhost:1337');
 		expect(controller.state.frequentRpcList).toEqual(['rpc_url']);
 		controller.addToFrequentRpcList('rpc_url');
 		expect(controller.state.frequentRpcList).toEqual(['rpc_url']);
@@ -83,6 +84,7 @@ describe('PreferencesController', () => {
 		expect(controller.state.frequentRpcList).toEqual(['rpc_url']);
 		controller.removeFromFrequentRpcList('other_rpc_url');
 		controller.removeFromFrequentRpcList('http://localhost:8545');
+		controller.removeFromFrequentRpcList('http://localhost:1337');
 		controller.removeFromFrequentRpcList('rpc_url');
 		expect(controller.state.frequentRpcList).toEqual([]);
 	});

@@ -31,6 +31,10 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 */
 	name = 'PreferencesController';
 
+	private isLocalURL(url: string) {
+		return /:\/\/localhost:/.test(url);
+	}
+
 	/**
 	 * Creates a PreferencesController instance
 	 *
@@ -170,7 +174,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @param url - Custom RPC URL
 	 */
 	addToFrequentRpcList(url: string) {
-		if (url === 'http://localhost:8545') {
+		if (this.isLocalURL(url)) {
 			return;
 		}
 		const frequentRpcList = this.state.frequentRpcList;
@@ -190,7 +194,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @param url - Custom RPC URL
 	 */
 	removeFromFrequentRpcList(url: string) {
-		if (url === 'http://localhost:8545') {
+		if (this.isLocalURL(url)) {
 			return;
 		}
 		const frequentRpcList = this.state.frequentRpcList;
