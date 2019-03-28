@@ -73,6 +73,7 @@ describe('PreferencesController', () => {
 		controller.addToFrequentRpcList('rpc_url');
 		controller.addToFrequentRpcList('http://localhost:8545');
 		controller.addToFrequentRpcList('http://localhost:1337');
+		controller.addToFrequentRpcList('http://127.0.0.1:1337');
 		expect(controller.state.frequentRpcList).toEqual(['rpc_url']);
 		controller.addToFrequentRpcList('rpc_url');
 		expect(controller.state.frequentRpcList).toEqual(['rpc_url']);

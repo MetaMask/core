@@ -32,7 +32,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	name = 'PreferencesController';
 
 	private isLocalURL(url: string) {
-		return /:\/\/localhost:/.test(url);
+		return /:\/\/((localhost)|(127\.0\.0\.1)):/.test(url);
 	}
 
 	/**
