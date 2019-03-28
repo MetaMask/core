@@ -2,6 +2,14 @@ import { stub } from 'sinon';
 import CurrencyRateController from './CurrencyRateController';
 
 describe('CurrencyRateController', () => {
+	beforeEach(() => {
+		const mock = stub(window, 'fetch');
+		mock.resolves({
+			json: () => ({ USD: 1337 })
+		});
+		mock.restore();
+	});
+
 	it('should set default state', () => {
 		const controller = new CurrencyRateController();
 		expect(controller.state).toEqual({
@@ -16,47 +24,48 @@ describe('CurrencyRateController', () => {
 		const controller = new CurrencyRateController();
 		expect(controller.config).toEqual({
 			currentCurrency: 'usd',
+			disabled: true,
 			interval: 180000,
 			nativeCurrency: 'eth'
 		});
 	});
 
-	it('should poll on correct interval', () => {
-		const mock = stub(global, 'setInterval');
-		/* tslint:disable-next-line:no-unused-expression */
-		new CurrencyRateController({ interval: 1337 });
-		expect(mock.getCall(0).args[1]).toBe(1337);
-		mock.restore();
-	});
-
-	it('should update rate on interval', () => {
+	it('should poll and update rate in the right interval', () => {
 		return new Promise((resolve) => {
-			const controller = new CurrencyRateController({ interval: 10 });
-			const mock = stub(controller, 'updateExchangeRate');
+			const mock = stub(CurrencyRateController.prototype, 'fetchExchangeRate');
+			// tslint:disable-next-line: no-unused-expression
+			new CurrencyRateController({ interval: 10 });
+			expect(mock.called).toBe(true);
+			expect(mock.calledTwice).toBe(false);
 			setTimeout(() => {
-				expect(mock.called).toBe(true);
+				expect(mock.calledTwice).toBe(true);
 				mock.restore();
 				resolve();
-			}, 20);
+			}, 15);
 		});
 	});
 
 	it('should not update rates if disabled', async () => {
 		const controller = new CurrencyRateController({
-			disabled: true,
 			interval: 10
 		});
 		controller.fetchExchangeRate = stub();
+		controller.disabled = true;
 		await controller.updateExchangeRate();
 		expect((controller.fetchExchangeRate as any).called).toBe(false);
 	});
 
 	it('should clear previous interval', () => {
-		const mock = stub(global, 'clearInterval');
+		const mock = stub(global, 'clearTimeout');
 		const controller = new CurrencyRateController({ interval: 1337 });
-		controller.interval = 1338;
-		expect(mock.called).toBe(true);
-		mock.restore();
+		return new Promise((resolve) => {
+			setTimeout(() => {
+				controller.poll(1338);
+				expect(mock.called).toBe(true);
+				mock.restore();
+				resolve();
+			}, 100);
+		});
 	});
 
 	it('should update currency', async () => {

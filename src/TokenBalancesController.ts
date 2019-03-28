@@ -62,18 +62,21 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
 		};
 		this.defaultState = { contractBalances: {} };
 		this.initialize();
+		this.poll();
 	}
 
 	/**
-	 * Sets a new polling interval
+	 * Starts a new polling interval
 	 *
 	 * @param interval - Polling interval used to fetch new token balances
 	 */
-	set interval(interval: number) {
-		this.handle && clearInterval(this.handle);
-		this.handle = setInterval(() => {
-			safelyExecute(() => this.updateBalances());
-		}, interval);
+	async poll(interval?: number): Promise<void> {
+		interval && this.configure({ interval });
+		this.handle && clearTimeout(this.handle);
+		await safelyExecute(() => this.updateBalances());
+		this.handle = setTimeout(() => {
+			this.poll(this.config.interval);
+		}, this.config.interval);
 	}
 
 	/**
