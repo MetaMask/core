@@ -23,6 +23,7 @@ export interface AccountInformation {
  * @property provider - Provider used to create a new underlying EthQuery instance
  */
 export interface AccountTrackerConfig extends BaseConfig {
+	interval: number;
 	provider?: any;
 }
 
@@ -42,6 +43,7 @@ export interface AccountTrackerState extends BaseState {
  */
 export class AccountTrackerController extends BaseController<AccountTrackerConfig, AccountTrackerState> {
 	private ethjsQuery: any;
+	private handle?: NodeJS.Timer;
 
 	private syncAccounts() {
 		const {
@@ -79,7 +81,9 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 	 */
 	constructor(config?: Partial<AccountTrackerConfig>, state?: Partial<AccountTrackerState>) {
 		super(config, state);
-		this.defaultConfig = {};
+		this.defaultConfig = {
+			interval: 10000
+		};
 		this.defaultState = { accounts: {} };
 		this.initialize();
 	}
@@ -101,17 +105,21 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 		super.onComposed();
 		const preferences = this.context.PreferencesController as PreferencesController;
 		preferences.subscribe(this.refresh);
-		this.setRefreshTimeout();
+		this.poll();
 	}
 
 	/**
-	 * Every 10 seconds triggers a 'refresh', then recursively calls itself setting a timeout
+	 * Starts a new polling interval
+	 *
+	 * @param interval - Polling interval trigger a 'refresh'
 	 */
-	setRefreshTimeout() {
-		this.refresh();
-		setTimeout(() => {
-			this.setRefreshTimeout();
-		}, 10000);
+	async poll(interval?: number): Promise<void> {
+		interval && this.configure({ interval });
+		this.handle && clearTimeout(this.handle);
+		await safelyExecute(() => this.refresh());
+		this.handle = setTimeout(() => {
+			this.poll(this.config.interval);
+		}, this.config.interval);
 	}
 
 	/**
