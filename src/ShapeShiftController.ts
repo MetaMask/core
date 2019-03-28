@@ -99,12 +99,12 @@ export class ShapeShiftController extends BaseController<ShapeShiftConfig, Shape
 	}
 
 	/**
-	 * starts a new polling interval
+	 * Starts a new polling interval
 	 *
 	 * @param interval - Polling interval used to fetch new ShapeShift transactions
 	 */
-	async poll(interval?: number) {
-		this.config.interval = interval || this.config.interval;
+	async poll(interval?: number): Promise<void> {
+		interval && this.configure({ interval });
 		this.handle && clearTimeout(this.handle);
 		await safelyExecute(() => this.updateTransactionList());
 		this.handle = setTimeout(() => {

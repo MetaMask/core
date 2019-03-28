@@ -103,8 +103,8 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	 *
 	 * @param interval - Polling interval used to fetch new token rates
 	 */
-	async poll(interval?: number) {
-		this.config.interval = interval || this.config.interval;
+	async poll(interval?: number): Promise<void> {
+		interval && this.configure({ interval });
 		this.handle && clearTimeout(this.handle);
 		await safelyExecute(() => this.updateExchangeRates());
 		this.handle = setTimeout(() => {
@@ -119,7 +119,7 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	 */
 	set tokens(tokens: Token[]) {
 		this.tokenList = tokens;
-		safelyExecute(() => this.updateExchangeRates());
+		!this.disabled && safelyExecute(() => this.updateExchangeRates());
 	}
 
 	/**
@@ -156,7 +156,7 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	 * @returns Promise resolving when this operation completes
 	 */
 	async updateExchangeRates() {
-		if (this.disabled || this.tokenList.length === 0) {
+		if (this.tokenList.length === 0) {
 			return;
 		}
 		const newContractExchangeRates: { [address: string]: number } = {};
