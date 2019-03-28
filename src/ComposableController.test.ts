@@ -97,9 +97,9 @@ describe('ComposableController', () => {
 		const addressContext = controller.context.TokenRatesController.context
 			.AddressBookController as AddressBookController;
 		expect(addressContext).toBeDefined();
-		addressContext.set('1337', 'foo');
+		addressContext.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 		expect(controller.flatState).toEqual({
-			addressBook: [{ address: '1337', name: 'foo' }],
+			addressBook: [{ address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88', name: 'foo' }],
 			allCollectibleContracts: {},
 			allCollectibles: {},
 			allTokens: {},
@@ -148,11 +148,11 @@ describe('ComposableController', () => {
 		const controller = new ComposableController([addressBookController]);
 		const listener = stub();
 		controller.subscribe(listener);
-		addressBookController.set('1337', 'foo');
+		addressBookController.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 		expect(listener.calledOnce).toBe(true);
 		expect(listener.getCall(0).args[0]).toEqual({
 			AddressBookController: {
-				addressBook: [{ address: '1337', name: 'foo' }]
+				addressBook: [{ address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88', name: 'foo' }]
 			}
 		});
 	});
