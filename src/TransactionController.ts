@@ -581,7 +581,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 				/* istanbul ignore else */
 				if (tx.toSmartContract === undefined) {
 					// If not `to` is a contract deploy, if not `data` is send eth
-					if (tx.transaction.to || !tx.transaction.data || tx.transaction.data !== '0x') {
+					if (tx.transaction.to && (!tx.transaction.data || tx.transaction.data !== '0x')) {
 						const code = await this.query('getCode', [tx.transaction.to]);
 						tx.toSmartContract = isSmartContractCode(code);
 					} else {
