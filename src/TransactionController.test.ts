@@ -48,9 +48,17 @@ function mockFetch(data: any) {
 const HttpProvider = require('ethjs-provider-http');
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const PROVIDER = new HttpProvider('https://ropsten.infura.io');
+const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
 const MOCK_NETWORK = {
 	provider: PROVIDER,
 	state: { network: '3', provider: { type: 'ropsten' } },
+	subscribe: () => {
+		/* eslint-disable-line no-empty */
+	}
+};
+const MOCK_MAINNET_NETWORK = {
+	provider: MAINNET_PROVIDER,
+	state: { network: '1', provider: { type: 'mainnet' } },
 	subscribe: () => {
 		/* eslint-disable-line no-empty */
 	}
@@ -132,7 +140,7 @@ describe('TransactionController', () => {
 
 	it('should set default state', () => {
 		const controller = new TransactionController();
-		expect(controller.state).toEqual({ transactions: [] });
+		expect(controller.state).toEqual({ methodData: {}, transactions: [] });
 	});
 
 	it('should set default config', () => {
@@ -351,7 +359,6 @@ describe('TransactionController', () => {
 			controller.approveTransaction(controller.state.transactions[0].id);
 		});
 	});
-
 	it('should query transaction statuses', () => {
 		return new Promise((resolve) => {
 			const controller = new TransactionController({
@@ -409,5 +416,20 @@ describe('TransactionController', () => {
 		const result = await controller.fetchAll(from);
 		expect(controller.state.transactions.length).toBe(0);
 		expect(result).toBe(undefined);
+	});
+
+	it('should handle new method data', async () => {
+		const controller = new TransactionController({ provider: MOCK_MAINNET_NETWORK });
+		controller.context = {
+			NetworkController: MOCK_MAINNET_NETWORK
+		} as any;
+		controller.onComposed();
+
+		const registry = await controller.handleMethodData('0xf39b5b9b');
+		expect(registry.parsedRegistryMethod).toEqual({
+			args: [{ type: 'uint256' }, { type: 'uint256' }],
+			name: 'Eth To Token Swap Input'
+		});
+		expect(registry.registryMethod).toEqual('ethToTokenSwapInput(uint256,uint256)');
 	});
 });
