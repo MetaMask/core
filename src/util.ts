@@ -113,13 +113,16 @@ export function normalizeTransaction(transaction: Transaction) {
  * Execute and return an asynchronous operation without throwing errors
  *
  * @param operation - Function returning a Promise
+ * @param logError - Determines if the error should be logged
+ * @param retry - Function called if an error is caught
  * @returns - Promise resolving to the result of the async operation
  */
-export async function safelyExecute(operation: () => Promise<any>) {
+export async function safelyExecute(operation: () => Promise<any>, logError = false, retry?: (error: Error) => void) {
 	try {
 		return await operation();
 	} catch (error) {
-		/* tslint:disable-next-line:no-empty */
+		logError && console.error(error);
+		retry && retry(error);
 	}
 }
 
