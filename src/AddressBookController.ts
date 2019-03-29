@@ -76,7 +76,7 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 */
 	set(address: string, name: string) {
 		if (!isValidAddress(address)) {
-			return;
+			return false;
 		}
 		this.addressBook.set(address, { address, name });
 		this.update({ addressBook: Array.from(this.addressBook.values()) });
