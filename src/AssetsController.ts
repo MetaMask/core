@@ -448,14 +448,15 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param address - Hex address of the token contract
 	 * @param symbol - Symbol of the token
 	 * @param decimals - Number of decimals the token uses
+	 * @param image - Image of the token
 	 * @returns - Current token list
 	 */
-	async addToken(address: string, symbol: string, decimals: number): Promise<Token[]> {
+	async addToken(address: string, symbol: string, decimals: number, image?: string): Promise<Token[]> {
 		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
 		const { allTokens, tokens } = this.state;
 		const { networkType, selectedAddress } = this.config;
-		const newEntry: Token = { address, symbol, decimals };
+		const newEntry: Token = { address, symbol, decimals, image };
 		const previousEntry = tokens.find((token) => token.address === address);
 		if (previousEntry) {
 			const previousIndex = tokens.indexOf(previousEntry);
