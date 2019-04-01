@@ -122,6 +122,25 @@ const MOCK_FETCH_TX_HISTORY_DATA_OK = {
 			transactionIndex: '13',
 			txreceipt_status: '1',
 			value: '50000000000000000'
+		},
+		{
+			blockNumber: '4535106',
+			confirmations: '4',
+			contractAddress: '',
+			cumulativeGasUsed: '693910',
+			from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+			gas: '335208',
+			gasPrice: '20000000000',
+			gasUsed: '21000',
+			hash: '0x342e9d73e10004af41d04973139fc7219dbadcbb5629730cfe65e9f9cb15ff91',
+			input: '0x11',
+			isError: '0',
+			nonce: '1',
+			timeStamp: '1543596356',
+			to: '0xb2d191b6fe03c5b8a1ab249cfe88c37553357a23',
+			transactionIndex: '13',
+			txreceipt_status: '1',
+			value: '50000000000000000'
 		}
 	],
 	status: '1'
@@ -151,32 +170,32 @@ describe('TransactionController', () => {
 		});
 	});
 
-	it('should poll on correct interval', () => {
-		const func = stub(global, 'setInterval');
-		/* tslint:disable-next-line:no-unused-expression */
-		new TransactionController({ interval: 1337 });
-		expect(func.getCall(0).args[1]).toBe(1337);
-		func.restore();
-	});
-
-	it('should check transaction statuses on interval', () => {
+	it('should poll and update transaction statuses in the right interval', () => {
 		return new Promise((resolve) => {
-			const controller = new TransactionController({ interval: 10 });
-			const func = stub(controller, 'queryTransactionStatuses');
+			const mock = stub(TransactionController.prototype, 'queryTransactionStatuses');
+			// tslint:disable-next-line: no-unused-expression
+			new TransactionController({ interval: 10 });
+			expect(mock.called).toBe(true);
+			expect(mock.calledTwice).toBe(false);
 			setTimeout(() => {
-				expect(func.called).toBe(true);
-				func.restore();
+				expect(mock.calledTwice).toBe(true);
+				mock.restore();
 				resolve();
-			}, 20);
+			}, 15);
 		});
 	});
 
 	it('should clear previous interval', () => {
-		const func = stub(global, 'clearInterval');
+		const mock = stub(global, 'clearTimeout');
 		const controller = new TransactionController({ interval: 1337 });
-		controller.interval = 1338;
-		expect(func.called).toBe(true);
-		func.restore();
+		return new Promise((resolve) => {
+			setTimeout(() => {
+				controller.poll(1338);
+				expect(mock.called).toBe(true);
+				mock.restore();
+				resolve();
+			}, 100);
+		});
 	});
 
 	it('should not update the state if there are no updates on transaction statuses', () => {
@@ -398,7 +417,7 @@ describe('TransactionController', () => {
 
 		const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 		const latestBlock = await controller.fetchAll(from);
-		expect(controller.state.transactions.length).toBe(3);
+		expect(controller.state.transactions.length).toBe(4);
 		expect(latestBlock).toBe('4535101');
 		expect(controller.state.transactions[0].transaction.to).toBe(from);
 	});

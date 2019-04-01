@@ -49,9 +49,23 @@ describe('util', () => {
 		});
 	});
 
-	it('safelyExecute', async () => {
-		await util.safelyExecute(() => {
-			throw new Error('ahh');
+	describe('safelyExecute', () => {
+		it('should swallow errors', async () => {
+			await util.safelyExecute(() => {
+				throw new Error('ahh');
+			});
+		});
+
+		it('should call retry function', () => {
+			return new Promise((resolve) => {
+				util.safelyExecute(
+					() => {
+						throw new Error('ahh');
+					},
+					true,
+					resolve
+				);
+			});
 		});
 	});
 

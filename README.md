@@ -51,7 +51,7 @@ The GABA engine consists of a collection of modules that each expose uniform API
 ### AccountTrackerController
 
 ```ts
-import AccountTrackerController from '';
+import AccountTrackerController from 'gaba';
 ```
 
 The AccountTrackerController tracks information associated with specific Ethereum accounts.
@@ -70,7 +70,7 @@ The AddressBookController exposes functions for managing a list of recipient add
 import ComposableController from 'gaba';
 ```
 
-The ComposableController can be used to compose mutiple controllers together into a single controller.
+The ComposableController can be used to compose multiple controllers together into a single controller.
 
 ### CurrencyRateController
 
@@ -158,20 +158,20 @@ Using GABA modules should be straightforward since each module exposes the same 
 
 ### Initialization
 
-Each GABA module can be initialized with an optional initial state argument and an optional initial configuration argument:
+Each GABA module can be initialized with an optional initial configuration argument and an optional initial state argument:
 
 ```ts
-const controller = new Controller(<initial_state>, <initial_config>)
+const controller = new Controller(<initial_config>, <initial_state>)
 ```
 
 Data passed into a module as initial state will be merged with that module's default state; likewise, options passed into a module as initial configuration will be merged with that module's default configuration.
 
 ### Configuration
 
-As mentioned in the [initialization section](#initialization), a GABA module can be configured during initialization by passing in a configuration object as a second argument:
+As mentioned in the [initialization section](#initialization), a GABA module can be configured during initialization by passing in a configuration object as its first argument:
 
 ```ts
-const controller = new Controller(<initial_state>, <initial_config>)
+const controller = new Controller(<initial_config>, <initial_state>)
 ```
 
 A GABA module can also be configured (or reconfigured) after initialization by passing a configuration object to its `configure` method:

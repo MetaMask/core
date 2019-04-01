@@ -16,29 +16,51 @@ describe('TokenRatesController', () => {
 	it('should set default config', () => {
 		const controller = new TokenRatesController();
 		expect(controller.config).toEqual({
+			disabled: true,
 			interval: 180000,
 			nativeCurrency: 'eth',
 			tokens: []
 		});
 	});
 
-	it('should poll on correct interval', () => {
-		const func = stub(global, 'setInterval');
-		/* tslint:disable-next-line:no-unused-expression */
-		new TokenRatesController({ interval: 1337 });
-		expect(func.getCall(0).args[1]).toBe(1337);
-		func.restore();
+	it('should poll and update rate in the right interval', () => {
+		return new Promise((resolve) => {
+			const mock = stub(TokenRatesController.prototype, 'fetchExchangeRate');
+			// tslint:disable-next-line: no-unused-expression
+			new TokenRatesController({
+				interval: 10,
+				tokens: [{ address: 'bar', decimals: 0, symbol: '' }]
+			});
+			expect(mock.called).toBe(true);
+			expect(mock.calledTwice).toBe(false);
+			setTimeout(() => {
+				expect(mock.calledTwice).toBe(true);
+				mock.restore();
+				resolve();
+			}, 15);
+		});
 	});
 
-	it('should update rates on interval', () => {
+	it('should not update rates if disabled', async () => {
+		const controller = new TokenRatesController({
+			interval: 10
+		});
+		controller.fetchExchangeRate = stub();
+		controller.disabled = true;
+		await controller.updateExchangeRates();
+		expect((controller.fetchExchangeRate as any).called).toBe(false);
+	});
+
+	it('should clear previous interval', () => {
+		const mock = stub(global, 'clearTimeout');
+		const controller = new TokenRatesController({ interval: 1337 });
 		return new Promise((resolve) => {
-			const controller = new TokenRatesController({ interval: 10 });
-			const func = stub(controller, 'updateExchangeRates');
 			setTimeout(() => {
-				expect(func.called).toBe(true);
-				func.restore();
+				controller.poll(1338);
+				expect(mock.called).toBe(true);
+				mock.restore();
 				resolve();
-			}, 20);
+			}, 100);
 		});
 	});
 
@@ -70,25 +92,6 @@ describe('TokenRatesController', () => {
 		const mock = stub(controller, 'updateExchangeRates');
 		await controller.updateExchangeRates();
 		expect(mock).not.toThrow();
-	});
-
-	it('should not update rates if disabled', async () => {
-		const controller = new TokenRatesController({
-			disabled: true,
-			interval: 10,
-			tokens: [{ address: 'bar', decimals: 0, symbol: '' }]
-		});
-		controller.fetchExchangeRate = stub();
-		await controller.updateExchangeRates();
-		expect((controller.fetchExchangeRate as any).called).toBe(false);
-	});
-
-	it('should clear previous interval', () => {
-		const func = stub(global, 'clearInterval');
-		const controller = new TokenRatesController({ interval: 1337 });
-		controller.interval = 1338;
-		expect(func.called).toBe(true);
-		func.restore();
 	});
 
 	it('should subscribe to new sibling assets controllers', async () => {

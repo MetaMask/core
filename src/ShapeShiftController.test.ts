@@ -21,39 +21,42 @@ describe('ShapeShiftController', () => {
 		expect(controller.config).toEqual({ interval: 3000 });
 	});
 
-	it('should poll on correct interval', () => {
-		const mock = stub(global, 'setInterval');
-		/* tslint:disable-next-line:no-unused-expression */
-		new ShapeShiftController({ interval: 1337 });
-		expect(mock.getCall(0).args[1]).toBe(1337);
-		mock.restore();
-	});
-
-	it('should update transaction list on interval', () => {
+	it('should poll and update transactions in the right interval', () => {
 		return new Promise((resolve) => {
-			const controller = new ShapeShiftController({ interval: 10 });
-			const mock = stub(controller, 'updateTransactionList');
+			const mock = stub(ShapeShiftController.prototype, 'updateTransactionList');
+			// tslint:disable-next-line: no-unused-expression
+			new ShapeShiftController({ interval: 10 });
+			expect(mock.called).toBe(true);
+			expect(mock.calledTwice).toBe(false);
 			setTimeout(() => {
-				expect(mock.called).toBe(true);
+				expect(mock.calledTwice).toBe(true);
 				mock.restore();
 				resolve();
-			}, 20);
+			}, 15);
 		});
 	});
 
-	it('should not update infura rate if disabled', async () => {
-		const controller = new ShapeShiftController({ disabled: true }, { shapeShiftTxList: [PENDING_TX] });
-		controller.update = stub();
+	it('should not update transactions if disabled', async () => {
+		const controller = new ShapeShiftController({
+			disabled: true,
+			interval: 10
+		});
+		const mock = stub(controller, 'update');
 		await controller.updateTransactionList();
-		expect((controller.update as any).called).toBe(false);
+		expect(mock.called).toBe(false);
 	});
 
 	it('should clear previous interval', () => {
-		const clearInterval = stub(global, 'clearInterval');
+		const mock = stub(global, 'clearTimeout');
 		const controller = new ShapeShiftController({ interval: 1337 });
-		controller.interval = 1338;
-		expect(clearInterval.called).toBe(true);
-		clearInterval.restore();
+		return new Promise((resolve) => {
+			setTimeout(() => {
+				controller.poll(1338);
+				expect(mock.called).toBe(true);
+				mock.restore();
+				resolve();
+			}, 100);
+		});
 	});
 
 	it('should update lists', async () => {

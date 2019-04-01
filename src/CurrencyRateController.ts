@@ -65,6 +65,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 		super(config, state);
 		this.defaultConfig = {
 			currentCurrency: 'usd',
+			disabled: true,
 			interval: 180000,
 			nativeCurrency: 'eth'
 		};
@@ -75,6 +76,8 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 			nativeCurrency: this.defaultConfig.nativeCurrency
 		};
 		this.initialize();
+		this.disabled = false;
+		this.poll();
 	}
 
 	/**
@@ -98,16 +101,17 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	}
 
 	/**
-	 * Sets a new polling interval
+	 * Starts a new polling interval
 	 *
 	 * @param interval - Polling interval used to fetch new exchange rate
 	 */
-	set interval(interval: number) {
-		this.handle && clearInterval(this.handle);
-		safelyExecute(() => this.updateExchangeRate());
-		this.handle = setInterval(() => {
-			safelyExecute(() => this.updateExchangeRate());
-		}, interval);
+	async poll(interval?: number): Promise<void> {
+		interval && this.configure({ interval });
+		this.handle && clearTimeout(this.handle);
+		await safelyExecute(() => this.updateExchangeRate());
+		this.handle = setTimeout(() => {
+			this.poll(this.config.interval);
+		}, this.config.interval);
 	}
 
 	/**

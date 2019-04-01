@@ -2,7 +2,6 @@ import AccountTrackerController from './AccountTrackerController';
 import PreferencesController from './PreferencesController';
 import ComposableController from './ComposableController';
 import { stub, spy } from 'sinon';
-import { createSandbox } from 'sinon';
 
 const HttpProvider = require('ethjs-provider-http');
 const provider = new HttpProvider('https://ropsten.infura.io');
@@ -49,18 +48,19 @@ describe('AccountTrackerController', () => {
 	});
 
 	it('should call refresh every ten seconds', () => {
-		const sandbox = createSandbox();
-		const clock = sandbox.useFakeTimers();
-		const preferences = new PreferencesController();
-		const controller = new AccountTrackerController({ provider });
-		stub(controller, 'refresh');
-		const setRefreshTimeout = spy(controller, 'setRefreshTimeout');
-		/* tslint:disable-next-line:no-unused-expression */
-		new ComposableController([controller, preferences]);
-		expect(setRefreshTimeout.called).toBe(true);
-		clock.tick(1000);
-		expect(setRefreshTimeout.calledTwice).toBe(false);
-		clock.tick(9000);
-		expect(setRefreshTimeout.calledTwice).toBe(true);
+		return new Promise((resolve) => {
+			const preferences = new PreferencesController();
+			const controller = new AccountTrackerController({ provider, interval: 100 });
+			stub(controller, 'refresh');
+			const poll = spy(controller, 'poll');
+			/* tslint:disable-next-line:no-unused-expression */
+			new ComposableController([controller, preferences]);
+			expect(poll.called).toBe(true);
+			expect(poll.calledTwice).toBe(false);
+			setTimeout(() => {
+				expect(poll.calledTwice).toBe(true);
+				resolve();
+			}, 120);
+		});
 	});
 });

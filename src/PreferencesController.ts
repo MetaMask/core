@@ -170,9 +170,6 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @param url - Custom RPC URL
 	 */
 	addToFrequentRpcList(url: string) {
-		if (url === 'http://localhost:8545') {
-			return;
-		}
 		const frequentRpcList = this.state.frequentRpcList;
 		const index = frequentRpcList.findIndex((element) => {
 			return element === url;
@@ -190,9 +187,6 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * @param url - Custom RPC URL
 	 */
 	removeFromFrequentRpcList(url: string) {
-		if (url === 'http://localhost:8545') {
-			return;
-		}
 		const frequentRpcList = this.state.frequentRpcList;
 		const index = frequentRpcList.findIndex((element) => {
 			return element === url;
