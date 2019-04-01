@@ -443,12 +443,27 @@ describe('TransactionController', () => {
 			NetworkController: MOCK_MAINNET_NETWORK
 		} as any;
 		controller.onComposed();
-
 		const registry = await controller.handleMethodData('0xf39b5b9b');
 		expect(registry.parsedRegistryMethod).toEqual({
 			args: [{ type: 'uint256' }, { type: 'uint256' }],
 			name: 'Eth To Token Swap Input'
 		});
 		expect(registry.registryMethod).toEqual('ethToTokenSwapInput(uint256,uint256)');
+	});
+
+	it('should handle known method data', async () => {
+		const controller = new TransactionController({ provider: MOCK_MAINNET_NETWORK });
+		controller.context = {
+			NetworkController: MOCK_MAINNET_NETWORK
+		} as any;
+		controller.onComposed();
+		const registry = await controller.handleMethodData('0xf39b5b9b');
+		expect(registry.parsedRegistryMethod).toEqual({
+			args: [{ type: 'uint256' }, { type: 'uint256' }],
+			name: 'Eth To Token Swap Input'
+		});
+		const registryLookup = stub(controller, 'registryLookup' as any);
+		await controller.handleMethodData('0xf39b5b9b');
+		expect(registryLookup.called).toBe(false);
 	});
 });
