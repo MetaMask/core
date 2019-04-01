@@ -15,6 +15,7 @@ const EthQuery = require('eth-query');
 const Transaction = require('ethereumjs-tx');
 const random = require('uuid/v1');
 const { addHexPrefix, bufferToHex, BN } = require('ethereumjs-util');
+const Mutex = require('await-semaphore').Mutex;
 
 /**
  * @type Result
@@ -167,6 +168,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	private ethQuery: any;
 	private registry: any;
 	private handle?: NodeJS.Timer;
+	private mutex = new Mutex();
 
 	private failTransaction(transactionMeta: TransactionMeta, error: Error) {
 		transactionMeta.status = 'failed';
@@ -285,13 +287,16 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 * @param fourBytePrefix - String corresponding to method prefix
 	 */
 	async handleMethodData(fourBytePrefix: string): Promise<MethodData> {
+		const releaseLock = await this.mutex.acquire();
 		const { methodData } = this.state;
-		const knownMethod = fourBytePrefix in Object.keys(methodData);
+		const knownMethod = Object.keys(methodData).includes(fourBytePrefix);
 		if (knownMethod) {
+			releaseLock();
 			return methodData[fourBytePrefix];
 		}
 		const registry = await this.registryLookup(fourBytePrefix);
 		this.update({ methodData: { ...methodData, ...{ [fourBytePrefix]: registry } } });
+		releaseLock();
 		return registry;
 	}
 
