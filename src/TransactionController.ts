@@ -289,7 +289,9 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	async handleMethodData(fourBytePrefix: string): Promise<MethodData> {
 		const releaseLock = await this.mutex.acquire();
 		const { methodData } = this.state;
-		const knownMethod = Object.keys(methodData).includes(fourBytePrefix);
+		const knownMethod = Object.keys(methodData).find(
+			(knownFourBytePrefix) => fourBytePrefix === knownFourBytePrefix
+		);
 		if (knownMethod) {
 			releaseLock();
 			return methodData[fourBytePrefix];
