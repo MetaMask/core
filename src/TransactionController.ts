@@ -144,9 +144,17 @@ export interface TransactionConfig extends BaseConfig {
 	sign?: (transaction: Transaction, from: string) => Promise<any>;
 }
 
+/**
+ * @type MethodData
+ *
+ * Method data registry object
+ *
+ * @property registryMethod - Registry method raw string
+ * @property parsedRegistryMethod - Registry method object, containing name and method arguments
+ */
 export interface MethodData {
 	registryMethod: string;
-	parsedRegistryMethod: string;
+	parsedRegistryMethod: object;
 }
 
 /**
@@ -155,6 +163,7 @@ export interface MethodData {
  * Transaction controller state
  *
  * @property transactions - A list of TransactionMeta objects
+ * @property methodData - Object containing all known method data information
  */
 export interface TransactionState extends BaseState {
 	transactions: TransactionMeta[];
@@ -287,6 +296,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 * Handle new method data request
 	 *
 	 * @param fourBytePrefix - String corresponding to method prefix
+	 * @returns - Promise resolving to method data object corresponding to signature prefix
 	 */
 	async handleMethodData(fourBytePrefix: string): Promise<MethodData> {
 		const releaseLock = await this.mutex.acquire();
