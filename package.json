@@ -76,6 +76,7 @@
     "eth-contract-metadata": "github:MetaMask/eth-contract-metadata#faa4f56fb17b3ae8579df68708be59d617732f31",
     "eth-json-rpc-infura": "^3.1.2",
     "eth-keyring-controller": "^4.0.0",
+    "eth-method-registry": "1.1.0",
     "eth-phishing-detect": "^1.1.13",
     "eth-query": "^2.1.2",
     "eth-sig-util": "^2.1.0",

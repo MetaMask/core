@@ -10,11 +10,12 @@ import {
 	validateTransaction,
 	isSmartContractCode
 } from './util';
-
+const MethodRegistry = require('eth-method-registry');
 const EthQuery = require('eth-query');
 const Transaction = require('ethereumjs-tx');
 const random = require('uuid/v1');
 const { addHexPrefix, bufferToHex, BN } = require('ethereumjs-util');
+const Mutex = require('await-semaphore').Mutex;
 
 /**
  * @type Result
@@ -144,14 +145,29 @@ export interface TransactionConfig extends BaseConfig {
 }
 
 /**
+ * @type MethodData
+ *
+ * Method data registry object
+ *
+ * @property registryMethod - Registry method raw string
+ * @property parsedRegistryMethod - Registry method object, containing name and method arguments
+ */
+export interface MethodData {
+	registryMethod: string;
+	parsedRegistryMethod: object;
+}
+
+/**
  * @type TransactionState
  *
  * Transaction controller state
  *
  * @property transactions - A list of TransactionMeta objects
+ * @property methodData - Object containing all known method data information
  */
 export interface TransactionState extends BaseState {
 	transactions: TransactionMeta[];
+	methodData: { [key: string]: MethodData };
 }
 
 /**
@@ -159,7 +175,9 @@ export interface TransactionState extends BaseState {
  */
 export class TransactionController extends BaseController<TransactionConfig, TransactionState> {
 	private ethQuery: any;
+	private registry: any;
 	private handle?: NodeJS.Timer;
+	private mutex = new Mutex();
 
 	private failTransaction(transactionMeta: TransactionMeta, error: Error) {
 		transactionMeta.status = 'failed';
@@ -181,6 +199,12 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 				resolve(result);
 			});
 		});
+	}
+
+	private async registryLookup(fourBytePrefix: string): Promise<MethodData> {
+		const registryMethod = await this.registry.lookup(fourBytePrefix);
+		const parsedRegistryMethod = this.registry.parse(registryMethod);
+		return { registryMethod, parsedRegistryMethod };
 	}
 
 	/**
@@ -246,7 +270,10 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 			interval: 5000,
 			provider: undefined
 		};
-		this.defaultState = { transactions: [] };
+		this.defaultState = {
+			methodData: {},
+			transactions: []
+		};
 		this.initialize();
 		this.poll();
 	}
@@ -263,6 +290,28 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		this.handle = setTimeout(() => {
 			this.poll(this.config.interval);
 		}, this.config.interval);
+	}
+
+	/**
+	 * Handle new method data request
+	 *
+	 * @param fourBytePrefix - String corresponding to method prefix
+	 * @returns - Promise resolving to method data object corresponding to signature prefix
+	 */
+	async handleMethodData(fourBytePrefix: string): Promise<MethodData> {
+		const releaseLock = await this.mutex.acquire();
+		const { methodData } = this.state;
+		const knownMethod = Object.keys(methodData).find(
+			(knownFourBytePrefix) => fourBytePrefix === knownFourBytePrefix
+		);
+		if (knownMethod) {
+			releaseLock();
+			return methodData[fourBytePrefix];
+		}
+		const registry = await this.registryLookup(fourBytePrefix);
+		this.update({ methodData: { ...methodData, ...{ [fourBytePrefix]: registry } } });
+		releaseLock();
+		return registry;
 	}
 
 	/**
@@ -434,6 +483,9 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const network = this.context.NetworkController as NetworkController;
 		const onProviderUpdate = () => {
 			this.ethQuery = network.provider ? new EthQuery(network.provider) : /* istanbul ignore next */ null;
+			this.registry = network.provider
+				? new MethodRegistry({ provider: network.provider }) /* istanbul ignore next */
+				: null;
 		};
 		onProviderUpdate();
 		network.subscribe(onProviderUpdate);
