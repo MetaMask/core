@@ -4,10 +4,12 @@ import PreferencesController from './PreferencesController';
 import NetworkController, { NetworkType } from './NetworkController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
-import { safelyExecute, handleFetch } from './util';
+import { safelyExecute, handleFetch, validateTokenToWatch } from './util';
+import { EventEmitter } from 'events';
 
 const { toChecksumAddress } = require('ethereumjs-util');
 const Mutex = require('await-semaphore').Mutex;
+const random = require('uuid/v1');
 
 /**
  * @type Collectible
@@ -97,6 +99,41 @@ export interface AssetsConfig extends BaseConfig {
 }
 
 /**
+ * @type AssetSuggestionResult
+ *
+ * @property result - Promise resolving to a new suggested asset address
+ * @property suggestedAssetMeta - Meta information about this new suggested asset
+ */
+export interface AssetSuggestionResult {
+	result: Promise<string>;
+	suggestedAssetMeta: SuggestedAssetMeta;
+}
+
+/**
+ * @type SuggestedAssetMeta
+ *
+ * Suggested asset by EIP747 meta data
+ *
+ * @property error - Synthesized error information for failed asset suggestions
+ * @property id - Generated UUID associated with this suggested asset
+ * @property status - String status of this this suggested asset
+ * @property time - Timestamp associated with this this suggested asset
+ * @property type - Type type this suggested asset
+ * @property asset - Asset suggested object
+ */
+export interface SuggestedAssetMeta {
+	error?: {
+		message: string;
+		stack?: string;
+	};
+	id: string;
+	status: string;
+	time: number;
+	type: string;
+	asset: Token;
+}
+
+/**
  * @type AssetsState
  *
  * Assets controller state
@@ -106,6 +143,7 @@ export interface AssetsConfig extends BaseConfig {
  * @property allCollectibles - Object containing collectibles per account and network
  * @property collectibleContracts - List of collectibles contracts associated with the active vault
  * @property collectibles - List of collectibles associated with the active vault
+ * @property suggestedAssets - List of suggested assets associated with the active vault
  * @property tokens - List of tokens associated with the active vault
  */
 export interface AssetsState extends BaseState {
@@ -114,6 +152,7 @@ export interface AssetsState extends BaseState {
 	allCollectibles: { [key: string]: { [key: string]: Collectible[] } };
 	collectibleContracts: CollectibleContract[];
 	collectibles: Collectible[];
+	suggestedAssets: SuggestedAssetMeta[];
 	tokens: Token[];
 }
 
@@ -129,6 +168,15 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 
 	private getCollectibleContractInformationApi(contractAddress: string) {
 		return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
+	}
+
+	private failSuggestedAsset(suggestedAssetMeta: SuggestedAssetMeta, error: Error) {
+		suggestedAssetMeta.status = 'failed';
+		suggestedAssetMeta.error = {
+			message: error.toString(),
+			stack: error.stack
+		};
+		this.hub.emit(`${suggestedAssetMeta.id}:finished`, suggestedAssetMeta);
 	}
 
 	/**
@@ -410,6 +458,11 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	}
 
 	/**
+	 * EventEmitter instance used to listen to specific EIP747 events
+	 */
+	hub = new EventEmitter();
+
+	/**
 	 * Name of this controller used during composition
 	 */
 	name = 'AssetsController';
@@ -437,6 +490,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			allTokens: {},
 			collectibleContracts: [],
 			collectibles: [],
+			suggestedAssets: [],
 			tokens: []
 		};
 		this.initialize();
@@ -471,6 +525,81 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		this.update({ allTokens: newAllTokens, tokens: newTokens });
 		releaseLock();
 		return newTokens;
+	}
+
+	async watchAsset(asset: Token, type: string): Promise<AssetSuggestionResult> {
+		const suggestedAssetMeta: SuggestedAssetMeta = {
+			asset,
+			id: random(),
+			status: 'pending',
+			time: Date.now(),
+			type
+		};
+		try {
+			switch (type) {
+				case 'ERC20':
+					validateTokenToWatch(asset);
+					break;
+				default:
+					throw new Error(`Asset of type ${type} not supported`);
+			}
+		} catch (error) {
+			this.failSuggestedAsset(suggestedAssetMeta, error);
+			return Promise.reject(error);
+		}
+
+		const result: Promise<string> = new Promise((resolve, reject) => {
+			this.hub.once(`${suggestedAssetMeta.id}:finished`, (meta: SuggestedAssetMeta) => {
+				switch (meta.status) {
+					case 'accepted':
+						return resolve(meta.asset.address);
+					case 'rejected':
+						return reject(new Error('User rejected to watch the asset.'));
+					case 'failed':
+						return reject(new Error(meta.error!.message));
+				}
+			});
+		});
+		const { suggestedAssets } = this.state;
+		suggestedAssets.push(suggestedAssetMeta);
+		this.update({ suggestedAssets: [...suggestedAssets] });
+		this.hub.emit('pendingSuggestedAsset', suggestedAssetMeta);
+		return { result, suggestedAssetMeta };
+	}
+
+	async acceptWatchAsset(suggestedAssetID: string) {
+		const { suggestedAssets } = this.state;
+		const index = suggestedAssets.findIndex(({ id }) => suggestedAssetID === id);
+		const suggestedAssetMeta = suggestedAssets[index];
+		try {
+			switch (suggestedAssetMeta.type) {
+				case 'ERC20':
+					const { address, symbol, decimals, image } = suggestedAssetMeta.asset;
+					await this.addToken(address, symbol, decimals, image);
+					suggestedAssetMeta.status = 'accepted';
+					this.hub.emit(`${suggestedAssetMeta.id}:finished`, suggestedAssetMeta);
+					break;
+				default:
+					throw new Error(`Asset of type ${suggestedAssetMeta.type} not supported`);
+			}
+		} catch (error) {
+			this.failSuggestedAsset(suggestedAssetMeta, error);
+		}
+		const newSuggestedAssets = suggestedAssets.filter(({ id }) => id !== suggestedAssetID);
+		this.update({ suggestedAssets: [...newSuggestedAssets] });
+	}
+
+	async rejectWatchAsset(suggestedAssetID: string) {
+		const { suggestedAssets } = this.state;
+		const index = suggestedAssets.findIndex(({ id }) => suggestedAssetID === id);
+		const suggestedAssetMeta = suggestedAssets[index];
+		if (!suggestedAssetMeta) {
+			return;
+		}
+		suggestedAssetMeta.status = 'rejected';
+		this.hub.emit(`${suggestedAssetMeta.id}:finished`, suggestedAssetMeta);
+		const newSuggestedAssets = suggestedAssets.filter(({ id }) => id !== suggestedAssetID);
+		this.update({ suggestedAssets: [...newSuggestedAssets] });
 	}
 
 	/**
