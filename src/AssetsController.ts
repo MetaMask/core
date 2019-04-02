@@ -527,6 +527,14 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		return newTokens;
 	}
 
+	/**
+	 * Adds a new suggestedAsset to state. Parameters will be validated according to
+	 * asset type being watched. A `<suggestedAssetMeta.id>:pending` hub event will be emitted once added.
+	 *
+	 * @param asset - Asset to be watched. For now only ERC20 tokens are accepted.
+	 * @param type - Asset type
+	 * @returns - Object containing a promise resolving to the suggestedAsset address if accepted
+	 */
 	async watchAsset(asset: Token, type: string): Promise<AssetSuggestionResult> {
 		const suggestedAssetMeta: SuggestedAssetMeta = {
 			asset,
@@ -567,7 +575,15 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		return { result, suggestedAssetMeta };
 	}
 
-	async acceptWatchAsset(suggestedAssetID: string) {
+	/**
+	 * Accepts to watch an asset and updates it's status and deletes the suggestedAsset from state,
+	 * adding the asset to corresponding asset state. In this case ERC20 tokens.
+	 * A `<suggestedAssetMeta.id>:finished` hub event is fired after accepted or failure.
+	 *
+	 * @param suggestedAssetID - ID of the suggestedAsset to accept
+	 * @returns - Promise resolving when this operation completes
+	 */
+	async acceptWatchAsset(suggestedAssetID: string): Promise<void> {
 		const { suggestedAssets } = this.state;
 		const index = suggestedAssets.findIndex(({ id }) => suggestedAssetID === id);
 		const suggestedAssetMeta = suggestedAssets[index];
@@ -589,7 +605,13 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		this.update({ suggestedAssets: [...newSuggestedAssets] });
 	}
 
-	async rejectWatchAsset(suggestedAssetID: string) {
+	/**
+	 * Rejects a watchAsset request based on its ID by setting its status to "rejected"
+	 * and emitting a `<suggestedAssetMeta.id>:finished` hub event.
+	 *
+	 * @param suggestedAssetID - ID of the suggestedAsset to accept
+	 */
+	rejectWatchAsset(suggestedAssetID: string) {
 		const { suggestedAssets } = this.state;
 		const index = suggestedAssets.findIndex(({ id }) => suggestedAssetID === id);
 		const suggestedAssetMeta = suggestedAssets[index];
