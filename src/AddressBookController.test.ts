@@ -13,7 +13,15 @@ describe('AddressBookController', () => {
 			addressBook: [{ address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88', name: 'foo' }]
 		});
 	});
-
+	it('the 3box should work', async () => {
+		try {
+			const controller = new AddressBookController();
+			const k = await controller.threebox();
+			console.log(k);
+		} catch (error) {
+			throw new Error(error);
+		}
+	});
 	it('should not add invalid contact entry', () => {
 		const controller = new AddressBookController();
 		controller.set('1337', 'foo');

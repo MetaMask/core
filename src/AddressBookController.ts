@@ -2,6 +2,14 @@ import BaseController, { BaseConfig, BaseState } from './BaseController';
 
 const { isValidAddress } = require('ethereumjs-util');
 
+const Box = require('3box');
+const JsonRpcEngine = require('json-rpc-engine');
+
+const scaffoldMiddleware = require('eth-json-rpc-middleware/scaffold');
+
+let engine: any;
+let ethprovider: any;
+
 /**
  * @type ContactEntry
  *
@@ -47,8 +55,16 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 		super(config, state);
 		this.defaultState = { addressBook: [] };
 		this.initialize();
+		engine = new JsonRpcEngine();
+		engine.push(scaffoldMiddleware({ personal_sign: this.signPersonalMessage }));
+		ethprovider = { sendAsync: engine.handle.bind(engine) };
 	}
 
+	async signPersonalMessage(req: any, res: any, end: any) {
+		console.log(req);
+		res.result = '0x8726348762348723487238476238746827364872634876234876234';
+		end();
+	}
 	/**
 	 * Remove all contract entries
 	 */
@@ -81,6 +97,15 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 		this.addressBook.set(address, { address, name });
 		this.update({ addressBook: Array.from(this.addressBook.values()) });
 		return true;
+	}
+
+	async threebox() {
+		const ethjs = ethprovider;
+		const box = await Box.openBox('0x07e1834315e654FB88EC4715765Ec88a563E8d1D', ethjs);
+
+		box.onSyncDone(() => {
+			console.log('hello');
+		});
 	}
 }
 
