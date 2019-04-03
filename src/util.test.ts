@@ -388,4 +388,74 @@ describe('util', () => {
 			expect(toSmartContract4).toBe(true);
 		});
 	});
+
+	describe('validateTokenToWatch', () => {
+		it('should throw if undefined token atrributes', () => {
+			expect(() =>
+				util.validateTokenToWatch({
+					address: undefined,
+					decimals: 0,
+					symbol: 'TKN'
+				} as any)
+			).toThrow('Cannot suggest token without address, symbol, and decimals');
+			expect(() =>
+				util.validateTokenToWatch({
+					address: '0x1',
+					decimals: 0,
+					symbol: undefined
+				} as any)
+			).toThrow('Cannot suggest token without address, symbol, and decimals');
+			expect(() =>
+				util.validateTokenToWatch({
+					address: '0x1',
+					decimals: undefined,
+					symbol: 'TKN'
+				} as any)
+			).toThrow('Cannot suggest token without address, symbol, and decimals');
+		});
+
+		it('should throw if symbol is more than 6 characters long', () => {
+			expect(() =>
+				util.validateTokenToWatch({
+					address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
+					decimals: 0,
+					symbol: 'TKNTKNTKN'
+				} as any)
+			).toThrow('Invalid symbol TKNTKNTKN more than six characters');
+		});
+
+		it('should throw if invalid decimals', () => {
+			expect(() =>
+				util.validateTokenToWatch({
+					address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
+					decimals: 0,
+					symbol: 'TKN'
+				} as any)
+			).not.toThrow();
+			expect(() =>
+				util.validateTokenToWatch({
+					address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
+					decimals: 38,
+					symbol: 'TKN'
+				} as any)
+			).toThrow('Invalid decimals 38 must be at least 0, and not over 36');
+			expect(() =>
+				util.validateTokenToWatch({
+					address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
+					decimals: -1,
+					symbol: 'TKN'
+				} as any)
+			).toThrow('Invalid decimals -1 must be at least 0, and not over 36');
+		});
+
+		it('should throw if invalid address', () => {
+			expect(() =>
+				util.validateTokenToWatch({
+					address: '0xe9',
+					decimals: 0,
+					symbol: 'TKN'
+				} as any)
+			).toThrow('Invalid address 0xe9');
+		});
+	});
 });

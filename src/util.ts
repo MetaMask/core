@@ -308,6 +308,7 @@ export default {
 	isSmartContractCode,
 	normalizeTransaction,
 	safelyExecute,
+	validateTokenToWatch,
 	validateTransaction,
 	validateTypedSignMessageDataV1,
 	validateTypedSignMessageDataV3
