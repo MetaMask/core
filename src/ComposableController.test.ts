@@ -28,6 +28,7 @@ describe('ComposableController', () => {
 				allTokens: {},
 				collectibleContracts: [],
 				collectibles: [],
+				suggestedAssets: [],
 				tokens: []
 			},
 			CurrencyRateController: {
@@ -80,6 +81,7 @@ describe('ComposableController', () => {
 			network: 'loading',
 			provider: { type: 'mainnet' },
 			selectedAddress: '',
+			suggestedAssets: [],
 			tokens: []
 		});
 	});
@@ -117,6 +119,7 @@ describe('ComposableController', () => {
 			network: 'loading',
 			provider: { type: 'mainnet' },
 			selectedAddress: '',
+			suggestedAssets: [],
 			tokens: []
 		});
 	});

@@ -1,6 +1,8 @@
 import { Transaction } from './TransactionController';
 import { PersonalMessageParams } from './PersonalMessageManager';
 import { TypedMessageParams } from './TypedMessageManager';
+import { Token } from './TokenRatesController';
+
 const sigUtil = require('eth-sig-util');
 const jsonschema = require('jsonschema');
 const { addHexPrefix, BN, isValidAddress, stripHexPrefix, bufferToHex } = require('ethereumjs-util');
@@ -261,6 +263,27 @@ export function validateTypedSignMessageDataV3(messageData: TypedMessageParams, 
 }
 
 /**
+ * Validates a ERC20 token to be added with EIP747.
+ *
+ * @param token - Token object to validate
+ */
+export function validateTokenToWatch(token: Token) {
+	const { address, symbol, decimals } = token;
+	if (!address || !symbol || typeof decimals === 'undefined') {
+		throw new Error(`Cannot suggest token without address, symbol, and decimals`);
+	}
+	if (!(symbol.length < 7)) {
+		throw new Error(`Invalid symbol ${symbol} more than six characters`);
+	}
+	if (isNaN(decimals) || decimals > 36 || decimals < 0) {
+		throw new Error(`Invalid decimals ${decimals} must be at least 0, and not over 36`);
+	}
+	if (!isValidAddress(address)) {
+		throw new Error(`Invalid address ${address}`);
+	}
+}
+
+/**
  * Returns wether the given code corresponds to a smart contract
  *
  * @returns {string} - Corresponding code to review
@@ -285,6 +308,7 @@ export default {
 	isSmartContractCode,
 	normalizeTransaction,
 	safelyExecute,
+	validateTokenToWatch,
 	validateTransaction,
 	validateTypedSignMessageDataV1,
 	validateTypedSignMessageDataV3

@@ -24,11 +24,13 @@ export interface Balanc3Response {
  * @property address - Hex address of the token contract
  * @property decimals - Number of decimals the token uses
  * @property symbol - Symbol of the token
+ * @property image - Image of the token, url or bit32 image
  */
 export interface Token {
 	address: string;
 	decimals: number;
 	symbol: string;
+	image?: string;
 }
 
 /**

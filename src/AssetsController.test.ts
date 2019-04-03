@@ -124,6 +124,7 @@ describe('AssetsController', () => {
 			allTokens: {},
 			collectibleContracts: [],
 			collectibles: [],
+			suggestedAssets: [],
 			tokens: []
 		});
 	});
@@ -424,5 +425,102 @@ describe('AssetsController', () => {
 		expect(assetsController.context.PreferencesController.state.selectedAddress).toEqual(address);
 		network.update({ provider: { type: networkType } });
 		expect(assetsController.context.NetworkController.state.provider.type).toEqual(networkType);
+	});
+
+	it('should add a valid suggested asset via watchAsset', async () => {
+		await assetsController.watchAsset(
+			{
+				address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
+				decimals: 18,
+				symbol: 'TKN'
+			},
+			'ERC20'
+		);
+		expect(assetsController.state.suggestedAssets[0].asset.address).toBe(
+			'0xe9f786dfdd9ae4d57e830acb52296837765f0e5b'
+		);
+		expect(assetsController.state.suggestedAssets[0].status).toBe('pending');
+	});
+
+	it('should fail an invalid type suggested asset via watchAsset', async () => {
+		return new Promise(async (resolve) => {
+			await assetsController
+				.watchAsset(
+					{
+						address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
+						decimals: 18,
+						symbol: 'TKN'
+					},
+					'ERC721'
+				)
+				.catch((error) => {
+					expect(error.message).toContain('Asset of type ERC721 not supported');
+					resolve();
+				});
+		});
+	});
+
+	it('should reject a valid suggested asset via watchAsset', () => {
+		return new Promise(async (resolve) => {
+			const { result, suggestedAssetMeta } = await assetsController.watchAsset(
+				{
+					address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
+					decimals: 18,
+					symbol: 'TKN'
+				},
+				'ERC20'
+			);
+			assetsController.rejectWatchAsset('foo');
+			assetsController.rejectWatchAsset(suggestedAssetMeta.id);
+			assetsController.hub.once(`${suggestedAssetMeta.id}:finished`, () => {
+				expect(assetsController.state.suggestedAssets.length).toBe(0);
+			});
+			result.catch((error) => {
+				expect(error.message).toContain('User rejected to watch the asset.');
+				resolve();
+			});
+		});
+	});
+
+	it('should accept a valid suggested asset via watchAsset', () => {
+		return new Promise(async (resolve) => {
+			const { result, suggestedAssetMeta } = await assetsController.watchAsset(
+				{
+					address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
+					decimals: 18,
+					symbol: 'TKN'
+				},
+				'ERC20'
+			);
+			result.then((res) => {
+				expect(assetsController.state.suggestedAssets.length).toEqual(0);
+				expect(res).toBe('0xe9f786dfdd9ae4d57e830acb52296837765f0e5b');
+				resolve();
+			});
+			await assetsController.acceptWatchAsset(suggestedAssetMeta.id);
+		});
+	});
+
+	it('should fail a valid suggested asset via watchAsset with wrong type', () => {
+		return new Promise(async (resolve) => {
+			const { result, suggestedAssetMeta } = await assetsController.watchAsset(
+				{
+					address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
+					decimals: 18,
+					symbol: 'TKN'
+				},
+				'ERC20'
+			);
+			const suggestedAssets = assetsController.state.suggestedAssets;
+			const index = suggestedAssets.findIndex(({ id }) => suggestedAssetMeta.id === id);
+			const newSuggestedAssetMeta = suggestedAssets[index];
+			suggestedAssetMeta.type = 'ERC721';
+			assetsController.update({ suggestedAssets: [...suggestedAssets, newSuggestedAssetMeta] });
+			await assetsController.acceptWatchAsset(suggestedAssetMeta.id);
+			result.catch((error) => {
+				expect(error.message).toContain('Asset of type ERC721 not supported');
+				resolve();
+			});
+		});
 	});
 });
