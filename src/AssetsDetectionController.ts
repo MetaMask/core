@@ -167,7 +167,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		for (const tokenAddress in balances) {
 			let ignored;
 			/* istanbul ignore else */
-			if (ignoredTokens && ignoredTokens.length) {
+			if (ignoredTokens.length) {
 				ignored = ignoredTokens.find((token) => token.address === tokenAddress);
 			}
 			if (!ignored) {
@@ -207,7 +207,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 
 			let ignored;
 			/* istanbul ignore else */
-			if (ignoredCollectibles && ignoredCollectibles.length) {
+			if (ignoredCollectibles.length) {
 				ignored = ignoredCollectibles.find((c) => {
 					/* istanbul ignore next */
 					return c.address === address && c.tokenId === Number(token_id);
