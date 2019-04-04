@@ -421,16 +421,16 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	private removeIndividualCollectible(address: string, tokenId: number) {
 		address = toChecksumAddress(address);
-		const { allCollectibles, collectibles } = this.state;
+		const { allCollectibles, collectibles, ignoredCollectibles } = this.state;
 		const { networkType, selectedAddress } = this.config;
 		const ignoredCollectible = collectibles.find(
 			(collectible) => collectible.address === address && collectible.tokenId === tokenId
 		);
 
-		const ignoredCollectibles = [...this.state.ignoredCollectibles];
+		const newIgnoredCollectibles = [...ignoredCollectibles];
 		/* istanbul ignore else */
 		if (ignoredCollectible) {
-			ignoredCollectibles.push(ignoredCollectible);
+			newIgnoredCollectibles.push(ignoredCollectible);
 		}
 
 		const newCollectibles = collectibles.filter((collectible) => {
@@ -440,9 +440,11 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const addressCollectibles = allCollectibles[selectedAddress];
 		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
 		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
-
-		this.update({ ignoredCollectibles });
-		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles, ignoredCollectibles });
+		this.update({
+			allCollectibles: newAllCollectibles,
+			collectibles: newCollectibles,
+			ignoredCollectibles: newIgnoredCollectibles
+		});
 	}
 
 	/**
@@ -670,19 +672,20 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	removeToken(address: string) {
 		address = toChecksumAddress(address);
-		const { allTokens, tokens } = this.state;
+		const { allTokens, tokens, ignoredTokens } = this.state;
 		const { networkType, selectedAddress } = this.config;
+		const newIgnoredTokens = [...ignoredTokens];
 		const newTokens = tokens.filter((token) => {
 			/* istanbul ignore else */
 			if (token.address === address) {
-				this.update({ ignoredTokens: [...this.state.ignoredTokens, token] });
+				newIgnoredTokens.push(token);
 			}
 			return token.address !== address;
 		});
 		const addressTokens = allTokens[selectedAddress];
 		const newAddressTokens = { ...addressTokens, ...{ [networkType]: newTokens } };
 		const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newAddressTokens } };
-		this.update({ allTokens: newAllTokens, tokens: newTokens });
+		this.update({ allTokens: newAllTokens, tokens: newTokens, ignoredTokens: newIgnoredTokens });
 	}
 
 	/**
