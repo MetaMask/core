@@ -145,6 +145,8 @@ export interface SuggestedAssetMeta {
  * @property collectibles - List of collectibles associated with the active vault
  * @property suggestedAssets - List of suggested assets associated with the active vault
  * @property tokens - List of tokens associated with the active vault
+ * @property ignoredTokens - List of tokens that should be ignored
+ * @property ignoredCollectibles - List of collectibles that should be ignored
  */
 export interface AssetsState extends BaseState {
 	allTokens: { [key: string]: { [key: string]: Token[] } };
@@ -152,6 +154,8 @@ export interface AssetsState extends BaseState {
 	allCollectibles: { [key: string]: { [key: string]: Collectible[] } };
 	collectibleContracts: CollectibleContract[];
 	collectibles: Collectible[];
+	ignoredTokens: Token[];
+	ignoredCollectibles: Collectible[];
 	suggestedAssets: SuggestedAssetMeta[];
 	tokens: Token[];
 }
@@ -417,15 +421,28 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	private removeIndividualCollectible(address: string, tokenId: number) {
 		address = toChecksumAddress(address);
-		const { allCollectibles, collectibles } = this.state;
+		const { allCollectibles, collectibles, ignoredCollectibles } = this.state;
 		const { networkType, selectedAddress } = this.config;
-		const newCollectibles = collectibles.filter(
-			(collectible) => !(collectible.address === address && collectible.tokenId === tokenId)
-		);
+		const newIgnoredCollectibles = [...ignoredCollectibles];
+		const newCollectibles = collectibles.filter((collectible) => {
+			if (collectible.address === address && collectible.tokenId === tokenId) {
+				const alreadyIgnored = newIgnoredCollectibles.find(
+					(c) => c.address === address && c.tokenId === tokenId
+				);
+				!alreadyIgnored && newIgnoredCollectibles.push(collectible);
+				return false;
+			}
+			return true;
+		});
+
 		const addressCollectibles = allCollectibles[selectedAddress];
 		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
 		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
-		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
+		this.update({
+			allCollectibles: newAllCollectibles,
+			collectibles: newCollectibles,
+			ignoredCollectibles: newIgnoredCollectibles
+		});
 	}
 
 	/**
@@ -490,6 +507,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			allTokens: {},
 			collectibleContracts: [],
 			collectibles: [],
+			ignoredCollectibles: [],
+			ignoredTokens: [],
 			suggestedAssets: [],
 			tokens: []
 		};
@@ -651,13 +670,21 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	removeToken(address: string) {
 		address = toChecksumAddress(address);
-		const { allTokens, tokens } = this.state;
+		const { allTokens, tokens, ignoredTokens } = this.state;
 		const { networkType, selectedAddress } = this.config;
-		const newTokens = tokens.filter((token) => token.address !== address);
+		const newIgnoredTokens = [...ignoredTokens];
+		const newTokens = tokens.filter((token) => {
+			if (token.address === address) {
+				const alreadyIgnored = newIgnoredTokens.find((t) => t.address === address);
+				!alreadyIgnored && newIgnoredTokens.push(token);
+				return false;
+			}
+			return true;
+		});
 		const addressTokens = allTokens[selectedAddress];
 		const newAddressTokens = { ...addressTokens, ...{ [networkType]: newTokens } };
 		const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newAddressTokens } };
-		this.update({ allTokens: newAllTokens, tokens: newTokens });
+		this.update({ allTokens: newAllTokens, tokens: newTokens, ignoredTokens: newIgnoredTokens });
 	}
 
 	/**
@@ -674,6 +701,20 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		if (!remainingCollectible) {
 			this.removeCollectibleContract(address);
 		}
+	}
+
+	/**
+	 * Removes all tokens from the ignored list
+	 */
+	clearIgnoredTokens() {
+		this.update({ ignoredTokens: [] });
+	}
+
+	/**
+	 * Removes all collectibles from the ignored list
+	 */
+	clearIgnoredCollectibles() {
+		this.update({ ignoredCollectibles: [] });
 	}
 
 	/**

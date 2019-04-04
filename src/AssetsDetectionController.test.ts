@@ -5,7 +5,7 @@ import { PreferencesController } from './PreferencesController';
 import { ComposableController } from './ComposableController';
 import { AssetsController } from './AssetsController';
 import { AssetsContractController } from './AssetsContractController';
-import { getOnce } from 'fetch-mock';
+import { getOnce, get } from 'fetch-mock';
 import { stub } from 'sinon';
 
 const BN = require('ethereumjs-util').BN;
@@ -41,6 +41,26 @@ describe('AssetsDetectionController', () => {
 					name: 'Name',
 					symbol: 'FOO',
 					total_supply: 0
+				})
+			}),
+			{ overwriteRoutes: true, method: 'GET' }
+		);
+
+		get(
+			OPEN_SEA_API + 'assets?owner=0x2',
+			() => ({
+				body: JSON.stringify({
+					assets: [
+						{
+							asset_contract: {
+								address: '0x1d963688fe2209a98db35c67a041524822cf04ff'
+							},
+							description: 'Description 2577',
+							image_preview_url: 'image/2577.png',
+							name: 'ID 2577',
+							token_id: '2577'
+						}
+					]
 				})
 			}),
 			{ overwriteRoutes: true, method: 'GET' }
@@ -210,6 +230,17 @@ describe('AssetsDetectionController', () => {
 		]);
 	});
 
+	it('should not autodetect collectibles that exist in the ignoreList', async () => {
+		assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x2' });
+		await assetsDetection.detectCollectibles();
+		expect(assets.state.collectibles.length).toEqual(1);
+		expect(assets.state.ignoredCollectibles.length).toEqual(0);
+		assets.removeCollectible('0x1d963688fe2209a98db35c67a041524822cf04ff', 2577);
+		await assetsDetection.detectCollectibles();
+		expect(assets.state.collectibles.length).toEqual(0);
+		expect(assets.state.ignoredCollectibles.length).toEqual(1);
+	});
+
 	it('should not detect and add collectibles if there is no selectedAddress', async () => {
 		assetsDetection.configure({ networkType: MAINNET });
 		await assetsDetection.detectCollectibles();
@@ -356,6 +387,18 @@ describe('AssetsDetectionController', () => {
 				symbol: 'GNO'
 			}
 		]);
+	});
+
+	it('should not autodetect tokens that exist in the ignoreList', async () => {
+		assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
+		sandbox
+			.stub(assetsContract, 'getBalancesInSingleCall')
+			.returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+		await assetsDetection.detectTokens();
+
+		assets.removeToken('0x6810e776880C02933D47DB1b9fc05908e5386b96');
+		await assetsDetection.detectTokens();
+		expect(assets.state.tokens).toEqual([]);
 	});
 
 	it('should not detect tokens if there is no selectedAddress set', async () => {

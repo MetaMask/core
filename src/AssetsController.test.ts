@@ -124,6 +124,8 @@ describe('AssetsController', () => {
 			allTokens: {},
 			collectibleContracts: [],
 			collectibles: [],
+			ignoredCollectibles: [],
+			ignoredTokens: [],
 			suggestedAssets: [],
 			tokens: []
 		});
@@ -175,10 +177,12 @@ describe('AssetsController', () => {
 		});
 	});
 
-	it('should remove token', async () => {
+	it('should remove token and add it to the ignoredTokenList', async () => {
 		await assetsController.addToken('foo', 'bar', 2);
+		expect(assetsController.state.ignoredTokens.length).toBe(0);
 		assetsController.removeToken('0xfoO');
 		expect(assetsController.state.tokens.length).toBe(0);
+		expect(assetsController.state.ignoredTokens.length).toBe(1);
 	});
 
 	it('should remove token by selected address', async () => {
@@ -522,5 +526,63 @@ describe('AssetsController', () => {
 				resolve();
 			});
 		});
+	});
+
+	it('should not add duplicate tokens to the ignoredToken list', async () => {
+		await assetsController.addToken('0xfoO', 'bar', 2);
+		await assetsController.addToken('0xfAA', 'bar', 3);
+		expect(assetsController.state.ignoredTokens.length).toBe(0);
+		expect(assetsController.state.tokens.length).toBe(2);
+		assetsController.removeToken('0xfoO');
+		expect(assetsController.state.tokens.length).toBe(1);
+		expect(assetsController.state.ignoredTokens.length).toBe(1);
+		await assetsController.addToken('0xfoO', 'bar', 2);
+		expect(assetsController.state.ignoredTokens.length).toBe(1);
+		assetsController.removeToken('0xfoO');
+		expect(assetsController.state.ignoredTokens.length).toBe(1);
+	});
+
+	it('should not add duplicate collectibles to the ignoredCollectibles list', async () => {
+		await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+		await assetsController.addCollectible('foo', 2, { name: 'name', image: 'image', description: 'description' });
+
+		expect(assetsController.state.collectibles.length).toBe(2);
+		expect(assetsController.state.ignoredCollectibles.length).toBe(0);
+
+		assetsController.removeCollectible('0xfoO', 1);
+		expect(assetsController.state.collectibles.length).toBe(1);
+		expect(assetsController.state.ignoredCollectibles.length).toBe(1);
+
+		await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+		expect(assetsController.state.collectibles.length).toBe(2);
+		expect(assetsController.state.ignoredCollectibles.length).toBe(1);
+
+		assetsController.removeCollectible('0xfoO', 1);
+		expect(assetsController.state.collectibles.length).toBe(1);
+		expect(assetsController.state.ignoredCollectibles.length).toBe(1);
+	});
+
+	it('should be able to clear the ignoredToken list', async () => {
+		await assetsController.addToken('0xfoO', 'bar', 2);
+		expect(assetsController.state.ignoredTokens.length).toBe(0);
+		assetsController.removeToken('0xfoO');
+		expect(assetsController.state.tokens.length).toBe(0);
+		expect(assetsController.state.ignoredTokens.length).toBe(1);
+		assetsController.clearIgnoredTokens();
+		expect(assetsController.state.ignoredTokens.length).toBe(0);
+	});
+
+	it('should be able to clear the ignoredCollectibles list', async () => {
+		await assetsController.addCollectible('0xfoO', 1, { name: 'name', image: 'image', description: 'description' });
+
+		expect(assetsController.state.collectibles.length).toBe(1);
+		expect(assetsController.state.ignoredCollectibles.length).toBe(0);
+
+		assetsController.removeCollectible('0xfoO', 1);
+		expect(assetsController.state.collectibles.length).toBe(0);
+		expect(assetsController.state.ignoredCollectibles.length).toBe(1);
+
+		assetsController.clearIgnoredCollectibles();
+		expect(assetsController.state.ignoredCollectibles.length).toBe(0);
 	});
 });
