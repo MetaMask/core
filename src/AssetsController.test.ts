@@ -527,4 +527,28 @@ describe('AssetsController', () => {
 			});
 		});
 	});
+
+	it('should be able to clear the ignoredToken list', async () => {
+		await assetsController.addToken('foo', 'bar', 2);
+		expect(assetsController.state.ignoredTokens.length).toBe(0);
+		assetsController.removeToken('0xfoO');
+		expect(assetsController.state.tokens.length).toBe(0);
+		expect(assetsController.state.ignoredTokens.length).toBe(1);
+		assetsController.clearIgnoredTokens();
+		expect(assetsController.state.ignoredTokens.length).toBe(0);
+	});
+
+	it('should be able to clear the ignoredCollectibles list', async () => {
+		await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+
+		expect(assetsController.state.collectibles.length).toBe(1);
+		expect(assetsController.state.ignoredCollectibles.length).toBe(0);
+
+		assetsController.removeCollectible('foo', 1);
+		expect(assetsController.state.collectibles.length).toBe(0);
+		expect(assetsController.state.ignoredCollectibles.length).toBe(1);
+
+		assetsController.clearIgnoredCollectibles();
+		expect(assetsController.state.ignoredCollectibles.length).toBe(0);
+	});
 });

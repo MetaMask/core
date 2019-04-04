@@ -423,16 +423,26 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		address = toChecksumAddress(address);
 		const { allCollectibles, collectibles } = this.state;
 		const { networkType, selectedAddress } = this.config;
+		const ignoredCollectible = collectibles.find(
+			(collectible) => collectible.address === address && collectible.tokenId === tokenId
+		);
+
+		const ignoredCollectibles = [...this.state.ignoredCollectibles];
+		/* istanbul ignore else */
+		if (ignoredCollectible) {
+			ignoredCollectibles.push(ignoredCollectible);
+		}
+
 		const newCollectibles = collectibles.filter((collectible) => {
-			if (collectible.address === address && collectible.tokenId === tokenId) {
-				this.update({ ignoredCollectibles: [...this.state.ignoredCollectibles, collectible] });
-			}
 			return !(collectible.address === address && collectible.tokenId === tokenId);
 		});
+
 		const addressCollectibles = allCollectibles[selectedAddress];
 		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
 		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
-		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
+
+		this.update({ ignoredCollectibles });
+		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles, ignoredCollectibles });
 	}
 
 	/**
@@ -689,6 +699,20 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		if (!remainingCollectible) {
 			this.removeCollectibleContract(address);
 		}
+	}
+
+	/**
+	 * Removes all tokens from the ignored list
+	 */
+	clearIgnoredTokens() {
+		this.update({ ignoredTokens: [] });
+	}
+
+	/**
+	 * Removes all collectibles from the ignored list
+	 */
+	clearIgnoredCollectibles() {
+		this.update({ ignoredCollectibles: [] });
 	}
 
 	/**
