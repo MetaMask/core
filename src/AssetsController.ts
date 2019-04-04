@@ -10,6 +10,7 @@ import { EventEmitter } from 'events';
 const { toChecksumAddress } = require('ethereumjs-util');
 const Mutex = require('await-semaphore').Mutex;
 const random = require('uuid/v1');
+const contractMap = require('eth-contract-metadata');
 
 /**
  * @type Collectible
@@ -145,6 +146,8 @@ export interface SuggestedAssetMeta {
  * @property collectibles - List of collectibles associated with the active vault
  * @property suggestedAssets - List of suggested assets associated with the active vault
  * @property tokens - List of tokens associated with the active vault
+ * @property ignoredTokens - List of tokens that should be ignored
+ * @property ignoredCollectibles - List of collectibles that should be ignored
  */
 export interface AssetsState extends BaseState {
 	allTokens: { [key: string]: { [key: string]: Token[] } };
@@ -152,6 +155,8 @@ export interface AssetsState extends BaseState {
 	allCollectibles: { [key: string]: { [key: string]: Collectible[] } };
 	collectibleContracts: CollectibleContract[];
 	collectibles: Collectible[];
+	ignoredTokens: Token[];
+	ignoredCollectibles: Collectible[];
 	suggestedAssets: SuggestedAssetMeta[];
 	tokens: Token[];
 }
@@ -331,7 +336,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	): Promise<Collectible[]> {
 		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
-		const { allCollectibles, collectibles } = this.state;
+		const { allCollectibles, collectibles, ignoredCollectibles } = this.state;
 		const { networkType, selectedAddress } = this.config;
 		const existingEntry = collectibles.find(
 			(collectible) => collectible.address === address && collectible.tokenId === tokenId
@@ -339,6 +344,15 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		if (existingEntry) {
 			releaseLock();
 			return collectibles;
+		}
+		if (detection) {
+			const ignored = ignoredCollectibles.find(
+				(collectible) => collectible.address === address && collectible.tokenId === tokenId
+			);
+			if (ignored) {
+				releaseLock();
+				return collectibles;
+			}
 		}
 		const { name, image, description } = opts ? opts : await this.getCollectibleInformation(address, tokenId);
 		// if there is no collectible name or image when auto detecting assets, do not add it and wait for next auto detection
@@ -419,9 +433,12 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		address = toChecksumAddress(address);
 		const { allCollectibles, collectibles } = this.state;
 		const { networkType, selectedAddress } = this.config;
-		const newCollectibles = collectibles.filter(
-			(collectible) => !(collectible.address === address && collectible.tokenId === tokenId)
-		);
+		const newCollectibles = collectibles.filter((collectible) => {
+			if (collectible.address === address && collectible.tokenId === tokenId) {
+				this.update({ ignoredCollectibles: [...this.state.ignoredCollectibles, collectible] });
+			}
+			return !(collectible.address === address && collectible.tokenId === tokenId);
+		});
 		const addressCollectibles = allCollectibles[selectedAddress];
 		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
 		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
@@ -490,6 +507,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			allTokens: {},
 			collectibleContracts: [],
 			collectibles: [],
+			ignoredCollectibles: [],
+			ignoredTokens: [],
 			suggestedAssets: [],
 			tokens: []
 		};
@@ -508,7 +527,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	async addToken(address: string, symbol: string, decimals: number, image?: string): Promise<Token[]> {
 		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
-		const { allTokens, tokens } = this.state;
+		const { allTokens, tokens, ignoredTokens } = this.state;
 		const { networkType, selectedAddress } = this.config;
 		const newEntry: Token = { address, symbol, decimals, image };
 		const previousEntry = tokens.find((token) => token.address === address);
@@ -516,7 +535,11 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			const previousIndex = tokens.indexOf(previousEntry);
 			tokens[previousIndex] = newEntry;
 		} else {
-			tokens.push(newEntry);
+			let ignored = null;
+			if (ignoredTokens.length && !!contractMap[address]) {
+				ignored = ignoredTokens.find((token) => token.address === address);
+			}
+			!ignored && tokens.push(newEntry);
 		}
 		const addressTokens = allTokens[selectedAddress];
 		const newAddressTokens = { ...addressTokens, ...{ [networkType]: tokens } };
@@ -653,7 +676,12 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		address = toChecksumAddress(address);
 		const { allTokens, tokens } = this.state;
 		const { networkType, selectedAddress } = this.config;
-		const newTokens = tokens.filter((token) => token.address !== address);
+		const newTokens = tokens.filter((token) => {
+			if (token.address === address) {
+				this.update({ ignoredTokens: [...this.state.ignoredTokens, token] });
+			}
+			return token.address !== address;
+		});
 		const addressTokens = allTokens[selectedAddress];
 		const newAddressTokens = { ...addressTokens, ...{ [networkType]: newTokens } };
 		const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newAddressTokens } };

@@ -124,6 +124,8 @@ describe('AssetsController', () => {
 			allTokens: {},
 			collectibleContracts: [],
 			collectibles: [],
+			ignoredCollectibles: [],
+			ignoredTokens: [],
 			suggestedAssets: [],
 			tokens: []
 		});
