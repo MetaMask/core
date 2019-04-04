@@ -163,12 +163,19 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		}
 		const balances = await assetsContractController.getBalancesInSingleCall(selectedAddress, tokensToDetect);
 		const assetsController = this.context.AssetsController as AssetsController;
+		const { ignoredTokens } = assetsController.state;
 		for (const tokenAddress in balances) {
-			await assetsController.addToken(
-				tokenAddress,
-				contractMap[tokenAddress].symbol,
-				contractMap[tokenAddress].decimals
-			);
+			let ignored = null;
+			if (ignoredTokens.length) {
+				ignored = ignoredTokens.find((token) => token.address === tokenAddress);
+			}
+			if (!ignored) {
+				await assetsController.addToken(
+					tokenAddress,
+					contractMap[tokenAddress].symbol,
+					contractMap[tokenAddress].decimals
+				);
+			}
 		}
 	}
 
@@ -186,6 +193,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			return;
 		}
 		const assetsController = this.context.AssetsController as AssetsController;
+		const { ignoredCollectibles } = assetsController.state;
 		const collectibles = await this.getOwnerCollectibles();
 		const addCollectiblesPromises = collectibles.map(async (collectible: ApiCollectibleResponse) => {
 			const {
@@ -195,16 +203,24 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 				description,
 				asset_contract: { address }
 			} = collectible;
-			await assetsController.addCollectible(
-				address,
-				Number(token_id),
-				{
-					description,
-					image: image_preview_url,
-					name
-				},
-				true
-			);
+
+			let ignored = null;
+			if (ignoredCollectibles && ignoredCollectibles.length) {
+				ignored = ignoredCollectibles.find((c) => c.address === address && c.tokenId === Number(token_id));
+			}
+
+			if (!ignored) {
+				await assetsController.addCollectible(
+					address,
+					Number(token_id),
+					{
+						description,
+						image: image_preview_url,
+						name
+					},
+					true
+				);
+			}
 		});
 		await Promise.all(addCollectiblesPromises);
 	}
