@@ -177,10 +177,12 @@ describe('AssetsController', () => {
 		});
 	});
 
-	it('should remove token', async () => {
+	it('should remove token and add it to the ignoredTokenList', async () => {
 		await assetsController.addToken('foo', 'bar', 2);
+		expect(assetsController.state.ignoredTokens.length).toBe(0);
 		assetsController.removeToken('0xfoO');
 		expect(assetsController.state.tokens.length).toBe(0);
+		expect(assetsController.state.ignoredTokens.length).toBe(1);
 	});
 
 	it('should remove token by selected address', async () => {

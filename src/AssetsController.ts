@@ -663,6 +663,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const { allTokens, tokens } = this.state;
 		const { networkType, selectedAddress } = this.config;
 		const newTokens = tokens.filter((token) => {
+			/* istanbul ignore else */
 			if (token.address === address) {
 				this.update({ ignoredTokens: [...this.state.ignoredTokens, token] });
 			}
