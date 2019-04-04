@@ -345,7 +345,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			releaseLock();
 			return collectibles;
 		}
-		if (detection) {
+		if (ignoredCollectibles.length && detection) {
 			const ignored = ignoredCollectibles.find(
 				(collectible) => collectible.address === address && collectible.tokenId === tokenId
 			);
