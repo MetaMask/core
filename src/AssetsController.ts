@@ -426,7 +426,6 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const newIgnoredCollectibles = [...ignoredCollectibles];
 		const newCollectibles = collectibles.filter((collectible) => {
 			if (collectible.address === address && collectible.tokenId === tokenId) {
-				/* istanbul ignore next */
 				const alreadyIgnored = newIgnoredCollectibles.find(
 					(c) => c.address === address && c.tokenId === tokenId
 				);

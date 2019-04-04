@@ -543,19 +543,22 @@ describe('AssetsController', () => {
 	});
 
 	it('should not add duplicate collectibles to the ignoredCollectibles list', async () => {
-		await assetsController.addCollectible('0xfoO', 1, { name: 'name', image: 'image', description: 'description' });
+		await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+		await assetsController.addCollectible('foo', 2, { name: 'name', image: 'image', description: 'description' });
 
-		expect(assetsController.state.collectibles.length).toBe(1);
+		expect(assetsController.state.collectibles.length).toBe(2);
 		expect(assetsController.state.ignoredCollectibles.length).toBe(0);
 
 		assetsController.removeCollectible('0xfoO', 1);
-		expect(assetsController.state.collectibles.length).toBe(0);
+		expect(assetsController.state.collectibles.length).toBe(1);
 		expect(assetsController.state.ignoredCollectibles.length).toBe(1);
 
-		await assetsController.addCollectible('0xfoO', 1, { name: 'name', image: 'image', description: 'description' });
+		await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+		expect(assetsController.state.collectibles.length).toBe(2);
 		expect(assetsController.state.ignoredCollectibles.length).toBe(1);
+
 		assetsController.removeCollectible('0xfoO', 1);
-		expect(assetsController.state.collectibles.length).toBe(0);
+		expect(assetsController.state.collectibles.length).toBe(1);
 		expect(assetsController.state.ignoredCollectibles.length).toBe(1);
 	});
 
