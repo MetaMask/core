@@ -205,7 +205,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 				asset_contract: { address }
 			} = collectible;
 
-			let ignored = null;
+			let ignored;
 			/* istanbul ignore else */
 			if (ignoredCollectibles && ignoredCollectibles.length) {
 				ignored = ignoredCollectibles.find((c) => {
