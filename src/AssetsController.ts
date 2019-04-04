@@ -676,7 +676,6 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const newIgnoredTokens = [...ignoredTokens];
 		const newTokens = tokens.filter((token) => {
 			if (token.address === address) {
-				/* istanbul ignore next */
 				const alreadyIgnored = newIgnoredTokens.find((t) => t.address === address);
 				!alreadyIgnored && newIgnoredTokens.push(token);
 				return false;
