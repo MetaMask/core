@@ -165,7 +165,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		const assetsController = this.context.AssetsController as AssetsController;
 		const { ignoredTokens } = assetsController.state;
 		for (const tokenAddress in balances) {
-			let ignored = null;
+			let ignored;
 			/* istanbul ignore else */
 			if (ignoredTokens.length) {
 				ignored = ignoredTokens.find((token) => token.address === tokenAddress);
@@ -205,9 +205,9 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 				asset_contract: { address }
 			} = collectible;
 
-			let ignored = null;
+			let ignored;
 			/* istanbul ignore else */
-			if (ignoredCollectibles && ignoredCollectibles.length) {
+			if (ignoredCollectibles.length) {
 				ignored = ignoredCollectibles.find((c) => {
 					/* istanbul ignore next */
 					return c.address === address && c.tokenId === Number(token_id);
