@@ -423,18 +423,17 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		address = toChecksumAddress(address);
 		const { allCollectibles, collectibles, ignoredCollectibles } = this.state;
 		const { networkType, selectedAddress } = this.config;
-		const ignoredCollectible = collectibles.find(
-			(collectible) => collectible.address === address && collectible.tokenId === tokenId
-		);
-
 		const newIgnoredCollectibles = [...ignoredCollectibles];
-		/* istanbul ignore else */
-		if (ignoredCollectible) {
-			newIgnoredCollectibles.push(ignoredCollectible);
-		}
-
 		const newCollectibles = collectibles.filter((collectible) => {
-			return !(collectible.address === address && collectible.tokenId === tokenId);
+			if (collectible.address === address && collectible.tokenId === tokenId) {
+				/* istanbul ignore next */
+				const alreadyIgnored = newIgnoredCollectibles.find(
+					(c) => c.address === address && c.tokenId === tokenId
+				);
+				!alreadyIgnored && newIgnoredCollectibles.push(collectible);
+				return false;
+			}
+			return true;
 		});
 
 		const addressCollectibles = allCollectibles[selectedAddress];
@@ -676,11 +675,13 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		const { networkType, selectedAddress } = this.config;
 		const newIgnoredTokens = [...ignoredTokens];
 		const newTokens = tokens.filter((token) => {
-			/* istanbul ignore else */
 			if (token.address === address) {
-				newIgnoredTokens.push(token);
+				/* istanbul ignore next */
+				const alreadyIgnored = newIgnoredTokens.find((t) => t.address === address);
+				!alreadyIgnored && newIgnoredTokens.push(token);
+				return false;
 			}
-			return token.address !== address;
+			return true;
 		});
 		const addressTokens = allTokens[selectedAddress];
 		const newAddressTokens = { ...addressTokens, ...{ [networkType]: newTokens } };
