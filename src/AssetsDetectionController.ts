@@ -9,6 +9,7 @@ import { Token } from './TokenRatesController';
 import { NetworkType } from './NetworkController';
 
 const contractMap = require('eth-contract-metadata');
+const { toChecksumAddress } = require('ethereumjs-util');
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 
@@ -168,7 +169,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			let ignored;
 			/* istanbul ignore else */
 			if (ignoredTokens.length) {
-				ignored = ignoredTokens.find((token) => token.address === tokenAddress);
+				ignored = ignoredTokens.find((token) => token.address === toChecksumAddress(tokenAddress));
 			}
 			if (!ignored) {
 				await assetsController.addToken(
@@ -210,7 +211,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			if (ignoredCollectibles.length) {
 				ignored = ignoredCollectibles.find((c) => {
 					/* istanbul ignore next */
-					return c.address === address && c.tokenId === Number(token_id);
+					return c.address === toChecksumAddress(address) && c.tokenId === Number(token_id);
 				});
 			}
 			/* istanbul ignore else */
