@@ -121,6 +121,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
 	 *
 	 * @param config - New configuration options
 	 * @param overwrite - Overwrite config instead of merging
+	 * @param fullUpdate - Boolean that defines if the update is partial or not
 	 */
 	configure(config: Partial<C>, overwrite = false, fullUpdate = true) {
 		if (fullUpdate) {
