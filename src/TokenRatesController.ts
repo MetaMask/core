@@ -102,7 +102,6 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 
 	/**
 	 * Sets a new polling interval
-	 * If it was called during contruction, will set disabled config to false
 	 *
 	 * @param interval - Polling interval used to fetch new token rates
 	 */
@@ -117,8 +116,6 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 
 	/**
 	 * Sets a new token list to track prices
-	 * If config is disabled means that is initializing, so it won't update echange rates
-	 * that is done with poll
 	 *
 	 * @param tokens - List of tokens to track exchange rates for
 	 */

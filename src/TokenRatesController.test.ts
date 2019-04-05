@@ -28,7 +28,6 @@ describe('TokenRatesController', () => {
 			const controller = new TokenRatesController({
 				interval: 100
 			});
-			controller.tokens = [{ address: '0x1', decimals: 18, symbol: 'EOS' }];
 			const mock = stub(controller, 'updateExchangeRates');
 			expect(mock.called).toBe(false);
 			setTimeout(() => {
