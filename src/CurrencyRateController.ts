@@ -30,8 +30,8 @@ export interface CurrencyRateConfig extends BaseConfig {
 export interface CurrencyRateState extends BaseState {
 	conversionDate: number;
 	conversionRate: number;
-	currentCurrency: string;
-	nativeCurrency: string;
+	currentCurrency?: string;
+	nativeCurrency?: string;
 }
 
 /**
@@ -76,7 +76,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 			nativeCurrency: this.defaultConfig.nativeCurrency
 		};
 		this.initialize();
-		this.disabled = false;
+		this.configure({ disabled: false }, false, false);
 		this.poll();
 	}
 
@@ -106,7 +106,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	 * @param interval - Polling interval used to fetch new exchange rate
 	 */
 	async poll(interval?: number): Promise<void> {
-		interval && this.configure({ interval });
+		interval && this.configure({ interval }, false, false);
 		this.handle && clearTimeout(this.handle);
 		await safelyExecute(() => this.updateExchangeRate());
 		this.handle = setTimeout(() => {
@@ -147,9 +147,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 		);
 		this.update({
 			conversionDate,
-			conversionRate,
-			currentCurrency: this.activeCurrency,
-			nativeCurrency: this.activeNativeCurrency
+			conversionRate
 		});
 		return this.state;
 	}

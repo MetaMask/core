@@ -13,10 +13,10 @@ describe('TokenRatesController', () => {
 		expect(controller.state).toEqual({ contractExchangeRates: {} });
 	});
 
-	it('should set default config', () => {
+	it('should initialize with the default config', () => {
 		const controller = new TokenRatesController();
 		expect(controller.config).toEqual({
-			disabled: true,
+			disabled: false,
 			interval: 180000,
 			nativeCurrency: 'eth',
 			tokens: []

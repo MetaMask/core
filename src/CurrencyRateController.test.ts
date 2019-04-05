@@ -20,11 +20,11 @@ describe('CurrencyRateController', () => {
 		});
 	});
 
-	it('should set default config', () => {
+	it('should initialize with the default config', () => {
 		const controller = new CurrencyRateController();
 		expect(controller.config).toEqual({
 			currentCurrency: 'usd',
-			disabled: true,
+			disabled: false,
 			interval: 180000,
 			nativeCurrency: 'eth'
 		});
