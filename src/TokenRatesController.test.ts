@@ -16,7 +16,6 @@ describe('TokenRatesController', () => {
 	it('should set default config', () => {
 		const controller = new TokenRatesController();
 		expect(controller.config).toEqual({
-			disabled: true,
 			interval: 180000,
 			nativeCurrency: 'eth',
 			tokens: []
@@ -25,19 +24,15 @@ describe('TokenRatesController', () => {
 
 	it('should poll and update rate in the right interval', () => {
 		return new Promise((resolve) => {
-			const mock = stub(TokenRatesController.prototype, 'fetchExchangeRate');
-			// tslint:disable-next-line: no-unused-expression
-			new TokenRatesController({
-				interval: 10,
-				tokens: [{ address: 'bar', decimals: 0, symbol: '' }]
+			const controller = new TokenRatesController({
+				interval: 100
 			});
-			expect(mock.called).toBe(true);
-			expect(mock.calledTwice).toBe(false);
+			const mock = stub(controller, 'updateExchangeRates');
+			expect(mock.called).toBe(false);
 			setTimeout(() => {
-				expect(mock.calledTwice).toBe(true);
-				mock.restore();
+				expect(mock.called).toBe(true);
 				resolve();
-			}, 15);
+			}, 150);
 		});
 	});
 
@@ -45,10 +40,10 @@ describe('TokenRatesController', () => {
 		const controller = new TokenRatesController({
 			interval: 10
 		});
-		controller.fetchExchangeRate = stub();
+		const mock = stub(controller, 'fetchExchangeRate');
 		controller.disabled = true;
 		await controller.updateExchangeRates();
-		expect((controller.fetchExchangeRate as any).called).toBe(false);
+		expect(mock.called).toBe(false);
 	});
 
 	it('should clear previous interval', () => {

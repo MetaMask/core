@@ -24,24 +24,21 @@ describe('CurrencyRateController', () => {
 		const controller = new CurrencyRateController();
 		expect(controller.config).toEqual({
 			currentCurrency: 'usd',
-			disabled: true,
 			interval: 180000,
 			nativeCurrency: 'eth'
 		});
 	});
 
-	it('should poll and update rate in the right interval', () => {
+	it('should poll and update rate in the right interval', async () => {
 		return new Promise((resolve) => {
 			const mock = stub(CurrencyRateController.prototype, 'fetchExchangeRate');
 			// tslint:disable-next-line: no-unused-expression
-			new CurrencyRateController({ interval: 10 });
-			expect(mock.called).toBe(true);
-			expect(mock.calledTwice).toBe(false);
+			new CurrencyRateController({ interval: 100 });
 			setTimeout(() => {
-				expect(mock.calledTwice).toBe(true);
+				expect(mock.called).toBe(true);
 				mock.restore();
 				resolve();
-			}, 15);
+			}, 150);
 		});
 	});
 
