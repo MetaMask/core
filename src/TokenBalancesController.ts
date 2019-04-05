@@ -71,7 +71,7 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
 	 * @param interval - Polling interval used to fetch new token balances
 	 */
 	async poll(interval?: number): Promise<void> {
-		interval && this.configure({ interval });
+		interval && this.configure({ interval }, false, false);
 		this.handle && clearTimeout(this.handle);
 		await safelyExecute(() => this.updateBalances());
 		this.handle = setTimeout(() => {

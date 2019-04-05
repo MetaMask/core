@@ -285,7 +285,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 * @param interval - Polling interval used to fetch new transaction statuses
 	 */
 	async poll(interval?: number): Promise<void> {
-		interval && this.configure({ interval });
+		interval && this.configure({ interval }, false, false);
 		this.handle && clearTimeout(this.handle);
 		await safelyExecute(() => this.queryTransactionStatuses());
 		this.handle = setTimeout(() => {

@@ -121,13 +121,24 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
 	 *
 	 * @param config - New configuration options
 	 * @param overwrite - Overwrite config instead of merging
+	 * @param fullUpdate - Boolean that defines if the update is partial or not
 	 */
-	configure(config: Partial<C>, overwrite = false) {
-		this.internalConfig = overwrite ? (config as C) : Object.assign(this.internalConfig, config);
+	configure(config: Partial<C>, overwrite = false, fullUpdate = true) {
+		if (fullUpdate) {
+			this.internalConfig = overwrite ? (config as C) : Object.assign(this.internalConfig, config);
 
-		for (const key in this.internalConfig) {
-			if (typeof this.internalConfig[key] !== 'undefined') {
-				(this as any)[key as string] = this.internalConfig[key];
+			for (const key in this.internalConfig) {
+				if (typeof this.internalConfig[key] !== 'undefined') {
+					(this as any)[key as string] = this.internalConfig[key];
+				}
+			}
+		} else {
+			for (const key in config) {
+				/* istanbul ignore else */
+				if (typeof this.internalConfig[key] !== 'undefined') {
+					this.internalConfig[key] = config[key] as any;
+					(this as any)[key as string] = config[key];
+				}
 			}
 		}
 	}

@@ -39,6 +39,13 @@ describe('BaseController', () => {
 		expect(controller.config).toEqual(CONFIG);
 	});
 
+	it('should be able to partially update the config', () => {
+		const controller = new TestController(CONFIG);
+		expect(controller.config).toEqual(CONFIG);
+		controller.configure({ disabled: false }, false, false);
+		expect(controller.config).toEqual({ disabled: false });
+	});
+
 	it('should notify all listeners', () => {
 		const controller = new TestController(undefined, STATE);
 		const listenerOne = stub();

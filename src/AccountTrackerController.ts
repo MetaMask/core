@@ -114,7 +114,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 	 * @param interval - Polling interval trigger a 'refresh'
 	 */
 	async poll(interval?: number): Promise<void> {
-		interval && this.configure({ interval });
+		interval && this.configure({ interval }, false, false);
 		this.handle && clearTimeout(this.handle);
 		await safelyExecute(() => this.refresh());
 		this.handle = setTimeout(() => {
