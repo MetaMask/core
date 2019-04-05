@@ -16,6 +16,7 @@ describe('TokenRatesController', () => {
 	it('should set default config', () => {
 		const controller = new TokenRatesController();
 		expect(controller.config).toEqual({
+			initialization: true,
 			interval: 180000,
 			nativeCurrency: 'eth',
 			tokens: []
@@ -27,6 +28,7 @@ describe('TokenRatesController', () => {
 			const controller = new TokenRatesController({
 				interval: 100
 			});
+			controller.tokens = [{ address: '0x1', decimals: 18, symbol: 'EOS' }];
 			const mock = stub(controller, 'updateExchangeRates');
 			expect(mock.called).toBe(false);
 			setTimeout(() => {

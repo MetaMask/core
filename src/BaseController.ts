@@ -11,9 +11,11 @@ export type Listener<T> = (state: T) => void;
  * Base controller configuration
  *
  * @property disabled - Determines if this controller is enabled
+ * @property initialization - Determines if this controller is being initialized
  */
 export interface BaseConfig {
 	disabled?: boolean;
+	initialization?: boolean;
 }
 
 /**

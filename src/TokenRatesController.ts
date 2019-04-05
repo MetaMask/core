@@ -89,6 +89,7 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	constructor(config?: Partial<TokenRatesConfig>, state?: Partial<TokenRatesState>) {
 		super(config, state);
 		this.defaultConfig = {
+			initialization: true,
 			interval: 180000,
 			nativeCurrency: 'eth',
 			tokens: []
@@ -100,26 +101,32 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 
 	/**
 	 * Sets a new polling interval
+	 * If it was called during contruction, will set disabled config to false
 	 *
 	 * @param interval - Polling interval used to fetch new token rates
 	 */
 	async poll(interval?: number): Promise<void> {
+		const { initialization } = this.config;
 		interval && this.configure({ interval });
 		this.handle && clearTimeout(this.handle);
 		await safelyExecute(() => this.updateExchangeRates());
 		this.handle = setTimeout(() => {
 			this.poll(this.config.interval);
 		}, this.config.interval);
+		initialization && this.configure({ initialization: false });
 	}
 
 	/**
 	 * Sets a new token list to track prices
+	 * If config is disabled means that is initializing, so it won't update echange rates
+	 * that is done with poll
 	 *
 	 * @param tokens - List of tokens to track exchange rates for
 	 */
 	set tokens(tokens: Token[]) {
+		const { initialization } = this.config;
 		this.tokenList = tokens;
-		!this.disabled && safelyExecute(() => this.updateExchangeRates());
+		!initialization && safelyExecute(() => this.updateExchangeRates());
 	}
 
 	/**
@@ -156,14 +163,14 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	 * @returns Promise resolving when this operation completes
 	 */
 	async updateExchangeRates() {
-		if (this.tokenList.length === 0) {
+		if (this.disabled || this.tokenList.length === 0) {
 			return;
 		}
 		const newContractExchangeRates: { [address: string]: number } = {};
 		const { nativeCurrency } = this.config;
 		const pairs = this.tokenList.map((token) => `pairs[]=${token.address}/${nativeCurrency}`);
 		const query = pairs.join('&');
-		const { prices = [] } = await this.fetchExchangeRate(query);
+		const { prices } = (await this.fetchExchangeRate(query)) || /* istanbul ignore next */ { prices: [] };
 		prices.forEach(({ pair, price }) => {
 			const address = toChecksumAddress(pair.split('/')[0].toLowerCase());
 			newContractExchangeRates[address] = typeof price === 'number' ? price : 0;
