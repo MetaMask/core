@@ -24,7 +24,7 @@ describe('CurrencyRateController', () => {
 		const controller = new CurrencyRateController();
 		expect(controller.config).toEqual({
 			currentCurrency: 'usd',
-			initialization: true,
+			initialization: false,
 			interval: 180000,
 			nativeCurrency: 'eth'
 		});
