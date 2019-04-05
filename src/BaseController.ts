@@ -133,6 +133,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
 			}
 		} else {
 			for (const key in config) {
+				/* istanbul ignore else */
 				if (typeof this.internalConfig[key] !== 'undefined') {
 					this.internalConfig[key] = config[key] as any;
 					(this as any)[key as string] = config[key];
