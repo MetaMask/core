@@ -65,7 +65,6 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 		super(config, state);
 		this.defaultConfig = {
 			currentCurrency: 'usd',
-			disabled: true,
 			interval: 180000,
 			nativeCurrency: 'eth'
 		};
@@ -76,7 +75,6 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 			nativeCurrency: this.defaultConfig.nativeCurrency
 		};
 		this.initialize();
-		this.disabled = false;
 		this.poll();
 	}
 

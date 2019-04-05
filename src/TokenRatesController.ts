@@ -89,14 +89,12 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	constructor(config?: Partial<TokenRatesConfig>, state?: Partial<TokenRatesState>) {
 		super(config, state);
 		this.defaultConfig = {
-			disabled: true,
 			interval: 180000,
 			nativeCurrency: 'eth',
 			tokens: []
 		};
 		this.defaultState = { contractExchangeRates: {} };
 		this.initialize();
-		this.disabled = false;
 		this.poll();
 	}
 
@@ -170,7 +168,7 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 			const address = toChecksumAddress(pair.split('/')[0].toLowerCase());
 			newContractExchangeRates[address] = typeof price === 'number' ? price : 0;
 		});
-		this.update({ contractExchangeRates: newContractExchangeRates });
+		this.update({ contractExchangeRates: { ...newContractExchangeRates } });
 	}
 }
 
