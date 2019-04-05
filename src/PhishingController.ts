@@ -80,7 +80,7 @@ export class PhishingController extends BaseController<PhishingConfig, PhishingS
 	 * @param interval - Polling interval used to fetch new approval lists
 	 */
 	async poll(interval?: number): Promise<void> {
-		interval && this.configure({ interval });
+		interval && this.configure({ interval }, false, false);
 		this.handle && clearTimeout(this.handle);
 		await safelyExecute(() => this.updatePhishingLists());
 		this.handle = setTimeout(() => {

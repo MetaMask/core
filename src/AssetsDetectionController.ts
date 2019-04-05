@@ -107,7 +107,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	 * @param interval - Polling interval used to auto detect assets
 	 */
 	async poll(interval?: number): Promise<void> {
-		interval && this.configure({ interval });
+		interval && this.configure({ interval }, false, false);
 		this.handle && clearTimeout(this.handle);
 		await safelyExecute(() => this.detectAssets());
 		this.handle = setTimeout(() => {
