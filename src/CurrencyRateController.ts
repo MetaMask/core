@@ -30,8 +30,8 @@ export interface CurrencyRateConfig extends BaseConfig {
 export interface CurrencyRateState extends BaseState {
 	conversionDate: number;
 	conversionRate: number;
-	currentCurrency?: string;
-	nativeCurrency?: string;
+	currentCurrency: string;
+	nativeCurrency: string;
 }
 
 /**
@@ -147,7 +147,9 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 		);
 		this.update({
 			conversionDate,
-			conversionRate
+			conversionRate,
+			currentCurrency: this.activeCurrency,
+			nativeCurrency: this.activeNativeCurrency
 		});
 		return this.state;
 	}
