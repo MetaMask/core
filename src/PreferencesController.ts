@@ -200,9 +200,9 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	}
 
 	/**
-	 * Sets new ipfs gateway
+	 * Sets new IPFS gateway
 	 *
-	 * @param ipfsGateway - Ipfs gateway string
+	 * @param ipfsGateway - IPFS gateway string
 	 */
 	setIpfsGateway(ipfsGateway: string) {
 		this.update({ ipfsGateway });
