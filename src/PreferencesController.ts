@@ -17,6 +17,7 @@ const { toChecksumAddress } = require('ethereumjs-util');
 export interface PreferencesState extends BaseState {
 	featureFlags: { [feature: string]: boolean };
 	frequentRpcList: string[];
+	ipfsGateway: string;
 	identities: { [address: string]: ContactEntry };
 	lostIdentities: { [address: string]: ContactEntry };
 	selectedAddress: string;
@@ -43,6 +44,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 			featureFlags: {},
 			frequentRpcList: [],
 			identities: {},
+			ipfsGateway: 'https://ipfs.io/ipfs/',
 			lostIdentities: {},
 			selectedAddress: ''
 		};
@@ -195,6 +197,15 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 			frequentRpcList.splice(index, 1);
 		}
 		this.update({ frequentRpcList: [...frequentRpcList] });
+	}
+
+	/**
+	 * Sets new IPFS gateway
+	 *
+	 * @param ipfsGateway - IPFS gateway string
+	 */
+	setIpfsGateway(ipfsGateway: string) {
+		this.update({ ipfsGateway });
 	}
 }
 

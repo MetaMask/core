@@ -7,6 +7,7 @@ describe('PreferencesController', () => {
 			featureFlags: {},
 			frequentRpcList: [],
 			identities: {},
+			ipfsGateway: 'https://ipfs.io/ipfs/',
 			lostIdentities: {},
 			selectedAddress: ''
 		});
@@ -84,5 +85,11 @@ describe('PreferencesController', () => {
 		controller.removeFromFrequentRpcList('other_rpc_url');
 		controller.removeFromFrequentRpcList('rpc_url');
 		expect(controller.state.frequentRpcList).toEqual([]);
+	});
+
+	it('should set IPFS gateway', () => {
+		const controller = new PreferencesController();
+		controller.setIpfsGateway('https://ipfs.infura.io/ipfs/');
+		expect(controller.state.ipfsGateway).toEqual('https://ipfs.infura.io/ipfs/');
 	});
 });

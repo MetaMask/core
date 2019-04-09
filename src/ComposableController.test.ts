@@ -47,6 +47,7 @@ describe('ComposableController', () => {
 				featureFlags: {},
 				frequentRpcList: [],
 				identities: {},
+				ipfsGateway: 'https://ipfs.io/ipfs/',
 				lostIdentities: {},
 				selectedAddress: ''
 			},
@@ -80,6 +81,7 @@ describe('ComposableController', () => {
 			identities: {},
 			ignoredCollectibles: [],
 			ignoredTokens: [],
+			ipfsGateway: 'https://ipfs.io/ipfs/',
 			lostIdentities: {},
 			nativeCurrency: 'eth',
 			network: 'loading',
@@ -120,6 +122,7 @@ describe('ComposableController', () => {
 			identities: {},
 			ignoredCollectibles: [],
 			ignoredTokens: [],
+			ipfsGateway: 'https://ipfs.io/ipfs/',
 			lostIdentities: {},
 			nativeCurrency: 'eth',
 			network: 'loading',
