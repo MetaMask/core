@@ -6,14 +6,15 @@ import CurrencyRateController from './CurrencyRateController';
 const { toChecksumAddress } = require('ethereumjs-util');
 
 /**
- * @type Balanc3Response
+ * @type CoinGeckoResponse
  *
- * Balanc3 API response representation
+ * CoinGecko API response representation
  *
- * @property prices - Array of prices, corresponding to objects with pair and price
  */
-export interface Balanc3Response {
-	prices: Array<{ pair: string; price: number }>;
+export interface CoinGeckoResponse {
+	[address: string]: {
+		[currency: string]: number;
+	};
 }
 
 /**
@@ -67,7 +68,7 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	private tokenList: Token[] = [];
 
 	private getPricingURL(query: string) {
-		return `https://exchanges.balanc3.net/pie?${query}&autoConversion=false`;
+		return `https://api.coingecko.com/api/v3/simple/token_price/ethereum?${query}`;
 	}
 
 	/**
@@ -130,7 +131,7 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	 * @param query - Query according to tokens in tokenList and native currency
 	 * @returns - Promise resolving to exchange rates for given pairs
 	 */
-	async fetchExchangeRate(query: string): Promise<Balanc3Response> {
+	async fetchExchangeRate(query: string): Promise<CoinGeckoResponse> {
 		const response = await fetch(this.getPricingURL(query));
 		const json = await response.json();
 		return json;
@@ -163,12 +164,13 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 		}
 		const newContractExchangeRates: { [address: string]: number } = {};
 		const { nativeCurrency } = this.config;
-		const pairs = this.tokenList.map((token) => `pairs[]=${token.address}/${nativeCurrency}`);
-		const query = pairs.join('&');
-		const { prices = [] } = await this.fetchExchangeRate(query);
-		prices.forEach(({ pair, price }) => {
-			const address = toChecksumAddress(pair.split('/')[0].toLowerCase());
-			newContractExchangeRates[address] = typeof price === 'number' ? price : 0;
+		const pairs = this.tokenList.map((token) => token.address).join(',');
+		const query = `contract_addresses=${pairs}&vs_currencies=${nativeCurrency}`;
+		const prices = await this.fetchExchangeRate(query);
+		this.tokenList.forEach((token) => {
+			const address = toChecksumAddress(token.address);
+			const price = prices[token.address.toLowerCase()];
+			newContractExchangeRates[address] = price ? price[nativeCurrency] : 0;
 		});
 		this.update({ contractExchangeRates: newContractExchangeRates });
 	}
