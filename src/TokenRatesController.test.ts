@@ -73,7 +73,7 @@ describe('TokenRatesController', () => {
 		const preferences = new PreferencesController();
 		/* tslint:disable-next-line:no-unused-expression */
 		new ComposableController([controller, assets, assetsContract, currencyRate, network, preferences]);
-		const address = '0x86Fa049857E0209aa7D9e616F7eb3b3B78ECfdb0';
+		const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
 		const address2 = '0xfoO';
 		expect(controller.state.contractExchangeRates).toEqual({});
 		controller.tokens = [{ address, decimals: 18, symbol: 'EOS' }, { address: address2, decimals: 0, symbol: '' }];
