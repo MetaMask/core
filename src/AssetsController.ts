@@ -414,12 +414,12 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	}
 
 	/**
-	 * Removes an individual collectible from the stored token list
+	 * Removes an individual collectible from the stored token list and saves it in ignored collectibles list
 	 *
 	 * @param address - Hex address of the collectible contract
 	 * @param tokenId - Token identifier of the collectible
 	 */
-	private removeIndividualCollectible(address: string, tokenId: number) {
+	private removeAndIgnoreIndividualCollectible(address: string, tokenId: number) {
 		address = toChecksumAddress(address);
 		const { allCollectibles, collectibles, ignoredCollectibles } = this.state;
 		const { networkType, selectedAddress } = this.config;
@@ -434,7 +434,6 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			}
 			return true;
 		});
-
 		const addressCollectibles = allCollectibles[selectedAddress];
 		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
 		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
@@ -443,6 +442,25 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			collectibles: newCollectibles,
 			ignoredCollectibles: newIgnoredCollectibles
 		});
+	}
+
+	/**
+	 * Removes an individual collectible from the stored token list
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @param tokenId - Token identifier of the collectible
+	 */
+	private removeIndividualCollectible(address: string, tokenId: number) {
+		address = toChecksumAddress(address);
+		const { allCollectibles, collectibles } = this.state;
+		const { networkType, selectedAddress } = this.config;
+		const newCollectibles = collectibles.filter(
+			(collectible) => !(collectible.address === address && collectible.tokenId === tokenId)
+		);
+		const addressCollectibles = allCollectibles[selectedAddress];
+		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
+		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
+		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
 	}
 
 	/**
@@ -664,11 +682,11 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	}
 
 	/**
-	 * Removes a token from the stored token list
+	 * Removes a token from the stored token list and saves it in ignored tokens list
 	 *
 	 * @param address - Hex address of the token contract
 	 */
-	removeToken(address: string) {
+	removeAndIgnoreToken(address: string) {
 		address = toChecksumAddress(address);
 		const { allTokens, tokens, ignoredTokens } = this.state;
 		const { networkType, selectedAddress } = this.config;
@@ -688,6 +706,22 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	}
 
 	/**
+	 * Removes a token from the stored token list
+	 *
+	 * @param address - Hex address of the token contract
+	 */
+	removeToken(address: string) {
+		address = toChecksumAddress(address);
+		const { allTokens, tokens } = this.state;
+		const { networkType, selectedAddress } = this.config;
+		const newTokens = tokens.filter((token) => token.address !== address);
+		const addressTokens = allTokens[selectedAddress];
+		const newAddressTokens = { ...addressTokens, ...{ [networkType]: newTokens } };
+		const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newAddressTokens } };
+		this.update({ allTokens: newAllTokens, tokens: newTokens });
+	}
+
+	/**
 	 * Removes a collectible from the stored token list
 	 *
 	 * @param address - Hex address of the collectible contract
@@ -696,6 +730,22 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	removeCollectible(address: string, tokenId: number) {
 		address = toChecksumAddress(address);
 		this.removeIndividualCollectible(address, tokenId);
+		const { collectibles } = this.state;
+		const remainingCollectible = collectibles.find((collectible) => collectible.address === address);
+		if (!remainingCollectible) {
+			this.removeCollectibleContract(address);
+		}
+	}
+
+	/**
+	 * Removes a collectible from the stored token list and saves it in ignored collectibles list
+	 *
+	 * @param address - Hex address of the collectible contract
+	 * @param tokenId - Token identifier of the collectible
+	 */
+	removeAndIgnoreCollectible(address: string, tokenId: number) {
+		address = toChecksumAddress(address);
+		this.removeAndIgnoreIndividualCollectible(address, tokenId);
 		const { collectibles } = this.state;
 		const remainingCollectible = collectibles.find((collectible) => collectible.address === address);
 		if (!remainingCollectible) {
