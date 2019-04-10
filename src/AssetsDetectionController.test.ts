@@ -235,7 +235,7 @@ describe('AssetsDetectionController', () => {
 		await assetsDetection.detectCollectibles();
 		expect(assets.state.collectibles.length).toEqual(1);
 		expect(assets.state.ignoredCollectibles.length).toEqual(0);
-		assets.removeCollectible('0x1d963688fe2209a98db35c67a041524822cf04ff', 2577);
+		assets.removeAndIgnoreCollectible('0x1d963688fe2209a98db35c67a041524822cf04ff', 2577);
 		await assetsDetection.detectCollectibles();
 		expect(assets.state.collectibles.length).toEqual(0);
 		expect(assets.state.ignoredCollectibles.length).toEqual(1);
@@ -396,7 +396,7 @@ describe('AssetsDetectionController', () => {
 			.returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
 		await assetsDetection.detectTokens();
 
-		assets.removeToken('0x6810e776880C02933D47DB1b9fc05908e5386b96');
+		assets.removeAndIgnoreToken('0x6810e776880C02933D47DB1b9fc05908e5386b96');
 		await assetsDetection.detectTokens();
 		expect(assets.state.tokens).toEqual([]);
 	});
