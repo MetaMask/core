@@ -552,7 +552,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	}
 
 	/**
-	 * Sets an OpenSea apo key to retrieve collectible information
+	 * Sets an OpenSea API key to retrieve collectible information
 	 *
 	 * @param openSeaApiKey - OpenSea API key
 	 */
