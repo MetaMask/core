@@ -62,7 +62,14 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	private async getOwnerCollectibles() {
 		const { selectedAddress } = this.config;
 		const api = this.getOwnerCollectiblesApi(selectedAddress);
-		const response = await fetch(api);
+		const assetsController = this.context.AssetsController as AssetsController;
+		let response;
+		/* istanbul ignore if */
+		if (assetsController.openSeaApiKey) {
+			response = await fetch(api, { headers: { 'X-API-KEY': assetsController.openSeaApiKey } });
+		} else {
+			response = await fetch(api);
+		}
 		const collectiblesArray = await response.json();
 		const collectibles = collectiblesArray.assets;
 		return collectibles;
