@@ -583,4 +583,9 @@ describe('AssetsController', () => {
 		assetsController.clearIgnoredCollectibles();
 		expect(assetsController.state.ignoredCollectibles.length).toBe(0);
 	});
+
+	it('should set api key correctly', () => {
+		assetsController.setApiKey('new-api-key');
+		expect(assetsController.openSeaApiKey).toBe('new-api-key');
+	});
 });

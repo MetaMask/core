@@ -132,10 +132,11 @@ export async function safelyExecute(operation: () => Promise<any>, logError = fa
  * Execute fetch and return object response
  *
  * @param request - Request information
+ * @param options - Options
  * @returns - Promise resolving to the result object of fetch
  */
-export async function handleFetch(request: string) {
-	const response = await fetch(request);
+export async function handleFetch(request: string, options?: RequestInit) {
+	const response = await fetch(request, options);
 	const object = await response.json();
 	return object;
 }

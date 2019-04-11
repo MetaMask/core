@@ -213,7 +213,14 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		tokenId: number
 	): Promise<CollectibleInformation> {
 		const tokenURI = this.getCollectibleApi(contractAddress, tokenId);
-		const { name, description, image_preview_url } = await handleFetch(tokenURI);
+		let collectibleInformation;
+		/* istanbul ignore if */
+		if (this.openSeaApiKey) {
+			collectibleInformation = await handleFetch(tokenURI, { headers: { 'X-API-KEY': this.openSeaApiKey } });
+		} else {
+			collectibleInformation = await handleFetch(tokenURI);
+		}
+		const { name, description, image_preview_url } = collectibleInformation;
 		return { image: image_preview_url, name, description };
 	}
 
@@ -272,7 +279,13 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		contractAddress: string
 	): Promise<ApiCollectibleContractResponse> {
 		const api = this.getCollectibleContractInformationApi(contractAddress);
-		const collectibleContractObject = await handleFetch(api);
+		let collectibleContractObject;
+		/* istanbul ignore if */
+		if (this.openSeaApiKey) {
+			collectibleContractObject = await handleFetch(api, { headers: { 'X-API-KEY': this.openSeaApiKey } });
+		} else {
+			collectibleContractObject = await handleFetch(api);
+		}
 		const { name, symbol, image_url, description, total_supply } = collectibleContractObject;
 		return { name, symbol, image_url, description, total_supply };
 	}
@@ -498,6 +511,11 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	hub = new EventEmitter();
 
 	/**
+	 * Optional API key to use with opensea
+	 */
+	openSeaApiKey?: string;
+
+	/**
 	 * Name of this controller used during composition
 	 */
 	name = 'AssetsController';
@@ -531,6 +549,15 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			tokens: []
 		};
 		this.initialize();
+	}
+
+	/**
+	 * Sets an OpenSea API key to retrieve collectible information
+	 *
+	 * @param openSeaApiKey - OpenSea API key
+	 */
+	setApiKey(openSeaApiKey: string) {
+		this.openSeaApiKey = openSeaApiKey;
 	}
 
 	/**
