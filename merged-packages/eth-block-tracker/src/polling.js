@@ -66,7 +66,7 @@ class PollingBlockTracker extends BaseBlockTracker {
   }
 
   async _fetchLatestBlock () {
-    const req = { id: 1, method: 'eth_blockNumber', params: [] }
+    const req = { jsonrpc: "2.0", id: 1, method: 'eth_blockNumber', params: [] }
     if (this._setSkipCacheFlag) req.skipCache = true
     const res = await pify((cb) => this._provider.sendAsync(req, cb))()
     if (res.error) throw new Error(`PollingBlockTracker - encountered error fetching block:\n${res.error}`)
