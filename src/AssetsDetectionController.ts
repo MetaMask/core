@@ -72,7 +72,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 				response = await timeoutFetch(api, {}, 2000);
 			}
 		} catch (e) {
-			return {};
+			return [];
 		}
 		const collectiblesArray = await response.json();
 		const collectibles = collectiblesArray.assets;
