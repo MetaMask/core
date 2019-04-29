@@ -172,6 +172,11 @@ export interface TransactionState extends BaseState {
 }
 
 /**
+ * Multiplier used to determine a transaction's increased gas fee during cancellation
+ */
+export const CANCEL_RATE = 1.5;
+
+/**
  * Controller responsible for submitting and managing transactions
  */
 export class TransactionController extends BaseController<TransactionConfig, TransactionState> {
@@ -355,6 +360,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 						return resolve(meta.transactionHash);
 					case 'rejected':
 						return reject(new Error('User rejected the transaction.'));
+					case 'cancelled':
+						return reject(new Error('User cancelled the transaction.'));
 					case 'failed':
 						return reject(new Error(meta.error!.message));
 				}
@@ -426,6 +433,37 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
 		const transactions = this.state.transactions.filter(({ id }) => id !== transactionID);
 		this.update({ transactions });
+	}
+
+	async stopTransaction(transactionID: string) {
+		const transactionMeta = this.state.transactions.find(({ id }) => id === transactionID);
+		if (!transactionMeta) {
+			return;
+		}
+
+		if (!this.sign) {
+			throw new Error('No sign method defined.');
+		}
+
+		const existingGasPrice = transactionMeta.transaction.gasPrice;
+		/* istanbul ignore next */
+		const existingGasPriceDecimal = parseInt(existingGasPrice === undefined ? '0x0' : existingGasPrice, 16);
+		const gasPrice = `0x${(existingGasPriceDecimal * CANCEL_RATE).toString(16)}`;
+
+		const ethTransaction = new Transaction({
+			from: transactionMeta.transaction.from,
+			gas: transactionMeta.transaction.gas,
+			gasPrice,
+			nonce: transactionMeta.transaction.nonce,
+			to: transactionMeta.transaction.from,
+			value: '0x0'
+		});
+
+		await this.sign(ethTransaction, transactionMeta.transaction.from);
+		const rawTransaction = bufferToHex(ethTransaction.serialize());
+		await this.query('sendRawTransaction', [rawTransaction]);
+		transactionMeta.status = 'cancelled';
+		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
 	}
 
 	/**

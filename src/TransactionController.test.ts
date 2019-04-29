@@ -378,6 +378,7 @@ describe('TransactionController', () => {
 			controller.approveTransaction(controller.state.transactions[0].id);
 		});
 	});
+
 	it('should query transaction statuses', () => {
 		return new Promise((resolve) => {
 			const controller = new TransactionController({
@@ -465,5 +466,53 @@ describe('TransactionController', () => {
 		const registryLookup = stub(controller, 'registryLookup' as any);
 		await controller.handleMethodData('0xf39b5b9b');
 		expect(registryLookup.called).toBe(false);
+	});
+
+	it('should stop a transaction', async () => {
+		return new Promise(async (resolve) => {
+			const controller = new TransactionController({
+				provider: PROVIDER,
+				sign: async (transaction: any) => transaction
+			});
+			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+			controller.context = {
+				NetworkController: MOCK_NETWORK
+			} as any;
+			controller.onComposed();
+			const { result } = await controller.addTransaction({
+				from,
+				gas: '0x0',
+				gasPrice: '0x1',
+				to: from,
+				value: '0x0'
+			});
+			result.catch((error) => {
+				expect(error.message).toContain('User cancelled the transaction');
+				resolve();
+			});
+			controller.stopTransaction(controller.state.transactions[0].id);
+		});
+	});
+
+	it('should fail to stop a transaction if no sign method', async () => {
+		return new Promise(async (resolve) => {
+			const controller = new TransactionController({
+				provider: PROVIDER
+			});
+			controller.context = {
+				NetworkController: MOCK_NETWORK
+			} as any;
+			controller.onComposed();
+			const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
+			const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+			await controller.addTransaction({ from, to });
+			try {
+				controller.stopTransaction('nonexistent');
+				await controller.stopTransaction(controller.state.transactions[0].id);
+			} catch (error) {
+				expect(error.message).toContain('No sign method defined');
+				resolve();
+			}
+		});
 	});
 });
