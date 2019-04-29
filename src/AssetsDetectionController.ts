@@ -4,7 +4,7 @@ import AssetsController from './AssetsController';
 import NetworkController from './NetworkController';
 import PreferencesController from './PreferencesController';
 import AssetsContractController from './AssetsContractController';
-import { safelyExecute } from './util';
+import { safelyExecute, timeoutFetch } from './util';
 import { Token } from './TokenRatesController';
 import { NetworkType } from './NetworkController';
 
@@ -63,12 +63,16 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		const { selectedAddress } = this.config;
 		const api = this.getOwnerCollectiblesApi(selectedAddress);
 		const assetsController = this.context.AssetsController as AssetsController;
-		let response;
-		/* istanbul ignore if */
-		if (assetsController.openSeaApiKey) {
-			response = await fetch(api, { headers: { 'X-API-KEY': assetsController.openSeaApiKey } });
-		} else {
-			response = await fetch(api);
+		let response: Response;
+		try {
+			/* istanbul ignore if */
+			if (assetsController.openSeaApiKey) {
+				response = await timeoutFetch(api, { headers: { 'X-API-KEY': assetsController.openSeaApiKey } }, 2000);
+			} else {
+				response = await timeoutFetch(api, {}, 2000);
+			}
+		} catch (e) {
+			return {};
 		}
 		const collectiblesArray = await response.json();
 		const collectibles = collectiblesArray.assets;
@@ -116,7 +120,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	async poll(interval?: number): Promise<void> {
 		interval && this.configure({ interval }, false, false);
 		this.handle && clearTimeout(this.handle);
-		await safelyExecute(() => this.detectAssets());
+		await this.detectAssets();
 		this.handle = setTimeout(() => {
 			this.poll(this.config.interval);
 		}, this.config.interval);
@@ -155,7 +159,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			return;
 		}
 		const tokensAddresses = this.config.tokens.filter(/* istanbul ignore next*/ (token) => token.address);
-		const tokensToDetect = [];
+		const tokensToDetect: string[] = [];
 		for (const address in contractMap) {
 			const contract = contractMap[address];
 			if (contract.erc20 && !(address in tokensAddresses)) {
@@ -169,23 +173,25 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		if (!selectedAddress) {
 			return;
 		}
-		const balances = await assetsContractController.getBalancesInSingleCall(selectedAddress, tokensToDetect);
-		const assetsController = this.context.AssetsController as AssetsController;
-		const { ignoredTokens } = assetsController.state;
-		for (const tokenAddress in balances) {
-			let ignored;
-			/* istanbul ignore else */
-			if (ignoredTokens.length) {
-				ignored = ignoredTokens.find((token) => token.address === toChecksumAddress(tokenAddress));
+		await safelyExecute(async () => {
+			const balances = await assetsContractController.getBalancesInSingleCall(selectedAddress, tokensToDetect);
+			const assetsController = this.context.AssetsController as AssetsController;
+			const { ignoredTokens } = assetsController.state;
+			for (const tokenAddress in balances) {
+				let ignored;
+				/* istanbul ignore else */
+				if (ignoredTokens.length) {
+					ignored = ignoredTokens.find((token) => token.address === toChecksumAddress(tokenAddress));
+				}
+				if (!ignored) {
+					await assetsController.addToken(
+						tokenAddress,
+						contractMap[tokenAddress].symbol,
+						contractMap[tokenAddress].decimals
+					);
+				}
 			}
-			if (!ignored) {
-				await assetsController.addToken(
-					tokenAddress,
-					contractMap[tokenAddress].symbol,
-					contractMap[tokenAddress].decimals
-				);
-			}
-		}
+		});
 	}
 
 	/**
@@ -201,41 +207,43 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		if (!selectedAddress) {
 			return;
 		}
-		const assetsController = this.context.AssetsController as AssetsController;
-		const { ignoredCollectibles } = assetsController.state;
-		const collectibles = await this.getOwnerCollectibles();
-		const addCollectiblesPromises = collectibles.map(async (collectible: ApiCollectibleResponse) => {
-			const {
-				token_id,
-				image_preview_url,
-				name,
-				description,
-				asset_contract: { address }
-			} = collectible;
+		await safelyExecute(async () => {
+			const assetsController = this.context.AssetsController as AssetsController;
+			const { ignoredCollectibles } = assetsController.state;
+			const collectibles = await this.getOwnerCollectibles();
+			const addCollectiblesPromises = collectibles.map(async (collectible: ApiCollectibleResponse) => {
+				const {
+					token_id,
+					image_preview_url,
+					name,
+					description,
+					asset_contract: { address }
+				} = collectible;
 
-			let ignored;
-			/* istanbul ignore else */
-			if (ignoredCollectibles.length) {
-				ignored = ignoredCollectibles.find((c) => {
-					/* istanbul ignore next */
-					return c.address === toChecksumAddress(address) && c.tokenId === Number(token_id);
-				});
-			}
-			/* istanbul ignore else */
-			if (!ignored) {
-				await assetsController.addCollectible(
-					address,
-					Number(token_id),
-					{
-						description,
-						image: image_preview_url,
-						name
-					},
-					true
-				);
-			}
+				let ignored;
+				/* istanbul ignore else */
+				if (ignoredCollectibles.length) {
+					ignored = ignoredCollectibles.find((c) => {
+						/* istanbul ignore next */
+						return c.address === toChecksumAddress(address) && c.tokenId === Number(token_id);
+					});
+				}
+				/* istanbul ignore else */
+				if (!ignored) {
+					await assetsController.addCollectible(
+						address,
+						Number(token_id),
+						{
+							description,
+							image: image_preview_url,
+							name
+						},
+						true
+					);
+				}
+			});
+			await Promise.all(addCollectiblesPromises);
 		});
-		await Promise.all(addCollectiblesPromises);
 	}
 
 	/**
