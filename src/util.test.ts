@@ -1,6 +1,8 @@
 import * as util from './util';
+import { mock } from 'fetch-mock';
 
 const { BN } = require('ethereumjs-util');
+const SOME_API = 'https://someapi.com';
 
 describe('util', () => {
 	it('BNToHex', () => {
@@ -456,6 +458,35 @@ describe('util', () => {
 					symbol: 'TKN'
 				} as any)
 			).toThrow('Invalid address 0xe9');
+		});
+	});
+
+	describe('timeoutFetch', () => {
+		const delay = (time: number) => {
+			return new Promise((resolve) => {
+				setTimeout(resolve, time);
+			});
+		};
+		mock(SOME_API, () => {
+			return delay(300).then(() => {
+				return JSON.stringify({});
+			});
+		});
+
+		it('should fetch first if response is faster than timeout', async () => {
+			const res = await util.timeoutFetch(SOME_API);
+			const parsed = await res.json();
+			expect(parsed).toEqual({});
+		});
+
+		it('should fetch first if response is faster than timeout', async () => {
+			let error;
+			try {
+				await util.timeoutFetch(SOME_API, {}, 100);
+			} catch (e) {
+				error = e;
+			}
+			expect(error.message).toBe('timeout');
 		});
 	});
 });
