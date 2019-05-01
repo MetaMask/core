@@ -67,9 +67,9 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		try {
 			/* istanbul ignore if */
 			if (assetsController.openSeaApiKey) {
-				response = await timeoutFetch(api, { headers: { 'X-API-KEY': assetsController.openSeaApiKey } }, 2000);
+				response = await timeoutFetch(api, { headers: { 'X-API-KEY': assetsController.openSeaApiKey } }, 15000);
 			} else {
-				response = await timeoutFetch(api, {}, 2000);
+				response = await timeoutFetch(api, {}, 15000);
 			}
 		} catch (e) {
 			/* istanbul ignore next */
