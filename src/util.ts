@@ -129,19 +129,6 @@ export async function safelyExecute(operation: () => Promise<any>, logError = fa
 }
 
 /**
- * Execute fetch and return object response
- *
- * @param request - Request information
- * @param options - Options
- * @returns - Promise resolving to the result object of fetch
- */
-export async function handleFetch(request: string, options?: RequestInit) {
-	const response = await fetch(request, options);
-	const object = await response.json();
-	return object;
-}
-
-/**
  * Validates a Transaction object for required properties and throws in
  * the event of any validation error.
  *
@@ -299,6 +286,39 @@ export function isSmartContractCode(code: string) {
 	return smartContractCode;
 }
 
+/**
+ * Execute fetch and return object response
+ *
+ * @param request - Request information
+ * @param options - Options
+ * @returns - Promise resolving to the result object of fetch
+ */
+export async function handleFetch(request: string, options?: RequestInit) {
+	const response = await fetch(request, options);
+	const object = await response.json();
+	return object;
+}
+
+/**
+ * Fetch that fails after timeout
+ *
+ * @param url - Url to fetch
+ * @param options - Options to send with the request
+ * @param timeout - Timeout to fail request
+ *
+ * @returns - Promise resolving the request
+ */
+export async function timeoutFetch(url: string, options?: RequestInit, timeout: number = 500): Promise<Response> {
+	return Promise.race([
+		fetch(url, options),
+		new Promise<Response>((_, reject) =>
+			setTimeout(() => {
+				reject(new Error('timeout'));
+			}, timeout)
+		)
+	]);
+}
+
 export default {
 	BNToHex,
 	fractionBN,
@@ -309,6 +329,7 @@ export default {
 	isSmartContractCode,
 	normalizeTransaction,
 	safelyExecute,
+	timeoutFetch,
 	validateTokenToWatch,
 	validateTransaction,
 	validateTypedSignMessageDataV1,

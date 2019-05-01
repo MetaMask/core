@@ -323,17 +323,6 @@ describe('AssetsController', () => {
 		});
 	});
 
-	it('should not add individual collectible no name nor image when autodetecting', async () => {
-		sandbox
-			.stub(assetsController, 'getCollectibleInformation' as any)
-			.returns({ name: undefined, image: undefined });
-		await assetsController.addCollectible('foo', 1234, undefined, true);
-		expect(assetsController.state.collectibles.length).toEqual(0);
-		expect(assetsController.state.collectibles).toEqual([]);
-		await assetsController.addCollectible('foo', 1234, undefined, false);
-		expect(assetsController.state.collectibles.length).toEqual(1);
-	});
-
 	it('should not add collectibles with no contract information when auto detecting', async () => {
 		await assetsController.addCollectible('0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab', 123, undefined, true);
 		expect(assetsController.state.collectibles).toEqual([]);
