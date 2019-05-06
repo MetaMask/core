@@ -42,9 +42,11 @@ export interface PhishingConfig extends BaseConfig {
  * Phishing controller state
  *
  * @property phishing - eth-phishing-detect configuration
+ * @property whitelist - array of temporarily-approved origins
  */
 export interface PhishingState extends BaseState {
 	phishing: EthPhishingResponse;
+	whitelist: string[];
 }
 
 /**
@@ -68,7 +70,10 @@ export class PhishingController extends BaseController<PhishingConfig, PhishingS
 	constructor(config?: Partial<PhishingConfig>, state?: Partial<PhishingState>) {
 		super(config, state);
 		this.defaultConfig = { interval: 180000 };
-		this.defaultState = { phishing: DEFAULT_PHISHING_RESPONSE };
+		this.defaultState = {
+			phishing: DEFAULT_PHISHING_RESPONSE,
+			whitelist: []
+		};
 		this.detector = new PhishingDetector(this.defaultState.phishing);
 		this.initialize();
 		this.poll();
@@ -95,7 +100,21 @@ export class PhishingController extends BaseController<PhishingConfig, PhishingS
 	 * @returns - True if the origin is an unapproved origin
 	 */
 	test(origin: string): boolean {
+		if (this.state.whitelist.indexOf(origin) !== -1) {
+			return false;
+		}
 		return this.detector.check(origin).result;
+	}
+
+	/**
+	 * Temporarily marks a given origin as approved
+	 */
+	bypass(origin: string) {
+		const { whitelist } = this.state;
+		if (whitelist.indexOf(origin) !== -1) {
+			return;
+		}
+		this.update({ whitelist: [...whitelist, origin] });
 	}
 
 	/**

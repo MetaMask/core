@@ -80,4 +80,11 @@ describe('PhishingController', () => {
 		const controller = new PhishingController();
 		expect(controller.test('metamask.io')).toBe(false);
 	});
+
+	it('should bypass a given domain', () => {
+		const controller = new PhishingController();
+		controller.bypass('electrum.mx');
+		controller.bypass('electrum.mx');
+		expect(controller.test('electrum.mx')).toBe(false);
+	});
 });
