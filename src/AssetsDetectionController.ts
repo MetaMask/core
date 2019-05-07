@@ -19,14 +19,14 @@ const MAINNET = 'mainnet';
  * Collectible object coming from OpenSea api
  *
  * @property token_id - The collectible identifier
- * @property image_preview_url - URI of collectible image associated with this collectible
+ * @property image_original_url - URI of collectible image associated with this collectible
  * @property name - The collectible name
  * @property description - The collectible description
  * @property assetContract - The collectible contract basic information, in this case the address
  */
 export interface ApiCollectibleResponse {
 	token_id: string;
-	image_preview_url: string;
+	image_original_url: string;
 	name: string;
 	description: string;
 	asset_contract: { [address: string]: string };
@@ -215,7 +215,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 			const addCollectiblesPromises = collectibles.map(async (collectible: ApiCollectibleResponse) => {
 				const {
 					token_id,
-					image_preview_url,
+					image_original_url,
 					name,
 					description,
 					asset_contract: { address }
@@ -236,7 +236,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 						Number(token_id),
 						{
 							description,
-							image: image_preview_url,
+							image: image_original_url,
 							name
 						},
 						true

@@ -56,7 +56,7 @@ describe('AssetsDetectionController', () => {
 								address: '0x1d963688fe2209a98db35c67a041524822cf04ff'
 							},
 							description: 'Description 2577',
-							image_preview_url: 'image/2577.png',
+							image_original_url: 'image/2577.png',
 							name: 'ID 2577',
 							token_id: '2577'
 						}
@@ -76,7 +76,7 @@ describe('AssetsDetectionController', () => {
 								address: '0x1d963688fe2209a98db35c67a041524822cf04ff'
 							},
 							description: 'Description 2577',
-							image_preview_url: 'image/2577.png',
+							image_original_url: 'image/2577.png',
 							name: 'ID 2577',
 							token_id: '2577'
 						},
@@ -85,7 +85,7 @@ describe('AssetsDetectionController', () => {
 								address: '0x1d963688fe2209a98db35c67a041524822cf04ff'
 							},
 							description: 'Description 2574',
-							image_preview_url: 'image/2574.png',
+							image_original_url: 'image/2574.png',
 							name: 'ID 2574',
 							token_id: '2574'
 						}
@@ -135,7 +135,7 @@ describe('AssetsDetectionController', () => {
 								address: '0x1d963688FE2209A98db35c67A041524822CF04gg'
 							},
 							description: 'Description 2577',
-							image_preview_url: 'image/2577.png',
+							image_original_url: 'image/2577.png',
 							name: 'ID 2577',
 							token_id: '2577'
 						},
@@ -144,7 +144,7 @@ describe('AssetsDetectionController', () => {
 								address: '0x1d963688FE2209A98db35c67A041524822CF04ii'
 							},
 							description: 'Description 2578',
-							image_preview_url: 'image/2578.png',
+							image_original_url: 'image/2578.png',
 							name: 'ID 2578',
 							token_id: '2578'
 						},
@@ -153,7 +153,7 @@ describe('AssetsDetectionController', () => {
 								address: '0x1d963688FE2209A98db35c67A041524822CF04hh'
 							},
 							description: 'Description 2574',
-							image_preview_url: 'image/2574.png',
+							image_original_url: 'image/2574.png',
 							name: 'ID 2574',
 							token_id: '2574'
 						}
@@ -337,7 +337,7 @@ describe('AssetsDetectionController', () => {
 								address: '0x1d963688FE2209A98db35c67A041524822CF04ii'
 							},
 							description: 'Description 2577',
-							image_preview_url: 'image/2577.png',
+							image_original_url: 'image/2577.png',
 							name: 'ID 2577',
 							token_id: '2577'
 						},
@@ -346,7 +346,7 @@ describe('AssetsDetectionController', () => {
 								address: '0x1D963688fe2209a98dB35c67a041524822Cf04gg'
 							},
 							description: 'Description 2574',
-							image_preview_url: 'image/2574.png',
+							image_original_url: 'image/2574.png',
 							name: 'ID 2574',
 							token_id: '2574'
 						},
@@ -355,7 +355,7 @@ describe('AssetsDetectionController', () => {
 								address: '0x1d963688FE2209A98db35c67A041524822CF04hh'
 							},
 							description: 'Description 2574',
-							image_preview_url: 'image/2574.png',
+							image_original_url: 'image/2574.png',
 							name: 'ID 2574',
 							token_id: '2574'
 						}
