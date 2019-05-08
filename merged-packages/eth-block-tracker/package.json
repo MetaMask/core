@@ -28,7 +28,7 @@
     "babelify": "^8.0.0",
     "browserify": "^16.2.3",
     "eth-json-rpc-infura": "^3.1.2",
-    "ganache-core": "^2.2.1",
+    "ganache-core": "^2.5.5",
     "tape": "^4.9.0",
     "uglify-js": "^3.4.10"
   },
