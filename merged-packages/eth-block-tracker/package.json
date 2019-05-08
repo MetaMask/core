@@ -18,6 +18,7 @@
   "author": "kumavis",
   "license": "MIT",
   "dependencies": {
+    "babel-plugin-transform-runtime": "^6.23.0",
     "eth-query": "^2.1.0",
     "pify": "^3.0.0",
     "safe-event-emitter": "^1.0.1"

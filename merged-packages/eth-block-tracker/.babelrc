@@ -1,7 +1,16 @@
 {
-  "presets": [["env", {
-    "targets": {
-      "uglify": true
-    }
-  }]]
+  "presets": [
+    ["env", {
+      "targets": {
+        "uglify": true
+      }
+    }]
+  ],
+  "plugins": [
+    ["transform-runtime", {
+      "helpers": false,
+      "polyfill": false,
+      "regenerator": true,
+    }]
+  ]
 }
