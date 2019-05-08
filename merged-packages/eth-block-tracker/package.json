@@ -9,8 +9,9 @@
     "build": "npm run build:clean && npm run build:es5 && npm run build:bundle && npm run build:validate",
     "build:clean": "rm -rf ./dist && mkdir -p ./dist",
     "build:es5": "babel ./src -d dist/es5/",
-    "build:bundle": "npm run build:bundle:polling && npm run build:bundle:base",
+    "build:bundle": "npm run build:bundle:polling && npm run build:bundle:base && npm run build:bundle:subscribe",
     "build:bundle:polling": "browserify -s PollingBlockTracker -e src/polling.js -g babelify > dist/PollingBlockTracker.js",
+    "build:bundle:subscribe": "browserify -s SubscribeBlockTracker -e src/subscribe.js -g babelify > dist/SubscribeBlockTracker.js",
     "build:bundle:base": "browserify -s BaseBlockTracker -e src/base.js -g babelify > dist/BaseBlockTracker.js",
     "build:validate": "uglifyjs dist/es5/**.js > /dev/null"
   },
