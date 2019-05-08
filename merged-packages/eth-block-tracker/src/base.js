@@ -1,19 +1,19 @@
 const EthQuery = require('eth-query')
-const EventEmitter = require('events')
 const pify = require('pify')
+const SafeEventEmitter = require('safe-event-emitter')
 
 const sec = 1000
 
 const calculateSum = (accumulator, currentValue) => accumulator + currentValue
 const blockTrackerEvents = ['sync', 'latest']
 
-class BaseBlockTracker extends EventEmitter {
+class BaseBlockTracker extends SafeEventEmitter {
 
   //
   // public
   //
 
-  constructor(opts = {}) {
+  constructor (opts = {}) {
     super()
     // config
     this._blockResetDuration = opts.blockResetDuration || 20 * sec
@@ -29,7 +29,7 @@ class BaseBlockTracker extends EventEmitter {
     this._setupInternalEvents()
   }
 
-  isRunning() {
+  isRunning () {
     return this._isRunning
   }
 
@@ -47,7 +47,7 @@ class BaseBlockTracker extends EventEmitter {
   }
 
   // dont allow module consumer to remove our internal event listeners
-  removeAllListeners(eventName) {
+  removeAllListeners (eventName) {
     // perform default behavior, preserve fn arity
     if (eventName) {
       super.removeAllListeners(eventName)
@@ -132,7 +132,7 @@ class BaseBlockTracker extends EventEmitter {
     this.emit('sync', { oldBlock, newBlock })
   }
 
-  _setupBlockResetTimeout() {
+  _setupBlockResetTimeout () {
     // clear any existing timeout
     this._cancelBlockResetTimeout()
     // clear latest block when stale
@@ -143,11 +143,11 @@ class BaseBlockTracker extends EventEmitter {
     }
   }
 
-  _cancelBlockResetTimeout() {
+  _cancelBlockResetTimeout () {
     clearTimeout(this._blockResetTimeout)
   }
 
-  _resetCurrentBlock  () {
+  _resetCurrentBlock () {
     this._currentBlock = null
   }
 

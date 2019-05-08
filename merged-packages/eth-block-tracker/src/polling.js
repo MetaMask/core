@@ -1,18 +1,17 @@
-const EthQuery = require('eth-query')
-const EventEmitter = require('events')
 const pify = require('pify')
 const BaseBlockTracker = require('./base')
 
 const sec = 1000
-const min = 60 * sec
 
 class PollingBlockTracker extends BaseBlockTracker {
 
-  constructor(opts = {}) {
+  constructor (opts = {}) {
     // parse + validate args
     if (!opts.provider) throw new Error('PollingBlockTracker - no provider specified.')
     const pollingInterval = opts.pollingInterval || 20 * sec
+    const retryTimeout = opts.retryTimeout || pollingInterval / 10
     const keepEventLoopActive = opts.keepEventLoopActive !== undefined ? opts.keepEventLoopActive : true
+    const setSkipCacheFlag = opts.setSkipCacheFlag || false
     // BaseBlockTracker constructor
     super(Object.assign({
       blockResetDuration: pollingInterval,
@@ -20,9 +19,9 @@ class PollingBlockTracker extends BaseBlockTracker {
     // config
     this._provider = opts.provider
     this._pollingInterval = pollingInterval
+    this._retryTimeout = retryTimeout
     this._keepEventLoopActive = keepEventLoopActive
-    // util
-    this._query = new EthQuery(this._provider)
+    this._setSkipCacheFlag = setSkipCacheFlag
   }
 
   //
@@ -30,7 +29,7 @@ class PollingBlockTracker extends BaseBlockTracker {
   //
 
   // trigger block polling
-  async checkForLatestBlock() {
+  async checkForLatestBlock () {
     await this._updateLatestBlock()
     return await this.getLatestBlock()
   }
@@ -39,7 +38,7 @@ class PollingBlockTracker extends BaseBlockTracker {
   // private
   //
 
-  _start() {
+  _start () {
     this._performSync().catch(err => this.emit('error', err))
   }
 
@@ -47,10 +46,16 @@ class PollingBlockTracker extends BaseBlockTracker {
     while (this._isRunning) {
       try {
         await this._updateLatestBlock()
+        await timeout(this._pollingInterval, !this._keepEventLoopActive)
       } catch (err) {
-        this.emit('error', err)
+        const newErr = new Error(`PollingBlockTracker - encountered an error while attempting to update latest block:\n${err.stack}`)
+        try {
+          this.emit('error', newErr)
+        } catch (emitErr) {
+          console.error(newErr)
+        }
+        await timeout(this._retryTimeout, !this._keepEventLoopActive)
       }
-      await timeout(this._pollingInterval, !this._keepEventLoopActive)
     }
   }
 
@@ -61,7 +66,11 @@ class PollingBlockTracker extends BaseBlockTracker {
   }
 
   async _fetchLatestBlock () {
-    return await pify(this._query.blockNumber).call(this._query)
+    const req = { jsonrpc: "2.0", id: 1, method: 'eth_blockNumber', params: [] }
+    if (this._setSkipCacheFlag) req.skipCache = true
+    const res = await pify((cb) => this._provider.sendAsync(req, cb))()
+    if (res.error) throw new Error(`PollingBlockTracker - encountered error fetching block:\n${res.error}`)
+    return res.result
   }
 
 }
