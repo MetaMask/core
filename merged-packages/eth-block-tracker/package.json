@@ -4,7 +4,9 @@
   "description": "A block tracker for the Ethereum blockchain. Keeps track of the latest block.",
   "main": "src/polling.js",
   "scripts": {
-    "test": "npm run build && node test/index.js",
+    "test": "npm run build && npm run test:unit && npm run test:lint:deps",
+    "test:unit": "node test/index.js",
+    "test:lint:deps": "npx depcheck --ignore-dirs dist --ignores babelify,babel-preset-env,babel-plugin-transform-runtime",
     "prepublishOnly": "npm run build",
     "build": "npm run build:clean && npm run build:es5 && npm run build:bundle && npm run build:validate",
     "build:clean": "rm -rf ./dist && mkdir -p ./dist",
@@ -20,6 +22,7 @@
   "dependencies": {
     "babel-plugin-transform-runtime": "^6.23.0",
     "eth-query": "^2.1.0",
+    "json-rpc-random-id": "^1.0.1",
     "pify": "^3.0.0",
     "safe-event-emitter": "^1.0.1"
   },
