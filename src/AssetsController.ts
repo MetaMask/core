@@ -6,6 +6,7 @@ import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
 import { safelyExecute, handleFetch, validateTokenToWatch } from './util';
 import { EventEmitter } from 'events';
+import { ApiCollectibleResponse } from './AssetsDetectionController';
 
 const { toChecksumAddress } = require('ethereumjs-util');
 const Mutex = require('await-semaphore').Mutex;
@@ -213,15 +214,15 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		tokenId: number
 	): Promise<CollectibleInformation> {
 		const tokenURI = this.getCollectibleApi(contractAddress, tokenId);
-		let collectibleInformation;
+		let collectibleInformation: ApiCollectibleResponse;
 		/* istanbul ignore if */
 		if (this.openSeaApiKey) {
 			collectibleInformation = await handleFetch(tokenURI, { headers: { 'X-API-KEY': this.openSeaApiKey } });
 		} else {
 			collectibleInformation = await handleFetch(tokenURI);
 		}
-		const { name, description, image_preview_url } = collectibleInformation;
-		return { image: image_preview_url, name, description };
+		const { name, description, image_original_url } = collectibleInformation;
+		return { image: image_original_url, name, description };
 	}
 
 	/**

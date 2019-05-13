@@ -57,7 +57,7 @@ describe('AssetsController', () => {
 			() => ({
 				body: JSON.stringify({
 					description: 'Description',
-					image_preview_url: 'url',
+					image_original_url: 'url',
 					name: 'Name'
 				})
 			}),
@@ -68,7 +68,7 @@ describe('AssetsController', () => {
 			() => ({
 				body: JSON.stringify({
 					description: 'Kudos Description',
-					image_preview_url: 'Kudos url',
+					image_original_url: 'Kudos url',
 					name: 'Kudos Name'
 				})
 			}),
