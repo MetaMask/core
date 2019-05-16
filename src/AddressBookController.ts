@@ -1,5 +1,5 @@
 import BaseController, { BaseConfig, BaseState } from './BaseController';
-
+const extend = require('xtend');
 const { isValidAddress } = require('ethereumjs-util');
 
 /**
@@ -23,15 +23,13 @@ export interface ContactEntry {
  * @property addressBook - Array of contact entry objects
  */
 export interface AddressBookState extends BaseState {
-	addressBook: ContactEntry[];
+	addressBook: { [address: string]: ContactEntry };
 }
 
 /**
  * Controller that manages a list of recipient addresses associated with nicknames
  */
 export class AddressBookController extends BaseController<BaseConfig, AddressBookState> {
-	private addressBook = new Map<string, ContactEntry>();
-
 	/**
 	 * Name of this controller used during composition
 	 */
@@ -45,7 +43,9 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 */
 	constructor(config?: Partial<BaseConfig>, state?: Partial<AddressBookState>) {
 		super(config, state);
-		this.defaultState = { addressBook: [] };
+
+		this.defaultState = { addressBook: {} };
+
 		this.initialize();
 	}
 
@@ -53,8 +53,7 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 * Remove all contract entries
 	 */
 	clear() {
-		this.addressBook.clear();
-		this.update({ addressBook: Array.from(this.addressBook.values()) });
+		this.update({ addressBook: {} });
 	}
 
 	/**
@@ -63,8 +62,8 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 * @param address - Recipient address to delete
 	 */
 	delete(address: string) {
-		this.addressBook.delete(address);
-		this.update({ addressBook: Array.from(this.addressBook.values()) });
+		delete this.state.addressBook[address];
+		this.update({ addressBook: this.state.addressBook });
 	}
 
 	/**
@@ -78,8 +77,21 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 		if (!isValidAddress(address)) {
 			return false;
 		}
-		this.addressBook.set(address, { address, name });
-		this.update({ addressBook: Array.from(this.addressBook.values()) });
+		const oldAddresses: any = {};
+		for (const entry in this.state.addressBook) {
+			const oldEntry = {
+				address: this.state.addressBook[entry].address,
+				name: this.state.addressBook[entry].name
+			};
+			oldAddresses[entry] = oldEntry;
+		}
+
+		const addressEntry = { address, name };
+		const newEntry: any = {};
+		newEntry[address] = addressEntry;
+
+		const combined = extend(oldAddresses, newEntry);
+		this.update({ addressBook: combined });
 		return true;
 	}
 }
