@@ -27,7 +27,7 @@
     "ethereumjs-block": "^1.6.0",
     "ethereumjs-tx": "^1.3.3",
     "ethereumjs-util": "^5.1.2",
-    "ethereumjs-vm": "2.2.2",
+    "ethereumjs-vm": "^2.6.0",
     "fetch-ponyfill": "^4.0.0",
     "json-rpc-engine": "^5.0.0",
     "json-rpc-error": "^2.0.0",
