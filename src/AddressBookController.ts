@@ -1,4 +1,4 @@
-import BaseController, { BaseConfig, BaseState } from '../src/BaseController';
+import BaseController, { BaseConfig, BaseState } from './BaseController';
 
 const { isValidAddress } = require('ethereumjs-util');
 
