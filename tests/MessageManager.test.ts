@@ -1,5 +1,5 @@
-import MessageManager from './MessageManager';
-import { TypedMessage, TypedMessageParams, TypedMessageParamsMetamask } from './TypedMessageManager';
+import MessageManager from '../src/MessageManager';
+import { TypedMessage, TypedMessageParams, TypedMessageParamsMetamask } from '../src/TypedMessageManager';
 
 class TestManager extends MessageManager<TypedMessage, TypedMessageParams, TypedMessageParamsMetamask> {
 	prepMessageForSigning(messageParams: TypedMessageParamsMetamask): Promise<TypedMessageParams> {

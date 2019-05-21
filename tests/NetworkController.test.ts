@@ -1,5 +1,5 @@
 import { stub } from 'sinon';
-import NetworkController, { ProviderConfig } from './NetworkController';
+import NetworkController, { ProviderConfig } from '../src/NetworkController';
 const Web3ProviderEngine = require('web3-provider-engine');
 
 const RPC_TARGET = 'http://foo';
