@@ -9,7 +9,7 @@ import {
 	safelyExecute,
 	validateTransaction,
 	isSmartContractCode
-} from './util';
+} from '../util';
 const MethodRegistry = require('eth-method-registry');
 const EthQuery = require('eth-query');
 const Transaction = require('ethereumjs-tx');

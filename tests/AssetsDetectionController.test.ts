@@ -1,10 +1,10 @@
 import { createSandbox } from 'sinon';
-import { AssetsDetectionController } from '../src/AssetsDetectionController';
-import { NetworkController } from '../src/NetworkController';
-import { PreferencesController } from '../src/PreferencesController';
+import { AssetsDetectionController } from '../src/assets/AssetsDetectionController';
+import { NetworkController } from '../src/network/NetworkController';
+import { PreferencesController } from '../src/user/PreferencesController';
 import { ComposableController } from '../src/ComposableController';
-import { AssetsController } from '../src/AssetsController';
-import { AssetsContractController } from '../src/AssetsContractController';
+import { AssetsController } from '../src/assets/AssetsController';
+import { AssetsContractController } from '../src/assets/AssetsContractController';
 import { getOnce, get } from 'fetch-mock';
 import { stub } from 'sinon';
 

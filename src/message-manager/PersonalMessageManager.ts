@@ -49,7 +49,7 @@ export interface PersonalMessageParamsMetamask extends MessageParamsMetamask {
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
-export class /message-manager/PersonalMessageManager extends MessageManager<
+export class PersonalMessageManager extends MessageManager<
 	PersonalMessage,
 	PersonalMessageParams,
 	PersonalMessageParamsMetamask
@@ -57,7 +57,7 @@ export class /message-manager/PersonalMessageManager extends MessageManager<
 	/**
 	 * Name of this controller used during composition
 	 */
-	name = '/message-manager/PersonalMessageManager';
+	name = 'PersonalMessageManager';
 
 	/**
 	 * Creates a new Message with an 'unapproved' status using the passed messageParams.
@@ -129,4 +129,4 @@ export class /message-manager/PersonalMessageManager extends MessageManager<
 	}
 }
 
-export default /message-manager/PersonalMessageManager;
+export default PersonalMessageManager;

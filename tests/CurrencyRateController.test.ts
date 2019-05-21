@@ -1,5 +1,5 @@
 import { stub } from 'sinon';
-import CurrencyRateController from '../src/CurrencyRateController';
+import CurrencyRateController from '../src/assets/CurrencyRateController';
 
 describe('CurrencyRateController', () => {
 	beforeEach(() => {

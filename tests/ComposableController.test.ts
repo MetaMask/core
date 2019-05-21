@@ -1,12 +1,12 @@
 import { stub } from 'sinon';
-import AddressBookController from '../src/AddressBookController';
+import AddressBookController from '../src/user/AddressBookController';
 import ComposableController from '../src/ComposableController';
-import PreferencesController from '../src/PreferencesController';
-import TokenRatesController from '../src/TokenRatesController';
-import { AssetsController } from '../src/AssetsController';
-import { NetworkController } from '../src/NetworkController';
-import { AssetsContractController } from '../src/AssetsContractController';
-import CurrencyRateController from '../src/CurrencyRateController';
+import PreferencesController from '../src/user/PreferencesController';
+import TokenRatesController from '../src/assets/TokenRatesController';
+import { AssetsController } from '../src/assets/AssetsController';
+import { NetworkController } from '../src/network/NetworkController';
+import { AssetsContractController } from '../src/assets/AssetsContractController';
+import CurrencyRateController from '../src/assets/CurrencyRateController';
 
 describe('ComposableController', () => {
 	it('should compose controller state', () => {

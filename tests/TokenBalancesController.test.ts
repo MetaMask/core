@@ -1,11 +1,11 @@
 import { createSandbox, stub } from 'sinon';
 import ComposableController from '../src/ComposableController';
-import TokenBalancesController from '../src/TokenBalancesController';
-import { AssetsController } from '../src/AssetsController';
-import { Token } from '../src/TokenRatesController';
-import { AssetsContractController } from '../src/AssetsContractController';
-import { NetworkController } from '../src/NetworkController';
-import { PreferencesController } from '../src/PreferencesController';
+import TokenBalancesController from '../src/assets/TokenBalancesController';
+import { AssetsController } from '../src/assets/AssetsController';
+import { Token } from '../src/assets/TokenRatesController';
+import { AssetsContractController } from '../src/assets/AssetsContractController';
+import { NetworkController } from '../src/network/NetworkController';
+import { PreferencesController } from '../src/user/PreferencesController';
 
 const { BN } = require('ethereumjs-util');
 const HttpProvider = require('ethjs-provider-http');
