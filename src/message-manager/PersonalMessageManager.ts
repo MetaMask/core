@@ -1,4 +1,4 @@
-import { validatePersonalSignMessageData, normalizeMessageData } from './util';
+import { validatePersonalSignMessageData, normalizeMessageData } from '../util';
 import MessageManager, { Message, MessageParams, MessageParamsMetamask, OriginalRequest } from './MessageManager';
 const random = require('uuid/v1');
 
@@ -49,7 +49,7 @@ export interface PersonalMessageParamsMetamask extends MessageParamsMetamask {
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
-export class PersonalMessageManager extends MessageManager<
+export class /message-manager/PersonalMessageManager extends MessageManager<
 	PersonalMessage,
 	PersonalMessageParams,
 	PersonalMessageParamsMetamask
@@ -57,7 +57,7 @@ export class PersonalMessageManager extends MessageManager<
 	/**
 	 * Name of this controller used during composition
 	 */
-	name = 'PersonalMessageManager';
+	name = '/message-manager/PersonalMessageManager';
 
 	/**
 	 * Creates a new Message with an 'unapproved' status using the passed messageParams.
@@ -129,4 +129,4 @@ export class PersonalMessageManager extends MessageManager<
 	}
 }
 
-export default PersonalMessageManager;
+export default /message-manager/PersonalMessageManager;

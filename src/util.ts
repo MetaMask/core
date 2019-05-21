@@ -1,7 +1,7 @@
-import { Transaction } from './TransactionController';
-import { PersonalMessageParams } from './PersonalMessageManager';
-import { TypedMessageParams } from './TypedMessageManager';
-import { Token } from './TokenRatesController';
+import { Transaction } from './transaction/TransactionController';
+import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
+import { TypedMessageParams } from './message-manager/TypedMessageManager';
+import { Token } from './assets/TokenRatesController';
 
 const sigUtil = require('eth-sig-util');
 const jsonschema = require('jsonschema');

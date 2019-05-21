@@ -1,12 +1,12 @@
 import 'isomorphic-fetch';
-import BaseController, { BaseConfig, BaseState } from './BaseController';
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import AssetsController from './AssetsController';
-import NetworkController from './NetworkController';
-import PreferencesController from './PreferencesController';
+import NetworkController from '../network/NetworkController';
+import PreferencesController from '../user/PreferencesController';
 import AssetsContractController from './AssetsContractController';
-import { safelyExecute, timeoutFetch } from './util';
+import { safelyExecute, timeoutFetch } from '../util';
 import { Token } from './TokenRatesController';
-import { NetworkType } from './NetworkController';
+import { NetworkType } from '../network/NetworkController';
 
 const contractMap = require('eth-contract-metadata');
 const { toChecksumAddress } = require('ethereumjs-util');

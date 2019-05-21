@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
-import BaseController, { BaseConfig, BaseState } from './BaseController';
-import NetworkController from './NetworkController';
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import NetworkController from '../network/NetworkController';
 import {
 	BNToHex,
 	fractionBN,

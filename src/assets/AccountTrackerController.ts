@@ -1,6 +1,6 @@
-import BaseController, { BaseConfig, BaseState } from './BaseController';
-import PreferencesController from './PreferencesController';
-import { BNToHex, safelyExecute } from './util';
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import PreferencesController from '../user/PreferencesController';
+import { BNToHex, safelyExecute } from '../util';
 
 const EthjsQuery = require('ethjs-query');
 

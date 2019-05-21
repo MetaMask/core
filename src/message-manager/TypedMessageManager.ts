@@ -1,5 +1,5 @@
-import { validateTypedSignMessageDataV3, validateTypedSignMessageDataV1 } from './util';
-import NetworkController from './NetworkController';
+import { validateTypedSignMessageDataV3, validateTypedSignMessageDataV1 } from '../util';
+import NetworkController from '../network/NetworkController';
 import MessageManager, { Message, MessageParams, MessageParamsMetamask, OriginalRequest } from './MessageManager';
 const random = require('uuid/v1');
 
