@@ -3,6 +3,13 @@ import { ContactEntry } from './AddressBookController';
 
 const { toChecksumAddress } = require('ethereumjs-util');
 
+export interface FrequentRpc {
+	rpcUrl: string;
+	chainId?: number;
+	nickname?: string;
+	ticker?: string;
+}
+
 /**
  * @type PreferencesState
  *
@@ -16,7 +23,7 @@ const { toChecksumAddress } = require('ethereumjs-util');
  */
 export interface PreferencesState extends BaseState {
 	featureFlags: { [feature: string]: boolean };
-	frequentRpcList: string[];
+	frequentRpcList: FrequentRpc[];
 	ipfsGateway: string;
 	identities: { [address: string]: ContactEntry };
 	lostIdentities: { [address: string]: ContactEntry };
@@ -171,15 +178,16 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 *
 	 * @param url - Custom RPC URL
 	 */
-	addToFrequentRpcList(url: string) {
+	addToFrequentRpcList(url: string, chainId?: number, ticker?: string, nickname?: string) {
 		const frequentRpcList = this.state.frequentRpcList;
-		const index = frequentRpcList.findIndex((element) => {
-			return element === url;
+		const index = frequentRpcList.findIndex(({ rpcUrl }) => {
+			return rpcUrl === url;
 		});
 		if (index !== -1) {
 			frequentRpcList.splice(index, 1);
 		}
-		frequentRpcList.push(url);
+		const newFrequestRpc: FrequentRpc = { rpcUrl: url, chainId, ticker, nickname };
+		frequentRpcList.push(newFrequestRpc);
 		this.update({ frequentRpcList: [...frequentRpcList] });
 	}
 
@@ -190,8 +198,8 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 */
 	removeFromFrequentRpcList(url: string) {
 		const frequentRpcList = this.state.frequentRpcList;
-		const index = frequentRpcList.findIndex((element) => {
-			return element === url;
+		const index = frequentRpcList.findIndex(({ rpcUrl }) => {
+			return rpcUrl === url;
 		});
 		if (index !== -1) {
 			frequentRpcList.splice(index, 1);

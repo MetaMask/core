@@ -21,6 +21,7 @@ export interface ProviderConfig {
 	type: NetworkType;
 	chainId?: string;
 	ticker?: string;
+	nickname?: string;
 }
 
 /**
@@ -57,7 +58,13 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 	private mutex = new Mutex();
 
-	private initializeProvider(type: NetworkType, rpcTarget?: string, chainId?: string, ticker?: string) {
+	private initializeProvider(
+		type: NetworkType,
+		rpcTarget?: string,
+		chainId?: string,
+		ticker?: string,
+		nickname?: string
+	) {
 		switch (type) {
 			case 'kovan':
 			case 'mainnet':
@@ -71,7 +78,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 				this.setupStandardProvider(LOCALHOST_RPC_URL);
 				break;
 			case 'rpc':
-				rpcTarget && this.setupStandardProvider(rpcTarget, chainId, ticker);
+				rpcTarget && this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
 				break;
 		}
 	}
@@ -104,12 +111,13 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 		this.updateProvider(createMetamaskProvider(config));
 	}
 
-	private setupStandardProvider(rpcTarget: string, chainId?: string, ticker?: string) {
+	private setupStandardProvider(rpcTarget: string, chainId?: string, ticker?: string, nickname?: string) {
 		const config = {
 			...this.internalProviderConfig,
 			...{
 				chainId,
 				engineParams: { pollingInterval: 12000 },
+				nickname,
 				rpcUrl: rpcTarget,
 				ticker
 			}
@@ -159,8 +167,8 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	 */
 	set providerConfig(providerConfig: ProviderConfig) {
 		this.internalProviderConfig = providerConfig;
-		const { type, rpcTarget } = this.state.provider;
-		this.initializeProvider(type, rpcTarget);
+		const { type, rpcTarget, chainId, ticker, nickname } = this.state.provider;
+		this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
 		this.registerProvider();
 		this.lookupNetwork();
 	}
@@ -186,6 +194,9 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	 * @param type - Human readable network name
 	 */
 	setProviderType(type: NetworkType) {
+		delete this.state.provider.rpcTarget;
+		delete this.state.provider.chainId;
+		delete this.state.provider.nickname;
 		this.update({
 			provider: {
 				...this.state.provider,
@@ -200,11 +211,11 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	 *
 	 * @param rpcTarget - RPC endpoint URL
 	 */
-	setRpcTarget(rpcTarget: string, chainId?: string, ticker?: string) {
+	setRpcTarget(rpcTarget: string, chainId?: string, ticker?: string, nickname?: string) {
 		this.update({
 			provider: {
 				...this.state.provider,
-				...{ type: 'rpc', rpcTarget, chainId, ticker }
+				...{ type: 'rpc', rpcTarget, chainId, ticker, nickname }
 			}
 		});
 		this.refreshNetwork();
