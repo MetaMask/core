@@ -17,7 +17,10 @@ export type NetworkType = 'kovan' | 'localhost' | 'mainnet' | 'rinkeby' | 'ropst
  * Configuration passed to web3-provider-engine
  */
 export interface ProviderConfig {
-	// TODO
+	rpcTarget?: string;
+	type: NetworkType;
+	chainId?: string;
+	ticker?: string;
 }
 
 /**
@@ -41,10 +44,7 @@ export interface NetworkConfig extends BaseConfig {
  */
 export interface NetworkState extends BaseState {
 	network: string;
-	provider: {
-		rpcTarget?: string;
-		type: NetworkType;
-	};
+	provider: ProviderConfig;
 }
 
 const LOCALHOST_RPC_URL = 'http://localhost:8545';
@@ -57,7 +57,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 	private mutex = new Mutex();
 
-	private initializeProvider(type: NetworkType, rpcTarget?: string) {
+	private initializeProvider(type: NetworkType, rpcTarget?: string, chainId?: string, ticker?: string) {
 		switch (type) {
 			case 'kovan':
 			case 'mainnet':
@@ -71,15 +71,15 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 				this.setupStandardProvider(LOCALHOST_RPC_URL);
 				break;
 			case 'rpc':
-				rpcTarget && this.setupStandardProvider(rpcTarget);
+				rpcTarget && this.setupStandardProvider(rpcTarget, chainId, ticker);
 				break;
 		}
 	}
 
 	private refreshNetwork() {
 		this.update({ network: 'loading' });
-		const { rpcTarget, type } = this.state.provider;
-		this.initializeProvider(type, rpcTarget);
+		const { rpcTarget, type, chainId, ticker } = this.state.provider;
+		this.initializeProvider(type, rpcTarget, chainId, ticker);
 		this.lookupNetwork();
 	}
 
@@ -104,12 +104,14 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 		this.updateProvider(createMetamaskProvider(config));
 	}
 
-	private setupStandardProvider(rpcTarget: string) {
+	private setupStandardProvider(rpcTarget: string, chainId?: string, ticker?: string) {
 		const config = {
 			...this.internalProviderConfig,
 			...{
+				chainId,
 				engineParams: { pollingInterval: 12000 },
-				rpcUrl: rpcTarget
+				rpcUrl: rpcTarget,
+				ticker
 			}
 		};
 		this.updateProvider(createMetamaskProvider(config));
@@ -198,11 +200,11 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	 *
 	 * @param rpcTarget - RPC endpoint URL
 	 */
-	setRpcTarget(rpcTarget: string) {
+	setRpcTarget(rpcTarget: string, chainId?: string, ticker?: string) {
 		this.update({
 			provider: {
 				...this.state.provider,
-				...{ type: 'rpc', rpcTarget }
+				...{ type: 'rpc', rpcTarget, chainId, ticker }
 			}
 		});
 		this.refreshNetwork();
