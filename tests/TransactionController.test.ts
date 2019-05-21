@@ -1,5 +1,5 @@
 import { stub } from 'sinon';
-import TransactionController from './TransactionController';
+import TransactionController from '../src/TransactionController';
 const globalAny: any = global;
 
 const mockFlags: { [key: string]: any } = {

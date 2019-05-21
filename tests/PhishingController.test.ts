@@ -1,5 +1,5 @@
 import { stub } from 'sinon';
-import PhishingController from './PhishingController';
+import PhishingController from '../src/PhishingController';
 
 describe('PhishingController', () => {
 	it('should set default state', () => {
