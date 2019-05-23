@@ -1,7 +1,7 @@
-import KeyringController, { Keyring } from './KeyringController';
-import PreferencesController from './PreferencesController';
-import ComposableController from './ComposableController';
-import { KeyringConfig } from './KeyringController';
+import KeyringController, { Keyring } from '../src/KeyringController';
+import PreferencesController from '../src/PreferencesController';
+import ComposableController from '../src/ComposableController';
+import { KeyringConfig } from '../src/KeyringController';
 import { stub } from 'sinon';
 const ethUtil = require('ethereumjs-util');
 const mockEncryptor: any = require('../node_modules/eth-keyring-controller/test/lib/mock-encryptor.js');

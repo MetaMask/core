@@ -1,6 +1,6 @@
 import { getOnce } from 'fetch-mock';
 import { stub } from 'sinon';
-import ShapeShiftController from './ShapeShiftController';
+import ShapeShiftController from '../src/ShapeShiftController';
 
 const PENDING_TX = {
 	depositAddress: 'foo',
