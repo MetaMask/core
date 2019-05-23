@@ -15,6 +15,12 @@ export type NetworkType = 'kovan' | 'localhost' | 'mainnet' | 'rinkeby' | 'ropst
  * @type ProviderConfig
  *
  * Configuration passed to web3-provider-engine
+ *
+ * @param rpcTarget? - RPC target URL
+ * @param type - Human-readable network name
+ * @param chainId? - Network ID as per EIP-155
+ * @param ticker? - Currency ticker
+ * @param nickname? - Personalized network name
  */
 export interface ProviderConfig {
 	rpcTarget?: string;
@@ -208,6 +214,9 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	 * Convenience method to update provider RPC settings
 	 *
 	 * @param rpcTarget - RPC endpoint URL
+	 * @param chainId? - Network ID as per EIP-155
+	 * @param ticker? - Currency ticker
+	 * @param nickname? - Personalized network name
 	 */
 	setRpcTarget(rpcTarget: string, chainId?: string, ticker?: string, nickname?: string) {
 		this.update({

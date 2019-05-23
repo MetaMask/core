@@ -3,6 +3,15 @@ import { ContactEntry } from './AddressBookController';
 
 const { toChecksumAddress } = require('ethereumjs-util');
 
+/**
+ * Custom RPC network information
+ *
+ * @param rpcUrl - RPC target URL
+ * @param chainId? - Network ID as per EIP-155
+ * @param ticker? - Currency ticker
+ * @param nickname? - Personalized network name
+ * @param rpcPrefs? - Personalized preferences
+ */
 export interface FrequentRpc {
 	rpcUrl: string;
 	chainId?: number;
@@ -11,6 +20,11 @@ export interface FrequentRpc {
 	rpcPrefs?: RpcPreferences;
 }
 
+/**
+ * Custom RPC network preferences
+ *
+ * @param blockExplorerUrl - Block explorer URL
+ */
 export interface RpcPreferences {
 	blockExplorerUrl: string;
 }
@@ -182,6 +196,11 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * Adds custom RPC URL to state
 	 *
 	 * @param url - Custom RPC URL
+	 * @param chainId? - Network ID as per EIP-155
+	 * @param ticker? - Currency ticker
+	 * @param nickname? - Personalized network name
+	 * @param rpcPrefs? - Personalized preferences
+	 *
 	 */
 	addToFrequentRpcList(url: string, chainId?: number, ticker?: string, nickname?: string, rpcPrefs?: RpcPreferences) {
 		const frequentRpcList = this.state.frequentRpcList;
