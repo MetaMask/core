@@ -194,12 +194,10 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	 * @param type - Human readable network name
 	 */
 	setProviderType(type: NetworkType) {
-		delete this.state.provider.rpcTarget;
-		delete this.state.provider.chainId;
-		delete this.state.provider.nickname;
+		const { rpcTarget, chainId, nickname, ...providerState } = this.state.provider;
 		this.update({
 			provider: {
-				...this.state.provider,
+				...providerState,
 				...{ type, ticker: 'ETH' }
 			}
 		});
@@ -215,7 +213,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 		this.update({
 			provider: {
 				...this.state.provider,
-				...{ type: 'rpc', rpcTarget, chainId, ticker, nickname }
+				...{ type: 'rpc', ticker, rpcTarget, chainId, nickname }
 			}
 		});
 		this.refreshNetwork();
