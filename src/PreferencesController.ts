@@ -8,6 +8,11 @@ export interface FrequentRpc {
 	chainId?: number;
 	nickname?: string;
 	ticker?: string;
+	rpcPrefs?: RpcPreferences;
+}
+
+export interface RpcPreferences {
+	blockExplorerUrl: string;
 }
 
 /**
@@ -178,7 +183,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 *
 	 * @param url - Custom RPC URL
 	 */
-	addToFrequentRpcList(url: string, chainId?: number, ticker?: string, nickname?: string) {
+	addToFrequentRpcList(url: string, chainId?: number, ticker?: string, nickname?: string, rpcPrefs?: RpcPreferences) {
 		const frequentRpcList = this.state.frequentRpcList;
 		const index = frequentRpcList.findIndex(({ rpcUrl }) => {
 			return rpcUrl === url;
@@ -186,7 +191,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 		if (index !== -1) {
 			frequentRpcList.splice(index, 1);
 		}
-		const newFrequestRpc: FrequentRpc = { rpcUrl: url, chainId, ticker, nickname };
+		const newFrequestRpc: FrequentRpc = { rpcUrl: url, chainId, ticker, nickname, rpcPrefs };
 		frequentRpcList.push(newFrequestRpc);
 		this.update({ frequentRpcList: [...frequentRpcList] });
 	}
