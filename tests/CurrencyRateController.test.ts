@@ -1,5 +1,5 @@
 import { stub } from 'sinon';
-import CurrencyRateController from './CurrencyRateController';
+import CurrencyRateController from '../src/CurrencyRateController';
 
 describe('CurrencyRateController', () => {
 	beforeEach(() => {
@@ -32,16 +32,17 @@ describe('CurrencyRateController', () => {
 
 	it('should poll and update rate in the right interval', () => {
 		return new Promise((resolve) => {
-			const mock = stub(CurrencyRateController.prototype, 'fetchExchangeRate');
-			// tslint:disable-next-line: no-unused-expression
-			new CurrencyRateController({ interval: 10 });
-			expect(mock.called).toBe(true);
-			expect(mock.calledTwice).toBe(false);
+			const controller = new CurrencyRateController({ interval: 100 });
+			const mock = stub(controller, 'fetchExchangeRate').resolves({});
+			setTimeout(() => {
+				expect(mock.called).toBe(true);
+				expect(mock.calledTwice).toBe(false);
+			}, 1);
 			setTimeout(() => {
 				expect(mock.calledTwice).toBe(true);
 				mock.restore();
 				resolve();
-			}, 15);
+			}, 150);
 		});
 	});
 
@@ -49,7 +50,7 @@ describe('CurrencyRateController', () => {
 		const controller = new CurrencyRateController({
 			interval: 10
 		});
-		controller.fetchExchangeRate = stub();
+		controller.fetchExchangeRate = stub().resolves({});
 		controller.disabled = true;
 		await controller.updateExchangeRate();
 		expect((controller.fetchExchangeRate as any).called).toBe(false);

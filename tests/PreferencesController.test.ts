@@ -1,4 +1,4 @@
-import PreferencesController from './PreferencesController';
+import PreferencesController from '../src/PreferencesController';
 
 describe('PreferencesController', () => {
 	it('should set default state', () => {
@@ -71,17 +71,41 @@ describe('PreferencesController', () => {
 
 	it('should add custom rpc url', () => {
 		const controller = new PreferencesController();
+		const rpcUrlNetwork = {
+			chainId: undefined,
+			nickname: 'RPC',
+			rpcPrefs: undefined,
+			rpcUrl: 'rpc_url',
+			ticker: 'RPC'
+		};
+		const localhostNetwork = {
+			chainId: undefined,
+			nickname: undefined,
+			rpcPrefs: undefined,
+			rpcUrl: 'http://localhost:8545',
+			ticker: 'LOCAL'
+		};
+		controller.addToFrequentRpcList('rpc_url', undefined, 'RPC', 'RPC');
+		controller.addToFrequentRpcList('http://localhost:8545', undefined, 'LOCAL');
+		expect(controller.state.frequentRpcList).toEqual([rpcUrlNetwork, localhostNetwork]);
 		controller.addToFrequentRpcList('rpc_url');
-		controller.addToFrequentRpcList('http://localhost:8545');
-		expect(controller.state.frequentRpcList).toEqual(['rpc_url', 'http://localhost:8545']);
-		controller.addToFrequentRpcList('rpc_url');
-		expect(controller.state.frequentRpcList).toEqual(['http://localhost:8545', 'rpc_url']);
+		expect(controller.state.frequentRpcList).toEqual([
+			localhostNetwork,
+			{ ...rpcUrlNetwork, nickname: undefined, ticker: undefined }
+		]);
 	});
 
 	it('should remove custom rpc url', () => {
 		const controller = new PreferencesController();
+		const rpcUrlNetwork = {
+			chainId: undefined,
+			nickname: undefined,
+			rpcPrefs: undefined,
+			rpcUrl: 'rpc_url',
+			ticker: undefined
+		};
 		controller.addToFrequentRpcList('rpc_url');
-		expect(controller.state.frequentRpcList).toEqual(['rpc_url']);
+		expect(controller.state.frequentRpcList).toEqual([rpcUrlNetwork]);
 		controller.removeFromFrequentRpcList('other_rpc_url');
 		controller.removeFromFrequentRpcList('rpc_url');
 		expect(controller.state.frequentRpcList).toEqual([]);
