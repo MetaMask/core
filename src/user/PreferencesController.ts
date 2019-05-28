@@ -4,6 +4,32 @@ import { ContactEntry } from '../user/AddressBookController';
 const { toChecksumAddress } = require('ethereumjs-util');
 
 /**
+ * Custom RPC network information
+ *
+ * @param rpcUrl - RPC target URL
+ * @param chainId? - Network ID as per EIP-155
+ * @param ticker? - Currency ticker
+ * @param nickname? - Personalized network name
+ * @param rpcPrefs? - Personalized preferences
+ */
+export interface FrequentRpc {
+	rpcUrl: string;
+	chainId?: number;
+	nickname?: string;
+	ticker?: string;
+	rpcPrefs?: RpcPreferences;
+}
+
+/**
+ * Custom RPC network preferences
+ *
+ * @param blockExplorerUrl - Block explorer URL
+ */
+export interface RpcPreferences {
+	blockExplorerUrl: string;
+}
+
+/**
  * @type PreferencesState
  *
  * Preferences controller state
@@ -16,7 +42,7 @@ const { toChecksumAddress } = require('ethereumjs-util');
  */
 export interface PreferencesState extends BaseState {
 	featureFlags: { [feature: string]: boolean };
-	frequentRpcList: string[];
+	frequentRpcList: FrequentRpc[];
 	ipfsGateway: string;
 	identities: { [address: string]: ContactEntry };
 	lostIdentities: { [address: string]: ContactEntry };
@@ -170,16 +196,22 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 * Adds custom RPC URL to state
 	 *
 	 * @param url - Custom RPC URL
+	 * @param chainId? - Network ID as per EIP-155
+	 * @param ticker? - Currency ticker
+	 * @param nickname? - Personalized network name
+	 * @param rpcPrefs? - Personalized preferences
+	 *
 	 */
-	addToFrequentRpcList(url: string) {
+	addToFrequentRpcList(url: string, chainId?: number, ticker?: string, nickname?: string, rpcPrefs?: RpcPreferences) {
 		const frequentRpcList = this.state.frequentRpcList;
-		const index = frequentRpcList.findIndex((element) => {
-			return element === url;
+		const index = frequentRpcList.findIndex(({ rpcUrl }) => {
+			return rpcUrl === url;
 		});
 		if (index !== -1) {
 			frequentRpcList.splice(index, 1);
 		}
-		frequentRpcList.push(url);
+		const newFrequestRpc: FrequentRpc = { rpcUrl: url, chainId, ticker, nickname, rpcPrefs };
+		frequentRpcList.push(newFrequestRpc);
 		this.update({ frequentRpcList: [...frequentRpcList] });
 	}
 
@@ -190,8 +222,8 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	 */
 	removeFromFrequentRpcList(url: string) {
 		const frequentRpcList = this.state.frequentRpcList;
-		const index = frequentRpcList.findIndex((element) => {
-			return element === url;
+		const index = frequentRpcList.findIndex(({ rpcUrl }) => {
+			return rpcUrl === url;
 		});
 		if (index !== -1) {
 			frequentRpcList.splice(index, 1);

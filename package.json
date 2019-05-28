@@ -1,6 +1,6 @@
 {
   "name": "gaba",
-  "version": "1.0.3",
+  "version": "1.2.0",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "license": "MIT",
   "scripts": {

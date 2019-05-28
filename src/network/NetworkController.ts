@@ -15,9 +15,19 @@ export type NetworkType = 'kovan' | 'localhost' | 'mainnet' | 'rinkeby' | 'ropst
  * @type ProviderConfig
  *
  * Configuration passed to web3-provider-engine
+ *
+ * @param rpcTarget? - RPC target URL
+ * @param type - Human-readable network name
+ * @param chainId? - Network ID as per EIP-155
+ * @param ticker? - Currency ticker
+ * @param nickname? - Personalized network name
  */
 export interface ProviderConfig {
-	// TODO
+	rpcTarget?: string;
+	type: NetworkType;
+	chainId?: string;
+	ticker?: string;
+	nickname?: string;
 }
 
 /**
@@ -41,10 +51,7 @@ export interface NetworkConfig extends BaseConfig {
  */
 export interface NetworkState extends BaseState {
 	network: string;
-	provider: {
-		rpcTarget?: string;
-		type: NetworkType;
-	};
+	provider: ProviderConfig;
 }
 
 const LOCALHOST_RPC_URL = 'http://localhost:8545';
@@ -57,7 +64,13 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 	private mutex = new Mutex();
 
-	private initializeProvider(type: NetworkType, rpcTarget?: string) {
+	private initializeProvider(
+		type: NetworkType,
+		rpcTarget?: string,
+		chainId?: string,
+		ticker?: string,
+		nickname?: string
+	) {
 		switch (type) {
 			case 'kovan':
 			case 'mainnet':
@@ -71,15 +84,15 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 				this.setupStandardProvider(LOCALHOST_RPC_URL);
 				break;
 			case 'rpc':
-				rpcTarget && this.setupStandardProvider(rpcTarget);
+				rpcTarget && this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
 				break;
 		}
 	}
 
 	private refreshNetwork() {
 		this.update({ network: 'loading' });
-		const { rpcTarget, type } = this.state.provider;
-		this.initializeProvider(type, rpcTarget);
+		const { rpcTarget, type, chainId, ticker } = this.state.provider;
+		this.initializeProvider(type, rpcTarget, chainId, ticker);
 		this.lookupNetwork();
 	}
 
@@ -104,12 +117,15 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 		this.updateProvider(createMetamaskProvider(config));
 	}
 
-	private setupStandardProvider(rpcTarget: string) {
+	private setupStandardProvider(rpcTarget: string, chainId?: string, ticker?: string, nickname?: string) {
 		const config = {
 			...this.internalProviderConfig,
 			...{
+				chainId,
 				engineParams: { pollingInterval: 12000 },
-				rpcUrl: rpcTarget
+				nickname,
+				rpcUrl: rpcTarget,
+				ticker
 			}
 		};
 		this.updateProvider(createMetamaskProvider(config));
@@ -157,8 +173,8 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	 */
 	set providerConfig(providerConfig: ProviderConfig) {
 		this.internalProviderConfig = providerConfig;
-		const { type, rpcTarget } = this.state.provider;
-		this.initializeProvider(type, rpcTarget);
+		const { type, rpcTarget, chainId, ticker, nickname } = this.state.provider;
+		this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
 		this.registerProvider();
 		this.lookupNetwork();
 	}
@@ -184,10 +200,11 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	 * @param type - Human readable network name
 	 */
 	setProviderType(type: NetworkType) {
+		const { rpcTarget, chainId, nickname, ...providerState } = this.state.provider;
 		this.update({
 			provider: {
-				...this.state.provider,
-				...{ type }
+				...providerState,
+				...{ type, ticker: 'ETH' }
 			}
 		});
 		this.refreshNetwork();
@@ -197,12 +214,15 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	 * Convenience method to update provider RPC settings
 	 *
 	 * @param rpcTarget - RPC endpoint URL
+	 * @param chainId? - Network ID as per EIP-155
+	 * @param ticker? - Currency ticker
+	 * @param nickname? - Personalized network name
 	 */
-	setRpcTarget(rpcTarget: string) {
+	setRpcTarget(rpcTarget: string, chainId?: string, ticker?: string, nickname?: string) {
 		this.update({
 			provider: {
 				...this.state.provider,
-				...{ type: 'rpc', rpcTarget }
+				...{ type: 'rpc', ticker, rpcTarget, chainId, nickname }
 			}
 		});
 		this.refreshNetwork();
