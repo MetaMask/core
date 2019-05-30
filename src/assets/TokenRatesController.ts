@@ -1,7 +1,7 @@
 import 'isomorphic-fetch';
-import BaseController, { BaseConfig, BaseState } from './BaseController';
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import AssetsController from './AssetsController';
-import { safelyExecute } from './util';
+import { safelyExecute } from '../util';
 import CurrencyRateController from './CurrencyRateController';
 const { toChecksumAddress } = require('ethereumjs-util');
 

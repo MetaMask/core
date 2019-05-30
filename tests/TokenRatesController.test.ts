@@ -1,11 +1,11 @@
 import { stub } from 'sinon';
 import ComposableController from '../src/ComposableController';
-import TokenRatesController, { Token } from '../src/TokenRatesController';
-import { AssetsController } from '../src/AssetsController';
-import { PreferencesController } from '../src/PreferencesController';
-import { NetworkController } from '../src/NetworkController';
-import { AssetsContractController } from '../src/AssetsContractController';
-import CurrencyRateController from '../src/CurrencyRateController';
+import TokenRatesController, { Token } from '../src/assets/TokenRatesController';
+import { AssetsController } from '../src/assets/AssetsController';
+import { PreferencesController } from '../src/user/PreferencesController';
+import { NetworkController } from '../src/network/NetworkController';
+import { AssetsContractController } from '../src/assets/AssetsContractController';
+import CurrencyRateController from '../src/assets/CurrencyRateController';
 
 describe('TokenRatesController', () => {
 	it('should set default state', () => {

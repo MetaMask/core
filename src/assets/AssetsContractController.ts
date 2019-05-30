@@ -1,5 +1,5 @@
 import 'isomorphic-fetch';
-import BaseController, { BaseConfig, BaseState } from './BaseController';
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
 const BN = require('ethereumjs-util').BN;
 const Web3 = require('web3');

@@ -1,6 +1,6 @@
 import 'isomorphic-fetch';
-import BaseController, { BaseConfig, BaseState } from './BaseController';
-import { safelyExecute } from './util';
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { safelyExecute } from '../util';
 
 /**
  * Network status code string
