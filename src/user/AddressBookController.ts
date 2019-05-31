@@ -1,4 +1,4 @@
-import BaseController, { BaseConfig, BaseState } from './BaseController';
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
 const extend = require('xtend');
 const { isValidAddress } = require('ethereumjs-util');
 

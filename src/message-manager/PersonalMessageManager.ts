@@ -1,4 +1,4 @@
-import { validatePersonalSignMessageData, normalizeMessageData } from './util';
+import { validatePersonalSignMessageData, normalizeMessageData } from '../util';
 import MessageManager, { Message, MessageParams, MessageParamsMetamask, OriginalRequest } from './MessageManager';
 const random = require('uuid/v1');
 

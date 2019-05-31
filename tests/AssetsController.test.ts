@@ -1,10 +1,10 @@
 import { createSandbox } from 'sinon';
 import { getOnce } from 'fetch-mock';
-import AssetsController from '../src/AssetsController';
+import AssetsController from '../src/assets/AssetsController';
 import ComposableController from '../src/ComposableController';
-import PreferencesController from '../src/PreferencesController';
-import { NetworkController } from '../src/NetworkController';
-import { AssetsContractController } from '../src/AssetsContractController';
+import PreferencesController from '../src/user/PreferencesController';
+import { NetworkController } from '../src/network/NetworkController';
+import { AssetsContractController } from '../src/assets/AssetsContractController';
 
 const HttpProvider = require('ethjs-provider-http');
 const KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';

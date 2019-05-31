@@ -1,7 +1,7 @@
 import 'isomorphic-fetch';
-import BaseController, { BaseConfig, BaseState } from './BaseController';
-import { safelyExecute } from './util';
 const Mutex = require('await-semaphore').Mutex;
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { safelyExecute } from '../util';
 
 /**
  * @type CurrencyRateConfig

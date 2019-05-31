@@ -1,4 +1,4 @@
-import PreferencesController from '../src/PreferencesController';
+import PreferencesController from '../src/user/PreferencesController';
 
 describe('PreferencesController', () => {
 	it('should set default state', () => {

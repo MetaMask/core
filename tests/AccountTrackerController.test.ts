@@ -1,5 +1,5 @@
-import AccountTrackerController from '../src/AccountTrackerController';
-import PreferencesController from '../src/PreferencesController';
+import AccountTrackerController from '../src/assets/AccountTrackerController';
+import PreferencesController from '../src/user/PreferencesController';
 import ComposableController from '../src/ComposableController';
 import { stub, spy } from 'sinon';
 
