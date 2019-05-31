@@ -16,7 +16,7 @@ describe('CurrencyRateController', () => {
 			conversionDate: 0,
 			conversionRate: 0,
 			currentCurrency: 'usd',
-			nativeCurrency: 'eth'
+			nativeCurrency: 'ETH'
 		});
 	});
 
@@ -26,7 +26,7 @@ describe('CurrencyRateController', () => {
 			currentCurrency: 'usd',
 			disabled: false,
 			interval: 180000,
-			nativeCurrency: 'eth'
+			nativeCurrency: 'ETH'
 		});
 	});
 

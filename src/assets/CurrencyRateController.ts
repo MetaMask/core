@@ -69,7 +69,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 			currentCurrency: 'usd',
 			disabled: true,
 			interval: 180000,
-			nativeCurrency: 'eth'
+			nativeCurrency: 'ETH'
 		};
 		this.defaultState = {
 			conversionDate: 0,
@@ -127,7 +127,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 		const response = await fetch(this.getPricingURL(currency, nativeCurrency));
 		const json = await response.json();
 		return {
-			conversionDate: Date.now(),
+			conversionDate: Date.now() / 1000,
 			conversionRate: Number(json[currency.toUpperCase()]),
 			currentCurrency: currency,
 			nativeCurrency
