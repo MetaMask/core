@@ -1,6 +1,6 @@
 import 'isomorphic-fetch';
-import BaseController, { BaseConfig, BaseState } from './BaseController';
-import { safelyExecute } from './util';
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { safelyExecute } from '../util';
 
 const DEFAULT_PHISHING_RESPONSE = require('eth-phishing-detect/src/config.json');
 const PhishingDetector = require('eth-phishing-detect/src/detector');

@@ -1,8 +1,8 @@
 import 'isomorphic-fetch';
-import BaseController, { BaseConfig, BaseState } from './BaseController';
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import AssetsController from './AssetsController';
 import { Token } from './TokenRatesController';
-import { safelyExecute } from './util';
+import { safelyExecute } from '../util';
 import { AssetsContractController } from './AssetsContractController';
 
 const { BN } = require('ethereumjs-util');

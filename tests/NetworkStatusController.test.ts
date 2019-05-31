@@ -1,5 +1,5 @@
 import { stub } from 'sinon';
-import NetworkStatusController from '../src/NetworkStatusController';
+import NetworkStatusController from '../src/network/NetworkStatusController';
 
 const DOWN_NETWORK_STATUS = {
 	kovan: 'down',

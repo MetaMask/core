@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
-import BaseController, { BaseConfig, BaseState } from './BaseController';
-import NetworkController from './NetworkController';
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import NetworkController from '../network/NetworkController';
 import {
 	BNToHex,
 	fractionBN,
@@ -9,7 +9,7 @@ import {
 	safelyExecute,
 	validateTransaction,
 	isSmartContractCode
-} from './util';
+} from '../util';
 const MethodRegistry = require('eth-method-registry');
 const EthQuery = require('eth-query');
 const Transaction = require('ethereumjs-tx');

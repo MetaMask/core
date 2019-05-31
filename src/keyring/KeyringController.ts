@@ -1,9 +1,9 @@
 import 'isomorphic-fetch';
-import BaseController, { BaseConfig, BaseState, Listener } from './BaseController';
-import PreferencesController from './PreferencesController';
-import { Transaction } from './TransactionController';
-import { PersonalMessageParams } from './PersonalMessageManager';
-import { TypedMessageParams } from './TypedMessageManager';
+import BaseController, { BaseConfig, BaseState, Listener } from '../BaseController';
+import PreferencesController from '../user/PreferencesController';
+import { Transaction } from '../transaction/TransactionController';
+import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
+import { TypedMessageParams } from '../message-manager/TypedMessageManager';
 const sigUtil = require('eth-sig-util');
 const { toChecksumAddress } = require('ethereumjs-util');
 const Keyring = require('eth-keyring-controller');

@@ -1,10 +1,10 @@
 import 'isomorphic-fetch';
-import BaseController, { BaseConfig, BaseState } from './BaseController';
-import PreferencesController from './PreferencesController';
-import NetworkController, { NetworkType } from './NetworkController';
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import PreferencesController from '../user/PreferencesController';
+import NetworkController, { NetworkType } from '../network/NetworkController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
-import { safelyExecute, handleFetch, validateTokenToWatch } from './util';
+import { safelyExecute, handleFetch, validateTokenToWatch } from '../util';
 import { EventEmitter } from 'events';
 import { ApiCollectibleResponse } from './AssetsDetectionController';
 

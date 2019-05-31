@@ -1,4 +1,4 @@
-import BaseController, { BaseConfig, BaseState } from './BaseController';
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
 const EthQuery = require('eth-query');
 const Subprovider = require('web3-provider-engine/subproviders/provider.js');
