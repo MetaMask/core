@@ -1,4 +1,4 @@
-import BaseController, { BaseConfig, BaseState } from './BaseController';
+import BaseController, { BaseConfig, BaseState } from '../BaseController';
 const extend = require('xtend');
 const { isValidAddress } = require('ethereumjs-util');
 
@@ -63,7 +63,7 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 */
 	delete(address: string) {
 		delete this.state.addressBook[address];
-		this.update({ addressBook: this.state.addressBook });
+		this.update({ ...this.state.addressBook });
 	}
 
 	/**
@@ -77,21 +77,7 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 		if (!isValidAddress(address)) {
 			return false;
 		}
-		const oldAddresses: any = {};
-		for (const entry in this.state.addressBook) {
-			const oldEntry = {
-				address: this.state.addressBook[entry].address,
-				name: this.state.addressBook[entry].name
-			};
-			oldAddresses[entry] = oldEntry;
-		}
-
-		const addressEntry = { address, name };
-		const newEntry: any = {};
-		newEntry[address] = addressEntry;
-
-		const combined = extend(oldAddresses, newEntry);
-		this.update({ addressBook: combined });
+		this.update({ addressBook: extend(this.state.addressBook, { [address]: { address, name } }) });
 		return true;
 	}
 }
