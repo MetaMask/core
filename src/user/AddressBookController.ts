@@ -63,7 +63,7 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 */
 	delete(address: string) {
 		delete this.state.addressBook[address];
-		this.update({ addressBook: this.state.addressBook });
+		this.update({ addressBook: { ...this.state.addressBook } });
 	}
 
 	/**
