@@ -20,7 +20,7 @@ describe('ComposableController', () => {
 			new TokenRatesController()
 		]);
 		expect(controller.state).toEqual({
-			AddressBookController: { addressBook: {} },
+			AddressBookController: { addressBook: [] },
 			AssetsContractController: {},
 			AssetsController: {
 				allCollectibleContracts: {},
@@ -66,7 +66,7 @@ describe('ComposableController', () => {
 			new TokenRatesController()
 		]);
 		expect(controller.flatState).toEqual({
-			addressBook: {},
+			addressBook: [],
 			allCollectibleContracts: {},
 			allCollectibles: {},
 			allTokens: {},
@@ -107,12 +107,7 @@ describe('ComposableController', () => {
 		expect(addressContext).toBeDefined();
 		addressContext.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
 		expect(controller.flatState).toEqual({
-			addressBook: {
-				'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
-					address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-					name: 'foo'
-				}
-			},
+			addressBook: [{ address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88', name: 'foo' }],
 			allCollectibleContracts: {},
 			allCollectibles: {},
 			allTokens: {},
@@ -169,12 +164,7 @@ describe('ComposableController', () => {
 		expect(listener.calledOnce).toBe(true);
 		expect(listener.getCall(0).args[0]).toEqual({
 			AddressBookController: {
-				addressBook: {
-					'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
-						address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-						name: 'foo'
-					}
-				}
+				addressBook: [{ address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88', name: 'foo' }]
 			}
 		});
 	});
