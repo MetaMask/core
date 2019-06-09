@@ -1,5 +1,5 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-const extend = require('xtend');
+
 const { isValidAddress } = require('ethereumjs-util');
 
 /**
@@ -23,13 +23,15 @@ export interface ContactEntry {
  * @property addressBook - Array of contact entry objects
  */
 export interface AddressBookState extends BaseState {
-	addressBook: { [address: string]: ContactEntry };
+	addressBook: ContactEntry[];
 }
 
 /**
  * Controller that manages a list of recipient addresses associated with nicknames
  */
 export class AddressBookController extends BaseController<BaseConfig, AddressBookState> {
+	private addressBook = new Map<string, ContactEntry>();
+
 	/**
 	 * Name of this controller used during composition
 	 */
@@ -43,9 +45,7 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 */
 	constructor(config?: Partial<BaseConfig>, state?: Partial<AddressBookState>) {
 		super(config, state);
-
-		this.defaultState = { addressBook: {} };
-
+		this.defaultState = { addressBook: [] };
 		this.initialize();
 	}
 
@@ -53,7 +53,8 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 * Remove all contract entries
 	 */
 	clear() {
-		this.update({ addressBook: {} });
+		this.addressBook.clear();
+		this.update({ addressBook: Array.from(this.addressBook.values()) });
 	}
 
 	/**
@@ -62,8 +63,8 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 * @param address - Recipient address to delete
 	 */
 	delete(address: string) {
-		delete this.state.addressBook[address];
-		this.update({ addressBook: { ...this.state.addressBook } });
+		this.addressBook.delete(address);
+		this.update({ addressBook: Array.from(this.addressBook.values()) });
 	}
 
 	/**
@@ -77,7 +78,8 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 		if (!isValidAddress(address)) {
 			return false;
 		}
-		this.update({ addressBook: extend(this.state.addressBook, { [address]: { address, name } }) });
+		this.addressBook.set(address, { address, name });
+		this.update({ addressBook: Array.from(this.addressBook.values()) });
 		return true;
 	}
 }
