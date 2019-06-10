@@ -92,5 +92,17 @@
     "uuid": "^3.3.2",
     "web3": "^0.20.7",
     "web3-provider-engine": "github:metamask/provider-engine#e91367bc2c2535fbf7add06244d9d4ec98620042"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MetaMask/gaba.git"
+  },
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "bugs": {
+    "url": "https://github.com/MetaMask/gaba/issues"
+  },
+  "homepage": "https://github.com/MetaMask/gaba#readme"
 }
