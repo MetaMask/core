@@ -197,7 +197,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 
 	/**
 	 * Triggers asset ERC721 token auto detection on mainnet
-	 * adding new collectibles or removing not owned collectibles
+	 * adding new collectibles and removing not owned collectibles
 	 */
 	async detectCollectibles() {
 		/* istanbul ignore if */
