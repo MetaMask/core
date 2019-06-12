@@ -249,7 +249,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 				});
 			});
 			await Promise.all(addCollectiblesPromises);
-			collectiblesToRemove.map(({ address, tokenId }) => {
+			collectiblesToRemove.forEach(({ address, tokenId }) => {
 				assetsController.removeCollectible(address, tokenId);
 			});
 		});
