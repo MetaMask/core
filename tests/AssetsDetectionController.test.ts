@@ -230,6 +230,30 @@ describe('AssetsDetectionController', () => {
 		]);
 	});
 
+	it('should detect, add collectibles and remove not detected collectibles correctly', async () => {
+		assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
+		await assets.addCollectible('0x1D963688FE2209A98db35c67A041524822cf04Hh', 2573, {
+			description: 'desc',
+			image: 'image',
+			name: 'name'
+		});
+		await assets.addCollectible('0x1D963688FE2209A98db35c67A041524822cf04Hh', 2572, {
+			description: 'desc',
+			image: 'image',
+			name: 'name'
+		});
+		await assetsDetection.detectCollectibles();
+		expect(assets.state.collectibles).toEqual([
+			{
+				address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+				description: 'Description 2574',
+				image: 'image/2574.png',
+				name: 'ID 2574',
+				tokenId: 2574
+			}
+		]);
+	});
+
 	it('should not autodetect collectibles that exist in the ignoreList', async () => {
 		assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x2' });
 		await assetsDetection.detectCollectibles();
