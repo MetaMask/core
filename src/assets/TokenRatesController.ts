@@ -165,12 +165,12 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 		const newContractExchangeRates: { [address: string]: number } = {};
 		const { nativeCurrency } = this.config;
 		const pairs = this.tokenList.map((token) => token.address).join(',');
-		const query = `contract_addresses=${pairs}&vs_currencies=${nativeCurrency}`;
+		const query = `contract_addresses=${pairs}&vs_currencies=${nativeCurrency.toLowerCase()}`;
 		const prices = await this.fetchExchangeRate(query);
 		this.tokenList.forEach((token) => {
 			const address = toChecksumAddress(token.address);
 			const price = prices[token.address.toLowerCase()];
-			newContractExchangeRates[address] = price ? price[nativeCurrency] : 0;
+			newContractExchangeRates[address] = price ? price[nativeCurrency.toLowerCase()] : 0;
 		});
 		this.update({ contractExchangeRates: newContractExchangeRates });
 	}
