@@ -196,7 +196,8 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	}
 
 	/**
-	 * Triggers asset ERC721 token auto detection suing OpenSea on mainnet
+	 * Triggers asset ERC721 token auto detection on mainnet
+	 * adding new collectibles or removing not owned collectibles
 	 */
 	async detectCollectibles() {
 		/* istanbul ignore if */
@@ -211,8 +212,9 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 		await safelyExecute(async () => {
 			const assetsController = this.context.AssetsController as AssetsController;
 			const { ignoredCollectibles } = assetsController.state;
-			const collectibles = await this.getOwnerCollectibles();
-			const addCollectiblesPromises = collectibles.map(async (collectible: ApiCollectibleResponse) => {
+			let collectiblesToRemove = assetsController.state.collectibles;
+			const apiCollectibles = await this.getOwnerCollectibles();
+			const addCollectiblesPromises = apiCollectibles.map(async (collectible: ApiCollectibleResponse) => {
 				const {
 					token_id,
 					image_original_url,
@@ -242,8 +244,14 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 						true
 					);
 				}
+				collectiblesToRemove = collectiblesToRemove.filter((c) => {
+					return !(c.tokenId === Number(token_id) && c.address === toChecksumAddress(address));
+				});
 			});
 			await Promise.all(addCollectiblesPromises);
+			collectiblesToRemove.map(({ address, tokenId }) => {
+				assetsController.removeCollectible(address, tokenId);
+			});
 		});
 	}
 
