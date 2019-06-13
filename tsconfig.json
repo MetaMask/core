@@ -1,5 +1,7 @@
 {
 	"compilerOptions": {
+		"declaration": true,
+		"declarationDir": "dist",
 		"experimentalDecorators": true,
 		"importHelpers": false,
 		"module": "commonjs",
