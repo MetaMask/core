@@ -261,20 +261,23 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	async getBalancesInSingleCall(selectedAddress: string, tokensToDetect: string[]) {
 		const contract = this.web3.eth.contract(abiSingleCallBalancesContract).at(SINGLE_CALL_BALANCES_ADDRESS);
 		return new Promise<BalanceMap>((resolve, reject) => {
-			contract.balances([selectedAddress], tokensToDetect, (error: Error, result: string) => {
+			contract.balances([selectedAddress], tokensToDetect, (error: Error, result: Array<typeof BN>) => {
 				/* istanbul ignore if */
 				if (error) {
 					reject(error);
 					return;
 				}
 				const nonZeroBalances: BalanceMap = {};
-				tokensToDetect.forEach((tokenAddress, index) => {
-					const balance: typeof BN = result[index];
-					/* istanbul ignore else */
-					if (!balance.isZero()) {
-						nonZeroBalances[tokenAddress] = balance;
-					}
-				});
+				/* istanbul ignore else */
+				if (result.length > 0) {
+					tokensToDetect.forEach((tokenAddress, index) => {
+						const balance: typeof BN = result[index];
+						/* istanbul ignore else */
+						if (!balance.isZero()) {
+							nonZeroBalances[tokenAddress] = balance;
+						}
+					});
+				}
 				resolve(nonZeroBalances);
 			});
 		});
