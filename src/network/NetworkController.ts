@@ -9,7 +9,7 @@ const Mutex = require('await-semaphore').Mutex;
 /**
  * Human-readable network name
  */
-export type NetworkType = 'kovan' | 'localhost' | 'mainnet' | 'rinkeby' | 'ropsten' | 'rpc';
+export type NetworkType = 'kovan' | 'localhost' | 'mainnet' | 'rinkeby' | 'goerli' | 'ropsten' | 'rpc';
 
 /**
  * @type ProviderConfig
@@ -77,6 +77,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 				this.setupInfuraProvider(type);
 				break;
 			case 'rinkeby':
+			case 'goerli':
 			case 'ropsten':
 				this.setupInfuraProvider(type);
 				break;
