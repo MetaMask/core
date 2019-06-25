@@ -3,6 +3,7 @@
   "version": "5.0.0",
   "description": "a tool for processing JSON RPC",
   "main": "src/index.js",
+  "types": "src/index.d.ts",
   "scripts": {
     "lint": "aegir lint",
     "build": "aegir build",
