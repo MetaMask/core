@@ -1,6 +1,6 @@
 {
   "name": "gaba",
-  "version": "1.0.2",
+  "version": "1.4.1",
   "lockfileVersion": 1,
   "requires": true,
   "dependencies": {
@@ -2488,8 +2488,9 @@
       }
     },
     "eth-contract-metadata": {
-      "version": "github:MetaMask/eth-contract-metadata#faa4f56fb17b3ae8579df68708be59d617732f31",
-      "from": "github:MetaMask/eth-contract-metadata#faa4f56fb17b3ae8579df68708be59d617732f31"
+      "version": "1.9.1",
+      "resolved": "https://registry.npmjs.org/eth-contract-metadata/-/eth-contract-metadata-1.9.1.tgz",
+      "integrity": "sha512-eF02fIKf/8iGL/6SwhEQbmZIzNsQcJloA4r+QrxG/TfwqJAD/ECYxshpaU7hjO0ATPQPpMaNhNvL/p/Rc/B83A=="
     },
     "eth-hd-keyring": {
       "version": "2.0.0",
