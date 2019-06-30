@@ -90,7 +90,7 @@ export interface Keyring {
 }
 
 /**
- * Controller resposible for establishing and managing user identity
+ * Controller responsible for establishing and managing user identity
  */
 export class KeyringController extends BaseController<KeyringConfig, KeyringState> {
 	private mutex = new Mutex();
