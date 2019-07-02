@@ -1,15 +1,25 @@
 language: node_js
 node_js: "8"
-install:
-- travis_retry npm install -g codecov
-- travis_retry npm install
-script:
-- npm run format
-- npm run lint
-- npm run test
-- npm run build
-- npm run doc
-- codecov
+jobs:
+  include:
+    - stage: "Tests & coverage"
+      before_install:
+        - travis_retry npm install -g codecov
+      install:
+        - travis_retry npm install
+      script:
+        - npm run format
+        - npm run lint
+        - npm run test
+        - npm run build
+        - npm run doc
+        - codecov
+    - stage: "Tests & coverage"
+      install:
+        - npm ci
+      cache:
+        directories:
+          - "$HOME/.npm"
 deploy:
   provider: pages
   skip-cleanup: true
