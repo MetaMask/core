@@ -185,7 +185,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
 	unsubscribe(listener: Listener<S>) {
 		const index = this.internalListeners.findIndex((cb) => listener === cb);
 		index > -1 && this.internalListeners.splice(index, 1);
-		return index > -1 ? true : false;
+		return index > -1;
 	}
 
 	/**
