@@ -65,7 +65,7 @@ describe('util', () => {
 					() => {
 						throw new Error('ahh');
 					},
-					true,
+					false,
 					resolve
 				);
 			});

@@ -125,7 +125,10 @@ export async function safelyExecute(operation: () => Promise<any>, logError = fa
 	try {
 		return await operation();
 	} catch (error) {
-		logError && console.error(error);
+		/* istanbul ignore next */
+		if (logError) {
+			console.error(error);
+		}
 		retry && retry(error);
 	}
 }
