@@ -8,7 +8,7 @@ import { safelyExecute } from '../util';
 export type Status = 'ok' | 'down' | 'degraded';
 
 /**
- * Netowrk status object
+ * Network status object
  */
 export interface NetworkStatus {
 	kovan: Status;
