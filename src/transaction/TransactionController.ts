@@ -392,10 +392,12 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const transactionMeta = transactions[index];
 		const { from } = transactionMeta.transaction;
 
+		if (!this.sign) {
+			this.failTransaction(transactionMeta, new Error('No sign method defined.'));
+			return;
+		}
+
 		try {
-			if (!this.sign) {
-				throw new Error('No sign method defined.');
-			}
 			transactionMeta.status = 'approved';
 			transactionMeta.transaction.nonce = await this.query('getTransactionCount', [from, 'pending']);
 			transactionMeta.transaction.chainId = parseInt(currentNetworkID, undefined);
