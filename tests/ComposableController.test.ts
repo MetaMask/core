@@ -110,6 +110,8 @@ describe('ComposableController', () => {
 			addressBook: {
 				'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
 					address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+					chainId: 1,
+					memo: '',
 					name: 'foo'
 				}
 			},
@@ -151,6 +153,8 @@ describe('ComposableController', () => {
 				addressBook: [
 					{
 						address: 'bar',
+						chainId: 1,
+						memo: '',
 						name: 'foo'
 					}
 				]
@@ -172,6 +176,8 @@ describe('ComposableController', () => {
 				addressBook: {
 					'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
 						address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+						chainId: 1,
+						memo: '',
 						name: 'foo'
 					}
 				}
