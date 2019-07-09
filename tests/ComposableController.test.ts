@@ -37,7 +37,7 @@ describe('ComposableController', () => {
 				conversionDate: 0,
 				conversionRate: 0,
 				currentCurrency: 'usd',
-				nativeCurrency: 'eth'
+				nativeCurrency: 'ETH'
 			},
 			NetworkController: {
 				network: 'loading',
@@ -83,7 +83,7 @@ describe('ComposableController', () => {
 			ignoredTokens: [],
 			ipfsGateway: 'https://ipfs.io/ipfs/',
 			lostIdentities: {},
-			nativeCurrency: 'eth',
+			nativeCurrency: 'ETH',
 			network: 'loading',
 			provider: { type: 'mainnet' },
 			selectedAddress: '',
@@ -129,7 +129,7 @@ describe('ComposableController', () => {
 			ignoredTokens: [],
 			ipfsGateway: 'https://ipfs.io/ipfs/',
 			lostIdentities: {},
-			nativeCurrency: 'eth',
+			nativeCurrency: 'ETH',
 			network: 'loading',
 			provider: { type: 'mainnet' },
 			selectedAddress: '',

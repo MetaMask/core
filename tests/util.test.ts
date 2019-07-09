@@ -23,6 +23,7 @@ describe('util', () => {
 		);
 		expect(util.getBuyURL('3')).toBe('https://faucet.metamask.io/');
 		expect(util.getBuyURL('4')).toBe('https://www.rinkeby.io/');
+		expect(util.getBuyURL('5')).toBe('https://goerli-faucet.slock.it/');
 		expect(util.getBuyURL('42')).toBe('https://github.com/kovan-testnet/faucet');
 	});
 
@@ -64,7 +65,7 @@ describe('util', () => {
 					() => {
 						throw new Error('ahh');
 					},
-					true,
+					false,
 					resolve
 				);
 			});

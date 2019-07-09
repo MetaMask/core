@@ -14,7 +14,7 @@ const PhishingDetector = require('eth-phishing-detect/src/detector');
  * @property blacklist - List of unapproved origins
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
- * @property version - Versin number of this configuration
+ * @property version - Version number of this configuration
  * @property whitelist - List of approved origins
  */
 export interface EthPhishingResponse {

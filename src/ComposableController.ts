@@ -13,7 +13,7 @@ export interface ChildControllerContext {
 export type ControllerList = Array<BaseController<any, any>>;
 
 /**
- * Controller that can be used to compose mutiple controllers together
+ * Controller that can be used to compose multiple controllers together
  */
 export class ComposableController extends BaseController<any, any> {
 	private cachedState: any;

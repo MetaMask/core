@@ -7,6 +7,8 @@ import { AssetsContractController } from './AssetsContractController';
 
 const { BN } = require('ethereumjs-util');
 
+export { BN };
+
 /**
  * @type TokenBalancesConfig
  *

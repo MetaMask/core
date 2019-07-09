@@ -60,6 +60,8 @@ export function getBuyURL(networkCode = '1', address?: string, amount = 5) {
 			return 'https://faucet.metamask.io/';
 		case '4':
 			return 'https://www.rinkeby.io/';
+		case '5':
+			return 'https://goerli-faucet.slock.it/';
 		case '42':
 			return 'https://github.com/kovan-testnet/faucet';
 	}
@@ -123,7 +125,10 @@ export async function safelyExecute(operation: () => Promise<any>, logError = fa
 	try {
 		return await operation();
 	} catch (error) {
-		logError && console.error(error);
+		/* istanbul ignore next */
+		if (logError) {
+			console.error(error);
+		}
 		retry && retry(error);
 	}
 }
