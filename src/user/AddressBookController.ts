@@ -16,6 +16,23 @@ export interface ContactEntry {
 }
 
 /**
+ * @type AddressBookEntry
+ *
+ * AddressBookEntry representation
+ *
+ * @property address - Hex address of a recipient account
+ * @property name - Nickname associated with this address
+ * @property chainId - Chain id identifies the current chain
+ * @property memo - User's note about address
+ */
+export interface AddressBookEntry {
+	address: string;
+	name: string;
+	chainId: number;
+	memo: string;
+}
+
+/**
  * @type AddressBookState
  *
  * Address book controller state
@@ -23,7 +40,7 @@ export interface ContactEntry {
  * @property addressBook - Array of contact entry objects
  */
 export interface AddressBookState extends BaseState {
-	addressBook: { [address: string]: ContactEntry };
+	addressBook: { [address: string]: AddressBookEntry };
 }
 
 /**
@@ -71,13 +88,15 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 *
 	 * @param address - Recipient address to add or update
 	 * @param name - Nickname to associate with this address
+	 * @param chainId - Chain id identifies the current chain
+	 * @param memo - User's note about address
 	 * @returns - Boolean indicating if the address was successfully set
 	 */
-	set(address: string, name: string) {
+	set(address: string, name: string, chainId = 1, memo = '') {
 		if (!isValidAddress(address)) {
 			return false;
 		}
-		this.update({ addressBook: extend(this.state.addressBook, { [address]: { address, name } }) });
+		this.update({ addressBook: extend(this.state.addressBook, { [address]: { address, name, chainId, memo } }) });
 		return true;
 	}
 }
