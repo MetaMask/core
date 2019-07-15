@@ -1,5 +1,4 @@
 import { validateTypedSignMessageDataV3, validateTypedSignMessageDataV1 } from '../util';
-import NetworkController from '../network/NetworkController';
 import MessageManager, { Message, MessageParams, MessageParamsMetamask, OriginalRequest } from './MessageManager';
 const random = require('uuid/v1');
 
@@ -94,11 +93,7 @@ export class TypedMessageManager extends MessageManager<TypedMessage, TypedMessa
 				validateTypedSignMessageDataV1(messageParams);
 			}
 			if (version === 'V3') {
-				const network = this.context.NetworkController as NetworkController;
-				/* istanbul ignore next */
-				const currentNetworkID = network ? network.state.network : '1';
-				const chainId = parseInt(currentNetworkID, undefined);
-				validateTypedSignMessageDataV3(messageParams, chainId);
+				validateTypedSignMessageDataV3(messageParams);
 			}
 			const messageId = this.addUnapprovedMessage(messageParams, version, req);
 			this.hub.once(`${messageId}:finished`, (data: TypedMessage) => {

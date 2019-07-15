@@ -276,107 +276,71 @@ describe('util', () => {
 			'{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","version":"1","chainId":1,"verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"},"message":{"from":{"name":"Cow","wallet":"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},"to":{"name":"Bob","wallet":"0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},"contents":"Hello, Bob!"}}';
 		it('should throw if no from address', () => {
 			expect(() =>
-				util.validateTypedSignMessageDataV3(
-					{
-						data: '0x879a05'
-					} as any,
-					1
-				)
+				util.validateTypedSignMessageDataV3({
+					data: '0x879a05'
+				} as any)
 			).toThrow('Invalid "from" address:');
 		});
 
 		it('should throw if invalid from address', () => {
 			expect(() =>
-				util.validateTypedSignMessageDataV3(
-					{
-						data: '0x879a05',
-						from: '3244e191f1b4903970224322180f1fbbc415696b'
-					} as any,
-					1
-				)
+				util.validateTypedSignMessageDataV3({
+					data: '0x879a05',
+					from: '3244e191f1b4903970224322180f1fbbc415696b'
+				} as any)
 			).toThrow('Invalid "from" address:');
 		});
 
 		it('should throw if invalid type from address', () => {
 			expect(() =>
-				util.validateTypedSignMessageDataV3(
-					{
-						data: '0x879a05',
-						from: 123
-					} as any,
-					1
-				)
+				util.validateTypedSignMessageDataV3({
+					data: '0x879a05',
+					from: 123
+				} as any)
 			).toThrow('Invalid "from" address:');
 		});
 
 		it('should throw if array data', () => {
 			expect(() =>
-				util.validateTypedSignMessageDataV3(
-					{
-						data: [],
-						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
-					} as any,
-					1
-				)
+				util.validateTypedSignMessageDataV3({
+					data: [],
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+				} as any)
 			).toThrow('Invalid message "data":');
 		});
 
 		it('should throw if no array data', () => {
 			expect(() =>
-				util.validateTypedSignMessageDataV3(
-					{
-						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
-					} as any,
-					1
-				)
+				util.validateTypedSignMessageDataV3({
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+				} as any)
 			).toThrow('Invalid message "data":');
 		});
 
 		it('should throw if no json valid data', () => {
 			expect(() =>
-				util.validateTypedSignMessageDataV3(
-					{
-						data: 'uh oh',
-						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
-					} as any,
-					1
-				)
+				util.validateTypedSignMessageDataV3({
+					data: 'uh oh',
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+				} as any)
 			).toThrow('Data must be passed as a valid JSON string.');
 		});
 
 		it('should throw if data not in typed message schema', () => {
 			expect(() =>
-				util.validateTypedSignMessageDataV3(
-					{
-						data: '{"greetings":"I am Alice"}',
-						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
-					} as any,
-					1
-				)
+				util.validateTypedSignMessageDataV3({
+					data: '{"greetings":"I am Alice"}',
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+				} as any)
 			).toThrow('Data must conform to EIP-712 schema.');
-		});
-
-		it('should throw if signing in a different chainId', () => {
-			expect(() =>
-				util.validateTypedSignMessageDataV3(
-					{
-						data: dataTyped,
-						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
-					} as any,
-					2
-				)
-			).toThrow('Provided chainId (1) must match the active chainId (2)');
 		});
 
 		it('should not throw if data is correct', () => {
 			expect(() =>
-				util.validateTypedSignMessageDataV3(
-					{
-						data: dataTyped,
-						from: '0x3244e191f1b4903970224322180f1fbbc415696b'
-					} as any,
-					1
-				)
+				util.validateTypedSignMessageDataV3({
+					data: dataTyped,
+					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
+				} as any)
 			).not.toThrow();
 		});
 
