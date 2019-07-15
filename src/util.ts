@@ -230,9 +230,8 @@ export function validateTypedSignMessageDataV1(messageData: TypedMessageParams) 
  * the event of any validation error for eth_signTypedMessage_V3.
  *
  * @param messageData - TypedMessageParams object to validate
- * @param activeChainId - Active chain id
  */
-export function validateTypedSignMessageDataV3(messageData: TypedMessageParams, activeChainId: number) {
+export function validateTypedSignMessageDataV3(messageData: TypedMessageParams) {
 	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
 		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
 	}
@@ -248,10 +247,6 @@ export function validateTypedSignMessageDataV3(messageData: TypedMessageParams, 
 	const validation = jsonschema.validate(data, sigUtil.TYPED_MESSAGE_SCHEMA);
 	if (validation.errors.length > 0) {
 		throw new Error('Data must conform to EIP-712 schema. See https://git.io/fNtcx.');
-	}
-	const chainId = data.domain.chainId;
-	if (chainId !== activeChainId) {
-		throw new Error(`Provided chainId (${chainId}) must match the active chainId (${activeChainId})`);
 	}
 }
 
