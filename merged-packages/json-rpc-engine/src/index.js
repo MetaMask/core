@@ -1,6 +1,7 @@
 'use strict'
 const async = require('async')
 const SafeEventEmitter = require('safe-event-emitter')
+const { serializeError } = require('eth-json-rpc-errors')
 
 class RpcEngine extends SafeEventEmitter {
   constructor () {
@@ -76,10 +77,6 @@ class RpcEngine extends SafeEventEmitter {
       // continue
       return cb(null, returnHandlers)
     }
-
-    function runReturnHandlers (returnHandlers, cb) {
-      async.eachSeries(returnHandlers, (handler, next) => handler(next), onDone)
-    }
   }
 
   // walks down stack of middleware
@@ -133,13 +130,6 @@ class RpcEngine extends SafeEventEmitter {
   // climbs the stack calling return handlers
   _runReturnHandlersUp (returnHandlers, cb) {
     async.eachSeries(returnHandlers, (handler, next) => handler(next), cb)
-  }
-}
-
-function serializeError(err) {
-  return {
-    code: err.code || -32603,
-    message: err.stack,
   }
 }
 
