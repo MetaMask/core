@@ -38,7 +38,7 @@
     ]
   },
   "devDependencies": {
-    "aegir": "^18.2.1",
+    "aegir": "^18.2.2",
     "browserify": "^16.2.3"
   },
   "repository": {
