@@ -56,7 +56,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 	private handle?: NodeJS.Timer;
 
 	private getOwnerCollectiblesApi(address: string) {
-		return `https://api.opensea.io/api/v1/assets?owner=${address}`;
+		return `https://api.opensea.io/api/v1/assets?owner=${address}&limit=300`;
 	}
 
 	private async getOwnerCollectibles() {
