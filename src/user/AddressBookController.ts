@@ -1,5 +1,5 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-
+const extend = require('xtend');
 const { isValidAddress } = require('ethereumjs-util');
 
 /**
@@ -16,6 +16,23 @@ export interface ContactEntry {
 }
 
 /**
+ * @type AddressBookEntry
+ *
+ * AddressBookEntry representation
+ *
+ * @property address - Hex address of a recipient account
+ * @property name - Nickname associated with this address
+ * @property chainId - Chain id identifies the current chain
+ * @property memo - User's note about address
+ */
+export interface AddressBookEntry {
+	address: string;
+	name: string;
+	chainId: number;
+	memo: string;
+}
+
+/**
  * @type AddressBookState
  *
  * Address book controller state
@@ -23,15 +40,13 @@ export interface ContactEntry {
  * @property addressBook - Array of contact entry objects
  */
 export interface AddressBookState extends BaseState {
-	addressBook: ContactEntry[];
+	addressBook: { [address: string]: AddressBookEntry };
 }
 
 /**
  * Controller that manages a list of recipient addresses associated with nicknames
  */
 export class AddressBookController extends BaseController<BaseConfig, AddressBookState> {
-	private addressBook = new Map<string, ContactEntry>();
-
 	/**
 	 * Name of this controller used during composition
 	 */
@@ -45,7 +60,9 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 */
 	constructor(config?: Partial<BaseConfig>, state?: Partial<AddressBookState>) {
 		super(config, state);
-		this.defaultState = { addressBook: [] };
+
+		this.defaultState = { addressBook: {} };
+
 		this.initialize();
 	}
 
@@ -53,8 +70,7 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 * Remove all contract entries
 	 */
 	clear() {
-		this.addressBook.clear();
-		this.update({ addressBook: Array.from(this.addressBook.values()) });
+		this.update({ addressBook: {} });
 	}
 
 	/**
@@ -63,8 +79,8 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 * @param address - Recipient address to delete
 	 */
 	delete(address: string) {
-		this.addressBook.delete(address);
-		this.update({ addressBook: Array.from(this.addressBook.values()) });
+		delete this.state.addressBook[address];
+		this.update({ addressBook: { ...this.state.addressBook } });
 	}
 
 	/**
@@ -72,14 +88,15 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 *
 	 * @param address - Recipient address to add or update
 	 * @param name - Nickname to associate with this address
+	 * @param chainId - Chain id identifies the current chain
+	 * @param memo - User's note about address
 	 * @returns - Boolean indicating if the address was successfully set
 	 */
-	set(address: string, name: string) {
+	set(address: string, name: string, chainId = 1, memo = '') {
 		if (!isValidAddress(address)) {
 			return false;
 		}
-		this.addressBook.set(address, { address, name });
-		this.update({ addressBook: Array.from(this.addressBook.values()) });
+		this.update({ addressBook: extend(this.state.addressBook, { [address]: { address, name, chainId, memo } }) });
 		return true;
 	}
 }

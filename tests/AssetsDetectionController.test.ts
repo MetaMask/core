@@ -47,7 +47,7 @@ describe('AssetsDetectionController', () => {
 		);
 
 		get(
-			OPEN_SEA_API + 'assets?owner=0x2',
+			OPEN_SEA_API + 'assets?owner=0x2&limit=300',
 			() => ({
 				body: JSON.stringify({
 					assets: [
@@ -67,7 +67,7 @@ describe('AssetsDetectionController', () => {
 		);
 
 		getOnce(
-			OPEN_SEA_API + 'assets?owner=0x1',
+			OPEN_SEA_API + 'assets?owner=0x1&limit=300',
 			() => ({
 				body: JSON.stringify({
 					assets: [
@@ -126,7 +126,7 @@ describe('AssetsDetectionController', () => {
 		);
 
 		getOnce(
-			OPEN_SEA_API + 'assets?owner=0x1',
+			OPEN_SEA_API + 'assets?owner=0x1&limit=300',
 			() => ({
 				body: JSON.stringify({
 					assets: [
@@ -352,7 +352,7 @@ describe('AssetsDetectionController', () => {
 		);
 
 		getOnce(
-			OPEN_SEA_API + 'assets?owner=0x1',
+			OPEN_SEA_API + 'assets?owner=0x1&limit=300',
 			() => ({
 				body: JSON.stringify({
 					assets: [

@@ -1,6 +1,6 @@
 {
   "name": "gaba",
-  "version": "1.4.1",
+  "version": "1.5.1",
   "lockfileVersion": 1,
   "requires": true,
   "dependencies": {
@@ -210,6 +210,11 @@
         "@types/bn.js": "*",
         "@types/underscore": "*"
       }
+    },
+    "@types/xtend": {
+      "version": "4.0.2",
+      "resolved": "https://registry.npmjs.org/@types/xtend/-/xtend-4.0.2.tgz",
+      "integrity": "sha1-B7YCEvH5K2Y1y3Gci0pVIe8NaFw="
     },
     "abab": {
       "version": "1.0.4",
@@ -2571,6 +2576,7 @@
           "resolved": "https://registry.npmjs.org/eth-sig-util/-/eth-sig-util-1.4.2.tgz",
           "integrity": "sha1-jZWCAsftuq6Dlwf7pvCf8ydgYhA=",
           "requires": {
+            "ethereumjs-abi": "git+https://github.com/ethereumjs/ethereumjs-abi.git#572d4bafe08a8a231137e1f9daeb0f8a23f197d2",
             "ethereumjs-util": "^5.1.1"
           },
           "dependencies": {
@@ -9015,6 +9021,7 @@
           "resolved": "https://registry.npmjs.org/eth-sig-util/-/eth-sig-util-1.4.2.tgz",
           "integrity": "sha1-jZWCAsftuq6Dlwf7pvCf8ydgYhA=",
           "requires": {
+            "ethereumjs-abi": "git+https://github.com/ethereumjs/ethereumjs-abi.git#572d4bafe08a8a231137e1f9daeb0f8a23f197d2",
             "ethereumjs-util": "^5.1.1"
           },
           "dependencies": {
