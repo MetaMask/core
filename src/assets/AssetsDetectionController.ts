@@ -1,4 +1,5 @@
 import 'isomorphic-fetch';
+import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import AssetsController from './AssetsController';
 import NetworkController from '../network/NetworkController';
@@ -9,7 +10,6 @@ import { Token } from './TokenRatesController';
 import { NetworkType } from '../network/NetworkController';
 
 const contractMap = require('eth-contract-metadata');
-const { toChecksumAddress } = require('ethereumjs-util');
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 

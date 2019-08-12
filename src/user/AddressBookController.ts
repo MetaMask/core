@@ -1,6 +1,6 @@
+import { isValidAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 const extend = require('xtend');
-const { isValidAddress } = require('ethereumjs-util');
 
 /**
  * @type ContactEntry

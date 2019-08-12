@@ -1,7 +1,6 @@
+import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import { ContactEntry } from '../user/AddressBookController';
-
-const { toChecksumAddress } = require('ethereumjs-util');
 
 /**
  * Custom RPC network information
