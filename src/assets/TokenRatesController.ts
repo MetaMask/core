@@ -1,9 +1,9 @@
 import 'isomorphic-fetch';
+import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import AssetsController from './AssetsController';
 import { safelyExecute } from '../util';
 import CurrencyRateController from './CurrencyRateController';
-const { toChecksumAddress } = require('ethereumjs-util');
 
 /**
  * @type CoinGeckoResponse

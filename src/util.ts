@@ -1,3 +1,4 @@
+import { addHexPrefix, isValidAddress, bufferToHex } from 'ethereumjs-util';
 import { Transaction } from './transaction/TransactionController';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
@@ -5,7 +6,7 @@ import { Token } from './assets/TokenRatesController';
 
 const sigUtil = require('eth-sig-util');
 const jsonschema = require('jsonschema');
-const { addHexPrefix, BN, isValidAddress, stripHexPrefix, bufferToHex } = require('ethereumjs-util');
+const { BN, stripHexPrefix } = require('ethereumjs-util');
 const hexRe = /^[0-9A-Fa-f]+$/g;
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
