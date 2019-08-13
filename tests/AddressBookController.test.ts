@@ -104,4 +104,43 @@ describe('AddressBookController', () => {
 		controller.clear();
 		expect(controller.state).toEqual({ addressBook: {} });
 	});
+
+	it('should return true to indicate an address book entry has been added', () => {
+		const controller = new AddressBookController();
+		expect(controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo')).toBeTruthy();
+	});
+
+	it('should return false to indicate an address book entry has NOT been added', () => {
+		const controller = new AddressBookController();
+		expect(controller.set('1337', 'foo')).toBeFalsy();
+	});
+
+	it('should return true to indicate an address book entry has been deleted', () => {
+		const controller = new AddressBookController();
+		controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+		expect(controller.delete('0x32Be343B94f860124dC4fEe278FDCBD38C102D88')).toBeTruthy();
+	});
+
+	it('should return false to indicate an address book entry has NOT been deleted', () => {
+		const controller = new AddressBookController();
+		controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+		expect(controller.delete('bar')).toBeFalsy();
+	});
+
+	it('should normalize addresses so adding a removing entries work across casings', () => {
+		const controller = new AddressBookController();
+		controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+		expect(controller.set('0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d', 'bar')).toBeTruthy();
+		controller.delete('0xC38BF1AD06EF69F0C04E29DBEB4152B4175F0A8D');
+		expect(controller.state).toEqual({
+			addressBook: {
+				'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
+					address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+					chainId: 1,
+					memo: '',
+					name: 'foo'
+				}
+			}
+		});
+	});
 });
