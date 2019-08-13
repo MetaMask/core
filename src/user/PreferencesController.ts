@@ -1,5 +1,5 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { ContactEntry } from '../user/AddressBookController';
+import { ContactEntry } from './AddressBookController';
 
 const { toChecksumAddress } = require('ethereumjs-util');
 
