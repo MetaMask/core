@@ -2,6 +2,8 @@
   "name": "json-rpc-engine",
   "version": "5.1.1",
   "description": "a tool for processing JSON RPC",
+  "license": "ISC",
+  "author": "kumavis",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "scripts": {
@@ -16,25 +18,11 @@
     "coverage": "aegir coverage",
     "coverage-publish": "aegir coverage --provider coveralls"
   },
-  "author": "kumavis",
-  "license": "ISC",
   "dependencies": {
     "async": "^2.0.1",
     "eth-json-rpc-errors": "^0.3.1",
     "promise-to-callback": "^1.0.0",
     "safe-event-emitter": "^1.0.1"
-  },
-  "browserify": {
-    "transform": [
-      [
-        "babelify",
-        {
-          "presets": [
-            "@babel/preset-env"
-          ]
-        }
-      ]
-    ]
   },
   "devDependencies": {
     "@babel/core": "^7.5.5",
