@@ -101,6 +101,7 @@ class RpcEngine extends SafeEventEmitter {
         allReturnHandlers.push(returnHandler)
         cb()
       }
+
       function end (err) {
         // if errored, set the error but dont pass to callback
         if (err) {
