@@ -75,3 +75,6 @@ engine.push(function(req, res, next, end){
   end(new Error())
 })
 ```
+
+That said, `next()` will detect errors on the RPC response, and cause
+`end(res.error)` to be called.

@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "async": "^2.0.1",
-    "eth-json-rpc-errors": "^0.3.1",
+    "eth-json-rpc-errors": "^1.0.1",
     "promise-to-callback": "^1.0.0",
     "safe-event-emitter": "^1.0.1"
   },
