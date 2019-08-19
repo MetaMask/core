@@ -1,16 +1,12 @@
 {
   "presets": [
-    ["env", {
-      "targets": {
-        "uglify": true
-      }
-    }]
+    ["@babel/preset-env"]
   ],
   "plugins": [
-    ["transform-runtime", {
-      "helpers": false,
-      "polyfill": false,
-      "regenerator": true,
-    }]
+    [
+      "@babel/plugin-transform-runtime",
+      { "helpers": false, "forceAllTransforms": true }
+    ],
+    "@babel/plugin-transform-regenerator"
   ]
 }

@@ -6,7 +6,7 @@
   "scripts": {
     "test": "npm run build && npm run test:unit && npm run test:lint:deps",
     "test:unit": "node test/index.js",
-    "test:lint:deps": "npx depcheck --ignore-dirs dist --ignores babelify,babel-preset-env,babel-plugin-transform-runtime",
+    "test:lint:deps": "npx depcheck --ignore-dirs dist --ignores babelify,@babel/runtime,@babel/preset-env,@babel/plugin-transform-runtime",
     "prepublishOnly": "npm run build",
     "build": "npm run build:clean && npm run build:es5 && npm run build:bundle && npm run build:validate",
     "build:clean": "rm -rf ./dist && mkdir -p ./dist",
@@ -20,19 +20,22 @@
   "author": "kumavis",
   "license": "MIT",
   "dependencies": {
-    "babel-plugin-transform-runtime": "^6.23.0",
+    "@babel/plugin-transform-runtime": "^7.5.5",
+    "@babel/runtime": "^7.5.5",
     "eth-query": "^2.1.0",
     "json-rpc-random-id": "^1.0.1",
     "pify": "^3.0.0",
     "safe-event-emitter": "^1.0.1"
   },
   "devDependencies": {
-    "babel-cli": "^6.24.1",
-    "babel-preset-env": "^1.7.0",
-    "babelify": "^8.0.0",
-    "browserify": "^16.2.3",
-    "eth-json-rpc-infura": "^3.1.2",
-    "ganache-core": "^2.5.5",
+    "@babel/cli": "^7.5.5",
+    "@babel/core": "^7.5.5",
+    "@babel/plugin-transform-regenerator": "^7.4.5",
+    "@babel/preset-env": "^7.5.5",
+    "babelify": "^10.0.0",
+    "browserify": "^16.5.0",
+    "eth-json-rpc-infura": "github:rekmarks/eth-json-rpc-infura#node-10",
+    "ganache-core": "^2.7.0",
     "tape": "^4.9.0",
     "uglify-js": "^3.4.10"
   },
