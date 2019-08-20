@@ -1,6 +1,6 @@
 const fetch = global.fetch || require('fetch-ponyfill')().fetch
 const url = require('url')
-const JsonRpcError = require('json-rpc-error')
+const { errors: rpcErrors } = require('eth-json-rpc-errors')
 const btoa = require('btoa')
 const createAsyncMiddleware = require('json-rpc-engine/src/createAsyncMiddleware')
 
@@ -59,7 +59,7 @@ function checkForHttpErrors (fetchRes) {
   // check for errors
   switch (fetchRes.status) {
     case 405:
-      throw new JsonRpcError.MethodNotFound()
+      throw rpcErrors.methodNotFound()
 
     case 418:
       throw createRatelimitError()
@@ -73,10 +73,10 @@ function checkForHttpErrors (fetchRes) {
 function parseResponse (fetchRes, body) {
   // check for error code
   if (fetchRes.status !== 200) {
-    throw new JsonRpcError.InternalError(body)
+    throw rpcErrors.internal(body)
   }
   // check for rpc error
-  if (body.error) throw new JsonRpcError.InternalError(body.error)
+  if (body.error) throw rpcErrors.internal(body.error)
   // return successful result
   return body.result
 }
@@ -131,15 +131,13 @@ function normalizeUrlFromParsed(parsedUrl) {
 
 function createRatelimitError () {
   let msg = `Request is being rate limited.`
-  const err = new Error(msg)
-  return new JsonRpcError.InternalError(err)
+  return rpcErrors.internal(msg)
 }
 
 function createTimeoutError () {
   let msg = `Gateway timeout. The request took too long to process. `
   msg += `This can happen when querying logs over too wide a block range.`
-  const err = new Error(msg)
-  return new JsonRpcError.InternalError(err)
+  return rpcErrors.internal(msg)
 }
 
 function timeout(duration) {
