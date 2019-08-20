@@ -140,6 +140,7 @@ function createWalletMiddleware(opts = {}) {
     //
     // That means when the first param is definitely an address,
     // and the second param is definitely not, but is hex.
+    let address, message
     if (resemblesAddress(firstParam) && !resemblesAddress(secondParam)) {
       let warning = `The eth_personalSign method requires params ordered `
       warning += `[message, address]. This was previously handled incorrectly, `
