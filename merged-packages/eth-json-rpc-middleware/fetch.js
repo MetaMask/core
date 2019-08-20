@@ -86,10 +86,17 @@ function createFetchConfigFromReq({ req, rpcUrl, originHttpHeaderKey }) {
   const fetchUrl = normalizeUrlFromParsed(parsedUrl)
 
   // prepare payload
-  const payload = Object.assign({}, req)
+  // copy only canonical json rpc properties
+  const payload = {
+    id: req.id,
+    jsonrpc: req.jsonrpc,
+    method: req.method,
+    params: req.params,
+  }
+
   // extract 'origin' parameter from request
-  const originDomain = payload.origin
-  delete payload.origin
+  const originDomain = req.origin
+
   // serialize request body
   const serializedPayload = JSON.stringify(payload)
 
