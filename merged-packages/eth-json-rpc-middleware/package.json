@@ -30,7 +30,7 @@
     "ethereumjs-util": "^5.1.2",
     "ethereumjs-vm": "^2.6.0",
     "fetch-ponyfill": "^4.0.0",
-    "json-rpc-engine": "github:rekmarks/json-rpc-engine#errors",
+    "json-rpc-engine": "^5.1.3",
     "json-stable-stringify": "^1.0.1",
     "pify": "^3.0.0",
     "safe-event-emitter": "^1.0.1"
