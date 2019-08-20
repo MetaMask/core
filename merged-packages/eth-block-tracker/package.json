@@ -34,7 +34,7 @@
     "@babel/preset-env": "^7.5.5",
     "babelify": "^10.0.0",
     "browserify": "^16.5.0",
-    "eth-json-rpc-infura": "github:rekmarks/eth-json-rpc-infura#node-10",
+    "eth-json-rpc-infura": "^4.0.1",
     "ganache-core": "^2.7.0",
     "tape": "^4.9.0",
     "uglify-js": "^3.4.10"
