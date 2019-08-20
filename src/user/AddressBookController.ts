@@ -1,6 +1,5 @@
+import { isValidAddress, toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-const extend = require('xtend');
-const { isValidAddress } = require('ethereumjs-util');
 
 /**
  * @type ContactEntry
@@ -79,8 +78,15 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 * @param address - Recipient address to delete
 	 */
 	delete(address: string) {
-		delete this.state.addressBook[address];
-		this.update({ addressBook: { ...this.state.addressBook } });
+		const normalizedAddress = toChecksumAddress(address);
+		if (!isValidAddress(normalizedAddress) || this.state.addressBook[normalizedAddress] === undefined) {
+			return false;
+		}
+
+		const addressBook: { [address: string]: AddressBookEntry } = Object.assign({}, this.state.addressBook);
+		delete addressBook[normalizedAddress];
+		this.update({ addressBook });
+		return true;
 	}
 
 	/**
@@ -96,7 +102,19 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 		if (!isValidAddress(address)) {
 			return false;
 		}
-		this.update({ addressBook: extend(this.state.addressBook, { [address]: { address, name, chainId, memo } }) });
+
+		this.update({
+			addressBook: {
+				...this.state.addressBook,
+				[toChecksumAddress(address)]: {
+					address,
+					chainId,
+					memo,
+					name
+				}
+			}
+		});
+
 		return true;
 	}
 }
