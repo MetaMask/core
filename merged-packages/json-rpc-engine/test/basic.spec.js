@@ -84,7 +84,7 @@ describe('basic tests', function () {
     })
   })
 
-  it('erroring middleware test', function (done) {
+  it('erroring middleware test: end(error)', function (done) {
     let engine = new RpcEngine()
 
     engine.push(function (req, res, next, end) {
@@ -97,6 +97,45 @@ describe('basic tests', function () {
       assert(err, 'did error')
       assert(res, 'does have response')
       assert(res.error, 'does have error on response')
+      assert(!res.result, 'does not have result on response')
+      done()
+    })
+  })
+
+  it('erroring middleware test: res.error -> next()', function (done) {
+    let engine = new RpcEngine()
+
+    engine.push(function (req, res, next, end) {
+      res.error = new Error('no bueno')
+      next()
+    })
+
+    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, function (err, res) {
+      assert(err, 'did error')
+      assert(res, 'does have response')
+      assert(res.error, 'does have error on response')
+      assert(!res.result, 'does not have result on response')
+      done()
+    })
+  })
+
+  it('erroring middleware test: res.error -> end()', function (done) {
+    let engine = new RpcEngine()
+
+    engine.push(function (req, res, next, end) {
+      res.error = new Error('no bueno')
+      end()
+    })
+
+    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, function (err, res) {
+      assert(err, 'did error')
+      assert(res, 'does have response')
+      assert(res.error, 'does have error on response')
+      assert(!res.result, 'does not have result on response')
       done()
     })
   })

@@ -97,16 +97,22 @@ class RpcEngine extends SafeEventEmitter {
       middleware(req, res, next, end)
 
       function next (returnHandler) {
-        // add return handler
-        allReturnHandlers.push(returnHandler)
-        cb()
+        if (res.error) {
+          end(res.error)
+        } else {
+          // add return handler
+          allReturnHandlers.push(returnHandler)
+          cb()
+        }
       }
 
       function end (err) {
         // if errored, set the error but dont pass to callback
-        if (err) {
-          res.error = serializeError(err)
-          res._originalError = err
+        const _err = err || (res && res.error)
+        // const _err = err
+        if (_err) {
+          res.error = serializeError(_err)
+          res._originalError = _err
         }
         // mark as completed
         isComplete = true
@@ -120,6 +126,8 @@ class RpcEngine extends SafeEventEmitter {
       if (err) {
         // prepare error message
         res.error = serializeError(err)
+        // remove result if present
+        delete res.result
         // return error-first and res with err
         return onDone(err, res)
       }
