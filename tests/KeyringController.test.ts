@@ -135,7 +135,7 @@ describe('KeyringController', () => {
 	});
 
 	it('should sign personal message', async () => {
-		const data = ethUtil.bufferToHex(new Buffer('Hello from test', 'utf8'));
+		const data = ethUtil.bufferToHex(Buffer.from('Hello from test', 'utf8'));
 		const account = initialState.keyrings[0].accounts[0];
 		const signature = await keyringController.signPersonalMessage({ data, from: account });
 		expect(signature).not.toBe('');
