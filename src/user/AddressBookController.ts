@@ -87,7 +87,6 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 		delete addressBook[chainId][address];
 
 		if (Object.keys(addressBook[chainId]).length === 0) {
-			console.log('object.keys', addressBook[chainId]);
 			delete addressBook[chainId];
 		}
 
