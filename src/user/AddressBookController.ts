@@ -27,7 +27,7 @@ export interface ContactEntry {
 export interface AddressBookEntry {
 	address: string;
 	name: string;
-	chainId: number;
+	chainId: string;
 	memo: string;
 }
 
@@ -39,7 +39,7 @@ export interface AddressBookEntry {
  * @property addressBook - Array of contact entry objects
  */
 export interface AddressBookState extends BaseState {
-	addressBook: { [address: string]: AddressBookEntry };
+	addressBook: { [chainId: string]: { [address: string]: AddressBookEntry } };
 }
 
 /**
@@ -77,14 +77,20 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 *
 	 * @param address - Recipient address to delete
 	 */
-	delete(address: string) {
-		const normalizedAddress = toChecksumAddress(address);
-		if (!isValidAddress(normalizedAddress) || this.state.addressBook[normalizedAddress] === undefined) {
+	delete(chainId: string, address: string) {
+		address = toChecksumAddress(address);
+		if (!isValidAddress(address) || !this.state.addressBook[chainId] || !this.state.addressBook[chainId][address]) {
 			return false;
 		}
 
-		const addressBook: { [address: string]: AddressBookEntry } = Object.assign({}, this.state.addressBook);
-		delete addressBook[normalizedAddress];
+		const addressBook = Object.assign({}, this.state.addressBook);
+		delete addressBook[chainId][address];
+
+		if (Object.keys(addressBook[chainId]).length === 0) {
+			console.log('object.keys', addressBook[chainId]);
+			delete addressBook[chainId];
+		}
+
 		this.update({ addressBook });
 		return true;
 	}
@@ -98,7 +104,8 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	 * @param memo - User's note about address
 	 * @returns - Boolean indicating if the address was successfully set
 	 */
-	set(address: string, name: string, chainId = 1, memo = '') {
+	set(address: string, name: string, chainId = '1', memo = '') {
+		address = toChecksumAddress(address);
 		if (!isValidAddress(address)) {
 			return false;
 		}
@@ -106,11 +113,14 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 		this.update({
 			addressBook: {
 				...this.state.addressBook,
-				[toChecksumAddress(address)]: {
-					address,
-					chainId,
-					memo,
-					name
+				[chainId]: {
+					...this.state.addressBook[chainId],
+					[address]: {
+						address,
+						chainId,
+						memo,
+						name
+					}
 				}
 			}
 		});
