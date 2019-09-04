@@ -10,6 +10,7 @@ function createWalletMiddleware(opts = {}) {
   const processTypedMessage = opts.processTypedMessage
   const processTypedMessageV0 = opts.processTypedMessageV0
   const processTypedMessageV3 = opts.processTypedMessageV3
+  const processTypedMessageV4 = opts.processTypedMessageV4
   const processPersonalMessage = opts.processPersonalMessage
   const processEthSignMessage = opts.processEthSignMessage
   const processTransaction = opts.processTransaction
@@ -25,6 +26,7 @@ function createWalletMiddleware(opts = {}) {
     'eth_signTypedData': createAsyncMiddleware(signTypedData),
     'eth_signTypedData_v0': createAsyncMiddleware(signTypedDataV0),
     'eth_signTypedData_v3': createAsyncMiddleware(signTypedDataV3),
+    'eth_signTypedData_v4': createAsyncMiddleware(signTypedDataV4),
     'personal_sign': createAsyncMiddleware(personalSign),
     'personal_ecRecover': createAsyncMiddleware(personalRecover),
   })
@@ -123,6 +125,22 @@ function createWalletMiddleware(opts = {}) {
       version
     }
     res.result = await processTypedMessageV3(msgParams, req, version)
+  }
+
+  async function signTypedDataV4 (req, res) {
+    if (!processTypedMessageV4) throw new Error('WalletMiddleware - opts.processTypedMessage not provided')
+    const from = req.from
+    const message = req.params[1]
+    const address = req.params[0]
+    const version = 'V4'
+    await validateSender(address, req)
+    await validateSender(from, req)
+    const msgParams = {
+      data: message,
+      from: address,
+      version
+    }
+    res.result = await processTypedMessageV4(msgParams, req, version)
   }
 
   async function personalSign (req, res) {
