@@ -320,6 +320,11 @@ export async function timeoutFetch(url: string, options?: RequestInit, timeout: 
 	]);
 }
 
+export function isValidEnsName(ensName: string) {
+	const regex = /^.{7,}\.(eth|test)$/;
+	return regex.test(ensName);
+}
+
 export default {
 	BNToHex,
 	fractionBN,
@@ -328,6 +333,7 @@ export default {
 	hexToBN,
 	hexToText,
 	isSmartContractCode,
+	isValidEnsName,
 	normalizeTransaction,
 	safelyExecute,
 	timeoutFetch,

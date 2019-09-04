@@ -15,6 +15,7 @@ describe('AddressBookController', () => {
 					'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
 						address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
 						chainId: '1',
+						isEns: false,
 						memo: '',
 						name: 'foo'
 					}
@@ -32,6 +33,7 @@ describe('AddressBookController', () => {
 					'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
 						address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
 						chainId: '1',
+						isEns: false,
 						memo: 'account 1',
 						name: 'foo'
 					}
@@ -49,6 +51,7 @@ describe('AddressBookController', () => {
 					'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
 						address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
 						chainId: '2',
+						isEns: false,
 						memo: 'account 2',
 						name: 'foo'
 					}
@@ -68,6 +71,7 @@ describe('AddressBookController', () => {
 					'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
 						address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
 						chainId: '1',
+						isEns: false,
 						memo: 'account 2',
 						name: 'foo'
 					}
@@ -76,6 +80,7 @@ describe('AddressBookController', () => {
 					'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
 						address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
 						chainId: '2',
+						isEns: false,
 						memo: 'account 2',
 						name: 'foo'
 					}
@@ -94,6 +99,7 @@ describe('AddressBookController', () => {
 					'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
 						address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
 						chainId: '1',
+						isEns: false,
 						memo: '',
 						name: 'bar'
 					}
@@ -128,6 +134,7 @@ describe('AddressBookController', () => {
 					'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
 						address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
 						chainId: '1',
+						isEns: false,
 						memo: '',
 						name: 'foo'
 					}
@@ -147,14 +154,34 @@ describe('AddressBookController', () => {
 					'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
 						address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
 						chainId: '1',
+						isEns: false,
 						memo: '',
 						name: 'foo'
 					},
 					'0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D': {
 						address: '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D',
 						chainId: '1',
+						isEns: false,
 						memo: '',
 						name: 'bar'
+					}
+				}
+			}
+		});
+	});
+
+	it('should correctly mark ens entries', () => {
+		const controller = new AddressBookController();
+		controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'metamask.eth');
+		expect(controller.state).toEqual({
+			addressBook: {
+				1: {
+					'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
+						address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+						chainId: '1',
+						isEns: true,
+						memo: '',
+						name: 'metamask.eth'
 					}
 				}
 			}
@@ -203,6 +230,7 @@ describe('AddressBookController', () => {
 					'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
 						address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
 						chainId: '1',
+						isEns: false,
 						memo: '',
 						name: 'foo'
 					}

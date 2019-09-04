@@ -454,4 +454,14 @@ describe('util', () => {
 			expect(error.message).toBe('timeout');
 		});
 	});
+	describe('isValidEnsName', () => {
+		it('should return if the ens name is valid by current standards', async () => {
+			const valid = util.isValidEnsName('metamask.eth');
+			expect(valid).toBeTruthy();
+		});
+		it('should return if the ens name is invalid by current standards', async () => {
+			const invalid = util.isValidEnsName('me.eth');
+			expect(invalid).toBeFalsy();
+		});
+	});
 });
