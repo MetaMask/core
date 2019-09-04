@@ -112,11 +112,6 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 			return false;
 		}
 
-		let isEns = false;
-		if (isValidEnsName(name)) {
-			isEns = true;
-		}
-
 		this.update({
 			addressBook: {
 				...this.state.addressBook,
@@ -125,8 +120,7 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 					[address]: {
 						address,
 						chainId,
-						isEns,
-						// isEns: isValidEnsName(name),
+						isEns: isValidEnsName(name),
 						memo,
 						name
 					}
