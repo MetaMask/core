@@ -454,14 +454,56 @@ describe('util', () => {
 			expect(error.message).toBe('timeout');
 		});
 	});
-	describe('isValidEnsName', () => {
-		it('should return if the ens name is valid by current standards', async () => {
-			const valid = util.isValidEnsName('metamask.eth');
-			expect(valid).toBeTruthy();
+
+	describe('normalizeEnsName', () => {
+		it('should normalize with valid 2LD', async () => {
+			const valid = util.normalizeEnsName('metamask.eth');
+			expect(valid).toEqual('metamask.eth');
 		});
-		it('should return if the ens name is invalid by current standards', async () => {
-			const invalid = util.isValidEnsName('me.eth');
-			expect(invalid).toBeFalsy();
+
+		it('should normalize with valid 2LD and "test" TLD', async () => {
+			const valid = util.normalizeEnsName('metamask.eth');
+			expect(valid).toEqual('metamask.eth');
+		});
+
+		it('should normalize with valid 2LD and 3LD', async () => {
+			const valid = util.normalizeEnsName('a.metamask.eth');
+			expect(valid).toEqual('a.metamask.eth');
+		});
+
+		it('should return null with invalid 2LD', async () => {
+			const invalid = util.normalizeEnsName('me.eth');
+			expect(invalid).toEqual(null);
+		});
+
+		it('should return null with valid 2LD and invalid 3LD', async () => {
+			const invalid = util.normalizeEnsName('@foo.metamask.eth');
+			expect(invalid).toEqual(null);
+		});
+
+		it('should return null with invalid 2LD and valid 3LD', async () => {
+			const invalid = util.normalizeEnsName('foo.barbaz.eth');
+			expect(invalid).toEqual(null);
+		});
+
+		it('should return null with invalid TLD', async () => {
+			const invalid = util.normalizeEnsName('a.metamask.com');
+			expect(invalid).toEqual(null);
+		});
+
+		it('should return null with repeated periods', async () => {
+			const invalid = util.normalizeEnsName('foo.metamask..eth');
+			expect(invalid).toEqual(null);
+		});
+
+		it('should return null with repeated periods', async () => {
+			const invalid = util.normalizeEnsName('foo..metamask.eth');
+			expect(invalid).toEqual(null);
+		});
+
+		it('should return null with empty string', async () => {
+			const invalid = util.normalizeEnsName('');
+			expect(invalid).toEqual(null);
 		});
 	});
 });

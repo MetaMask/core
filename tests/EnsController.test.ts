@@ -5,8 +5,8 @@ import EnsController from '../src/third-party/EnsController';
 const address1 = '0x32Be343B94f860124dC4fEe278FDCBD38C102D88';
 const address2 = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 const address3 = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
-const name1 = 'foo.eth';
-const name2 = 'bar.eth';
+const name1 = 'foobarb.eth';
+const name2 = 'bazbarb.eth';
 
 const address1Checksum = toChecksumAddress(address1);
 const address2Checksum = toChecksumAddress(address2);
@@ -149,10 +149,48 @@ describe('EnsController', () => {
 		});
 	});
 
-	it('should throw on attempt to set invalid ENS entry', () => {
+	it('should get ENS entry by chainId and ensName', () => {
+		const controller = new EnsController();
+		expect(controller.set('1', name1, address1)).toBeTruthy();
+		expect(controller.get('1', name1)).toEqual({
+			address: address1Checksum,
+			chainId: '1',
+			ensName: name1
+		});
+	});
+
+	it('should return null when getting nonexistent name', () => {
+		const controller = new EnsController();
+		expect(controller.set('1', name1, address1)).toBeTruthy();
+		expect(controller.get('1', name2)).toEqual(null);
+	});
+
+	it('should return null when getting nonexistent chainId', () => {
+		const controller = new EnsController();
+		expect(controller.set('1', name1, address1)).toBeTruthy();
+		expect(controller.get('2', name1)).toEqual(null);
+	});
+
+	it('should throw on attempt to set invalid ENS entry: chainId', () => {
 		const controller = new EnsController();
 		expect(() => {
-			controller.set('1', '1337', 'foo');
+			controller.set('a', name1, address1);
+		}).toThrowError();
+		expect(controller.state).toEqual({ ensEntries: {} });
+	});
+
+	it('should throw on attempt to set invalid ENS entry: ENS name', () => {
+		const controller = new EnsController();
+		expect(() => {
+			controller.set('1', 'foo.eth', address1);
+		}).toThrowError();
+		expect(controller.state).toEqual({ ensEntries: {} });
+	});
+
+	it('should throw on attempt to set invalid ENS entry: address', () => {
+		const controller = new EnsController();
+		expect(() => {
+			controller.set('1', name1, 'foo');
 		}).toThrowError();
 		expect(controller.state).toEqual({ ensEntries: {} });
 	});

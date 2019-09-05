@@ -1,5 +1,5 @@
 import { isValidAddress, toChecksumAddress } from 'ethereumjs-util';
-import { isValidEnsName } from '../util';
+import { normalizeEnsName } from '../util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
 /**
@@ -112,18 +112,26 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 			return false;
 		}
 
+		const entry = {
+			address,
+			chainId,
+			isEns: false,
+			memo,
+			name
+		};
+
+		const ensName = normalizeEnsName(name);
+		if (ensName) {
+			entry.name = ensName;
+			entry.isEns = true;
+		}
+
 		this.update({
 			addressBook: {
 				...this.state.addressBook,
 				[chainId]: {
 					...this.state.addressBook[chainId],
-					[address]: {
-						address,
-						chainId,
-						isEns: isValidEnsName(name),
-						memo,
-						name
-					}
+					[address]: entry
 				}
 			}
 		});
