@@ -457,27 +457,57 @@ describe('util', () => {
 
 	describe('normalizeEnsName', () => {
 		it('should normalize with valid 2LD', async () => {
-			const valid = util.normalizeEnsName('metamask.eth');
+			let valid = util.normalizeEnsName('metamask.eth');
 			expect(valid).toEqual('metamask.eth');
+			valid = util.normalizeEnsName('foobar1.eth');
+			expect(valid).toEqual('foobar1.eth');
+			valid = util.normalizeEnsName('foo-bar.eth');
+			expect(valid).toEqual('foo-bar.eth');
+			valid = util.normalizeEnsName('1-foo-bar.eth');
+			expect(valid).toEqual('1-foo-bar.eth');
 		});
 
 		it('should normalize with valid 2LD and "test" TLD', async () => {
-			const valid = util.normalizeEnsName('metamask.eth');
-			expect(valid).toEqual('metamask.eth');
+			const valid = util.normalizeEnsName('metamask.test');
+			expect(valid).toEqual('metamask.test');
 		});
 
 		it('should normalize with valid 2LD and 3LD', async () => {
-			const valid = util.normalizeEnsName('a.metamask.eth');
+			let valid = util.normalizeEnsName('a.metamask.eth');
 			expect(valid).toEqual('a.metamask.eth');
+			valid = util.normalizeEnsName('aa.metamask.eth');
+			expect(valid).toEqual('aa.metamask.eth');
+			valid = util.normalizeEnsName('a-a.metamask.eth');
+			expect(valid).toEqual('a-a.metamask.eth');
+			valid = util.normalizeEnsName('1-a.metamask.eth');
+			expect(valid).toEqual('1-a.metamask.eth');
+			valid = util.normalizeEnsName('1-2.metamask.eth');
+			expect(valid).toEqual('1-2.metamask.eth');
 		});
 
 		it('should return null with invalid 2LD', async () => {
-			const invalid = util.normalizeEnsName('me.eth');
+			let invalid = util.normalizeEnsName('me.eth');
+			expect(invalid).toEqual(null);
+			invalid = util.normalizeEnsName('metamask-.eth');
+			expect(invalid).toEqual(null);
+			invalid = util.normalizeEnsName('-metamask.eth');
+			expect(invalid).toEqual(null);
+			invalid = util.normalizeEnsName('@metamask.eth');
+			expect(invalid).toEqual(null);
+			invalid = util.normalizeEnsName('foobar.eth');
 			expect(invalid).toEqual(null);
 		});
 
 		it('should return null with valid 2LD and invalid 3LD', async () => {
-			const invalid = util.normalizeEnsName('@foo.metamask.eth');
+			let invalid = util.normalizeEnsName('-.metamask.eth');
+			expect(invalid).toEqual(null);
+			invalid = util.normalizeEnsName('abc-.metamask.eth');
+			expect(invalid).toEqual(null);
+			invalid = util.normalizeEnsName('-abc.metamask.eth');
+			expect(invalid).toEqual(null);
+			invalid = util.normalizeEnsName('.metamask.eth');
+			expect(invalid).toEqual(null);
+			invalid = util.normalizeEnsName('f@o.metamask.eth');
 			expect(invalid).toEqual(null);
 		});
 
@@ -492,12 +522,9 @@ describe('util', () => {
 		});
 
 		it('should return null with repeated periods', async () => {
-			const invalid = util.normalizeEnsName('foo.metamask..eth');
+			let invalid = util.normalizeEnsName('foo..metamask.eth');
 			expect(invalid).toEqual(null);
-		});
-
-		it('should return null with repeated periods', async () => {
-			const invalid = util.normalizeEnsName('foo..metamask.eth');
+			invalid = util.normalizeEnsName('foo.metamask..eth');
 			expect(invalid).toEqual(null);
 		});
 
