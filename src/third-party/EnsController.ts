@@ -105,11 +105,13 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
 	}
 
 	/**
-	 * Add or update an ENS entry by chainId and ensName
+	 * Add or update an ENS entry by chainId and ensName.
+	 *
+	 * A null address indicates that the ENS name does not resolve.
 	 *
 	 * @param chainId - Id of the associated chain
 	 * @param ensName - The ENS name
-	 * @param address - Associated address to add or update
+	 * @param address - Associated address (or null) to add or update
 	 *
 	 * @returns - Boolean indicating if the entry was set
 	 */
