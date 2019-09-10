@@ -7,6 +7,7 @@ import { Token } from './assets/TokenRatesController';
 const sigUtil = require('eth-sig-util');
 const jsonschema = require('jsonschema');
 const { BN, stripHexPrefix } = require('ethereumjs-util');
+const ensNamehash = require('eth-ens-namehash');
 const hexRe = /^[0-9A-Fa-f]+$/g;
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
@@ -320,9 +321,27 @@ export async function timeoutFetch(url: string, options?: RequestInit, timeout: 
 	]);
 }
 
-export function isValidEnsName(ensName: string) {
-	const regex = /^.{7,}\.(eth|test)$/;
-	return regex.test(ensName);
+/**
+ * Normalizes the given ENS name.
+ *
+ * @param {string} ensName - The ENS name
+ *
+ * @returns - the normalized ENS name string
+ */
+export function normalizeEnsName(ensName: string): string | null {
+	if (ensName && typeof ensName === 'string') {
+		try {
+			const normalized = ensNamehash.normalize(ensName.trim());
+			// this regex is only sufficient with the above call to ensNamehash.normalize
+			// TODO: change 7 in regex to 3 when shorter ENS domains are live
+			if (normalized.match(/^(([\w\d\-]+)\.)*[\w\d\-]{7,}\.(eth|test)$/)) {
+				return normalized;
+			}
+		} catch (_) {
+			// do nothing
+		}
+	}
+	return null;
 }
 
 export default {
@@ -333,7 +352,6 @@ export default {
 	hexToBN,
 	hexToText,
 	isSmartContractCode,
-	isValidEnsName,
 	normalizeTransaction,
 	safelyExecute,
 	timeoutFetch,
