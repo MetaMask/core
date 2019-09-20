@@ -33,7 +33,8 @@
         "lines": 100,
         "statements": 100
       }
-    }
+    },
+    "setupFiles": ["./tests/setupTests.ts"]
   },
   "prettier": {
     "arrowParens": "always",

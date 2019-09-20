@@ -1,3 +1,4 @@
+import 'isomorphic-fetch';
 import * as util from './util';
 
 export * from './assets/AccountTrackerController';

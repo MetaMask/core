@@ -1,4 +1,3 @@
-import 'isomorphic-fetch';
 const Mutex = require('await-semaphore').Mutex;
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute } from '../util';
