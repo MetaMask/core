@@ -52,14 +52,14 @@
     ]
   },
   "devDependencies": {
-    "@types/fetch-mock": "^6.0.3",
+    "@types/fetch-mock": "^7.3.1",
     "@types/jest": "^22.2.3",
     "@types/node": "^10.1.4",
     "@types/sinon": "^4.3.3",
     "@types/web3": "^1.0.6",
     "@types/xtend": "^4.0.2",
     "ethjs-provider-http": "^0.1.6",
-    "fetch-mock": "^6.4.3",
+    "fetch-mock": "^7.3.9",
     "husky": "^0.14.3",
     "jest": "^24.9.0",
     "jsdom": "11.11.0",

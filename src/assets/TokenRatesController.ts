@@ -1,7 +1,7 @@
 import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import AssetsController from './AssetsController';
-import { safelyExecute } from '../util';
+import { safelyExecute, handleFetch } from '../util';
 import CurrencyRateController from './CurrencyRateController';
 
 /**
@@ -131,9 +131,7 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
 	 * @returns - Promise resolving to exchange rates for given pairs
 	 */
 	async fetchExchangeRate(query: string): Promise<CoinGeckoResponse> {
-		const response = await fetch(this.getPricingURL(query));
-		const json = await response.json();
-		return json;
+		return handleFetch(this.getPricingURL(query));
 	}
 
 	/**

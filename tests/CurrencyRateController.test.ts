@@ -1,14 +1,17 @@
+import 'isomorphic-fetch';
 import { stub } from 'sinon';
+import * as fetchMock from 'fetch-mock';
 import CurrencyRateController from '../src/assets/CurrencyRateController';
 
 describe('CurrencyRateController', () => {
 	beforeEach(() => {
-		const mock = stub(window, 'fetch');
-		mock.resolves({
-			json: () => ({ USD: 1337 })
-		});
-		mock.restore();
+		fetchMock
+			.reset()
+			.mock('*', () => new Response(JSON.stringify({ USD: 1337 })))
+			.spy();
 	});
+
+	afterEach(fetchMock.reset);
 
 	it('should set default state', () => {
 		const controller = new CurrencyRateController();
@@ -79,12 +82,7 @@ describe('CurrencyRateController', () => {
 	it('should use default base asset', async () => {
 		const nativeCurrency = 'FOO';
 		const controller = new CurrencyRateController({ nativeCurrency });
-		const mock = stub(window, 'fetch');
-		mock.resolves({
-			json: () => ({ USD: 1337 })
-		});
 		await controller.fetchExchangeRate('usd');
-		mock.restore();
-		expect(mock.getCall(0).args[0]).toContain(nativeCurrency);
+		expect(fetchMock.calls()[0][0]).toContain(nativeCurrency);
 	});
 });

@@ -1,5 +1,5 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { safelyExecute } from '../util';
+import { safelyExecute, handleFetch } from '../util';
 
 /**
  * Network status code string
@@ -97,8 +97,7 @@ export class NetworkStatusController extends BaseController<NetworkStatusConfig,
 	 */
 	async updateInfuraStatus(): Promise<NetworkStatus> {
 		try {
-			const response = await fetch('https://api.infura.io/v1/status/metamask');
-			const json = await response.json();
+			const json = await handleFetch('https://api.infura.io/v1/status/metamask');
 			return json && json.mainnet ? json : /* istanbul ignore next */ DOWN_NETWORK_STATUS;
 		} catch (error) {
 			/* istanbul ignore next */
