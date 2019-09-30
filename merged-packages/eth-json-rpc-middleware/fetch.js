@@ -73,10 +73,10 @@ function checkForHttpErrors (fetchRes) {
 function parseResponse (fetchRes, body) {
   // check for error code
   if (fetchRes.status !== 200) {
-    throw rpcErrors.internal(body)
+    throw rpcErrors.internal(`Non-200 status code: '${fetchRes.status}'`, body)
   }
   // check for rpc error
-  if (body.error) throw rpcErrors.internal(body.error)
+  if (body.error) throw rpcErrors.internal(body.error.toString(), body.error)
   // return successful result
   return body.result
 }
