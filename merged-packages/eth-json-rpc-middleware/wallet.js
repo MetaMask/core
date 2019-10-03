@@ -14,6 +14,7 @@ function createWalletMiddleware(opts = {}) {
   const processPersonalMessage = opts.processPersonalMessage
   const processEthSignMessage = opts.processEthSignMessage
   const processTransaction = opts.processTransaction
+  const processDecryptMessage = opts.processDecryptMessage
 
   return createScaffoldMiddleware({
     // account lookups
@@ -28,6 +29,7 @@ function createWalletMiddleware(opts = {}) {
     'eth_signTypedData_v3': createAsyncMiddleware(signTypedDataV3),
     'eth_signTypedData_v4': createAsyncMiddleware(signTypedDataV4),
     'personal_sign': createAsyncMiddleware(personalSign),
+	'eth_decryptMessage': createAsyncMiddleware(decryptMessage),
     'personal_ecRecover': createAsyncMiddleware(personalRecover),
   })
 
@@ -194,6 +196,45 @@ function createWalletMiddleware(opts = {}) {
 
     const senderHex = sigUtil.recoverPersonalSignature(msgParams)
     res.result = senderHex
+  }
+
+  async function decryptMessage (req, res) {
+    if (!processDecryptMessage) throw new Error('WalletMiddleware - opts.processDecryptMessage not provided')
+    // process normally
+    const firstParam = req.params[0]
+    const secondParam = req.params[1]
+    // non-standard "extraParams" to be appended to our "msgParams" obj
+    const extraParams = req.params[2] || {}
+
+    // We initially incorrectly ordered these parameters.
+    // To gracefully respect users who adopted this API early,
+    // we are currently gracefully recovering from the wrong param order
+    // when it is clearly identifiable.
+    //
+    // That means when the first param is definitely an address,
+    // and the second param is definitely not, but is hex.
+    let address, message
+    if (resemblesAddress(firstParam) && !resemblesAddress(secondParam)) {
+      let warning = `The eth_decryptMessage method requires params ordered `
+      warning += `[message, address]. This was previously handled incorrectly, `
+      warning += `and has been corrected automatically. `
+      warning += `Please switch this param order for smooth behavior in the future.`
+      res.warning = warning
+
+      address = firstParam
+      message = secondParam
+    } else {
+      message = firstParam
+      address = secondParam
+    }
+
+    const msgParams = Object.assign({}, extraParams, {
+      from: address,
+      data: message,
+    })
+
+    await validateSender(address, req)
+    res.result = await processDecryptMessage(msgParams, req)
   }
 
   //
