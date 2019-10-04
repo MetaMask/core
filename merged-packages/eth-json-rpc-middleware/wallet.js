@@ -206,34 +206,12 @@ function createWalletMiddleware(opts = {}) {
     // non-standard "extraParams" to be appended to our "msgParams" obj
     const extraParams = req.params[2] || {}
 
-    // We initially incorrectly ordered these parameters.
-    // To gracefully respect users who adopted this API early,
-    // we are currently gracefully recovering from the wrong param order
-    // when it is clearly identifiable.
-    //
-    // That means when the first param is definitely an address,
-    // and the second param is definitely not, but is hex.
-    let address, message
-    if (resemblesAddress(firstParam) && !resemblesAddress(secondParam)) {
-      let warning = `The eth_decryptMessage method requires params ordered `
-      warning += `[message, address]. This was previously handled incorrectly, `
-      warning += `and has been corrected automatically. `
-      warning += `Please switch this param order for smooth behavior in the future.`
-      res.warning = warning
-
-      address = firstParam
-      message = secondParam
-    } else {
-      message = firstParam
-      address = secondParam
-    }
-
     const msgParams = Object.assign({}, extraParams, {
-      from: address,
-      data: message,
+      from: secondParam,
+      data: firstParam,
     })
 
-    await validateSender(address, req)
+    await validateSender(secondParam, req)
     res.result = await processDecryptMessage(msgParams, req)
   }
 
