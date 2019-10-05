@@ -14,6 +14,7 @@ function createWalletMiddleware(opts = {}) {
   const processPersonalMessage = opts.processPersonalMessage
   const processEthSignMessage = opts.processEthSignMessage
   const processTransaction = opts.processTransaction
+  const processDecryptMessage = opts.processDecryptMessage
 
   return createScaffoldMiddleware({
     // account lookups
@@ -28,6 +29,7 @@ function createWalletMiddleware(opts = {}) {
     'eth_signTypedData_v3': createAsyncMiddleware(signTypedDataV3),
     'eth_signTypedData_v4': createAsyncMiddleware(signTypedDataV4),
     'personal_sign': createAsyncMiddleware(personalSign),
+	'eth_decryptMessage': createAsyncMiddleware(decryptMessage),
     'personal_ecRecover': createAsyncMiddleware(personalRecover),
   })
 
@@ -194,6 +196,23 @@ function createWalletMiddleware(opts = {}) {
 
     const senderHex = sigUtil.recoverPersonalSignature(msgParams)
     res.result = senderHex
+  }
+
+  async function decryptMessage (req, res) {
+    if (!processDecryptMessage) throw new Error('WalletMiddleware - opts.processDecryptMessage not provided')
+    // process normally
+    const firstParam = req.params[0]
+    const secondParam = req.params[1]
+    // non-standard "extraParams" to be appended to our "msgParams" obj
+    const extraParams = req.params[2] || {}
+
+    const msgParams = Object.assign({}, extraParams, {
+      from: secondParam,
+      data: firstParam,
+    })
+
+    await validateSender(secondParam, req)
+    res.result = await processDecryptMessage(msgParams, req)
   }
 
   //
