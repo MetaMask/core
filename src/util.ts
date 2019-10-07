@@ -193,27 +193,12 @@ export function normalizeMessageData(data: string) {
 }
 
 /**
- * Validates a MessageParams object for required properties and throws in
- * the event of any validation error.
- *
- * @param messageData - MessageParams object to validate
- */
-export function validateSignMessageData(messageData: MessageParams) {
-	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
-		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
-	}
-	if (!messageData.data || typeof messageData.data !== 'string') {
-		throw new Error(`Invalid message "data": ${messageData.data} must be a valid string.`);
-	}
-}
-
-/**
- * Validates a PersonalMessageParams object for required properties and throws in
+ * Validates a PersonalMessageParams and MessageParams objects for required properties and throws in
  * the event of any validation error.
  *
  * @param messageData - PersonalMessageParams object to validate
  */
-export function validatePersonalSignMessageData(messageData: PersonalMessageParams) {
+export function validateSignMessageData(messageData: PersonalMessageParams | MessageParams) {
 	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
 		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
 	}

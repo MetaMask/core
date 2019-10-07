@@ -1,4 +1,4 @@
-import { validatePersonalSignMessageData, normalizeMessageData } from '../util';
+import { validateSignMessageData, normalizeMessageData } from '../util';
 import AbstractMessageManager, {
 	AbstractMessage,
 	AbstractMessageParams,
@@ -74,7 +74,7 @@ export class PersonalMessageManager extends AbstractMessageManager<
 	 */
 	addUnapprovedMessageAsync(messageParams: PersonalMessageParams, req?: OriginalRequest): Promise<string> {
 		return new Promise((resolve, reject) => {
-			validatePersonalSignMessageData(messageParams);
+			validateSignMessageData(messageParams);
 			const messageId = this.addUnapprovedMessage(messageParams, req);
 			this.hub.once(`${messageId}:finished`, (data: PersonalMessage) => {
 				switch (data.status) {

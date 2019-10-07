@@ -178,10 +178,10 @@ describe('util', () => {
 		expect(str).toEqual('hello there');
 	});
 
-	describe('validatePersonalSignMessageData', () => {
+	describe('validateSignMessageData', () => {
 		it('should throw if no from address', () => {
 			expect(() =>
-				util.validatePersonalSignMessageData({
+				util.validateSignMessageData({
 					data: '0x879a05'
 				} as any)
 			).toThrow();
@@ -189,7 +189,7 @@ describe('util', () => {
 
 		it('should throw if invalid from address', () => {
 			expect(() =>
-				util.validatePersonalSignMessageData({
+				util.validateSignMessageData({
 					data: '0x879a05',
 					from: '3244e191f1b4903970224322180f1fbbc415696b'
 				} as any)
@@ -198,7 +198,7 @@ describe('util', () => {
 
 		it('should throw if invalid type from address', () => {
 			expect(() =>
-				util.validatePersonalSignMessageData({
+				util.validateSignMessageData({
 					data: '0x879a05',
 					from: 123
 				} as any)
@@ -207,7 +207,7 @@ describe('util', () => {
 
 		it('should throw if no data', () => {
 			expect(() =>
-				util.validatePersonalSignMessageData({
+				util.validateSignMessageData({
 					data: '0x879a05'
 				} as any)
 			).toThrow();
@@ -215,7 +215,7 @@ describe('util', () => {
 
 		it('should throw if invalid tyoe data', () => {
 			expect(() =>
-				util.validatePersonalSignMessageData({
+				util.validateSignMessageData({
 					data: 123,
 					from: '0x3244e191f1b4903970224322180f1fbbc415696b'
 				} as any)
