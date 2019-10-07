@@ -1,5 +1,10 @@
 import { validateTypedSignMessageDataV3, validateTypedSignMessageDataV1 } from '../util';
-import MessageManager, { Message, MessageParams, MessageParamsMetamask, OriginalRequest } from './MessageManager';
+import AbstractMessageManager, {
+	AbstractMessage,
+	AbstractMessageParams,
+	AbstractMessageParamsMetamask,
+	OriginalRequest
+} from './AbstractMessageManager';
 const random = require('uuid/v1');
 
 /**
@@ -16,7 +21,7 @@ const random = require('uuid/v1');
  * A 'TypedMessage' which always has a 'eth_signTypedData' type
  * @property rawSig - Raw data of the signature request
  */
-export interface TypedMessage extends Message {
+export interface TypedMessage extends AbstractMessage {
 	error?: string;
 	messageParams: TypedMessageParams;
 	time: number;
@@ -35,7 +40,7 @@ export interface TypedMessage extends Message {
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  */
-export interface TypedMessageParams extends MessageParams {
+export interface TypedMessageParams extends AbstractMessageParams {
 	data: object[] | string;
 }
 
@@ -53,7 +58,7 @@ export interface TypedMessageParams extends MessageParams {
  * @property origin? - Added for request origin identification
  * @property version - Compatibility version EIP712
  */
-export interface TypedMessageParamsMetamask extends MessageParamsMetamask {
+export interface TypedMessageParamsMetamask extends AbstractMessageParamsMetamask {
 	data: object[] | string;
 	metamaskId: string;
 	error?: string;
@@ -63,7 +68,11 @@ export interface TypedMessageParamsMetamask extends MessageParamsMetamask {
 /**
  * Controller in charge of managing - storing, adding, removing, updating - TypedMessages.
  */
-export class TypedMessageManager extends MessageManager<TypedMessage, TypedMessageParams, TypedMessageParamsMetamask> {
+export class TypedMessageManager extends AbstractMessageManager<
+	TypedMessage,
+	TypedMessageParams,
+	TypedMessageParamsMetamask
+> {
 	/**
 	 * Name of this controller used during composition
 	 */
