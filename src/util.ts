@@ -1,5 +1,6 @@
 import { addHexPrefix, isValidAddress, bufferToHex } from 'ethereumjs-util';
 import { Transaction } from './transaction/TransactionController';
+import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
@@ -189,6 +190,21 @@ export function normalizeMessageData(data: string) {
 		/* istanbul ignore next */
 	}
 	return bufferToHex(Buffer.from(data, 'utf8'));
+}
+
+/**
+ * Validates a MessageParams object for required properties and throws in
+ * the event of any validation error.
+ *
+ * @param messageData - MessageParams object to validate
+ */
+export function validateSignMessageData(messageData: MessageParams) {
+	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
+		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
+	}
+	if (!messageData.data || typeof messageData.data !== 'string') {
+		throw new Error(`Invalid message "data": ${messageData.data} must be a valid string.`);
+	}
 }
 
 /**
