@@ -16,7 +16,6 @@ export interface OriginalRequest {
  * @type Message
  *
  * Represents and contains data about a signing type signature request.
- * These are created when a signature for an personal_sign call is requested.
  *
  * @property id - An id to track and identify the message object
  * @property type - The json-prc signing method for which a signature request has been made.

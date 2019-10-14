@@ -11,7 +11,7 @@ const random = require('uuid/v1');
  * @type Message
  *
  * Represents and contains data about a 'personal_sign' type signature request.
- * These are created when a signature for an personal_sign call is requested.
+ * These are created when a signature for a personal_sign call is requested.
  *
  * @property id - An id to track and identify the message object
  * @property messageParams - The parameters to pass to the personal_sign method once the signature request is approved
