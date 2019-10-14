@@ -289,6 +289,21 @@ export function isSmartContractCode(code: string) {
 }
 
 /**
+ * Execute fetch and verify that the response was successful
+ *
+ * @param request - Request information
+ * @param options - Options
+ * @returns - Promise resolving to the fetch response
+ */
+export async function successfulFetch(request: string, options?: RequestInit) {
+	const response = await fetch(request, options);
+	if (!response.ok) {
+		throw new Error(`Fetch failed with status '${response.status}' for request '${request}'`);
+	}
+	return response;
+}
+
+/**
  * Execute fetch and return object response
  *
  * @param request - Request information
@@ -296,7 +311,7 @@ export function isSmartContractCode(code: string) {
  * @returns - Promise resolving to the result object of fetch
  */
 export async function handleFetch(request: string, options?: RequestInit) {
-	const response = await fetch(request, options);
+	const response = await successfulFetch(request, options);
 	const object = await response.json();
 	return object;
 }
@@ -312,7 +327,7 @@ export async function handleFetch(request: string, options?: RequestInit) {
  */
 export async function timeoutFetch(url: string, options?: RequestInit, timeout: number = 500): Promise<Response> {
 	return Promise.race([
-		fetch(url, options),
+		successfulFetch(url, options),
 		new Promise<Response>((_, reject) =>
 			setTimeout(() => {
 				reject(new Error('timeout'));
@@ -354,6 +369,7 @@ export default {
 	isSmartContractCode,
 	normalizeTransaction,
 	safelyExecute,
+	successfulFetch,
 	timeoutFetch,
 	validateTokenToWatch,
 	validateTransaction,

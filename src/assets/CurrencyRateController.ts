@@ -1,7 +1,6 @@
-import 'isomorphic-fetch';
 const Mutex = require('await-semaphore').Mutex;
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { safelyExecute } from '../util';
+import { safelyExecute, handleFetch } from '../util';
 
 /**
  * @type CurrencyRateConfig
@@ -124,8 +123,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	 * @returns - Promise resolving to exchange rate for given currency
 	 */
 	async fetchExchangeRate(currency: string, nativeCurrency = this.activeNativeCurrency): Promise<CurrencyRateState> {
-		const response = await fetch(this.getPricingURL(currency, nativeCurrency));
-		const json = await response.json();
+		const json = await handleFetch(this.getPricingURL(currency, nativeCurrency));
 		return {
 			conversionDate: Date.now() / 1000,
 			conversionRate: Number(json[currency.toUpperCase()]),

@@ -1,4 +1,3 @@
-import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import AssetsController from './AssetsController';
 import { Token } from './TokenRatesController';

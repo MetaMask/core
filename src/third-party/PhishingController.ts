@@ -1,6 +1,5 @@
-import 'isomorphic-fetch';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { safelyExecute } from '../util';
+import { safelyExecute, handleFetch } from '../util';
 
 const DEFAULT_PHISHING_RESPONSE = require('eth-phishing-detect/src/config.json');
 const PhishingDetector = require('eth-phishing-detect/src/detector');
@@ -127,8 +126,7 @@ export class PhishingController extends BaseController<PhishingConfig, PhishingS
 			return;
 		}
 
-		const response = await fetch('https://api.infura.io/v2/blacklist');
-		const phishing = await response.json();
+		const phishing = await handleFetch('https://api.infura.io/v2/blacklist');
 		this.detector = new PhishingDetector(phishing);
 		phishing && this.update({ phishing });
 	}

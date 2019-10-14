@@ -5,6 +5,7 @@ import NetworkController from '../network/NetworkController';
 import {
 	BNToHex,
 	fractionBN,
+	handleFetch,
 	hexToBN,
 	normalizeTransaction,
 	safelyExecute,
@@ -634,8 +635,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		if (fromBlock) {
 			url += `&startBlock=${fromBlock}`;
 		}
-		const response = await fetch(url);
-		const parsedResponse = await response.json();
+		const parsedResponse = await handleFetch(url);
 		/* istanbul ignore else */
 		if (parsedResponse.status !== '0' && parsedResponse.result.length > 0) {
 			const remoteTxList: { [key: string]: number } = {};
