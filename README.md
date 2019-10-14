@@ -314,6 +314,19 @@ Linking GABA into other projects involves a special NPM command to ensure that d
 	$ npm link gaba
 	```
 
+## Release Steps
+
+- Create branch from `develop` named `v${version}`
+- push remote branch
+- Run `npx release <major|minor|patch>`. `major` for breaking changes, `patch` for bugfixes, `minor` for backwards compatible features.
+- Then select which PRs will be added to generate the changelog
+- Github page will be opened in your browser with the new generated tag and changelog, press the green button to release.
+- Then merge `v${version}` branch to `develop`, then make `master` up to date with `develop`
+- enable "create merge commit" option
+- do a normal merge to maintain history
+- disable "create merge commit" option
+- On a clean `master` run `npm run build` go to `/dist` folder just generated, then `npm publish` and GABA will be on npm
+
 ## API documentation
 
 API documentation is auto-generated for the GABA package on every commit to the `master` branch.
