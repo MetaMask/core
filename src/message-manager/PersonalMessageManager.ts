@@ -1,12 +1,17 @@
-import { validatePersonalSignMessageData, normalizeMessageData } from '../util';
-import MessageManager, { Message, MessageParams, MessageParamsMetamask, OriginalRequest } from './MessageManager';
+import { validateSignMessageData, normalizeMessageData } from '../util';
+import AbstractMessageManager, {
+	AbstractMessage,
+	AbstractMessageParams,
+	AbstractMessageParamsMetamask,
+	OriginalRequest
+} from './AbstractMessageManager';
 const random = require('uuid/v1');
 
 /**
  * @type Message
  *
  * Represents and contains data about a 'personal_sign' type signature request.
- * These are created when a signature for an personal_sign call is requested.
+ * These are created when a signature for a personal_sign call is requested.
  *
  * @property id - An id to track and identify the message object
  * @property messageParams - The parameters to pass to the personal_sign method once the signature request is approved
@@ -14,7 +19,7 @@ const random = require('uuid/v1');
  * A 'Message' which always has a 'personal_sign' type
  * @property rawSig - Raw data of the signature request
  */
-export interface PersonalMessage extends Message {
+export interface PersonalMessage extends AbstractMessage {
 	messageParams: PersonalMessageParams;
 }
 
@@ -27,7 +32,7 @@ export interface PersonalMessage extends Message {
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  */
-export interface PersonalMessageParams extends MessageParams {
+export interface PersonalMessageParams extends AbstractMessageParams {
 	data: string;
 }
 
@@ -42,14 +47,14 @@ export interface PersonalMessageParams extends MessageParams {
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  */
-export interface PersonalMessageParamsMetamask extends MessageParamsMetamask {
+export interface PersonalMessageParamsMetamask extends AbstractMessageParamsMetamask {
 	data: string;
 }
 
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
-export class PersonalMessageManager extends MessageManager<
+export class PersonalMessageManager extends AbstractMessageManager<
 	PersonalMessage,
 	PersonalMessageParams,
 	PersonalMessageParamsMetamask
@@ -69,9 +74,9 @@ export class PersonalMessageManager extends MessageManager<
 	 */
 	addUnapprovedMessageAsync(messageParams: PersonalMessageParams, req?: OriginalRequest): Promise<string> {
 		return new Promise((resolve, reject) => {
-			validatePersonalSignMessageData(messageParams);
+			validateSignMessageData(messageParams);
 			const messageId = this.addUnapprovedMessage(messageParams, req);
-			this.hub.once(`${messageId}:finished`, (data: Message) => {
+			this.hub.once(`${messageId}:finished`, (data: PersonalMessage) => {
 				switch (data.status) {
 					case 'signed':
 						return resolve(data.rawSig);
