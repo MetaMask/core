@@ -1,6 +1,6 @@
 {
   "name": "gaba",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "license": "MIT",
   "scripts": {
@@ -34,7 +34,9 @@
         "statements": 100
       }
     },
-    "setupFiles": ["./tests/setupTests.ts"]
+    "setupFiles": [
+      "./tests/setupTests.ts"
+    ]
   },
   "prettier": {
     "arrowParens": "always",
