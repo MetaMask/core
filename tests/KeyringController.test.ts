@@ -4,6 +4,7 @@ import PreferencesController from '../src/user/PreferencesController';
 import ComposableController from '../src/ComposableController';
 import { KeyringConfig } from '../src/keyring/KeyringController';
 import { stub } from 'sinon';
+const sigUtil = require('eth-sig-util');
 const mockEncryptor: any = require('../node_modules/eth-keyring-controller/test/lib/mock-encryptor.js');
 const Transaction = require('ethereumjs-tx');
 
@@ -138,7 +139,8 @@ describe('KeyringController', () => {
 		const data = ethUtil.bufferToHex(Buffer.from('Hello from test', 'utf8'));
 		const account = initialState.keyrings[0].accounts[0];
 		const signature = await keyringController.signPersonalMessage({ data, from: account });
-		expect(signature).not.toBe('');
+		const recovered = sigUtil.recoverPersonalSignature({ data, sig: signature });
+		expect(account).toBe(recovered);
 	});
 
 	it('should sign typed message V1', async () => {
@@ -156,11 +158,12 @@ describe('KeyringController', () => {
 		];
 		const account = initialState.keyrings[0].accounts[0];
 		const signature = await keyringController.signTypedMessage({ data: typedMsgParams, from: account }, 'V1');
-		expect(signature).not.toBe('');
+		const recovered = sigUtil.recoverTypedSignatureLegacy({ data: typedMsgParams, sig: signature });
+		expect(account).toBe(recovered);
 	});
 
 	it('should sign typed message V3', async () => {
-		const msgParams = JSON.stringify({
+		const msgParams = {
 			domain: {
 				chainId: 1,
 				name: 'Ether Mail',
@@ -187,10 +190,69 @@ describe('KeyringController', () => {
 				],
 				Person: [{ name: 'name', type: 'string' }, { name: 'wallet', type: 'address' }]
 			}
-		});
+		};
 		const account = initialState.keyrings[0].accounts[0];
-		const signature = await keyringController.signTypedMessage({ data: msgParams, from: account }, 'V3');
-		expect(signature).not.toBe('');
+		const signature = await keyringController.signTypedMessage(
+			{ data: JSON.stringify(msgParams), from: account },
+			'V3'
+		);
+		const recovered = sigUtil.recoverTypedSignature({ data: msgParams, sig: signature });
+		expect(account).toBe(recovered);
+	});
+
+	it('should sign typed message V4', async () => {
+		const msgParams = {
+			domain: {
+				chainId: 1,
+				name: 'Ether Mail',
+				verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+				version: '1'
+			},
+			message: {
+				contents: 'Hello, Bob!',
+				from: {
+					name: 'Cow',
+					wallets: [
+						'0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826',
+						'0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF'
+					]
+				},
+				to: [
+					{
+						name: 'Bob',
+						wallets: [
+							'0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+							'0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57',
+							'0xB0B0b0b0b0b0B000000000000000000000000000'
+						]
+					}
+				]
+			},
+			primaryType: 'Mail',
+			types: {
+				EIP712Domain: [
+					{ name: 'name', type: 'string' },
+					{ name: 'version', type: 'string' },
+					{ name: 'chainId', type: 'uint256' },
+					{ name: 'verifyingContract', type: 'address' }
+				],
+				Group: [{ name: 'name', type: 'string' }, { name: 'members', type: 'Person[]' }],
+				Mail: [
+					{ name: 'from', type: 'Person' },
+					{ name: 'to', type: 'Person[]' },
+					{ name: 'contents', type: 'string' }
+				],
+				Person: [{ name: 'name', type: 'string' }, { name: 'wallets', type: 'address[]' }]
+			}
+		};
+
+		const account = initialState.keyrings[0].accounts[0];
+		const signature = await keyringController.signTypedMessage(
+			{ data: JSON.stringify(msgParams), from: account },
+			'V4'
+		);
+		const recovered = sigUtil.recoverTypedSignature_v4({ data: msgParams, sig: signature });
+		expect(account).toBe(recovered);
 	});
 
 	it('should fail when sign typed message format is wrong', async () => {
