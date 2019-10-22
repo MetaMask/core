@@ -28,7 +28,14 @@ export interface ApiCollectibleResponse {
 	image_original_url: string;
 	name: string;
 	description: string;
-	asset_contract: { [address: string]: string };
+	asset_contract: {
+		address: string;
+		name: string;
+		symbol: string;
+		image_url: string;
+		total_supply: string;
+		description: string;
+	};
 }
 
 /**
@@ -219,32 +226,44 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 					image_original_url,
 					name,
 					description,
-					asset_contract: { address }
+					asset_contract: {
+						address: contractAddress,
+						name: contractName,
+						symbol: contractSymbol,
+						image_url: contractImage,
+						total_supply: contractSupply,
+						description: contractDescription
+					}
 				} = collectible;
-
 				let ignored;
 				/* istanbul ignore else */
 				if (ignoredCollectibles.length) {
 					ignored = ignoredCollectibles.find((c) => {
 						/* istanbul ignore next */
-						return c.address === toChecksumAddress(address) && c.tokenId === Number(token_id);
+						return c.address === toChecksumAddress(contractAddress) && c.tokenId === Number(token_id);
 					});
 				}
 				/* istanbul ignore else */
 				if (!ignored) {
 					await assetsController.addCollectible(
-						address,
+						contractAddress,
 						Number(token_id),
 						{
 							description,
 							image: image_original_url,
-							name
+							name,
+							contractAddress,
+							contractName,
+							contractSymbol,
+							contractImage,
+							contractSupply,
+							contractDescription
 						},
 						true
 					);
 				}
 				collectiblesToRemove = collectiblesToRemove.filter((c) => {
-					return !(c.tokenId === Number(token_id) && c.address === toChecksumAddress(address));
+					return !(c.tokenId === Number(token_id) && c.address === toChecksumAddress(contractAddress));
 				});
 			});
 			await Promise.all(addCollectiblesPromises);

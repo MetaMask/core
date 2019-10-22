@@ -83,6 +83,12 @@ export interface CollectibleInformation {
 	description?: string;
 	image?: string;
 	name?: string;
+	contractAddress?: string;
+	contractName?: string;
+	contractSymbol?: string;
+	contractImage?: string;
+	contractSupply?: string;
+	contractDescription?: string;
 }
 
 /**
@@ -374,7 +380,11 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param detection? - Whether the collectible is manually added or auto-detected
 	 * @returns - Promise resolving to the current collectible contracts list
 	 */
-	private async addCollectibleContract(address: string, detection?: boolean): Promise<CollectibleContract[]> {
+	private async addCollectibleContract(
+		address: string,
+		detection?: boolean,
+		opts?: CollectibleInformation
+	): Promise<CollectibleContract[]> {
 		const releaseLock = await this.mutex.acquire();
 		address = toChecksumAddress(address);
 		const { allCollectibleContracts, collectibleContracts } = this.state;
@@ -386,7 +396,18 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 			releaseLock();
 			return collectibleContracts;
 		}
-		const contractInformation = await this.getCollectibleContractInformation(address);
+		let contractInformation;
+		if (opts) {
+			contractInformation = {
+				name: opts.contractName,
+				symbol: opts.contractSymbol,
+				image_url: opts.contractImage,
+				total_supply: opts.contractSupply,
+				description: opts.contractDescription
+			};
+		} else {
+			contractInformation = await this.getCollectibleContractInformation(address);
+		}
 		const { name, symbol, image_url, description, total_supply } = contractInformation;
 		// If being auto-detected opensea information is expected
 		// Oherwise at least name and symbol from contract is needed
@@ -693,7 +714,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	async addCollectible(address: string, tokenId: number, opts?: CollectibleInformation, detection?: boolean) {
 		address = toChecksumAddress(address);
-		const newCollectibleContracts = await this.addCollectibleContract(address, detection);
+		const newCollectibleContracts = await this.addCollectibleContract(address, detection, opts);
 		// If collectible contract was not added, do not add individual collectible
 		const collectibleContract = newCollectibleContracts.find((contract) => contract.address === address);
 		// If collectible contract information, add individual collectible
