@@ -8,4 +8,5 @@ tests
 .nvmrc
 .travis.yml
 npm-debug.log
-ts*
+tsconfig.json
+tslint.json
