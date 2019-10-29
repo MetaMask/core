@@ -1,4 +1,11 @@
-.DS_Store
 coverage
 node_modules
+src
+tests
+
+.DS_Store
+.editorconfig
+.nvmrc
+.travis.yml
 npm-debug.log
+ts*
