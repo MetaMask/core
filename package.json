@@ -96,7 +96,7 @@
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^3.3.2",
     "web3": "^0.20.7",
-    "web3-provider-engine": "^15.0.3"
+    "web3-provider-engine": "^15.0.4"
   },
   "repository": {
     "type": "git",
