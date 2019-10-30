@@ -476,9 +476,11 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 
 		await this.sign(ethTransaction, transactionMeta.transaction.from);
 		const rawTransaction = bufferToHex(ethTransaction.serialize());
-		await this.query('sendRawTransaction', [rawTransaction]);
-		transactionMeta.status = 'cancelled';
-		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+		safelyExecute(async () => {
+			await this.query('sendRawTransaction', [rawTransaction]);
+			transactionMeta.status = 'cancelled';
+			this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+		});
 	}
 
 	/**
@@ -501,22 +503,25 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const existingGasPriceDecimal = parseInt(existingGasPrice === undefined ? '0x0' : existingGasPrice, 16);
 		const gasPrice = `0x${(existingGasPriceDecimal * SPEED_UP_RATE).toString(16)}`;
 		const ethTransaction = new Transaction({ ...transactionMeta.transaction, gasPrice });
-
 		await this.sign(ethTransaction, transactionMeta.transaction.from);
 		const rawTransaction = bufferToHex(ethTransaction.serialize());
-		const transactionHash = await this.query('sendRawTransaction', [rawTransaction]);
 
-		transactions.push({
-			...transactionMeta,
-			id: random(),
-			time: Date.now(),
-			transaction: {
-				...transactionMeta.transaction,
-				gasPrice
-			},
-			transactionHash
+		safelyExecute(async () => {
+			const transactionHash = await this.query('sendRawTransaction', [rawTransaction]);
+			const newTransactionMeta = {
+				...transactionMeta,
+				id: random(),
+				time: Date.now(),
+				transaction: {
+					...transactionMeta.transaction,
+					gasPrice
+				},
+				transactionHash
+			};
+			transactions.push(newTransactionMeta);
+			this.update({ transactions: [...transactions] });
+			this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
 		});
-		this.update({ transactions: [...transactions] });
 	}
 
 	/**
