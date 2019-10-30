@@ -496,6 +496,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 			throw new Error('No sign method defined.');
 		}
 
+		const { transactions } = this.state;
 		const existingGasPrice = transactionMeta.transaction.gasPrice;
 		const existingGasPriceDecimal = parseInt(existingGasPrice === undefined ? '0x0' : existingGasPrice, 16);
 		const gasPrice = `0x${(existingGasPriceDecimal * SPEED_UP_RATE).toString(16)}`;
@@ -503,7 +504,19 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 
 		await this.sign(ethTransaction, transactionMeta.transaction.from);
 		const rawTransaction = bufferToHex(ethTransaction.serialize());
-		await this.query('sendRawTransaction', [rawTransaction]);
+		const transactionHash = await this.query('sendRawTransaction', [rawTransaction]);
+
+		transactions.push({
+			...transactionMeta,
+			id: random(),
+			time: Date.now(),
+			transaction: {
+				...transactionMeta.transaction,
+				gasPrice
+			},
+			transactionHash
+		});
+		this.update({ transactions: [...transactions] });
 	}
 
 	/**

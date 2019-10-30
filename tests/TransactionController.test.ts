@@ -515,4 +515,31 @@ describe('TransactionController', () => {
 			}
 		});
 	});
+
+	it('should speed up a transaction', async () => {
+		return new Promise(async (resolve) => {
+			const controller = new TransactionController({
+				provider: PROVIDER,
+				sign: async (transaction: any) => transaction
+			});
+			const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+			controller.context = {
+				NetworkController: MOCK_NETWORK
+			} as any;
+			controller.onComposed();
+			const { result } = await controller.addTransaction({
+				from,
+				gas: '0x0',
+				gasPrice: '0x1',
+				to: from,
+				value: '0x0'
+			});
+			result.catch((error) => {
+				expect(error.message).toContain('User cancelled the transaction');
+				resolve();
+			});
+
+			await controller.speedUpTransaction(controller.state.transactions[0].id);
+		});
+	});
 });
