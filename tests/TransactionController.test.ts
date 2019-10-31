@@ -527,19 +527,18 @@ describe('TransactionController', () => {
 				NetworkController: MOCK_NETWORK
 			} as any;
 			controller.onComposed();
-			const { result } = await controller.addTransaction({
+			await controller.addTransaction({
 				from,
 				gas: '0x0',
 				gasPrice: '0x1',
 				to: from,
 				value: '0x0'
 			});
-			result.catch((error) => {
-				expect(error.message).toContain('User cancelled the transaction');
-				resolve();
-			});
-
 			await controller.speedUpTransaction(controller.state.transactions[0].id);
+
+			expect(controller.state.transactions.length).toBe(2);
+			expect(controller.state.transactions[1].transaction.gasPrice).toBe('0x1.199999999999a');
+			resolve();
 		});
 	});
 });

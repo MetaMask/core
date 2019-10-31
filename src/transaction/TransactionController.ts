@@ -488,16 +488,19 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 */
 	async speedUpTransaction(transactionID: string) {
 		const transactionMeta = this.state.transactions.find(({ id }) => id === transactionID);
+		/* istanbul ignore next */
 		if (!transactionMeta) {
 			return;
 		}
 
+		/* istanbul ignore next */
 		if (!this.sign) {
 			throw new Error('No sign method defined.');
 		}
 
 		const { transactions } = this.state;
 		const existingGasPrice = transactionMeta.transaction.gasPrice;
+		/* istanbul ignore next */
 		const existingGasPriceDecimal = parseInt(existingGasPrice === undefined ? '0x0' : existingGasPrice, 16);
 		const gasPrice = `0x${(existingGasPriceDecimal * SPEED_UP_RATE).toString(16)}`;
 		const ethTransaction = new Transaction({ ...transactionMeta.transaction, gasPrice });
