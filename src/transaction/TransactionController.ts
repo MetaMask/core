@@ -441,7 +441,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		transactionMeta.status = 'rejected';
 		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
 		const transactions = this.state.transactions.filter(({ id }) => id !== transactionID);
-		this.update({ transactions });
+		this.update({ transactions: [...transactions] });
 	}
 
 	/**
