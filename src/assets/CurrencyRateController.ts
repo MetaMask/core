@@ -65,7 +65,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	constructor(config?: Partial<CurrencyRateConfig>, state?: Partial<CurrencyRateState>) {
 		super(config, state);
 		this.defaultConfig = {
-			currentCurrency: 'usd',
+			currentCurrency: state && state.currentCurrency ? state.currentCurrency : 'usd',
 			disabled: true,
 			interval: 180000,
 			nativeCurrency: 'ETH'
