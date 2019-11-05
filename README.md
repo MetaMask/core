@@ -316,10 +316,13 @@ Linking GABA into other projects involves a special NPM command to ensure that d
 
 ## Release Steps
 
-- Create branch from `develop` named `v${version}`
-- push remote branch
-- Run `npx release <major|minor|patch>`. `major` for breaking changes, `patch` for bugfixes, `minor` for backwards compatible features.
-- Then select which PRs will be added to generate the changelog
+1. Create branch from `develop` named `v${version}`
+2. Run `npm version <major|minor|patch>`
+    - `major` for breaking changes, `patch` for bugfixes, `minor` for backwards compatible features
+3. Push this branch to the remote (with [`--tags`](https://git-scm.com/book/en/v2/Git-Basics-Tagging)!)
+4. Create a PR from that branch targeting `develop`
+5. Create a GitHub Release from the tag
+6. ???
 - Github page will be opened in your browser with the new generated tag and changelog, press the green button to release.
 - Then merge `v${version}` branch to `develop`, then make `master` up to date with `develop`
 - enable "create merge commit" option
