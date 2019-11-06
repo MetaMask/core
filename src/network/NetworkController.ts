@@ -133,7 +133,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	}
 
 	private updateProvider(provider: any) {
-		this.lateProviderStop(provider);
+		this.lateProviderStop(this.provider);
 		this.provider = provider;
 		this.registerProvider();
 	}
