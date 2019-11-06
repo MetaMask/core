@@ -133,9 +133,15 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 	}
 
 	private updateProvider(provider: any) {
-		this.provider && this.provider.stop();
+		this.lateProviderStop(provider);
 		this.provider = provider;
 		this.registerProvider();
+	}
+
+	private lateProviderStop(provider: any) {
+		setTimeout(() => {
+			provider && provider.stop();
+		}, 500);
 	}
 
 	private verifyNetwork() {
