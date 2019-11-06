@@ -325,7 +325,7 @@ Linking GABA into other projects involves a special NPM command to ensure that d
 - enable "create merge commit" option
 - do a normal merge to maintain history
 - disable "create merge commit" option
-- On a clean `master` run `npm run build` go to `/dist` folder just generated, then `npm publish` and GABA will be on npm
+- On a clean `master` run `npm run build`, then run `npm publish` in the project root and GABA will be on npm
 
 ## API documentation
 

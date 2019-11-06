@@ -33,6 +33,17 @@ describe('CurrencyRateController', () => {
 		});
 	});
 
+	it('should initialize with the currency in state', () => {
+		const existingState = { currentCurrency: 'rep' };
+		const controller = new CurrencyRateController({}, existingState);
+		expect(controller.config).toEqual({
+			currentCurrency: 'rep',
+			disabled: false,
+			interval: 180000,
+			nativeCurrency: 'ETH'
+		});
+	});
+
 	it('should poll and update rate in the right interval', () => {
 		return new Promise((resolve) => {
 			const controller = new CurrencyRateController({ interval: 100 });
