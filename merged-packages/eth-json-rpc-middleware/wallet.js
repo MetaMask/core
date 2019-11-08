@@ -15,6 +15,7 @@ function createWalletMiddleware(opts = {}) {
   const processEthSignMessage = opts.processEthSignMessage
   const processTransaction = opts.processTransaction
   const processDecryptMessage = opts.processDecryptMessage
+  const processEncryptionPublicKey = opts.processEncryptionPublicKey
 
   return createScaffoldMiddleware({
     // account lookups
@@ -29,7 +30,8 @@ function createWalletMiddleware(opts = {}) {
     'eth_signTypedData_v3': createAsyncMiddleware(signTypedDataV3),
     'eth_signTypedData_v4': createAsyncMiddleware(signTypedDataV4),
     'personal_sign': createAsyncMiddleware(personalSign),
-	'eth_decryptMessage': createAsyncMiddleware(decryptMessage),
+    'encryption_public_key': createAsyncMiddleware(encryptionPublicKey),
+    'eth_decryptMessage': createAsyncMiddleware(decryptMessage),
     'personal_ecRecover': createAsyncMiddleware(personalRecover),
   })
 
@@ -198,6 +200,14 @@ function createWalletMiddleware(opts = {}) {
     res.result = senderHex
   }
 
+  async function encryptionPublicKey (req, res) {
+    if (!processEncryptionPublicKey) throw new Error('WalletMiddleware - opts.processEncryptionPublicKey not provided')
+    const address = req.params[0]
+
+    await validateSender(address, req)
+    res.result = await processEncryptionPublicKey(address, req)
+  }
+	
   async function decryptMessage (req, res) {
     if (!processDecryptMessage) throw new Error('WalletMiddleware - opts.processDecryptMessage not provided')
     // process normally
