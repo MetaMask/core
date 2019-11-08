@@ -155,13 +155,21 @@ describe('basic tests', function () {
     let engine = new RpcEngine()
 
     engine.push(function (req, res, next, end) {
+      if (req.id === 4) {
+        delete res.result
+        res.error = new Error()
+        return end(res.error)
+      }
       res.result = req.id
       end()
     })
 
     let payloadA = { id: 1, jsonrpc: '2.0', method: 'hello' }
     let payloadB = { id: 2, jsonrpc: '2.0', method: 'hello' }
-    let payload = [payloadA, payloadB]
+    let payloadC = { id: 3, jsonrpc: '2.0', method: 'hello' }
+    let payloadD = { id: 4, jsonrpc: '2.0', method: 'hello' }
+    let payloadE = { id: 5, jsonrpc: '2.0', method: 'hello' }
+    let payload = [payloadA, payloadB, payloadC, payloadD, payloadE]
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -169,6 +177,10 @@ describe('basic tests', function () {
       assert(Array.isArray(res), 'res is array')
       assert.equal(res[0].result, 1, 'has expected result')
       assert.equal(res[1].result, 2, 'has expected result')
+      assert.equal(res[2].result, 3, 'has expected result')
+      assert.ok(!res[3].result, 'has no result')
+      assert.equal(res[3].error.code, -32603, 'has expected error')
+      assert.equal(res[4].result, 5, 'has expected result')
       done()
     })
   })

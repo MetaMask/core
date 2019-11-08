@@ -1,7 +1,7 @@
 'use strict'
 const async = require('async')
 const SafeEventEmitter = require('safe-event-emitter')
-const { serializeError } = require('eth-json-rpc-errors')
+const { serializeError, ethErrors } = require('eth-json-rpc-errors')
 
 class RpcEngine extends SafeEventEmitter {
   constructor () {
@@ -20,7 +20,7 @@ class RpcEngine extends SafeEventEmitter {
   handle (req, cb) {
     // batch request support
     if (Array.isArray(req)) {
-      async.map(req, this._handle.bind(this), cb)
+      this._handleBatch(req, cb)
     } else {
       this._handle(req, cb)
     }
@@ -29,6 +29,36 @@ class RpcEngine extends SafeEventEmitter {
   //
   // Private
   //
+
+  async _handleBatch (reqs, cb) {
+    const batchRes = []
+    for (const r of reqs) {
+      try {
+        let [err, res] = await this._promiseHandle(r)
+        if (!res) {
+          if (err) {
+            throw err
+          } else {
+            throw ethErrors.rpc.internal('JsonRpcEngine: Request handler returned neither error nor response.')
+          }
+        } else {
+          batchRes.push(res)
+        }
+      } catch (_err) {
+        // some kind of fatal error
+        return cb(_err, null)
+      }
+    }
+    cb(null, batchRes)
+  }
+
+  _promiseHandle (req) {
+    return new Promise((resolve) => {
+      this._handle(req, (err, res) => {
+        resolve([err, res])
+      })
+    })
+  }
 
   _handle (_req, cb) {
     // shallow clone request object
@@ -66,12 +96,12 @@ class RpcEngine extends SafeEventEmitter {
       // fail if not completed
       if (!('result' in res) && !('error' in res)) {
         const requestBody = JSON.stringify(req, null, 2)
-        const message = 'JsonRpcEngine - response has no error or result for request:\n' + requestBody
+        const message = 'JsonRpcEngine: Response has no error or result for request:\n' + requestBody
         return cb(new Error(message))
       }
       if (!isComplete) {
         const requestBody = JSON.stringify(req, null, 2)
-        const message = 'JsonRpcEngine - nothing ended request:\n' + requestBody
+        const message = 'JsonRpcEngine: Nothing ended request:\n' + requestBody
         return cb(new Error(message))
       }
       // continue
