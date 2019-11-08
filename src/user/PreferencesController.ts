@@ -232,6 +232,15 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 	}
 
 	/**
+	 * Sets selected address
+	 *
+	 * @param selectedAddress - Ethereum address
+	 */
+	setSelectedAddress(selectedAddress: string) {
+		this.update({ selectedAddress: toChecksumAddress(selectedAddress) });
+	}
+
+	/**
 	 * Sets new IPFS gateway
 	 *
 	 * @param ipfsGateway - IPFS gateway string
