@@ -44,6 +44,10 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	private mutex = new Mutex();
 	private handle?: NodeJS.Timer;
 
+	private getCurrentCurrencyFromState(state?: Partial<CurrencyRateState>) {
+		return (state && state.currentCurrency) ? state.currentCurrency : 'usd';
+	}
+
 	private getPricingURL(currentCurrency: string, nativeCurrency: string) {
 		return (
 			`https://min-api.cryptocompare.com/data/price?fsym=` +
@@ -65,7 +69,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	constructor(config?: Partial<CurrencyRateConfig>, state?: Partial<CurrencyRateState>) {
 		super(config, state);
 		this.defaultConfig = {
-			currentCurrency: 'usd',
+			currentCurrency: this.getCurrentCurrencyFromState(state),
 			disabled: true,
 			interval: 180000,
 			nativeCurrency: 'ETH'
