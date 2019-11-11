@@ -116,4 +116,10 @@ describe('PreferencesController', () => {
 		controller.setIpfsGateway('https://ipfs.infura.io/ipfs/');
 		expect(controller.state.ipfsGateway).toEqual('https://ipfs.infura.io/ipfs/');
 	});
+
+	it('should update selected address as checksummed', () => {
+		const controller = new PreferencesController();
+		controller.setSelectedAddress('0x95d2bc047b0ddec1e4a178eeb64d59f5e735cd0a');
+		expect(controller.state.selectedAddress).toEqual('0x95D2bC047B0dDEc1E4A178EeB64d59F5E735cd0A');
+	});
 });
