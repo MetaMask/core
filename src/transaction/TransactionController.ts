@@ -179,6 +179,11 @@ export interface TransactionState extends BaseState {
 export const CANCEL_RATE = 1.5;
 
 /**
+ * Multiplier used to determine a transaction's increased gas fee during speed up
+ */
+export const SPEED_UP_RATE = 1.1;
+
+/**
  * Controller responsible for submitting and managing transactions
  */
 export class TransactionController extends BaseController<TransactionConfig, TransactionState> {
@@ -436,9 +441,15 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		transactionMeta.status = 'rejected';
 		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
 		const transactions = this.state.transactions.filter(({ id }) => id !== transactionID);
-		this.update({ transactions });
+		this.update({ transactions: [...transactions] });
 	}
 
+	/**
+	 * Attempts to cancel a transaction based on its ID by setting its status to "rejected"
+	 * and emitting a `<tx.id>:finished` hub event.
+	 *
+	 * @param transactionID - ID of the transaction to cancel
+	 */
 	async stopTransaction(transactionID: string) {
 		const transactionMeta = this.state.transactions.find(({ id }) => id === transactionID);
 		if (!transactionMeta) {
@@ -468,6 +479,47 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		await this.query('sendRawTransaction', [rawTransaction]);
 		transactionMeta.status = 'cancelled';
 		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+	}
+
+	/**
+	 * Attemps to speed up a transaction increasing transaction gasPrice by ten percent
+	 *
+	 * @param transactionID - ID of the transaction to speed up
+	 */
+	async speedUpTransaction(transactionID: string) {
+		const transactionMeta = this.state.transactions.find(({ id }) => id === transactionID);
+		/* istanbul ignore next */
+		if (!transactionMeta) {
+			return;
+		}
+
+		/* istanbul ignore next */
+		if (!this.sign) {
+			throw new Error('No sign method defined.');
+		}
+
+		const { transactions } = this.state;
+		const existingGasPrice = transactionMeta.transaction.gasPrice;
+		/* istanbul ignore next */
+		const existingGasPriceDecimal = parseInt(existingGasPrice === undefined ? '0x0' : existingGasPrice, 16);
+		const gasPrice = `0x${(existingGasPriceDecimal * SPEED_UP_RATE).toString(16)}`;
+		const ethTransaction = new Transaction({ ...transactionMeta.transaction, gasPrice });
+		await this.sign(ethTransaction, transactionMeta.transaction.from);
+		const rawTransaction = bufferToHex(ethTransaction.serialize());
+		const transactionHash = await this.query('sendRawTransaction', [rawTransaction]);
+		const newTransactionMeta = {
+			...transactionMeta,
+			id: random(),
+			time: Date.now(),
+			transaction: {
+				...transactionMeta.transaction,
+				gasPrice
+			},
+			transactionHash
+		};
+		transactions.push(newTransactionMeta);
+		this.update({ transactions: [...transactions] });
+		this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
 	}
 
 	/**
