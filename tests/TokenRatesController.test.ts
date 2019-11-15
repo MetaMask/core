@@ -19,6 +19,25 @@ describe('TokenRatesController', () => {
 			}),
 			{ overwriteRoutes: true, method: 'GET' }
 		);
+		get(COINGECKO_API + 'contract_addresses=0xfoO&vs_currencies=eth', () => ({ body: '{}' }), {
+			method: 'GET',
+			overwriteRoutes: true
+		});
+		get(COINGECKO_API + 'contract_addresses=bar&vs_currencies=eth', () => ({ body: '{}' }), {
+			method: 'GET',
+			overwriteRoutes: true
+		});
+		get(COINGECKO_API + 'contract_addresses=0xfoO&vs_currencies=gno', () => ({ body: '{}' }), {
+			method: 'GET',
+			overwriteRoutes: true
+		});
+		get(
+			'https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD',
+			() => ({
+				body: JSON.stringify({ USD: 179.63 })
+			}),
+			{ overwriteRoutes: true, method: 'GET' }
+		);
 	});
 
 	it('should set default state', () => {
