@@ -6,8 +6,40 @@ import { PreferencesController } from '../src/user/PreferencesController';
 import { NetworkController } from '../src/network/NetworkController';
 import { AssetsContractController } from '../src/assets/AssetsContractController';
 import CurrencyRateController from '../src/assets/CurrencyRateController';
+import { get } from 'fetch-mock';
+
+const COINGECKO_API = 'https://api.coingecko.com/api/v3/simple/token_price/ethereum?';
 
 describe('TokenRatesController', () => {
+	beforeEach(() => {
+		get(
+			COINGECKO_API + 'contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,0xfoO&vs_currencies=eth',
+			() => ({
+				body: JSON.stringify({ '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 } })
+			}),
+			{ overwriteRoutes: true, method: 'GET' }
+		);
+		get(COINGECKO_API + 'contract_addresses=0xfoO&vs_currencies=eth', () => ({ body: '{}' }), {
+			method: 'GET',
+			overwriteRoutes: true
+		});
+		get(COINGECKO_API + 'contract_addresses=bar&vs_currencies=eth', () => ({ body: '{}' }), {
+			method: 'GET',
+			overwriteRoutes: true
+		});
+		get(COINGECKO_API + 'contract_addresses=0xfoO&vs_currencies=gno', () => ({ body: '{}' }), {
+			method: 'GET',
+			overwriteRoutes: true
+		});
+		get(
+			'https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD',
+			() => ({
+				body: JSON.stringify({ USD: 179.63 })
+			}),
+			{ overwriteRoutes: true, method: 'GET' }
+		);
+	});
+
 	it('should set default state', () => {
 		const controller = new TokenRatesController();
 		expect(controller.state).toEqual({ contractExchangeRates: {} });
@@ -76,7 +108,7 @@ describe('TokenRatesController', () => {
 		const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
 		const address2 = '0xfoO';
 		expect(controller.state.contractExchangeRates).toEqual({});
-		controller.tokens = [{ address, decimals: 18, symbol: 'EOS' }, { address: address2, decimals: 0, symbol: '' }];
+		controller.tokens = [{ address, decimals: 18, symbol: 'DAI' }, { address: address2, decimals: 0, symbol: '' }];
 		await controller.updateExchangeRates();
 		expect(Object.keys(controller.state.contractExchangeRates)).toContain(address);
 		expect(controller.state.contractExchangeRates[address]).toBeGreaterThan(0);
