@@ -194,10 +194,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 
 	private failTransaction(transactionMeta: TransactionMeta, error: Error) {
 		transactionMeta.status = 'failed';
-		transactionMeta.error = {
-			message: error.message || JSON.stringify(error),
-			stack: error.stack
-		};
+		transactionMeta.error = error;
 		this.updateTransaction(transactionMeta);
 		this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
 	}
