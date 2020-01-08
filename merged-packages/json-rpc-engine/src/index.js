@@ -1,7 +1,9 @@
 'use strict'
 const async = require('async')
 const SafeEventEmitter = require('safe-event-emitter')
-const { serializeError, ethErrors } = require('eth-json-rpc-errors')
+const {
+  serializeError, EthereumRpcError, ERROR_CODES
+} = require('eth-json-rpc-errors')
 
 class RpcEngine extends SafeEventEmitter {
   constructor () {
@@ -31,31 +33,30 @@ class RpcEngine extends SafeEventEmitter {
   //
 
   async _handleBatch (reqs, cb) {
-    const batchRes = []
-    for (const r of reqs) {
-      try {
-        let [err, res] = await this._promiseHandle(r)
-        if (!res) {
-          if (err) {
-            throw err
-          } else {
-            throw ethErrors.rpc.internal('JsonRpcEngine: Request handler returned neither error nor response.')
-          }
-        } else {
-          batchRes.push(res)
-        }
-      } catch (_err) {
-        // some kind of fatal error
-        return cb(_err, null)
-      }
+
+    // The order here is important
+    try {
+      const batchRes = await Promise.all( // 2. Wait for all requests to finish
+        // 1. Begin executing each request in the order received
+        reqs.map(this._promiseHandle.bind(this))
+      )
+      cb(null, batchRes) // 3a. Return batch response
+    } catch (err) {
+      cb(err) // 3b. Some kind of fatal error; all requests are lost
     }
-    cb(null, batchRes)
   }
 
   _promiseHandle (req) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       this._handle(req, (err, res) => {
-        resolve([err, res])
+        if (!res) { // defensive programming
+          reject(err || new EthereumRpcError(
+            ERROR_CODES.rpc.internal,
+            'JsonRpcEngine: Request handler returned neither error nor response.'
+          ))
+        } else {
+          resolve(res)
+        }
       })
     })
   }
@@ -97,12 +98,16 @@ class RpcEngine extends SafeEventEmitter {
       if (!('result' in res) && !('error' in res)) {
         const requestBody = JSON.stringify(req, null, 2)
         const message = 'JsonRpcEngine: Response has no error or result for request:\n' + requestBody
-        return cb(new Error(message))
+        return cb(new EthereumRpcError(
+          ERROR_CODES.rpc.internal, message, req
+        ))
       }
       if (!isComplete) {
         const requestBody = JSON.stringify(req, null, 2)
         const message = 'JsonRpcEngine: Nothing ended request:\n' + requestBody
-        return cb(new Error(message))
+        return cb(new EthereumRpcError(
+          ERROR_CODES.rpc.internal, message, req
+        ))
       }
       // continue
       return cb(null, returnHandlers)

@@ -154,10 +154,10 @@ describe('basic tests', function () {
   it('handle batch payloads', function (done) {
     let engine = new RpcEngine()
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (req, res, _next, end) {
       if (req.id === 4) {
         delete res.result
-        res.error = new Error()
+        res.error = new Error('foobar')
         return end(res.error)
       }
       res.result = req.id
