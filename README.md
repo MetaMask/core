@@ -25,7 +25,7 @@ The **GABA** engine is a collection of platform-agnostic modules for creating se
 1. Install the package.
 
     ```
-    npm i gaba
+    yarn add gaba
     ```
 2. Compose stores to create a data model.
 
@@ -305,12 +305,16 @@ Linking GABA into other projects involves a special NPM command to ensure that d
 1. Link GABA.
 
 	```sh
+	$ yarn build:link
+	# or
 	$ npm run build:link
 	```
 
 2. Link into other projects.
 
 	```sh
+	$ yarn link gaba
+	# or
 	$ npm link gaba
 	```
 
@@ -325,7 +329,7 @@ Linking GABA into other projects involves a special NPM command to ensure that d
 - enable "create merge commit" option
 - do a normal merge to maintain history
 - disable "create merge commit" option
-- On a clean `master` run `npm run build`, then run `npm publish` in the project root and GABA will be on npm
+- On a clean `master` run `yarn build`, then run `npm publish` in the project root and GABA will be on npm
 
 ## API documentation
 
