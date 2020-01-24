@@ -128,9 +128,15 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	 */
 	async fetchExchangeRate(currency: string, nativeCurrency = this.activeNativeCurrency): Promise<CurrencyRateState> {
 		const json = await handleFetch(this.getPricingURL(currency, nativeCurrency));
+		const conversionRate = Number(json[currency.toUpperCase()]);
+
+		if (!Number.isFinite(conversionRate)) {
+			throw new Error(`Invalid response for ${currency.toUpperCase()}: ${json[currency.toUpperCase()]}`);
+		}
+
 		return {
 			conversionDate: Date.now() / 1000,
-			conversionRate: Number(json[currency.toUpperCase()]),
+			conversionRate,
 			currentCurrency: currency,
 			nativeCurrency
 		};

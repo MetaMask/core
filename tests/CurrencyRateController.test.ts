@@ -96,4 +96,19 @@ describe('CurrencyRateController', () => {
 		await controller.fetchExchangeRate('usd');
 		expect(fetchMock.calls()[0][0]).toContain(nativeCurrency);
 	});
+
+	describe('#fetchExchangeRate', () => {
+		it('should handle a valid symbol in the API response', async () => {
+			const controller = new CurrencyRateController({ nativeCurrency: 'usd' });
+			const response = await controller.fetchExchangeRate('usd');
+			expect(response.conversionRate).toEqual(1337);
+		});
+
+		it('should handle a missing symbol in the API response', async () => {
+			const controller = new CurrencyRateController({ nativeCurrency: 'usd' });
+			await expect(controller.fetchExchangeRate('foo')).rejects.toThrowError(
+				'Invalid response for FOO: undefined'
+			);
+		});
+	});
 });
