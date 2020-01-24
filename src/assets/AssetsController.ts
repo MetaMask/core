@@ -346,25 +346,27 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 		opts?: CollectibleInformation
 	): Promise<Collectible[]> {
 		const releaseLock = await this.mutex.acquire();
-		address = toChecksumAddress(address);
-		const { allCollectibles, collectibles } = this.state;
-		const { networkType, selectedAddress } = this.config;
-		const existingEntry = collectibles.find(
-			(collectible) => collectible.address === address && collectible.tokenId === tokenId
-		);
-		if (existingEntry) {
+		try {
+			address = toChecksumAddress(address);
+			const { allCollectibles, collectibles } = this.state;
+			const { networkType, selectedAddress } = this.config;
+			const existingEntry = collectibles.find(
+				(collectible) => collectible.address === address && collectible.tokenId === tokenId
+			);
+			if (existingEntry) {
+				return collectibles;
+			}
+			const { name, image, description } = opts ? opts : await this.getCollectibleInformation(address, tokenId);
+			const newEntry: Collectible = { address, tokenId, name, image, description };
+			const newCollectibles = [...collectibles, newEntry];
+			const addressCollectibles = allCollectibles[selectedAddress];
+			const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
+			const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
+			this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
+			return newCollectibles;
+		} finally {
 			releaseLock();
-			return collectibles;
 		}
-		const { name, image, description } = opts ? opts : await this.getCollectibleInformation(address, tokenId);
-		const newEntry: Collectible = { address, tokenId, name, image, description };
-		const newCollectibles = [...collectibles, newEntry];
-		const addressCollectibles = allCollectibles[selectedAddress];
-		const newAddressCollectibles = { ...addressCollectibles, ...{ [networkType]: newCollectibles } };
-		const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
-		this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
-		releaseLock();
-		return newCollectibles;
 	}
 
 	/**
@@ -376,48 +378,49 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	private async addCollectibleContract(address: string, detection?: boolean): Promise<CollectibleContract[]> {
 		const releaseLock = await this.mutex.acquire();
-		address = toChecksumAddress(address);
-		const { allCollectibleContracts, collectibleContracts } = this.state;
-		const { networkType, selectedAddress } = this.config;
-		const existingEntry = collectibleContracts.find(
-			(collectibleContract) => collectibleContract.address === address
-		);
-		if (existingEntry) {
+		try {
+			address = toChecksumAddress(address);
+			const { allCollectibleContracts, collectibleContracts } = this.state;
+			const { networkType, selectedAddress } = this.config;
+			const existingEntry = collectibleContracts.find(
+				(collectibleContract) => collectibleContract.address === address
+			);
+			if (existingEntry) {
+				return collectibleContracts;
+			}
+			const contractInformation = await this.getCollectibleContractInformation(address);
+			const { name, symbol, image_url, description, total_supply } = contractInformation;
+			// If being auto-detected opensea information is expected
+			// Oherwise at least name and symbol from contract is needed
+			if ((detection && !image_url) || Object.keys(contractInformation).length === 0) {
+				return collectibleContracts;
+			}
+			const newEntry: CollectibleContract = {
+				address,
+				description,
+				logo: image_url,
+				name,
+				symbol,
+				totalSupply: total_supply
+			};
+			const newCollectibleContracts = [...collectibleContracts, newEntry];
+			const addressCollectibleContracts = allCollectibleContracts[selectedAddress];
+			const newAddressCollectibleContracts = {
+				...addressCollectibleContracts,
+				...{ [networkType]: newCollectibleContracts }
+			};
+			const newAllCollectibleContracts = {
+				...allCollectibleContracts,
+				...{ [selectedAddress]: newAddressCollectibleContracts }
+			};
+			this.update({
+				allCollectibleContracts: newAllCollectibleContracts,
+				collectibleContracts: newCollectibleContracts
+			});
+			return newCollectibleContracts;
+		} finally {
 			releaseLock();
-			return collectibleContracts;
 		}
-		const contractInformation = await this.getCollectibleContractInformation(address);
-		const { name, symbol, image_url, description, total_supply } = contractInformation;
-		// If being auto-detected opensea information is expected
-		// Oherwise at least name and symbol from contract is needed
-		if ((detection && !image_url) || Object.keys(contractInformation).length === 0) {
-			releaseLock();
-			return collectibleContracts;
-		}
-		const newEntry: CollectibleContract = {
-			address,
-			description,
-			logo: image_url,
-			name,
-			symbol,
-			totalSupply: total_supply
-		};
-		const newCollectibleContracts = [...collectibleContracts, newEntry];
-		const addressCollectibleContracts = allCollectibleContracts[selectedAddress];
-		const newAddressCollectibleContracts = {
-			...addressCollectibleContracts,
-			...{ [networkType]: newCollectibleContracts }
-		};
-		const newAllCollectibleContracts = {
-			...allCollectibleContracts,
-			...{ [selectedAddress]: newAddressCollectibleContracts }
-		};
-		this.update({
-			allCollectibleContracts: newAllCollectibleContracts,
-			collectibleContracts: newCollectibleContracts
-		});
-		releaseLock();
-		return newCollectibleContracts;
 	}
 
 	/**
@@ -565,24 +568,27 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 */
 	async addToken(address: string, symbol: string, decimals: number, image?: string): Promise<Token[]> {
 		const releaseLock = await this.mutex.acquire();
-		address = toChecksumAddress(address);
-		const { allTokens, tokens } = this.state;
-		const { networkType, selectedAddress } = this.config;
-		const newEntry: Token = { address, symbol, decimals, image };
-		const previousEntry = tokens.find((token) => token.address === address);
-		if (previousEntry) {
-			const previousIndex = tokens.indexOf(previousEntry);
-			tokens[previousIndex] = newEntry;
-		} else {
-			tokens.push(newEntry);
+		try {
+			address = toChecksumAddress(address);
+			const { allTokens, tokens } = this.state;
+			const { networkType, selectedAddress } = this.config;
+			const newEntry: Token = { address, symbol, decimals, image };
+			const previousEntry = tokens.find((token) => token.address === address);
+			if (previousEntry) {
+				const previousIndex = tokens.indexOf(previousEntry);
+				tokens[previousIndex] = newEntry;
+			} else {
+				tokens.push(newEntry);
+			}
+			const addressTokens = allTokens[selectedAddress];
+			const newAddressTokens = { ...addressTokens, ...{ [networkType]: tokens } };
+			const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newAddressTokens } };
+			const newTokens = [...tokens];
+			this.update({ allTokens: newAllTokens, tokens: newTokens });
+			return newTokens;
+		} finally {
+			releaseLock();
 		}
-		const addressTokens = allTokens[selectedAddress];
-		const newAddressTokens = { ...addressTokens, ...{ [networkType]: tokens } };
-		const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newAddressTokens } };
-		const newTokens = [...tokens];
-		this.update({ allTokens: newAllTokens, tokens: newTokens });
-		releaseLock();
-		return newTokens;
 	}
 
 	/**
