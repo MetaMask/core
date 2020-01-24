@@ -45,7 +45,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	private handle?: NodeJS.Timer;
 
 	private getCurrentCurrencyFromState(state?: Partial<CurrencyRateState>) {
-		return (state && state.currentCurrency) ? state.currentCurrency : 'usd';
+		return state && state.currentCurrency ? state.currentCurrency : 'usd';
 	}
 
 	private getPricingURL(currentCurrency: string, nativeCurrency: string) {
@@ -128,9 +128,15 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	 */
 	async fetchExchangeRate(currency: string, nativeCurrency = this.activeNativeCurrency): Promise<CurrencyRateState> {
 		const json = await handleFetch(this.getPricingURL(currency, nativeCurrency));
+		const conversionRate = Number(json[currency.toUpperCase()]);
+
+		if (!Number.isFinite(conversionRate)) {
+			throw new Error(`Invalid response for ${currency.toUpperCase()}: ${json[currency.toUpperCase()]}`);
+		}
+
 		return {
 			conversionDate: Date.now() / 1000,
-			conversionRate: Number(json[currency.toUpperCase()]),
+			conversionRate,
 			currentCurrency: currency,
 			nativeCurrency
 		};
@@ -146,18 +152,22 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 			return;
 		}
 		const releaseLock = await this.mutex.acquire();
-		const { conversionDate, conversionRate } = await this.fetchExchangeRate(
-			this.activeCurrency,
-			this.activeNativeCurrency
-		);
-		this.update({
-			conversionDate,
-			conversionRate,
-			currentCurrency: this.activeCurrency,
-			nativeCurrency: this.activeNativeCurrency
-		});
-		releaseLock();
-		return this.state;
+		try {
+			const { conversionDate, conversionRate } = await this.fetchExchangeRate(
+				this.activeCurrency,
+				this.activeNativeCurrency
+			);
+			this.update({
+				conversionDate,
+				conversionRate,
+				currentCurrency: this.activeCurrency,
+				nativeCurrency: this.activeNativeCurrency
+			});
+
+			return this.state;
+		} finally {
+			releaseLock();
+		}
 	}
 }
 
