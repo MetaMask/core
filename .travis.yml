@@ -1,25 +1,24 @@
 language: node_js
-node_js: "10"
 jobs:
   include:
     - stage: "Tests & coverage"
       before_install:
-        - travis_retry npm install -g codecov
+        - travis_retry yarn global add codecov
       install:
-        - travis_retry npm install
+        - travis_retry yarn install
       script:
-        - npm run format
-        - npm run lint
-        - npm run test
-        - npm run build
-        - npm run doc
+        - yarn format
+        - yarn lint
+        - yarn test
+        - yarn build
+        - yarn doc
         - codecov
     - stage: "Tests & coverage"
       install:
-        - npm ci
+        - yarn install
       cache:
         directories:
-          - "$HOME/.npm"
+          - "$HOME/.yarn-cache"
 deploy:
   provider: pages
   skip-cleanup: true

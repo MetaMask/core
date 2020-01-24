@@ -10,8 +10,8 @@
     "test": "jest --coverage",
     "format": "prettier **/*.ts --write --ignore-path=.gitignore",
     "build": "rm -rf dist && tsc",
-    "build:watch": "npm run build && tsc -w",
-    "build:link": "npm run build && cd dist && npm link && rm -rf node_modules && cd ..",
+    "build:watch": "yarn build && tsc -w",
+    "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
     "doc": "typedoc src/ && touch docs/.nojekyll"
   },
   "homepage": "https://github.com/MetaMask/gaba#readme",
