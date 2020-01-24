@@ -165,11 +165,9 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
 			preferences.updateIdentities(await privates.get(this).keyring.getAccounts());
 			preferences.update({ selectedAddress: Object.keys(preferences.state.identities)[0] });
 			this.fullUpdate();
-			releaseLock();
 			return vault;
-		} catch (err) /* istanbul ignore next */ {
+		} finally {
 			releaseLock();
-			throw err;
 		}
 	}
 
@@ -187,11 +185,9 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
 			preferences.updateIdentities(await privates.get(this).keyring.getAccounts());
 			preferences.update({ selectedAddress: Object.keys(preferences.state.identities)[0] });
 			this.fullUpdate();
-			releaseLock();
 			return vault;
-		} catch (err) /* istanbul ignore next */ {
+		} finally {
 			releaseLock();
-			throw err;
 		}
 	}
 

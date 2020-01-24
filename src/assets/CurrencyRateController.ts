@@ -45,7 +45,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 	private handle?: NodeJS.Timer;
 
 	private getCurrentCurrencyFromState(state?: Partial<CurrencyRateState>) {
-		return (state && state.currentCurrency) ? state.currentCurrency : 'usd';
+		return state && state.currentCurrency ? state.currentCurrency : 'usd';
 	}
 
 	private getPricingURL(currentCurrency: string, nativeCurrency: string) {
@@ -152,18 +152,22 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 			return;
 		}
 		const releaseLock = await this.mutex.acquire();
-		const { conversionDate, conversionRate } = await this.fetchExchangeRate(
-			this.activeCurrency,
-			this.activeNativeCurrency
-		);
-		this.update({
-			conversionDate,
-			conversionRate,
-			currentCurrency: this.activeCurrency,
-			nativeCurrency: this.activeNativeCurrency
-		});
-		releaseLock();
-		return this.state;
+		try {
+			const { conversionDate, conversionRate } = await this.fetchExchangeRate(
+				this.activeCurrency,
+				this.activeNativeCurrency
+			);
+			this.update({
+				conversionDate,
+				conversionRate,
+				currentCurrency: this.activeCurrency,
+				nativeCurrency: this.activeNativeCurrency
+			});
+
+			return this.state;
+		} finally {
+			releaseLock();
+		}
 	}
 }
 
