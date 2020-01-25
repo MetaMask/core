@@ -337,7 +337,6 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 	 * @param address - Hex address of the collectible contract
 	 * @param tokenId - The collectible identifier
 	 * @param opts - Collectible optional information (name, image and description)
-	 * @param detection? - Whether the collectible is manually added or autodetected
 	 * @returns - Promise resolving to the current collectible list
 	 */
 	private async addIndividualCollectible(

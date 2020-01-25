@@ -78,6 +78,7 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
 	/**
 	 * Remove a contract entry by address
 	 *
+	 * @param chainId - Chain id identifies the current chain
 	 * @param address - Recipient address to delete
 	 */
 	delete(chainId: string, address: string) {
