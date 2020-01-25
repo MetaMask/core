@@ -45,6 +45,7 @@
     "eth-sig-util": "^2.3.0",
     "ethereumjs-util": "^6.1.0",
     "ethereumjs-wallet": "0.6.0",
+    "ethers": "^4.0.43",
     "ethjs-query": "^0.3.8",
     "human-standard-collectible-abi": "^1.0.2",
     "human-standard-token-abi": "^2.0.0",
@@ -53,7 +54,6 @@
     "percentile": "^1.2.1",
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^3.3.2",
-    "web3": "^0.20.7",
     "web3-provider-engine": "^15.0.4"
   },
   "devDependencies": {

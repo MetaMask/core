@@ -30,7 +30,7 @@ describe('AssetsContractController', () => {
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
 		const CKBalance = await assetsContract.getBalanceOf(CKADDRESS, '0xb1690c08e213a35ed9bab7b318de14420fb57d8c');
 		const CKNoBalance = await assetsContract.getBalanceOf(CKADDRESS, '0xb1690c08e213a35ed9bab7b318de14420fb57d81');
-		expect(CKBalance.toNumber()).not.toEqual(0);
+		expect(CKBalance.toNumber()).toBeGreaterThan(0);
 		expect(CKNoBalance.toNumber()).toEqual(0);
 	});
 
@@ -41,7 +41,7 @@ describe('AssetsContractController', () => {
 			'0x9a90bd8d1149a88b42a99cf62215ad955d6f498a',
 			0
 		);
-		expect(tokenId).not.toEqual(0);
+		expect(tokenId).toBeGreaterThan(0);
 	});
 
 	it('should get collectible tokenURI correctly', async () => {
@@ -76,6 +76,8 @@ describe('AssetsContractController', () => {
 	it('should get balances in a single call', async () => {
 		assetsContract.configure({ provider: MAINNET_PROVIDER });
 		const balances = await assetsContract.getBalancesInSingleCall(SAI_ADDRESS, [SAI_ADDRESS]);
-		expect(balances[SAI_ADDRESS]).not.toEqual(0);
+		expect(balances[SAI_ADDRESS].isZero()).toBe(false);
+		expect(balances[SAI_ADDRESS].gt(0)).toBe(true);
+		expect(balances[SAI_ADDRESS].toString(16)).toMatch(/[a-f0-9]{2,20}/);
 	});
 });

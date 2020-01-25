@@ -1,7 +1,7 @@
+import { ethers, utils } from 'ethers';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
 const BN = require('ethereumjs-util').BN;
-const Web3 = require('web3');
 const abiERC20 = require('human-standard-token-abi');
 const abiERC721 = require('human-standard-collectible-abi');
 const abiSingleCallBalancesContract = require('single-call-balance-checker-abi');
@@ -14,28 +14,24 @@ const SINGLE_CALL_BALANCES_ADDRESS = '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39
  *
  * Assets Contract controller configuration
  *
- * @property provider - Provider used to create a new web3 instance
+ * @property provider - Provider instance
  */
 export interface AssetsContractConfig extends BaseConfig {
 	provider: any;
 }
 
 /**
- * @type BalanceMap
- *
  * Key value object containing the balance for each tokenAddress
- *
- * @property [tokenAddress] - Address of the token
  */
 export interface BalanceMap {
-	[tokenAddress: string]: string;
+	[tokenAddress: string]: typeof BN;
 }
 
 /**
- * Controller that interacts with contracts on mainnet through web3
+ * Controller that interacts with contracts on mainnet
  */
 export class AssetsContractController extends BaseController<AssetsContractConfig, BaseState> {
-	private web3: any;
+	private _web3Provider?: ethers.providers.Web3Provider;
 
 	/**
 	 *
@@ -46,17 +42,8 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 * @returns - Promise resolving to whether the contract implements `interfaceID`
 	 */
 	private async contractSupportsInterface(address: string, interfaceId: string): Promise<boolean> {
-		const contract = this.web3.eth.contract(abiERC721).at(address);
-		return new Promise<boolean>((resolve, reject) => {
-			contract.supportsInterface(interfaceId, (error: Error, result: boolean) => {
-				/* istanbul ignore if */
-				if (error) {
-					reject(error);
-					return;
-				}
-				resolve(result);
-			});
-		});
+		const contract = new ethers.Contract(address, abiERC721, this._web3Provider!);
+		return await contract.supportsInterface(interfaceId);
 	}
 
 	/**
@@ -81,10 +68,10 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	/**
 	 * Sets a new provider
 	 *
-	 * @property provider - Provider used to create a new underlying Web3 instance
+	 * @property provider - Provider instance
 	 */
 	set provider(provider: any) {
-		this.web3 = new Web3(provider);
+		this._web3Provider = new ethers.providers.Web3Provider(provider);
 	}
 
 	/**
@@ -115,17 +102,8 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 * @returns - Promise resolving to BN object containing balance for current account on specific asset contract
 	 */
 	async getBalanceOf(address: string, selectedAddress: string): Promise<typeof BN> {
-		const contract = this.web3.eth.contract(abiERC20).at(address);
-		return new Promise<typeof BN>((resolve, reject) => {
-			contract.balanceOf(selectedAddress, (error: Error, result: typeof BN) => {
-				/* istanbul ignore if */
-				if (error) {
-					reject(error);
-					return;
-				}
-				resolve(result);
-			});
-		});
+		const contract = new ethers.Contract(address, abiERC20, this._web3Provider!);
+		return await contract.balanceOf(selectedAddress);
 	}
 
 	/**
@@ -136,18 +114,10 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 * @param index - A collectible counter less than `balanceOf(selectedAddress)`
 	 * @returns - Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'
 	 */
-	getCollectibleTokenId(address: string, selectedAddress: string, index: number): Promise<number> {
-		const contract = this.web3.eth.contract(abiERC721).at(address);
-		return new Promise<number>((resolve, reject) => {
-			contract.tokenOfOwnerByIndex(selectedAddress, index, (error: Error, result: typeof BN) => {
-				/* istanbul ignore if */
-				if (error) {
-					reject(error);
-					return;
-				}
-				resolve(result.toNumber());
-			});
-		});
+	async getCollectibleTokenId(address: string, selectedAddress: string, index: number): Promise<number> {
+		const contract = new ethers.Contract(address, abiERC721, this._web3Provider!);
+		const result = await contract.tokenOfOwnerByIndex(selectedAddress, index);
+		return utils.bigNumberify(result).toNumber();
 	}
 
 	/**
@@ -158,17 +128,8 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 * @returns - Promise resolving to the 'tokenURI'
 	 */
 	async getCollectibleTokenURI(address: string, tokenId: number): Promise<string> {
-		const contract = this.web3.eth.contract(abiERC721).at(address);
-		return new Promise<string>((resolve, reject) => {
-			contract.tokenURI(tokenId, (error: Error, result: string) => {
-				/* istanbul ignore if */
-				if (error) {
-					reject(error);
-					return;
-				}
-				resolve(result);
-			});
-		});
+		const contract = new ethers.Contract(address, abiERC721, this._web3Provider!);
+		return await contract.tokenURI(tokenId);
 	}
 
 	/**
@@ -178,17 +139,8 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 * @returns - Promise resolving to the 'decimals'
 	 */
 	async getTokenDecimals(address: string): Promise<string> {
-		const contract = this.web3.eth.contract(abiERC20).at(address);
-		return new Promise<string>((resolve, reject) => {
-			contract.decimals((error: Error, result: string) => {
-				/* istanbul ignore if */
-				if (error) {
-					reject(error);
-					return;
-				}
-				resolve(result);
-			});
-		});
+		const contract = new ethers.Contract(address, abiERC20, this._web3Provider!);
+		return await contract.decimals();
 	}
 
 	/**
@@ -198,17 +150,8 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 * @returns - Promise resolving to the 'name'
 	 */
 	async getAssetName(address: string): Promise<string> {
-		const contract = this.web3.eth.contract(abiERC721).at(address);
-		return new Promise<string>((resolve, reject) => {
-			contract.name((error: Error, result: string) => {
-				/* istanbul ignore if */
-				if (error) {
-					reject(error);
-					return;
-				}
-				resolve(result);
-			});
-		});
+		const contract = new ethers.Contract(address, abiERC721, this._web3Provider!);
+		return await contract.name();
 	}
 
 	/**
@@ -218,17 +161,8 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 * @returns - Promise resolving to the 'symbol'
 	 */
 	async getAssetSymbol(address: string): Promise<string> {
-		const contract = this.web3.eth.contract(abiERC721).at(address);
-		return new Promise<string>((resolve, reject) => {
-			contract.symbol((error: Error, result: string) => {
-				/* istanbul ignore if */
-				if (error) {
-					reject(error);
-					return;
-				}
-				resolve(result);
-			});
-		});
+		const contract = new ethers.Contract(address, abiERC721, this._web3Provider!);
+		return await contract.symbol();
 	}
 
 	/**
@@ -239,17 +173,8 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 * @returns - Promise resolving to the owner address
 	 */
 	async getOwnerOf(address: string, tokenId: number): Promise<string> {
-		const contract = this.web3.eth.contract(abiERC721).at(address);
-		return new Promise<string>((resolve, reject) => {
-			contract.ownerOf(tokenId, (error: Error, result: string) => {
-				/* istanbul ignore if */
-				if (error) {
-					reject(error);
-					return;
-				}
-				resolve(result);
-			});
-		});
+		const contract = new ethers.Contract(address, abiERC721, this._web3Provider!);
+		return await contract.ownerOf(tokenId);
 	}
 
 	/**
@@ -257,29 +182,27 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
 	 *
 	 * @returns - Promise resolving to the 'tokenURI'
 	 */
-	async getBalancesInSingleCall(selectedAddress: string, tokensToDetect: string[]) {
-		const contract = this.web3.eth.contract(abiSingleCallBalancesContract).at(SINGLE_CALL_BALANCES_ADDRESS);
-		return new Promise<BalanceMap>((resolve, reject) => {
-			contract.balances([selectedAddress], tokensToDetect, (error: Error, result: Array<typeof BN>) => {
-				/* istanbul ignore if */
-				if (error) {
-					reject(error);
-					return;
-				}
-				const nonZeroBalances: BalanceMap = {};
+	async getBalancesInSingleCall(selectedAddress: string, tokensToDetect: string[]): Promise<BalanceMap> {
+		const contract = new ethers.Contract(
+			SINGLE_CALL_BALANCES_ADDRESS,
+			abiSingleCallBalancesContract,
+			this._web3Provider!
+		);
+		const result: any[] = await contract.balances([selectedAddress], tokensToDetect);
+
+		const nonZeroBalances: BalanceMap = {};
+		/* istanbul ignore else */
+		if (result.length > 0) {
+			tokensToDetect.forEach((tokenAddress, index) => {
+				const balance: utils.BigNumber = utils.bigNumberify(result[index]);
 				/* istanbul ignore else */
-				if (result.length > 0) {
-					tokensToDetect.forEach((tokenAddress, index) => {
-						const balance: typeof BN = result[index];
-						/* istanbul ignore else */
-						if (!balance.isZero()) {
-							nonZeroBalances[tokenAddress] = balance;
-						}
-					});
+				if (!balance.isZero()) {
+					nonZeroBalances[tokenAddress] = new BN(balance.toString(), 10);
 				}
-				resolve(nonZeroBalances);
 			});
-		});
+		}
+
+		return nonZeroBalances;
 	}
 }
 
