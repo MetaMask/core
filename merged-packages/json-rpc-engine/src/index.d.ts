@@ -1,5 +1,5 @@
 
-import { IJsonRpcError } from 'eth-json-rpc-errors/@types'
+import { IEthereumRpcError } from 'eth-json-rpc-errors/@types'
 
 /** A String specifying the version of the JSON-RPC protocol. MUST be exactly "2.0". */
 export type JsonRpcVersion = "2.0";
@@ -15,7 +15,7 @@ export type JsonRpcReservedMethod = string;
  *  NOT contain fractional parts [2] */
 export type JsonRpcId = number | string | void;
 
-interface JsonRpcError<T> extends IJsonRpcError<T> {}
+interface JsonRpcError<T> extends IEthereumRpcError<T> {}
 
 interface JsonRpcRequest<T> {
   jsonrpc: JsonRpcVersion;
