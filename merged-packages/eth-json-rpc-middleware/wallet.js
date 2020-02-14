@@ -30,8 +30,8 @@ function createWalletMiddleware(opts = {}) {
     'eth_signTypedData_v3': createAsyncMiddleware(signTypedDataV3),
     'eth_signTypedData_v4': createAsyncMiddleware(signTypedDataV4),
     'personal_sign': createAsyncMiddleware(personalSign),
-    'encryption_public_key': createAsyncMiddleware(encryptionPublicKey),
-    'eth_decryptMessage': createAsyncMiddleware(decryptMessage),
+    'eth_getEncryptionPublicKey': createAsyncMiddleware(encryptionPublicKey),
+    'eth_decrypt': createAsyncMiddleware(decryptMessage),
     'personal_ecRecover': createAsyncMiddleware(personalRecover),
   })
 
