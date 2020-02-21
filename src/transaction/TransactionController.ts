@@ -374,11 +374,11 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 							)
 						);
 					case 'cancelled':
-						return reject(ethErrors.rpc.internal(meta.err.message));
+						return reject(ethErrors.rpc.internal('User rejected the transaction.'));
 					case 'failed':
 						return reject(
 							ethErrors.rpc.internal(
-								`MetaMask Tx Signature: Unknown problem: ${JSON.stringify(meta.txParams)}`
+								`MetaMask Tx Signature: Unknown problem: ${JSON.stringify(meta.error!)}`
 							)
 						);
 				}
