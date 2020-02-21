@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import NetworkController from '../network/NetworkController';
+import { ethErrors } from 'eth-json-rpc-errors';
 import {
 	BNToHex,
 	fractionBN,
@@ -365,11 +366,19 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 					case 'submitted':
 						return resolve(meta.transactionHash);
 					case 'rejected':
-						return reject(new Error('User rejected the transaction.'));
+						return reject(
+							ethErrors.provider.userRejectedRequest(
+								'MetaMask Tx Signature: User denied transaction signature.'
+							)
+						);
 					case 'cancelled':
-						return reject(new Error('User cancelled the transaction.'));
+						return reject(ethErrors.rpc.internal(meta.err.message));
 					case 'failed':
-						return reject(new Error(meta.error!.message));
+						return reject(
+							ethErrors.rpc.internal(
+								`MetaMask Tx Signature: Unknown problem: ${JSON.stringify(meta.txParams)}`
+							)
+						);
 				}
 			});
 		});
