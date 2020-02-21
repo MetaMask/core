@@ -1,4 +1,14 @@
+# node
+npm-debug.log
+yarn-error.log
+npm-debug.log
+yarn-error.log
+node_modules
+package-lock.json
+
+# tarball from `yarn pack`
+*.tgz
+
 coverage
 dist
 docs
-node_modules
