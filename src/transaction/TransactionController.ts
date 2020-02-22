@@ -368,18 +368,14 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 					case 'submitted':
 						return resolve(meta.transactionHash);
 					case 'rejected':
-						return reject(
-							ethErrors.provider.userRejectedRequest(
-								'MetaMask Tx Signature: User denied transaction signature.'
-							)
-						);
+						return reject(ethErrors.provider.userRejectedRequest('User rejected the transaction'));
 					case 'cancelled':
-						return reject(ethErrors.rpc.internal('User rejected the transaction.'));
+						return reject(ethErrors.rpc.internal('User cancelled the transaction'));
 					case 'failed':
+						return reject(ethErrors.rpc.internal(meta.error!.message));
+					default:
 						return reject(
-							ethErrors.rpc.internal(
-								`MetaMask Tx Signature: Unknown problem: ${JSON.stringify(meta.error!)}`
-							)
+							ethErrors.rpc.internal(`MetaMask Tx Signature: Unknown problem: ${JSON.stringify(meta)}`)
 						);
 				}
 			});
