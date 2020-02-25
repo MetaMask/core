@@ -1,6 +1,6 @@
 import { AssetsContractController } from '../src/assets/AssetsContractController';
 const HttpProvider = require('ethjs-provider-http');
-const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
+const MAINNET_PROVIDER = new HttpProvider('https://api.infura.io/v1/jsonrpc/mainnet');
 const GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
 const CKADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
 const SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';

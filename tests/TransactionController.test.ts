@@ -47,8 +47,8 @@ function mockFetch(data: any) {
 }
 const HttpProvider = require('ethjs-provider-http');
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
-const PROVIDER = new HttpProvider('https://ropsten.infura.io');
-const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
+const PROVIDER = new HttpProvider('https://api.infura.io/v1/jsonrpc/ropsten');
+const MAINNET_PROVIDER = new HttpProvider('https://api.infura.io/v1/jsonrpc/mainnet');
 const MOCK_NETWORK = {
 	provider: PROVIDER,
 	state: { network: '3', provider: { type: 'ropsten' } },
