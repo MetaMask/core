@@ -2,7 +2,7 @@ import AccountTrackerController from '../src/assets/AccountTrackerController';
 import PreferencesController from '../src/user/PreferencesController';
 import ComposableController from '../src/ComposableController';
 import { stub, spy } from 'sinon';
-import { MAINNET_PROVIDER as provider } from '../src/constants';
+import { ROPSTEN_PROVIDER as provider } from '../src/constants';
 
 describe('AccountTrackerController', () => {
 	it('should set default state', () => {
