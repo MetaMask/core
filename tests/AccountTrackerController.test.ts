@@ -4,7 +4,7 @@ import ComposableController from '../src/ComposableController';
 import { stub, spy } from 'sinon';
 
 const HttpProvider = require('ethjs-provider-http');
-const provider = new HttpProvider('https://ropsten.infura.io');
+const provider = new HttpProvider('https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
 
 describe('AccountTrackerController', () => {
 	it('should set default state', () => {
