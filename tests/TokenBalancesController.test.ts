@@ -6,10 +6,9 @@ import { Token } from '../src/assets/TokenRatesController';
 import { AssetsContractController } from '../src/assets/AssetsContractController';
 import { NetworkController } from '../src/network/NetworkController';
 import { PreferencesController } from '../src/user/PreferencesController';
+import { MAINNET_PROVIDER } from '../src/constants';
 
 const { BN } = require('ethereumjs-util');
-const HttpProvider = require('ethjs-provider-http');
-const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
 
 describe('TokenBalancesController', () => {
 	let tokenBalances: TokenBalancesController;

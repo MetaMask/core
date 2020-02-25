@@ -5,11 +5,7 @@ import ComposableController from '../src/ComposableController';
 import PreferencesController from '../src/user/PreferencesController';
 import { NetworkController } from '../src/network/NetworkController';
 import { AssetsContractController } from '../src/assets/AssetsContractController';
-
-const HttpProvider = require('ethjs-provider-http');
-const KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
-const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
-const OPEN_SEA_API = 'https://api.opensea.io/api/v1/';
+import { KUDOSADDRESS, MAINNET_PROVIDER, OPEN_SEA_API } from '../src/constants';
 
 describe('AssetsController', () => {
 	let assetsController: AssetsController;
