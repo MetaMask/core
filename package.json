@@ -1,6 +1,6 @@
 {
   "name": "gaba",
-  "version": "1.9.3",
+  "version": "1.10.0",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "license": "MIT",
   "main": "./dist/index.js",
