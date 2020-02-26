@@ -15,7 +15,6 @@ export * from './network/NetworkController';
 export * from './network/NetworkStatusController';
 export * from './third-party/PhishingController';
 export * from './user/PreferencesController';
-export * from './third-party/ShapeShiftController';
 export * from './assets/TokenBalancesController';
 export * from './assets/TokenRatesController';
 export * from './transaction/TransactionController';
