@@ -120,14 +120,6 @@ import PreferencesController from 'gaba';
 
 The PreferencesController manages agnostic global settings and exposes convenience methods for updating them.
 
-### ShapeShiftController
-
-```ts
-import ShapeShiftController from 'gaba';
-```
-
-The ShapeShiftController exposes functions for creating ShapeShift purchases and tracks past transactions.
-
 ### TokenRatesController
 
 ```ts
