@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "aegir lint",
     "build": "aegir build && cp ./src/index.d.ts ./dist",
-    "test": "npm run test:node",
+    "test": "yarn test:node",
     "test:node": "aegir test --target node",
     "test:browser": "aegir test --target browser",
     "release": "aegir release",
