@@ -2,23 +2,23 @@
 'use strict'
 
 const assert = require('assert')
-const RpcEngine = require('../src/index.js')
+const RpcEngine = require('../src')
 const mergeMiddleware = require('../src/mergeMiddleware.js')
 
 describe('mergeMiddleware', function () {
   it('basic', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
     let originalReq
 
     engine.push(mergeMiddleware([
-      function (req, res, next, end) {
+      function (req, res, _next, end) {
         originalReq = req
         res.result = 'saw merged middleware'
         end()
-      }
+      },
     ]))
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -31,22 +31,22 @@ describe('mergeMiddleware', function () {
   })
 
   it('handles next handler correctly for multiple merged', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
     engine.push(mergeMiddleware([
-      (req, res, next, end) => {
+      (_req, res, next, _end) => {
         next((cb) => {
           res.copy = res.result
           cb()
         })
       },
-      (req, res, next, end) => {
+      (_req, res, _next, end) => {
         res.result = true
         end()
-      }
+      },
     ]))
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -57,19 +57,19 @@ describe('mergeMiddleware', function () {
   })
 
   it('decorate res', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
     let originalReq
 
     engine.push(mergeMiddleware([
-      function (req, res, next, end) {
+      function (req, res, _next, end) {
         originalReq = req
         res.xyz = true
         res.result = true
         end()
-      }
+      },
     ]))
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -82,19 +82,19 @@ describe('mergeMiddleware', function () {
   })
 
   it('decorate req', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
     let originalReq
 
     engine.push(mergeMiddleware([
-      function (req, res, next, end) {
+      function (req, res, _next, end) {
         originalReq = req
         req.xyz = true
         res.result = true
         end()
-      }
+      },
     ]))
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -107,17 +107,17 @@ describe('mergeMiddleware', function () {
   })
 
   it('should not error even if end not called', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
     engine.push(mergeMiddleware([
-      (req, res, next, end) => next()
+      (_req, _res, next, _end) => next(),
     ]))
-    engine.push((req, res, next, end) => {
+    engine.push((_req, res, _next, end) => {
       res.result = true
       end()
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -127,21 +127,21 @@ describe('mergeMiddleware', function () {
   })
 
   it('handles next handler correctly across middleware', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
     engine.push(mergeMiddleware([
-      (req, res, next, end) => {
+      (_req, res, next, _end) => {
         next((cb) => {
           res.copy = res.result
           cb()
         })
-      }
+      },
     ]))
-    engine.push((req, res, next, end) => {
+    engine.push((_req, res, _next, end) => {
       res.result = true
       end()
     })
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')

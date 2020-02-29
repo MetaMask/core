@@ -2,25 +2,25 @@
 'use strict'
 
 const assert = require('assert')
-const RpcEngine = require('../src/index.js')
+const RpcEngine = require('../src')
 const createIdRemapMiddleware = require('../src/idRemapMiddleware.js')
 
 describe('idRemapMiddleware tests', function () {
   it('basic middleware test', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
     const observedIds = {
       before: {},
       after: {},
     }
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (req, res, next, _end) {
       observedIds.before.req = req.id
       observedIds.before.res = res.id
       next()
     })
     engine.push(createIdRemapMiddleware())
-    engine.push(function (req, res, next, end) {
+    engine.push(function (req, res, _next, end) {
       observedIds.after.req = req.id
       observedIds.after.res = res.id
       // set result so it doesnt error
@@ -28,8 +28,8 @@ describe('idRemapMiddleware tests', function () {
       end()
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
-    const payloadCopy = Object.assign({}, payload)
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payloadCopy = { ...payload }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')

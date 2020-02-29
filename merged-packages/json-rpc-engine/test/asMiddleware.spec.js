@@ -2,16 +2,16 @@
 'use strict'
 
 const assert = require('assert')
-const RpcEngine = require('../src/index.js')
+const RpcEngine = require('../src')
 const asMiddleware = require('../src/asMiddleware.js')
 
 describe('asMiddleware', function () {
   it('basic', function (done) {
-    let engine = new RpcEngine()
-    let subengine = new RpcEngine()
+    const engine = new RpcEngine()
+    const subengine = new RpcEngine()
     let originalReq
 
-    subengine.push(function (req, res, next, end) {
+    subengine.push(function (req, res, _next, end) {
       originalReq = req
       res.result = 'saw subengine'
       end()
@@ -19,7 +19,7 @@ describe('asMiddleware', function () {
 
     engine.push(asMiddleware(subengine))
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -32,11 +32,11 @@ describe('asMiddleware', function () {
   })
 
   it('decorate res', function (done) {
-    let engine = new RpcEngine()
-    let subengine = new RpcEngine()
+    const engine = new RpcEngine()
+    const subengine = new RpcEngine()
     let originalReq
 
-    subengine.push(function (req, res, next, end) {
+    subengine.push(function (req, res, _next, end) {
       originalReq = req
       res.xyz = true
       res.result = true
@@ -45,7 +45,7 @@ describe('asMiddleware', function () {
 
     engine.push(asMiddleware(subengine))
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -58,11 +58,11 @@ describe('asMiddleware', function () {
   })
 
   it('decorate req', function (done) {
-    let engine = new RpcEngine()
-    let subengine = new RpcEngine()
+    const engine = new RpcEngine()
+    const subengine = new RpcEngine()
     let originalReq
 
-    subengine.push(function (req, res, next, end) {
+    subengine.push(function (req, res, _next, end) {
       originalReq = req
       req.xyz = true
       res.result = true
@@ -71,7 +71,7 @@ describe('asMiddleware', function () {
 
     engine.push(asMiddleware(subengine))
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -84,18 +84,18 @@ describe('asMiddleware', function () {
   })
 
   it('should not error even if end not called', function (done) {
-    let engine = new RpcEngine()
-    let subengine = new RpcEngine()
+    const engine = new RpcEngine()
+    const subengine = new RpcEngine()
 
-    subengine.push((req, res, next, end) => next())
+    subengine.push((_req, _res, next, _end) => next())
 
     engine.push(asMiddleware(subengine))
-    engine.push((req, res, next, end) => {
+    engine.push((_req, res, _next, end) => {
       res.result = true
       end()
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -105,10 +105,10 @@ describe('asMiddleware', function () {
   })
 
   it('handles next handler correctly when nested', function (done) {
-    let engine = new RpcEngine()
-    let subengine = new RpcEngine()
+    const engine = new RpcEngine()
+    const subengine = new RpcEngine()
 
-    subengine.push((req, res, next, end) => {
+    subengine.push((_req, res, next, _end) => {
       next((cb) => {
         res.copy = res.result
         cb()
@@ -116,11 +116,11 @@ describe('asMiddleware', function () {
     })
 
     engine.push(asMiddleware(subengine))
-    engine.push((req, res, next, end) => {
+    engine.push((_req, res, _next, end) => {
       res.result = true
       end()
     })
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -131,23 +131,23 @@ describe('asMiddleware', function () {
   })
 
   it('handles next handler correctly when flat', function (done) {
-    let engine = new RpcEngine()
-    let subengine = new RpcEngine()
+    const engine = new RpcEngine()
+    const subengine = new RpcEngine()
 
-    subengine.push((req, res, next, end) => {
+    subengine.push((_req, res, next, _end) => {
       next((cb) => {
         res.copy = res.result
         cb()
       })
     })
 
-    subengine.push((req, res, next, end) => {
+    subengine.push((_req, res, _next, end) => {
       res.result = true
       end()
     })
 
     engine.push(asMiddleware(subengine))
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')

@@ -1,8 +1,9 @@
 'use strict'
+
 const async = require('async')
 const SafeEventEmitter = require('safe-event-emitter')
 const {
-  serializeError, EthereumRpcError, ERROR_CODES
+  serializeError, EthereumRpcError, ERROR_CODES,
 } = require('eth-json-rpc-errors')
 
 class RpcEngine extends SafeEventEmitter {
@@ -38,24 +39,24 @@ class RpcEngine extends SafeEventEmitter {
     try {
       const batchRes = await Promise.all( // 2. Wait for all requests to finish
         // 1. Begin executing each request in the order received
-        reqs.map(this._promiseHandle.bind(this))
+        reqs.map(this._promiseHandle.bind(this)),
       )
-      cb(null, batchRes) // 3a. Return batch response
+      return cb(null, batchRes) // 3a. Return batch response
     } catch (err) {
-      cb(err) // 3b. Some kind of fatal error; all requests are lost
+      return cb(err) // 3b. Some kind of fatal error; all requests are lost
     }
   }
 
   _promiseHandle (req) {
     return new Promise((resolve, reject) => {
       this._handle(req, (err, res) => {
-        if (!res) { // defensive programming
+        if (res) {
+          resolve(res)
+        } else {
           reject(err || new EthereumRpcError(
             ERROR_CODES.rpc.internal,
-            'JsonRpcEngine: Request handler returned neither error nor response.'
+            'JsonRpcEngine: Request handler returned neither error nor response.',
           ))
-        } else {
-          resolve(res)
         }
       })
     })
@@ -63,11 +64,11 @@ class RpcEngine extends SafeEventEmitter {
 
   _handle (_req, cb) {
     // shallow clone request object
-    const req = Object.assign({}, _req)
+    const req = { ..._req }
     // create response obj
     const res = {
       id: req.id,
-      jsonrpc: req.jsonrpc
+      jsonrpc: req.jsonrpc,
     }
     // process all middleware
     this._runMiddleware(req, res, (err) => {
@@ -81,7 +82,7 @@ class RpcEngine extends SafeEventEmitter {
         return cb(responseError, res)
       }
       // return response
-      cb(err, res)
+      return cb(err, res)
     })
   }
 
@@ -93,20 +94,20 @@ class RpcEngine extends SafeEventEmitter {
       (returnHandlers, cb) => this._runReturnHandlersUp(returnHandlers, cb),
     ], onDone)
 
-    function checkForCompletion({ isComplete, returnHandlers }, cb) {
+    function checkForCompletion ({ isComplete, returnHandlers }, cb) {
       // fail if not completed
       if (!('result' in res) && !('error' in res)) {
         const requestBody = JSON.stringify(req, null, 2)
-        const message = 'JsonRpcEngine: Response has no error or result for request:\n' + requestBody
+        const message = `JsonRpcEngine: Response has no error or result for request:\n${requestBody}`
         return cb(new EthereumRpcError(
-          ERROR_CODES.rpc.internal, message, req
+          ERROR_CODES.rpc.internal, message, req,
         ))
       }
       if (!isComplete) {
         const requestBody = JSON.stringify(req, null, 2)
-        const message = 'JsonRpcEngine: Nothing ended request:\n' + requestBody
+        const message = `JsonRpcEngine: Nothing ended request:\n${requestBody}`
         return cb(new EthereumRpcError(
-          ERROR_CODES.rpc.internal, message, req
+          ERROR_CODES.rpc.internal, message, req,
         ))
       }
       // continue
@@ -117,7 +118,7 @@ class RpcEngine extends SafeEventEmitter {
   // walks down stack of middleware
   _runMiddlewareDown (req, res, onDone) {
     // for climbing back up the stack
-    let allReturnHandlers = []
+    const allReturnHandlers = []
     // flag for stack return
     let isComplete = false
 
@@ -127,9 +128,12 @@ class RpcEngine extends SafeEventEmitter {
     // runs an individual middleware
     function eachMiddleware (middleware, cb) {
       // skip middleware if completed
-      if (isComplete) return cb()
+      if (isComplete) {
+        return cb()
+      }
       // run individual middleware
       middleware(req, res, next, end)
+      return undefined
 
       function next (returnHandler) {
         if (res.error) {
@@ -137,8 +141,9 @@ class RpcEngine extends SafeEventEmitter {
         } else {
           // add return handler
           allReturnHandlers.push(returnHandler)
-          cb()
+          return cb()
         }
+        return undefined
       }
 
       function end (err) {
@@ -168,6 +173,7 @@ class RpcEngine extends SafeEventEmitter {
       }
       const returnHandlers = allReturnHandlers.filter(Boolean).reverse()
       onDone(null, { isComplete, returnHandlers })
+      return undefined
     }
   }
 

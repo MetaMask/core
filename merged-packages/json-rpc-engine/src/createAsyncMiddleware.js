@@ -2,7 +2,7 @@ const promiseToCallback = require('promise-to-callback')
 
 module.exports = createAsyncMiddleware
 
-function createAsyncMiddleware(asyncMiddleware) {
+function createAsyncMiddleware (asyncMiddleware) {
   return (req, res, next, end) => {
     let nextDonePromise = null
     const finishedPromise = asyncMiddleware(req, res, getNextPromise)
@@ -18,6 +18,7 @@ function createAsyncMiddleware(asyncMiddleware) {
             return end(nextErr)
           }
           nextHandlerSignalDone(err)
+          return undefined
         })
       } else {
         // next handler was not called - complete middleware
@@ -25,13 +26,13 @@ function createAsyncMiddleware(asyncMiddleware) {
       }
     })
 
-    async function getNextPromise() {
+    async function getNextPromise () {
       nextDonePromise = getNextDoneCallback()
       await nextDonePromise
       return undefined
     }
 
-    function getNextDoneCallback() {
+    function getNextDoneCallback () {
       return new Promise((resolve) => {
         next((cb) => resolve(cb))
       })

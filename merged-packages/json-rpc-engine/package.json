@@ -7,29 +7,34 @@
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "scripts": {
-    "lint": "aegir lint",
-    "build": "aegir build && cp ./src/index.d.ts ./dist",
-    "test": "yarn test:node",
-    "test:node": "aegir test --target node",
-    "test:browser": "aegir test --target browser",
-    "release": "aegir release",
-    "release-minor": "aegir release --type minor",
-    "release-major": "aegir release --type major",
-    "coverage": "aegir coverage",
-    "coverage-publish": "aegir coverage --provider coveralls"
+    "lint": "eslint . --ext js,json",
+    "lint:fix": "eslint . --ext js,json --fix",
+    "build": "babel src --out-dir dist",
+    "test": "mocha ./test",
+    "coverage": "nyc yarn test"
   },
   "dependencies": {
     "async": "^2.0.1",
-    "eth-json-rpc-errors": "^2.0.1",
+    "eth-json-rpc-errors": "^2.0.2",
     "promise-to-callback": "^1.0.0",
     "safe-event-emitter": "^1.0.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.5.5",
-    "@babel/preset-env": "^7.5.5",
-    "aegir": "^20.2.0",
+    "@babel/cli": "^7.8.4",
+    "@babel/core": "^7.8.6",
+    "@babel/plugin-transform-runtime": "^7.8.3",
+    "@babel/preset-env": "^7.8.6",
+    "@babel/runtime": "^7.8.4",
+    "@metamask/eslint-config": "^2.1.0",
+    "babel-eslint": "^10.1.0",
     "babelify": "^10.0.0",
-    "browserify": "^16.2.3"
+    "eslint": "^6.8.0",
+    "eslint-plugin-babel": "^5.3.0",
+    "eslint-plugin-import": "^2.20.1",
+    "eslint-plugin-json": "^2.1.0",
+    "eslint-plugin-mocha": "^6.3.0",
+    "mocha": "^7.1.0",
+    "nyc": "^15.0.0"
   },
   "repository": {
     "type": "git",

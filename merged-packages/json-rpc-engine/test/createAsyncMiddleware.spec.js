@@ -1,19 +1,20 @@
 /* eslint-env mocha */
+/* eslint require-await: 0 */
 'use strict'
 
 const assert = require('assert')
-const RpcEngine = require('../src/index.js')
+const RpcEngine = require('../src')
 const createAsyncMiddleware = require('../src/createAsyncMiddleware.js')
 
 describe('createAsyncMiddleware tests', function () {
   it('basic middleware test', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
-    engine.push(createAsyncMiddleware(async (req, res, next) => {
+    engine.push(createAsyncMiddleware(async (_req, res, _next) => {
       res.result = 42
     }))
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -24,22 +25,22 @@ describe('createAsyncMiddleware tests', function () {
   })
 
   it('next middleware test', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
-    engine.push(createAsyncMiddleware(async (req, res, next) => {
+    engine.push(createAsyncMiddleware(async (_req, res, next) => {
       assert.ifError(res.result, 'does not have result')
-      await next()
+      await next() // eslint-disable-line callback-return
       assert.equal(res.result, 1234, 'value was set as expected')
       // override value
-      res.result = 42
+      res.result = 42 // eslint-disable-line require-atomic-updates
     }))
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, res, _next, end) {
       res.result = 1234
       end()
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -50,17 +51,17 @@ describe('createAsyncMiddleware tests', function () {
   })
 
   it('basic throw test', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
     const error = new Error('bad boy')
 
-    engine.push(createAsyncMiddleware(async (req, res, next) => {
+    engine.push(createAsyncMiddleware(async (_req, _res, _next) => {
       throw error
     }))
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
-    engine.handle(payload, function (err, res) {
+    engine.handle(payload, function (err, _res) {
       assert(err, 'has err')
       assert.equal(err, error, 'has expected result')
       done()
@@ -68,23 +69,23 @@ describe('createAsyncMiddleware tests', function () {
   })
 
   it('throw after next test', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
     const error = new Error('bad boy')
 
-    engine.push(createAsyncMiddleware(async (req, res, next) => {
-      await next()
+    engine.push(createAsyncMiddleware(async (_req, _res, next) => {
+      await next() // eslint-disable-line callback-return
       throw error
     }))
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, res, _next, end) {
       res.result = 1234
       end()
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
-    engine.handle(payload, function (err, res) {
+    engine.handle(payload, function (err, _res) {
       assert(err, 'has err')
       assert.equal(err, error, 'has expected result')
       done()
@@ -92,20 +93,20 @@ describe('createAsyncMiddleware tests', function () {
   })
 
   it('doesnt await next', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
-    engine.push(createAsyncMiddleware(async (req, res, next) => {
+    engine.push(createAsyncMiddleware(async (_req, _res, next) => {
       next()
     }))
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, res, _next, end) {
       res.result = 1234
       end()
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
-    engine.handle(payload, function (err, res) {
+    engine.handle(payload, function (err, _res) {
       assert.ifError(err, 'has err')
       done()
     })

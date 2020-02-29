@@ -2,8 +2,8 @@ const getUniqueId = require('./getUniqueId')
 
 module.exports = createIdRemapMiddleware
 
-function createIdRemapMiddleware() {
-  return (req, res, next, end) => {
+function createIdRemapMiddleware () {
+  return (req, res, next, _end) => {
     const originalId = req.id
     const newId = getUniqueId()
     req.id = newId

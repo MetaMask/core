@@ -2,18 +2,18 @@
 'use strict'
 
 const assert = require('assert')
-const RpcEngine = require('../src/index.js')
+const RpcEngine = require('../src')
 
 describe('basic tests', function () {
-  it('basic middleware test', function (done) {
-    let engine = new RpcEngine()
+  it('basic middleware test 1', function (done) {
+    const engine = new RpcEngine()
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, res, _next, end) {
       res.result = 42
       end()
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -23,34 +23,16 @@ describe('basic tests', function () {
     })
   })
 
-  it('allow null result', function (done) {
-    let engine = new RpcEngine()
+  it('basic middleware test 2', function (done) {
+    const engine = new RpcEngine()
 
-    engine.push(function (req, res, next, end) {
-      res.result = null
-      end()
-    })
-
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
-
-    engine.handle(payload, function (err, res) {
-      assert.ifError(err, 'did not error')
-      assert(res, 'has res')
-      assert.equal(res.result, null, 'has expected result')
-      done()
-    })
-  })
-
-  it('basic middleware test', function (done) {
-    let engine = new RpcEngine()
-
-    engine.push(function (req, res, next, end) {
+    engine.push(function (req, res, _next, end) {
       req.method = 'banana'
       res.result = 42
       end()
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -61,20 +43,38 @@ describe('basic tests', function () {
     })
   })
 
-  it('interacting middleware test', function (done) {
-    let engine = new RpcEngine()
+  it('allow null result', function (done) {
+    const engine = new RpcEngine()
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, res, _next, end) {
+      res.result = null
+      end()
+    })
+
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, function (err, res) {
+      assert.ifError(err, 'did not error')
+      assert(res, 'has res')
+      assert.equal(res.result, null, 'has expected result')
+      done()
+    })
+  })
+
+  it('interacting middleware test', function (done) {
+    const engine = new RpcEngine()
+
+    engine.push(function (req, _res, next, _end) {
       req.resultShouldBe = 42
       next()
     })
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (req, res, _next, end) {
       res.result = req.resultShouldBe
       end()
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -85,13 +85,13 @@ describe('basic tests', function () {
   })
 
   it('erroring middleware test: end(error)', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, _res, _next, end) {
       end(new Error('no bueno'))
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert(err, 'did error')
@@ -103,14 +103,14 @@ describe('basic tests', function () {
   })
 
   it('erroring middleware test: res.error -> next()', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, res, next, _end) {
       res.error = new Error('no bueno')
       next()
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert(err, 'did error')
@@ -122,14 +122,14 @@ describe('basic tests', function () {
   })
 
   it('erroring middleware test: res.error -> end()', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, res, _next, end) {
       res.error = new Error('no bueno')
       end()
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert(err, 'did error')
@@ -141,18 +141,18 @@ describe('basic tests', function () {
   })
 
   it('empty middleware test', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
-    engine.handle(payload, function (err, res) {
+    engine.handle(payload, function (err, _res) {
       assert(err, 'did error')
       done()
     })
   })
 
   it('handle batch payloads', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
     engine.push(function (req, res, _next, end) {
       if (req.id === 4) {
@@ -161,15 +161,15 @@ describe('basic tests', function () {
         return end(res.error)
       }
       res.result = req.id
-      end()
+      return end()
     })
 
-    let payloadA = { id: 1, jsonrpc: '2.0', method: 'hello' }
-    let payloadB = { id: 2, jsonrpc: '2.0', method: 'hello' }
-    let payloadC = { id: 3, jsonrpc: '2.0', method: 'hello' }
-    let payloadD = { id: 4, jsonrpc: '2.0', method: 'hello' }
-    let payloadE = { id: 5, jsonrpc: '2.0', method: 'hello' }
-    let payload = [payloadA, payloadB, payloadC, payloadD, payloadE]
+    const payloadA = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payloadB = { id: 2, jsonrpc: '2.0', method: 'hello' }
+    const payloadC = { id: 3, jsonrpc: '2.0', method: 'hello' }
+    const payloadD = { id: 4, jsonrpc: '2.0', method: 'hello' }
+    const payloadE = { id: 5, jsonrpc: '2.0', method: 'hello' }
+    const payload = [payloadA, payloadB, payloadC, payloadD, payloadE]
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -198,21 +198,21 @@ describe('basic tests', function () {
   })
 
   it('return handlers test', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, res, next, _end) {
       next(function (cb) {
         res.sawReturnHandler = true
         cb()
       })
     })
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, res, _next, end) {
       res.result = true
       end()
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
@@ -223,11 +223,11 @@ describe('basic tests', function () {
   })
 
   it('return order of events', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
-    let events = []
+    const events = []
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, _res, next, _end) {
       events.push('1-next')
       next(function (cb) {
         events.push('1-return')
@@ -235,7 +235,7 @@ describe('basic tests', function () {
       })
     })
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, _res, next, _end) {
       events.push('2-next')
       next(function (cb) {
         events.push('2-return')
@@ -243,15 +243,15 @@ describe('basic tests', function () {
       })
     })
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, res, _next, end) {
       events.push('3-end')
       res.result = true
       end()
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
-    engine.handle(payload, function (err, res) {
+    engine.handle(payload, function (err, _res) {
       assert.ifError(err, 'did not error')
       assert.equal(events[0], '1-next', '(event 0) was "1-next"')
       assert.equal(events[1], '2-next', '(event 1) was "2-next"')
@@ -263,24 +263,24 @@ describe('basic tests', function () {
   })
 
   it('calls back next handler even if error', function (done) {
-    let engine = new RpcEngine()
+    const engine = new RpcEngine()
 
     let sawNextReturnHandlerCalled = false
 
-    engine.push(function (req, res, next, end) {
+    engine.push(function (_req, _res, next, _end) {
       next(function (cb) {
         sawNextReturnHandlerCalled = true
         cb()
       })
     })
 
-    engine.push(function(req, res, next, end) {
+    engine.push(function (_req, _res, _next, end) {
       end(new Error('boom'))
     })
 
-    let payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
-    engine.handle(payload, (err, res) => {
+    engine.handle(payload, (err, _res) => {
       assert(err, 'did error')
       assert(sawNextReturnHandlerCalled, 'saw next return handler called')
       done()

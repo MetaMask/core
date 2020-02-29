@@ -13,6 +13,6 @@ function createScaffoldMiddleware (handlers) {
     }
     // if handler is some other value, use as result
     res.result = handler
-    end()
+    return end()
   }
 }
