@@ -1,6 +1,9 @@
 import { stub } from 'sinon';
 import TransactionController from '../src/transaction/TransactionController';
-import { MAINNET_PROVIDER, ROPSTEN_PROVIDER as PROVIDER } from '../src/constants';
+import { MAINNET_PROVIDER_URL, PROJECT_ID, ROPSTEN_PROVIDER_URL, ROPSTEN_PROJECT_ID } from '../src/constants';
+const HttpProvider = require('ethjs-provider-http');
+const PROVIDER = new HttpProvider(`${ROPSTEN_PROVIDER_URL}${ROPSTEN_PROJECT_ID}`);
+const MAINNET_PROVIDER = new HttpProvider(`${MAINNET_PROVIDER_URL}${PROJECT_ID}`);
 const globalAny: any = global;
 
 const mockFlags: { [key: string]: any } = {

@@ -6,7 +6,9 @@ import { Token } from '../src/assets/TokenRatesController';
 import { AssetsContractController } from '../src/assets/AssetsContractController';
 import { NetworkController } from '../src/network/NetworkController';
 import { PreferencesController } from '../src/user/PreferencesController';
-import { MAINNET_PROVIDER } from '../src/constants';
+import { MAINNET_PROVIDER_URL, PROJECT_ID } from '../src/constants';
+const HttpProvider = require('ethjs-provider-http');
+const MAINNET_PROVIDER = new HttpProvider(`${MAINNET_PROVIDER_URL}${PROJECT_ID}`);
 
 const { BN } = require('ethereumjs-util');
 

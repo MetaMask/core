@@ -5,7 +5,9 @@ import ComposableController from '../src/ComposableController';
 import PreferencesController from '../src/user/PreferencesController';
 import { NetworkController } from '../src/network/NetworkController';
 import { AssetsContractController } from '../src/assets/AssetsContractController';
-import { KUDOSADDRESS, MAINNET_PROVIDER, OPEN_SEA_API } from '../src/constants';
+import { KUDOSADDRESS, MAINNET_PROVIDER_URL, PROJECT_ID, OPEN_SEA_API } from '../src/constants';
+const HttpProvider = require('ethjs-provider-http');
+const MAINNET_PROVIDER = new HttpProvider(`${MAINNET_PROVIDER_URL}${PROJECT_ID}`);
 
 describe('AssetsController', () => {
 	let assetsController: AssetsController;

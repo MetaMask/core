@@ -1,8 +1,10 @@
 import AccountTrackerController from '../src/assets/AccountTrackerController';
 import PreferencesController from '../src/user/PreferencesController';
 import ComposableController from '../src/ComposableController';
+import { ROPSTEN_PROVIDER_URL, ROPSTEN_PROJECT_ID } from '../src/constants';
 import { stub, spy } from 'sinon';
-import { ROPSTEN_PROVIDER as provider } from '../src/constants';
+const HttpProvider = require('ethjs-provider-http');
+const provider = new HttpProvider(`${ROPSTEN_PROVIDER_URL}${ROPSTEN_PROJECT_ID}`);
 
 describe('AccountTrackerController', () => {
 	it('should set default state', () => {

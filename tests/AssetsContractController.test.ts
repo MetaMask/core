@@ -1,5 +1,7 @@
 import { AssetsContractController } from '../src/assets/AssetsContractController';
-import { MAINNET_PROVIDER, GODSADDRESS, CKADDRESS, SAI_ADDRESS } from '../src/constants';
+import { MAINNET_PROVIDER_URL, PROJECT_ID, GODSADDRESS, CKADDRESS, SAI_ADDRESS } from '../src/constants';
+const HttpProvider = require('ethjs-provider-http');
+const MAINNET_PROVIDER = new HttpProvider(`${MAINNET_PROVIDER_URL}${PROJECT_ID}`);
 
 describe('AssetsContractController', () => {
 	let assetsContract: AssetsContractController;
