@@ -5,7 +5,7 @@ import ComposableController from '../src/ComposableController';
 import { KeyringConfig } from '../src/keyring/KeyringController';
 import { stub } from 'sinon';
 const sigUtil = require('eth-sig-util');
-const mockEncryptor: any = require('../node_modules/eth-keyring-controller/test/lib/mock-encryptor.js');
+const mockEncryptor: any = require('../tests/utils/mockEncryptor');
 const Transaction = require('ethereumjs-tx');
 
 const input =
