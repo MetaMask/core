@@ -2,9 +2,6 @@
 
 The **GABA** engine is a collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets.
 
-[![Build Status](https://travis-ci.org/MetaMask/gaba.svg?branch=master)](https://travis-ci.org/MetaMask/gaba)
-[![codecov](https://codecov.io/gh/MetaMask/gaba/branch/master/graph/badge.svg)](https://codecov.io/gh/MetaMask/gaba)
-
 ## Table of Contents
 
 - [Usage](#usage)
