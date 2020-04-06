@@ -51,7 +51,7 @@ jobs:
       - attach_workspace:
           at: .
       - run:
-          name: Build project
+          name: Format
           command: yarn format
 
   test-build:
