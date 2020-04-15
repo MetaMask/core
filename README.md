@@ -1,17 +1,17 @@
-![gaba logo](https://raw.githubusercontent.com/metamask/gaba/master/logo.png)
+![@metamask/controllers logo](https://raw.githubusercontent.com/metamask/@metamask/controllers/master/logo.png)
 
-The **GABA** engine is a collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets.
+`@metamask/controllers` is a collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets.
 
 ## Table of Contents
 
 - [Usage](#usage)
 - [Modules](#modules)
 - [Concepts](#concepts)
-    - [Initialization](#initialization)
-    - [Configuration](#configuration)
-    - [State management](#state-management)
-    - [Subscription](#subscription)
-    - [Composition](#composition)
+  - [Initialization](#initialization)
+  - [Configuration](#configuration)
+  - [State management](#state-management)
+  - [Subscription](#subscription)
+  - [Composition](#composition)
 - [TypeScript](#why-typescript)
 - [Linking](#linking-during-development)
 - [API documentation](#api-documentation)
@@ -21,34 +21,35 @@ The **GABA** engine is a collection of platform-agnostic modules for creating se
 
 1. Install the package.
 
-    ```
-    yarn add gaba
-    ```
+```
+yarn add @metamask/controllers
+```
+
 2. Compose stores to create a data model.
 
-    ```js
-	import {
-		ComposableController,
-		NetworkStatusController,
-		TokenRatesController
-	} from 'gaba';
+```js
+import {
+  ComposableController,
+  NetworkStatusController,
+  TokenRatesController
+} from '@metamask/controllers';
 
-	const datamodel = new ComposableController([
-		new NetworkStatusController(),
-		new TokenRatesController()
-	]);
+const datamodel = new ComposableController([
+  new NetworkStatusController(),
+  new TokenRatesController()
+]);
 
-	datamodel.subscribe((state) => {/* data model has changed */});
-    ```
+datamodel.subscribe((state) => {/* data model has changed */});
+```
 
 ## Modules
 
-The GABA engine consists of a collection of modules that each expose uniform APIs for common operations like configuration, state management, and subscription.
+`@metamask/controllers` consists of a collection of controller modules that each expose uniform APIs for common operations like configuration, state management, and subscription.
 
 ### AccountTrackerController
 
 ```ts
-import AccountTrackerController from 'gaba';
+import AccountTrackerController from '@metamask/controllers';
 ```
 
 The AccountTrackerController tracks information associated with specific Ethereum accounts.
@@ -56,7 +57,7 @@ The AccountTrackerController tracks information associated with specific Ethereu
 ### AddressBookController
 
 ```ts
-import AddressBookController from 'gaba';
+import AddressBookController from '@metamask/controllers';
 ```
 
 The AddressBookController exposes functions for managing a list of recipient addresses and associated nicknames.
@@ -64,7 +65,7 @@ The AddressBookController exposes functions for managing a list of recipient add
 ### ComposableController
 
 ```ts
-import ComposableController from 'gaba';
+import ComposableController from '@metamask/controllers';
 ```
 
 The ComposableController can be used to compose multiple controllers together into a single controller.
@@ -72,7 +73,7 @@ The ComposableController can be used to compose multiple controllers together in
 ### CurrencyRateController
 
 ```ts
-import CurrencyRateController from 'gaba';
+import CurrencyRateController from '@metamask/controllers';
 ```
 
 The CurrencyRateController passively polls for an ETH-to-fiat exchange rate based on a chosen currency.
@@ -80,7 +81,7 @@ The CurrencyRateController passively polls for an ETH-to-fiat exchange rate base
 ### KeyringController
 
 ```ts
-import KeyringController from 'gaba';
+import KeyringController from '@metamask/controllers';
 ```
 
 The KeyringController is responsible for establishing and managing Ethereum address-based identities.
@@ -88,7 +89,7 @@ The KeyringController is responsible for establishing and managing Ethereum addr
 ### NetworkController
 
 ```ts
-import NetworkController from 'gaba';
+import NetworkController from '@metamask/controllers';
 ```
 
 The NetworkController is responsible for creating an underlying provider and for refreshing its configuration.
@@ -96,7 +97,7 @@ The NetworkController is responsible for creating an underlying provider and for
 ### NetworkStatusController
 
 ```ts
-import NetworkStatusController from 'gaba';
+import NetworkStatusController from '@metamask/controllers';
 ```
 
 The NetworkStatusController passively polls for the status of available provider networks. The Infura network is supported by default.
@@ -104,7 +105,7 @@ The NetworkStatusController passively polls for the status of available provider
 ### PhishingController
 
 ```ts
-import PhishingController from 'gaba';
+import PhishingController from '@metamask/controllers';
 ```
 
 The PhishingController passively polls for community-maintained lists of approved and unapproved website origins.
@@ -112,7 +113,7 @@ The PhishingController passively polls for community-maintained lists of approve
 ### PreferencesController
 
 ```ts
-import PreferencesController from 'gaba';
+import PreferencesController from '@metamask/controllers';
 ```
 
 The PreferencesController manages agnostic global settings and exposes convenience methods for updating them.
@@ -120,7 +121,7 @@ The PreferencesController manages agnostic global settings and exposes convenien
 ### TokenRatesController
 
 ```ts
-import TokenRatesController from 'gaba';
+import TokenRatesController from '@metamask/controllers';
 ```
 
 The TokenRatesController passively polls on a set interval for token-to-fiat exchange rates.
@@ -128,7 +129,7 @@ The TokenRatesController passively polls on a set interval for token-to-fiat exc
 ### TransactionController
 
 ```ts
-import TransactionController from 'gaba';
+import TransactionController from '@metamask/controllers';
 ```
 
 The TransactionController is responsible for submitting and managing transactions.
@@ -136,41 +137,41 @@ The TransactionController is responsible for submitting and managing transaction
 ### util
 
 ```ts
-import util from 'gaba';
+import util from '@metamask/controllers';
 ```
 
 The util module exposes a set of utility functions for common operations like gas estimation and generating crypto-buying URLs.
 
 ## Concepts
 
-Using GABA modules should be straightforward since each module exposes the same minimal API. The concepts detailed in this section form the entirety of the core API: knowing these concepts will allow you to fully use the GABA engine to build wallet data models.
+Using controllers should be straightforward since each controller exposes the same minimal API. The concepts detailed in this section form the entirety of the core API: knowing these concepts will allow you to fully use `@metamask/controllers` to build wallet data models.
 
 ### Initialization
 
-Each GABA module can be initialized with an optional initial configuration argument and an optional initial state argument:
+Each controller can be initialized with an optional initial configuration argument and an optional initial state argument:
 
 ```ts
 const controller = new Controller(<initial_config>, <initial_state>)
 ```
 
-Data passed into a module as initial state will be merged with that module's default state; likewise, options passed into a module as initial configuration will be merged with that module's default configuration.
+Data passed into a controller as initial state will be merged with that controller's default state; likewise, options passed into a controller as initial configuration will be merged with that controller's default configuration.
 
 ### Configuration
 
-As mentioned in the [initialization section](#initialization), a GABA module can be configured during initialization by passing in a configuration object as its first argument:
+As mentioned in the [initialization section](#initialization), a controller can be configured during initialization by passing in a configuration object as its first argument:
 
 ```ts
 const controller = new Controller(<initial_config>, <initial_state>)
 ```
 
-A GABA module can also be configured (or reconfigured) after initialization by passing a configuration object to its `configure` method:
+A controller can also be configured (or reconfigured) after initialization by passing a configuration object to its `configure` method:
 
 ```ts
 const controller = new Controller()
 controller.configure({ foo: 'bar', baz: 'qux' });
 ```
 
-Regardless of how a module is configured, whether it's during or after initialization, configuration options can always be accessed on a module as instance variables for convenience:
+Regardless of how a controller is configured, whether it's during or after initialization, configuration options can always be accessed on a controller as instance variables for convenience:
 
 ```ts
 const controller = new Controller()
@@ -180,9 +181,9 @@ console.log(controller.foo, controller.baz); // "bar qux"
 
 ### State management
 
-The core purpose of every GABA module is to maintain an internal data object called "state". Modules are like data stores: their internal state data can be updated directly by modifying the data itself or indirectly by calling API methods that in turn modify the data.
+The core purpose of every controller is to maintain an internal data object called "state". Modules are like data stores: their internal state data can be updated directly by modifying the data itself or indirectly by calling API methods that in turn modify the data.
 
-A GABA module's state can be directly modified by calling its `update` method and passing in a new data object. By default, this data object will be merged with the module's existing internal state; however, if the data object should overwrite the module's internal state, a second argument of `true` can be passed to the `update` method:
+A controller's state can be directly modified by calling its `update` method and passing in a new data object. By default, this data object will be merged with the controller's existing internal state; however, if the data object should overwrite the controller's internal state, a second argument of `true` can be passed to the `update` method:
 
 ```ts
 const controller = new Controller();
@@ -190,9 +191,9 @@ controller.update({ foo: 'bar' }); // merge with existing state
 controller.update({ foo: 'bar' }, true); // overwrite existing state
 ```
 
-A GABA module's state can be indirectly modified by calling any state-modifying API methods it may expose. For example, the AddressBookController exposes a `set` method that accepts a new address to save and an associated nickname; calling this method will internally update its `state.addressBook` array.
+A controller's state can be indirectly modified by calling any state-modifying API methods it may expose. For example, the AddressBookController exposes a `set` method that accepts a new address to save and an associated nickname; calling this method will internally update its `state.addressBook` array.
 
-A GABA module's state can always be accessed by referencing the `state` instance variable for convenience:
+A controller's state can always be accessed by referencing the `state` instance variable for convenience:
 
 ```ts
 const controller = new Controller();
@@ -201,9 +202,9 @@ console.log(controller.state); // { ... }
 
 ### Subscription
 
-Since each GABA module maintains an internal state object, there should be a way to add listeners to be notified when state data changes. GABA modules expose two methods for subscription management, `subscribe` and `unsubscribe`.
+Since each controller maintains an internal state object, there should be a way to add listeners to be notified when state data changes. controllers expose two methods for subscription management, `subscribe` and `unsubscribe`.
 
-Change handlers can be registered with a GABA module by passing a function to its `subscribe` method. This function will be called anytime the module's underlying state changes and will be passed the current state as its only function argument:
+Change handlers can be registered with a controller by passing a function to its `subscribe` method. This function will be called anytime the controller's underlying state changes and will be passed the current state as its only function argument:
 
 ```ts
 function onChange(state) { /* state data changed */ }
@@ -211,7 +212,7 @@ const controller = new Controller();
 controller.subscribe(onChange);
 ```
 
-Change handlers can be removed from a GABA module by passing a function to its `unsubscribe` method. Any function passed to `unsubscribe` will be removed from the internal list of handlers and will no longer be called when state data changes:
+Change handlers can be removed from a controller by passing a function to its `unsubscribe` method. Any function passed to `unsubscribe` will be removed from the internal list of handlers and will no longer be called when state data changes:
 
 ```ts
 function onChange(state) { /* state data changed */ }
@@ -223,24 +224,24 @@ controller.unsubscribe(onChange);
 
 ### Composition
 
-Because each GABA module maintains its own state and subscriptions, it would be tedious to initialize and subscribe to every available module independently. To solve this issue, the ComposableController can be used to compose multiple GABA modules into a single controller.
+Because each controller maintains its own state and subscriptions, it would be tedious to initialize and subscribe to every available controller independently. To solve this issue, the ComposableController can be used to compose multiple controllers into a single controller.
 
-The ComposableController is initialized by passing an array of GABA module instances:
+The ComposableController is initialized by passing an array of controller instances:
 
 ```ts
 import {
-	ComposableController,
-	NetworkStatusController,
-	TokenRatesController
-} from 'gaba';
+  ComposableController,
+  NetworkStatusController,
+  TokenRatesController
+} from '@metamask/controllers';
 
 const datamodel = new ComposableController([
-	new NetworkStatusController(),
-	new TokenRatesController()
+  new NetworkStatusController(),
+  new TokenRatesController()
 ]);
 ```
 
-The resulting composed module exposes the same APIs as every other GABA module for configuration, state management, and subscription:
+The resulting composed controller exposes the same APIs as every other controller for configuration, state management, and subscription:
 
 ```ts
 datamodel.subscribe((state) => { /* some child state has changed */ });
@@ -253,15 +254,15 @@ console.log(datamodel.state); // {NetworkController: {...}, TokenRatesController
 console.log(datamodel.flatState); // {infura: {...}, contractExchangeRates: [...]}
 ```
 
-**Advanced Note:** The ComposableController builds a map of all child controllers keyed by controller name. This object is cached as a `context` instance variable on both the ComposableController itself as well as all child GABA modules. This means that child modules can call methods on other sibling modules through the `context` variable, e.g. `this.context.SomeController.someMethod()`.
+**Advanced Note:** The ComposableController builds a map of all child controllers keyed by controller name. This object is cached as a `context` instance variable on both the ComposableController itself as well as all child controllers. This means that child controllers can call methods on other sibling controllers through the `context` variable, e.g. `this.context.SomeController.someMethod()`.
 
 ## Why TypeScript?
 
-The GABA engine is written using [TypeScript](https://www.typescriptlang.org/). Despite its arguably steeper learning curve compared to JavaScript, TypeScript offers an objectively safer development experience that directly improves the reliability and maintainability of a large codebase.
+`@metamask/controllers` is written using [TypeScript](https://www.typescriptlang.org/). Despite its arguably steeper learning curve compared to JavaScript, TypeScript offers an objectively safer development experience that directly improves the reliability and maintainability of a large codebase.
 
 ### Eliminate unintentionally broken APIs
 
-TypeScript eliminates the ability to introduce changes to a codebase that break the APIs between or within components. If the signature changes for a specific function in a given class, every use of that function will immediately fail to compile until updated to match the new signature. This same idea applies to every other construct of the language: if the type of a property on an object is changed from `string` to `boolean`, every invalid use of that property will immediately fail to compile, etc. This is one of the most powerful features of a statically typed language for a mission-critical, modular package like GABA: it's extremely difficult to unknowingly introduce side effects.
+TypeScript eliminates the ability to introduce changes to a codebase that break the APIs between or within components. If the signature changes for a specific function in a given class, every use of that function will immediately fail to compile until updated to match the new signature. This same idea applies to every other construct of the language: if the type of a property on an object is changed from `string` to `boolean`, every invalid use of that property will immediately fail to compile, etc. This is one of the most powerful features of a statically typed language for a mission-critical, modular package like `@metamask/controller`: it's extremely difficult to unknowingly introduce side effects.
 
 ### Share custom types and interfaces
 
@@ -282,30 +283,30 @@ TypeScript automatically transpiles the latest ECMAScript language features to a
 - [Enums](https://www.typescriptlang.org/docs/handbook/enums.html)
 - [Advanced types](https://www.typescriptlang.org/docs/handbook/advanced-types.html) (e.g. union, intersection)
 - Easy [3rd-party typings management](https://github.com/DefinitelyTyped/DefinitelyTyped)
-- [Mixins ](https://www.typescriptlang.org/docs/handbook/mixins.html)
+- [Mixins](https://www.typescriptlang.org/docs/handbook/mixins.html)
 - Superset of JavaScript, so all JS is valid TS
 
 All of these features of a statically-typed language like TypeScript combine to form codebases consisting of strict contractural relationships between every module in an application. Changes are less intimidating since unnoticed side effects are difficult to introduce, documentation can be generated with less verbose syntax (TSDoc is JSDoc without the types since it can infer them), editors provide autocompletion of both public module members and of local and NPM dependencies, and an upgrade to TypeScript can be incremental as demonstrated in this PR.
 
 ## Linking during development
 
-Linking GABA into other projects involves a special NPM command to ensure that dependencies are not duplicated. This is because GABA ships modules that are transpiled but not bundled, and [NPM does not deduplicate](https://github.com/npm/npm/issues/7742) linked dependency trees.
+Linking `@metamask/controller` into other projects involves a special NPM command to ensure that dependencies are not duplicated. This is because `@metamask/controller` ships modules that are transpiled but not bundled, and [NPM does not deduplicate](https://github.com/npm/npm/issues/7742) linked dependency trees.
 
-1. Link GABA.
+1. Link `@metamask/controller`.
 
-	```sh
-	$ yarn build:link
-	# or
-	$ npm run build:link
-	```
+  ```sh
+  $ yarn build:link
+  # or
+  $ npm run build:link
+  ```
 
 2. Link into other projects.
 
-	```sh
-	$ yarn link gaba
-	# or
-	$ npm link gaba
-	```
+  ```sh
+  $ yarn link @metamask/controllers
+  # or
+  $ npm link @metamask/controllers
+  ```
 
 ## Release Steps
 
@@ -318,13 +319,13 @@ Linking GABA into other projects involves a special NPM command to ensure that d
 - enable "create merge commit" option
 - do a normal merge to maintain history
 - disable "create merge commit" option
-- On a clean `master` run `yarn build`, then run `npm publish` in the project root and GABA will be on npm
+- On a clean `master` run `yarn build`, then run `npm publish` in the project root and `@metamask/controller` will be on npm
 
 ## API documentation
 
-API documentation is auto-generated for the GABA package on every commit to the `master` branch.
+API documentation is auto-generated for the `@metamask/controller` package on every commit to the `master` branch.
 
-[View API documentation](https://metamask.github.io/gaba/)
+[View API documentation](https://metamask.github.io/@metamask/controllers/)
 
 ## License
 
