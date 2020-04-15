@@ -1,5 +1,5 @@
 {
-  "name": "gaba",
+  "name": "@metamask/controllers",
   "version": "1.9.2",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "license": "MIT",
@@ -14,17 +14,17 @@
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
     "doc": "typedoc src/ && touch docs/.nojekyll"
   },
-  "homepage": "https://github.com/MetaMask/gaba#readme",
+  "homepage": "https://github.com/MetaMask/controllers#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MetaMask/gaba.git"
+    "url": "git+https://github.com/MetaMask/controllers.git"
   },
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
   "bugs": {
-    "url": "https://github.com/MetaMask/gaba/issues"
+    "url": "https://github.com/MetaMask/controllers/issues"
   },
   "dependencies": {
     "await-semaphore": "^0.1.3",
