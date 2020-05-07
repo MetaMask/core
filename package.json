@@ -5,7 +5,6 @@
   "license": "MIT",
   "main": "./dist/index.js",
   "scripts": {
-    "precommit": "lint-staged",
     "lint": "tslint src/**/*.ts",
     "test": "jest --coverage",
     "format": "prettier **/*.ts --write --ignore-path=.gitignore",
@@ -59,7 +58,6 @@
     "@types/xtend": "^4.0.2",
     "ethjs-provider-http": "^0.1.6",
     "fetch-mock": "^7.3.9",
-    "husky": "^0.14.3",
     "jest": "^25.1.0",
     "jsdom": "11.11.0",
     "lint-staged": "^6.1.0",
