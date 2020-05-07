@@ -262,7 +262,7 @@ console.log(datamodel.flatState); // {infura: {...}, contractExchangeRates: [...
 
 ### Eliminate unintentionally broken APIs
 
-TypeScript eliminates the ability to introduce changes to a codebase that break the APIs between or within components. If the signature changes for a specific function in a given class, every use of that function will immediately fail to compile until updated to match the new signature. This same idea applies to every other construct of the language: if the type of a property on an object is changed from `string` to `boolean`, every invalid use of that property will immediately fail to compile, etc. This is one of the most powerful features of a statically typed language for a mission-critical, modular package like `@metamask/controller`: it's extremely difficult to unknowingly introduce side effects.
+TypeScript eliminates the ability to introduce changes to a codebase that break the APIs between or within components. If the signature changes for a specific function in a given class, every use of that function will immediately fail to compile until updated to match the new signature. This same idea applies to every other construct of the language: if the type of a property on an object is changed from `string` to `boolean`, every invalid use of that property will immediately fail to compile, etc. This is one of the most powerful features of a statically typed language for a mission-critical, modular package like `@metamask/controllers`: it's extremely difficult to unknowingly introduce side effects.
 
 ### Share custom types and interfaces
 
@@ -290,9 +290,9 @@ All of these features of a statically-typed language like TypeScript combine to 
 
 ## Linking during development
 
-Linking `@metamask/controller` into other projects involves a special NPM command to ensure that dependencies are not duplicated. This is because `@metamask/controller` ships modules that are transpiled but not bundled, and [NPM does not deduplicate](https://github.com/npm/npm/issues/7742) linked dependency trees.
+Linking `@metamask/controllers` into other projects involves a special NPM command to ensure that dependencies are not duplicated. This is because `@metamask/controllers` ships modules that are transpiled but not bundled, and [NPM does not deduplicate](https://github.com/npm/npm/issues/7742) linked dependency trees.
 
-1. Link `@metamask/controller`.
+1. Link `@metamask/controllers`.
 
   ```sh
   $ yarn build:link
@@ -319,11 +319,11 @@ Linking `@metamask/controller` into other projects involves a special NPM comman
 - enable "create merge commit" option
 - do a normal merge to maintain history
 - disable "create merge commit" option
-- On a clean `master` run `yarn build`, then run `npm publish` in the project root and `@metamask/controller` will be on npm
+- On a clean `master` run `yarn build`, then run `npm publish` in the project root and `@metamask/controllers` will be on npm
 
 ## API documentation
 
-API documentation is auto-generated for the `@metamask/controller` package on every commit to the `master` branch.
+API documentation is auto-generated for the `@metamask/controllers` package on every commit to the `master` branch.
 
 [View API documentation](https://metamask.github.io/@metamask/controllers/)
 
