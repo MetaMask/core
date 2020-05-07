@@ -87,4 +87,22 @@ describe('PhishingController', () => {
 		controller.bypass('electrum.mx');
 		expect(controller.test('electrum.mx')).toBe(false);
 	});
+
+	it('should not update phishing lists if fetch returns 304', async () => {
+		const mock = stub(window, 'fetch');
+		mock.resolves({ status: 304 });
+		const controller = new PhishingController();
+		const oldState = controller.state.phishing;
+		await controller.updatePhishingLists();
+		expect(controller.state.phishing).toBe(oldState);
+		mock.restore();
+	});
+
+	it('should not update phishing lists if fetch returns error', async () => {
+		const mock = stub(window, 'fetch');
+		mock.resolves({ status: 500 });
+		const controller = new PhishingController();
+		await expect(controller.updatePhishingLists()).rejects.toThrowError(/Fetch failed with status '500'/u);
+		mock.restore();
+	});
 });
