@@ -1,5 +1,5 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { safelyExecute, handleFetch } from '../util';
+import { safelyExecute } from '../util';
 
 const DEFAULT_PHISHING_RESPONSE = require('eth-phishing-detect/src/config.json');
 const PhishingDetector = require('eth-phishing-detect/src/detector');
@@ -52,6 +52,8 @@ export interface PhishingState extends BaseState {
  * Controller that passively polls on a set interval for approved and unapproved website origins
  */
 export class PhishingController extends BaseController<PhishingConfig, PhishingState> {
+	private configUrl = 'https://raw.githubusercontent.com/MetaMask/eth-phishing-detect/master/src/config.json';
+	private configEtag: string = '';
 	private detector: any;
 	private handle?: NodeJS.Timer;
 
@@ -126,9 +128,34 @@ export class PhishingController extends BaseController<PhishingConfig, PhishingS
 			return;
 		}
 
-		const phishing = await handleFetch('https://api.infura.io/v2/blacklist');
-		this.detector = new PhishingDetector(phishing);
-		phishing && this.update({ phishing });
+		const phishingOpts = await this.queryConfig(this.configUrl);
+		if (phishingOpts) {
+			this.detector = new PhishingDetector(phishingOpts);
+			this.update({
+				phishing: phishingOpts
+			});
+		}
+	}
+
+	private async queryConfig(input: RequestInfo): Promise<EthPhishingResponse | null> {
+		const response = await fetch(input, {
+			headers: {
+				'If-None-Match': this.configEtag
+			}
+		});
+
+		switch (response.status) {
+			case 200: {
+				this.configEtag = response.headers.get('ETag') || /* istanbul ignore next */ '';
+				return await response.json();
+			}
+			case 304: {
+				return null;
+			}
+			default: {
+				throw new Error(`Fetch failed with status '${response.status}' for request '${input}'`);
+			}
+		}
 	}
 }
 
