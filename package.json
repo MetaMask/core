@@ -3,6 +3,9 @@
   "version": "1.9.2",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "license": "MIT",
+  "files": [
+    "dist/"
+  ],
   "main": "./dist/index.js",
   "scripts": {
     "precommit": "lint-staged",
