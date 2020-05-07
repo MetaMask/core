@@ -7,6 +7,10 @@
     "dist/"
   ],
   "main": "./dist/index.js",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
   "scripts": {
     "lint": "tslint src/**/*.ts",
     "test": "jest --coverage",
