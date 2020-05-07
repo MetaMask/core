@@ -12,7 +12,6 @@
   - [State management](#state-management)
   - [Subscription](#subscription)
   - [Composition](#composition)
-- [TypeScript](#why-typescript)
 - [Linking](#linking-during-development)
 - [API documentation](#api-documentation)
 - [License](#license)
@@ -255,38 +254,6 @@ console.log(datamodel.flatState); // {infura: {...}, contractExchangeRates: [...
 ```
 
 **Advanced Note:** The ComposableController builds a map of all child controllers keyed by controller name. This object is cached as a `context` instance variable on both the ComposableController itself as well as all child controllers. This means that child controllers can call methods on other sibling controllers through the `context` variable, e.g. `this.context.SomeController.someMethod()`.
-
-## Why TypeScript?
-
-`@metamask/controllers` is written using [TypeScript](https://www.typescriptlang.org/). Despite its arguably steeper learning curve compared to JavaScript, TypeScript offers an objectively safer development experience that directly improves the reliability and maintainability of a large codebase.
-
-### Eliminate unintentionally broken APIs
-
-TypeScript eliminates the ability to introduce changes to a codebase that break the APIs between or within components. If the signature changes for a specific function in a given class, every use of that function will immediately fail to compile until updated to match the new signature. This same idea applies to every other construct of the language: if the type of a property on an object is changed from `string` to `boolean`, every invalid use of that property will immediately fail to compile, etc. This is one of the most powerful features of a statically typed language for a mission-critical, modular package like `@metamask/controllers`: it's extremely difficult to unknowingly introduce side effects.
-
-### Share custom types and interfaces
-
-The ability to describe the shape that code must adhere to allows for the safe consumption and sharing of code without the need for duck typing. An underwhelming but point-driving comparison could be that TypeScript provides an enforced and very advanced form of JSDoc. Common or complex object formats with type-checked members can be shared and guaranteed across a codebase. This eliminates logic paths that only serve to check for the existence or the type of certain properties on an object, which usually account for a large portion of the code paths in a JavaScript application. Codebases become pragmatic and composable.
-
-### Eliminate errors caused by misnamed code
-
-TypeScript exposes a powerful language services API used by most major editors for code introspection features such as member autocompletion. This drastically reduces the chance of misnaming a function or property from an imported module, and in the off chance that a typo or misnaming does occur, the codebase would again immediately fail to compile instead of causing a user-facing bug at runtime.
-
-### Use transpiled language-forward features
-
-TypeScript automatically transpiles the latest ECMAScript language features to any desired target gracefully down to ES3. Microsoft directly monitors, supports, and heavily steers the implementation progress of the latest ES2018 specification through its development of TypeScript and adds opt-in support for features as their API churn settles down even before official TC39 finalization. This means that even implementation-heavy features like `async` / `await` are down-emitted without the hassle of manually managing polyfills or build tools like babel.
-
-### Other general OOP features
-
-- [Generics](https://www.typescriptlang.org/docs/handbook/generics.html)
-- [Member visibility](https://www.typescriptlang.org/docs/handbook/classes.html#public-private-and-protected-modifiers)
-- [Enums](https://www.typescriptlang.org/docs/handbook/enums.html)
-- [Advanced types](https://www.typescriptlang.org/docs/handbook/advanced-types.html) (e.g. union, intersection)
-- Easy [3rd-party typings management](https://github.com/DefinitelyTyped/DefinitelyTyped)
-- [Mixins](https://www.typescriptlang.org/docs/handbook/mixins.html)
-- Superset of JavaScript, so all JS is valid TS
-
-All of these features of a statically-typed language like TypeScript combine to form codebases consisting of strict contractural relationships between every module in an application. Changes are less intimidating since unnoticed side effects are difficult to introduce, documentation can be generated with less verbose syntax (TSDoc is JSDoc without the types since it can infer them), editors provide autocompletion of both public module members and of local and NPM dependencies, and an upgrade to TypeScript can be incremental as demonstrated in this PR.
 
 ## Linking during development
 
