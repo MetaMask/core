@@ -75,7 +75,7 @@
     "tslint": "^5.10.0",
     "tslint-config-prettier": "^1.13.0",
     "typedoc": "^0.15.0",
-    "typescript": "^3.7.5"
+    "typescript": "^3.8.3"
   },
   "jest": {
     "moduleFileExtensions": [
