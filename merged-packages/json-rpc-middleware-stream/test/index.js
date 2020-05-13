@@ -1,6 +1,6 @@
 const test = require('tape')
 const RpcEngine = require('json-rpc-engine')
-const createJsonRpcStream = require('../index')
+const createJsonRpcStream = require('..')
 const createEngineStream = require('../engineStream')
 
 test('middleware - raw test', (t) => {
@@ -24,13 +24,12 @@ test('middleware - raw test', (t) => {
     t.deepEqual(initRes, res, 'got the expected response')
     t.end()
   })
-
 })
 
 test('engine to stream - raw test', (t) => {
 
   const engine = new RpcEngine()
-  engine.push((req, res, next, end) => {
+  engine.push((_req, res, _next, end) => {
     res.result = 'test'
     end()
   })
@@ -46,13 +45,11 @@ test('engine to stream - raw test', (t) => {
   })
 
   stream.on('error', (err) => {
-    t.fail(error.message)
+    t.fail(err.message)
   })
 
   stream.write(req)
-
 })
-
 
 test('middleware and engine to stream', (t) => {
 
@@ -63,7 +60,7 @@ test('middleware and engine to stream', (t) => {
 
   // create host
   const engineB = new RpcEngine()
-  engineB.push((req, res, next, end) => {
+  engineB.push((_req, res, _next, end) => {
     res.result = 'test'
     end()
   })
@@ -72,8 +69,8 @@ test('middleware and engine to stream', (t) => {
   const clientSideStream = jsonRpcConnection.stream
   const hostSideStream = createEngineStream({ engine: engineB })
   clientSideStream
-  .pipe(hostSideStream)
-  .pipe(clientSideStream)
+    .pipe(hostSideStream)
+    .pipe(clientSideStream)
 
   // request and expected result
   const req = { id: 1, jsonrpc: '2.0', method: 'test' }
@@ -84,7 +81,6 @@ test('middleware and engine to stream', (t) => {
     t.deepEqual(res, _res, 'got the expected response')
     t.end()
   })
-
 })
 
 test('server notification', (t) => {
@@ -102,7 +98,6 @@ test('server notification', (t) => {
   jsonRpcConnection.stream.write(notif)
 })
 
-
 test('server notification in stream', (t) => {
   const engine = new RpcEngine()
 
@@ -116,7 +111,7 @@ test('server notification in stream', (t) => {
   })
 
   stream.on('error', (err) => {
-    t.fail(error.message)
+    t.fail(err.message)
   })
 
   engine.emit('notification', notif)

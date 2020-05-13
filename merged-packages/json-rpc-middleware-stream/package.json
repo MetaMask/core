@@ -1,29 +1,36 @@
 {
   "name": "json-rpc-middleware-stream",
   "version": "2.1.1",
-  "description": "",
+  "description": "A small toolset for streaming JSON RPC data and matching requests and responses.",
+  "license": "ISC",
   "main": "index.js",
-  "directories": {
-    "test": "test"
+  "files": [
+    "index.js",
+    "engineStream.js"
+  ],
+  "scripts": {
+    "test": "node test/index.js",
+    "lint": "eslint . --ext js,json",
+    "lint:fix": "eslint . --ext js,json --fix"
   },
   "dependencies": {
     "readable-stream": "^2.3.3",
     "safe-event-emitter": "^1.0.1"
   },
   "devDependencies": {
-    "json-rpc-engine": "^3.8.0"
-  },
-  "scripts": {
-    "test": "node test/index.js"
+    "@metamask/eslint-config": "^2.1.1",
+    "eslint": "^7.0.0",
+    "eslint-plugin-import": "^2.20.2",
+    "eslint-plugin-json": "^2.1.1",
+    "json-rpc-engine": "^5.1.8",
+    "tape": "^5.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kumavis/json-rpc-middleware-stream.git"
+    "url": "git+https://github.com/MetaMask/json-rpc-middleware-stream.git"
   },
-  "author": "",
-  "license": "ISC",
   "bugs": {
-    "url": "https://github.com/kumavis/json-rpc-middleware-stream/issues"
+    "url": "https://github.com/MetaMask/json-rpc-middleware-stream/issues"
   },
-  "homepage": "https://github.com/kumavis/json-rpc-middleware-stream#readme"
+  "homepage": "https://github.com/MetaMask/json-rpc-middleware-stream#readme"
 }

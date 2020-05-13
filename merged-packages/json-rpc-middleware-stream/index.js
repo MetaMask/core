@@ -1,9 +1,7 @@
 const SafeEventEmitter = require('safe-event-emitter')
-const DuplexStream = require('readable-stream').Duplex
+const { Duplex: DuplexStream } = require('readable-stream')
 
-module.exports = createStreamMiddleware
-
-function createStreamMiddleware() {
+module.exports = function createStreamMiddleware () {
   const idMap = {}
   const stream = new DuplexStream({
     objectMode: true,
@@ -26,7 +24,7 @@ function createStreamMiddleware() {
     return false
   }
 
-  function processMessage (res, encoding, cb) {
+  function processMessage (res, _encoding, cb) {
     let err
     try {
       const isNotification = !res.id
@@ -42,9 +40,11 @@ function createStreamMiddleware() {
     cb(err)
   }
 
-  function processResponse(res) {
+  function processResponse (res) {
     const context = idMap[res.id]
-    if (!context) throw new Error(`StreamMiddleware - Unknown response id ${res.id}`)
+    if (!context) {
+      throw new Error(`StreamMiddleware - Unknown response id ${res.id}`)
+    }
     delete idMap[res.id]
     // copy whole res onto original res
     Object.assign(context.res, res)
@@ -53,8 +53,7 @@ function createStreamMiddleware() {
     setTimeout(context.end)
   }
 
-  function processNotification(res) {
+  function processNotification (res) {
     events.emit('notification', res)
   }
-
 }

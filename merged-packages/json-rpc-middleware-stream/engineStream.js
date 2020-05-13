@@ -1,9 +1,11 @@
-const DuplexStream = require('readable-stream').Duplex
+const { Duplex: DuplexStream } = require('readable-stream')
 
-module.exports = createEngineStream
+module.exports = function createEngineStream ({ engine }) {
 
-function createEngineStream({ engine }) {
-  if (!engine) throw new Error('Missing engine parameter!')
+  if (!engine) {
+    throw new Error('Missing engine parameter!')
+  }
+
   const stream = new DuplexStream({ objectMode: true, read, write })
   // forward notifications
   if (engine.on) {
@@ -16,8 +18,9 @@ function createEngineStream({ engine }) {
   function read () {
     return false
   }
-  function write (req, encoding, cb) {
-    engine.handle(req, (err, res) => {
+
+  function write (req, _encoding, cb) {
+    engine.handle(req, (_err, res) => {
       this.push(res)
     })
     cb()
