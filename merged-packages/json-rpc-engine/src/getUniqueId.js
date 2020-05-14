@@ -3,9 +3,7 @@
 const MAX = 4294967295
 let idCounter = Math.floor(Math.random() * MAX)
 
-module.exports = getUniqueId
-
-function getUniqueId () {
+module.exports = function getUniqueId () {
   idCounter = (idCounter + 1) % MAX
   return idCounter
 }

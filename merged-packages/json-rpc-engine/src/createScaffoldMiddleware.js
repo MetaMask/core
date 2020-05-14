@@ -1,6 +1,4 @@
-module.exports = createScaffoldMiddleware
-
-function createScaffoldMiddleware (handlers) {
+module.exports = function createScaffoldMiddleware (handlers) {
   return (req, res, next, end) => {
     const handler = handlers[req.method]
     // if no handler, return

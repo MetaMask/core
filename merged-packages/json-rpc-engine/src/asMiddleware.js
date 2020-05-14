@@ -1,8 +1,6 @@
 'use strict'
 
-module.exports = asMiddleware
-
-function asMiddleware (engine) {
+module.exports = function asMiddleware (engine) {
   return function engineAsMiddleware (req, res, next, end) {
     engine._runMiddlewareDown(req, res, function (err, { isComplete, returnHandlers }) {
       if (err) {

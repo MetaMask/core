@@ -6,7 +6,7 @@ const {
   serializeError, EthereumRpcError, ERROR_CODES,
 } = require('eth-json-rpc-errors')
 
-class RpcEngine extends SafeEventEmitter {
+module.exports = class RpcEngine extends SafeEventEmitter {
   constructor () {
     super()
     this._middleware = []
@@ -182,5 +182,3 @@ class RpcEngine extends SafeEventEmitter {
     async.eachSeries(returnHandlers, (handler, next) => handler(next), cb)
   }
 }
-
-module.exports = RpcEngine

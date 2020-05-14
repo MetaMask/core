@@ -1,8 +1,6 @@
 const promiseToCallback = require('promise-to-callback')
 
-module.exports = createAsyncMiddleware
-
-function createAsyncMiddleware (asyncMiddleware) {
+module.exports = function createAsyncMiddleware (asyncMiddleware) {
   return (req, res, next, end) => {
     let nextDonePromise = null
     const finishedPromise = asyncMiddleware(req, res, getNextPromise)
