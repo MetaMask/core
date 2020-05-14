@@ -17,7 +17,7 @@ describe('basic tests', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
+      assert.ok(res, 'has res')
       assert.equal(res.result, 42, 'has expected result')
       done()
     })
@@ -36,7 +36,7 @@ describe('basic tests', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
+      assert.ok(res, 'has res')
       assert.equal(res.result, 42, 'has expected result')
       assert.equal(payload.method, 'hello', 'original request object is not mutated by middleware')
       done()
@@ -55,7 +55,7 @@ describe('basic tests', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
+      assert.ok(res, 'has res')
       assert.equal(res.result, null, 'has expected result')
       done()
     })
@@ -78,7 +78,7 @@ describe('basic tests', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
+      assert.ok(res, 'has res')
       assert.equal(res.result, 42, 'has expected result')
       done()
     })
@@ -94,10 +94,10 @@ describe('basic tests', function () {
     const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
-      assert(err, 'did error')
-      assert(res, 'does have response')
-      assert(res.error, 'does have error on response')
-      assert(!res.result, 'does not have result on response')
+      assert.ok(err, 'did error')
+      assert.ok(res, 'does have response')
+      assert.ok(res.error, 'does have error on response')
+      assert.ok(!res.result, 'does not have result on response')
       done()
     })
   })
@@ -113,10 +113,10 @@ describe('basic tests', function () {
     const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
-      assert(err, 'did error')
-      assert(res, 'does have response')
-      assert(res.error, 'does have error on response')
-      assert(!res.result, 'does not have result on response')
+      assert.ok(err, 'did error')
+      assert.ok(res, 'does have response')
+      assert.ok(res.error, 'does have error on response')
+      assert.ok(!res.result, 'does not have result on response')
       done()
     })
   })
@@ -132,10 +132,10 @@ describe('basic tests', function () {
     const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, res) {
-      assert(err, 'did error')
-      assert(res, 'does have response')
-      assert(res.error, 'does have error on response')
-      assert(!res.result, 'does not have result on response')
+      assert.ok(err, 'did error')
+      assert.ok(res, 'does have response')
+      assert.ok(res.error, 'does have error on response')
+      assert.ok(!res.result, 'does not have result on response')
       done()
     })
   })
@@ -146,7 +146,7 @@ describe('basic tests', function () {
     const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, _res) {
-      assert(err, 'did error')
+      assert.ok(err, 'did error')
       done()
     })
   })
@@ -173,8 +173,8 @@ describe('basic tests', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
-      assert(Array.isArray(res), 'res is array')
+      assert.ok(res, 'has res')
+      assert.ok(Array.isArray(res), 'res is array')
       assert.equal(res[0].result, 1, 'has expected result')
       assert.equal(res[1].result, 2, 'has expected result')
       assert.equal(res[2].result, 3, 'has expected result')
@@ -216,8 +216,8 @@ describe('basic tests', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
-      assert(res.sawReturnHandler, 'saw return handler')
+      assert.ok(res, 'has res')
+      assert.ok(res.sawReturnHandler, 'saw return handler')
       done()
     })
   })
@@ -281,8 +281,8 @@ describe('basic tests', function () {
     const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, (err, _res) => {
-      assert(err, 'did error')
-      assert(sawNextReturnHandlerCalled, 'saw next return handler called')
+      assert.ok(err, 'did error')
+      assert.ok(sawNextReturnHandlerCalled, 'saw next return handler called')
       done()
     })
   })

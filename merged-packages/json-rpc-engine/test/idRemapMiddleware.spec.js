@@ -33,12 +33,12 @@ describe('idRemapMiddleware tests', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
+      assert.ok(res, 'has res')
       // collected data
-      assert(observedIds.before.req, 'captured ids')
-      assert(observedIds.before.res, 'captured ids')
-      assert(observedIds.after.req, 'captured ids')
-      assert(observedIds.after.res, 'captured ids')
+      assert.ok(observedIds.before.req, 'captured ids')
+      assert.ok(observedIds.before.res, 'captured ids')
+      assert.ok(observedIds.after.req, 'captured ids')
+      assert.ok(observedIds.after.res, 'captured ids')
       // data matches expectations
       assert.equal(observedIds.before.req, observedIds.before.res, 'ids match')
       assert.equal(observedIds.after.req, observedIds.after.res, 'ids match')

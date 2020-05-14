@@ -18,7 +18,7 @@ describe('createAsyncMiddleware tests', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
+      assert.ok(res, 'has res')
       assert.equal(res.result, 42, 'has expected result')
       done()
     })
@@ -44,7 +44,7 @@ describe('createAsyncMiddleware tests', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
+      assert.ok(res, 'has res')
       assert.equal(res.result, 42, 'has expected result')
       done()
     })
@@ -62,7 +62,7 @@ describe('createAsyncMiddleware tests', function () {
     const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, _res) {
-      assert(err, 'has err')
+      assert.ok(err, 'has err')
       assert.equal(err, error, 'has expected result')
       done()
     })
@@ -86,7 +86,7 @@ describe('createAsyncMiddleware tests', function () {
     const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
     engine.handle(payload, function (err, _res) {
-      assert(err, 'has err')
+      assert.ok(err, 'has err')
       assert.equal(err, error, 'has expected result')
       done()
     })

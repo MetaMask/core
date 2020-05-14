@@ -23,7 +23,7 @@ describe('asMiddleware', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
+      assert.ok(res, 'has res')
       assert.equal(originalReq.id, res.id, 'id matches')
       assert.equal(originalReq.jsonrpc, res.jsonrpc, 'jsonrpc version matches')
       assert.equal(res.result, 'saw subengine', 'response was handled by nested engine')
@@ -49,10 +49,10 @@ describe('asMiddleware', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
+      assert.ok(res, 'has res')
       assert.equal(originalReq.id, res.id, 'id matches')
       assert.equal(originalReq.jsonrpc, res.jsonrpc, 'jsonrpc version matches')
-      assert(res.xyz, 'res non-result prop was transfered')
+      assert.ok(res.xyz, 'res non-result prop was transfered')
       done()
     })
   })
@@ -75,10 +75,10 @@ describe('asMiddleware', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
+      assert.ok(res, 'has res')
       assert.equal(originalReq.id, res.id, 'id matches')
       assert.equal(originalReq.jsonrpc, res.jsonrpc, 'jsonrpc version matches')
-      assert(originalReq.xyz, 'req prop was transfered')
+      assert.ok(originalReq.xyz, 'req prop was transfered')
       done()
     })
   })
@@ -99,7 +99,7 @@ describe('asMiddleware', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
+      assert.ok(res, 'has res')
       done()
     })
   })
@@ -124,7 +124,7 @@ describe('asMiddleware', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
+      assert.ok(res, 'has res')
       assert.equal(res.result, res.copy, 'copied result correctly')
       done()
     })
@@ -151,7 +151,7 @@ describe('asMiddleware', function () {
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')
-      assert(res, 'has res')
+      assert.ok(res, 'has res')
       assert.equal(res.result, res.copy, 'copied result correctly')
       done()
     })
