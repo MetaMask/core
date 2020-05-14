@@ -1,7 +1,7 @@
 /* eslint-env mocha */
 'use strict'
 
-const assert = require('assert')
+const { strict: assert } = require('assert')
 const RpcEngine = require('../src')
 const mergeMiddleware = require('../src/mergeMiddleware.js')
 

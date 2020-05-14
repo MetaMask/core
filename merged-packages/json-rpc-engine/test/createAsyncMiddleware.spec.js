@@ -2,7 +2,7 @@
 /* eslint require-await: 0 */
 'use strict'
 
-const assert = require('assert')
+const { strict: assert } = require('assert')
 const RpcEngine = require('../src')
 const createAsyncMiddleware = require('../src/createAsyncMiddleware.js')
 
