@@ -6,6 +6,9 @@
   "author": "kumavis",
   "main": "src/index.js",
   "types": "src/index.d.ts",
+  "files": [
+    "src"
+  ],
   "scripts": {
     "lint": "eslint . --ext js,json",
     "lint:fix": "eslint . --ext js,json --fix",
