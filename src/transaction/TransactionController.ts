@@ -672,65 +672,64 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	async fetchAll(address: string, fromBlock?: string): Promise<string | void> {
 		const network = this.context.NetworkController;
 		const {state: {network: currentNetworkID, type: networkType}} = network
-
+		
 		const supportedNetworkIds = ['1', '3', '4', '42'];
 		if (supportedNetworkIds.indexOf(currentNetworkID) === -1) return;
-
+		
+		// Handle txs from etherscan
 		const url = getEtherscanApiUrl(networkType, address, fromBlock)
-		const parsedResponse = await handleFetch(url);
-		/* istanbul ignore else */
-		if (parsedResponse.status !== '0' && parsedResponse.result.length > 0) {
-			const remoteTxList: { [key: string]: number } = {};
-			const remoteTxs: TransactionMeta[] = [];
-			parsedResponse.result.forEach((tx: EtherscanTransactionMeta) => {
-				/* istanbul ignore else */
-				if (!remoteTxList[tx.hash]) {
-					remoteTxs.push(this.normalizeTxFromEtherscan(tx, currentNetworkID));
-					remoteTxList[tx.hash] = 1;
-				}
-			});
+		const etherscanResponse = await handleFetch(url);
 
-			const localTxs = this.state.transactions.filter(
-				/* istanbul ignore next */
-				(tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]
-			);
+		if (etherscanResponse.status === '0' || etherscanResponse.result.length <= 0) return
 
-			const allTxs = [...remoteTxs, ...localTxs];
-			allTxs.sort((a, b) => (/* istanbul ignore next */ a.time < b.time ? -1 : 1));
+		const remoteTxList: { [key: string]: number } = {};
+		const remoteTxs: TransactionMeta[] = [];
+		etherscanResponse.result.forEach((tx: EtherscanTransactionMeta) => {
+			/* istanbul ignore else */
+			if (!remoteTxList[tx.hash]) {
+				remoteTxs.push(this.normalizeTxFromEtherscan(tx, currentNetworkID));
+				remoteTxList[tx.hash] = 1;
+			}
+		});
 
-			let latestIncomingTxBlockNumber: string | undefined;
-			allTxs.forEach(async (tx) => {
-				/* istanbul ignore next */
+		const localTxs = this.state.transactions.filter(
+			/* istanbul ignore next */
+			(tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]
+		);
+
+		const allTxs = [...remoteTxs, ...localTxs];
+		allTxs.sort((a, b) => (/* istanbul ignore next */ a.time < b.time ? -1 : 1));
+
+		let latestIncomingTxBlockNumber: string | undefined;
+		allTxs.forEach(async (tx) => {
+			/* istanbul ignore next */
+			if (
+				tx.networkID === currentNetworkID &&
+				tx.transaction.to &&
+				tx.transaction.to.toLowerCase() === address.toLowerCase()
+			) {
 				if (
-					tx.networkID === currentNetworkID &&
-					tx.transaction.to &&
-					tx.transaction.to.toLowerCase() === address.toLowerCase()
+					tx.blockNumber &&
+					(!latestIncomingTxBlockNumber ||
+						parseInt(latestIncomingTxBlockNumber, 10) < parseInt(tx.blockNumber, 10))
 				) {
-					if (
-						tx.blockNumber &&
-						(!latestIncomingTxBlockNumber ||
-							parseInt(latestIncomingTxBlockNumber, 10) < parseInt(tx.blockNumber, 10))
-					) {
-						latestIncomingTxBlockNumber = tx.blockNumber;
-					}
+					latestIncomingTxBlockNumber = tx.blockNumber;
 				}
-				/* istanbul ignore else */
-				if (tx.toSmartContract === undefined) {
-					// If not `to` is a contract deploy, if not `data` is send eth
-					if (tx.transaction.to && (!tx.transaction.data || tx.transaction.data !== '0x')) {
-						const code = await this.query('getCode', [tx.transaction.to]);
-						tx.toSmartContract = isSmartContractCode(code);
-					} else {
-						tx.toSmartContract = false;
-					}
+			}
+			/* istanbul ignore else */
+			if (tx.toSmartContract === undefined) {
+				// If not `to` is a contract deploy, if not `data` is send eth
+				if (tx.transaction.to && (!tx.transaction.data || tx.transaction.data !== '0x')) {
+					const code = await this.query('getCode', [tx.transaction.to]);
+					tx.toSmartContract = isSmartContractCode(code);
+				} else {
+					tx.toSmartContract = false;
 				}
-			});
+			}
+		});
 
-			this.update({ transactions: allTxs });
-			return latestIncomingTxBlockNumber;
-		}
-		/* istanbul ignore next */
-		return;
+		this.update({ transactions: allTxs });
+		return latestIncomingTxBlockNumber;
 	}
 }
 
