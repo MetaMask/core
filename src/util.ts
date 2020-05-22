@@ -85,6 +85,12 @@ export function getEtherscanApiUrl(networkType: string, address: string, fromBlo
 	return url
 }
 
+export function getAlethioApiUrl(address: string) {
+	const url = `https://api.aleth.io/v1/token-transfers?filter[to]=${address}`;
+	const headers = {"Authorization": 'Bearer sk_main_98a718578e30d815'}
+	return {url, headers}
+}
+
 /**
  * Converts a hex string to a BN object
  *

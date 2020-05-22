@@ -14,7 +14,8 @@ import {
 	safelyExecute,
 	validateTransaction,
 	isSmartContractCode,
-	getEtherscanApiUrl
+	getEtherscanApiUrl,
+	getAlethioApiUrl
 } from '../util';
 const MethodRegistry = require('eth-method-registry');
 const EthQuery = require('eth-query');
@@ -81,6 +82,12 @@ export interface TransactionMeta {
 		message: string;
 		stack?: string;
 	};
+	isTransfer?: boolean,
+	transferInformation?: {
+		symbol: string;
+		contractAddress: string;
+		decimals: number
+	},
 	id: string;
 	networkID?: string;
 	origin?: string;
@@ -134,6 +141,24 @@ export interface EtherscanTransactionMeta {
 	cumulativeGasUsed: string;
 	gasUsed: string;
 	confirmations: string;
+}
+
+export interface AlethioTransactionMeta {
+	attributes: {
+		blockCreationTime: string;
+		symbol: string;
+		decimals: number;
+		transactionGasLimit: string;
+		transactionGasPrice: string;
+		transactionGasUsed: string;
+		value: string;
+	},
+	relationships: {
+		to: {data: {id: string}};
+		from: {data: {id: string}};
+		token: {data: {id: string}};
+		transaction: {data: {id: string}};
+	}
 }
 
 /**
@@ -661,6 +686,33 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		this.update({ transactions: newTransactions });
 	}
 
+	parseTransactionInformation = (tx: AlethioTransactionMeta, currentNetworkID: string): TransactionMeta => {
+		const {attributes: {symbol, blockCreationTime,decimals, transactionGasLimit, transactionGasPrice, value},
+		relationships: {to, from, transaction, token}} =  tx
+		const time = parseInt(blockCreationTime, 10) * 1000;
+		return {
+			time: parseInt(blockCreationTime) * 1000,
+			transactionHash: transaction.data.id,
+			status: 'confirmed',
+			id: random({ msecs: time }),
+			networkID: currentNetworkID,
+			isTransfer: true,
+			transferInformation: {
+				symbol,
+				contractAddress: token.data.id,
+				decimals
+			},
+			transaction: {
+				chainId: 1,
+				from: from.data.id,
+				gas: transactionGasLimit,
+				gasPrice: transactionGasPrice,
+				to: to.data.id,
+				value: value
+			}
+		}
+	}
+
 	/**
 	 * Gets all transactions from etherscan for a specific address
 	 * optionally starting from a specific block
@@ -671,7 +723,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 */
 	async fetchAll(address: string, fromBlock?: string): Promise<string | void> {
 		const network = this.context.NetworkController;
-		const {state: {network: currentNetworkID, type: networkType}} = network
+		const {state: {network: currentNetworkID, provider: {type: networkType}}} = network
 		
 		const supportedNetworkIds = ['1', '3', '4', '42'];
 		if (supportedNetworkIds.indexOf(currentNetworkID) === -1) return;
@@ -679,8 +731,10 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		// Handle txs from etherscan
 		const url = getEtherscanApiUrl(networkType, address, fromBlock)
 		const etherscanResponse = await handleFetch(url);
-
 		if (etherscanResponse.status === '0' || etherscanResponse.result.length <= 0) return
+
+		const alethioUrl = getAlethioApiUrl(address)
+		const alethioResponse = await handleFetch(alethioUrl.url, {headers: alethioUrl.headers});
 
 		const remoteTxList: { [key: string]: number } = {};
 		const remoteTxs: TransactionMeta[] = [];
@@ -692,13 +746,22 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 			}
 		});
 
+		alethioResponse.data.forEach((tx: AlethioTransactionMeta) => {
+			const cleanTx = this.parseTransactionInformation(tx, currentNetworkID)
+			remoteTxs.push(cleanTx);
+			remoteTxList[cleanTx.transactionHash || ''] = 1;
+		});
+
 		const localTxs = this.state.transactions.filter(
 			/* istanbul ignore next */
 			(tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]
 		);
 
 		const allTxs = [...remoteTxs, ...localTxs];
-		allTxs.sort((a, b) => (/* istanbul ignore next */ a.time < b.time ? -1 : 1));
+		allTxs.sort((a, b) => {
+			console.log('a.time < b.time', a.time, b.time)
+			return a.time < b.time ? -1 : 1
+		});
 
 		let latestIncomingTxBlockNumber: string | undefined;
 		allTxs.forEach(async (tx) => {
