@@ -275,18 +275,20 @@ Linking `@metamask/controllers` into other projects involves a special NPM comma
   $ npm link @metamask/controllers
   ```
 
-## Release Steps
+## Release & Publishing
 
-- Create branch from `develop` named `v${version}`
-- push remote branch
-- Run `npx release <major|minor|patch>`. `major` for breaking changes, `patch` for bugfixes, `minor` for backwards compatible features.
-- Then select which PRs will be added to generate the changelog
-- Github page will be opened in your browser with the new generated tag and changelog, press the green button to release.
-- Then merge `v${version}` branch to `develop`, then make `master` up to date with `develop`
-- enable "create merge commit" option
-- do a normal merge to maintain history
-- disable "create merge commit" option
-- On a clean `master` run `yarn build`, then run `npm publish` in the project root and `@metamask/controllers` will be on npm
+The project follows the same release process as the other libraries in the MetaMask organization:
+
+1. Create a release branch
+    - For a typical release, this would be based on `master`
+    - To update an older maintained major version, base the release branch on the major version branch (e.g. `1.x`)
+2. Update the changelog
+3. Update version in package.json file (e.g. `yarn version --minor --no-git-tag-version`)
+4. Create a pull request targeting the base branch (e.g. master or 1.x)
+5. Code review and QA
+6. Once approved, the PR is squashed & merged
+7. The commit on the base branch is tagged
+8. The tag can be published as needed
 
 ## API documentation
 
