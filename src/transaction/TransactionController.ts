@@ -8,14 +8,12 @@ const ethErrors: IEthErrors = require('eth-json-rpc-errors').ethErrors;
 import {
 	BNToHex,
 	fractionBN,
-	handleFetch,
 	hexToBN,
 	normalizeTransaction,
 	safelyExecute,
 	validateTransaction,
 	isSmartContractCode,
-	getEtherscanApiUrl,
-	getAlethioApiUrl
+	handleTransactionFetch
 } from '../util';
 const MethodRegistry = require('eth-method-registry');
 const EthQuery = require('eth-query');
@@ -275,6 +273,41 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 			},
 			transactionHash: txMeta.hash
 		};
+	}
+
+		/**
+	 * Normalizes the transaction information from alethio
+	 * to be compatible with the TransactionMeta interface
+	 *
+	 * @param txMeta - Object containing the transaction information
+	 * @param currentNetworkID - string representing the current network id
+	 * @returns - TransactionMeta
+	 */
+	normalizeTxFromAlehio = (txMeta: AlethioTransactionMeta, currentNetworkID: string): TransactionMeta => {
+		const {attributes: {symbol, blockCreationTime,decimals, transactionGasLimit, transactionGasPrice, value},
+		relationships: {to, from, transaction, token}} =  txMeta
+		const time = parseInt(blockCreationTime, 10) * 1000;
+		return {
+			time: parseInt(blockCreationTime) * 1000,
+			transactionHash: transaction.data.id,
+			status: 'confirmed',
+			id: random({ msecs: time }),
+			networkID: currentNetworkID,
+			isTransfer: true,
+			transferInformation: {
+				symbol,
+				contractAddress: token.data.id,
+				decimals
+			},
+			transaction: {
+				chainId: 1,
+				from: from.data.id,
+				gas: transactionGasLimit,
+				gasPrice: transactionGasPrice,
+				to: to.data.id,
+				value: value
+			}
+		}
 	}
 
 	/**
@@ -686,33 +719,6 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		this.update({ transactions: newTransactions });
 	}
 
-	parseTransactionInformation = (tx: AlethioTransactionMeta, currentNetworkID: string): TransactionMeta => {
-		const {attributes: {symbol, blockCreationTime,decimals, transactionGasLimit, transactionGasPrice, value},
-		relationships: {to, from, transaction, token}} =  tx
-		const time = parseInt(blockCreationTime, 10) * 1000;
-		return {
-			time: parseInt(blockCreationTime) * 1000,
-			transactionHash: transaction.data.id,
-			status: 'confirmed',
-			id: random({ msecs: time }),
-			networkID: currentNetworkID,
-			isTransfer: true,
-			transferInformation: {
-				symbol,
-				contractAddress: token.data.id,
-				decimals
-			},
-			transaction: {
-				chainId: 1,
-				from: from.data.id,
-				gas: transactionGasLimit,
-				gasPrice: transactionGasPrice,
-				to: to.data.id,
-				value: value
-			}
-		}
-	}
-
 	/**
 	 * Gets all transactions from etherscan for a specific address
 	 * optionally starting from a specific block
@@ -728,18 +734,11 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const supportedNetworkIds = ['1', '3', '4', '42'];
 		if (supportedNetworkIds.indexOf(currentNetworkID) === -1) return;
 		
-		// Handle txs from etherscan
-		const url = getEtherscanApiUrl(networkType, address, fromBlock)
-		const etherscanResponse = await handleFetch(url);
-		if (etherscanResponse.status === '0' || etherscanResponse.result.length <= 0) return
-
-		const alethioUrl = getAlethioApiUrl(address)
-		const alethioResponse = await handleFetch(alethioUrl.url, {headers: alethioUrl.headers});
-
+		const [etherscanResponse, alethioResponse] = await handleTransactionFetch(networkType, address, fromBlock)
 		const remoteTxList: { [key: string]: number } = {};
 		const remoteTxs: TransactionMeta[] = [];
+
 		etherscanResponse.result.forEach((tx: EtherscanTransactionMeta) => {
-			/* istanbul ignore else */
 			if (!remoteTxList[tx.hash]) {
 				remoteTxs.push(this.normalizeTxFromEtherscan(tx, currentNetworkID));
 				remoteTxList[tx.hash] = 1;
@@ -747,21 +746,15 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		});
 
 		alethioResponse.data.forEach((tx: AlethioTransactionMeta) => {
-			const cleanTx = this.parseTransactionInformation(tx, currentNetworkID)
+			const cleanTx = this.normalizeTxFromAlehio(tx, currentNetworkID)
 			remoteTxs.push(cleanTx);
 			remoteTxList[cleanTx.transactionHash || ''] = 1;
 		});
 
-		const localTxs = this.state.transactions.filter(
-			/* istanbul ignore next */
-			(tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]
-		);
+		const localTxs = this.state.transactions.filter((tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]);
 
 		const allTxs = [...remoteTxs, ...localTxs];
-		allTxs.sort((a, b) => {
-			console.log('a.time < b.time', a.time, b.time)
-			return a.time < b.time ? -1 : 1
-		});
+		allTxs.sort((a, b) => a.time < b.time ? -1 : 1);
 
 		let latestIncomingTxBlockNumber: string | undefined;
 		allTxs.forEach(async (tx) => {

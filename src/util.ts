@@ -78,17 +78,27 @@ export function getEtherscanApiUrl(networkType: string, address: string, fromBlo
 	}
 	const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
 	let url = `${apiUrl}/api?module=account&action=txlist&address=${address}&tag=latest&page=1`;
-	/* istanbul ignore next */
 	if (fromBlock) {
 		url += `&startBlock=${fromBlock}`;
 	}
 	return url
 }
 
-export function getAlethioApiUrl(address: string) {
+export function getAlethioApiUrl(networkType: string, address: string) {
+	if (networkType !== 'mainnet') return {url: '', headers: {}}
 	const url = `https://api.aleth.io/v1/token-transfers?filter[to]=${address}`;
 	const headers = {"Authorization": 'Bearer sk_main_98a718578e30d815'}
 	return {url, headers}
+}
+
+export async function handleTransactionFetch(networkType: string, address: string, fromBlock?: string): Promise<[{ [result: string]: [] }, { [data: string]: [] }]> {
+	const url = getEtherscanApiUrl(networkType, address, fromBlock)
+	const etherscanResponsePromise = handleFetch(url);
+	const alethioUrl = getAlethioApiUrl(networkType, address)
+	const alethioResponsePromise = alethioUrl.url !== '' && handleFetch(alethioUrl.url, {headers: alethioUrl.headers});
+	const [etherscanResponse, alethioResponse] = await Promise.all([etherscanResponsePromise, alethioResponsePromise])
+	if (etherscanResponse.status === '0' || etherscanResponse.result.length <= 0 || !alethioResponse.data) return [{result: []}, {data: []}]
+	return [etherscanResponse, alethioResponse]
 }
 
 /**
