@@ -87,6 +87,7 @@ export function getEtherscanApiUrl(networkType: string, address: string, fromBlo
 export function getAlethioApiUrl(networkType: string, address: string) {
 	if (networkType !== 'mainnet') return {url: '', headers: {}}
 	const url = `https://api.aleth.io/v1/token-transfers?filter[to]=${address}`;
+	// This is a free API key, we need to update it to be given
 	const headers = {"Authorization": 'Bearer sk_main_98a718578e30d815'}
 	return {url, headers}
 }
