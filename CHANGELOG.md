@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [2.0.1] - 2020-06-18
+
+## Changed
+
+- Update `PhishingController` endpoint to use GitHub API (#244)
+
 ## [2.0.0] - 2020-05-07
 
 ## Changed
@@ -17,5 +23,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v2.0.0...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v2.0.1...HEAD
+[2.0.1]:https://github.com/MetaMask/controllers/tree/v2.0.1
 [2.0.0]:https://github.com/MetaMask/controllers/tree/v2.0.0
