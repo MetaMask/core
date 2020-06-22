@@ -17,6 +17,10 @@ function createWalletMiddleware(opts = {}) {
   const processDecryptMessage = opts.processDecryptMessage
   const processEncryptionPublicKey = opts.processEncryptionPublicKey
 
+  if (!getAccounts) {
+    throw new Error('WalletMiddleware - opts.getAccounts not provided')
+  }
+
   return createScaffoldMiddleware({
     // account lookups
     'eth_accounts': createAsyncMiddleware(lookupAccounts),
@@ -40,13 +44,11 @@ function createWalletMiddleware(opts = {}) {
   //
 
   async function lookupAccounts(req, res) {
-    if (!getAccounts) throw new Error('WalletMiddleware - opts.getAccounts not provided')
     const accounts = await getAccounts(req)
     res.result = accounts
   }
 
   async function lookupDefaultAccount(req, res) {
-    if (!getAccounts) throw new Error('WalletMiddleware - opts.getAccounts not provided')
     const accounts = await getAccounts(req)
     res.result = accounts[0] || null
   }
@@ -225,7 +227,6 @@ function createWalletMiddleware(opts = {}) {
     // allow unspecified address (allow transaction signer to insert default)
     if (!address) return
     // ensure address is included in provided accounts
-    if (!getAccounts) throw new Error('WalletMiddleware - opts.getAccounts not provided')
     const accounts = await getAccounts(req)
     const normalizedAccounts = accounts.map(address => address.toLowerCase())
     const normalizedAddress =  address.toLowerCase()
