@@ -214,7 +214,7 @@ module.exports = function createWalletMiddleware(opts = {}) {
     }
 
     const ciphertext = req.params[0]
-    const address = await validateAndNormalizeKeyholder(req.params[1])
+    const address = await validateAndNormalizeKeyholder(req.params[1], req)
     const extraParams = req.params[2] || {}
     const msgParams = Object.assign({}, extraParams, {
       from: address,
