@@ -1,6 +1,7 @@
 const createAsyncMiddleware = require('json-rpc-engine/src/createAsyncMiddleware')
 const createScaffoldMiddleware = require('json-rpc-engine/src/createScaffoldMiddleware')
 const sigUtil = require('eth-sig-util')
+const { ethErrors } = require('eth-rpc-errors')
 
 module.exports = function createWalletMiddleware(opts = {}) {
   // parse + validate options
@@ -15,7 +16,7 @@ module.exports = function createWalletMiddleware(opts = {}) {
   const processEncryptionPublicKey = opts.processEncryptionPublicKey
 
   if (!getAccounts) {
-    throw new Error('WalletMiddleware - opts.getAccounts not provided')
+    throw new Error('opts.getAccounts is required')
   }
 
   return createScaffoldMiddleware({
@@ -55,7 +56,7 @@ module.exports = function createWalletMiddleware(opts = {}) {
   async function sendTransaction(req, res) {
 
     if (!processTransaction) {
-      throw new Error('WalletMiddleware - opts.processTransaction not provided')
+      throw ethErrors.rpc.methodNotSupported()
     }
 
     const txParams = req.params[0] || {}
@@ -70,7 +71,7 @@ module.exports = function createWalletMiddleware(opts = {}) {
   async function ethSign(req, res) {
 
     if (!processEthSignMessage) {
-      throw new Error('WalletMiddleware - opts.processEthSignMessage not provided')
+      throw ethErrors.rpc.methodNotSupported()
     }
 
     const address = await validateAndNormalizeKeyholder(req.params[0], req)
@@ -87,7 +88,7 @@ module.exports = function createWalletMiddleware(opts = {}) {
   async function signTypedData (req, res) {
 
     if (!processTypedMessage) {
-      throw new Error('WalletMiddleware - opts.processTypedMessage not provided')
+      throw ethErrors.rpc.methodNotSupported()
     }
 
     const message = req.params[0]
@@ -105,7 +106,7 @@ module.exports = function createWalletMiddleware(opts = {}) {
   async function signTypedDataV3 (req, res) {
 
     if (!processTypedMessageV3) {
-      throw new Error('WalletMiddleware - opts.processTypedMessage not provided')
+      throw ethErrors.rpc.methodNotSupported()
     }
 
     const address = await validateAndNormalizeKeyholder(req.params[0], req)
@@ -123,7 +124,7 @@ module.exports = function createWalletMiddleware(opts = {}) {
   async function signTypedDataV4 (req, res) {
 
     if (!processTypedMessageV4) {
-      throw new Error('WalletMiddleware - opts.processTypedMessage not provided')
+      throw ethErrors.rpc.methodNotSupported()
     }
 
     const address = await validateAndNormalizeKeyholder(req.params[0], req)
@@ -141,7 +142,7 @@ module.exports = function createWalletMiddleware(opts = {}) {
   async function personalSign (req, res) {
 
     if (!processPersonalMessage) {
-      throw new Error('WalletMiddleware - opts.processPersonalMessage not provided')
+      throw ethErrors.rpc.methodNotSupported()
     }
 
     // process normally
@@ -198,7 +199,7 @@ module.exports = function createWalletMiddleware(opts = {}) {
   async function encryptionPublicKey (req, res) {
 
     if (!processEncryptionPublicKey) {
-      throw new Error('WalletMiddleware - opts.processEncryptionPublicKey not provided')
+      throw ethErrors.rpc.methodNotSupported()
     }
 
     const address = await validateAndNormalizeKeyholder(req.params[0], req)
@@ -209,7 +210,7 @@ module.exports = function createWalletMiddleware(opts = {}) {
   async function decryptMessage (req, res) {
 
     if (!processDecryptMessage) {
-      throw new Error('WalletMiddleware - opts.processDecryptMessage not provided')
+      throw ethErrors.rpc.methodNotSupported()
     }
 
     const ciphertext = req.params[0]
@@ -249,7 +250,9 @@ module.exports = function createWalletMiddleware(opts = {}) {
         return normalizedAddress
       }
     }
-    throw new Error('WalletMiddleware - Invalid keyholder address.')
+    throw ethErrors.rpc.invalidParams({
+      message: `Invalid parameters: must provide an Ethereum address.`
+    })
   }
 }
 

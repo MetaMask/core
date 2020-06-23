@@ -180,7 +180,7 @@ function ethSignTest({ testLabel, address, accounts, fromAddressIsValid }) {
         t.fail('should have validated that fromAddress is invalid')
       }
     } catch (err) {
-      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid keyholder address.')) {
+      if (!fromAddressIsValid && err.message.includes('Invalid parameters: must provide an Ethereum address.')) {
         t.pass('correctly errored on invalid sender.')
       } else {
         t.ifError(err)
@@ -224,7 +224,7 @@ function ethSignTypedDataTest({ testLabel, address, accounts, fromAddressIsValid
         t.fail('should have validated that fromAddress is invalid')
       }
     } catch (err) {
-      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid keyholder address.')) {
+      if (!fromAddressIsValid && err.message.includes('Invalid parameters: must provide an Ethereum address.')) {
         t.pass('correctly errored on invalid sender.')
       } else {
         t.ifError(err)
@@ -262,7 +262,7 @@ function personalSignTest({ testLabel, address, accounts, fromAddressIsValid }) 
         t.fail('should have validated that fromAddress is invalid')
       }
     } catch (err) {
-      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid keyholder address.')) {
+      if (!fromAddressIsValid && err.message.includes('Invalid parameters: must provide an Ethereum address.')) {
         t.pass('correctly errored on invalid sender.')
       } else {
         t.ifError(err)
@@ -298,7 +298,7 @@ function transactionTest({ testLabel, txParams, accounts, fromAddressIsValid }) 
         t.fail('should have validated that fromAddress is invalid')
       }
     } catch (err) {
-      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid keyholder address.')) {
+      if (!fromAddressIsValid && err.message.includes('Invalid parameters: must provide an Ethereum address.')) {
         t.pass('correctly errored on invalid sender.')
       } else {
         t.ifError(err)
