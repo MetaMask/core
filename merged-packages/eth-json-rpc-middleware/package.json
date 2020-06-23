@@ -10,6 +10,9 @@
   },
   "author": "",
   "license": "ISC",
+  "files": [
+    "*.js"
+  ],
   "devDependencies": {
     "@babel/core": "^7.5.5",
     "async": "^2.5.0",
