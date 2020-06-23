@@ -80,7 +80,6 @@ function parseResponse (fetchRes, body) {
   }
   // check for rpc error
   if (body.error) throw ethErrors.rpc.internal({
-    message: body.error.toString(),
     data: body.error,
   })
   // return successful result
