@@ -38,15 +38,6 @@ accountsTest({
 //
 
 transactionTest({
-  testLabel: 'no address',
-  txParams: {
-    from: undefined,
-  },
-  accounts: testAddresses,
-  fromAddressIsValid: true,
-})
-
-transactionTest({
   testLabel: 'valid address',
   txParams: {
     from: testAddresses[0],
@@ -71,13 +62,6 @@ transactionTest({
 // eth_sign
 
 ethSignTest({
-  testLabel: 'eth_sign - no address',
-  address: null,
-  accounts: testAddresses.slice(),
-  fromAddressIsValid: true,
-})
-
-ethSignTest({
   testLabel: 'eth_sign - valid address',
   address: testAddresses[0],
   accounts: testAddresses.slice(),
@@ -94,13 +78,6 @@ ethSignTest({
 // eth_signTypedData
 
 ethSignTypedDataTest({
-  testLabel: 'eth_signTypedData - no address',
-  address: null,
-  accounts: testAddresses.slice(),
-  fromAddressIsValid: true,
-})
-
-ethSignTypedDataTest({
   testLabel: 'eth_signTypedData - valid address',
   address: testAddresses[0],
   accounts: testAddresses.slice(),
@@ -115,13 +92,6 @@ ethSignTypedDataTest({
 })
 
 // personal_sign
-
-personalSignTest({
-  testLabel: 'personal_sign - no address',
-  address: null,
-  accounts: testAddresses.slice(),
-  fromAddressIsValid: true,
-})
 
 personalSignTest({
   testLabel: 'personal_sign - valid address',
@@ -210,7 +180,7 @@ function ethSignTest({ testLabel, address, accounts, fromAddressIsValid }) {
         t.fail('should have validated that fromAddress is invalid')
       }
     } catch (err) {
-      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid "from" address.')) {
+      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid keyholder address.')) {
         t.pass('correctly errored on invalid sender.')
       } else {
         t.ifError(err)
@@ -254,7 +224,7 @@ function ethSignTypedDataTest({ testLabel, address, accounts, fromAddressIsValid
         t.fail('should have validated that fromAddress is invalid')
       }
     } catch (err) {
-      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid "from" address.')) {
+      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid keyholder address.')) {
         t.pass('correctly errored on invalid sender.')
       } else {
         t.ifError(err)
@@ -292,7 +262,7 @@ function personalSignTest({ testLabel, address, accounts, fromAddressIsValid }) 
         t.fail('should have validated that fromAddress is invalid')
       }
     } catch (err) {
-      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid "from" address.')) {
+      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid keyholder address.')) {
         t.pass('correctly errored on invalid sender.')
       } else {
         t.ifError(err)
@@ -328,7 +298,7 @@ function transactionTest({ testLabel, txParams, accounts, fromAddressIsValid }) 
         t.fail('should have validated that fromAddress is invalid')
       }
     } catch (err) {
-      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid "from" address.')) {
+      if (!fromAddressIsValid && err.message.includes('WalletMiddleware - Invalid keyholder address.')) {
         t.pass('correctly errored on invalid sender.')
       } else {
         t.ifError(err)
