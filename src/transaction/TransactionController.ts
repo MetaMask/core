@@ -732,6 +732,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const {state: {network: currentNetworkID, provider: {type: networkType}}} = network
 		
 		const supportedNetworkIds = ['1', '3', '4', '42'];
+		/* istanbul ignore next */
 		if (supportedNetworkIds.indexOf(currentNetworkID) === -1) return;
 		
 		const [etherscanResponse, alethioResponse] = await handleTransactionFetch(networkType, address, fromBlock)
@@ -739,7 +740,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const remoteTxs: TransactionMeta[] = [];
 
 		etherscanResponse.result.forEach((tx: EtherscanTransactionMeta) => {
-			if (!remoteTxList[tx.hash]) {
+		/* istanbul ignore next */
+		if (!remoteTxList[tx.hash]) {
 				remoteTxs.push(this.normalizeTxFromEtherscan(tx, currentNetworkID));
 				remoteTxList[tx.hash] = 1;
 			}
@@ -748,6 +750,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		alethioResponse.data.forEach((tx: AlethioTransactionMeta) => {
 			const cleanTx = this.normalizeTxFromAlehio(tx, currentNetworkID)
 			remoteTxs.push(cleanTx);
+			/* istanbul ignore next */
 			remoteTxList[cleanTx.transactionHash || ''] = 1;
 		});
 
