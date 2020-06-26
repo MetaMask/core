@@ -70,6 +70,21 @@ export function getBuyURL(networkCode = '1', address?: string, amount = 5) {
 	}
 }
 
+export function getEtherscanApiUrl(networkType: string, address: string, fromBlock?: string): string {
+	let etherscanSubdomain = 'api';
+	/* istanbul ignore next */
+	if (networkType !== 'mainnet') {
+		etherscanSubdomain = `api-${networkType}`;
+	}
+	const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
+	let url = `${apiUrl}/api?module=account&action=txlist&address=${address}&tag=latest&page=1`;
+	/* istanbul ignore next */
+	if (fromBlock) {
+		url += `&startBlock=${fromBlock}`;
+	}
+	return url
+}
+
 /**
  * Converts a hex string to a BN object
  *

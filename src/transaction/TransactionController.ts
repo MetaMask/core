@@ -13,7 +13,8 @@ import {
 	normalizeTransaction,
 	safelyExecute,
 	validateTransaction,
-	isSmartContractCode
+	isSmartContractCode,
+	getEtherscanApiUrl
 } from '../util';
 const MethodRegistry = require('eth-method-registry');
 const EthQuery = require('eth-query');
@@ -670,30 +671,12 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 */
 	async fetchAll(address: string, fromBlock?: string): Promise<string | void> {
 		const network = this.context.NetworkController;
-		const currentNetworkID = network.state.network;
-		const networkType = network.state.provider.type;
+		const {state: {network: currentNetworkID, type: networkType}} = network
 
-		let etherscanSubdomain = 'api';
 		const supportedNetworkIds = ['1', '3', '4', '42'];
-		/* istanbul ignore next */
-		if (supportedNetworkIds.indexOf(currentNetworkID) === -1) {
-			return;
-		}
-		/* istanbul ignore next */
-		if (networkType !== 'mainnet') {
-			etherscanSubdomain = `api-${networkType}`;
-		}
-		const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
+		if (supportedNetworkIds.indexOf(currentNetworkID) === -1) return;
 
-		/* istanbul ignore next */
-		if (!apiUrl) {
-			return;
-		}
-		let url = `${apiUrl}/api?module=account&action=txlist&address=${address}&tag=latest&page=1`;
-		/* istanbul ignore next */
-		if (fromBlock) {
-			url += `&startBlock=${fromBlock}`;
-		}
+		const url = getEtherscanApiUrl(networkType, address, fromBlock)
 		const parsedResponse = await handleFetch(url);
 		/* istanbul ignore else */
 		if (parsedResponse.status !== '0' && parsedResponse.result.length > 0) {
