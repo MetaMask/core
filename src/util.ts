@@ -81,34 +81,39 @@ export function getEtherscanApiUrl(networkType: string, address: string, fromBlo
 	if (fromBlock) {
 		url += `&startBlock=${fromBlock}`;
 	}
-	return url
+	return url;
 }
 
 export function getAlethioApiUrl(networkType: string, address: string, fromBlock?: string) {
-	if (networkType !== 'mainnet') return {url: '', headers: {}}
+	if (networkType !== 'mainnet') return { url: '', headers: {} };
 	let url = `https://api.aleth.io/v1/token-transfers?filter[to]=${address}`;
 	// From alethio implementation
 	// cursor = hardcoded prefix `0x00` + fromBlock in hex format + max possible tx index `ffff`
 	if (fromBlock) {
-		fromBlock = parseInt(fromBlock).toString(16)
-		let prev = `0x00${fromBlock}ffff`
-		while (prev.length < 34) prev += '0'
-		url += `&page[prev]=${prev}`
+		fromBlock = parseInt(fromBlock).toString(16);
+		let prev = `0x00${fromBlock}ffff`;
+		while (prev.length < 34) prev += '0';
+		url += `&page[prev]=${prev}`;
 	}
 	// This is a free API key, we need to update it
-	const headers = {"Authorization": 'Bearer sk_main_98a718578e30d815'}
-	return {url, headers}
+	const headers = { Authorization: 'Bearer sk_main_98a718578e30d815' };
+	return { url, headers };
 }
 
-export async function handleTransactionFetch(networkType: string, address: string, fromBlock?: string): Promise<[{ [result: string]: [] }, { [data: string]: [] }]> {
-	const url = getEtherscanApiUrl(networkType, address, fromBlock)
+export async function handleTransactionFetch(
+	networkType: string,
+	address: string,
+	fromBlock?: string
+): Promise<[{ [result: string]: [] }, { [data: string]: [] }]> {
+	const url = getEtherscanApiUrl(networkType, address, fromBlock);
 	const etherscanResponsePromise = handleFetch(url);
-	const alethioUrl = getAlethioApiUrl(networkType, address, fromBlock)
-	const alethioResponsePromise = alethioUrl.url !== '' && handleFetch(alethioUrl.url, {headers: alethioUrl.headers});
-	let [etherscanResponse, alethioResponse] = await Promise.all([etherscanResponsePromise, alethioResponsePromise])
-	if (etherscanResponse.status === '0' || etherscanResponse.result.length <= 0) etherscanResponse = {result: []}
-	if ((!alethioUrl.url || !alethioResponse || !alethioResponse.data)) alethioResponse = {data: []}
-	return [etherscanResponse, alethioResponse]
+	const alethioUrl = getAlethioApiUrl(networkType, address, fromBlock);
+	const alethioResponsePromise =
+		alethioUrl.url !== '' && handleFetch(alethioUrl.url, { headers: alethioUrl.headers });
+	let [etherscanResponse, alethioResponse] = await Promise.all([etherscanResponsePromise, alethioResponsePromise]);
+	if (etherscanResponse.status === '0' || etherscanResponse.result.length <= 0) etherscanResponse = { result: [] };
+	if (!alethioUrl.url || !alethioResponse || !alethioResponse.data) alethioResponse = { data: [] };
+	return [etherscanResponse, alethioResponse];
 }
 
 /**

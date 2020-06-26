@@ -80,12 +80,12 @@ export interface TransactionMeta {
 		message: string;
 		stack?: string;
 	};
-	isTransfer?: boolean,
+	isTransfer?: boolean;
 	transferInformation?: {
 		symbol: string;
 		contractAddress: string;
-		decimals: number
-	},
+		decimals: number;
+	};
 	id: string;
 	networkID?: string;
 	origin?: string;
@@ -150,13 +150,13 @@ export interface AlethioTransactionMeta {
 		transactionGasPrice: string;
 		transactionGasUsed: string;
 		value: string;
-	},
+	};
 	relationships: {
-		to: {data: {id: string}};
-		from: {data: {id: string}};
-		token: {data: {id: string}};
-		transaction: {data: {id: string}};
-	}
+		to: { data: { id: string } };
+		from: { data: { id: string } };
+		token: { data: { id: string } };
+		transaction: { data: { id: string } };
+	};
 }
 
 /**
@@ -275,7 +275,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		};
 	}
 
-		/**
+	/**
 	 * Normalizes the transaction information from alethio
 	 * to be compatible with the TransactionMeta interface
 	 *
@@ -284,30 +284,32 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 * @returns - TransactionMeta
 	 */
 	normalizeTxFromAlehio = (txMeta: AlethioTransactionMeta, currentNetworkID: string): TransactionMeta => {
-		const {attributes: {symbol, blockCreationTime,decimals, transactionGasLimit, transactionGasPrice, value},
-		relationships: {to, from, transaction, token}} =  txMeta
+		const {
+			attributes: { symbol, blockCreationTime, decimals, transactionGasLimit, transactionGasPrice, value },
+			relationships: { to, from, transaction, token }
+		} = txMeta;
 		const time = parseInt(blockCreationTime, 10) * 1000;
 		return {
-			time: parseInt(blockCreationTime) * 1000,
-			transactionHash: transaction.data.id,
-			status: 'confirmed',
 			id: random({ msecs: time }),
-			networkID: currentNetworkID,
 			isTransfer: true,
-			transferInformation: {
-				symbol,
-				contractAddress: token.data.id,
-				decimals
-			},
+			networkID: currentNetworkID,
+			status: 'confirmed',
+			time: parseInt(blockCreationTime, 10) * 1000,
 			transaction: {
 				chainId: 1,
 				from: from.data.id,
 				gas: transactionGasLimit,
 				gasPrice: transactionGasPrice,
 				to: to.data.id,
-				value: value
+				value
+			},
+			transactionHash: transaction.data.id,
+			transferInformation: {
+				contractAddress: token.data.id,
+				decimals,
+				symbol
 			}
-		}
+		};
 	}
 
 	/**
@@ -729,35 +731,44 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 */
 	async fetchAll(address: string, fromBlock?: string): Promise<string | void> {
 		const network = this.context.NetworkController;
-		const {state: {network: currentNetworkID, provider: {type: networkType}}} = network
-		
+		const {
+			state: {
+				network: currentNetworkID,
+				provider: { type: networkType }
+			}
+		} = network;
+
 		const supportedNetworkIds = ['1', '3', '4', '42'];
 		/* istanbul ignore next */
-		if (supportedNetworkIds.indexOf(currentNetworkID) === -1) return;
-		
-		const [etherscanResponse, alethioResponse] = await handleTransactionFetch(networkType, address, fromBlock)
+		if (supportedNetworkIds.indexOf(currentNetworkID) === -1) {
+			return;
+		}
+
+		const [etherscanResponse, alethioResponse] = await handleTransactionFetch(networkType, address, fromBlock);
 		const remoteTxList: { [key: string]: number } = {};
 		const remoteTxs: TransactionMeta[] = [];
 
 		etherscanResponse.result.forEach((tx: EtherscanTransactionMeta) => {
-		/* istanbul ignore next */
-		if (!remoteTxList[tx.hash]) {
+			/* istanbul ignore next */
+			if (!remoteTxList[tx.hash]) {
 				remoteTxs.push(this.normalizeTxFromEtherscan(tx, currentNetworkID));
 				remoteTxList[tx.hash] = 1;
 			}
 		});
 
 		alethioResponse.data.forEach((tx: AlethioTransactionMeta) => {
-			const cleanTx = this.normalizeTxFromAlehio(tx, currentNetworkID)
+			const cleanTx = this.normalizeTxFromAlehio(tx, currentNetworkID);
 			remoteTxs.push(cleanTx);
 			/* istanbul ignore next */
 			remoteTxList[cleanTx.transactionHash || ''] = 1;
 		});
 
-		const localTxs = this.state.transactions.filter((tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]);
+		const localTxs = this.state.transactions.filter(
+			(tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]
+		);
 
 		const allTxs = [...remoteTxs, ...localTxs];
-		allTxs.sort((a, b) => a.time < b.time ? -1 : 1);
+		allTxs.sort((a, b) => (a.time < b.time ? -1 : 1));
 
 		let latestIncomingTxBlockNumber: string | undefined;
 		allTxs.forEach(async (tx) => {
