@@ -45,6 +45,16 @@ function mockFetch(data: any) {
 		})
 	);
 }
+
+function mockFetchs(data: any) {
+	return jest.fn().mockImplementation(key =>
+		Promise.resolve({
+			json: () => data[key],
+			ok: true
+		})
+	);
+}
+
 const HttpProvider = require('ethjs-provider-http');
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const PROVIDER = new HttpProvider('https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
@@ -64,7 +74,7 @@ const MOCK_MAINNET_NETWORK = {
 	}
 };
 
-const MOCK_FETCH_TX_HISTORY_DATA_OK = {
+const ETH_TX_HISTORY_DATA_OK = {
 	message: 'OK',
 	result: [
 		{
@@ -144,7 +154,189 @@ const MOCK_FETCH_TX_HISTORY_DATA_OK = {
 		}
 	],
 	status: '1'
-};
+}
+const MOCK_FETCH_TX_HISTORY_DATA_OK = {
+	'https://api.aleth.io/v1/token-transfers?filter[to]=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207': {
+			"data": [
+				{
+					"type": "TokenTransfer",
+					"id": "0x0084a97e014600008101ba45dd64e71e",
+					"attributes": {
+						"blockCreationTime": 1570440625,
+						"cursor": "0x0084a97e014600008101ba45dd64e71e",
+						"decimals": 18,
+						"globalRank": [
+							8694142,
+							326,
+							0
+						],
+						"symbol": "DAI",
+						"transactionGasLimit": "600632",
+						"transactionGasPrice": "9000000000",
+						"transactionGasUsed": "570632",
+						"value": "0"
+					},
+					"relationships": {
+						"contractMessage": {
+							"data": {
+								"type": "ContractMessage",
+								"id": "msg:0xd8397138bb93d56e50d01e92a9eae99ebd3ae28844acdaa4663976a5501116cf:4"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084a97e014600008101ba45dd64e71e/contractMessage"
+							}
+						},
+						"from": {
+							"data": {
+								"type": "Account",
+								"id": "0xdfa6edae2ec0cf1d4a60542422724a48195a5071"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084a97e014600008101ba45dd64e71e/from"
+							}
+						},
+						"logEntry": {
+							"data": {
+								"type": "LogEntry",
+								"id": "log:0xd8397138bb93d56e50d01e92a9eae99ebd3ae28844acdaa4663976a5501116cf:0"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084a97e014600008101ba45dd64e71e/logEntry"
+							}
+						},
+						"originator": {
+							"data": {
+								"type": "Account",
+								"id": "0x925488c7cd7e5eb3441885c6c1dfdbea875e08f7"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084a97e014600008101ba45dd64e71e/originator"
+							}
+						},
+						"to": {
+							"data": {
+								"type": "Account",
+								"id": "0x6bf137f335ea1b8f193b8f6ea92561a60d23a207"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084a97e014600008101ba45dd64e71e/to"
+							}
+						},
+						"token": {
+							"data": {
+								"type": "Token",
+								"id": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084a97e014600008101ba45dd64e71e/token"
+							}
+						},
+						"transaction": {
+							"data": {
+								"type": "Transaction",
+								"id": "0xd8397138bb93d56e50d01e92a9eae99ebd3ae28844acdaa4663976a5501116cf"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084a97e014600008101ba45dd64e71e/transaction"
+							}
+						}
+					},
+					"links": {
+						"self": "https://api.aleth.io/v1/token-transfers/0x0084a97e014600008101ba45dd64e71e"
+					}
+				},
+				{
+					"type": "TokenTransfer",
+					"id": "0x0084707c004d000181011ceb2f8b8308",
+					"attributes": {
+						"blockCreationTime": 1570244087,
+						"cursor": "0x0084707c004d000181011ceb2f8b8308",
+						"decimals": 18,
+						"globalRank": [
+							8679548,
+							77,
+							1
+						],
+						"symbol": "DAI",
+						"transactionGasLimit": "993379",
+						"transactionGasPrice": "1440000000",
+						"transactionGasUsed": "647253",
+						"value": "0"
+					},
+					"relationships": {
+						"contractMessage": {
+							"data": {
+								"type": "ContractMessage",
+								"id": "msg:0xc0016b89b3b525b30d73f242653b0d80ec3ebf285376dff5bb52cef3261498b2:5"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084707c004d000181011ceb2f8b8308/contractMessage"
+							}
+						},
+						"from": {
+							"data": {
+								"type": "Account",
+								"id": "0xdfa6edae2ec0cf1d4a60542422724a48195a5071"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084707c004d000181011ceb2f8b8308/from"
+							}
+						},
+						"logEntry": {
+							"data": {
+								"type": "LogEntry",
+								"id": "log:0xc0016b89b3b525b30d73f242653b0d80ec3ebf285376dff5bb52cef3261498b2:1"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084707c004d000181011ceb2f8b8308/logEntry"
+							}
+						},
+						"originator": {
+							"data": {
+								"type": "Account",
+								"id": "0x6bf137f335ea1b8f193b8f6ea92561a60d23a207"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084707c004d000181011ceb2f8b8308/originator"
+							}
+						},
+						"to": {
+							"data": {
+								"type": "Account",
+								"id": "0x6bf137f335ea1b8f193b8f6ea92561a60d23a207"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084707c004d000181011ceb2f8b8308/to"
+							}
+						},
+						"token": {
+							"data": {
+								"type": "Token",
+								"id": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084707c004d000181011ceb2f8b8308/token"
+							}
+						},
+						"transaction": {
+							"data": {
+								"type": "Transaction",
+								"id": "0xc0016b89b3b525b30d73f242653b0d80ec3ebf285376dff5bb52cef3261498b2"
+							},
+							"links": {
+								"related": "https://api.aleth.io/v1/token-transfers/0x0084707c004d000181011ceb2f8b8308/transaction"
+							}
+						}
+					},
+					"links": {
+						"self": "https://api.aleth.io/v1/token-transfers/0x0084707c004d000181011ceb2f8b8308"
+					}
+				},
+			],
+		},
+		'https://api.etherscan.io/api?module=account&action=txlist&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&tag=latest&page=1': ETH_TX_HISTORY_DATA_OK,
+		'https://api-ropsten.etherscan.io/api?module=account&action=txlist&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&tag=latest&page=1': ETH_TX_HISTORY_DATA_OK,
+	}
 
 const MOCK_FETCH_TX_HISTORY_DATA_ERROR = {
 	status: '0'
@@ -406,8 +598,8 @@ describe('TransactionController', () => {
 		});
 	});
 
-	it('should fetch all the transactions from an address, including incoming transactions', async () => {
-		globalAny.fetch = mockFetch(MOCK_FETCH_TX_HISTORY_DATA_OK);
+	it('should fetch all the transactions from an address, including incoming transactions, in ropsten', async () => {
+		globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
 		const controller = new TransactionController({ provider: PROVIDER });
 		controller.wipeTransactions();
 		controller.context = {
@@ -419,6 +611,23 @@ describe('TransactionController', () => {
 		const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 		const latestBlock = await controller.fetchAll(from);
 		expect(controller.state.transactions.length).toBe(4);
+		expect(latestBlock).toBe('4535101');
+		expect(controller.state.transactions[0].transaction.to).toBe(from);
+	});
+
+	it('should fetch all the transactions from an address, including incoming token transactions, in mainnet', async () => {
+		globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+		const controller = new TransactionController({ provider: MAINNET_PROVIDER });
+		controller.wipeTransactions();
+		controller.context = {
+			NetworkController: MOCK_MAINNET_NETWORK
+		} as any;
+		controller.onComposed();
+		expect(controller.state.transactions.length).toBe(0);
+
+		const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+		const latestBlock = await controller.fetchAll(from);
+		expect(controller.state.transactions.length).toBe(6);
 		expect(latestBlock).toBe('4535101');
 		expect(controller.state.transactions[0].transaction.to).toBe(from);
 	});
