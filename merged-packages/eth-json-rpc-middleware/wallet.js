@@ -60,7 +60,7 @@ module.exports = function createWalletMiddleware(opts = {}) {
     }
 
     const txParams = req.params[0] || {}
-    await validateAndNormalizeKeyholder(txParams.from, req)
+    txParams.from = await validateAndNormalizeKeyholder(txParams.from, req)
     res.result = await processTransaction(txParams, req)
   }
 
