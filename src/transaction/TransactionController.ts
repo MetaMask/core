@@ -764,6 +764,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		});
 
 		const localTxs = this.state.transactions.filter(
+			/* istanbul ignore next */
 			(tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]
 		);
 
