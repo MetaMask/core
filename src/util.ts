@@ -70,6 +70,14 @@ export function getBuyURL(networkCode = '1', address?: string, amount = 5) {
 	}
 }
 
+/**
+ * Return a URL that can be used to fetch ETH transactions
+ *
+ * @param networkType - Network type of desired network
+ * @param address - Address to get the transactions from
+ * @param fromBlock? - Block from which transactions are needed
+ * @returns - URL to fetch the transactions from
+ */
 export function getEtherscanApiUrl(networkType: string, address: string, fromBlock?: string): string {
 	let etherscanSubdomain = 'api';
 	/* istanbul ignore next */
@@ -84,6 +92,14 @@ export function getEtherscanApiUrl(networkType: string, address: string, fromBlo
 	return url;
 }
 
+/**
+ * Return a URL that can be used to fetch ERC20 token transactions
+ *
+ * @param networkType - Network type of desired network
+ * @param address - Address to get the transactions from
+ * @param opt? - Object that can contain fromBlock and Alethio service API key
+ * @returns - URL to fetch the transactions from
+ */
 export function getAlethioApiUrl(networkType: string, address: string, opt?: FetchAllOptions) {
 	if (networkType !== 'mainnet') return { url: '', headers: {} };
 	let url = `https://api.aleth.io/v1/token-transfers?filter[to]=${address}`;
@@ -101,6 +117,14 @@ export function getAlethioApiUrl(networkType: string, address: string, opt?: Fet
 	return { url, headers };
 }
 
+/**
+ * Handles the fetch of incoming transactions
+ *
+ * @param networkType - Network type of desired network
+ * @param address - Address to get the transactions from
+ * @param opt? - Object that can contain fromBlock and Alethio service API key
+ * @returns - Responses for both ETH and ERC20 token transactions
+ */
 export async function handleTransactionFetch(
 	networkType: string,
 	address: string,
