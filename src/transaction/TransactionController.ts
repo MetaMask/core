@@ -34,6 +34,17 @@ export interface Result {
 }
 
 /**
+ * @type Fetch All Options
+ *
+ * @property fromBlock - String containing a specific block decimal number
+ * @property alethioApiKey - API key to be used to fetch token transactions
+ */
+export interface FetchAllOptions {
+	fromBlock?: string;
+	alethioApiKey?: string;
+}
+
+/**
  * @type Transaction
  *
  * Transaction representation
@@ -726,10 +737,10 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 * optionally starting from a specific block
 	 *
 	 * @param address - string representing the address to fetch the transactions from
-	 * @param fromBlock - string representing the block number (optional)
+	 * @param opt - Object containing optional data, fromBlock and Alethio API key
 	 * @returns - Promise resolving to an string containing the block number of the latest incoming transaction.
 	 */
-	async fetchAll(address: string, fromBlock?: string): Promise<string | void> {
+	async fetchAll(address: string, opt?: FetchAllOptions): Promise<string | void> {
 		const network = this.context.NetworkController;
 		const {
 			state: {
@@ -744,7 +755,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 			return;
 		}
 
-		const [etherscanResponse, alethioResponse] = await handleTransactionFetch(networkType, address, fromBlock);
+		const [etherscanResponse, alethioResponse] = await handleTransactionFetch(networkType, address, opt);
 		const remoteTxList: { [key: string]: number } = {};
 		const remoteTxs: TransactionMeta[] = [];
 

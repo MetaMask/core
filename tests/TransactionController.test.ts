@@ -662,7 +662,7 @@ describe('TransactionController', () => {
 		expect(controller.state.transactions.length).toBe(0);
 
 		const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
-		const latestBlock = await controller.fetchAll(from, '999');
+		const latestBlock = await controller.fetchAll(from, {fromBlock: '999'});
 		expect(controller.state.transactions.length).toBe(3);
 		expect(latestBlock).toBe('4535101');
 		expect(controller.state.transactions[0].transaction.to).toBe(from);

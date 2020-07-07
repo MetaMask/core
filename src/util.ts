@@ -1,5 +1,5 @@
 import { addHexPrefix, isValidAddress, bufferToHex } from 'ethereumjs-util';
-import { Transaction } from './transaction/TransactionController';
+import { Transaction, FetchAllOptions } from './transaction/TransactionController';
 import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
@@ -84,30 +84,31 @@ export function getEtherscanApiUrl(networkType: string, address: string, fromBlo
 	return url;
 }
 
-export function getAlethioApiUrl(networkType: string, address: string, fromBlock?: string) {
+export function getAlethioApiUrl(networkType: string, address: string, opt?: FetchAllOptions) {
 	if (networkType !== 'mainnet') return { url: '', headers: {} };
 	let url = `https://api.aleth.io/v1/token-transfers?filter[to]=${address}`;
 	// From alethio implementation
 	// cursor = hardcoded prefix `0x00` + fromBlock in hex format + max possible tx index `ffff`
+	let fromBlock = opt && opt.fromBlock
 	if (fromBlock) {
 		fromBlock = parseInt(fromBlock).toString(16);
 		let prev = `0x00${fromBlock}ffff`;
 		while (prev.length < 34) prev += '0';
 		url += `&page[prev]=${prev}`;
 	}
-	// This is a free API key, we need to update it
-	const headers = { Authorization: 'Bearer sk_main_98a718578e30d815' };
+	/* istanbul ignore next */
+	const headers = (opt && opt.alethioApiKey) ? { Authorization: `Bearer ${opt.alethioApiKey}` } : undefined;
 	return { url, headers };
 }
 
 export async function handleTransactionFetch(
 	networkType: string,
 	address: string,
-	fromBlock?: string
+	opt?: FetchAllOptions
 ): Promise<[{ [result: string]: [] }, { [data: string]: [] }]> {
-	const url = getEtherscanApiUrl(networkType, address, fromBlock);
+	const url = getEtherscanApiUrl(networkType, address, opt && opt.fromBlock);
 	const etherscanResponsePromise = handleFetch(url);
-	const alethioUrl = getAlethioApiUrl(networkType, address, fromBlock);
+	const alethioUrl = getAlethioApiUrl(networkType, address, opt);
 	const alethioResponsePromise =
 		alethioUrl.url !== '' && handleFetch(alethioUrl.url, { headers: alethioUrl.headers });
 	let [etherscanResponse, alethioResponse] = await Promise.all([etherscanResponsePromise, alethioResponsePromise]);
