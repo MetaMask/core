@@ -809,8 +809,10 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 				}
 			}
 		});
-
-		this.update({ transactions: allTxs });
+		// Update state only if new transactions were fetched
+		if (allTxs.length > this.state.transactions.length) {
+			this.update({ transactions: allTxs });
+		}
 		return latestIncomingTxBlockNumber;
 	}
 }
