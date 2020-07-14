@@ -1,5 +1,5 @@
 import { addHexPrefix, isValidAddress, bufferToHex } from 'ethereumjs-util';
-import { Transaction } from './transaction/TransactionController';
+import { Transaction, FetchAllOptions } from './transaction/TransactionController';
 import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
@@ -68,6 +68,77 @@ export function getBuyURL(networkCode = '1', address?: string, amount = 5) {
 		case '42':
 			return 'https://github.com/kovan-testnet/faucet';
 	}
+}
+
+/**
+ * Return a URL that can be used to fetch ETH transactions
+ *
+ * @param networkType - Network type of desired network
+ * @param address - Address to get the transactions from
+ * @param fromBlock? - Block from which transactions are needed
+ * @returns - URL to fetch the transactions from
+ */
+export function getEtherscanApiUrl(networkType: string, address: string, fromBlock?: string): string {
+	let etherscanSubdomain = 'api';
+	/* istanbul ignore next */
+	if (networkType !== 'mainnet') {
+		etherscanSubdomain = `api-${networkType}`;
+	}
+	const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
+	let url = `${apiUrl}/api?module=account&action=txlist&address=${address}&tag=latest&page=1`;
+	if (fromBlock) {
+		url += `&startBlock=${fromBlock}`;
+	}
+	return url;
+}
+
+/**
+ * Return a URL that can be used to fetch ERC20 token transactions
+ *
+ * @param networkType - Network type of desired network
+ * @param address - Address to get the transactions from
+ * @param opt? - Object that can contain fromBlock and Alethio service API key
+ * @returns - URL to fetch the transactions from
+ */
+export function getAlethioApiUrl(networkType: string, address: string, opt?: FetchAllOptions) {
+	if (networkType !== 'mainnet') return { url: '', headers: {} };
+	let url = `https://api.aleth.io/v1/token-transfers?filter[to]=${address}`;
+	// From alethio implementation
+	// cursor = hardcoded prefix `0x00` + fromBlock in hex format + max possible tx index `ffff`
+	let fromBlock = opt && opt.fromBlock
+	if (fromBlock) {
+		fromBlock = parseInt(fromBlock).toString(16);
+		let prev = `0x00${fromBlock}ffff`;
+		while (prev.length < 34) prev += '0';
+		url += `&page[prev]=${prev}`;
+	}
+	/* istanbul ignore next */
+	const headers = (opt && opt.alethioApiKey) ? { Authorization: `Bearer ${opt.alethioApiKey}` } : undefined;
+	return { url, headers };
+}
+
+/**
+ * Handles the fetch of incoming transactions
+ *
+ * @param networkType - Network type of desired network
+ * @param address - Address to get the transactions from
+ * @param opt? - Object that can contain fromBlock and Alethio service API key
+ * @returns - Responses for both ETH and ERC20 token transactions
+ */
+export async function handleTransactionFetch(
+	networkType: string,
+	address: string,
+	opt?: FetchAllOptions
+): Promise<[{ [result: string]: [] }, { [data: string]: [] }]> {
+	const url = getEtherscanApiUrl(networkType, address, opt && opt.fromBlock);
+	const etherscanResponsePromise = handleFetch(url);
+	const alethioUrl = getAlethioApiUrl(networkType, address, opt);
+	const alethioResponsePromise =
+		alethioUrl.url !== '' && handleFetch(alethioUrl.url, { headers: alethioUrl.headers });
+	let [etherscanResponse, alethioResponse] = await Promise.all([etherscanResponsePromise, alethioResponsePromise]);
+	if (etherscanResponse.status === '0' || etherscanResponse.result.length <= 0) etherscanResponse = { result: [] };
+	if (!alethioUrl.url || !alethioResponse || !alethioResponse.data) alethioResponse = { data: [] };
+	return [etherscanResponse, alethioResponse];
 }
 
 /**

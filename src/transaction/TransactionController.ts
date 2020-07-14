@@ -8,12 +8,12 @@ const ethErrors: IEthErrors = require('eth-json-rpc-errors').ethErrors;
 import {
 	BNToHex,
 	fractionBN,
-	handleFetch,
 	hexToBN,
 	normalizeTransaction,
 	safelyExecute,
 	validateTransaction,
-	isSmartContractCode
+	isSmartContractCode,
+	handleTransactionFetch
 } from '../util';
 const MethodRegistry = require('eth-method-registry');
 const EthQuery = require('eth-query');
@@ -31,6 +31,17 @@ const Mutex = require('await-semaphore').Mutex;
 export interface Result {
 	result: Promise<string>;
 	transactionMeta: TransactionMeta;
+}
+
+/**
+ * @type Fetch All Options
+ *
+ * @property fromBlock - String containing a specific block decimal number
+ * @property alethioApiKey - API key to be used to fetch token transactions
+ */
+export interface FetchAllOptions {
+	fromBlock?: string;
+	alethioApiKey?: string;
 }
 
 /**
@@ -79,6 +90,12 @@ export interface TransactionMeta {
 	error?: {
 		message: string;
 		stack?: string;
+	};
+	isTransfer?: boolean;
+	transferInformation?: {
+		symbol: string;
+		contractAddress: string;
+		decimals: number;
 	};
 	id: string;
 	networkID?: string;
@@ -133,6 +150,24 @@ export interface EtherscanTransactionMeta {
 	cumulativeGasUsed: string;
 	gasUsed: string;
 	confirmations: string;
+}
+
+export interface AlethioTransactionMeta {
+	attributes: {
+		blockCreationTime: string;
+		symbol: string;
+		decimals: number;
+		transactionGasLimit: string;
+		transactionGasPrice: string;
+		transactionGasUsed: string;
+		value: string;
+	};
+	relationships: {
+		to: { data: { id: string } };
+		from: { data: { id: string } };
+		token: { data: { id: string } };
+		transaction: { data: { id: string } };
+	};
 }
 
 /**
@@ -248,6 +283,43 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 				value: BNToHex(new BN(txMeta.value))
 			},
 			transactionHash: txMeta.hash
+		};
+	}
+
+	/**
+	 * Normalizes the transaction information from alethio
+	 * to be compatible with the TransactionMeta interface
+	 *
+	 * @param txMeta - Object containing the transaction information
+	 * @param currentNetworkID - string representing the current network id
+	 * @returns - TransactionMeta
+	 */
+	normalizeTxFromAlehio = (txMeta: AlethioTransactionMeta, currentNetworkID: string): TransactionMeta => {
+		const {
+			attributes: { symbol, blockCreationTime, decimals, transactionGasLimit, transactionGasPrice, value },
+			relationships: { to, from, transaction, token }
+		} = txMeta;
+		const time = parseInt(blockCreationTime, 10) * 1000;
+		return {
+			id: random({ msecs: time }),
+			isTransfer: true,
+			networkID: currentNetworkID,
+			status: 'confirmed',
+			time: parseInt(blockCreationTime, 10) * 1000,
+			transaction: {
+				chainId: 1,
+				from: from.data.id,
+				gas: transactionGasLimit,
+				gasPrice: transactionGasPrice,
+				to: to.data.id,
+				value
+			},
+			transactionHash: transaction.data.id,
+			transferInformation: {
+				contractAddress: token.data.id,
+				decimals,
+				symbol
+			}
 		};
 	}
 
@@ -665,89 +737,83 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 	 * optionally starting from a specific block
 	 *
 	 * @param address - string representing the address to fetch the transactions from
-	 * @param fromBlock - string representing the block number (optional)
+	 * @param opt - Object containing optional data, fromBlock and Alethio API key
 	 * @returns - Promise resolving to an string containing the block number of the latest incoming transaction.
 	 */
-	async fetchAll(address: string, fromBlock?: string): Promise<string | void> {
+	async fetchAll(address: string, opt?: FetchAllOptions): Promise<string | void> {
 		const network = this.context.NetworkController;
-		const currentNetworkID = network.state.network;
-		const networkType = network.state.provider.type;
+		const {
+			state: {
+				network: currentNetworkID,
+				provider: { type: networkType }
+			}
+		} = network;
 
-		let etherscanSubdomain = 'api';
 		const supportedNetworkIds = ['1', '3', '4', '42'];
 		/* istanbul ignore next */
 		if (supportedNetworkIds.indexOf(currentNetworkID) === -1) {
 			return;
 		}
-		/* istanbul ignore next */
-		if (networkType !== 'mainnet') {
-			etherscanSubdomain = `api-${networkType}`;
-		}
-		const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
 
-		/* istanbul ignore next */
-		if (!apiUrl) {
-			return;
-		}
-		let url = `${apiUrl}/api?module=account&action=txlist&address=${address}&tag=latest&page=1`;
-		/* istanbul ignore next */
-		if (fromBlock) {
-			url += `&startBlock=${fromBlock}`;
-		}
-		const parsedResponse = await handleFetch(url);
-		/* istanbul ignore else */
-		if (parsedResponse.status !== '0' && parsedResponse.result.length > 0) {
-			const remoteTxList: { [key: string]: number } = {};
-			const remoteTxs: TransactionMeta[] = [];
-			parsedResponse.result.forEach((tx: EtherscanTransactionMeta) => {
-				/* istanbul ignore else */
-				if (!remoteTxList[tx.hash]) {
-					remoteTxs.push(this.normalizeTxFromEtherscan(tx, currentNetworkID));
-					remoteTxList[tx.hash] = 1;
-				}
-			});
+		const [etherscanResponse, alethioResponse] = await handleTransactionFetch(networkType, address, opt);
+		const remoteTxList: { [key: string]: number } = {};
+		const remoteTxs: TransactionMeta[] = [];
 
-			const localTxs = this.state.transactions.filter(
-				/* istanbul ignore next */
-				(tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]
-			);
+		etherscanResponse.result.forEach((tx: EtherscanTransactionMeta) => {
+			/* istanbul ignore next */
+			if (!remoteTxList[tx.hash]) {
+				remoteTxs.push(this.normalizeTxFromEtherscan(tx, currentNetworkID));
+				remoteTxList[tx.hash] = 1;
+			}
+		});
 
-			const allTxs = [...remoteTxs, ...localTxs];
-			allTxs.sort((a, b) => (/* istanbul ignore next */ a.time < b.time ? -1 : 1));
+		alethioResponse.data.forEach((tx: AlethioTransactionMeta) => {
+			const cleanTx = this.normalizeTxFromAlehio(tx, currentNetworkID);
+			remoteTxs.push(cleanTx);
+			/* istanbul ignore next */
+			remoteTxList[cleanTx.transactionHash || ''] = 1;
+		});
 
-			let latestIncomingTxBlockNumber: string | undefined;
-			allTxs.forEach(async (tx) => {
-				/* istanbul ignore next */
+		const localTxs = this.state.transactions.filter(
+			/* istanbul ignore next */
+			(tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]
+		);
+
+		const allTxs = [...remoteTxs, ...localTxs];
+		allTxs.sort((a, b) => (a.time < b.time ? -1 : 1));
+
+		let latestIncomingTxBlockNumber: string | undefined;
+		allTxs.forEach(async (tx) => {
+			/* istanbul ignore next */
+			if (
+				tx.networkID === currentNetworkID &&
+				tx.transaction.to &&
+				tx.transaction.to.toLowerCase() === address.toLowerCase()
+			) {
 				if (
-					tx.networkID === currentNetworkID &&
-					tx.transaction.to &&
-					tx.transaction.to.toLowerCase() === address.toLowerCase()
+					tx.blockNumber &&
+					(!latestIncomingTxBlockNumber ||
+						parseInt(latestIncomingTxBlockNumber, 10) < parseInt(tx.blockNumber, 10))
 				) {
-					if (
-						tx.blockNumber &&
-						(!latestIncomingTxBlockNumber ||
-							parseInt(latestIncomingTxBlockNumber, 10) < parseInt(tx.blockNumber, 10))
-					) {
-						latestIncomingTxBlockNumber = tx.blockNumber;
-					}
+					latestIncomingTxBlockNumber = tx.blockNumber;
 				}
-				/* istanbul ignore else */
-				if (tx.toSmartContract === undefined) {
-					// If not `to` is a contract deploy, if not `data` is send eth
-					if (tx.transaction.to && (!tx.transaction.data || tx.transaction.data !== '0x')) {
-						const code = await this.query('getCode', [tx.transaction.to]);
-						tx.toSmartContract = isSmartContractCode(code);
-					} else {
-						tx.toSmartContract = false;
-					}
+			}
+			/* istanbul ignore else */
+			if (tx.toSmartContract === undefined) {
+				// If not `to` is a contract deploy, if not `data` is send eth
+				if (tx.transaction.to && (!tx.transaction.data || tx.transaction.data !== '0x')) {
+					const code = await this.query('getCode', [tx.transaction.to]);
+					tx.toSmartContract = isSmartContractCode(code);
+				} else {
+					tx.toSmartContract = false;
 				}
-			});
-
+			}
+		});
+		// Update state only if new transactions were fetched
+		if (allTxs.length > this.state.transactions.length) {
 			this.update({ transactions: allTxs });
-			return latestIncomingTxBlockNumber;
 		}
-		/* istanbul ignore next */
-		return;
+		return latestIncomingTxBlockNumber;
 	}
 }
 
