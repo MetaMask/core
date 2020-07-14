@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [2.0.2] - 2020-07-14
+
+## Added
+
+- TransactionsController: Fetch incoming token transactions (#247)
+
+
 ## [2.0.1] - 2020-06-18
 
 ## Changed
