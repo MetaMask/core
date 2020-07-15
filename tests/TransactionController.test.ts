@@ -775,14 +775,14 @@ describe('TransactionController', () => {
 			await controller.addTransaction({
 				from,
 				gas: '0x0',
-				gasPrice: '0x1',
+				gasPrice: '0x50fd51da',
 				to: from,
 				value: '0x0'
 			});
 			await controller.speedUpTransaction(controller.state.transactions[0].id);
 
 			expect(controller.state.transactions.length).toBe(2);
-			expect(controller.state.transactions[1].transaction.gasPrice).toBe('0x1.199999999999a');
+			expect(controller.state.transactions[1].transaction.gasPrice).toBe('0x5916a6d6');
 			resolve();
 		});
 	});
