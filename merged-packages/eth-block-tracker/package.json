@@ -19,6 +19,9 @@
   },
   "author": "kumavis",
   "license": "MIT",
+  "resolutions": {
+    "ganache-core/lodash": "^4.17.19"
+  },
   "dependencies": {
     "@babel/plugin-transform-runtime": "^7.5.5",
     "@babel/runtime": "^7.5.5",
