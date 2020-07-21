@@ -13,6 +13,9 @@
   "files": [
     "*.js"
   ],
+  "resolutions": {
+    "ganache-core/lodash": "^4.17.19"
+  },
   "devDependencies": {
     "@babel/core": "^7.5.5",
     "async": "^2.5.0",
