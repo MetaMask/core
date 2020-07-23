@@ -2,18 +2,31 @@
 
 module.exports = function asMiddleware (engine) {
   return function engineAsMiddleware (req, res, next, end) {
-    engine._runMiddlewareDown(req, res, function (err, { isComplete, returnHandlers }) {
-      if (err) {
-        return end(err)
-      }
-      if (isComplete) {
-        engine._runReturnHandlersUp(returnHandlers, end)
-      } else {
-        return next((cb) => {
-          engine._runReturnHandlersUp(returnHandlers, cb)
+
+    let err = null
+
+    engine._runMiddlewares(req, res)
+      .then(async ({ isComplete, returnHandlers }) => {
+        if (isComplete) {
+          return await runReturnHandlers()
+        }
+
+        return next(async (cb) => {
+          await runReturnHandlers()
+          cb()
         })
-      }
-      return undefined
-    })
+
+        async function runReturnHandlers () {
+          for (const handler of returnHandlers) {
+            await new Promise((resolve) => handler(resolve))
+          }
+        }
+      })
+      .catch((error) => {
+        err = error
+      })
+      .finally(() => {
+        end(err)
+      })
   }
 }
