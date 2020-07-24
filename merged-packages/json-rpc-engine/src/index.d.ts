@@ -1,5 +1,5 @@
 
-import { IEthereumRpcError } from 'eth-json-rpc-errors/@types'
+import { IEthereumRpcError } from 'eth-rpc-errors/@types'
 
 /** A String specifying the version of the JSON-RPC protocol. MUST be exactly "2.0". */
 export type JsonRpcVersion = "2.0";

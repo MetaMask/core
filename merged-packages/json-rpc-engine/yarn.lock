@@ -1635,10 +1635,10 @@ esutils@^2.0.2:
   resolved "https://registry.yarnpkg.com/esutils/-/esutils-2.0.2.tgz#0abf4f1caa5bcb1f7a9d8acc6dea4faaa04bac9b"
   integrity sha1-Cr9PHKpbyx96nYrMbepPqqBLrJs=
 
-eth-json-rpc-errors@^2.0.2:
-  version "2.0.2"
-  resolved "https://registry.yarnpkg.com/eth-json-rpc-errors/-/eth-json-rpc-errors-2.0.2.tgz#c1965de0301fe941c058e928bebaba2e1285e3c4"
-  integrity sha512-uBCRM2w2ewusRHGxN8JhcuOb2RN3ueAOYH/0BhqdFmQkZx5lj5+fLKTz0mIVOzd4FG5/kUksCzCD7eTEim6gaA==
+eth-rpc-errors@^2.1.1:
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/eth-rpc-errors/-/eth-rpc-errors-2.1.1.tgz#00a7d6c8a9c864a8ab7d0356be20964e5bee4b13"
+  integrity sha512-MY3zAa5ZF8hvgQu1HOF9agaK5GgigBRGpTJ8H0oVlE0NqMu13CW6syyjLXdeIDCGQTbUeHliU1z9dVmvMKx1Tg==
   dependencies:
     fast-safe-stringify "^2.0.6"
 

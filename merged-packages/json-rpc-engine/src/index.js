@@ -2,8 +2,10 @@
 
 const SafeEventEmitter = require('safe-event-emitter')
 const {
-  serializeError, EthereumRpcError, ERROR_CODES,
-} = require('eth-json-rpc-errors')
+  serializeError,
+  EthereumRpcError,
+  ERROR_CODES,
+} = require('eth-rpc-errors')
 
 module.exports = class RpcEngine extends SafeEventEmitter {
   constructor () {
@@ -113,16 +115,12 @@ module.exports = class RpcEngine extends SafeEventEmitter {
     if (!('result' in res) && !('error' in res)) {
       const requestBody = JSON.stringify(req, null, 2)
       const message = `JsonRpcEngine: Response has no error or result for request:\n${requestBody}`
-      throw new EthereumRpcError(
-        ERROR_CODES.rpc.internal, message, req,
-      )
+      throw new EthereumRpcError(ERROR_CODES.rpc.internal, message, req)
     }
     if (!isComplete) {
       const requestBody = JSON.stringify(req, null, 2)
       const message = `JsonRpcEngine: Nothing ended request:\n${requestBody}`
-      throw new EthereumRpcError(
-        ERROR_CODES.rpc.internal, message, req,
-      )
+      throw new EthereumRpcError(ERROR_CODES.rpc.internal, message, req)
     }
   }
 

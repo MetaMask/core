@@ -17,7 +17,7 @@
     "coverage": "nyc yarn test"
   },
   "dependencies": {
-    "eth-json-rpc-errors": "^2.0.2",
+    "eth-rpc-errors": "^2.1.1",
     "promise-to-callback": "^1.0.0",
     "safe-event-emitter": "^1.0.1"
   },
