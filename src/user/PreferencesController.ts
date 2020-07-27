@@ -182,10 +182,9 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 		addresses = addresses.map((address: string) => toChecksumAddress(address));
 		const oldIdentities = this.state.identities;
 		const identities = addresses.reduce((ids: { [address: string]: ContactEntry }, address, index) => {
-			ids[address] = {
+			ids[address] = oldIdentities[address] || {
 				address,
-				name: `Account ${index + 1}`,
-				...(oldIdentities[address] || {})
+				name: `Account ${index + 1}`
 			};
 			return ids;
 		}, {});
