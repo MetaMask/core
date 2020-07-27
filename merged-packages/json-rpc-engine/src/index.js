@@ -133,47 +133,45 @@ module.exports = class RpcEngine extends SafeEventEmitter {
 
     // go down stack of middleware, call and collect optional returnHandlers
     for (const middleware of this._middleware) {
+      isComplete = await RpcEngine._runMiddleware(
+        req, res, middleware, returnHandlers,
+      )
       if (isComplete) {
         break
       }
-      await runMiddleware(middleware)
     }
-
     return { isComplete, returnHandlers: returnHandlers.reverse() }
+  }
 
-    // runs an individual middleware
-    function runMiddleware (middleware) {
-      return new Promise((resolve) => {
+  // runs an individual middleware
+  static _runMiddleware (req, res, middleware, returnHandlers) {
+    return new Promise((resolve) => {
 
-        try {
-          middleware(req, res, next, end)
-        } catch (err) {
-          end(err)
+      const end = (err) => {
+        const error = err || (res && res.error)
+        if (error) {
+          res.error = serializeError(error)
+          res._originalError = error
         }
+        resolve(true) // true indicates the request should end
+      }
 
-        function next (returnHandler) {
-          if (res.error) {
-            end(res.error)
-          } else {
-            if (returnHandler) {
-              returnHandlers.push(returnHandler)
-            }
-            resolve()
+      const next = (returnHandler) => {
+        if (res.error) {
+          end(res.error)
+        } else {
+          if (returnHandler) {
+            returnHandlers.push(returnHandler)
           }
+          resolve(false) // false indicates the request should not end
         }
+      }
 
-        function end (err) {
-          isComplete = true
-
-          const error = err || (res && res.error)
-          if (error) {
-            res.error = serializeError(error)
-            res._originalError = error
-            delete res.result
-          }
-          resolve()
-        }
-      })
-    }
+      try {
+        middleware(req, res, next, end)
+      } catch (error) {
+        end(error)
+      }
+    })
   }
 }
