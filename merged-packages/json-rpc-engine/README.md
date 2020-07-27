@@ -1,8 +1,8 @@
-# RpcEngine
+# json-rpc-engine
 
-a tool for processing JSON RPC
+A tool for processing JSON-RPC requests and responses.
 
-### usage
+## Usage
 
 ```js
 const RpcEngine = require('json-rpc-engine')
@@ -10,7 +10,7 @@ const RpcEngine = require('json-rpc-engine')
 let engine = new RpcEngine()
 ```
 
-Build a stack of json rpc processors by pushing in RpcEngine middleware.
+Build a stack of JSON-RPC processors by pushing middleware to the engine.
 
 ```js
 engine.push(function(req, res, next, end){
@@ -19,7 +19,7 @@ engine.push(function(req, res, next, end){
 })
 ```
 
-JSON RPC are handled asynchronously, stepping down the stack until complete.
+Requests are handled asynchronously, stepping down the stack until complete.
 
 ```js
 let request = { id: 1, jsonrpc: '2.0', method: 'hello' }
@@ -29,8 +29,8 @@ engine.handle(request, function(err, res){
 })
 ```
 
-RpcEngine middleware has direct access to the request and response objects.
-It can let processing continue down the stack with `next()` or complete the request with `end()`.
+Middleware have direct access to the request and response objects.
+They can let processing continue down the stack with `next()`, or complete the request with `end()`.
 
 ```js
 engine.push(function(req, res, next, end){
@@ -40,7 +40,7 @@ engine.push(function(req, res, next, end){
 })
 ```
 
-By passing a 'return handler' to the `next` function, you can get a peek at the result before it returns.
+By passing a _return handler_ to the `next` function, you can get a peek at the result before it returns.
 
 ```js
 engine.push(function(req, res, next, end){
@@ -50,17 +50,74 @@ engine.push(function(req, res, next, end){
 })
 ```
 
-RpcEngines can be nested by converting them to middleware `asMiddleware(engine)`
+RpcEngines can be nested by converting them to middleware using `asMiddleware(engine)`:
 
 ```js
-const asMiddleware = require('json-rpc-engine/lib/asMiddleware')
+const asMiddleware = require('json-rpc-engine/src/asMiddleware')
 
 let engine = new RpcEngine()
 let subengine = new RpcEngine()
 engine.push(asMiddleware(subengine))
 ```
 
-### gotchas
+### `async` Middleware
+
+If you require your middleware function to be `async`, use `createAsyncMiddleware`:
+
+```js
+const createAsyncMiddleware = require('json-rpc-engine/src/createAsyncMiddleware')
+
+let engine = new RpcEngine()
+engine.push(createAsyncMiddleware(async (req, res, next) => {
+  res.result = 42
+  next()
+}))
+```
+
+`async` middleware do not take an `end` callback.
+Instead, the request ends if the middleware returns without calling `next()`:
+
+```js
+engine.push(createAsyncMiddleware(async (req, res, next) => {
+  res.result = 42
+  /* The request will end when this returns */
+}))
+```
+
+The `next` callback of `async` middleware also don't take return handlers.
+Instead, you can `await next()`.
+When the execution of the middleware resumes, you can work with the response again.
+
+```js
+engine.push(createAsyncMiddleware(async (req, res, next) => {
+  res.result = 42
+  await next()
+  /* Your return handler logic goes here */
+  addToMetrics(res)
+}))
+```
+
+You can freely mix callback-based and `async` middleware:
+
+```js
+engine.push(function(req, res, next, end){
+  if (!isCached(req)) {
+    return next((cb) => {
+      insertIntoCache(res, cb)
+    })
+  }
+  res.result = getResultFromCache(req)
+  end()
+})
+
+engine.push(createAsyncMiddleware(async (req, res, next) => {
+  res.result = 42
+  await next()
+  addToMetrics(res)
+}))
+```
+
+### Gotchas
 
 Handle errors via `end(err)`, *NOT* `next(err)`.
 
@@ -76,5 +133,12 @@ engine.push(function(req, res, next, end){
 })
 ```
 
-That said, `next()` will detect errors on the RPC response, and cause
+However, `next()` will detect errors on the response object, and cause
 `end(res.error)` to be called.
+
+```js
+engine.push(function(req, res, next, end){
+  res.error = new Error()
+  next() /* This will cause end(res.error) to be called. */
+})
+```
