@@ -29,7 +29,7 @@ describe('idRemapMiddleware tests', function () {
     })
 
     const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
-    const payloadCopy = { ...payload }
+    const payloadCopy = Object.assign({}, payload)
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error')

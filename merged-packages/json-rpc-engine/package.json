@@ -12,7 +12,6 @@
   "scripts": {
     "lint": "eslint . --ext js,json",
     "lint:fix": "eslint . --ext js,json --fix",
-    "build": "babel src --out-dir dist",
     "test": "mocha ./test",
     "coverage": "nyc yarn test"
   },
@@ -22,16 +21,8 @@
     "safe-event-emitter": "^1.0.1"
   },
   "devDependencies": {
-    "@babel/cli": "^7.8.4",
-    "@babel/core": "^7.8.6",
-    "@babel/plugin-transform-runtime": "^7.8.3",
-    "@babel/preset-env": "^7.8.6",
-    "@babel/runtime": "^7.8.4",
     "@metamask/eslint-config": "^2.1.0",
-    "babel-eslint": "^10.1.0",
-    "babelify": "^10.0.0",
     "eslint": "^6.8.0",
-    "eslint-plugin-babel": "^5.3.0",
     "eslint-plugin-import": "^2.20.1",
     "eslint-plugin-json": "^2.1.0",
     "eslint-plugin-mocha": "^6.3.0",
