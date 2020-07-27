@@ -26,8 +26,8 @@ module.exports = class RpcEngine extends SafeEventEmitter {
     if (Array.isArray(req)) {
       if (cb) {
         this._handleBatch(req)
-          .catch((err) => cb(err)) // fatal error
           .then((res) => cb(null, res))
+          .catch((err) => cb(err)) // fatal error
         return undefined
       }
       return this._handleBatch(req)
@@ -45,7 +45,7 @@ module.exports = class RpcEngine extends SafeEventEmitter {
 
   async _handleBatch (reqs) {
     // The order here is important
-    // 3a. Return batch response, or reject on some kind of fatal error
+    // 3. Return batch response, or reject on some kind of fatal error
     return await Promise.all( // 2. Wait for all requests to finish
       // 1. Begin executing each request in the order received
       reqs.map(this._promiseHandle.bind(this)),
