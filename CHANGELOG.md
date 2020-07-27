@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [2.0.3] - 2020-07-27
+
+## Added
+
+- TransactionsController: Bugfix cancel / speedup transactions (#248)
+
+
 ## [2.0.2] - 2020-07-14
 
 ## Added
