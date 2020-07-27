@@ -542,7 +542,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const existingGasPrice = transactionMeta.transaction.gasPrice;
 		/* istanbul ignore next */
 		const existingGasPriceDecimal = parseInt(existingGasPrice === undefined ? '0x0' : existingGasPrice, 16);
-		const gasPrice = addHexPrefix(`${parseFloat(`${existingGasPriceDecimal * CANCEL_RATE}`).toString(16)}`);
+		const gasPrice = addHexPrefix(`${parseInt(`${existingGasPriceDecimal * CANCEL_RATE}`, 10).toString(16)}`);
 
 		const ethTransaction = new Transaction({
 			from: transactionMeta.transaction.from,
@@ -581,7 +581,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 		const existingGasPrice = transactionMeta.transaction.gasPrice;
 		/* istanbul ignore next */
 		const existingGasPriceDecimal = parseInt(existingGasPrice === undefined ? '0x0' : existingGasPrice, 16);
-		const gasPrice = addHexPrefix(`${parseFloat(`${existingGasPriceDecimal * SPEED_UP_RATE}`).toString(16)}`);
+		const gasPrice = addHexPrefix(`${parseInt(`${existingGasPriceDecimal * SPEED_UP_RATE}`, 10).toString(16)}`);
 		const ethTransaction = new Transaction({ ...transactionMeta.transaction, gasPrice });
 		await this.sign(ethTransaction, transactionMeta.transaction.from);
 		const rawTransaction = bufferToHex(ethTransaction.serialize());
