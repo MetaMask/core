@@ -99,12 +99,13 @@ module.exports = class RpcEngine extends SafeEventEmitter {
   }
 
   async _processRequest (req, res) {
-
     const { isComplete, returnHandlers } = await this._runMiddlewares(req, res)
-
     this._checkForCompletion(req, res, isComplete)
+    await this._runReturnHandlers(returnHandlers)
+  }
 
-    for (const handler of returnHandlers) {
+  async _runReturnHandlers (handlers) {
+    for (const handler of handlers) {
       await new Promise((resolve, reject) => {
         handler((err) => (err ? reject(err) : resolve()))
       })

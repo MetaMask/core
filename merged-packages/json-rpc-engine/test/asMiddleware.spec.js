@@ -156,4 +156,76 @@ describe('asMiddleware', function () {
       done()
     })
   })
+
+  it('handles error thrown in middleware', function (done) {
+    const engine = new RpcEngine()
+    const subengine = new RpcEngine()
+
+    subengine.push(function (_req, _res, _next, _end) {
+      throw new Error('foo')
+    })
+
+    engine.push(asMiddleware(subengine))
+
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, function (err, res) {
+      assert.ok(err, 'should have errored')
+      assert.equal(err.message, 'foo', 'should have expected error')
+      assert.ifError(res.result, 'should not have result')
+      done()
+    })
+  })
+
+  it('handles next handler error correctly when nested', function (done) {
+    const engine = new RpcEngine()
+    const subengine = new RpcEngine()
+
+    subengine.push((_req, _res, next, _end) => {
+      next((_cb) => {
+        throw new Error('foo')
+      })
+    })
+
+    engine.push(asMiddleware(subengine))
+    engine.push((_req, res, _next, end) => {
+      res.result = true
+      end()
+    })
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, function (err, res) {
+      assert.ok(err, 'should have errored')
+      assert.equal(err.message, 'foo', 'should have expected error')
+      assert.ifError(res.result, 'should not have result')
+      done()
+    })
+  })
+
+  it('handles next handler error correctly when flat', function (done) {
+    const engine = new RpcEngine()
+    const subengine = new RpcEngine()
+
+    subengine.push((_req, _res, next, _end) => {
+      next((_cb) => {
+        throw new Error('foo')
+      })
+    })
+
+    subengine.push((_req, res, _next, end) => {
+      res.result = true
+      end()
+    })
+
+    engine.push(asMiddleware(subengine))
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, function (err, res) {
+      assert.ok(err, 'should have errored')
+      assert.equal(err.message, 'foo', 'should have expected error')
+      assert.ifError(res.result, 'should not have result')
+      done()
+    })
+  })
+
 })
