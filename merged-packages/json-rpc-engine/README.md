@@ -24,9 +24,12 @@ Requests are handled asynchronously, stepping down the stack until complete.
 ```js
 let request = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
-engine.handle(request, function(err, res){
-  // do something with res.result
+engine.handle(request, function(err, response){
+  // do something with response.result
 })
+
+// there is also a Promise signature
+const response = await engine.handle(request)
 ```
 
 Middleware have direct access to the request and response objects.

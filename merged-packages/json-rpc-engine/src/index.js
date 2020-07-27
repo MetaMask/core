@@ -22,30 +22,34 @@ module.exports = class RpcEngine extends SafeEventEmitter {
   }
 
   handle (req, cb) {
-    // batch request support
+
     if (Array.isArray(req)) {
-      this._handleBatch(req, cb)
-    } else {
-      this._handle(req, cb)
+      if (cb) {
+        this._handleBatch(req)
+          .catch((err) => cb(err)) // fatal error
+          .then((res) => cb(null, res))
+        return undefined
+      }
+      return this._handleBatch(req)
     }
+
+    if (!cb) {
+      return this._promiseHandle(req)
+    }
+    return this._handle(req, cb)
   }
 
   //
   // Private
   //
 
-  async _handleBatch (reqs, cb) {
-
+  async _handleBatch (reqs) {
     // The order here is important
-    try {
-      const batchRes = await Promise.all( // 2. Wait for all requests to finish
-        // 1. Begin executing each request in the order received
-        reqs.map(this._promiseHandle.bind(this)),
-      )
-      return cb(null, batchRes) // 3a. Return batch response
-    } catch (err) {
-      return cb(err) // 3b. Some kind of fatal error; all requests are lost
-    }
+    // 3a. Return batch response, or reject on some kind of fatal error
+    return await Promise.all( // 2. Wait for all requests to finish
+      // 1. Begin executing each request in the order received
+      reqs.map(this._promiseHandle.bind(this)),
+    )
   }
 
   _promiseHandle (req) {
@@ -58,9 +62,9 @@ module.exports = class RpcEngine extends SafeEventEmitter {
     })
   }
 
-  _handle (_req, cb) {
+  _handle (callerReq, cb) {
 
-    const req = Object.assign({}, _req)
+    const req = Object.assign({}, callerReq)
     const res = {
       id: req.id,
       jsonrpc: req.jsonrpc,
