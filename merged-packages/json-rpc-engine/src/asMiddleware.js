@@ -2,7 +2,7 @@
 
 module.exports = function asMiddleware (engine) {
   return function engineAsMiddleware (req, res, next, end) {
-    engine._runMiddlewares(req, res)
+    engine._runAllMiddleware(req, res)
       .then(async ({ isComplete, returnHandlers }) => {
 
         if (isComplete) {
