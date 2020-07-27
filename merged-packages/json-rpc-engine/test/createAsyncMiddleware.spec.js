@@ -92,7 +92,7 @@ describe('createAsyncMiddleware tests', function () {
     })
   })
 
-  it('doesnt await next', function (done) {
+  it('doesn\'t await next', function (done) {
     const engine = new RpcEngine()
 
     engine.push(createAsyncMiddleware(async (_req, _res, next) => {
