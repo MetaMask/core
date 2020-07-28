@@ -13,7 +13,7 @@
     "lint": "eslint . --ext js,json",
     "lint:fix": "eslint . --ext js,json --fix",
     "test": "mocha ./test",
-    "coverage": "nyc yarn test"
+    "coverage": "nyc --check-coverage yarn test"
   },
   "dependencies": {
     "eth-rpc-errors": "^2.1.1",
@@ -26,7 +26,8 @@
     "eslint-plugin-json": "^2.1.0",
     "eslint-plugin-mocha": "^6.3.0",
     "mocha": "^7.1.1",
-    "nyc": "^15.0.0"
+    "nyc": "^15.0.0",
+    "sinon": "^9.0.2"
   },
   "repository": {
     "type": "git",

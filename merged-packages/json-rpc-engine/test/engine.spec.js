@@ -2,9 +2,10 @@
 'use strict'
 
 const { strict: assert } = require('assert')
+const { stub } = require('sinon')
 const RpcEngine = require('../src')
 
-describe('basic tests', function () {
+describe('RpcEngine tests', function () {
   it('basic middleware test 1', function (done) {
     const engine = new RpcEngine()
 
@@ -43,6 +44,21 @@ describe('basic tests', function () {
     })
   })
 
+  it('basic middleware test (async)', async function () {
+    const engine = new RpcEngine()
+
+    engine.push(function (_req, res, _next, end) {
+      res.result = 42
+      end()
+    })
+
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    const res = await engine.handle(payload)
+    assert.ok(res, 'has res')
+    assert.equal(res.result, 42, 'has expected result')
+  })
+
   it('allow null result', function (done) {
     const engine = new RpcEngine()
 
@@ -72,6 +88,28 @@ describe('basic tests', function () {
     engine.push(function (req, res, _next, end) {
       res.result = req.resultShouldBe
       end()
+    })
+
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, function (err, res) {
+      assert.ifError(err, 'did not error')
+      assert.ok(res, 'has res')
+      assert.equal(res.result, 42, 'has expected result')
+      done()
+    })
+  })
+
+  it('middleware ending request before all middlewares applied', function (done) {
+    const engine = new RpcEngine()
+
+    engine.push(function (_req, res, _next, end) {
+      res.result = 42
+      end()
+    })
+
+    engine.push(function (_req, _res, _next, _end) {
+      assert.fail('should not have called second middleware')
     })
 
     const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
@@ -185,6 +223,37 @@ describe('basic tests', function () {
     })
   })
 
+  it('handle batch payloads (async signature)', async function () {
+    const engine = new RpcEngine()
+
+    engine.push(function (req, res, _next, end) {
+      if (req.id === 4) {
+        delete res.result
+        res.error = new Error('foobar')
+        return end(res.error)
+      }
+      res.result = req.id
+      return end()
+    })
+
+    const payloadA = { id: 1, jsonrpc: '2.0', method: 'hello' }
+    const payloadB = { id: 2, jsonrpc: '2.0', method: 'hello' }
+    const payloadC = { id: 3, jsonrpc: '2.0', method: 'hello' }
+    const payloadD = { id: 4, jsonrpc: '2.0', method: 'hello' }
+    const payloadE = { id: 5, jsonrpc: '2.0', method: 'hello' }
+    const payload = [payloadA, payloadB, payloadC, payloadD, payloadE]
+
+    const res = await engine.handle(payload)
+    assert.ok(res, 'has res')
+    assert.ok(Array.isArray(res), 'res is array')
+    assert.equal(res[0].result, 1, 'has expected result')
+    assert.equal(res[1].result, 2, 'has expected result')
+    assert.equal(res[2].result, 3, 'has expected result')
+    assert.ok(!res[3].result, 'has no result')
+    assert.equal(res[3].error.code, -32603, 'has expected error')
+    assert.equal(res[4].result, 5, 'has expected result')
+  })
+
   it('basic notifications', function (done) {
     const engine = new RpcEngine()
 
@@ -285,5 +354,73 @@ describe('basic tests', function () {
       assert.ok(sawNextReturnHandlerCalled, 'saw next return handler called')
       done()
     })
+  })
+
+  it('handles error in next handler', function (done) {
+    const engine = new RpcEngine()
+
+    engine.push(function (_req, _res, next, _end) {
+      next(function (_cb) {
+        throw new Error('foo')
+      })
+    })
+
+    engine.push(function (_req, res, _next, end) {
+      res.result = 42
+      end()
+    })
+
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, (err, _res) => {
+      assert.ok(err, 'did error')
+      assert.equal(err.message, 'foo', 'error has expected message')
+      done()
+    })
+  })
+
+  it('handles failure to end request', function (done) {
+    const engine = new RpcEngine()
+
+    engine.push(function (_req, res, next, _end) {
+      res.result = 42
+      next()
+    })
+
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' }
+
+    engine.handle(payload, (err, res) => {
+      assert.ok(err, 'should have errored')
+      assert.ok(
+        err.message.startsWith('JsonRpcEngine: Nothing ended request:'),
+        'should have expected error message',
+      )
+      assert.ok(!res.result, 'should not have result')
+      done()
+    })
+  })
+
+  it('handles batch request processing error', function (done) {
+    const engine = new RpcEngine()
+    stub(engine, '_promiseHandle').throws(new Error('foo'))
+
+    engine.handle([{}], (err) => {
+      assert.ok(err, 'did error')
+      assert.equal(err.message, 'foo', 'error has expected message')
+      done()
+    })
+  })
+
+  it('handles batch request processing error (async)', async function () {
+    const engine = new RpcEngine()
+    stub(engine, '_promiseHandle').throws(new Error('foo'))
+
+    try {
+      await engine.handle([{}])
+      assert.fail('should have errored')
+    } catch (err) {
+      assert.ok(err, 'did error')
+      assert.equal(err.message, 'foo', 'error has expected message')
+    }
   })
 })
