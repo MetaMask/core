@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Remove `async` and `promise-to-callback` dependencies
-  - These dependencies were used internally for asynchronous control flow.
-  They have been replaced with Promises and native `async`/`await`.
-  This has made middleware execution faster, and may affect consumers that rely on middleware timing, advertently or not.
+  - These dependencies were used internally for middleware flow control.
+  They have been replaced with Promises and native `async`/`await`, which means that some operations are _no longer_ eagerly executed.
+  This change may affect consumers that depend on the eager execution of middleware _during_ middleware execution, _outside of_ middleware functions and request handlers.
+    - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
