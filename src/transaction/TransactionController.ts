@@ -2,8 +2,8 @@ import { EventEmitter } from 'events';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import NetworkController from '../network/NetworkController';
-import { IEthErrors } from 'eth-json-rpc-errors/@types';
-const ethErrors: IEthErrors = require('eth-json-rpc-errors').ethErrors;
+import { IEthErrors } from 'eth-rpc-errors/@types';
+const ethErrors: IEthErrors = require('eth-rpc-errors').ethErrors;
 
 import {
 	BNToHex,
