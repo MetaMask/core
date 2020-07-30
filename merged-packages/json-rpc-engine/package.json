@@ -16,7 +16,7 @@
     "coverage": "nyc --check-coverage yarn test"
   },
   "dependencies": {
-    "eth-rpc-errors": "^2.1.1",
+    "eth-rpc-errors": "^3.0.0",
     "safe-event-emitter": "^1.0.1"
   },
   "devDependencies": {
