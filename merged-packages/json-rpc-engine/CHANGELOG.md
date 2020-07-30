@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.0] - 2020-07-30
+
+### Changed
+
+- Response object errors no longer include a `stack` property
+
 ## [5.2.0] - 2020-07-24
 
 ### Added
