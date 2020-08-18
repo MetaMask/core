@@ -52,7 +52,7 @@ export interface PhishingState extends BaseState {
  * Controller that passively polls on a set interval for approved and unapproved website origins
  */
 export class PhishingController extends BaseController<PhishingConfig, PhishingState> {
-	private configUrl = 'https://api.github.com/repos/MetaMask/eth-phishing-detect/contents/src/config.json';
+	private configUrl = 'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
 	private configEtag: string = '';
 	private detector: any;
 	private handle?: NodeJS.Timer;
@@ -140,7 +140,6 @@ export class PhishingController extends BaseController<PhishingConfig, PhishingS
 	private async queryConfig(input: RequestInfo): Promise<EthPhishingResponse | null> {
 		const response = await fetch(input, {
 			headers: {
-				'Accept': 'application/vnd.github.v3.raw+json',
 				'If-None-Match': this.configEtag
 			}
 		});
