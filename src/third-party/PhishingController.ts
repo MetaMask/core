@@ -70,7 +70,7 @@ export class PhishingController extends BaseController<PhishingConfig, PhishingS
 	 */
 	constructor(config?: Partial<PhishingConfig>, state?: Partial<PhishingState>) {
 		super(config, state);
-		this.defaultConfig = { interval: 180000 };
+		this.defaultConfig = { interval: 60 * 60 * 1000 };
 		this.defaultState = {
 			phishing: DEFAULT_PHISHING_RESPONSE,
 			whitelist: []
