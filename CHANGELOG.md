@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [2.0.4] - 2020-08-18
+
+## Changed
+
+- Use jsDelivr instead of the GitHub API for content (#256)
+- Lower phishing config poll rate to 1 req/hr (#257)
+
 ## [2.0.3] - 2020-07-27
 
 ## Added
@@ -37,6 +44,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v2.0.1...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v2.0.4...HEAD
+[2.0.4]:https://github.com/MetaMask/controllers/tree/v2.0.4
+[2.0.3]:https://github.com/MetaMask/controllers/tree/v2.0.3
+[2.0.2]:https://github.com/MetaMask/controllers/tree/v2.0.2
 [2.0.1]:https://github.com/MetaMask/controllers/tree/v2.0.1
 [2.0.0]:https://github.com/MetaMask/controllers/tree/v2.0.0
