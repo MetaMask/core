@@ -12,6 +12,7 @@
     "access": "public"
   },
   "scripts": {
+    "prepublishOnly": "yarn build",
     "lint": "tslint src/**/*.ts",
     "test": "jest --coverage",
     "format": "prettier **/*.ts --write --ignore-path=.gitignore",
