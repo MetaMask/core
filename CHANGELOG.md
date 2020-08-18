@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Use jsDelivr instead of the GitHub API for content (#256)
 - Lower phishing config poll rate to 1 req/hr (#257)
+- Use renamed `eth-rpc-error` package (#252)
 
 ## [2.0.3] - 2020-07-27
 
