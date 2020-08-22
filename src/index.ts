@@ -1,5 +1,6 @@
 import 'isomorphic-fetch';
 import * as util from './util';
+import currencies from './currencies';
 
 export * from './assets/AccountTrackerController';
 export * from './user/AddressBookController';
@@ -20,4 +21,7 @@ export * from './assets/TokenRatesController';
 export * from './transaction/TransactionController';
 export * from './message-manager/PersonalMessageManager';
 export * from './message-manager/TypedMessageManager';
-export { util };
+export {
+  util,
+  currencies
+};
