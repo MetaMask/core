@@ -1,455 +1,252 @@
-const objects = [
+const currencies: Array<object> = [
   {
-    "symbol": "ethaud",
-    "quote": {
-      "code": "aud",
-      "name": "Australian Dollar"
-    }
+    "code": "aud",
+    "name": "Australian Dollar"
   },
   {
-    "symbol": "ethhkd",
-    "quote": {
-      "code": "hkd",
-      "name": "Hong Kong Dollar"
-    }
+    "code": "hkd",
+    "name": "Hong Kong Dollar"
   },
   {
-    "symbol": "ethsgd",
-    "quote": {
-      "code": "sgd",
-      "name": "Singapore Dollar"
-    }
+    "code": "sgd",
+    "name": "Singapore Dollar"
   },
   {
-    "symbol": "ethidr",
-    "quote": {
-      "code": "idr",
-      "name": "Indonesian Rupiah"
-    }
+    "code": "idr",
+    "name": "Indonesian Rupiah"
   },
   {
-    "symbol": "ethphp",
-    "quote": {
-      "code": "php",
-      "name": "Philippine Peso"
-    }
+    "code": "inr",
+    "name": "Indian Rupee"
   },
   {
-    "symbol": "ethadt",
-    "quote": {
-      "code": "adt",
-      "name": "adToken"
-    }
+    "code": "php",
+    "name": "Philippine Peso"
   },
   {
-    "symbol": "ethadx",
-    "quote": {
-      "code": "adx",
-      "name": "AdEx"
-    }
+    "code": "1st",
+    "name": "FirstBlood"
   },
   {
-    "symbol": "ethant",
-    "quote": {
-      "code": "ant",
-      "name": "Aragon"
-    }
+    "code": "adt",
+    "name": "adToken"
   },
   {
-    "symbol": "ethbat",
-    "quote": {
-      "code": "bat",
-      "name": "Basic Attention Token"
-    }
+    "code": "adx",
+    "name": "AdEx"
   },
   {
-    "symbol": "ethbnt",
-    "quote": {
-      "code": "bnt",
-      "name": "Bancor"
-    }
+    "code": "ant",
+    "name": "Aragon"
   },
   {
-    "symbol": "ethbtc",
-    "quote": {
-      "code": "btc",
-      "name": "Bitcoin"
-    }
+    "code": "bat",
+    "name": "Basic Attention Token"
   },
   {
-    "symbol": "ethcad",
-    "quote": {
-      "code": "cad",
-      "name": "Canadian Dollar"
-    }
+    "code": "bnt",
+    "name": "Bancor"
   },
   {
-    "symbol": "ethcfi",
-    "quote": {
-      "code": "cfi",
-      "name": "Cofound.it"
-    }
+    "code": "btc",
+    "name": "Bitcoin"
   },
   {
-    "symbol": "ethcrb",
-    "quote": {
-      "code": "crb",
-      "name": "CreditBit"
-    }
+    "code": "cad",
+    "name": "Canadian Dollar"
   },
   {
-    "symbol": "ethcvc",
-    "quote": {
-      "code": "cvc",
-      "name": "Civic"
-    }
+    "code": "cfi",
+    "name": "Cofound.it"
   },
   {
-    "symbol": "ethdash",
-    "quote": {
-      "code": "dash",
-      "name": "Dash"
-    }
+    "code": "crb",
+    "name": "CreditBit"
   },
   {
-    "symbol": "ethdgd",
-    "quote": {
-      "code": "dgd",
-      "name": "DigixDAO"
-    }
+    "code": "cvc",
+    "name": "Civic"
   },
   {
-    "symbol": "ethetc",
-    "quote": {
-      "code": "etc",
-      "name": "Ethereum Classic"
-    }
+    "code": "dash",
+    "name": "Dash"
   },
   {
-    "symbol": "etheur",
-    "quote": {
-      "code": "eur",
-      "name": "Euro"
-    }
+    "code": "dgd",
+    "name": "DigixDAO"
   },
   {
-    "symbol": "ethfun",
-    "quote": {
-      "code": "fun",
-      "name": "FunFair"
-    }
+    "code": "etc",
+    "name": "Ethereum Classic"
   },
   {
-    "symbol": "ethgbp",
-    "quote": {
-      "code": "gbp",
-      "name": "Pound Sterling"
-    }
+    "code": "eur",
+    "name": "Euro"
   },
   {
-    "symbol": "ethgno",
-    "quote": {
-      "code": "gno",
-      "name": "Gnosis"
-    }
+    "code": "fun",
+    "name": "FunFair"
   },
   {
-    "symbol": "ethgnt",
-    "quote": {
-      "code": "gnt",
-      "name": "Golem"
-    }
+    "code": "gbp",
+    "name": "Pound Sterling"
   },
   {
-    "symbol": "ethgup",
-    "quote": {
-      "code": "gup",
-      "name": "Matchpool"
-    }
+    "code": "gno",
+    "name": "Gnosis"
   },
   {
-    "symbol": "ethhmq",
-    "quote": {
-      "code": "hmq",
-      "name": "Humaniq"
-    }
+    "code": "gnt",
+    "name": "Golem"
   },
   {
-    "symbol": "ethjpy",
-    "quote": {
-      "code": "jpy",
-      "name": "Japanese Yen"
-    }
+    "code": "gup",
+    "name": "Matchpool"
   },
   {
-    "symbol": "ethlgd",
-    "quote": {
-      "code": "lgd",
-      "name": "Legends Room"
-    }
+    "code": "hmq",
+    "name": "Humaniq"
   },
   {
-    "symbol": "ethlsk",
-    "quote": {
-      "code": "lsk",
-      "name": "Lisk"
-    }
+    "code": "jpy",
+    "name": "Japanese Yen"
   },
   {
-    "symbol": "ethltc",
-    "quote": {
-      "code": "ltc",
-      "name": "Litecoin"
-    }
+    "code": "lgd",
+    "name": "Legends Room"
   },
   {
-    "symbol": "ethlun",
-    "quote": {
-      "code": "lun",
-      "name": "Lunyr"
-    }
+    "code": "lsk",
+    "name": "Lisk"
   },
   {
-    "symbol": "ethmco",
-    "quote": {
-      "code": "mco",
-      "name": "Monaco"
-    }
+    "code": "ltc",
+    "name": "Litecoin"
   },
   {
-    "symbol": "ethmtl",
-    "quote": {
-      "code": "mtl",
-      "name": "Metal"
-    }
+    "code": "lun",
+    "name": "Lunyr"
   },
   {
-    "symbol": "ethmyst",
-    "quote": {
-      "code": "myst",
-      "name": "Mysterium"
-    }
+    "code": "mco",
+    "name": "Monaco"
   },
   {
-    "symbol": "ethnmr",
-    "quote": {
-      "code": "nmr",
-      "name": "Numeraire"
-    }
+    "code": "mtl",
+    "name": "Metal"
   },
   {
-    "symbol": "ethomg",
-    "quote": {
-      "code": "omg",
-      "name": "OmiseGO"
-    }
+    "code": "myst",
+    "name": "Mysterium"
   },
   {
-    "symbol": "ethpay",
-    "quote": {
-      "code": "pay",
-      "name": "TenX"
-    }
+    "code": "nmr",
+    "name": "Numeraire"
   },
   {
-    "symbol": "ethptoy",
-    "quote": {
-      "code": "ptoy",
-      "name": "Patientory"
-    }
+    "code": "omg",
+    "name": "OmiseGO"
   },
   {
-    "symbol": "ethqrl",
-    "quote": {
-      "code": "qrl",
-      "name": "Quantum-Resistant Ledger"
-    }
+    "code": "pay",
+    "name": "TenX"
   },
   {
-    "symbol": "ethqtum",
-    "quote": {
-      "code": "qtum",
-      "name": "Qtum"
-    }
+    "code": "ptoy",
+    "name": "Patientory"
   },
   {
-    "symbol": "ethrep",
-    "quote": {
-      "code": "rep",
-      "name": "Augur"
-    }
+    "code": "qrl",
+    "name": "Quantum-Resistant Ledger"
   },
   {
-    "symbol": "ethrlc",
-    "quote": {
-      "code": "rlc",
-      "name": "iEx.ec"
-    }
+    "code": "qtum",
+    "name": "Qtum"
   },
   {
-    "symbol": "ethrub",
-    "quote": {
-      "code": "rub",
-      "name": "Russian Ruble"
-    }
+    "code": "rep",
+    "name": "Augur"
   },
   {
-    "symbol": "ethsc",
-    "quote": {
-      "code": "sc",
-      "name": "Siacoin"
-    }
+    "code": "rlc",
+    "name": "iEx.ec"
   },
   {
-    "symbol": "ethsngls",
-    "quote": {
-      "code": "sngls",
-      "name": "SingularDTV"
-    }
+    "code": "rub",
+    "name": "Russian Ruble"
   },
   {
-    "symbol": "ethsnt",
-    "quote": {
-      "code": "snt",
-      "name": "Status"
-    }
+    "code": "sc",
+    "name": "Siacoin"
   },
   {
-    "symbol": "ethsteem",
-    "quote": {
-      "code": "steem",
-      "name": "Steem"
-    }
+    "code": "sngls",
+    "name": "SingularDTV"
   },
   {
-    "symbol": "ethstorj",
-    "quote": {
-      "code": "storj",
-      "name": "Storj"
-    }
+    "code": "snt",
+    "name": "Status"
   },
   {
-    "symbol": "ethtime",
-    "quote": {
-      "code": "time",
-      "name": "ChronoBank"
-    }
+    "code": "steem",
+    "name": "Steem"
   },
   {
-    "symbol": "ethtkn",
-    "quote": {
-      "code": "tkn",
-      "name": "TokenCard"
-    }
+    "code": "storj",
+    "name": "Storj"
   },
   {
-    "symbol": "ethtrst",
-    "quote": {
-      "code": "trst",
-      "name": "WeTrust"
-    }
+    "code": "time",
+    "name": "ChronoBank"
   },
   {
-    "symbol": "ethusd",
-    "quote": {
-      "code": "usd",
-      "name": "United States Dollar"
-    }
+    "code": "tkn",
+    "name": "TokenCard"
   },
   {
-    "symbol": "ethwings",
-    "quote": {
-      "code": "wings",
-      "name": "Wings"
-    }
+    "code": "trst",
+    "name": "WeTrust"
   },
   {
-    "symbol": "ethxem",
-    "quote": {
-      "code": "xem",
-      "name": "NEM"
-    }
+    "code": "uah",
+    "name": "Ukrainian Hryvnia"
   },
   {
-    "symbol": "ethxlm",
-    "quote": {
-      "code": "xlm",
-      "name": "Stellar Lumen"
-    }
+    "code": "usd",
+    "name": "United States Dollar"
   },
   {
-    "symbol": "ethxmr",
-    "quote": {
-      "code": "xmr",
-      "name": "Monero"
-    }
+    "code": "wings",
+    "name": "Wings"
   },
   {
-    "symbol": "ethxrp",
-    "quote": {
-      "code": "xrp",
-      "name": "Ripple"
-    }
+    "code": "xem",
+    "name": "NEM"
   },
   {
-    "symbol": "ethzec",
-    "quote": {
-      "code": "zec",
-      "name": "Zcash"
-    }
+    "code": "xlm",
+    "name": "Stellar Lumen"
   },
   {
-    "symbol": "ethdai",
-    "quote": {
-      "code": "dai",
-      "name": "DAI"
-    }
+    "code": "xmr",
+    "name": "Monero"
   },
   {
-    "symbol": "ethusdc",
-    "quote": {
-      "code": "usdc",
-      "name": "USD Coin"
-    }
+    "code": "xrp",
+    "name": "Ripple"
   },
   {
-    "symbol": "ethusdt",
-    "quote": {
-      "code": "usdt",
-      "name": "Tether"
-    }
+    "code": "zec",
+    "name": "Zcash"
   },
   {
-    "symbol": "ethinr",
-    "quote": {
-      "code": "inr",
-      "name": "Indian Rupee"
-    }
+    "code": "dai",
+    "name": "DAI"
   },
   {
-    "symbol": "eth1st",
-    "quote": {
-      "code": "1st",
-      "name": "FirstBlood"
-    }
-  },
-  {
-    "symbol": "ethuah",
-    "quote": {
-      "code": "uah",
-      "name": "Ukrainian Hryvnia"
-    }
-  },
-  {
-    "symbol": "ethsai",
-    "quote": {
-      "code": "sai",
-      "name": "SAI"
-    }
+    "code": "sai",
+    "name": "SAI"
   }
 ]
 
-const wrapper = { objects };
-
-export default wrapper;
-
+export default currencies;
