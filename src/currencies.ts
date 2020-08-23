@@ -1,6 +1,6 @@
 interface Options {
-  code?: string
-  name?: string
+  code: string
+  name: string
 }
 
 const currencies: Array<Options> = [
