@@ -21,6 +21,7 @@
   "author": "kumavis",
   "license": "MIT",
   "resolutions": {
+    "ganache-core/**/elliptic": "^6.5.3",
     "ganache-core/lodash": "^4.17.19"
   },
   "dependencies": {
