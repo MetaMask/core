@@ -1,8 +1,5 @@
-const test = require('tape')
 const GanacheCore = require('ganache-core')
 const pify = require('pify')
-const PollingBlockTracker = require('../src/polling')
-const noop = () => {}
 
 module.exports = (test, testLabel, PollingBlockTracker) => {
 

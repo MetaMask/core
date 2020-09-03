@@ -1,4 +1,3 @@
-const test = require('tape')
 const noop = () => {}
 const timeout = (duration) => new Promise(resolve => setTimeout(resolve, duration))
 

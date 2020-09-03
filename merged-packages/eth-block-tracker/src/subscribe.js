@@ -1,4 +1,3 @@
-const EventEmitter = require('events')
 const BaseBlockTracker = require('./base')
 const createRandomId = require('json-rpc-random-id')()
 

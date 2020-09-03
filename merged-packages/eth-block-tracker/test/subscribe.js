@@ -1,8 +1,5 @@
-const test = require('tape')
 const GanacheCore = require('ganache-core')
 const pify = require('pify')
-const SubscribeBlockTracker = require('../src/subscribe')
-const noop = () => {}
 
 module.exports = (test, testLabel, SubscribeBlockTracker) => {
 

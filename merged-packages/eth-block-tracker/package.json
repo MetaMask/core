@@ -27,7 +27,6 @@
   "dependencies": {
     "@babel/plugin-transform-runtime": "^7.5.5",
     "@babel/runtime": "^7.5.5",
-    "eth-query": "^2.1.0",
     "json-rpc-random-id": "^1.0.1",
     "pify": "^3.0.0",
     "safe-event-emitter": "^1.0.1"
