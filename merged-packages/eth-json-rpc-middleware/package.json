@@ -6,6 +6,7 @@
     "test": "test"
   },
   "scripts": {
+    "lint": "printf '%s\\n' 'No lint command'",
     "test": "node test/index.js"
   },
   "author": "",
