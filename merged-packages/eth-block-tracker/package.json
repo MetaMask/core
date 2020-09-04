@@ -18,7 +18,6 @@
     "build:bundle:base": "browserify -s BaseBlockTracker -e src/base.js -g babelify > dist/BaseBlockTracker.js",
     "build:validate": "uglifyjs dist/es5/**.js > /dev/null"
   },
-  "author": "kumavis",
   "license": "MIT",
   "resolutions": {
     "ganache-core/**/elliptic": "^6.5.3",
@@ -48,10 +47,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kumavis/eth-block-tracker.git"
+    "url": "git+https://github.com/MetaMask/eth-block-tracker.git"
   },
   "bugs": {
-    "url": "https://github.com/kumavis/eth-block-tracker/issues"
+    "url": "https://github.com/MetaMask/eth-block-tracker/issues"
   },
-  "homepage": "https://github.com/kumavis/eth-block-tracker#readme"
+  "homepage": "https://github.com/MetaMask/eth-block-tracker#readme"
 }
