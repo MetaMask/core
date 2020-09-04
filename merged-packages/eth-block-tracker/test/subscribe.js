@@ -20,22 +20,21 @@ module.exports = (test, testLabel, SubscribeBlockTracker) => {
       await newLatestBlock(blockTracker)
       t.equal(blocks.length, 1, 'saw 1st block')
 
-      let latestBlock = newLatestBlock(blockTracker)
+      const latestBlock = newLatestBlock(blockTracker)
       await triggerNextBlock(provider)
       await latestBlock
       t.equal(blocks.length, 2, 'saw 2nd block')
 
       await triggerNextBlock(provider)
       await triggerNextBlock(provider)
-      let lastBlockPromise = newLatestBlock(blockTracker)
+      const lastBlockPromise = newLatestBlock(blockTracker)
       await triggerNextBlock(provider)
-      let lastBlock = await lastBlockPromise
+      const lastBlock = await lastBlockPromise
       t.equal(blocks.length, 5, 'saw all intermediate blocks')
       t.equal(Number.parseInt(lastBlock, 16), 4, 'saw correct block, with number 4')
 
       blockTracker.removeAllListeners()
       t.equal(blockTracker.isRunning(), false, 'SubscribeBlockTracker stops after all listeners are removed')
-
 
     } catch (err) {
       t.ifError(err)
@@ -48,10 +47,10 @@ module.exports = (test, testLabel, SubscribeBlockTracker) => {
 
 }
 
-async function triggerNextBlock(provider) {
+async function triggerNextBlock (provider) {
   await pify((cb) => provider.sendAsync({ id: 1, method: 'evm_mine', jsonrpc: '2.0', params: [] }, cb))()
 }
 
-async function newLatestBlock(blockTracker) {
+async function newLatestBlock (blockTracker) {
   return await pify(blockTracker.once, { errorFirst: false }).call(blockTracker, 'latest')
 }

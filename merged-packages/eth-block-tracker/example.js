@@ -1,7 +1,6 @@
 const createInfuraProvider = require('eth-json-rpc-infura/src/createProvider')
 const PollingBlockTracker = require('./src/polling')
 
-
 const provider = createInfuraProvider({ network: 'mainnet' })
 const blockTracker = new PollingBlockTracker({ provider })
 

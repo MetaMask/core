@@ -7,10 +7,12 @@ class PollingBlockTracker extends BaseBlockTracker {
 
   constructor (opts = {}) {
     // parse + validate args
-    if (!opts.provider) throw new Error('PollingBlockTracker - no provider specified.')
+    if (!opts.provider) {
+      throw new Error('PollingBlockTracker - no provider specified.')
+    }
     const pollingInterval = opts.pollingInterval || 20 * sec
     const retryTimeout = opts.retryTimeout || pollingInterval / 10
-    const keepEventLoopActive = opts.keepEventLoopActive !== undefined ? opts.keepEventLoopActive : true
+    const keepEventLoopActive = opts.keepEventLoopActive === undefined ? true : opts.keepEventLoopActive
     const setSkipCacheFlag = opts.setSkipCacheFlag || false
     // BaseBlockTracker constructor
     super(Object.assign({
@@ -39,7 +41,7 @@ class PollingBlockTracker extends BaseBlockTracker {
   //
 
   _start () {
-    this._performSync().catch(err => this.emit('error', err))
+    this._performSync().catch((err) => this.emit('error', err))
   }
 
   async _performSync () {
@@ -66,10 +68,14 @@ class PollingBlockTracker extends BaseBlockTracker {
   }
 
   async _fetchLatestBlock () {
-    const req = { jsonrpc: "2.0", id: 1, method: 'eth_blockNumber', params: [] }
-    if (this._setSkipCacheFlag) req.skipCache = true
+    const req = { jsonrpc: '2.0', id: 1, method: 'eth_blockNumber', params: [] }
+    if (this._setSkipCacheFlag) {
+      req.skipCache = true
+    }
     const res = await pify((cb) => this._provider.sendAsync(req, cb))()
-    if (res.error) throw new Error(`PollingBlockTracker - encountered error fetching block:\n${res.error}`)
+    if (res.error) {
+      throw new Error(`PollingBlockTracker - encountered error fetching block:\n${res.error}`)
+    }
     return res.result
   }
 
@@ -78,7 +84,7 @@ class PollingBlockTracker extends BaseBlockTracker {
 module.exports = PollingBlockTracker
 
 function timeout (duration, unref) {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const timoutRef = setTimeout(resolve, duration)
     // don't keep process open
     if (timoutRef.unref && unref) {

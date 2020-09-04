@@ -35,7 +35,6 @@ module.exports = (test, testLabel, PollingBlockTracker) => {
       blockTracker.removeAllListeners()
       t.equal(blockTracker.isRunning(), false, 'PollingBlockTracker stops after all listeners are removed')
 
-
     } catch (err) {
       t.ifError(err)
     }
@@ -54,18 +53,22 @@ module.exports = (test, testLabel, PollingBlockTracker) => {
 
     // ignore our error if registered as an uncaughtException
     process.on('uncaughtException', ignoreError)
-    function ignoreError(err) {
+    function ignoreError (err) {
       // ignore our error
-      if (err.message.includes('boom')) return
+      if (err.message.includes('boom')) {
+        return
+      }
       // otherwise fail
       t.ifError(err)
     }
 
     try {
       // keep the block tracker polling
-      blockTracker.on('latest', () => { })
+      blockTracker.on('latest', () => undefined)
       // throw error in handler in attempt to break block tracker
-      blockTracker.once('latest', () => { throw new Error('boom') })
+      blockTracker.once('latest', () => {
+        throw new Error('boom')
+      })
 
       // emit and observe a block
       const nextBlockPromise = nextBlockSeen(blockTracker)
@@ -132,15 +135,15 @@ module.exports = (test, testLabel, PollingBlockTracker) => {
 
 }
 
-async function triggerNextBlock(provider) {
+async function triggerNextBlock (provider) {
   await pify((cb) => provider.sendAsync({ id: 1, method: 'evm_mine', jsonrpc: '2.0', params: [] }, cb))()
 }
 
-async function newLatestBlock(blockTracker) {
+async function newLatestBlock (blockTracker) {
   return await pify(blockTracker.once, { errorFirst: false }).call(blockTracker, 'latest')
 }
 
-async function nextBlockSeen(blockTracker) {
+async function nextBlockSeen (blockTracker) {
   return new Promise((resolve) => {
     blockTracker.once('latest', resolve)
   })

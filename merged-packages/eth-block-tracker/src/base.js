@@ -16,7 +16,6 @@ class BaseBlockTracker extends SafeEventEmitter {
     // config
     this._blockResetDuration = opts.blockResetDuration || 20 * sec
     // state
-    this._blockResetTimeout
     this._currentBlock = null
     this._isRunning = false
     // bind functions for internal use
@@ -37,9 +36,11 @@ class BaseBlockTracker extends SafeEventEmitter {
 
   async getLatestBlock () {
     // return if available
-    if (this._currentBlock) return this._currentBlock
+    if (this._currentBlock) {
+      return this._currentBlock
+    }
     // wait for a new latest block
-    const latestBlock = await new Promise(resolve => this.once('latest', resolve))
+    const latestBlock = await new Promise((resolve) => this.once('latest', resolve))
     // return newly set current block
     return latestBlock
   }
@@ -83,20 +84,25 @@ class BaseBlockTracker extends SafeEventEmitter {
     this.on('removeListener', this._onRemoveListener)
   }
 
-  _onNewListener (eventName, handler) {
+  _onNewListener (eventName) {
     // `newListener` is called *before* the listener is added
-    if (!blockTrackerEvents.includes(eventName)) return
-    this._maybeStart()
+    if (blockTrackerEvents.includes(eventName)) {
+      this._maybeStart()
+    }
   }
 
-  _onRemoveListener (eventName, handler) {
+  _onRemoveListener () {
     // `removeListener` is called *after* the listener is removed
-    if (this._getBlockTrackerEventCount() > 0) return
+    if (this._getBlockTrackerEventCount() > 0) {
+      return
+    }
     this._maybeEnd()
   }
 
   _maybeStart () {
-    if (this._isRunning) return
+    if (this._isRunning) {
+      return
+    }
     this._isRunning = true
     // cancel setting latest block to stale
     this._cancelBlockResetTimeout()
@@ -104,7 +110,9 @@ class BaseBlockTracker extends SafeEventEmitter {
   }
 
   _maybeEnd () {
-    if (!this._isRunning) return
+    if (!this._isRunning) {
+      return
+    }
     this._isRunning = false
     this._setupBlockResetTimeout()
     this._end()
@@ -112,14 +120,16 @@ class BaseBlockTracker extends SafeEventEmitter {
 
   _getBlockTrackerEventCount () {
     return blockTrackerEvents
-      .map(eventName => this.listenerCount(eventName))
+      .map((eventName) => this.listenerCount(eventName))
       .reduce(calculateSum)
   }
 
   _newPotentialLatest (newBlock) {
     const currentBlock = this._currentBlock
     // only update if blok number is higher
-    if (currentBlock && (hexToInt(newBlock) <= hexToInt(currentBlock))) return
+    if (currentBlock && (hexToInt(newBlock) <= hexToInt(currentBlock))) {
+      return
+    }
     this._setCurrentBlock(newBlock)
   }
 
@@ -153,6 +163,6 @@ class BaseBlockTracker extends SafeEventEmitter {
 
 module.exports = BaseBlockTracker
 
-function hexToInt(hexInt) {
+function hexToInt (hexInt) {
   return Number.parseInt(hexInt, 16)
 }
