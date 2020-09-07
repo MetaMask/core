@@ -13,245 +13,245 @@ const address2Checksum = toChecksumAddress(address2);
 const address3Checksum = toChecksumAddress(address3);
 
 describe('EnsController', () => {
-	it('should set default state', () => {
-		const controller = new EnsController();
-		expect(controller.state).toEqual({ ensEntries: {} });
-	});
+  it('should set default state', () => {
+    const controller = new EnsController();
+    expect(controller.state).toEqual({ ensEntries: {} });
+  });
 
-	it('should add a new ENS entry and return true', () => {
-		const controller = new EnsController();
-		expect(controller.set('1', name1, address1)).toBeTruthy();
-		expect(controller.state).toEqual({
-			ensEntries: {
-				1: {
-					[name1]: {
-						address: address1Checksum,
-						chainId: '1',
-						ensName: name1
-					}
-				}
-			}
-		});
-	});
+  it('should add a new ENS entry and return true', () => {
+    const controller = new EnsController();
+    expect(controller.set('1', name1, address1)).toBeTruthy();
+    expect(controller.state).toEqual({
+      ensEntries: {
+        1: {
+          [name1]: {
+            address: address1Checksum,
+            chainId: '1',
+            ensName: name1,
+          },
+        },
+      },
+    });
+  });
 
-	it('should add a new ENS entry with null address and return true', () => {
-		const controller = new EnsController();
-		expect(controller.set('1', name1, null)).toBeTruthy();
-		expect(controller.state).toEqual({
-			ensEntries: {
-				1: {
-					[name1]: {
-						address: null,
-						chainId: '1',
-						ensName: name1
-					}
-				}
-			}
-		});
-	});
+  it('should add a new ENS entry with null address and return true', () => {
+    const controller = new EnsController();
+    expect(controller.set('1', name1, null)).toBeTruthy();
+    expect(controller.state).toEqual({
+      ensEntries: {
+        1: {
+          [name1]: {
+            address: null,
+            chainId: '1',
+            ensName: name1,
+          },
+        },
+      },
+    });
+  });
 
-	it('should update an ENS entry and return true', () => {
-		const controller = new EnsController();
-		expect(controller.set('1', name1, address1)).toBeTruthy();
-		expect(controller.set('1', name1, address2)).toBeTruthy();
-		expect(controller.state).toEqual({
-			ensEntries: {
-				1: {
-					[name1]: {
-						address: address2Checksum,
-						chainId: '1',
-						ensName: name1
-					}
-				}
-			}
-		});
-	});
+  it('should update an ENS entry and return true', () => {
+    const controller = new EnsController();
+    expect(controller.set('1', name1, address1)).toBeTruthy();
+    expect(controller.set('1', name1, address2)).toBeTruthy();
+    expect(controller.state).toEqual({
+      ensEntries: {
+        1: {
+          [name1]: {
+            address: address2Checksum,
+            chainId: '1',
+            ensName: name1,
+          },
+        },
+      },
+    });
+  });
 
-	it('should update an ENS entry with null address and return true', () => {
-		const controller = new EnsController();
-		expect(controller.set('1', name1, address1)).toBeTruthy();
-		expect(controller.set('1', name1, null)).toBeTruthy();
-		expect(controller.state).toEqual({
-			ensEntries: {
-				1: {
-					[name1]: {
-						address: null,
-						chainId: '1',
-						ensName: name1
-					}
-				}
-			}
-		});
-	});
+  it('should update an ENS entry with null address and return true', () => {
+    const controller = new EnsController();
+    expect(controller.set('1', name1, address1)).toBeTruthy();
+    expect(controller.set('1', name1, null)).toBeTruthy();
+    expect(controller.state).toEqual({
+      ensEntries: {
+        1: {
+          [name1]: {
+            address: null,
+            chainId: '1',
+            ensName: name1,
+          },
+        },
+      },
+    });
+  });
 
-	it('should not update an ENS entry if the address is the same (valid address) and return false', () => {
-		const controller = new EnsController();
-		expect(controller.set('1', name1, address1)).toBeTruthy();
-		expect(controller.set('1', name1, address1)).toBeFalsy();
-		expect(controller.state).toEqual({
-			ensEntries: {
-				1: {
-					[name1]: {
-						address: address1Checksum,
-						chainId: '1',
-						ensName: name1
-					}
-				}
-			}
-		});
-	});
+  it('should not update an ENS entry if the address is the same (valid address) and return false', () => {
+    const controller = new EnsController();
+    expect(controller.set('1', name1, address1)).toBeTruthy();
+    expect(controller.set('1', name1, address1)).toBeFalsy();
+    expect(controller.state).toEqual({
+      ensEntries: {
+        1: {
+          [name1]: {
+            address: address1Checksum,
+            chainId: '1',
+            ensName: name1,
+          },
+        },
+      },
+    });
+  });
 
-	it('should not update an ENS entry if the address is the same (null) and return false', () => {
-		const controller = new EnsController();
-		expect(controller.set('1', name1, null)).toBeTruthy();
-		expect(controller.set('1', name1, null)).toBeFalsy();
-		expect(controller.state).toEqual({
-			ensEntries: {
-				1: {
-					[name1]: {
-						address: null,
-						chainId: '1',
-						ensName: name1
-					}
-				}
-			}
-		});
-	});
+  it('should not update an ENS entry if the address is the same (null) and return false', () => {
+    const controller = new EnsController();
+    expect(controller.set('1', name1, null)).toBeTruthy();
+    expect(controller.set('1', name1, null)).toBeFalsy();
+    expect(controller.state).toEqual({
+      ensEntries: {
+        1: {
+          [name1]: {
+            address: null,
+            chainId: '1',
+            ensName: name1,
+          },
+        },
+      },
+    });
+  });
 
-	it('should add multiple ENS entries and update without side effects', () => {
-		const controller = new EnsController();
-		expect(controller.set('1', name1, address1)).toBeTruthy();
-		expect(controller.set('1', name2, address2)).toBeTruthy();
-		expect(controller.set('2', name1, address1)).toBeTruthy();
-		expect(controller.set('1', name1, address3)).toBeTruthy();
-		expect(controller.state).toEqual({
-			ensEntries: {
-				1: {
-					[name1]: {
-						address: address3Checksum,
-						chainId: '1',
-						ensName: name1
-					},
-					[name2]: {
-						address: address2Checksum,
-						chainId: '1',
-						ensName: name2
-					}
-				},
-				2: {
-					[name1]: {
-						address: address1Checksum,
-						chainId: '2',
-						ensName: name1
-					}
-				}
-			}
-		});
-	});
+  it('should add multiple ENS entries and update without side effects', () => {
+    const controller = new EnsController();
+    expect(controller.set('1', name1, address1)).toBeTruthy();
+    expect(controller.set('1', name2, address2)).toBeTruthy();
+    expect(controller.set('2', name1, address1)).toBeTruthy();
+    expect(controller.set('1', name1, address3)).toBeTruthy();
+    expect(controller.state).toEqual({
+      ensEntries: {
+        1: {
+          [name1]: {
+            address: address3Checksum,
+            chainId: '1',
+            ensName: name1,
+          },
+          [name2]: {
+            address: address2Checksum,
+            chainId: '1',
+            ensName: name2,
+          },
+        },
+        2: {
+          [name1]: {
+            address: address1Checksum,
+            chainId: '2',
+            ensName: name1,
+          },
+        },
+      },
+    });
+  });
 
-	it('should get ENS entry by chainId and ensName', () => {
-		const controller = new EnsController();
-		expect(controller.set('1', name1, address1)).toBeTruthy();
-		expect(controller.get('1', name1)).toEqual({
-			address: address1Checksum,
-			chainId: '1',
-			ensName: name1
-		});
-	});
+  it('should get ENS entry by chainId and ensName', () => {
+    const controller = new EnsController();
+    expect(controller.set('1', name1, address1)).toBeTruthy();
+    expect(controller.get('1', name1)).toEqual({
+      address: address1Checksum,
+      chainId: '1',
+      ensName: name1,
+    });
+  });
 
-	it('should return null when getting nonexistent name', () => {
-		const controller = new EnsController();
-		expect(controller.set('1', name1, address1)).toBeTruthy();
-		expect(controller.get('1', name2)).toEqual(null);
-	});
+  it('should return null when getting nonexistent name', () => {
+    const controller = new EnsController();
+    expect(controller.set('1', name1, address1)).toBeTruthy();
+    expect(controller.get('1', name2)).toBeNull();
+  });
 
-	it('should return null when getting nonexistent chainId', () => {
-		const controller = new EnsController();
-		expect(controller.set('1', name1, address1)).toBeTruthy();
-		expect(controller.get('2', name1)).toEqual(null);
-	});
+  it('should return null when getting nonexistent chainId', () => {
+    const controller = new EnsController();
+    expect(controller.set('1', name1, address1)).toBeTruthy();
+    expect(controller.get('2', name1)).toBeNull();
+  });
 
-	it('should throw on attempt to set invalid ENS entry: chainId', () => {
-		const controller = new EnsController();
-		expect(() => {
-			controller.set('a', name1, address1);
-		}).toThrowError();
-		expect(controller.state).toEqual({ ensEntries: {} });
-	});
+  it('should throw on attempt to set invalid ENS entry: chainId', () => {
+    const controller = new EnsController();
+    expect(() => {
+      controller.set('a', name1, address1);
+    }).toThrow();
+    expect(controller.state).toEqual({ ensEntries: {} });
+  });
 
-	it('should throw on attempt to set invalid ENS entry: ENS name', () => {
-		const controller = new EnsController();
-		expect(() => {
-			controller.set('1', 'foo.eth', address1);
-		}).toThrowError();
-		expect(controller.state).toEqual({ ensEntries: {} });
-	});
+  it('should throw on attempt to set invalid ENS entry: ENS name', () => {
+    const controller = new EnsController();
+    expect(() => {
+      controller.set('1', 'foo.eth', address1);
+    }).toThrow();
+    expect(controller.state).toEqual({ ensEntries: {} });
+  });
 
-	it('should throw on attempt to set invalid ENS entry: address', () => {
-		const controller = new EnsController();
-		expect(() => {
-			controller.set('1', name1, 'foo');
-		}).toThrowError();
-		expect(controller.state).toEqual({ ensEntries: {} });
-	});
+  it('should throw on attempt to set invalid ENS entry: address', () => {
+    const controller = new EnsController();
+    expect(() => {
+      controller.set('1', name1, 'foo');
+    }).toThrow();
+    expect(controller.state).toEqual({ ensEntries: {} });
+  });
 
-	it('should remove an ENS entry and return true', () => {
-		const controller = new EnsController();
-		expect(controller.set('1', name1, address1)).toBeTruthy();
-		expect(controller.delete('1', name1)).toBeTruthy();
-		expect(controller.state).toEqual({ ensEntries: {} });
-	});
+  it('should remove an ENS entry and return true', () => {
+    const controller = new EnsController();
+    expect(controller.set('1', name1, address1)).toBeTruthy();
+    expect(controller.delete('1', name1)).toBeTruthy();
+    expect(controller.state).toEqual({ ensEntries: {} });
+  });
 
-	it('should return false if an ENS entry was NOT deleted', () => {
-		const controller = new EnsController();
-		controller.set('1', name1, address1);
-		expect(controller.delete('1', 'bar')).toBeFalsy();
-		expect(controller.delete('2', 'bar')).toBeFalsy();
-		expect(controller.state).toEqual({
-			ensEntries: {
-				1: {
-					[name1]: {
-						address: address1Checksum,
-						chainId: '1',
-						ensName: name1
-					}
-				}
-			}
-		});
-	});
+  it('should return false if an ENS entry was NOT deleted', () => {
+    const controller = new EnsController();
+    controller.set('1', name1, address1);
+    expect(controller.delete('1', 'bar')).toBeFalsy();
+    expect(controller.delete('2', 'bar')).toBeFalsy();
+    expect(controller.state).toEqual({
+      ensEntries: {
+        1: {
+          [name1]: {
+            address: address1Checksum,
+            chainId: '1',
+            ensName: name1,
+          },
+        },
+      },
+    });
+  });
 
-	it('should add multiple ENS entries and remove without side effects', () => {
-		const controller = new EnsController();
-		expect(controller.set('1', name1, address1)).toBeTruthy();
-		expect(controller.set('1', name2, address2)).toBeTruthy();
-		expect(controller.set('2', name1, address1)).toBeTruthy();
-		expect(controller.delete('1', name1)).toBeTruthy();
-		expect(controller.state).toEqual({
-			ensEntries: {
-				1: {
-					[name2]: {
-						address: address2Checksum,
-						chainId: '1',
-						ensName: name2
-					}
-				},
-				2: {
-					[name1]: {
-						address: address1Checksum,
-						chainId: '2',
-						ensName: name1
-					}
-				}
-			}
-		});
-	});
+  it('should add multiple ENS entries and remove without side effects', () => {
+    const controller = new EnsController();
+    expect(controller.set('1', name1, address1)).toBeTruthy();
+    expect(controller.set('1', name2, address2)).toBeTruthy();
+    expect(controller.set('2', name1, address1)).toBeTruthy();
+    expect(controller.delete('1', name1)).toBeTruthy();
+    expect(controller.state).toEqual({
+      ensEntries: {
+        1: {
+          [name2]: {
+            address: address2Checksum,
+            chainId: '1',
+            ensName: name2,
+          },
+        },
+        2: {
+          [name1]: {
+            address: address1Checksum,
+            chainId: '2',
+            ensName: name1,
+          },
+        },
+      },
+    });
+  });
 
-	it('should clear all ENS entries', () => {
-		const controller = new EnsController();
-		expect(controller.set('1', name1, address1)).toBeTruthy();
-		expect(controller.set('1', name2, address2)).toBeTruthy();
-		expect(controller.set('2', name1, address1)).toBeTruthy();
-		controller.clear();
-		expect(controller.state).toEqual({ ensEntries: {} });
-	});
+  it('should clear all ENS entries', () => {
+    const controller = new EnsController();
+    expect(controller.set('1', name1, address1)).toBeTruthy();
+    expect(controller.set('1', name2, address2)).toBeTruthy();
+    expect(controller.set('2', name1, address1)).toBeTruthy();
+    controller.clear();
+    expect(controller.state).toEqual({ ensEntries: {} });
+  });
 });

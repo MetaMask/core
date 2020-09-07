@@ -35,6 +35,14 @@ module.exports = {
       },
     ],
     '@typescript-eslint/prefer-optional-chain': 'off',
+    '@typescript-eslint/space-before-function-paren': [
+      'error',
+      {
+        'anonymous': 'always',
+        'named': 'never',
+        'asyncArrow': 'always',
+      },
+    ],
 
     'callback-return': 'off',
     'camelcase': 'off',

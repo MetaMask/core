@@ -116,8 +116,7 @@
     "parser": "typescript",
     "printWidth": 120,
     "singleQuote": true,
-    "tabWidth": 4,
-    "useTabs": true
+    "trailingComma": "all"
   },
   "lint-staged": {
     "*.ts": [
