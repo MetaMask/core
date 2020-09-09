@@ -42,7 +42,7 @@ export interface TypedMessage extends AbstractMessage {
  * @property origin? - Added for request origin identification
  */
 export interface TypedMessageParams extends AbstractMessageParams {
-  data: object[] | string;
+  data: Record<string, unknown>[] | string;
 }
 
 /**
@@ -60,7 +60,7 @@ export interface TypedMessageParams extends AbstractMessageParams {
  * @property version - Compatibility version EIP712
  */
 export interface TypedMessageParamsMetamask extends AbstractMessageParamsMetamask {
-  data: object[] | string;
+  data: Record<string, unknown>[] | string;
   metamaskId: string;
   error?: string;
   version: string;

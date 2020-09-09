@@ -16,6 +16,9 @@ module.exports = {
     },
   }],
   rules: {
+    'no-shadow': 'off',
+    '@typescript-eslint/no-shadow': 'error',
+
     // TODO re-enable most of these rules
     '@typescript-eslint/no-non-null-assertion': 'off',
     '@typescript-eslint/no-require-imports': 'off',
