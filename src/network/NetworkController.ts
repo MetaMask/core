@@ -76,8 +76,6 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
     switch (type) {
       case 'kovan':
       case 'mainnet':
-        this.setupInfuraProvider(type);
-        break;
       case 'rinkeby':
       case 'goerli':
       case 'ropsten':
