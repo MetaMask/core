@@ -210,6 +210,7 @@ export abstract class AbstractMessageManager<
    * @returns - Promise resolving to the messageParams with the metamaskId property removed
    */
   approveMessage(messageParams: PM): Promise<P> {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this.setMessageStatusApproved(messageParams.metamaskId);
     return this.prepMessageForSigning(messageParams);
