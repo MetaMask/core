@@ -195,7 +195,7 @@ export interface TransactionConfig extends BaseConfig {
  */
 export interface MethodData {
   registryMethod: string;
-  parsedRegistryMethod: object;
+  parsedRegistryMethod: Record<string, unknown>;
 }
 
 /**
