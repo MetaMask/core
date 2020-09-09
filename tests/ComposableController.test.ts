@@ -10,196 +10,196 @@ import { AssetsContractController } from '../src/assets/AssetsContractController
 import CurrencyRateController from '../src/assets/CurrencyRateController';
 
 describe('ComposableController', () => {
-	it('should compose controller state', () => {
-		const controller = new ComposableController([
-			new AddressBookController(),
-			new AssetsController(),
-			new AssetsContractController(),
-			new EnsController(),
-			new CurrencyRateController(),
-			new NetworkController(),
-			new PreferencesController(),
-			new TokenRatesController()
-		]);
-		expect(controller.state).toEqual({
-			AddressBookController: { addressBook: {} },
-			AssetsContractController: {},
-			AssetsController: {
-				allCollectibleContracts: {},
-				allCollectibles: {},
-				allTokens: {},
-				collectibleContracts: [],
-				collectibles: [],
-				ignoredCollectibles: [],
-				ignoredTokens: [],
-				suggestedAssets: [],
-				tokens: []
-			},
-			CurrencyRateController: {
-				conversionDate: 0,
-				conversionRate: 0,
-				currentCurrency: 'usd',
-				nativeCurrency: 'ETH'
-			},
-			EnsController: {
-				ensEntries: {}
-			},
-			NetworkController: {
-				network: 'loading',
-				provider: { type: 'mainnet' }
-			},
-			PreferencesController: {
-				featureFlags: {},
-				frequentRpcList: [],
-				identities: {},
-				ipfsGateway: 'https://ipfs.io/ipfs/',
-				lostIdentities: {},
-				selectedAddress: ''
-			},
-			TokenRatesController: { contractExchangeRates: {} }
-		});
-	});
+  it('should compose controller state', () => {
+    const controller = new ComposableController([
+      new AddressBookController(),
+      new AssetsController(),
+      new AssetsContractController(),
+      new EnsController(),
+      new CurrencyRateController(),
+      new NetworkController(),
+      new PreferencesController(),
+      new TokenRatesController(),
+    ]);
+    expect(controller.state).toEqual({
+      AddressBookController: { addressBook: {} },
+      AssetsContractController: {},
+      AssetsController: {
+        allCollectibleContracts: {},
+        allCollectibles: {},
+        allTokens: {},
+        collectibleContracts: [],
+        collectibles: [],
+        ignoredCollectibles: [],
+        ignoredTokens: [],
+        suggestedAssets: [],
+        tokens: [],
+      },
+      CurrencyRateController: {
+        conversionDate: 0,
+        conversionRate: 0,
+        currentCurrency: 'usd',
+        nativeCurrency: 'ETH',
+      },
+      EnsController: {
+        ensEntries: {},
+      },
+      NetworkController: {
+        network: 'loading',
+        provider: { type: 'mainnet' },
+      },
+      PreferencesController: {
+        featureFlags: {},
+        frequentRpcList: [],
+        identities: {},
+        ipfsGateway: 'https://ipfs.io/ipfs/',
+        lostIdentities: {},
+        selectedAddress: '',
+      },
+      TokenRatesController: { contractExchangeRates: {} },
+    });
+  });
 
-	it('should compose flat controller state', () => {
-		const controller = new ComposableController([
-			new AddressBookController(),
-			new AssetsController(),
-			new AssetsContractController(),
-			new EnsController(),
-			new CurrencyRateController(),
-			new NetworkController(),
-			new PreferencesController(),
-			new TokenRatesController()
-		]);
-		expect(controller.flatState).toEqual({
-			addressBook: {},
-			allCollectibleContracts: {},
-			allCollectibles: {},
-			allTokens: {},
-			collectibleContracts: [],
-			collectibles: [],
-			contractExchangeRates: {},
-			conversionDate: 0,
-			conversionRate: 0,
-			currentCurrency: 'usd',
-			ensEntries: {},
-			featureFlags: {},
-			frequentRpcList: [],
-			identities: {},
-			ignoredCollectibles: [],
-			ignoredTokens: [],
-			ipfsGateway: 'https://ipfs.io/ipfs/',
-			lostIdentities: {},
-			nativeCurrency: 'ETH',
-			network: 'loading',
-			provider: { type: 'mainnet' },
-			selectedAddress: '',
-			suggestedAssets: [],
-			tokens: []
-		});
-	});
+  it('should compose flat controller state', () => {
+    const controller = new ComposableController([
+      new AddressBookController(),
+      new AssetsController(),
+      new AssetsContractController(),
+      new EnsController(),
+      new CurrencyRateController(),
+      new NetworkController(),
+      new PreferencesController(),
+      new TokenRatesController(),
+    ]);
+    expect(controller.flatState).toEqual({
+      addressBook: {},
+      allCollectibleContracts: {},
+      allCollectibles: {},
+      allTokens: {},
+      collectibleContracts: [],
+      collectibles: [],
+      contractExchangeRates: {},
+      conversionDate: 0,
+      conversionRate: 0,
+      currentCurrency: 'usd',
+      ensEntries: {},
+      featureFlags: {},
+      frequentRpcList: [],
+      identities: {},
+      ignoredCollectibles: [],
+      ignoredTokens: [],
+      ipfsGateway: 'https://ipfs.io/ipfs/',
+      lostIdentities: {},
+      nativeCurrency: 'ETH',
+      network: 'loading',
+      provider: { type: 'mainnet' },
+      selectedAddress: '',
+      suggestedAssets: [],
+      tokens: [],
+    });
+  });
 
-	it('should expose sibling context', () => {
-		const controller = new ComposableController([
-			new AddressBookController(),
-			new AssetsController(),
-			new AssetsContractController(),
-			new CurrencyRateController(),
-			new EnsController(),
-			new NetworkController(),
-			new PreferencesController(),
-			new TokenRatesController()
-		]);
-		const addressContext = controller.context.TokenRatesController.context
-			.AddressBookController as AddressBookController;
-		expect(addressContext).toBeDefined();
-		addressContext.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
-		expect(controller.flatState).toEqual({
-			addressBook: {
-				1: {
-					'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
-						address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-						chainId: '1',
-						isEns: false,
-						memo: '',
-						name: 'foo'
-					}
-				}
-			},
-			allCollectibleContracts: {},
-			allCollectibles: {},
-			allTokens: {},
-			collectibleContracts: [],
-			collectibles: [],
-			contractExchangeRates: {},
-			conversionDate: 0,
-			conversionRate: 0,
-			currentCurrency: 'usd',
-			ensEntries: {},
-			featureFlags: {},
-			frequentRpcList: [],
-			identities: {},
-			ignoredCollectibles: [],
-			ignoredTokens: [],
-			ipfsGateway: 'https://ipfs.io/ipfs/',
-			lostIdentities: {},
-			nativeCurrency: 'ETH',
-			network: 'loading',
-			provider: { type: 'mainnet' },
-			selectedAddress: '',
-			suggestedAssets: [],
-			tokens: []
-		});
-	});
+  it('should expose sibling context', () => {
+    const controller = new ComposableController([
+      new AddressBookController(),
+      new AssetsController(),
+      new AssetsContractController(),
+      new CurrencyRateController(),
+      new EnsController(),
+      new NetworkController(),
+      new PreferencesController(),
+      new TokenRatesController(),
+    ]);
+    const addressContext = controller.context.TokenRatesController.context
+      .AddressBookController as AddressBookController;
+    expect(addressContext).toBeDefined();
+    addressContext.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+    expect(controller.flatState).toEqual({
+      addressBook: {
+        1: {
+          '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
+            address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+            chainId: '1',
+            isEns: false,
+            memo: '',
+            name: 'foo',
+          },
+        },
+      },
+      allCollectibleContracts: {},
+      allCollectibles: {},
+      allTokens: {},
+      collectibleContracts: [],
+      collectibles: [],
+      contractExchangeRates: {},
+      conversionDate: 0,
+      conversionRate: 0,
+      currentCurrency: 'usd',
+      ensEntries: {},
+      featureFlags: {},
+      frequentRpcList: [],
+      identities: {},
+      ignoredCollectibles: [],
+      ignoredTokens: [],
+      ipfsGateway: 'https://ipfs.io/ipfs/',
+      lostIdentities: {},
+      nativeCurrency: 'ETH',
+      network: 'loading',
+      provider: { type: 'mainnet' },
+      selectedAddress: '',
+      suggestedAssets: [],
+      tokens: [],
+    });
+  });
 
-	it('should get and set new stores', () => {
-		const controller = new ComposableController();
-		const addressBook = new AddressBookController();
-		controller.controllers = [addressBook];
-		expect(controller.controllers).toEqual([addressBook]);
-	});
+  it('should get and set new stores', () => {
+    const controller = new ComposableController();
+    const addressBook = new AddressBookController();
+    controller.controllers = [addressBook];
+    expect(controller.controllers).toEqual([addressBook]);
+  });
 
-	it('should set initial state', () => {
-		const state = {
-			AddressBookController: {
-				addressBook: [
-					{
-						1: {
-							address: 'bar',
-							chainId: '1',
-							isEns: false,
-							memo: '',
-							name: 'foo'
-						}
-					}
-				]
-			}
-		};
-		const controller = new ComposableController([new AddressBookController()], state);
-		expect(controller.state).toEqual(state);
-	});
+  it('should set initial state', () => {
+    const state = {
+      AddressBookController: {
+        addressBook: [
+          {
+            1: {
+              address: 'bar',
+              chainId: '1',
+              isEns: false,
+              memo: '',
+              name: 'foo',
+            },
+          },
+        ],
+      },
+    };
+    const controller = new ComposableController([new AddressBookController()], state);
+    expect(controller.state).toEqual(state);
+  });
 
-	it('should notify listeners of nested state change', () => {
-		const addressBookController = new AddressBookController();
-		const controller = new ComposableController([addressBookController]);
-		const listener = stub();
-		controller.subscribe(listener);
-		addressBookController.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
-		expect(listener.calledOnce).toBe(true);
-		expect(listener.getCall(0).args[0]).toEqual({
-			AddressBookController: {
-				addressBook: {
-					1: {
-						'0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
-							address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-							chainId: '1',
-							isEns: false,
-							memo: '',
-							name: 'foo'
-						}
-					}
-				}
-			}
-		});
-	});
+  it('should notify listeners of nested state change', () => {
+    const addressBookController = new AddressBookController();
+    const controller = new ComposableController([addressBookController]);
+    const listener = stub();
+    controller.subscribe(listener);
+    addressBookController.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+    expect(listener.calledOnce).toBe(true);
+    expect(listener.getCall(0).args[0]).toEqual({
+      AddressBookController: {
+        addressBook: {
+          1: {
+            '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
+              address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+              chainId: '1',
+              isEns: false,
+              memo: '',
+              name: 'foo',
+            },
+          },
+        },
+      },
+    });
+  });
 });

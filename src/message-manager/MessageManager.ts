@@ -1,10 +1,11 @@
 import { validateSignMessageData, normalizeMessageData } from '../util';
 import AbstractMessageManager, {
-	AbstractMessage,
-	AbstractMessageParams,
-	AbstractMessageParamsMetamask,
-	OriginalRequest
+  AbstractMessage,
+  AbstractMessageParams,
+  AbstractMessageParamsMetamask,
+  OriginalRequest,
 } from './AbstractMessageManager';
+
 const random = require('uuid/v1');
 
 /**
@@ -20,7 +21,7 @@ const random = require('uuid/v1');
  * @property rawSig - Raw data of the signature request
  */
 export interface Message extends AbstractMessage {
-	messageParams: MessageParams;
+  messageParams: MessageParams;
 }
 
 /**
@@ -33,7 +34,7 @@ export interface Message extends AbstractMessage {
  * @property origin? - Added for request origin identification
  */
 export interface MessageParams extends AbstractMessageParams {
-	data: string;
+  data: string;
 }
 
 /**
@@ -48,84 +49,85 @@ export interface MessageParams extends AbstractMessageParams {
  * @property origin? - Added for request origin identification
  */
 export interface MessageParamsMetamask extends AbstractMessageParamsMetamask {
-	data: string;
+  data: string;
 }
 
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
 export class MessageManager extends AbstractMessageManager<Message, MessageParams, MessageParamsMetamask> {
-	/**
-	 * Name of this controller used during composition
-	 */
-	name = 'MessageManager';
 
-	/**
-	 * Creates a new Message with an 'unapproved' status using the passed messageParams.
-	 * this.addMessage is called to add the new Message to this.messages, and to save the unapproved Messages.
-	 *
-	 * @param messageParams - The params for the eth_sign call to be made after the message is approved
-	 * @param req? - The original request object possibly containing the origin
-	 * @returns - Promise resolving to the raw data of the signature request
-	 */
-	addUnapprovedMessageAsync(messageParams: MessageParams, req?: OriginalRequest): Promise<string> {
-		return new Promise((resolve, reject) => {
-			validateSignMessageData(messageParams);
-			const messageId = this.addUnapprovedMessage(messageParams, req);
-			this.hub.once(`${messageId}:finished`, (data: Message) => {
-				switch (data.status) {
-					case 'signed':
-						return resolve(data.rawSig);
-					case 'rejected':
-						return reject(new Error('MetaMask Message Signature: User denied message signature.'));
-					default:
-						return reject(
-							new Error(`MetaMask Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`)
-						);
-				}
-			});
-		});
-	}
+  /**
+   * Name of this controller used during composition
+   */
+  name = 'MessageManager';
 
-	/**
-	 * Creates a new Message with an 'unapproved' status using the passed messageParams.
-	 * this.addMessage is called to add the new Message to this.messages, and to save the
-	 * unapproved Messages.
-	 *
-	 * @param messageParams - The params for the eth_sign call to be made after the message
-	 * is approved
-	 * @param req? - The original request object possibly containing the origin
-	 * @returns - The id of the newly created message
-	 */
-	addUnapprovedMessage(messageParams: MessageParams, req?: OriginalRequest) {
-		if (req) {
-			messageParams.origin = req.origin;
-		}
-		messageParams.data = normalizeMessageData(messageParams.data);
-		const messageId = random();
-		const messageData: Message = {
-			id: messageId,
-			messageParams,
-			status: 'unapproved',
-			time: Date.now(),
-			type: 'eth_sign'
-		};
-		this.addMessage(messageData);
-		this.hub.emit(`unapprovedMessage`, { ...messageParams, ...{ metamaskId: messageId } });
-		return messageId;
-	}
+  /**
+   * Creates a new Message with an 'unapproved' status using the passed messageParams.
+   * this.addMessage is called to add the new Message to this.messages, and to save the unapproved Messages.
+   *
+   * @param messageParams - The params for the eth_sign call to be made after the message is approved
+   * @param req? - The original request object possibly containing the origin
+   * @returns - Promise resolving to the raw data of the signature request
+   */
+  addUnapprovedMessageAsync(messageParams: MessageParams, req?: OriginalRequest): Promise<string> {
+    return new Promise((resolve, reject) => {
+      validateSignMessageData(messageParams);
+      const messageId = this.addUnapprovedMessage(messageParams, req);
+      this.hub.once(`${messageId}:finished`, (data: Message) => {
+        switch (data.status) {
+          case 'signed':
+            return resolve(data.rawSig);
+          case 'rejected':
+            return reject(new Error('MetaMask Message Signature: User denied message signature.'));
+          default:
+            return reject(
+              new Error(`MetaMask Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`)
+            );
+        }
+      });
+    });
+  }
 
-	/**
-	 * Removes the metamaskId property from passed messageParams and returns a promise which
-	 * resolves the updated messageParams
-	 *
-	 * @param messageParams - The messageParams to modify
-	 * @returns - Promise resolving to the messageParams with the metamaskId property removed
-	 */
-	prepMessageForSigning(messageParams: MessageParamsMetamask): Promise<MessageParams> {
-		delete messageParams.metamaskId;
-		return Promise.resolve(messageParams);
-	}
+  /**
+   * Creates a new Message with an 'unapproved' status using the passed messageParams.
+   * this.addMessage is called to add the new Message to this.messages, and to save the
+   * unapproved Messages.
+   *
+   * @param messageParams - The params for the eth_sign call to be made after the message
+   * is approved
+   * @param req? - The original request object possibly containing the origin
+   * @returns - The id of the newly created message
+   */
+  addUnapprovedMessage(messageParams: MessageParams, req?: OriginalRequest) {
+    if (req) {
+      messageParams.origin = req.origin;
+    }
+    messageParams.data = normalizeMessageData(messageParams.data);
+    const messageId = random();
+    const messageData: Message = {
+      id: messageId,
+      messageParams,
+      status: 'unapproved',
+      time: Date.now(),
+      type: 'eth_sign',
+    };
+    this.addMessage(messageData);
+    this.hub.emit(`unapprovedMessage`, { ...messageParams, ...{ metamaskId: messageId } });
+    return messageId;
+  }
+
+  /**
+   * Removes the metamaskId property from passed messageParams and returns a promise which
+   * resolves the updated messageParams
+   *
+   * @param messageParams - The messageParams to modify
+   * @returns - Promise resolving to the messageParams with the metamaskId property removed
+   */
+  prepMessageForSigning(messageParams: MessageParamsMetamask): Promise<MessageParams> {
+    delete messageParams.metamaskId;
+    return Promise.resolve(messageParams);
+  }
 }
 
 export default MessageManager;

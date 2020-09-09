@@ -13,7 +13,7 @@ export type Listener<T> = (state: T) => void;
  * @property disabled - Determines if this controller is enabled
  */
 export interface BaseConfig {
-	disabled?: boolean;
+  disabled?: boolean;
 }
 
 /**
@@ -24,180 +24,183 @@ export interface BaseConfig {
  * @property name - Unique name for this controller
  */
 export interface BaseState {
-	name?: string;
+  name?: string;
 }
 
 /**
  * Controller class that provides configuration, state management, and subscriptions
  */
 export class BaseController<C extends BaseConfig, S extends BaseState> {
-	/**
-	 * Map of all sibling child controllers keyed by name if this
-	 * controller is composed using a ComposableController, allowing
-	 * any API on any sibling controller to be accessed
-	 */
-	context: ChildControllerContext = {};
+  /**
+   * Map of all sibling child controllers keyed by name if this
+   * controller is composed using a ComposableController, allowing
+   * any API on any sibling controller to be accessed
+   */
+  context: ChildControllerContext = {};
 
-	/**
-	 * Default options used to configure this controller
-	 */
-	defaultConfig: C = {} as C;
+  /**
+   * Default options used to configure this controller
+   */
+  defaultConfig: C = {} as C;
 
-	/**
-	 * Default state set on this controller
-	 */
-	defaultState: S = {} as S;
+  /**
+   * Default state set on this controller
+   */
+  defaultState: S = {} as S;
 
-	/**
-	 * Determines if listeners are notified of state changes
-	 */
-	disabled = false;
+  /**
+   * Determines if listeners are notified of state changes
+   */
+  disabled = false;
 
-	/**
-	 * Name of this controller used during composition
-	 */
-	name = 'BaseController';
+  /**
+   * Name of this controller used during composition
+   */
+  name = 'BaseController';
 
-	/**
-	 * List of required sibling controllers this controller needs to function
-	 */
-	requiredControllers: string[] = [];
+  /**
+   * List of required sibling controllers this controller needs to function
+   */
+  requiredControllers: string[] = [];
 
-	private initialConfig: C;
-	private initialState: S;
-	private internalConfig: C = this.defaultConfig;
-	private internalState: S = this.defaultState;
-	private internalListeners: Array<Listener<S>> = [];
+  private initialConfig: C;
 
-	/**
-	 * Creates a BaseController instance. Both initial state and initial
-	 * configuration options are merged with defaults upon initialization.
-	 *
-	 * @param config - Initial options used to configure this controller
-	 * @param state - Initial state to set on this controller
-	 */
-	constructor(config: Partial<C> = {} as C, state: Partial<S> = {} as S) {
-		// Use assign since generics can't be spread: https://git.io/vpRhY
-		/* tslint:disable:prefer-object-spread */
-		this.initialState = state as S;
-		this.initialConfig = config as C;
-	}
+  private initialState: S;
 
-	/**
-	 * Enables the controller. This sets each config option as a member
-	 * variable on this instance and triggers any defined setters. This
-	 * also sets initial state and triggers any listeners.
-	 *
-	 * @returns - This controller instance
-	 */
-	protected initialize() {
-		this.internalState = this.defaultState;
-		this.internalConfig = this.defaultConfig;
-		this.configure(this.initialConfig);
-		this.update(this.initialState);
-		return this;
-	}
+  private internalConfig: C = this.defaultConfig;
 
-	/**
-	 * Retrieves current controller configuration options
-	 *
-	 * @returns - Current configuration
-	 */
-	get config() {
-		return this.internalConfig;
-	}
+  private internalState: S = this.defaultState;
 
-	/**
-	 * Retrieves current controller state
-	 *
-	 * @returns - Current state
-	 */
-	get state() {
-		return this.internalState;
-	}
+  private internalListeners: Listener<S>[] = [];
 
-	/**
-	 * Updates controller configuration
-	 *
-	 * @param config - New configuration options
-	 * @param overwrite - Overwrite config instead of merging
-	 * @param fullUpdate - Boolean that defines if the update is partial or not
-	 */
-	configure(config: Partial<C>, overwrite = false, fullUpdate = true) {
-		if (fullUpdate) {
-			this.internalConfig = overwrite ? (config as C) : Object.assign(this.internalConfig, config);
+  /**
+   * Creates a BaseController instance. Both initial state and initial
+   * configuration options are merged with defaults upon initialization.
+   *
+   * @param config - Initial options used to configure this controller
+   * @param state - Initial state to set on this controller
+   */
+  constructor(config: Partial<C> = {} as C, state: Partial<S> = {} as S) {
+    // Use assign since generics can't be spread: https://git.io/vpRhY
+    this.initialState = state as S;
+    this.initialConfig = config as C;
+  }
 
-			for (const key in this.internalConfig) {
-				if (typeof this.internalConfig[key] !== 'undefined') {
-					(this as any)[key as string] = this.internalConfig[key];
-				}
-			}
-		} else {
-			for (const key in config) {
-				/* istanbul ignore else */
-				if (typeof this.internalConfig[key] !== 'undefined') {
-					this.internalConfig[key] = config[key] as any;
-					(this as any)[key as string] = config[key];
-				}
-			}
-		}
-	}
+  /**
+   * Enables the controller. This sets each config option as a member
+   * variable on this instance and triggers any defined setters. This
+   * also sets initial state and triggers any listeners.
+   *
+   * @returns - This controller instance
+   */
+  protected initialize() {
+    this.internalState = this.defaultState;
+    this.internalConfig = this.defaultConfig;
+    this.configure(this.initialConfig);
+    this.update(this.initialState);
+    return this;
+  }
 
-	/**
-	 * Notifies all subscribed listeners of current state
-	 */
-	notify() {
-		if (this.disabled) {
-			return;
-		}
-		this.internalListeners.forEach((listener) => {
-			listener(this.internalState);
-		});
-	}
+  /**
+   * Retrieves current controller configuration options
+   *
+   * @returns - Current configuration
+   */
+  get config() {
+    return this.internalConfig;
+  }
 
-	/**
-	 * Extension point called if and when this controller is composed
-	 * with other controllers using a ComposableController
-	 */
-	onComposed() {
-		this.requiredControllers.forEach((name) => {
-			if (!this.context[name]) {
-				throw new Error(`${this.name} must be composed with ${name}.`);
-			}
-		});
-	}
+  /**
+   * Retrieves current controller state
+   *
+   * @returns - Current state
+   */
+  get state() {
+    return this.internalState;
+  }
 
-	/**
-	 * Adds new listener to be notified of state changes
-	 *
-	 * @param listener - Callback triggered when state changes
-	 */
-	subscribe(listener: Listener<S>) {
-		this.internalListeners.push(listener);
-	}
+  /**
+   * Updates controller configuration
+   *
+   * @param config - New configuration options
+   * @param overwrite - Overwrite config instead of merging
+   * @param fullUpdate - Boolean that defines if the update is partial or not
+   */
+  configure(config: Partial<C>, overwrite = false, fullUpdate = true) {
+    if (fullUpdate) {
+      this.internalConfig = overwrite ? (config as C) : Object.assign(this.internalConfig, config);
 
-	/**
-	 * Removes existing listener from receiving state changes
-	 *
-	 * @param listener - Callback to remove
-	 * @returns - True if a listener is found and unsubscribed
-	 */
-	unsubscribe(listener: Listener<S>) {
-		const index = this.internalListeners.findIndex((cb) => listener === cb);
-		index > -1 && this.internalListeners.splice(index, 1);
-		return index > -1;
-	}
+      for (const key in this.internalConfig) {
+        if (typeof this.internalConfig[key] !== 'undefined') {
+          (this as any)[key as string] = this.internalConfig[key];
+        }
+      }
+    } else {
+      for (const key in config) {
+        /* istanbul ignore else */
+        if (typeof this.internalConfig[key] !== 'undefined') {
+          this.internalConfig[key] = config[key] as any;
+          (this as any)[key as string] = config[key];
+        }
+      }
+    }
+  }
 
-	/**
-	 * Updates controller state
-	 *
-	 * @param state - New state
-	 * @param overwrite - Overwrite state instead of merging
-	 */
-	update(state: Partial<S>, overwrite = false) {
-		this.internalState = overwrite ? Object.assign({}, state as S) : Object.assign({}, this.internalState, state);
-		this.notify();
-	}
+  /**
+   * Notifies all subscribed listeners of current state
+   */
+  notify() {
+    if (this.disabled) {
+      return;
+    }
+    this.internalListeners.forEach((listener) => {
+      listener(this.internalState);
+    });
+  }
+
+  /**
+   * Extension point called if and when this controller is composed
+   * with other controllers using a ComposableController
+   */
+  onComposed() {
+    this.requiredControllers.forEach((name) => {
+      if (!this.context[name]) {
+        throw new Error(`${this.name} must be composed with ${name}.`);
+      }
+    });
+  }
+
+  /**
+   * Adds new listener to be notified of state changes
+   *
+   * @param listener - Callback triggered when state changes
+   */
+  subscribe(listener: Listener<S>) {
+    this.internalListeners.push(listener);
+  }
+
+  /**
+   * Removes existing listener from receiving state changes
+   *
+   * @param listener - Callback to remove
+   * @returns - True if a listener is found and unsubscribed
+   */
+  unsubscribe(listener: Listener<S>) {
+    const index = this.internalListeners.findIndex((cb) => listener === cb);
+    index > -1 && this.internalListeners.splice(index, 1);
+    return index > -1;
+  }
+
+  /**
+   * Updates controller state
+   *
+   * @param state - New state
+   * @param overwrite - Overwrite state instead of merging
+   */
+  update(state: Partial<S>, overwrite = false) {
+    this.internalState = overwrite ? Object.assign({}, state as S) : Object.assign({}, this.internalState, state);
+    this.notify();
+  }
 }
 
 export default BaseController;

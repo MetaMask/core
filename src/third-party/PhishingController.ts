@@ -17,11 +17,11 @@ const PhishingDetector = require('eth-phishing-detect/src/detector');
  * @property whitelist - List of approved origins
  */
 export interface EthPhishingResponse {
-	blacklist: string[];
-	fuzzylist: string[];
-	tolerance: number;
-	version: number;
-	whitelist: string[];
+  blacklist: string[];
+  fuzzylist: string[];
+  tolerance: number;
+  version: number;
+  whitelist: string[];
 }
 
 /**
@@ -32,7 +32,7 @@ export interface EthPhishingResponse {
  * @property interval - Polling interval used to fetch new block / approve lists
  */
 export interface PhishingConfig extends BaseConfig {
-	interval: number;
+  interval: number;
 }
 
 /**
@@ -44,120 +44,123 @@ export interface PhishingConfig extends BaseConfig {
  * @property whitelist - array of temporarily-approved origins
  */
 export interface PhishingState extends BaseState {
-	phishing: EthPhishingResponse;
-	whitelist: string[];
+  phishing: EthPhishingResponse;
+  whitelist: string[];
 }
 
 /**
  * Controller that passively polls on a set interval for approved and unapproved website origins
  */
 export class PhishingController extends BaseController<PhishingConfig, PhishingState> {
-	private configUrl = 'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
-	private configEtag: string = '';
-	private detector: any;
-	private handle?: NodeJS.Timer;
+  private configUrl = 'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
 
-	/**
-	 * Name of this controller used during composition
-	 */
-	name = 'PhishingController';
+  private configEtag = '';
 
-	/**
-	 * Creates a PhishingController instance
-	 *
-	 * @param config - Initial options used to configure this controller
-	 * @param state - Initial state to set on this controller
-	 */
-	constructor(config?: Partial<PhishingConfig>, state?: Partial<PhishingState>) {
-		super(config, state);
-		this.defaultConfig = { interval: 60 * 60 * 1000 };
-		this.defaultState = {
-			phishing: DEFAULT_PHISHING_RESPONSE,
-			whitelist: []
-		};
-		this.detector = new PhishingDetector(this.defaultState.phishing);
-		this.initialize();
-		this.poll();
-	}
+  private detector: any;
 
-	/**
-	 * Starts a new polling interval
-	 *
-	 * @param interval - Polling interval used to fetch new approval lists
-	 */
-	async poll(interval?: number): Promise<void> {
-		interval && this.configure({ interval }, false, false);
-		this.handle && clearTimeout(this.handle);
-		await safelyExecute(() => this.updatePhishingLists());
-		this.handle = setTimeout(() => {
-			this.poll(this.config.interval);
-		}, this.config.interval);
-	}
+  private handle?: NodeJS.Timer;
 
-	/**
-	 * Determines if a given origin is unapproved
-	 *
-	 * @param origin - Domain origin of a website
-	 * @returns - True if the origin is an unapproved origin
-	 */
-	test(origin: string): boolean {
-		if (this.state.whitelist.indexOf(origin) !== -1) {
-			return false;
-		}
-		return this.detector.check(origin).result;
-	}
+  /**
+   * Name of this controller used during composition
+   */
+  name = 'PhishingController';
 
-	/**
-	 * Temporarily marks a given origin as approved
-	 */
-	bypass(origin: string) {
-		const { whitelist } = this.state;
-		if (whitelist.indexOf(origin) !== -1) {
-			return;
-		}
-		this.update({ whitelist: [...whitelist, origin] });
-	}
+  /**
+   * Creates a PhishingController instance
+   *
+   * @param config - Initial options used to configure this controller
+   * @param state - Initial state to set on this controller
+   */
+  constructor(config?: Partial<PhishingConfig>, state?: Partial<PhishingState>) {
+    super(config, state);
+    this.defaultConfig = { interval: 60 * 60 * 1000 };
+    this.defaultState = {
+      phishing: DEFAULT_PHISHING_RESPONSE,
+      whitelist: [],
+    };
+    this.detector = new PhishingDetector(this.defaultState.phishing);
+    this.initialize();
+    this.poll();
+  }
 
-	/**
-	 * Updates lists of approved and unapproved website origins
-	 *
-	 * @returns Promise resolving when this operation completes
-	 */
-	async updatePhishingLists() {
-		if (this.disabled) {
-			return;
-		}
+  /**
+   * Starts a new polling interval
+   *
+   * @param interval - Polling interval used to fetch new approval lists
+   */
+  async poll(interval?: number): Promise<void> {
+    interval && this.configure({ interval }, false, false);
+    this.handle && clearTimeout(this.handle);
+    await safelyExecute(() => this.updatePhishingLists());
+    this.handle = setTimeout(() => {
+      this.poll(this.config.interval);
+    }, this.config.interval);
+  }
 
-		const phishingOpts = await this.queryConfig(this.configUrl);
-		if (phishingOpts) {
-			this.detector = new PhishingDetector(phishingOpts);
-			this.update({
-				phishing: phishingOpts
-			});
-		}
-	}
+  /**
+   * Determines if a given origin is unapproved
+   *
+   * @param origin - Domain origin of a website
+   * @returns - True if the origin is an unapproved origin
+   */
+  test(origin: string): boolean {
+    if (this.state.whitelist.indexOf(origin) !== -1) {
+      return false;
+    }
+    return this.detector.check(origin).result;
+  }
 
-	private async queryConfig(input: RequestInfo): Promise<EthPhishingResponse | null> {
-		const response = await fetch(input, {
-			headers: {
-				'If-None-Match': this.configEtag
-			}
-		});
+  /**
+   * Temporarily marks a given origin as approved
+   */
+  bypass(origin: string) {
+    const { whitelist } = this.state;
+    if (whitelist.indexOf(origin) !== -1) {
+      return;
+    }
+    this.update({ whitelist: [...whitelist, origin] });
+  }
 
-		switch (response.status) {
-			case 200: {
-				this.configEtag = response.headers.get('ETag') || /* istanbul ignore next */ '';
-				return await response.json();
-			}
-			case 304:
-			case 403: {
-				return null;
-			}
-			default: {
-				throw new Error(`Fetch failed with status '${response.status}' for request '${input}'`);
-			}
-		}
-	}
+  /**
+   * Updates lists of approved and unapproved website origins
+   *
+   * @returns Promise resolving when this operation completes
+   */
+  async updatePhishingLists() {
+    if (this.disabled) {
+      return;
+    }
+
+    const phishingOpts = await this.queryConfig(this.configUrl);
+    if (phishingOpts) {
+      this.detector = new PhishingDetector(phishingOpts);
+      this.update({
+        phishing: phishingOpts,
+      });
+    }
+  }
+
+  private async queryConfig(input: RequestInfo): Promise<EthPhishingResponse | null> {
+    const response = await fetch(input, {
+      headers: {
+        'If-None-Match': this.configEtag,
+      },
+    });
+
+    switch (response.status) {
+      case 200: {
+        this.configEtag = response.headers.get('ETag') || /* istanbul ignore next */ '';
+        return await response.json();
+      }
+      case 304:
+      case 403: {
+        return null;
+      }
+      default: {
+        throw new Error(`Fetch failed with status '${response.status}' for request '${input}'`);
+      }
+    }
+  }
 }
 
 export default PhishingController;

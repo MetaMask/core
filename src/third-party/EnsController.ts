@@ -12,9 +12,9 @@ import { normalizeEnsName } from '../util';
  * @property address - Hex address with the ENS name, or null
  */
 export interface EnsEntry {
-	chainId: string;
-	ensName: string;
-	address: string | null;
+  chainId: string;
+  ensName: string;
+  address: string | null;
 }
 
 /**
@@ -25,7 +25,7 @@ export interface EnsEntry {
  * @property ensEntries - Object of ENS entry objects
  */
 export interface EnsState extends BaseState {
-	ensEntries: { [chainId: string]: { [ensName: string]: EnsEntry } };
+  ensEntries: { [chainId: string]: { [ensName: string]: EnsEntry } };
 }
 
 /**
@@ -33,125 +33,128 @@ export interface EnsState extends BaseState {
  * by chainId. A null address indicates an unresolved ENS name.
  */
 export class EnsController extends BaseController<BaseConfig, EnsState> {
-	/**
-	 * Name of this controller used during composition
-	 */
-	name = 'EnsController';
 
-	/**
-	 * Creates an EnsController instance
-	 *
-	 * @param config - Initial options used to configure this controller
-	 * @param state - Initial state to set on this controller
-	 */
-	constructor(config?: Partial<BaseConfig>, state?: Partial<EnsState>) {
-		super(config, state);
+  /**
+   * Name of this controller used during composition
+   */
+  name = 'EnsController';
 
-		this.defaultState = { ensEntries: {} };
+  /**
+   * Creates an EnsController instance
+   *
+   * @param config - Initial options used to configure this controller
+   * @param state - Initial state to set on this controller
+   */
+  constructor(config?: Partial<BaseConfig>, state?: Partial<EnsState>) {
+    super(config, state);
 
-		this.initialize();
-	}
+    this.defaultState = { ensEntries: {} };
 
-	/**
-	 * Remove all chain Ids and ENS entries from state
-	 */
-	clear() {
-		this.update({ ensEntries: {} });
-	}
+    this.initialize();
+  }
 
-	/**
-	 * Delete an ENS entry.
-	 *
-	 * @param chainId - Parent chain of the ENS entry to delete
-	 * @param ensName - Name of the ENS entry to delete
-	 *
-	 * @returns - Boolean indicating if the entry was deleted
-	 */
-	delete(chainId: string, ensName: string): boolean {
-		const normalizedEnsName = normalizeEnsName(ensName);
-		if (
-			!normalizedEnsName ||
-			!this.state.ensEntries[chainId] ||
-			!this.state.ensEntries[chainId][normalizedEnsName]
-		) {
-			return false;
-		}
+  /**
+   * Remove all chain Ids and ENS entries from state
+   */
+  clear() {
+    this.update({ ensEntries: {} });
+  }
 
-		const ensEntries = Object.assign({}, this.state.ensEntries);
-		delete ensEntries[chainId][normalizedEnsName];
+  /**
+   * Delete an ENS entry.
+   *
+   * @param chainId - Parent chain of the ENS entry to delete
+   * @param ensName - Name of the ENS entry to delete
+   *
+   * @returns - Boolean indicating if the entry was deleted
+   */
+  delete(chainId: string, ensName: string): boolean {
+    const normalizedEnsName = normalizeEnsName(ensName);
+    if (
+      !normalizedEnsName ||
+      !this.state.ensEntries[chainId] ||
+      !this.state.ensEntries[chainId][normalizedEnsName]
+    ) {
+      return false;
+    }
 
-		if (Object.keys(ensEntries[chainId]).length === 0) {
-			delete ensEntries[chainId];
-		}
+    const ensEntries = Object.assign({}, this.state.ensEntries);
+    delete ensEntries[chainId][normalizedEnsName];
 
-		this.update({ ensEntries });
-		return true;
-	}
+    if (Object.keys(ensEntries[chainId]).length === 0) {
+      delete ensEntries[chainId];
+    }
 
-	/**
-	 * Retrieve a DNS entry.
-	 *
-	 * @param chainId - Parent chain of the ENS entry to retrieve
-	 * @param ensName - Name of the ENS entry to retrieve
-	 *
-	 * @returns - The EnsEntry or null if it does not exist
-	 */
-	get(chainId: string, ensName: string): EnsEntry | null {
-		const normalizedEnsName = normalizeEnsName(ensName);
+    this.update({ ensEntries });
+    return true;
+  }
 
-		return !!normalizedEnsName && this.state.ensEntries[chainId]
-			? this.state.ensEntries[chainId][normalizedEnsName] || null
-			: null;
-	}
+  /**
+   * Retrieve a DNS entry.
+   *
+   * @param chainId - Parent chain of the ENS entry to retrieve
+   * @param ensName - Name of the ENS entry to retrieve
+   *
+   * @returns - The EnsEntry or null if it does not exist
+   */
+  get(chainId: string, ensName: string): EnsEntry | null {
+    const normalizedEnsName = normalizeEnsName(ensName);
 
-	/**
-	 * Add or update an ENS entry by chainId and ensName.
-	 *
-	 * A null address indicates that the ENS name does not resolve.
-	 *
-	 * @param chainId - Id of the associated chain
-	 * @param ensName - The ENS name
-	 * @param address - Associated address (or null) to add or update
-	 *
-	 * @returns - Boolean indicating if the entry was set
-	 */
-	set(chainId: string, ensName: string, address: string | null): boolean {
-		if (
-			!Number.isInteger(Number.parseInt(chainId, 10)) ||
-			!ensName ||
-			typeof ensName !== 'string' ||
-			(address && !isValidAddress(address))
-		) {
-			throw new Error(`Invalid ENS entry: { chainId:${chainId}, ensName:${ensName}, address:${address}}`);
-		}
+    // TODO Explicitly handle the case where `normalizedEnsName` is `null`
+    // eslint-disable-next-line no-implicit-coercion
+    return !!(normalizedEnsName) && this.state.ensEntries[chainId]
+      ? this.state.ensEntries[chainId][normalizedEnsName] || null
+      : null;
+  }
 
-		const normalizedEnsName = normalizeEnsName(ensName);
-		if (!normalizedEnsName) {
-			throw new Error(`Invalid ENS name: ${ensName}`);
-		}
+  /**
+   * Add or update an ENS entry by chainId and ensName.
+   *
+   * A null address indicates that the ENS name does not resolve.
+   *
+   * @param chainId - Id of the associated chain
+   * @param ensName - The ENS name
+   * @param address - Associated address (or null) to add or update
+   *
+   * @returns - Boolean indicating if the entry was set
+   */
+  set(chainId: string, ensName: string, address: string | null): boolean {
+    if (
+      !Number.isInteger(Number.parseInt(chainId, 10)) ||
+      !ensName ||
+      typeof ensName !== 'string' ||
+      (address && !isValidAddress(address))
+    ) {
+      throw new Error(`Invalid ENS entry: { chainId:${chainId}, ensName:${ensName}, address:${address}}`);
+    }
 
-		const normalizedAddress = address ? toChecksumAddress(address) : null;
-		const subState = this.state.ensEntries[chainId];
+    const normalizedEnsName = normalizeEnsName(ensName);
+    if (!normalizedEnsName) {
+      throw new Error(`Invalid ENS name: ${ensName}`);
+    }
 
-		if (subState && subState[normalizedEnsName] && subState[normalizedEnsName].address === normalizedAddress) {
-			return false;
-		}
+    const normalizedAddress = address ? toChecksumAddress(address) : null;
+    const subState = this.state.ensEntries[chainId];
 
-		this.update({
-			ensEntries: {
-				...this.state.ensEntries,
-				[chainId]: {
-					...this.state.ensEntries[chainId],
-					[normalizedEnsName]: {
-						address: normalizedAddress,
-						chainId,
-						ensName: normalizedEnsName
-					}
-				}
-			}
-		});
-		return true;
-	}
+    if (subState && subState[normalizedEnsName] && subState[normalizedEnsName].address === normalizedAddress) {
+      return false;
+    }
+
+    this.update({
+      ensEntries: {
+        ...this.state.ensEntries,
+        [chainId]: {
+          ...this.state.ensEntries[chainId],
+          [normalizedEnsName]: {
+            address: normalizedAddress,
+            chainId,
+            ensName: normalizedEnsName,
+          },
+        },
+      },
+    });
+    return true;
+  }
 }
 
 export default EnsController;

@@ -12,7 +12,7 @@ const EthjsQuery = require('ethjs-query');
  * @property balance - Hex string of an account balancec in wei
  */
 export interface AccountInformation {
-	balance: string;
+  balance: string;
 }
 
 /**
@@ -23,8 +23,8 @@ export interface AccountInformation {
  * @property provider - Provider used to create a new underlying EthQuery instance
  */
 export interface AccountTrackerConfig extends BaseConfig {
-	interval: number;
-	provider?: any;
+  interval: number;
+  provider?: any;
 }
 
 /**
@@ -35,108 +35,108 @@ export interface AccountTrackerConfig extends BaseConfig {
  * @property accounts - Map of addresses to account information
  */
 export interface AccountTrackerState extends BaseState {
-	accounts: { [address: string]: AccountInformation };
+  accounts: { [address: string]: AccountInformation };
 }
 
 /**
  * Controller that tracks information for all accounts in the current keychain
  */
 export class AccountTrackerController extends BaseController<AccountTrackerConfig, AccountTrackerState> {
-	private ethjsQuery: any;
-	private handle?: NodeJS.Timer;
+  private ethjsQuery: any;
 
-	private syncAccounts() {
-		const {
-			state: { identities }
-		} = this.context.PreferencesController as PreferencesController;
-		const { accounts } = this.state;
-		const addresses = Object.keys(identities);
-		const existing = Object.keys(accounts);
-		const newAddresses = addresses.filter((address) => existing.indexOf(address) === -1);
-		const oldAddresses = existing.filter((address) => addresses.indexOf(address) === -1);
-		newAddresses.forEach((address) => {
-			accounts[address] = { balance: '0x0' };
-		});
-		oldAddresses.forEach((address) => {
-			delete accounts[address];
-		});
-		this.update({ accounts: { ...accounts } });
-	}
+  private handle?: NodeJS.Timer;
 
-	/**
-	 * Name of this controller used during composition
-	 */
-	name = 'AccountTrackerController';
+  private syncAccounts() {
+    const {
+      state: { identities },
+    } = this.context.PreferencesController as PreferencesController;
+    const { accounts } = this.state;
+    const addresses = Object.keys(identities);
+    const existing = Object.keys(accounts);
+    const newAddresses = addresses.filter((address) => existing.indexOf(address) === -1);
+    const oldAddresses = existing.filter((address) => addresses.indexOf(address) === -1);
+    newAddresses.forEach((address) => {
+      accounts[address] = { balance: '0x0' };
+    });
+    oldAddresses.forEach((address) => {
+      delete accounts[address];
+    });
+    this.update({ accounts: { ...accounts } });
+  }
 
-	/**
-	 * List of required sibling controllers this controller needs to function
-	 */
-	requiredControllers = ['PreferencesController'];
+  /**
+   * Name of this controller used during composition
+   */
+  name = 'AccountTrackerController';
 
-	/**
-	 * Creates an AccountTracker instance
-	 *
-	 * @param config - Initial options used to configure this controller
-	 * @param state - Initial state to set on this controller
-	 */
-	constructor(config?: Partial<AccountTrackerConfig>, state?: Partial<AccountTrackerState>) {
-		super(config, state);
-		this.defaultConfig = {
-			interval: 10000
-		};
-		this.defaultState = { accounts: {} };
-		this.initialize();
-	}
+  /**
+   * List of required sibling controllers this controller needs to function
+   */
+  requiredControllers = ['PreferencesController'];
 
-	/**
-	 * Sets a new provider
-	 *
-	 * @param provider - Provider used to create a new underlying EthQuery instance
-	 */
-	set provider(provider: any) {
-		this.ethjsQuery = new EthjsQuery(provider);
-	}
+  /**
+   * Creates an AccountTracker instance
+   *
+   * @param config - Initial options used to configure this controller
+   * @param state - Initial state to set on this controller
+   */
+  constructor(config?: Partial<AccountTrackerConfig>, state?: Partial<AccountTrackerState>) {
+    super(config, state);
+    this.defaultConfig = {
+      interval: 10000,
+    };
+    this.defaultState = { accounts: {} };
+    this.initialize();
+  }
 
-	/**
-	 * Extension point called if and when this controller is composed
-	 * with other controllers using a ComposableController
-	 */
-	onComposed() {
-		super.onComposed();
-		const preferences = this.context.PreferencesController as PreferencesController;
-		preferences.subscribe(this.refresh);
-		this.poll();
-	}
+  /**
+   * Sets a new provider
+   *
+   * @param provider - Provider used to create a new underlying EthQuery instance
+   */
+  set provider(provider: any) {
+    this.ethjsQuery = new EthjsQuery(provider);
+  }
 
-	/**
-	 * Starts a new polling interval
-	 *
-	 * @param interval - Polling interval trigger a 'refresh'
-	 */
-	async poll(interval?: number): Promise<void> {
-		interval && this.configure({ interval }, false, false);
-		this.handle && clearTimeout(this.handle);
-		await safelyExecute(() => this.refresh());
-		this.handle = setTimeout(() => {
-			this.poll(this.config.interval);
-		}, this.config.interval);
-	}
+  /**
+   * Extension point called if and when this controller is composed
+   * with other controllers using a ComposableController
+   */
+  onComposed() {
+    super.onComposed();
+    const preferences = this.context.PreferencesController as PreferencesController;
+    preferences.subscribe(this.refresh);
+    this.poll();
+  }
 
-	/**
-	 * Refreshes all accounts in the current keychain
-	 */
-	refresh = async () => {
-		this.syncAccounts();
-		const { accounts } = this.state;
-		for (const address in accounts) {
-			await safelyExecute(async () => {
-				const balance = await this.ethjsQuery.getBalance(address);
-				accounts[address] = { balance: BNToHex(balance) };
-				this.update({ accounts: { ...accounts } });
-			});
-		}
-		/* tslint:disable-next-line */
-	};
+  /**
+   * Starts a new polling interval
+   *
+   * @param interval - Polling interval trigger a 'refresh'
+   */
+  async poll(interval?: number): Promise<void> {
+    interval && this.configure({ interval }, false, false);
+    this.handle && clearTimeout(this.handle);
+    await safelyExecute(() => this.refresh());
+    this.handle = setTimeout(() => {
+      this.poll(this.config.interval);
+    }, this.config.interval);
+  }
+
+  /**
+   * Refreshes all accounts in the current keychain
+   */
+  refresh = async () => {
+    this.syncAccounts();
+    const { accounts } = this.state;
+    for (const address in accounts) {
+      await safelyExecute(async () => {
+        const balance = await this.ethjsQuery.getBalance(address);
+        accounts[address] = { balance: BNToHex(balance) };
+        this.update({ accounts: { ...accounts } });
+      });
+    }
+  };
 }
 
 export default AccountTrackerController;

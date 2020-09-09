@@ -11,8 +11,8 @@ import BaseController, { BaseConfig, BaseState } from '../BaseController';
  * @property name - Nickname associated with this address
  */
 export interface ContactEntry {
-	address: string;
-	name: string;
+  address: string;
+  name: string;
 }
 
 /**
@@ -27,11 +27,11 @@ export interface ContactEntry {
  * @property isEns - is the entry an ENS name
  */
 export interface AddressBookEntry {
-	address: string;
-	name: string;
-	chainId: string;
-	memo: string;
-	isEns: boolean;
+  address: string;
+  name: string;
+  chainId: string;
+  memo: string;
+  isEns: boolean;
 }
 
 /**
@@ -42,103 +42,104 @@ export interface AddressBookEntry {
  * @property addressBook - Array of contact entry objects
  */
 export interface AddressBookState extends BaseState {
-	addressBook: { [chainId: string]: { [address: string]: AddressBookEntry } };
+  addressBook: { [chainId: string]: { [address: string]: AddressBookEntry } };
 }
 
 /**
  * Controller that manages a list of recipient addresses associated with nicknames
  */
 export class AddressBookController extends BaseController<BaseConfig, AddressBookState> {
-	/**
-	 * Name of this controller used during composition
-	 */
-	name = 'AddressBookController';
 
-	/**
-	 * Creates an AddressBookController instance
-	 *
-	 * @param config - Initial options used to configure this controller
-	 * @param state - Initial state to set on this controller
-	 */
-	constructor(config?: Partial<BaseConfig>, state?: Partial<AddressBookState>) {
-		super(config, state);
+  /**
+   * Name of this controller used during composition
+   */
+  name = 'AddressBookController';
 
-		this.defaultState = { addressBook: {} };
+  /**
+   * Creates an AddressBookController instance
+   *
+   * @param config - Initial options used to configure this controller
+   * @param state - Initial state to set on this controller
+   */
+  constructor(config?: Partial<BaseConfig>, state?: Partial<AddressBookState>) {
+    super(config, state);
 
-		this.initialize();
-	}
+    this.defaultState = { addressBook: {} };
 
-	/**
-	 * Remove all contract entries
-	 */
-	clear() {
-		this.update({ addressBook: {} });
-	}
+    this.initialize();
+  }
 
-	/**
-	 * Remove a contract entry by address
-	 *
-	 * @param chainId - Chain id identifies the current chain
-	 * @param address - Recipient address to delete
-	 */
-	delete(chainId: string, address: string) {
-		address = toChecksumAddress(address);
-		if (!isValidAddress(address) || !this.state.addressBook[chainId] || !this.state.addressBook[chainId][address]) {
-			return false;
-		}
+  /**
+   * Remove all contract entries
+   */
+  clear() {
+    this.update({ addressBook: {} });
+  }
 
-		const addressBook = Object.assign({}, this.state.addressBook);
-		delete addressBook[chainId][address];
+  /**
+   * Remove a contract entry by address
+   *
+   * @param chainId - Chain id identifies the current chain
+   * @param address - Recipient address to delete
+   */
+  delete(chainId: string, address: string) {
+    address = toChecksumAddress(address);
+    if (!isValidAddress(address) || !this.state.addressBook[chainId] || !this.state.addressBook[chainId][address]) {
+      return false;
+    }
 
-		if (Object.keys(addressBook[chainId]).length === 0) {
-			delete addressBook[chainId];
-		}
+    const addressBook = Object.assign({}, this.state.addressBook);
+    delete addressBook[chainId][address];
 
-		this.update({ addressBook });
-		return true;
-	}
+    if (Object.keys(addressBook[chainId]).length === 0) {
+      delete addressBook[chainId];
+    }
 
-	/**
-	 * Add or update a contact entry by address
-	 *
-	 * @param address - Recipient address to add or update
-	 * @param name - Nickname to associate with this address
-	 * @param chainId - Chain id identifies the current chain
-	 * @param memo - User's note about address
-	 * @returns - Boolean indicating if the address was successfully set
-	 */
-	set(address: string, name: string, chainId = '1', memo = '') {
-		address = toChecksumAddress(address);
-		if (!isValidAddress(address)) {
-			return false;
-		}
+    this.update({ addressBook });
+    return true;
+  }
 
-		const entry = {
-			address,
-			chainId,
-			isEns: false,
-			memo,
-			name
-		};
+  /**
+   * Add or update a contact entry by address
+   *
+   * @param address - Recipient address to add or update
+   * @param name - Nickname to associate with this address
+   * @param chainId - Chain id identifies the current chain
+   * @param memo - User's note about address
+   * @returns - Boolean indicating if the address was successfully set
+   */
+  set(address: string, name: string, chainId = '1', memo = '') {
+    address = toChecksumAddress(address);
+    if (!isValidAddress(address)) {
+      return false;
+    }
 
-		const ensName = normalizeEnsName(name);
-		if (ensName) {
-			entry.name = ensName;
-			entry.isEns = true;
-		}
+    const entry = {
+      address,
+      chainId,
+      isEns: false,
+      memo,
+      name,
+    };
 
-		this.update({
-			addressBook: {
-				...this.state.addressBook,
-				[chainId]: {
-					...this.state.addressBook[chainId],
-					[address]: entry
-				}
-			}
-		});
+    const ensName = normalizeEnsName(name);
+    if (ensName) {
+      entry.name = ensName;
+      entry.isEns = true;
+    }
 
-		return true;
-	}
+    this.update({
+      addressBook: {
+        ...this.state.addressBook,
+        [chainId]: {
+          ...this.state.addressBook[chainId],
+          [address]: entry,
+        },
+      },
+    });
+
+    return true;
+  }
 }
 
 export default AddressBookController;

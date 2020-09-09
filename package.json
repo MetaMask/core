@@ -13,7 +13,7 @@
   },
   "scripts": {
     "prepublishOnly": "yarn build",
-    "lint": "tslint src/**/*.ts",
+    "lint": "eslint --ext .ts .",
     "test": "jest --coverage",
     "format": "prettier **/*.ts --write --ignore-path=.gitignore",
     "build": "rm -rf dist && tsc",
@@ -58,23 +58,27 @@
     "web3-provider-engine": "^15.0.4"
   },
   "devDependencies": {
+    "@metamask/eslint-config": "^3.0.0",
     "@types/fetch-mock": "^7.3.1",
     "@types/jest": "^22.2.3",
     "@types/node": "^10.1.4",
     "@types/sinon": "^4.3.3",
     "@types/web3": "^1.0.6",
     "@types/xtend": "^4.0.2",
+    "@typescript-eslint/eslint-plugin": "^2.20.0",
+    "@typescript-eslint/parser": "^2.17.0",
+    "eslint": "^6.8.0",
+    "eslint-plugin-import": "^2.20.1",
+    "eslint-plugin-jest": "^23.6.0",
     "ethjs-provider-http": "^0.1.6",
     "fetch-mock": "^7.3.9",
     "jest": "^25.1.0",
     "jsdom": "11.11.0",
     "lint-staged": "^6.1.0",
-    "prettier": "^1.10.2",
+    "prettier": "^2.1.1",
     "scrypt": "github:barrysteyn/node-scrypt#pull/144/head",
     "sinon": "^7.4.1",
     "ts-jest": "^25.2.1",
-    "tslint": "^5.10.0",
-    "tslint-config-prettier": "^1.13.0",
     "typedoc": "^0.15.0",
     "typescript": "^3.9.7"
   },
@@ -112,13 +116,12 @@
     "parser": "typescript",
     "printWidth": 120,
     "singleQuote": true,
-    "tabWidth": 4,
-    "useTabs": true
+    "trailingComma": "all"
   },
   "lint-staged": {
     "*.ts": [
       "prettier --write",
-      "tslint",
+      "yarn lint",
       "git add"
     ]
   }

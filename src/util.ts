@@ -9,16 +9,17 @@ const sigUtil = require('eth-sig-util');
 const jsonschema = require('jsonschema');
 const { BN, stripHexPrefix } = require('ethereumjs-util');
 const ensNamehash = require('eth-ens-namehash');
+
 const hexRe = /^[0-9A-Fa-f]+$/g;
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
-	data: (data: string) => addHexPrefix(data),
-	from: (from: string) => addHexPrefix(from).toLowerCase(),
-	gas: (gas: string) => addHexPrefix(gas),
-	gasPrice: (gasPrice: string) => addHexPrefix(gasPrice),
-	nonce: (nonce: string) => addHexPrefix(nonce),
-	to: (to: string) => addHexPrefix(to).toLowerCase(),
-	value: (value: string) => addHexPrefix(value)
+  data: (data: string) => addHexPrefix(data),
+  from: (from: string) => addHexPrefix(from).toLowerCase(),
+  gas: (gas: string) => addHexPrefix(gas),
+  gasPrice: (gasPrice: string) => addHexPrefix(gasPrice),
+  nonce: (nonce: string) => addHexPrefix(nonce),
+  to: (to: string) => addHexPrefix(to).toLowerCase(),
+  value: (value: string) => addHexPrefix(value),
 };
 
 /**
@@ -29,7 +30,7 @@ const NORMALIZERS: { [param in keyof Transaction]: any } = {
  *
  */
 export function BNToHex(inputBn: any) {
-	return addHexPrefix(inputBn.toString(16));
+  return addHexPrefix(inputBn.toString(16));
 }
 
 /**
@@ -41,9 +42,9 @@ export function BNToHex(inputBn: any) {
  * @returns - Product of the multiplication
  */
 export function fractionBN(targetBN: any, numerator: number | string, denominator: number | string) {
-	const numBN = new BN(numerator);
-	const denomBN = new BN(denominator);
-	return targetBN.mul(numBN).div(denomBN);
+  const numBN = new BN(numerator);
+  const denomBN = new BN(denominator);
+  return targetBN.mul(numBN).div(denomBN);
 }
 
 /**
@@ -55,19 +56,18 @@ export function fractionBN(targetBN: any, numerator: number | string, denominato
  * @returns - URL to buy ETH based on network
  */
 export function getBuyURL(networkCode = '1', address?: string, amount = 5) {
-	switch (networkCode) {
-		case '1':
-			/* tslint:disable-next-line:max-line-length */
-			return `https://buy.coinbase.com/?code=9ec56d01-7e81-5017-930c-513daa27bb6a&amount=${amount}&address=${address}&crypto_currency=ETH`;
-		case '3':
-			return 'https://faucet.metamask.io/';
-		case '4':
-			return 'https://www.rinkeby.io/';
-		case '5':
-			return 'https://goerli-faucet.slock.it/';
-		case '42':
-			return 'https://github.com/kovan-testnet/faucet';
-	}
+  switch (networkCode) {
+    case '1':
+      return `https://buy.coinbase.com/?code=9ec56d01-7e81-5017-930c-513daa27bb6a&amount=${amount}&address=${address}&crypto_currency=ETH`;
+    case '3':
+      return 'https://faucet.metamask.io/';
+    case '4':
+      return 'https://www.rinkeby.io/';
+    case '5':
+      return 'https://goerli-faucet.slock.it/';
+    case '42':
+      return 'https://github.com/kovan-testnet/faucet';
+  }
 }
 
 /**
@@ -79,17 +79,17 @@ export function getBuyURL(networkCode = '1', address?: string, amount = 5) {
  * @returns - URL to fetch the transactions from
  */
 export function getEtherscanApiUrl(networkType: string, address: string, fromBlock?: string): string {
-	let etherscanSubdomain = 'api';
-	/* istanbul ignore next */
-	if (networkType !== 'mainnet') {
-		etherscanSubdomain = `api-${networkType}`;
-	}
-	const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
-	let url = `${apiUrl}/api?module=account&action=txlist&address=${address}&tag=latest&page=1`;
-	if (fromBlock) {
-		url += `&startBlock=${fromBlock}`;
-	}
-	return url;
+  let etherscanSubdomain = 'api';
+  /* istanbul ignore next */
+  if (networkType !== 'mainnet') {
+    etherscanSubdomain = `api-${networkType}`;
+  }
+  const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
+  let url = `${apiUrl}/api?module=account&action=txlist&address=${address}&tag=latest&page=1`;
+  if (fromBlock) {
+    url += `&startBlock=${fromBlock}`;
+  }
+  return url;
 }
 
 /**
@@ -101,20 +101,24 @@ export function getEtherscanApiUrl(networkType: string, address: string, fromBlo
  * @returns - URL to fetch the transactions from
  */
 export function getAlethioApiUrl(networkType: string, address: string, opt?: FetchAllOptions) {
-	if (networkType !== 'mainnet') return { url: '', headers: {} };
-	let url = `https://api.aleth.io/v1/token-transfers?filter[to]=${address}`;
-	// From alethio implementation
-	// cursor = hardcoded prefix `0x00` + fromBlock in hex format + max possible tx index `ffff`
-	let fromBlock = opt && opt.fromBlock
-	if (fromBlock) {
-		fromBlock = parseInt(fromBlock).toString(16);
-		let prev = `0x00${fromBlock}ffff`;
-		while (prev.length < 34) prev += '0';
-		url += `&page[prev]=${prev}`;
-	}
-	/* istanbul ignore next */
-	const headers = (opt && opt.alethioApiKey) ? { Authorization: `Bearer ${opt.alethioApiKey}` } : undefined;
-	return { url, headers };
+  if (networkType !== 'mainnet') {
+    return { url: '', headers: {} };
+  }
+  let url = `https://api.aleth.io/v1/token-transfers?filter[to]=${address}`;
+  // From alethio implementation
+  // cursor = hardcoded prefix `0x00` + fromBlock in hex format + max possible tx index `ffff`
+  let fromBlock = opt && opt.fromBlock;
+  if (fromBlock) {
+    fromBlock = parseInt(fromBlock).toString(16);
+    let prev = `0x00${fromBlock}ffff`;
+    while (prev.length < 34) {
+      prev += '0';
+    }
+    url += `&page[prev]=${prev}`;
+  }
+  /* istanbul ignore next */
+  const headers = opt && opt.alethioApiKey ? { Authorization: `Bearer ${opt.alethioApiKey}` } : undefined;
+  return { url, headers };
 }
 
 /**
@@ -126,19 +130,22 @@ export function getAlethioApiUrl(networkType: string, address: string, opt?: Fet
  * @returns - Responses for both ETH and ERC20 token transactions
  */
 export async function handleTransactionFetch(
-	networkType: string,
-	address: string,
-	opt?: FetchAllOptions
+  networkType: string,
+  address: string,
+  opt?: FetchAllOptions,
 ): Promise<[{ [result: string]: [] }, { [data: string]: [] }]> {
-	const url = getEtherscanApiUrl(networkType, address, opt && opt.fromBlock);
-	const etherscanResponsePromise = handleFetch(url);
-	const alethioUrl = getAlethioApiUrl(networkType, address, opt);
-	const alethioResponsePromise =
-		alethioUrl.url !== '' && handleFetch(alethioUrl.url, { headers: alethioUrl.headers });
-	let [etherscanResponse, alethioResponse] = await Promise.all([etherscanResponsePromise, alethioResponsePromise]);
-	if (etherscanResponse.status === '0' || etherscanResponse.result.length <= 0) etherscanResponse = { result: [] };
-	if (!alethioUrl.url || !alethioResponse || !alethioResponse.data) alethioResponse = { data: [] };
-	return [etherscanResponse, alethioResponse];
+  const url = getEtherscanApiUrl(networkType, address, opt && opt.fromBlock);
+  const etherscanResponsePromise = handleFetch(url);
+  const alethioUrl = getAlethioApiUrl(networkType, address, opt);
+  const alethioResponsePromise = alethioUrl.url !== '' && handleFetch(alethioUrl.url, { headers: alethioUrl.headers });
+  let [etherscanResponse, alethioResponse] = await Promise.all([etherscanResponsePromise, alethioResponsePromise]);
+  if (etherscanResponse.status === '0' || etherscanResponse.result.length <= 0) {
+    etherscanResponse = { result: [] };
+  }
+  if (!alethioUrl.url || !alethioResponse || !alethioResponse.data) {
+    alethioResponse = { data: [] };
+  }
+  return [etherscanResponse, alethioResponse];
 }
 
 /**
@@ -149,7 +156,7 @@ export async function handleTransactionFetch(
  *
  */
 export function hexToBN(inputHex: string) {
-	return new BN(stripHexPrefix(inputHex), 16);
+  return new BN(stripHexPrefix(inputHex), 16);
 }
 
 /**
@@ -160,14 +167,14 @@ export function hexToBN(inputHex: string) {
  *
  */
 export function hexToText(hex: string) {
-	try {
-		const stripped = stripHexPrefix(hex);
-		const buff = Buffer.from(stripped, 'hex');
-		return buff.toString('utf8');
-	} catch (e) {
-		/* istanbul ignore next */
-		return hex;
-	}
+  try {
+    const stripped = stripHexPrefix(hex);
+    const buff = Buffer.from(stripped, 'hex');
+    return buff.toString('utf8');
+  } catch (e) {
+    /* istanbul ignore next */
+    return hex;
+  }
 }
 
 /**
@@ -177,14 +184,14 @@ export function hexToText(hex: string) {
  * @returns - Normalized Transaction object
  */
 export function normalizeTransaction(transaction: Transaction) {
-	const normalizedTransaction: Transaction = { from: '' };
-	let key: keyof Transaction;
-	for (key in NORMALIZERS) {
-		if (transaction[key as keyof Transaction]) {
-			normalizedTransaction[key] = NORMALIZERS[key](transaction[key]) as never;
-		}
-	}
-	return normalizedTransaction;
+  const normalizedTransaction: Transaction = { from: '' };
+  let key: keyof Transaction;
+  for (key in NORMALIZERS) {
+    if (transaction[key as keyof Transaction]) {
+      normalizedTransaction[key] = NORMALIZERS[key](transaction[key]) as never;
+    }
+  }
+  return normalizedTransaction;
 }
 
 /**
@@ -196,15 +203,15 @@ export function normalizeTransaction(transaction: Transaction) {
  * @returns - Promise resolving to the result of the async operation
  */
 export async function safelyExecute(operation: () => Promise<any>, logError = false, retry?: (error: Error) => void) {
-	try {
-		return await operation();
-	} catch (error) {
-		/* istanbul ignore next */
-		if (logError) {
-			console.error(error);
-		}
-		retry && retry(error);
-	}
+  try {
+    return await operation();
+  } catch (error) {
+    /* istanbul ignore next */
+    if (logError) {
+      console.error(error);
+    }
+    retry && retry(error);
+  }
 }
 
 /**
@@ -214,33 +221,33 @@ export async function safelyExecute(operation: () => Promise<any>, logError = fa
  * @param transaction - Transaction object to validate
  */
 export function validateTransaction(transaction: Transaction) {
-	if (!transaction.from || typeof transaction.from !== 'string' || !isValidAddress(transaction.from)) {
-		throw new Error(`Invalid "from" address: ${transaction.from} must be a valid string.`);
-	}
-	if (transaction.to === '0x' || transaction.to === undefined) {
-		if (transaction.data) {
-			delete transaction.to;
-		} else {
-			throw new Error(`Invalid "to" address: ${transaction.to} must be a valid string.`);
-		}
-	} else if (transaction.to !== undefined && !isValidAddress(transaction.to)) {
-		throw new Error(`Invalid "to" address: ${transaction.to} must be a valid string.`);
-	}
-	if (transaction.value !== undefined) {
-		const value = transaction.value.toString();
-		if (value.includes('-')) {
-			throw new Error(`Invalid "value": ${value} is not a positive number.`);
-		}
-		if (value.includes('.')) {
-			throw new Error(`Invalid "value": ${value} number must be denominated in wei.`);
-		}
-		const intValue = parseInt(transaction.value, 10);
-		const isValid =
-			Number.isFinite(intValue) && !Number.isNaN(intValue) && !isNaN(+value) && Number.isSafeInteger(intValue);
-		if (!isValid) {
-			throw new Error(`Invalid "value": ${value} number must be a valid number.`);
-		}
-	}
+  if (!transaction.from || typeof transaction.from !== 'string' || !isValidAddress(transaction.from)) {
+    throw new Error(`Invalid "from" address: ${transaction.from} must be a valid string.`);
+  }
+  if (transaction.to === '0x' || transaction.to === undefined) {
+    if (transaction.data) {
+      delete transaction.to;
+    } else {
+      throw new Error(`Invalid "to" address: ${transaction.to} must be a valid string.`);
+    }
+  } else if (transaction.to !== undefined && !isValidAddress(transaction.to)) {
+    throw new Error(`Invalid "to" address: ${transaction.to} must be a valid string.`);
+  }
+  if (transaction.value !== undefined) {
+    const value = transaction.value.toString();
+    if (value.includes('-')) {
+      throw new Error(`Invalid "value": ${value} is not a positive number.`);
+    }
+    if (value.includes('.')) {
+      throw new Error(`Invalid "value": ${value} number must be denominated in wei.`);
+    }
+    const intValue = parseInt(transaction.value, 10);
+    const isValid =
+      Number.isFinite(intValue) && !Number.isNaN(intValue) && !isNaN(Number(value)) && Number.isSafeInteger(intValue);
+    if (!isValid) {
+      throw new Error(`Invalid "value": ${value} number must be a valid number.`);
+    }
+  }
 }
 
 /**
@@ -252,15 +259,15 @@ export function validateTransaction(transaction: Transaction) {
  *
  */
 export function normalizeMessageData(data: string) {
-	try {
-		const stripped = stripHexPrefix(data);
-		if (stripped.match(hexRe)) {
-			return addHexPrefix(stripped);
-		}
-	} catch (e) {
-		/* istanbul ignore next */
-	}
-	return bufferToHex(Buffer.from(data, 'utf8'));
+  try {
+    const stripped = stripHexPrefix(data);
+    if (stripped.match(hexRe)) {
+      return addHexPrefix(stripped);
+    }
+  } catch (e) {
+    /* istanbul ignore next */
+  }
+  return bufferToHex(Buffer.from(data, 'utf8'));
 }
 
 /**
@@ -270,12 +277,12 @@ export function normalizeMessageData(data: string) {
  * @param messageData - PersonalMessageParams object to validate
  */
 export function validateSignMessageData(messageData: PersonalMessageParams | MessageParams) {
-	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
-		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
-	}
-	if (!messageData.data || typeof messageData.data !== 'string') {
-		throw new Error(`Invalid message "data": ${messageData.data} must be a valid string.`);
-	}
+  if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
+    throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
+  }
+  if (!messageData.data || typeof messageData.data !== 'string') {
+    throw new Error(`Invalid message "data": ${messageData.data} must be a valid string.`);
+  }
 }
 
 /**
@@ -286,17 +293,17 @@ export function validateSignMessageData(messageData: PersonalMessageParams | Mes
  * @param activeChainId - Active chain id
  */
 export function validateTypedSignMessageDataV1(messageData: TypedMessageParams) {
-	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
-		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
-	}
-	if (!messageData.data || !Array.isArray(messageData.data)) {
-		throw new Error(`Invalid message "data": ${messageData.data} must be a valid array.`);
-	}
-	try {
-		sigUtil.typedSignatureHash(messageData.data);
-	} catch (e) {
-		throw new Error(`Expected EIP712 typed data.`);
-	}
+  if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
+    throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
+  }
+  if (!messageData.data || !Array.isArray(messageData.data)) {
+    throw new Error(`Invalid message "data": ${messageData.data} must be a valid array.`);
+  }
+  try {
+    sigUtil.typedSignatureHash(messageData.data);
+  } catch (e) {
+    throw new Error(`Expected EIP712 typed data.`);
+  }
 }
 
 /**
@@ -306,22 +313,22 @@ export function validateTypedSignMessageDataV1(messageData: TypedMessageParams) 
  * @param messageData - TypedMessageParams object to validate
  */
 export function validateTypedSignMessageDataV3(messageData: TypedMessageParams) {
-	if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
-		throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
-	}
-	if (!messageData.data || typeof messageData.data !== 'string') {
-		throw new Error(`Invalid message "data": ${messageData.data} must be a valid array.`);
-	}
-	let data;
-	try {
-		data = JSON.parse(messageData.data);
-	} catch (e) {
-		throw new Error('Data must be passed as a valid JSON string.');
-	}
-	const validation = jsonschema.validate(data, sigUtil.TYPED_MESSAGE_SCHEMA);
-	if (validation.errors.length > 0) {
-		throw new Error('Data must conform to EIP-712 schema. See https://git.io/fNtcx.');
-	}
+  if (!messageData.from || typeof messageData.from !== 'string' || !isValidAddress(messageData.from)) {
+    throw new Error(`Invalid "from" address: ${messageData.from} must be a valid string.`);
+  }
+  if (!messageData.data || typeof messageData.data !== 'string') {
+    throw new Error(`Invalid message "data": ${messageData.data} must be a valid array.`);
+  }
+  let data;
+  try {
+    data = JSON.parse(messageData.data);
+  } catch (e) {
+    throw new Error('Data must be passed as a valid JSON string.');
+  }
+  const validation = jsonschema.validate(data, sigUtil.TYPED_MESSAGE_SCHEMA);
+  if (validation.errors.length > 0) {
+    throw new Error('Data must conform to EIP-712 schema. See https://git.io/fNtcx.');
+  }
 }
 
 /**
@@ -330,19 +337,19 @@ export function validateTypedSignMessageDataV3(messageData: TypedMessageParams) 
  * @param token - Token object to validate
  */
 export function validateTokenToWatch(token: Token) {
-	const { address, symbol, decimals } = token;
-	if (!address || !symbol || typeof decimals === 'undefined') {
-		throw new Error(`Cannot suggest token without address, symbol, and decimals`);
-	}
-	if (!(symbol.length < 7)) {
-		throw new Error(`Invalid symbol ${symbol} more than six characters`);
-	}
-	if (isNaN(decimals) || decimals > 36 || decimals < 0) {
-		throw new Error(`Invalid decimals ${decimals} must be at least 0, and not over 36`);
-	}
-	if (!isValidAddress(address)) {
-		throw new Error(`Invalid address ${address}`);
-	}
+  const { address, symbol, decimals } = token;
+  if (!address || !symbol || typeof decimals === 'undefined') {
+    throw new Error(`Cannot suggest token without address, symbol, and decimals`);
+  }
+  if (!(symbol.length < 7)) {
+    throw new Error(`Invalid symbol ${symbol} more than six characters`);
+  }
+  if (isNaN(decimals) || decimals > 36 || decimals < 0) {
+    throw new Error(`Invalid decimals ${decimals} must be at least 0, and not over 36`);
+  }
+  if (!isValidAddress(address)) {
+    throw new Error(`Invalid address ${address}`);
+  }
 }
 
 /**
@@ -351,13 +358,13 @@ export function validateTokenToWatch(token: Token) {
  * @returns {string} - Corresponding code to review
  */
 export function isSmartContractCode(code: string) {
-	/* istanbul ignore if */
-	if (!code) {
-		return false;
-	}
-	// Geth will return '0x', and ganache-core v2.2.1 will return '0x0'
-	const smartContractCode = code !== '0x' && code !== '0x0';
-	return smartContractCode;
+  /* istanbul ignore if */
+  if (!code) {
+    return false;
+  }
+  // Geth will return '0x', and ganache-core v2.2.1 will return '0x0'
+  const smartContractCode = code !== '0x' && code !== '0x0';
+  return smartContractCode;
 }
 
 /**
@@ -368,11 +375,11 @@ export function isSmartContractCode(code: string) {
  * @returns - Promise resolving to the fetch response
  */
 export async function successfulFetch(request: string, options?: RequestInit) {
-	const response = await fetch(request, options);
-	if (!response.ok) {
-		throw new Error(`Fetch failed with status '${response.status}' for request '${request}'`);
-	}
-	return response;
+  const response = await fetch(request, options);
+  if (!response.ok) {
+    throw new Error(`Fetch failed with status '${response.status}' for request '${request}'`);
+  }
+  return response;
 }
 
 /**
@@ -383,9 +390,9 @@ export async function successfulFetch(request: string, options?: RequestInit) {
  * @returns - Promise resolving to the result object of fetch
  */
 export async function handleFetch(request: string, options?: RequestInit) {
-	const response = await successfulFetch(request, options);
-	const object = await response.json();
-	return object;
+  const response = await successfulFetch(request, options);
+  const object = await response.json();
+  return object;
 }
 
 /**
@@ -397,15 +404,15 @@ export async function handleFetch(request: string, options?: RequestInit) {
  *
  * @returns - Promise resolving the request
  */
-export async function timeoutFetch(url: string, options?: RequestInit, timeout: number = 500): Promise<Response> {
-	return Promise.race([
-		successfulFetch(url, options),
-		new Promise<Response>((_, reject) =>
-			setTimeout(() => {
-				reject(new Error('timeout'));
-			}, timeout)
-		)
-	]);
+export async function timeoutFetch(url: string, options?: RequestInit, timeout = 500): Promise<Response> {
+  return Promise.race([
+    successfulFetch(url, options),
+    new Promise<Response>((_, reject) =>
+      setTimeout(() => {
+        reject(new Error('timeout'));
+      }, timeout),
+    ),
+  ]);
 }
 
 /**
@@ -416,35 +423,35 @@ export async function timeoutFetch(url: string, options?: RequestInit, timeout: 
  * @returns - the normalized ENS name string
  */
 export function normalizeEnsName(ensName: string): string | null {
-	if (ensName && typeof ensName === 'string') {
-		try {
-			const normalized = ensNamehash.normalize(ensName.trim());
-			// this regex is only sufficient with the above call to ensNamehash.normalize
-			// TODO: change 7 in regex to 3 when shorter ENS domains are live
-			if (normalized.match(/^(([\w\d\-]+)\.)*[\w\d\-]{7,}\.(eth|test)$/)) {
-				return normalized;
-			}
-		} catch (_) {
-			// do nothing
-		}
-	}
-	return null;
+  if (ensName && typeof ensName === 'string') {
+    try {
+      const normalized = ensNamehash.normalize(ensName.trim());
+      // this regex is only sufficient with the above call to ensNamehash.normalize
+      // TODO: change 7 in regex to 3 when shorter ENS domains are live
+      if (normalized.match(/^(([\w\d\-]+)\.)*[\w\d\-]{7,}\.(eth|test)$/)) {
+        return normalized;
+      }
+    } catch (_) {
+      // do nothing
+    }
+  }
+  return null;
 }
 
 export default {
-	BNToHex,
-	fractionBN,
-	getBuyURL,
-	handleFetch,
-	hexToBN,
-	hexToText,
-	isSmartContractCode,
-	normalizeTransaction,
-	safelyExecute,
-	successfulFetch,
-	timeoutFetch,
-	validateTokenToWatch,
-	validateTransaction,
-	validateTypedSignMessageDataV1,
-	validateTypedSignMessageDataV3
+  BNToHex,
+  fractionBN,
+  getBuyURL,
+  handleFetch,
+  hexToBN,
+  hexToText,
+  isSmartContractCode,
+  normalizeTransaction,
+  safelyExecute,
+  successfulFetch,
+  timeoutFetch,
+  validateTokenToWatch,
+  validateTransaction,
+  validateTypedSignMessageDataV1,
+  validateTypedSignMessageDataV3,
 };

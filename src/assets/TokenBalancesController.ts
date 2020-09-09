@@ -1,7 +1,7 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { safelyExecute } from '../util';
 import AssetsController from './AssetsController';
 import { Token } from './TokenRatesController';
-import { safelyExecute } from '../util';
 import { AssetsContractController } from './AssetsContractController';
 
 const { BN } = require('ethereumjs-util');
@@ -17,8 +17,8 @@ export { BN };
  * @property tokens - List of tokens to track balances for
  */
 export interface TokenBalancesConfig extends BaseConfig {
-	interval: number;
-	tokens: Token[];
+  interval: number;
+  tokens: Token[];
 }
 
 /**
@@ -29,7 +29,7 @@ export interface TokenBalancesConfig extends BaseConfig {
  * @property contractBalances - Hash of token contract addresses to balances
  */
 export interface TokenBalancesState extends BaseState {
-	contractBalances: { [address: string]: typeof BN };
+  contractBalances: { [address: string]: typeof BN };
 }
 
 /**
@@ -37,82 +37,82 @@ export interface TokenBalancesState extends BaseState {
  * for tokens stored in the AssetsController
  */
 export class TokenBalancesController extends BaseController<TokenBalancesConfig, TokenBalancesState> {
-	private handle?: NodeJS.Timer;
+  private handle?: NodeJS.Timer;
 
-	/**
-	 * Name of this controller used during composition
-	 */
-	name = 'TokenBalancesController';
+  /**
+   * Name of this controller used during composition
+   */
+  name = 'TokenBalancesController';
 
-	/**
-	 * List of required sibling controllers this controller needs to function
-	 */
-	requiredControllers = ['AssetsContractController', 'AssetsController'];
+  /**
+   * List of required sibling controllers this controller needs to function
+   */
+  requiredControllers = ['AssetsContractController', 'AssetsController'];
 
-	/**
-	 * Creates a TokenBalancesController instance
-	 *
-	 * @param config - Initial options used to configure this controller
-	 * @param state - Initial state to set on this controller
-	 */
-	constructor(config?: Partial<TokenBalancesConfig>, state?: Partial<TokenBalancesState>) {
-		super(config, state);
-		this.defaultConfig = {
-			interval: 180000,
-			tokens: []
-		};
-		this.defaultState = { contractBalances: {} };
-		this.initialize();
-		this.poll();
-	}
+  /**
+   * Creates a TokenBalancesController instance
+   *
+   * @param config - Initial options used to configure this controller
+   * @param state - Initial state to set on this controller
+   */
+  constructor(config?: Partial<TokenBalancesConfig>, state?: Partial<TokenBalancesState>) {
+    super(config, state);
+    this.defaultConfig = {
+      interval: 180000,
+      tokens: [],
+    };
+    this.defaultState = { contractBalances: {} };
+    this.initialize();
+    this.poll();
+  }
 
-	/**
-	 * Starts a new polling interval
-	 *
-	 * @param interval - Polling interval used to fetch new token balances
-	 */
-	async poll(interval?: number): Promise<void> {
-		interval && this.configure({ interval }, false, false);
-		this.handle && clearTimeout(this.handle);
-		await safelyExecute(() => this.updateBalances());
-		this.handle = setTimeout(() => {
-			this.poll(this.config.interval);
-		}, this.config.interval);
-	}
+  /**
+   * Starts a new polling interval
+   *
+   * @param interval - Polling interval used to fetch new token balances
+   */
+  async poll(interval?: number): Promise<void> {
+    interval && this.configure({ interval }, false, false);
+    this.handle && clearTimeout(this.handle);
+    await safelyExecute(() => this.updateBalances());
+    this.handle = setTimeout(() => {
+      this.poll(this.config.interval);
+    }, this.config.interval);
+  }
 
-	/**
-	 * Updates balances for all tokens
-	 *
-	 * @returns Promise resolving when this operation completes
-	 */
-	async updateBalances() {
-		if (this.disabled) {
-			return;
-		}
-		const assetsContract = this.context.AssetsContractController as AssetsContractController;
-		const assets = this.context.AssetsController as AssetsController;
-		const { selectedAddress } = assets.config;
-		const { tokens } = this.config;
-		const newContractBalances: { [address: string]: typeof BN } = {};
-		for (const i in tokens) {
-			const address = tokens[i].address;
-			newContractBalances[address] = await assetsContract.getBalanceOf(address, selectedAddress);
-		}
-		this.update({ contractBalances: newContractBalances });
-	}
+  /**
+   * Updates balances for all tokens
+   *
+   * @returns Promise resolving when this operation completes
+   */
+  async updateBalances() {
+    if (this.disabled) {
+      return;
+    }
+    const assetsContract = this.context.AssetsContractController as AssetsContractController;
+    const assets = this.context.AssetsController as AssetsController;
+    const { selectedAddress } = assets.config;
+    const { tokens } = this.config;
+    const newContractBalances: { [address: string]: typeof BN } = {};
+    for (const i in tokens) {
+      const { address } = tokens[i];
+      newContractBalances[address] = await assetsContract.getBalanceOf(address, selectedAddress);
+    }
+    this.update({ contractBalances: newContractBalances });
+  }
 
-	/**
-	 * Extension point called if and when this controller is composed
-	 * with other controllers using a ComposableController
-	 */
-	onComposed() {
-		super.onComposed();
-		const assets = this.context.AssetsController as AssetsController;
-		assets.subscribe(({ tokens }) => {
-			this.configure({ tokens });
-			this.updateBalances();
-		});
-	}
+  /**
+   * Extension point called if and when this controller is composed
+   * with other controllers using a ComposableController
+   */
+  onComposed() {
+    super.onComposed();
+    const assets = this.context.AssetsController as AssetsController;
+    assets.subscribe(({ tokens }) => {
+      this.configure({ tokens });
+      this.updateBalances();
+    });
+  }
 }
 
 export default TokenBalancesController;

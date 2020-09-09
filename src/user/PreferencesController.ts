@@ -12,11 +12,11 @@ import { ContactEntry } from './AddressBookController';
  * @param rpcPrefs? - Personalized preferences
  */
 export interface FrequentRpc {
-	rpcUrl: string;
-	chainId?: number;
-	nickname?: string;
-	ticker?: string;
-	rpcPrefs?: RpcPreferences;
+  rpcUrl: string;
+  chainId?: number;
+  nickname?: string;
+  ticker?: string;
+  rpcPrefs?: RpcPreferences;
 }
 
 /**
@@ -25,7 +25,7 @@ export interface FrequentRpc {
  * @param blockExplorerUrl - Block explorer URL
  */
 export interface RpcPreferences {
-	blockExplorerUrl: string;
+  blockExplorerUrl: string;
 }
 
 /**
@@ -40,213 +40,214 @@ export interface RpcPreferences {
  * @property selectedAddress - Current coinbase account
  */
 export interface PreferencesState extends BaseState {
-	featureFlags: { [feature: string]: boolean };
-	frequentRpcList: FrequentRpc[];
-	ipfsGateway: string;
-	identities: { [address: string]: ContactEntry };
-	lostIdentities: { [address: string]: ContactEntry };
-	selectedAddress: string;
+  featureFlags: { [feature: string]: boolean };
+  frequentRpcList: FrequentRpc[];
+  ipfsGateway: string;
+  identities: { [address: string]: ContactEntry };
+  lostIdentities: { [address: string]: ContactEntry };
+  selectedAddress: string;
 }
 
 /**
  * Controller that stores shared settings and exposes convenience methods
  */
 export class PreferencesController extends BaseController<BaseConfig, PreferencesState> {
-	/**
-	 * Name of this controller used during composition
-	 */
-	name = 'PreferencesController';
 
-	/**
-	 * Creates a PreferencesController instance
-	 *
-	 * @param config - Initial options used to configure this controller
-	 * @param state - Initial state to set on this controller
-	 */
-	constructor(config?: Partial<BaseConfig>, state?: Partial<PreferencesState>) {
-		super(config, state);
-		this.defaultState = {
-			featureFlags: {},
-			frequentRpcList: [],
-			identities: {},
-			ipfsGateway: 'https://ipfs.io/ipfs/',
-			lostIdentities: {},
-			selectedAddress: ''
-		};
-		this.initialize();
-	}
+  /**
+   * Name of this controller used during composition
+   */
+  name = 'PreferencesController';
 
-	/**
-	 * Adds identities to state
-	 *
-	 * @param addresses - List of addresses to use to generate new identities
-	 */
-	addIdentities(addresses: string[]) {
-		const { identities } = this.state;
-		addresses.forEach((address) => {
-			address = toChecksumAddress(address);
-			if (identities[address]) {
-				return;
-			}
-			const identityCount = Object.keys(identities).length;
+  /**
+   * Creates a PreferencesController instance
+   *
+   * @param config - Initial options used to configure this controller
+   * @param state - Initial state to set on this controller
+   */
+  constructor(config?: Partial<BaseConfig>, state?: Partial<PreferencesState>) {
+    super(config, state);
+    this.defaultState = {
+      featureFlags: {},
+      frequentRpcList: [],
+      identities: {},
+      ipfsGateway: 'https://ipfs.io/ipfs/',
+      lostIdentities: {},
+      selectedAddress: '',
+    };
+    this.initialize();
+  }
 
-			identities[address] = { name: `Account ${identityCount + 1}`, address };
-		});
-		this.update({ identities: { ...identities } });
-	}
+  /**
+   * Adds identities to state
+   *
+   * @param addresses - List of addresses to use to generate new identities
+   */
+  addIdentities(addresses: string[]) {
+    const { identities } = this.state;
+    addresses.forEach((address) => {
+      address = toChecksumAddress(address);
+      if (identities[address]) {
+        return;
+      }
+      const identityCount = Object.keys(identities).length;
 
-	/**
-	 * Removes an identity from state
-	 *
-	 * @param address - Address of the identity to remove
-	 */
-	removeIdentity(address: string) {
-		address = toChecksumAddress(address);
-		const { identities } = this.state;
-		if (!identities[address]) {
-			return;
-		}
-		delete identities[address];
-		this.update({ identities: { ...identities } });
-		if (address === this.state.selectedAddress) {
-			this.update({ selectedAddress: Object.keys(identities)[0] });
-		}
-	}
+      identities[address] = { name: `Account ${identityCount + 1}`, address };
+    });
+    this.update({ identities: { ...identities } });
+  }
 
-	/**
-	 * Associates a new label with an identity
-	 *
-	 * @param address - Address of the identity to associate
-	 * @param label - New label to assign
-	 */
-	setAccountLabel(address: string, label: string) {
-		address = toChecksumAddress(address);
-		const identities = this.state.identities;
-		identities[address] = identities[address] || {};
-		identities[address].name = label;
-		this.update({ identities: { ...identities } });
-	}
+  /**
+   * Removes an identity from state
+   *
+   * @param address - Address of the identity to remove
+   */
+  removeIdentity(address: string) {
+    address = toChecksumAddress(address);
+    const { identities } = this.state;
+    if (!identities[address]) {
+      return;
+    }
+    delete identities[address];
+    this.update({ identities: { ...identities } });
+    if (address === this.state.selectedAddress) {
+      this.update({ selectedAddress: Object.keys(identities)[0] });
+    }
+  }
 
-	/**
-	 * Enable or disable a specific feature flag
-	 *
-	 * @param feature - Feature to toggle
-	 * @param activated - Value to assign
-	 */
-	setFeatureFlag(feature: string, activated: boolean) {
-		const oldFeatureFlags = this.state.featureFlags;
-		const featureFlags = { ...oldFeatureFlags, ...{ [feature]: activated } };
-		this.update({ featureFlags: { ...featureFlags } });
-	}
+  /**
+   * Associates a new label with an identity
+   *
+   * @param address - Address of the identity to associate
+   * @param label - New label to assign
+   */
+  setAccountLabel(address: string, label: string) {
+    address = toChecksumAddress(address);
+    const { identities } = this.state;
+    identities[address] = identities[address] || {};
+    identities[address].name = label;
+    this.update({ identities: { ...identities } });
+  }
 
-	/**
-	 * Synchronizes the current identity list with new identities
-	 *
-	 * @param addresses - List of addresses corresponding to identities to sync
-	 * @returns - Newly-selected address after syncing
-	 */
-	syncIdentities(addresses: string[]) {
-		addresses = addresses.map((address: string) => toChecksumAddress(address));
-		const { identities, lostIdentities } = this.state;
-		const newlyLost: { [address: string]: ContactEntry } = {};
+  /**
+   * Enable or disable a specific feature flag
+   *
+   * @param feature - Feature to toggle
+   * @param activated - Value to assign
+   */
+  setFeatureFlag(feature: string, activated: boolean) {
+    const oldFeatureFlags = this.state.featureFlags;
+    const featureFlags = { ...oldFeatureFlags, ...{ [feature]: activated } };
+    this.update({ featureFlags: { ...featureFlags } });
+  }
 
-		for (const identity in identities) {
-			if (addresses.indexOf(identity) === -1) {
-				newlyLost[identity] = identities[identity];
-				delete identities[identity];
-			}
-		}
+  /**
+   * Synchronizes the current identity list with new identities
+   *
+   * @param addresses - List of addresses corresponding to identities to sync
+   * @returns - Newly-selected address after syncing
+   */
+  syncIdentities(addresses: string[]) {
+    addresses = addresses.map((address: string) => toChecksumAddress(address));
+    const { identities, lostIdentities } = this.state;
+    const newlyLost: { [address: string]: ContactEntry } = {};
 
-		if (Object.keys(newlyLost).length > 0) {
-			for (const key in newlyLost) {
-				lostIdentities[key] = newlyLost[key];
-			}
-		}
+    for (const identity in identities) {
+      if (addresses.indexOf(identity) === -1) {
+        newlyLost[identity] = identities[identity];
+        delete identities[identity];
+      }
+    }
 
-		this.update({ identities: { ...identities }, lostIdentities: { ...lostIdentities } });
-		this.addIdentities(addresses);
+    if (Object.keys(newlyLost).length > 0) {
+      for (const key in newlyLost) {
+        lostIdentities[key] = newlyLost[key];
+      }
+    }
 
-		if (addresses.indexOf(this.state.selectedAddress) === -1) {
-			this.update({ selectedAddress: addresses[0] });
-		}
+    this.update({ identities: { ...identities }, lostIdentities: { ...lostIdentities } });
+    this.addIdentities(addresses);
 
-		return this.state.selectedAddress;
-	}
+    if (addresses.indexOf(this.state.selectedAddress) === -1) {
+      this.update({ selectedAddress: addresses[0] });
+    }
 
-	/**
-	 * Generates and stores a new list of stored identities based on address
-	 *
-	 * @param addresses - List of addresses to use as a basis for each identity
-	 */
-	updateIdentities(addresses: string[]) {
-		addresses = addresses.map((address: string) => toChecksumAddress(address));
-		const oldIdentities = this.state.identities;
-		const identities = addresses.reduce((ids: { [address: string]: ContactEntry }, address, index) => {
-			ids[address] = oldIdentities[address] || {
-				address,
-				name: `Account ${index + 1}`
-			};
-			return ids;
-		}, {});
-		this.update({ identities: { ...identities } });
-	}
+    return this.state.selectedAddress;
+  }
 
-	/**
-	 * Adds custom RPC URL to state
-	 *
-	 * @param url - Custom RPC URL
-	 * @param chainId? - Network ID as per EIP-155
-	 * @param ticker? - Currency ticker
-	 * @param nickname? - Personalized network name
-	 * @param rpcPrefs? - Personalized preferences
-	 *
-	 */
-	addToFrequentRpcList(url: string, chainId?: number, ticker?: string, nickname?: string, rpcPrefs?: RpcPreferences) {
-		const frequentRpcList = this.state.frequentRpcList;
-		const index = frequentRpcList.findIndex(({ rpcUrl }) => {
-			return rpcUrl === url;
-		});
-		if (index !== -1) {
-			frequentRpcList.splice(index, 1);
-		}
-		const newFrequestRpc: FrequentRpc = { rpcUrl: url, chainId, ticker, nickname, rpcPrefs };
-		frequentRpcList.push(newFrequestRpc);
-		this.update({ frequentRpcList: [...frequentRpcList] });
-	}
+  /**
+   * Generates and stores a new list of stored identities based on address
+   *
+   * @param addresses - List of addresses to use as a basis for each identity
+   */
+  updateIdentities(addresses: string[]) {
+    addresses = addresses.map((address: string) => toChecksumAddress(address));
+    const oldIdentities = this.state.identities;
+    const identities = addresses.reduce((ids: { [address: string]: ContactEntry }, address, index) => {
+      ids[address] = oldIdentities[address] || {
+        address,
+        name: `Account ${index + 1}`,
+      };
+      return ids;
+    }, {});
+    this.update({ identities: { ...identities } });
+  }
 
-	/**
-	 * Removes custom RPC URL from state
-	 *
-	 * @param url - Custom RPC URL
-	 */
-	removeFromFrequentRpcList(url: string) {
-		const frequentRpcList = this.state.frequentRpcList;
-		const index = frequentRpcList.findIndex(({ rpcUrl }) => {
-			return rpcUrl === url;
-		});
-		if (index !== -1) {
-			frequentRpcList.splice(index, 1);
-		}
-		this.update({ frequentRpcList: [...frequentRpcList] });
-	}
+  /**
+   * Adds custom RPC URL to state
+   *
+   * @param url - Custom RPC URL
+   * @param chainId? - Network ID as per EIP-155
+   * @param ticker? - Currency ticker
+   * @param nickname? - Personalized network name
+   * @param rpcPrefs? - Personalized preferences
+   *
+   */
+  addToFrequentRpcList(url: string, chainId?: number, ticker?: string, nickname?: string, rpcPrefs?: RpcPreferences) {
+    const { frequentRpcList } = this.state;
+    const index = frequentRpcList.findIndex(({ rpcUrl }) => {
+      return rpcUrl === url;
+    });
+    if (index !== -1) {
+      frequentRpcList.splice(index, 1);
+    }
+    const newFrequestRpc: FrequentRpc = { rpcUrl: url, chainId, ticker, nickname, rpcPrefs };
+    frequentRpcList.push(newFrequestRpc);
+    this.update({ frequentRpcList: [...frequentRpcList] });
+  }
 
-	/**
-	 * Sets selected address
-	 *
-	 * @param selectedAddress - Ethereum address
-	 */
-	setSelectedAddress(selectedAddress: string) {
-		this.update({ selectedAddress: toChecksumAddress(selectedAddress) });
-	}
+  /**
+   * Removes custom RPC URL from state
+   *
+   * @param url - Custom RPC URL
+   */
+  removeFromFrequentRpcList(url: string) {
+    const { frequentRpcList } = this.state;
+    const index = frequentRpcList.findIndex(({ rpcUrl }) => {
+      return rpcUrl === url;
+    });
+    if (index !== -1) {
+      frequentRpcList.splice(index, 1);
+    }
+    this.update({ frequentRpcList: [...frequentRpcList] });
+  }
 
-	/**
-	 * Sets new IPFS gateway
-	 *
-	 * @param ipfsGateway - IPFS gateway string
-	 */
-	setIpfsGateway(ipfsGateway: string) {
-		this.update({ ipfsGateway });
-	}
+  /**
+   * Sets selected address
+   *
+   * @param selectedAddress - Ethereum address
+   */
+  setSelectedAddress(selectedAddress: string) {
+    this.update({ selectedAddress: toChecksumAddress(selectedAddress) });
+  }
+
+  /**
+   * Sets new IPFS gateway
+   *
+   * @param ipfsGateway - IPFS gateway string
+   */
+  setIpfsGateway(ipfsGateway: string) {
+    this.update({ ipfsGateway });
+  }
 }
 
 export default PreferencesController;
