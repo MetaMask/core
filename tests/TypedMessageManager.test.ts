@@ -108,7 +108,7 @@ describe('TypedMessageManager', () => {
     });
   });
 
-  it('should reject a message', () => {
+  it("should set message status as 'errored'", () => {
     return new Promise(async (resolve) => {
       const controller = new TypedMessageManager();
       const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';

@@ -71,7 +71,6 @@ module.exports = {
     'require-unicode-regexp': 'off',
 
     'jest/expect-expect': 'off',
-    'jest/no-identical-title': 'off',
     'jest/no-test-return-statement': 'off',
     'jest/no-truthy-falsy': 'off',
     'jest/no-try-expect': 'off',
