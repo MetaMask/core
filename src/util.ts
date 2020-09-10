@@ -10,7 +10,7 @@ const jsonschema = require('jsonschema');
 const { BN, stripHexPrefix } = require('ethereumjs-util');
 const ensNamehash = require('eth-ens-namehash');
 
-const hexRe = /^[0-9A-Fa-f]+$/g;
+const hexRe = /^[0-9A-Fa-f]+$/ug;
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
   data: (data: string) => addHexPrefix(data),
@@ -428,6 +428,7 @@ export function normalizeEnsName(ensName: string): string | null {
       const normalized = ensNamehash.normalize(ensName.trim());
       // this regex is only sufficient with the above call to ensNamehash.normalize
       // TODO: change 7 in regex to 3 when shorter ENS domains are live
+      // eslint-disable-next-line require-unicode-regexp
       if (normalized.match(/^(([\w\d\-]+)\.)*[\w\d\-]{7,}\.(eth|test)$/)) {
         return normalized;
       }
