@@ -17,32 +17,47 @@ describe('NetworkController', () => {
   });
 
   it('should create a provider instance for default infura network', () => {
-    const controller = new NetworkController();
+    const testConfig = {
+      infuraProjectId: 'foo',
+    };
+    const controller = new NetworkController(testConfig);
     controller.providerConfig = {} as ProviderConfig;
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
 
   it('should create a provider instance for kovan infura network', () => {
-    const controller = new NetworkController(undefined, { network: '0', provider: { type: 'kovan' } });
+    const testConfig = {
+      infuraProjectId: 'foo',
+    };
+    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'kovan' } });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
 
   it('should create a provider instance for rinkeby infura network', () => {
-    const controller = new NetworkController(undefined, { network: '0', provider: { type: 'rinkeby' } });
+    const testConfig = {
+      infuraProjectId: 'foo',
+    };
+    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'rinkeby' } });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
 
   it('should create a provider instance for ropsten infura network', () => {
-    const controller = new NetworkController(undefined, { network: '0', provider: { type: 'ropsten' } });
+    const testConfig = {
+      infuraProjectId: 'foo',
+    };
+    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'ropsten' } });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
 
   it('should create a provider instance for mainnet infura network', () => {
-    const controller = new NetworkController(undefined, { network: '0', provider: { type: 'mainnet' } });
+    const testConfig = {
+      infuraProjectId: 'foo',
+    };
+    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'mainnet' } });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
@@ -78,7 +93,10 @@ describe('NetworkController', () => {
   });
 
   it('should verify the network on an error', async () => {
-    const controller = new NetworkController(undefined, { network: 'loading' });
+    const testConfig = {
+      infuraProjectId: 'foo',
+    };
+    const controller = new NetworkController(testConfig, { network: 'loading' });
     controller.providerConfig = {} as ProviderConfig;
     controller.lookupNetwork = stub();
     controller.provider.emit('error', {});
@@ -87,7 +105,12 @@ describe('NetworkController', () => {
 
   it('should look up the network', () => {
     return new Promise((resolve) => {
-      const controller = new NetworkController();
+      const testConfig = {
+        // This test needs a real project ID as it makes a test
+        // `eth_version` call; https://github.com/MetaMask/controllers/issues/1
+        infuraProjectId: '341eacb578dd44a1a049cbc5f6fd4035',
+      };
+      const controller = new NetworkController(testConfig);
       controller.providerConfig = {} as ProviderConfig;
       setTimeout(() => {
         expect(controller.state.network !== 'loading').toBe(true);

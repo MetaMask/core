@@ -35,9 +35,11 @@ export interface ProviderConfig {
  *
  * Network controller configuration
  *
+ * @property infuraProjectId - an Infura project ID
  * @property providerConfig - web3-provider-engine configuration
  */
 export interface NetworkConfig extends BaseConfig {
+  infuraProjectId?: string;
   providerConfig: ProviderConfig;
 }
 
@@ -103,7 +105,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
   }
 
   private setupInfuraProvider(type: NetworkType) {
-    const infuraProvider = createInfuraProvider({ network: type });
+    const infuraProvider = createInfuraProvider({ network: type, projectId: this.config.infuraProjectId });
     const infuraSubprovider = new Subprovider(infuraProvider);
     const config = {
       ...this.internalProviderConfig,
