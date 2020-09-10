@@ -63,9 +63,9 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    */
   requiredControllers: string[] = [];
 
-  private initialConfig: C;
+  private readonly initialConfig: C;
 
-  private initialState: S;
+  private readonly initialState: S;
 
   private internalConfig: C = this.defaultConfig;
 
