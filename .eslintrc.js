@@ -68,7 +68,6 @@ module.exports = {
     'no-useless-escape': 'off',
     'radix': 'off',
     'require-atomic-updates': 'off',
-    'require-unicode-regexp': 'off',
 
     'jest/expect-expect': 'off',
     'jest/no-identical-title': 'off',
