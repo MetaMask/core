@@ -47,7 +47,6 @@ module.exports = {
       },
     ],
 
-    'callback-return': 'off',
     'camelcase': 'off',
     'consistent-return': 'off',
     'default-case': 'off',
