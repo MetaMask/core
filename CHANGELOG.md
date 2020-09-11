@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [3.0.0] - 2020-09-11
+
+## Changed
+
+- Use Infura v3 API ([#267](https://github.com/MetaMask/controllers/pull/267))
+
 ## [2.0.5] - 2020-08-18
 
 ## Changed
@@ -51,7 +57,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v2.0.5...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v3.0.0...HEAD
+[3.0.0]:https://github.com/MetaMask/controllers/tree/v3.0.0
 [2.0.5]:https://github.com/MetaMask/controllers/tree/v2.0.5
 [2.0.4]:https://github.com/MetaMask/controllers/tree/v2.0.4
 [2.0.3]:https://github.com/MetaMask/controllers/tree/v2.0.3
