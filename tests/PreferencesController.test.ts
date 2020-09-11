@@ -45,7 +45,7 @@ describe('PreferencesController', () => {
     expect(controller.state.identities['0xBaZ'].name).toBe('qux');
   });
 
-  it('should set identity label', () => {
+  it('should sync identities', () => {
     const controller = new PreferencesController();
     controller.addIdentities(['foo', 'bar']);
     controller.syncIdentities(['foo', 'bar']);

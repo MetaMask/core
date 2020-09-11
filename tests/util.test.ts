@@ -351,7 +351,7 @@ describe('util', () => {
       ).not.toThrow();
     });
 
-    it('should not throw if data is correct', () => {
+    it('should identify smart contract code', () => {
       const toSmartContract1 = util.isSmartContractCode('');
       const toSmartContract2 = util.isSmartContractCode('0x');
       const toSmartContract3 = util.isSmartContractCode('0x0');
@@ -478,7 +478,7 @@ describe('util', () => {
       expect(parsed).toEqual({});
     });
 
-    it('should fetch first if response is faster than timeout', async () => {
+    it('should fail fetch with timeout', async () => {
       let error;
       try {
         await util.timeoutFetch(SOME_API, {}, 100);

@@ -42,24 +42,6 @@ describe('AddressBookController', () => {
     });
   });
 
-  it('should add a contact entry with chainId and memo', () => {
-    const controller = new AddressBookController();
-    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo', '2', 'account 2');
-    expect(controller.state).toEqual({
-      addressBook: {
-        2: {
-          '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
-            address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: '2',
-            isEns: false,
-            memo: 'account 2',
-            name: 'foo',
-          },
-        },
-      },
-    });
-  });
-
   it('should add multiple contact entries with different chainIds', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo', '1', 'account 2');
