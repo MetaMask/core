@@ -6,6 +6,15 @@ module.exports = {
     '@metamask/eslint-config/config/nodejs',
     '@metamask/eslint-config/config/typescript',
   ],
+  ignorePatterns: [
+    '*.js',
+    '!.eslintrc.js',
+    '!jest.config.js',
+    'node_modules',
+    'dist',
+    'coverage',
+    '*.d.ts',
+  ],
   overrides: [{
     files: [
       '.eslintrc.js',
@@ -47,7 +56,6 @@ module.exports = {
       },
     ],
 
-    'callback-return': 'off',
     'camelcase': 'off',
     'consistent-return': 'off',
     'default-case': 'off',
@@ -68,7 +76,6 @@ module.exports = {
     'no-useless-escape': 'off',
     'radix': 'off',
     'require-atomic-updates': 'off',
-    'require-unicode-regexp': 'off',
 
     'jest/expect-expect': 'off',
     'jest/no-test-return-statement': 'off',

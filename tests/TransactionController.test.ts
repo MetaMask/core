@@ -13,6 +13,7 @@ jest.mock('eth-query', () =>
       estimateGas: (_transaction: any, callback: any) => {
         if (mockFlags.estimateGas) {
           callback(new Error(mockFlags.estimateGas));
+          return;
         }
         callback(undefined, '0x0');
       },
