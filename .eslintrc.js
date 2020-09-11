@@ -6,6 +6,15 @@ module.exports = {
     '@metamask/eslint-config/config/nodejs',
     '@metamask/eslint-config/config/typescript',
   ],
+  ignorePatterns: [
+    '*.js',
+    '!.eslintrc.js',
+    '!jest.config.js',
+    'node_modules',
+    'dist',
+    'coverage',
+    '*.d.ts',
+  ],
   overrides: [{
     files: [
       '.eslintrc.js',
