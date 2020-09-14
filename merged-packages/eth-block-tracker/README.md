@@ -5,12 +5,19 @@ This module walks the Ethereum blockchain, keeping track of the latest block.
 It uses a web3 provider as a data source and will continuously poll for the next block.
 
 ```js
-const HttpProvider = require('ethjs-provider-http')
+const createInfuraProvider = require('eth-json-rpc-infura')
 const PollingBlockTracker = require('eth-block-tracker')
 
-const provider = new HttpProvider('https://mainnet.infura.io')
+const provider = createInfuraProvider({ network: 'mainnet', projectId: process.env.INFURA_PROJECT_ID })
 const blockTracker = new PollingBlockTracker({ provider })
-blockTracker.on('latest', console.log)
+
+blockTracker.on('sync', ({ newBlock, oldBlock }) => {
+  if (oldBlock) {
+    console.log(`sync #${Number(oldBlock)} -> #${Number(newBlock)}`)
+  } else {
+    console.log(`first sync #${Number(newBlock)}`)
+  }
+})
 ```
 
 ### methods

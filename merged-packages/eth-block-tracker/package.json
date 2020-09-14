@@ -40,7 +40,6 @@
     "browserify": "^16.5.0",
     "eslint": "^6.8.0",
     "eslint-plugin-import": "^2.20.1",
-    "eth-json-rpc-infura": "^4.0.2",
     "ganache-core": "^2.7.0",
     "tape": "^4.9.0",
     "uglify-js": "^3.4.10"
