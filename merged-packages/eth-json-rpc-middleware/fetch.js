@@ -1,4 +1,4 @@
-const fetch = global.fetch || require('fetch-ponyfill')().fetch
+const fetch = global.fetch || require('node-fetch')
 const url = require('url')
 const { ethErrors } = require('eth-rpc-errors')
 const btoa = require('btoa')
