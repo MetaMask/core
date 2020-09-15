@@ -54,8 +54,6 @@ export interface PhishingState extends BaseState {
 export class PhishingController extends BaseController<PhishingConfig, PhishingState> {
   private configUrl = 'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
 
-  private configEtag = '';
-
   private detector: any;
 
   private handle?: NodeJS.Timer;
@@ -141,15 +139,10 @@ export class PhishingController extends BaseController<PhishingConfig, PhishingS
   }
 
   private async queryConfig(input: RequestInfo): Promise<EthPhishingResponse | null> {
-    const response = await fetch(input, {
-      headers: {
-        'If-None-Match': this.configEtag,
-      },
-    });
+    const response = await fetch(input);
 
     switch (response.status) {
       case 200: {
-        this.configEtag = response.headers.get('ETag') || /* istanbul ignore next */ '';
         return await response.json();
       }
       case 304:
