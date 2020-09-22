@@ -73,7 +73,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
     rpcTarget?: string,
     chainId?: string,
     ticker?: string,
-    nickname?: string
+    nickname?: string,
   ) {
     switch (type) {
       case 'kovan':

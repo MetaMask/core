@@ -70,11 +70,10 @@ export interface TypedMessageParamsMetamask extends AbstractMessageParamsMetamas
  * Controller in charge of managing - storing, adding, removing, updating - TypedMessages.
  */
 export class TypedMessageManager extends AbstractMessageManager<
-TypedMessage,
-TypedMessageParams,
-TypedMessageParamsMetamask
+  TypedMessage,
+  TypedMessageParams,
+  TypedMessageParamsMetamask
 > {
-
   /**
    * Name of this controller used during composition
    */
@@ -97,7 +96,7 @@ TypedMessageParamsMetamask
   addUnapprovedMessageAsync(
     messageParams: TypedMessageParams,
     version: string,
-    req?: OriginalRequest
+    req?: OriginalRequest,
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       if (version === 'V1') {
@@ -117,9 +116,7 @@ TypedMessageParamsMetamask
             return reject(new Error(`MetaMask Typed Message Signature: ${data.error}`));
           default:
             return reject(
-              new Error(
-                `MetaMask Typed Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`
-              )
+              new Error(`MetaMask Typed Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`),
             );
         }
       });

@@ -49,7 +49,6 @@ export interface AddressBookState extends BaseState {
  * Controller that manages a list of recipient addresses associated with nicknames
  */
 export class AddressBookController extends BaseController<BaseConfig, AddressBookState> {
-
   /**
    * Name of this controller used during composition
    */

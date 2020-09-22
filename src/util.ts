@@ -10,7 +10,7 @@ const jsonschema = require('jsonschema');
 const { BN, stripHexPrefix } = require('ethereumjs-util');
 const ensNamehash = require('eth-ens-namehash');
 
-const hexRe = /^[0-9A-Fa-f]+$/ug;
+const hexRe = /^[0-9A-Fa-f]+$/gu;
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
   data: (data: string) => addHexPrefix(data),
