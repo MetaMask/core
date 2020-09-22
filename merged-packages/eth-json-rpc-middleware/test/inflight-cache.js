@@ -1,19 +1,13 @@
 const test = require('tape')
 const JsonRpcEngine = require('json-rpc-engine')
-const asMiddleware = require('json-rpc-engine/src/asMiddleware')
 const BlockTracker = require('eth-block-tracker')
 const GanacheCore = require('ganache-core')
-const providerAsMiddleware = require('../providerAsMiddleware')
 const providerFromEngine = require('../providerFromEngine')
 const createInflightCacheMiddleware = require('../inflight-cache')
-const createScaffoldMiddleware = require('../scaffold')
 
 test('inflight-cache - basic', (t) => {
-  t.plan(10)
-
   const { engine } = createTestSetup()
 
-  let releaseStall = null
   let hitCount = 0
   let res1, res2
 
@@ -21,10 +15,12 @@ test('inflight-cache - basic', (t) => {
   engine.push(createInflightCacheMiddleware())
 
   // add stalling result handler for `test_blockCache`
-  engine.push((req, res, next, end) => {
+  engine.push((_req, res, _next, end) => {
     hitCount++
     res.result = true
-    releaseStall = end
+    if (hitCount === 1) {
+      setTimeout(end, 100)
+    }
   })
 
   // fire first request (handled but stalled)
@@ -32,13 +28,9 @@ test('inflight-cache - basic', (t) => {
   // fire second request (inflight cached)
   engine.handle({ id: 2, method: 'test_blockCache', params: [] }, secondReqResponse)
 
-  t.ok(releaseStall, 'test prep - releaseStall was set')
-  t.equal(hitCount, 1, 'test prep - result handler was only hit once')
-
-  // release stalled first request
-  releaseStall()
-
   function firstReqResponse (err, res) {
+    t.equal(hitCount, 1, 'test prep - result handler was only hit once')
+
     res1 = res
     t.notOk(err, 'No error in response')
     t.ok(res, 'Has response')
