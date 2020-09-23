@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [3.1.0] - 2020-09-23
+
+## Changed
+
+- Update various dependencies
+  - eth-rpc-errors@3.0.0 ([#284](https://github.com/MetaMask/controllers/pull/284))
+  - web3-provider-engine@16.0.1 ([#283](https://github.com/MetaMask/controllers/pull/283))
+  - isomorphic-fetch@3.0.0 ([#282](https://github.com/MetaMask/controllers/pull/282))
+  - eth-json-rpc-infura@5.1.0 ([#281](https://github.com/MetaMask/controllers/pull/281))
+
 ## [3.0.1] - 2020-09-15
 
 ## Changed
