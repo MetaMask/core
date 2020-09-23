@@ -44,17 +44,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [2.0.3] - 2020-07-27
 
-## Added
+### Added
 
 - TransactionsController: Bugfix cancel / speedup transactions (#248)
 
-
 ## [2.0.2] - 2020-07-14
 
-## Added
+### Added
 
 - TransactionsController: Fetch incoming token transactions (#247)
-
 
 ## [2.0.1] - 2020-06-18
 
