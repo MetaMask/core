@@ -49,7 +49,7 @@
     "ethjs-query": "^0.3.8",
     "human-standard-collectible-abi": "^1.0.2",
     "human-standard-token-abi": "^2.0.0",
-    "isomorphic-fetch": "^2.2.1",
+    "isomorphic-fetch": "^3.0.0",
     "jsonschema": "^1.2.4",
     "percentile": "^1.2.1",
     "single-call-balance-checker-abi": "^1.0.0",
