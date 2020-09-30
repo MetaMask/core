@@ -1,40 +1,36 @@
 {
-  "name": "@metamask/controllers",
-  "version": "3.1.0",
-  "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
+  "name": "@xops/metamask-controllers-base",
+  "version": "0.0.0-development",
+  "description": "Collection of platform-agnostic base controllers from @metamask/controllers.",
   "license": "MIT",
   "files": [
     "dist/"
   ],
-  "main": "./dist/index.js",
+  "main": "./build/index.js",
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
     "access": "public"
   },
   "scripts": {
-    "prepublishOnly": "yarn build",
     "lint": "eslint --ext .ts .",
     "test": "jest --coverage",
     "format": "prettier **/*.ts --write --ignore-path=.gitignore",
     "build": "rm -rf dist && tsc",
-    "build:watch": "yarn build && tsc -w",
-    "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
+    "build:watch": "npm run build && tsc -w",
     "doc": "typedoc src/ && touch docs/.nojekyll"
   },
-  "homepage": "https://github.com/MetaMask/controllers#readme",
+  "homepage": "https://github.com/xops/metamask-controllers-base#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MetaMask/controllers.git"
+    "url": "https://github.com/xops/metamask-controllers-base/issues"
   },
   "keywords": [
     "MetaMask",
-    "Ethereum"
+    "BaseControllers"
   ],
   "bugs": {
-    "url": "https://github.com/MetaMask/controllers/issues"
+    "url": "https://github.com/xops/metamask-controllers-base/issues"
   },
-  "dependencies": {
-  },
+  "dependencies": {},
   "devDependencies": {
     "@metamask/eslint-config": "^3.0.0",
     "@types/jest": "^22.2.3",
@@ -79,8 +75,7 @@
         "statements": 100
       }
     },
-    "setupFiles": [
-    ]
+    "setupFiles": []
   },
   "prettier": {
     "arrowParens": "always",
@@ -92,7 +87,7 @@
   "lint-staged": {
     "*.ts": [
       "prettier --write",
-      "yarn lint",
+      "npm run lint",
       "git add"
     ]
   }

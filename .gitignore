@@ -10,5 +10,8 @@ package-lock.json
 *.tgz
 
 coverage
-dist
+build
 docs
+.DS_Store
+dist
+/**/build

@@ -1,96 +1,91 @@
-version: 2.1
+version: 2
 
-workflows:
-  build-test:
-    jobs:
-      - prep-deps
-      - test-build:
-          requires:
-            - prep-deps
-      - test-lint:
-          requires:
-            - prep-deps
-      - test-unit:
-          requires:
-            - prep-deps
-      - test-format:
-          requires:
-            - prep-deps
-      - all-tests-pass:
-          requires:
-            - test-build
-            - test-lint
-            - test-unit
-            - test-format
+aliases:
+  # -------------------------
+  #      ALIASES: Caches
+  # -------------------------
+  - &restore-deps-cache
+    key: deps-cache-{{ checksum "package.json" }}
+
+  - &save-deps-cache
+    key: deps-cache-{{ checksum "package.json" }}
+    paths:
+      - ~/project/node_modules
+
+  # -------------------------
+  #  ALIASES: Branch Filters
+  # -------------------------
+  - &filter-only-master
+    branches:
+      only: master
+  - &filter-only-semantic-pr
+    branches:
+      only:  /^(pull|fix|feat|dependabot)\/.*$/
+
+defaults: &defaults
+  working_directory: ~/project
 
 jobs:
-  prep-deps:
+  test:
+    <<: *defaults
     docker:
       - image: circleci/node:10
     steps:
       - checkout
-      - run:
-          name: Install deps
-          command: |
-            .circleci/scripts/deps-install.sh
-      - run:
-          name: Collect yarn install HAR logs
-          command: |
-            .circleci/scripts/collect-har-artifact.sh
-      - persist_to_workspace:
-          root: .
-          paths:
-          - node_modules
-          - build-artifacts
+      - restore_cache: *restore-deps-cache
+      - run: npm install
+      - run: npm install codecov
+      - run: npm test
+      - run: ./node_modules/.bin/codecov
+      - save_cache: *save-deps-cache
 
-  test-format:
+  build:
+    <<: *defaults
     docker:
       - image: circleci/node:10
     steps:
       - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          name: Format
-          command: yarn format
+      - restore_cache: *restore-deps-cache
+      - run: npm install
+      - run: npm run build
+      - save_cache: *save-deps-cache
 
-  test-build:
+  release:
+    <<: *defaults
     docker:
       - image: circleci/node:10
     steps:
       - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          name: Build project
-          command: yarn build
+      - restore_cache: *restore-deps-cache
+      - run: npm install
+      - run: npm run build
+      - run: npm install semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github @semantic-release/npm @semantic-release/commit-analyzer @semantic-release/release-notes-generator @qiwi/semantic-release-gh-pages-plugin
+      - run: git checkout package.json package-lock.json
+      - run: ./node_modules/.bin/semantic-release
+      - save_cache: *save-deps-cache
 
-  test-lint:
-    docker:
-      - image: circleci/node:10
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          name: Lint
-          command: yarn lint
+workflows:
+  version: 2
+  analysis:
+    jobs:
+      - test:
+          filters: *filter-only-semantic-pr
+      - build:
+          filters: *filter-only-semantic-pr
 
-  test-unit:
-    docker:
-      - image: circleci/node:10
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          name: Unit tests
-          command: yarn test --maxWorkers=1
-
-  all-tests-pass:
-    docker:
-      - image: circleci/node:10
-    steps:
-      - run:
-          name: All tests passed
-          command: echo 'Great success'
+  release:
+    jobs:
+      - test:
+          filters: *filter-only-master
+      - build:
+          filters: *filter-only-master
+      - hold:
+          filters: *filter-only-master
+          type: approval
+          requires:
+            - test
+            - build
+      - release:
+          filters: *filter-only-master
+          requires:
+            - hold
