@@ -1,168 +1,83 @@
 import { stub } from 'sinon';
-import AddressBookController from '../src/user/AddressBookController';
-import EnsController from '../src/third-party/EnsController';
+import BaseController, { BaseConfig, BaseState } from '../src/BaseController';
 import ComposableController from '../src/ComposableController';
-import PreferencesController from '../src/user/PreferencesController';
-import TokenRatesController from '../src/assets/TokenRatesController';
-import { AssetsController } from '../src/assets/AssetsController';
-import { NetworkController } from '../src/network/NetworkController';
-import { AssetsContractController } from '../src/assets/AssetsContractController';
-import CurrencyRateController from '../src/assets/CurrencyRateController';
+
+interface TestState extends BaseState {
+  test: any;
+}
+
+interface FooState extends BaseState {
+  foo: any;
+}
+
+class FooController extends BaseController<BaseConfig, FooState> {
+  name = 'FooController';
+
+  constructor(config?: BaseConfig, state?: TestState) {
+    super(config, state);
+    this.defaultState = { foo: {} };
+    this.initialize();
+  }
+}
+
+class TestController extends BaseController<BaseConfig, TestState> {
+  name = 'TestController';
+
+  requiredControllers = ['FooController'];
+
+  constructor(config?: BaseConfig, state?: TestState) {
+    super(config, state);
+    this.defaultState = { test: {} };
+    this.initialize();
+  }
+}
 
 describe('ComposableController', () => {
   it('should compose controller state', () => {
     const controller = new ComposableController([
-      new AddressBookController(),
-      new AssetsController(),
-      new AssetsContractController(),
-      new EnsController(),
-      new CurrencyRateController(),
-      new NetworkController(),
-      new PreferencesController(),
-      new TokenRatesController(),
+      new BaseController(),
     ]);
     expect(controller.state).toEqual({
-      AddressBookController: { addressBook: {} },
-      AssetsContractController: {},
-      AssetsController: {
-        allCollectibleContracts: {},
-        allCollectibles: {},
-        allTokens: {},
-        collectibleContracts: [],
-        collectibles: [],
-        ignoredCollectibles: [],
-        ignoredTokens: [],
-        suggestedAssets: [],
-        tokens: [],
-      },
-      CurrencyRateController: {
-        conversionDate: 0,
-        conversionRate: 0,
-        currentCurrency: 'usd',
-        nativeCurrency: 'ETH',
-      },
-      EnsController: {
-        ensEntries: {},
-      },
-      NetworkController: {
-        network: 'loading',
-        provider: { type: 'mainnet' },
-      },
-      PreferencesController: {
-        featureFlags: {},
-        frequentRpcList: [],
-        identities: {},
-        ipfsGateway: 'https://ipfs.io/ipfs/',
-        lostIdentities: {},
-        selectedAddress: '',
-      },
-      TokenRatesController: { contractExchangeRates: {} },
+      BaseController: {},
     });
   });
 
   it('should compose flat controller state', () => {
     const controller = new ComposableController([
-      new AddressBookController(),
-      new AssetsController(),
-      new AssetsContractController(),
-      new EnsController(),
-      new CurrencyRateController(),
-      new NetworkController(),
-      new PreferencesController(),
-      new TokenRatesController(),
+      new FooController(),
+      new TestController(),
     ]);
     expect(controller.flatState).toEqual({
-      addressBook: {},
-      allCollectibleContracts: {},
-      allCollectibles: {},
-      allTokens: {},
-      collectibleContracts: [],
-      collectibles: [],
-      contractExchangeRates: {},
-      conversionDate: 0,
-      conversionRate: 0,
-      currentCurrency: 'usd',
-      ensEntries: {},
-      featureFlags: {},
-      frequentRpcList: [],
-      identities: {},
-      ignoredCollectibles: [],
-      ignoredTokens: [],
-      ipfsGateway: 'https://ipfs.io/ipfs/',
-      lostIdentities: {},
-      nativeCurrency: 'ETH',
-      network: 'loading',
-      provider: { type: 'mainnet' },
-      selectedAddress: '',
-      suggestedAssets: [],
-      tokens: [],
+      foo: {},
+      test: {},
     });
   });
 
   it('should expose sibling context', () => {
     const controller = new ComposableController([
-      new AddressBookController(),
-      new AssetsController(),
-      new AssetsContractController(),
-      new CurrencyRateController(),
-      new EnsController(),
-      new NetworkController(),
-      new PreferencesController(),
-      new TokenRatesController(),
+      new FooController(),
+      new TestController(),
     ]);
-    const addressContext = controller.context.TokenRatesController.context
-      .AddressBookController as AddressBookController;
+    const addressContext = controller.context.FooController.context.TestController as TestController;
     expect(addressContext).toBeDefined();
-    addressContext.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+    addressContext.update({ test: 'baz' });
     expect(controller.flatState).toEqual({
-      addressBook: {
-        1: {
-          '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
-            address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-            chainId: '1',
-            isEns: false,
-            memo: '',
-            name: 'foo',
-          },
-        },
-      },
-      allCollectibleContracts: {},
-      allCollectibles: {},
-      allTokens: {},
-      collectibleContracts: [],
-      collectibles: [],
-      contractExchangeRates: {},
-      conversionDate: 0,
-      conversionRate: 0,
-      currentCurrency: 'usd',
-      ensEntries: {},
-      featureFlags: {},
-      frequentRpcList: [],
-      identities: {},
-      ignoredCollectibles: [],
-      ignoredTokens: [],
-      ipfsGateway: 'https://ipfs.io/ipfs/',
-      lostIdentities: {},
-      nativeCurrency: 'ETH',
-      network: 'loading',
-      provider: { type: 'mainnet' },
-      selectedAddress: '',
-      suggestedAssets: [],
-      tokens: [],
+      foo: {},
+      test: 'baz',
     });
   });
 
   it('should get and set new stores', () => {
     const controller = new ComposableController();
-    const addressBook = new AddressBookController();
+    const addressBook = new FooController();
     controller.controllers = [addressBook];
     expect(controller.controllers).toEqual([addressBook]);
   });
 
   it('should set initial state', () => {
     const state = {
-      AddressBookController: {
-        addressBook: [
+      FooController: {
+        foo: [
           {
             1: {
               address: 'bar',
@@ -175,30 +90,23 @@ describe('ComposableController', () => {
         ],
       },
     };
-    const controller = new ComposableController([new AddressBookController()], state);
+    const controller = new ComposableController([new FooController()], state);
     expect(controller.state).toEqual(state);
   });
 
   it('should notify listeners of nested state change', () => {
-    const addressBookController = new AddressBookController();
-    const controller = new ComposableController([addressBookController]);
+    const addressBookController = new TestController();
+    const controller = new ComposableController([new FooController(), addressBookController]);
     const listener = stub();
     controller.subscribe(listener);
-    addressBookController.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+    addressBookController.update({ test: 'baz' });
     expect(listener.calledOnce).toBe(true);
     expect(listener.getCall(0).args[0]).toEqual({
-      AddressBookController: {
-        addressBook: {
-          1: {
-            '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
-              address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
-              chainId: '1',
-              isEns: false,
-              memo: '',
-              name: 'foo',
-            },
-          },
-        },
+      FooController: {
+        foo: {},
+      },
+      TestController: {
+        test: 'baz',
       },
     });
   });

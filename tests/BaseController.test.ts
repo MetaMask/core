@@ -25,6 +25,11 @@ describe('BaseController', () => {
     expect(controller.config).toEqual(CONFIG);
   });
 
+  it('should set initial config empty', () => {
+    const controller = new TestController({});
+    expect(controller.config).toEqual({});
+  });
+
   it('should overwrite state', () => {
     const controller = new TestController();
     expect(controller.state).toEqual({});
