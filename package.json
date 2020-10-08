@@ -45,7 +45,7 @@
     "eth-rpc-errors": "^3.0.0",
     "eth-sig-util": "^2.3.0",
     "ethereumjs-util": "^6.1.0",
-    "ethereumjs-wallet": "0.6.0",
+    "ethereumjs-wallet": "^0.6.4",
     "ethjs-query": "^0.3.8",
     "human-standard-collectible-abi": "^1.0.2",
     "human-standard-token-abi": "^2.0.0",
