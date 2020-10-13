@@ -40,10 +40,23 @@ describe('KeyringController', () => {
   });
 
   it('should add new account', async () => {
+    const initialIdentitiesLength = Object.keys(preferences.state.identities).length;
     const currentKeyringMemState = await keyringController.addNewAccount();
     expect(initialState.keyrings).toHaveLength(1);
     expect(initialState.keyrings[0].accounts).not.toBe(currentKeyringMemState.keyrings);
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
+    const identitiesLength = Object.keys(preferences.state.identities).length;
+    expect(identitiesLength).toBeGreaterThan(initialIdentitiesLength);
+  });
+
+  it('should add new account without updating', async () => {
+    const initialIdentitiesLength = Object.keys(preferences.state.identities).length;
+    const currentKeyringMemState = await keyringController.addNewAccountWithoutUpdate();
+    expect(initialState.keyrings).toHaveLength(1);
+    expect(initialState.keyrings[0].accounts).not.toBe(currentKeyringMemState.keyrings);
+    expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
+    const identitiesLength = Object.keys(preferences.state.identities).length;
+    expect(identitiesLength).toEqual(initialIdentitiesLength);
   });
 
   it('should create new vault and keychain', async () => {
