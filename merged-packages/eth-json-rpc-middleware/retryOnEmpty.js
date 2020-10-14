@@ -18,8 +18,8 @@ const emptyValues = [undefined, null, '\u003cnil\u003e']
 
 function createRetryOnEmptyMiddleware (opts = {}) {
   const { provider, blockTracker } = opts
-  if (!provider) throw Error('BlockRefRewriteMiddleware - mandatory "provider" option is missing.')
-  if (!blockTracker) throw Error('BlockRefRewriteMiddleware - mandatory "blockTracker" option is missing.')
+  if (!provider) throw Error('RetryOnEmptyMiddleware - mandatory "provider" option is missing.')
+  if (!blockTracker) throw Error('RetryOnEmptyMiddleware - mandatory "blockTracker" option is missing.')
 
   return createAsyncMiddleware(async (req, res, next) => {
     const blockRefIndex = blockTagParamIndex(req)
@@ -65,7 +65,7 @@ async function retry(maxRetries, asyncFn) {
       await timeout(1000)
     }
   }
-  throw new Error('BlockReEmitMiddleware - retries exhausted')
+  throw new Error('RetryOnEmptyMiddleware - retries exhausted')
 }
 
 function timeout(duration) {
