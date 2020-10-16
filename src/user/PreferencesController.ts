@@ -52,7 +52,6 @@ export interface PreferencesState extends BaseState {
  * Controller that stores shared settings and exposes convenience methods
  */
 export class PreferencesController extends BaseController<BaseConfig, PreferencesState> {
-
   /**
    * Name of this controller used during composition
    */

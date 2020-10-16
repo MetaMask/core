@@ -88,12 +88,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
   /**
    * List of required sibling controllers this controller needs to function
    */
-  requiredControllers = [
-    'AssetsContractController',
-    'AssetsController',
-    'NetworkController',
-    'PreferencesController',
-  ];
+  requiredControllers = ['AssetsContractController', 'AssetsController', 'NetworkController', 'PreferencesController'];
 
   /**
    * Creates a AssetsDetectionController instance
@@ -188,7 +183,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
           await assetsController.addToken(
             tokenAddress,
             contractMap[tokenAddress].symbol,
-            contractMap[tokenAddress].decimals
+            contractMap[tokenAddress].decimals,
           );
         }
       }
@@ -241,7 +236,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
               image: image_original_url,
               name,
             },
-            true
+            true,
           );
         }
         collectiblesToRemove = collectiblesToRemove.filter((c) => {

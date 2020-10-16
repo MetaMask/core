@@ -56,11 +56,10 @@ export interface PersonalMessageParamsMetamask extends AbstractMessageParamsMeta
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
 export class PersonalMessageManager extends AbstractMessageManager<
-PersonalMessage,
-PersonalMessageParams,
-PersonalMessageParamsMetamask
+  PersonalMessage,
+  PersonalMessageParams,
+  PersonalMessageParamsMetamask
 > {
-
   /**
    * Name of this controller used during composition
    */
@@ -86,9 +85,7 @@ PersonalMessageParamsMetamask
             return reject(new Error('MetaMask Personal Message Signature: User denied message signature.'));
           default:
             return reject(
-              new Error(
-                `MetaMask Personal Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`
-              )
+              new Error(`MetaMask Personal Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`),
             );
         }
       });

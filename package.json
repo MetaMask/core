@@ -15,7 +15,8 @@
     "prepublishOnly": "yarn build",
     "lint": "eslint --ext .ts .",
     "test": "jest --coverage",
-    "format": "prettier **/*.ts --write --ignore-path=.gitignore",
+    "format": "prettier **/*.ts --check --ignore-path=.gitignore",
+    "format:fix": "prettier **/*.ts --write --ignore-path=.gitignore",
     "build": "rm -rf dist && tsc",
     "build:watch": "yarn build && tsc -w",
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
@@ -120,7 +121,7 @@
   },
   "lint-staged": {
     "*.ts": [
-      "prettier --write",
+      "prettier --ignore-path=.gitignore --write **/*.ts",
       "yarn lint",
       "git add"
     ]

@@ -159,7 +159,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
     try {
       const { conversionDate, conversionRate } = await this.fetchExchangeRate(
         this.activeCurrency,
-        this.activeNativeCurrency
+        this.activeNativeCurrency,
       );
       this.update({
         conversionDate,

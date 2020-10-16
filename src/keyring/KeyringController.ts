@@ -19,7 +19,7 @@ const privates = new WeakMap();
  */
 export enum KeyringTypes {
   simple = 'Simple Key Pair',
-  hd = 'HD Key Tree'
+  hd = 'HD Key Tree',
 }
 
 /**
@@ -449,8 +449,8 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
             index,
             type: keyring.type,
           };
-        }
-      )
+        },
+      ),
     );
     this.update({ keyrings: [...keyrings] });
     return privates.get(this).keyring.fullUpdate();

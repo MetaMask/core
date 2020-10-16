@@ -5,9 +5,7 @@ import CurrencyRateController from '../src/assets/CurrencyRateController';
 
 describe('CurrencyRateController', () => {
   beforeEach(() => {
-    fetchMock
-      .mock('*', () => new Response(JSON.stringify({ USD: 1337 })))
-      .spy();
+    fetchMock.mock('*', () => new Response(JSON.stringify({ USD: 1337 }))).spy();
   });
 
   afterEach(() => {

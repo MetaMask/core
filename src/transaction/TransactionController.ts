@@ -390,9 +390,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     const releaseLock = await this.mutex.acquire();
     try {
       const { methodData } = this.state;
-      const knownMethod = Object.keys(methodData).find(
-        (knownFourBytePrefix) => fourBytePrefix === knownFourBytePrefix
-      );
+      const knownMethod = Object.keys(methodData).find((knownFourBytePrefix) => fourBytePrefix === knownFourBytePrefix);
       if (knownMethod) {
         return methodData[fourBytePrefix];
       }
@@ -450,9 +448,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
             return reject(ethErrors.rpc.internal(meta.error!.message));
           /* istanbul ignore next */
           default:
-            return reject(
-              ethErrors.rpc.internal(`MetaMask Tx Signature: Unknown problem: ${JSON.stringify(meta)}`)
-            );
+            return reject(ethErrors.rpc.internal(`MetaMask Tx Signature: Unknown problem: ${JSON.stringify(meta)}`));
         }
       });
     });
@@ -680,19 +676,21 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     const network = this.context.NetworkController;
     const currentNetworkID = network.state.network;
     let gotUpdates = false;
-    await safelyExecute(() => Promise.all(
-      transactions.map(async (meta, index) => {
-        if (meta.status === 'submitted' && meta.networkID === currentNetworkID) {
-          const txObj = await this.query('getTransactionByHash', [meta.transactionHash]);
-          /* istanbul ignore else */
-          if (txObj && txObj.blockNumber) {
-            transactions[index].status = 'confirmed';
-            this.hub.emit(`${meta.id}:confirmed`, meta);
-            gotUpdates = true;
+    await safelyExecute(() =>
+      Promise.all(
+        transactions.map(async (meta, index) => {
+          if (meta.status === 'submitted' && meta.networkID === currentNetworkID) {
+            const txObj = await this.query('getTransactionByHash', [meta.transactionHash]);
+            /* istanbul ignore else */
+            if (txObj && txObj.blockNumber) {
+              transactions[index].status = 'confirmed';
+              this.hub.emit(`${meta.id}:confirmed`, meta);
+              gotUpdates = true;
+            }
           }
-        }
-      })
-    ));
+        }),
+      ),
+    );
     /* istanbul ignore else */
     if (gotUpdates) {
       this.update({ transactions: [...transactions] });
@@ -777,7 +775,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 
     const localTxs = this.state.transactions.filter(
       /* istanbul ignore next */
-      (tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`]
+      (tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`],
     );
 
     const allTxs = [...remoteTxs, ...localTxs];
@@ -793,8 +791,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       ) {
         if (
           tx.blockNumber &&
-          (!latestIncomingTxBlockNumber ||
-            parseInt(latestIncomingTxBlockNumber, 10) < parseInt(tx.blockNumber, 10))
+          (!latestIncomingTxBlockNumber || parseInt(latestIncomingTxBlockNumber, 10) < parseInt(tx.blockNumber, 10))
         ) {
           latestIncomingTxBlockNumber = tx.blockNumber;
         }

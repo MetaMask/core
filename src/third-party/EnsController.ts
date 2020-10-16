@@ -33,7 +33,6 @@ export interface EnsState extends BaseState {
  * by chainId. A null address indicates an unresolved ENS name.
  */
 export class EnsController extends BaseController<BaseConfig, EnsState> {
-
   /**
    * Name of this controller used during composition
    */
@@ -70,11 +69,7 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
    */
   delete(chainId: string, ensName: string): boolean {
     const normalizedEnsName = normalizeEnsName(ensName);
-    if (
-      !normalizedEnsName ||
-      !this.state.ensEntries[chainId] ||
-      !this.state.ensEntries[chainId][normalizedEnsName]
-    ) {
+    if (!normalizedEnsName || !this.state.ensEntries[chainId] || !this.state.ensEntries[chainId][normalizedEnsName]) {
       return false;
     }
 
@@ -102,7 +97,7 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
 
     // TODO Explicitly handle the case where `normalizedEnsName` is `null`
     // eslint-disable-next-line no-implicit-coercion
-    return !!(normalizedEnsName) && this.state.ensEntries[chainId]
+    return !!normalizedEnsName && this.state.ensEntries[chainId]
       ? this.state.ensEntries[chainId][normalizedEnsName] || null
       : null;
   }

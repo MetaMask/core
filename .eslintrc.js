@@ -27,6 +27,7 @@ module.exports = {
   rules: {
     'no-shadow': 'off',
     '@typescript-eslint/no-shadow': 'error',
+    '@typescript-eslint/indent': 'off',
 
     // TODO re-enable most of these rules
     '@typescript-eslint/no-non-null-assertion': 'off',
