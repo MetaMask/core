@@ -152,6 +152,22 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
   }
 
   /**
+   * Adds a new account to the default (first) HD seed phrase keyring without updating identities in preferences
+   *
+   * @returns - Promise resolving to current state when the account is added
+   */
+  async addNewAccountWithoutUpdate(): Promise<KeyringMemState> {
+    const primaryKeyring = privates.get(this).keyring.getKeyringsByType('HD Key Tree')[0];
+    /* istanbul ignore if */
+    if (!primaryKeyring) {
+      throw new Error('No HD keyring found');
+    }
+    await privates.get(this).keyring.addNewAccount(primaryKeyring);
+    await this.verifySeedPhrase();
+    return this.fullUpdate();
+  }
+
+  /**
    * Effectively the same as creating a new keychain then populating it
    * using the given seed phrase
    *
