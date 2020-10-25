@@ -1,6 +1,4 @@
-const {
-  TokenRatesController,
-} = require('./dist');
+const { TokenRatesController } = require('./dist');
 
 const assets = new TokenRatesController({
   disabled: false,
