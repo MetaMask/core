@@ -13,7 +13,7 @@
   },
   "scripts": {
     "prepublishOnly": "yarn build",
-    "lint": "eslint --ext .ts .",
+    "lint": "eslint --ext js,ts .",
     "test": "jest --coverage",
     "format": "prettier **/*.ts --check --ignore-path=.gitignore",
     "format:fix": "prettier **/*.ts --write --ignore-path=.gitignore",
