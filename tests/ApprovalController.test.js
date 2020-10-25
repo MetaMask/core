@@ -1,4 +1,3 @@
-const assert = require('assert');
 const { ERROR_CODES } = require('eth-rpc-errors');
 const ApprovalController = require('../dist/approval/ApprovalController.js').default;
 
@@ -13,40 +12,25 @@ describe('ApprovalController: Input Validation', () => {
     it('validates input', () => {
       const approvalController = getApprovalController();
 
-      assert.throws(
-        () => approvalController.add({ id: null, origin: 'bar.baz' }),
-        getNoFalsyIdError(),
-        'should throw on falsy id',
-      );
+      expect(() => approvalController.add({ id: null, origin: 'bar.baz' })).toThrow(getNoFalsyIdError());
 
-      assert.throws(
-        () => approvalController.add({ id: 'foo' }),
-        getMissingOriginError(),
-        'should throw on falsy origin',
-      );
+      expect(() => approvalController.add({ id: 'foo' })).toThrow(getMissingOriginError());
 
-      assert.throws(
-        () => approvalController.add({ id: 'foo', origin: 'bar.baz', type: {} }),
+      expect(() => approvalController.add({ id: 'foo', origin: 'bar.baz', type: {} })).toThrow(
         getNonStringTypeError(ERROR_CODES.rpc.internal),
-        'should throw on non-string type',
       );
 
-      assert.throws(
-        () => approvalController.add({ id: 'foo', origin: 'bar.baz', type: '' }),
+      expect(() => approvalController.add({ id: 'foo', origin: 'bar.baz', type: '' })).toThrow(
         getEmptyStringTypeError(ERROR_CODES.rpc.internal),
-        'should throw on empty string type',
       );
 
-      assert.throws(
-        () =>
-          approvalController.add({
-            id: 'foo',
-            origin: 'bar.baz',
-            requestData: 'foo',
-          }),
-        getInvalidRequestDataError(),
-        'should throw on non-object requestData',
-      );
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          requestData: 'foo',
+        }),
+      ).toThrow(getInvalidRequestDataError());
     });
   });
 
@@ -56,11 +40,11 @@ describe('ApprovalController: Input Validation', () => {
 
       approvalController.add({ id: 'foo', origin: 'bar.baz' });
 
-      assert.strictEqual(approvalController.get('fizz'), undefined, 'should return undefined');
+      expect(approvalController.get('fizz')).toBeUndefined();
 
-      assert.strictEqual(approvalController.get(), undefined, 'should return undefined');
+      expect(approvalController.get()).toBeUndefined();
 
-      assert.strictEqual(approvalController.get({}), undefined, 'should return undefined');
+      expect(approvalController.get({})).toBeUndefined();
     });
   });
 
@@ -68,13 +52,9 @@ describe('ApprovalController: Input Validation', () => {
     it('validates input', () => {
       const approvalController = getApprovalController();
 
-      assert.throws(
-        () => approvalController.has({}),
-        getMissingIdOrOriginError(),
-        'should throw on falsy id and origin',
-      );
+      expect(() => approvalController.has({})).toThrow(getMissingIdOrOriginError());
 
-      assert.throws(() => approvalController.has({ type: false }), getNoFalsyTypeError(), 'should throw on falsy type');
+      expect(() => approvalController.has({ type: false })).toThrow(getNoFalsyTypeError());
     });
   });
 
@@ -92,12 +72,11 @@ describe('ApprovalController: Input Validation', () => {
 
       approvalController._delete('foo');
 
-      assert.ok(
+      expect(
         !approvalController.has({ id: 'foo' }) &&
           !approvalController.has({ origin: 'bar.baz' }) &&
           !approvalController.state[STORE_KEY].foo,
-        'should have deleted entry',
-      );
+      ).toEqual(true);
     });
 
     it('deletes one entry out of many without side-effects', () => {
@@ -106,36 +85,26 @@ describe('ApprovalController: Input Validation', () => {
 
       approvalController._delete('fizz');
 
-      assert.ok(
+      expect(
         !approvalController.has({ id: 'fizz' }) && !approvalController.has({ origin: 'bar.baz', type: 'myType' }),
-        'should have deleted entry',
-      );
+      ).toEqual(true);
 
-      assert.ok(
-        approvalController.has({ id: 'foo' }) && approvalController.has({ origin: 'bar.baz' }),
-        'should still have non-deleted entry',
-      );
+      expect(approvalController.has({ id: 'foo' }) && approvalController.has({ origin: 'bar.baz' })).toEqual(true);
     });
 
     it('does nothing when deleting non-existing entry', () => {
       approvalController.add({ id: 'foo', origin: 'bar.baz' });
 
-      assert.doesNotThrow(
-        () => approvalController._delete('fizz'),
-        'should not throw when deleting non-existing entry',
-      );
+      expect(() => approvalController._delete('fizz')).not.toThrow();
 
-      assert.ok(
-        approvalController.has({ id: 'foo' }) && approvalController.has({ origin: 'bar.baz' }),
-        'should still have non-deleted entry',
-      );
+      expect(approvalController.has({ id: 'foo' }) && approvalController.has({ origin: 'bar.baz' })).toEqual(true);
     });
   });
 
   describe('miscellaneous', () => {
     it('isEmptyOrigin: handles non-existing origin', () => {
       const approvalController = getApprovalController();
-      assert.doesNotThrow(() => approvalController._isEmptyOrigin('kaplar'));
+      expect(() => approvalController._isEmptyOrigin('kaplar')).not.toThrow();
     });
   });
 });
