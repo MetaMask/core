@@ -95,10 +95,12 @@
       "^.+\\.tsx?$": "ts-jest"
     },
     "testMatch": [
-      "**/*.test.ts"
+      "**/*.test.ts",
+      "**/*.test.js"
     ],
     "coveragePathIgnorePatterns": [
       "/node_modules/",
+      "dist/BaseController*",
       "tests/"
     ],
     "coverageThreshold": {

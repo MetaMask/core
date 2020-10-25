@@ -1,7 +1,7 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
 const { ethErrors } = require('eth-rpc-errors');
-const nanoid: () => string = require('nanoid');
+const { nanoid } = require('nanoid');
 
 const DEFAULT_TYPE = Symbol('DEFAULT_APPROVAL_TYPE');
 const STORE_KEY = 'pendingApprovals';
@@ -255,8 +255,10 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
       errorMessage = 'Must specify origin.';
     } else if (this._approvals.has(id)) {
       errorMessage = `Approval with id '${id}' already exists.`;
+    } else if (typeof type !== 'string' && type !== DEFAULT_TYPE) {
+      errorMessage = 'Must specify string type.';
     } else if (!type) {
-      errorMessage = 'May not specify falsy type.';
+      errorMessage = 'May not specify empty string type.';
     } else if (requestData && (
       typeof requestData !== 'object' || Array.isArray(requestData)
     )) {
@@ -325,10 +327,6 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
    * @param id - The id of the approval request to be deleted.
    */
   private _delete(id: string): void {
-    if (!id) {
-      throw new Error('Expected id to be specified.');
-    }
-
     if (this._approvals.has(id)) {
       this._approvals.delete(id);
 
@@ -336,8 +334,9 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
       const {
         origin,
         type = DEFAULT_TYPE,
-      } = state[id] || {};
+      } = state[id];
 
+      /* istanbul ignore next */
       this._origins.get(origin)?.delete(type);
       if (this._isEmptyOrigin(origin)) {
         this._origins.delete(origin);
