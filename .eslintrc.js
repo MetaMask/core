@@ -7,7 +7,6 @@ module.exports = {
     '@metamask/eslint-config/config/typescript',
   ],
   ignorePatterns: [
-    '*.js',
     '!.eslintrc.js',
     '!jest.config.js',
     'node_modules',
@@ -16,10 +15,7 @@ module.exports = {
     '*.d.ts',
   ],
   overrides: [{
-    files: [
-      '.eslintrc.js',
-      'jest.config.js',
-    ],
+    files: ['*.js'],
     parserOptions: {
       sourceType: 'script',
     },
