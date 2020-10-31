@@ -1,23 +1,17 @@
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { safelyExecute, handleFetch } from '../util';
+import { createSlice } from '@reduxjs/toolkit';
 
-const { Mutex } = require('await-semaphore');
+import { fetchExchangeRate as defaultFetchExchangeRate } from '../crypto-compare';
+import { getAnonymizedState as _getAnonymizedState, getPersistedState as _getPersistedState } from '../schema-transform';
 
-/**
- * @type CurrencyRateConfig
- *
- * Currency rate controller configuration
- *
- * @property currentCurrency - Currently-active ISO 4217 currency code
- * @property interval - Polling interval used to fetch new currency rate
- * @property nativeCurrency - Symbol for the base asset used for conversion
- * @property includeUSDRate - Whether to include the usd rate in addition to the currentCurrency
- */
-export interface CurrencyRateConfig extends BaseConfig {
-  currentCurrency: string;
-  interval: number;
-  nativeCurrency: string;
-  includeUSDRate?: boolean;
+import type { AppDispatch, RootState } from '../store';
+
+const name = 'CurrencyRate';
+
+const POLLING_INTERVAL = 180000;
+
+enum POLLING_STATE {
+  STARTED = 'STARTED',
+  STOPPED = 'STOPPED',
 }
 
 /**
@@ -28,169 +22,263 @@ export interface CurrencyRateConfig extends BaseConfig {
  * @property conversionDate - Timestamp of conversion rate expressed in ms since UNIX epoch
  * @property conversionRate - Conversion rate from current base asset to the current currency
  * @property currentCurrency - Currently-active ISO 4217 currency code
+ * @property includeUsdRate - Whether to include the USD conversion rate in all
+ *   polling in addition to the current currency
  * @property nativeCurrency - Symbol for the base asset used for conversion
+ * @property pendingCurrentCurrency - The currency being switched to
+ * @property pendingNativeCurrency - The base asset currency being switched to
  * @property usdConversionRate - Conversion rate from usd to the current currency
  */
-export interface CurrencyRateState extends BaseState {
+export interface CurrencyRateState {
   conversionDate: number;
   conversionRate: number;
   currentCurrency: string;
+  includeUsdRate: boolean;
   nativeCurrency: string;
+  pendingCurrentCurrency: string | null;
+  pendingNativeCurrency: string | null;
+  pollingStartTime: number | null;
+  pollingState: POLLING_STATE;
+  updateStartTime: number | null;
   usdConversionRate?: number;
 }
 
-/**
- * Controller that passively polls on a set interval for an exchange rate from the current base
- * asset to the current currency
- */
-export class CurrencyRateController extends BaseController<CurrencyRateConfig, CurrencyRateState> {
-  /* Optional config to include conversion to usd in all price url fetches and on state */
-  includeUSDRate?: boolean;
+const initialState: CurrencyRateState = {
+  conversionDate: 0,
+  conversionRate: 0,
+  currentCurrency: 'usd',
+  includeUsdRate: false,
+  nativeCurrency: 'ETH',
+  pendingCurrentCurrency: null,
+  pendingNativeCurrency: null,
+  pollingStartTime: null,
+  pollingState: POLLING_STATE.STOPPED,
+  updateStartTime: null,
+  usdConversionRate: undefined,
+};
 
-  private activeCurrency = '';
+const schema = {
+  conversionDate: { persist: true, anonymous: true },
+  conversionRate: { persist: true, anonymous: true },
+  currentCurrency: { persist: true, anonymous: true },
+  includeUsdRate: { persist: true, anonymous: true },
+  nativeCurrency: { persist: true, anonymous: true },
+  pendingCurrentCurrency: { persist: false, anonymous: true },
+  pendingNativeCurrency: { persist: false, anonymous: true },
+  pollingStartTime: { persist: false, anonymous: true },
+  pollingState: { persist: false, anonymous: true },
+  updateStartTime: { persist: false, anonymous: true },
+  usdConversionRate: { persist: true, anonymous: true },
+};
 
-  private activeNativeCurrency = '';
+const slice = createSlice({
+  name,
+  initialState,
+  reducers: {
+    pollingStarted: (state, action) => {
+      state.pollingStartTime = action.payload;
+    },
+    pollingStopped: (state) => {
+      state.pollingStartTime = null;
+    },
+    pollFinished: (state, action) => {
+      const { conversionDate, conversionRate, usdConversionRate } = action.payload;
+      state.conversionDate = conversionDate;
+      state.conversionRate = conversionRate;
+      if (state.includeUsdRate) {
+        state.usdConversionRate = usdConversionRate;
+      }
+    },
+    started: (state) => {
+      state.pollingState = POLLING_STATE.STARTED;
+    },
+    stopped: (state) => {
+      state.pollingState = POLLING_STATE.STOPPED;
+    },
+    updateCurrencyStarted: (state, action) => {
+      const { currentCurrency, nativeCurrency, updateStartTime } = action.payload;
+      if (!currentCurrency && !nativeCurrency) {
+        throw new Error('Missing currency; either current or native currency must be specified');
+      }
+      if (currentCurrency) {
+        state.pendingCurrentCurrency = currentCurrency;
+      }
+      if (nativeCurrency) {
+        state.pendingNativeCurrency = nativeCurrency;
+      }
+      state.updateStartTime = updateStartTime;
+    },
+    updateCurrencyFailed: (state) => {
+      state.pendingCurrentCurrency = null;
+      state.pendingNativeCurrency = null;
+      state.updateStartTime = null;
+    },
+    updateCurrencyFinished: (state, action) => {
+      const { conversionDate, conversionRate, usdConversionRate } = action.payload;
+      state.conversionDate = conversionDate;
+      state.conversionRate = conversionRate;
+      if (state.includeUsdRate) {
+        state.usdConversionRate = usdConversionRate;
+      }
+      if (state.pendingCurrentCurrency) {
+        state.currentCurrency = state.pendingCurrentCurrency;
+        state.pendingCurrentCurrency = null;
+      }
+      if (state.pendingCurrentCurrency) {
+        state.nativeCurrency = state.pendingCurrentCurrency;
+        state.pendingNativeCurrency = null;
+      }
+      state.updateStartTime = null;
+    },
+    usdRateEnabled: (state) => {
+      state.includeUsdRate = true;
+    },
+  },
+});
 
-  private mutex = new Mutex();
+const { actions, reducer } = slice;
 
-  private handle?: NodeJS.Timer;
+export default reducer;
 
-  private getCurrentCurrencyFromState(state?: Partial<CurrencyRateState>) {
-    return state && state.currentCurrency ? state.currentCurrency : 'usd';
-  }
+// Selectors
 
-  private getPricingURL(currentCurrency: string, nativeCurrency: string, includeUSDRate?: boolean) {
-    return (
-      `https://min-api.cryptocompare.com/data/price?fsym=` +
-      `${nativeCurrency.toUpperCase()}&tsyms=${currentCurrency.toUpperCase()}` +
-      `${includeUSDRate && currentCurrency.toUpperCase() !== 'USD' ? ',USD' : ''}`
-    );
-  }
+export const getAnonymizedState = (state: RootState): Partial<CurrencyRateState> =>
+  _getAnonymizedState(state[name], schema);
+export const getPersistedState = (state: RootState): Partial<CurrencyRateState> =>
+  _getPersistedState(state[name], schema);
+const getPollingStartTime = (state: RootState) => state[name].pollingStartTime;
+const getCurrentCurrency = (state: RootState) => state[name].currentCurrency;
+const getNativeCurrency = (state: RootState) => state[name].nativeCurrency;
+const getPendingOrActiveCurrentCurrency = (state: RootState) =>
+  state[name].pendingCurrentCurrency || getCurrentCurrency(state);
+const getPendingOrActiveNativeCurrency = (state: RootState) =>
+  state[name].pendingNativeCurrency || getNativeCurrency(state);
+const getUpdateStartTime = (state: RootState) => state[name].updateStartTime;
 
-  /**
-   * Name of this controller used during composition
-   */
-  name = 'CurrencyRateController';
+// Action creators
 
-  /**
-   * Creates a CurrencyRateController instance
-   *
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
-   */
-  constructor(config?: Partial<CurrencyRateConfig>, state?: Partial<CurrencyRateState>) {
-    super(config, state);
-    this.defaultConfig = {
-      currentCurrency: this.getCurrentCurrencyFromState(state),
-      disabled: true,
-      interval: 180000,
-      nativeCurrency: 'ETH',
-      includeUSDRate: false,
-    };
-    this.defaultState = {
-      conversionDate: 0,
-      conversionRate: 0,
-      currentCurrency: this.defaultConfig.currentCurrency,
-      nativeCurrency: this.defaultConfig.nativeCurrency,
-      usdConversionRate: 0,
-    };
-    this.initialize();
-    this.configure({ disabled: false }, false, false);
-    this.poll();
-  }
+const {
+  pollingStarted,
+  pollingStopped,
+  pollFinished,
+  started,
+  stopped,
+  updateCurrencyStarted,
+  updateCurrencyFailed,
+  updateCurrencyFinished,
+  usdRateEnabled,
+} = actions;
 
-  /**
-   * Sets a currency to track
-   *
-   * @param currentCurrency - ISO 4217 currency code
-   */
-  set currentCurrency(currentCurrency: string) {
-    this.activeCurrency = currentCurrency;
-    safelyExecute(() => this.updateExchangeRate());
-  }
+export { usdRateEnabled };
 
-  /**
-   * Sets a new native currency
-   *
-   * @param symbol - Symbol for the base asset
-   */
-  set nativeCurrency(symbol: string) {
-    this.activeNativeCurrency = symbol;
-    safelyExecute(() => this.updateExchangeRate());
-  }
-
-  /**
-   * Starts a new polling interval
-   *
-   * @param interval - Polling interval used to fetch new exchange rate
-   */
-  async poll(interval?: number): Promise<void> {
-    interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
-    await safelyExecute(() => this.updateExchangeRate());
-    this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
-    }, this.config.interval);
-  }
-
-  /**
-   * Fetches the exchange rate for a given currency
-   *
-   * @param currency - ISO 4217 currency code
-   * @param nativeCurrency - Symbol for base asset
-   * @param includeUSDRate - Whether to add the USD rate to the fetch
-   * @returns - Promise resolving to exchange rate for given currency
-   */
-  async fetchExchangeRate(currency: string, nativeCurrency = this.activeNativeCurrency, includeUSDRate?: boolean): Promise<CurrencyRateState> {
-    const json = await handleFetch(this.getPricingURL(currency, nativeCurrency, includeUSDRate));
-    const conversionRate = Number(json[currency.toUpperCase()]);
-    const usdConversionRate = Number(json.USD);
-    if (!Number.isFinite(conversionRate)) {
-      throw new Error(`Invalid response for ${currency.toUpperCase()}: ${json[currency.toUpperCase()]}`);
-    }
-    if (includeUSDRate && !Number.isFinite(usdConversionRate)) {
-      throw new Error(`Invalid response for usdConversionRate: ${json.USD}`);
-    }
-
-    return {
-      conversionDate: Date.now() / 1000,
-      conversionRate,
-      currentCurrency: currency,
-      nativeCurrency,
-      usdConversionRate,
-    };
-  }
-
-  /**
-   * Updates exchange rate for the current currency
-   *
-   * @returns Promise resolving to currency data or undefined if disabled
-   */
-  async updateExchangeRate(): Promise<CurrencyRateState | void> {
-    if (this.disabled || !this.activeCurrency || !this.activeNativeCurrency) {
-      return;
-    }
-    const releaseLock = await this.mutex.acquire();
-    try {
-      const { conversionDate, conversionRate, usdConversionRate } = await this.fetchExchangeRate(
-        this.activeCurrency,
-        this.activeNativeCurrency,
-        this.includeUSDRate,
-      );
-      const newState: CurrencyRateState = {
-        conversionDate,
-        conversionRate,
-        currentCurrency: this.activeCurrency,
-        nativeCurrency: this.activeNativeCurrency,
-        usdConversionRate: this.includeUSDRate ? usdConversionRate : this.defaultState.usdConversionRate,
-      };
-      this.update(newState);
-
-      return this.state;
-    } finally {
-      releaseLock();
-    }
-  }
+export function start() {
+  return (dispatch: AppDispatch) => {
+    dispatch(started());
+    dispatch(startPolling());
+  };
 }
 
-export default CurrencyRateController;
+export function stop() {
+  return (dispatch: AppDispatch) => {
+    dispatch(stopped());
+    dispatch(pollingStopped());
+  };
+}
+
+async function poll(
+  dispatch: AppDispatch,
+  getState: () => RootState,
+  fetchExchangeRate = defaultFetchExchangeRate,
+) {
+  const state = getState();
+  const currentCurrency = getCurrentCurrency(state);
+  const nativeCurrency = getNativeCurrency(state);
+
+  const fetchStartTime = Date.now();
+  const { conversionDate, conversionRate, usdConversionRate } = await fetchExchangeRate(
+    currentCurrency,
+    nativeCurrency,
+    state[name].includeUsdRate,
+  );
+
+  // bail if polling has stopped or restarted
+  const updatedState = getState();
+  const pollingStartTime = getPollingStartTime(updatedState);
+  if (pollingStartTime === null || pollingStartTime > fetchStartTime) {
+    return;
+  }
+
+  dispatch(pollFinished({ conversionDate, conversionRate, usdConversionRate }));
+}
+
+function startPolling(fetchExchangeRate = defaultFetchExchangeRate) {
+  return async (dispatch: AppDispatch, getState: () => RootState) => {
+    const { pollingState } = getState()[name];
+    if (pollingState === POLLING_STATE.STOPPED) {
+      return;
+    }
+    const pollingStartTime = Date.now();
+    dispatch(pollingStarted(pollingStartTime));
+    poll(dispatch, getState, fetchExchangeRate);
+
+    const intervalHandle = setInterval(
+      () => {
+        const state = getState();
+        const updatedPollingStartTime = getPollingStartTime(state);
+        if (pollingStartTime !== updatedPollingStartTime) {
+          clearInterval(intervalHandle);
+          return;
+        }
+        poll(dispatch, getState, fetchExchangeRate);
+      },
+      POLLING_INTERVAL,
+    );
+  };
+}
+
+export function updateCurrency(
+  { currentCurrency, nativeCurrency }: { currentCurrency: string; nativeCurrency: string },
+  fetchExchangeRate = defaultFetchExchangeRate,
+) {
+  return async (dispatch: AppDispatch, getState: () => RootState) => {
+    if (!currentCurrency && !nativeCurrency) {
+      throw new Error('Missing currency; either current or native currency must be specified');
+    }
+
+    dispatch(pollingStopped());
+    const updateStartTime = Date.now();
+    dispatch(updateCurrencyStarted({ currentCurrency, nativeCurrency, updateStartTime }));
+
+    let updateReplaced = false;
+
+    try {
+      const state = getState();
+      const pendingOrActiveCurrentCurrency = getPendingOrActiveCurrentCurrency(state);
+      const pendingOrActiveNativeCurrency = getPendingOrActiveNativeCurrency(state);
+
+      const { conversionDate, conversionRate, usdConversionRate } = await fetchExchangeRate(
+        pendingOrActiveCurrentCurrency,
+        pendingOrActiveNativeCurrency,
+        state[name].includeUsdRate,
+      );
+
+      // bail if another update has started already
+      const updatedState = getState();
+      const updatedUpdateStartTime = getUpdateStartTime(updatedState);
+      if (updateStartTime !== updatedUpdateStartTime) {
+        updateReplaced = true;
+      } else {
+        dispatch(updateCurrencyFinished({ conversionDate, conversionRate, usdConversionRate }));
+      }
+    } catch (error) {
+      if (!updateReplaced) {
+        dispatch(updateCurrencyFailed());
+      }
+      throw error;
+    } finally {
+      if (!updateReplaced) {
+        dispatch(startPolling(fetchExchangeRate));
+      }
+    }
+  };
+}

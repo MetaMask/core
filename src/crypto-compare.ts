@@ -1,0 +1,39 @@
+import { handleFetch } from './util';
+
+function getPricingURL(currentCurrency: string, nativeCurrency: string, includeUsdRate?: boolean) {
+  return (
+    `https://min-api.cryptocompare.com/data/price?fsym=` +
+    `${nativeCurrency.toUpperCase()}&tsyms=${currentCurrency.toUpperCase()}` +
+    `${includeUsdRate && currentCurrency.toUpperCase() !== 'USD' ? ',USD' : ''}`
+  );
+}
+
+/**
+ * Fetches the exchange rate for a given currency
+ *
+ * @param currency - ISO 4217 currency code
+ * @param nativeCurrency - Symbol for base asset
+ * @param includeUSDRate - Whether to add the USD rate to the fetch
+ * @returns Promise resolving to exchange rate for given currency
+ */
+export async function fetchExchangeRate(
+  currency: string,
+  nativeCurrency: string,
+  includeUsdRate?: boolean,
+): Promise<{ conversionDate: number; conversionRate: number; usdConversionRate?: number }> {
+  const json = await handleFetch(getPricingURL(currency, nativeCurrency, includeUsdRate));
+  const conversionRate = Number(json[currency.toUpperCase()]);
+  const usdConversionRate = Number(json.USD);
+  if (!Number.isFinite(conversionRate)) {
+    throw new Error(`Invalid response for ${currency.toUpperCase()}: ${json[currency.toUpperCase()]}`);
+  }
+  if (includeUsdRate && !Number.isFinite(usdConversionRate)) {
+    throw new Error(`Invalid response for usdConversionRate: ${json.USD}`);
+  }
+
+  return {
+    conversionDate: Date.now() / 1000,
+    conversionRate,
+    usdConversionRate: includeUsdRate ? usdConversionRate : undefined,
+  };
+}

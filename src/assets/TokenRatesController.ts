@@ -1,8 +1,6 @@
 import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute, handleFetch } from '../util';
-import AssetsController from './AssetsController';
-import CurrencyRateController from './CurrencyRateController';
 
 /**
  * @type CoinGeckoResponse
@@ -133,22 +131,6 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
    */
   async fetchExchangeRate(query: string): Promise<CoinGeckoResponse> {
     return handleFetch(this.getPricingURL(query));
-  }
-
-  /**
-   * Extension point called if and when this controller is composed
-   * with other controllers using a ComposableController
-   */
-  onComposed() {
-    super.onComposed();
-    const assets = this.context.AssetsController as AssetsController;
-    const currencyRate = this.context.CurrencyRateController as CurrencyRateController;
-    assets.subscribe(() => {
-      this.configure({ tokens: assets.state.tokens });
-    });
-    currencyRate.subscribe(() => {
-      this.configure({ nativeCurrency: currencyRate.state.nativeCurrency });
-    });
   }
 
   /**
