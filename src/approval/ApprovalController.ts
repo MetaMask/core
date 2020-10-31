@@ -1,12 +1,12 @@
+import { nanoid } from 'nanoid';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
 const { ethErrors } = require('eth-rpc-errors');
-const { nanoid } = require('nanoid');
 
-const DEFAULT_TYPE = Symbol('DEFAULT_APPROVAL_TYPE');
+const NO_TYPE = Symbol('NO_APPROVAL_TYPE');
 const STORE_KEY = 'pendingApprovals';
 
-type ApprovalType = string | typeof DEFAULT_TYPE;
+type ApprovalType = string | typeof NO_TYPE;
 
 type ApprovalPromiseResolve = (value?: unknown) => void;
 type ApprovalPromiseReject = (error?: Error) => void;
@@ -37,7 +37,7 @@ export interface ApprovalState extends BaseState {
 }
 
 const getAlreadyPendingMessage = (origin: string, type: ApprovalType) => (
-  `Request ${type === DEFAULT_TYPE ? '' : `of type '${type}' `}already pending for origin ${origin}. Please wait.`
+  `Request ${type === NO_TYPE ? '' : `of type '${type}' `}already pending for origin ${origin}. Please wait.`
 );
 
 const defaultState = { [STORE_KEY]: {} };
@@ -153,7 +153,7 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
    * @returns True if an approval is found, false otherwise.
    */
   has(opts: { id?: string; origin?: string; type?: string }): boolean {
-    const _type = opts.type === undefined ? DEFAULT_TYPE : opts.type;
+    const _type = opts.type === undefined ? NO_TYPE : opts.type;
     if (!_type) {
       throw new Error('May not specify falsy type.');
     }
@@ -216,7 +216,7 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
     origin: string,
     requestData?: RequestData,
     id: string = nanoid(),
-    type: ApprovalType = DEFAULT_TYPE,
+    type: ApprovalType = NO_TYPE,
   ): Promise<unknown> {
     this._validateAddParams(id, origin, type, requestData);
 
@@ -249,13 +249,13 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
     requestData?: RequestData
   ): void {
     let errorMessage = null;
-    if (!id && id !== undefined) {
-      errorMessage = 'May not specify falsy id.';
+    if (!id) {
+      errorMessage = 'Must specify non-empty string id.';
     } else if (!origin) {
       errorMessage = 'Must specify origin.';
     } else if (this._approvals.has(id)) {
       errorMessage = `Approval with id '${id}' already exists.`;
-    } else if (typeof type !== 'string' && type !== DEFAULT_TYPE) {
+    } else if (typeof type !== 'string' && type !== NO_TYPE) {
       errorMessage = 'Must specify string type.';
     } else if (!type) {
       errorMessage = 'May not specify empty string type.';
@@ -303,7 +303,7 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
   ): void {
     const info: ApprovalInfo = { id, origin };
     // default type is for internal bookkeeping only
-    if (type !== DEFAULT_TYPE) {
+    if (type !== NO_TYPE) {
       info.type = type;
     }
     if (requestData) {
@@ -333,7 +333,7 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
       const state = this.state[STORE_KEY];
       const {
         origin,
-        type = DEFAULT_TYPE,
+        type = NO_TYPE,
       } = state[id];
 
       /* istanbul ignore next */

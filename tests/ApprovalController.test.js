@@ -12,7 +12,7 @@ describe('ApprovalController: Input Validation', () => {
     it('validates input', () => {
       const approvalController = getApprovalController();
 
-      expect(() => approvalController.add({ id: null, origin: 'bar.baz' })).toThrow(getNoFalsyIdError());
+      expect(() => approvalController.add({ id: null, origin: 'bar.baz' })).toThrow(getInvalidIdError());
 
       expect(() => approvalController.add({ id: 'foo' })).toThrow(getMissingOriginError());
 
@@ -111,8 +111,8 @@ describe('ApprovalController: Input Validation', () => {
 
 // helpers
 
-function getNoFalsyIdError() {
-  return getError('May not specify falsy id.', ERROR_CODES.rpc.internal);
+function getInvalidIdError() {
+  return getError('Must specify non-empty string id.', ERROR_CODES.rpc.internal);
 }
 
 function getMissingOriginError() {
