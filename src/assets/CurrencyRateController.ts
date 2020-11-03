@@ -92,10 +92,8 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
       conversionRate: 0,
       currentCurrency: this.defaultConfig.currentCurrency,
       nativeCurrency: this.defaultConfig.nativeCurrency,
+      usdConversionRate: 0,
     };
-    if (config?.includeUSDRate) {
-      this.defaultState.usdConversionRate = 0;
-    }
     this.initialize();
     this.configure({ disabled: false }, false, false);
     this.poll();
