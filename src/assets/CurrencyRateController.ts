@@ -182,10 +182,8 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
         conversionRate,
         currentCurrency: this.activeCurrency,
         nativeCurrency: this.activeNativeCurrency,
+        usdConversionRate: this.includeUSDRate ? usdConversionRate : this.defaultState.usdConversionRate,
       };
-      if (this.includeUSDRate) {
-        newState.usdConversionRate = usdConversionRate;
-      }
       this.update(newState);
 
       return this.state;
