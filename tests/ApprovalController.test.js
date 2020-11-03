@@ -1,4 +1,4 @@
-const { ERROR_CODES } = require('eth-rpc-errors');
+const { errorCodes } = require('eth-rpc-errors');
 const ApprovalController = require('../dist/approval/ApprovalController.js').default;
 
 const defaultConfig = { showApprovalRequest: () => undefined };
@@ -17,11 +17,11 @@ describe('ApprovalController: Input Validation', () => {
       expect(() => approvalController.add({ id: 'foo' })).toThrow(getMissingOriginError());
 
       expect(() => approvalController.add({ id: 'foo', origin: 'bar.baz', type: {} })).toThrow(
-        getNonStringTypeError(ERROR_CODES.rpc.internal),
+        getNonStringTypeError(errorCodes.rpc.internal),
       );
 
       expect(() => approvalController.add({ id: 'foo', origin: 'bar.baz', type: '' })).toThrow(
-        getEmptyStringTypeError(ERROR_CODES.rpc.internal),
+        getEmptyStringTypeError(errorCodes.rpc.internal),
       );
 
       expect(() =>
@@ -112,15 +112,15 @@ describe('ApprovalController: Input Validation', () => {
 // helpers
 
 function getInvalidIdError() {
-  return getError('Must specify non-empty string id.', ERROR_CODES.rpc.internal);
+  return getError('Must specify non-empty string id.', errorCodes.rpc.internal);
 }
 
 function getMissingOriginError() {
-  return getError('Must specify origin.', ERROR_CODES.rpc.internal);
+  return getError('Must specify origin.', errorCodes.rpc.internal);
 }
 
 function getInvalidRequestDataError() {
-  return getError('Request data must be a plain object if specified.', ERROR_CODES.rpc.internal);
+  return getError('Request data must be a plain object if specified.', errorCodes.rpc.internal);
 }
 
 function getNoFalsyTypeError() {

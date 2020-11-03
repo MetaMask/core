@@ -1,6 +1,6 @@
+import { errorCodes } from 'eth-rpc-errors';
 import ApprovalController from '../dist/approval/ApprovalController';
 
-const { ERROR_CODES } = require('eth-rpc-errors');
 const sinon = require('sinon');
 
 const STORE_KEY = 'pendingApprovals';
@@ -337,14 +337,14 @@ describe('approval controller', () => {
 // helpers
 
 function getIdCollisionError(id: string) {
-  return getError(`Approval with id '${id}' already exists.`, ERROR_CODES.rpc.internal);
+  return getError(`Approval with id '${id}' already exists.`, errorCodes.rpc.internal);
 }
 
 function getOriginTypeCollisionError(origin: string, type = '_default') {
   const message = `Request${
     type === '_default' ? '' : ` of type '${type}'`
   } already pending for origin ${origin}. Please wait.`;
-  return getError(message, ERROR_CODES.rpc.resourceUnavailable);
+  return getError(message, errorCodes.rpc.resourceUnavailable);
 }
 
 function getIdNotFoundError(id: string) {

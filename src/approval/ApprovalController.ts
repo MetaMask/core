@@ -1,7 +1,6 @@
 import { nanoid } from 'nanoid';
+import { ethErrors } from 'eth-rpc-errors';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-
-const { ethErrors } = require('eth-rpc-errors');
 
 const NO_TYPE = Symbol('NO_APPROVAL_TYPE');
 const STORE_KEY = 'pendingApprovals';
