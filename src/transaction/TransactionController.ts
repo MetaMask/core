@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
+import { ethErrors } from 'eth-rpc-errors';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import NetworkController from '../network/NetworkController';
 
@@ -14,7 +15,6 @@ import {
   handleTransactionFetch,
 } from '../util';
 
-const { ethErrors } = require('eth-rpc-errors');
 const MethodRegistry = require('eth-method-registry');
 const EthQuery = require('eth-query');
 const Transaction = require('ethereumjs-tx');
