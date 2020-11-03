@@ -63,7 +63,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
     return (
       `https://min-api.cryptocompare.com/data/price?fsym=` +
       `${nativeCurrency.toUpperCase()}&tsyms=${currentCurrency.toUpperCase()}` +
-      `${includeUSDRate ? ',USD' : ''}`
+      `${includeUSDRate && currentCurrency.toUpperCase() !== 'USD' ? ',USD' : ''}`
     );
   }
 
