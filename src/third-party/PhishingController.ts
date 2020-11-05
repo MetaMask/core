@@ -46,6 +46,7 @@ export interface PhishingConfig extends BaseConfig {
 export interface PhishingState extends BaseState {
   phishing: EthPhishingResponse;
   whitelist: string[];
+  tolerance: number;
 }
 
 /**
@@ -75,6 +76,7 @@ export class PhishingController extends BaseController<PhishingConfig, PhishingS
     this.defaultState = {
       phishing: DEFAULT_PHISHING_RESPONSE,
       whitelist: [],
+      tolerance: 2,
     };
     this.detector = new PhishingDetector(this.defaultState.phishing);
     this.initialize();
