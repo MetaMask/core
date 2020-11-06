@@ -40,6 +40,7 @@ describe('ComposableController', () => {
         conversionRate: 0,
         currentCurrency: 'usd',
         nativeCurrency: 'ETH',
+        usdConversionRate: 0,
       },
       EnsController: {
         ensEntries: {},
@@ -96,6 +97,7 @@ describe('ComposableController', () => {
       selectedAddress: '',
       suggestedAssets: [],
       tokens: [],
+      usdConversionRate: 0,
     });
   });
 
@@ -149,6 +151,7 @@ describe('ComposableController', () => {
       selectedAddress: '',
       suggestedAssets: [],
       tokens: [],
+      usdConversionRate: 0,
     });
   });
 
