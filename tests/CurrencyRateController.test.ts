@@ -23,6 +23,7 @@ describe('CurrencyRateController', () => {
       conversionRate: 0,
       currentCurrency: 'usd',
       nativeCurrency: 'ETH',
+      usdConversionRate: 0,
     });
   });
 
