@@ -139,7 +139,7 @@ export class PhishingController extends BaseController<PhishingConfig, PhishingS
   }
 
   private async queryConfig(input: RequestInfo): Promise<EthPhishingResponse | null> {
-    const response = await fetch(input);
+    const response = await fetch(input, {cache: "reload"});
 
     switch (response.status) {
       case 200: {
