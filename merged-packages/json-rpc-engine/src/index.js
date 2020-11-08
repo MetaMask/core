@@ -7,7 +7,7 @@ const {
   ERROR_CODES,
 } = require('eth-rpc-errors')
 
-module.exports = class RpcEngine extends SafeEventEmitter {
+module.exports = class JsonRpcEngine extends SafeEventEmitter {
   constructor () {
     super()
     this._middleware = []
@@ -133,7 +133,7 @@ module.exports = class RpcEngine extends SafeEventEmitter {
 
     // go down stack of middleware, call and collect optional returnHandlers
     for (const middleware of this._middleware) {
-      isComplete = await RpcEngine._runMiddleware(
+      isComplete = await JsonRpcEngine._runMiddleware(
         req, res, middleware, returnHandlers,
       )
       if (isComplete) {

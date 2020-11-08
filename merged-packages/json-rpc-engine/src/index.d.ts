@@ -1,11 +1,10 @@
-
 import { IEthereumRpcError } from 'eth-rpc-errors/@types'
 
 /**
  * A String specifying the version of the JSON-RPC protocol.
  * MUST be exactly "2.0".
  */
-export type JsonRpcVersion = "2.0";
+export type JsonRpcVersion = '2.0';
 
 /** Method names that begin with the word rpc followed by a period character
  * (U+002E or ASCII 46) are reserved for rpc-internal methods and extensions
@@ -52,9 +51,16 @@ export interface JsonRpcFailure<T> extends JsonRpcResponseBase {
 export type JsonRpcResponse<T> = JsonRpcSuccess<T> | JsonRpcFailure<T>
 
 export type JsonRpcEngineEndCallback = (error?: JsonRpcError<unknown>) => void;
+
+type ReturnHandlerCallback = (done: (error?: Error) => void) => void
+
 export type JsonRpcEngineNextCallback = (
-  returnFlightCallback?: (done: () => void) => void,
+  returnHandlerCallback?: ReturnHandlerCallback,
 ) => void;
+
+export type AsyncJsonRpcEngineNextCallback = (
+  returnHandlerCallback?: ReturnHandlerCallback,
+) => Promise<void>;
 
 export interface JsonRpcMiddleware {
   (
@@ -62,7 +68,15 @@ export interface JsonRpcMiddleware {
     res: JsonRpcResponse<unknown>,
     next: JsonRpcEngineNextCallback,
     end: JsonRpcEngineEndCallback,
-  ) : void;
+  ): void;
+}
+
+export interface AsyncJsonrpcMiddleware {
+  (
+    req: JsonRpcRequest<unknown>,
+    res: JsonRpcResponse<unknown>,
+    next: AsyncJsonRpcEngineNextCallback,
+  ): Promise<void>;
 }
 
 export interface JsonRpcEngine {
@@ -74,4 +88,31 @@ export interface JsonRpcEngine {
       res: JsonRpcResponse<unknown>,
     ) => void,
   ) => void;
+}
+
+export interface asMiddleware {
+  (engine: JsonRpcEngine): JsonRpcMiddleware;
+}
+
+export interface createAsyncMiddleware {
+  (asyncMiddleware: AsyncJsonrpcMiddleware): JsonRpcMiddleware;
+}
+
+type Serializable = boolean | number | string | Record<string, unknown> | unknown[] | null | undefined;
+type ScaffoldMiddlewareHandler<T> = T extends Function ? JsonRpcMiddleware : Serializable;
+
+export interface createScaffoldMiddleware<T> {
+  (handlers: {[methodName: string]: ScaffoldMiddlewareHandler<T>}): JsonRpcMiddleware;
+}
+
+export interface createIdRemapMiddleware {
+  (): JsonRpcMiddleware;
+}
+
+export interface mergeMiddleware {
+  (middlewares: JsonRpcMiddleware[]): JsonRpcMiddleware;
+}
+
+export interface getUniqueId {
+  (): number;
 }
