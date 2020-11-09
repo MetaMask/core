@@ -48,7 +48,7 @@ const defaultState = { [STORE_KEY]: {} };
  * Useful for managing requests that require user approval, and restricting
  * the number of approvals a particular origin can have pending at any one time.
  */
-export default class ApprovalController extends BaseController<ApprovalConfig, ApprovalState> {
+export class ApprovalController extends BaseController<ApprovalConfig, ApprovalState> {
 
   private _approvals: Map<string, ApprovalCallbacks>;
 
@@ -378,3 +378,4 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
     return !this._origins.get(origin)?.size;
   }
 }
+export default ApprovalController;
