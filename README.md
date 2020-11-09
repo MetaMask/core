@@ -29,12 +29,12 @@ yarn add @metamask/controllers
 ```js
 import {
   ComposableController,
-  NetworkStatusController,
-  TokenRatesController
+  NetworkController,
+  TokenRatesController,
 } from '@metamask/controllers';
 
 const datamodel = new ComposableController([
-  new NetworkStatusController(),
+  new NetworkController(),
   new TokenRatesController()
 ]);
 
@@ -92,14 +92,6 @@ import NetworkController from '@metamask/controllers';
 ```
 
 The NetworkController is responsible for creating an underlying provider and for refreshing its configuration.
-
-### NetworkStatusController
-
-```ts
-import NetworkStatusController from '@metamask/controllers';
-```
-
-The NetworkStatusController passively polls for the status of available provider networks. The Infura network is supported by default.
 
 ### PhishingController
 
@@ -230,12 +222,12 @@ The ComposableController is initialized by passing an array of controller instan
 ```ts
 import {
   ComposableController,
-  NetworkStatusController,
+  NetworkController,
   TokenRatesController
 } from '@metamask/controllers';
 
 const datamodel = new ComposableController([
-  new NetworkStatusController(),
+  new NetworkController(),
   new TokenRatesController()
 ]);
 ```
