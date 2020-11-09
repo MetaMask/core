@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [4.0.1] - 2020-11-09
 
-### Changed
+### Fixed
 
 - Fix `ApprovalController` export ([#300](https://github.com/MetaMask/controllers/pull/300))
 
