@@ -12,7 +12,6 @@ export * from './assets/CurrencyRateController';
 export * from './keyring/KeyringController';
 export * from './message-manager/MessageManager';
 export * from './network/NetworkController';
-export * from './network/NetworkStatusController';
 export * from './third-party/PhishingController';
 export * from './user/PreferencesController';
 export * from './assets/TokenBalancesController';
