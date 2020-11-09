@@ -44,7 +44,7 @@
     "eth-phishing-detect": "^1.1.13",
     "eth-query": "^2.1.2",
     "eth-rpc-errors": "^4.0.0",
-    "eth-sig-util": "^2.3.0",
+    "eth-sig-util": "3.0.0",
     "ethereumjs-util": "^6.1.0",
     "ethereumjs-wallet": "0.6.0",
     "ethjs-query": "^0.3.8",
