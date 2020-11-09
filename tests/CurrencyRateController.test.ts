@@ -5,7 +5,11 @@ import CurrencyRateController from '../src/assets/CurrencyRateController';
 
 describe('CurrencyRateController', () => {
   beforeEach(() => {
-    fetchMock.mock('*', () => new Response(JSON.stringify({ USD: 1337 }))).spy();
+    fetchMock
+      .mock(/XYZ,USD/u, () => new Response(JSON.stringify({ XYZ: 123, USD: 456 })))
+      .mock(/DEF,USD/u, () => new Response(JSON.stringify({ DEF: 123 })))
+      .mock('*', () => new Response(JSON.stringify({ USD: 1337 })))
+      .spy();
   });
 
   afterEach(() => {
@@ -19,6 +23,7 @@ describe('CurrencyRateController', () => {
       conversionRate: 0,
       currentCurrency: 'usd',
       nativeCurrency: 'ETH',
+      usdConversionRate: 0,
     });
   });
 
@@ -29,6 +34,7 @@ describe('CurrencyRateController', () => {
       disabled: false,
       interval: 180000,
       nativeCurrency: 'ETH',
+      includeUSDRate: false,
     });
   });
 
@@ -40,6 +46,7 @@ describe('CurrencyRateController', () => {
       disabled: false,
       interval: 180000,
       nativeCurrency: 'ETH',
+      includeUSDRate: false,
     });
   });
 
@@ -89,11 +96,40 @@ describe('CurrencyRateController', () => {
     expect(controller.state.conversionRate).toBeGreaterThan(0);
   });
 
+  it('should add usd rate to state when includeUSDRate is configured true', async () => {
+    const controller = new CurrencyRateController({ includeUSDRate: true, currentCurrency: 'xyz' });
+    expect(controller.state.usdConversionRate).toEqual(0);
+    await controller.updateExchangeRate();
+    expect(controller.state.usdConversionRate).toEqual(456);
+  });
+
   it('should use default base asset', async () => {
     const nativeCurrency = 'FOO';
     const controller = new CurrencyRateController({ nativeCurrency });
     await controller.fetchExchangeRate('usd');
     expect(fetchMock.calls()[0][0]).toContain(nativeCurrency);
+  });
+
+  it('should add usd rate to state fetches when configured', async () => {
+    const controller = new CurrencyRateController({ includeUSDRate: true });
+    const result = await controller.fetchExchangeRate('xyz', 'FOO', true);
+    expect(fetchMock.calls()[0][0]).toContain('XYZ,USD');
+    expect(result.usdConversionRate).toEqual(456);
+    expect(result.conversionRate).toEqual(123);
+  });
+
+  it('should throw correctly when configured to return usd but receives an invalid response for currentCurrency rate', async () => {
+    const controller = new CurrencyRateController({ includeUSDRate: true });
+    await expect(controller.fetchExchangeRate('abc', 'FOO', true)).rejects.toThrow(
+      'Invalid response for ABC: undefined',
+    );
+  });
+
+  it('should throw correctly when configured to return usd but receives an invalid response for usdConversionRate', async () => {
+    const controller = new CurrencyRateController({ includeUSDRate: true });
+    await expect(controller.fetchExchangeRate('def', 'FOO', true)).rejects.toThrow(
+      'Invalid response for usdConversionRate: undefined',
+    );
   });
 
   describe('#fetchExchangeRate', () => {
