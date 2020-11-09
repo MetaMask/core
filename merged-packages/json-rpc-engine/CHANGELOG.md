@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.4.0] - 2020-11-07
+
+### Changed
+
+- Make the TypeScript types not terrible ([#66](https://github.com/MetaMask/json-rpc-engine/pull/66), [#67](https://github.com/MetaMask/json-rpc-engine/pull/67))
+
 ## [5.3.0] - 2020-07-30
 
 ### Changed
@@ -25,5 +31,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `async` and `promise-to-callback` dependencies
   - These dependencies were used internally for middleware flow control.
   They have been replaced with Promises and native `async`/`await`, which means that some operations are _no longer_ eagerly executed.
-  This change may affect consumers that depend on the eager execution of middleware _during_ middleware execution, _outside of_ middleware functions and request handlers.
+  This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
