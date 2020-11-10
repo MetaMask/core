@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "4.0.2",
+  "version": "4.1.0",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "license": "MIT",
   "files": [
