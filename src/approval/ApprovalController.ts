@@ -157,11 +157,11 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @returns The pending approval count for the given origin and/or type.
    */
   getApprovalCount(opts: { origin?: string; type?: string | null} = {}): number {
-    const { origin } = opts;
-    const _type = opts.type === null ? NO_TYPE : opts.type;
-    if (!origin && !_type) {
+    if (!opts.origin && !opts.type && opts.type !== null) {
       throw new Error('Must specify origin, type, or both.');
     }
+    const { origin } = opts;
+    const _type = opts.type === null ? NO_TYPE : opts.type as ApprovalType;
 
     if (origin && _type) {
       return Number(Boolean(this._origins.get(origin)?.has(_type)));
@@ -173,9 +173,8 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
 
     // Only "type" was specified
     let count = 0;
-    for (const id of Object.keys(this.state[STORE_KEY])) {
-      const storeType = this.state[STORE_KEY][id].type;
-      if (storeType === _type || (storeType === undefined && _type === NO_TYPE)) {
+    for (const [_origin, types] of this._origins) {
+      if (types.has(_type)) {
         count += 1;
       }
     }

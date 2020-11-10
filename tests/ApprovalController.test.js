@@ -59,7 +59,6 @@ describe('ApprovalController: Input Validation', () => {
     });
   });
 
-
   describe('has', () => {
     it('validates input', () => {
       const approvalController = getApprovalController();
