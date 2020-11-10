@@ -141,6 +141,55 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   }
 
   /**
+   * Gets the number of pending approvals, by origin and/or type.
+   * To only count approvals without a type, the `type` must be specified as
+   * `null`.
+   *
+   * If only `origin` is specified, all approvals for that origin will be counted,
+   * regardless of type.
+   * If only `type` is specified, all approvals for that type will be counted,
+   * regardless of origin.
+   * If both `origin` and `type` are specified, 0 or 1 will be returned.
+   *
+   * @param opts - Options bag.
+   * @param opts.origin - An approval origin.
+   * @param opts.type - The type of the approval request.
+   * @returns The pending approval count for the given origin and/or type.
+   */
+  getApprovalCount(opts: { origin?: string; type?: string | null} = {}): number {
+    const { origin } = opts;
+    const _type = opts.type === null ? NO_TYPE : opts.type;
+    if (!origin && !_type) {
+      throw new Error('Must specify origin, type, or both.');
+    }
+
+    if (origin && _type) {
+      return Number(Boolean(this._origins.get(origin)?.has(_type)));
+    }
+
+    if (origin) {
+      return this._origins.get(origin)?.size || 0;
+    }
+
+    // Only "type" was specified
+    let count = 0;
+    for (const id of Object.keys(this.state[STORE_KEY])) {
+      const storeType = this.state[STORE_KEY][id].type;
+      if (storeType === _type || (storeType === undefined && _type === NO_TYPE)) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  /**
+   * @returns The total pending approval count, for all types and origins.
+   */
+  getTotalApprovalCount(): number {
+    return this._approvals.size;
+  }
+
+  /**
    * Checks if there's a pending approval request for the given id, or origin
    * and type pair if no id is specified.
    * If no type is specified, the default type will be used.
@@ -149,18 +198,19 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @param opts.id - The id of the approval request.
    * @param opts.origin - The origin of the approval request.
    * @param opts.type - The type of the approval request.
-   * @returns True if an approval is found, false otherwise.
+   * @returns `true` if an approval is found, `false` otherwise.
    */
-  has(opts: { id?: string; origin?: string; type?: string }): boolean {
+  has(opts: { id?: string; origin?: string; type?: string } = {}): boolean {
+    const { id, origin } = opts;
     const _type = opts.type === undefined ? NO_TYPE : opts.type;
     if (!_type) {
       throw new Error('May not specify falsy type.');
     }
 
-    if (opts.id) {
-      return this._approvals.has(opts.id);
-    } else if (opts.origin) {
-      return Boolean(this._origins.get(opts.origin)?.has(_type));
+    if (id) {
+      return this._approvals.has(id);
+    } else if (origin) {
+      return Boolean(this._origins.get(origin)?.has(_type));
     }
     throw new Error('Must specify id or origin.');
   }

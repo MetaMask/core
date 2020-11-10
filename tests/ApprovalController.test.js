@@ -48,12 +48,24 @@ describe('ApprovalController: Input Validation', () => {
     });
   });
 
+  describe('getApprovalCount', () => {
+    it('validates input', () => {
+      const approvalController = getApprovalController();
+
+      expect(() => approvalController.getApprovalCount()).toThrow(getApprovalCountParamsError());
+      expect(() => approvalController.getApprovalCount({})).toThrow(getApprovalCountParamsError());
+      expect(() => approvalController.getApprovalCount({ origin: null })).toThrow(getApprovalCountParamsError());
+      expect(() => approvalController.getApprovalCount({ type: false })).toThrow(getApprovalCountParamsError());
+    });
+  });
+
+
   describe('has', () => {
     it('validates input', () => {
       const approvalController = getApprovalController();
 
+      expect(() => approvalController.has()).toThrow(getMissingIdOrOriginError());
       expect(() => approvalController.has({})).toThrow(getMissingIdOrOriginError());
-
       expect(() => approvalController.has({ type: false })).toThrow(getNoFalsyTypeError());
     });
   });
@@ -137,6 +149,10 @@ function getEmptyStringTypeError(code) {
 
 function getMissingIdOrOriginError() {
   return getError('Must specify id or origin.');
+}
+
+function getApprovalCountParamsError() {
+  return getError('Must specify origin, type, or both.');
 }
 
 function getError(message, code) {
