@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [4.0.2] - 2020-11-09
+
+### Changed
+
+- Unpin `eth-sig-util` dependency ([#302](https://github.com/MetaMask/controllers/pull/302))
+
 ## [4.0.1] - 2020-11-09
 
 ### Fixed
@@ -97,7 +103,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v4.0.1...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v4.0.2...HEAD
+[4.0.2]:https://github.com/MetaMask/controllers/compare/v4.0.1...v4.0.2
 [4.0.1]:https://github.com/MetaMask/controllers/compare/v4.0.0...v4.0.1
 [4.0.0]:https://github.com/MetaMask/controllers/compare/v3.2.0...v4.0.0
 [3.2.0]:https://github.com/MetaMask/controllers/compare/v3.1.0...v3.2.0
