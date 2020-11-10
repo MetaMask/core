@@ -133,6 +133,85 @@ describe('approval controller', () => {
     });
   });
 
+  describe('getApprovalCount', () => {
+    let approvalController: ApprovalController;
+    let addWithCatch: (args: any) => void;
+
+    beforeEach(() => {
+      approvalController = new ApprovalController({ ...defaultConfig });
+      addWithCatch = (args: any) => approvalController.add(args).catch(() => undefined);
+    });
+
+    it('gets the count when specifying origin and type', () => {
+      addWithCatch({ id: '1', origin: 'origin1' });
+      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
+      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+
+      expect(approvalController.getApprovalCount({ origin: 'origin1', type: null })).toEqual(1);
+      expect(approvalController.getApprovalCount({ origin: 'origin1', type: 'type1' })).toEqual(1);
+      expect(approvalController.getApprovalCount({ origin: 'origin1', type: 'type2' })).toEqual(0);
+
+      expect(approvalController.getApprovalCount({ origin: 'origin2', type: null })).toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin2', type: 'type1' })).toEqual(1);
+      expect(approvalController.getApprovalCount({ origin: 'origin2', type: 'type2' })).toEqual(0);
+
+      expect(approvalController.getApprovalCount({ origin: 'origin3', type: null })).toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin3', type: 'type1' })).toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin3', type: 'type2' })).toEqual(0);
+    });
+
+    it('gets the count when specifying origin only', () => {
+      addWithCatch({ id: '1', origin: 'origin1' });
+      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
+      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+
+      expect(approvalController.getApprovalCount({ origin: 'origin1' })).toEqual(2);
+
+      expect(approvalController.getApprovalCount({ origin: 'origin2' })).toEqual(1);
+
+      expect(approvalController.getApprovalCount({ origin: 'origin3' })).toEqual(0);
+    });
+
+    it('gets the count when specifying type only', () => {
+      addWithCatch({ id: '1', origin: 'origin1' });
+      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
+      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+      addWithCatch({ id: '4', origin: 'origin2', type: 'type2' });
+
+      expect(approvalController.getApprovalCount({ type: null })).toEqual(1);
+
+      expect(approvalController.getApprovalCount({ type: 'type1' })).toEqual(2);
+
+      expect(approvalController.getApprovalCount({ type: 'type2' })).toEqual(1);
+
+      expect(approvalController.getApprovalCount({ type: 'type3' })).toEqual(0);
+    });
+  });
+
+  describe('getTotalApprovalCount', () => {
+    it('gets the total approval count', () => {
+      const approvalController = new ApprovalController({ ...defaultConfig });
+      expect(approvalController.getTotalApprovalCount()).toEqual(0);
+
+      const addWithCatch = (args: any) => approvalController.add(args).catch(() => undefined);
+
+      addWithCatch({ id: '1', origin: 'origin1' });
+      expect(approvalController.getTotalApprovalCount()).toEqual(1);
+
+      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
+      expect(approvalController.getTotalApprovalCount()).toEqual(2);
+
+      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+      expect(approvalController.getTotalApprovalCount()).toEqual(3);
+
+      approvalController.reject('2', new Error('foo'));
+      expect(approvalController.getTotalApprovalCount()).toEqual(2);
+
+      approvalController.clear();
+      expect(approvalController.getTotalApprovalCount()).toEqual(0);
+    });
+  });
+
   describe('has', () => {
     let approvalController: ApprovalController;
 
