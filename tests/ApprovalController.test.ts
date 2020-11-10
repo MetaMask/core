@@ -147,26 +147,17 @@ describe('approval controller', () => {
       addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
       addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
 
-      expect(approvalController.getApprovalCount({ origin: 'origin1', type: null }))
-        .toEqual(1);
-      expect(approvalController.getApprovalCount({ origin: 'origin1', type: 'type1' }))
-        .toEqual(1);
-      expect(approvalController.getApprovalCount({ origin: 'origin1', type: 'type2' }))
-        .toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin1', type: null })).toEqual(1);
+      expect(approvalController.getApprovalCount({ origin: 'origin1', type: 'type1' })).toEqual(1);
+      expect(approvalController.getApprovalCount({ origin: 'origin1', type: 'type2' })).toEqual(0);
 
-      expect(approvalController.getApprovalCount({ origin: 'origin2', type: null }))
-        .toEqual(0);
-      expect(approvalController.getApprovalCount({ origin: 'origin2', type: 'type1' }))
-        .toEqual(1);
-      expect(approvalController.getApprovalCount({ origin: 'origin2', type: 'type2' }))
-        .toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin2', type: null })).toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin2', type: 'type1' })).toEqual(1);
+      expect(approvalController.getApprovalCount({ origin: 'origin2', type: 'type2' })).toEqual(0);
 
-      expect(approvalController.getApprovalCount({ origin: 'origin3', type: null }))
-        .toEqual(0);
-      expect(approvalController.getApprovalCount({ origin: 'origin3', type: 'type1' }))
-        .toEqual(0);
-      expect(approvalController.getApprovalCount({ origin: 'origin3', type: 'type2' }))
-        .toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin3', type: null })).toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin3', type: 'type1' })).toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin3', type: 'type2' })).toEqual(0);
     });
 
     it('gets the count when specifying origin only', () => {
@@ -174,14 +165,11 @@ describe('approval controller', () => {
       addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
       addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
 
-      expect(approvalController.getApprovalCount({ origin: 'origin1' }))
-        .toEqual(2);
+      expect(approvalController.getApprovalCount({ origin: 'origin1' })).toEqual(2);
 
-      expect(approvalController.getApprovalCount({ origin: 'origin2' }))
-        .toEqual(1);
+      expect(approvalController.getApprovalCount({ origin: 'origin2' })).toEqual(1);
 
-      expect(approvalController.getApprovalCount({ origin: 'origin3' }))
-        .toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin3' })).toEqual(0);
     });
 
     it('gets the count when specifying type only', () => {
@@ -190,17 +178,13 @@ describe('approval controller', () => {
       addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
       addWithCatch({ id: '4', origin: 'origin2', type: 'type2' });
 
-      expect(approvalController.getApprovalCount({ type: null }))
-        .toEqual(1);
+      expect(approvalController.getApprovalCount({ type: null })).toEqual(1);
 
-      expect(approvalController.getApprovalCount({ type: 'type1' }))
-        .toEqual(2);
+      expect(approvalController.getApprovalCount({ type: 'type1' })).toEqual(2);
 
-      expect(approvalController.getApprovalCount({ type: 'type2' }))
-        .toEqual(1);
+      expect(approvalController.getApprovalCount({ type: 'type2' })).toEqual(1);
 
-      expect(approvalController.getApprovalCount({ type: 'type3' }))
-        .toEqual(0);
+      expect(approvalController.getApprovalCount({ type: 'type3' })).toEqual(0);
     });
   });
 
