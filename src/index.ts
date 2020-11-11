@@ -3,6 +3,7 @@ import * as util from './util';
 
 export * from './assets/AccountTrackerController';
 export * from './user/AddressBookController';
+export * from './approval/ApprovalController';
 export * from './assets/AssetsContractController';
 export * from './assets/AssetsController';
 export * from './assets/AssetsDetectionController';
@@ -12,7 +13,6 @@ export * from './assets/CurrencyRateController';
 export * from './keyring/KeyringController';
 export * from './message-manager/MessageManager';
 export * from './network/NetworkController';
-export * from './network/NetworkStatusController';
 export * from './third-party/PhishingController';
 export * from './user/PreferencesController';
 export * from './assets/TokenBalancesController';

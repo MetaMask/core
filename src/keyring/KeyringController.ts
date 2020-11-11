@@ -1,11 +1,16 @@
 import { toChecksumAddress } from 'ethereumjs-util';
+import {
+  normalize as normalizeAddress,
+  signTypedData,
+  signTypedData_v4,
+  signTypedDataLegacy,
+} from 'eth-sig-util';
 import BaseController, { BaseConfig, BaseState, Listener } from '../BaseController';
 import PreferencesController from '../user/PreferencesController';
 import { Transaction } from '../transaction/TransactionController';
 import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
 import { TypedMessageParams } from '../message-manager/TypedMessageManager';
 
-const sigUtil = require('eth-sig-util');
 const Keyring = require('eth-keyring-controller');
 const { Mutex } = require('await-semaphore');
 const Wallet = require('ethereumjs-wallet');
@@ -19,7 +24,7 @@ const privates = new WeakMap();
  */
 export enum KeyringTypes {
   simple = 'Simple Key Pair',
-  hd = 'HD Key Tree'
+  hd = 'HD Key Tree',
 }
 
 /**
@@ -148,6 +153,22 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
         preferences.update({ selectedAddress });
       }
     });
+    return this.fullUpdate();
+  }
+
+  /**
+   * Adds a new account to the default (first) HD seed phrase keyring without updating identities in preferences
+   *
+   * @returns - Promise resolving to current state when the account is added
+   */
+  async addNewAccountWithoutUpdate(): Promise<KeyringMemState> {
+    const primaryKeyring = privates.get(this).keyring.getKeyringsByType('HD Key Tree')[0];
+    /* istanbul ignore if */
+    if (!primaryKeyring) {
+      throw new Error('No HD keyring found');
+    }
+    await privates.get(this).keyring.addNewAccount(primaryKeyring);
+    await this.verifySeedPhrase();
     return this.fullUpdate();
   }
 
@@ -331,17 +352,18 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    */
   async signTypedMessage(messageParams: TypedMessageParams, version: string) {
     try {
-      const address = sigUtil.normalize(messageParams.from);
+      const address = normalizeAddress(messageParams.from);
       const { password } = privates.get(this).keyring;
       const privateKey = await this.exportAccount(password, address);
       const privateKeyBuffer = ethUtil.toBuffer(ethUtil.addHexPrefix(privateKey));
       switch (version) {
         case 'V1':
-          return sigUtil.signTypedDataLegacy(privateKeyBuffer, { data: messageParams.data });
+          // signTypedDataLegacy will throw if the data is invalid.
+          return signTypedDataLegacy(privateKeyBuffer, { data: messageParams.data as any });
         case 'V3':
-          return sigUtil.signTypedData(privateKeyBuffer, { data: JSON.parse(messageParams.data as string) });
+          return signTypedData(privateKeyBuffer, { data: JSON.parse(messageParams.data as string) });
         case 'V4':
-          return sigUtil.signTypedData_v4(privateKeyBuffer, {
+          return signTypedData_v4(privateKeyBuffer, {
             data: JSON.parse(messageParams.data as string),
           });
       }
@@ -449,8 +471,8 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
             index,
             type: keyring.type,
           };
-        }
-      )
+        },
+      ),
     );
     this.update({ keyrings: [...keyrings] });
     return privates.get(this).keyring.fullUpdate();

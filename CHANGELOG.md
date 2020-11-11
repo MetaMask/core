@@ -6,6 +6,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [4.1.0] - 2020-11-10
+
+### Added
+
+- `ApprovalController` approval count methods ([#304](https://github.com/MetaMask/controllers/pull/304))
+
+## [4.0.2] - 2020-11-09
+
+### Changed
+
+- Unpin `eth-sig-util` dependency ([#302](https://github.com/MetaMask/controllers/pull/302))
+
+## [4.0.1] - 2020-11-09
+
+### Fixed
+
+- Fix `ApprovalController` export ([#300](https://github.com/MetaMask/controllers/pull/300))
+
+## [4.0.0] - 2020-11-09
+
+### Added
+
+- Add `ApprovalController` ([#289](https://github.com/MetaMask/controllers/pull/289))
+
+### Changed
+
+- Allow configuring `CurrencyController` to always fetch USD rate ([#292](https://github.com/MetaMask/controllers/pull/292))
+
+### Removed
+
+- **BREAKING:** Remove `NetworkStatusController` ([#298](https://github.com/MetaMask/controllers/pull/298))
+
+## [3.2.0] - 2020-10-21
+
+### Added
+
+- Add `addNewAccountWithoutUpdate` method ([#288](https://github.com/MetaMask/controllers/pull/288))
+
 ## [3.1.0] - 2020-09-23
 
 ### Changed
@@ -71,7 +109,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v3.0.1...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v4.1.0...HEAD
+[4.1.0]:https://github.com/MetaMask/controllers/compare/v4.0.2...v4.1.0
+[4.0.2]:https://github.com/MetaMask/controllers/compare/v4.0.1...v4.0.2
+[4.0.1]:https://github.com/MetaMask/controllers/compare/v4.0.0...v4.0.1
+[4.0.0]:https://github.com/MetaMask/controllers/compare/v3.2.0...v4.0.0
+[3.2.0]:https://github.com/MetaMask/controllers/compare/v3.1.0...v3.2.0
 [3.1.0]:https://github.com/MetaMask/controllers/compare/v3.0.1...v3.1.0
 [3.0.1]:https://github.com/MetaMask/controllers/compare/v3.0.0...v3.0.1
 [3.0.0]:https://github.com/MetaMask/controllers/compare/v2.0.5...v3.0.0

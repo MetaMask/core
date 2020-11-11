@@ -1,16 +1,16 @@
 import { addHexPrefix, isValidAddress, bufferToHex } from 'ethereumjs-util';
+import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
 import { Transaction, FetchAllOptions } from './transaction/TransactionController';
 import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
 
-const sigUtil = require('eth-sig-util');
 const jsonschema = require('jsonschema');
 const { BN, stripHexPrefix } = require('ethereumjs-util');
 const ensNamehash = require('eth-ens-namehash');
 
-const hexRe = /^[0-9A-Fa-f]+$/ug;
+const hexRe = /^[0-9A-Fa-f]+$/gu;
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
   data: (data: string) => addHexPrefix(data),
@@ -300,7 +300,8 @@ export function validateTypedSignMessageDataV1(messageData: TypedMessageParams) 
     throw new Error(`Invalid message "data": ${messageData.data} must be a valid array.`);
   }
   try {
-    sigUtil.typedSignatureHash(messageData.data);
+    // typedSignatureHash will throw if the data is invalid.
+    typedSignatureHash(messageData.data as any);
   } catch (e) {
     throw new Error(`Expected EIP712 typed data.`);
   }
@@ -325,7 +326,7 @@ export function validateTypedSignMessageDataV3(messageData: TypedMessageParams) 
   } catch (e) {
     throw new Error('Data must be passed as a valid JSON string.');
   }
-  const validation = jsonschema.validate(data, sigUtil.TYPED_MESSAGE_SCHEMA);
+  const validation = jsonschema.validate(data, TYPED_MESSAGE_SCHEMA);
   if (validation.errors.length > 0) {
     throw new Error('Data must conform to EIP-712 schema. See https://git.io/fNtcx.');
   }

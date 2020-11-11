@@ -11,11 +11,13 @@ const { Mutex } = require('await-semaphore');
  * @property currentCurrency - Currently-active ISO 4217 currency code
  * @property interval - Polling interval used to fetch new currency rate
  * @property nativeCurrency - Symbol for the base asset used for conversion
+ * @property includeUSDRate - Whether to include the usd rate in addition to the currentCurrency
  */
 export interface CurrencyRateConfig extends BaseConfig {
   currentCurrency: string;
   interval: number;
   nativeCurrency: string;
+  includeUSDRate?: boolean;
 }
 
 /**
@@ -27,12 +29,14 @@ export interface CurrencyRateConfig extends BaseConfig {
  * @property conversionRate - Conversion rate from current base asset to the current currency
  * @property currentCurrency - Currently-active ISO 4217 currency code
  * @property nativeCurrency - Symbol for the base asset used for conversion
+ * @property usdConversionRate - Conversion rate from usd to the current currency
  */
 export interface CurrencyRateState extends BaseState {
   conversionDate: number;
   conversionRate: number;
   currentCurrency: string;
   nativeCurrency: string;
+  usdConversionRate?: number;
 }
 
 /**
@@ -40,6 +44,9 @@ export interface CurrencyRateState extends BaseState {
  * asset to the current currency
  */
 export class CurrencyRateController extends BaseController<CurrencyRateConfig, CurrencyRateState> {
+  /* Optional config to include conversion to usd in all price url fetches and on state */
+  includeUSDRate?: boolean;
+
   private activeCurrency = '';
 
   private activeNativeCurrency = '';
@@ -52,10 +59,11 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
     return state && state.currentCurrency ? state.currentCurrency : 'usd';
   }
 
-  private getPricingURL(currentCurrency: string, nativeCurrency: string) {
+  private getPricingURL(currentCurrency: string, nativeCurrency: string, includeUSDRate?: boolean) {
     return (
       `https://min-api.cryptocompare.com/data/price?fsym=` +
-      `${nativeCurrency.toUpperCase()}&tsyms=${currentCurrency.toUpperCase()}`
+      `${nativeCurrency.toUpperCase()}&tsyms=${currentCurrency.toUpperCase()}` +
+      `${includeUSDRate && currentCurrency.toUpperCase() !== 'USD' ? ',USD' : ''}`
     );
   }
 
@@ -77,12 +85,14 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
       disabled: true,
       interval: 180000,
       nativeCurrency: 'ETH',
+      includeUSDRate: false,
     };
     this.defaultState = {
       conversionDate: 0,
       conversionRate: 0,
       currentCurrency: this.defaultConfig.currentCurrency,
       nativeCurrency: this.defaultConfig.nativeCurrency,
+      usdConversionRate: 0,
     };
     this.initialize();
     this.configure({ disabled: false }, false, false);
@@ -128,14 +138,18 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
    *
    * @param currency - ISO 4217 currency code
    * @param nativeCurrency - Symbol for base asset
+   * @param includeUSDRate - Whether to add the USD rate to the fetch
    * @returns - Promise resolving to exchange rate for given currency
    */
-  async fetchExchangeRate(currency: string, nativeCurrency = this.activeNativeCurrency): Promise<CurrencyRateState> {
-    const json = await handleFetch(this.getPricingURL(currency, nativeCurrency));
+  async fetchExchangeRate(currency: string, nativeCurrency = this.activeNativeCurrency, includeUSDRate?: boolean): Promise<CurrencyRateState> {
+    const json = await handleFetch(this.getPricingURL(currency, nativeCurrency, includeUSDRate));
     const conversionRate = Number(json[currency.toUpperCase()]);
-
+    const usdConversionRate = Number(json.USD);
     if (!Number.isFinite(conversionRate)) {
       throw new Error(`Invalid response for ${currency.toUpperCase()}: ${json[currency.toUpperCase()]}`);
+    }
+    if (includeUSDRate && !Number.isFinite(usdConversionRate)) {
+      throw new Error(`Invalid response for usdConversionRate: ${json.USD}`);
     }
 
     return {
@@ -143,6 +157,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
       conversionRate,
       currentCurrency: currency,
       nativeCurrency,
+      usdConversionRate,
     };
   }
 
@@ -157,16 +172,19 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
     }
     const releaseLock = await this.mutex.acquire();
     try {
-      const { conversionDate, conversionRate } = await this.fetchExchangeRate(
+      const { conversionDate, conversionRate, usdConversionRate } = await this.fetchExchangeRate(
         this.activeCurrency,
-        this.activeNativeCurrency
+        this.activeNativeCurrency,
+        this.includeUSDRate,
       );
-      this.update({
+      const newState: CurrencyRateState = {
         conversionDate,
         conversionRate,
         currentCurrency: this.activeCurrency,
         nativeCurrency: this.activeNativeCurrency,
-      });
+        usdConversionRate: this.includeUSDRate ? usdConversionRate : this.defaultState.usdConversionRate,
+      };
+      this.update(newState);
 
       return this.state;
     } finally {

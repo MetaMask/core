@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "3.1.0",
+  "version": "4.1.0",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "license": "MIT",
   "files": [
@@ -13,9 +13,10 @@
   },
   "scripts": {
     "prepublishOnly": "yarn build",
-    "lint": "eslint --ext .ts .",
+    "lint": "eslint --ext js,ts .",
     "test": "jest --coverage",
-    "format": "prettier **/*.ts --write --ignore-path=.gitignore",
+    "format": "prettier **/*.ts **/*.js --check --ignore-path=.gitignore",
+    "format:fix": "prettier **/*.ts **/*.js --write --ignore-path=.gitignore",
     "build": "rm -rf dist && tsc",
     "build:watch": "yarn build && tsc -w",
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
@@ -42,8 +43,8 @@
     "eth-method-registry": "1.1.0",
     "eth-phishing-detect": "^1.1.13",
     "eth-query": "^2.1.2",
-    "eth-rpc-errors": "^3.0.0",
-    "eth-sig-util": "^2.3.0",
+    "eth-rpc-errors": "^4.0.0",
+    "eth-sig-util": "^3.0.0",
     "ethereumjs-util": "^6.1.0",
     "ethereumjs-wallet": "^0.6.4",
     "ethjs-query": "^0.3.8",
@@ -51,6 +52,7 @@
     "human-standard-token-abi": "^2.0.0",
     "isomorphic-fetch": "^3.0.0",
     "jsonschema": "^1.2.4",
+    "nanoid": "^3.1.12",
     "percentile": "^1.2.1",
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^3.3.2",
@@ -93,10 +95,12 @@
       "^.+\\.tsx?$": "ts-jest"
     },
     "testMatch": [
-      "**/*.test.ts"
+      "**/*.test.ts",
+      "**/*.test.js"
     ],
     "coveragePathIgnorePatterns": [
       "/node_modules/",
+      "dist/BaseController*",
       "tests/"
     ],
     "coverageThreshold": {
@@ -120,7 +124,7 @@
   },
   "lint-staged": {
     "*.ts": [
-      "prettier --write",
+      "prettier --ignore-path=.gitignore --write **/*.ts",
       "yarn lint",
       "git add"
     ]

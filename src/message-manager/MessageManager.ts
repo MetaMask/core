@@ -56,7 +56,6 @@ export interface MessageParamsMetamask extends AbstractMessageParamsMetamask {
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
 export class MessageManager extends AbstractMessageManager<Message, MessageParams, MessageParamsMetamask> {
-
   /**
    * Name of this controller used during composition
    */
@@ -81,9 +80,7 @@ export class MessageManager extends AbstractMessageManager<Message, MessageParam
           case 'rejected':
             return reject(new Error('MetaMask Message Signature: User denied message signature.'));
           default:
-            return reject(
-              new Error(`MetaMask Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`)
-            );
+            return reject(new Error(`MetaMask Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`));
         }
       });
     });
