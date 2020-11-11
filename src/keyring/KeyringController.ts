@@ -421,7 +421,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
   }
 
   onUnlock(listener: Listener<KeyringState>){
-	return privates.get(this).keyring.on('unlock', listener)
+    return privates.get(this).keyring.on('unlock', listener)
   }
 
   /**
