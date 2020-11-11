@@ -69,9 +69,6 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
     this._approvals = new Map();
     this._origins = new Map();
     this._showApprovalRequest = config.showApprovalRequest;
-
-    this.defaultConfig = config;
-    this.defaultState = defaultState;
     this.initialize();
   }
 
@@ -252,7 +249,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
       this.reject(id, rejectionError);
     }
     this._origins.clear();
-    this.update(this.defaultState, true);
+    this.update(defaultState, true);
   }
 
   /**
@@ -383,11 +380,11 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
     if (this._approvals.has(id)) {
       this._approvals.delete(id);
 
-      const approvalState = this.state[APPROVALS_STORE_KEY];
+      const approvals = this.state[APPROVALS_STORE_KEY];
       const {
         origin,
         type = NO_TYPE,
-      } = approvalState[id];
+      } = approvals[id];
 
       /* istanbul ignore next */
       this._origins.get(origin)?.delete(type);
@@ -395,10 +392,10 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
         this._origins.delete(origin);
       }
 
-      const newApprovalState = { ...approvalState };
-      delete newApprovalState[id];
+      const newApprovals = { ...approvals };
+      delete newApprovals[id];
       this.update({
-        [APPROVALS_STORE_KEY]: newApprovalState,
+        [APPROVALS_STORE_KEY]: newApprovals,
         [APPROVAL_COUNT_STORE_KEY]: this.state[APPROVAL_COUNT_STORE_KEY] - 1,
       }, true);
     }
