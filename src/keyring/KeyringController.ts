@@ -416,11 +416,23 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
     return privates.get(this).keyring.store.unsubscribe(listener);
   }
 
-  onLock(listener: void) {
+  /**
+   * Adds new listener to be notified when the wallet is locked
+   *
+   * @param listener - Callback triggered when wallet is locked
+   * @returns - EventEmitter if listener added
+   */
+  onLock(listener: () => void) {
     return privates.get(this).keyring.on('lock', listener);
   }
 
-  onUnlock(listener: void) {
+  /**
+   * Adds new listener to be notified when the wallet is unlocked
+   *
+   * @param listener - Callback triggered when wallet is unlocked
+   * @returns - EventEmitter if listener added
+   */
+  onUnlock(listener: () => void) {
     return privates.get(this).keyring.on('unlock', listener);
   }
 
