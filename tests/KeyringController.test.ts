@@ -332,11 +332,11 @@ describe('KeyringController', () => {
   it('should receive lock and unlock events', async () => {
     const listenerLock = stub();
     keyringController.onLock(listenerLock);
-	await keyringController.setLocked()
-	expect(listenerLock.called).toBe(true);
-	const listenerUnlock = stub();
-	keyringController.onUnlock(listenerUnlock);
-	await keyringController.submitPassword(password);
-	expect(listenerUnlock.called).toBe(true);
+    await keyringController.setLocked();
+    expect(listenerLock.called).toBe(true);
+    const listenerUnlock = stub();
+    keyringController.onUnlock(listenerUnlock);
+    await keyringController.submitPassword(password);
+    expect(listenerUnlock.called).toBe(true);
   });
 });
