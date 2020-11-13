@@ -3,7 +3,8 @@ import { ethErrors } from 'eth-rpc-errors';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
 const NO_TYPE = Symbol('NO_APPROVAL_TYPE');
-const STORE_KEY = 'pendingApprovals';
+const APPROVALS_STORE_KEY = 'pendingApprovals';
+const APPROVAL_COUNT_STORE_KEY = 'pendingApprovalCount';
 
 type ApprovalType = string | typeof NO_TYPE;
 
@@ -32,14 +33,15 @@ export interface ApprovalConfig extends BaseConfig {
 }
 
 export interface ApprovalState extends BaseState {
-  [STORE_KEY]: { [approvalId: string]: ApprovalInfo };
+  [APPROVALS_STORE_KEY]: { [approvalId: string]: ApprovalInfo };
+  [APPROVAL_COUNT_STORE_KEY]: number;
 }
 
 const getAlreadyPendingMessage = (origin: string, type: ApprovalType) => (
   `Request ${type === NO_TYPE ? '' : `of type '${type}' `}already pending for origin ${origin}. Please wait.`
 );
 
-const defaultState = { [STORE_KEY]: {} };
+const defaultState: ApprovalState = { [APPROVALS_STORE_KEY]: {}, [APPROVAL_COUNT_STORE_KEY]: 0 };
 
 /**
  * Controller for keeping track of pending approvals by id and/or origin and
@@ -65,10 +67,9 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
     super(config, state || defaultState);
 
     this._approvals = new Map();
-
     this._origins = new Map();
-
     this._showApprovalRequest = config.showApprovalRequest;
+    this.initialize();
   }
 
   /**
@@ -134,7 +135,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @returns The pending approval data associated with the id.
    */
   get(id: string): ApprovalInfo | undefined {
-    const info = this.state[STORE_KEY][id];
+    const info = this.state[APPROVALS_STORE_KEY][id];
     return info
       ? { ...info }
       : undefined;
@@ -185,7 +186,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @returns The total pending approval count, for all types and origins.
    */
   getTotalApprovalCount(): number {
-    return this._approvals.size;
+    return this.state[APPROVAL_COUNT_STORE_KEY];
   }
 
   /**
@@ -359,10 +360,11 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
     }
 
     this.update({
-      [STORE_KEY]: {
-        ...this.state[STORE_KEY],
+      [APPROVALS_STORE_KEY]: {
+        ...this.state[APPROVALS_STORE_KEY],
         [id]: info,
       },
+      [APPROVAL_COUNT_STORE_KEY]: this.state[APPROVAL_COUNT_STORE_KEY] + 1,
     }, true);
   }
 
@@ -378,11 +380,11 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
     if (this._approvals.has(id)) {
       this._approvals.delete(id);
 
-      const state = this.state[STORE_KEY];
+      const approvals = this.state[APPROVALS_STORE_KEY];
       const {
         origin,
         type = NO_TYPE,
-      } = state[id];
+      } = approvals[id];
 
       /* istanbul ignore next */
       this._origins.get(origin)?.delete(type);
@@ -390,10 +392,11 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
         this._origins.delete(origin);
       }
 
-      const newState = { ...state };
-      delete newState[id];
+      const newApprovals = { ...approvals };
+      delete newApprovals[id];
       this.update({
-        [STORE_KEY]: newState,
+        [APPROVALS_STORE_KEY]: newApprovals,
+        [APPROVAL_COUNT_STORE_KEY]: this.state[APPROVAL_COUNT_STORE_KEY] - 1,
       }, true);
     }
   }
