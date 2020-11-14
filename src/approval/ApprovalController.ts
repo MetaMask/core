@@ -65,8 +65,8 @@ const getAlreadyPendingMessage = (origin: string, type: ApprovalType) => (
 const defaultState: ApprovalState = { [APPROVALS_STORE_KEY]: {}, [APPROVAL_COUNT_STORE_KEY]: 0 };
 
 /**
- * Controller for keeping track of pending approvals by id and/or origin and
- * type pair.
+ * Controller for keeping track of requests requiring user approval by id and/or
+ * origin and type pair.
  *
  * Useful for managing requests that require user approval, and restricting
  * the number of approvals a particular origin can have pending at any one time.
@@ -94,12 +94,12 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   }
 
   /**
-   * Adds a pending approval per the given arguments, opens the MetaMask user
-   * confirmation UI, and returns the associated id and approval promise.
+   * Adds an approval request per the given arguments, calls the show approval
+   * request function, and returns the associated approval promise.
    * An internal, default type will be used if none is specified.
    *
    * There can only be one approval per origin and type. An error is thrown if
-   * attempting
+   * attempting to add an invalid or duplicate request.
    *
    * @param opts - Options bag.
    * @param opts.id - The id of the approval request. A random id will be
@@ -123,12 +123,12 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   }
 
   /**
-   * Adds a pending approval per the given arguments, and returns the associated
-   * id and approval promise. An internal, default type will be used if none is
+   * Adds an approval request per the given arguments, calls the show approval
+   * approval promise. An internal, default type will be used if none is
    * specified.
    *
    * There can only be one approval per origin and type. An error is thrown if
-   * attempting
+   * attempting to add an invalid or duplicate request.
    *
    * @param opts - Options bag.
    * @param opts.id - The id of the approval request. A random id will be
@@ -150,10 +150,10 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   }
 
   /**
-   * Gets the pending approval info for the given id.
+   * Gets the info for the approval request with the given id.
    *
    * @param id - The id of the approval request.
-   * @returns The pending approval data associated with the id.
+   * @returns The approval request data associated with the id.
    */
   get(id: string): ApprovalInfo | undefined {
     const info = this.state[APPROVALS_STORE_KEY][id];
@@ -167,8 +167,8 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * To only count approvals without a type, the `type` must be specified as
    * `null`.
    *
-   * If only `origin` is specified, all approvals for that origin will be counted,
-   * regardless of type.
+   * If only `origin` is specified, all approvals for that origin will be
+   * counted, regardless of type.
    * If only `type` is specified, all approvals for that type will be counted,
    * regardless of origin.
    * If both `origin` and `type` are specified, 0 or 1 will be returned.
@@ -176,7 +176,8 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @param opts - Options bag.
    * @param opts.origin - An approval origin.
    * @param opts.type - The type of the approval request.
-   * @returns The pending approval count for the given origin and/or type.
+   * @returns The current approval request count for the given origin and/or
+   * type.
    */
   getApprovalCount(opts: { origin?: string; type?: string | null} = {}): number {
     if (!opts.origin && !opts.type && opts.type !== null) {
@@ -204,7 +205,8 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   }
 
   /**
-   * @returns The total pending approval count, for all types and origins.
+   * @returns The current total approval request count, for all types and
+   * origins.
    */
   getTotalApprovalCount(): number {
     return this.state[APPROVAL_COUNT_STORE_KEY];
@@ -259,7 +261,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   }
 
   /**
-   * Rejects and deletes all pending approval requests.
+   * Rejects and deletes all approval requests.
    */
   clear(): void {
     const rejectionError = ethErrors.rpc.resourceUnavailable(
@@ -428,7 +430,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * Throws an error if no approval is found for the given id.
    *
    * @param id - The id of the approval request.
-   * @returns The pending approval callbacks associated with the id.
+   * @returns The promise callbacks associated with the approval request.
    */
   private _deleteApprovalAndGetCallbacks(id: string): ApprovalCallbacks {
     const callbacks = this._approvals.get(id);
@@ -441,11 +443,11 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   }
 
   /**
-   * Checks whether there are any pending approvals associated with the given
+   * Checks whether there are any approvals associated with the given
    * origin.
    *
    * @param origin - The origin to check.
-   * @returns True if the origin has no pending approvals, false otherwise.
+   * @returns True if the origin has no approvals, false otherwise.
    */
   private _isEmptyOrigin(origin: string): boolean {
     return !this._origins.get(origin)?.size;
