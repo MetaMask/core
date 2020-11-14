@@ -8,6 +8,9 @@ const STORE_KEY = 'pendingApprovals';
 const defaultConfig = { showApprovalRequest: () => undefined };
 
 describe('approval controller', () => {
+  const clock = sinon.useFakeTimers(1);
+  afterAll(() => clock.restore());
+
   describe('add', () => {
     let approvalController: ApprovalController;
 
@@ -19,7 +22,7 @@ describe('approval controller', () => {
       expect(() => approvalController.add({ id: 'foo', origin: 'bar.baz' })).not.toThrow();
 
       expect(approvalController.has({ id: 'foo' })).toEqual(true);
-      expect(approvalController.state[STORE_KEY]).toEqual({ foo: { id: 'foo', origin: 'bar.baz' } });
+      expect(approvalController.state[STORE_KEY]).toEqual({ foo: { id: 'foo', origin: 'bar.baz', time: 1 } });
     });
 
     it('adds id if non provided', () => {
@@ -34,7 +37,9 @@ describe('approval controller', () => {
 
       expect(approvalController.has({ id: 'foo' })).toEqual(true);
       expect(approvalController.has({ origin: 'bar.baz', type: 'myType' })).toEqual(true);
-      expect(approvalController.state[STORE_KEY]).toEqual({ foo: { id: 'foo', origin: 'bar.baz', type: 'myType' } });
+      expect(approvalController.state[STORE_KEY]).toEqual({
+        foo: { id: 'foo', origin: 'bar.baz', type: 'myType', time: 1 },
+      });
     });
 
     it('adds correctly specified entry with request data', () => {
@@ -123,13 +128,13 @@ describe('approval controller', () => {
     it('gets entry with default type', () => {
       approvalController.add({ id: 'foo', origin: 'bar.baz' });
 
-      expect(approvalController.get('foo')).toEqual({ id: 'foo', origin: 'bar.baz' });
+      expect(approvalController.get('foo')).toEqual({ id: 'foo', origin: 'bar.baz', time: 1 });
     });
 
     it('gets entry with custom type', () => {
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
 
-      expect(approvalController.get('foo')).toEqual({ id: 'foo', origin: 'bar.baz', type: 'myType' });
+      expect(approvalController.get('foo')).toEqual({ id: 'foo', origin: 'bar.baz', type: 'myType', time: 1 });
     });
   });
 

@@ -19,11 +19,18 @@ interface ApprovalCallbacks {
 }
 
 /**
- * Data associated with a pending approval.
+ * Data associated with an approval request.
+ *
+ * @property id - The ID of the approval.
+ * @property origin - The origin of the approval request.
+ * @property time - The time that the request was received, per Date.now().
+ * @property type - The type of the approval request.
+ * @property requestData - The data associated with the request.
  */
 export interface ApprovalInfo {
   id: string;
   origin: string;
+  time: number;
   type?: string;
   requestData?: RequestData;
 }
@@ -350,8 +357,8 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
     type: ApprovalType,
     requestData?: RequestData
   ): void {
-    const info: ApprovalInfo = { id, origin };
-    // default type is for internal bookkeeping only
+    const info: ApprovalInfo = { id, origin, time: Date.now() };
+    // NO_TYPE is for internal bookkeeping only
     if (type !== NO_TYPE) {
       info.type = type;
     }
