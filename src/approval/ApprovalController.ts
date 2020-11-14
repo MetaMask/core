@@ -20,18 +20,32 @@ interface ApprovalCallbacks {
 
 /**
  * Data associated with an approval request.
- *
- * @property id - The ID of the approval.
- * @property origin - The origin of the approval request.
- * @property time - The time that the request was received, per Date.now().
- * @property type - The type of the approval request.
- * @property requestData - The data associated with the request.
  */
 export interface ApprovalInfo {
+
+  /**
+   * The ID of the approval request.
+   */
   id: string;
+
+  /**
+   * The origin of the approval request.
+   */
   origin: string;
+
+  /**
+   * The time that the request was received, per Date.now().
+   */
   time: number;
+
+  /**
+   * The type of the approval request.
+   */
   type?: string;
+
+  /**
+   * The data associated with the request.
+   */
   requestData?: RequestData;
 }
 
