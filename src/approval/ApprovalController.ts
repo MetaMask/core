@@ -15,10 +15,7 @@ interface ApprovalCallbacks {
   reject: ApprovalPromiseReject;
 }
 
-/**
- * Data associated with an approval request.
- */
-export interface ApprovalInfo {
+export interface Approval {
 
   /**
    * The ID of the approval request.
@@ -41,7 +38,7 @@ export interface ApprovalInfo {
   type: string;
 
   /**
-   * The data associated with the request.
+   * Additional data associated with the request.
    */
   requestData?: RequestData;
 }
@@ -52,7 +49,7 @@ export interface ApprovalConfig extends BaseConfig {
 }
 
 export interface ApprovalState extends BaseState {
-  [APPROVALS_STORE_KEY]: { [approvalId: string]: ApprovalInfo };
+  [APPROVALS_STORE_KEY]: { [approvalId: string]: Approval };
   [APPROVAL_COUNT_STORE_KEY]: number;
 }
 
@@ -116,8 +113,8 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @param opts.origin - The origin of the approval request.
    * @param opts.type - The type associated with the approval request. The
    * default type will be used if no type is specified.
-   * @param opts.requestData - The request data associated with the approval
-   * request, if any.
+   * @param opts.requestData - Additional data associated with the request,
+   * if any.
    * @returns The approval promise.
    */
   addAndShowApprovalRequest(opts: {
@@ -144,8 +141,8 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @param opts.origin - The origin of the approval request.
    * @param opts.type - The type associated with the approval request. The
    * default type will be used if no type is specified.
-   * @param opts.requestData - The request data associated with the approval
-   * request, if any.
+   * @param opts.requestData - Additional data associated with the request,
+   * if any.
    * @returns The approval promise.
    */
   add(opts: {
@@ -163,7 +160,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @param id - The id of the approval request.
    * @returns The approval request data associated with the id.
    */
-  get(id: string): ApprovalInfo | undefined {
+  get(id: string): Approval | undefined {
     const info = this.state[APPROVALS_STORE_KEY][id];
     return info
       ? { ...info }
@@ -401,15 +398,15 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
     type: string,
     requestData?: RequestData
   ): void {
-    const info: ApprovalInfo = { id, origin, type, time: Date.now() };
+    const approval: Approval = { id, origin, type, time: Date.now() };
     if (requestData) {
-      info.requestData = requestData;
+      approval.requestData = requestData;
     }
 
     this.update({
       [APPROVALS_STORE_KEY]: {
         ...this.state[APPROVALS_STORE_KEY],
-        [id]: info,
+        [id]: approval,
       },
       [APPROVAL_COUNT_STORE_KEY]: this.state[APPROVAL_COUNT_STORE_KEY] + 1,
     }, true);
