@@ -463,7 +463,7 @@ function getIdCollisionError(id: string) {
 }
 
 function getOriginTypeCollisionError(origin: string, type = DEFAULT_TYPE) {
-  const message = `Request of type "${type}" already pending for origin ${origin}. Please wait.`;
+  const message = `Request of type '${type}' already pending for origin ${origin}. Please wait.`;
   return getError(message, errorCodes.rpc.resourceUnavailable);
 }
 

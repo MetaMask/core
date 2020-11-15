@@ -54,7 +54,7 @@ export interface ApprovalState extends BaseState {
 }
 
 const getAlreadyPendingMessage = (origin: string, type: string) => (
-  `Request of type "${type}" already pending for origin ${origin}. Please wait.`
+  `Request of type '${type}' already pending for origin ${origin}. Please wait.`
 );
 
 const defaultState: ApprovalState = { [APPROVALS_STORE_KEY]: {}, [APPROVAL_COUNT_STORE_KEY]: 0 };
