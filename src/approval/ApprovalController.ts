@@ -350,14 +350,14 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
     requestData?: RequestData
   ): void {
     let errorMessage = null;
-    if (!id) {
+    if (!id || typeof id !== 'string') {
       errorMessage = 'Must specify non-empty string id.';
-    } else if (!origin) {
-      errorMessage = 'Must specify origin.';
     } else if (this._approvals.has(id)) {
       errorMessage = `Approval with id '${id}' already exists.`;
+    } else if (!origin || typeof origin !== 'string') {
+      errorMessage = 'Must specify non-empty string origin.';
     } else if (!type || typeof type !== 'string') {
-      errorMessage = 'Must specify non-empty string type.';
+      errorMessage = 'May not specify empty or non-string type.';
     } else if (requestData && (
       typeof requestData !== 'object' || Array.isArray(requestData)
     )) {

@@ -34,10 +34,12 @@ describe('ApprovalController: Input Validation', () => {
 
       expect(() => approvalController.add({ id: null, origin: 'bar.baz' })).toThrow(getInvalidIdError());
 
-      expect(() => approvalController.add({ id: 'foo' })).toThrow(getMissingOriginError());
+      expect(() => approvalController.add({ id: 'foo' })).toThrow(getInvalidOriginError());
+
+      expect(() => approvalController.add({ id: 'foo', origin: true })).toThrow(getInvalidOriginError());
 
       expect(() => approvalController.add({ id: 'foo', origin: 'bar.baz', type: {} })).toThrow(
-        getNonStringTypeError(errorCodes.rpc.internal),
+        getInvalidTypeError(errorCodes.rpc.internal),
       );
 
       expect(() => approvalController.add({ id: 'foo', origin: 'bar.baz', type: '' })).toThrow(
@@ -160,8 +162,8 @@ function getInvalidHasTypeError() {
   return getError('May not specify non-string type.');
 }
 
-function getMissingOriginError() {
-  return getError('Must specify origin.', errorCodes.rpc.internal);
+function getInvalidOriginError() {
+  return getError('Must specify non-empty string origin.', errorCodes.rpc.internal);
 }
 
 function getInvalidRequestDataError() {
@@ -169,11 +171,7 @@ function getInvalidRequestDataError() {
 }
 
 function getInvalidTypeError(code) {
-  return getError('Must specify non-empty string type.', code);
-}
-
-function getNonStringTypeError(code) {
-  return getError('Must specify non-empty string type.', code);
+  return getError('May not specify empty or non-string type.', code);
 }
 
 function getInvalidHasParamsError() {
