@@ -1,11 +1,16 @@
 import { toChecksumAddress } from 'ethereumjs-util';
+import {
+  normalize as normalizeAddress,
+  signTypedData,
+  signTypedData_v4,
+  signTypedDataLegacy,
+} from 'eth-sig-util';
 import BaseController, { BaseConfig, BaseState, Listener } from '../BaseController';
 import PreferencesController from '../user/PreferencesController';
 import { Transaction } from '../transaction/TransactionController';
 import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
 import { TypedMessageParams } from '../message-manager/TypedMessageManager';
 
-const sigUtil = require('eth-sig-util');
 const Keyring = require('eth-keyring-controller');
 const { Mutex } = require('await-semaphore');
 const Wallet = require('ethereumjs-wallet');
@@ -347,17 +352,18 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    */
   async signTypedMessage(messageParams: TypedMessageParams, version: string) {
     try {
-      const address = sigUtil.normalize(messageParams.from);
+      const address = normalizeAddress(messageParams.from);
       const { password } = privates.get(this).keyring;
       const privateKey = await this.exportAccount(password, address);
       const privateKeyBuffer = ethUtil.toBuffer(ethUtil.addHexPrefix(privateKey));
       switch (version) {
         case 'V1':
-          return sigUtil.signTypedDataLegacy(privateKeyBuffer, { data: messageParams.data });
+          // signTypedDataLegacy will throw if the data is invalid.
+          return signTypedDataLegacy(privateKeyBuffer, { data: messageParams.data as any });
         case 'V3':
-          return sigUtil.signTypedData(privateKeyBuffer, { data: JSON.parse(messageParams.data as string) });
+          return signTypedData(privateKeyBuffer, { data: JSON.parse(messageParams.data as string) });
         case 'V4':
-          return sigUtil.signTypedData_v4(privateKeyBuffer, {
+          return signTypedData_v4(privateKeyBuffer, {
             data: JSON.parse(messageParams.data as string),
           });
       }
@@ -408,6 +414,26 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    */
   unsubscribe(listener: Listener<KeyringState>) {
     return privates.get(this).keyring.store.unsubscribe(listener);
+  }
+
+  /**
+   * Adds new listener to be notified when the wallet is locked
+   *
+   * @param listener - Callback triggered when wallet is locked
+   * @returns - EventEmitter if listener added
+   */
+  onLock(listener: () => void) {
+    return privates.get(this).keyring.on('lock', listener);
+  }
+
+  /**
+   * Adds new listener to be notified when the wallet is unlocked
+   *
+   * @param listener - Callback triggered when wallet is unlocked
+   * @returns - EventEmitter if listener added
+   */
+  onUnlock(listener: () => void) {
+    return privates.get(this).keyring.on('unlock', listener);
   }
 
   /**

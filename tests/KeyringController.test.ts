@@ -1,10 +1,15 @@
 import * as ethUtil from 'ethereumjs-util';
+import {
+  recoverPersonalSignature,
+  recoverTypedSignature,
+  recoverTypedSignature_v4,
+  recoverTypedSignatureLegacy,
+} from 'eth-sig-util';
 import { stub } from 'sinon';
 import KeyringController, { Keyring, KeyringConfig } from '../src/keyring/KeyringController';
 import PreferencesController from '../src/user/PreferencesController';
 import ComposableController from '../src/ComposableController';
 
-const sigUtil = require('eth-sig-util');
 const Transaction = require('ethereumjs-tx');
 const mockEncryptor: any = require('./utils/mockEncryptor');
 
@@ -152,7 +157,7 @@ describe('KeyringController', () => {
     const data = ethUtil.bufferToHex(Buffer.from('Hello from test', 'utf8'));
     const account = initialState.keyrings[0].accounts[0];
     const signature = await keyringController.signPersonalMessage({ data, from: account });
-    const recovered = sigUtil.recoverPersonalSignature({ data, sig: signature });
+    const recovered = recoverPersonalSignature({ data, sig: signature });
     expect(account).toBe(recovered);
   });
 
@@ -171,7 +176,7 @@ describe('KeyringController', () => {
     ];
     const account = initialState.keyrings[0].accounts[0];
     const signature = await keyringController.signTypedMessage({ data: typedMsgParams, from: account }, 'V1');
-    const recovered = sigUtil.recoverTypedSignatureLegacy({ data: typedMsgParams, sig: signature });
+    const recovered = recoverTypedSignatureLegacy({ data: typedMsgParams, sig: signature as string });
     expect(account).toBe(recovered);
   });
 
@@ -212,7 +217,7 @@ describe('KeyringController', () => {
       { data: JSON.stringify(msgParams), from: account },
       'V3',
     );
-    const recovered = sigUtil.recoverTypedSignature({ data: msgParams, sig: signature });
+    const recovered = recoverTypedSignature({ data: msgParams as any, sig: signature as string });
     expect(account).toBe(recovered);
   });
 
@@ -270,7 +275,7 @@ describe('KeyringController', () => {
       { data: JSON.stringify(msgParams), from: account },
       'V4',
     );
-    const recovered = sigUtil.recoverTypedSignature_v4({ data: msgParams, sig: signature });
+    const recovered = recoverTypedSignature_v4({ data: msgParams as any, sig: signature as string });
     expect(account).toBe(recovered);
   });
 
@@ -322,5 +327,16 @@ describe('KeyringController', () => {
     keyringController.unsubscribe(listener);
     await keyringController.removeAccount('0x51253087e6f8358b5f10c0a94315d69db3357859');
     expect(listener.calledTwice).toBe(false);
+  });
+
+  it('should receive lock and unlock events', async () => {
+    const listenerLock = stub();
+    keyringController.onLock(listenerLock);
+    await keyringController.setLocked();
+    expect(listenerLock.called).toBe(true);
+    const listenerUnlock = stub();
+    keyringController.onUnlock(listenerUnlock);
+    await keyringController.submitPassword(password);
+    expect(listenerUnlock.called).toBe(true);
   });
 });

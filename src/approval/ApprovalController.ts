@@ -3,7 +3,8 @@ import { ethErrors } from 'eth-rpc-errors';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
 const NO_TYPE = Symbol('NO_APPROVAL_TYPE');
-const STORE_KEY = 'pendingApprovals';
+const APPROVALS_STORE_KEY = 'pendingApprovals';
+const APPROVAL_COUNT_STORE_KEY = 'pendingApprovalCount';
 
 type ApprovalType = string | typeof NO_TYPE;
 
@@ -32,14 +33,15 @@ export interface ApprovalConfig extends BaseConfig {
 }
 
 export interface ApprovalState extends BaseState {
-  [STORE_KEY]: { [approvalId: string]: ApprovalInfo };
+  [APPROVALS_STORE_KEY]: { [approvalId: string]: ApprovalInfo };
+  [APPROVAL_COUNT_STORE_KEY]: number;
 }
 
 const getAlreadyPendingMessage = (origin: string, type: ApprovalType) => (
   `Request ${type === NO_TYPE ? '' : `of type '${type}' `}already pending for origin ${origin}. Please wait.`
 );
 
-const defaultState = { [STORE_KEY]: {} };
+const defaultState: ApprovalState = { [APPROVALS_STORE_KEY]: {}, [APPROVAL_COUNT_STORE_KEY]: 0 };
 
 /**
  * Controller for keeping track of pending approvals by id and/or origin and
@@ -48,7 +50,7 @@ const defaultState = { [STORE_KEY]: {} };
  * Useful for managing requests that require user approval, and restricting
  * the number of approvals a particular origin can have pending at any one time.
  */
-export default class ApprovalController extends BaseController<ApprovalConfig, ApprovalState> {
+export class ApprovalController extends BaseController<ApprovalConfig, ApprovalState> {
 
   private _approvals: Map<string, ApprovalCallbacks>;
 
@@ -65,10 +67,9 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
     super(config, state || defaultState);
 
     this._approvals = new Map();
-
     this._origins = new Map();
-
     this._showApprovalRequest = config.showApprovalRequest;
+    this.initialize();
   }
 
   /**
@@ -134,10 +135,58 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
    * @returns The pending approval data associated with the id.
    */
   get(id: string): ApprovalInfo | undefined {
-    const info = this.state[STORE_KEY][id];
+    const info = this.state[APPROVALS_STORE_KEY][id];
     return info
       ? { ...info }
       : undefined;
+  }
+
+  /**
+   * Gets the number of pending approvals, by origin and/or type.
+   * To only count approvals without a type, the `type` must be specified as
+   * `null`.
+   *
+   * If only `origin` is specified, all approvals for that origin will be counted,
+   * regardless of type.
+   * If only `type` is specified, all approvals for that type will be counted,
+   * regardless of origin.
+   * If both `origin` and `type` are specified, 0 or 1 will be returned.
+   *
+   * @param opts - Options bag.
+   * @param opts.origin - An approval origin.
+   * @param opts.type - The type of the approval request.
+   * @returns The pending approval count for the given origin and/or type.
+   */
+  getApprovalCount(opts: { origin?: string; type?: string | null} = {}): number {
+    if (!opts.origin && !opts.type && opts.type !== null) {
+      throw new Error('Must specify origin, type, or both.');
+    }
+    const { origin } = opts;
+    const _type = opts.type === null ? NO_TYPE : opts.type as ApprovalType;
+
+    if (origin && _type) {
+      return Number(Boolean(this._origins.get(origin)?.has(_type)));
+    }
+
+    if (origin) {
+      return this._origins.get(origin)?.size || 0;
+    }
+
+    // Only "type" was specified
+    let count = 0;
+    for (const [_origin, types] of this._origins) {
+      if (types.has(_type)) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  /**
+   * @returns The total pending approval count, for all types and origins.
+   */
+  getTotalApprovalCount(): number {
+    return this.state[APPROVAL_COUNT_STORE_KEY];
   }
 
   /**
@@ -149,18 +198,19 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
    * @param opts.id - The id of the approval request.
    * @param opts.origin - The origin of the approval request.
    * @param opts.type - The type of the approval request.
-   * @returns True if an approval is found, false otherwise.
+   * @returns `true` if an approval is found, `false` otherwise.
    */
-  has(opts: { id?: string; origin?: string; type?: string }): boolean {
+  has(opts: { id?: string; origin?: string; type?: string } = {}): boolean {
+    const { id, origin } = opts;
     const _type = opts.type === undefined ? NO_TYPE : opts.type;
     if (!_type) {
       throw new Error('May not specify falsy type.');
     }
 
-    if (opts.id) {
-      return this._approvals.has(opts.id);
-    } else if (opts.origin) {
-      return Boolean(this._origins.get(opts.origin)?.has(_type));
+    if (id) {
+      return this._approvals.has(id);
+    } else if (origin) {
+      return Boolean(this._origins.get(origin)?.has(_type));
     }
     throw new Error('Must specify id or origin.');
   }
@@ -310,10 +360,11 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
     }
 
     this.update({
-      [STORE_KEY]: {
-        ...this.state[STORE_KEY],
+      [APPROVALS_STORE_KEY]: {
+        ...this.state[APPROVALS_STORE_KEY],
         [id]: info,
       },
+      [APPROVAL_COUNT_STORE_KEY]: this.state[APPROVAL_COUNT_STORE_KEY] + 1,
     }, true);
   }
 
@@ -329,11 +380,11 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
     if (this._approvals.has(id)) {
       this._approvals.delete(id);
 
-      const state = this.state[STORE_KEY];
+      const approvals = this.state[APPROVALS_STORE_KEY];
       const {
         origin,
         type = NO_TYPE,
-      } = state[id];
+      } = approvals[id];
 
       /* istanbul ignore next */
       this._origins.get(origin)?.delete(type);
@@ -341,10 +392,11 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
         this._origins.delete(origin);
       }
 
-      const newState = { ...state };
-      delete newState[id];
+      const newApprovals = { ...approvals };
+      delete newApprovals[id];
       this.update({
-        [STORE_KEY]: newState,
+        [APPROVALS_STORE_KEY]: newApprovals,
+        [APPROVAL_COUNT_STORE_KEY]: this.state[APPROVAL_COUNT_STORE_KEY] - 1,
       }, true);
     }
   }
@@ -378,3 +430,4 @@ export default class ApprovalController extends BaseController<ApprovalConfig, A
     return !this._origins.get(origin)?.size;
   }
 }
+export default ApprovalController;
