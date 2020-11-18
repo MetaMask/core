@@ -2,11 +2,8 @@ import { nanoid } from 'nanoid';
 import { ethErrors } from 'eth-rpc-errors';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
-const NO_TYPE = Symbol('NO_APPROVAL_TYPE');
 const APPROVALS_STORE_KEY = 'pendingApprovals';
 const APPROVAL_COUNT_STORE_KEY = 'pendingApprovalCount';
-
-type ApprovalType = string | typeof NO_TYPE;
 
 type ApprovalPromiseResolve = (value?: unknown) => void;
 type ApprovalPromiseReject = (error?: Error) => void;
@@ -18,76 +15,108 @@ interface ApprovalCallbacks {
   reject: ApprovalPromiseReject;
 }
 
-/**
- * Data associated with a pending approval.
- */
-export interface ApprovalInfo {
+export interface Approval {
+
+  /**
+   * The ID of the approval request.
+   */
   id: string;
+
+  /**
+   * The origin of the approval request.
+   */
   origin: string;
-  type?: string;
+
+  /**
+   * The time that the request was received, per Date.now().
+   */
+  time: number;
+
+  /**
+   * The type of the approval request.
+   */
+  type: string;
+
+  /**
+   * Additional data associated with the request.
+   */
   requestData?: RequestData;
 }
 
 export interface ApprovalConfig extends BaseConfig {
+  defaultApprovalType: string;
   showApprovalRequest: () => void;
 }
 
 export interface ApprovalState extends BaseState {
-  [APPROVALS_STORE_KEY]: { [approvalId: string]: ApprovalInfo };
+  [APPROVALS_STORE_KEY]: { [approvalId: string]: Approval };
   [APPROVAL_COUNT_STORE_KEY]: number;
 }
 
-const getAlreadyPendingMessage = (origin: string, type: ApprovalType) => (
-  `Request ${type === NO_TYPE ? '' : `of type '${type}' `}already pending for origin ${origin}. Please wait.`
+const getAlreadyPendingMessage = (origin: string, type: string) => (
+  `Request of type '${type}' already pending for origin ${origin}. Please wait.`
 );
 
 const defaultState: ApprovalState = { [APPROVALS_STORE_KEY]: {}, [APPROVAL_COUNT_STORE_KEY]: 0 };
 
 /**
- * Controller for keeping track of pending approvals by id and/or origin and
- * type pair.
+ * Controller for managing requests that require user approval.
  *
- * Useful for managing requests that require user approval, and restricting
- * the number of approvals a particular origin can have pending at any one time.
+ * Enables limiting the number of pending requests by origin and type, counting
+ * pending requests, and more.
+ *
+ * Adding a request returns a promise that resolves or rejects when the request
+ * is approved or denied, respectively.
  */
 export class ApprovalController extends BaseController<ApprovalConfig, ApprovalState> {
 
+  public readonly defaultApprovalType: string;
+
   private _approvals: Map<string, ApprovalCallbacks>;
 
-  private _origins: Map<string, Set<ApprovalType>>;
+  private _origins: Map<string, Set<string>>;
 
   private _showApprovalRequest: () => void;
 
   /**
    * @param opts - Options bag
-   * @param opts.showApprovalRequest - Function for opening the MetaMask user
-   * confirmation UI.
+   * @param opts.defaultApprovalType - The default type for approvals.
+   * @param opts.showApprovalRequest - Function for opening the UI such that
+   * the request can be displayed to the user.
    */
   constructor(config: ApprovalConfig, state?: ApprovalState) {
+    const { defaultApprovalType, showApprovalRequest } = config;
+    if (!defaultApprovalType || typeof defaultApprovalType !== 'string') {
+      throw new Error('Must specify non-empty string defaultApprovalType.');
+    }
+    if (typeof showApprovalRequest !== 'function') {
+      throw new Error('Must specify function showApprovalRequest.');
+    }
+
     super(config, state || defaultState);
 
+    this.defaultApprovalType = defaultApprovalType;
     this._approvals = new Map();
     this._origins = new Map();
-    this._showApprovalRequest = config.showApprovalRequest;
+    this._showApprovalRequest = showApprovalRequest;
     this.initialize();
   }
 
   /**
-   * Adds a pending approval per the given arguments, opens the MetaMask user
-   * confirmation UI, and returns the associated id and approval promise.
-   * An internal, default type will be used if none is specified.
+   * Adds an approval request per the given arguments, calls the show approval
+   * request function, and returns the associated approval promise.
    *
    * There can only be one approval per origin and type. An error is thrown if
-   * attempting
+   * attempting to add an invalid or duplicate request.
    *
    * @param opts - Options bag.
    * @param opts.id - The id of the approval request. A random id will be
    * generated if none is provided.
    * @param opts.origin - The origin of the approval request.
-   * @param opts.type - The type associated with the approval request, if
-   * applicable.
-   * @param opts.requestData - The request data associated with the approval
-   * request.
+   * @param opts.type - The type associated with the approval request. The
+   * default type will be used if no type is specified.
+   * @param opts.requestData - Additional data associated with the request,
+   * if any.
    * @returns The approval promise.
    */
   addAndShowApprovalRequest(opts: {
@@ -96,27 +125,26 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
     type?: string;
     requestData?: RequestData;
   }): Promise<unknown> {
-    const promise = this._add(opts.origin, opts.requestData, opts.id, opts.type);
+    const promise = this._add(opts.origin, opts.type, opts.id, opts.requestData);
     this._showApprovalRequest();
     return promise;
   }
 
   /**
-   * Adds a pending approval per the given arguments, and returns the associated
-   * id and approval promise. An internal, default type will be used if none is
-   * specified.
+   * Adds an approval request per the given arguments and returns the approval
+   * promise.
    *
    * There can only be one approval per origin and type. An error is thrown if
-   * attempting
+   * attempting to add an invalid or duplicate request.
    *
    * @param opts - Options bag.
    * @param opts.id - The id of the approval request. A random id will be
    * generated if none is provided.
    * @param opts.origin - The origin of the approval request.
-   * @param opts.type - The type associated with the approval request, if
-   * applicable.
-   * @param opts.requestData - The request data associated with the approval
-   * request.
+   * @param opts.type - The type associated with the approval request. The
+   * default type will be used if no type is specified.
+   * @param opts.requestData - Additional data associated with the request,
+   * if any.
    * @returns The approval promise.
    */
   add(opts: {
@@ -125,16 +153,16 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
     type?: string;
     requestData?: RequestData;
   }): Promise<unknown> {
-    return this._add(opts.origin, opts.requestData, opts.id, opts.type);
+    return this._add(opts.origin, opts.type, opts.id, opts.requestData);
   }
 
   /**
-   * Gets the pending approval info for the given id.
+   * Gets the info for the approval request with the given id.
    *
    * @param id - The id of the approval request.
-   * @returns The pending approval data associated with the id.
+   * @returns The approval request data associated with the id.
    */
-  get(id: string): ApprovalInfo | undefined {
+  get(id: string): Approval | undefined {
     const info = this.state[APPROVALS_STORE_KEY][id];
     return info
       ? { ...info }
@@ -143,26 +171,23 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
 
   /**
    * Gets the number of pending approvals, by origin and/or type.
-   * To only count approvals without a type, the `type` must be specified as
-   * `null`.
    *
-   * If only `origin` is specified, all approvals for that origin will be counted,
-   * regardless of type.
+   * If only `origin` is specified, all approvals for that origin will be
+   * counted, regardless of type.
    * If only `type` is specified, all approvals for that type will be counted,
    * regardless of origin.
    * If both `origin` and `type` are specified, 0 or 1 will be returned.
    *
-   * @param opts - Options bag.
    * @param opts.origin - An approval origin.
    * @param opts.type - The type of the approval request.
-   * @returns The pending approval count for the given origin and/or type.
+   * @returns The current approval request count for the given origin and/or
+   * type.
    */
-  getApprovalCount(opts: { origin?: string; type?: string | null} = {}): number {
-    if (!opts.origin && !opts.type && opts.type !== null) {
+  getApprovalCount(opts: { origin?: string; type?: string} = {}): number {
+    if (!opts.origin && !opts.type) {
       throw new Error('Must specify origin, type, or both.');
     }
-    const { origin } = opts;
-    const _type = opts.type === null ? NO_TYPE : opts.type as ApprovalType;
+    const { origin, type: _type } = opts;
 
     if (origin && _type) {
       return Number(Boolean(this._origins.get(origin)?.has(_type)));
@@ -174,8 +199,8 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
 
     // Only "type" was specified
     let count = 0;
-    for (const [_origin, types] of this._origins) {
-      if (types.has(_type)) {
+    for (const approval of Object.values(this.state[APPROVALS_STORE_KEY])) {
+      if (approval.type === _type) {
         count += 1;
       }
     }
@@ -183,36 +208,63 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   }
 
   /**
-   * @returns The total pending approval count, for all types and origins.
+   * @returns The current total approval request count, for all types and
+   * origins.
    */
   getTotalApprovalCount(): number {
     return this.state[APPROVAL_COUNT_STORE_KEY];
   }
 
   /**
-   * Checks if there's a pending approval request for the given id, or origin
-   * and type pair if no id is specified.
-   * If no type is specified, the default type will be used.
+   * Checks if there's a pending approval request per the given parameters.
+   * At least one parameter must be specified. An error will be thrown if the
+   * parameters are invalid.
+   *
+   * If `id` is specified, all other parameters will be ignored.
+   * If `id` is not specified, the method will check for requests that match
+   * all of the specified parameters.
    *
    * @param opts - Options bag.
-   * @param opts.id - The id of the approval request.
-   * @param opts.origin - The origin of the approval request.
-   * @param opts.type - The type of the approval request.
-   * @returns `true` if an approval is found, `false` otherwise.
+   * @param opts.id - The ID to check for.
+   * @param opts.origin - The origin to check for.
+   * @param opts.type - The type to check for.
+   * @returns `true` if a matching approval is found, and `false` otherwise.
    */
   has(opts: { id?: string; origin?: string; type?: string } = {}): boolean {
-    const { id, origin } = opts;
-    const _type = opts.type === undefined ? NO_TYPE : opts.type;
-    if (!_type) {
-      throw new Error('May not specify falsy type.');
-    }
+    const { id, origin, type: _type } = opts;
 
     if (id) {
+      if (typeof id !== 'string') {
+        throw new Error('May not specify non-string id.');
+      }
       return this._approvals.has(id);
-    } else if (origin) {
-      return Boolean(this._origins.get(origin)?.has(_type));
     }
-    throw new Error('Must specify id or origin.');
+
+    if (origin) {
+      if (typeof origin !== 'string') {
+        throw new Error('May not specify non-string origin.');
+      }
+
+      // Check origin and type pair if type also specified
+      if (_type && typeof _type === 'string') {
+        return Boolean(this._origins.get(origin)?.has(_type));
+      }
+      return this._origins.has(origin);
+    }
+
+    if (_type) {
+      if (typeof _type !== 'string') {
+        throw new Error('May not specify non-string type.');
+      }
+
+      for (const approval of Object.values(this.state[APPROVALS_STORE_KEY])) {
+        if (approval.type === _type) {
+          return true;
+        }
+      }
+      return false;
+    }
+    throw new Error('Must specify non-empty string id, origin, or type.');
   }
 
   /**
@@ -238,7 +290,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   }
 
   /**
-   * Rejects and deletes all pending approval requests.
+   * Rejects and deletes all approval requests.
    */
   clear(): void {
     const rejectionError = ethErrors.rpc.resourceUnavailable(
@@ -255,17 +307,17 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   /**
    * Implementation of add operation.
    *
-   * @param id - The id of the approval request.
    * @param origin - The origin of the approval request.
-   * @param type - The type associated with the approval request, if applicable.
+   * @param type - The type associated with the approval request.
+   * @param id - The id of the approval request.
    * @param requestData - The request data associated with the approval request.
    * @returns The approval promise.
    */
   private _add(
     origin: string,
-    requestData?: RequestData,
+    type: string = this.defaultApprovalType,
     id: string = nanoid(),
-    type: ApprovalType = NO_TYPE,
+    requestData?: RequestData,
   ): Promise<unknown> {
     this._validateAddParams(id, origin, type, requestData);
 
@@ -294,20 +346,18 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   private _validateAddParams(
     id: string,
     origin: string,
-    type: ApprovalType,
+    type: string,
     requestData?: RequestData
   ): void {
     let errorMessage = null;
-    if (!id) {
+    if (!id || typeof id !== 'string') {
       errorMessage = 'Must specify non-empty string id.';
-    } else if (!origin) {
-      errorMessage = 'Must specify origin.';
     } else if (this._approvals.has(id)) {
       errorMessage = `Approval with id '${id}' already exists.`;
-    } else if (typeof type !== 'string' && type !== NO_TYPE) {
-      errorMessage = 'Must specify string type.';
-    } else if (!type) {
-      errorMessage = 'May not specify empty string type.';
+    } else if (!origin || typeof origin !== 'string') {
+      errorMessage = 'Must specify non-empty string origin.';
+    } else if (!type || typeof type !== 'string') {
+      errorMessage = 'May not specify empty or non-string type.';
     } else if (requestData && (
       typeof requestData !== 'object' || Array.isArray(requestData)
     )) {
@@ -326,7 +376,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @param origin - The origin of the approval request.
    * @param type - The type associated with the approval request.
    */
-  private _addPendingApprovalOrigin(origin: string, type: ApprovalType): void {
+  private _addPendingApprovalOrigin(origin: string, type: string): void {
     const originSet = this._origins.get(origin) || new Set();
     originSet.add(type);
 
@@ -347,22 +397,18 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   private _addToStore(
     id: string,
     origin: string,
-    type: ApprovalType,
+    type: string,
     requestData?: RequestData
   ): void {
-    const info: ApprovalInfo = { id, origin };
-    // default type is for internal bookkeeping only
-    if (type !== NO_TYPE) {
-      info.type = type;
-    }
+    const approval: Approval = { id, origin, type, time: Date.now() };
     if (requestData) {
-      info.requestData = requestData;
+      approval.requestData = requestData;
     }
 
     this.update({
       [APPROVALS_STORE_KEY]: {
         ...this.state[APPROVALS_STORE_KEY],
-        [id]: info,
+        [id]: approval,
       },
       [APPROVAL_COUNT_STORE_KEY]: this.state[APPROVAL_COUNT_STORE_KEY] + 1,
     }, true);
@@ -377,28 +423,22 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @param id - The id of the approval request to be deleted.
    */
   private _delete(id: string): void {
-    if (this._approvals.has(id)) {
-      this._approvals.delete(id);
+    this._approvals.delete(id);
 
-      const approvals = this.state[APPROVALS_STORE_KEY];
-      const {
-        origin,
-        type = NO_TYPE,
-      } = approvals[id];
+    const approvals = this.state[APPROVALS_STORE_KEY];
+    const { origin, type } = approvals[id];
 
-      /* istanbul ignore next */
-      this._origins.get(origin)?.delete(type);
-      if (this._isEmptyOrigin(origin)) {
-        this._origins.delete(origin);
-      }
-
-      const newApprovals = { ...approvals };
-      delete newApprovals[id];
-      this.update({
-        [APPROVALS_STORE_KEY]: newApprovals,
-        [APPROVAL_COUNT_STORE_KEY]: this.state[APPROVAL_COUNT_STORE_KEY] - 1,
-      }, true);
+    (this._origins.get(origin) as Set<string>).delete(type);
+    if (this._isEmptyOrigin(origin)) {
+      this._origins.delete(origin);
     }
+
+    const newApprovals = { ...approvals };
+    delete newApprovals[id];
+    this.update({
+      [APPROVALS_STORE_KEY]: newApprovals,
+      [APPROVAL_COUNT_STORE_KEY]: this.state[APPROVAL_COUNT_STORE_KEY] - 1,
+    }, true);
   }
 
   /**
@@ -407,7 +447,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * Throws an error if no approval is found for the given id.
    *
    * @param id - The id of the approval request.
-   * @returns The pending approval callbacks associated with the id.
+   * @returns The promise callbacks associated with the approval request.
    */
   private _deleteApprovalAndGetCallbacks(id: string): ApprovalCallbacks {
     const callbacks = this._approvals.get(id);
@@ -420,11 +460,11 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   }
 
   /**
-   * Checks whether there are any pending approvals associated with the given
+   * Checks whether there are any approvals associated with the given
    * origin.
    *
    * @param origin - The origin to check.
-   * @returns True if the origin has no pending approvals, false otherwise.
+   * @returns True if the origin has no approvals, false otherwise.
    */
   private _isEmptyOrigin(origin: string): boolean {
     return !this._origins.get(origin)?.size;
