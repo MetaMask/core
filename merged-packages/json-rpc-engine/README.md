@@ -5,9 +5,9 @@ A tool for processing JSON-RPC requests and responses.
 ## Usage
 
 ```js
-const RpcEngine = require('json-rpc-engine')
+const { JsonRpcEngine } = require('json-rpc-engine')
 
-let engine = new RpcEngine()
+let engine = new JsonRpcEngine()
 ```
 
 Build a stack of JSON-RPC processors by pushing middleware to the engine.
@@ -25,10 +25,10 @@ Requests are handled asynchronously, stepping down the stack until complete.
 let request = { id: 1, jsonrpc: '2.0', method: 'hello' }
 
 engine.handle(request, function(err, response){
-  // do something with response.result
+  // Do something with response.result, or handle response.error
 })
 
-// there is also a Promise signature
+// There is also a Promise signature
 const response = await engine.handle(request)
 ```
 
@@ -53,14 +53,12 @@ engine.push(function(req, res, next, end){
 })
 ```
 
-RpcEngines can be nested by converting them to middleware using `asMiddleware(engine)`:
+Engines can be nested by converting them to middleware using `JsonRpcEngine.asMiddleware()`:
 
 ```js
-const asMiddleware = require('json-rpc-engine/src/asMiddleware')
-
-let engine = new RpcEngine()
-let subengine = new RpcEngine()
-engine.push(asMiddleware(subengine))
+const engine = new JsonRpcEngine()
+const subengine = new JsonRpcEngine()
+engine.push(subengine.asMiddleware())
 ```
 
 ### `async` Middleware
@@ -68,7 +66,7 @@ engine.push(asMiddleware(subengine))
 If you require your middleware function to be `async`, use `createAsyncMiddleware`:
 
 ```js
-const createAsyncMiddleware = require('json-rpc-engine/src/createAsyncMiddleware')
+const { createAsyncMiddleware } = require('json-rpc-engine')
 
 let engine = new RpcEngine()
 engine.push(createAsyncMiddleware(async (req, res, next) => {

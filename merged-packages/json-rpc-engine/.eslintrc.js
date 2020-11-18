@@ -14,6 +14,7 @@ module.exports = {
     '@metamask/eslint-config',
     '@metamask/eslint-config/config/mocha',
     '@metamask/eslint-config/config/nodejs',
+    '@metamask/eslint-config/config/typescript',
   ],
 
   rules: {
@@ -22,10 +23,22 @@ module.exports = {
 
   overrides: [{
     files: [
-      '.eslintrc.js',
+      '*.js',
+      '*.json',
     ],
     parserOptions: {
       sourceType: 'script',
     },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-var-requires': 'off',
+    },
   }],
-}
+
+  ignorePatterns: [
+    '!.eslintrc.js',
+    '.nyc*',
+    'coverage/',
+    'dist/',
+  ],
+};
