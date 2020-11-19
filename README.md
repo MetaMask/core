@@ -1,4 +1,4 @@
-![@metamask/controllers logo](https://raw.githubusercontent.com/MetaMask/controllers/master/logo.png)
+![@metamask/controllers logo](https://raw.githubusercontent.com/MetaMask/controllers/develop/logo.png)
 
 `@metamask/controllers` is a collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets.
 
