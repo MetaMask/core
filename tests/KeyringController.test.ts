@@ -328,4 +328,15 @@ describe('KeyringController', () => {
     await keyringController.removeAccount('0x51253087e6f8358b5f10c0a94315d69db3357859');
     expect(listener.calledTwice).toBe(false);
   });
+
+  it('should receive lock and unlock events', async () => {
+    const listenerLock = stub();
+    keyringController.onLock(listenerLock);
+    await keyringController.setLocked();
+    expect(listenerLock.called).toBe(true);
+    const listenerUnlock = stub();
+    keyringController.onUnlock(listenerUnlock);
+    await keyringController.submitPassword(password);
+    expect(listenerUnlock.called).toBe(true);
+  });
 });

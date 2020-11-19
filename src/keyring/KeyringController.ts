@@ -417,6 +417,26 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
   }
 
   /**
+   * Adds new listener to be notified when the wallet is locked
+   *
+   * @param listener - Callback triggered when wallet is locked
+   * @returns - EventEmitter if listener added
+   */
+  onLock(listener: () => void) {
+    return privates.get(this).keyring.on('lock', listener);
+  }
+
+  /**
+   * Adds new listener to be notified when the wallet is unlocked
+   *
+   * @param listener - Callback triggered when wallet is unlocked
+   * @returns - EventEmitter if listener added
+   */
+  onUnlock(listener: () => void) {
+    return privates.get(this).keyring.on('unlock', listener);
+  }
+
+  /**
    * Verifies the that the seed phrase restores the current keychain's accounts
    *
    * @returns - Promise resolving if the verification succeeds

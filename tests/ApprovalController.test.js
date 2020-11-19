@@ -1,27 +1,49 @@
 const { errorCodes } = require('eth-rpc-errors');
 const ApprovalController = require('../dist/approval/ApprovalController').default;
 
-const defaultConfig = { showApprovalRequest: () => undefined };
+const defaultConfig = {
+  defaultApprovalType: 'DEFAULT_TYPE',
+  showApprovalRequest: () => undefined,
+};
 
 const getApprovalController = () => new ApprovalController({ ...defaultConfig });
 
 const STORE_KEY = 'pendingApprovals';
 
 describe('ApprovalController: Input Validation', () => {
+  describe('constructor', () => {
+    it('throws on invalid input', () => {
+      expect(() => new ApprovalController({})).toThrow(getInvalidDefaultTypeError());
+      expect(() => new ApprovalController({ showApprovalRequest: () => undefined })).toThrow(
+        getInvalidDefaultTypeError(),
+      );
+      expect(() => new ApprovalController({ defaultApprovalType: 2 })).toThrow(getInvalidDefaultTypeError());
+
+      expect(() => new ApprovalController({ defaultApprovalType: 'foo' })).toThrow(
+        getInvalidShowApprovalRequestError(),
+      );
+      expect(() => new ApprovalController({ defaultApprovalType: 'foo', showApprovalRequest: 'bar' })).toThrow(
+        getInvalidShowApprovalRequestError(),
+      );
+    });
+  });
+
   describe('add', () => {
     it('validates input', () => {
       const approvalController = getApprovalController();
 
       expect(() => approvalController.add({ id: null, origin: 'bar.baz' })).toThrow(getInvalidIdError());
 
-      expect(() => approvalController.add({ id: 'foo' })).toThrow(getMissingOriginError());
+      expect(() => approvalController.add({ id: 'foo' })).toThrow(getInvalidOriginError());
+
+      expect(() => approvalController.add({ id: 'foo', origin: true })).toThrow(getInvalidOriginError());
 
       expect(() => approvalController.add({ id: 'foo', origin: 'bar.baz', type: {} })).toThrow(
-        getNonStringTypeError(errorCodes.rpc.internal),
+        getInvalidTypeError(errorCodes.rpc.internal),
       );
 
       expect(() => approvalController.add({ id: 'foo', origin: 'bar.baz', type: '' })).toThrow(
-        getEmptyStringTypeError(errorCodes.rpc.internal),
+        getInvalidTypeError(errorCodes.rpc.internal),
       );
 
       expect(() =>
@@ -63,9 +85,11 @@ describe('ApprovalController: Input Validation', () => {
     it('validates input', () => {
       const approvalController = getApprovalController();
 
-      expect(() => approvalController.has()).toThrow(getMissingIdOrOriginError());
-      expect(() => approvalController.has({})).toThrow(getMissingIdOrOriginError());
-      expect(() => approvalController.has({ type: false })).toThrow(getNoFalsyTypeError());
+      expect(() => approvalController.has()).toThrow(getInvalidHasParamsError());
+      expect(() => approvalController.has({})).toThrow(getInvalidHasParamsError());
+      expect(() => approvalController.has({ id: true })).toThrow(getInvalidHasIdError());
+      expect(() => approvalController.has({ origin: true })).toThrow(getInvalidHasOriginError());
+      expect(() => approvalController.has({ type: true })).toThrow(getInvalidHasTypeError());
     });
   });
 
@@ -102,14 +126,6 @@ describe('ApprovalController: Input Validation', () => {
 
       expect(approvalController.has({ id: 'foo' }) && approvalController.has({ origin: 'bar.baz' })).toEqual(true);
     });
-
-    it('does nothing when deleting non-existing entry', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz' });
-
-      expect(() => approvalController._delete('fizz')).not.toThrow();
-
-      expect(approvalController.has({ id: 'foo' }) && approvalController.has({ origin: 'bar.baz' })).toEqual(true);
-    });
   });
 
   describe('miscellaneous', () => {
@@ -122,32 +138,44 @@ describe('ApprovalController: Input Validation', () => {
 
 // helpers
 
+function getInvalidDefaultTypeError() {
+  return getError('Must specify non-empty string defaultApprovalType.');
+}
+
+function getInvalidShowApprovalRequestError() {
+  return getError('Must specify function showApprovalRequest.');
+}
+
 function getInvalidIdError() {
   return getError('Must specify non-empty string id.', errorCodes.rpc.internal);
 }
 
-function getMissingOriginError() {
-  return getError('Must specify origin.', errorCodes.rpc.internal);
+function getInvalidHasIdError() {
+  return getError('May not specify non-string id.');
+}
+
+function getInvalidHasOriginError() {
+  return getError('May not specify non-string origin.');
+}
+
+function getInvalidHasTypeError() {
+  return getError('May not specify non-string type.');
+}
+
+function getInvalidOriginError() {
+  return getError('Must specify non-empty string origin.', errorCodes.rpc.internal);
 }
 
 function getInvalidRequestDataError() {
   return getError('Request data must be a plain object if specified.', errorCodes.rpc.internal);
 }
 
-function getNoFalsyTypeError() {
-  return getError('May not specify falsy type.');
+function getInvalidTypeError(code) {
+  return getError('May not specify empty or non-string type.', code);
 }
 
-function getNonStringTypeError(code) {
-  return getError('Must specify string type.', code);
-}
-
-function getEmptyStringTypeError(code) {
-  return getError('May not specify empty string type.', code);
-}
-
-function getMissingIdOrOriginError() {
-  return getError('Must specify id or origin.');
+function getInvalidHasParamsError() {
+  return getError('Must specify non-empty string id, origin, or type.');
 }
 
 function getApprovalCountParamsError() {
