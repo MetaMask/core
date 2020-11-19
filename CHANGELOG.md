@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [5.0.0] - 2020-11-19
+
+### Added
+
+- `ApprovalController` ([#309](https://github.com/MetaMask/controllers/pull/309))
+  - Add user-defined default type
+  - Add `Date.now()` timestamps to request (`approval.time`)
+  - Enable `has` lookups by `type` only
+
+### Changed
+
+- **Breaking:** `ApprovalController`: Require types for all requests ([#309](https://github.com/MetaMask/controllers/pull/309))
+- `ApprovalController`: Rename `ApprovalInfo` interface to `Approval` ([#309](https://github.com/MetaMask/controllers/pull/309))
+- `PhishingController`: Make `no-cache` fetch option explicit ([#297](https://github.com/MetaMask/controllers/pull/297))
+- Make package compatible with Node 12 ([#287](https://github.com/MetaMask/controllers/pull/287))
+
+### Fixed
+
+- `ApprovalController`: Fix faulty `origin` parameter type check ([#309](https://github.com/MetaMask/controllers/pull/309))
+  - The type check was too loose, and would've permitted some invalid origins.
+
 ## [4.2.0] - 2020-11-13
 
 ### Added
@@ -120,7 +141,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v4.2.0...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v5.0.0...HEAD
+[5.0.0]:https://github.com/MetaMask/controllers/compare/v4.2.0...v5.0.0
 [4.2.0]:https://github.com/MetaMask/controllers/compare/v4.1.0...v4.2.0
 [4.1.0]:https://github.com/MetaMask/controllers/compare/v4.0.2...v4.1.0
 [4.0.2]:https://github.com/MetaMask/controllers/compare/v4.0.1...v4.0.2
