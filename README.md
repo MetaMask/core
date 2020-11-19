@@ -1,6 +1,6 @@
-![@metamask/controllers logo](https://raw.githubusercontent.com/MetaMask/controllers/develop/logo.png)
+# `@metamask/controllers`
 
-`@metamask/controllers` is a collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets.
+A collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets.
 
 ## Table of Contents
 
@@ -18,13 +18,13 @@
 
 ## Usage
 
-1. Install the package.
+First, install the package.
 
-```
+```sh
 yarn add @metamask/controllers
 ```
 
-2. Compose stores to create a data model.
+Then, compose stores to create a data model.
 
 ```js
 import {
@@ -251,21 +251,21 @@ console.log(datamodel.flatState); // {infura: {...}, contractExchangeRates: [...
 
 Linking `@metamask/controllers` into other projects involves a special NPM command to ensure that dependencies are not duplicated. This is because `@metamask/controllers` ships modules that are transpiled but not bundled, and [NPM does not deduplicate](https://github.com/npm/npm/issues/7742) linked dependency trees.
 
-1. Link `@metamask/controllers`.
+First, link `@metamask/controllers`.
 
-  ```sh
-  $ yarn build:link
-  # or
-  $ npm run build:link
-  ```
+```sh
+$ yarn build:link
+# or
+$ npm run build:link
+```
 
-2. Link into other projects.
+Then, link into other projects.
 
-  ```sh
-  $ yarn link @metamask/controllers
-  # or
-  $ npm link @metamask/controllers
-  ```
+```sh
+$ yarn link @metamask/controllers
+# or
+$ npm link @metamask/controllers
+```
 
 ## Release & Publishing
 
