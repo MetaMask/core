@@ -8,7 +8,7 @@ export type Json =
   | number
   | string
   | null
-  | { [property: string]: Json}
+  | { [property: string]: Json }
   | Json[];
 
 /**
@@ -94,6 +94,10 @@ type InternalMiddleware = (
   end: JsonRpcEngineEndCallback
 ) => void;
 
+/**
+ * A JSON-RPC request and response processor.
+ * Give it a stack of middleware, pass it requests, and get back responses.
+ */
 export class JsonRpcEngine extends SafeEventEmitter {
   private _middleware: InternalMiddleware[];
 
@@ -102,31 +106,55 @@ export class JsonRpcEngine extends SafeEventEmitter {
     this._middleware = [];
   }
 
+  /**
+   * Add a middleware function to the engine's middleware stack.
+   *
+   * @param middleware - The middleware function to add.
+   */
   push<T, U>(middleware: JsonRpcMiddleware<T, U>): void {
     this._middleware.push(middleware as InternalMiddleware);
   }
 
+  /**
+   * Handle a JSON-RPC request, and return a response.
+   *
+   * @param request - The request to handle.
+   * @param callback - An error-first callback that will receive the response.
+   */
   handle<T, U>(
     request: JsonRpcRequest<T>,
-    callback: (
-      error: unknown,
-      response: JsonRpcResponse<U>
-    ) => void
+    callback: (error: unknown, response: JsonRpcResponse<U>) => void,
   ): void;
 
+  /**
+   * Handle an array of JSON-RPC requests, and return an array of responses.
+   *
+   * @param request - The requests to handle.
+   * @param callback - An error-first callback that will receive the array of
+   * responses.
+   */
   handle<T, U>(
     requests: JsonRpcRequest<T>[],
-    callback: (
-      error: unknown,
-      responses: JsonRpcResponse<U>[]
-    ) => void
+    callback: (error: unknown, responses: JsonRpcResponse<U>[]) => void,
   ): void;
 
+  /**
+   * Handle a JSON-RPC request, and return a response.
+   *
+   * @param request - The request to handle.
+   * @returns A promise that resolves with the response, or rejects with an
+   * error.
+   */
   handle<T, U>(request: JsonRpcRequest<T>): Promise<JsonRpcResponse<U>>;
 
-  handle<T, U>(
-    requests: JsonRpcRequest<T>[]
-  ): Promise<JsonRpcResponse<U>[]>;
+  /**
+   * Handle an array of JSON-RPC requests, and return an array of responses.
+   *
+   * @param request - The requests to handle.
+   * @returns A promise that resolves with the array of responses, or rejects
+   * with an error.
+   */
+  handle<T, U>(requests: JsonRpcRequest<T>[]): Promise<JsonRpcResponse<U>[]>;
 
   handle(req: unknown, cb?: any) {
     if (cb && typeof cb !== 'function') {
@@ -149,6 +177,12 @@ export class JsonRpcEngine extends SafeEventEmitter {
     return this._promiseHandle(req as JsonRpcRequest<unknown>);
   }
 
+  /**
+   * Returns this engine as a middleware function that can be pushed to other
+   * engines.
+   *
+   * @returns This engine as a middleware function.
+   */
   asMiddleware(): JsonRpcMiddleware<unknown, unknown> {
     return (req, res, next, end) => {
       this._runAllMiddleware(req, res)
@@ -197,43 +231,62 @@ export class JsonRpcEngine extends SafeEventEmitter {
     });
   }
 
-  private _handle(
+  private async _handle(
     callerReq: JsonRpcRequest<unknown>,
-    cb: (
-      error: unknown,
-      response: JsonRpcResponse<unknown>
-    ) => void,
-  ): void {
+    cb: (error: unknown, response: JsonRpcResponse<unknown>) => void,
+  ): Promise<void> {
+    if (
+      !callerReq ||
+      Array.isArray(callerReq) ||
+      typeof callerReq !== 'object'
+    ) {
+      const error = new EthereumRpcError(
+        errorCodes.rpc.invalidRequest,
+        `Requests must be plain objects. Received: ${typeof callerReq}`,
+        { request: callerReq },
+      );
+      return cb(error, { id: undefined, jsonrpc: '2.0', error });
+    }
+
+    if (typeof callerReq.method !== 'string') {
+      const error = new EthereumRpcError(
+        errorCodes.rpc.invalidRequest,
+        `Must specify a string method. Received: ${callerReq.method}`,
+        { request: callerReq },
+      );
+      return cb(error, { id: callerReq.id, jsonrpc: '2.0', error });
+    }
+
     const req: JsonRpcRequest<unknown> = { ...callerReq };
     const res: InternalJsonRpcResponse = {
       id: req.id,
       jsonrpc: req.jsonrpc,
     };
 
-    let processingError: Error | JsonRpcError;
+    let processingError: JsonRpcEngineCallbackError = null;
 
-    this._processRequest(req, res)
-      .catch((error) => {
-        // either from return handlers or something unexpected
-        processingError = error;
-      })
-      .finally(() => {
-        // Preserve unserialized error, if any, for use in callback
-        const responseError = res._originalError;
-        delete res._originalError;
+    try {
+      await this._processRequest(req, res);
+    } catch (error) {
+      // either from return handlers or something unexpected
+      processingError = error;
+    }
 
-        const error = responseError || processingError || null;
+    // Preserve unserialized error, if any, for use in callback
+    const responseError = res._originalError;
+    delete res._originalError;
 
-        if (error) {
-          // Ensure no result is present on an errored response
-          delete res.result;
-          if (!res.error) {
-            res.error = serializeError(error);
-          }
-        }
+    const error = responseError || processingError || null;
 
-        cb(error, res as JsonRpcResponse<unknown>);
-      });
+    if (error) {
+      // Ensure no result is present on an errored response
+      delete res.result;
+      if (!res.error) {
+        res.error = serializeError(error);
+      }
+    }
+
+    return cb(error, res as JsonRpcResponse<unknown>);
   }
 
   private async _processRequest(
@@ -264,14 +317,18 @@ export class JsonRpcEngine extends SafeEventEmitter {
     isComplete: boolean,
   ): void {
     if (!('result' in res) && !('error' in res)) {
-      const requestBody = JSON.stringify(req, null, 2);
-      const message = `JsonRpcEngine: Response has no error or result for request:\n${requestBody}`;
-      throw new EthereumRpcError(errorCodes.rpc.internal, message, req);
+      throw new EthereumRpcError(
+        errorCodes.rpc.internal,
+        `JsonRpcEngine: Response has no error or result for request:\n${jsonify(req)}`,
+        { request: req },
+      );
     }
     if (!isComplete) {
-      const requestBody = JSON.stringify(req, null, 2);
-      const message = `JsonRpcEngine: Nothing ended request:\n${requestBody}`;
-      throw new EthereumRpcError(errorCodes.rpc.internal, message, req);
+      throw new EthereumRpcError(
+        errorCodes.rpc.internal,
+        `JsonRpcEngine: Nothing ended request:\n${jsonify(req)}`,
+        { request: req },
+      );
     }
   }
 
@@ -314,9 +371,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     returnHandlers: JsonRpcEngineReturnHandler[],
   ): Promise<boolean> {
     return new Promise((resolve) => {
-      const end: JsonRpcEngineEndCallback = (
-        err?: unknown,
-      ) => {
+      const end: JsonRpcEngineEndCallback = (err?: unknown) => {
         const error = err || res.error;
         if (error) {
           res.error = serializeError(error);
@@ -333,8 +388,17 @@ export class JsonRpcEngine extends SafeEventEmitter {
           end(res.error);
         } else {
           if (returnHandler) {
+            if (typeof returnHandler !== 'function') {
+              end(new EthereumRpcError(
+                errorCodes.rpc.internal,
+                `JsonRpcEngine: "next" return handlers must be functions. ` +
+                `Received "${typeof returnHandler}" for request:\n${jsonify(req)}`,
+                { request: req },
+              ));
+            }
             returnHandlers.push(returnHandler);
           }
+
           // False indicates that the request should not end
           resolve(false);
         }
@@ -347,4 +411,8 @@ export class JsonRpcEngine extends SafeEventEmitter {
       }
     });
   }
+}
+
+function jsonify(request: JsonRpcRequest<unknown>): string {
+  return JSON.stringify(request, null, 2);
 }

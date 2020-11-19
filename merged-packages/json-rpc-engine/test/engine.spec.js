@@ -15,6 +15,28 @@ describe('JsonRpcEngine', function () {
     );
   });
 
+  it('handle: returns error for invalid request parameter', async function () {
+    const engine = new JsonRpcEngine();
+    let response = await engine.handle(null);
+    assert.equal(response.error.code, -32600, 'should have expected error');
+    assert.equal(response.result, undefined, 'should have no results');
+
+    response = await engine.handle(true);
+    assert.equal(response.error.code, -32600, 'should have expected error');
+    assert.equal(response.result, undefined, 'should have no results');
+  });
+
+  it('handle: returns error for invalid request method', async function () {
+    const engine = new JsonRpcEngine();
+    let response = await engine.handle({ method: null });
+    assert.equal(response.error.code, -32600, 'should have expected error');
+    assert.equal(response.result, undefined, 'should have no results');
+
+    response = await engine.handle({ method: true });
+    assert.equal(response.error.code, -32600, 'should have expected error');
+    assert.equal(response.result, undefined, 'should have no results');
+  });
+
   it('handle: basic middleware test 1', function (done) {
     const engine = new JsonRpcEngine();
 
@@ -187,6 +209,29 @@ describe('JsonRpcEngine', function () {
     });
   });
 
+  it('erroring middleware test: non-function passsed to next()', function (done) {
+    const engine = new JsonRpcEngine();
+
+    engine.push(function (_req, _res, next, _end) {
+      next(true);
+    });
+
+    const payload = { id: 1, jsonrpc: '2.0', method: 'hello' };
+
+    engine.handle(payload, function (err, res) {
+      assert.ok(err, 'should error');
+      assert.ok(res, 'should have response');
+      assert.ok(res.error, 'should have error on response');
+      assert.equal(res.error.code, -32603, 'should have expected error');
+      assert.ok(
+        res.error.message.startsWith('JsonRpcEngine: "next" return handlers must be functions.'),
+        'should have expected error',
+      );
+      assert.ok(!res.result, 'should not have result on response');
+      done();
+    });
+  });
+
   it('empty middleware test', function (done) {
     const engine = new JsonRpcEngine();
 
@@ -198,7 +243,7 @@ describe('JsonRpcEngine', function () {
     });
   });
 
-  it('handle batch payloads', function (done) {
+  it('handle: batch payloads', function (done) {
     const engine = new JsonRpcEngine();
 
     engine.push(function (req, res, _next, end) {
@@ -232,7 +277,7 @@ describe('JsonRpcEngine', function () {
     });
   });
 
-  it('handle batch payloads (async signature)', async function () {
+  it('handle: batch payloads (async signature)', async function () {
     const engine = new JsonRpcEngine();
 
     engine.push(function (req, res, _next, end) {
@@ -261,6 +306,28 @@ describe('JsonRpcEngine', function () {
     assert.ok(!res[3].result, 'has no result');
     assert.equal(res[3].error.code, -32603, 'has expected error');
     assert.equal(res[4].result, 5, 'has expected result');
+  });
+
+  it('handle: batch payload with bad request object', async function () {
+    const engine = new JsonRpcEngine();
+
+    engine.push(function (req, res, _next, end) {
+      res.result = req.id;
+      return end();
+    });
+
+    const payloadA = { id: 1, jsonrpc: '2.0', method: 'hello' };
+    const payloadB = true;
+    const payloadC = { id: 3, jsonrpc: '2.0', method: 'hello' };
+    const payload = [payloadA, payloadB, payloadC];
+
+    const res = await engine.handle(payload);
+    assert.ok(res, 'has res');
+    assert.ok(Array.isArray(res), 'res is array');
+    assert.equal(res[0].result, 1, 'should have expected result');
+    assert.equal(res[1].error.code, -32600, 'should have expected error');
+    assert.ok(!res[1].result, 'should have no result');
+    assert.equal(res[2].result, 3, 'should have expected result');
   });
 
   it('basic notifications', function (done) {
