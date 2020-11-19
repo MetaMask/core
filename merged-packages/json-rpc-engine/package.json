@@ -16,7 +16,8 @@
     "lint": "eslint . --ext ts,js,json",
     "lint:fix": "eslint . --ext ts,js,json --fix",
     "test": "mocha ./test",
-    "coverage": "nyc --check-coverage yarn test"
+    "coverage": "nyc --check-coverage yarn test",
+    "prepublishOnly": "yarn && yarn lint && yarn build && yarn coverage"
   },
   "dependencies": {
     "@metamask/safe-event-emitter": "^2.0.0",
