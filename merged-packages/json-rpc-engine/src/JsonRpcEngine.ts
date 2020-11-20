@@ -155,10 +155,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
 
     if (Array.isArray(req)) {
       if (cb) {
-        this._handleBatch(req)
-          .then((res) => cb(null, res as JsonRpcResponse<unknown>[]))
-          .catch((err) => cb(err)); // fatal error
-        return undefined;
+        return this._handleBatch(req, cb);
       }
       return this._handleBatch(req);
     }
@@ -176,44 +173,73 @@ export class JsonRpcEngine extends SafeEventEmitter {
    * @returns This engine as a middleware function.
    */
   asMiddleware(): JsonRpcMiddleware<unknown, unknown> {
-    return (req, res, next, end) => {
-      JsonRpcEngine._runAllMiddleware(req, res, this._middleware)
-        .then(
-          async ([middlewareError, isComplete, returnHandlers]) => {
-            if (isComplete) {
-              await JsonRpcEngine._runReturnHandlers(returnHandlers);
-              return end(middlewareError as JsonRpcEngineCallbackError);
-            }
+    return async (req, res, next, end) => {
+      try {
+        const [
+          middlewareError,
+          isComplete,
+          returnHandlers,
+        ] = await JsonRpcEngine._runAllMiddleware(req, res, this._middleware);
 
-            return next(async (handlerCallback) => {
-              try {
-                await JsonRpcEngine._runReturnHandlers(returnHandlers);
-              } catch (error) {
-                return handlerCallback(error);
-              }
-              return handlerCallback();
-            });
-          },
-        )
-        .catch((error) => {
-          end(error);
+        if (isComplete) {
+          await JsonRpcEngine._runReturnHandlers(returnHandlers);
+          return end(middlewareError as JsonRpcEngineCallbackError);
+        }
+
+        return next(async (handlerCallback) => {
+          try {
+            await JsonRpcEngine._runReturnHandlers(returnHandlers);
+          } catch (error) {
+            return handlerCallback(error);
+          }
+          return handlerCallback();
         });
+      } catch (error) {
+        return end(error);
+      }
     };
   }
 
   /**
    * Like _handle, but for batch requests.
    */
+  private _handleBatch(
+    reqs: JsonRpcRequest<unknown>[],
+  ): Promise<JsonRpcResponse<unknown>[]>;
+
+  /**
+   * Like _handle, but for batch requests.
+   */
+  private _handleBatch(
+    reqs: JsonRpcRequest<unknown>[],
+    cb: (error: unknown, responses?: JsonRpcResponse<unknown>[]) => void,
+  ): Promise<void>;
+
   private async _handleBatch(
     reqs: JsonRpcRequest<unknown>[],
-  ): Promise<JsonRpcResponse<unknown>[]> {
+    cb?: (error: unknown, responses?: JsonRpcResponse<unknown>[]) => void,
+  ): Promise<JsonRpcResponse<unknown>[] | void> {
     // The order here is important
-    // 3. Return batch response, or reject on some kind of fatal error
-    return await Promise.all(
-      // 2. Wait for all requests to finish
-      // 1. Begin executing each request in the order received
-      reqs.map(this._promiseHandle.bind(this)),
-    );
+    try {
+      // 2. Wait for all requests to finish, or throw on some kind of fatal
+      // error
+      const responses = await Promise.all(
+        // 1. Begin executing each request in the order received
+        reqs.map(this._promiseHandle.bind(this)),
+      );
+
+      // 3. Return batch response
+      if (cb) {
+        return cb(null, responses);
+      }
+      return responses;
+    } catch (error) {
+      if (cb) {
+        return cb(error);
+      }
+
+      throw error;
+    }
   }
 
   /**
@@ -330,11 +356,13 @@ export class JsonRpcEngine extends SafeEventEmitter {
     req: JsonRpcRequest<unknown>,
     res: InternalJsonRpcResponse,
     middlewareStack: JsonRpcMiddleware<unknown, unknown>[],
-  ): Promise<[
+  ): Promise<
+    [
       unknown, // error
       boolean, // isComplete
       JsonRpcEngineReturnHandler[],
-    ]> {
+    ]
+    > {
     const returnHandlers: JsonRpcEngineReturnHandler[] = [];
     let error = null;
     let isComplete = false;
@@ -384,12 +412,16 @@ export class JsonRpcEngine extends SafeEventEmitter {
         } else {
           if (returnHandler) {
             if (typeof returnHandler !== 'function') {
-              end(new EthereumRpcError(
-                errorCodes.rpc.internal,
-                `JsonRpcEngine: "next" return handlers must be functions. ` +
-                `Received "${typeof returnHandler}" for request:\n${jsonify(req)}`,
-                { request: req },
-              ));
+              end(
+                new EthereumRpcError(
+                  errorCodes.rpc.internal,
+                  `JsonRpcEngine: "next" return handlers must be functions. ` +
+                    `Received "${typeof returnHandler}" for request:\n${jsonify(
+                      req,
+                    )}`,
+                  { request: req },
+                ),
+              );
             }
             returnHandlers.push(returnHandler);
           }
@@ -433,7 +465,9 @@ export class JsonRpcEngine extends SafeEventEmitter {
     if (!('result' in res) && !('error' in res)) {
       throw new EthereumRpcError(
         errorCodes.rpc.internal,
-        `JsonRpcEngine: Response has no error or result for request:\n${jsonify(req)}`,
+        `JsonRpcEngine: Response has no error or result for request:\n${jsonify(
+          req,
+        )}`,
         { request: req },
       );
     }

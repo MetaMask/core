@@ -12,6 +12,8 @@ export type AsyncJsonrpcMiddleware<T, U> = (
   next: AsyncJsonRpcEngineNextCallback
 ) => Promise<void>;
 
+type ReturnHandlerCallback = (error: null | Error) => void;
+
 /**
  * JsonRpcEngine only accepts callback-based middleware directly.
  * createAsyncMiddleware exists to enable consumers to pass in async middleware
@@ -32,7 +34,7 @@ export type AsyncJsonrpcMiddleware<T, U> = (
 export function createAsyncMiddleware<T, U>(
   asyncMiddleware: AsyncJsonrpcMiddleware<T, U>,
 ): JsonRpcMiddleware<T, U> {
-  return (req, res, next, end) => {
+  return async (req, res, next, end) => {
     // nextPromise is the key to the implementation
     // it is resolved by the return handler passed to the
     // "next" function
@@ -41,8 +43,8 @@ export function createAsyncMiddleware<T, U>(
       resolveNextPromise = resolve;
     });
 
-    let returnHandlerCallback: (error: null | Error) => void;
-    let nextWasCalled: boolean;
+    let returnHandlerCallback: unknown = null;
+    let nextWasCalled = false;
 
     // This will be called by the consumer's async middleware.
     const asyncNext = async () => {
@@ -51,28 +53,29 @@ export function createAsyncMiddleware<T, U>(
       // We pass a return handler to next(). When it is called by the engine,
       // the consumer's async middleware will resume executing.
       // eslint-disable-next-line node/callback-return
-      next((callback) => {
-        returnHandlerCallback = callback;
+      next((runReturnHandlersCallback) => {
+        // This callback comes from JsonRpcEngine._runReturnHandlers
+        returnHandlerCallback = runReturnHandlersCallback;
         resolveNextPromise();
       });
       await nextPromise;
     };
 
-    asyncMiddleware(req, res, asyncNext)
-      .then(async () => {
-        if (nextWasCalled) {
-          await nextPromise; // we must wait until the return handler is called
-          returnHandlerCallback(null);
-        } else {
-          end(null);
-        }
-      })
-      .catch((error) => {
-        if (returnHandlerCallback) {
-          returnHandlerCallback(error);
-        } else {
-          end(error);
-        }
-      });
+    try {
+      await asyncMiddleware(req, res, asyncNext);
+
+      if (nextWasCalled) {
+        await nextPromise; // we must wait until the return handler is called
+        (returnHandlerCallback as ReturnHandlerCallback)(null);
+      } else {
+        end(null);
+      }
+    } catch (error) {
+      if (returnHandlerCallback) {
+        (returnHandlerCallback as ReturnHandlerCallback)(error);
+      } else {
+        end(error);
+      }
+    }
   };
 }
