@@ -60,6 +60,11 @@ export interface JsonRpcFailure extends JsonRpcResponseBase {
 
 export type JsonRpcResponse<T> = JsonRpcSuccess<T> | JsonRpcFailure;
 
+export interface PendingJsonRpcResponse<T> extends JsonRpcResponseBase {
+  result?: T;
+  error?: Error | JsonRpcError;
+}
+
 export type JsonRpcEngineCallbackError = Error | JsonRpcError | null;
 
 export type JsonRpcEngineReturnHandler = (
@@ -76,15 +81,10 @@ export type JsonRpcEngineEndCallback = (
 
 export type JsonRpcMiddleware<T, U> = (
   req: JsonRpcRequest<T>,
-  res: JsonRpcResponse<U>,
+  res: PendingJsonRpcResponse<U>,
   next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback
 ) => void;
-
-interface InternalJsonRpcResponse extends JsonRpcResponseBase {
-  result?: unknown;
-  error?: Error | JsonRpcError;
-}
 
 /**
  * A JSON-RPC request and response processor.
@@ -290,7 +290,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     }
 
     const req: JsonRpcRequest<unknown> = { ...callerReq };
-    const res: InternalJsonRpcResponse = {
+    const res: PendingJsonRpcResponse<unknown> = {
       id: req.id,
       jsonrpc: req.jsonrpc,
     };
@@ -322,7 +322,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   private async _processRequest(
     req: JsonRpcRequest<unknown>,
-    res: InternalJsonRpcResponse,
+    res: PendingJsonRpcResponse<unknown>,
   ): Promise<void> {
     const [
       error,
@@ -354,7 +354,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   private static async _runAllMiddleware(
     req: JsonRpcRequest<unknown>,
-    res: InternalJsonRpcResponse,
+    res: PendingJsonRpcResponse<unknown>,
     middlewareStack: JsonRpcMiddleware<unknown, unknown>[],
   ): Promise<
     [
@@ -390,7 +390,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   private static _runMiddleware(
     req: JsonRpcRequest<unknown>,
-    res: InternalJsonRpcResponse,
+    res: PendingJsonRpcResponse<unknown>,
     middleware: JsonRpcMiddleware<unknown, unknown>,
     returnHandlers: JsonRpcEngineReturnHandler[],
   ): Promise<[unknown, boolean]> {
@@ -432,7 +432,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       };
 
       try {
-        middleware(req, res as JsonRpcResponse<unknown>, next, end);
+        middleware(req, res, next, end);
       } catch (error) {
         end(error);
       }
@@ -459,7 +459,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   private static _checkForCompletion(
     req: JsonRpcRequest<unknown>,
-    res: InternalJsonRpcResponse,
+    res: PendingJsonRpcResponse<unknown>,
     isComplete: boolean,
   ): void {
     if (!('result' in res) && !('error' in res)) {

@@ -1,14 +1,14 @@
 import {
   JsonRpcMiddleware,
   JsonRpcRequest,
-  JsonRpcResponse,
+  PendingJsonRpcResponse,
 } from './JsonRpcEngine';
 
 export type AsyncJsonRpcEngineNextCallback = () => Promise<void>;
 
 export type AsyncJsonrpcMiddleware<T, U> = (
   req: JsonRpcRequest<T>,
-  res: JsonRpcResponse<U>,
+  res: PendingJsonRpcResponse<U>,
   next: AsyncJsonRpcEngineNextCallback
 ) => Promise<void>;
 
