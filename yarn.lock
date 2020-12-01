@@ -625,6 +625,11 @@
     "@types/yargs" "^15.0.0"
     chalk "^4.0.0"
 
+"@metamask/contract-metadata@^1.19.0":
+  version "1.19.0"
+  resolved "https://registry.yarnpkg.com/@metamask/contract-metadata/-/contract-metadata-1.19.0.tgz#2f074bce7ab7ffd0d20e3905b1936da0749a0473"
+  integrity sha512-TklMuz7ZbFJ2Zc6C7I+9qL3J9J+4prs5Ok5MJzoxD/57Iq6espzArhpI275elVCFF9ci8IMvach1kH8+F04/hA==
+
 "@metamask/eslint-config@^3.0.0":
   version "3.2.0"
   resolved "https://registry.yarnpkg.com/@metamask/eslint-config/-/eslint-config-3.2.0.tgz#66b9b2bea1616821506501e76de4ac991f34914f"
@@ -2428,11 +2433,6 @@ eth-block-tracker@^4.4.2:
     json-rpc-random-id "^1.0.1"
     pify "^3.0.0"
     safe-event-emitter "^1.0.1"
-
-eth-contract-metadata@^1.11.0:
-  version "1.11.0"
-  resolved "https://registry.yarnpkg.com/eth-contract-metadata/-/eth-contract-metadata-1.11.0.tgz#4d23a8208d5d53be9d4c0696ed8492b505c6bca1"
-  integrity sha512-Bbvio71M+lH+qXd8XXddpTc8hhjL9m4fNPOxmZFIX8z0/VooUdwV8YmmDAbkU5WVioZi+Jp1XaoO7VwzXnDboA==
 
 eth-ens-namehash@^2.0.8:
   version "2.0.8"
