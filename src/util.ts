@@ -341,25 +341,17 @@ export function validateTypedSignMessageDataV3(messageData: TypedMessageParams) 
 export function validateTokenToWatch(token: Token) {
   const { address, symbol, decimals } = token;
   if (!address || !symbol || typeof decimals === 'undefined') {
-    throw ethErrors.rpc.invalidParams(
-      `Must specify address, symbol, and decimals.`,
-    );
+    throw ethErrors.rpc.invalidParams(`Must specify address, symbol, and decimals.`);
   }
   if (typeof symbol !== 'string') {
-    throw ethErrors.rpc.invalidParams(
-      `Invalid symbol: not a string.`,
-    );
+    throw ethErrors.rpc.invalidParams(`Invalid symbol: not a string.`);
   }
   if (symbol.length > 6) {
-    throw ethErrors.rpc.invalidParams(
-      `Invalid symbol "${symbol}": longer than 6 characters.`,
-    );
+    throw ethErrors.rpc.invalidParams(`Invalid symbol "${symbol}": longer than 6 characters.`);
   }
-  const numDecimals = parseInt(decimals as unknown as string, 10);
+  const numDecimals = parseInt((decimals as unknown) as string, 10);
   if (isNaN(numDecimals) || numDecimals > 36 || numDecimals < 0) {
-    throw ethErrors.rpc.invalidParams(
-      `Invalid decimals "${decimals}": must be 0 <= 36.`,
-    );
+    throw ethErrors.rpc.invalidParams(`Invalid decimals "${decimals}": must be 0 <= 36.`);
   }
   if (!isValidAddress(address)) {
     throw ethErrors.rpc.invalidParams(`Invalid address "${address}".`);

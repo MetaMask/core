@@ -388,7 +388,7 @@ describe('util', () => {
       ).toThrow('Must specify address, symbol, and decimals.');
     });
 
-    it('should throw if symbol is more than 6 characters long', () => {
+    it('should throw if symbol is not a string', () => {
       expect(() =>
         util.validateTokenToWatch({
           address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
