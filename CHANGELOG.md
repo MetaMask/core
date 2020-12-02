@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [5.1.0] - 2020-12-02
+
+### Changed
+
+- Updated automatically detected assets ([#318](https://github.com/MetaMask/controllers/pull/318))
+
+### Fixed
+
+- Robustified `wallet_watchAssets` params validation, and improved errors ([#317](https://github.com/MetaMask/controllers/pull/317))
+
 ## [5.0.0] - 2020-11-19
 
 ### Added
@@ -141,7 +151,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v5.0.0...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v5.1.0...HEAD
+[5.1.0]:https://github.com/MetaMask/controllers/compare/v5.0.0...v5.1.0
 [5.0.0]:https://github.com/MetaMask/controllers/compare/v4.2.0...v5.0.0
 [4.2.0]:https://github.com/MetaMask/controllers/compare/v4.1.0...v4.2.0
 [4.1.0]:https://github.com/MetaMask/controllers/compare/v4.0.2...v4.1.0
