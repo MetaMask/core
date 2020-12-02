@@ -4,9 +4,9 @@ const BlockTracker = require('eth-block-tracker')
 const EthQuery = require('eth-query')
 const GanacheCore = require('ganache-core')
 const pify = require('pify')
-const createBlockCacheMiddleware = require('../block-cache')
-const providerFromEngine = require('../providerFromEngine')
-const providerAsMiddleware = require('../providerAsMiddleware')
+const createBlockCacheMiddleware = require('../src/block-cache')
+const providerFromEngine = require('../src/providerFromEngine')
+const providerAsMiddleware = require('../src/providerAsMiddleware')
 const createHitTrackerMiddleware = require('./util/createHitTrackerMiddleware')
 
 //

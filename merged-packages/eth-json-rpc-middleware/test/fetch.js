@@ -4,7 +4,7 @@ const concat = require('concat-stream')
 const series = require('async/series')
 const url = require('url')
 const btoa = require('btoa')
-const createFetchMiddleware = require('../fetch')
+const createFetchMiddleware = require('../src/fetch')
 const { createFetchConfigFromReq } = createFetchMiddleware
 
 test('fetch - basic', (t) => {

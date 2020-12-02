@@ -2,8 +2,8 @@ const test = require('tape')
 const JsonRpcEngine = require('json-rpc-engine')
 const BlockTracker = require('eth-block-tracker')
 const GanacheCore = require('ganache-core')
-const providerFromEngine = require('../providerFromEngine')
-const createInflightCacheMiddleware = require('../inflight-cache')
+const providerFromEngine = require('../src/providerFromEngine')
+const createInflightCacheMiddleware = require('../src/inflight-cache')
 
 test('inflight-cache - basic', (t) => {
   const { engine } = createTestSetup()
