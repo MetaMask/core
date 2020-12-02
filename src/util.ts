@@ -1,4 +1,5 @@
 import { addHexPrefix, isValidAddress, bufferToHex } from 'ethereumjs-util';
+import { ethErrors } from 'eth-rpc-errors';
 import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
 import { Transaction, FetchAllOptions } from './transaction/TransactionController';
 import { MessageParams } from './message-manager/MessageManager';
@@ -340,16 +341,20 @@ export function validateTypedSignMessageDataV3(messageData: TypedMessageParams) 
 export function validateTokenToWatch(token: Token) {
   const { address, symbol, decimals } = token;
   if (!address || !symbol || typeof decimals === 'undefined') {
-    throw new Error(`Cannot suggest token without address, symbol, and decimals`);
+    throw ethErrors.rpc.invalidParams(`Must specify address, symbol, and decimals.`);
   }
-  if (!(symbol.length < 7)) {
-    throw new Error(`Invalid symbol ${symbol} more than six characters`);
+  if (typeof symbol !== 'string') {
+    throw ethErrors.rpc.invalidParams(`Invalid symbol: not a string.`);
   }
-  if (isNaN(decimals) || decimals > 36 || decimals < 0) {
-    throw new Error(`Invalid decimals ${decimals} must be at least 0, and not over 36`);
+  if (symbol.length > 6) {
+    throw ethErrors.rpc.invalidParams(`Invalid symbol "${symbol}": longer than 6 characters.`);
+  }
+  const numDecimals = parseInt((decimals as unknown) as string, 10);
+  if (isNaN(numDecimals) || numDecimals > 36 || numDecimals < 0) {
+    throw ethErrors.rpc.invalidParams(`Invalid decimals "${decimals}": must be 0 <= 36.`);
   }
   if (!isValidAddress(address)) {
-    throw new Error(`Invalid address ${address}`);
+    throw ethErrors.rpc.invalidParams(`Invalid address "${address}".`);
   }
 }
 
