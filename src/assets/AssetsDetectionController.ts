@@ -8,7 +8,7 @@ import { Token } from './TokenRatesController';
 
 import AssetsController from './AssetsController';
 
-const contractMap = require('eth-contract-metadata');
+const contractMap = require('@metamask/contract-metadata');
 
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
