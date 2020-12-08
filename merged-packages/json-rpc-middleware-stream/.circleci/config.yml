@@ -55,7 +55,7 @@ jobs:
           at: .
       - run:
           name: Unit tests
-          command: yarn build && yarn test
+          command: yarn test
 
   all-tests-pass:
     docker:

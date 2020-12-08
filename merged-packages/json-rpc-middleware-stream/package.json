@@ -3,16 +3,16 @@
   "version": "3.0.0",
   "description": "A small toolset for streaming JSON-RPC data and matching requests and responses.",
   "license": "ISC",
-  "main": "index.js",
+  "main": "dist/index.js",
   "files": [
-    "index.js",
-    "engineStream.js"
+    "dist"
   ],
   "scripts": {
     "build": "tsc --project .",
-    "test": "node test/index.js",
+    "test": "yarn build && node test/index.js",
     "lint": "eslint . --ext ts,js,json",
-    "lint:fix": "eslint . --ext ts,js,json --fix"
+    "lint:fix": "eslint . --ext ts,js,json --fix",
+    "prepublishOnly": "yarn test"
   },
   "dependencies": {
     "@metamask/safe-event-emitter": "^2.0.0",
