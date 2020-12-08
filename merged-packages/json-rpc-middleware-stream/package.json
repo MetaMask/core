@@ -1,6 +1,6 @@
 {
   "name": "json-rpc-middleware-stream",
-  "version": "2.1.1",
+  "version": "3.0.0",
   "description": "A small toolset for streaming JSON-RPC data and matching requests and responses.",
   "license": "ISC",
   "main": "index.js",
