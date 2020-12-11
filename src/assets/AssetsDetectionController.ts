@@ -1,8 +1,9 @@
 import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import NetworkController, { NetworkType } from '../network/NetworkController';
-import PreferencesController from '../user/PreferencesController';
+import { PreferencesState, PREFERENCES_STATE_CHANGED } from '../user/PreferencesController';
 import { safelyExecute, timeoutFetch } from '../util';
+import { subscribe } from '../controller-messaging-system';
 import AssetsContractController from './AssetsContractController';
 import { Token } from './TokenRatesController';
 
@@ -256,19 +257,20 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
    */
   onComposed() {
     super.onComposed();
-    const preferences = this.context.PreferencesController as PreferencesController;
     const network = this.context.NetworkController as NetworkController;
     const assets = this.context.AssetsController as AssetsController;
     assets.subscribe(({ tokens }) => {
       this.configure({ tokens });
     });
-    preferences.subscribe(({ selectedAddress }) => {
+
+    subscribe<PreferencesState>(PREFERENCES_STATE_CHANGED, ({ selectedAddress }) => {
       const actualSelectedAddress = this.config.selectedAddress;
       if (selectedAddress !== actualSelectedAddress) {
         this.configure({ selectedAddress });
         this.detectAssets();
       }
     });
+
     network.subscribe(({ provider }) => {
       this.configure({ networkType: provider.type });
     });

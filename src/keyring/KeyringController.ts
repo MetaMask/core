@@ -6,7 +6,7 @@ import {
   signTypedDataLegacy,
 } from 'eth-sig-util';
 import BaseController, { BaseConfig, BaseState, Listener } from '../BaseController';
-import PreferencesController from '../user/PreferencesController';
+import { getPreferencesState, removeIdentity, setSelectedAddress, syncIdentities, updateIdentities } from '../user/PreferencesController';
 import { Transaction } from '../transaction/TransactionController';
 import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
 import { TypedMessageParams } from '../message-manager/TypedMessageManager';
@@ -135,7 +135,6 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    * @returns - Promise resolving to current state when the account is added
    */
   async addNewAccount(): Promise<KeyringMemState> {
-    const preferences = this.context.PreferencesController as PreferencesController;
     const primaryKeyring = privates.get(this).keyring.getKeyringsByType('HD Key Tree')[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
@@ -147,10 +146,10 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
 
     await this.verifySeedPhrase();
 
-    preferences.updateIdentities(newAccounts);
+    updateIdentities(newAccounts);
     newAccounts.forEach((selectedAddress: string) => {
       if (!oldAccounts.includes(selectedAddress)) {
-        preferences.update({ selectedAddress });
+        setSelectedAddress(selectedAddress);
       }
     });
     return this.fullUpdate();
@@ -181,13 +180,13 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    * @returns - Promise resolving to th restored keychain object
    */
   async createNewVaultAndRestore(password: string, seed: string) {
-    const preferences = this.context.PreferencesController as PreferencesController;
     const releaseLock = await this.mutex.acquire();
     try {
-      preferences.updateIdentities([]);
+      updateIdentities([]);
       const vault = await privates.get(this).keyring.createNewVaultAndRestore(password, seed);
-      preferences.updateIdentities(await privates.get(this).keyring.getAccounts());
-      preferences.update({ selectedAddress: Object.keys(preferences.state.identities)[0] });
+      updateIdentities(await privates.get(this).keyring.getAccounts());
+      const preferencesState = getPreferencesState();
+      setSelectedAddress(Object.keys(preferencesState.identities)[0]);
       this.fullUpdate();
       return vault;
     } finally {
@@ -202,12 +201,12 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    * @returns - Newly-created keychain object
    */
   async createNewVaultAndKeychain(password: string) {
-    const preferences = this.context.PreferencesController as PreferencesController;
     const releaseLock = await this.mutex.acquire();
     try {
       const vault = await privates.get(this).keyring.createNewVaultAndKeychain(password);
-      preferences.updateIdentities(await privates.get(this).keyring.getAccounts());
-      preferences.update({ selectedAddress: Object.keys(preferences.state.identities)[0] });
+      updateIdentities(await privates.get(this).keyring.getAccounts());
+      const preferencesState = getPreferencesState();
+      setSelectedAddress(Object.keys(preferencesState.identities)[0]);
       this.fullUpdate();
       return vault;
     } finally {
@@ -269,7 +268,6 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    */
   async importAccountWithStrategy(strategy: string, args: any[]): Promise<KeyringMemState> {
     let privateKey;
-    const preferences = this.context.PreferencesController as PreferencesController;
     switch (strategy) {
       case 'privateKey':
         const [importedKey] = args;
@@ -296,8 +294,8 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
     const newKeyring = await privates.get(this).keyring.addNewKeyring(KeyringTypes.simple, [privateKey]);
     const accounts = await newKeyring.getAccounts();
     const allAccounts = await privates.get(this).keyring.getAccounts();
-    preferences.updateIdentities(allAccounts);
-    preferences.update({ selectedAddress: accounts[0] });
+    updateIdentities(allAccounts);
+    setSelectedAddress(accounts[0]);
     return this.fullUpdate();
   }
 
@@ -308,8 +306,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    * @returns - Promise resolving current state when this account removal completes
    */
   async removeAccount(address: string): Promise<KeyringMemState> {
-    const preferences = this.context.PreferencesController as PreferencesController;
-    preferences.removeIdentity(address);
+    removeIdentity(address);
     await privates.get(this).keyring.removeAccount(address);
     return this.fullUpdate();
   }
@@ -390,10 +387,9 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    * @returns - Promise resolving to the current state
    */
   async submitPassword(password: string): Promise<KeyringMemState> {
-    const preferences = this.context.PreferencesController as PreferencesController;
     await privates.get(this).keyring.submitPassword(password);
     const accounts = await privates.get(this).keyring.getAccounts();
-    await preferences.syncIdentities(accounts);
+    await syncIdentities(accounts);
     return this.fullUpdate();
   }
 

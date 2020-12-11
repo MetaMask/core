@@ -1,5 +1,6 @@
 import { toChecksumAddress } from 'ethereumjs-util';
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import BaseController from '../base-controller-v2';
+import { call } from '../controller-messaging-system';
 import { ContactEntry } from './AddressBookController';
 
 /**
@@ -39,7 +40,7 @@ export interface RpcPreferences {
  * @property lostIdentities - Map of lost addresses to ContactEntry objects
  * @property selectedAddress - Current coinbase account
  */
-export interface PreferencesState extends BaseState {
+export interface PreferencesState {
   featureFlags: { [feature: string]: boolean };
   frequentRpcList: FrequentRpc[];
   ipfsGateway: string;
@@ -48,14 +49,66 @@ export interface PreferencesState extends BaseState {
   selectedAddress: string;
 }
 
+const schema = {
+  featureFlags: { persist: true, anonymous: true },
+  frequentRpcList: { persist: true, anonymous: true },
+  ipfsGateway: { persist: true, anonymous: true },
+  identities: { persist: true, anonymous: true },
+  lostIdentities: { persist: true, anonymous: true },
+  selectedAddress: { persist: true, anonymous: true },
+};
+
+const CONTROLLER_NAME = 'PreferencesController';
+
+/**
+ * Controller action constants
+ */
+export const GET_PREFERENCES_STATE = `${CONTROLLER_NAME}.getState`;
+export const SET_SELECTED_ADDRESS = `${CONTROLLER_NAME}.setSelectedAddress`;
+export const UPDATE_IDENTITIES = `${CONTROLLER_NAME}.updateIdentities`;
+export const REMOVE_IDENTITY = `${CONTROLLER_NAME}.removeIdentity`;
+export const SYNC_IDENTITIES = `${CONTROLLER_NAME}.syncIdentities`;
+
+/**
+ * Controller event constants
+ */
+export const PREFERENCES_STATE_CHANGED = `${CONTROLLER_NAME}.state-changed`;
+
+/**
+ * Controller actions
+ */
+export function getPreferencesState(): PreferencesState {
+  return call(GET_PREFERENCES_STATE);
+}
+
+export function setSelectedAddress(selectedAddress: string): void {
+  return call(SET_SELECTED_ADDRESS, selectedAddress);
+}
+
+export function updateIdentities(addresses: string[]): void {
+  return call(UPDATE_IDENTITIES, addresses);
+}
+
+export function removeIdentity(address: string): void {
+  return call(REMOVE_IDENTITY, address);
+}
+
+export function syncIdentities(addresses: string[]): void {
+  return call(SYNC_IDENTITIES, addresses);
+}
+
 /**
  * Controller that stores shared settings and exposes convenience methods
  */
-export class PreferencesController extends BaseController<BaseConfig, PreferencesState> {
-  /**
-   * Name of this controller used during composition
-   */
-  name = 'PreferencesController';
+export class PreferencesController extends BaseController<PreferencesState> {
+  private static defaultState = {
+    featureFlags: {},
+    frequentRpcList: [],
+    identities: {},
+    ipfsGateway: 'https://ipfs.io/ipfs/',
+    lostIdentities: {},
+    selectedAddress: '',
+  };
 
   /**
    * Creates a PreferencesController instance
@@ -63,17 +116,15 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(config?: Partial<BaseConfig>, state?: Partial<PreferencesState>) {
-    super(config, state);
-    this.defaultState = {
-      featureFlags: {},
-      frequentRpcList: [],
-      identities: {},
-      ipfsGateway: 'https://ipfs.io/ipfs/',
-      lostIdentities: {},
-      selectedAddress: '',
-    };
-    this.initialize();
+  constructor(state?: Partial<PreferencesState>) {
+    super({ ...PreferencesController.defaultState, ...state }, PREFERENCES_STATE_CHANGED, schema);
+    this.registerActions({
+      [GET_PREFERENCES_STATE]: () => this.state,
+      [SET_SELECTED_ADDRESS]: this.setSelectedAddress,
+      [UPDATE_IDENTITIES]: this.updateIdentities,
+      [REMOVE_IDENTITY]: this.removeIdentity,
+      [SYNC_IDENTITIES]: this.syncIdentities,
+    });
   }
 
   /**
@@ -92,7 +143,9 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
 
       identities[address] = { name: `Account ${identityCount + 1}`, address };
     });
-    this.update({ identities: { ...identities } });
+    this.update((state) => {
+      state.identities = identities;
+    });
   }
 
   /**
@@ -107,9 +160,13 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
       return;
     }
     delete identities[address];
-    this.update({ identities: { ...identities } });
+    this.update((state) => {
+      state.identities = identities;
+    });
     if (address === this.state.selectedAddress) {
-      this.update({ selectedAddress: Object.keys(identities)[0] });
+      this.update((state) => {
+        state.selectedAddress = Object.keys(identities)[0];
+      });
     }
   }
 
@@ -124,7 +181,9 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
     const { identities } = this.state;
     identities[address] = identities[address] || {};
     identities[address].name = label;
-    this.update({ identities: { ...identities } });
+    this.update((state) => {
+      state.identities = identities;
+    });
   }
 
   /**
@@ -136,7 +195,9 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
   setFeatureFlag(feature: string, activated: boolean) {
     const oldFeatureFlags = this.state.featureFlags;
     const featureFlags = { ...oldFeatureFlags, ...{ [feature]: activated } };
-    this.update({ featureFlags: { ...featureFlags } });
+    this.update((state) => {
+      state.featureFlags = featureFlags;
+    });
   }
 
   /**
@@ -163,11 +224,17 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
       }
     }
 
-    this.update({ identities: { ...identities }, lostIdentities: { ...lostIdentities } });
+    this.update((state) => {
+      state.identities = identities;
+      state.lostIdentities = lostIdentities;
+    });
+
     this.addIdentities(addresses);
 
     if (addresses.indexOf(this.state.selectedAddress) === -1) {
-      this.update({ selectedAddress: addresses[0] });
+      this.update((state) => {
+        state.selectedAddress = addresses[0];
+      });
     }
 
     return this.state.selectedAddress;
@@ -188,7 +255,9 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
       };
       return ids;
     }, {});
-    this.update({ identities: { ...identities } });
+    this.update((state) => {
+      state.identities = identities;
+    });
   }
 
   /**
@@ -211,7 +280,9 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
     }
     const newFrequestRpc: FrequentRpc = { rpcUrl: url, chainId, ticker, nickname, rpcPrefs };
     frequentRpcList.push(newFrequestRpc);
-    this.update({ frequentRpcList: [...frequentRpcList] });
+    this.update((state) => {
+      state.frequentRpcList = frequentRpcList;
+    });
   }
 
   /**
@@ -227,7 +298,9 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
     if (index !== -1) {
       frequentRpcList.splice(index, 1);
     }
-    this.update({ frequentRpcList: [...frequentRpcList] });
+    this.update((state) => {
+      state.frequentRpcList = frequentRpcList;
+    });
   }
 
   /**
@@ -236,7 +309,9 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
    * @param selectedAddress - Ethereum address
    */
   setSelectedAddress(selectedAddress: string) {
-    this.update({ selectedAddress: toChecksumAddress(selectedAddress) });
+    this.update((state) => {
+      state.selectedAddress = toChecksumAddress(selectedAddress);
+    });
   }
 
   /**
@@ -245,7 +320,9 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
    * @param ipfsGateway - IPFS gateway string
    */
   setIpfsGateway(ipfsGateway: string) {
-    this.update({ ipfsGateway });
+    this.update((state) => {
+      state.ipfsGateway = ipfsGateway;
+    });
   }
 }
 

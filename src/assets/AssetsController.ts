@@ -1,9 +1,10 @@
 import { EventEmitter } from 'events';
 import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import PreferencesController from '../user/PreferencesController';
+import { PreferencesState, PREFERENCES_STATE_CHANGED } from '../user/PreferencesController';
 import NetworkController, { NetworkType } from '../network/NetworkController';
 import { safelyExecute, handleFetch, validateTokenToWatch } from '../util';
+import { subscribe, unsubscribe } from '../controller-messaging-system';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
 import { ApiCollectibleResponse } from './AssetsDetectionController';
@@ -165,6 +166,8 @@ export interface AssetsState extends BaseState {
  */
 export class AssetsController extends BaseController<AssetsConfig, AssetsState> {
   private mutex = new Mutex();
+
+  private preferencesSubId?: string;
 
   private getCollectibleApi(contractAddress: string, tokenId: number) {
     return `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
@@ -515,7 +518,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
   /**
    * List of required sibling controllers this controller needs to function
    */
-  requiredControllers = ['AssetsContractController', 'NetworkController', 'PreferencesController'];
+  requiredControllers = ['AssetsContractController', 'NetworkController'];
 
   /**
    * Creates a AssetsController instance
@@ -795,9 +798,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
    */
   onComposed() {
     super.onComposed();
-    const preferences = this.context.PreferencesController as PreferencesController;
     const network = this.context.NetworkController as NetworkController;
-    preferences.subscribe(({ selectedAddress }) => {
+    this.preferencesSubId = subscribe<PreferencesState>(PREFERENCES_STATE_CHANGED, ({ selectedAddress }) => {
       const { allCollectibleContracts, allCollectibles, allTokens } = this.state;
       const { networkType } = this.config;
       this.configure({ selectedAddress });
@@ -820,6 +822,12 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
         tokens: (allTokens[selectedAddress] && allTokens[selectedAddress][networkType]) || [],
       });
     });
+  }
+
+  onDestroy() {
+    if (this.preferencesSubId) {
+      unsubscribe(this.preferencesSubId);
+    }
   }
 }
 

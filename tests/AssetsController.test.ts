@@ -2,9 +2,10 @@ import { createSandbox } from 'sinon';
 import { getOnce } from 'fetch-mock';
 import AssetsController from '../src/assets/AssetsController';
 import ComposableController from '../src/ComposableController';
-import PreferencesController from '../src/user/PreferencesController';
 import { NetworkController } from '../src/network/NetworkController';
 import { AssetsContractController } from '../src/assets/AssetsContractController';
+import { publish } from '../src/controller-messaging-system';
+import { PREFERENCES_STATE_CHANGED } from '../src/user/PreferencesController';
 
 const HttpProvider = require('ethjs-provider-http');
 
@@ -14,18 +15,16 @@ const OPEN_SEA_API = 'https://api.opensea.io/api/v1/';
 
 describe('AssetsController', () => {
   let assetsController: AssetsController;
-  let preferences: PreferencesController;
   let network: NetworkController;
   let assetsContract: AssetsContractController;
   const sandbox = createSandbox();
 
   beforeEach(() => {
     assetsController = new AssetsController();
-    preferences = new PreferencesController();
     network = new NetworkController();
     assetsContract = new AssetsContractController();
 
-    new ComposableController([assetsController, assetsContract, network, preferences]);
+    new ComposableController([assetsController, assetsContract, network]);
 
     getOnce(
       `${OPEN_SEA_API}asset_contract/0xfoO`,
@@ -116,6 +115,7 @@ describe('AssetsController', () => {
 
   afterEach(() => {
     sandbox.reset();
+    assetsController.onDestroy();
   });
 
   it('should set default state', () => {
@@ -151,11 +151,11 @@ describe('AssetsController', () => {
     const firstAddress = '0x123';
     const secondAddress = '0x321';
 
-    preferences.update({ selectedAddress: firstAddress });
+    publish(PREFERENCES_STATE_CHANGED, { selectedAddress: firstAddress });
     await assetsController.addToken('foo', 'bar', 2);
-    preferences.update({ selectedAddress: secondAddress });
+    publish(PREFERENCES_STATE_CHANGED, { selectedAddress: secondAddress });
     expect(assetsController.state.tokens).toHaveLength(0);
-    preferences.update({ selectedAddress: firstAddress });
+    publish(PREFERENCES_STATE_CHANGED, { selectedAddress: firstAddress });
     expect(assetsController.state.tokens[0]).toEqual({
       address: '0xfoO',
       decimals: 2,
@@ -187,13 +187,13 @@ describe('AssetsController', () => {
   it('should remove token by selected address', async () => {
     const firstAddress = '0x123';
     const secondAddress = '0x321';
-    preferences.update({ selectedAddress: firstAddress });
+    publish(PREFERENCES_STATE_CHANGED, { selectedAddress: firstAddress });
     await assetsController.addToken('fou', 'baz', 2);
-    preferences.update({ selectedAddress: secondAddress });
+    publish(PREFERENCES_STATE_CHANGED, { selectedAddress: secondAddress });
     await assetsController.addToken('foo', 'bar', 2);
     assetsController.removeToken('0xfoO');
     expect(assetsController.state.tokens).toHaveLength(0);
-    preferences.update({ selectedAddress: firstAddress });
+    publish(PREFERENCES_STATE_CHANGED, { selectedAddress: firstAddress });
     expect(assetsController.state.tokens[0]).toEqual({
       address: '0xFOu',
       decimals: 2,
@@ -285,16 +285,16 @@ describe('AssetsController', () => {
   });
 
   it('should add collectible by selected address', async () => {
-    const firstAddress = '0x123';
-    const secondAddress = '0x321';
+    // const firstAddress = '0x123';
+    // const secondAddress = '0x321';
     sandbox
       .stub(assetsController, 'getCollectibleInformation' as any)
       .returns({ name: 'name', image: 'url', description: 'description' });
-    preferences.update({ selectedAddress: firstAddress });
+    // preferences.update({ selectedAddress: firstAddress });
     await assetsController.addCollectible('foo', 1234);
-    preferences.update({ selectedAddress: secondAddress });
+    // preferences.update({ selectedAddress: secondAddress });
     await assetsController.addCollectible('fou', 4321);
-    preferences.update({ selectedAddress: firstAddress });
+    // preferences.update({ selectedAddress: firstAddress });
     expect(assetsController.state.collectibles[0]).toEqual({
       address: '0xfoO',
       description: 'description',
@@ -371,13 +371,13 @@ describe('AssetsController', () => {
       .returns({ name: 'name', image: 'url', description: 'description' });
     const firstAddress = '0x123';
     const secondAddress = '0x321';
-    preferences.update({ selectedAddress: firstAddress });
+    publish(PREFERENCES_STATE_CHANGED, { selectedAddress: firstAddress });
     await assetsController.addCollectible('fou', 4321);
-    preferences.update({ selectedAddress: secondAddress });
+    publish(PREFERENCES_STATE_CHANGED, { selectedAddress: secondAddress });
     await assetsController.addCollectible('foo', 1234);
     assetsController.removeCollectible('0xfoO', 1234);
     expect(assetsController.state.collectibles).toHaveLength(0);
-    preferences.update({ selectedAddress: firstAddress });
+    publish(PREFERENCES_STATE_CHANGED, { selectedAddress: firstAddress });
     expect(assetsController.state.collectibles[0]).toEqual({
       address: '0xFOu',
       description: 'description',
@@ -412,9 +412,6 @@ describe('AssetsController', () => {
 
   it('should subscribe to new sibling preference controllers', async () => {
     const networkType = 'rinkeby';
-    const address = '0x123';
-    preferences.update({ selectedAddress: address });
-    expect(assetsController.context.PreferencesController.state.selectedAddress).toEqual(address);
     network.update({ provider: { type: networkType } });
     expect(assetsController.context.NetworkController.state.provider.type).toEqual(networkType);
   });
@@ -433,7 +430,7 @@ describe('AssetsController', () => {
   });
 
   it('should fail an invalid type suggested asset via watchAsset', async () => {
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       await assetsController
         .watchAsset(
           {
@@ -451,7 +448,7 @@ describe('AssetsController', () => {
   });
 
   it('should reject a valid suggested asset via watchAsset', () => {
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const { result, suggestedAssetMeta } = await assetsController.watchAsset(
         {
           address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
@@ -473,7 +470,7 @@ describe('AssetsController', () => {
   });
 
   it('should accept a valid suggested asset via watchAsset', () => {
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const { result, suggestedAssetMeta } = await assetsController.watchAsset(
         {
           address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
@@ -492,7 +489,7 @@ describe('AssetsController', () => {
   });
 
   it('should fail a valid suggested asset via watchAsset with wrong type', () => {
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const { result, suggestedAssetMeta } = await assetsController.watchAsset(
         {
           address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',

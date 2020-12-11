@@ -1,5 +1,6 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import PreferencesController from '../user/PreferencesController';
+import { subscribe } from '../controller-messaging-system';
+import { getPreferencesState, PREFERENCES_STATE_CHANGED } from '../user/PreferencesController';
 import { BNToHex, safelyExecute } from '../util';
 
 const EthjsQuery = require('ethjs-query');
@@ -48,8 +49,8 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 
   private syncAccounts() {
     const {
-      state: { identities },
-    } = this.context.PreferencesController as PreferencesController;
+      identities,
+    } = getPreferencesState();
     const { accounts } = this.state;
     const addresses = Object.keys(identities);
     const existing = Object.keys(accounts);
@@ -68,11 +69,6 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
    * Name of this controller used during composition
    */
   name = 'AccountTrackerController';
-
-  /**
-   * List of required sibling controllers this controller needs to function
-   */
-  requiredControllers = ['PreferencesController'];
 
   /**
    * Creates an AccountTracker instance
@@ -104,8 +100,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
    */
   onComposed() {
     super.onComposed();
-    const preferences = this.context.PreferencesController as PreferencesController;
-    preferences.subscribe(this.refresh);
+    subscribe(PREFERENCES_STATE_CHANGED, this.refresh);
     this.poll();
   }
 

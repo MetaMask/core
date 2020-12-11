@@ -1,7 +1,7 @@
 import { stub, spy } from 'sinon';
 import AccountTrackerController from '../src/assets/AccountTrackerController';
-import PreferencesController from '../src/user/PreferencesController';
-import ComposableController from '../src/ComposableController';
+import { GET_PREFERENCES_STATE, PREFERENCES_STATE_CHANGED } from '../src/user/PreferencesController';
+import { publish, resetSubscriptions, registerActionHandler, unregisterActionHandler } from '../src/controller-messaging-system';
 
 const HttpProvider = require('ethjs-provider-http');
 
@@ -17,13 +17,19 @@ describe('AccountTrackerController', () => {
 
   it('should get real balance', async () => {
     const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    registerActionHandler(GET_PREFERENCES_STATE, () => ({
+      identities: { [address]: {} },
+    }));
     const controller = new AccountTrackerController({ provider });
-    controller.context = { PreferencesController: { state: { identities: { [address]: {} } } } } as any;
     await controller.refresh();
     expect(controller.state.accounts[address].balance).toBeDefined();
+    unregisterActionHandler(GET_PREFERENCES_STATE);
   });
 
   it('should sync addresses', () => {
+    registerActionHandler(GET_PREFERENCES_STATE, () => ({
+      identities: { baz: {} },
+    }));
     const controller = new AccountTrackerController(
       { provider },
       {
@@ -33,29 +39,28 @@ describe('AccountTrackerController', () => {
         },
       },
     );
-    controller.context = { PreferencesController: { state: { identities: { baz: {} } } } } as any;
     controller.refresh();
     expect(controller.state.accounts).toEqual({ baz: { balance: '0x0' } });
+    unregisterActionHandler(GET_PREFERENCES_STATE);
   });
 
   it('should subscribe to new sibling preference controllers', async () => {
-    const preferences = new PreferencesController();
     const controller = new AccountTrackerController({ provider });
     controller.refresh = stub();
+    controller.onComposed();
 
-    new ComposableController([controller, preferences]);
-    preferences.setFeatureFlag('foo', true);
+    publish(PREFERENCES_STATE_CHANGED, {});
     expect((controller.refresh as any).called).toBe(true);
+    resetSubscriptions();
   });
 
   it('should call refresh every ten seconds', () => {
     return new Promise((resolve) => {
-      const preferences = new PreferencesController();
       const controller = new AccountTrackerController({ provider, interval: 100 });
       stub(controller, 'refresh');
       const poll = spy(controller, 'poll');
 
-      new ComposableController([controller, preferences]);
+      controller.onComposed();
       expect(poll.called).toBe(true);
       expect(poll.calledTwice).toBe(false);
       setTimeout(() => {

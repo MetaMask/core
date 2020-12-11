@@ -3,6 +3,7 @@ import { Mutex } from 'await-semaphore';
 import BaseController from '../base-controller-v2';
 import { safelyExecute } from '../util';
 import { fetchExchangeRate as defaultFetchExchangeRate } from '../crypto-compare';
+import { call } from '../controller-messaging-system';
 
 /**
  * @type CurrencyRateState
@@ -34,6 +35,29 @@ const schema = {
   pendingNativeCurrency: { persist: false, anonymous: true },
   usdConversionRate: { persist: false, anonymous: true },
 };
+/** constants */
+const GET_CURRENCY_RATE_STATE = 'CurrencyRateController.getState';
+const SET_CURRENT_CURRENCY = 'CurrencyRateController.setCurrentCurrency';
+const SET_NATIVE_CURRENCY = 'CurrencyRateController.setNativeCurrency';
+
+const CURRENCY_RATE_STATE_CHANGED = 'CurrencyRateController.state-changed';
+
+/** actions */
+export function getCurrencyRateState(): CurrencyRateState {
+  return call(GET_CURRENCY_RATE_STATE);
+}
+
+export function setCurrentCurrency(
+  currentCurrency: string
+): Promise<CurrencyRateState | void> {
+  return call(SET_CURRENT_CURRENCY, currentCurrency);
+}
+
+export function setNativeCurrency(
+  nativeCurrency: string
+): Promise<CurrencyRateState | void> {
+  return call(SET_NATIVE_CURRENCY, nativeCurrency);
+}
 
 /**
  * Controller that passively polls on a set interval for an exchange rate from the current base
@@ -66,10 +90,15 @@ export class CurrencyRateController extends BaseController<CurrencyRateState> {
    * @param state - Initial state to set on this controller
    */
   constructor(state?: Partial<CurrencyRateState>, includeUsdRate = false, fetchExchangeRate = defaultFetchExchangeRate) {
-    super({ ...CurrencyRateController.defaultState, ...state }, schema);
+    super({ ...CurrencyRateController.defaultState, ...state }, CURRENCY_RATE_STATE_CHANGED, schema);
     this.includeUsdRate = includeUsdRate;
     this.fetchExchangeRate = fetchExchangeRate;
     this.poll();
+    this.registerActions({
+      [GET_CURRENCY_RATE_STATE]: () => this.state,
+      [SET_CURRENT_CURRENCY]: this.setCurrentCurrency,
+      [SET_NATIVE_CURRENCY]: this.setNativeCurrency,
+    });
   }
 
   destroy() {

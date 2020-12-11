@@ -2,6 +2,7 @@
 // import a type: https://github.com/benmosher/eslint-plugin-import/issues/1699
 // eslint-disable-next-line import/named
 import { Draft, produce } from 'immer';
+import { ActionHandler, ActionHandlerRecord, EventHandler, EventHandlerRecord, publish, registerActionHandler, registerActionHandlers, subscribe, subscribeToEvents, unregisterActionHandlers, unsubscribe, unsubscribeFromEvents } from './controller-messaging-system';
 
 /**
  * State change callbacks
@@ -23,7 +24,11 @@ export type Schema<T> = {
 export class BaseController<S extends Record<string, any>> {
   private internalState: S;
 
-  private internalListeners: Listener<S>[] = [];
+  private subscriptions: string[] = [];
+
+  private actions?: ActionHandlerRecord;
+
+  private stateUpdateEventName = 'BaseController.state-changed';
 
   public readonly schema: Schema<S>;
 
@@ -34,9 +39,10 @@ export class BaseController<S extends Record<string, any>> {
    * @param schema - State schema, describing how to "anonymize" the state,
    *   and which parts should be persisted.
    */
-  constructor(state: S, schema: Schema<S>) {
+  constructor(state: S, stateUpdateEventName: string, schema: Schema<S>) {
     this.internalState = state;
     this.schema = schema;
+    this.stateUpdateEventName = stateUpdateEventName;
   }
 
   /**
@@ -48,13 +54,41 @@ export class BaseController<S extends Record<string, any>> {
     return this.internalState;
   }
 
+  registerActions(actions: ActionHandlerRecord) {
+    this.actions = actions;
+    registerActionHandlers(actions);
+  }
+
+  registerAction<T, R>(action: string, handler: ActionHandler<T, R>) {
+    if (!this.actions?.[action]) {
+      registerActionHandler(action, handler);
+      this.actions = {
+        ...this.actions,
+        [action]: handler,
+      };
+    }
+
+  }
+
+  unregisterActions() {
+    if (this.actions) {
+      unregisterActionHandlers(Object.keys(this.actions));
+    }
+  }
+
   /**
    * Adds new listener to be notified of state changes
    *
    * @param listener - Callback triggered when state changes
    */
-  subscribe(listener: Listener<S>) {
-    this.internalListeners.push(listener);
+  subscribe<T>(event: string, eventHandler: EventHandler<T>): string {
+    const subId = subscribe(event, eventHandler);
+    this.subscriptions.push(subId);
+    return subId;
+  }
+
+  subscribeToEvents(events: EventHandlerRecord) {
+    this.subscriptions = [...this.subscriptions, ...subscribeToEvents(events)];
   }
 
   /**
@@ -63,10 +97,9 @@ export class BaseController<S extends Record<string, any>> {
    * @param listener - Callback to remove
    * @returns - True if a listener is found and unsubscribed
    */
-  unsubscribe(listener: Listener<S>) {
-    const index = this.internalListeners.findIndex((cb) => listener === cb);
-    index > -1 && this.internalListeners.splice(index, 1);
-    return index > -1;
+  unsubscribe(subId: string) {
+    unsubscribe(subId);
+    this.subscriptions = this.subscriptions.filter((activeSubId) => activeSubId !== subId);
   }
 
   /**
@@ -80,6 +113,7 @@ export class BaseController<S extends Record<string, any>> {
    */
   protected update(callback: (state: Draft<S>) => void | S) {
     this.internalState = produce(this.internalState, callback) as S;
+    publish(this.stateUpdateEventName, this.state);
   }
 
   /**
@@ -91,7 +125,14 @@ export class BaseController<S extends Record<string, any>> {
    * instance won't be responsible for keeping the listeners in memory.
    */
   protected destroy() {
-    this.internalListeners = [];
+    if (this.subscriptions) {
+      unsubscribeFromEvents(this.subscriptions);
+    }
+    this.subscriptions = [];
+    if (this.actions) {
+      unregisterActionHandlers(Object.keys(this.actions));
+    }
+    this.actions = undefined;
   }
 }
 
