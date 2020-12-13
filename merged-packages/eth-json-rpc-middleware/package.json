@@ -19,7 +19,6 @@
     "ganache-core/lodash": "^4.17.19"
   },
   "devDependencies": {
-    "@babel/core": "^7.5.5",
     "async": "^2.5.0",
     "concat-stream": "^1.6.2",
     "eth-block-tracker": "^4.4.1",
