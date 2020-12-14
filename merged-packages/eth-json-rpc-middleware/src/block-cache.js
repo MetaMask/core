@@ -1,15 +1,105 @@
-const cacheUtils = require('./cache-utils.js')
 const createAsyncMiddleware = require('json-rpc-engine/src/createAsyncMiddleware')
+const cacheUtils = require('./cache-utils.js')
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
 const emptyValues = [undefined, null, '\u003cnil\u003e']
 
 module.exports = createBlockCacheMiddleware
 
+//
+// Cache Strategies
+//
 
-function createBlockCacheMiddleware(opts = {}) {
+class BlockCacheStrategy {
+
+  constructor () {
+    this.cache = {}
+  }
+
+  getBlockCacheForPayload (_payload, blockNumberHex) {
+    const blockNumber = Number.parseInt(blockNumberHex, 16)
+    let blockCache = this.cache[blockNumber]
+    // create new cache if necesary
+    if (!blockCache) {
+      const newCache = {}
+      this.cache[blockNumber] = newCache
+      blockCache = newCache
+    }
+    return blockCache
+  }
+
+  async get (payload, requestedBlockNumber) {
+    // lookup block cache
+    const blockCache = this.getBlockCacheForPayload(payload, requestedBlockNumber)
+    if (!blockCache) {
+      return undefined
+    }
+    // lookup payload in block cache
+    const identifier = cacheUtils.cacheIdentifierForPayload(payload, true)
+    const cached = blockCache[identifier]
+    // may be undefined
+    return cached
+  }
+
+  async set (payload, requestedBlockNumber, result) {
+    // check if we can cached this result
+    const canCache = this.canCacheResult(payload, result)
+    if (!canCache) {
+      return
+    }
+    // set the value in the cache
+    const blockCache = this.getBlockCacheForPayload(payload, requestedBlockNumber)
+    const identifier = cacheUtils.cacheIdentifierForPayload(payload, true)
+    blockCache[identifier] = result
+  }
+
+  canCacheRequest (payload) {
+    // check request method
+    if (!cacheUtils.canCache(payload)) {
+      return false
+    }
+    // check blockTag
+    const blockTag = cacheUtils.blockTagForPayload(payload)
+    if (blockTag === 'pending') {
+      return false
+    }
+    // can be cached
+    return true
+  }
+
+  canCacheResult (payload, result) {
+    // never cache empty values (e.g. undefined)
+    if (emptyValues.includes(result)) {
+      return false
+    }
+    // check if transactions have block reference before caching
+    if (['eth_getTransactionByHash', 'eth_getTransactionReceipt'].includes(payload.method)) {
+      if (!result || !result.blockHash || result.blockHash === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+        return false
+      }
+    }
+    // otherwise true
+    return true
+  }
+
+  // removes all block caches with block number lower than `oldBlockHex`
+  clearBefore (oldBlockHex) {
+    const self = this
+    const oldBlockNumber = Number.parseInt(oldBlockHex, 16)
+    // clear old caches
+    Object.keys(self.cache)
+      .map(Number)
+      .filter((num) => num < oldBlockNumber)
+      .forEach((num) => delete self.cache[num])
+  }
+
+}
+
+function createBlockCacheMiddleware (opts = {}) {
   // validate options
   const { blockTracker } = opts
-  if (!blockTracker) throw new Error('createBlockCacheMiddleware - No BlockTracker specified')
+  if (!blockTracker) {
+    throw new Error('createBlockCacheMiddleware - No BlockTracker specified')
+  }
 
   // create caching strategies
   const blockCache = new BlockCacheStrategy()
@@ -38,7 +128,9 @@ function createBlockCacheMiddleware(opts = {}) {
 
     // get block reference (number or keyword)
     let blockTag = cacheUtils.blockTagForPayload(req)
-    if (!blockTag) blockTag = 'latest'
+    if (!blockTag) {
+      blockTag = 'latest'
+    }
 
     // get exact block number
     let requestedBlockNumber
@@ -61,6 +153,7 @@ function createBlockCacheMiddleware(opts = {}) {
     if (cacheResult === undefined) {
       // cache miss
       // wait for other middleware to handle request
+      // eslint-disable-next-line node/callback-return
       await next()
       // add result to cache
       await strategy.set(req, requestedBlockNumber, res.result)
@@ -68,89 +161,6 @@ function createBlockCacheMiddleware(opts = {}) {
       // fill in result from cache
       res.result = cacheResult
     }
+    return undefined
   })
-}
-
-
-//
-// Cache Strategies
-//
-
-class BlockCacheStrategy {
-  
-  constructor () {
-    this.cache = {}
-  }
-
-  getBlockCacheForPayload (payload, blockNumberHex) {
-    const blockNumber = Number.parseInt(blockNumberHex, 16)
-    let blockCache = this.cache[blockNumber]
-    // create new cache if necesary
-    if (!blockCache) {
-      const newCache = {}
-      this.cache[blockNumber] = newCache
-      blockCache = newCache
-    }
-    return blockCache
-  }
-
-  async get (payload, requestedBlockNumber) {
-    // lookup block cache
-    const blockCache = this.getBlockCacheForPayload(payload, requestedBlockNumber)
-    if (!blockCache) return
-    // lookup payload in block cache
-    const identifier = cacheUtils.cacheIdentifierForPayload(payload, true)
-    const cached = blockCache[identifier]
-    // may be undefined
-    return cached
-  }
-
-  async set (payload, requestedBlockNumber, result) {
-    // check if we can cached this result
-    const canCache = this.canCacheResult(payload, result)
-    if (!canCache) return
-    // set the value in the cache
-    const blockCache = this.getBlockCacheForPayload(payload, requestedBlockNumber)
-    const identifier = cacheUtils.cacheIdentifierForPayload(payload, true)
-    blockCache[identifier] = result
-  }
-
-  canCacheRequest (payload) {
-    // check request method
-    if (!cacheUtils.canCache(payload)) {
-      return false
-    }
-    // check blockTag
-    const blockTag = cacheUtils.blockTagForPayload(payload)
-    if (blockTag === 'pending') {
-      return false
-    }
-    // can be cached
-    return true
-  }
-
-  canCacheResult (payload, result) {
-    // never cache empty values (e.g. undefined)
-    if (emptyValues.includes(result)) return
-    // check if transactions have block reference before caching
-    if (['eth_getTransactionByHash', 'eth_getTransactionReceipt'].includes(payload.method)) {
-      if (!result || !result.blockHash || result.blockHash === '0x0000000000000000000000000000000000000000000000000000000000000000') {
-        return false
-      }
-    }
-    // otherwise true
-    return true
-  }
-
-  // removes all block caches with block number lower than `oldBlockHex`
-  clearBefore (oldBlockHex){
-    const self = this
-    const oldBlockNumber = Number.parseInt(oldBlockHex, 16)
-    // clear old caches
-    Object.keys(self.cache)
-      .map(Number)
-      .filter(num => num < oldBlockNumber)
-      .forEach(num => delete self.cache[num])
-  }
-
 }

@@ -2,7 +2,7 @@
 module.exports = createStatsMiddleware
 
 function createStatsMiddleware () {
-  return (req, res, next, end) => {
+  return (_req, res, next, _end) => {
     const startTime = Date.now()
     next((done) => {
       const endTime = Date.now()

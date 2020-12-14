@@ -1,21 +1,21 @@
 const stringify = require('json-stable-stringify')
 
 module.exports = {
-  cacheIdentifierForPayload: cacheIdentifierForPayload,
-  canCache: canCache,
-  blockTagForPayload: blockTagForPayload,
-  paramsWithoutBlockTag: paramsWithoutBlockTag,
-  blockTagParamIndex: blockTagParamIndex,
-  cacheTypeForPayload: cacheTypeForPayload
+  cacheIdentifierForPayload,
+  canCache,
+  blockTagForPayload,
+  paramsWithoutBlockTag,
+  blockTagParamIndex,
+  cacheTypeForPayload,
 }
 
 function cacheIdentifierForPayload (payload, skipBlockRef) {
   const simpleParams = skipBlockRef ? paramsWithoutBlockTag(payload) : payload.params
   if (canCache(payload)) {
-    return payload.method + ':' + stringify(simpleParams)
-  } else {
-    return null
+    return `${payload.method}:${stringify(simpleParams)}`
   }
+  return null
+
 }
 
 function canCache (payload) {
@@ -23,7 +23,7 @@ function canCache (payload) {
 }
 
 function blockTagForPayload (payload) {
-  let index = blockTagParamIndex(payload)
+  const index = blockTagParamIndex(payload)
 
   // Block tag param not passed.
   if (index >= payload.params.length) {
@@ -69,7 +69,9 @@ function blockTagParamIndex (payload) {
   }
 }
 
+// eslint-disable-next-line consistent-return
 function cacheTypeForPayload (payload) {
+  // eslint-disable-next-line default-case
   switch (payload.method) {
     // cache permanently
     case 'web3_clientVersion':

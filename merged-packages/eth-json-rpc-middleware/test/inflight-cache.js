@@ -16,7 +16,7 @@ test('inflight-cache - basic', (t) => {
 
   // add stalling result handler for `test_blockCache`
   engine.push((_req, res, _next, end) => {
-    hitCount++
+    hitCount += 1
     res.result = true
     if (hitCount === 1) {
       setTimeout(end, 100)

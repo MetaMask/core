@@ -1,7 +1,7 @@
 const clone = require('clone')
 const pify = require('pify')
 const createAsyncMiddleware = require('json-rpc-engine/src/createAsyncMiddleware')
-const blockTagParamIndex = require('./cache-utils').blockTagParamIndex
+const { blockTagParamIndex } = require('./cache-utils')
 
 //
 // RetryOnEmptyMiddleware will retry any request with an empty response that has
@@ -18,27 +18,41 @@ const emptyValues = [undefined, null, '\u003cnil\u003e']
 
 function createRetryOnEmptyMiddleware (opts = {}) {
   const { provider, blockTracker } = opts
-  if (!provider) throw Error('RetryOnEmptyMiddleware - mandatory "provider" option is missing.')
-  if (!blockTracker) throw Error('RetryOnEmptyMiddleware - mandatory "blockTracker" option is missing.')
+  if (!provider) {
+    throw Error('RetryOnEmptyMiddleware - mandatory "provider" option is missing.')
+  }
+  if (!blockTracker) {
+    throw Error('RetryOnEmptyMiddleware - mandatory "blockTracker" option is missing.')
+  }
 
   return createAsyncMiddleware(async (req, res, next) => {
     const blockRefIndex = blockTagParamIndex(req)
     // skip if method does not include blockRef
-    if (blockRefIndex === undefined) return next()
+    if (blockRefIndex === undefined) {
+      return next()
+    }
     // skip if not exact block references
     let blockRef = req.params[blockRefIndex]
     // omitted blockRef implies "latest"
-    if (blockRef === undefined) blockRef = 'latest'
+    if (blockRef === undefined) {
+      blockRef = 'latest'
+    }
     // skip if non-number block reference
-    if (['latest', 'pending'].includes(blockRef)) return next()
+    if (['latest', 'pending'].includes(blockRef)) {
+      return next()
+    }
     // skip if block refernce is not a valid number
     const blockRefNumber = Number.parseInt(blockRef.slice(2), 16)
-    if (Number.isNaN(blockRefNumber)) return next()
+    if (Number.isNaN(blockRefNumber)) {
+      return next()
+    }
     // lookup latest block
     const latestBlockNumberHex = await blockTracker.getLatestBlock()
     const latestBlockNumber = Number.parseInt(latestBlockNumberHex.slice(2), 16)
     // skip if request block number is higher than current
-    if (blockRefNumber > latestBlockNumber) return next()
+    if (blockRefNumber > latestBlockNumber) {
+      return next()
+    }
     // create child request with specific block-ref
     const childRequest = clone(req)
     // attempt child request until non-empty response is received
@@ -53,11 +67,12 @@ function createRetryOnEmptyMiddleware (opts = {}) {
     // copy child response onto original response
     res.result = childResponse.result
     res.error = childResponse.error
+    return next()
   })
 
 }
 
-async function retry(maxRetries, asyncFn) {
+async function retry (maxRetries, asyncFn) {
   for (let index = 0; index < maxRetries; index++) {
     try {
       return await asyncFn()
@@ -68,6 +83,6 @@ async function retry(maxRetries, asyncFn) {
   throw new Error('RetryOnEmptyMiddleware - retries exhausted')
 }
 
-function timeout(duration) {
-  return new Promise(resolve => setTimeout(resolve, duration))
+function timeout (duration) {
+  return new Promise((resolve) => setTimeout(resolve, duration))
 }

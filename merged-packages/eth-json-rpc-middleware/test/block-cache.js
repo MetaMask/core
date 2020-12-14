@@ -1,12 +1,9 @@
 const test = require('tape')
 const JsonRpcEngine = require('json-rpc-engine')
 const BlockTracker = require('eth-block-tracker')
-const EthQuery = require('eth-query')
 const GanacheCore = require('ganache-core')
 const pify = require('pify')
 const createBlockCacheMiddleware = require('../src/block-cache')
-const providerFromEngine = require('../src/providerFromEngine')
-const providerAsMiddleware = require('../src/providerAsMiddleware')
 const createHitTrackerMiddleware = require('./util/createHitTrackerMiddleware')
 
 //
@@ -148,9 +145,7 @@ cacheTest('getStorageAt for different block should not cache', [{
 //   params: ['0x1234', 'latest'],
 // }], true)
 
-
-
-async function cacheTest(label, basePayloads, shouldCache) {
+async function cacheTest (label, basePayloads, shouldCache) {
   test(`block-cache - ${label}`, async (t) => {
     try {
       // setup block tracker
@@ -165,7 +160,7 @@ async function cacheTest(label, basePayloads, shouldCache) {
       engine.push(createBlockCacheMiddleware({ blockTracker }))
       const hitCountMiddleware = createHitTrackerMiddleware()
       engine.push(hitCountMiddleware)
-      const dummyResultMiddleware = (req, res, next, end) => {
+      const dummyResultMiddleware = (_req, res, _next, end) => {
         res.result = true
         end()
       }

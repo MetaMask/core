@@ -1,10 +1,11 @@
-const test = require('tape')
 const http = require('http')
+const url = require('url')
+const test = require('tape')
 const concat = require('concat-stream')
 const series = require('async/series')
-const url = require('url')
 const btoa = require('btoa')
 const createFetchMiddleware = require('../src/fetch')
+
 const { createFetchConfigFromReq } = createFetchMiddleware
 
 test('fetch - basic', (t) => {
@@ -21,7 +22,7 @@ test('fetch - basic', (t) => {
     method: 'POST',
     headers: {
       'Accept': 'application/json',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify(req),
   })
@@ -84,7 +85,6 @@ test('fetch - auth in url', (t) => {
 
 })
 
-
 test('fetch - server test', (t) => {
 
   const rpcUrl = 'http://localhost:3000/abc/xyz'
@@ -94,7 +94,7 @@ test('fetch - server test', (t) => {
     params: ['0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2', 'latest'],
   }
 
-  let rpcRes = { id: 1 }
+  const rpcRes = { id: 1 }
   let server
   let serverSideRequest
   let serverSidePayload
@@ -106,9 +106,10 @@ test('fetch - server test', (t) => {
   ], (err) => {
     t.ifError(err, 'should not error')
     // validate request
-    t.equals(serverSideRequest.headers['accept'], 'application/json')
+    t.equals(serverSideRequest.headers.accept, 'application/json')
     t.equals(serverSideRequest.headers['content-type'], 'application/json')
     t.equals(serverSideRequest.method, 'POST')
+    // eslint-disable-next-line node/no-deprecated-api
     t.equals(serverSideRequest.url, url.parse(rpcUrl).path)
     t.deepEquals(serverSidePayload, req)
     // validate response
@@ -116,7 +117,7 @@ test('fetch - server test', (t) => {
     t.end()
   })
 
-  function requestHandler(request, response) {
+  function requestHandler (request, response) {
     request.pipe(concat((rawRequestBody) => {
       const payload = JSON.parse(rawRequestBody.toString())
       // save request details
@@ -131,21 +132,21 @@ test('fetch - server test', (t) => {
     }))
   }
 
-  function createServer(cb) {
+  function createServer (cb) {
     server = http.createServer(requestHandler)
     server.listen(3000, cb)
   }
 
-  function closeServer(cb) {
+  function closeServer (cb) {
     server.close(cb)
   }
 
-  function makeRequest(cb) {
+  function makeRequest (cb) {
     const middleware = createFetchMiddleware({ rpcUrl })
     middleware(req, rpcRes, failTest, cb)
   }
 
-  function failTest() {
+  function failTest () {
     t.fail('something broke')
   }
 

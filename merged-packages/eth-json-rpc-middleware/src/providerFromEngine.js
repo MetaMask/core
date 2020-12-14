@@ -7,7 +7,9 @@ function providerFromEngine (engine) {
   // handle both rpc send methods
   provider.sendAsync = engine.handle.bind(engine)
   provider.send = (req, callback) => {
-    if (!callback) throw new Error('Web3 Provider - must provider callback to "send" method')
+    if (!callback) {
+      throw new Error('Web3 Provider - must provider callback to "send" method')
+    }
     engine.handle(req, callback)
   }
   // forward notifications

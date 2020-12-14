@@ -8,8 +8,7 @@ const ethUtil = require('ethereumjs-util')
 
 module.exports = providerEngineSubproviderAsMiddle
 
-
-function providerEngineSubproviderAsMiddle({ subprovider, provider, blockTracker }) {
+function providerEngineSubproviderAsMiddle ({ subprovider, provider, blockTracker }) {
   const ethQuery = new EthQuery(provider)
   // create a provider-engine interface
   const engine = new EventEmitter()
@@ -28,41 +27,47 @@ function providerEngineSubproviderAsMiddle({ subprovider, provider, blockTracker
     // send request to subprovider
     subprovider.handleRequest(req, subproviderNext, subproviderEnd)
     // adapter for next handler
-    function subproviderNext(nextHandler) {
-      if (!nextHandler) return next()
+    function subproviderNext (nextHandler) {
+      if (!nextHandler) {
+        return next()
+      }
       next((done) => {
         nextHandler(res.error, res.result, done)
       })
+      return undefined
     }
     // adapter for end handler
-    function subproviderEnd(err, result) {
-      if (err) return end(err)
-      if (result)
-      res.result = result
-      end()
+    function subproviderEnd (err, result) {
+      if (err) {
+        return end(err)
+      }
+      if (result) {
+        res.result = result
+      }
+      return end()
     }
   }
 }
 
 function toBufferBlock (jsonBlock) {
   return {
-    number:           ethUtil.toBuffer(jsonBlock.number),
-    hash:             ethUtil.toBuffer(jsonBlock.hash),
-    parentHash:       ethUtil.toBuffer(jsonBlock.parentHash),
-    nonce:            ethUtil.toBuffer(jsonBlock.nonce),
-    sha3Uncles:       ethUtil.toBuffer(jsonBlock.sha3Uncles),
-    logsBloom:        ethUtil.toBuffer(jsonBlock.logsBloom),
+    number: ethUtil.toBuffer(jsonBlock.number),
+    hash: ethUtil.toBuffer(jsonBlock.hash),
+    parentHash: ethUtil.toBuffer(jsonBlock.parentHash),
+    nonce: ethUtil.toBuffer(jsonBlock.nonce),
+    sha3Uncles: ethUtil.toBuffer(jsonBlock.sha3Uncles),
+    logsBloom: ethUtil.toBuffer(jsonBlock.logsBloom),
     transactionsRoot: ethUtil.toBuffer(jsonBlock.transactionsRoot),
-    stateRoot:        ethUtil.toBuffer(jsonBlock.stateRoot),
-    receiptsRoot:     ethUtil.toBuffer(jsonBlock.receiptRoot || jsonBlock.receiptsRoot),
-    miner:            ethUtil.toBuffer(jsonBlock.miner),
-    difficulty:       ethUtil.toBuffer(jsonBlock.difficulty),
-    totalDifficulty:  ethUtil.toBuffer(jsonBlock.totalDifficulty),
-    size:             ethUtil.toBuffer(jsonBlock.size),
-    extraData:        ethUtil.toBuffer(jsonBlock.extraData),
-    gasLimit:         ethUtil.toBuffer(jsonBlock.gasLimit),
-    gasUsed:          ethUtil.toBuffer(jsonBlock.gasUsed),
-    timestamp:        ethUtil.toBuffer(jsonBlock.timestamp),
-    transactions:     jsonBlock.transactions,
+    stateRoot: ethUtil.toBuffer(jsonBlock.stateRoot),
+    receiptsRoot: ethUtil.toBuffer(jsonBlock.receiptRoot || jsonBlock.receiptsRoot),
+    miner: ethUtil.toBuffer(jsonBlock.miner),
+    difficulty: ethUtil.toBuffer(jsonBlock.difficulty),
+    totalDifficulty: ethUtil.toBuffer(jsonBlock.totalDifficulty),
+    size: ethUtil.toBuffer(jsonBlock.size),
+    extraData: ethUtil.toBuffer(jsonBlock.extraData),
+    gasLimit: ethUtil.toBuffer(jsonBlock.gasLimit),
+    gasUsed: ethUtil.toBuffer(jsonBlock.gasUsed),
+    timestamp: ethUtil.toBuffer(jsonBlock.timestamp),
+    transactions: jsonBlock.transactions,
   }
 }

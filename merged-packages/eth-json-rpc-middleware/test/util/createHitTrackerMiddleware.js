@@ -1,9 +1,9 @@
 
 module.exports = createHitTrackerMiddleware
 
-function createHitTrackerMiddleware() {
+function createHitTrackerMiddleware () {
   const hitTracker = {}
-  const middleware = (req, res, next, end) => {
+  const middleware = (req, _res, next, _end) => {
     // mark hit for method
     const hitsForMethod = hitTracker[req.method] || []
     hitsForMethod.push(req)

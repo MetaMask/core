@@ -7,13 +7,21 @@ module.exports = createBlockTrackerInspectorMiddleware
 // inspect if response contains a block ref higher than our latest block
 function createBlockTrackerInspectorMiddleware ({ blockTracker }) {
   return createAsyncMiddleware(async (req, res, next) => {
-    if (!futureBlockRefRequests.includes(req.method)) return next()
+    if (!futureBlockRefRequests.includes(req.method)) {
+      return next()
+    }
+    // eslint-disable-next-line node/callback-return
     await next()
     // abort if no result or no block number
-    if (!res.result || !res.result.blockNumber) return
+    if (!res.result || !res.result.blockNumber) {
+      return undefined
+    }
     // if number is higher, suggest block-tracker check for a new block
     const blockNumber = Number.parseInt(res.result.blockNumber, 16)
     const currentBlockNumber = Number.parseInt(blockTracker.getCurrentBlock(), 16)
-    if (blockNumber > currentBlockNumber) await blockTracker.checkForLatestBlock()
+    if (blockNumber > currentBlockNumber) {
+      await blockTracker.checkForLatestBlock()
+    }
+    return next()
   })
 }

@@ -1,6 +1,5 @@
 const test = require('tape')
 const JsonRpcEngine = require('json-rpc-engine')
-const BlockTracker = require('eth-block-tracker')
 const EthQuery = require('ethjs-query')
 const GanacheCore = require('ganache-core')
 const pify = require('pify')
@@ -128,7 +127,7 @@ personalRecoverTest({
 
 // test util
 
-function accountsTest({ testLabel, accounts }) {
+function accountsTest ({ testLabel, accounts }) {
   const { engine, query } = createTestSetup()
 
   const getAccounts = async () => accounts.slice()
@@ -152,8 +151,8 @@ function accountsTest({ testLabel, accounts }) {
   })
 }
 
-function ethSignTest({ testLabel, address, accounts, fromAddressIsValid }) {
-  const { engine, query } = createTestSetup()
+function ethSignTest ({ testLabel, address, accounts, fromAddressIsValid }) {
+  const { engine } = createTestSetup()
 
   const witnessedMsgParams = []
 
@@ -190,8 +189,8 @@ function ethSignTest({ testLabel, address, accounts, fromAddressIsValid }) {
   })
 }
 
-function ethSignTypedDataTest({ testLabel, address, accounts, fromAddressIsValid }) {
-  const { engine, query } = createTestSetup()
+function ethSignTypedDataTest ({ testLabel, address, accounts, fromAddressIsValid }) {
+  const { engine } = createTestSetup()
 
   const witnessedMsgParams = []
 
@@ -234,8 +233,8 @@ function ethSignTypedDataTest({ testLabel, address, accounts, fromAddressIsValid
   })
 }
 
-function personalSignTest({ testLabel, address, accounts, fromAddressIsValid }) {
-  const { engine, query } = createTestSetup()
+function personalSignTest ({ testLabel, address, accounts, fromAddressIsValid }) {
+  const { engine } = createTestSetup()
 
   const witnessedMsgParams = []
 
@@ -272,14 +271,14 @@ function personalSignTest({ testLabel, address, accounts, fromAddressIsValid }) 
   })
 }
 
-function transactionTest({ testLabel, txParams, accounts, fromAddressIsValid }) {
-  const { engine, query } = createTestSetup()
+function transactionTest ({ testLabel, txParams, accounts, fromAddressIsValid }) {
+  const { engine } = createTestSetup()
 
   const witnessedTxParams = []
 
   const getAccounts = async () => accounts.slice()
-  const processTransaction = async (txParams) => {
-    witnessedTxParams.push(txParams)
+  const processTransaction = async (_txParams) => {
+    witnessedTxParams.push(_txParams)
     return testTxHash
   }
   engine.push(createWalletMiddleware({ getAccounts, processTransaction }))
@@ -308,7 +307,7 @@ function transactionTest({ testLabel, txParams, accounts, fromAddressIsValid }) 
   })
 }
 
-function personalRecoverTest({ testLabel, addressHex, message, signature }) {
+function personalRecoverTest ({ testLabel, addressHex, message, signature }) {
   const { engine, ganacheQuery } = createTestSetup()
 
   // setup wallet middleware
@@ -324,7 +323,7 @@ function personalRecoverTest({ testLabel, addressHex, message, signature }) {
   singleRpcTest({ testLabel, engine, payload, expectedResult: addressHex })
 }
 
-function singleRpcTest({ testLabel, payload, expectedResult, engine }) {
+function singleRpcTest ({ testLabel, payload, expectedResult, engine }) {
   test(testLabel, async (t) => {
     t.plan(2)
 
@@ -339,7 +338,6 @@ function singleRpcTest({ testLabel, payload, expectedResult, engine }) {
     t.end()
   })
 }
-
 
 // util
 

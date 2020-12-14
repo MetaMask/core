@@ -6,7 +6,8 @@
     "test": "test"
   },
   "scripts": {
-    "lint": "printf '%s\\n' 'No lint command'",
+    "lint": "eslint . --ext js,json",
+    "lint:fix": "yarn lint --fix",
     "test": "node test/index.js"
   },
   "author": "",
@@ -19,8 +20,13 @@
     "ganache-core/lodash": "^4.17.19"
   },
   "devDependencies": {
+    "@metamask/eslint-config": "^4.1.0",
     "async": "^2.5.0",
     "concat-stream": "^1.6.2",
+    "eslint": "^7.14.0",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-json": "^2.1.2",
+    "eslint-plugin-node": "^11.1.0",
     "eth-block-tracker": "^4.4.1",
     "ethjs-query": "^0.3.8",
     "ganache-core": "^2.7.0",
