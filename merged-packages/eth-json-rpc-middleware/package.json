@@ -2,6 +2,9 @@
   "name": "eth-json-rpc-middleware",
   "version": "6.0.0",
   "main": "block-ref.js",
+  "engines": {
+    "node": ">=10.0.0"
+  },
   "directories": {
     "test": "test"
   },
