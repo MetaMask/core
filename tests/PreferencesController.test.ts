@@ -1,8 +1,14 @@
 import PreferencesController from '../src/user/PreferencesController';
 
 describe('PreferencesController', () => {
+  let controller: PreferencesController;
+  beforeEach(() => {
+    controller = new PreferencesController();
+  });
+  afterEach(() => {
+    controller.destroy();
+  });
   it('should set default state', () => {
-    const controller = new PreferencesController();
     expect(controller.state).toEqual({
       featureFlags: {},
       frequentRpcList: [],
@@ -14,7 +20,6 @@ describe('PreferencesController', () => {
   });
 
   it('should add identities', () => {
-    const controller = new PreferencesController();
     controller.addIdentities(['foo']);
     controller.addIdentities(['foo']);
     expect(controller.state.identities).toEqual({
@@ -26,9 +31,8 @@ describe('PreferencesController', () => {
   });
 
   it('should remove identity', () => {
-    const controller = new PreferencesController();
     controller.addIdentities(['foo', 'bar', 'baz']);
-    controller.update({ selectedAddress: '0xfoO' });
+    controller.setSelectedAddress('0xfoO');
     controller.removeIdentity('foo');
     controller.removeIdentity('baz');
     controller.removeIdentity('foo');
@@ -37,7 +41,6 @@ describe('PreferencesController', () => {
   });
 
   it('should set identity label', () => {
-    const controller = new PreferencesController();
     controller.addIdentities(['foo']);
     controller.setAccountLabel('foo', 'bar');
     controller.setAccountLabel('baz', 'qux');
@@ -46,7 +49,6 @@ describe('PreferencesController', () => {
   });
 
   it('should sync identities', () => {
-    const controller = new PreferencesController();
     controller.addIdentities(['foo', 'bar']);
     controller.syncIdentities(['foo', 'bar']);
     expect(controller.state.identities).toEqual({
@@ -61,7 +63,6 @@ describe('PreferencesController', () => {
   });
 
   it('should update existing identities', () => {
-    const controller = new PreferencesController();
     controller.updateIdentities(['foo', 'bar']);
     expect(controller.state.identities).toEqual({
       '0xbar': { address: '0xbar', name: 'Account 2' },
@@ -70,7 +71,6 @@ describe('PreferencesController', () => {
   });
 
   it('should add custom rpc url', () => {
-    const controller = new PreferencesController();
     const rpcUrlNetwork = {
       chainId: undefined,
       nickname: 'RPC',
@@ -96,7 +96,6 @@ describe('PreferencesController', () => {
   });
 
   it('should remove custom rpc url', () => {
-    const controller = new PreferencesController();
     const rpcUrlNetwork = {
       chainId: undefined,
       nickname: undefined,
@@ -112,13 +111,11 @@ describe('PreferencesController', () => {
   });
 
   it('should set IPFS gateway', () => {
-    const controller = new PreferencesController();
     controller.setIpfsGateway('https://ipfs.infura.io/ipfs/');
     expect(controller.state.ipfsGateway).toEqual('https://ipfs.infura.io/ipfs/');
   });
 
   it('should update selected address as checksummed', () => {
-    const controller = new PreferencesController();
     controller.setSelectedAddress('0x95d2bc047b0ddec1e4a178eeb64d59f5e735cd0a');
     expect(controller.state.selectedAddress).toEqual('0x95D2bC047B0dDEc1E4A178EeB64d59F5E735cd0A');
   });

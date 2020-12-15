@@ -2,10 +2,11 @@ import { createSandbox, stub } from 'sinon';
 import { getOnce, get } from 'fetch-mock';
 import { AssetsDetectionController } from '../src/assets/AssetsDetectionController';
 import { NetworkController } from '../src/network/NetworkController';
-import { PreferencesController } from '../src/user/PreferencesController';
 import { ComposableController } from '../src/ComposableController';
 import { AssetsController } from '../src/assets/AssetsController';
 import { AssetsContractController } from '../src/assets/AssetsContractController';
+import { publish } from '../src/controller-messaging-system';
+import { PREFERENCES_STATE_CHANGED } from '../src/user/PreferencesController';
 
 const { BN } = require('ethereumjs-util');
 
@@ -17,7 +18,6 @@ const OPEN_SEA_API = 'https://api.opensea.io/api/v1/';
 
 describe('AssetsDetectionController', () => {
   let assetsDetection: AssetsDetectionController;
-  let preferences: PreferencesController;
   let network: NetworkController;
   let assets: AssetsController;
   let assetsContract: AssetsContractController;
@@ -25,12 +25,11 @@ describe('AssetsDetectionController', () => {
 
   beforeEach(() => {
     assetsDetection = new AssetsDetectionController();
-    preferences = new PreferencesController();
     network = new NetworkController();
     assets = new AssetsController();
     assetsContract = new AssetsContractController();
 
-    new ComposableController([assets, assetsContract, assetsDetection, network, preferences]);
+    new ComposableController([assets, assetsContract, assetsDetection, network]);
 
     getOnce(
       `${OPEN_SEA_API}asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`,
@@ -166,6 +165,7 @@ describe('AssetsDetectionController', () => {
 
   afterEach(() => {
     sandbox.reset();
+    assetsDetection.onDestroyed();
   });
 
   it('should set default config', () => {
@@ -178,7 +178,7 @@ describe('AssetsDetectionController', () => {
   });
 
   it('should poll and detect assets on interval while on mainnet', () => {
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       const mockTokens = stub(AssetsDetectionController.prototype, 'detectTokens');
       const mockCollectibles = stub(AssetsDetectionController.prototype, 'detectCollectibles');
       new AssetsDetectionController({ interval: 10 });
@@ -202,7 +202,7 @@ describe('AssetsDetectionController', () => {
   });
 
   it('should not autodetect while not on mainnet', () => {
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       const mockTokens = stub(AssetsDetectionController.prototype, 'detectTokens');
       const mockCollectibles = stub(AssetsDetectionController.prototype, 'detectCollectibles');
       new AssetsDetectionController({ interval: 10, networkType: ROPSTEN });
@@ -438,12 +438,10 @@ describe('AssetsDetectionController', () => {
     const firstAddress = '0x123';
     const secondAddress = '0x321';
     const detectAssets = sandbox.stub(assetsDetection, 'detectAssets');
-    preferences.update({ selectedAddress: secondAddress });
-    preferences.update({ selectedAddress: secondAddress });
-    expect(assetsDetection.context.PreferencesController.state.selectedAddress).toEqual(secondAddress);
+    publish(PREFERENCES_STATE_CHANGED, { selectedAddress: secondAddress });
+    publish(PREFERENCES_STATE_CHANGED, { selectedAddress: secondAddress });
     expect(detectAssets.calledTwice).toBe(false);
-    preferences.update({ selectedAddress: firstAddress });
-    expect(assetsDetection.context.PreferencesController.state.selectedAddress).toEqual(firstAddress);
+    publish(PREFERENCES_STATE_CHANGED, { selectedAddress: firstAddress });
     network.update({ provider: { type: secondNetworkType } });
     expect(assetsDetection.context.NetworkController.state.provider.type).toEqual(secondNetworkType);
     network.update({ provider: { type: firstNetworkType } });

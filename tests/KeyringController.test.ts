@@ -1,4 +1,4 @@
-import * as ethUtil from 'ethereumjs-util';
+import { toChecksumAddress, bufferToHex } from 'ethereumjs-util';
 import {
   recoverPersonalSignature,
   recoverTypedSignature,
@@ -7,8 +7,9 @@ import {
 } from 'eth-sig-util';
 import { stub } from 'sinon';
 import KeyringController, { Keyring, KeyringConfig } from '../src/keyring/KeyringController';
-import PreferencesController from '../src/user/PreferencesController';
+import { GET_PREFERENCES_STATE, UPDATE_IDENTITIES, SET_SELECTED_ADDRESS, REMOVE_IDENTITY, SYNC_IDENTITIES } from '../src/user/PreferencesController';
 import ComposableController from '../src/ComposableController';
+import { registerActionHandlers, resetActionHandlers } from '../src/controller-messaging-system';
 
 const Transaction = require('ethereumjs-tx');
 const mockEncryptor: any = require('./utils/mockEncryptor');
@@ -25,15 +26,53 @@ const password = 'password123';
 
 describe('KeyringController', () => {
   let keyringController: KeyringController;
-  let preferences: PreferencesController;
   let initialState: { isUnlocked: boolean; keyringTypes: string[]; keyrings: Keyring[] };
+  let identities: Record<string, any>;
+  let selectedAddress: string | null;
   const baseConfig: Partial<KeyringConfig> = { encryptor: mockEncryptor };
   beforeEach(async () => {
+    identities = {};
+    selectedAddress = null;
     keyringController = new KeyringController(baseConfig);
-    preferences = new PreferencesController();
+    registerActionHandlers({
+      [UPDATE_IDENTITIES]: (addresses: string[]) => {
+        addresses.forEach((address, i) => {
+          const checkSummedAddress = toChecksumAddress(address);
+          identities[checkSummedAddress] = identities[checkSummedAddress] || {
+            address: checkSummedAddress,
+            name: `Account ${i + 1}`,
+          };
+        });
+      },
+      [REMOVE_IDENTITY]: (address: string) => {
+          const checkSummedAddress = toChecksumAddress(address);
+          if (!identities[checkSummedAddress]) {
+            return;
+          }
+          delete identities[checkSummedAddress];
+          if (checkSummedAddress === selectedAddress) {
+            selectedAddress = Object.keys(identities)[0];
+          }
+      },
+      [SET_SELECTED_ADDRESS]: (address: string) => {
+          selectedAddress = toChecksumAddress(address);
+      },
+      [SYNC_IDENTITIES]: () => {
+        // NOOP, called by keyring controller but test suite doesn't test state
+        // modifications
+      },
+      [GET_PREFERENCES_STATE]: () => ({
+        identities,
+        selectedAddress,
+      }),
+    });
 
-    new ComposableController([keyringController, preferences]);
+    new ComposableController([keyringController]);
     initialState = await keyringController.createNewVaultAndKeychain(password);
+  });
+
+  afterEach(() => {
+    resetActionHandlers();
   });
 
   it('should set default state', () => {
@@ -45,22 +84,22 @@ describe('KeyringController', () => {
   });
 
   it('should add new account', async () => {
-    const initialIdentitiesLength = Object.keys(preferences.state.identities).length;
+    const initialIdentitiesLength = Object.keys(identities).length;
     const currentKeyringMemState = await keyringController.addNewAccount();
     expect(initialState.keyrings).toHaveLength(1);
     expect(initialState.keyrings[0].accounts).not.toBe(currentKeyringMemState.keyrings);
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
-    const identitiesLength = Object.keys(preferences.state.identities).length;
+    const identitiesLength = Object.keys(identities).length;
     expect(identitiesLength).toBeGreaterThan(initialIdentitiesLength);
   });
 
   it('should add new account without updating', async () => {
-    const initialIdentitiesLength = Object.keys(preferences.state.identities).length;
+    const initialIdentitiesLength = Object.keys(identities).length;
     const currentKeyringMemState = await keyringController.addNewAccountWithoutUpdate();
     expect(initialState.keyrings).toHaveLength(1);
     expect(initialState.keyrings[0].accounts).not.toBe(currentKeyringMemState.keyrings);
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
-    const identitiesLength = Object.keys(preferences.state.identities).length;
+    const identitiesLength = Object.keys(identities).length;
     expect(identitiesLength).toEqual(initialIdentitiesLength);
   });
 
@@ -154,7 +193,7 @@ describe('KeyringController', () => {
   });
 
   it('should sign personal message', async () => {
-    const data = ethUtil.bufferToHex(Buffer.from('Hello from test', 'utf8'));
+    const data = bufferToHex(Buffer.from('Hello from test', 'utf8'));
     const account = initialState.keyrings[0].accounts[0];
     const signature = await keyringController.signPersonalMessage({ data, from: account });
     const recovered = recoverPersonalSignature({ data, sig: signature });

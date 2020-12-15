@@ -133,18 +133,15 @@ export class PreferencesController extends BaseController<PreferencesState> {
    * @param addresses - List of addresses to use to generate new identities
    */
   addIdentities(addresses: string[]) {
-    const { identities } = this.state;
-    addresses.forEach((address) => {
-      address = toChecksumAddress(address);
-      if (identities[address]) {
-        return;
-      }
-      const identityCount = Object.keys(identities).length;
-
-      identities[address] = { name: `Account ${identityCount + 1}`, address };
-    });
     this.update((state) => {
-      state.identities = identities;
+      addresses.forEach((address) => {
+        address = toChecksumAddress(address);
+        if (state.identities[address]) {
+          return;
+        }
+        const identityCount = Object.keys(state.identities).length;
+        state.identities[address] = { name: `Account ${identityCount + 1}`, address };
+      });
     });
   }
 
@@ -159,15 +156,12 @@ export class PreferencesController extends BaseController<PreferencesState> {
     if (!identities[address]) {
       return;
     }
-    delete identities[address];
     this.update((state) => {
-      state.identities = identities;
+      delete state.identities[address];
+      if (address === state.selectedAddress) {
+        state.selectedAddress = Object.keys(state.identities)[0];
+      }
     });
-    if (address === this.state.selectedAddress) {
-      this.update((state) => {
-        state.selectedAddress = Object.keys(identities)[0];
-      });
-    }
   }
 
   /**
@@ -178,11 +172,9 @@ export class PreferencesController extends BaseController<PreferencesState> {
    */
   setAccountLabel(address: string, label: string) {
     address = toChecksumAddress(address);
-    const { identities } = this.state;
-    identities[address] = identities[address] || {};
-    identities[address].name = label;
     this.update((state) => {
-      state.identities = identities;
+      state.identities[address] = state.identities[address] || {};
+      state.identities[address].name = label;
     });
   }
 
@@ -208,34 +200,28 @@ export class PreferencesController extends BaseController<PreferencesState> {
    */
   syncIdentities(addresses: string[]) {
     addresses = addresses.map((address: string) => toChecksumAddress(address));
-    const { identities, lostIdentities } = this.state;
-    const newlyLost: { [address: string]: ContactEntry } = {};
-
-    for (const identity in identities) {
-      if (addresses.indexOf(identity) === -1) {
-        newlyLost[identity] = identities[identity];
-        delete identities[identity];
-      }
-    }
-
-    if (Object.keys(newlyLost).length > 0) {
-      for (const key in newlyLost) {
-        lostIdentities[key] = newlyLost[key];
-      }
-    }
-
     this.update((state) => {
-      state.identities = identities;
-      state.lostIdentities = lostIdentities;
-    });
+      const newlyLost: { [address: string]: ContactEntry } = {};
 
-    this.addIdentities(addresses);
+      for (const identity in state.identities) {
+        if (addresses.indexOf(identity) === -1) {
+          newlyLost[identity] = state.identities[identity];
+          delete state.identities[identity];
+        }
+      }
 
-    if (addresses.indexOf(this.state.selectedAddress) === -1) {
-      this.update((state) => {
+      if (Object.keys(newlyLost).length > 0) {
+        for (const key in newlyLost) {
+          state.lostIdentities[key] = newlyLost[key];
+        }
+      }
+
+      this.addIdentities(addresses);
+
+      if (addresses.indexOf(this.state.selectedAddress) === -1) {
         state.selectedAddress = addresses[0];
-      });
-    }
+      }
+    });
 
     return this.state.selectedAddress;
   }
@@ -271,17 +257,15 @@ export class PreferencesController extends BaseController<PreferencesState> {
    *
    */
   addToFrequentRpcList(url: string, chainId?: number, ticker?: string, nickname?: string, rpcPrefs?: RpcPreferences) {
-    const { frequentRpcList } = this.state;
-    const index = frequentRpcList.findIndex(({ rpcUrl }) => {
-      return rpcUrl === url;
-    });
-    if (index !== -1) {
-      frequentRpcList.splice(index, 1);
-    }
-    const newFrequestRpc: FrequentRpc = { rpcUrl: url, chainId, ticker, nickname, rpcPrefs };
-    frequentRpcList.push(newFrequestRpc);
     this.update((state) => {
-      state.frequentRpcList = frequentRpcList;
+      const index = state.frequentRpcList.findIndex(({ rpcUrl }) => {
+        return rpcUrl === url;
+      });
+      if (index !== -1) {
+        state.frequentRpcList.splice(index, 1);
+      }
+      const newFrequestRpc: FrequentRpc = { rpcUrl: url, chainId, ticker, nickname, rpcPrefs };
+      state.frequentRpcList.push(newFrequestRpc);
     });
   }
 
@@ -291,15 +275,13 @@ export class PreferencesController extends BaseController<PreferencesState> {
    * @param url - Custom RPC URL
    */
   removeFromFrequentRpcList(url: string) {
-    const { frequentRpcList } = this.state;
-    const index = frequentRpcList.findIndex(({ rpcUrl }) => {
-      return rpcUrl === url;
-    });
-    if (index !== -1) {
-      frequentRpcList.splice(index, 1);
-    }
     this.update((state) => {
-      state.frequentRpcList = frequentRpcList;
+      const index = state.frequentRpcList.findIndex(({ rpcUrl }) => {
+        return rpcUrl === url;
+      });
+      if (index !== -1) {
+        state.frequentRpcList.splice(index, 1);
+      }
     });
   }
 

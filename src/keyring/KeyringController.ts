@@ -110,7 +110,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
   /**
    * List of required sibling controllers this controller needs to function
    */
-  requiredControllers = ['PreferencesController'];
+  requiredControllers = [];
 
   /**
    * Creates a KeyringController instance

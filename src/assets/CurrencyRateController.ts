@@ -40,7 +40,7 @@ const GET_CURRENCY_RATE_STATE = 'CurrencyRateController.getState';
 const SET_CURRENT_CURRENCY = 'CurrencyRateController.setCurrentCurrency';
 const SET_NATIVE_CURRENCY = 'CurrencyRateController.setNativeCurrency';
 
-const CURRENCY_RATE_STATE_CHANGED = 'CurrencyRateController.state-changed';
+export const CURRENCY_RATE_STATE_CHANGED = 'CurrencyRateController.state-changed';
 
 /** actions */
 export function getCurrencyRateState(): CurrencyRateState {

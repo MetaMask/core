@@ -3,7 +3,7 @@ import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import NetworkController, { NetworkType } from '../network/NetworkController';
 import { PreferencesState, PREFERENCES_STATE_CHANGED } from '../user/PreferencesController';
 import { safelyExecute, timeoutFetch } from '../util';
-import { subscribe } from '../controller-messaging-system';
+import { subscribe, unsubscribe } from '../controller-messaging-system';
 import AssetsContractController from './AssetsContractController';
 import { Token } from './TokenRatesController';
 
@@ -56,6 +56,8 @@ export interface AssetsDetectionConfig extends BaseConfig {
 export class AssetsDetectionController extends BaseController<AssetsDetectionConfig, BaseState> {
   private handle?: NodeJS.Timer;
 
+  private subId?: string;
+
   private getOwnerCollectiblesApi(address: string) {
     return `https://api.opensea.io/api/v1/assets?owner=${address}&limit=300`;
   }
@@ -89,7 +91,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
   /**
    * List of required sibling controllers this controller needs to function
    */
-  requiredControllers = ['AssetsContractController', 'AssetsController', 'NetworkController', 'PreferencesController'];
+  requiredControllers = ['AssetsContractController', 'AssetsController', 'NetworkController'];
 
   /**
    * Creates a AssetsDetectionController instance
@@ -263,7 +265,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
       this.configure({ tokens });
     });
 
-    subscribe<PreferencesState>(PREFERENCES_STATE_CHANGED, ({ selectedAddress }) => {
+    this.subId = subscribe<PreferencesState>(PREFERENCES_STATE_CHANGED, ({ selectedAddress }) => {
       const actualSelectedAddress = this.config.selectedAddress;
       if (selectedAddress !== actualSelectedAddress) {
         this.configure({ selectedAddress });
@@ -274,6 +276,12 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
     network.subscribe(({ provider }) => {
       this.configure({ networkType: provider.type });
     });
+  }
+
+  onDestroyed() {
+    if (this.subId) {
+      unsubscribe(this.subId);
+    }
   }
 }
 

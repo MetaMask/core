@@ -124,7 +124,7 @@ export class BaseController<S extends Record<string, any>> {
    * this is not required for garbage collection, it at least ensures this
    * instance won't be responsible for keeping the listeners in memory.
    */
-  protected destroy() {
+  destroy() {
     if (this.subscriptions) {
       unsubscribeFromEvents(this.subscriptions);
     }

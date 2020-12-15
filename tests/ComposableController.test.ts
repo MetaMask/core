@@ -2,12 +2,10 @@ import { stub } from 'sinon';
 import AddressBookController from '../src/user/AddressBookController';
 import EnsController from '../src/third-party/EnsController';
 import ComposableController from '../src/ComposableController';
-import PreferencesController from '../src/user/PreferencesController';
 import TokenRatesController from '../src/assets/TokenRatesController';
 import { AssetsController } from '../src/assets/AssetsController';
 import { NetworkController } from '../src/network/NetworkController';
 import { AssetsContractController } from '../src/assets/AssetsContractController';
-import CurrencyRateController from '../src/assets/CurrencyRateController';
 
 describe('ComposableController', () => {
   it('should compose controller state', () => {
@@ -16,9 +14,7 @@ describe('ComposableController', () => {
       new AssetsController(),
       new AssetsContractController(),
       new EnsController(),
-      new CurrencyRateController(),
       new NetworkController(),
-      new PreferencesController(),
       new TokenRatesController(),
     ]);
     expect(controller.state).toEqual({
@@ -35,27 +31,12 @@ describe('ComposableController', () => {
         suggestedAssets: [],
         tokens: [],
       },
-      CurrencyRateController: {
-        conversionDate: 0,
-        conversionRate: 0,
-        currentCurrency: 'usd',
-        nativeCurrency: 'ETH',
-        usdConversionRate: 0,
-      },
       EnsController: {
         ensEntries: {},
       },
       NetworkController: {
         network: 'loading',
         provider: { type: 'mainnet' },
-      },
-      PreferencesController: {
-        featureFlags: {},
-        frequentRpcList: [],
-        identities: {},
-        ipfsGateway: 'https://ipfs.io/ipfs/',
-        lostIdentities: {},
-        selectedAddress: '',
       },
       TokenRatesController: { contractExchangeRates: {} },
     });
@@ -67,9 +48,7 @@ describe('ComposableController', () => {
       new AssetsController(),
       new AssetsContractController(),
       new EnsController(),
-      new CurrencyRateController(),
       new NetworkController(),
-      new PreferencesController(),
       new TokenRatesController(),
     ]);
     expect(controller.flatState).toEqual({
@@ -80,24 +59,13 @@ describe('ComposableController', () => {
       collectibleContracts: [],
       collectibles: [],
       contractExchangeRates: {},
-      conversionDate: 0,
-      conversionRate: 0,
-      currentCurrency: 'usd',
       ensEntries: {},
-      featureFlags: {},
-      frequentRpcList: [],
-      identities: {},
       ignoredCollectibles: [],
       ignoredTokens: [],
-      ipfsGateway: 'https://ipfs.io/ipfs/',
-      lostIdentities: {},
-      nativeCurrency: 'ETH',
       network: 'loading',
       provider: { type: 'mainnet' },
-      selectedAddress: '',
       suggestedAssets: [],
       tokens: [],
-      usdConversionRate: 0,
     });
   });
 
@@ -106,10 +74,8 @@ describe('ComposableController', () => {
       new AddressBookController(),
       new AssetsController(),
       new AssetsContractController(),
-      new CurrencyRateController(),
       new EnsController(),
       new NetworkController(),
-      new PreferencesController(),
       new TokenRatesController(),
     ]);
     const addressContext = controller.context.TokenRatesController.context
@@ -134,24 +100,13 @@ describe('ComposableController', () => {
       collectibleContracts: [],
       collectibles: [],
       contractExchangeRates: {},
-      conversionDate: 0,
-      conversionRate: 0,
-      currentCurrency: 'usd',
       ensEntries: {},
-      featureFlags: {},
-      frequentRpcList: [],
-      identities: {},
       ignoredCollectibles: [],
       ignoredTokens: [],
-      ipfsGateway: 'https://ipfs.io/ipfs/',
-      lostIdentities: {},
-      nativeCurrency: 'ETH',
       network: 'loading',
       provider: { type: 'mainnet' },
-      selectedAddress: '',
       suggestedAssets: [],
       tokens: [],
-      usdConversionRate: 0,
     });
   });
 

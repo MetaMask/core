@@ -1,6 +1,9 @@
 import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { subscribe, unsubscribe } from '../controller-messaging-system';
 import { safelyExecute, handleFetch } from '../util';
+import AssetsController from './AssetsController';
+import { CURRENCY_RATE_STATE_CHANGED, CurrencyRateState } from './CurrencyRateController';
 
 /**
  * @type CoinGeckoResponse
@@ -63,6 +66,8 @@ export interface TokenRatesState extends BaseState {
 export class TokenRatesController extends BaseController<TokenRatesConfig, TokenRatesState> {
   private handle?: NodeJS.Timer;
 
+  private subId?: string;
+
   private tokenList: Token[] = [];
 
   private getPricingURL(query: string) {
@@ -77,7 +82,7 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
   /**
    * List of required sibling controllers this controller needs to function
    */
-  requiredControllers = ['AssetsController', 'CurrencyRateController'];
+  requiredControllers = ['AssetsController'];
 
   /**
    * Creates a TokenRatesController instance
@@ -131,6 +136,27 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
    */
   async fetchExchangeRate(query: string): Promise<CoinGeckoResponse> {
     return handleFetch(this.getPricingURL(query));
+  }
+
+    /**
+   * Extension point called if and when this controller is composed
+   * with other controllers using a ComposableController
+   */
+  onComposed() {
+    super.onComposed();
+    const assets = this.context.AssetsController as AssetsController;
+    assets.subscribe(() => {
+      this.configure({ tokens: assets.state.tokens });
+    });
+    this.subId = subscribe<CurrencyRateState>(CURRENCY_RATE_STATE_CHANGED, (state) => {
+      this.configure({ nativeCurrency: state.nativeCurrency });
+    });
+  }
+
+  onDestroyed() {
+    if (this.subId) {
+      unsubscribe(this.subId);
+    }
   }
 
   /**

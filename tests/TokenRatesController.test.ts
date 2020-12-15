@@ -3,10 +3,10 @@ import { get } from 'fetch-mock';
 import ComposableController from '../src/ComposableController';
 import TokenRatesController, { Token } from '../src/assets/TokenRatesController';
 import { AssetsController } from '../src/assets/AssetsController';
-import { PreferencesController } from '../src/user/PreferencesController';
 import { NetworkController } from '../src/network/NetworkController';
 import { AssetsContractController } from '../src/assets/AssetsContractController';
-import CurrencyRateController from '../src/assets/CurrencyRateController';
+import { publish } from '../src/controller-messaging-system';
+import { CURRENCY_RATE_STATE_CHANGED } from '../src/assets/CurrencyRateController';
 
 const COINGECKO_API = 'https://api.coingecko.com/api/v3/simple/token_price/ethereum?';
 
@@ -56,7 +56,7 @@ describe('TokenRatesController', () => {
   });
 
   it('should poll and update rate in the right interval', () => {
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       const mock = stub(TokenRatesController.prototype, 'fetchExchangeRate');
       new TokenRatesController({
         interval: 10,
@@ -85,7 +85,7 @@ describe('TokenRatesController', () => {
   it('should clear previous interval', () => {
     const mock = stub(global, 'clearTimeout');
     const controller = new TokenRatesController({ interval: 1337 });
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       setTimeout(() => {
         controller.poll(1338);
         expect(mock.called).toBe(true);
@@ -98,12 +98,10 @@ describe('TokenRatesController', () => {
   it('should update all rates', async () => {
     const assets = new AssetsController();
     const assetsContract = new AssetsContractController();
-    const currencyRate = new CurrencyRateController();
     const controller = new TokenRatesController({ interval: 10 });
     const network = new NetworkController();
-    const preferences = new PreferencesController();
 
-    new ComposableController([controller, assets, assetsContract, currencyRate, network, preferences]);
+    new ComposableController([controller, assets, assetsContract, network]);
     const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
     const address2 = '0xfoO';
     expect(controller.state.contractExchangeRates).toEqual({});
@@ -131,14 +129,14 @@ describe('TokenRatesController', () => {
   it('should subscribe to new sibling assets controllers', async () => {
     const assets = new AssetsController();
     const assetsContract = new AssetsContractController();
-    const currencyRate = new CurrencyRateController();
     const controller = new TokenRatesController();
     const network = new NetworkController();
-    const preferences = new PreferencesController();
 
-    new ComposableController([controller, assets, assetsContract, currencyRate, network, preferences]);
+    new ComposableController([controller, assets, assetsContract, network]);
     await assets.addToken('0xfoO', 'FOO', 18);
-    currencyRate.update({ nativeCurrency: 'gno' });
+    publish(CURRENCY_RATE_STATE_CHANGED, {
+      nativeCurrency: 'gno',
+    });
     const { tokens } = controller.context.AssetsController.state;
     const found = tokens.filter((token: Token) => token.address === '0xfoO');
     expect(found.length > 0).toBe(true);
