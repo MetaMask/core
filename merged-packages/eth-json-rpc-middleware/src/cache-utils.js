@@ -69,9 +69,7 @@ function blockTagParamIndex (payload) {
   }
 }
 
-// eslint-disable-next-line consistent-return
 function cacheTypeForPayload (payload) {
-  // eslint-disable-next-line default-case
   switch (payload.method) {
     // cache permanently
     case 'web3_clientVersion':
@@ -116,39 +114,7 @@ function cacheTypeForPayload (payload) {
       return 'block'
 
     // never cache
-    case 'net_version':
-    case 'net_peerCount':
-    case 'net_listening':
-    case 'eth_syncing':
-    case 'eth_sign':
-    case 'eth_coinbase':
-    case 'eth_mining':
-    case 'eth_hashrate':
-    case 'eth_accounts':
-    case 'eth_sendTransaction':
-    case 'eth_sendRawTransaction':
-    case 'eth_newFilter':
-    case 'eth_newBlockFilter':
-    case 'eth_newPendingTransactionFilter':
-    case 'eth_uninstallFilter':
-    case 'eth_getFilterChanges':
-    case 'eth_getWork':
-    case 'eth_submitWork':
-    case 'eth_submitHashrate':
-    case 'db_putString':
-    case 'db_getString':
-    case 'db_putHex':
-    case 'db_getHex':
-    case 'shh_post':
-    case 'shh_newIdentity':
-    case 'shh_hasIdentity':
-    case 'shh_newGroup':
-    case 'shh_addToGroup':
-    case 'shh_newFilter':
-    case 'shh_uninstallFilter':
-    case 'shh_getFilterChanges':
-    case 'shh_getMessages':
-    case 'test_neverCache':
+    default:
       return 'never'
   }
 }
