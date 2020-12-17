@@ -39,7 +39,7 @@ export function createAsyncMiddleware<T, U>(
     // it is resolved by the return handler passed to the
     // "next" function
     let resolveNextPromise: () => void;
-    const nextPromise = new Promise((resolve) => {
+    const nextPromise = new Promise<void>((resolve) => {
       resolveNextPromise = resolve;
     });
 

@@ -447,7 +447,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     handlers: JsonRpcEngineReturnHandler[],
   ): Promise<void> {
     for (const handler of handlers) {
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         handler((err) => (err ? reject(err) : resolve()));
       });
     }
