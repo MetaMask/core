@@ -61,10 +61,7 @@ describe('approval controller', () => {
       expect(() => approvalController.add({ id: 'foo1', origin: ORIGIN, type: 'myType1' })).not.toThrow();
       expect(() => approvalController.add({ id: 'foo2', origin: ORIGIN, type: 'myType2' })).not.toThrow();
 
-      expect(
-        approvalController.has({ id: 'foo1' }) &&
-          approvalController.has({ id: 'foo2' }),
-      ).toEqual(true);
+      expect(approvalController.has({ id: 'foo1' }) && approvalController.has({ id: 'foo2' })).toEqual(true);
       expect(
         approvalController.has({ origin: ORIGIN }) &&
           approvalController.has({ origin: ORIGIN, type: 'myType1' }) &&
@@ -75,7 +72,9 @@ describe('approval controller', () => {
     it('throws on id collision', () => {
       expect(() => approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE })).not.toThrow();
 
-      expect(() => approvalController.add({ id: 'foo', origin: 'fizz.buzz', type: TYPE })).toThrow(getIdCollisionError('foo'));
+      expect(() => approvalController.add({ id: 'foo', origin: 'fizz.buzz', type: TYPE })).toThrow(
+        getIdCollisionError('foo'),
+      );
     });
 
     it('throws on origin and type collision', () => {

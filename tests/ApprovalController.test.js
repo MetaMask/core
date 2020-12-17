@@ -12,9 +12,7 @@ const STORE_KEY = 'pendingApprovals';
 describe('ApprovalController: Input Validation', () => {
   describe('constructor', () => {
     it('throws on invalid input', () => {
-      expect(() => new ApprovalController({})).toThrow(
-        getInvalidShowApprovalRequestError(),
-      );
+      expect(() => new ApprovalController({})).toThrow(getInvalidShowApprovalRequestError());
       expect(() => new ApprovalController({ showApprovalRequest: 'bar' })).toThrow(
         getInvalidShowApprovalRequestError(),
       );
