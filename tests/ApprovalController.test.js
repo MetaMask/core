@@ -160,7 +160,7 @@ function getInvalidRequestDataError() {
 }
 
 function getInvalidTypeError(code) {
-  return getError('May not specify empty or non-string type.', code);
+  return getError('Must specify non-empty string type.', code);
 }
 
 function getInvalidHasParamsError() {

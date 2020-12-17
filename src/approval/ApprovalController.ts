@@ -105,8 +105,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @param opts.id - The id of the approval request. A random id will be
    * generated if none is provided.
    * @param opts.origin - The origin of the approval request.
-   * @param opts.type - The type associated with the approval request. The
-   * default type will be used if no type is specified.
+   * @param opts.type - The type associated with the approval request.
    * @param opts.requestData - Additional data associated with the request,
    * if any.
    * @returns The approval promise.
@@ -133,8 +132,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @param opts.id - The id of the approval request. A random id will be
    * generated if none is provided.
    * @param opts.origin - The origin of the approval request.
-   * @param opts.type - The type associated with the approval request. The
-   * default type will be used if no type is specified.
+   * @param opts.type - The type associated with the approval request.
    * @param opts.requestData - Additional data associated with the request,
    * if any.
    * @returns The approval promise.
@@ -349,7 +347,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
     } else if (!origin || typeof origin !== 'string') {
       errorMessage = 'Must specify non-empty string origin.';
     } else if (!type || typeof type !== 'string') {
-      errorMessage = 'May not specify empty or non-string type.';
+      errorMessage = 'Must specify non-empty string type.';
     } else if (requestData && (
       typeof requestData !== 'object' || Array.isArray(requestData)
     )) {
