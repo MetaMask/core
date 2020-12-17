@@ -44,7 +44,6 @@ export interface Approval {
 }
 
 export interface ApprovalConfig extends BaseConfig {
-  defaultApprovalType: string;
   showApprovalRequest: () => void;
 }
 
@@ -70,8 +69,6 @@ const defaultState: ApprovalState = { [APPROVALS_STORE_KEY]: {}, [APPROVAL_COUNT
  */
 export class ApprovalController extends BaseController<ApprovalConfig, ApprovalState> {
 
-  public readonly defaultApprovalType: string;
-
   private _approvals: Map<string, ApprovalCallbacks>;
 
   private _origins: Map<string, Set<string>>;
@@ -80,22 +77,17 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
 
   /**
    * @param opts - Options bag
-   * @param opts.defaultApprovalType - The default type for approvals.
    * @param opts.showApprovalRequest - Function for opening the UI such that
    * the request can be displayed to the user.
    */
   constructor(config: ApprovalConfig, state?: ApprovalState) {
-    const { defaultApprovalType, showApprovalRequest } = config;
-    if (!defaultApprovalType || typeof defaultApprovalType !== 'string') {
-      throw new Error('Must specify non-empty string defaultApprovalType.');
-    }
+    const { showApprovalRequest } = config;
     if (typeof showApprovalRequest !== 'function') {
       throw new Error('Must specify function showApprovalRequest.');
     }
 
     super(config, state || defaultState);
 
-    this.defaultApprovalType = defaultApprovalType;
     this._approvals = new Map();
     this._origins = new Map();
     this._showApprovalRequest = showApprovalRequest;
@@ -122,7 +114,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   addAndShowApprovalRequest(opts: {
     id?: string;
     origin: string;
-    type?: string;
+    type: string;
     requestData?: RequestData;
   }): Promise<unknown> {
     const promise = this._add(opts.origin, opts.type, opts.id, opts.requestData);
@@ -150,7 +142,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
   add(opts: {
     id?: string;
     origin: string;
-    type?: string;
+    type: string;
     requestData?: RequestData;
   }): Promise<unknown> {
     return this._add(opts.origin, opts.type, opts.id, opts.requestData);
@@ -315,7 +307,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    */
   private _add(
     origin: string,
-    type: string = this.defaultApprovalType,
+    type: string,
     id: string = nanoid(),
     requestData?: RequestData,
   ): Promise<unknown> {

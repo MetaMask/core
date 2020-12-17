@@ -2,7 +2,6 @@ const { errorCodes } = require('eth-rpc-errors');
 const ApprovalController = require('../dist/approval/ApprovalController').default;
 
 const defaultConfig = {
-  defaultApprovalType: 'DEFAULT_TYPE',
   showApprovalRequest: () => undefined,
 };
 
@@ -13,16 +12,10 @@ const STORE_KEY = 'pendingApprovals';
 describe('ApprovalController: Input Validation', () => {
   describe('constructor', () => {
     it('throws on invalid input', () => {
-      expect(() => new ApprovalController({})).toThrow(getInvalidDefaultTypeError());
-      expect(() => new ApprovalController({ showApprovalRequest: () => undefined })).toThrow(
-        getInvalidDefaultTypeError(),
-      );
-      expect(() => new ApprovalController({ defaultApprovalType: 2 })).toThrow(getInvalidDefaultTypeError());
-
-      expect(() => new ApprovalController({ defaultApprovalType: 'foo' })).toThrow(
+      expect(() => new ApprovalController({})).toThrow(
         getInvalidShowApprovalRequestError(),
       );
-      expect(() => new ApprovalController({ defaultApprovalType: 'foo', showApprovalRequest: 'bar' })).toThrow(
+      expect(() => new ApprovalController({ showApprovalRequest: 'bar' })).toThrow(
         getInvalidShowApprovalRequestError(),
       );
     });
@@ -50,6 +43,7 @@ describe('ApprovalController: Input Validation', () => {
         approvalController.add({
           id: 'foo',
           origin: 'bar.baz',
+          type: 'type',
           requestData: 'foo',
         }),
       ).toThrow(getInvalidRequestDataError());
@@ -60,7 +54,7 @@ describe('ApprovalController: Input Validation', () => {
     it('returns undefined for non-existing entry', () => {
       const approvalController = getApprovalController();
 
-      approvalController.add({ id: 'foo', origin: 'bar.baz' });
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
 
       expect(approvalController.get('fizz')).toBeUndefined();
 
@@ -103,25 +97,26 @@ describe('ApprovalController: Input Validation', () => {
     });
 
     it('deletes entry', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz' });
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
 
       approvalController._delete('foo');
 
       expect(
         !approvalController.has({ id: 'foo' }) &&
+          !approvalController.has({ type: 'type' }) &&
           !approvalController.has({ origin: 'bar.baz' }) &&
           !approvalController.state[STORE_KEY].foo,
       ).toEqual(true);
     });
 
     it('deletes one entry out of many without side-effects', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz' });
-      approvalController.add({ id: 'fizz', origin: 'bar.baz', type: 'myType' });
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type1' });
+      approvalController.add({ id: 'fizz', origin: 'bar.baz', type: 'type2' });
 
       approvalController._delete('fizz');
 
       expect(
-        !approvalController.has({ id: 'fizz' }) && !approvalController.has({ origin: 'bar.baz', type: 'myType' }),
+        !approvalController.has({ id: 'fizz' }) && !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
       ).toEqual(true);
 
       expect(approvalController.has({ id: 'foo' }) && approvalController.has({ origin: 'bar.baz' })).toEqual(true);
@@ -137,10 +132,6 @@ describe('ApprovalController: Input Validation', () => {
 });
 
 // helpers
-
-function getInvalidDefaultTypeError() {
-  return getError('Must specify non-empty string defaultApprovalType.');
-}
 
 function getInvalidShowApprovalRequestError() {
   return getError('Must specify function showApprovalRequest.');
