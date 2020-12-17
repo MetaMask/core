@@ -419,7 +419,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 
     const transactionMeta = {
       id: random(),
-      networkID: network ? network.state.network : /* istanbul ignore next */ '1',
+      networkID: network ? network.state.provider.chainId : /* istanbul ignore next */ '1',
       origin,
       status: 'unapproved',
       time: Date.now(),
@@ -472,7 +472,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     const { transactions } = this.state;
     const network = this.context.NetworkController as NetworkController;
     /* istanbul ignore next */
-    const currentNetworkID = network ? network.state.network : '1';
+    const currentNetworkID = network ? network.state.provider.chainId : '1';
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const { from } = transactionMeta.transaction;
@@ -674,7 +674,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
   async queryTransactionStatuses() {
     const { transactions } = this.state;
     const network = this.context.NetworkController;
-    const currentNetworkID = network.state.network;
+    const currentNetworkID = network.state.provider.chainId;
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
@@ -726,7 +726,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     if (!network) {
       return;
     }
-    const currentNetworkID = network.state.network;
+    const currentNetworkID = network.state.provider.chainId;
     const newTransactions = this.state.transactions.filter(({ networkID }) => networkID !== currentNetworkID);
     this.update({ transactions: newTransactions });
   }
