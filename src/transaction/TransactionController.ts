@@ -3,6 +3,7 @@ import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { ethErrors } from 'eth-rpc-errors';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import NetworkController from '../network/NetworkController';
+
 import {
   BNToHex,
   fractionBN,
@@ -470,7 +471,6 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    * @returns - Promise resolving when this operation completes
    */
   async approveTransaction(transactionID: string) {
-    const releaseLock = await this.mutex.acquire();
     const { transactions } = this.state;
     const network = this.context.NetworkController as NetworkController;
     /* istanbul ignore next */
@@ -481,11 +481,9 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 
     if (!this.sign) {
       this.failTransaction(transactionMeta, new Error('No sign method defined.'));
-      releaseLock();
       return;
     } else if (!currentChainId) {
       this.failTransaction(transactionMeta, new Error('No chainId defined.'));
-      releaseLock();
       return;
     }
 
@@ -507,9 +505,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       transactionMeta.status = 'submitted';
       this.updateTransaction(transactionMeta);
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
-      releaseLock();
     } catch (error) {
-      releaseLock();
       this.failTransaction(transactionMeta, error);
     }
   }
