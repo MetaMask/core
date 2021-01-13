@@ -1,4 +1,5 @@
 import { stub } from 'sinon';
+import { NetworksChainId } from '../src/network/NetworkController';
 import TransactionController from '../src/transaction/TransactionController';
 
 const globalAny: any = global;
@@ -64,14 +65,14 @@ const PROVIDER = new HttpProvider('https://ropsten.infura.io/v3/341eacb578dd44a1
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
 const MOCK_NETWORK = {
   provider: PROVIDER,
-  state: { network: '3', provider: { type: 'ropsten' } },
+  state: { network: '3', provider: { type: 'ropsten', chainId: NetworksChainId.ropsten } },
   subscribe: () => {
     /* eslint-disable-line no-empty */
   },
 };
 const MOCK_MAINNET_NETWORK = {
   provider: MAINNET_PROVIDER,
-  state: { network: '1', provider: { type: 'mainnet' } },
+  state: { network: '1', provider: { type: 'mainnet', chainId: NetworksChainId.mainnet } },
   subscribe: () => {
     /* eslint-disable-line no-empty */
   },
@@ -385,7 +386,7 @@ describe('TransactionController', () => {
       setTimeout(() => {
         expect(mock.calledTwice).toBe(true);
         mock.restore();
-        resolve();
+        resolve('');
       }, 15);
     });
   });
@@ -398,7 +399,7 @@ describe('TransactionController', () => {
         controller.poll(1338);
         expect(mock.called).toBe(true);
         mock.restore();
-        resolve();
+        resolve('');
       }, 100);
     });
   });
@@ -410,7 +411,7 @@ describe('TransactionController', () => {
       setTimeout(() => {
         expect(func.called).toBe(false);
         func.restore();
-        resolve();
+        resolve('');
       }, 20);
     });
   });
@@ -422,7 +423,7 @@ describe('TransactionController', () => {
         await controller.addTransaction({ from: 'foo' } as any);
       } catch (error) {
         expect(error.message).toContain('Invalid "from" address');
-        resolve();
+        resolve('');
       }
     });
   });
@@ -463,7 +464,7 @@ describe('TransactionController', () => {
       controller.cancelTransaction(controller.state.transactions[0].id);
       result.catch((error) => {
         expect(error.message).toContain('User rejected the transaction');
-        resolve();
+        resolve('');
       });
     });
   });
@@ -505,7 +506,7 @@ describe('TransactionController', () => {
         expect(transaction.to).toBe(to);
         expect(status).toBe('failed');
         expect(error.message).toContain('foo');
-        resolve();
+        resolve('');
       });
       await controller.approveTransaction(controller.state.transactions[0].id);
     });
@@ -527,7 +528,7 @@ describe('TransactionController', () => {
         });
       } catch (error) {
         expect(error.message).toContain('Uh oh');
-        resolve();
+        resolve('');
       }
     });
   });
@@ -550,7 +551,7 @@ describe('TransactionController', () => {
         expect(transaction.to).toBe(to);
         expect(status).toBe('failed');
         expect(error.message).toContain('No sign method defined');
-        resolve();
+        resolve('');
       });
       await controller.approveTransaction(controller.state.transactions[0].id);
     });
@@ -578,7 +579,7 @@ describe('TransactionController', () => {
         const { transaction, status } = controller.state.transactions[0];
         expect(transaction.from).toBe(from);
         expect(status).toBe('submitted');
-        resolve();
+        resolve('');
       });
       controller.approveTransaction(controller.state.transactions[0].id);
     });
@@ -605,7 +606,7 @@ describe('TransactionController', () => {
 
       controller.hub.once(`${controller.state.transactions[0].id}:confirmed`, () => {
         expect(controller.state.transactions[0].status).toBe('confirmed');
-        resolve();
+        resolve('');
       });
       controller.queryTransactionStatuses();
     });
@@ -727,7 +728,7 @@ describe('TransactionController', () => {
       });
       result.catch((error) => {
         expect(error.message).toContain('User cancelled the transaction');
-        resolve();
+        resolve('');
       });
       controller.stopTransaction(controller.state.transactions[0].id);
     });
@@ -750,7 +751,7 @@ describe('TransactionController', () => {
         await controller.stopTransaction(controller.state.transactions[0].id);
       } catch (error) {
         expect(error.message).toContain('No sign method defined');
-        resolve();
+        resolve('');
       }
     });
   });
@@ -777,7 +778,7 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toHaveLength(2);
       expect(controller.state.transactions[1].transaction.gasPrice).toBe('0x5916a6d6');
-      resolve();
+      resolve('');
     });
   });
 });

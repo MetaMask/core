@@ -3,7 +3,7 @@ import { getOnce } from 'fetch-mock';
 import AssetsController from '../src/assets/AssetsController';
 import ComposableController from '../src/ComposableController';
 import PreferencesController from '../src/user/PreferencesController';
-import { NetworkController } from '../src/network/NetworkController';
+import { NetworkController, NetworksChainId } from '../src/network/NetworkController';
 import { AssetsContractController } from '../src/assets/AssetsContractController';
 
 const HttpProvider = require('ethjs-provider-http');
@@ -166,11 +166,11 @@ describe('AssetsController', () => {
   it('should add token by provider type', async () => {
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'ropsten';
-    network.update({ provider: { type: firstNetworkType } });
+    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
     await assetsController.addToken('foo', 'bar', 2);
-    network.update({ provider: { type: secondNetworkType } });
+    network.update({ provider: { type: secondNetworkType, chainId: NetworksChainId[secondNetworkType] } });
     expect(assetsController.state.tokens).toHaveLength(0);
-    network.update({ provider: { type: firstNetworkType } });
+    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
     expect(assetsController.state.tokens[0]).toEqual({
       address: '0xfoO',
       decimals: 2,
@@ -204,13 +204,13 @@ describe('AssetsController', () => {
   it('should remove token by provider type', async () => {
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'ropsten';
-    network.update({ provider: { type: firstNetworkType } });
+    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
     await assetsController.addToken('fou', 'baz', 2);
-    network.update({ provider: { type: secondNetworkType } });
+    network.update({ provider: { type: secondNetworkType, chainId: NetworksChainId[secondNetworkType] } });
     await assetsController.addToken('foo', 'bar', 2);
     assetsController.removeToken('0xfoO');
     expect(assetsController.state.tokens).toHaveLength(0);
-    network.update({ provider: { type: firstNetworkType } });
+    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
     expect(assetsController.state.tokens[0]).toEqual({
       address: '0xFOu',
       decimals: 2,
@@ -310,11 +310,11 @@ describe('AssetsController', () => {
     sandbox
       .stub(assetsController, 'getCollectibleInformation' as any)
       .returns({ name: 'name', image: 'url', description: 'description' });
-    network.update({ provider: { type: firstNetworkType } });
+    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
     await assetsController.addCollectible('foo', 1234);
-    network.update({ provider: { type: secondNetworkType } });
+    network.update({ provider: { type: secondNetworkType, chainId: NetworksChainId[secondNetworkType] } });
     expect(assetsController.state.collectibles).toHaveLength(0);
-    network.update({ provider: { type: firstNetworkType } });
+    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
     expect(assetsController.state.collectibles[0]).toEqual({
       address: '0xfoO',
       description: 'description',
@@ -393,14 +393,14 @@ describe('AssetsController', () => {
       .returns({ name: 'name', image: 'url', description: 'description' });
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'ropsten';
-    network.update({ provider: { type: firstNetworkType } });
+    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
     await assetsController.addCollectible('fou', 4321);
-    network.update({ provider: { type: secondNetworkType } });
+    network.update({ provider: { type: secondNetworkType, chainId: NetworksChainId[secondNetworkType] } });
     await assetsController.addCollectible('foo', 1234);
     assetsController.removeToken('0xfoO');
     assetsController.removeCollectible('0xfoO', 1234);
     expect(assetsController.state.collectibles).toHaveLength(0);
-    network.update({ provider: { type: firstNetworkType } });
+    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
     expect(assetsController.state.collectibles[0]).toEqual({
       address: '0xFOu',
       description: 'description',
@@ -415,7 +415,7 @@ describe('AssetsController', () => {
     const address = '0x123';
     preferences.update({ selectedAddress: address });
     expect(assetsController.context.PreferencesController.state.selectedAddress).toEqual(address);
-    network.update({ provider: { type: networkType } });
+    network.update({ provider: { type: networkType, chainId: NetworksChainId[networkType] } });
     expect(assetsController.context.NetworkController.state.provider.type).toEqual(networkType);
   });
 
@@ -445,7 +445,7 @@ describe('AssetsController', () => {
         )
         .catch((error) => {
           expect(error.message).toContain('Asset of type ERC721 not supported');
-          resolve();
+          resolve('');
         });
     });
   });
@@ -467,7 +467,7 @@ describe('AssetsController', () => {
       });
       result.catch((error) => {
         expect(error.message).toContain('User rejected to watch the asset.');
-        resolve();
+        resolve('');
       });
     });
   });
@@ -485,7 +485,7 @@ describe('AssetsController', () => {
       result.then((res) => {
         expect(assetsController.state.suggestedAssets).toHaveLength(0);
         expect(res).toBe('0xe9f786dfdd9ae4d57e830acb52296837765f0e5b');
-        resolve();
+        resolve('');
       });
       await assetsController.acceptWatchAsset(suggestedAssetMeta.id);
     });
@@ -509,7 +509,7 @@ describe('AssetsController', () => {
       await assetsController.acceptWatchAsset(suggestedAssetMeta.id);
       result.catch((error) => {
         expect(error.message).toContain('Asset of type ERC721 not supported');
-        resolve();
+        resolve('');
       });
     });
   });
