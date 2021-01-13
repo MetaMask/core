@@ -1,5 +1,5 @@
 import { stub } from 'sinon';
-import NetworkController, { ProviderConfig } from '../src/network/NetworkController';
+import NetworkController, { NetworksChainId, ProviderConfig } from '../src/network/NetworkController';
 
 const Web3ProviderEngine = require('web3-provider-engine');
 
@@ -12,6 +12,7 @@ describe('NetworkController', () => {
       network: 'loading',
       provider: {
         type: 'mainnet',
+        chainId: '1',
       },
     });
   });
@@ -30,7 +31,7 @@ describe('NetworkController', () => {
     const testConfig = {
       infuraProjectId: 'foo',
     };
-    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'kovan' } });
+    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'kovan', chainId: NetworksChainId.kovan } });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
@@ -39,7 +40,7 @@ describe('NetworkController', () => {
     const testConfig = {
       infuraProjectId: 'foo',
     };
-    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'rinkeby' } });
+    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'rinkeby', chainId: NetworksChainId.rinkeby } });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
@@ -48,7 +49,7 @@ describe('NetworkController', () => {
     const testConfig = {
       infuraProjectId: 'foo',
     };
-    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'ropsten' } });
+    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'ropsten', chainId: NetworksChainId.ropsten } });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
@@ -57,13 +58,13 @@ describe('NetworkController', () => {
     const testConfig = {
       infuraProjectId: 'foo',
     };
-    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'mainnet' } });
+    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'mainnet', chainId: NetworksChainId.mainnet } });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
 
   it('should create a provider instance for local network', () => {
-    const controller = new NetworkController(undefined, { network: '0', provider: { type: 'localhost' } });
+    const controller = new NetworkController(undefined, { network: '0', provider: { type: 'localhost', chainId: NetworksChainId.rpc } });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
@@ -74,6 +75,7 @@ describe('NetworkController', () => {
       provider: {
         rpcTarget: RPC_TARGET,
         type: 'rpc',
+        chainId: NetworksChainId.mainnet,
       },
     });
     controller.providerConfig = {} as ProviderConfig;
@@ -82,7 +84,7 @@ describe('NetworkController', () => {
 
   it('should set new RPC target', () => {
     const controller = new NetworkController();
-    controller.setRpcTarget(RPC_TARGET);
+    controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
     expect(controller.state.provider.rpcTarget).toBe(RPC_TARGET);
   });
 
@@ -114,7 +116,7 @@ describe('NetworkController', () => {
       controller.providerConfig = {} as ProviderConfig;
       setTimeout(() => {
         expect(controller.state.network !== 'loading').toBe(true);
-        resolve();
+        resolve('');
       }, 4500);
     });
   });
