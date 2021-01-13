@@ -417,6 +417,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
+    /* istanbul ignore next */
     const networkID = network?.state?.provider?.chainId;
 
     const transactionMeta = {

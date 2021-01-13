@@ -70,6 +70,13 @@ const MOCK_NETWORK = {
     /* eslint-disable-line no-empty */
   },
 };
+const MOCK_NETWORK_WITHOUT_CHAIN_ID = {
+  provider: PROVIDER,
+  state: { network: '3', provider: { type: 'ropsten' } },
+  subscribe: () => {
+    /* eslint-disable-line no-empty */
+  },
+};
 const MOCK_MAINNET_NETWORK = {
   provider: MAINNET_PROVIDER,
   state: { network: '1', provider: { type: 'mainnet', chainId: NetworksChainId.mainnet } },
@@ -551,6 +558,31 @@ describe('TransactionController', () => {
         expect(transaction.to).toBe(to);
         expect(status).toBe('failed');
         expect(error.message).toContain('No sign method defined');
+        resolve('');
+      });
+      await controller.approveTransaction(controller.state.transactions[0].id);
+    });
+  });
+
+  it('should fail if no chainId defined', () => {
+    return new Promise(async (resolve) => {
+      const controller = new TransactionController({
+        provider: PROVIDER,
+        sign: async (transaction: any) => transaction,
+      });
+      controller.context = {
+        NetworkController: MOCK_NETWORK_WITHOUT_CHAIN_ID,
+      } as any;
+      controller.onComposed();
+      const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
+      const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+      const { result } = await controller.addTransaction({ from, to });
+      result.catch((error) => {
+        const { transaction, status } = controller.state.transactions[0];
+        expect(transaction.from).toBe(from);
+        expect(transaction.to).toBe(to);
+        expect(status).toBe('failed');
+        expect(error.message).toContain('No chainId defined');
         resolve('');
       });
       await controller.approveTransaction(controller.state.transactions[0].id);
