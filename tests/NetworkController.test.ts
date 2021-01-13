@@ -31,7 +31,10 @@ describe('NetworkController', () => {
     const testConfig = {
       infuraProjectId: 'foo',
     };
-    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'kovan', chainId: NetworksChainId.kovan } });
+    const controller = new NetworkController(testConfig, {
+      network: '0',
+      provider: { type: 'kovan', chainId: NetworksChainId.kovan },
+    });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
@@ -40,7 +43,10 @@ describe('NetworkController', () => {
     const testConfig = {
       infuraProjectId: 'foo',
     };
-    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'rinkeby', chainId: NetworksChainId.rinkeby } });
+    const controller = new NetworkController(testConfig, {
+      network: '0',
+      provider: { type: 'rinkeby', chainId: NetworksChainId.rinkeby },
+    });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
@@ -49,7 +55,10 @@ describe('NetworkController', () => {
     const testConfig = {
       infuraProjectId: 'foo',
     };
-    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'ropsten', chainId: NetworksChainId.ropsten } });
+    const controller = new NetworkController(testConfig, {
+      network: '0',
+      provider: { type: 'ropsten', chainId: NetworksChainId.ropsten },
+    });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
@@ -58,13 +67,19 @@ describe('NetworkController', () => {
     const testConfig = {
       infuraProjectId: 'foo',
     };
-    const controller = new NetworkController(testConfig, { network: '0', provider: { type: 'mainnet', chainId: NetworksChainId.mainnet } });
+    const controller = new NetworkController(testConfig, {
+      network: '0',
+      provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
+    });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
 
   it('should create a provider instance for local network', () => {
-    const controller = new NetworkController(undefined, { network: '0', provider: { type: 'localhost', chainId: NetworksChainId.rpc } });
+    const controller = new NetworkController(undefined, {
+      network: '0',
+      provider: { type: 'localhost', chainId: NetworksChainId.rpc },
+    });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
