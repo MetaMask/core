@@ -66,23 +66,17 @@ const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io/v3/341eacb5
 const MOCK_NETWORK = {
   provider: PROVIDER,
   state: { network: '3', provider: { type: 'ropsten', chainId: NetworksChainId.ropsten } },
-  subscribe: () => {
-    /* eslint-disable-line no-empty */
-  },
+  subscribe: () => undefined,
 };
 const MOCK_NETWORK_WITHOUT_CHAIN_ID = {
   provider: PROVIDER,
   state: { network: '3', provider: { type: 'ropsten' } },
-  subscribe: () => {
-    /* eslint-disable-line no-empty */
-  },
+  subscribe: () => undefined,
 };
 const MOCK_MAINNET_NETWORK = {
   provider: MAINNET_PROVIDER,
   state: { network: '1', provider: { type: 'mainnet', chainId: NetworksChainId.mainnet } },
-  subscribe: () => {
-    /* eslint-disable-line no-empty */
-  },
+  subscribe: () => undefined,
 };
 
 const ETH_TRANSACTIONS = [

@@ -180,7 +180,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
     super(config, state);
     this.defaultState = {
       network: 'loading',
-      provider: { type: 'mainnet', chainId: '1' },
+      provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
     };
     this.initialize();
   }
