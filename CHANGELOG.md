@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [6.0.0] - 2021-01-19
+
+### Changed
+
+- Remove default approval controller type ([#321](https://github.com/MetaMask/controllers/pull/321))
+
+### Fixed
+
+- Enforce the usage of `chainId` instead of `networkId` in `NetworkController` ([#324](https://github.com/MetaMask/controllers/pull/324))
+
 ## [5.1.0] - 2020-12-02
 
 ### Changed
@@ -151,7 +161,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v5.1.0...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v6.0.0...HEAD
+[6.0.0]:https://github.com/MetaMask/controllers/compare/v5.1.0...v6.0.0
 [5.1.0]:https://github.com/MetaMask/controllers/compare/v5.0.0...v5.1.0
 [5.0.0]:https://github.com/MetaMask/controllers/compare/v4.2.0...v5.0.0
 [4.2.0]:https://github.com/MetaMask/controllers/compare/v4.1.0...v4.2.0
