@@ -96,7 +96,17 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
     const newContractBalances: { [address: string]: typeof BN } = {};
     for (const i in tokens) {
       const { address } = tokens[i];
-      newContractBalances[address] = await assetsContract.getBalanceOf(address, selectedAddress);
+      /* istanbul ignore next */
+      try {
+        newContractBalances[address] = await assetsContract.getBalanceOf(address, selectedAddress);
+      } catch (error) {
+        /** TODO
+         * Come up with a better way of indicating `assetsContract.getBalanceOf` failed...
+         * displaying 0 (again) will likely cause some confusion, but at least it'll just be
+         * the offending token(s) vs everything after it.
+         */
+        newContractBalances[address] = 0;
+      }
     }
     this.update({ contractBalances: newContractBalances });
   }
