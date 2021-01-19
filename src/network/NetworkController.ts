@@ -11,6 +11,16 @@ const { Mutex } = require('await-semaphore');
  */
 export type NetworkType = 'kovan' | 'localhost' | 'mainnet' | 'rinkeby' | 'goerli' | 'ropsten' | 'rpc';
 
+export enum NetworksChainId {
+  mainnet = '1',
+  kovan = '42',
+  rinkeby = '4',
+  goerli = '5',
+  ropsten = '3',
+  localhost = '',
+  rpc = '',
+}
+
 /**
  * @type ProviderConfig
  *
@@ -25,7 +35,7 @@ export type NetworkType = 'kovan' | 'localhost' | 'mainnet' | 'rinkeby' | 'goerl
 export interface ProviderConfig {
   rpcTarget?: string;
   type: NetworkType;
-  chainId?: string;
+  chainId: string;
   ticker?: string;
   nickname?: string;
 }
@@ -170,7 +180,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
     super(config, state);
     this.defaultState = {
       network: 'loading',
-      provider: { type: 'mainnet' },
+      provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
     };
     this.initialize();
   }
@@ -213,7 +223,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
     this.update({
       provider: {
         ...providerState,
-        ...{ type, ticker: 'ETH' },
+        ...{ type, ticker: 'ETH', chainId: NetworksChainId[type] },
       },
     });
     this.refreshNetwork();
@@ -223,11 +233,11 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
    * Convenience method to update provider RPC settings
    *
    * @param rpcTarget - RPC endpoint URL
-   * @param chainId? - Network ID as per EIP-155
+   * @param chainId - Network ID as per EIP-155
    * @param ticker? - Currency ticker
    * @param nickname? - Personalized network name
    */
-  setRpcTarget(rpcTarget: string, chainId?: string, ticker?: string, nickname?: string) {
+  setRpcTarget(rpcTarget: string, chainId: string, ticker?: string, nickname?: string) {
     this.update({
       provider: {
         ...this.state.provider,

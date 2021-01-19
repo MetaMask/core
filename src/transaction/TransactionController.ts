@@ -417,9 +417,12 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
+    /* istanbul ignore next */
+    const networkID = network?.state?.provider?.chainId;
+
     const transactionMeta = {
       id: random(),
-      networkID: network ? network.state.network : /* istanbul ignore next */ '1',
+      networkID,
       origin,
       status: 'unapproved',
       time: Date.now(),
@@ -472,7 +475,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     const { transactions } = this.state;
     const network = this.context.NetworkController as NetworkController;
     /* istanbul ignore next */
-    const currentNetworkID = network ? network.state.network : '1';
+    const currentChainId = network?.state?.provider?.chainId;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const { from } = transactionMeta.transaction;
@@ -480,12 +483,15 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     if (!this.sign) {
       this.failTransaction(transactionMeta, new Error('No sign method defined.'));
       return;
+    } else if (!currentChainId) {
+      this.failTransaction(transactionMeta, new Error('No chainId defined.'));
+      return;
     }
 
     try {
       transactionMeta.status = 'approved';
       transactionMeta.transaction.nonce = await this.query('getTransactionCount', [from, 'pending']);
-      transactionMeta.transaction.chainId = parseInt(currentNetworkID, undefined);
+      transactionMeta.transaction.chainId = parseInt(currentChainId, undefined);
 
       const ethTransaction = new Transaction({ ...transactionMeta.transaction });
       await this.sign(ethTransaction, transactionMeta.transaction.from);
@@ -674,7 +680,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
   async queryTransactionStatuses() {
     const { transactions } = this.state;
     const network = this.context.NetworkController;
-    const currentNetworkID = network.state.network;
+    const currentNetworkID = network.state.provider.chainId;
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
@@ -726,7 +732,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     if (!network) {
       return;
     }
-    const currentNetworkID = network.state.network;
+    const currentNetworkID = network.state.provider.chainId;
     const newTransactions = this.state.transactions.filter(({ networkID }) => networkID !== currentNetworkID);
     this.update({ transactions: newTransactions });
   }

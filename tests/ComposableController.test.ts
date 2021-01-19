@@ -5,7 +5,7 @@ import ComposableController from '../src/ComposableController';
 import PreferencesController from '../src/user/PreferencesController';
 import TokenRatesController from '../src/assets/TokenRatesController';
 import { AssetsController } from '../src/assets/AssetsController';
-import { NetworkController } from '../src/network/NetworkController';
+import { NetworkController, NetworksChainId } from '../src/network/NetworkController';
 import { AssetsContractController } from '../src/assets/AssetsContractController';
 import CurrencyRateController from '../src/assets/CurrencyRateController';
 
@@ -47,7 +47,7 @@ describe('ComposableController', () => {
       },
       NetworkController: {
         network: 'loading',
-        provider: { type: 'mainnet' },
+        provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
       },
       PreferencesController: {
         featureFlags: {},
@@ -93,7 +93,7 @@ describe('ComposableController', () => {
       lostIdentities: {},
       nativeCurrency: 'ETH',
       network: 'loading',
-      provider: { type: 'mainnet' },
+      provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
       selectedAddress: '',
       suggestedAssets: [],
       tokens: [],
@@ -147,7 +147,7 @@ describe('ComposableController', () => {
       lostIdentities: {},
       nativeCurrency: 'ETH',
       network: 'loading',
-      provider: { type: 'mainnet' },
+      provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
       selectedAddress: '',
       suggestedAssets: [],
       tokens: [],

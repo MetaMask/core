@@ -1,7 +1,7 @@
 import { createSandbox, stub } from 'sinon';
 import { getOnce, get } from 'fetch-mock';
 import { AssetsDetectionController } from '../src/assets/AssetsDetectionController';
-import { NetworkController } from '../src/network/NetworkController';
+import { NetworkController, NetworksChainId } from '../src/network/NetworkController';
 import { PreferencesController } from '../src/user/PreferencesController';
 import { ComposableController } from '../src/ComposableController';
 import { AssetsController } from '../src/assets/AssetsController';
@@ -189,7 +189,7 @@ describe('AssetsDetectionController', () => {
         expect(mockCollectibles.calledTwice).toBe(true);
         mockTokens.restore();
         mockCollectibles.restore();
-        resolve();
+        resolve('');
       }, 15);
     });
   });
@@ -210,7 +210,7 @@ describe('AssetsDetectionController', () => {
       expect(mockCollectibles.called).toBe(false);
       mockTokens.restore();
       mockCollectibles.restore();
-      resolve();
+      resolve('');
     });
   });
 
@@ -444,9 +444,9 @@ describe('AssetsDetectionController', () => {
     expect(detectAssets.calledTwice).toBe(false);
     preferences.update({ selectedAddress: firstAddress });
     expect(assetsDetection.context.PreferencesController.state.selectedAddress).toEqual(firstAddress);
-    network.update({ provider: { type: secondNetworkType } });
+    network.update({ provider: { type: secondNetworkType, chainId: NetworksChainId[secondNetworkType] } });
     expect(assetsDetection.context.NetworkController.state.provider.type).toEqual(secondNetworkType);
-    network.update({ provider: { type: firstNetworkType } });
+    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
     expect(assetsDetection.context.NetworkController.state.provider.type).toEqual(firstNetworkType);
     assets.update({ tokens: TOKENS });
     expect(assetsDetection.config.tokens).toEqual(TOKENS);
