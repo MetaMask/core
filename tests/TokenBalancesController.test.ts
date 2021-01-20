@@ -89,7 +89,7 @@ describe('TokenBalancesController', () => {
     expect(tokenBalances.state.contractBalances[address].toNumber()).toBeGreaterThan(0);
   });
 
-  it('should handle error case', async () => {
+  it('should handle `getBalanceOf` error case', async () => {
     const errorMsg = 'Failed to get balance';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     expect(tokenBalances.state.contractBalances).toEqual({});
@@ -104,6 +104,7 @@ describe('TokenBalancesController', () => {
     stub(assetsContract, 'getBalanceOf').returns(Promise.reject(new Error(errorMsg)));
     await tokenBalances.updateBalances();
     expect(Object.keys(tokenBalances.state.contractBalances)).toContain(address);
+    expect(tokenBalances.state.contractBalances[address]).toBeInstanceOf(Error);
     expect(tokenBalances.state.contractBalances[address].message).toBe(errorMsg);
   });
 
