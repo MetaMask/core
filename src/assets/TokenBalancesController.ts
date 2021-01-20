@@ -93,7 +93,7 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
     const assets = this.context.AssetsController as AssetsController;
     const { selectedAddress } = assets.config;
     const { tokens } = this.config;
-    const newContractBalances: { [address: string]: typeof BN | Error } = {};
+    const newContractBalances: { [address: string]: typeof BN } = {};
     for (const i in tokens) {
       const { address } = tokens[i];
       try {
