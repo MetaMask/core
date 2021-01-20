@@ -5,6 +5,7 @@ import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
 
 const { BN } = require('ethereumjs-util');
+export const errorMsg = 'Failed to get balance';
 
 export { BN };
 
@@ -93,19 +94,13 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
     const assets = this.context.AssetsController as AssetsController;
     const { selectedAddress } = assets.config;
     const { tokens } = this.config;
-    const newContractBalances: { [address: string]: typeof BN } = {};
+    const newContractBalances: { [address: string]: typeof BN | Error } = {};
     for (const i in tokens) {
       const { address } = tokens[i];
-      /* istanbul ignore next */
       try {
         newContractBalances[address] = await assetsContract.getBalanceOf(address, selectedAddress);
       } catch (error) {
-        /** TODO
-         * Come up with a better way of indicating `assetsContract.getBalanceOf` failed...
-         * displaying 0 (again) will likely cause some confusion, but at least it'll just be
-         * the offending token(s) vs everything after it.
-         */
-        newContractBalances[address] = 0;
+        newContractBalances[address] = new Error(errorMsg);
       }
     }
     this.update({ contractBalances: newContractBalances });
