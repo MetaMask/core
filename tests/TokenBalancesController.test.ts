@@ -90,6 +90,7 @@ describe('TokenBalancesController', () => {
   });
 
   it('should handle error case', async () => {
+    const errorMsg = 'Failed to get balance';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     expect(tokenBalances.state.contractBalances).toEqual({});
     tokenBalances.configure({ tokens: [{ address, decimals: 18, symbol: 'EOS' }] });
@@ -100,10 +101,10 @@ describe('TokenBalancesController', () => {
 
     new ComposableController([assets, assetsContract, network, preferences, tokenBalances]);
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    stub(assetsContract, 'getBalanceOf').returns(Promise.reject());
+    stub(assetsContract, 'getBalanceOf').returns(Promise.reject(new Error(errorMsg)));
     await tokenBalances.updateBalances();
     expect(Object.keys(tokenBalances.state.contractBalances)).toContain(address);
-    expect(tokenBalances.state.contractBalances[address].message).toBe('Failed to get balance');
+    expect(tokenBalances.state.contractBalances[address].message).toBe(errorMsg);
   });
 
   it('should subscribe to new sibling assets controllers', async () => {

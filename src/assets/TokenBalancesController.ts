@@ -5,7 +5,6 @@ import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
 
 const { BN } = require('ethereumjs-util');
-export const errorMsg = 'Failed to get balance';
 
 export { BN };
 
@@ -100,7 +99,7 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
       try {
         newContractBalances[address] = await assetsContract.getBalanceOf(address, selectedAddress);
       } catch (error) {
-        newContractBalances[address] = new Error(errorMsg);
+        newContractBalances[address] = error;
       }
     }
     this.update({ contractBalances: newContractBalances });
