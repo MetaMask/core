@@ -99,7 +99,8 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
       try {
         newContractBalances[address] = await assetsContract.getBalanceOf(address, selectedAddress);
       } catch (error) {
-        newContractBalances[address] = error;
+        newContractBalances[address] = 0;
+        tokens[i].balanceError = error;
       }
     }
     this.update({ contractBalances: newContractBalances });

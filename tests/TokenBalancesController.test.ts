@@ -104,8 +104,6 @@ describe('TokenBalancesController', () => {
     stub(assetsContract, 'getBalanceOf').returns(Promise.reject(new Error(errorMsg)));
     await tokenBalances.updateBalances();
     expect(Object.keys(tokenBalances.state.contractBalances)).toContain(address);
-    expect(tokenBalances.state.contractBalances[address]).toBeInstanceOf(Error);
-    expect(tokenBalances.state.contractBalances[address].message).toBe(errorMsg);
   });
 
   it('should subscribe to new sibling assets controllers', async () => {
