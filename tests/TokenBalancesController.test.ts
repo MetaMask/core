@@ -86,8 +86,8 @@ describe('TokenBalancesController', () => {
     stub(assetsContract, 'getBalanceOf').returns(new BN(1));
     await tokenBalances.updateBalances();
     const { tokens } = tokenBalances.config;
-    const token = tokens.find(token => token.address === address);
-    expect(token?.balanceError).toBe(undefined);
+    const _token = tokens.find((token) => token.address === address);
+    expect(_token?.balanceError).toBeUndefined();
     expect(Object.keys(tokenBalances.state.contractBalances)).toContain(address);
     expect(tokenBalances.state.contractBalances[address].toNumber()).toBeGreaterThan(0);
   });
@@ -107,9 +107,9 @@ describe('TokenBalancesController', () => {
     stub(assetsContract, 'getBalanceOf').returns(Promise.reject(new Error(errorMsg)));
     await tokenBalances.updateBalances();
     const { tokens } = tokenBalances.config;
-    const token = tokens.find(token => token.address === address);
-    expect(token?.balanceError).toBeInstanceOf(Error);
-    expect(token?.balanceError?.message).toBe(errorMsg);
+    const _token = tokens.find((token) => token.address === address);
+    expect(_token?.balanceError).toBeInstanceOf(Error);
+    expect(_token?.balanceError?.message).toBe(errorMsg);
     expect(tokenBalances.state.contractBalances[address]).toEqual(0);
   });
 
