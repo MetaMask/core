@@ -98,7 +98,7 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
       const { address } = tokens[i];
       try {
         newContractBalances[address] = await assetsContract.getBalanceOf(address, selectedAddress);
-        tokens[i].balanceError = undefined;
+        tokens[i].balanceError = null;
       } catch (error) {
         newContractBalances[address] = 0;
         tokens[i].balanceError = error;

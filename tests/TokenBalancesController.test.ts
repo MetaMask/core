@@ -91,7 +91,7 @@ describe('TokenBalancesController', () => {
     stub(assetsContract, 'getBalanceOf').returns(new BN(1));
     await tokenBalances.updateBalances();
     const mytoken = getToken(address);
-    expect(mytoken?.balanceError).toBeUndefined();
+    expect(mytoken?.balanceError).toBeNull();
     expect(Object.keys(tokenBalances.state.contractBalances)).toContain(address);
     expect(tokenBalances.state.contractBalances[address].toNumber()).toBeGreaterThan(0);
   });
