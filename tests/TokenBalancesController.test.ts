@@ -85,6 +85,9 @@ describe('TokenBalancesController', () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     stub(assetsContract, 'getBalanceOf').returns(new BN(1));
     await tokenBalances.updateBalances();
+    const { tokens } = tokenBalances.config;
+    const token = tokens.find(token => token.address === address);
+    expect(token?.balanceError).toBe(undefined);
     expect(Object.keys(tokenBalances.state.contractBalances)).toContain(address);
     expect(tokenBalances.state.contractBalances[address].toNumber()).toBeGreaterThan(0);
   });
@@ -103,7 +106,11 @@ describe('TokenBalancesController', () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     stub(assetsContract, 'getBalanceOf').returns(Promise.reject(new Error(errorMsg)));
     await tokenBalances.updateBalances();
-    expect(Object.keys(tokenBalances.state.contractBalances)).toContain(address);
+    const { tokens } = tokenBalances.config;
+    const token = tokens.find(token => token.address === address);
+    expect(token?.balanceError).toBeInstanceOf(Error);
+    expect(token?.balanceError?.message).toBe(errorMsg);
+    expect(tokenBalances.state.contractBalances[address]).toEqual(0);
   });
 
   it('should subscribe to new sibling assets controllers', async () => {

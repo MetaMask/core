@@ -31,7 +31,7 @@ export interface Token {
   decimals: number;
   symbol: string;
   image?: string;
-  balanceError?: Error;
+  balanceError?: Error | undefined;
 }
 
 /**
