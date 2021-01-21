@@ -108,12 +108,20 @@ describe('TokenBalancesController', () => {
 
     new ComposableController([assets, assetsContract, network, preferences, tokenBalances]);
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    stub(assetsContract, 'getBalanceOf').returns(Promise.reject(new Error(errorMsg)));
+    const mock = stub(assetsContract, 'getBalanceOf').returns(Promise.reject(new Error(errorMsg)));
     await tokenBalances.updateBalances();
     const mytoken = getToken(address);
     expect(mytoken?.balanceError).toBeInstanceOf(Error);
     expect(mytoken?.balanceError?.message).toBe(errorMsg);
     expect(tokenBalances.state.contractBalances[address]).toEqual(0);
+
+    // test reset case
+    mock.restore();
+    stub(assetsContract, 'getBalanceOf').returns(new BN(1));
+    await tokenBalances.updateBalances();
+    expect(mytoken?.balanceError).toBeNull();
+    expect(Object.keys(tokenBalances.state.contractBalances)).toContain(address);
+    expect(tokenBalances.state.contractBalances[address].toNumber()).toBeGreaterThan(0);
   });
 
   it('should subscribe to new sibling assets controllers', async () => {
