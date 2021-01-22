@@ -20,4 +20,5 @@ export * from './assets/TokenRatesController';
 export * from './transaction/TransactionController';
 export * from './message-manager/PersonalMessageManager';
 export * from './message-manager/TypedMessageManager';
+export * from './notification/NotificationController';
 export { util };
