@@ -28,7 +28,7 @@ export interface NotificationState extends BaseState{
 const defaultState = { notifications: [] };
 
 /**
- * Controller for managing the notifications for new features introducesd into the applications
+ * Controller for managing in-app announcement notifications.
  */
 export class NotificationController extends BaseController<NotificationConfig, NotificationState> {
 
