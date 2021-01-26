@@ -19,7 +19,7 @@ export interface Notification{
  * from `metamask-extension`
  */
 export interface NotificationConfig extends BaseConfig{
-  notificationsFromFile: { [whatsnew: string]: Notification[]};
+  allNotifications: Notification[];
 }
 
 /**
@@ -27,10 +27,10 @@ export interface NotificationConfig extends BaseConfig{
  * that are still active
  */
 export interface NotificationState extends BaseState{
-  notifications: Notification[];
+  notifications: { [id: number]: Notification};
 }
 
-const defaultState = { notifications: [] };
+const defaultState = {};
 
 /**
  * Controller for managing in-app announcement notifications.
@@ -44,44 +44,38 @@ export class NotificationController extends BaseController<NotificationConfig, N
    * @param state - Initial state to set on this controller
    */
   constructor(config: NotificationConfig, state?: NotificationState) {
-    const { notificationsFromFile } = config;
+    const { allNotifications } = config;
     super(config, state || defaultState);
     this.initialize();
-    this._addNotifications(notificationsFromFile.whatsnew);
+    this._addNotifications(allNotifications);
   }
 
   /**
-   * Compares the notifications in teh states with the notifications from the files
-   * to check if there is any new notitifcations/announcements
+   * Compares the notifications in state with the notifications from file
+   * to check if there are any new notifications/announcements
    * if yes, the new notification will be added to the state with a flag indicating
    * that the notification is not seen by the user.
    *
-   *  @param filedNotifications
+   *  @param allNotifications
    */
-  private _addNotifications(filedNotifications: Notification[]): void{
-    const stateNotifications = this.state.notifications;
-    let exists: boolean;
-    if (this.state.notifications.length > 0) {
-      for (const fromFile of filedNotifications) {
-        exists = false;
-        for (const fromState of this.state.notifications) {
-          if (fromFile.id === fromState.id) {
-            exists = true;
-            break;
-          }
+  private _addNotifications(allNotifications: Notification[]): void{
+    const existingNotificationIds: number[] = this.state.notifications ? Object.keys(this.state.notifications).map(Number) : [];
+
+    const newNotifications: Notification[] = allNotifications
+      .filter((newNotification) => !existingNotificationIds.some((existingId) => existingId === newNotification.id))
+      .map((notification) => {
+          notification.isShown = true;
+          return notification;
         }
-        if (!exists) {
-          fromFile.isShown = false;
-          stateNotifications.push(fromFile);
-        }
-      }
-    } else {
-      for (const fromfile of filedNotifications) {
-        fromfile.isShown = false;
-        stateNotifications.push(fromfile);
-      }
-    }
-    this.update({ notifications: stateNotifications }, true);
+      );
+
+    const stateNotifications: Record<number, Notification> = newNotifications
+      .reduce((object: Record<number, Notification>, notification: Notification) => {
+        object[notification.id] = notification;
+        return object;
+      }, {});
+
+    this.update({ notifications: { ...this.state.notifications, ...stateNotifications } }, true);
   }
 
   /**
@@ -92,11 +86,11 @@ export class NotificationController extends BaseController<NotificationConfig, N
    */
   updateViewed(viewedIds: viewedNotification): void {
     const stateNotifications = this.state.notifications;
-    let index = 0;
-    for (const fromState of stateNotifications) {
-      stateNotifications[index].isShown = viewedIds[fromState.id];
-      index += 1;
+
+    for (const id of Object.keys(stateNotifications)) {
+      stateNotifications[(id as unknown) as number].isShown = viewedIds[(id as unknown) as number];
     }
+
     this.update({ notifications: stateNotifications }, true);
   }
 }
