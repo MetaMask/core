@@ -11,6 +11,7 @@ export interface Notification{
   date: string;
   image?: string;
   actionText: string;
+  actionURL: string;
   isShown?: boolean;
 }
 

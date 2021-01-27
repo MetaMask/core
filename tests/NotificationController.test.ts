@@ -12,7 +12,8 @@ const config1: NotificationConfig = {
       description:
         'MetaMask now aggregates multiple decentralized exchange aggregators to ensure you always get the best swap price with the lowest netwrok fees.',
       date: '12/8/2020',
-      actionText: 'url',
+      actionText: 'Start swapping',
+      actionURL: '/swaps'
     },
     {
       id: 2,
@@ -20,7 +21,8 @@ const config1: NotificationConfig = {
       description:
         'Sync with your extension wallet in seconds. Scan the QR code with your mobile camera to download the app.',
       date: '12/8/2020',
-      actionText: 'url',
+      actionText: 'Get the mobile app',
+      actionURL: 'https://metamask.io/download.html'
     },
   ],
 };
@@ -33,7 +35,8 @@ const config2: NotificationConfig = {
       description:
         'MetaMask now aggregates multiple decentralized exchange aggregators to ensure you always get the best swap price with the lowest netwrok fees.',
       date: '12/8/2020',
-      actionText: 'url',
+      actionText: 'Start swapping',
+      actionURL: '/swaps'
     },
     {
       id: 2,
@@ -41,14 +44,16 @@ const config2: NotificationConfig = {
       description:
         'Sync with your extension wallet in seconds. Scan the QR code with your mobile camera to download the app.',
       date: '12/8/2020',
-      actionText: 'url',
+      actionText: 'Get the mobile app',
+      actionURL: 'https://metamask.io/download.html'
     },
     {
       id: 3,
-      title: 'NSS Survey',
-      description: 'Take NSS survey here',
+      title: 'NPS Survey',
+      description: 'Take NPS survey here',
       date: '12/8/2020',
-      actionText: 'url',
+      actionText: 'Take the Survey',
+      actionURL: 'survey url'
     },
   ],
 };
