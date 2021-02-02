@@ -127,10 +127,10 @@ describe('util', () => {
     });
 
     it('should resolve', async () => {
-        const response = await util.safelyExecuteWithTimeout(() => {
-          return new Promise((res) => setTimeout(() => res('response'), 200));
-        });
-        expect(response).toEqual('response');
+      const response = await util.safelyExecuteWithTimeout(() => {
+        return new Promise((res) => setTimeout(() => res('response'), 200));
+      });
+      expect(response).toEqual('response');
     });
 
     it('should timeout', () => {
