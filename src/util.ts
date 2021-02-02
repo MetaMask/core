@@ -228,7 +228,6 @@ export async function safelyExecuteWithTimeout(
   operation: () => Promise<any>,
   logError = false,
   timeout = 500,
-  retry?: (error: Error) => void,
 ) {
   try {
     return await Promise.race([
@@ -244,8 +243,6 @@ export async function safelyExecuteWithTimeout(
     if (logError) {
       console.error(error);
     }
-    /* istanbul ignore next */
-    retry && retry(error);
   }
 }
 

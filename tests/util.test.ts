@@ -119,6 +119,31 @@ describe('util', () => {
     });
   });
 
+  describe('safelyExecuteWithTimeout', () => {
+    it('should swallow errors', async () => {
+      await util.safelyExecuteWithTimeout(() => {
+        throw new Error('ahh');
+      });
+    });
+
+    it('should resolve', async () => {
+        const response = await util.safelyExecuteWithTimeout(() => {
+          return new Promise((res) => setTimeout(() => res('response'), 200));
+        });
+        expect(response).toEqual('response');
+    });
+
+    it('should timeout', () => {
+      try {
+        util.safelyExecuteWithTimeout(() => {
+          return new Promise((res) => setTimeout(res, 800));
+        });
+      } catch (e) {
+        expect(e.message).toContain('timeout');
+      }
+    });
+  });
+
   describe('validateTransaction', () => {
     it('should throw if no from address', () => {
       expect(() => util.validateTransaction({} as any)).toThrow();
