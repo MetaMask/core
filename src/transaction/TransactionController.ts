@@ -21,7 +21,7 @@ const EthQuery = require('eth-query');
 const Transaction = require('ethereumjs-tx');
 const random = require('uuid/v1');
 const { BN } = require('ethereumjs-util');
-const { Mutex } = require('await-semaphore');
+const { Mutex } = require('async-mutex');
 
 /**
  * @type Result

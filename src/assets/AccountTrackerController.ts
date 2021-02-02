@@ -3,7 +3,7 @@ import PreferencesController from '../user/PreferencesController';
 import { BNToHex, query, safelyExecuteWithTimeout } from '../util';
 
 const EthQuery = require('eth-query');
-const { Mutex } = require('await-semaphore');
+const { Mutex } = require('async-mutex');
 
 /**
  * @type AccountInformation

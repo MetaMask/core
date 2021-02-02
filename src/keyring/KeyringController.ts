@@ -12,7 +12,7 @@ import { PersonalMessageParams } from '../message-manager/PersonalMessageManager
 import { TypedMessageParams } from '../message-manager/TypedMessageManager';
 
 const Keyring = require('eth-keyring-controller');
-const { Mutex } = require('await-semaphore');
+const { Mutex } = require('async-mutex');
 const Wallet = require('ethereumjs-wallet');
 const ethUtil = require('ethereumjs-util');
 const importers = require('ethereumjs-wallet/thirdparty');

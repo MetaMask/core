@@ -1,7 +1,7 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute, handleFetch } from '../util';
 
-const { Mutex } = require('await-semaphore');
+const { Mutex } = require('async-mutex');
 
 /**
  * @type CurrencyRateConfig
