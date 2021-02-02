@@ -239,6 +239,7 @@ export async function safelyExecuteWithTimeout(operation: () => Promise<any>, lo
     if (logError) {
       console.error(error);
     }
+    /* istanbul ignore next */
     retry && retry(error);
   }
 }
