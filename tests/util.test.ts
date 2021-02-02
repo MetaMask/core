@@ -629,7 +629,7 @@ describe('util', () => {
       const ethQuery = new EthQuery(PROVIDER);
       mockFlags.gasPrice = 'Uh oh';
       try {
-         await util.query(ethQuery, 'gasPrice', []);
+        await util.query(ethQuery, 'gasPrice', []);
       } catch (error) {
         expect(error.message).toContain('Uh oh');
       }
