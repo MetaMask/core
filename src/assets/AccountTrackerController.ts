@@ -1,6 +1,6 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import PreferencesController from '../user/PreferencesController';
-import { BNToHex, safelyExecuteWithTimeout } from '../util';
+import { BNToHex, query, safelyExecuteWithTimeout } from '../util';
 
 const EthQuery = require('eth-query');
 const { Mutex } = require('await-semaphore');
@@ -65,18 +65,6 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
       delete accounts[address];
     });
     this.update({ accounts: { ...accounts } });
-  }
-
-  private query(method: string, args: any[] = []): Promise<any> {
-    return new Promise((resolve, reject) => {
-      this.ethQuery[method](...args, (error: Error, result: any) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
   }
 
   /**
@@ -148,7 +136,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
     const { accounts } = this.state;
     for (const address in accounts) {
       await safelyExecuteWithTimeout(async () => {
-        const balance = await this.query('getBalance', [address]);
+        const balance = await query(this.ethQuery, 'getBalance', [address]);
         accounts[address] = { balance: BNToHex(balance) };
         this.update({ accounts: { ...accounts } });
       });

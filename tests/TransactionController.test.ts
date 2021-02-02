@@ -12,6 +12,7 @@ jest.mock('eth-query', () =>
   jest.fn().mockImplementation(() => {
     return {
       estimateGas: (_transaction: any, callback: any) => {
+        console.log('MOCK', callback);
         if (mockFlags.estimateGas) {
           callback(new Error(mockFlags.estimateGas));
           return;

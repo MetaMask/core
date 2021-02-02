@@ -473,9 +473,31 @@ export function normalizeEnsName(ensName: string): string | null {
   return null;
 }
 
+/**
+ * Wrapper method to handle EthQuery requests
+ *
+ * @param ethQuery - EthQuery object initialized with a provider
+ * @param method - Method to request
+ * @param args - Arguments to send
+ *
+ * @returns - Promise resolving the request
+ */
+export function query(ethQuery: any, method: string, args: any[] = []): Promise<any> {
+  return new Promise((resolve, reject) => {
+    ethQuery[method](...args, (error: Error, result: any) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(result);
+    });
+  });
+}
+
 export default {
   BNToHex,
   fractionBN,
+  query,
   getBuyURL,
   handleFetch,
   hexToBN,
