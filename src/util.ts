@@ -224,7 +224,12 @@ export async function safelyExecute(operation: () => Promise<any>, logError = fa
  * @param timeout - Timeout to fail the operation
  * @returns - Promise resolving to the result of the async operation
  */
-export async function safelyExecuteWithTimeout(operation: () => Promise<any>, logError = false, timeout = 500, retry?: (error: Error) => void) {
+export async function safelyExecuteWithTimeout(
+  operation: () => Promise<any>,
+  logError = false,
+  timeout = 500,
+  retry?: (error: Error) => void,
+) {
   try {
     return await Promise.race([
       operation(),
