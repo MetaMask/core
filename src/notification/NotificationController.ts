@@ -1,5 +1,7 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
+type action = () => void;
+
 interface viewedNotification {
   [id: number]: boolean;
 }
@@ -11,7 +13,6 @@ export interface Notification{
   date: string;
   image?: string;
   actionText: string;
-  actionURL: string;
   isShown?: boolean;
 }
 
@@ -20,7 +21,7 @@ export interface Notification{
  * from `metamask-extension`
  */
 export interface NotificationConfig extends BaseConfig{
-  allNotifications: Notification[];
+  allNotifications: Record<string, unknown>[];
 }
 
 /**
@@ -38,7 +39,9 @@ const defaultState = {};
  */
 export class NotificationController extends BaseController<NotificationConfig, NotificationState> {
 
-    /**
+  private readonly allNotifications: Record<string, unknown>[];
+
+  /**
    * Creates a NotificationController instance
    *
    * @param config - Initial options used to configure this controller
@@ -47,8 +50,9 @@ export class NotificationController extends BaseController<NotificationConfig, N
   constructor(config: NotificationConfig, state?: NotificationState) {
     const { allNotifications } = config;
     super(config, state || defaultState);
+    this.allNotifications = [...allNotifications];
     this.initialize();
-    this._addNotifications(allNotifications);
+    this._addNotifications();
   }
 
   /**
@@ -59,14 +63,25 @@ export class NotificationController extends BaseController<NotificationConfig, N
    *
    *  @param allNotifications
    */
-  private _addNotifications(allNotifications: Notification[]): void{
+  private _addNotifications(): void{
     const existingNotificationIds: number[] = this.state.notifications ? Object.keys(this.state.notifications).map(Number) : [];
 
-    const newNotifications: Notification[] = allNotifications
-      .filter((newNotification) => !existingNotificationIds.some((existingId) => existingId === newNotification.id))
+    const newNotifications: Notification[] = this.allNotifications
+      .filter((newNotification) => !existingNotificationIds
+      .some((existingId) => (existingId === newNotification.id)))
       .map((notification) => {
-          notification.isShown = true;
-          return notification;
+        if (!((notification.actionText as string).length > 0 && notification.hasOwnProperty('actionFunction'))) {
+          throw new Error('Must have an actionFunction for an actionText.');
+        }
+        return {
+                  'id': notification.id as number,
+                  'title': notification.title as string,
+                  'description': notification.description as string,
+                  'date': notification.date as string,
+                  'image': notification.image ? notification.image as string : '',
+                  'actionText': notification.actionText as string,
+                  'isShown': false,
+              };
         }
       );
 
@@ -93,5 +108,13 @@ export class NotificationController extends BaseController<NotificationConfig, N
     }
 
     this.update({ notifications: stateNotifications }, true);
+  }
+
+  /**
+   * retuns the actionFucntion
+   * @param id
+   */
+  actionCall(id: number): action {
+    return this.allNotifications.find((notification) => notification.id === id)?.actionFunction as action;
   }
 }
