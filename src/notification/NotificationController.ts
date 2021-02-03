@@ -74,16 +74,15 @@ export class NotificationController extends BaseController<NotificationConfig, N
           throw new Error('Must have an actionFunction for an actionText.');
         }
         return {
-                  'id': notification.id as number,
-                  'title': notification.title as string,
-                  'description': notification.description as string,
-                  'date': notification.date as string,
-                  'image': notification.image ? notification.image as string : '',
-                  'actionText': notification.actionText as string,
-                  'isShown': false,
-              };
-        }
-      );
+          'id': notification.id as number,
+          'title': notification.title as string,
+          'description': notification.description as string,
+          'date': notification.date as string,
+          'image': notification.image ? notification.image as string : '',
+          'actionText': notification.actionText as string,
+          'isShown': false,
+        };
+      });
 
     const stateNotifications: Record<number, Notification> = newNotifications
       .reduce((object: Record<number, Notification>, notification: Notification) => {
@@ -114,7 +113,8 @@ export class NotificationController extends BaseController<NotificationConfig, N
    * retuns the actionFucntion
    * @param id
    */
-  actionCall(id: number): action {
-    return this.allNotifications.find((notification) => notification.id === id)?.actionFunction as action;
+  actionCall(id: number): action | null {
+    const notification = this.allNotifications.find((notify) => notify.id === id);
+    return notification ? notification.actionFunction as action : null;
   }
 }
