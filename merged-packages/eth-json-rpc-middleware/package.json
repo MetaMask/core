@@ -18,10 +18,6 @@
   "files": [
     "*.js"
   ],
-  "resolutions": {
-    "ganache-core/**/elliptic": "^6.5.3",
-    "ganache-core/lodash": "^4.17.19"
-  },
   "devDependencies": {
     "@metamask/eslint-config": "^4.1.0",
     "async": "^2.5.0",
@@ -32,7 +28,7 @@
     "eslint-plugin-node": "^11.1.0",
     "eth-block-tracker": "^4.4.1",
     "ethjs-query": "^0.3.8",
-    "ganache-core": "^2.7.0",
+    "ganache-core": "^2.13.2",
     "tape": "^4.6.3"
   },
   "dependencies": {
