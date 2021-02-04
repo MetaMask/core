@@ -4,9 +4,9 @@ import {
   NotificationState,
 } from '../src/notification/NotificationController';
 
-const swapsHandler = () => console.log('swaps');
-const mobileHandler = () => console.log('mobile');
-const npsHandler = () => console.log('NPS survey');
+const swapsHandler = jest.fn();
+const mobileHandler = jest.fn();
+const npsHandler = jest.fn();
 const config1: NotificationConfig = {
   allNotifications: [
     {
@@ -16,8 +16,10 @@ const config1: NotificationConfig = {
         'MetaMask now aggregates multiple decentralized exchange aggregators to ensure you always get the best swap price with the lowest netwrok fees.',
       date: '12/8/2020',
       image: 'image url',
-      actionText: 'Start swapping',
-      actionFunction: swapsHandler,
+      action: {
+        actionText: 'Start swapping',
+        actionFunction: swapsHandler,
+      },
     },
     {
       id: 2,
@@ -25,8 +27,10 @@ const config1: NotificationConfig = {
       description:
         'Sync with your extension wallet in seconds. Scan the QR code with your mobile camera to download the app.',
       date: '12/8/2020',
-      actionText: 'Get the mobile app',
-      actionFunction: mobileHandler,
+      action: {
+        actionText: 'Get the mobile app',
+        actionFunction: mobileHandler,
+      },
     },
   ],
 };
@@ -39,7 +43,6 @@ const config2: NotificationConfig = {
       description:
         'MetaMask now aggregates multiple decentralized exchange aggregators to ensure you always get the best swap price with the lowest netwrok fees.',
       date: '12/8/2020',
-      actionText: 'Start swapping',
     },
     {
       id: 2,
@@ -48,7 +51,6 @@ const config2: NotificationConfig = {
         'Sync with your extension wallet in seconds. Scan the QR code with your mobile camera to download the app.',
       date: '12/8/2020',
       image: 'image url',
-      actionText: 'Get the mobile app',
     },
   ],
 };
@@ -62,8 +64,10 @@ const config3: NotificationConfig = {
         'MetaMask now aggregates multiple decentralized exchange aggregators to ensure you always get the best swap price with the lowest netwrok fees.',
       date: '12/8/2020',
       image: 'image url',
-      actionText: 'Start swapping',
-      actionFunction: swapsHandler,
+      action: {
+        actionText: 'Start swapping',
+        actionFunction: swapsHandler,
+      },
     },
     {
       id: 2,
@@ -71,16 +75,20 @@ const config3: NotificationConfig = {
       description:
         'Sync with your extension wallet in seconds. Scan the QR code with your mobile camera to download the app.',
       date: '12/8/2020',
-      actionText: 'Get the mobile app',
-      actionFunction: mobileHandler,
+      action: {
+        actionText: 'Get the mobile app',
+        actionFunction: mobileHandler,
+      },
     },
     {
       id: 3,
-      title: 'NPS Survey',
-      description: 'Take NPS survey here',
+      title: 'Help improve MetaMask',
+      description: 'Please shae your experience in this 5 minute survey',
       date: '12/8/2020',
-      actionText: 'Take the Survey',
-      actionFunction: npsHandler,
+      action: {
+        actionText: 'Start Survey',
+        actionFunction: npsHandler,
+      },
     },
   ],
 };
@@ -96,7 +104,7 @@ describe('notification controller', () => {
     try {
       new NotificationController(config2);
     } catch (error) {
-      expect(error.message).toEqual('Must have an actionFunction for an actionText.');
+      expect(error.message).toEqual('Must have an actionText and actionFunction.');
     }
   });
 
@@ -108,10 +116,17 @@ describe('notification controller', () => {
 
   describe('calling the actionFunction', () => {
     it('should return the actionFunction corresponding to the id', () => {
-      expect(controller.actionCall(1)).toEqual(swapsHandler);
-      expect(controller.actionCall(2)).toEqual(mobileHandler);
-      expect(controller.actionCall(3)).toEqual(npsHandler);
-      expect(controller.actionCall(4)).toBeNull();
+      controller.actionCall(1);
+      expect(swapsHandler).toHaveBeenCalled();
+      controller.actionCall(2);
+      expect(mobileHandler).toHaveBeenCalled();
+      controller.actionCall(3);
+      expect(npsHandler).toHaveBeenCalled();
+      try {
+        expect(controller.actionCall(4)).toBeUndefined();
+      } catch (error) {
+        expect(error.message).toEqual('Incomplete notification.');
+      }
     });
   });
   describe('update viewed notifications', () => {
