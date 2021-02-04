@@ -1,6 +1,9 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
-type action = () => void;
+interface action {
+  actionText: string;
+  actionFunction: () => void;
+}
 
 interface viewedNotification {
   [id: number]: boolean;
@@ -21,7 +24,7 @@ export interface Notification{
  * from `metamask-extension`
  */
 export interface NotificationConfig extends BaseConfig{
-  allNotifications: Record<string, unknown>[];
+  allNotifications: Record<string, string | number | action>[];
 }
 
 /**
@@ -39,7 +42,7 @@ const defaultState = {};
  */
 export class NotificationController extends BaseController<NotificationConfig, NotificationState> {
 
-  private readonly allNotifications: Record<string, unknown>[];
+  private readonly allNotifications: Record<string, string | number | action>[];
 
   /**
    * Creates a NotificationController instance
@@ -67,19 +70,19 @@ export class NotificationController extends BaseController<NotificationConfig, N
     const existingNotificationIds: number[] = this.state.notifications ? Object.keys(this.state.notifications).map(Number) : [];
 
     const newNotifications: Notification[] = this.allNotifications
-      .filter((newNotification) => !existingNotificationIds
-      .some((existingId) => (existingId === newNotification.id)))
-      .map((notification) => {
-        if (!((notification.actionText as string).length > 0 && notification.hasOwnProperty('actionFunction'))) {
-          throw new Error('Must have an actionFunction for an actionText.');
+      .filter((notification) => !existingNotificationIds
+      .some((existingId) => (existingId === notification.id)))
+      .map((newNotification) => {
+        if (newNotification.action === undefined) {
+          throw new Error('Must have an actionText and actionFunction.');
         }
         return {
-          'id': notification.id as number,
-          'title': notification.title as string,
-          'description': notification.description as string,
-          'date': notification.date as string,
-          'image': notification.image ? notification.image as string : '',
-          'actionText': notification.actionText as string,
+          'id': newNotification.id as number,
+          'title': newNotification.title as string,
+          'description': newNotification.description as string,
+          'date': newNotification.date as string,
+          'image': newNotification.image ? newNotification.image as string : '',
+          'actionText': (newNotification.action as action).actionText,
           'isShown': false,
         };
       });
@@ -113,8 +116,12 @@ export class NotificationController extends BaseController<NotificationConfig, N
    * retuns the actionFucntion
    * @param id
    */
-  actionCall(id: number): action | null {
-    const notification = this.allNotifications.find((notify) => notify.id === id);
-    return notification ? notification.actionFunction as action : null;
+  actionCall(id: number): void {
+    try {
+      const notification: Record<string, string | number | action> | undefined = this.allNotifications.find((notify) => notify.id === id);
+      (notification?.action as action).actionFunction();
+    } catch (error) {
+      throw new Error('Incomplete notification.');
+    }
   }
 }
