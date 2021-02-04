@@ -24,8 +24,6 @@
     "ganache-core/lodash": "^4.17.19"
   },
   "dependencies": {
-    "@babel/plugin-transform-runtime": "^7.5.5",
-    "@babel/runtime": "^7.5.5",
     "json-rpc-random-id": "^1.0.1",
     "pify": "^3.0.0",
     "safe-event-emitter": "^1.0.1"
@@ -34,7 +32,9 @@
     "@babel/cli": "^7.5.5",
     "@babel/core": "^7.5.5",
     "@babel/plugin-transform-regenerator": "^7.4.5",
+    "@babel/plugin-transform-runtime": "^7.5.5",
     "@babel/preset-env": "^7.5.5",
+    "@babel/runtime": "^7.5.5",
     "@metamask/eslint-config": "^3.0.0",
     "babelify": "^10.0.0",
     "browserify": "^16.5.0",
