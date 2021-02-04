@@ -216,6 +216,33 @@ export async function safelyExecute(operation: () => Promise<any>, logError = fa
 }
 
 /**
+ * Execute and return an asynchronous operation with a timeout
+ *
+ * @param operation - Function returning a Promise
+ * @param logError - Determines if the error should be logged
+ * @param retry - Function called if an error is caught
+ * @param timeout - Timeout to fail the operation
+ * @returns - Promise resolving to the result of the async operation
+ */
+export async function safelyExecuteWithTimeout(operation: () => Promise<any>, logError = false, timeout = 500) {
+  try {
+    return await Promise.race([
+      operation(),
+      new Promise<void>((_, reject) =>
+        setTimeout(() => {
+          reject(new Error('timeout'));
+        }, timeout),
+      ),
+    ]);
+  } catch (error) {
+    /* istanbul ignore next */
+    if (logError) {
+      console.error(error);
+    }
+  }
+}
+
+/**
  * Validates a Transaction object for required properties and throws in
  * the event of any validation error.
  *
@@ -445,9 +472,31 @@ export function normalizeEnsName(ensName: string): string | null {
   return null;
 }
 
+/**
+ * Wrapper method to handle EthQuery requests
+ *
+ * @param ethQuery - EthQuery object initialized with a provider
+ * @param method - Method to request
+ * @param args - Arguments to send
+ *
+ * @returns - Promise resolving the request
+ */
+export function query(ethQuery: any, method: string, args: any[] = []): Promise<any> {
+  return new Promise((resolve, reject) => {
+    ethQuery[method](...args, (error: Error, result: any) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(result);
+    });
+  });
+}
+
 export default {
   BNToHex,
   fractionBN,
+  query,
   getBuyURL,
   handleFetch,
   hexToBN,
@@ -455,6 +504,7 @@ export default {
   isSmartContractCode,
   normalizeTransaction,
   safelyExecute,
+  safelyExecuteWithTimeout,
   successfulFetch,
   timeoutFetch,
   validateTokenToWatch,

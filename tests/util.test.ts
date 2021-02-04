@@ -7,6 +7,46 @@ const { BN } = require('ethereumjs-util');
 
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
+const HttpProvider = require('ethjs-provider-http');
+const EthQuery = require('eth-query');
+
+const mockFlags: { [key: string]: any } = {
+  estimateGas: null,
+  gasPrice: null,
+};
+const PROVIDER = new HttpProvider('https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
+
+jest.mock('eth-query', () =>
+  jest.fn().mockImplementation(() => {
+    return {
+      estimateGas: (_transaction: any, callback: any) => {
+        callback(undefined, '0x0');
+      },
+      gasPrice: (callback: any) => {
+        if (mockFlags.gasPrice) {
+          callback(new Error(mockFlags.gasPrice));
+          return;
+        }
+        callback(undefined, '0x0');
+      },
+      getBlockByNumber: (_blocknumber: any, _fetchTxs: boolean, callback: any) => {
+        callback(undefined, { gasLimit: '0x0' });
+      },
+      getCode: (_to: any, callback: any) => {
+        callback(undefined, '0x0');
+      },
+      getTransactionByHash: (_hash: any, callback: any) => {
+        callback(undefined, { blockNumber: '0x1' });
+      },
+      getTransactionCount: (_from: any, _to: any, callback: any) => {
+        callback(undefined, '0x0');
+      },
+      sendRawTransaction: (_transaction: any, callback: any) => {
+        callback(undefined, '1337');
+      },
+    };
+  }),
+);
 
 describe('util', () => {
   beforeEach(() => {
@@ -76,6 +116,31 @@ describe('util', () => {
           resolve,
         );
       });
+    });
+  });
+
+  describe('safelyExecuteWithTimeout', () => {
+    it('should swallow errors', async () => {
+      await util.safelyExecuteWithTimeout(() => {
+        throw new Error('ahh');
+      });
+    });
+
+    it('should resolve', async () => {
+      const response = await util.safelyExecuteWithTimeout(() => {
+        return new Promise((res) => setTimeout(() => res('response'), 200));
+      });
+      expect(response).toEqual('response');
+    });
+
+    it('should timeout', () => {
+      try {
+        util.safelyExecuteWithTimeout(() => {
+          return new Promise((res) => setTimeout(res, 800));
+        });
+      } catch (e) {
+        expect(e.message).toContain('timeout');
+      }
     });
   });
 
@@ -575,6 +640,24 @@ describe('util', () => {
     it('should return null with empty string', async () => {
       const invalid = util.normalizeEnsName('');
       expect(invalid).toBeNull();
+    });
+  });
+
+  describe('query', () => {
+    it('should query and resolve', async () => {
+      const ethQuery = new EthQuery(PROVIDER);
+      const gasPrice = await util.query(ethQuery, 'gasPrice', []);
+      expect(gasPrice).toEqual('0x0');
+    });
+
+    it('should query and reject if error', async () => {
+      const ethQuery = new EthQuery(PROVIDER);
+      mockFlags.gasPrice = 'Uh oh';
+      try {
+        await util.query(ethQuery, 'gasPrice', []);
+      } catch (error) {
+        expect(error.message).toContain('Uh oh');
+      }
     });
   });
 });

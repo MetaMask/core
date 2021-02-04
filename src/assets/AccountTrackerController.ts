@@ -1,8 +1,9 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import PreferencesController from '../user/PreferencesController';
-import { BNToHex, safelyExecute } from '../util';
+import { BNToHex, query, safelyExecuteWithTimeout } from '../util';
 
-const EthjsQuery = require('ethjs-query');
+const EthQuery = require('eth-query');
+const { Mutex } = require('await-semaphore');
 
 /**
  * @type AccountInformation
@@ -42,7 +43,9 @@ export interface AccountTrackerState extends BaseState {
  * Controller that tracks information for all accounts in the current keychain
  */
 export class AccountTrackerController extends BaseController<AccountTrackerConfig, AccountTrackerState> {
-  private ethjsQuery: any;
+  private ethQuery: any;
+
+  private mutex = new Mutex();
 
   private handle?: NodeJS.Timer;
 
@@ -95,7 +98,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
    * @param provider - Provider used to create a new underlying EthQuery instance
    */
   set provider(provider: any) {
-    this.ethjsQuery = new EthjsQuery(provider);
+    this.ethQuery = new EthQuery(provider);
   }
 
   /**
@@ -115,10 +118,12 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
    * @param interval - Polling interval trigger a 'refresh'
    */
   async poll(interval?: number): Promise<void> {
+    const releaseLock = await this.mutex.acquire();
     interval && this.configure({ interval }, false, false);
     this.handle && clearTimeout(this.handle);
-    await safelyExecute(() => this.refresh());
+    await this.refresh();
     this.handle = setTimeout(() => {
+      releaseLock();
       this.poll(this.config.interval);
     }, this.config.interval);
   }
@@ -130,8 +135,8 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
     this.syncAccounts();
     const { accounts } = this.state;
     for (const address in accounts) {
-      await safelyExecute(async () => {
-        const balance = await this.ethjsQuery.getBalance(address);
+      await safelyExecuteWithTimeout(async () => {
+        const balance = await query(this.ethQuery, 'getBalance', [address]);
         accounts[address] = { balance: BNToHex(balance) };
         this.update({ accounts: { ...accounts } });
       });
