@@ -2,7 +2,7 @@ import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
 interface action {
   actionText: string;
-  actionFunction: () => void;
+  actionFunction: VoidFunction;
 }
 
 interface viewedNotification {
