@@ -15,7 +15,7 @@ export interface Notification{
   description: string;
   date: string;
   image?: string;
-  actionText: string;
+  action?: Partial<action>;
   isShown?: boolean;
 }
 
@@ -24,7 +24,7 @@ export interface Notification{
  * from `metamask-extension`
  */
 export interface NotificationConfig extends BaseConfig{
-  allNotifications: Record<string, string | number | action>[];
+  allNotifications: Notification[];
 }
 
 /**
@@ -42,7 +42,7 @@ const defaultState = {};
  */
 export class NotificationController extends BaseController<NotificationConfig, NotificationState> {
 
-  private readonly allNotifications: Record<string, string | number | action>[];
+  private readonly allNotifications: Notification[];
 
   /**
    * Creates a NotificationController instance
@@ -77,12 +77,14 @@ export class NotificationController extends BaseController<NotificationConfig, N
           throw new Error('Must have an actionText and actionFunction.');
         }
         return {
-          'id': newNotification.id as number,
-          'title': newNotification.title as string,
-          'description': newNotification.description as string,
-          'date': newNotification.date as string,
+          'id': newNotification.id,
+          'title': newNotification.title,
+          'description': newNotification.description,
+          'date': newNotification.date,
           'image': newNotification.image ? newNotification.image as string : '',
-          'actionText': (newNotification.action as action).actionText,
+          'action': {
+            'actionText': (newNotification.action as action).actionText,
+          },
           'isShown': false,
         };
       });
@@ -118,7 +120,7 @@ export class NotificationController extends BaseController<NotificationConfig, N
    */
   actionCall(id: number): void {
     try {
-      const notification: Record<string, string | number | action> | undefined = this.allNotifications.find((notify) => notify.id === id);
+      const notification: Notification | undefined = this.allNotifications.find((notify) => notify.id === id);
       (notification?.action as action).actionFunction();
     } catch (error) {
       throw new Error('Incomplete notification.');
