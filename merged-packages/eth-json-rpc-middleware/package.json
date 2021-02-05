@@ -1,7 +1,7 @@
 {
   "name": "eth-json-rpc-middleware",
   "version": "6.0.0",
-  "main": "block-ref.js",
+  "main": "./src/block-ref.js",
   "engines": {
     "node": ">=10.0.0"
   },
@@ -16,7 +16,7 @@
   "author": "",
   "license": "ISC",
   "files": [
-    "*.js"
+    "src/*.js"
   ],
   "devDependencies": {
     "@metamask/eslint-config": "^4.1.0",
