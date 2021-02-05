@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [6.0.1] - 2021-02-05
+
+### Changed
+
+- Update `typedoc` from v0.15 to v20.20 ([#333](https://github.com/MetaMask/controllers/pull/333))
+- Update `@metamask/contract-metadata` from v1.19 to v1.22 ([#332](https://github.com/MetaMask/controllers/pull/332))
+- Bump node-notifier from 8.0.0 to 8.0.1 ([#323](https://github.com/MetaMask/controllers/pull/323))
+
+### Fixed
+
+- Add `safelyExecuteWithTimeout` for `accountTracker.refresh` ([#331](https://github.com/MetaMask/controllers/pull/331))
+- Add try/catch for `assetsContract.getBalanceOf` ([#328](https://github.com/MetaMask/controllers/pull/328))
+
 ## [6.0.0] - 2021-01-19
 
 ### Changed
@@ -161,7 +174,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v6.0.0...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v6.0.1...HEAD
+[6.0.0]:https://github.com/MetaMask/controllers/compare/v6.0.0...v6.0.1
 [6.0.0]:https://github.com/MetaMask/controllers/compare/v5.1.0...v6.0.0
 [5.1.0]:https://github.com/MetaMask/controllers/compare/v5.0.0...v5.1.0
 [5.0.0]:https://github.com/MetaMask/controllers/compare/v4.2.0...v5.0.0
