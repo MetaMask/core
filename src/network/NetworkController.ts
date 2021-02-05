@@ -4,7 +4,7 @@ const EthQuery = require('eth-query');
 const Subprovider = require('web3-provider-engine/subproviders/provider.js');
 const createInfuraProvider = require('eth-json-rpc-infura/src/createProvider');
 const createMetamaskProvider = require('web3-provider-engine//zero.js');
-const { Mutex } = require('await-semaphore');
+const { Mutex } = require('async-mutex');
 
 /**
  * Human-readable network name

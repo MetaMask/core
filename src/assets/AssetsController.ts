@@ -8,7 +8,7 @@ import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
 import { ApiCollectibleResponse } from './AssetsDetectionController';
 
-const { Mutex } = require('await-semaphore');
+const { Mutex } = require('async-mutex');
 const random = require('uuid/v1');
 
 /**
