@@ -78,7 +78,7 @@ export class NotificationController extends BaseController<NotificationConfig, N
         }
         const { action, ...stateNotification } = newNotification;
         const { actionFunction, ...modifiedAction } = action;
-        return  { ...stateNotification, action: modifiedAction, isShown: false };
+        return { ...stateNotification, action: modifiedAction, isShown: false };
       });
 
     const stateNotifications: Record<number, Notification> = newNotifications
