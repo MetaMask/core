@@ -1,5 +1,6 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { safelyExecute, handleFetch } from '../util';
+import { safelyExecute } from '../util';
+import { fetchExchangeRate as defaultFetchExchangeRate } from '../apis/crypto-compare';
 
 const { Mutex } = require('async-mutex');
 
@@ -55,16 +56,10 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
 
   private handle?: NodeJS.Timer;
 
+  private fetchExchangeRate: typeof defaultFetchExchangeRate;
+
   private getCurrentCurrencyFromState(state?: Partial<CurrencyRateState>) {
     return state && state.currentCurrency ? state.currentCurrency : 'usd';
-  }
-
-  private getPricingURL(currentCurrency: string, nativeCurrency: string, includeUSDRate?: boolean) {
-    return (
-      `https://min-api.cryptocompare.com/data/price?fsym=` +
-      `${nativeCurrency.toUpperCase()}&tsyms=${currentCurrency.toUpperCase()}` +
-      `${includeUSDRate && currentCurrency.toUpperCase() !== 'USD' ? ',USD' : ''}`
-    );
   }
 
   /**
@@ -78,8 +73,9 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(config?: Partial<CurrencyRateConfig>, state?: Partial<CurrencyRateState>) {
+  constructor(config?: Partial<CurrencyRateConfig>, state?: Partial<CurrencyRateState>, fetchExchangeRate = defaultFetchExchangeRate) {
     super(config, state);
+    this.fetchExchangeRate = fetchExchangeRate;
     this.defaultConfig = {
       currentCurrency: this.getCurrentCurrencyFromState(state),
       disabled: true,
@@ -131,34 +127,6 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
     this.handle = setTimeout(() => {
       this.poll(this.config.interval);
     }, this.config.interval);
-  }
-
-  /**
-   * Fetches the exchange rate for a given currency
-   *
-   * @param currency - ISO 4217 currency code
-   * @param nativeCurrency - Symbol for base asset
-   * @param includeUSDRate - Whether to add the USD rate to the fetch
-   * @returns - Promise resolving to exchange rate for given currency
-   */
-  async fetchExchangeRate(currency: string, nativeCurrency = this.activeNativeCurrency, includeUSDRate?: boolean): Promise<CurrencyRateState> {
-    const json = await handleFetch(this.getPricingURL(currency, nativeCurrency, includeUSDRate));
-    const conversionRate = Number(json[currency.toUpperCase()]);
-    const usdConversionRate = Number(json.USD);
-    if (!Number.isFinite(conversionRate)) {
-      throw new Error(`Invalid response for ${currency.toUpperCase()}: ${json[currency.toUpperCase()]}`);
-    }
-    if (includeUSDRate && !Number.isFinite(usdConversionRate)) {
-      throw new Error(`Invalid response for usdConversionRate: ${json.USD}`);
-    }
-
-    return {
-      conversionDate: Date.now() / 1000,
-      conversionRate,
-      currentCurrency: currency,
-      nativeCurrency,
-      usdConversionRate,
-    };
   }
 
   /**
