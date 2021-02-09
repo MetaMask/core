@@ -76,8 +76,8 @@ export class NotificationController extends BaseController<NotificationConfig, N
         if (newNotification.action === undefined) {
           throw new Error('Must have an actionText and actionFunction.');
         }
-        const { action, ...stateNotification } = newNotification;
-        const { actionFunction, ...modifiedAction } = action;
+        const { action: { actionFunction, ...modifiedAction }, ...stateNotification } = newNotification;
+
         return { ...stateNotification, action: modifiedAction, isShown: false };
       });
 
