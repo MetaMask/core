@@ -96,7 +96,6 @@
     ],
     "coveragePathIgnorePatterns": [
       "/node_modules/",
-      "dist/BaseController*",
       "tests/"
     ],
     "coverageThreshold": {
