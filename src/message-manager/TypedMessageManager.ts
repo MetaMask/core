@@ -6,7 +6,7 @@ import AbstractMessageManager, {
   OriginalRequest,
 } from './AbstractMessageManager';
 
-const random = require('uuid/v1');
+const random = require('uuid').v1;
 
 /**
  * @type TypedMessage
