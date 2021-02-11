@@ -11,6 +11,7 @@ module.exports = {
     '!jest.config.js',
     'node_modules',
     'dist',
+    'docs',
     'coverage',
     '*.d.ts',
   ],
