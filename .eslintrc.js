@@ -53,6 +53,7 @@ module.exports = {
       },
     ],
 
+    'accessor-pairs': 'off',
     'camelcase': 'off',
     'consistent-return': 'off',
     'default-case': 'off',
@@ -73,6 +74,8 @@ module.exports = {
     'no-useless-escape': 'off',
     'radix': 'off',
     'require-atomic-updates': 'off',
+
+    'node/no-extraneous-require': 'off',
 
     'jest/expect-expect': 'off',
     'jest/no-test-return-statement': 'off',
