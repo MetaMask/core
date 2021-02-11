@@ -19,7 +19,7 @@ import {
 const MethodRegistry = require('eth-method-registry');
 const EthQuery = require('eth-query');
 const Transaction = require('ethereumjs-tx');
-const random = require('uuid/v1');
+const random = require('uuid').v1;
 const { BN } = require('ethereumjs-util');
 const { Mutex } = require('async-mutex');
 
