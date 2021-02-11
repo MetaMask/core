@@ -9,7 +9,7 @@ import { AssetsContractController } from './AssetsContractController';
 import { ApiCollectibleResponse } from './AssetsDetectionController';
 
 const { Mutex } = require('async-mutex');
-const random = require('uuid/v1');
+const random = require('uuid').v1;
 
 /**
  * @type Collectible
