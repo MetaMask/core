@@ -1,19 +1,22 @@
 import 'isomorphic-fetch';
 import { stub } from 'sinon';
-import * as fetchMock from 'fetch-mock';
+import * as nock from 'nock';
 import CurrencyRateController from '../src/assets/CurrencyRateController';
 
 describe('CurrencyRateController', () => {
   beforeEach(() => {
-    fetchMock
-      .mock(/XYZ,USD/u, () => new Response(JSON.stringify({ XYZ: 123, USD: 456 })))
-      .mock(/DEF,USD/u, () => new Response(JSON.stringify({ DEF: 123 })))
-      .mock('*', () => new Response(JSON.stringify({ USD: 1337 })))
-      .spy();
+    nock(/.+/u)
+      .get(/XYZ,USD/u)
+      .reply(200, { XYZ: 123, USD: 456 })
+      .get(/DEF,USD/u)
+      .reply(200, { DEF: 123 })
+      .get(/.+/u)
+      .reply(200, { USD: 1337 })
+      .persist();
   });
 
   afterEach(() => {
-    fetchMock.reset();
+    nock.cleanAll();
   });
 
   it('should set default state', () => {
@@ -103,17 +106,9 @@ describe('CurrencyRateController', () => {
     expect(controller.state.usdConversionRate).toEqual(456);
   });
 
-  it('should use default base asset', async () => {
-    const nativeCurrency = 'FOO';
-    const controller = new CurrencyRateController({ nativeCurrency });
-    await controller.fetchExchangeRate('usd');
-    expect(fetchMock.calls()[0][0]).toContain(nativeCurrency);
-  });
-
   it('should add usd rate to state fetches when configured', async () => {
     const controller = new CurrencyRateController({ includeUSDRate: true });
     const result = await controller.fetchExchangeRate('xyz', 'FOO', true);
-    expect(fetchMock.calls()[0][0]).toContain('XYZ,USD');
     expect(result.usdConversionRate).toEqual(456);
     expect(result.conversionRate).toEqual(123);
   });
