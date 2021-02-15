@@ -100,6 +100,7 @@ export interface TransactionMeta {
   };
   id: string;
   networkID?: string;
+  chainId?: string;
   origin?: string;
   rawTransaction?: string;
   status: string;
@@ -255,7 +256,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    * @param currentNetworkID - string representing the current network id
    * @returns - TransactionMeta
    */
-  private normalizeTxFromEtherscan(txMeta: EtherscanTransactionMeta, currentNetworkID: string): TransactionMeta {
+  private normalizeTxFromEtherscan(txMeta: EtherscanTransactionMeta, currentNetworkID: string, currentChainId: string): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     /* istanbul ignore next */
     const status = txMeta.isError === '0' ? 'confirmed' : 'failed';
@@ -263,6 +264,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       blockNumber: txMeta.blockNumber,
       id: random({ msecs: time }),
       networkID: currentNetworkID,
+      chainId: currentChainId,
       status,
       time,
       transaction: {
@@ -286,7 +288,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    * @param currentNetworkID - string representing the current network id
    * @returns - TransactionMeta
    */
-  normalizeTxFromAlehio = (txMeta: AlethioTransactionMeta, currentNetworkID: string): TransactionMeta => {
+  normalizeTxFromAlehio = (txMeta: AlethioTransactionMeta, currentNetworkID: string, currentChainId: string): TransactionMeta => {
     const {
       attributes: { symbol, blockCreationTime, decimals, transactionGasLimit, transactionGasPrice, value },
       relationships: { to, from, transaction, token },
@@ -296,6 +298,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       id: random({ msecs: time }),
       isTransfer: true,
       networkID: currentNetworkID,
+      chainId: currentChainId,
       status: 'confirmed',
       time: parseInt(blockCreationTime, 10) * 1000,
       transaction: {
@@ -408,10 +411,12 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 
     /* istanbul ignore next */
     const networkID = network?.state?.provider?.chainId;
+    const chainId = network?.state?.provider?.chainId;
 
     const transactionMeta = {
       id: random(),
       networkID,
+      chainId,
       origin,
       status: 'unapproved',
       time: Date.now(),
@@ -669,12 +674,12 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
   async queryTransactionStatuses() {
     const { transactions } = this.state;
     const network = this.context.NetworkController;
-    const currentNetworkID = network.state.provider.chainId;
+    const currentChainId = network.state.provider.chainId;
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
         transactions.map(async (meta, index) => {
-          if (meta.status === 'submitted' && meta.networkID === currentNetworkID) {
+          if (meta.status === 'submitted' && (meta.networkID === currentChainId || meta.chainId === currentChainId)) {
             const txObj = await query(this.ethQuery, 'getTransactionByHash', [meta.transactionHash]);
             /* istanbul ignore else */
             if (txObj && txObj.blockNumber) {
@@ -721,8 +726,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     if (!network) {
       return;
     }
-    const currentNetworkID = network.state.provider.chainId;
-    const newTransactions = this.state.transactions.filter(({ networkID }) => networkID !== currentNetworkID);
+    const currentChainId = network.state.provider.chainId;
+    const newTransactions = this.state.transactions.filter(({ networkID, chainId }) => ((networkID !== undefined && networkID !== currentChainId) || (chainId !== undefined && chainId !== currentChainId)));
     this.update({ transactions: newTransactions });
   }
 
@@ -739,6 +744,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     const {
       state: {
         network: currentNetworkID,
+        chainId: currentChainId,
         provider: { type: networkType },
       },
     } = network;
@@ -756,13 +762,13 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     etherscanResponse.result.forEach((tx: EtherscanTransactionMeta) => {
       /* istanbul ignore next */
       if (!remoteTxList[tx.hash]) {
-        remoteTxs.push(this.normalizeTxFromEtherscan(tx, currentNetworkID));
+        remoteTxs.push(this.normalizeTxFromEtherscan(tx, currentNetworkID, currentChainId));
         remoteTxList[tx.hash] = 1;
       }
     });
 
     alethioResponse.data.forEach((tx: AlethioTransactionMeta) => {
-      const cleanTx = this.normalizeTxFromAlehio(tx, currentNetworkID);
+      const cleanTx = this.normalizeTxFromAlehio(tx, currentNetworkID, currentChainId);
       remoteTxs.push(cleanTx);
       /* istanbul ignore next */
       remoteTxList[cleanTx.transactionHash || ''] = 1;
