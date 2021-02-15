@@ -173,6 +173,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
       const balances = await assetsContractController.getBalancesInSingleCall(selectedAddress, tokensToDetect);
       const assetsController = this.context.AssetsController as AssetsController;
       const { ignoredTokens } = assetsController.state;
+      const tokensToAdd = [];
       for (const tokenAddress in balances) {
         let ignored;
         /* istanbul ignore else */
@@ -180,12 +181,15 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
           ignored = ignoredTokens.find((token) => token.address === toChecksumAddress(tokenAddress));
         }
         if (!ignored) {
-          await assetsController.addToken(
-            tokenAddress,
-            contractMap[tokenAddress].symbol,
-            contractMap[tokenAddress].decimals,
-          );
+          tokensToAdd.push({
+            address: tokenAddress,
+            decimals: contractMap[tokenAddress].decimals,
+            symbol: contractMap[tokenAddress].symbol,
+          });
         }
+      }
+      if (tokensToAdd.length) {
+        await assetsController.addTokens(tokensToAdd);
       }
     });
   }
