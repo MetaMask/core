@@ -418,16 +418,15 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       transaction,
     };
 
-    if (!transaction.gas || !transaction.gasPrice) {
-      try {
-        const { gas, gasPrice } = await this.estimateGas(transaction);
-        transaction.gas = gas;
-        transaction.gasPrice = gasPrice;
-      } catch (error) {
-        this.failTransaction(transactionMeta, error);
-        return Promise.reject(error);
-      }
+    try {
+      const { gas, gasPrice } = await this.estimateGas(transaction);
+      transaction.gas = gas;
+      transaction.gasPrice = gasPrice;
+    } catch (error) {
+      this.failTransaction(transactionMeta, error);
+      return Promise.reject(error);
     }
+
     const result: Promise<string> = new Promise((resolve, reject) => {
       this.hub.once(`${transactionMeta.id}:finished`, (meta: TransactionMeta) => {
         switch (meta.status) {
@@ -609,7 +608,6 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    */
   async estimateGas(transaction: Transaction) {
     const estimatedTransaction = { ...transaction };
-    const { gasLimit } = await query(this.ethQuery, 'getBlockByNumber', ['latest', false]);
     const { gas, gasPrice: providedGasPrice, to, value, data } = estimatedTransaction;
     const gasPrice = typeof providedGasPrice === 'undefined' ? await query(this.ethQuery, 'gasPrice') : providedGasPrice;
 
@@ -617,6 +615,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     if (typeof gas !== 'undefined') {
       return { gas, gasPrice };
     }
+    const { gasLimit } = await query(this.ethQuery, 'getBlockByNumber', ['latest', false]);
 
     // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000
     /* istanbul ignore next */
