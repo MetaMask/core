@@ -418,15 +418,16 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       transaction,
     };
 
-    try {
-      const { gas, gasPrice } = await this.estimateGas(transaction);
-      transaction.gas = gas;
-      transaction.gasPrice = gasPrice;
-    } catch (error) {
-      this.failTransaction(transactionMeta, error);
-      return Promise.reject(error);
+    if (!transaction.gas || !transaction.gasPrice) {
+      try {
+        const { gas, gasPrice } = await this.estimateGas(transaction);
+        transaction.gas = gas;
+        transaction.gasPrice = gasPrice;
+      } catch (error) {
+        this.failTransaction(transactionMeta, error);
+        return Promise.reject(error);
+      }
     }
-
     const result: Promise<string> = new Promise((resolve, reject) => {
       this.hub.once(`${transactionMeta.id}:finished`, (meta: TransactionMeta) => {
         switch (meta.status) {
