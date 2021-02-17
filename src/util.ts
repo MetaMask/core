@@ -79,47 +79,27 @@ export function getBuyURL(networkCode = '1', address?: string, amount = 5) {
  * @param fromBlock? - Block from which transactions are needed
  * @returns - URL to fetch the transactions from
  */
-export function getEtherscanApiUrl(networkType: string, address: string, fromBlock?: string): string {
+export function getEtherscanApiUrl(
+  networkType: string,
+  address: string,
+  action: string,
+  fromBlock?: string,
+  etherscanApiKey?: string,
+): string {
   let etherscanSubdomain = 'api';
   /* istanbul ignore next */
   if (networkType !== 'mainnet') {
     etherscanSubdomain = `api-${networkType}`;
   }
   const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
-  let url = `${apiUrl}/api?module=account&action=txlist&address=${address}&tag=latest&page=1`;
+  let url = `${apiUrl}/api?module=account&action=${action}&address=${address}&tag=latest&page=1`;
   if (fromBlock) {
     url += `&startBlock=${fromBlock}`;
   }
+  if (etherscanApiKey) {
+    url += `&apikey=${etherscanApiKey}`;
+  }
   return url;
-}
-
-/**
- * Return a URL that can be used to fetch ERC20 token transactions
- *
- * @param networkType - Network type of desired network
- * @param address - Address to get the transactions from
- * @param opt? - Object that can contain fromBlock and Alethio service API key
- * @returns - URL to fetch the transactions from
- */
-export function getAlethioApiUrl(networkType: string, address: string, opt?: FetchAllOptions) {
-  if (networkType !== 'mainnet') {
-    return { url: '', headers: {} };
-  }
-  let url = `https://api.aleth.io/v1/token-transfers?filter[to]=${address}`;
-  // From alethio implementation
-  // cursor = hardcoded prefix `0x00` + fromBlock in hex format + max possible tx index `ffff`
-  let fromBlock = opt && opt.fromBlock;
-  if (fromBlock) {
-    fromBlock = parseInt(fromBlock).toString(16);
-    let prev = `0x00${fromBlock}ffff`;
-    while (prev.length < 34) {
-      prev += '0';
-    }
-    url += `&page[prev]=${prev}`;
-  }
-  /* istanbul ignore next */
-  const headers = opt && opt.alethioApiKey ? { Authorization: `Bearer ${opt.alethioApiKey}` } : undefined;
-  return { url, headers };
 }
 
 /**
@@ -134,19 +114,39 @@ export async function handleTransactionFetch(
   networkType: string,
   address: string,
   opt?: FetchAllOptions,
-): Promise<[{ [result: string]: [] }, { [data: string]: [] }]> {
-  const url = getEtherscanApiUrl(networkType, address, opt && opt.fromBlock);
-  const etherscanResponsePromise = handleFetch(url);
-  const alethioUrl = getAlethioApiUrl(networkType, address, opt);
-  const alethioResponsePromise = alethioUrl.url !== '' && handleFetch(alethioUrl.url, { headers: alethioUrl.headers });
-  let [etherscanResponse, alethioResponse] = await Promise.all([etherscanResponsePromise, alethioResponsePromise]);
-  if (etherscanResponse.status === '0' || etherscanResponse.result.length <= 0) {
-    etherscanResponse = { result: [] };
+): Promise<[{ [result: string]: [] }, { [result: string]: [] }]> {
+  // transactions
+  const etherscanTxUrl = getEtherscanApiUrl(
+    networkType,
+    address,
+    'txlist',
+    opt && opt.fromBlock,
+    opt && opt.etherscanApiKey,
+  );
+  const etherscanTxResponsePromise = handleFetch(etherscanTxUrl);
+
+  // tokens
+  const etherscanTokenUrl = getEtherscanApiUrl(
+    networkType,
+    address,
+    'tokentx',
+    opt && opt.fromBlock,
+    opt && opt.etherscanApiKey,
+  );
+  const etherscanTokenResponsePromise = handleFetch(etherscanTokenUrl);
+
+  let [etherscanTxResponse, etherscanTokenResponse] = await Promise.all([
+    etherscanTxResponsePromise,
+    etherscanTokenResponsePromise,
+  ]);
+  if (etherscanTxResponse.status === '0' || etherscanTxResponse.result.length <= 0) {
+    etherscanTxResponse = { result: [] };
   }
-  if (!alethioUrl.url || !alethioResponse || !alethioResponse.data) {
-    alethioResponse = { data: [] };
+  if (etherscanTokenResponse.status === '0' || etherscanTokenResponse.result.length <= 0) {
+    etherscanTokenResponse = { result: [] };
   }
-  return [etherscanResponse, alethioResponse];
+
+  return [etherscanTxResponse, etherscanTokenResponse];
 }
 
 /**

@@ -42,7 +42,7 @@ export interface Result {
  */
 export interface FetchAllOptions {
   fromBlock?: string;
-  alethioApiKey?: string;
+  etherscanApiKey?: string;
 }
 
 /**
@@ -277,43 +277,6 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       transactionHash: txMeta.hash,
     };
   }
-
-  /**
-   * Normalizes the transaction information from alethio
-   * to be compatible with the TransactionMeta interface
-   *
-   * @param txMeta - Object containing the transaction information
-   * @param currentNetworkID - string representing the current network id
-   * @returns - TransactionMeta
-   */
-  normalizeTxFromAlehio = (txMeta: AlethioTransactionMeta, currentNetworkID: string): TransactionMeta => {
-    const {
-      attributes: { symbol, blockCreationTime, decimals, transactionGasLimit, transactionGasPrice, value },
-      relationships: { to, from, transaction, token },
-    } = txMeta;
-    const time = parseInt(blockCreationTime, 10) * 1000;
-    return {
-      id: random({ msecs: time }),
-      isTransfer: true,
-      networkID: currentNetworkID,
-      status: 'confirmed',
-      time: parseInt(blockCreationTime, 10) * 1000,
-      transaction: {
-        chainId: 1,
-        from: from.data.id,
-        gas: transactionGasLimit,
-        gasPrice: transactionGasPrice,
-        to: to.data.id,
-        value,
-      },
-      transactionHash: transaction.data.id,
-      transferInformation: {
-        contractAddress: token.data.id,
-        decimals,
-        symbol,
-      },
-    };
-  };
 
   /**
    * EventEmitter instance used to listen to specific transactional events
@@ -749,23 +712,26 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       return;
     }
 
-    const [etherscanResponse, alethioResponse] = await handleTransactionFetch(networkType, address, opt);
+    const [etherscanTxResponse, etherscanTokenResponse] = await handleTransactionFetch(networkType, address, opt);
     const remoteTxList: { [key: string]: number } = {};
     const remoteTxs: TransactionMeta[] = [];
 
-    etherscanResponse.result.forEach((tx: EtherscanTransactionMeta) => {
+    etherscanTxResponse.result.forEach((tx: EtherscanTransactionMeta) => {
       /* istanbul ignore next */
       if (!remoteTxList[tx.hash]) {
-        remoteTxs.push(this.normalizeTxFromEtherscan(tx, currentNetworkID));
+        const cleanTx = this.normalizeTxFromEtherscan(tx, currentNetworkID);
+        remoteTxs.push(cleanTx);
         remoteTxList[tx.hash] = 1;
       }
     });
 
-    alethioResponse.data.forEach((tx: AlethioTransactionMeta) => {
-      const cleanTx = this.normalizeTxFromAlehio(tx, currentNetworkID);
-      remoteTxs.push(cleanTx);
+    etherscanTokenResponse.result.forEach((tx: EtherscanTransactionMeta) => {
       /* istanbul ignore next */
-      remoteTxList[cleanTx.transactionHash || ''] = 1;
+      if (!remoteTxList[tx.hash]) {
+        const cleanTx = this.normalizeTxFromEtherscan(tx, currentNetworkID);
+        remoteTxs.push(cleanTx);
+        remoteTxList[cleanTx.transactionHash || ''] = 1;
+      }
     });
 
     const localTxs = this.state.transactions.filter(
