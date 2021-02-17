@@ -96,6 +96,7 @@ export function getEtherscanApiUrl(
   if (fromBlock) {
     url += `&startBlock=${fromBlock}`;
   }
+  /* istanbul ignore next */
   if (etherscanApiKey) {
     url += `&apikey=${etherscanApiKey}`;
   }
@@ -139,10 +140,12 @@ export async function handleTransactionFetch(
     etherscanTxResponsePromise,
     etherscanTokenResponsePromise,
   ]);
-  if (etherscanTxResponse.status === '0' || etherscanTxResponse.result.length <= 0) {
+  /* istanbul ignore next */
+  if (etherscanTxResponse?.status === '0' || etherscanTxResponse?.result.length <= 0) {
     etherscanTxResponse = { result: [] };
   }
-  if (etherscanTokenResponse.status === '0' || etherscanTokenResponse.result.length <= 0) {
+  /* istanbul ignore next */
+  if (etherscanTokenResponse?.status === '0' || etherscanTokenResponse?.result.length <= 0) {
     etherscanTokenResponse = { result: [] };
   }
 

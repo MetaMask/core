@@ -667,7 +667,7 @@ describe('TransactionController', () => {
 
     const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
     const latestBlock = await controller.fetchAll(from);
-    expect(controller.state.transactions).toHaveLength(6);
+    expect(controller.state.transactions).toHaveLength(4);
     expect(latestBlock).toBe('4535101');
     expect(controller.state.transactions[0].transaction.to).toBe(from);
   });
@@ -684,7 +684,7 @@ describe('TransactionController', () => {
 
     const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
     const latestBlock = await controller.fetchAll(from, { fromBlock: '999' });
-    expect(controller.state.transactions).toHaveLength(3);
+    expect(controller.state.transactions).toHaveLength(2);
     expect(latestBlock).toBe('4535101');
     expect(controller.state.transactions[0].transaction.to).toBe(from);
   });
