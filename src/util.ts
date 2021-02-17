@@ -87,7 +87,6 @@ export function getEtherscanApiUrl(
   etherscanApiKey?: string,
 ): string {
   let etherscanSubdomain = 'api';
-  /* istanbul ignore next */
   if (networkType !== 'mainnet') {
     etherscanSubdomain = `api-${networkType}`;
   }
@@ -96,7 +95,6 @@ export function getEtherscanApiUrl(
   if (fromBlock) {
     url += `&startBlock=${fromBlock}`;
   }
-  /* istanbul ignore next */
   if (etherscanApiKey) {
     url += `&apikey=${etherscanApiKey}`;
   }
@@ -108,7 +106,7 @@ export function getEtherscanApiUrl(
  *
  * @param networkType - Network type of desired network
  * @param address - Address to get the transactions from
- * @param opt? - Object that can contain fromBlock and Alethio service API key
+ * @param opt? - Object that can contain fromBlock and Etherscan service API key
  * @returns - Responses for both ETH and ERC20 token transactions
  */
 export async function handleTransactionFetch(

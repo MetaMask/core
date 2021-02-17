@@ -144,6 +144,33 @@ describe('util', () => {
     });
   });
 
+  describe('getEtherscanApiUrl', () => {
+    const networkType = 'mainnet';
+    const address = '0xC7D3BFDeA106B446Cf9f2Db354D496e6Dd8b2525';
+    const action = 'txlist';
+
+    it('should return a correctly structured url', () => {
+      const url = util.getEtherscanApiUrl(networkType, address, action);
+      expect(url.indexOf(action)).toBeGreaterThan(0);
+      expect(url.indexOf(`&action=${action}`)).toBeGreaterThan(0);
+    });
+    it('should return a correctly structured url with from block', () => {
+      const fromBlock = 'xxxxxx';
+      const url = util.getEtherscanApiUrl(networkType, address, action, fromBlock);
+      expect(url.indexOf(`&startBlock=${fromBlock}`)).toBeGreaterThan(0);
+    });
+    it('should return a correctly structured url with testnet subdomain', () => {
+      const ropsten = 'ropsten';
+      const url = util.getEtherscanApiUrl(ropsten, address, action);
+      expect(url.indexOf(`https://api-${ropsten}`)).toBe(0);
+    });
+    it('should return a correctly structured url with apiKey', () => {
+      const apiKey = 'xxxxxx';
+      const url = util.getEtherscanApiUrl(networkType, address, action, 'xxxxxx', apiKey);
+      expect(url.indexOf(`&apikey=${apiKey}`)).toBeGreaterThan(0);
+    });
+  });
+
   describe('validateTransaction', () => {
     it('should throw if no from address', () => {
       expect(() => util.validateTransaction({} as any)).toThrow();
