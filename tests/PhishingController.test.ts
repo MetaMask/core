@@ -1,7 +1,12 @@
 import { stub } from 'sinon';
+import * as nock from 'nock';
 import PhishingController from '../src/third-party/PhishingController';
 
 describe('PhishingController', () => {
+  afterEach(() => {
+    nock.cleanAll();
+  });
+
   it('should set default state', () => {
     const controller = new PhishingController();
     expect(controller.state.phishing).toHaveProperty('blacklist');
@@ -60,19 +65,16 @@ describe('PhishingController', () => {
   });
 
   it('should not update rates if disabled', async () => {
-    const mock = stub(window, 'fetch');
-    mock.resolves({
-      json: () => ({}),
-    });
+    nock('https://cdn.jsdelivr.net')
+      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+      .replyWithError('Network error')
+      .persist();
     const controller = new PhishingController({
       disabled: true,
       interval: 10,
     });
-    await controller.updatePhishingLists();
 
-    expect(mock.called).toBe(false);
-
-    mock.restore();
+    expect(async () => await controller.updatePhishingLists()).not.toThrow();
   });
 
   it('should verify approved domain', () => {
@@ -88,20 +90,26 @@ describe('PhishingController', () => {
   });
 
   it('should not update phishing lists if fetch returns 304', async () => {
-    const mock = stub(window, 'fetch');
-    mock.resolves({ status: 304 });
+    nock('https://cdn.jsdelivr.net')
+      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+      .reply(304)
+      .persist();
     const controller = new PhishingController();
     const oldState = controller.state.phishing;
+
     await controller.updatePhishingLists();
+
     expect(controller.state.phishing).toBe(oldState);
-    mock.restore();
   });
 
   it('should not update phishing lists if fetch returns error', async () => {
-    const mock = stub(window, 'fetch');
-    mock.resolves({ status: 500 });
+    nock('https://cdn.jsdelivr.net')
+      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+      .reply(500)
+      .persist();
+
     const controller = new PhishingController();
+
     await expect(controller.updatePhishingLists()).rejects.toThrow(/Fetch failed with status '500'/u);
-    mock.restore();
   });
 });

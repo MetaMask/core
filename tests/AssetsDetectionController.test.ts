@@ -328,7 +328,7 @@ describe('AssetsDetectionController', () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     sandbox
       .stub(assetsContract, 'getBalancesInSingleCall')
-      .returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+      .resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toEqual([
       {
@@ -343,7 +343,7 @@ describe('AssetsDetectionController', () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     sandbox
       .stub(assetsContract, 'getBalancesInSingleCall')
-      .returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+      .resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
 
     assets.removeAndIgnoreToken('0x6810e776880C02933D47DB1b9fc05908e5386b96');
@@ -355,7 +355,7 @@ describe('AssetsDetectionController', () => {
     assetsDetection.configure({ networkType: MAINNET });
     sandbox
       .stub(assetsContract, 'getBalancesInSingleCall')
-      .returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+      .resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toEqual([]);
   });

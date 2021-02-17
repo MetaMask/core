@@ -56,7 +56,7 @@ describe('CurrencyRateController', () => {
   it('should poll and update rate in the right interval', () => {
     return new Promise((resolve) => {
       const controller = new CurrencyRateController({ interval: 100 });
-      const mock = stub(controller, 'fetchExchangeRate').resolves({});
+      const mock = stub(controller, 'fetchExchangeRate');
       setTimeout(() => {
         expect(mock.called).toBe(true);
         expect(mock.calledTwice).toBe(false);
