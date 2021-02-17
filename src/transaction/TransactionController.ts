@@ -716,8 +716,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     const remoteTxList: { [key: string]: number } = {};
     const remoteTxs: TransactionMeta[] = [];
 
-    etherscanTxResponse.result.forEach((tx: EtherscanTransactionMeta) => {
-      /* istanbul ignore next */
+    /* istanbul ignore next */
+    etherscanTxResponse?.result.forEach((tx: EtherscanTransactionMeta) => {
       if (!remoteTxList[tx.hash]) {
         const cleanTx = this.normalizeTxFromEtherscan(tx, currentNetworkID);
         remoteTxs.push(cleanTx);
@@ -725,8 +725,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       }
     });
 
-    etherscanTokenResponse && etherscanTokenResponse.result.forEach((tx: EtherscanTransactionMeta) => {
-      /* istanbul ignore next */
+    /* istanbul ignore next */
+    etherscanTokenResponse?.result.forEach((tx: EtherscanTransactionMeta) => {
       if (!remoteTxList[tx.hash]) {
         const cleanTx = this.normalizeTxFromEtherscan(tx, currentNetworkID);
         remoteTxs.push(cleanTx);
