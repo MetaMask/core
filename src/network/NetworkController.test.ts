@@ -1,5 +1,5 @@
 import { stub } from 'sinon';
-import NetworkController, { NetworksChainId, ProviderConfig } from '../src/network/NetworkController';
+import NetworkController, { NetworksChainId, ProviderConfig } from './NetworkController';
 
 const Web3ProviderEngine = require('web3-provider-engine');
 

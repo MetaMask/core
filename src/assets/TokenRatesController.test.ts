@@ -1,12 +1,12 @@
 import { stub } from 'sinon';
 import * as nock from 'nock';
-import ComposableController from '../src/ComposableController';
-import TokenRatesController, { Token } from '../src/assets/TokenRatesController';
-import { AssetsController } from '../src/assets/AssetsController';
-import { PreferencesController } from '../src/user/PreferencesController';
-import { NetworkController } from '../src/network/NetworkController';
-import { AssetsContractController } from '../src/assets/AssetsContractController';
-import CurrencyRateController from '../src/assets/CurrencyRateController';
+import ComposableController from '../ComposableController';
+import { PreferencesController } from '../user/PreferencesController';
+import { NetworkController } from '../network/NetworkController';
+import TokenRatesController, { Token } from './TokenRatesController';
+import { AssetsController } from './AssetsController';
+import { AssetsContractController } from './AssetsContractController';
+import CurrencyRateController from './CurrencyRateController';
 
 const COINGECKO_HOST = 'https://api.coingecko.com';
 const COINGECKO_PATH = '/api/v3/simple/token_price/ethereum';

@@ -1,11 +1,11 @@
 import { createSandbox, stub } from 'sinon';
 import * as nock from 'nock';
-import { AssetsDetectionController } from '../src/assets/AssetsDetectionController';
-import { NetworkController, NetworksChainId } from '../src/network/NetworkController';
-import { PreferencesController } from '../src/user/PreferencesController';
-import { ComposableController } from '../src/ComposableController';
-import { AssetsController } from '../src/assets/AssetsController';
-import { AssetsContractController } from '../src/assets/AssetsContractController';
+import { NetworkController, NetworksChainId } from '../network/NetworkController';
+import { PreferencesController } from '../user/PreferencesController';
+import { ComposableController } from '../ComposableController';
+import { AssetsController } from './AssetsController';
+import { AssetsContractController } from './AssetsContractController';
+import { AssetsDetectionController } from './AssetsDetectionController';
 
 const { BN } = require('ethereumjs-util');
 

@@ -1,4 +1,4 @@
-import { AssetsContractController } from '../src/assets/AssetsContractController';
+import { AssetsContractController } from './AssetsContractController';
 
 const HttpProvider = require('ethjs-provider-http');
 
