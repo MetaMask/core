@@ -1,5 +1,5 @@
 import { createSandbox } from 'sinon';
-import { getOnce } from 'fetch-mock';
+import * as nock from 'nock';
 import AssetsController from '../src/assets/AssetsController';
 import ComposableController from '../src/ComposableController';
 import PreferencesController from '../src/user/PreferencesController';
@@ -10,7 +10,8 @@ const HttpProvider = require('ethjs-provider-http');
 
 const KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
-const OPEN_SEA_API = 'https://api.opensea.io/api/v1/';
+const OPEN_SEA_HOST = 'https://api.opensea.io';
+const OPEN_SEA_PATH = '/api/v1';
 
 describe('AssetsController', () => {
   let assetsController: AssetsController;
@@ -27,94 +28,56 @@ describe('AssetsController', () => {
 
     new ComposableController([assetsController, assetsContract, network, preferences]);
 
-    getOnce(
-      `${OPEN_SEA_API}asset_contract/0xfoO`,
-      () => ({
-        body: JSON.stringify({
-          description: 'Description',
-          image_url: 'url',
-          name: 'Name',
-          symbol: 'FOO',
-          total_supply: 0,
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
-    getOnce(
-      `${OPEN_SEA_API}asset_contract/0xFOu`,
-      () => ({
-        body: JSON.stringify({
-          description: 'Description',
-          image_url: 'url',
-          name: 'Name',
-          symbol: 'FOU',
-          total_supply: 10,
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
-    getOnce(
-      `${OPEN_SEA_API}asset/0xfoO/1`,
-      () => ({
-        body: JSON.stringify({
-          description: 'Description',
-          image_original_url: 'url',
-          name: 'Name',
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
-    getOnce(
-      `${OPEN_SEA_API}asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203`,
-      () => ({
-        body: JSON.stringify({
-          description: 'Kudos Description',
-          image_original_url: 'Kudos url',
-          name: 'Kudos Name',
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
-    getOnce(
-      'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
-      () => ({
-        body: JSON.stringify({
-          image: 'Kudos Image',
-          name: 'Kudos Name',
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
-    getOnce(
-      `${OPEN_SEA_API}asset/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/798958393`,
-      () => ({
-        throws: new TypeError('Failed to fetch'),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
-    getOnce(
-      `${OPEN_SEA_API}asset_contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab`,
-      () => ({
-        throws: new TypeError('Failed to fetch'),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
-    getOnce(
-      `${OPEN_SEA_API}asset_contract/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163`,
-      () => ({
-        body: JSON.stringify({
-          description: 'Kudos Description',
-          image_url: 'Kudos url',
-          name: 'Kudos',
-          symbol: 'KDO',
-          total_supply: 10,
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
+    nock(OPEN_SEA_HOST)
+      .get(`${OPEN_SEA_PATH}/asset_contract/0xfoO`)
+      .reply(200, {
+        description: 'Description',
+        image_url: 'url',
+        name: 'Name',
+        symbol: 'FOO',
+        total_supply: 0,
+      })
+      .get(`${OPEN_SEA_PATH}/asset_contract/0xFOu`)
+      .reply(200, {
+        description: 'Description',
+        image_url: 'url',
+        name: 'Name',
+        symbol: 'FOU',
+        total_supply: 10,
+      })
+      .get(`${OPEN_SEA_PATH}/asset/0xfoO/1`)
+      .reply(200, {
+        description: 'Description',
+        image_original_url: 'url',
+        name: 'Name',
+      })
+      .get(`${OPEN_SEA_PATH}/asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203`)
+      .reply(200, {
+        description: 'Kudos Description',
+        image_original_url: 'Kudos url',
+        name: 'Kudos Name',
+      })
+      .get(`${OPEN_SEA_PATH}/asset/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/798958393`)
+      .replyWithError(new TypeError('Failed to fetch'))
+      .get(`${OPEN_SEA_PATH}/asset_contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab`)
+      .replyWithError(new TypeError('Failed to fetch'))
+      .get(`${OPEN_SEA_PATH}/asset_contract/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163`)
+      .reply(200, {
+        description: 'Kudos Description',
+        image_url: 'Kudos url',
+        name: 'Kudos',
+        symbol: 'KDO',
+        total_supply: 10,
+      });
+
+    nock('https://ipfs.gitcoin.co:443').get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov').reply(200, {
+      image: 'Kudos Image',
+      name: 'Kudos Name',
+    });
   });
 
   afterEach(() => {
+    nock.cleanAll();
     sandbox.reset();
   });
 

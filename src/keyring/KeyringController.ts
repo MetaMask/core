@@ -5,6 +5,7 @@ import {
   signTypedData_v4,
   signTypedDataLegacy,
 } from 'eth-sig-util';
+import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import BaseController, { BaseConfig, BaseState, Listener } from '../BaseController';
 import PreferencesController from '../user/PreferencesController';
 import { Transaction } from '../transaction/TransactionController';
@@ -12,10 +13,8 @@ import { PersonalMessageParams } from '../message-manager/PersonalMessageManager
 import { TypedMessageParams } from '../message-manager/TypedMessageManager';
 
 const Keyring = require('eth-keyring-controller');
-const { Mutex } = require('await-semaphore');
-const Wallet = require('ethereumjs-wallet');
+const { Mutex } = require('async-mutex');
 const ethUtil = require('ethereumjs-util');
-const importers = require('ethereumjs-wallet/thirdparty');
 
 const privates = new WeakMap();
 
@@ -288,7 +287,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
         try {
           wallet = importers.fromEtherWallet(input, password);
         } catch (e) {
-          wallet = wallet || Wallet.fromV3(input, password, true);
+          wallet = wallet || await Wallet.fromV3(input, password, true);
         }
         privateKey = ethUtil.bufferToHex(wallet.getPrivateKey());
         break;

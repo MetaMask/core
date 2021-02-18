@@ -1,5 +1,5 @@
 import 'isomorphic-fetch';
-import * as fetchMock from 'fetch-mock';
+import * as nock from 'nock';
 
 import * as util from '../src/util';
 
@@ -50,7 +50,7 @@ jest.mock('eth-query', () =>
 
 describe('util', () => {
   beforeEach(() => {
-    fetchMock.reset();
+    nock.cleanAll();
   });
 
   it('bNToHex', () => {
@@ -537,9 +537,8 @@ describe('util', () => {
 
   describe('successfulFetch', () => {
     beforeEach(() => {
-      fetchMock
-        .mock(SOME_API, new Response(JSON.stringify({ foo: 'bar' }), { status: 200 }))
-        .mock(SOME_FAILING_API, new Response('response', { status: 500 }));
+      nock(SOME_API).get(/.+/u).reply(200, { foo: 'bar' }).persist();
+      nock(SOME_FAILING_API).get(/.+/u).reply(500).persist();
     });
 
     it('should return successful fetch response', async () => {
@@ -560,18 +559,8 @@ describe('util', () => {
   });
 
   describe('timeoutFetch', () => {
-    const delay = (time: number) => {
-      return new Promise((resolve) => {
-        setTimeout(resolve, time);
-      });
-    };
-
     beforeEach(() => {
-      fetchMock.mock(SOME_API, () => {
-        return delay(300).then(() => {
-          return JSON.stringify({});
-        });
-      });
+      nock(SOME_API).get(/.+/u).delay(300).reply(200, {}).persist();
     });
 
     it('should fetch first if response is faster than timeout', async () => {
