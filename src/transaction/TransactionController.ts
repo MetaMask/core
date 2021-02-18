@@ -38,7 +38,7 @@ export interface Result {
  * @type Fetch All Options
  *
  * @property fromBlock - String containing a specific block decimal number
- * @property alethioApiKey - API key to be used to fetch token transactions
+ * @property etherscanApiKey - API key to be used to fetch token transactions
  */
 export interface FetchAllOptions {
   fromBlock?: string;
@@ -716,8 +716,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     const remoteTxList: { [key: string]: number } = {};
     const remoteTxs: TransactionMeta[] = [];
 
-    /* istanbul ignore next */
-    etherscanTxResponse?.result.forEach((tx: EtherscanTransactionMeta) => {
+    etherscanTxResponse.result.forEach((tx: EtherscanTransactionMeta) => {
       if (!remoteTxList[tx.hash]) {
         const cleanTx = this.normalizeTxFromEtherscan(tx, currentNetworkID);
         remoteTxs.push(cleanTx);
@@ -725,8 +724,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       }
     });
 
-    /* istanbul ignore next */
-    etherscanTokenResponse?.result.forEach((tx: EtherscanTransactionMeta) => {
+    etherscanTokenResponse.result.forEach((tx: EtherscanTransactionMeta) => {
       if (!remoteTxList[tx.hash]) {
         const cleanTx = this.normalizeTxFromEtherscan(tx, currentNetworkID);
         remoteTxs.push(cleanTx);

@@ -138,12 +138,12 @@ export async function handleTransactionFetch(
     etherscanTxResponsePromise,
     etherscanTokenResponsePromise,
   ]);
-  /* istanbul ignore next */
-  if (etherscanTxResponse?.status === '0' || etherscanTxResponse?.result.length <= 0) {
+
+  if (etherscanTxResponse.status === '0' || etherscanTxResponse.result.length <= 0) {
     etherscanTxResponse = { result: [] };
   }
-  /* istanbul ignore next */
-  if (etherscanTokenResponse?.status === '0' || etherscanTokenResponse?.result.length <= 0) {
+
+  if (etherscanTokenResponse.status === '0' || etherscanTokenResponse.result.length <= 0) {
     etherscanTokenResponse = { result: [] };
   }
 
