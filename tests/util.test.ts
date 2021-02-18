@@ -151,7 +151,6 @@ describe('util', () => {
 
     it('should return a correctly structured url', () => {
       const url = util.getEtherscanApiUrl(networkType, address, action);
-      expect(url.indexOf(action)).toBeGreaterThan(0);
       expect(url.indexOf(`&action=${action}`)).toBeGreaterThan(0);
     });
     it('should return a correctly structured url with from block', () => {
