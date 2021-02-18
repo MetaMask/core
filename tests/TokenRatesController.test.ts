@@ -114,7 +114,7 @@ describe('TokenRatesController', () => {
 
   it('should handle balance not found in API', async () => {
     const controller = new TokenRatesController({ interval: 10 });
-    stub(controller, 'fetchExchangeRate').returns({ error: 'Not Found', message: 'Not Found' });
+    stub(controller, 'fetchExchangeRate').throws({ error: 'Not Found', message: 'Not Found' });
     expect(controller.state.contractExchangeRates).toEqual({});
     controller.tokens = [{ address: 'bar', decimals: 0, symbol: '' }];
     const mock = stub(controller, 'updateExchangeRates');
