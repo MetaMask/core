@@ -1,5 +1,5 @@
 import { createSandbox, stub } from 'sinon';
-import { getOnce, get } from 'fetch-mock';
+import * as nock from 'nock';
 import { AssetsDetectionController } from '../src/assets/AssetsDetectionController';
 import { NetworkController, NetworksChainId } from '../src/network/NetworkController';
 import { PreferencesController } from '../src/user/PreferencesController';
@@ -13,7 +13,8 @@ const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 const ROPSTEN = 'ropsten';
 const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
-const OPEN_SEA_API = 'https://api.opensea.io/api/v1/';
+const OPEN_SEA_HOST = 'https://api.opensea.io';
+const OPEN_SEA_PATH = '/api/v1';
 
 describe('AssetsDetectionController', () => {
   let assetsDetection: AssetsDetectionController;
@@ -32,139 +33,80 @@ describe('AssetsDetectionController', () => {
 
     new ComposableController([assets, assetsContract, assetsDetection, network, preferences]);
 
-    getOnce(
-      `${OPEN_SEA_API}asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`,
-      () => ({
-        body: JSON.stringify({
-          description: 'Description',
-          image_url: 'url',
-          name: 'Name',
-          symbol: 'FOO',
-          total_supply: 0,
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
-
-    get(
-      `${OPEN_SEA_API}assets?owner=0x2&limit=300`,
-      () => ({
-        body: JSON.stringify({
-          assets: [
-            {
-              asset_contract: {
-                address: '0x1d963688fe2209a98db35c67a041524822cf04ff',
-              },
-              description: 'Description 2577',
-              image_original_url: 'image/2577.png',
-              name: 'ID 2577',
-              token_id: '2577',
+    nock(OPEN_SEA_HOST)
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x2&limit=300`)
+      .reply(200, {
+        assets: [
+          {
+            asset_contract: {
+              address: '0x1d963688fe2209a98db35c67a041524822cf04ff',
             },
-          ],
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
+            description: 'Description 2577',
+            image_original_url: 'image/2577.png',
+            name: 'ID 2577',
+            token_id: '2577',
+          },
+        ],
+      })
+      .persist();
 
-    getOnce(
-      `${OPEN_SEA_API}assets?owner=0x1&limit=300`,
-      () => ({
-        body: JSON.stringify({
-          assets: [
-            {
-              asset_contract: {
-                address: '0x1d963688fe2209a98db35c67a041524822cf04ff',
-              },
-              description: 'Description 2577',
-              image_original_url: 'image/2577.png',
-              name: 'ID 2577',
-              token_id: '2577',
+    nock(OPEN_SEA_HOST)
+      .get(`${OPEN_SEA_PATH}/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`)
+      .reply(200, {
+        description: 'Description',
+        image_url: 'url',
+        name: 'Name',
+        symbol: 'FOO',
+        total_supply: 0,
+      })
+      .get(`${OPEN_SEA_PATH}/asset_contract/0x1D963688FE2209A98db35c67A041524822cf04Hh`)
+      .reply(200, {
+        description: 'Description HH',
+        image_url: 'url HH',
+        name: 'Name HH',
+        symbol: 'HH',
+        total_supply: 10,
+      })
+      .get(`${OPEN_SEA_PATH}/asset_contract/0x1d963688FE2209A98db35c67A041524822CF04gg`)
+      .replyWithError(new TypeError('Failed to fetch'))
+      .get(`${OPEN_SEA_PATH}/asset_contract/0x1D963688fe2209a98dB35c67a041524822Cf04ii`)
+      .replyWithError(new TypeError('Failed to fetch'))
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&limit=300`)
+      .reply(200, {
+        assets: [
+          {
+            asset_contract: {
+              address: '0x1d963688FE2209A98db35c67A041524822CF04gg',
             },
-            {
-              asset_contract: {
-                address: '0x1d963688fe2209a98db35c67a041524822cf04ff',
-              },
-              description: 'Description 2574',
-              image_original_url: 'image/2574.png',
-              name: 'ID 2574',
-              token_id: '2574',
+            description: 'Description 2577',
+            image_original_url: 'image/2577.png',
+            name: 'ID 2577',
+            token_id: '2577',
+          },
+          {
+            asset_contract: {
+              address: '0x1d963688FE2209A98db35c67A041524822CF04ii',
             },
-          ],
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
-
-    getOnce(
-      `${OPEN_SEA_API}asset_contract/0x1D963688FE2209A98db35c67A041524822cf04Hh`,
-      () => ({
-        body: JSON.stringify({
-          description: 'Description HH',
-          image_url: 'url HH',
-          name: 'Name HH',
-          symbol: 'HH',
-          total_supply: 10,
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
-
-    getOnce(
-      `${OPEN_SEA_API}asset_contract/0x1d963688FE2209A98db35c67A041524822CF04gg`,
-      () => ({
-        throws: new TypeError('Failed to fetch'),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
-
-    getOnce(
-      `${OPEN_SEA_API}asset_contract/0x1D963688fe2209a98dB35c67a041524822Cf04ii`,
-      () => ({
-        throws: new TypeError('Failed to fetch'),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
-
-    getOnce(
-      `${OPEN_SEA_API}assets?owner=0x1&limit=300`,
-      () => ({
-        body: JSON.stringify({
-          assets: [
-            {
-              asset_contract: {
-                address: '0x1d963688FE2209A98db35c67A041524822CF04gg',
-              },
-              description: 'Description 2577',
-              image_original_url: 'image/2577.png',
-              name: 'ID 2577',
-              token_id: '2577',
+            description: 'Description 2578',
+            image_original_url: 'image/2578.png',
+            name: 'ID 2578',
+            token_id: '2578',
+          },
+          {
+            asset_contract: {
+              address: '0x1d963688FE2209A98db35c67A041524822CF04hh',
             },
-            {
-              asset_contract: {
-                address: '0x1d963688FE2209A98db35c67A041524822CF04ii',
-              },
-              description: 'Description 2578',
-              image_original_url: 'image/2578.png',
-              name: 'ID 2578',
-              token_id: '2578',
-            },
-            {
-              asset_contract: {
-                address: '0x1d963688FE2209A98db35c67A041524822CF04hh',
-              },
-              description: 'Description 2574',
-              image_original_url: 'image/2574.png',
-              name: 'ID 2574',
-              token_id: '2574',
-            },
-          ],
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
+            description: 'Description 2574',
+            image_original_url: 'image/2574.png',
+            name: 'ID 2574',
+            token_id: '2574',
+          },
+        ],
+      });
   });
 
   afterEach(() => {
+    nock.cleanAll();
     sandbox.reset();
   });
 
@@ -321,71 +263,57 @@ describe('AssetsDetectionController', () => {
     expect(assets.state.collectibles).toEqual([collectibleHH2574]);
     expect(assets.state.collectibleContracts).toEqual([collectibleContractHH]);
     // During next call of assets detection, API succeds returning contract ending in gg information
-    getOnce(
-      `${OPEN_SEA_API}asset_contract/0x1d963688FE2209A98db35c67A041524822CF04gg`,
-      () => ({
-        body: JSON.stringify({
-          description: 'Description GG',
-          image_url: 'url GG',
-          name: 'Name GG',
-          symbol: 'GG',
-          total_supply: 10,
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
 
-    getOnce(
-      `${OPEN_SEA_API}asset_contract/0x1D963688fe2209a98dB35c67a041524822Cf04ii`,
-      () => ({
-        body: JSON.stringify({
-          description: 'Description II',
-          image_url: 'url II',
-          name: 'Name II',
-          symbol: 'II',
-          total_supply: 10,
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
+    nock(OPEN_SEA_HOST)
+      .get(`${OPEN_SEA_PATH}/asset_contract/0x1d963688FE2209A98db35c67A041524822CF04gg`)
+      .reply(200, {
+        description: 'Description GG',
+        image_url: 'url GG',
+        name: 'Name GG',
+        symbol: 'GG',
+        total_supply: 10,
+      })
+      .get(`${OPEN_SEA_PATH}/asset_contract/0x1D963688fe2209a98dB35c67a041524822Cf04ii`)
+      .reply(200, {
+        description: 'Description II',
+        image_url: 'url II',
+        name: 'Name II',
+        symbol: 'II',
+        total_supply: 10,
+      })
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&limit=300`)
+      .reply(200, {
+        assets: [
+          {
+            asset_contract: {
+              address: '0x1d963688FE2209A98db35c67A041524822CF04ii',
+            },
+            description: 'Description 2577',
+            image_original_url: 'image/2577.png',
+            name: 'ID 2577',
+            token_id: '2577',
+          },
+          {
+            asset_contract: {
+              address: '0x1D963688fe2209a98dB35c67a041524822Cf04gg',
+            },
+            description: 'Description 2574',
+            image_original_url: 'image/2574.png',
+            name: 'ID 2574',
+            token_id: '2574',
+          },
+          {
+            asset_contract: {
+              address: '0x1d963688FE2209A98db35c67A041524822CF04hh',
+            },
+            description: 'Description 2574',
+            image_original_url: 'image/2574.png',
+            name: 'ID 2574',
+            token_id: '2574',
+          },
+        ],
+      });
 
-    getOnce(
-      `${OPEN_SEA_API}assets?owner=0x1&limit=300`,
-      () => ({
-        body: JSON.stringify({
-          assets: [
-            {
-              asset_contract: {
-                address: '0x1d963688FE2209A98db35c67A041524822CF04ii',
-              },
-              description: 'Description 2577',
-              image_original_url: 'image/2577.png',
-              name: 'ID 2577',
-              token_id: '2577',
-            },
-            {
-              asset_contract: {
-                address: '0x1D963688fe2209a98dB35c67a041524822Cf04gg',
-              },
-              description: 'Description 2574',
-              image_original_url: 'image/2574.png',
-              name: 'ID 2574',
-              token_id: '2574',
-            },
-            {
-              asset_contract: {
-                address: '0x1d963688FE2209A98db35c67A041524822CF04hh',
-              },
-              description: 'Description 2574',
-              image_original_url: 'image/2574.png',
-              name: 'ID 2574',
-              token_id: '2574',
-            },
-          ],
-        }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
     // Now user should have respective collectibles
     await assetsDetection.detectCollectibles();
     expect(assets.state.collectibleContracts).toEqual([
@@ -400,7 +328,7 @@ describe('AssetsDetectionController', () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     sandbox
       .stub(assetsContract, 'getBalancesInSingleCall')
-      .returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+      .resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toEqual([
       {
@@ -415,7 +343,7 @@ describe('AssetsDetectionController', () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     sandbox
       .stub(assetsContract, 'getBalancesInSingleCall')
-      .returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+      .resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
 
     assets.removeAndIgnoreToken('0x6810e776880C02933D47DB1b9fc05908e5386b96');
@@ -427,7 +355,7 @@ describe('AssetsDetectionController', () => {
     assetsDetection.configure({ networkType: MAINNET });
     sandbox
       .stub(assetsContract, 'getBalancesInSingleCall')
-      .returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+      .resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toEqual([]);
   });

@@ -1,5 +1,5 @@
 import { stub } from 'sinon';
-import { get } from 'fetch-mock';
+import * as nock from 'nock';
 import ComposableController from '../src/ComposableController';
 import TokenRatesController, { Token } from '../src/assets/TokenRatesController';
 import { AssetsController } from '../src/assets/AssetsController';
@@ -8,36 +8,30 @@ import { NetworkController } from '../src/network/NetworkController';
 import { AssetsContractController } from '../src/assets/AssetsContractController';
 import CurrencyRateController from '../src/assets/CurrencyRateController';
 
-const COINGECKO_API = 'https://api.coingecko.com/api/v3/simple/token_price/ethereum?';
+const COINGECKO_HOST = 'https://api.coingecko.com';
+const COINGECKO_PATH = '/api/v3/simple/token_price/ethereum';
 
 describe('TokenRatesController', () => {
   beforeEach(() => {
-    get(
-      `${COINGECKO_API}contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,0xfoO&vs_currencies=eth`,
-      () => ({
-        body: JSON.stringify({ '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 } }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
-    get(`${COINGECKO_API}contract_addresses=0xfoO&vs_currencies=eth`, () => ({ body: '{}' }), {
-      method: 'GET',
-      overwriteRoutes: true,
-    });
-    get(`${COINGECKO_API}contract_addresses=bar&vs_currencies=eth`, () => ({ body: '{}' }), {
-      method: 'GET',
-      overwriteRoutes: true,
-    });
-    get(`${COINGECKO_API}contract_addresses=0xfoO&vs_currencies=gno`, () => ({ body: '{}' }), {
-      method: 'GET',
-      overwriteRoutes: true,
-    });
-    get(
-      'https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD',
-      () => ({
-        body: JSON.stringify({ USD: 179.63 }),
-      }),
-      { overwriteRoutes: true, method: 'GET' },
-    );
+    nock(COINGECKO_HOST)
+      .get(`${COINGECKO_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,0xfoO&vs_currencies=eth`)
+      .reply(200, { '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 } })
+      .get(`${COINGECKO_PATH}?contract_addresses=0xfoO&vs_currencies=eth`)
+      .reply(200, {})
+      .get(`${COINGECKO_PATH}?contract_addresses=bar&vs_currencies=eth`)
+      .reply(200, {})
+      .get(`${COINGECKO_PATH}?contract_addresses=0xfoO&vs_currencies=gno`)
+      .reply(200, {})
+      .persist();
+
+    nock('https://min-api.cryptocompare.com')
+      .get('/data/price?fsym=ETH&tsyms=USD')
+      .reply(200, { USD: 179.63 })
+      .persist();
+  });
+
+  afterEach(() => {
+    nock.cleanAll();
   });
 
   it('should set default state', () => {
@@ -120,7 +114,7 @@ describe('TokenRatesController', () => {
 
   it('should handle balance not found in API', async () => {
     const controller = new TokenRatesController({ interval: 10 });
-    stub(controller, 'fetchExchangeRate').returns({ error: 'Not Found', message: 'Not Found' });
+    stub(controller, 'fetchExchangeRate').throws({ error: 'Not Found', message: 'Not Found' });
     expect(controller.state.contractExchangeRates).toEqual({});
     controller.tokens = [{ address: 'bar', decimals: 0, symbol: '' }];
     const mock = stub(controller, 'updateExchangeRates');
