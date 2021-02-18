@@ -110,6 +110,37 @@ describe('AssetsController', () => {
     });
   });
 
+  it('should add tokens', async () => {
+    await assetsController.addTokens([
+      { address: 'addressA', symbol: 'barA', decimals: 2 },
+      { address: 'addressB', symbol: 'barB', decimals: 2 },
+    ]);
+    expect(assetsController.state.tokens[0]).toEqual({
+      address: '0xAdDRessA',
+      decimals: 2,
+      symbol: 'barA',
+    });
+    expect(assetsController.state.tokens[1]).toEqual({
+      address: '0xAddReSSB',
+      decimals: 2,
+      symbol: 'barB',
+    });
+    await assetsController.addTokens([
+      { address: 'addressA', symbol: 'bazA', decimals: 2 },
+      { address: 'addressB', symbol: 'bazB', decimals: 2 },
+    ]);
+    expect(assetsController.state.tokens[0]).toEqual({
+      address: '0xAdDRessA',
+      decimals: 2,
+      symbol: 'bazA',
+    });
+    expect(assetsController.state.tokens[1]).toEqual({
+      address: '0xAddReSSB',
+      decimals: 2,
+      symbol: 'bazB',
+    });
+  });
+
   it('should add token by selected address', async () => {
     const firstAddress = '0x123';
     const secondAddress = '0x321';
