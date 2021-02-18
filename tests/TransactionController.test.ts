@@ -461,7 +461,7 @@ const ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND = {
   message: 'No transactions found',
   result: [],
   status: '0',
-}
+};
 
 const MOCK_FETCH_TX_HISTORY_DATA_OK = {
   'https://api-ropsten.etherscan.io/api?module=account&action=tokentx&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&tag=latest&page=1': ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND,
