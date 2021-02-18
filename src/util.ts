@@ -143,7 +143,7 @@ export async function handleTransactionFetch(
     etherscanTxResponse = { result: [] };
   }
 
-  if (etherscanTokenResponse.status === '0' || etherscanTokenResponse.result.length <= 0) {
+  if (!etherscanTokenResponse || etherscanTokenResponse.status === '0' || etherscanTokenResponse.result.length <= 0) {
     etherscanTokenResponse = { result: [] };
   }
 
