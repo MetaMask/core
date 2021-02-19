@@ -35,7 +35,7 @@
     "url": "https://github.com/MetaMask/controllers/issues"
   },
   "dependencies": {
-    "@metamask/contract-metadata": "^1.22.0",
+    "@metamask/contract-metadata": "^1.23.0",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
     "eth-ens-namehash": "^2.0.8",
