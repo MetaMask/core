@@ -496,12 +496,12 @@ describe('TransactionController', () => {
     } as any;
     controller.onComposed();
     controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
-        id: 'foo',
-        networkID: '3',
-        status: 'submitted',
-        transactionHash: '1337',
-      } as any);
+      from: MOCK_PRFERENCES.state.selectedAddress,
+      id: 'foo',
+      networkID: '3',
+      status: 'submitted',
+      transactionHash: '1337',
+    } as any);
     controller.wipeTransactions();
     expect(controller.state.transactions).toHaveLength(0);
   });
