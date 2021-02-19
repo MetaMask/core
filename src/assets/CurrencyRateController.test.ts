@@ -1,7 +1,7 @@
 import 'isomorphic-fetch';
 import { stub } from 'sinon';
 import * as nock from 'nock';
-import CurrencyRateController from '../src/assets/CurrencyRateController';
+import CurrencyRateController from './CurrencyRateController';
 
 describe('CurrencyRateController', () => {
   beforeEach(() => {

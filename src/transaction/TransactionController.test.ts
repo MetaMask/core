@@ -1,6 +1,6 @@
 import { stub } from 'sinon';
-import { NetworksChainId } from '../src/network/NetworkController';
-import TransactionController from '../src/transaction/TransactionController';
+import { NetworksChainId } from '../network/NetworkController';
+import TransactionController from './TransactionController';
 
 const globalAny: any = global;
 

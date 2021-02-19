@@ -1,5 +1,5 @@
 import { errorCodes } from 'eth-rpc-errors';
-import ApprovalController from '../src/approval/ApprovalController';
+import ApprovalController from './ApprovalController';
 
 const sinon = require('sinon');
 

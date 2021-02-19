@@ -1,7 +1,7 @@
 import { stub, spy } from 'sinon';
-import AccountTrackerController from '../src/assets/AccountTrackerController';
-import PreferencesController from '../src/user/PreferencesController';
-import ComposableController from '../src/ComposableController';
+import PreferencesController from '../user/PreferencesController';
+import ComposableController from '../ComposableController';
+import AccountTrackerController from './AccountTrackerController';
 
 const HttpProvider = require('ethjs-provider-http');
 

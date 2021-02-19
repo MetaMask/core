@@ -1,6 +1,6 @@
 import { stub } from 'sinon';
 import * as nock from 'nock';
-import PhishingController from '../src/third-party/PhishingController';
+import PhishingController from './PhishingController';
 
 describe('PhishingController', () => {
   afterEach(() => {

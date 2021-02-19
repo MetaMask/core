@@ -1,7 +1,7 @@
 import 'isomorphic-fetch';
 import * as nock from 'nock';
 
-import * as util from '../src/util';
+import * as util from './util';
 
 const { BN } = require('ethereumjs-util');
 

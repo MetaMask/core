@@ -1,4 +1,4 @@
-import MessageManager from '../src/message-manager/MessageManager';
+import MessageManager from './MessageManager';
 
 describe('PersonalMessageManager', () => {
   it('should set default state', () => {
