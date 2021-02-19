@@ -411,9 +411,12 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
-    /* istanbul ignore next */
-    const networkID = network?.state?.network;
-    const chainId = network?.state?.provider?.chainId;
+    const {
+        state: {
+          network: networkID,
+          provider: { chainId },
+        },
+      } = network;
 
     const transactionMeta = {
       id: random(),
@@ -682,6 +685,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     await safelyExecute(() =>
       Promise.all(
         transactions.map(async (meta, index) => {
+          // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
           if (meta.status === 'submitted' && (meta.chainId === currentChainId || (!meta.chainId && meta.networkID === currentNetworkID))) {
             const txObj = await query(this.ethQuery, 'getTransactionByHash', [meta.transactionHash]);
             /* istanbul ignore else */
@@ -731,7 +735,12 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     }
     const currentChainId = network.state.provider.chainId;
     const currentNetworkID = network.state.network;
-    const newTransactions = this.state.transactions.filter(({ networkID, chainId }) => ((chainId !== currentChainId) || (!chainId && networkID !== currentNetworkID)));
+    const newTransactions = this.state.transactions.filter(({ networkID, chainId }) => {
+        // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
+        const isCurrentNetwork = (chainId === currentChainId || (!chainId && networkID === currentNetworkID));
+        return !isCurrentNetwork;
+    });
+
     this.update({ transactions: newTransactions });
   }
 
@@ -789,6 +798,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     allTxs.forEach(async (tx) => {
       /* istanbul ignore next */
       if (
+        // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
         (tx.chainId === currentChainId || (!tx.chainId && tx.networkID === currentNetworkID)) &&
         tx.transaction.to &&
         tx.transaction.to.toLowerCase() === address.toLowerCase()
