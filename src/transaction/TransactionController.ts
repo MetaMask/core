@@ -468,19 +468,19 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     const currentChainId = network?.state?.provider?.chainId;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
-    const { from } = transactionMeta.transaction;
-
-    if (!this.sign) {
-      releaseLock();
-      this.failTransaction(transactionMeta, new Error('No sign method defined.'));
-      return;
-    } else if (!currentChainId) {
-      releaseLock();
-      this.failTransaction(transactionMeta, new Error('No chainId defined.'));
-      return;
-    }
 
     try {
+      const { from } = transactionMeta.transaction;
+      if (!this.sign) {
+        releaseLock();
+        this.failTransaction(transactionMeta, new Error('No sign method defined.'));
+        return;
+      } else if (!currentChainId) {
+        releaseLock();
+        this.failTransaction(transactionMeta, new Error('No chainId defined.'));
+        return;
+      }
+
       transactionMeta.status = 'approved';
       transactionMeta.transaction.nonce = await query(this.ethQuery, 'getTransactionCount', [from, 'pending']);
       transactionMeta.transaction.chainId = parseInt(currentChainId, undefined);
