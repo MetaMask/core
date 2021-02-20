@@ -75,9 +75,9 @@ describe('BaseController', () => {
     });
 
     expect(listener1.callCount).toEqual(1);
-    expect(listener1.firstCall.args).toEqual([{ count: 1 }]);
+    expect(listener1.firstCall.args).toEqual([{ count: 1 }, [{ op: 'replace', path: [], value: { count: 1 } }]]);
     expect(listener2.callCount).toEqual(1);
-    expect(listener2.firstCall.args).toEqual([{ count: 1 }]);
+    expect(listener2.firstCall.args).toEqual([{ count: 1 }, [{ op: 'replace', path: [], value: { count: 1 } }]]);
   });
 
   it('should inform a subscriber of each state change once even after multiple subscriptions', () => {
@@ -91,7 +91,7 @@ describe('BaseController', () => {
     });
 
     expect(listener1.callCount).toEqual(1);
-    expect(listener1.firstCall.args).toEqual([{ count: 1 }]);
+    expect(listener1.firstCall.args).toEqual([{ count: 1 }, [{ op: 'replace', path: [], value: { count: 1 } }]]);
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing', () => {
