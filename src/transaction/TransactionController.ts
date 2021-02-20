@@ -247,6 +247,10 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     return { registryMethod, parsedRegistryMethod };
   }
 
+  private getStatus(txMeta: EtherscanTransactionMeta): string {
+    return txMeta.isError === '0' ? 'confirmed' : 'failed';
+  }
+
   /**
    * Normalizes the transaction information from etherscan
    * to be compatible with the TransactionMeta interface
@@ -257,8 +261,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    */
   private normalizeTxFromEtherscan(txMeta: EtherscanTransactionMeta, currentNetworkID: string): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
-    /* istanbul ignore next */
-    const status = txMeta.isError === '0' ? 'confirmed' : 'failed';
+    const status = this.getStatus(txMeta);
     return {
       blockNumber: txMeta.blockNumber,
       id: random({ msecs: time }),
@@ -354,6 +357,10 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     }
   }
 
+  getNetworkId(network: NetworkController) {
+    return network.state.provider.chainId;
+  }
+
   /**
    * Add a new unapproved transaction to state. Parameters will be validated, a
    * unique transaction id will be generated, and gas and gasPrice will be calculated
@@ -369,8 +376,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
-    /* istanbul ignore next */
-    const networkID = network?.state?.provider?.chainId;
+    const networkID = this.getNetworkId(network);
 
     const transactionMeta = {
       id: random(),
@@ -426,8 +432,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
   async approveTransaction(transactionID: string) {
     const { transactions } = this.state;
     const network = this.context.NetworkController as NetworkController;
-    /* istanbul ignore next */
-    const currentChainId = network?.state?.provider?.chainId;
+    const currentChainId = this.getNetworkId(network);
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const { from } = transactionMeta.transaction;
@@ -480,6 +485,10 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     this.update({ transactions: [...transactions] });
   }
 
+  getExistingGasPriceDecimal(existingGasPrice: string | undefined) {
+    return parseInt(existingGasPrice === undefined ? '0x0' : existingGasPrice, 16);
+  }
+
   /**
    * Attempts to cancel a transaction based on its ID by setting its status to "rejected"
    * and emitting a `<tx.id>:finished` hub event.
@@ -497,8 +506,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     }
 
     const existingGasPrice = transactionMeta.transaction.gasPrice;
-    /* istanbul ignore next */
-    const existingGasPriceDecimal = parseInt(existingGasPrice === undefined ? '0x0' : existingGasPrice, 16);
+    const existingGasPriceDecimal = this.getExistingGasPriceDecimal(existingGasPrice);
     const gasPrice = addHexPrefix(`${parseInt(`${existingGasPriceDecimal * CANCEL_RATE}`, 10).toString(16)}`);
 
     const ethTransaction = new Transaction({
@@ -529,15 +537,13 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       return;
     }
 
-    /* istanbul ignore next */
     if (!this.sign) {
       throw new Error('No sign method defined.');
     }
 
     const { transactions } = this.state;
     const existingGasPrice = transactionMeta.transaction.gasPrice;
-    /* istanbul ignore next */
-    const existingGasPriceDecimal = parseInt(existingGasPrice === undefined ? '0x0' : existingGasPrice, 16);
+    const existingGasPriceDecimal = this.getExistingGasPriceDecimal(existingGasPrice);
     const gasPrice = addHexPrefix(`${parseInt(`${existingGasPriceDecimal * SPEED_UP_RATE}`, 10).toString(16)}`);
     const ethTransaction = new Transaction({ ...transactionMeta.transaction, gasPrice });
     await this.sign(ethTransaction, transactionMeta.transaction.from);

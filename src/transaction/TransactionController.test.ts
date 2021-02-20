@@ -1,6 +1,6 @@
 import { stub } from 'sinon';
-import { NetworksChainId } from '../network/NetworkController';
-import TransactionController from './TransactionController';
+import { NetworksChainId, NetworkController } from '../network/NetworkController';
+import TransactionController, { EtherscanTransactionMeta } from '../transaction/TransactionController';
 
 const globalAny: any = global;
 
@@ -588,6 +588,52 @@ describe('TransactionController', () => {
     });
   });
 
+  it('should get a gas price as decimal', () => {
+    const controller = new TransactionController({ provider: PROVIDER });
+    expect(controller.getExistingGasPriceDecimal(undefined)).toBe(0);
+    expect(controller.getExistingGasPriceDecimal('238745643542.329845634275643543')).toBe(39063891752258);
+  });
+
+  it('should get a status', () => {
+    const randomString = new Date().toString();
+    const controller = new TransactionController({ provider: PROVIDER });
+    const txMeta: EtherscanTransactionMeta = {
+      blockNumber: randomString,
+      timeStamp: randomString,
+      hash: randomString,
+      nonce: randomString,
+      blockHash: randomString,
+      transactionIndex: randomString,
+      from: randomString,
+      to: randomString,
+      value: randomString,
+      gas: randomString,
+      gasPrice: randomString,
+      isError: '0',
+      txreceipt_status: randomString,
+      input: randomString,
+      contractAddress: randomString,
+      cumulativeGasUsed: randomString,
+      gasUsed: randomString,
+      confirmations: randomString,
+    };
+    // eslint-disable-next-line dot-notation
+    expect(controller['getStatus'](txMeta)).toBe('confirmed');
+    txMeta.isError = '1234';
+    // eslint-disable-next-line dot-notation
+    expect(controller['getStatus'](txMeta)).toBe('failed');
+  });
+
+  it('should get a network id', () => {
+    const controller = new TransactionController({ provider: PROVIDER });
+    controller.wipeTransactions();
+    controller.context = {
+      NetworkController: MOCK_NETWORK,
+    } as any;
+    const network = controller.context.NetworkController as NetworkController;
+    expect(controller.getNetworkId(network)).toBe('3');
+  });
+
   it('should wipe transactions', async () => {
     const controller = new TransactionController({ provider: PROVIDER });
     controller.wipeTransactions();
@@ -924,5 +970,30 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[1].transaction.gasPrice).toBe('0x5916a6d6');
       resolve('');
     });
+  });
+
+  it('should fail if unsigned', async () => {
+    const controller = new TransactionController({
+      provider: PROVIDER,
+      sign: undefined,
+    });
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    controller.context = {
+      NetworkController: MOCK_NETWORK,
+    } as any;
+    controller.onComposed();
+    await controller.addTransaction({
+      from,
+      gas: '0x0',
+      gasPrice: '0x50fd51da',
+      to: from,
+      value: '0x0',
+    });
+    try {
+      await controller.speedUpTransaction(controller.state.transactions[0].id);
+    } catch (error) {
+      expect(error instanceof Error).toBe(true);
+      expect(error.message).toBe('No sign method defined.');
+    }
   });
 });
