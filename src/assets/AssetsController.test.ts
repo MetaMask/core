@@ -1,10 +1,10 @@
 import { createSandbox } from 'sinon';
 import * as nock from 'nock';
-import AssetsController from '../src/assets/AssetsController';
-import ComposableController from '../src/ComposableController';
-import PreferencesController from '../src/user/PreferencesController';
-import { NetworkController, NetworksChainId } from '../src/network/NetworkController';
-import { AssetsContractController } from '../src/assets/AssetsContractController';
+import ComposableController from '../ComposableController';
+import PreferencesController from '../user/PreferencesController';
+import { NetworkController, NetworksChainId } from '../network/NetworkController';
+import { AssetsContractController } from './AssetsContractController';
+import AssetsController from './AssetsController';
 
 const HttpProvider = require('ethjs-provider-http');
 

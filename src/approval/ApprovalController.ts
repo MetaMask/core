@@ -395,12 +395,14 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
       approval.requestData = requestData;
     }
 
+    const approvals = {
+      ...this.state[APPROVALS_STORE_KEY],
+      [id]: approval,
+    };
+
     this.update({
-      [APPROVALS_STORE_KEY]: {
-        ...this.state[APPROVALS_STORE_KEY],
-        [id]: approval,
-      },
-      [APPROVAL_COUNT_STORE_KEY]: this.state[APPROVAL_COUNT_STORE_KEY] + 1,
+      [APPROVALS_STORE_KEY]: approvals,
+      [APPROVAL_COUNT_STORE_KEY]: Object.keys(approvals).length,
     }, true);
   }
 
@@ -427,7 +429,7 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
     delete newApprovals[id];
     this.update({
       [APPROVALS_STORE_KEY]: newApprovals,
-      [APPROVAL_COUNT_STORE_KEY]: this.state[APPROVAL_COUNT_STORE_KEY] - 1,
+      [APPROVAL_COUNT_STORE_KEY]: Object.keys(newApprovals).length,
     }, true);
   }
 

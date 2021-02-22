@@ -1,6 +1,6 @@
 import { stub } from 'sinon';
-import BaseController, { BaseConfig, BaseState } from '../src/BaseController';
-import ComposableController from '../src/ComposableController';
+import BaseController, { BaseConfig, BaseState } from './BaseController';
+import ComposableController from './ComposableController';
 
 const STATE = { name: 'foo' };
 const CONFIG = { disabled: true };

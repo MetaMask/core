@@ -2,8 +2,8 @@ import {
   TypedMessage,
   TypedMessageParams,
   TypedMessageParamsMetamask,
-} from '../src/message-manager/TypedMessageManager';
-import AbstractMessageManager from '../src/message-manager/AbstractMessageManager';
+} from './TypedMessageManager';
+import AbstractMessageManager from './AbstractMessageManager';
 
 class AbstractTestManager extends AbstractMessageManager<TypedMessage, TypedMessageParams, TypedMessageParamsMetamask> {
   prepMessageForSigning(messageParams: TypedMessageParamsMetamask): Promise<TypedMessageParams> {
