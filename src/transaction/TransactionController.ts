@@ -425,22 +425,25 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    */
   async approveTransaction(transactionID: string) {
     const { transactions } = this.state;
+    const releaseLock = await this.mutex.acquire();
     const network = this.context.NetworkController as NetworkController;
     /* istanbul ignore next */
     const currentChainId = network?.state?.provider?.chainId;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
-    const { from } = transactionMeta.transaction;
-
-    if (!this.sign) {
-      this.failTransaction(transactionMeta, new Error('No sign method defined.'));
-      return;
-    } else if (!currentChainId) {
-      this.failTransaction(transactionMeta, new Error('No chainId defined.'));
-      return;
-    }
 
     try {
+      const { from } = transactionMeta.transaction;
+      if (!this.sign) {
+        releaseLock();
+        this.failTransaction(transactionMeta, new Error('No sign method defined.'));
+        return;
+      } else if (!currentChainId) {
+        releaseLock();
+        this.failTransaction(transactionMeta, new Error('No chainId defined.'));
+        return;
+      }
+
       transactionMeta.status = 'approved';
       transactionMeta.transaction.nonce = await query(this.ethQuery, 'getTransactionCount', [from, 'pending']);
       transactionMeta.transaction.chainId = parseInt(currentChainId, undefined);
@@ -460,6 +463,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     } catch (error) {
       this.failTransaction(transactionMeta, error);
+    } finally {
+      releaseLock();
     }
   }
 
@@ -566,7 +571,6 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    */
   async estimateGas(transaction: Transaction) {
     const estimatedTransaction = { ...transaction };
-    const { gasLimit } = await query(this.ethQuery, 'getBlockByNumber', ['latest', false]);
     const { gas, gasPrice: providedGasPrice, to, value, data } = estimatedTransaction;
     const gasPrice = typeof providedGasPrice === 'undefined' ? await query(this.ethQuery, 'gasPrice') : providedGasPrice;
 
@@ -574,6 +578,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     if (typeof gas !== 'undefined') {
       return { gas, gasPrice };
     }
+    const { gasLimit } = await query(this.ethQuery, 'getBlockByNumber', ['latest', false]);
 
     // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000
     /* istanbul ignore next */
