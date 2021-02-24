@@ -219,6 +219,67 @@ describe('getAnonymizedState', () => {
 
     expect(anonymizedState).toEqual({ transactionHash: '4321x0' });
   });
+
+  it('should allow returning a partial object from an anonymizing function', () => {
+    const anonymizeTransactionHash = (txMeta: { hash: string; value: number }) => {
+      return { value: txMeta.value };
+    };
+
+    const anonymizedState = getAnonymizedState(
+      {
+        txMeta: {
+          hash: '0x123',
+          value: 10,
+        },
+      },
+      {
+        txMeta: {
+          anonymous: anonymizeTransactionHash,
+          persist: false,
+        },
+      },
+    );
+
+    expect(anonymizedState).toEqual({ txMeta: { value: 10 } });
+  });
+
+  it('should allow returning a ntested partial object from an anonymizing function', () => {
+    const anonymizeTransactionHash = (txMeta: {
+      hash: string;
+      value: number;
+      history: { hash: string; value: number }[];
+    }) => {
+      return {
+        history: txMeta.history.map((entry) => {
+          return { value: entry.value };
+        }),
+        value: txMeta.value,
+      };
+    };
+
+    const anonymizedState = getAnonymizedState(
+      {
+        txMeta: {
+          hash: '0x123',
+          history: [
+            {
+              hash: '0x123',
+              value: 9,
+            },
+          ],
+          value: 10,
+        },
+      },
+      {
+        txMeta: {
+          anonymous: anonymizeTransactionHash,
+          persist: false,
+        },
+      },
+    );
+
+    expect(anonymizedState).toEqual({ txMeta: { history: [{ value: 9 }], value: 10 } });
+  });
 });
 
 describe('getPersistentState', () => {
