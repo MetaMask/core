@@ -7,7 +7,15 @@ import type { Draft, Patch } from 'immer';
 enablePatches();
 
 /**
- * State change callbacks
+ * A state change listener.
+ *
+ * This function will get called for each state change, and is given a copy of
+ * the new state along with a set of patches describing the changes since the
+ * last update.
+ *
+ * @param state - The new controller state
+ * @param patches - A list of patches describing any changes (see here for more
+ *   information: https://immerjs.github.io/immer/docs/patches)
  */
 export type Listener<T> = (state: T, patches: Patch[]) => void;
 
@@ -22,17 +30,46 @@ type RecursivePartial<T> = {
     : RecursivePartial<T>;
 };
 
+/**
+ * An anonymizing function
+ *
+ * This function will accept one piece of the controller state (one property),
+ * and will return an anonymized representation of this state. By "anonymized",
+ * we mean that it should not contain any information that could be personally
+ * identifiable.
+ *
+ * @param value - A piece of controller state
+ * @returns An anonymized representation of the given state
+ */
 export type Anonymizer<T> = (value: T) => T extends Primitive ? T : RecursivePartial<T>;
 
+/**
+ * State metadata.
+ *
+ * This metadata describes which parts of state should be persisted, and how to
+ * get an anonymized representation of the state.
+ */
 export type StateMetadata<T> = {
-  [P in keyof T]: {
-    persist: boolean;
-    anonymous: boolean | Anonymizer<T[P]>;
-  };
+  [P in keyof T]: StatePropertyMetadata<T[P]>;
 };
 
 /**
- * Controller class that provides state management and subscriptions
+ * Metadata for a single state property
+ *
+ * @property persist - Indicates whether this property should be persisted
+ *   (`true` for persistent, `false` for transient)
+ * @property anonymous - Indicates whether this property is already anonymous,
+ *   (`true` for anonymous, `false` if it has potential to be personally
+ *   identifiable), or is set to a function that returns an anonymized
+ *   representation of this state.
+ */
+export interface StatePropertyMetadata<P> {
+  persist: boolean;
+  anonymous: boolean | Anonymizer<P>;
+}
+
+/**
+ * Controller class that provides state management, subscriptions, and state metadata
  */
 export class BaseController<S extends Record<string, unknown>> {
   private internalState: S;
@@ -120,6 +157,17 @@ function isAnonymizingFunction<T>(x: boolean | Anonymizer<T>): x is Anonymizer<T
   return typeof x === 'function';
 }
 
+/**
+ * Returns an anonymized representation of the controller state.
+ *
+ * By "anonymized" we mean that it should not contain any information that could be personally
+ * identifiable.
+ *
+ * @param state - The controller state
+ * @param metadata - The controller state metadata, which describes how to derive the
+ *   anonymized state
+ * @returns The anonymized controller state
+ */
 export function getAnonymizedState<S extends Record<string, any>>(
   state: S,
   metadata: StateMetadata<S>,
@@ -136,6 +184,13 @@ export function getAnonymizedState<S extends Record<string, any>>(
   }, {} as RecursivePartial<S>);
 }
 
+/**
+ * Returns the subset of state that should be persisted
+ *
+ * @param state - The controller state
+ * @param metadata - The controller state metadata, which describes which pieces of state should be persisted
+ * @returns The subset of controller state that should be persisted
+ */
 export function getPersistentState<S extends Record<string, any>>(
   state: S,
   metadata: StateMetadata<S>,
