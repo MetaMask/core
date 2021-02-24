@@ -1,13 +1,15 @@
-import { produce } from 'immer';
+import { enablePatches, produceWithPatches } from 'immer';
 
 // Imported separately because only the type is used
 // eslint-disable-next-line no-duplicate-imports
-import type { Draft } from 'immer';
+import type { Draft, Patch } from 'immer';
+
+enablePatches();
 
 /**
  * State change callbacks
  */
-export type Listener<T> = (state: T) => void;
+export type Listener<T> = (state: T, patches: Patch[]) => void;
 
 /**
  * Controller class that provides state management and subscriptions
@@ -67,10 +69,10 @@ export class BaseController<S extends Record<string, any>> {
    *   object. Return a new state object or mutate the draft to update state.
    */
   protected update(callback: (state: Draft<S>) => void | S) {
-    const nextState = produce(this.internalState, callback) as S;
-    this.internalState = nextState;
+    const [nextState, patches] = produceWithPatches(this.internalState, callback);
+    this.internalState = nextState as S;
     for (const listener of this.internalListeners) {
-      listener(nextState);
+      listener(nextState as S, patches);
     }
   }
 
