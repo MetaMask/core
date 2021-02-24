@@ -13,7 +13,7 @@ export type Listener<T> = (state: T, patches: Patch[]) => void;
 
 export type Anonymizer<T> = (value: T) => T;
 
-export type Schema<T> = {
+export type StateMetadata<T> = {
   [P in keyof T]: {
     persist: boolean;
     anonymous: boolean | Anonymizer<T[P]>;
@@ -28,18 +28,18 @@ export class BaseController<S extends Record<string, unknown>> {
 
   private internalListeners: Set<Listener<S>> = new Set();
 
-  public readonly schema: Schema<S>;
+  public readonly metadata: StateMetadata<S>;
 
   /**
    * Creates a BaseController instance.
    *
    * @param state - Initial controller state
-   * @param schema - State schema, describing how to "anonymize" the state,
+   * @param metadata - State metadata, describing how to "anonymize" the state,
    *   and which parts should be persisted.
    */
-  constructor(state: S, schema: Schema<S>) {
+  constructor(state: S, metadata: StateMetadata<S>) {
     this.internalState = state;
-    this.schema = schema;
+    this.metadata = metadata;
   }
 
   /**
@@ -109,23 +109,23 @@ function isAnonymizingFunction<T>(x: boolean | Anonymizer<T>): x is Anonymizer<T
   return typeof x === 'function';
 }
 
-export function getAnonymizedState<S extends Record<string, any>>(state: S, schema: Schema<S>) {
+export function getAnonymizedState<S extends Record<string, any>>(state: S, metadata: StateMetadata<S>) {
   return Object.keys(state).reduce((anonymizedState, _key) => {
     const key: keyof S = _key; // https://stackoverflow.com/questions/63893394/string-cannot-be-used-to-index-type-t
-    const schemaValue = schema[key].anonymous;
-    if (isAnonymizingFunction(schemaValue)) {
-      anonymizedState[key] = schemaValue(state[key]);
-    } else if (schemaValue) {
+    const metadataValue = metadata[key].anonymous;
+    if (isAnonymizingFunction(metadataValue)) {
+      anonymizedState[key] = metadataValue(state[key]);
+    } else if (metadataValue) {
       anonymizedState[key] = state[key];
     }
     return anonymizedState;
   }, {} as Partial<S>);
 }
 
-export function getPersistentState<S extends Record<string, any>>(state: S, schema: Schema<S>) {
+export function getPersistentState<S extends Record<string, any>>(state: S, metadata: StateMetadata<S>) {
   return Object.keys(state).reduce((persistedState, _key) => {
     const key: keyof S = _key; // https://stackoverflow.com/questions/63893394/string-cannot-be-used-to-index-type-t
-    if (schema[key].persist) {
+    if (metadata[key].persist) {
       persistedState[key] = state[key];
     }
     return persistedState;

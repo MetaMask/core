@@ -7,7 +7,7 @@ type MockControllerState = {
   count: number;
 };
 
-const mockControllerSchema = {
+const mockControllerStateMetadata = {
   count: {
     persist: true,
     anonymous: true,
@@ -26,19 +26,19 @@ class MockController extends BaseController<MockControllerState> {
 
 describe('BaseController', () => {
   it('should set initial state', () => {
-    const controller = new MockController({ count: 0 }, mockControllerSchema);
+    const controller = new MockController({ count: 0 }, mockControllerStateMetadata);
 
     expect(controller.state).toEqual({ count: 0 });
   });
 
   it('should set initial schema', () => {
-    const controller = new MockController({ count: 0 }, mockControllerSchema);
+    const controller = new MockController({ count: 0 }, mockControllerStateMetadata);
 
-    expect(controller.schema).toEqual(mockControllerSchema);
+    expect(controller.metadata).toEqual(mockControllerStateMetadata);
   });
 
   it('should not allow mutating state directly', () => {
-    const controller = new MockController({ count: 0 }, mockControllerSchema);
+    const controller = new MockController({ count: 0 }, mockControllerStateMetadata);
 
     expect(() => {
       controller.state = { count: 1 };
@@ -46,7 +46,7 @@ describe('BaseController', () => {
   });
 
   it('should allow updating state by modifying draft', () => {
-    const controller = new MockController({ count: 0 }, mockControllerSchema);
+    const controller = new MockController({ count: 0 }, mockControllerStateMetadata);
 
     controller.update((draft) => {
       draft.count += 1;
@@ -56,7 +56,7 @@ describe('BaseController', () => {
   });
 
   it('should allow updating state by return a value', () => {
-    const controller = new MockController({ count: 0 }, mockControllerSchema);
+    const controller = new MockController({ count: 0 }, mockControllerStateMetadata);
 
     controller.update(() => {
       return { count: 1 };
@@ -66,7 +66,7 @@ describe('BaseController', () => {
   });
 
   it('should throw an error if update callback modifies draft and returns value', () => {
-    const controller = new MockController({ count: 0 }, mockControllerSchema);
+    const controller = new MockController({ count: 0 }, mockControllerStateMetadata);
 
     expect(() => {
       controller.update((draft) => {
@@ -77,7 +77,7 @@ describe('BaseController', () => {
   });
 
   it('should inform subscribers of state changes', () => {
-    const controller = new MockController({ count: 0 }, mockControllerSchema);
+    const controller = new MockController({ count: 0 }, mockControllerStateMetadata);
     const listener1 = sinon.stub();
     const listener2 = sinon.stub();
 
@@ -94,7 +94,7 @@ describe('BaseController', () => {
   });
 
   it('should inform a subscriber of each state change once even after multiple subscriptions', () => {
-    const controller = new MockController({ count: 0 }, mockControllerSchema);
+    const controller = new MockController({ count: 0 }, mockControllerStateMetadata);
     const listener1 = sinon.stub();
 
     controller.subscribe(listener1);
@@ -108,7 +108,7 @@ describe('BaseController', () => {
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing', () => {
-    const controller = new MockController({ count: 0 }, mockControllerSchema);
+    const controller = new MockController({ count: 0 }, mockControllerStateMetadata);
     const listener1 = sinon.stub();
 
     controller.subscribe(listener1);
@@ -121,7 +121,7 @@ describe('BaseController', () => {
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
-    const controller = new MockController({ count: 0 }, mockControllerSchema);
+    const controller = new MockController({ count: 0 }, mockControllerStateMetadata);
     const listener1 = sinon.stub();
 
     controller.subscribe(listener1);
@@ -135,7 +135,7 @@ describe('BaseController', () => {
   });
 
   it('should allow unsubscribing listeners who were never subscribed', () => {
-    const controller = new MockController({ count: 0 }, mockControllerSchema);
+    const controller = new MockController({ count: 0 }, mockControllerStateMetadata);
     const listener1 = sinon.stub();
 
     expect(() => {
@@ -144,7 +144,7 @@ describe('BaseController', () => {
   });
 
   it('should no longer update subscribers after being destroyed', () => {
-    const controller = new MockController({ count: 0 }, mockControllerSchema);
+    const controller = new MockController({ count: 0 }, mockControllerStateMetadata);
     const listener1 = sinon.stub();
     const listener2 = sinon.stub();
 
