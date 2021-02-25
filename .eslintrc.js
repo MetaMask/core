@@ -82,6 +82,8 @@ module.exports = {
     'node/no-extraneous-require': 'off',
 
     'jest/expect-expect': 'off',
+    'jest/no-conditional-expect': 'off',
+    'jest/no-restricted-matchers': 'off',
     'jest/no-test-return-statement': 'off',
     'jest/no-truthy-falsy': 'off',
     'jest/no-try-expect': 'off',
