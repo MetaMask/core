@@ -27,7 +27,7 @@ type RecursivePartial<T> = {
     ? RecursivePartial<U>[]
     : T[P] extends Primitive
     ? T[P]
-    : RecursivePartial<T>;
+    : RecursivePartial<T[P]>;
 };
 
 /**
