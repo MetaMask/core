@@ -14,7 +14,7 @@ export type Listener<T> = (state: T, patches: Patch[]) => void;
 /**
  * Controller class that provides state management and subscriptions
  */
-export class BaseController<S extends Record<string, any>> {
+export class BaseController<S extends Record<string, unknown>> {
   private internalState: S;
 
   private internalListeners: Set<Listener<S>> = new Set();
