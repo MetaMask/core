@@ -191,15 +191,12 @@ export function getAnonymizedState<S extends Record<string, any>>(
  * @param metadata - The controller state metadata, which describes which pieces of state should be persisted
  * @returns The subset of controller state that should be persisted
  */
-export function getPersistentState<S extends Record<string, any>>(
-  state: S,
-  metadata: StateMetadata<S>,
-): RecursivePartial<S> {
+export function getPersistentState<S extends Record<string, any>>(state: S, metadata: StateMetadata<S>): Partial<S> {
   return Object.keys(state).reduce((persistedState, _key) => {
     const key: keyof S = _key; // https://stackoverflow.com/questions/63893394/string-cannot-be-used-to-index-type-t
     if (metadata[key].persist) {
       persistedState[key] = state[key];
     }
     return persistedState;
-  }, {} as RecursivePartial<S>);
+  }, {} as Partial<S>);
 }
