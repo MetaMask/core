@@ -280,6 +280,47 @@ describe('getAnonymizedState', () => {
 
     expect(anonymizedState).toEqual({ txMeta: { history: [{ value: 9 }], value: 10 } });
   });
+
+  it('should accept nested metadata', () => {
+    const anonymizeTransactionHistory = (history: { hash: string; value: number }[]) => {
+      return history.map((entry) => {
+        return { value: entry.value };
+      });
+    };
+
+    const anonymizedState = getAnonymizedState(
+      {
+        txMeta: {
+          hash: '0x123',
+          history: [
+            {
+              hash: '0x123',
+              value: 9,
+            },
+          ],
+          value: 10,
+        },
+      },
+      {
+        txMeta: {
+          hash: {
+            anonymous: false,
+            persist: false,
+          },
+          history: {
+            anonymous: anonymizeTransactionHistory,
+            persist: false,
+          },
+          value: {
+            anonymous: true,
+            persist: false,
+          },
+        },
+      },
+    );
+
+    expect(anonymizedState).toEqual({ txMeta: { history: [{ value: 9 }], value: 10 } });
+  });
 });
 
 describe('getPersistentState', () => {
@@ -320,5 +361,40 @@ describe('getPersistentState', () => {
       },
     );
     expect(persistentState).toEqual({ password: 'secret password', privateKey: '123' });
+  });
+
+  it('should accept nested metadata', () => {
+    const anonymizedState = getPersistentState(
+      {
+        txMeta: {
+          hash: '0x123',
+          history: [
+            {
+              hash: '0x123',
+              value: 9,
+            },
+          ],
+          value: 10,
+        },
+      },
+      {
+        txMeta: {
+          hash: {
+            anonymous: false,
+            persist: false,
+          },
+          history: {
+            anonymous: false,
+            persist: true,
+          },
+          value: {
+            anonymous: false,
+            persist: true,
+          },
+        },
+      },
+    );
+
+    expect(anonymizedState).toEqual({ txMeta: { history: [{ hash: '0x123', value: 9 }], value: 10 } });
   });
 });

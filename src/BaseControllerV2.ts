@@ -50,7 +50,9 @@ export type Anonymizer<T> = (value: T) => T extends Primitive ? T : RecursivePar
  * get an anonymized representation of the state.
  */
 export type StateMetadata<T> = {
-  [P in keyof T]: StatePropertyMetadata<T[P]>;
+  [P in keyof T]: T[P] extends Primitive
+    ? StatePropertyMetadata<T[P]>
+    : StateMetadata<T[P]> | StatePropertyMetadata<T[P]>;
 };
 
 /**
@@ -153,8 +155,21 @@ export class BaseController<S extends Record<string, unknown>> {
 }
 
 // This function acts as a type guard. Using a `typeof` conditional didn't seem to work.
-function isAnonymizingFunction<T>(x: boolean | Anonymizer<T>): x is Anonymizer<T> {
+function isAnonymizingFunction<T>(x: boolean | Anonymizer<T> | StateMetadata<T>): x is Anonymizer<T> {
   return typeof x === 'function';
+}
+
+function isStatePropertyMetadata<T>(x: StatePropertyMetadata<T> | StateMetadata<T>): x is StatePropertyMetadata<T> {
+  const sortedKeys = Object.keys(x).sort();
+  return sortedKeys.length === 2 && sortedKeys[0] === 'anonymous' && sortedKeys[1] === 'persist';
+}
+
+function isStateMetadata<T>(x: StatePropertyMetadata<T> | StateMetadata<T>): x is StateMetadata<T> {
+  return !isStatePropertyMetadata(x);
+}
+
+function isPrimitive<T>(x: Primitive | RecursivePartial<T>): x is Primitive {
+  return ['boolean', 'string', 'number', 'null'].includes(typeof x);
 }
 
 /**
@@ -174,11 +189,28 @@ export function getAnonymizedState<S extends Record<string, any>>(
 ): RecursivePartial<S> {
   return Object.keys(state).reduce((anonymizedState, _key) => {
     const key: keyof S = _key; // https://stackoverflow.com/questions/63893394/string-cannot-be-used-to-index-type-t
-    const metadataValue = metadata[key].anonymous;
-    if (isAnonymizingFunction(metadataValue)) {
-      anonymizedState[key] = metadataValue(state[key]);
-    } else if (metadataValue) {
-      anonymizedState[key] = state[key];
+    const propertyMetadata = metadata[key];
+    const propertyValue = state[key];
+    // Ignore statement required because 'else' case is unreachable due to type
+    // The 'else if' condition is still required because it acts as a type guard
+    /* istanbul ignore else */
+    if (isStateMetadata(propertyMetadata)) {
+      // Ignore statement required because this case is unreachable due to type
+      // This condition is still required because it acts as a type guard
+      /* istanbul ignore next */
+      if (isPrimitive(propertyValue) || Array.isArray(propertyValue)) {
+        throw new Error(`Cannot assign metadata object to primitive type or array`);
+      }
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      anonymizedState[key] = getAnonymizedState(propertyValue, propertyMetadata);
+    } else if (isStatePropertyMetadata(propertyMetadata)) {
+      const metadataValue = propertyMetadata.anonymous;
+      if (isAnonymizingFunction(metadataValue)) {
+        anonymizedState[key] = metadataValue(state[key]);
+      } else if (metadataValue) {
+        anonymizedState[key] = state[key];
+      }
     }
     return anonymizedState;
   }, {} as RecursivePartial<S>);
@@ -191,12 +223,34 @@ export function getAnonymizedState<S extends Record<string, any>>(
  * @param metadata - The controller state metadata, which describes which pieces of state should be persisted
  * @returns The subset of controller state that should be persisted
  */
-export function getPersistentState<S extends Record<string, any>>(state: S, metadata: StateMetadata<S>): Partial<S> {
+export function getPersistentState<S extends Record<string, any>>(
+  state: S,
+  metadata: StateMetadata<S>,
+): RecursivePartial<S> {
   return Object.keys(state).reduce((persistedState, _key) => {
     const key: keyof S = _key; // https://stackoverflow.com/questions/63893394/string-cannot-be-used-to-index-type-t
-    if (metadata[key].persist) {
-      persistedState[key] = state[key];
+    const propertyMetadata = metadata[key];
+    const propertyValue = state[key];
+
+    // Ignore statement required because 'else' case is unreachable due to type
+    // The 'else if' condition is still required because it acts as a type guard
+    /* istanbul ignore else */
+    if (isStateMetadata(propertyMetadata)) {
+      // Ignore statement required because this case is unreachable due to type
+      // This condition is still required because it acts as a type guard
+      /* istanbul ignore next */
+      if (isPrimitive(propertyValue) || Array.isArray(propertyValue)) {
+        throw new Error(`Cannot assign metadata object to primitive type or array`);
+      }
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      persistedState[key] = getPersistentState(propertyValue, propertyMetadata);
+    } else if (isStatePropertyMetadata(propertyMetadata)) {
+      if (propertyMetadata.persist) {
+        persistedState[key] = state[key];
+      }
     }
+
     return persistedState;
-  }, {} as Partial<S>);
+  }, {} as RecursivePartial<S>);
 }
