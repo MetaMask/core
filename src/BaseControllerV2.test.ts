@@ -3,9 +3,9 @@ import * as sinon from 'sinon';
 
 import { BaseController } from './BaseControllerV2';
 
-interface MockControllerState {
+type MockControllerState = {
   count: number;
-}
+};
 
 class MockController extends BaseController<MockControllerState> {
   update(callback: (state: Draft<MockControllerState>) => void | MockControllerState) {
