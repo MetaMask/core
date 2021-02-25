@@ -63,9 +63,9 @@ export type StateMetadata<T> = {
  *   identifiable), or is set to a function that returns an anonymized
  *   representation of this state.
  */
-export interface StatePropertyMetadata<P> {
+export interface StatePropertyMetadata<T> {
   persist: boolean;
-  anonymous: boolean | Anonymizer<P>;
+  anonymous: boolean | Anonymizer<T>;
 }
 
 /**

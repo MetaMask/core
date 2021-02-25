@@ -243,7 +243,7 @@ describe('getAnonymizedState', () => {
     expect(anonymizedState).toEqual({ txMeta: { value: 10 } });
   });
 
-  it('should allow returning a ntested partial object from an anonymizing function', () => {
+  it('should allow returning a nested partial object from an anonymizing function', () => {
     const anonymizeTransactionHash = (txMeta: {
       hash: string;
       value: number;
