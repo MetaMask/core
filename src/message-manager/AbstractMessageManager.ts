@@ -99,9 +99,8 @@ export abstract class AbstractMessageManager<
    */
   protected setMessageStatus(messageId: string, status: string) {
     const message = this.getMessage(messageId);
-    /* istanbul ignore if */
     if (!message) {
-      throw new Error(`${this.context[name]}- Message not found for id: ${messageId}.`);
+      throw new Error(`${this.name}: Message not found for id: ${messageId}.`);
     }
     message.status = status;
     this.updateMessage(message);
