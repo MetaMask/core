@@ -41,7 +41,7 @@ describe('TokenBalancesController', () => {
   });
 
   it('should poll and update balances in the right interval', () => {
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       const mock = stub(TokenBalancesController.prototype, 'updateBalances');
       new TokenBalancesController({ interval: 10 });
       expect(mock.called).toBe(true);
@@ -67,7 +67,7 @@ describe('TokenBalancesController', () => {
   it('should clear previous interval', () => {
     const mock = stub(global, 'clearTimeout');
     const controller = new TokenBalancesController({ interval: 1337 });
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       setTimeout(() => {
         controller.poll(1338);
         expect(mock.called).toBe(true);
