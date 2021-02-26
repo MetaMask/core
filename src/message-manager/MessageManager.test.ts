@@ -42,7 +42,7 @@ describe('PersonalMessageManager', () => {
   });
 
   it('should reject a message', () => {
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const controller = new MessageManager();
       const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
       const data = '0x879a053d4800c6354e76c7985a865d2922c82fb5b';
@@ -65,7 +65,7 @@ describe('PersonalMessageManager', () => {
   });
 
   it('should sign a message', () => {
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const controller = new MessageManager();
       const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
       const data = '0x879a053d4800c6354e76c7985a865d2922c82fb5b';
@@ -89,7 +89,7 @@ describe('PersonalMessageManager', () => {
   });
 
   it('should throw when unapproved finishes', () => {
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const controller = new MessageManager();
       const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
       const data = '0x879a053d4800c6354e76c7985a865d2922c82fb5b';
@@ -131,7 +131,7 @@ describe('PersonalMessageManager', () => {
   it('should throw when adding invalid message', () => {
     const from = 'foo';
     const messageData = '0x123';
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const controller = new MessageManager();
       try {
         await controller.addUnapprovedMessageAsync({

@@ -50,10 +50,10 @@ describe('CurrencyRateController', () => {
     const fetchExchangeRateStub = stub();
     const controller = new CurrencyRateController({ interval: 100 }, {}, fetchExchangeRateStub);
 
-    await new Promise((resolve) => setTimeout(() => resolve(), 1));
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 1));
     expect(fetchExchangeRateStub.called).toBe(true);
     expect(fetchExchangeRateStub.calledTwice).toBe(false);
-    await new Promise((resolve) => setTimeout(() => resolve(), 150));
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     expect(fetchExchangeRateStub.calledTwice).toBe(true);
 
     controller.disabled = true;
@@ -72,7 +72,7 @@ describe('CurrencyRateController', () => {
     const fetchExchangeRateStub = stub();
     const mock = stub(global, 'clearTimeout');
     const controller = new CurrencyRateController({ interval: 1337 }, {}, fetchExchangeRateStub);
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       setTimeout(() => {
         controller.poll(1338);
         expect(mock.called).toBe(true);

@@ -49,7 +49,7 @@ describe('AccountTrackerController', () => {
   });
 
   it('should call refresh every ten seconds', () => {
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       const preferences = new PreferencesController();
       const controller = new AccountTrackerController({ provider, interval: 100 });
       stub(controller, 'refresh');
