@@ -11,11 +11,42 @@ enablePatches();
  */
 export type Listener<T> = (state: T, patches: Patch[]) => void;
 
+type primitive = null | boolean | number | string;
+
+type DefinitelyNotJsonable = ((...args: any[]) => any) | undefined;
+
+// Type copied from https://github.com/Microsoft/TypeScript/issues/1897#issuecomment-710744173
+export type IsJsonable<T> =
+  // Check if there are any non-jsonable types represented in the union
+  // Note: use of tuples in this first condition side-steps distributive conditional types
+  // (see https://github.com/microsoft/TypeScript/issues/29368#issuecomment-453529532)
+  [Extract<T, DefinitelyNotJsonable>] extends [never]
+    ? // Non-jsonable type union was found empty
+      T extends primitive
+      ? // Primitive is acceptable
+        T
+      : // Otherwise check if array
+      T extends (infer U)[]
+      ? // Arrays are special; just check array element type
+        IsJsonable<U>[]
+      : // Otherwise check if object
+      // eslint-disable-next-line @typescript-eslint/ban-types
+      T extends object
+      ? // It's an object
+        {
+          // Iterate over keys in object case
+          [P in keyof T]: IsJsonable<T[P]>; // Recursive call for children
+        }
+      : // Otherwise any other non-object no bueno
+        never
+    : // Otherwise non-jsonable type union was found not empty
+      never;
+
 /**
  * Controller class that provides state management and subscriptions
  */
 export class BaseController<S extends Record<string, unknown>> {
-  private internalState: S;
+  private internalState: IsJsonable<S>;
 
   private internalListeners: Set<Listener<S>> = new Set();
 
@@ -24,7 +55,7 @@ export class BaseController<S extends Record<string, unknown>> {
    *
    * @param state - Initial controller state
    */
-  constructor(state: S) {
+  constructor(state: IsJsonable<S>) {
     this.internalState = state;
   }
 
@@ -68,9 +99,9 @@ export class BaseController<S extends Record<string, unknown>> {
    * @param callback - Callback for updating state, passed a draft state
    *   object. Return a new state object or mutate the draft to update state.
    */
-  protected update(callback: (state: Draft<S>) => void | S) {
+  protected update(callback: (state: Draft<IsJsonable<S>>) => void | IsJsonable<S>) {
     const [nextState, patches] = produceWithPatches(this.internalState, callback);
-    this.internalState = nextState as S;
+    this.internalState = nextState as IsJsonable<S>;
     for (const listener of this.internalListeners) {
       listener(nextState as S, patches);
     }
