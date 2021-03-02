@@ -7,7 +7,15 @@ import type { Draft, Patch } from 'immer';
 enablePatches();
 
 /**
- * State change callbacks
+ * A state change listener.
+ *
+ * This function will get called for each state change, and is given a copy of
+ * the new state along with a set of patches describing the changes since the
+ * last update.
+ *
+ * @param state - The new controller state
+ * @param patches - A list of patches describing any changes (see here for more
+ *   information: https://immerjs.github.io/immer/docs/patches)
  */
 export type Listener<T> = (state: T, patches: Patch[]) => void;
 
@@ -43,20 +51,63 @@ export type IsJsonable<T> =
       never;
 
 /**
- * Controller class that provides state management and subscriptions
+ * An function to derive state.
+ *
+ * This function will accept one piece of the controller state (one property),
+ * and will return some derivation of that state.
+ *
+ * @param value - A piece of controller state
+ * @returns Something derived from controller state
+ */
+export type StateDeriver<T> = (value: IsJsonable<T>) => IsJsonable<Json>;
+
+/**
+ * State metadata.
+ *
+ * This metadata describes which parts of state should be persisted, and how to
+ * get an anonymized representation of the state.
+ */
+export type StateMetadata<T> = {
+  [P in keyof T]: StatePropertyMetadata<T[P]>;
+};
+
+/**
+ * Metadata for a single state property
+ *
+ * @property persist - Indicates whether this property should be persisted
+ *   (`true` for persistent, `false` for transient), or is set to a function
+ *   that derives the persistent state from the state.
+ * @property anonymous - Indicates whether this property is already anonymous,
+ *   (`true` for anonymous, `false` if it has potential to be personally
+ *   identifiable), or is set to a function that returns an anonymized
+ *   representation of this state.
+ */
+export interface StatePropertyMetadata<T> {
+  persist: boolean | StateDeriver<T>;
+  anonymous: boolean | StateDeriver<T>;
+}
+
+type Json = null | boolean | number | string | Json[] | { [prop: string]: Json } | Partial<Record<never, never>>;
+/**
+ * Controller class that provides state management, subscriptions, and state metadata
  */
 export class BaseController<S extends Record<string, unknown>> {
   private internalState: IsJsonable<S>;
 
   private internalListeners: Set<Listener<S>> = new Set();
 
+  public readonly metadata: StateMetadata<S>;
+
   /**
    * Creates a BaseController instance.
    *
    * @param state - Initial controller state
+   * @param metadata - State metadata, describing how to "anonymize" the state,
+   *   and which parts should be persisted.
    */
-  constructor(state: IsJsonable<S>) {
+  constructor(state: IsJsonable<S>, metadata: StateMetadata<S>) {
     this.internalState = state;
+    this.metadata = metadata;
   }
 
   /**
@@ -119,4 +170,53 @@ export class BaseController<S extends Record<string, unknown>> {
   protected destroy() {
     this.internalListeners.clear();
   }
+}
+
+/**
+ * Returns an anonymized representation of the controller state.
+ *
+ * By "anonymized" we mean that it should not contain any information that could be personally
+ * identifiable.
+ *
+ * @param state - The controller state
+ * @param metadata - The controller state metadata, which describes how to derive the
+ *   anonymized state
+ * @returns The anonymized controller state
+ */
+export function getAnonymizedState<S extends Record<string, unknown>>(
+  state: IsJsonable<S>,
+  metadata: StateMetadata<S>,
+): IsJsonable<Record<string, Json>> {
+  return deriveStateFromMetadata(state, metadata, 'anonymous');
+}
+
+/**
+ * Returns the subset of state that should be persisted
+ *
+ * @param state - The controller state
+ * @param metadata - The controller state metadata, which describes which pieces of state should be persisted
+ * @returns The subset of controller state that should be persisted
+ */
+export function getPersistentState<S extends Record<string, unknown>>(
+  state: IsJsonable<S>,
+  metadata: StateMetadata<S>,
+): IsJsonable<Record<string, Json>> {
+  return deriveStateFromMetadata(state, metadata, 'persist');
+}
+
+function deriveStateFromMetadata<S extends Record<string, unknown>>(
+  state: IsJsonable<S>,
+  metadata: StateMetadata<S>,
+  metadataProperty: 'anonymous' | 'persist',
+): IsJsonable<Record<string, Json>> {
+  return Object.keys(state).reduce((persistedState, key) => {
+    const propertyMetadata = metadata[key as keyof S][metadataProperty];
+    const stateProperty = state[key];
+    if (typeof propertyMetadata === 'function') {
+      persistedState[key as string] = propertyMetadata(stateProperty);
+    } else if (propertyMetadata) {
+      persistedState[key as string] = stateProperty;
+    }
+    return persistedState;
+  }, {} as IsJsonable<Record<string, Json>>);
 }
