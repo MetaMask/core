@@ -33,8 +33,13 @@ class MockController extends BaseController<'CountController', CountControllerSt
 describe('BaseController', () => {
   it('should set initial state', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted(
+      'CountController',
+      [],
+      ['CountController:stateChange'],
+    );
     const controller = new MockController({
-      messenger: controllerMessenger,
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: CountControllerStateMetadata,
@@ -45,8 +50,13 @@ describe('BaseController', () => {
 
   it('should set initial schema', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted(
+      'CountController',
+      [],
+      ['CountController:stateChange'],
+    );
     const controller = new MockController({
-      messenger: controllerMessenger,
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: CountControllerStateMetadata,
@@ -57,8 +67,13 @@ describe('BaseController', () => {
 
   it('should not allow mutating state directly', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted(
+      'CountController',
+      [],
+      ['CountController:stateChange'],
+    );
     const controller = new MockController({
-      messenger: controllerMessenger,
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: CountControllerStateMetadata,
@@ -71,8 +86,13 @@ describe('BaseController', () => {
 
   it('should allow updating state by modifying draft', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted(
+      'CountController',
+      [],
+      ['CountController:stateChange'],
+    );
     const controller = new MockController({
-      messenger: controllerMessenger,
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: CountControllerStateMetadata,
@@ -87,8 +107,13 @@ describe('BaseController', () => {
 
   it('should allow updating state by return a value', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted(
+      'CountController',
+      [],
+      ['CountController:stateChange'],
+    );
     const controller = new MockController({
-      messenger: controllerMessenger,
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: CountControllerStateMetadata,
@@ -103,8 +128,13 @@ describe('BaseController', () => {
 
   it('should throw an error if update callback modifies draft and returns value', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted(
+      'CountController',
+      [],
+      ['CountController:stateChange'],
+    );
     const controller = new MockController({
-      messenger: controllerMessenger,
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: CountControllerStateMetadata,
@@ -122,8 +152,13 @@ describe('BaseController', () => {
 
   it('should inform subscribers of state changes', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted(
+      'CountController',
+      [],
+      ['CountController:stateChange'],
+    );
     const controller = new MockController({
-      messenger: controllerMessenger,
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: CountControllerStateMetadata,
@@ -145,8 +180,13 @@ describe('BaseController', () => {
 
   it('should inform a subscriber of each state change once even after multiple subscriptions', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted(
+      'CountController',
+      [],
+      ['CountController:stateChange'],
+    );
     const controller = new MockController({
-      messenger: controllerMessenger,
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: CountControllerStateMetadata,
@@ -166,8 +206,13 @@ describe('BaseController', () => {
 
   it('should no longer inform a subscriber about state changes after unsubscribing', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted(
+      'CountController',
+      [],
+      ['CountController:stateChange'],
+    );
     const controller = new MockController({
-      messenger: controllerMessenger,
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: CountControllerStateMetadata,
@@ -185,8 +230,13 @@ describe('BaseController', () => {
 
   it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted(
+      'CountController',
+      [],
+      ['CountController:stateChange'],
+    );
     const controller = new MockController({
-      messenger: controllerMessenger,
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: CountControllerStateMetadata,
@@ -205,8 +255,13 @@ describe('BaseController', () => {
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted(
+      'CountController',
+      [],
+      ['CountController:stateChange'],
+    );
     new MockController({
-      messenger: controllerMessenger,
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: CountControllerStateMetadata,
@@ -220,8 +275,13 @@ describe('BaseController', () => {
 
   it('should no longer update subscribers after being destroyed', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted(
+      'CountController',
+      [],
+      ['CountController:stateChange'],
+    );
     const controller = new MockController({
-      messenger: controllerMessenger,
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: CountControllerStateMetadata,
