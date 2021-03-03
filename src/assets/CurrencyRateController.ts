@@ -3,7 +3,7 @@ import { Mutex } from 'await-semaphore';
 import BaseController from '../base-controller-v2';
 import { safelyExecute } from '../util';
 import { fetchExchangeRate as defaultFetchExchangeRate } from '../crypto-compare';
-import { call } from '../controller-messaging-system';
+import { ControllerMessagingSystem } from '../controller-messaging-system';
 
 /**
  * @type CurrencyRateState
@@ -35,6 +35,7 @@ const schema = {
   pendingNativeCurrency: { persist: false, anonymous: true },
   usdConversionRate: { persist: false, anonymous: true },
 };
+
 /** constants */
 const GET_CURRENCY_RATE_STATE = 'CurrencyRateController.getState';
 const SET_CURRENT_CURRENCY = 'CurrencyRateController.setCurrentCurrency';
@@ -42,28 +43,21 @@ const SET_NATIVE_CURRENCY = 'CurrencyRateController.setNativeCurrency';
 
 export const CURRENCY_RATE_STATE_CHANGED = 'CurrencyRateController.state-changed';
 
-/** actions */
-export function getCurrencyRateState(): CurrencyRateState {
-  return call(GET_CURRENCY_RATE_STATE);
+export interface CurrencyRateActions {
+  [GET_CURRENCY_RATE_STATE]: () => CurrencyRateState;
+  [SET_CURRENT_CURRENCY]: (currentCurrency: string) => void;
+  [SET_NATIVE_CURRENCY]: (nativeCurrency: string) => void;
 }
 
-export function setCurrentCurrency(
-  currentCurrency: string
-): Promise<CurrencyRateState | void> {
-  return call(SET_CURRENT_CURRENCY, currentCurrency);
-}
-
-export function setNativeCurrency(
-  nativeCurrency: string
-): Promise<CurrencyRateState | void> {
-  return call(SET_NATIVE_CURRENCY, nativeCurrency);
+export interface CurrencyRateEvents {
+  [CURRENCY_RATE_STATE_CHANGED]: CurrencyRateState;
 }
 
 /**
  * Controller that passively polls on a set interval for an exchange rate from the current base
  * asset to the current currency
  */
-export class CurrencyRateController extends BaseController<CurrencyRateState> {
+export class CurrencyRateController extends BaseController<CurrencyRateState, CurrencyRateActions> {
 
   private static defaultState = {
     conversionDate: 0,
@@ -89,8 +83,8 @@ export class CurrencyRateController extends BaseController<CurrencyRateState> {
    *
    * @param state - Initial state to set on this controller
    */
-  constructor(state?: Partial<CurrencyRateState>, includeUsdRate = false, fetchExchangeRate = defaultFetchExchangeRate) {
-    super({ ...CurrencyRateController.defaultState, ...state }, CURRENCY_RATE_STATE_CHANGED, schema);
+  constructor(messagingSystem: ControllerMessagingSystem, state?: Partial<CurrencyRateState>, includeUsdRate = false, fetchExchangeRate = defaultFetchExchangeRate) {
+    super(messagingSystem, { ...CurrencyRateController.defaultState, ...state }, CURRENCY_RATE_STATE_CHANGED, schema);
     this.includeUsdRate = includeUsdRate;
     this.fetchExchangeRate = fetchExchangeRate;
     this.poll();

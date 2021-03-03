@@ -1,6 +1,6 @@
 import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController from '../base-controller-v2';
-import { call } from '../controller-messaging-system';
+import { ControllerMessagingSystem } from '../controller-messaging-system';
 import { ContactEntry } from './AddressBookController';
 
 /**
@@ -63,44 +63,33 @@ const CONTROLLER_NAME = 'PreferencesController';
 /**
  * Controller action constants
  */
-export const GET_PREFERENCES_STATE = `${CONTROLLER_NAME}.getState`;
-export const SET_SELECTED_ADDRESS = `${CONTROLLER_NAME}.setSelectedAddress`;
-export const UPDATE_IDENTITIES = `${CONTROLLER_NAME}.updateIdentities`;
-export const REMOVE_IDENTITY = `${CONTROLLER_NAME}.removeIdentity`;
-export const SYNC_IDENTITIES = `${CONTROLLER_NAME}.syncIdentities`;
+export const GET_PREFERENCES_STATE = `PreferencesController.getState`;
+export const SET_SELECTED_ADDRESS = `PreferencesController.setSelectedAddress`;
+export const UPDATE_IDENTITIES = `PreferencesController.updateIdentities`;
+export const REMOVE_IDENTITY = `PreferencesController.removeIdentity`;
+export const SYNC_IDENTITIES = `PreferencesController.syncIdentities`;
 
 /**
  * Controller event constants
  */
-export const PREFERENCES_STATE_CHANGED = `${CONTROLLER_NAME}.state-changed`;
+export const PREFERENCES_STATE_CHANGED = `PreferencesController.state-changed`;
 
-/**
- * Controller actions
- */
-export function getPreferencesState(): PreferencesState {
-  return call(GET_PREFERENCES_STATE);
+export interface PreferencesActions {
+  [GET_PREFERENCES_STATE]: () => PreferencesState;
+  [SET_SELECTED_ADDRESS]: (selectedAddress: string) => void;
+  [UPDATE_IDENTITIES]: (addresses: string[]) => void;
+  [REMOVE_IDENTITY]: (address: string) => void;
+  [SYNC_IDENTITIES]: (addresses: string[]) => void;
 }
 
-export function setSelectedAddress(selectedAddress: string): void {
-  return call(SET_SELECTED_ADDRESS, selectedAddress);
-}
-
-export function updateIdentities(addresses: string[]): void {
-  return call(UPDATE_IDENTITIES, addresses);
-}
-
-export function removeIdentity(address: string): void {
-  return call(REMOVE_IDENTITY, address);
-}
-
-export function syncIdentities(addresses: string[]): void {
-  return call(SYNC_IDENTITIES, addresses);
+export interface PreferencesEvents {
+  [PREFERENCES_STATE_CHANGED]: PreferencesState;
 }
 
 /**
  * Controller that stores shared settings and exposes convenience methods
  */
-export class PreferencesController extends BaseController<PreferencesState> {
+export class PreferencesController extends BaseController<PreferencesState, PreferencesActions> {
   private static defaultState = {
     featureFlags: {},
     frequentRpcList: [],
@@ -116,8 +105,8 @@ export class PreferencesController extends BaseController<PreferencesState> {
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(state?: Partial<PreferencesState>) {
-    super({ ...PreferencesController.defaultState, ...state }, PREFERENCES_STATE_CHANGED, schema);
+  constructor(messagingSystem: ControllerMessagingSystem, state?: Partial<PreferencesState>) {
+    super(messagingSystem, { ...PreferencesController.defaultState, ...state }, PREFERENCES_STATE_CHANGED, schema);
     this.registerActions({
       [GET_PREFERENCES_STATE]: () => this.state,
       [SET_SELECTED_ADDRESS]: this.setSelectedAddress,

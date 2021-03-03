@@ -1,6 +1,6 @@
 import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { subscribe, unsubscribe } from '../controller-messaging-system';
+import { ControllerMessagingSystem } from '../controller-messaging-system';
 import { safelyExecute, handleFetch } from '../util';
 import AssetsController from './AssetsController';
 import { CURRENCY_RATE_STATE_CHANGED, CurrencyRateState } from './CurrencyRateController';
@@ -66,6 +66,8 @@ export interface TokenRatesState extends BaseState {
 export class TokenRatesController extends BaseController<TokenRatesConfig, TokenRatesState> {
   private handle?: NodeJS.Timer;
 
+  private messagingSystem: ControllerMessagingSystem;
+
   private subId?: string;
 
   private tokenList: Token[] = [];
@@ -90,8 +92,9 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(config?: Partial<TokenRatesConfig>, state?: Partial<TokenRatesState>) {
+  constructor(messagingSystem: ControllerMessagingSystem, config?: Partial<TokenRatesConfig>, state?: Partial<TokenRatesState>) {
     super(config, state);
+    this.messagingSystem = messagingSystem;
     this.defaultConfig = {
       disabled: true,
       interval: 180000,
@@ -148,14 +151,14 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
     assets.subscribe(() => {
       this.configure({ tokens: assets.state.tokens });
     });
-    this.subId = subscribe<CurrencyRateState>(CURRENCY_RATE_STATE_CHANGED, (state) => {
+    this.subId = this.messagingSystem.subscribe<CurrencyRateState>(CURRENCY_RATE_STATE_CHANGED, (state) => {
       this.configure({ nativeCurrency: state.nativeCurrency });
     });
   }
 
   onDestroyed() {
     if (this.subId) {
-      unsubscribe(this.subId);
+      this.messagingSystem.unsubscribe(this.subId);
     }
   }
 

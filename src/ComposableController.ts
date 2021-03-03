@@ -65,6 +65,7 @@ export class ComposableController extends BaseController<any, any> {
       const { name } = controller;
       this.context[name] = controller;
       controller.context = this.context;
+      controller.messagingSystem = this.messagingSystem;
       this.cachedState && this.cachedState[name] && controller.update(this.cachedState[name]);
       initialState[name] = controller.state;
       controller.subscribe((state) => {

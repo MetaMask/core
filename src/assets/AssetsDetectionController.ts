@@ -3,7 +3,7 @@ import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import NetworkController, { NetworkType } from '../network/NetworkController';
 import { PreferencesState, PREFERENCES_STATE_CHANGED } from '../user/PreferencesController';
 import { safelyExecute, timeoutFetch } from '../util';
-import { subscribe, unsubscribe } from '../controller-messaging-system';
+import { ControllerMessagingSystem } from '../controller-messaging-system';
 import AssetsContractController from './AssetsContractController';
 import { Token } from './TokenRatesController';
 
@@ -56,6 +56,8 @@ export interface AssetsDetectionConfig extends BaseConfig {
 export class AssetsDetectionController extends BaseController<AssetsDetectionConfig, BaseState> {
   private handle?: NodeJS.Timer;
 
+  private messagingSystem: ControllerMessagingSystem;
+
   private subId?: string;
 
   private getOwnerCollectiblesApi(address: string) {
@@ -99,8 +101,9 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(config?: Partial<AssetsDetectionConfig>, state?: Partial<BaseState>) {
+  constructor(messagingSystem: ControllerMessagingSystem, config?: Partial<AssetsDetectionConfig>, state?: Partial<BaseState>) {
     super(config, state);
+    this.messagingSystem = messagingSystem;
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
       networkType: 'mainnet',
@@ -265,7 +268,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
       this.configure({ tokens });
     });
 
-    this.subId = subscribe<PreferencesState>(PREFERENCES_STATE_CHANGED, ({ selectedAddress }) => {
+    this.subId = this.messagingSystem.subscribe<PreferencesState>(PREFERENCES_STATE_CHANGED, ({ selectedAddress }) => {
       const actualSelectedAddress = this.config.selectedAddress;
       if (selectedAddress !== actualSelectedAddress) {
         this.configure({ selectedAddress });
@@ -280,7 +283,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 
   onDestroyed() {
     if (this.subId) {
-      unsubscribe(this.subId);
+      this.messagingSystem.unsubscribe(this.subId);
     }
   }
 }

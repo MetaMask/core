@@ -2,7 +2,7 @@
 // import a type: https://github.com/benmosher/eslint-plugin-import/issues/1699
 // eslint-disable-next-line import/named
 import { Draft, produce } from 'immer';
-import { ActionHandler, ActionHandlerRecord, EventHandler, EventHandlerRecord, publish, registerActionHandler, registerActionHandlers, subscribe, subscribeToEvents, unregisterActionHandlers, unsubscribe, unsubscribeFromEvents } from './controller-messaging-system';
+import { EventHandler, Actions, EventHandlerRecord, ControllerMessagingSystem } from './controller-messaging-system';
 
 /**
  * State change callbacks
@@ -21,12 +21,14 @@ export type Schema<T> = {
 /**
  * Controller class that provides state management and subscriptions
  */
-export class BaseController<S extends Record<string, any>> {
+export class BaseController<S extends Record<string, any>, A extends Partial<Actions>> {
   private internalState: S;
+
+  private messagingSystem: ControllerMessagingSystem;
 
   private subscriptions: string[] = [];
 
-  private actions?: ActionHandlerRecord;
+  private actions?: A;
 
   private stateUpdateEventName = 'BaseController.state-changed';
 
@@ -39,10 +41,11 @@ export class BaseController<S extends Record<string, any>> {
    * @param schema - State schema, describing how to "anonymize" the state,
    *   and which parts should be persisted.
    */
-  constructor(state: S, stateUpdateEventName: string, schema: Schema<S>) {
+  constructor(messagingSystem: ControllerMessagingSystem, state: S, stateUpdateEventName: string, schema: Schema<S>) {
     this.internalState = state;
     this.schema = schema;
     this.stateUpdateEventName = stateUpdateEventName;
+    this.messagingSystem = messagingSystem;
   }
 
   /**
@@ -54,25 +57,24 @@ export class BaseController<S extends Record<string, any>> {
     return this.internalState;
   }
 
-  registerActions(actions: ActionHandlerRecord) {
+  registerActions(actions: A) {
     this.actions = actions;
-    registerActionHandlers(actions);
+    this.messagingSystem.registerActionHandlers(actions);
   }
 
-  registerAction<T, R>(action: string, handler: ActionHandler<T, R>) {
+  registerAction<N extends keyof A>(action: N, handler: Actions[N]) {
     if (!this.actions?.[action]) {
-      registerActionHandler(action, handler);
+      this.messagingSystem.registerActionHandler(action, handler);
       this.actions = {
         ...this.actions,
         [action]: handler,
       };
     }
-
   }
 
   unregisterActions() {
     if (this.actions) {
-      unregisterActionHandlers(Object.keys(this.actions));
+      this.messagingSystem.unregisterActionHandlers(Object.keys(this.actions));
     }
   }
 
@@ -82,13 +84,16 @@ export class BaseController<S extends Record<string, any>> {
    * @param listener - Callback triggered when state changes
    */
   subscribe<T>(event: string, eventHandler: EventHandler<T>): string {
-    const subId = subscribe(event, eventHandler);
+    const subId = this.messagingSystem.subscribe(event, eventHandler);
     this.subscriptions.push(subId);
     return subId;
   }
 
   subscribeToEvents(events: EventHandlerRecord) {
-    this.subscriptions = [...this.subscriptions, ...subscribeToEvents(events)];
+    this.subscriptions = [
+      ...this.subscriptions,
+      ...this.messagingSystem.subscribeToEvents(events),
+    ];
   }
 
   /**
@@ -98,7 +103,7 @@ export class BaseController<S extends Record<string, any>> {
    * @returns - True if a listener is found and unsubscribed
    */
   unsubscribe(subId: string) {
-    unsubscribe(subId);
+    this.unsubscribe(subId);
     this.subscriptions = this.subscriptions.filter((activeSubId) => activeSubId !== subId);
   }
 
@@ -113,7 +118,7 @@ export class BaseController<S extends Record<string, any>> {
    */
   protected update(callback: (state: Draft<S>) => void | S) {
     this.internalState = produce(this.internalState, callback) as S;
-    publish(this.stateUpdateEventName, this.state);
+    this.messagingSystem.publish(this.stateUpdateEventName, this.state);
   }
 
   /**
@@ -126,11 +131,11 @@ export class BaseController<S extends Record<string, any>> {
    */
   destroy() {
     if (this.subscriptions) {
-      unsubscribeFromEvents(this.subscriptions);
+      this.messagingSystem.unsubscribeFromEvents(this.subscriptions);
     }
     this.subscriptions = [];
     if (this.actions) {
-      unregisterActionHandlers(Object.keys(this.actions));
+      this.unregisterActions();
     }
     this.actions = undefined;
   }

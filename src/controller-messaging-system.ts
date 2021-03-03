@@ -1,84 +1,106 @@
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
+import { CurrencyRateActions } from './assets/CurrencyRateController';
+import { PreferencesActions } from './user/PreferencesController';
 
-export type ActionHandler<T extends Record<string, any>, R> = (args?: T) => R;
 export type EventHandler<T extends Record<string, any>> = (payload: T) => void;
-export type ActionHandlerRecord = Record<string, ActionHandler<any, any>>;
 export type EventHandlerRecord = Record<string, EventHandler<any>>;
+type ReturnTypeOfMethod<T> = T extends (...args: any[]) => any ? ReturnType<T> : any;
+type ReturnTypeOfMethodIfExists<T, S> = S extends keyof T ? ReturnTypeOfMethod<T[S]> : any;
+type MethodParams<T> = T extends (...args: infer P) => any ? P[0] : T;
+type MethodParamsIfExists<T, S> = S extends keyof T ? MethodParams<T[S]> : S;
 
-const actions = new Map<string, ActionHandler<any, any>>();
-const listeners = new Map<string, {event: string; handler: EventHandler<any> }>();
+export type Actions = PreferencesActions & CurrencyRateActions;
 
-const ee = new EventEmitter();
+export class ControllerMessagingSystem {
+  private ee: EventEmitter = new EventEmitter();
 
-export function registerActionHandler<T, R>(
-  action: string,
-  handler: ActionHandler<T, R>
-) {
-  if (actions.has(action)) {
-    throw new Error(`A handler for ${action} has already been registered`);
+  private actions = new Map<keyof Actions, Actions[keyof Actions]>();
+
+  private listeners = new Map<string, {event: string; handler: EventHandler<any> }>();
+
+  public registerActionHandler<T extends keyof Actions>(
+    action: T,
+    handler: Actions[T],
+  ): void {
+    if (this.actions.has(action)) {
+      throw new Error(`A handler for ${action} has already been registered`);
+    }
+    this.actions.set(action, handler);
   }
-  actions.set(action, handler);
-}
 
-export function registerActionHandlers(handlers: ActionHandlerRecord) {
-  Object.keys(handlers).forEach((action) => {
-    registerActionHandler(action, handlers[action]);
-  });
-}
-
-export function unregisterActionHandler(action: string) {
-  actions.delete(action);
-}
-
-export function unregisterActionHandlers(actionNames: string[]) {
-  actionNames.forEach((action) => unregisterActionHandler(action));
-}
-
-export function resetActionHandlers() {
-  actions.clear();
-}
-
-export function call<T, R>(action: string, params?: T): R {
-  const handler = actions.get(action) as ActionHandler<T, R>;
-  if (!handler) {
-    throw new Error(`A handler for ${action} has not been registered`);
+  public registerActionHandlers(handlers: Partial<Actions>): void {
+    // eslint-disable-next-line @typescript-eslint/array-type
+    const actionKeys = Object.keys(handlers) as Array<keyof typeof handlers>;
+    actionKeys.forEach((action) => {
+      const handler = handlers[action];
+      if (handler) {
+        this.registerActionHandler(action, handler);
+      }
+    });
   }
-  return handler(params);
-}
 
-export function publish<T>(event: string, payload: T): void {
-  ee.emit(event, payload);
-}
-
-export function subscribe<T>(event: string, handler: EventHandler<T>): string {
-  const subId = uuidv4();
-  listeners.set(subId, { event, handler });
-  ee.on(event, handler);
-  return subId;
-}
-
-export function subscribeToEvents(events: EventHandlerRecord): string[] {
-  const subscriptionIds: string[] = [];
-  Object.keys(events).forEach((event) => {
-    subscriptionIds.push(subscribe(event, events[event]));
-  });
-  return subscriptionIds;
-}
-
-export function unsubscribe(subId: string) {
-  const subscription = listeners.get(subId);
-  if (subscription) {
-    ee.off(subscription.event, subscription.handler);
+  public unregisterActionHandler(action: keyof Actions): void {
+    this.actions.delete(action);
   }
-  listeners.delete(subId);
-}
 
-export function unsubscribeFromEvents(subscriptionIds: string[]): void {
-  subscriptionIds.forEach((subId) => unsubscribe(subId));
-}
+  public unregisterActionHandlers(actionNames: (keyof Actions)[]): void {
+    actionNames.forEach((action) => this.unregisterActionHandler(action));
+  }
 
-export function resetSubscriptions() {
-  [...listeners.keys()].forEach((subId) => unsubscribe(subId));
-  listeners.clear();
+  public resetActionHandlers(): void {
+    this.actions.clear();
+  }
+
+  public call<N extends keyof Actions>(
+    action: N,
+    params: MethodParamsIfExists<Actions, N>
+  ): ReturnTypeOfMethodIfExists<Actions, N> {
+    const handler = this.actions.get(action);
+    if (!handler) {
+      throw new Error(`A handler for ${action} has not been registered`);
+    }
+    return handler(params as any) as any;
+  }
+
+  public publish<T>(event: string, payload: T): void {
+    this.ee.emit(event, payload);
+  }
+
+  public subscribe<T>(event: string, handler: EventHandler<T>): string {
+    const subId = uuidv4();
+    this.listeners.set(subId, { event, handler });
+    this.ee.on(event, handler);
+    return subId;
+  }
+
+  public subscribeToEvents(events: EventHandlerRecord): string[] {
+    const subscriptionIds: string[] = [];
+    Object.keys(events).forEach((event) => {
+      subscriptionIds.push(this.subscribe(event, events[event]));
+    });
+    return subscriptionIds;
+  }
+
+  public unsubscribe(subId: string) {
+    const subscription = this.listeners.get(subId);
+    if (subscription) {
+      this.ee.off(subscription.event, subscription.handler);
+    }
+    this.listeners.delete(subId);
+  }
+
+  public unsubscribeFromEvents(subscriptionIds: string[]): void {
+    subscriptionIds.forEach((subId) => this.unsubscribe(subId));
+  }
+
+  public resetSubscriptions() {
+    [...this.listeners.keys()].forEach((subId) => this.unsubscribe(subId));
+    this.listeners.clear();
+  }
+
+  public destroy() {
+    this.resetActionHandlers();
+    this.resetSubscriptions();
+  }
 }

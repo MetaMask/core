@@ -6,10 +6,11 @@ import {
   signTypedDataLegacy,
 } from 'eth-sig-util';
 import BaseController, { BaseConfig, BaseState, Listener } from '../BaseController';
-import { getPreferencesState, removeIdentity, setSelectedAddress, syncIdentities, updateIdentities } from '../user/PreferencesController';
+import { GET_PREFERENCES_STATE, PreferencesState, REMOVE_IDENTITY, SET_SELECTED_ADDRESS, SYNC_IDENTITIES, UPDATE_IDENTITIES } from '../user/PreferencesController';
 import { Transaction } from '../transaction/TransactionController';
 import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
 import { TypedMessageParams } from '../message-manager/TypedMessageManager';
+import { ControllerMessagingSystem } from '../controller-messaging-system';
 
 const Keyring = require('eth-keyring-controller');
 const { Mutex } = require('await-semaphore');
@@ -102,6 +103,8 @@ export interface Keyring {
 export class KeyringController extends BaseController<KeyringConfig, KeyringState> {
   private mutex = new Mutex();
 
+  private messagingSystem: ControllerMessagingSystem;
+
   /**
    * Name of this controller used during composition
    */
@@ -118,8 +121,9 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(config?: Partial<KeyringConfig>, state?: Partial<KeyringState>) {
+  constructor(messagingSystem: ControllerMessagingSystem, config?: Partial<KeyringConfig>, state?: Partial<KeyringState>) {
     super(config, state);
+    this.messagingSystem = messagingSystem;
     privates.set(this, { keyring: new Keyring(Object.assign({ initState: state }, config)) });
     this.defaultState = {
       ...privates.get(this).keyring.store.getState(),
@@ -204,9 +208,9 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
     const releaseLock = await this.mutex.acquire();
     try {
       const vault = await privates.get(this).keyring.createNewVaultAndKeychain(password);
-      updateIdentities(await privates.get(this).keyring.getAccounts());
-      const preferencesState = getPreferencesState();
-      setSelectedAddress(Object.keys(preferencesState.identities)[0]);
+      this.messagingSystem.call(UPDATE_IDENTITIES, await privates.get(this).keyring.getAccounts());
+      const preferencesState = this.messagingSystem.call<void, PreferencesState>(GET_PREFERENCES_STATE);
+      this.messagingSystem.call(SET_SELECTED_ADDRESS, Object.keys(preferencesState.identities)[0]);
       this.fullUpdate();
       return vault;
     } finally {
@@ -294,8 +298,8 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
     const newKeyring = await privates.get(this).keyring.addNewKeyring(KeyringTypes.simple, [privateKey]);
     const accounts = await newKeyring.getAccounts();
     const allAccounts = await privates.get(this).keyring.getAccounts();
-    updateIdentities(allAccounts);
-    setSelectedAddress(accounts[0]);
+    this.messagingSystem.call(UPDATE_IDENTITIES, allAccounts);
+    this.messagingSystem.call(SET_SELECTED_ADDRESS, accounts[0]);
     return this.fullUpdate();
   }
 
@@ -306,7 +310,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    * @returns - Promise resolving current state when this account removal completes
    */
   async removeAccount(address: string): Promise<KeyringMemState> {
-    removeIdentity(address);
+    this.messagingSystem.call(REMOVE_IDENTITY, address);
     await privates.get(this).keyring.removeAccount(address);
     return this.fullUpdate();
   }
@@ -389,7 +393,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
   async submitPassword(password: string): Promise<KeyringMemState> {
     await privates.get(this).keyring.submitPassword(password);
     const accounts = await privates.get(this).keyring.getAccounts();
-    await syncIdentities(accounts);
+    await this.messagingSystem.call(SYNC_IDENTITIES, accounts);
     return this.fullUpdate();
   }
 

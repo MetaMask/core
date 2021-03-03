@@ -4,7 +4,7 @@ import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import { PreferencesState, PREFERENCES_STATE_CHANGED } from '../user/PreferencesController';
 import NetworkController, { NetworkType } from '../network/NetworkController';
 import { safelyExecute, handleFetch, validateTokenToWatch } from '../util';
-import { subscribe, unsubscribe } from '../controller-messaging-system';
+import { ControllerMessagingSystem } from '../controller-messaging-system';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
 import { ApiCollectibleResponse } from './AssetsDetectionController';
@@ -166,6 +166,8 @@ export interface AssetsState extends BaseState {
  */
 export class AssetsController extends BaseController<AssetsConfig, AssetsState> {
   private mutex = new Mutex();
+
+  private messagingSystem: ControllerMessagingSystem;
 
   private preferencesSubId?: string;
 
@@ -526,8 +528,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(config?: Partial<BaseConfig>, state?: Partial<AssetsState>) {
+  constructor(messagingSystem: ControllerMessagingSystem, config?: Partial<BaseConfig>, state?: Partial<AssetsState>) {
     super(config, state);
+    this.messagingSystem = messagingSystem;
     this.defaultConfig = {
       networkType: 'mainnet',
       selectedAddress: '',
@@ -799,7 +802,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
   onComposed() {
     super.onComposed();
     const network = this.context.NetworkController as NetworkController;
-    this.preferencesSubId = subscribe<PreferencesState>(PREFERENCES_STATE_CHANGED, ({ selectedAddress }) => {
+    this.preferencesSubId = this.messagingSystem.subscribe<PreferencesState>(PREFERENCES_STATE_CHANGED, ({ selectedAddress }) => {
       const { allCollectibleContracts, allCollectibles, allTokens } = this.state;
       const { networkType } = this.config;
       this.configure({ selectedAddress });
@@ -826,7 +829,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 
   onDestroy() {
     if (this.preferencesSubId) {
-      unsubscribe(this.preferencesSubId);
+      this.messagingSystem.unsubscribe(this.preferencesSubId);
     }
   }
 }

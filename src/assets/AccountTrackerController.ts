@@ -1,6 +1,6 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { subscribe } from '../controller-messaging-system';
-import { getPreferencesState, PREFERENCES_STATE_CHANGED } from '../user/PreferencesController';
+import { ControllerMessagingSystem } from '../controller-messaging-system';
+import { GET_PREFERENCES_STATE, PREFERENCES_STATE_CHANGED } from '../user/PreferencesController';
 import { BNToHex, safelyExecute } from '../util';
 
 const EthjsQuery = require('ethjs-query');
@@ -45,12 +45,14 @@ export interface AccountTrackerState extends BaseState {
 export class AccountTrackerController extends BaseController<AccountTrackerConfig, AccountTrackerState> {
   private ethjsQuery: any;
 
+  private messagingSystem: ControllerMessagingSystem;
+
   private handle?: NodeJS.Timer;
 
   private syncAccounts() {
     const {
       identities,
-    } = getPreferencesState();
+    } = this.messagingSystem.call(GET_PREFERENCES_STATE);
     const { accounts } = this.state;
     const addresses = Object.keys(identities);
     const existing = Object.keys(accounts);
@@ -76,8 +78,9 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(config?: Partial<AccountTrackerConfig>, state?: Partial<AccountTrackerState>) {
+  constructor(messagingSystem: ControllerMessagingSystem, config?: Partial<AccountTrackerConfig>, state?: Partial<AccountTrackerState>) {
     super(config, state);
+    this.messagingSystem = messagingSystem;
     this.defaultConfig = {
       interval: 10000,
     };
@@ -100,7 +103,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
    */
   onComposed() {
     super.onComposed();
-    subscribe(PREFERENCES_STATE_CHANGED, this.refresh);
+    this.messagingSystem.subscribe(PREFERENCES_STATE_CHANGED, this.refresh);
     this.poll();
   }
 
