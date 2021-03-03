@@ -23,7 +23,8 @@ type primitive = null | boolean | number | string;
 
 type DefinitelyNotJsonable = ((...args: any[]) => any) | undefined;
 
-// Type copied from https://github.com/Microsoft/TypeScript/issues/1897#issuecomment-710744173
+// Credit to https://github.com/grant-dennison for this type
+// Source: https://github.com/Microsoft/TypeScript/issues/1897#issuecomment-710744173
 export type IsJsonable<T> =
   // Check if there are any non-jsonable types represented in the union
   // Note: use of tuples in this first condition side-steps distributive conditional types
@@ -43,7 +44,11 @@ export type IsJsonable<T> =
       ? // It's an object
         {
           // Iterate over keys in object case
-          [P in keyof T]: IsJsonable<T[P]>; // Recursive call for children
+          [P in keyof T]: P extends string
+            ? // Recursive call for children
+              IsJsonable<T[P]>
+            : // Exclude non-string keys
+              never;
         }
       : // Otherwise any other non-object no bueno
         never
@@ -87,7 +92,7 @@ export interface StatePropertyMetadata<T> {
   anonymous: boolean | StateDeriver<T>;
 }
 
-type Json = null | boolean | number | string | Json[] | { [prop: string]: Json } | Partial<Record<never, never>>;
+type Json = null | boolean | number | string | Json[] | { [prop: string]: Json };
 /**
  * Controller class that provides state management, subscriptions, and state metadata
  */
