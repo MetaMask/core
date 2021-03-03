@@ -4,6 +4,8 @@ import { enablePatches, produceWithPatches } from 'immer';
 // eslint-disable-next-line no-duplicate-imports
 import type { Draft, Patch } from 'immer';
 
+import type { ControllerMessenger } from './ControllerMessenger';
+
 enablePatches();
 
 /**
@@ -96,21 +98,31 @@ type Json = null | boolean | number | string | Json[] | { [prop: string]: Json }
 /**
  * Controller class that provides state management, subscriptions, and state metadata
  */
-export class BaseController<S extends Record<string, unknown>> {
+export class BaseController<N extends string, S extends Record<string, unknown>> {
   private internalState: IsJsonable<S>;
 
-  private internalListeners: Set<Listener<S>> = new Set();
+  private messagingSystem: ControllerMessenger<never, { type: `${N}:state-change`; payload: [S, Patch[]] }>;
+
+  private name: N;
 
   public readonly metadata: StateMetadata<S>;
 
   /**
    * Creates a BaseController instance.
    *
+   * @param messagingSystem - Controller messaging system
    * @param state - Initial controller state
    * @param metadata - State metadata, describing how to "anonymize" the state,
    *   and which parts should be persisted.
    */
-  constructor(state: IsJsonable<S>, metadata: StateMetadata<S>) {
+  constructor(
+    messagingSystem: ControllerMessenger<never, { type: `${N}:state-change`; payload: [S, Patch[]] }>,
+    name: N,
+    state: IsJsonable<S>,
+    metadata: StateMetadata<S>,
+  ) {
+    this.messagingSystem = messagingSystem;
+    this.name = name;
     this.internalState = state;
     this.metadata = metadata;
   }
@@ -134,7 +146,7 @@ export class BaseController<S extends Record<string, unknown>> {
    * @param listener - Callback triggered when state changes
    */
   subscribe(listener: Listener<S>) {
-    this.internalListeners.add(listener);
+    this.messagingSystem.subscribe(`${this.name}:state-change` as `${N}:state-change`, listener);
   }
 
   /**
@@ -143,7 +155,7 @@ export class BaseController<S extends Record<string, unknown>> {
    * @param listener - Callback to remove
    */
   unsubscribe(listener: Listener<S>) {
-    this.internalListeners.delete(listener);
+    this.messagingSystem.unsubscribe(`${this.name}:state-change` as `${N}:state-change`, listener);
   }
 
   /**
@@ -158,9 +170,7 @@ export class BaseController<S extends Record<string, unknown>> {
   protected update(callback: (state: Draft<IsJsonable<S>>) => void | IsJsonable<S>) {
     const [nextState, patches] = produceWithPatches(this.internalState, callback);
     this.internalState = nextState as IsJsonable<S>;
-    for (const listener of this.internalListeners) {
-      listener(nextState as S, patches);
-    }
+    this.messagingSystem.publish(`${this.name}:state-change` as `${N}:state-change`, nextState as S, patches);
   }
 
   /**
@@ -173,7 +183,7 @@ export class BaseController<S extends Record<string, unknown>> {
    * listeners from being garbage collected.
    */
   protected destroy() {
-    this.internalListeners.clear();
+    this.messagingSystem.clearEventSubscriptions(`${this.name}:state-change` as `${N}:state-change`);
   }
 }
 
