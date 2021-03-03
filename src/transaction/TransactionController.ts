@@ -153,24 +153,6 @@ export interface EtherscanTransactionMeta {
   confirmations: string;
 }
 
-export interface AlethioTransactionMeta {
-  attributes: {
-    blockCreationTime: string;
-    symbol: string;
-    decimals: number;
-    transactionGasLimit: string;
-    transactionGasPrice: string;
-    transactionGasUsed: string;
-    value: string;
-  };
-  relationships: {
-    to: { data: { id: string } };
-    from: { data: { id: string } };
-    token: { data: { id: string } };
-    transaction: { data: { id: string } };
-  };
-}
-
 /**
  * @type TransactionConfig
  *
