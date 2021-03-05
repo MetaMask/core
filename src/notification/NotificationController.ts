@@ -84,12 +84,12 @@ export class NotificationController extends BaseController<NotificationConfig, N
     const newNotifications: StateNotificationMap = {};
 
     Object.values(this.allNotifications).forEach((notification: StateNotification) => {
-      if (!this.state.notifications[notification.id]) {
-        newNotifications[notification.id] = {
+      newNotifications[notification.id] = this.state.notifications[notification.id]
+        ? this.state.notifications[notification.id]
+        : {
           ...notification,
           isShown: false,
         };
-      }
     });
     this.update({ notifications: newNotifications });
   }
