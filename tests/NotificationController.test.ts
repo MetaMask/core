@@ -1,144 +1,125 @@
 import {
   NotificationConfig,
-  NotificationController,
   NotificationState,
+  NotificationController,
+  StateNotificationMap,
 } from '../src/notification/NotificationController';
 
-const swapsHandler = jest.fn();
-const mobileHandler = jest.fn();
-const npsHandler = jest.fn();
 const config1: NotificationConfig = {
-  allNotifications: [
-    {
+  allNotifications: {
+    1: {
       id: 1,
       title: 'Now Swap tokens directly in your wallet!',
       description:
         'MetaMask now aggregates multiple decentralized exchange aggregators to ensure you always get the best swap price with the lowest netwrok fees.',
       date: '12/8/2020',
       image: 'image url',
-      action: {
-        actionText: 'Start swapping',
-        actionFunction: swapsHandler,
-      },
+      actionText: 'Start swapping',
     },
-    {
+    2: {
       id: 2,
       title: 'MetaMask Mobile is here!',
       description:
         'Sync with your extension wallet in seconds. Scan the QR code with your mobile camera to download the app.',
       date: '12/8/2020',
-      action: {
-        actionText: 'Get the mobile app',
-        actionFunction: mobileHandler,
-      },
+      actionText: 'Get the mobile app',
     },
-  ],
+  },
 };
 
 const config2: NotificationConfig = {
-  allNotifications: [
-    {
-      id: 1,
-      title: 'Now Swap tokens directly in your wallet!',
-      description:
-        'MetaMask now aggregates multiple decentralized exchange aggregators to ensure you always get the best swap price with the lowest netwrok fees.',
-      date: '12/8/2020',
-    },
-    {
-      id: 2,
-      title: 'MetaMask Mobile is here!',
-      description:
-        'Sync with your extension wallet in seconds. Scan the QR code with your mobile camera to download the app.',
-      date: '12/8/2020',
-      image: 'image url',
-    },
-  ],
-};
-
-const config3: NotificationConfig = {
-  allNotifications: [
-    {
+  allNotifications: {
+    1: {
       id: 1,
       title: 'Now Swap tokens directly in your wallet!',
       description:
         'MetaMask now aggregates multiple decentralized exchange aggregators to ensure you always get the best swap price with the lowest netwrok fees.',
       date: '12/8/2020',
       image: 'image url',
-      action: {
-        actionText: 'Start swapping',
-        actionFunction: swapsHandler,
-      },
+      actionText: 'Start swapping',
     },
-    {
+    2: {
       id: 2,
       title: 'MetaMask Mobile is here!',
       description:
         'Sync with your extension wallet in seconds. Scan the QR code with your mobile camera to download the app.',
       date: '12/8/2020',
-      action: {
-        actionText: 'Get the mobile app',
-        actionFunction: mobileHandler,
-      },
+      actionText: 'Get the mobile app',
     },
-    {
+    3: {
       id: 3,
       title: 'Help improve MetaMask',
       description: 'Please shae your experience in this 5 minute survey',
       date: '12/8/2020',
-      action: {
-        actionText: 'Start Survey',
-        actionFunction: npsHandler,
-      },
+      actionText: 'Start Survey',
     },
-  ],
+  },
+};
+
+const state1: NotificationState = {
+  notifications: {
+    1: {
+      id: 1,
+      title: 'Now Swap tokens directly in your wallet!',
+      description:
+        'MetaMask now aggregates multiple decentralized exchange aggregators to ensure you always get the best swap price with the lowest netwrok fees.',
+      date: '12/8/2020',
+      image: 'image url',
+      actionText: 'Start swapping',
+      isShown: true,
+    },
+    2: {
+      id: 2,
+      title: 'MetaMask Mobile is here!',
+      description:
+        'Sync with your extension wallet in seconds. Scan the QR code with your mobile camera to download the app.',
+      date: '12/8/2020',
+      actionText: 'Get the mobile app',
+      isShown: true,
+    },
+  },
 };
 
 describe('notification controller', () => {
-  let state: NotificationState;
   it('should add notifications to state', () => {
     const controller = new NotificationController(config1);
     expect(Object.keys(controller.state.notifications)).toHaveLength(2);
-    state = controller.state;
-  });
-  it('should not add new notifcation to state when actiontion is not present', () => {
-    try {
-      new NotificationController(config2);
-    } catch (error) {
-      expect(error.message).toEqual('Must have an actionText and actionFunction.');
-    }
+    const expectedStateNotifications: StateNotificationMap = {
+      1: {
+        ...config1.allNotifications[1],
+        isShown: false,
+      },
+      2: {
+        ...config1.allNotifications[2],
+        isShown: false,
+      },
+    };
+    expect(controller.state.notifications).toEqual(expectedStateNotifications);
   });
 
-  let controller: NotificationController;
   it('should add new notifcation to state', () => {
-    controller = new NotificationController(config3, state);
+    const controller = new NotificationController(config2, state1);
     expect(Object.keys(controller.state.notifications)).toHaveLength(3);
+    expect(controller.state.notifications[1].isShown).toBe(true);
+    expect(controller.state.notifications[2].isShown).toBe(true);
+    expect(controller.state.notifications[3].isShown).toBe(false);
   });
 
-  describe('calling the actionFunction', () => {
-    it('should return the actionFunction corresponding to the id', () => {
-      controller.actionCall(1);
-      expect(swapsHandler).toHaveBeenCalled();
-      controller.actionCall(2);
-      expect(mobileHandler).toHaveBeenCalled();
-      controller.actionCall(3);
-      expect(npsHandler).toHaveBeenCalled();
-      try {
-        expect(controller.actionCall(4)).toBeUndefined();
-      } catch (error) {
-        expect(error.message).toEqual('Incomplete notification.');
-      }
-    });
-  });
   describe('update viewed notifications', () => {
-    it('should update isshown status', () => {
+    it('should update isShown status', () => {
+      const controller = new NotificationController(config2);
       controller.updateViewed({ 1: true });
-      expect(controller.state.notifications[1].isShown).toBeTruthy();
-      expect(controller.state.notifications[2].isShown).toBeFalsy();
+      expect(controller.state.notifications[1].isShown).toBe(true);
+      expect(controller.state.notifications[2].isShown).toBe(false);
+      expect(controller.state.notifications[3].isShown).toBe(false);
     });
-    it('should update isshown of more than one notifications', () => {
+
+    it('should update isShown of more than one notifications', () => {
+      const controller = new NotificationController(config2);
       controller.updateViewed({ 2: true, 3: true });
-      expect(controller.state.notifications[2].isShown).toBeTruthy();
-      expect(controller.state.notifications[3].isShown).toBeTruthy();
+      expect(controller.state.notifications[1].isShown).toBe(false);
+      expect(controller.state.notifications[2].isShown).toBe(true);
+      expect(controller.state.notifications[3].isShown).toBe(true);
     });
   });
 });

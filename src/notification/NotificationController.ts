@@ -27,7 +27,7 @@ interface NotificationMap {
 /**
   * A map of notification ids to StateNotification objects
   */
-interface StateNotificationMap {
+export interface StateNotificationMap {
   [id: number]: StateNotification;
 }
 
