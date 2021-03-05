@@ -36,7 +36,7 @@ interface StateNotificationMap {
  * from `metamask-extension`
  */
 export interface NotificationConfig extends BaseConfig{
-  allNotifications: NotificationMap | undefined;
+  allNotifications: NotificationMap;
 }
 
 /**
@@ -65,7 +65,7 @@ export class NotificationController extends BaseController<NotificationConfig, N
    * @param state - Initial state to set on this controller
    */
   constructor(config: NotificationConfig, state?: NotificationState) {
-    const { allNotifications = {} } = config;
+    const { allNotifications } = config;
     super(config, state || defaultState);
     this.allNotifications = { ...allNotifications };
     this.initialize();
