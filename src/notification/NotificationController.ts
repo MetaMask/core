@@ -10,8 +10,11 @@ interface Notification {
   description: string;
   date: string;
   image?: string;
-  isShown?: boolean;
   actionText?: string;
+}
+
+interface StateNotification extends Notification {
+  isShown: boolean;
 }
 
 /**
@@ -19,6 +22,13 @@ interface Notification {
   */
 interface NotificationMap {
   [id: number]: Notification;
+}
+
+/**
+  * A map of notification ids to StateNotification objects
+  */
+interface StateNotificationMap {
+  [id: number]: StateNotification;
 }
 
 /**
@@ -34,7 +44,7 @@ export interface NotificationConfig extends BaseConfig{
  * that are still active
  */
 export interface NotificationState extends BaseState{
-  notifications: NotificationMap;
+  notifications: StateNotificationMap;
 }
 
 const defaultState = {
@@ -71,9 +81,9 @@ export class NotificationController extends BaseController<NotificationConfig, N
    *  @param allNotifications
    */
   private _addNotifications(): void{
-    const newNotifications: NotificationMap = {};
+    const newNotifications: StateNotificationMap = {};
 
-    Object.values(this.allNotifications).forEach((notification: Notification) => {
+    Object.values(this.allNotifications).forEach((notification: StateNotification) => {
       if (!this.state.notifications[notification.id]) {
         newNotifications[notification.id] = {
           ...notification,
@@ -81,8 +91,7 @@ export class NotificationController extends BaseController<NotificationConfig, N
         };
       }
     });
-
-    this.update(newNotifications);
+    this.update({ notifications: newNotifications });
   }
 
   /**
