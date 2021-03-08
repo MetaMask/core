@@ -9,7 +9,7 @@ type CountControllerState = {
 };
 
 type CountControllerEvent = {
-  type: `CountController:state-change`;
+  type: `CountController:stateChange`;
   payload: [CountControllerState, Patch[]];
 };
 
@@ -129,8 +129,8 @@ describe('BaseController', () => {
     const listener1 = sinon.stub();
     const listener2 = sinon.stub();
 
-    controllerMessenger.subscribe('CountController:state-change', listener1);
-    controllerMessenger.subscribe('CountController:state-change', listener2);
+    controllerMessenger.subscribe('CountController:stateChange', listener1);
+    controllerMessenger.subscribe('CountController:stateChange', listener2);
     controller.update(() => {
       return { count: 1 };
     });
@@ -151,8 +151,8 @@ describe('BaseController', () => {
     );
     const listener1 = sinon.stub();
 
-    controllerMessenger.subscribe('CountController:state-change', listener1);
-    controllerMessenger.subscribe('CountController:state-change', listener1);
+    controllerMessenger.subscribe('CountController:stateChange', listener1);
+    controllerMessenger.subscribe('CountController:stateChange', listener1);
 
     controller.update(() => {
       return { count: 1 };
@@ -172,8 +172,8 @@ describe('BaseController', () => {
     );
     const listener1 = sinon.stub();
 
-    controllerMessenger.subscribe('CountController:state-change', listener1);
-    controllerMessenger.unsubscribe('CountController:state-change', listener1);
+    controllerMessenger.subscribe('CountController:stateChange', listener1);
+    controllerMessenger.unsubscribe('CountController:stateChange', listener1);
     controller.update(() => {
       return { count: 1 };
     });
@@ -191,9 +191,9 @@ describe('BaseController', () => {
     );
     const listener1 = sinon.stub();
 
-    controllerMessenger.subscribe('CountController:state-change', listener1);
-    controllerMessenger.subscribe('CountController:state-change', listener1);
-    controllerMessenger.unsubscribe('CountController:state-change', listener1);
+    controllerMessenger.subscribe('CountController:stateChange', listener1);
+    controllerMessenger.subscribe('CountController:stateChange', listener1);
+    controllerMessenger.unsubscribe('CountController:stateChange', listener1);
     controller.update(() => {
       return { count: 1 };
     });
@@ -207,7 +207,7 @@ describe('BaseController', () => {
     const listener1 = sinon.stub();
 
     expect(() => {
-      controllerMessenger.unsubscribe('CountController:state-change', listener1);
+      controllerMessenger.unsubscribe('CountController:stateChange', listener1);
     }).toThrow();
   });
 
@@ -222,8 +222,8 @@ describe('BaseController', () => {
     const listener1 = sinon.stub();
     const listener2 = sinon.stub();
 
-    controllerMessenger.subscribe('CountController:state-change', listener1);
-    controllerMessenger.subscribe('CountController:state-change', listener2);
+    controllerMessenger.subscribe('CountController:stateChange', listener1);
+    controllerMessenger.subscribe('CountController:stateChange', listener2);
     controller.destroy();
     controller.update(() => {
       return { count: 1 };

@@ -101,7 +101,7 @@ type Json = null | boolean | number | string | Json[] | { [prop: string]: Json }
 export class BaseController<N extends string, S extends Record<string, unknown>> {
   private internalState: IsJsonable<S>;
 
-  private messagingSystem: ControllerMessenger<never, { type: `${N}:state-change`; payload: [S, Patch[]] }>;
+  private messagingSystem: ControllerMessenger<never, { type: `${N}:stateChange`; payload: [S, Patch[]] }>;
 
   private name: N;
 
@@ -116,7 +116,7 @@ export class BaseController<N extends string, S extends Record<string, unknown>>
    *   and which parts should be persisted.
    */
   constructor(
-    messagingSystem: ControllerMessenger<never, { type: `${N}:state-change`; payload: [S, Patch[]] }>,
+    messagingSystem: ControllerMessenger<never, { type: `${N}:stateChange`; payload: [S, Patch[]] }>,
     name: N,
     state: IsJsonable<S>,
     metadata: StateMetadata<S>,
@@ -152,7 +152,7 @@ export class BaseController<N extends string, S extends Record<string, unknown>>
   protected update(callback: (state: Draft<IsJsonable<S>>) => void | IsJsonable<S>) {
     const [nextState, patches] = produceWithPatches(this.internalState, callback);
     this.internalState = nextState as IsJsonable<S>;
-    this.messagingSystem.publish(`${this.name}:state-change` as `${N}:state-change`, nextState as S, patches);
+    this.messagingSystem.publish(`${this.name}:stateChange` as `${N}:stateChange`, nextState as S, patches);
   }
 
   /**
@@ -165,7 +165,7 @@ export class BaseController<N extends string, S extends Record<string, unknown>>
    * listeners from being garbage collected.
    */
   protected destroy() {
-    this.messagingSystem.clearEventSubscriptions(`${this.name}:state-change` as `${N}:state-change`);
+    this.messagingSystem.clearEventSubscriptions(`${this.name}:stateChange` as `${N}:stateChange`);
   }
 }
 
