@@ -141,24 +141,6 @@ export class BaseController<N extends string, S extends Record<string, unknown>>
   }
 
   /**
-   * Adds new listener to be notified of state changes
-   *
-   * @param listener - Callback triggered when state changes
-   */
-  subscribe(listener: Listener<S>) {
-    this.messagingSystem.subscribe(`${this.name}:state-change` as `${N}:state-change`, listener);
-  }
-
-  /**
-   * Removes existing listener from receiving state changes
-   *
-   * @param listener - Callback to remove
-   */
-  unsubscribe(listener: Listener<S>) {
-    this.messagingSystem.unsubscribe(`${this.name}:state-change` as `${N}:state-change`, listener);
-  }
-
-  /**
    * Updates controller state. Accepts a callback that is passed a draft copy
    * of the controller state. If a value is returned, it is set as the new
    * state. Otherwise, any changes made within that callback to the draft are
