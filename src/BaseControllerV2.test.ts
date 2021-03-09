@@ -600,8 +600,8 @@ describe('getPersistentState', () => {
           'VisitorController',
           VisitorControllerAction | VisitorOverflowControllerAction,
           VisitorControllerEvent | VisitorOverflowControllerEvent,
-          string,
-          string
+          never,
+          never
         >,
       ) {
         super({
@@ -658,8 +658,8 @@ describe('getPersistentState', () => {
           'VisitorOverflowController',
           VisitorControllerAction | VisitorOverflowControllerAction,
           VisitorControllerEvent | VisitorOverflowControllerEvent,
-          string,
-          string
+          'VisitorController:clear',
+          'VisitorController:stateChange'
         >,
       ) {
         super({
