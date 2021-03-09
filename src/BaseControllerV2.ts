@@ -95,19 +95,18 @@ export interface StatePropertyMetadata<T> {
 }
 
 type Json = null | boolean | number | string | Json[] | { [prop: string]: Json };
+
+type StateChangeEvent<N extends string, S, E> = E extends { type: `${N}:stateChange`; payload: [S, Patch[]] }
+  ? E
+  : never;
+
 /**
  * Controller class that provides state management, subscriptions, and state metadata
  */
 export class BaseController<N extends string, S extends Record<string, unknown>> {
   private internalState: IsJsonable<S>;
 
-  private messagingSystem: RestrictedControllerMessenger<
-    N,
-    never,
-    { type: `${N}:stateChange`; payload: [S, Patch[]] },
-    any,
-    any
-  >;
+  protected messagingSystem: RestrictedControllerMessenger<N, any, StateChangeEvent<N, S, any>, string, string>;
 
   private name: N;
 
@@ -129,7 +128,7 @@ export class BaseController<N extends string, S extends Record<string, unknown>>
     name,
     state,
   }: {
-    messenger: RestrictedControllerMessenger<N, never, { type: `${N}:stateChange`; payload: [S, Patch[]] }, any, any>;
+    messenger: RestrictedControllerMessenger<N, any, StateChangeEvent<N, S, any>, string, string>;
     metadata: StateMetadata<S>;
     name: N;
     state: IsJsonable<S>;
