@@ -1,22 +1,34 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
-interface action {
-  actionText: string;
-  actionFunction: VoidFunction;
-}
-
 interface viewedNotification {
   [id: number]: boolean;
 }
 
-export interface Notification{
+interface Notification {
   id: number;
   title: string;
   description: string;
   date: string;
   image?: string;
-  action?: Partial<action>;
-  isShown?: boolean;
+  actionText?: string;
+}
+
+interface StateNotification extends Notification {
+  isShown: boolean;
+}
+
+/**
+  * A map of notification ids to Notification objects
+  */
+interface NotificationMap {
+  [id: number]: Notification;
+}
+
+/**
+  * A map of notification ids to StateNotification objects
+  */
+export interface StateNotificationMap {
+  [id: number]: StateNotification;
 }
 
 /**
@@ -24,7 +36,7 @@ export interface Notification{
  * from `metamask-extension`
  */
 export interface NotificationConfig extends BaseConfig{
-  allNotifications: Notification[];
+  allNotifications: NotificationMap;
 }
 
 /**
@@ -32,17 +44,19 @@ export interface NotificationConfig extends BaseConfig{
  * that are still active
  */
 export interface NotificationState extends BaseState{
-  notifications: { [id: number]: Notification};
+  notifications: StateNotificationMap;
 }
 
-const defaultState = {};
+const defaultState = {
+  notifications: {},
+};
 
 /**
  * Controller for managing in-app announcement notifications.
  */
 export class NotificationController extends BaseController<NotificationConfig, NotificationState> {
 
-  private readonly allNotifications: Notification[];
+  private readonly allNotifications: NotificationMap;
 
   /**
    * Creates a NotificationController instance
@@ -53,7 +67,7 @@ export class NotificationController extends BaseController<NotificationConfig, N
   constructor(config: NotificationConfig, state?: NotificationState) {
     const { allNotifications } = config;
     super(config, state || defaultState);
-    this.allNotifications = [...allNotifications];
+    this.allNotifications = { ...allNotifications };
     this.initialize();
     this._addNotifications();
   }
@@ -67,27 +81,17 @@ export class NotificationController extends BaseController<NotificationConfig, N
    *  @param allNotifications
    */
   private _addNotifications(): void{
-    const existingNotificationIds: number[] = this.state.notifications ? Object.keys(this.state.notifications).map(Number) : [];
+    const newNotifications: StateNotificationMap = {};
 
-    const newNotifications: Notification[] = this.allNotifications
-      .filter((notification) => !existingNotificationIds
-      .some((existingId) => (existingId === notification.id)))
-      .map((newNotification) => {
-        if (newNotification.action === undefined) {
-          throw new Error('Must have an actionText and actionFunction.');
-        }
-        const { action: { actionFunction, ...modifiedAction }, ...stateNotification } = newNotification;
-
-        return { ...stateNotification, action: modifiedAction, isShown: false };
-      });
-
-    const stateNotifications: Record<number, Notification> = newNotifications
-      .reduce((object: Record<number, Notification>, notification: Notification) => {
-        object[notification.id] = notification;
-        return object;
-      }, {});
-
-    this.update({ notifications: { ...this.state.notifications, ...stateNotifications } }, true);
+    Object.values(this.allNotifications).forEach((notification: StateNotification) => {
+      newNotifications[notification.id] = this.state.notifications[notification.id]
+        ? this.state.notifications[notification.id]
+        : {
+          ...notification,
+          isShown: false,
+        };
+    });
+    this.update({ notifications: newNotifications });
   }
 
   /**
@@ -99,23 +103,9 @@ export class NotificationController extends BaseController<NotificationConfig, N
   updateViewed(viewedIds: viewedNotification): void {
     const stateNotifications = this.state.notifications;
 
-    for (const id of Object.keys(stateNotifications)) {
+    for (const id of Object.keys(viewedIds)) {
       stateNotifications[(id as unknown) as number].isShown = viewedIds[(id as unknown) as number];
     }
-
     this.update({ notifications: stateNotifications }, true);
-  }
-
-  /**
-   * retuns the actionFucntion
-   * @param id
-   */
-  actionCall(id: number): void {
-    try {
-      const notification: Notification | undefined = this.allNotifications.find((notify) => notify.id === id);
-      (notification?.action as action).actionFunction();
-    } catch (error) {
-      throw new Error('Incomplete notification.');
-    }
   }
 }
