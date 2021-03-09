@@ -1,19 +1,15 @@
-export type ActionHandler<Action, ActionType> = (
+type ActionHandler<Action, ActionType> = (
   ...args: ExtractActionParameters<Action, ActionType>
 ) => ExtractActionResponse<Action, ActionType>;
-export type ExtractActionParameters<Action, T> = Action extends { type: T; handler: (...args: infer H) => any }
-  ? H
-  : never;
-export type ExtractActionResponse<Action, T> = Action extends { type: T; handler: (...args: any) => infer H }
-  ? H
-  : never;
+type ExtractActionParameters<Action, T> = Action extends { type: T; handler: (...args: infer H) => any } ? H : never;
+type ExtractActionResponse<Action, T> = Action extends { type: T; handler: (...args: any) => infer H } ? H : never;
 
-export type ExtractEvenHandler<Event, T> = Event extends { type: T; payload: infer P }
+type ExtractEvenHandler<Event, T> = Event extends { type: T; payload: infer P }
   ? P extends any[]
     ? (...payload: P) => void
     : never
   : never;
-export type ExtractEventPayload<Event, T> = Event extends { type: T; payload: infer P } ? P : never;
+type ExtractEventPayload<Event, T> = Event extends { type: T; payload: infer P } ? P : never;
 
 type ActionConstraint = { type: string; handler: (...args: any) => unknown };
 type EventConstraint = { type: string; payload: unknown[] };
