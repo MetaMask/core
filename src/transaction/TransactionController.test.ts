@@ -560,6 +560,7 @@ describe('TransactionController', () => {
     });
     expect(controller.state.transactions[0].transaction.from).toBe(from);
     expect(controller.state.transactions[0].networkID).toBe(MOCK_NETWORK.state.network);
+    expect(controller.state.transactions[0].chainId).toBe(MOCK_NETWORK.state.provider.chainId);
     expect(controller.state.transactions[0].status).toBe('unapproved');
   });
 
@@ -600,6 +601,25 @@ describe('TransactionController', () => {
       from,
       to: from,
     });
+    controller.wipeTransactions();
+    expect(controller.state.transactions).toHaveLength(0);
+  });
+
+  // This tests the fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
+  it('should wipe transactions using networkID when there is no chainId', async () => {
+    const controller = new TransactionController({ provider: PROVIDER });
+    controller.wipeTransactions();
+    controller.context = {
+      NetworkController: MOCK_NETWORK,
+    } as any;
+    controller.onComposed();
+    controller.state.transactions.push({
+      from: MOCK_PRFERENCES.state.selectedAddress,
+      id: 'foo',
+      networkID: '3',
+      status: 'submitted',
+      transactionHash: '1337',
+    } as any);
     controller.wipeTransactions();
     expect(controller.state.transactions).toHaveLength(0);
   });
@@ -730,6 +750,35 @@ describe('TransactionController', () => {
   });
 
   it('should query transaction statuses', () => {
+    return new Promise((resolve) => {
+      const controller = new TransactionController({
+        provider: PROVIDER,
+        sign: async (transaction: any) => transaction,
+      });
+      controller.context = {
+        NetworkController: MOCK_NETWORK,
+      } as any;
+      controller.onComposed();
+      controller.state.transactions.push({
+        from: MOCK_PRFERENCES.state.selectedAddress,
+        id: 'foo',
+        networkID: '3',
+        chainId: '3',
+        status: 'submitted',
+        transactionHash: '1337',
+      } as any);
+      controller.state.transactions.push({} as any);
+
+      controller.hub.once(`${controller.state.transactions[0].id}:confirmed`, () => {
+        expect(controller.state.transactions[0].status).toBe('confirmed');
+        resolve('');
+      });
+      controller.queryTransactionStatuses();
+    });
+  });
+
+  // This tests the fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
+  it('should query transaction statuses with networkID only when there is no chainId', () => {
     return new Promise((resolve) => {
       const controller = new TransactionController({
         provider: PROVIDER,

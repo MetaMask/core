@@ -587,6 +587,43 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
   }
 
   /**
+   * Adds a batch of tokens to the stored token list
+   *
+   * @param tokens - Array of Tokens to be added or updated
+   * @returns - Current token list
+   */
+  async addTokens(tokensToAdd: Token[]): Promise<Token[]> {
+    const releaseLock = await this.mutex.acquire();
+    const { allTokens, tokens } = this.state;
+    const { networkType, selectedAddress } = this.config;
+
+    try {
+      tokensToAdd.forEach((tokenToAdd) => {
+        const { address, symbol, decimals, image } = tokenToAdd;
+        const checksumAddress = toChecksumAddress(address);
+
+        const newEntry: Token = { address: checksumAddress, symbol, decimals, image };
+        const previousEntry = tokens.find((token) => token.address === checksumAddress);
+        if (previousEntry) {
+          const previousIndex = tokens.indexOf(previousEntry);
+          tokens[previousIndex] = newEntry;
+        } else {
+          tokens.push(newEntry);
+        }
+      });
+
+      const addressTokens = allTokens[selectedAddress];
+      const newAddressTokens = { ...addressTokens, ...{ [networkType]: tokens } };
+      const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newAddressTokens } };
+      const newTokens = [...tokens];
+      this.update({ allTokens: newAllTokens, tokens: newTokens });
+      return newTokens;
+    } finally {
+      releaseLock();
+    }
+  }
+
+  /**
    * Adds a new suggestedAsset to state. Parameters will be validated according to
    * asset type being watched. A `<suggestedAssetMeta.id>:pending` hub event will be emitted once added.
    *

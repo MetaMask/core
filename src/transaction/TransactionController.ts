@@ -100,6 +100,7 @@ export interface TransactionMeta {
   };
   id: string;
   networkID?: string;
+  chainId?: string;
   origin?: string;
   rawTransaction?: string;
   status: string;
@@ -237,9 +238,10 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    *
    * @param txMeta - Object containing the transaction information
    * @param currentNetworkID - string representing the current network id
+   * @param currentChainId - string representing the current chain id
    * @returns - TransactionMeta
    */
-  private normalizeTx(txMeta: EtherscanTransactionMeta, currentNetworkID: string): TransactionMeta {
+  private normalizeTx(txMeta: EtherscanTransactionMeta, currentNetworkID: string, currentChainId: string): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     /* istanbul ignore next */
     const status = txMeta.isError === '0' ? 'confirmed' : 'failed';
@@ -247,6 +249,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       blockNumber: txMeta.blockNumber,
       id: random({ msecs: time }),
       networkID: currentNetworkID,
+      chainId: currentChainId,
       status,
       time,
       transaction: {
@@ -262,7 +265,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     };
   }
 
-  private normalizeTokenTx = (txMeta: EtherscanTransactionMeta, currentNetworkID: string): TransactionMeta => {
+  private normalizeTokenTx = (txMeta: EtherscanTransactionMeta, currentNetworkID: string, currentChainId: string): TransactionMeta => {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     const {
       to, from, gas, gasPrice, hash, contractAddress, tokenDecimal, tokenSymbol, value,
@@ -271,6 +274,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       id: random({ msecs: time }),
       isTransfer: true,
       networkID: currentNetworkID,
+      chainId: currentChainId,
       status: 'confirmed',
       time,
       transaction: {
@@ -381,12 +385,17 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
-    /* istanbul ignore next */
-    const networkID = network?.state?.provider?.chainId;
+    const {
+        state: {
+          network: networkID,
+          provider: { chainId },
+        },
+      } = network;
 
     const transactionMeta = {
       id: random(),
       networkID,
+      chainId,
       origin,
       status: 'unapproved',
       time: Date.now(),
@@ -649,12 +658,14 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
   async queryTransactionStatuses() {
     const { transactions } = this.state;
     const network = this.context.NetworkController;
-    const currentNetworkID = network.state.provider.chainId;
+    const currentChainId = network.state.provider.chainId;
+    const currentNetworkID = network.state.network;
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
         transactions.map(async (meta, index) => {
-          if (meta.status === 'submitted' && meta.networkID === currentNetworkID) {
+          // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
+          if (meta.status === 'submitted' && (meta.chainId === currentChainId || (!meta.chainId && meta.networkID === currentNetworkID))) {
             const txObj = await query(this.ethQuery, 'getTransactionByHash', [meta.transactionHash]);
             /* istanbul ignore else */
             if (txObj && txObj.blockNumber) {
@@ -701,8 +712,14 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     if (!network) {
       return;
     }
-    const currentNetworkID = network.state.provider.chainId;
-    const newTransactions = this.state.transactions.filter(({ networkID }) => networkID !== currentNetworkID);
+    const currentChainId = network.state.provider.chainId;
+    const currentNetworkID = network.state.network;
+    const newTransactions = this.state.transactions.filter(({ networkID, chainId }) => {
+        // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
+        const isCurrentNetwork = (chainId === currentChainId || (!chainId && networkID === currentNetworkID));
+        return !isCurrentNetwork;
+    });
+
     this.update({ transactions: newTransactions });
   }
 
@@ -719,7 +736,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     const {
       state: {
         network: currentNetworkID,
-        provider: { type: networkType },
+        provider: { type: networkType, chainId: currentChainId },
       },
     } = network;
 
@@ -736,14 +753,14 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     etherscanTxResponse.result.forEach((tx: EtherscanTransactionMeta) => {
       /* istanbul ignore next */
       if (!remoteTxList[tx.hash]) {
-        const cleanTx = this.normalizeTx(tx, currentNetworkID);
+        const cleanTx = this.normalizeTx(tx, currentNetworkID, currentChainId);
         remoteTxs.push(cleanTx);
         remoteTxList[tx.hash] = 1;
       }
     });
 
     etherscanTokenResponse.result.forEach((tx: EtherscanTransactionMeta) => {
-      const cleanTx = this.normalizeTokenTx(tx, currentNetworkID);
+      const cleanTx = this.normalizeTokenTx(tx, currentNetworkID, currentChainId);
       remoteTxs.push(cleanTx);
       /* istanbul ignore next */
       remoteTxList[cleanTx.transactionHash || ''] = 1;
@@ -761,7 +778,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     allTxs.forEach(async (tx) => {
       /* istanbul ignore next */
       if (
-        tx.networkID === currentNetworkID &&
+        // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
+        (tx.chainId === currentChainId || (!tx.chainId && tx.networkID === currentNetworkID)) &&
         tx.transaction.to &&
         tx.transaction.to.toLowerCase() === address.toLowerCase()
       ) {
