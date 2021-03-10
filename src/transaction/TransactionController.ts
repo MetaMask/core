@@ -151,6 +151,8 @@ export interface EtherscanTransactionMeta {
   cumulativeGasUsed: string;
   gasUsed: string;
   confirmations: string;
+  tokenDecimal: string;
+  tokenSymbol: string;
 }
 
 /**
@@ -237,7 +239,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    * @param currentNetworkID - string representing the current network id
    * @returns - TransactionMeta
    */
-  private normalizeTxFromEtherscan(txMeta: EtherscanTransactionMeta, currentNetworkID: string): TransactionMeta {
+  private normalizeTx(txMeta: EtherscanTransactionMeta, currentNetworkID: string): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     /* istanbul ignore next */
     const status = txMeta.isError === '0' ? 'confirmed' : 'failed';
@@ -259,6 +261,34 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       transactionHash: txMeta.hash,
     };
   }
+
+  private normalizeTokenTx = (txMeta: EtherscanTransactionMeta, currentNetworkID: string): TransactionMeta => {
+    const time = parseInt(txMeta.timeStamp, 10) * 1000;
+    const {
+      to, from, gas, gasPrice, hash, contractAddress, tokenDecimal, tokenSymbol, value,
+    } = txMeta;
+    return {
+      id: random({ msecs: time }),
+      isTransfer: true,
+      networkID: currentNetworkID,
+      status: 'confirmed',
+      time,
+      transaction: {
+        chainId: 1,
+        from,
+        gas,
+        gasPrice,
+        to,
+        value,
+      },
+      transactionHash: hash,
+      transferInformation: {
+        contractAddress,
+        decimals: Number(tokenDecimal),
+        symbol: tokenSymbol,
+      },
+    };
+  };
 
   /**
    * EventEmitter instance used to listen to specific transactional events
@@ -706,19 +736,17 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     etherscanTxResponse.result.forEach((tx: EtherscanTransactionMeta) => {
       /* istanbul ignore next */
       if (!remoteTxList[tx.hash]) {
-        const cleanTx = this.normalizeTxFromEtherscan(tx, currentNetworkID);
+        const cleanTx = this.normalizeTx(tx, currentNetworkID);
         remoteTxs.push(cleanTx);
         remoteTxList[tx.hash] = 1;
       }
     });
 
     etherscanTokenResponse.result.forEach((tx: EtherscanTransactionMeta) => {
+      const cleanTx = this.normalizeTokenTx(tx, currentNetworkID);
+      remoteTxs.push(cleanTx);
       /* istanbul ignore next */
-      if (!remoteTxList[tx.hash]) {
-        const cleanTx = this.normalizeTxFromEtherscan(tx, currentNetworkID);
-        remoteTxs.push(cleanTx);
-        remoteTxList[cleanTx.transactionHash || ''] = 1;
-      }
+      remoteTxList[cleanTx.transactionHash || ''] = 1;
     });
 
     const localTxs = this.state.transactions.filter(
