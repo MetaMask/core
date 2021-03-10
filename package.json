@@ -34,6 +34,9 @@
   "bugs": {
     "url": "https://github.com/MetaMask/controllers/issues"
   },
+  "resolutions": {
+    "**/elliptic": "^6.5.4"
+  },
   "dependencies": {
     "@metamask/contract-metadata": "^1.23.0",
     "async-mutex": "^0.2.6",
