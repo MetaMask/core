@@ -1,22 +1,25 @@
 {
-	"compilerOptions": {
-		"declaration": true,
-		"declarationDir": "dist",
-		"experimentalDecorators": true,
-		"importHelpers": false,
-		"module": "commonjs",
-		"moduleResolution": "node",
-		"noImplicitAny": true,
-		"noUnusedLocals": true,
-		"noUnusedParameters": true,
-		"outDir": "dist",
-		"removeComments": false,
-		"sourceMap": true,
-		"inlineSources": true,
-		"strict": true,
-		"target": "es6"
-	},
-	"include": [
-		"./src/**/*.ts"
-	]
+  "compilerOptions": {
+    "declaration": true,
+    "declarationDir": "dist",
+    "experimentalDecorators": true,
+    "importHelpers": false,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "outDir": "dist",
+    "removeComments": false,
+    "sourceMap": true,
+    "inlineSources": true,
+    "strict": true,
+    "target": "es6"
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "**/*.test.ts"
+  ]
 }

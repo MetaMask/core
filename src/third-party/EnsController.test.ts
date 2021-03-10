@@ -1,6 +1,6 @@
 import { toChecksumAddress } from 'ethereumjs-util';
 
-import EnsController from '../src/third-party/EnsController';
+import EnsController from './EnsController';
 
 const address1 = '0x32Be343B94f860124dC4fEe278FDCBD38C102D88';
 const address2 = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';

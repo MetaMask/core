@@ -1,4 +1,4 @@
-import TypedMessageManager from '../src/message-manager/TypedMessageManager';
+import TypedMessageManager from './TypedMessageManager';
 
 const typedMessage = [
   {
@@ -54,7 +54,7 @@ describe('TypedMessageManager', () => {
   });
 
   it('should reject a message', () => {
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const controller = new TypedMessageManager();
       const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
       const version = 'V1';
@@ -81,7 +81,7 @@ describe('TypedMessageManager', () => {
   });
 
   it('should sign a message', () => {
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const controller = new TypedMessageManager();
       const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
       const version = 'V1';
@@ -109,7 +109,7 @@ describe('TypedMessageManager', () => {
   });
 
   it("should set message status as 'errored'", () => {
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const controller = new TypedMessageManager();
       const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
       const version = 'V1';
@@ -136,7 +136,7 @@ describe('TypedMessageManager', () => {
   });
 
   it('should throw when unapproved finishes', () => {
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const controller = new TypedMessageManager();
       const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
       const version = 'V1';
@@ -185,7 +185,7 @@ describe('TypedMessageManager', () => {
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const messageData = '0x879';
     const version = 'V1';
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const controller = new TypedMessageManager();
       try {
         await controller.addUnapprovedMessageAsync(
@@ -206,7 +206,7 @@ describe('TypedMessageManager', () => {
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const messageData = typedMessage;
     const version = 'V3';
-    return new Promise(async (resolve) => {
+    return new Promise<void>(async (resolve) => {
       const controller = new TypedMessageManager();
       try {
         await controller.addUnapprovedMessageAsync(

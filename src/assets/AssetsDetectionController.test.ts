@@ -1,11 +1,11 @@
 import { createSandbox, stub } from 'sinon';
 import * as nock from 'nock';
-import { AssetsDetectionController } from '../src/assets/AssetsDetectionController';
-import { NetworkController, NetworksChainId } from '../src/network/NetworkController';
-import { PreferencesController } from '../src/user/PreferencesController';
-import { ComposableController } from '../src/ComposableController';
-import { AssetsController } from '../src/assets/AssetsController';
-import { AssetsContractController } from '../src/assets/AssetsContractController';
+import { NetworkController, NetworksChainId } from '../network/NetworkController';
+import { PreferencesController } from '../user/PreferencesController';
+import { ComposableController } from '../ComposableController';
+import { AssetsController } from './AssetsController';
+import { AssetsContractController } from './AssetsContractController';
+import { AssetsDetectionController } from './AssetsDetectionController';
 
 const { BN } = require('ethereumjs-util');
 
@@ -328,7 +328,7 @@ describe('AssetsDetectionController', () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     sandbox
       .stub(assetsContract, 'getBalancesInSingleCall')
-      .returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+      .resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toEqual([
       {
@@ -343,7 +343,7 @@ describe('AssetsDetectionController', () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     sandbox
       .stub(assetsContract, 'getBalancesInSingleCall')
-      .returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+      .resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
 
     assets.removeAndIgnoreToken('0x6810e776880C02933D47DB1b9fc05908e5386b96');
@@ -355,7 +355,7 @@ describe('AssetsDetectionController', () => {
     assetsDetection.configure({ networkType: MAINNET });
     sandbox
       .stub(assetsContract, 'getBalancesInSingleCall')
-      .returns({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+      .resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toEqual([]);
   });

@@ -1,12 +1,12 @@
 import { stub } from 'sinon';
 import * as nock from 'nock';
-import ComposableController from '../src/ComposableController';
-import TokenRatesController, { Token } from '../src/assets/TokenRatesController';
-import { AssetsController } from '../src/assets/AssetsController';
-import { PreferencesController } from '../src/user/PreferencesController';
-import { NetworkController } from '../src/network/NetworkController';
-import { AssetsContractController } from '../src/assets/AssetsContractController';
-import CurrencyRateController from '../src/assets/CurrencyRateController';
+import ComposableController from '../ComposableController';
+import { PreferencesController } from '../user/PreferencesController';
+import { NetworkController } from '../network/NetworkController';
+import TokenRatesController, { Token } from './TokenRatesController';
+import { AssetsController } from './AssetsController';
+import { AssetsContractController } from './AssetsContractController';
+import CurrencyRateController from './CurrencyRateController';
 
 const COINGECKO_HOST = 'https://api.coingecko.com';
 const COINGECKO_PATH = '/api/v3/simple/token_price/ethereum';
@@ -50,7 +50,7 @@ describe('TokenRatesController', () => {
   });
 
   it('should poll and update rate in the right interval', () => {
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       const mock = stub(TokenRatesController.prototype, 'fetchExchangeRate');
       new TokenRatesController({
         interval: 10,
@@ -79,7 +79,7 @@ describe('TokenRatesController', () => {
   it('should clear previous interval', () => {
     const mock = stub(global, 'clearTimeout');
     const controller = new TokenRatesController({ interval: 1337 });
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       setTimeout(() => {
         controller.poll(1338);
         expect(mock.called).toBe(true);
@@ -114,7 +114,7 @@ describe('TokenRatesController', () => {
 
   it('should handle balance not found in API', async () => {
     const controller = new TokenRatesController({ interval: 10 });
-    stub(controller, 'fetchExchangeRate').returns({ error: 'Not Found', message: 'Not Found' });
+    stub(controller, 'fetchExchangeRate').throws({ error: 'Not Found', message: 'Not Found' });
     expect(controller.state.contractExchangeRates).toEqual({});
     controller.tokens = [{ address: 'bar', decimals: 0, symbol: '' }];
     const mock = stub(controller, 'updateExchangeRates');

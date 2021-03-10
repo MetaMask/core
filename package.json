@@ -35,7 +35,7 @@
     "url": "https://github.com/MetaMask/controllers/issues"
   },
   "dependencies": {
-    "@metamask/contract-metadata": "^1.22.0",
+    "@metamask/contract-metadata": "^1.23.0",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
     "eth-ens-namehash": "^2.0.8",
@@ -50,6 +50,7 @@
     "ethereumjs-wallet": "^1.0.1",
     "human-standard-collectible-abi": "^1.0.2",
     "human-standard-token-abi": "^2.0.0",
+    "immer": "^8.0.1",
     "isomorphic-fetch": "^3.0.0",
     "jsonschema": "^1.2.4",
     "nanoid": "^3.1.12",
@@ -59,27 +60,27 @@
     "web3-provider-engine": "^16.0.1"
   },
   "devDependencies": {
-    "@metamask/eslint-config": "^4.1.0",
+    "@metamask/eslint-config": "^5.0.0",
     "@types/jest": "^22.2.3",
-    "@types/node": "^10.1.4",
-    "@types/sinon": "^4.3.3",
+    "@types/node": "^14.14.31",
+    "@types/sinon": "^9.0.10",
     "@types/web3": "^1.0.6",
-    "@typescript-eslint/eslint-plugin": "^4.1.0",
-    "@typescript-eslint/parser": "^4.1.0",
-    "eslint": "^7.19.0",
-    "eslint-plugin-import": "^2.20.1",
-    "eslint-plugin-jest": "^23.6.0",
+    "@typescript-eslint/eslint-plugin": "^4.15.2",
+    "@typescript-eslint/parser": "^4.15.2",
+    "eslint": "^7.20.0",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-jest": "^24.1.5",
     "eslint-plugin-node": "^11.1.0",
     "ethjs-provider-http": "^0.1.6",
     "jest": "^26.4.2",
     "jest-environment-jsdom": "^25.0.0",
     "lint-staged": "^6.1.0",
     "nock": "^13.0.7",
-    "prettier": "^2.1.1",
-    "sinon": "^7.4.1",
-    "ts-jest": "^26.3.0",
-    "typedoc": "^0.20.24",
-    "typescript": "^4.0.3"
+    "prettier": "^2.2.1",
+    "sinon": "^9.2.4",
+    "ts-jest": "^26.5.2",
+    "typedoc": "^0.20.28",
+    "typescript": "~4.1.5"
   },
   "jest": {
     "moduleFileExtensions": [

@@ -1,7 +1,7 @@
 import { stub, spy } from 'sinon';
-import AccountTrackerController from '../src/assets/AccountTrackerController';
-import PreferencesController from '../src/user/PreferencesController';
-import ComposableController from '../src/ComposableController';
+import PreferencesController from '../user/PreferencesController';
+import ComposableController from '../ComposableController';
+import AccountTrackerController from './AccountTrackerController';
 
 const HttpProvider = require('ethjs-provider-http');
 
@@ -49,7 +49,7 @@ describe('AccountTrackerController', () => {
   });
 
   it('should call refresh every ten seconds', () => {
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       const preferences = new PreferencesController();
       const controller = new AccountTrackerController({ provider, interval: 100 });
       stub(controller, 'refresh');

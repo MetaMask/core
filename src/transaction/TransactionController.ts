@@ -38,11 +38,11 @@ export interface Result {
  * @type Fetch All Options
  *
  * @property fromBlock - String containing a specific block decimal number
- * @property alethioApiKey - API key to be used to fetch token transactions
+ * @property etherscanApiKey - API key to be used to fetch token transactions
  */
 export interface FetchAllOptions {
   fromBlock?: string;
-  alethioApiKey?: string;
+  etherscanApiKey?: string;
 }
 
 /**
@@ -152,24 +152,8 @@ export interface EtherscanTransactionMeta {
   cumulativeGasUsed: string;
   gasUsed: string;
   confirmations: string;
-}
-
-export interface AlethioTransactionMeta {
-  attributes: {
-    blockCreationTime: string;
-    symbol: string;
-    decimals: number;
-    transactionGasLimit: string;
-    transactionGasPrice: string;
-    transactionGasUsed: string;
-    value: string;
-  };
-  relationships: {
-    to: { data: { id: string } };
-    from: { data: { id: string } };
-    token: { data: { id: string } };
-    transaction: { data: { id: string } };
-  };
+  tokenDecimal: string;
+  tokenSymbol: string;
 }
 
 /**
@@ -257,7 +241,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    * @param currentChainId - string representing the current chain id
    * @returns - TransactionMeta
    */
-  private normalizeTxFromEtherscan(txMeta: EtherscanTransactionMeta, currentNetworkID: string, currentChainId: string): TransactionMeta {
+  private normalizeTx(txMeta: EtherscanTransactionMeta, currentNetworkID: string, currentChainId: string): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
     /* istanbul ignore next */
     const status = txMeta.isError === '0' ? 'confirmed' : 'failed';
@@ -281,41 +265,31 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     };
   }
 
-  /**
-   * Normalizes the transaction information from alethio
-   * to be compatible with the TransactionMeta interface
-   *
-   * @param txMeta - Object containing the transaction information
-   * @param currentNetworkID - string representing the current network id
-   * @param currentChainId - string representing the current chain id
-   * @returns - TransactionMeta
-   */
-  normalizeTxFromAlehio = (txMeta: AlethioTransactionMeta, currentNetworkID: string, currentChainId: string): TransactionMeta => {
+  private normalizeTokenTx = (txMeta: EtherscanTransactionMeta, currentNetworkID: string, currentChainId: string): TransactionMeta => {
+    const time = parseInt(txMeta.timeStamp, 10) * 1000;
     const {
-      attributes: { symbol, blockCreationTime, decimals, transactionGasLimit, transactionGasPrice, value },
-      relationships: { to, from, transaction, token },
+      to, from, gas, gasPrice, hash, contractAddress, tokenDecimal, tokenSymbol, value,
     } = txMeta;
-    const time = parseInt(blockCreationTime, 10) * 1000;
     return {
       id: random({ msecs: time }),
       isTransfer: true,
       networkID: currentNetworkID,
       chainId: currentChainId,
       status: 'confirmed',
-      time: parseInt(blockCreationTime, 10) * 1000,
+      time,
       transaction: {
         chainId: 1,
-        from: from.data.id,
-        gas: transactionGasLimit,
-        gasPrice: transactionGasPrice,
-        to: to.data.id,
+        from,
+        gas,
+        gasPrice,
+        to,
         value,
       },
-      transactionHash: transaction.data.id,
+      transactionHash: hash,
       transferInformation: {
-        contractAddress: token.data.id,
-        decimals,
-        symbol,
+        contractAddress,
+        decimals: Number(tokenDecimal),
+        symbol: tokenSymbol,
       },
     };
   };
@@ -441,7 +415,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       this.hub.once(`${transactionMeta.id}:finished`, (meta: TransactionMeta) => {
         switch (meta.status) {
           case 'submitted':
-            return resolve(meta.transactionHash);
+            return resolve(meta.transactionHash as string);
           case 'rejected':
             return reject(ethErrors.provider.userRejectedRequest('User rejected the transaction'));
           case 'cancelled':
@@ -472,22 +446,25 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    */
   async approveTransaction(transactionID: string) {
     const { transactions } = this.state;
+    const releaseLock = await this.mutex.acquire();
     const network = this.context.NetworkController as NetworkController;
     /* istanbul ignore next */
     const currentChainId = network?.state?.provider?.chainId;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
-    const { from } = transactionMeta.transaction;
-
-    if (!this.sign) {
-      this.failTransaction(transactionMeta, new Error('No sign method defined.'));
-      return;
-    } else if (!currentChainId) {
-      this.failTransaction(transactionMeta, new Error('No chainId defined.'));
-      return;
-    }
 
     try {
+      const { from } = transactionMeta.transaction;
+      if (!this.sign) {
+        releaseLock();
+        this.failTransaction(transactionMeta, new Error('No sign method defined.'));
+        return;
+      } else if (!currentChainId) {
+        releaseLock();
+        this.failTransaction(transactionMeta, new Error('No chainId defined.'));
+        return;
+      }
+
       transactionMeta.status = 'approved';
       transactionMeta.transaction.nonce = await query(this.ethQuery, 'getTransactionCount', [from, 'pending']);
       transactionMeta.transaction.chainId = parseInt(currentChainId, undefined);
@@ -507,6 +484,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     } catch (error) {
       this.failTransaction(transactionMeta, error);
+    } finally {
+      releaseLock();
     }
   }
 
@@ -613,7 +592,6 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    */
   async estimateGas(transaction: Transaction) {
     const estimatedTransaction = { ...transaction };
-    const { gasLimit } = await query(this.ethQuery, 'getBlockByNumber', ['latest', false]);
     const { gas, gasPrice: providedGasPrice, to, value, data } = estimatedTransaction;
     const gasPrice = typeof providedGasPrice === 'undefined' ? await query(this.ethQuery, 'gasPrice') : providedGasPrice;
 
@@ -621,6 +599,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     if (typeof gas !== 'undefined') {
       return { gas, gasPrice };
     }
+    const { gasLimit } = await query(this.ethQuery, 'getBlockByNumber', ['latest', false]);
 
     // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000
     /* istanbul ignore next */
@@ -767,20 +746,21 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       return;
     }
 
-    const [etherscanResponse, alethioResponse] = await handleTransactionFetch(networkType, address, opt);
+    const [etherscanTxResponse, etherscanTokenResponse] = await handleTransactionFetch(networkType, address, opt);
     const remoteTxList: { [key: string]: number } = {};
     const remoteTxs: TransactionMeta[] = [];
 
-    etherscanResponse.result.forEach((tx: EtherscanTransactionMeta) => {
+    etherscanTxResponse.result.forEach((tx: EtherscanTransactionMeta) => {
       /* istanbul ignore next */
       if (!remoteTxList[tx.hash]) {
-        remoteTxs.push(this.normalizeTxFromEtherscan(tx, currentNetworkID, currentChainId));
+        const cleanTx = this.normalizeTx(tx, currentNetworkID, currentChainId);
+        remoteTxs.push(cleanTx);
         remoteTxList[tx.hash] = 1;
       }
     });
 
-    alethioResponse.data.forEach((tx: AlethioTransactionMeta) => {
-      const cleanTx = this.normalizeTxFromAlehio(tx, currentNetworkID, currentChainId);
+    etherscanTokenResponse.result.forEach((tx: EtherscanTransactionMeta) => {
+      const cleanTx = this.normalizeTokenTx(tx, currentNetworkID, currentChainId);
       remoteTxs.push(cleanTx);
       /* istanbul ignore next */
       remoteTxList[cleanTx.transactionHash || ''] = 1;

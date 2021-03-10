@@ -25,6 +25,9 @@ module.exports = {
     'no-shadow': 'off',
     '@typescript-eslint/no-shadow': 'error',
     '@typescript-eslint/indent': 'off',
+    // disabled due to incompatibility with Record<string, unknown>
+    // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
+    '@typescript-eslint/consistent-type-definitions': 'off',
 
     // TODO re-enable most of these rules
     '@typescript-eslint/no-non-null-assertion': 'off',
@@ -79,6 +82,8 @@ module.exports = {
     'node/no-extraneous-require': 'off',
 
     'jest/expect-expect': 'off',
+    'jest/no-conditional-expect': 'off',
+    'jest/no-restricted-matchers': 'off',
     'jest/no-test-return-statement': 'off',
     'jest/no-truthy-falsy': 'off',
     'jest/no-try-expect': 'off',

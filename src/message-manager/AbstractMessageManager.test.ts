@@ -2,14 +2,18 @@ import {
   TypedMessage,
   TypedMessageParams,
   TypedMessageParamsMetamask,
-} from '../src/message-manager/TypedMessageManager';
-import AbstractMessageManager from '../src/message-manager/AbstractMessageManager';
+} from './TypedMessageManager';
+import AbstractMessageManager from './AbstractMessageManager';
 
 class AbstractTestManager extends AbstractMessageManager<TypedMessage, TypedMessageParams, TypedMessageParamsMetamask> {
   prepMessageForSigning(messageParams: TypedMessageParamsMetamask): Promise<TypedMessageParams> {
     delete messageParams.metamaskId;
     delete messageParams.version;
     return Promise.resolve(messageParams);
+  }
+
+  setMessageStatus(messageId: string, status: string) {
+    return super.setMessageStatus(messageId, status);
   }
 }
 const typedMessage = [
@@ -174,5 +178,30 @@ describe('AbstractTestManager', () => {
     if (message) {
       expect(message.status).toEqual('approved');
     }
+  });
+
+  describe('setMessageStatus', () => {
+    it('should set the given message status', () => {
+      const controller = new AbstractTestManager();
+      controller.addMessage({
+        id: messageId,
+        messageParams: { from: '0x1234', data: 'test' },
+        status: 'status',
+        time: 10,
+        type: 'type',
+      });
+      const messageBefore = controller.getMessage(messageId);
+      expect(messageBefore && messageBefore.status).toEqual('status');
+
+      controller.setMessageStatus(messageId, 'newstatus');
+      const messageAfter = controller.getMessage(messageId);
+      expect(messageAfter && messageAfter.status).toEqual('newstatus');
+    });
+
+    it('should throw an error if message is not found', () => {
+      const controller = new AbstractTestManager();
+
+      expect(() => controller.setMessageStatus(messageId, 'newstatus')).toThrow('AbstractMessageManager: Message not found for id: 1.');
+    });
   });
 });
