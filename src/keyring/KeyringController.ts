@@ -1,10 +1,5 @@
 import { toChecksumAddress } from 'ethereumjs-util';
-import {
-  normalize as normalizeAddress,
-  signTypedData,
-  signTypedData_v4,
-  signTypedDataLegacy,
-} from 'eth-sig-util';
+import { normalize as normalizeAddress, signTypedData, signTypedData_v4, signTypedDataLegacy } from 'eth-sig-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import BaseController, { BaseConfig, BaseState, Listener } from '../BaseController';
 import PreferencesController from '../user/PreferencesController';
@@ -287,7 +282,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
         try {
           wallet = importers.fromEtherWallet(input, password);
         } catch (e) {
-          wallet = wallet || await Wallet.fromV3(input, password, true);
+          wallet = wallet || (await Wallet.fromV3(input, password, true));
         }
         privateKey = ethUtil.bufferToHex(wallet.getPrivateKey());
         break;

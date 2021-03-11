@@ -6,21 +6,15 @@ module.exports = {
     '@metamask/eslint-config/config/nodejs',
     '@metamask/eslint-config/config/typescript',
   ],
-  ignorePatterns: [
-    '!.eslintrc.js',
-    '!jest.config.js',
-    'node_modules',
-    'dist',
-    'docs',
-    'coverage',
-    '*.d.ts',
-  ],
-  overrides: [{
-    files: ['*.js'],
-    parserOptions: {
-      sourceType: 'script',
+  ignorePatterns: ['!.eslintrc.js', '!jest.config.js', 'node_modules', 'dist', 'docs', 'coverage', '*.d.ts'],
+  overrides: [
+    {
+      files: ['*.js'],
+      parserOptions: {
+        sourceType: 'script',
+      },
     },
-  }],
+  ],
   rules: {
     'no-shadow': 'off',
     '@typescript-eslint/no-shadow': 'error',
@@ -37,13 +31,13 @@ module.exports = {
     '@typescript-eslint/member-delimiter-style': [
       'error',
       {
-        'multiline': {
-          'delimiter': 'semi',
-          'requireLast': true,
+        multiline: {
+          delimiter: 'semi',
+          requireLast: true,
         },
-        'singleline': {
-          'delimiter': 'semi',
-          'requireLast': false,
+        singleline: {
+          delimiter: 'semi',
+          requireLast: false,
         },
       },
     ],
@@ -51,14 +45,14 @@ module.exports = {
     '@typescript-eslint/space-before-function-paren': [
       'error',
       {
-        'anonymous': 'always',
-        'named': 'never',
-        'asyncArrow': 'always',
+        anonymous: 'always',
+        named: 'never',
+        asyncArrow: 'always',
       },
     ],
 
     'accessor-pairs': 'off',
-    'camelcase': 'off',
+    camelcase: 'off',
     'consistent-return': 'off',
     'default-case': 'off',
     'function-paren-newline': 'off',
@@ -76,7 +70,7 @@ module.exports = {
     'no-param-reassign': 'off',
     'no-prototype-builtins': 'off',
     'no-useless-escape': 'off',
-    'radix': 'off',
+    radix: 'off',
     'require-atomic-updates': 'off',
 
     'node/no-extraneous-require': 'off',

@@ -8,15 +8,19 @@ function getPricingURL(currentCurrency: string, nativeCurrency: string, includeU
   );
 }
 
-  /**
-   * Fetches the exchange rate for a given currency
-   *
-   * @param currency - ISO 4217 currency code
-   * @param nativeCurrency - Symbol for base asset
-   * @param includeUSDRate - Whether to add the USD rate to the fetch
-   * @returns - Promise resolving to exchange rate for given currency
-   */
-export async function fetchExchangeRate(currency: string, nativeCurrency: string, includeUSDRate?: boolean): Promise<{ conversionDate: number; conversionRate: number; usdConversionRate: number }> {
+/**
+ * Fetches the exchange rate for a given currency
+ *
+ * @param currency - ISO 4217 currency code
+ * @param nativeCurrency - Symbol for base asset
+ * @param includeUSDRate - Whether to add the USD rate to the fetch
+ * @returns - Promise resolving to exchange rate for given currency
+ */
+export async function fetchExchangeRate(
+  currency: string,
+  nativeCurrency: string,
+  includeUSDRate?: boolean,
+): Promise<{ conversionDate: number; conversionRate: number; usdConversionRate: number }> {
   const json = await handleFetch(getPricingURL(currency, nativeCurrency, includeUSDRate));
   const conversionRate = Number(json[currency.toUpperCase()]);
   const usdConversionRate = Number(json.USD);
