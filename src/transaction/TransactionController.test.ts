@@ -1,6 +1,6 @@
 import { stub } from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
-import { NetworksChainId } from '../network/NetworkController';
+import { NetworksChainId, NetworkType, NetworkState } from '../network/NetworkController';
 import { TransactionController, TransactionStatus, TransactionMeta } from './TransactionController';
 
 const globalAny: any = global;
@@ -63,18 +63,18 @@ const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const PROVIDER = new HttpProvider('https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
 const MOCK_NETWORK = {
-  provider: PROVIDER,
-  state: { network: '3', provider: { type: 'ropsten', chainId: NetworksChainId.ropsten } },
+  getProvider: () => PROVIDER,
+  state: { network: '3', provider: { type: 'ropsten' as NetworkType, chainId: NetworksChainId.ropsten } },
   subscribe: () => undefined,
 };
 const MOCK_NETWORK_WITHOUT_CHAIN_ID = {
-  provider: PROVIDER,
-  state: { network: '3', provider: { type: 'ropsten' } },
+  getProvider: () => PROVIDER,
+  state: { network: '3', provider: { type: 'ropsten' as NetworkType } },
   subscribe: () => undefined,
 };
 const MOCK_MAINNET_NETWORK = {
-  provider: MAINNET_PROVIDER,
-  state: { network: '1', provider: { type: 'mainnet', chainId: NetworksChainId.mainnet } },
+  getProvider: () => MAINNET_PROVIDER,
+  state: { network: '1', provider: { type: 'mainnet' as NetworkType, chainId: NetworksChainId.mainnet } },
   subscribe: () => undefined,
 };
 
@@ -525,12 +525,20 @@ describe('TransactionController', () => {
   });
 
   it('should set default state', () => {
-    const controller = new TransactionController();
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
     expect(controller.state).toEqual({ methodData: {}, transactions: [] });
   });
 
   it('should set default config', () => {
-    const controller = new TransactionController();
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
     expect(controller.config).toEqual({
       interval: 5000,
       provider: undefined,
@@ -540,7 +548,14 @@ describe('TransactionController', () => {
   it('should poll and update transaction statuses in the right interval', async () => {
     await new Promise((resolve) => {
       const mock = stub(TransactionController.prototype, 'queryTransactionStatuses');
-      new TransactionController({ interval: 10 });
+      new TransactionController(
+        {
+          getNetworkState: () => MOCK_NETWORK.state,
+          onNetworkStateChange: MOCK_NETWORK.subscribe,
+          getProvider: MOCK_NETWORK.getProvider,
+        },
+        { interval: 10 },
+      );
       expect(mock.called).toBe(true);
       expect(mock.calledTwice).toBe(false);
       setTimeout(() => {
@@ -553,7 +568,14 @@ describe('TransactionController', () => {
 
   it('should clear previous interval', async () => {
     const mock = stub(global, 'clearTimeout');
-    const controller = new TransactionController({ interval: 1337 });
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
+      },
+      { interval: 1337 },
+    );
     await new Promise((resolve) => {
       setTimeout(() => {
         controller.poll(1338);
@@ -566,7 +588,14 @@ describe('TransactionController', () => {
 
   it('should not update the state if there are no updates on transaction statuses', async () => {
     await new Promise((resolve) => {
-      const controller = new TransactionController({ interval: 10 });
+      const controller = new TransactionController(
+        {
+          getNetworkState: () => MOCK_NETWORK.state,
+          onNetworkStateChange: MOCK_NETWORK.subscribe,
+          getProvider: MOCK_NETWORK.getProvider,
+        },
+        { interval: 10 },
+      );
       const func = stub(controller, 'update');
       setTimeout(() => {
         expect(func.called).toBe(false);
@@ -577,17 +606,21 @@ describe('TransactionController', () => {
   });
 
   it('should throw when adding invalid transaction', async () => {
-    const controller = new TransactionController();
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
     await expect(controller.addTransaction({ from: 'foo' } as any)).rejects.toThrow('Invalid "from" address');
   });
 
   it('should add a valid transaction', async () => {
-    const controller = new TransactionController({ provider: PROVIDER });
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    controller.context = {
-      NetworkController: MOCK_NETWORK,
-    } as any;
-    controller.onComposed();
     await controller.addTransaction({
       from,
       to: from,
@@ -598,12 +631,42 @@ describe('TransactionController', () => {
     expect(controller.state.transactions[0].status).toBe(TransactionStatus.unapproved);
   });
 
+  it('should add a valid transaction after a network switch', async () => {
+    const getNetworkState = stub().returns(MOCK_NETWORK.state);
+    let networkStateChangeListener: ((state: NetworkState) => void) | null = null;
+    const onNetworkStateChange = (listener: (state: NetworkState) => void) => {
+      networkStateChangeListener = listener;
+    };
+    const getProvider = stub().returns(PROVIDER);
+    const controller = new TransactionController({
+      getNetworkState,
+      onNetworkStateChange,
+      getProvider,
+    });
+
+    // switch from Ropsten to Mainnet
+    getNetworkState.returns(MOCK_MAINNET_NETWORK.state);
+    getProvider.returns(MAINNET_PROVIDER);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    networkStateChangeListener!(MOCK_MAINNET_NETWORK.state);
+
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    await controller.addTransaction({
+      from,
+      to: from,
+    });
+    expect(controller.state.transactions[0].transaction.from).toBe(from);
+    expect(controller.state.transactions[0].networkID).toBe(MOCK_MAINNET_NETWORK.state.network);
+    expect(controller.state.transactions[0].chainId).toBe(MOCK_MAINNET_NETWORK.state.provider.chainId);
+    expect(controller.state.transactions[0].status).toBe(TransactionStatus.unapproved);
+  });
+
   it('should cancel a transaction', async () => {
-    const controller = new TransactionController({ provider: PROVIDER });
-    controller.context = {
-      NetworkController: MOCK_NETWORK,
-    } as any;
-    controller.onComposed();
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const { result } = await controller.addTransaction({
       from,
@@ -623,12 +686,12 @@ describe('TransactionController', () => {
   });
 
   it('should wipe transactions', async () => {
-    const controller = new TransactionController({ provider: PROVIDER });
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
     controller.wipeTransactions();
-    controller.context = {
-      NetworkController: MOCK_NETWORK,
-    } as any;
-    controller.onComposed();
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     await controller.addTransaction({
       from,
@@ -640,12 +703,12 @@ describe('TransactionController', () => {
 
   // This tests the fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
   it('should wipe transactions using networkID when there is no chainId', async () => {
-    const controller = new TransactionController({ provider: PROVIDER });
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
     controller.wipeTransactions();
-    controller.context = {
-      NetworkController: MOCK_NETWORK,
-    } as any;
-    controller.onComposed();
     controller.state.transactions.push({
       from: MOCK_PRFERENCES.state.selectedAddress,
       id: 'foo',
@@ -658,16 +721,18 @@ describe('TransactionController', () => {
   });
 
   it('should fail to approve an invalid transaction', async () => {
-    const controller = new TransactionController({
-      provider: PROVIDER,
-      sign: () => {
-        throw new Error('foo');
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
       },
-    });
-    controller.context = {
-      NetworkController: MOCK_NETWORK,
-    } as any;
-    controller.onComposed();
+      {
+        sign: () => {
+          throw new Error('foo');
+        },
+      },
+    );
     const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
     const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const { result } = await controller.addTransaction({ from, to });
@@ -680,12 +745,12 @@ describe('TransactionController', () => {
   });
 
   it('should fail transaction if gas calculation fails', async () => {
-    const controller = new TransactionController({ provider: PROVIDER });
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    controller.context = {
-      NetworkController: MOCK_NETWORK,
-    } as any;
-    controller.onComposed();
     mockFlags.estimateGas = 'Uh oh';
     await expect(
       controller.addTransaction({
@@ -696,13 +761,14 @@ describe('TransactionController', () => {
   });
 
   it('should fail if no sign method defined', async () => {
-    const controller = new TransactionController({
-      provider: PROVIDER,
-    });
-    controller.context = {
-      NetworkController: MOCK_NETWORK,
-    } as any;
-    controller.onComposed();
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
+      },
+      {},
+    );
     const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
     const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const { result } = await controller.addTransaction({ from, to });
@@ -714,15 +780,17 @@ describe('TransactionController', () => {
     await expect(result).rejects.toThrow('No sign method defined');
   });
 
-  it('should fail if no chainId defined', async () => {
-    const controller = new TransactionController({
-      provider: PROVIDER,
-      sign: async (transaction: any) => transaction,
-    });
-    controller.context = {
-      NetworkController: MOCK_NETWORK_WITHOUT_CHAIN_ID,
-    } as any;
-    controller.onComposed();
+  it('should fail if no chainId is defined', async () => {
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK_WITHOUT_CHAIN_ID.state as NetworkState,
+        onNetworkStateChange: MOCK_NETWORK_WITHOUT_CHAIN_ID.subscribe,
+        getProvider: MOCK_NETWORK_WITHOUT_CHAIN_ID.getProvider,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
     const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
     const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const { result } = await controller.addTransaction({ from, to });
@@ -736,15 +804,17 @@ describe('TransactionController', () => {
 
   it('should approve a transaction', async () => {
     await new Promise(async (resolve) => {
-      const controller = new TransactionController({
-        provider: PROVIDER,
-        sign: async (transaction: any) => transaction,
-      });
+      const controller = new TransactionController(
+        {
+          getNetworkState: () => MOCK_NETWORK.state,
+          onNetworkStateChange: MOCK_NETWORK.subscribe,
+          getProvider: MOCK_NETWORK.getProvider,
+        },
+        {
+          sign: async (transaction: any) => transaction,
+        },
+      );
       const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      controller.context = {
-        NetworkController: MOCK_NETWORK,
-      } as any;
-      controller.onComposed();
       await controller.addTransaction({
         from,
         gas: '0x0',
@@ -764,14 +834,16 @@ describe('TransactionController', () => {
 
   it('should query transaction statuses', async () => {
     await new Promise((resolve) => {
-      const controller = new TransactionController({
-        provider: PROVIDER,
-        sign: async (transaction: any) => transaction,
-      });
-      controller.context = {
-        NetworkController: MOCK_NETWORK,
-      } as any;
-      controller.onComposed();
+      const controller = new TransactionController(
+        {
+          getNetworkState: () => MOCK_NETWORK.state,
+          onNetworkStateChange: MOCK_NETWORK.subscribe,
+          getProvider: MOCK_NETWORK.getProvider,
+        },
+        {
+          sign: async (transaction: any) => transaction,
+        },
+      );
       controller.state.transactions.push({
         from: MOCK_PRFERENCES.state.selectedAddress,
         id: 'foo',
@@ -793,14 +865,16 @@ describe('TransactionController', () => {
   // This tests the fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
   it('should query transaction statuses with networkID only when there is no chainId', async () => {
     await new Promise((resolve) => {
-      const controller = new TransactionController({
-        provider: PROVIDER,
-        sign: async (transaction: any) => transaction,
-      });
-      controller.context = {
-        NetworkController: MOCK_NETWORK,
-      } as any;
-      controller.onComposed();
+      const controller = new TransactionController(
+        {
+          getNetworkState: () => MOCK_NETWORK.state,
+          onNetworkStateChange: MOCK_NETWORK.subscribe,
+          getProvider: MOCK_NETWORK.getProvider,
+        },
+        {
+          sign: async (transaction: any) => transaction,
+        },
+      );
       controller.state.transactions.push({
         from: MOCK_PRFERENCES.state.selectedAddress,
         id: 'foo',
@@ -820,12 +894,12 @@ describe('TransactionController', () => {
 
   it('should fetch all the transactions from an address, including incoming transactions, in ropsten', async () => {
     globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
-    const controller = new TransactionController({ provider: PROVIDER });
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
     controller.wipeTransactions();
-    controller.context = {
-      NetworkController: MOCK_NETWORK,
-    } as any;
-    controller.onComposed();
     expect(controller.state.transactions).toHaveLength(0);
 
     const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
@@ -837,12 +911,12 @@ describe('TransactionController', () => {
 
   it('should fetch all the transactions from an address, including incoming token transactions, in mainnet', async () => {
     globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
-    const controller = new TransactionController({ provider: MAINNET_PROVIDER });
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_MAINNET_NETWORK.state,
+      onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
+      getProvider: MOCK_MAINNET_NETWORK.getProvider,
+    });
     controller.wipeTransactions();
-    controller.context = {
-      NetworkController: MOCK_MAINNET_NETWORK,
-    } as any;
-    controller.onComposed();
     expect(controller.state.transactions).toHaveLength(0);
 
     const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
@@ -854,13 +928,13 @@ describe('TransactionController', () => {
 
   it('should fetch all the transactions from an address, including incoming token transactions, but not adding the ones already in state', async () => {
     globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
-    const controller = new TransactionController({ provider: MAINNET_PROVIDER });
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_MAINNET_NETWORK.state,
+      onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
+      getProvider: MOCK_MAINNET_NETWORK.getProvider,
+    });
     const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
     controller.wipeTransactions();
-    controller.context = {
-      NetworkController: MOCK_MAINNET_NETWORK,
-    } as any;
-    controller.onComposed();
     controller.state.transactions = TRANSACTIONS_IN_STATE;
     await controller.fetchAll(from);
     expect(controller.state.transactions).toHaveLength(17);
@@ -876,12 +950,12 @@ describe('TransactionController', () => {
 
   it('should fetch all the transactions from an address, including incoming transactions, in mainnet from block', async () => {
     globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
-    const controller = new TransactionController({ provider: MAINNET_PROVIDER });
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_MAINNET_NETWORK.state,
+      onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
+      getProvider: MOCK_MAINNET_NETWORK.getProvider,
+    });
     controller.wipeTransactions();
-    controller.context = {
-      NetworkController: MOCK_MAINNET_NETWORK,
-    } as any;
-    controller.onComposed();
     expect(controller.state.transactions).toHaveLength(0);
 
     const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
@@ -893,12 +967,12 @@ describe('TransactionController', () => {
 
   it('should return', async () => {
     globalAny.fetch = mockFetch(MOCK_FETCH_TX_HISTORY_DATA_ERROR);
-    const controller = new TransactionController({ provider: PROVIDER });
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
     controller.wipeTransactions();
-    controller.context = {
-      NetworkController: MOCK_NETWORK,
-    } as any;
-    controller.onComposed();
     expect(controller.state.transactions).toHaveLength(0);
     const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
     const result = await controller.fetchAll(from);
@@ -907,11 +981,14 @@ describe('TransactionController', () => {
   });
 
   it('should handle new method data', async () => {
-    const controller = new TransactionController({ provider: MOCK_MAINNET_NETWORK });
-    controller.context = {
-      NetworkController: MOCK_MAINNET_NETWORK,
-    } as any;
-    controller.onComposed();
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_MAINNET_NETWORK.state,
+        onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
+        getProvider: MOCK_MAINNET_NETWORK.getProvider,
+      },
+      {},
+    );
     const registry = await controller.handleMethodData('0xf39b5b9b');
     expect(registry.parsedRegistryMethod).toEqual({
       args: [{ type: 'uint256' }, { type: 'uint256' }],
@@ -921,11 +998,14 @@ describe('TransactionController', () => {
   });
 
   it('should handle known method data', async () => {
-    const controller = new TransactionController({ provider: MOCK_MAINNET_NETWORK });
-    controller.context = {
-      NetworkController: MOCK_MAINNET_NETWORK,
-    } as any;
-    controller.onComposed();
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_MAINNET_NETWORK.state,
+        onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
+        getProvider: MOCK_MAINNET_NETWORK.getProvider,
+      },
+      {},
+    );
     const registry = await controller.handleMethodData('0xf39b5b9b');
     expect(registry.parsedRegistryMethod).toEqual({
       args: [{ type: 'uint256' }, { type: 'uint256' }],
@@ -937,15 +1017,17 @@ describe('TransactionController', () => {
   });
 
   it('should stop a transaction', async () => {
-    const controller = new TransactionController({
-      provider: PROVIDER,
-      sign: async (transaction: any) => transaction,
-    });
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    controller.context = {
-      NetworkController: MOCK_NETWORK,
-    } as any;
-    controller.onComposed();
     const { result } = await controller.addTransaction({
       from,
       gas: '0x0',
@@ -959,12 +1041,10 @@ describe('TransactionController', () => {
 
   it('should fail to stop a transaction if no sign method', async () => {
     const controller = new TransactionController({
-      provider: PROVIDER,
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
     });
-    controller.context = {
-      NetworkController: MOCK_NETWORK,
-    } as any;
-    controller.onComposed();
     const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
     const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     await controller.addTransaction({ from, to });
@@ -976,15 +1056,17 @@ describe('TransactionController', () => {
 
   it('should speed up a transaction', async () => {
     await new Promise(async (resolve) => {
-      const controller = new TransactionController({
-        provider: PROVIDER,
-        sign: async (transaction: any) => transaction,
-      });
+      const controller = new TransactionController(
+        {
+          getNetworkState: () => MOCK_NETWORK.state,
+          onNetworkStateChange: MOCK_NETWORK.subscribe,
+          getProvider: MOCK_NETWORK.getProvider,
+        },
+        {
+          sign: async (transaction: any) => transaction,
+        },
+      );
       const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      controller.context = {
-        NetworkController: MOCK_NETWORK,
-      } as any;
-      controller.onComposed();
       await controller.addTransaction({
         from,
         gas: '0x0',

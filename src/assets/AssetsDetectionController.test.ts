@@ -1,9 +1,8 @@
-import { createSandbox, stub } from 'sinon';
-import { BN } from 'ethereumjs-util';
+import { createSandbox, SinonStub, stub } from 'sinon';
 import nock from 'nock';
+import { BN } from 'ethereumjs-util';
 import { NetworkController, NetworksChainId } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
-import { ComposableController } from '../ComposableController';
 import { AssetsController } from './AssetsController';
 import { AssetsContractController } from './AssetsContractController';
 import { AssetsDetectionController } from './AssetsDetectionController';
@@ -21,16 +20,31 @@ describe('AssetsDetectionController', () => {
   let network: NetworkController;
   let assets: AssetsController;
   let assetsContract: AssetsContractController;
+  let getBalancesInSingleCall: SinonStub<[AssetsContractController['getBalancesInSingleCall']]>;
   const sandbox = createSandbox();
 
   beforeEach(() => {
-    assetsDetection = new AssetsDetectionController();
     preferences = new PreferencesController();
     network = new NetworkController();
-    assets = new AssetsController();
     assetsContract = new AssetsContractController();
-
-    new ComposableController([assets, assetsContract, assetsDetection, network, preferences]);
+    assets = new AssetsController({
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      getAssetName: assetsContract.getAssetName.bind(assetsContract),
+      getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
+      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(assetsContract),
+    });
+    getBalancesInSingleCall = sandbox.stub();
+    assetsDetection = new AssetsDetectionController({
+      onAssetsStateChange: (listener) => assets.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      getOpenSeaApiKey: () => assets.openSeaApiKey,
+      getBalancesInSingleCall: (getBalancesInSingleCall as unknown) as AssetsContractController['getBalancesInSingleCall'],
+      addTokens: assets.addTokens.bind(assets),
+      addCollectible: assets.addCollectible.bind(assets),
+      getAssetsState: () => assets.state,
+    });
 
     nock(OPEN_SEA_HOST)
       .get(`${OPEN_SEA_PATH}/assets?owner=0x2&limit=300`)
@@ -122,7 +136,19 @@ describe('AssetsDetectionController', () => {
     await new Promise((resolve) => {
       const mockTokens = stub(AssetsDetectionController.prototype, 'detectTokens');
       const mockCollectibles = stub(AssetsDetectionController.prototype, 'detectCollectibles');
-      new AssetsDetectionController({ interval: 10 });
+      new AssetsDetectionController(
+        {
+          onAssetsStateChange: (listener) => assets.subscribe(listener),
+          onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+          onNetworkStateChange: (listener) => network.subscribe(listener),
+          getOpenSeaApiKey: () => assets.openSeaApiKey,
+          getBalancesInSingleCall: assetsContract.getBalancesInSingleCall.bind(assetsContract),
+          addTokens: assets.addTokens.bind(assets),
+          addCollectible: assets.addCollectible.bind(assets),
+          getAssetsState: () => assets.state,
+        },
+        { interval: 10 },
+      );
       expect(mockTokens.calledOnce).toBe(true);
       expect(mockCollectibles.calledOnce).toBe(true);
       setTimeout(() => {
@@ -146,7 +172,19 @@ describe('AssetsDetectionController', () => {
     await new Promise((resolve) => {
       const mockTokens = stub(AssetsDetectionController.prototype, 'detectTokens');
       const mockCollectibles = stub(AssetsDetectionController.prototype, 'detectCollectibles');
-      new AssetsDetectionController({ interval: 10, networkType: ROPSTEN });
+      new AssetsDetectionController(
+        {
+          onAssetsStateChange: (listener) => assets.subscribe(listener),
+          onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+          onNetworkStateChange: (listener) => network.subscribe(listener),
+          getOpenSeaApiKey: () => assets.openSeaApiKey,
+          getBalancesInSingleCall: assetsContract.getBalancesInSingleCall.bind(assetsContract),
+          addTokens: assets.addTokens.bind(assets),
+          addCollectible: assets.addCollectible.bind(assets),
+          getAssetsState: () => assets.state,
+        },
+        { interval: 10, networkType: ROPSTEN },
+      );
       expect(mockTokens.called).toBe(false);
       expect(mockCollectibles.called).toBe(false);
       mockTokens.restore();
@@ -327,9 +365,7 @@ describe('AssetsDetectionController', () => {
 
   it('should detect tokens correctly', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
-    sandbox
-      .stub(assetsContract, 'getBalancesInSingleCall')
-      .resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+    getBalancesInSingleCall.resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toEqual([
       {
@@ -342,9 +378,7 @@ describe('AssetsDetectionController', () => {
 
   it('should not autodetect tokens that exist in the ignoreList', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
-    sandbox
-      .stub(assetsContract, 'getBalancesInSingleCall')
-      .resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+    getBalancesInSingleCall.resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
 
     assets.removeAndIgnoreToken('0x6810e776880C02933D47DB1b9fc05908e5386b96');
@@ -354,9 +388,7 @@ describe('AssetsDetectionController', () => {
 
   it('should not detect tokens if there is no selectedAddress set', async () => {
     assetsDetection.configure({ networkType: MAINNET });
-    sandbox
-      .stub(assetsContract, 'getBalancesInSingleCall')
-      .resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
+    getBalancesInSingleCall.resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toEqual([]);
   });
@@ -369,14 +401,14 @@ describe('AssetsDetectionController', () => {
     const detectAssets = sandbox.stub(assetsDetection, 'detectAssets');
     preferences.update({ selectedAddress: secondAddress });
     preferences.update({ selectedAddress: secondAddress });
-    expect(assetsDetection.context.PreferencesController.state.selectedAddress).toEqual(secondAddress);
+    expect(preferences.state.selectedAddress).toEqual(secondAddress);
     expect(detectAssets.calledTwice).toBe(false);
     preferences.update({ selectedAddress: firstAddress });
-    expect(assetsDetection.context.PreferencesController.state.selectedAddress).toEqual(firstAddress);
+    expect(preferences.state.selectedAddress).toEqual(firstAddress);
     network.update({ provider: { type: secondNetworkType, chainId: NetworksChainId[secondNetworkType] } });
-    expect(assetsDetection.context.NetworkController.state.provider.type).toEqual(secondNetworkType);
+    expect(network.state.provider.type).toEqual(secondNetworkType);
     network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
-    expect(assetsDetection.context.NetworkController.state.provider.type).toEqual(firstNetworkType);
+    expect(network.state.provider.type).toEqual(firstNetworkType);
     assets.update({ tokens: TOKENS });
     expect(assetsDetection.config.tokens).toEqual(TOKENS);
   });

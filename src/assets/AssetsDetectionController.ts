@@ -1,13 +1,12 @@
 import { toChecksumAddress } from 'ethereumjs-util';
 import contractMap from '@metamask/contract-metadata';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import NetworkController, { NetworkType } from '../network/NetworkController';
-import PreferencesController from '../user/PreferencesController';
+import type { NetworkState, NetworkType } from '../network/NetworkController';
+import type { PreferencesState } from '../user/PreferencesController';
 import { safelyExecute, timeoutFetch } from '../util';
-import AssetsContractController from './AssetsContractController';
+import type { AssetsController, AssetsState } from './AssetsController';
+import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
-
-import AssetsController from './AssetsController';
 
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
@@ -61,12 +60,12 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
   private async getOwnerCollectibles() {
     const { selectedAddress } = this.config;
     const api = this.getOwnerCollectiblesApi(selectedAddress);
-    const assetsController = this.context.AssetsController as AssetsController;
     let response: Response;
     try {
+      const openSeaApiKey = this.getOpenSeaApiKey();
       /* istanbul ignore if */
-      if (assetsController.openSeaApiKey) {
-        response = await timeoutFetch(api, { headers: { 'X-API-KEY': assetsController.openSeaApiKey } }, 15000);
+      if (openSeaApiKey) {
+        response = await timeoutFetch(api, { headers: { 'X-API-KEY': openSeaApiKey } }, 15000);
       } else {
         response = await timeoutFetch(api, {}, 15000);
       }
@@ -84,18 +83,54 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
    */
   name = 'AssetsDetectionController';
 
-  /**
-   * List of required sibling controllers this controller needs to function
-   */
-  requiredControllers = ['AssetsContractController', 'AssetsController', 'NetworkController', 'PreferencesController'];
+  private getOpenSeaApiKey: () => string | undefined;
+
+  private getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+
+  private addTokens: AssetsController['addTokens'];
+
+  private addCollectible: AssetsController['addCollectible'];
+
+  private getAssetsState: () => AssetsState;
 
   /**
    * Creates a AssetsDetectionController instance
    *
+   * @param options
+   * @param options.onAssetsStateChange - Allows subscribing to assets controller state changes
+   * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes
+   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes
+   * @param options.getOpenSeaApiKey - Gets the OpenSea API key, if one is set
+   * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address
+   * @param options.addTokens - Add a list of tokens
+   * @param options.addCollectible - Add a collectible
+   * @param options.initialAssetsState - The initial state of the Assets controller
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(config?: Partial<AssetsDetectionConfig>, state?: Partial<BaseState>) {
+  constructor(
+    {
+      onAssetsStateChange,
+      onPreferencesStateChange,
+      onNetworkStateChange,
+      getOpenSeaApiKey,
+      getBalancesInSingleCall,
+      addTokens,
+      addCollectible,
+      getAssetsState,
+    }: {
+      onAssetsStateChange: (listener: (assetsState: AssetsState) => void) => void;
+      onPreferencesStateChange: (listener: (preferencesState: PreferencesState) => void) => void;
+      onNetworkStateChange: (listener: (networkState: NetworkState) => void) => void;
+      getOpenSeaApiKey: () => string | undefined;
+      getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+      addTokens: AssetsController['addTokens'];
+      addCollectible: AssetsController['addCollectible'];
+      getAssetsState: () => AssetsState;
+    },
+    config?: Partial<AssetsDetectionConfig>,
+    state?: Partial<BaseState>,
+  ) {
     super(config, state);
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
@@ -104,6 +139,24 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
       tokens: [],
     };
     this.initialize();
+    this.getAssetsState = getAssetsState;
+    this.addTokens = addTokens;
+    onAssetsStateChange(({ tokens }) => {
+      this.configure({ tokens });
+    });
+    onPreferencesStateChange(({ selectedAddress }) => {
+      const actualSelectedAddress = this.config.selectedAddress;
+      if (selectedAddress !== actualSelectedAddress) {
+        this.configure({ selectedAddress });
+        this.detectAssets();
+      }
+    });
+    onNetworkStateChange(({ provider }) => {
+      this.configure({ networkType: provider.type });
+    });
+    this.getOpenSeaApiKey = getOpenSeaApiKey;
+    this.getBalancesInSingleCall = getBalancesInSingleCall;
+    this.addCollectible = addCollectible;
     this.poll();
   }
 
@@ -162,20 +215,18 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
       }
     }
 
-    const assetsContractController = this.context.AssetsContractController as AssetsContractController;
     const { selectedAddress } = this.config;
     /* istanbul ignore else */
     if (!selectedAddress) {
       return;
     }
     await safelyExecute(async () => {
-      const balances = await assetsContractController.getBalancesInSingleCall(selectedAddress, tokensToDetect);
-      const assetsController = this.context.AssetsController as AssetsController;
-      const { ignoredTokens } = assetsController.state;
+      const balances = await this.getBalancesInSingleCall(selectedAddress, tokensToDetect);
       const tokensToAdd = [];
       for (const tokenAddress in balances) {
         let ignored;
         /* istanbul ignore else */
+        const { ignoredTokens } = this.getAssetsState();
         if (ignoredTokens.length) {
           ignored = ignoredTokens.find((token) => token.address === toChecksumAddress(tokenAddress));
         }
@@ -188,7 +239,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
         }
       }
       if (tokensToAdd.length) {
-        await assetsController.addTokens(tokensToAdd);
+        await this.addTokens(tokensToAdd);
       }
     });
   }
@@ -208,8 +259,6 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
       return;
     }
     await safelyExecute(async () => {
-      const assetsController = this.context.AssetsController as AssetsController;
-      const { ignoredCollectibles } = assetsController.state;
       const apiCollectibles = await this.getOwnerCollectibles();
       const addCollectiblesPromises = apiCollectibles.map(async (collectible: ApiCollectibleResponse) => {
         const {
@@ -222,6 +271,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
 
         let ignored;
         /* istanbul ignore else */
+        const { ignoredCollectibles } = this.getAssetsState();
         if (ignoredCollectibles.length) {
           ignored = ignoredCollectibles.find((c) => {
             /* istanbul ignore next */
@@ -230,7 +280,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
         }
         /* istanbul ignore else */
         if (!ignored) {
-          await assetsController.addCollectible(
+          await this.addCollectible(
             address,
             Number(token_id),
             {
@@ -243,30 +293,6 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
         }
       });
       await Promise.all(addCollectiblesPromises);
-    });
-  }
-
-  /**
-   * Extension point called if and when this controller is composed
-   * with other controllers using a ComposableController
-   */
-  onComposed() {
-    super.onComposed();
-    const preferences = this.context.PreferencesController as PreferencesController;
-    const network = this.context.NetworkController as NetworkController;
-    const assets = this.context.AssetsController as AssetsController;
-    assets.subscribe(({ tokens }) => {
-      this.configure({ tokens });
-    });
-    preferences.subscribe(({ selectedAddress }) => {
-      const actualSelectedAddress = this.config.selectedAddress;
-      if (selectedAddress !== actualSelectedAddress) {
-        this.configure({ selectedAddress });
-        this.detectAssets();
-      }
-    });
-    network.subscribe(({ provider }) => {
-      this.configure({ networkType: provider.type });
     });
   }
 }

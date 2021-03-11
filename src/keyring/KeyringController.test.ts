@@ -9,7 +9,6 @@ import { stub } from 'sinon';
 import Transaction from 'ethereumjs-tx';
 import MockEncryptor from '../../tests/mocks/mockEncryptor';
 import PreferencesController from '../user/PreferencesController';
-import ComposableController from '../ComposableController';
 import KeyringController, {
   AccountImportStrategy,
   Keyring,
@@ -33,10 +32,17 @@ describe('KeyringController', () => {
   let initialState: { isUnlocked: boolean; keyringTypes: string[]; keyrings: Keyring[] };
   const baseConfig: Partial<KeyringConfig> = { encryptor: new MockEncryptor() };
   beforeEach(async () => {
-    keyringController = new KeyringController(baseConfig);
     preferences = new PreferencesController();
+    keyringController = new KeyringController(
+      {
+        removeIdentity: preferences.removeIdentity.bind(preferences),
+        syncIdentities: preferences.syncIdentities.bind(preferences),
+        updateIdentities: preferences.updateIdentities.bind(preferences),
+        setSelectedAddress: preferences.setSelectedAddress.bind(preferences),
+      },
+      baseConfig,
+    );
 
-    new ComposableController([keyringController, preferences]);
     initialState = await keyringController.createNewVaultAndKeychain(password);
   });
 

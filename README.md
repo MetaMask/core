@@ -245,8 +245,6 @@ console.log(datamodel.state); // {NetworkController: {...}, TokenRatesController
 console.log(datamodel.flatState); // {infura: {...}, contractExchangeRates: [...]}
 ```
 
-**Advanced Note:** The ComposableController builds a map of all child controllers keyed by controller name. This object is cached as a `context` instance variable on both the ComposableController itself as well as all child controllers. This means that child controllers can call methods on other sibling controllers through the `context` variable, e.g. `this.context.SomeController.someMethod()`.
-
 ## Linking during development
 
 Linking `@metamask/controllers` into other projects involves a special NPM command to ensure that dependencies are not duplicated. This is because `@metamask/controllers` ships modules that are transpiled but not bundled, and [NPM does not deduplicate](https://github.com/npm/npm/issues/7742) linked dependency trees.
