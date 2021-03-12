@@ -73,7 +73,11 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(config?: Partial<CurrencyRateConfig>, state?: Partial<CurrencyRateState>, fetchExchangeRate = defaultFetchExchangeRate) {
+  constructor(
+    config?: Partial<CurrencyRateConfig>,
+    state?: Partial<CurrencyRateState>,
+    fetchExchangeRate = defaultFetchExchangeRate,
+  ) {
     super(config, state);
     this.fetchExchangeRate = fetchExchangeRate;
     this.defaultConfig = {
