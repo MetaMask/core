@@ -1,8 +1,4 @@
-import {
-  TypedMessage,
-  TypedMessageParams,
-  TypedMessageParamsMetamask,
-} from './TypedMessageManager';
+import { TypedMessage, TypedMessageParams, TypedMessageParamsMetamask } from './TypedMessageManager';
 import AbstractMessageManager from './AbstractMessageManager';
 
 class AbstractTestManager extends AbstractMessageManager<TypedMessage, TypedMessageParams, TypedMessageParamsMetamask> {
@@ -201,7 +197,9 @@ describe('AbstractTestManager', () => {
     it('should throw an error if message is not found', () => {
       const controller = new AbstractTestManager();
 
-      expect(() => controller.setMessageStatus(messageId, 'newstatus')).toThrow('AbstractMessageManager: Message not found for id: 1.');
+      expect(() => controller.setMessageStatus(messageId, 'newstatus')).toThrow(
+        'AbstractMessageManager: Message not found for id: 1.',
+      );
     });
   });
 });
