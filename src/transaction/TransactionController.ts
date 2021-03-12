@@ -757,31 +757,22 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     }
 
     const [etherscanTxResponse, etherscanTokenResponse] = await handleTransactionFetch(networkType, address, opt);
-    const remoteTxList: { [key: string]: number } = {};
-    const remoteTxs: TransactionMeta[] = [];
 
-    etherscanTxResponse.result.forEach((tx: EtherscanTransactionMeta) => {
-      /* istanbul ignore next */
-      if (!remoteTxList[tx.hash]) {
-        const cleanTx = this.normalizeTx(tx, currentNetworkID, currentChainId);
-        remoteTxs.push(cleanTx);
-        remoteTxList[tx.hash] = 1;
-      }
-    });
-
-    etherscanTokenResponse.result.forEach((tx: EtherscanTransactionMeta) => {
-      const cleanTx = this.normalizeTokenTx(tx, currentNetworkID, currentChainId);
-      remoteTxs.push(cleanTx);
-      /* istanbul ignore next */
-      remoteTxList[cleanTx.transactionHash || ''] = 1;
-    });
-
-    const localTxs = this.state.transactions.filter(
-      /* istanbul ignore next */
-      (tx: TransactionMeta) => !remoteTxList[`${tx.transactionHash}`],
+    const normalizedTxs = etherscanTxResponse.result.map((tx: EtherscanTransactionMeta) =>
+      this.normalizeTx(tx, currentNetworkID, currentChainId),
+    );
+    const normalizedTokenTxs = etherscanTokenResponse.result.map((tx: EtherscanTransactionMeta) =>
+      this.normalizeTokenTx(tx, currentNetworkID, currentChainId),
     );
 
-    const allTxs = [...remoteTxs, ...localTxs];
+    const remoteTxs = [...normalizedTxs, ...normalizedTokenTxs].filter((tx) => {
+      const alreadyInTransactions = this.state.transactions.find(
+        ({ transactionHash }) => transactionHash === tx.transactionHash,
+      );
+      return !alreadyInTransactions;
+    });
+
+    const allTxs = [...remoteTxs, ...this.state.transactions];
     allTxs.sort((a, b) => (a.time < b.time ? -1 : 1));
 
     let latestIncomingTxBlockNumber: string | undefined;
