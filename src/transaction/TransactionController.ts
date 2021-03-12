@@ -747,22 +747,13 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     }
 
     const [etherscanTxResponse, etherscanTokenResponse] = await handleTransactionFetch(networkType, address, opt);
-    const remoteTxs: TransactionMeta[] = [];
 
-    etherscanTxResponse.result.forEach((tx: EtherscanTransactionMeta) => {
-      const cleanTx = this.normalizeTx(tx, currentNetworkID, currentChainId);
-    const alreadyInTransactions = this.state.transactions.find(({ transactionHash }) => transactionHash === cleanTx.transactionHash);
-    if (!alreadyInTransactions) {
-        remoteTxs.push(cleanTx);
-      }
-    });
+    const normalizedTxs = etherscanTxResponse.result.map((tx: EtherscanTransactionMeta) => this.normalizeTx(tx, currentNetworkID, currentChainId));
+    const normalizedTokenTxs = etherscanTokenResponse.result.map((tx: EtherscanTransactionMeta) => this.normalizeTokenTx(tx, currentNetworkID, currentChainId));
 
-    etherscanTokenResponse.result.forEach((tx: EtherscanTransactionMeta) => {
-      const cleanTx = this.normalizeTokenTx(tx, currentNetworkID, currentChainId);
-      const alreadyInTransactions = this.state.transactions.find(({ transactionHash }) => transactionHash === cleanTx.transactionHash);
-      if (!alreadyInTransactions) {
-        remoteTxs.push(cleanTx);
-      }
+    const remoteTxs = [...normalizedTxs, ...normalizedTokenTxs].filter((tx) => {
+      const alreadyInTransactions = this.state.transactions.find(({ transactionHash }) => transactionHash === tx.transactionHash);
+      return !alreadyInTransactions;
     });
 
     const allTxs = [...remoteTxs, ...this.state.transactions];
