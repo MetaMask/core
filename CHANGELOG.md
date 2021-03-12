@@ -231,8 +231,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Remove shapeshift controller (#209)
 
 [Unreleased]:https://github.com/MetaMask/controllers/compare/v6.1.1...HEAD
-[6.0.1]:https://github.com/MetaMask/controllers/compare/v6.1.0...v6.1.1
-[6.0.1]:https://github.com/MetaMask/controllers/compare/v6.0.1...v6.1.0
+[6.1.1]:https://github.com/MetaMask/controllers/compare/v6.1.0...v6.1.1
+[6.1.0]:https://github.com/MetaMask/controllers/compare/v6.0.1...v6.1.0
 [6.0.1]:https://github.com/MetaMask/controllers/compare/v6.0.0...v6.0.1
 [6.0.0]:https://github.com/MetaMask/controllers/compare/v5.1.0...v6.0.0
 [5.1.0]:https://github.com/MetaMask/controllers/compare/v5.0.0...v5.1.0
