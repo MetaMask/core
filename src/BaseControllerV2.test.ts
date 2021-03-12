@@ -33,36 +33,36 @@ class MockController extends BaseController<'CountController', CountControllerSt
 describe('BaseController', () => {
   it('should set initial state', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController(
-      controllerMessenger,
-      'CountController',
-      { count: 0 },
-      CountControllerStateMetadata,
-    );
+    const controller = new MockController({
+      messenger: controllerMessenger,
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: CountControllerStateMetadata,
+    });
 
     expect(controller.state).toEqual({ count: 0 });
   });
 
   it('should set initial schema', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController(
-      controllerMessenger,
-      'CountController',
-      { count: 0 },
-      CountControllerStateMetadata,
-    );
+    const controller = new MockController({
+      messenger: controllerMessenger,
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: CountControllerStateMetadata,
+    });
 
     expect(controller.metadata).toEqual(CountControllerStateMetadata);
   });
 
   it('should not allow mutating state directly', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController(
-      controllerMessenger,
-      'CountController',
-      { count: 0 },
-      CountControllerStateMetadata,
-    );
+    const controller = new MockController({
+      messenger: controllerMessenger,
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: CountControllerStateMetadata,
+    });
 
     expect(() => {
       controller.state = { count: 1 };
@@ -71,12 +71,12 @@ describe('BaseController', () => {
 
   it('should allow updating state by modifying draft', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController(
-      controllerMessenger,
-      'CountController',
-      { count: 0 },
-      CountControllerStateMetadata,
-    );
+    const controller = new MockController({
+      messenger: controllerMessenger,
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: CountControllerStateMetadata,
+    });
 
     controller.update((draft) => {
       draft.count += 1;
@@ -87,12 +87,12 @@ describe('BaseController', () => {
 
   it('should allow updating state by return a value', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController(
-      controllerMessenger,
-      'CountController',
-      { count: 0 },
-      CountControllerStateMetadata,
-    );
+    const controller = new MockController({
+      messenger: controllerMessenger,
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: CountControllerStateMetadata,
+    });
 
     controller.update(() => {
       return { count: 1 };
@@ -103,12 +103,12 @@ describe('BaseController', () => {
 
   it('should throw an error if update callback modifies draft and returns value', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController(
-      controllerMessenger,
-      'CountController',
-      { count: 0 },
-      CountControllerStateMetadata,
-    );
+    const controller = new MockController({
+      messenger: controllerMessenger,
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: CountControllerStateMetadata,
+    });
 
     expect(() => {
       controller.update((draft) => {
@@ -120,12 +120,12 @@ describe('BaseController', () => {
 
   it('should inform subscribers of state changes', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController(
-      controllerMessenger,
-      'CountController',
-      { count: 0 },
-      CountControllerStateMetadata,
-    );
+    const controller = new MockController({
+      messenger: controllerMessenger,
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: CountControllerStateMetadata,
+    });
     const listener1 = sinon.stub();
     const listener2 = sinon.stub();
 
@@ -143,12 +143,12 @@ describe('BaseController', () => {
 
   it('should inform a subscriber of each state change once even after multiple subscriptions', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController(
-      controllerMessenger,
-      'CountController',
-      { count: 0 },
-      CountControllerStateMetadata,
-    );
+    const controller = new MockController({
+      messenger: controllerMessenger,
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: CountControllerStateMetadata,
+    });
     const listener1 = sinon.stub();
 
     controllerMessenger.subscribe('CountController:stateChange', listener1);
@@ -164,12 +164,12 @@ describe('BaseController', () => {
 
   it('should no longer inform a subscriber about state changes after unsubscribing', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController(
-      controllerMessenger,
-      'CountController',
-      { count: 0 },
-      CountControllerStateMetadata,
-    );
+    const controller = new MockController({
+      messenger: controllerMessenger,
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: CountControllerStateMetadata,
+    });
     const listener1 = sinon.stub();
 
     controllerMessenger.subscribe('CountController:stateChange', listener1);
@@ -183,12 +183,12 @@ describe('BaseController', () => {
 
   it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController(
-      controllerMessenger,
-      'CountController',
-      { count: 0 },
-      CountControllerStateMetadata,
-    );
+    const controller = new MockController({
+      messenger: controllerMessenger,
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: CountControllerStateMetadata,
+    });
     const listener1 = sinon.stub();
 
     controllerMessenger.subscribe('CountController:stateChange', listener1);
@@ -203,7 +203,12 @@ describe('BaseController', () => {
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    new MockController(controllerMessenger, 'CountController', { count: 0 }, CountControllerStateMetadata);
+    new MockController({
+      messenger: controllerMessenger,
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: CountControllerStateMetadata,
+    });
     const listener1 = sinon.stub();
 
     expect(() => {
@@ -213,12 +218,12 @@ describe('BaseController', () => {
 
   it('should no longer update subscribers after being destroyed', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController(
-      controllerMessenger,
-      'CountController',
-      { count: 0 },
-      CountControllerStateMetadata,
-    );
+    const controller = new MockController({
+      messenger: controllerMessenger,
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: CountControllerStateMetadata,
+    });
     const listener1 = sinon.stub();
     const listener2 = sinon.stub();
 
