@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [6.1.1] - 2021-03-12
+
+### Added
+
+- Add controller messaging system ([#377](https://github.com/MetaMask/controllers/pull/377))
+
+### Fixed
+
+- bugfix/dont modify current transactions ([#386](https://github.com/MetaMask/controllers/pull/386))
+- Fix `format` commands ([#385](https://github.com/MetaMask/controllers/pull/385))
+
 ## [6.1.0] - 2021-03-10
 
 ### Added
@@ -219,7 +230,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v6.1.0...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v6.1.1...HEAD
+[6.0.1]:https://github.com/MetaMask/controllers/compare/v6.1.0...v6.1.1
 [6.0.1]:https://github.com/MetaMask/controllers/compare/v6.0.1...v6.1.0
 [6.0.1]:https://github.com/MetaMask/controllers/compare/v6.0.0...v6.0.1
 [6.0.0]:https://github.com/MetaMask/controllers/compare/v5.1.0...v6.0.0
