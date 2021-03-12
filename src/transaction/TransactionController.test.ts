@@ -450,7 +450,7 @@ const TRANSACTIONS_IN_STATE = [
       gasPrice: '0x2b12dbfa00',
       nonce: '0x12',
       to: '0x881d40237659c251811cec9c364ef91dc08d300c',
-      'value': '0x0',
+      value: '0x0',
     },
     transactionHash: TOKEN_TRANSACTION_HASH,
     toSmartContract: true,
@@ -893,11 +893,14 @@ describe('TransactionController', () => {
     controller.state.transactions = TRANSACTIONS_IN_STATE;
     await controller.fetchAll(from);
     expect(controller.state.transactions).toHaveLength(17);
-    const tokenTransaction = controller.state.transactions.find(({ transactionHash }) => transactionHash === TOKEN_TRANSACTION_HASH) || { id: '' };
-    const ethTransaction = controller.state.transactions.find(({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH) || { id: '' };
+    const tokenTransaction = controller.state.transactions.find(
+      ({ transactionHash }) => transactionHash === TOKEN_TRANSACTION_HASH,
+    ) || { id: '' };
+    const ethTransaction = controller.state.transactions.find(
+      ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
+    ) || { id: '' };
     expect(tokenTransaction?.id).toEqual('token-transaction-id');
     expect(ethTransaction?.id).toEqual('eth-transaction-id');
-
   });
 
   it('should fetch all the transactions from an address, including incoming transactions, in mainnet from block', async () => {
