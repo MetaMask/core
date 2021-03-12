@@ -1,7 +1,7 @@
 {
   "name": "eth-json-rpc-middleware",
   "version": "6.0.0",
-  "main": "./src/block-ref.js",
+  "main": "./dist/block-ref.js",
   "engines": {
     "node": ">=10.0.0"
   },
@@ -9,17 +9,25 @@
     "test": "test"
   },
   "scripts": {
-    "lint": "eslint . --ext js,json",
+    "build": "rm -rf ./dist && tsc --project .",
+    "lint": "eslint . --ext ts,js,json",
     "lint:fix": "yarn lint --fix",
-    "test": "node test/index.js"
+    "test": "yarn build && node test/index.js"
   },
   "author": "",
   "license": "ISC",
   "files": [
-    "src/*.js"
+    "dist/"
   ],
   "devDependencies": {
     "@metamask/eslint-config": "^4.1.0",
+    "@types/btoa": "^1.2.3",
+    "@types/clone": "^2.1.0",
+    "@types/eth-sig-util": "^2.1.0",
+    "@types/json-stable-stringify": "^1.0.32",
+    "@types/pify": "^3.0.2",
+    "@typescript-eslint/eslint-plugin": "^4.10.0",
+    "@typescript-eslint/parser": "^4.10.0",
     "async": "^2.5.0",
     "concat-stream": "^1.6.2",
     "eslint": "^7.14.0",
@@ -29,20 +37,21 @@
     "eth-block-tracker": "^4.4.1",
     "ethjs-query": "^0.3.8",
     "ganache-core": "^2.13.2",
-    "tape": "^4.6.3"
+    "tape": "^4.6.3",
+    "typescript": "^4.1.3"
   },
   "dependencies": {
+    "@metamask/safe-event-emitter": "^2.0.0",
     "btoa": "^1.2.1",
     "clone": "^2.1.1",
     "eth-query": "^2.1.2",
-    "eth-rpc-errors": "^3.0.0",
+    "eth-rpc-errors": "^4.0.3",
     "eth-sig-util": "^1.4.2",
     "ethereumjs-util": "^5.1.2",
-    "json-rpc-engine": "^5.3.0",
+    "json-rpc-engine": "^6.1.0",
     "json-stable-stringify": "^1.0.1",
     "node-fetch": "^2.6.1",
-    "pify": "^3.0.0",
-    "safe-event-emitter": "^1.0.1"
+    "pify": "^3.0.0"
   },
   "repository": {
     "type": "git",

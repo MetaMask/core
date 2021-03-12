@@ -1,10 +1,10 @@
-const test = require('tape')
-const JsonRpcEngine = require('json-rpc-engine')
-const BlockTracker = require('eth-block-tracker')
-const GanacheCore = require('ganache-core')
-const pify = require('pify')
-const createBlockCacheMiddleware = require('../src/block-cache')
-const createHitTrackerMiddleware = require('./util/createHitTrackerMiddleware')
+const test = require('tape');
+const { JsonRpcEngine } = require('json-rpc-engine');
+const BlockTracker = require('eth-block-tracker');
+const GanacheCore = require('ganache-core');
+const pify = require('pify');
+const createBlockCacheMiddleware = require('../dist/block-cache');
+const createHitTrackerMiddleware = require('./util/createHitTrackerMiddleware');
 
 //
 // basic cache
@@ -15,17 +15,17 @@ const createHitTrackerMiddleware = require('./util/createHitTrackerMiddleware')
 cacheTest('getBalance + undefined blockTag', {
   method: 'eth_getBalance',
   params: ['0x1234'],
-}, true)
+}, true);
 
 cacheTest('getBalance + latest blockTag', {
   method: 'eth_getBalance',
   params: ['0x1234', 'latest'],
-}, true)
+}, true);
 
 cacheTest('getBalance + pending blockTag', {
   method: 'eth_getBalance',
   params: ['0x1234', 'pending'],
-}, false)
+}, false);
 
 // blocks
 
@@ -36,7 +36,7 @@ cacheTest('getBlockForNumber for latest then block 0', [{
 }, {
   method: 'eth_getBlockByNumber',
   params: ['0x0'],
-}], true)
+}], true);
 
 cacheTest('getBlockForNumber for latest then block 1', [{
   method: 'eth_getBlockByNumber',
@@ -44,7 +44,7 @@ cacheTest('getBlockForNumber for latest then block 1', [{
 }, {
   method: 'eth_getBlockByNumber',
   params: ['0x1'],
-}], false)
+}], false);
 
 cacheTest('getBlockForNumber for 0 then block 1', [{
   method: 'eth_getBlockByNumber',
@@ -52,7 +52,7 @@ cacheTest('getBlockForNumber for 0 then block 1', [{
 }, {
   method: 'eth_getBlockByNumber',
   params: ['0x1'],
-}], false)
+}], false);
 
 cacheTest('getBlockForNumber for block 0', [{
   method: 'eth_getBlockByNumber',
@@ -60,7 +60,7 @@ cacheTest('getBlockForNumber for block 0', [{
 }, {
   method: 'eth_getBlockByNumber',
   params: ['0x0'],
-}], true)
+}], true);
 
 cacheTest('getBlockForNumber for block 1', [{
   method: 'eth_getBlockByNumber',
@@ -68,7 +68,7 @@ cacheTest('getBlockForNumber for block 1', [{
 }, {
   method: 'eth_getBlockByNumber',
   params: ['0x1'],
-}], true)
+}], true);
 
 // storage
 
@@ -78,7 +78,7 @@ cacheTest('getStorageAt for same block should cache', [{
 }, {
   method: 'eth_getStorageAt',
   params: ['0x295a70b2de5e3953354a6a8344e616ed314d7251', '0x0', '0x1234'],
-}], true)
+}], true);
 
 cacheTest('getStorageAt for different block should not cache', [{
   method: 'eth_getStorageAt',
@@ -86,7 +86,7 @@ cacheTest('getStorageAt for different block should not cache', [{
 }, {
   method: 'eth_getStorageAt',
   params: ['0x295a70b2de5e3953354a6a8344e616ed314d7251', '0x0', '0x4321'],
-}], false)
+}], false);
 
 //
 // result conditional cache
@@ -145,49 +145,49 @@ cacheTest('getStorageAt for different block should not cache', [{
 //   params: ['0x1234', 'latest'],
 // }], true)
 
-async function cacheTest (label, basePayloads, shouldCache) {
+async function cacheTest(label, basePayloads, shouldCache) {
   test(`block-cache - ${label}`, async (t) => {
     try {
       // setup block tracker
-      const dataProvider = GanacheCore.provider()
+      const dataProvider = GanacheCore.provider();
       const blockTracker = new BlockTracker({
         provider: dataProvider,
         pollingInterval: 200,
-      })
+      });
 
       // setup engine
-      const engine = new JsonRpcEngine()
-      engine.push(createBlockCacheMiddleware({ blockTracker }))
-      const hitCountMiddleware = createHitTrackerMiddleware()
-      engine.push(hitCountMiddleware)
+      const engine = new JsonRpcEngine();
+      engine.push(createBlockCacheMiddleware({ blockTracker }));
+      const hitCountMiddleware = createHitTrackerMiddleware();
+      engine.push(hitCountMiddleware);
       const dummyResultMiddleware = (_req, res, _next, end) => {
-        res.result = true
-        end()
-      }
-      engine.push(dummyResultMiddleware)
+        res.result = true;
+        end();
+      };
+      engine.push(dummyResultMiddleware);
 
       // prepare payloads
-      const payload1 = Object.assign({}, (Array.isArray(basePayloads) ? basePayloads[0] : basePayloads), { id: 1, jsonrpc: '2.0' })
-      const payload2 = Object.assign({}, (Array.isArray(basePayloads) ? basePayloads[1] : basePayloads), { id: 2, jsonrpc: '2.0' })
+      const payload1 = Object.assign({}, (Array.isArray(basePayloads) ? basePayloads[0] : basePayloads), { id: 1, jsonrpc: '2.0' });
+      const payload2 = Object.assign({}, (Array.isArray(basePayloads) ? basePayloads[1] : basePayloads), { id: 2, jsonrpc: '2.0' });
 
       // perform tests
       // first try, cache miss
-      const res1 = await pify(engine.handle).call(engine, payload1)
-      t.ifError(res1.error, `${label} - res1 should not have error`)
-      t.ok(res1.result !== undefined, `${label} - res1 should have result`)
-      t.equal(hitCountMiddleware.getHits(payload1.method).length, 1, `${label} - should hit dataProvider`)
+      const res1 = await pify(engine.handle).call(engine, payload1);
+      t.ifError(res1.error, `${label} - res1 should not have error`);
+      t.ok(res1.result !== undefined, `${label} - res1 should have result`);
+      t.equal(hitCountMiddleware.getHits(payload1.method).length, 1, `${label} - should hit dataProvider`);
       // second try, cache miss
-      const res2 = await pify(engine.handle).call(engine, payload2)
-      t.ifError(res2.error, `${label} - res2 should not have error`)
-      t.ok(res2.result !== undefined, `${label} - res2 should have result`)
+      const res2 = await pify(engine.handle).call(engine, payload2);
+      t.ifError(res2.error, `${label} - res2 should not have error`);
+      t.ok(res2.result !== undefined, `${label} - res2 should have result`);
       if (shouldCache) {
-        t.equal(hitCountMiddleware.getHits(payload2.method).length, 1, `${label} - should NOT hit dataProvider`)
+        t.equal(hitCountMiddleware.getHits(payload2.method).length, 1, `${label} - should NOT hit dataProvider`);
       } else {
-        t.equal(hitCountMiddleware.getHits(payload2.method).length, 2, `${label} - should again hit dataProvider`)
+        t.equal(hitCountMiddleware.getHits(payload2.method).length, 2, `${label} - should again hit dataProvider`);
       }
     } catch (err) {
-      t.fail(err)
+      t.fail(err);
     }
-    t.end()
-  })
+    t.end();
+  });
 }
