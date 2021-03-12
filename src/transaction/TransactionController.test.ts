@@ -79,6 +79,9 @@ const MOCK_MAINNET_NETWORK = {
   subscribe: () => undefined,
 };
 
+const TOKEN_TRANSACTION_HASH = '0x01d1cebeab9da8d887b36000c25fa175737e150f193ea37d5bb66347d834e999';
+const ETHER_TRANSACTION_HASH = '0xa9d17df83756011ea63e1f0ca50a6627df7cac9806809e36680fcf4e88cb9dae';
+
 const ETH_TRANSACTIONS = [
   {
     blockNumber: '4535101',
@@ -89,7 +92,7 @@ const ETH_TRANSACTIONS = [
     gas: '335208',
     gasPrice: '10000000000',
     gasUsed: '21000',
-    hash: '0xa9d17df83756011ea63e1f0ca50a6627df7cac9806809e36680fcf4e88cb9dae',
+    hash: ETHER_TRANSACTION_HASH,
     input: '0x',
     isError: '0',
     nonce: '9',
@@ -161,7 +164,7 @@ const TOKEN_TRANSACTIONS = [
   {
     blockNumber: '8222239',
     timeStamp: '1564091067',
-    hash: '0x01d1cebeab9da8d887b36000c25fa175737e150f193ea37d5bb66347d834e9fe',
+    hash: TOKEN_TRANSACTION_HASH,
     nonce: '2329',
     blockHash: '0x3c30a9be9aea7be13caad419444140c11839d72e70479ec7e9c6d8bd08c533bc',
     from: '0xdfa6edae2ec0cf1d4a60542422724a48195a5071',
@@ -430,6 +433,45 @@ const TOKEN_TRANSACTIONS = [
     cumulativeGasUsed: '4408393',
     input: 'deprecated',
     confirmations: '1004018',
+  },
+];
+
+const TRANSACTIONS_IN_STATE = [
+  // Token tx, hash is in TOKEN_TRANSACTIONS
+  {
+    id: 'token-transaction-id',
+    chainId: '1',
+    status: 'confirmed',
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '0x6f4d2',
+      gasPrice: '0x2b12dbfa00',
+      nonce: '0x12',
+      to: '0x881d40237659c251811cec9c364ef91dc08d300c',
+      'value': '0x0',
+    },
+    transactionHash: TOKEN_TRANSACTION_HASH,
+    toSmartContract: true,
+  },
+  // ETH tx, hash is in ETH_TRANSACTIONS
+  {
+    id: 'eth-transaction-id',
+    chainId: '1',
+    status: 'confirmed',
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '0x6f4d2',
+      gasPrice: '0x2b12dbfa00',
+      nonce: '0x12',
+      to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      value: '100000000000000000',
+    },
+    transactionHash: ETHER_TRANSACTION_HASH,
+    toSmartContract: false,
   },
 ];
 
@@ -837,6 +879,25 @@ describe('TransactionController', () => {
     expect(controller.state.transactions).toHaveLength(17);
     expect(latestBlock).toBe('4535101');
     expect(controller.state.transactions[0].transaction.to).toBe(from);
+  });
+
+  it('should fetch all the transactions from an address, including incoming token transactions, but not adding the ones already in state', async () => {
+    globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    const controller = new TransactionController({ provider: MAINNET_PROVIDER });
+    const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+    controller.wipeTransactions();
+    controller.context = {
+      NetworkController: MOCK_MAINNET_NETWORK,
+    } as any;
+    controller.onComposed();
+    controller.state.transactions = TRANSACTIONS_IN_STATE;
+    await controller.fetchAll(from);
+    expect(controller.state.transactions).toHaveLength(17);
+    const tokenTransaction = controller.state.transactions.find(({ transactionHash }) => transactionHash === TOKEN_TRANSACTION_HASH) || { id: '' };
+    const ethTransaction = controller.state.transactions.find(({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH) || { id: '' };
+    expect(tokenTransaction?.id).toEqual('token-transaction-id');
+    expect(ethTransaction?.id).toEqual('eth-transaction-id');
+
   });
 
   it('should fetch all the transactions from an address, including incoming transactions, in mainnet from block', async () => {

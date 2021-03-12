@@ -751,8 +751,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
 
     etherscanTxResponse.result.forEach((tx: EtherscanTransactionMeta) => {
       const cleanTx = this.normalizeTx(tx, currentNetworkID, currentChainId);
-      const alreadyInTransactions = this.state.transactions.find(({ transactionHash }) => transactionHash === cleanTx.transactionHash);
-      if (!alreadyInTransactions) {
+    const alreadyInTransactions = this.state.transactions.find(({ transactionHash }) => transactionHash === cleanTx.transactionHash);
+    if (!alreadyInTransactions) {
         remoteTxs.push(cleanTx);
       }
     });
