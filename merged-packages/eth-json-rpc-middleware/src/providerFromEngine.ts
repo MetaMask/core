@@ -14,8 +14,8 @@ function providerFromEngine(engine: JsonRpcEngine): SafeEventEmitterProvider {
   // handle both rpc send methods
   provider.sendAsync = engine.handle.bind(engine);
   provider.send = (req: JsonRpcRequest<string[]>, callback: VoidFunction) => {
-    if (!callback) {
-      throw new Error('Web3 Provider - must provider callback to "send" method');
+    if (typeof callback !== 'function') {
+      throw new Error('Must provide callback to "send" method.');
     }
     engine.handle(req, callback);
   };
