@@ -18,15 +18,15 @@ interface StateNotification extends Notification {
 }
 
 /**
-  * A map of notification ids to Notification objects
-  */
+ * A map of notification ids to Notification objects
+ */
 interface NotificationMap {
   [id: number]: Notification;
 }
 
 /**
-  * A map of notification ids to StateNotification objects
-  */
+ * A map of notification ids to StateNotification objects
+ */
 export interface StateNotificationMap {
   [id: number]: StateNotification;
 }
@@ -54,7 +54,6 @@ const defaultState = {
  * Controller for managing in-app announcement notifications.
  */
 export class NotificationController extends BaseController<NotificationConfig, NotificationState> {
-
   /**
    * Creates a NotificationController instance
    *
@@ -82,9 +81,9 @@ export class NotificationController extends BaseController<NotificationConfig, N
       newNotifications[notification.id] = this.state.notifications[notification.id]
         ? this.state.notifications[notification.id]
         : {
-          ...notification,
-          isShown: false,
-        };
+            ...notification,
+            isShown: false,
+          };
     });
     this.update({ notifications: newNotifications });
   }
