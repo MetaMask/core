@@ -32,10 +32,9 @@ export interface StateNotificationMap {
 }
 
 /**
- * NotitificationConfig will hold the notifications from JSON file read
- * from `metamask-extension`
+ * NotitificationConfig will hold the active notifications
  */
-export interface NotificationConfig extends BaseConfig{
+export interface NotificationConfig extends BaseConfig {
   allNotifications: NotificationMap;
 }
 
@@ -43,7 +42,7 @@ export interface NotificationConfig extends BaseConfig{
  * Notification state will hold all the seen and unseen notifications
  * that are still active
  */
-export interface NotificationState extends BaseState{
+export interface NotificationState extends BaseState {
   notifications: StateNotificationMap;
 }
 
@@ -56,8 +55,6 @@ const defaultState = {
  */
 export class NotificationController extends BaseController<NotificationConfig, NotificationState> {
 
-  private readonly allNotifications: NotificationMap;
-
   /**
    * Creates a NotificationController instance
    *
@@ -65,9 +62,7 @@ export class NotificationController extends BaseController<NotificationConfig, N
    * @param state - Initial state to set on this controller
    */
   constructor(config: NotificationConfig, state?: NotificationState) {
-    const { allNotifications } = config;
     super(config, state || defaultState);
-    this.allNotifications = { ...allNotifications };
     this.initialize();
     this._addNotifications();
   }
@@ -80,10 +75,10 @@ export class NotificationController extends BaseController<NotificationConfig, N
    *
    *  @param allNotifications
    */
-  private _addNotifications(): void{
+  private _addNotifications(): void {
     const newNotifications: StateNotificationMap = {};
-
-    Object.values(this.allNotifications).forEach((notification: StateNotification) => {
+    const { allNotifications } = this.config;
+    Object.values(allNotifications).forEach((notification: StateNotification) => {
       newNotifications[notification.id] = this.state.notifications[notification.id]
         ? this.state.notifications[notification.id]
         : {
@@ -103,8 +98,8 @@ export class NotificationController extends BaseController<NotificationConfig, N
   updateViewed(viewedIds: viewedNotification): void {
     const stateNotifications = this.state.notifications;
 
-    for (const id of Object.keys(viewedIds)) {
-      stateNotifications[(id as unknown) as number].isShown = viewedIds[(id as unknown) as number];
+    for (const id of Object.keys(viewedIds).map(Number)) {
+      stateNotifications[id].isShown = viewedIds[id];
     }
     this.update({ notifications: stateNotifications }, true);
   }
