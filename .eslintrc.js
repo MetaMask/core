@@ -50,7 +50,6 @@ module.exports = {
     'guard-for-in': 'off',
     'implicit-arrow-linebreak': 'off',
     'import/no-anonymous-default-export': 'off',
-    'import/no-extraneous-dependencies': 'off',
     'import/no-unassigned-import': 'off',
     'lines-around-comment': 'off',
     'no-async-promise-executor': 'off',
@@ -63,8 +62,6 @@ module.exports = {
     'no-useless-escape': 'off',
     radix: 'off',
     'require-atomic-updates': 'off',
-
-    'node/no-extraneous-require': 'off',
 
     'jest/expect-expect': 'off',
     'jest/no-conditional-expect': 'off',
