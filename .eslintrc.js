@@ -17,7 +17,6 @@ module.exports = {
   ],
   rules: {
     'no-shadow': 'off',
-    '@typescript-eslint/no-shadow': 'error',
     '@typescript-eslint/indent': 'off',
     // disabled due to incompatibility with Record<string, unknown>
     // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
@@ -42,14 +41,6 @@ module.exports = {
       },
     ],
     '@typescript-eslint/prefer-optional-chain': 'off',
-    '@typescript-eslint/space-before-function-paren': [
-      'error',
-      {
-        anonymous: 'always',
-        named: 'never',
-        asyncArrow: 'always',
-      },
-    ],
 
     'accessor-pairs': 'off',
     camelcase: 'off',
@@ -79,7 +70,6 @@ module.exports = {
     'jest/no-conditional-expect': 'off',
     'jest/no-restricted-matchers': 'off',
     'jest/no-test-return-statement': 'off',
-    'jest/no-truthy-falsy': 'off',
     'jest/no-try-expect': 'off',
     'jest/prefer-strict-equal': 'off',
     'jest/require-to-throw-message': 'off',
