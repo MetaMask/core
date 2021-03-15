@@ -1,4 +1,5 @@
 import { toChecksumAddress } from 'ethereumjs-util';
+import contractMap from '@metamask/contract-metadata';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import NetworkController, { NetworkType } from '../network/NetworkController';
 import PreferencesController from '../user/PreferencesController';
@@ -7,8 +8,6 @@ import AssetsContractController from './AssetsContractController';
 import { Token } from './TokenRatesController';
 
 import AssetsController from './AssetsController';
-
-const contractMap = require('@metamask/contract-metadata');
 
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';

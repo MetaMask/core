@@ -1,14 +1,13 @@
-import { toChecksumAddress } from 'ethereumjs-util';
+import * as ethUtil from 'ethereumjs-util';
+import { stripHexPrefix } from 'ethjs-util';
 import { normalize as normalizeAddress, signTypedData, signTypedData_v4, signTypedDataLegacy } from 'eth-sig-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
+import Keyring from 'eth-keyring-controller';
 import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState, Listener } from '../BaseController';
 import PreferencesController from '../user/PreferencesController';
 import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
 import { TypedMessageParams } from '../message-manager/TypedMessageManager';
-
-const Keyring = require('eth-keyring-controller');
-const ethUtil = require('ethereumjs-util');
 
 const privates = new WeakMap();
 
@@ -292,7 +291,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
         if (!ethUtil.isValidPrivate(ethUtil.toBuffer(prefixed))) {
           throw new Error('Cannot import invalid private key.');
         }
-        privateKey = ethUtil.stripHexPrefix(prefixed);
+        privateKey = stripHexPrefix(prefixed);
         break;
       case 'json':
         let wallet;
@@ -501,7 +500,7 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
         async (keyring: KeyringObject, index: number): Promise<Keyring> => {
           const keyringAccounts = await keyring.getAccounts();
           const accounts = Array.isArray(keyringAccounts)
-            ? keyringAccounts.map((address) => toChecksumAddress(address))
+            ? keyringAccounts.map((address) => ethUtil.toChecksumAddress(address))
             : /* istanbul ignore next */ [];
           return {
             accounts,

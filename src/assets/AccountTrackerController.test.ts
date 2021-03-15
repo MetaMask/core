@@ -1,9 +1,8 @@
 import { stub, spy } from 'sinon';
+import HttpProvider from 'ethjs-provider-http';
 import PreferencesController from '../user/PreferencesController';
 import ComposableController from '../ComposableController';
 import AccountTrackerController from './AccountTrackerController';
-
-const HttpProvider = require('ethjs-provider-http');
 
 const provider = new HttpProvider('https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
 
