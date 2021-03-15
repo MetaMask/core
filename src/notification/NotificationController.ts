@@ -6,11 +6,8 @@ interface viewedNotification {
 
 interface Notification {
   id: number;
-  title: string;
-  description: string;
   date: string;
   image?: string;
-  actionText?: string;
 }
 
 interface StateNotification extends Notification {
