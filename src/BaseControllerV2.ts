@@ -110,18 +110,25 @@ export class BaseController<N extends string, S extends Record<string, unknown>>
   /**
    * Creates a BaseController instance.
    *
-   * @param messagingSystem - Controller messaging system
-   * @param state - Initial controller state
-   * @param metadata - State metadata, describing how to "anonymize" the state,
-   *   and which parts should be persisted.
+   * @param options
+   * @param options.messenger - Controller messaging system
+   * @param options.metadata - State metadata, describing how to "anonymize" the state, and which
+   *   parts should be persisted.
+   * @param options.name - The name of the controller, used as a namespace for events and actions
+   * @param options.state - Initial controller state
    */
-  constructor(
-    messagingSystem: ControllerMessenger<never, { type: `${N}:stateChange`; payload: [S, Patch[]] }>,
-    name: N,
-    state: IsJsonable<S>,
-    metadata: StateMetadata<S>,
-  ) {
-    this.messagingSystem = messagingSystem;
+  constructor({
+    messenger,
+    metadata,
+    name,
+    state,
+  }: {
+    messenger: ControllerMessenger<never, { type: `${N}:stateChange`; payload: [S, Patch[]] }>;
+    metadata: StateMetadata<S>;
+    name: N;
+    state: IsJsonable<S>;
+  }) {
+    this.messagingSystem = messenger;
     this.name = name;
     this.internalState = state;
     this.metadata = metadata;
