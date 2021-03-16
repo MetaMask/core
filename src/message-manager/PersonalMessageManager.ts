@@ -1,3 +1,4 @@
+import { v1 as random } from 'uuid';
 import { validateSignMessageData, normalizeMessageData } from '../util';
 import AbstractMessageManager, {
   AbstractMessage,
@@ -5,8 +6,6 @@ import AbstractMessageManager, {
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
-
-const random = require('uuid').v1;
 
 /**
  * @type Message
