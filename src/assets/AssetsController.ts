@@ -109,6 +109,20 @@ export interface AssetSuggestionResult {
   suggestedAssetMeta: SuggestedAssetMeta;
 }
 
+enum SuggestedAssetStatus {
+  accepted = 'accepted',
+  failed = 'failed',
+  pending = 'pending',
+  rejected = 'rejected',
+}
+
+type SuggestedAssetMetaBase = {
+  id: string;
+  time: number;
+  type: string;
+  asset: Token;
+};
+
 /**
  * @type SuggestedAssetMeta
  *
@@ -121,17 +135,11 @@ export interface AssetSuggestionResult {
  * @property type - Type type this suggested asset
  * @property asset - Asset suggested object
  */
-export interface SuggestedAssetMeta {
-  error?: {
-    message: string;
-    stack?: string;
-  };
-  id: string;
-  status: string;
-  time: number;
-  type: string;
-  asset: Token;
-}
+export type SuggestedAssetMeta =
+  | (SuggestedAssetMetaBase & { status: SuggestedAssetStatus.failed; error: Error })
+  | (SuggestedAssetMetaBase & {
+      status: SuggestedAssetStatus.accepted | SuggestedAssetStatus.rejected | SuggestedAssetStatus.pending;
+    });
 
 /**
  * @type AssetsState
@@ -175,12 +183,12 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
   }
 
   private failSuggestedAsset(suggestedAssetMeta: SuggestedAssetMeta, error: Error) {
-    suggestedAssetMeta.status = 'failed';
-    suggestedAssetMeta.error = {
-      message: error.toString(),
-      stack: error.stack,
+    const failedSuggestedAssetMeta = {
+      ...suggestedAssetMeta,
+      status: SuggestedAssetStatus.failed,
+      error,
     };
-    this.hub.emit(`${suggestedAssetMeta.id}:finished`, suggestedAssetMeta);
+    this.hub.emit(`${suggestedAssetMeta.id}:finished`, failedSuggestedAssetMeta);
   }
 
   /**
@@ -632,10 +640,10 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
    * @returns - Object containing a promise resolving to the suggestedAsset address if accepted
    */
   async watchAsset(asset: Token, type: string): Promise<AssetSuggestionResult> {
-    const suggestedAssetMeta: SuggestedAssetMeta = {
+    const suggestedAssetMeta = {
       asset,
       id: random(),
-      status: 'pending',
+      status: SuggestedAssetStatus.pending as SuggestedAssetStatus.pending,
       time: Date.now(),
       type,
     };
@@ -655,12 +663,12 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     const result: Promise<string> = new Promise((resolve, reject) => {
       this.hub.once(`${suggestedAssetMeta.id}:finished`, (meta: SuggestedAssetMeta) => {
         switch (meta.status) {
-          case 'accepted':
+          case SuggestedAssetStatus.accepted:
             return resolve(meta.asset.address);
-          case 'rejected':
+          case SuggestedAssetStatus.rejected:
             return reject(new Error('User rejected to watch the asset.'));
-          case 'failed':
-            return reject(new Error(meta.error!.message));
+          case SuggestedAssetStatus.failed:
+            return reject(new Error(meta.error.message));
         }
       });
     });
@@ -688,7 +696,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
         case 'ERC20':
           const { address, symbol, decimals, image } = suggestedAssetMeta.asset;
           await this.addToken(address, symbol, decimals, image);
-          suggestedAssetMeta.status = 'accepted';
+          suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
           this.hub.emit(`${suggestedAssetMeta.id}:finished`, suggestedAssetMeta);
           break;
         default:
@@ -714,7 +722,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     if (!suggestedAssetMeta) {
       return;
     }
-    suggestedAssetMeta.status = 'rejected';
+    suggestedAssetMeta.status = SuggestedAssetStatus.rejected;
     this.hub.emit(`${suggestedAssetMeta.id}:finished`, suggestedAssetMeta);
     const newSuggestedAssets = suggestedAssets.filter(({ id }) => id !== suggestedAssetID);
     this.update({ suggestedAssets: [...newSuggestedAssets] });
