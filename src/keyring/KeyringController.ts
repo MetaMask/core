@@ -1,13 +1,13 @@
 import { toChecksumAddress } from 'ethereumjs-util';
 import { normalize as normalizeAddress, signTypedData, signTypedData_v4, signTypedDataLegacy } from 'eth-sig-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
+import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState, Listener } from '../BaseController';
 import PreferencesController from '../user/PreferencesController';
 import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
 import { TypedMessageParams } from '../message-manager/TypedMessageManager';
 
 const Keyring = require('eth-keyring-controller');
-const { Mutex } = require('async-mutex');
 const ethUtil = require('ethereumjs-util');
 
 const privates = new WeakMap();

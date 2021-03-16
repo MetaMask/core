@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { ethErrors } from 'eth-rpc-errors';
 import { v1 as random } from 'uuid';
+import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import NetworkController from '../network/NetworkController';
 
@@ -21,7 +22,6 @@ const MethodRegistry = require('eth-method-registry');
 const EthQuery = require('eth-query');
 const Transaction = require('ethereumjs-tx');
 const { BN } = require('ethereumjs-util');
-const { Mutex } = require('async-mutex');
 
 /**
  * @type Result
