@@ -472,7 +472,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       }
 
       transactionMeta.status = 'approved';
-      transactionMeta.transaction.nonce = nonce || await query(this.ethQuery, 'getTransactionCount', [from, 'pending']);
+      transactionMeta.transaction.nonce =
+        nonce || (await query(this.ethQuery, 'getTransactionCount', [from, 'pending']));
       transactionMeta.transaction.chainId = parseInt(currentChainId, undefined);
 
       const ethTransaction = new Transaction({ ...transactionMeta.transaction });
