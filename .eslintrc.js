@@ -16,8 +16,13 @@ module.exports = {
     },
   ],
   rules: {
+    // `no-shadow` has incompatibilities with TypeScript
     'no-shadow': 'off',
+    '@typescript-eslint/no-shadow': 'error',
+
+    // Prettier handles indentation. This rule conflicts with prettier in some cases
     '@typescript-eslint/indent': 'off',
+
     // disabled due to incompatibility with Record<string, unknown>
     // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
     '@typescript-eslint/consistent-type-definitions': 'off',
