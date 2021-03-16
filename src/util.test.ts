@@ -1,9 +1,8 @@
 import 'isomorphic-fetch';
+import { BN } from 'ethereumjs-util';
 import * as nock from 'nock';
 
 import * as util from './util';
-
-const { BN } = require('ethereumjs-util');
 
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';

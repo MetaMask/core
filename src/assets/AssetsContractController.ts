@@ -1,8 +1,6 @@
+import { BN } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
-// TODO: Destructuring this line introduces a compilation error
-// eslint-disable-next-line prefer-destructuring
-const BN = require('ethereumjs-util').BN;
 const Web3 = require('web3');
 const abiERC20 = require('human-standard-token-abi');
 const abiERC721 = require('human-standard-collectible-abi');
@@ -31,7 +29,7 @@ export interface AssetsContractConfig extends BaseConfig {
  * @property [tokenAddress] - Address of the token
  */
 export interface BalanceMap {
-  [tokenAddress: string]: string;
+  [tokenAddress: string]: BN;
 }
 
 /**
@@ -117,10 +115,10 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
    * @param selectedAddress - Current account public address
    * @returns - Promise resolving to BN object containing balance for current account on specific asset contract
    */
-  async getBalanceOf(address: string, selectedAddress: string): Promise<typeof BN> {
+  async getBalanceOf(address: string, selectedAddress: string): Promise<BN> {
     const contract = this.web3.eth.contract(abiERC20).at(address);
-    return new Promise<typeof BN>((resolve, reject) => {
-      contract.balanceOf(selectedAddress, (error: Error, result: typeof BN) => {
+    return new Promise<BN>((resolve, reject) => {
+      contract.balanceOf(selectedAddress, (error: Error, result: BN) => {
         /* istanbul ignore if */
         if (error) {
           reject(error);
@@ -142,7 +140,7 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
   getCollectibleTokenId(address: string, selectedAddress: string, index: number): Promise<number> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
     return new Promise<number>((resolve, reject) => {
-      contract.tokenOfOwnerByIndex(selectedAddress, index, (error: Error, result: typeof BN) => {
+      contract.tokenOfOwnerByIndex(selectedAddress, index, (error: Error, result: BN) => {
         /* istanbul ignore if */
         if (error) {
           reject(error);
@@ -263,7 +261,7 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
   async getBalancesInSingleCall(selectedAddress: string, tokensToDetect: string[]) {
     const contract = this.web3.eth.contract(abiSingleCallBalancesContract).at(SINGLE_CALL_BALANCES_ADDRESS);
     return new Promise<BalanceMap>((resolve, reject) => {
-      contract.balances([selectedAddress], tokensToDetect, (error: Error, result: typeof BN[]) => {
+      contract.balances([selectedAddress], tokensToDetect, (error: Error, result: BN[]) => {
         /* istanbul ignore if */
         if (error) {
           reject(error);
@@ -273,7 +271,7 @@ export class AssetsContractController extends BaseController<AssetsContractConfi
         /* istanbul ignore else */
         if (result.length > 0) {
           tokensToDetect.forEach((tokenAddress, index) => {
-            const balance: typeof BN = result[index];
+            const balance: BN = result[index];
             /* istanbul ignore else */
             if (!balance.isZero()) {
               nonZeroBalances[tokenAddress] = balance;
