@@ -1,7 +1,6 @@
 import { errorCodes } from 'eth-rpc-errors';
+import * as sinon from 'sinon';
 import ApprovalController from './ApprovalController';
-
-const sinon = require('sinon');
 
 const STORE_KEY = 'pendingApprovals';
 
@@ -255,11 +254,12 @@ describe('approval controller', () => {
   describe('resolve', () => {
     let approvalController: ApprovalController;
     let numDeletions: number;
-    let deleteSpy: typeof sinon.spy;
+    let deleteSpy: sinon.SinonSpy;
 
     beforeEach(() => {
       approvalController = new ApprovalController({ ...defaultConfig });
-      deleteSpy = sinon.spy(approvalController, '_delete');
+      // TODO: Stop using private methods in tests
+      deleteSpy = sinon.spy(approvalController as any, '_delete');
       numDeletions = 0;
     });
 
@@ -301,11 +301,12 @@ describe('approval controller', () => {
   describe('reject', () => {
     let approvalController: ApprovalController;
     let numDeletions: number;
-    let deleteSpy: typeof sinon.spy;
+    let deleteSpy: sinon.SinonSpy;
 
     beforeEach(() => {
       approvalController = new ApprovalController({ ...defaultConfig });
-      deleteSpy = sinon.spy(approvalController, '_delete');
+      // TODO: Stop using private methods in tests
+      deleteSpy = sinon.spy(approvalController as any, '_delete');
       numDeletions = 0;
     });
 
