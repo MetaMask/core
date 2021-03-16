@@ -6,12 +6,12 @@ import {
   recoverTypedSignatureLegacy,
 } from 'eth-sig-util';
 import { stub } from 'sinon';
+import MockEncryptor from '../../tests/mocks/mockEncryptor';
 import PreferencesController from '../user/PreferencesController';
 import ComposableController from '../ComposableController';
 import KeyringController, { Keyring, KeyringConfig } from './KeyringController';
 
 const Transaction = require('ethereumjs-tx');
-const mockEncryptor: any = require('../../tests/mocks/mockEncryptor');
 
 const input =
   '{"version":3,"id":"534e0199-53f6-41a9-a8fe-d504702ee5e8","address":"b97c80fab7a3793bbe746864db80d236f1345ea7",' +
@@ -27,7 +27,7 @@ describe('KeyringController', () => {
   let keyringController: KeyringController;
   let preferences: PreferencesController;
   let initialState: { isUnlocked: boolean; keyringTypes: string[]; keyrings: Keyring[] };
-  const baseConfig: Partial<KeyringConfig> = { encryptor: mockEncryptor };
+  const baseConfig: Partial<KeyringConfig> = { encryptor: new MockEncryptor() };
   beforeEach(async () => {
     keyringController = new KeyringController(baseConfig);
     preferences = new PreferencesController();
