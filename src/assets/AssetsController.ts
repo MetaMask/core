@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import { toChecksumAddress } from 'ethereumjs-util';
 import { v1 as random } from 'uuid';
+import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import PreferencesController from '../user/PreferencesController';
 import NetworkController, { NetworkType } from '../network/NetworkController';
@@ -8,8 +9,6 @@ import { safelyExecute, handleFetch, validateTokenToWatch } from '../util';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
 import { ApiCollectibleResponse } from './AssetsDetectionController';
-
-const { Mutex } = require('async-mutex');
 
 /**
  * @type Collectible

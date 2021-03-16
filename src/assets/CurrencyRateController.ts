@@ -1,8 +1,7 @@
+import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute } from '../util';
 import { fetchExchangeRate as defaultFetchExchangeRate } from '../apis/crypto-compare';
-
-const { Mutex } = require('async-mutex');
 
 /**
  * @type CurrencyRateConfig
