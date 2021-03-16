@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { toChecksumAddress } from 'ethereumjs-util';
+import { v1 as random } from 'uuid';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import PreferencesController from '../user/PreferencesController';
 import NetworkController, { NetworkType } from '../network/NetworkController';
@@ -9,7 +10,6 @@ import { AssetsContractController } from './AssetsContractController';
 import { ApiCollectibleResponse } from './AssetsDetectionController';
 
 const { Mutex } = require('async-mutex');
-const random = require('uuid').v1;
 
 /**
  * @type Collectible
