@@ -3,7 +3,6 @@ import { normalize as normalizeAddress, signTypedData, signTypedData_v4, signTyp
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import BaseController, { BaseConfig, BaseState, Listener } from '../BaseController';
 import PreferencesController from '../user/PreferencesController';
-import { Transaction } from '../transaction/TransactionController';
 import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
 import { TypedMessageParams } from '../message-manager/TypedMessageManager';
 
@@ -369,11 +368,11 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
   /**
    * Signs a transaction by calling down into a specific keyring
    *
-   * @param transaction - Transaction object to sign
+   * @param transaction - Transaction object to sign. Must be a `ethereumjs-tx` transaction instance.
    * @param from - Address to sign from, should be in keychain
    * @returns - Promise resolving to a signed transaction string
    */
-  signTransaction(transaction: Transaction, from: string) {
+  signTransaction(transaction: unknown, from: string) {
     return privates.get(this).keyring.signTransaction(transaction, from);
   }
 
