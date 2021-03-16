@@ -1,13 +1,12 @@
 import { createSandbox, stub } from 'sinon';
 import * as nock from 'nock';
+import { BN } from 'ethereumjs-util';
 import { NetworkController, NetworksChainId } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
 import { ComposableController } from '../ComposableController';
 import { AssetsController } from './AssetsController';
 import { AssetsContractController } from './AssetsContractController';
 import { AssetsDetectionController } from './AssetsDetectionController';
-
-const { BN } = require('ethereumjs-util');
 
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
