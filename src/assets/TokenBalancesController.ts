@@ -1,12 +1,9 @@
+import { BN } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute } from '../util';
 import AssetsController from './AssetsController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
-
-const { BN } = require('ethereumjs-util');
-
-export { BN };
 
 /**
  * @type TokenBalancesConfig
@@ -29,7 +26,7 @@ export interface TokenBalancesConfig extends BaseConfig {
  * @property contractBalances - Hash of token contract addresses to balances
  */
 export interface TokenBalancesState extends BaseState {
-  contractBalances: { [address: string]: typeof BN };
+  contractBalances: { [address: string]: BN };
 }
 
 /**
@@ -93,14 +90,14 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
     const assets = this.context.AssetsController as AssetsController;
     const { selectedAddress } = assets.config;
     const { tokens } = this.config;
-    const newContractBalances: { [address: string]: typeof BN } = {};
+    const newContractBalances: { [address: string]: BN } = {};
     for (const i in tokens) {
       const { address } = tokens[i];
       try {
         newContractBalances[address] = await assetsContract.getBalanceOf(address, selectedAddress);
         tokens[i].balanceError = null;
       } catch (error) {
-        newContractBalances[address] = 0;
+        newContractBalances[address] = new BN(0);
         tokens[i].balanceError = error;
       }
     }

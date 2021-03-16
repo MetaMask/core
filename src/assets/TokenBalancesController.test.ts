@@ -1,4 +1,5 @@
 import { createSandbox, stub } from 'sinon';
+import { BN } from 'ethereumjs-util';
 import ComposableController from '../ComposableController';
 import { NetworkController } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
@@ -7,7 +8,6 @@ import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
 import TokenBalancesController from './TokenBalancesController';
 
-const { BN } = require('ethereumjs-util');
 const HttpProvider = require('ethjs-provider-http');
 
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
@@ -88,7 +88,7 @@ describe('TokenBalancesController', () => {
 
     new ComposableController([assets, assetsContract, network, preferences, tokenBalances]);
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    stub(assetsContract, 'getBalanceOf').returns(new BN(1));
+    stub(assetsContract, 'getBalanceOf').resolves(new BN(1));
     await tokenBalances.updateBalances();
     const mytoken = getToken(address);
     expect(mytoken?.balanceError).toBeNull();
@@ -113,11 +113,11 @@ describe('TokenBalancesController', () => {
     const mytoken = getToken(address);
     expect(mytoken?.balanceError).toBeInstanceOf(Error);
     expect(mytoken?.balanceError?.message).toBe(errorMsg);
-    expect(tokenBalances.state.contractBalances[address]).toEqual(0);
+    expect(tokenBalances.state.contractBalances[address].toNumber()).toEqual(0);
 
     // test reset case
     mock.restore();
-    stub(assetsContract, 'getBalanceOf').returns(new BN(1));
+    stub(assetsContract, 'getBalanceOf').resolves(new BN(1));
     await tokenBalances.updateBalances();
     expect(mytoken?.balanceError).toBeNull();
     expect(Object.keys(tokenBalances.state.contractBalances)).toContain(address);
