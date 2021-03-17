@@ -457,6 +457,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     const currentChainId = network?.state?.provider?.chainId;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
+    const { nonce } = transactionMeta.transaction;
 
     try {
       const { from } = transactionMeta.transaction;
@@ -471,7 +472,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       }
 
       transactionMeta.status = 'approved';
-      transactionMeta.transaction.nonce = await query(this.ethQuery, 'getTransactionCount', [from, 'pending']);
+      transactionMeta.transaction.nonce =
+        nonce || (await query(this.ethQuery, 'getTransactionCount', [from, 'pending']));
       transactionMeta.transaction.chainId = parseInt(currentChainId, undefined);
 
       const ethTransaction = new Transaction({ ...transactionMeta.transaction });
