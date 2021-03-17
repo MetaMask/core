@@ -846,10 +846,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
       const { networkType } = this.config;
       this.configure({ selectedAddress });
       this.update({
-        collectibleContracts:
-          (allCollectibleContracts[selectedAddress] && allCollectibleContracts[selectedAddress][networkType]) || [],
-        collectibles: (allCollectibles[selectedAddress] && allCollectibles[selectedAddress][networkType]) || [],
-        tokens: (allTokens[selectedAddress] && allTokens[selectedAddress][networkType]) || [],
+        collectibleContracts: allCollectibleContracts[selectedAddress]?.[networkType] || [],
+        collectibles: allCollectibles[selectedAddress]?.[networkType] || [],
+        tokens: allTokens[selectedAddress]?.[networkType] || [],
       });
     });
     network.subscribe(({ provider }) => {
@@ -858,10 +857,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
       const networkType = provider.type;
       this.configure({ networkType });
       this.update({
-        collectibleContracts:
-          (allCollectibleContracts[selectedAddress] && allCollectibleContracts[selectedAddress][networkType]) || [],
-        collectibles: (allCollectibles[selectedAddress] && allCollectibles[selectedAddress][networkType]) || [],
-        tokens: (allTokens[selectedAddress] && allTokens[selectedAddress][networkType]) || [],
+        collectibleContracts: allCollectibleContracts[selectedAddress]?.[networkType] || [],
+        collectibles: allCollectibles[selectedAddress]?.[networkType] || [],
+        tokens: allTokens[selectedAddress]?.[networkType] || [],
       });
     });
   }

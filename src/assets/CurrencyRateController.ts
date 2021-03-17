@@ -58,7 +58,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
   private fetchExchangeRate: typeof defaultFetchExchangeRate;
 
   private getCurrentCurrencyFromState(state?: Partial<CurrencyRateState>) {
-    return state && state.currentCurrency ? state.currentCurrency : 'usd';
+    return state?.currentCurrency ? state.currentCurrency : 'usd';
   }
 
   /**
