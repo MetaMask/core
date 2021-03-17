@@ -152,7 +152,7 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
 
   private safelyStopProvider(provider: any) {
     setTimeout(() => {
-      provider && provider.stop();
+      provider?.stop();
     }, 500);
   }
 

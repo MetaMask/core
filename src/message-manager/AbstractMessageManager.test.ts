@@ -187,11 +187,11 @@ describe('AbstractTestManager', () => {
         type: 'type',
       });
       const messageBefore = controller.getMessage(messageId);
-      expect(messageBefore && messageBefore.status).toEqual('status');
+      expect(messageBefore?.status).toEqual('status');
 
       controller.setMessageStatus(messageId, 'newstatus');
       const messageAfter = controller.getMessage(messageId);
-      expect(messageAfter && messageAfter.status).toEqual('newstatus');
+      expect(messageAfter?.status).toEqual('newstatus');
     });
 
     it('should throw an error if message is not found', () => {

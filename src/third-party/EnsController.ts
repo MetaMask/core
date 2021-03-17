@@ -131,7 +131,7 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
     const normalizedAddress = address ? toChecksumAddress(address) : null;
     const subState = this.state.ensEntries[chainId];
 
-    if (subState && subState[normalizedEnsName] && subState[normalizedEnsName].address === normalizedAddress) {
+    if (subState?.[normalizedEnsName] && subState[normalizedEnsName].address === normalizedAddress) {
       return false;
     }
 

@@ -115,23 +115,11 @@ export async function handleTransactionFetch(
   opt?: FetchAllOptions,
 ): Promise<[{ [result: string]: [] }, { [result: string]: [] }]> {
   // transactions
-  const etherscanTxUrl = getEtherscanApiUrl(
-    networkType,
-    address,
-    'txlist',
-    opt && opt.fromBlock,
-    opt && opt.etherscanApiKey,
-  );
+  const etherscanTxUrl = getEtherscanApiUrl(networkType, address, 'txlist', opt?.fromBlock, opt?.etherscanApiKey);
   const etherscanTxResponsePromise = handleFetch(etherscanTxUrl);
 
   // tokens
-  const etherscanTokenUrl = getEtherscanApiUrl(
-    networkType,
-    address,
-    'tokentx',
-    opt && opt.fromBlock,
-    opt && opt.etherscanApiKey,
-  );
+  const etherscanTokenUrl = getEtherscanApiUrl(networkType, address, 'tokentx', opt?.fromBlock, opt?.etherscanApiKey);
   const etherscanTokenResponsePromise = handleFetch(etherscanTokenUrl);
 
   let [etherscanTxResponse, etherscanTokenResponse] = await Promise.all([
@@ -212,7 +200,7 @@ export async function safelyExecute(operation: () => Promise<any>, logError = fa
     if (logError) {
       console.error(error);
     }
-    retry && retry(error);
+    retry?.(error);
   }
 }
 

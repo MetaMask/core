@@ -43,7 +43,6 @@ module.exports = {
             },
           },
         ],
-        '@typescript-eslint/prefer-optional-chain': 'off',
       },
     },
   ],
