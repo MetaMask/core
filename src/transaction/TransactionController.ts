@@ -69,7 +69,12 @@ export interface Transaction {
   value?: string;
 }
 
-enum TransactionStatus {
+/**
+ * The status of the transaction. Each status represents the state of the transaction internally
+ * in the wallet. Some of these correspond with the state of the transaction on the network, but
+ * some are wallet-specific.
+ */
+export enum TransactionStatus {
   approved = 'approved',
   cancelled = 'cancelled',
   confirmed = 'confirmed',
