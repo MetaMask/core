@@ -69,6 +69,36 @@ export interface Transaction {
   value?: string;
 }
 
+enum TransactionStatus {
+  approved = 'approved',
+  cancelled = 'cancelled',
+  confirmed = 'confirmed',
+  failed = 'failed',
+  rejected = 'rejected',
+  signed = 'signed',
+  submitted = 'submitted',
+  unapproved = 'unapproved',
+}
+
+type TransactionMetaBase = {
+  isTransfer?: boolean;
+  transferInformation?: {
+    symbol: string;
+    contractAddress: string;
+    decimals: number;
+  };
+  id: string;
+  networkID?: string;
+  chainId?: string;
+  origin?: string;
+  rawTransaction?: string;
+  time: number;
+  toSmartContract?: boolean;
+  transaction: Transaction;
+  transactionHash?: string;
+  blockNumber?: string;
+};
+
 /**
  * @type TransactionMeta
  *
@@ -86,29 +116,9 @@ export interface Transaction {
  * @property transactionHash - Hash of a successful transaction
  * @property blockNumber - Number of the block where the transaction has been included
  */
-export interface TransactionMeta {
-  error?: {
-    message: string;
-    stack?: string;
-  };
-  isTransfer?: boolean;
-  transferInformation?: {
-    symbol: string;
-    contractAddress: string;
-    decimals: number;
-  };
-  id: string;
-  networkID?: string;
-  chainId?: string;
-  origin?: string;
-  rawTransaction?: string;
-  status: string;
-  time: number;
-  toSmartContract?: boolean;
-  transaction: Transaction;
-  transactionHash?: string;
-  blockNumber?: string;
-}
+export type TransactionMeta =
+  | ({ status: Exclude<TransactionStatus, TransactionStatus.failed> } & TransactionMetaBase)
+  | ({ status: TransactionStatus.failed; error: Error } & TransactionMetaBase);
 
 /**
  * @type EtherscanTransactionMeta
@@ -219,10 +229,13 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
   private mutex = new Mutex();
 
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
-    transactionMeta.status = 'failed';
-    transactionMeta.error = error;
-    this.updateTransaction(transactionMeta);
-    this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
+    const newTransactionMeta = {
+      ...transactionMeta,
+      error,
+      status: TransactionStatus.failed,
+    };
+    this.updateTransaction(newTransactionMeta);
+    this.hub.emit(`${transactionMeta.id}:finished`, newTransactionMeta);
   }
 
   private async registryLookup(fourBytePrefix: string): Promise<MethodData> {
@@ -246,14 +259,11 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     currentChainId: string,
   ): TransactionMeta {
     const time = parseInt(txMeta.timeStamp, 10) * 1000;
-    /* istanbul ignore next */
-    const status = txMeta.isError === '0' ? 'confirmed' : 'failed';
-    return {
+    const normalizedTransactionBase = {
       blockNumber: txMeta.blockNumber,
       id: random({ msecs: time }),
       networkID: currentNetworkID,
       chainId: currentChainId,
-      status,
       time,
       transaction: {
         data: txMeta.input,
@@ -265,6 +275,21 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
         value: BNToHex(new BN(txMeta.value)),
       },
       transactionHash: txMeta.hash,
+    };
+
+    /* istanbul ignore else */
+    if (txMeta.isError === '0') {
+      return {
+        ...normalizedTransactionBase,
+        status: TransactionStatus.confirmed,
+      };
+    }
+
+    /* istanbul ignore next */
+    return {
+      ...normalizedTransactionBase,
+      error: new Error('Transaction failed'),
+      status: TransactionStatus.failed,
     };
   }
 
@@ -280,7 +305,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       isTransfer: true,
       networkID: currentNetworkID,
       chainId: currentChainId,
-      status: 'confirmed',
+      status: TransactionStatus.confirmed,
       time,
       transaction: {
         chainId: 1,
@@ -402,7 +427,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       networkID,
       chainId,
       origin,
-      status: 'unapproved',
+      status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
       transaction,
     };
@@ -419,14 +444,14 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     const result: Promise<string> = new Promise((resolve, reject) => {
       this.hub.once(`${transactionMeta.id}:finished`, (meta: TransactionMeta) => {
         switch (meta.status) {
-          case 'submitted':
+          case TransactionStatus.submitted:
             return resolve(meta.transactionHash as string);
-          case 'rejected':
+          case TransactionStatus.rejected:
             return reject(ethErrors.provider.userRejectedRequest('User rejected the transaction'));
-          case 'cancelled':
+          case TransactionStatus.cancelled:
             return reject(ethErrors.rpc.internal('User cancelled the transaction'));
-          case 'failed':
-            return reject(ethErrors.rpc.internal(meta.error!.message));
+          case TransactionStatus.failed:
+            return reject(ethErrors.rpc.internal(meta.error.message));
           /* istanbul ignore next */
           default:
             return reject(ethErrors.rpc.internal(`MetaMask Tx Signature: Unknown problem: ${JSON.stringify(meta)}`));
@@ -471,14 +496,14 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
         return;
       }
 
-      transactionMeta.status = 'approved';
+      transactionMeta.status = TransactionStatus.approved;
       transactionMeta.transaction.nonce =
         nonce || (await query(this.ethQuery, 'getTransactionCount', [from, 'pending']));
       transactionMeta.transaction.chainId = parseInt(currentChainId, undefined);
 
       const ethTransaction = new Transaction({ ...transactionMeta.transaction });
       await this.sign(ethTransaction, transactionMeta.transaction.from);
-      transactionMeta.status = 'signed';
+      transactionMeta.status = TransactionStatus.signed;
       this.updateTransaction(transactionMeta);
       const rawTransaction = bufferToHex(ethTransaction.serialize());
 
@@ -486,7 +511,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       this.updateTransaction(transactionMeta);
       const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
       transactionMeta.transactionHash = transactionHash;
-      transactionMeta.status = 'submitted';
+      transactionMeta.status = TransactionStatus.submitted;
       this.updateTransaction(transactionMeta);
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     } catch (error) {
@@ -507,7 +532,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     if (!transactionMeta) {
       return;
     }
-    transactionMeta.status = 'rejected';
+    transactionMeta.status = TransactionStatus.rejected;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     const transactions = this.state.transactions.filter(({ id }) => id !== transactionID);
     this.update({ transactions: [...transactions] });
@@ -546,7 +571,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     await this.sign(ethTransaction, transactionMeta.transaction.from);
     const rawTransaction = bufferToHex(ethTransaction.serialize());
     await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
-    transactionMeta.status = 'cancelled';
+    transactionMeta.status = TransactionStatus.cancelled;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
   }
 
@@ -674,13 +699,13 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
         transactions.map(async (meta, index) => {
           // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
           if (
-            meta.status === 'submitted' &&
+            meta.status === TransactionStatus.submitted &&
             (meta.chainId === currentChainId || (!meta.chainId && meta.networkID === currentNetworkID))
           ) {
             const txObj = await query(this.ethQuery, 'getTransactionByHash', [meta.transactionHash]);
             /* istanbul ignore next */
             if (txObj?.blockNumber) {
-              transactions[index].status = 'confirmed';
+              transactions[index].status = TransactionStatus.confirmed;
               this.hub.emit(`${meta.id}:confirmed`, meta);
               gotUpdates = true;
             }
