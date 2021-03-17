@@ -95,10 +95,16 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
   /**
    * Sets a new provider
    *
+   * TODO: Replace this wth a method
+   *
    * @param provider - Provider used to create a new underlying EthQuery instance
    */
   set provider(provider: any) {
     this.ethQuery = new EthQuery(provider);
+  }
+
+  get provider() {
+    throw new Error('Property only used for setting');
   }
 
   /**

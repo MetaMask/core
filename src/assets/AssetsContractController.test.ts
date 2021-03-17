@@ -20,6 +20,10 @@ describe('AssetsContractController', () => {
     });
   });
 
+  it('should throw when provider property is accessed', () => {
+    expect(() => console.log(assetsContract.provider)).toThrow();
+  });
+
   it('should determine if contract supports interface correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const CKSupportsEnumerable = await assetsContract.contractSupportsEnumerableInterface(CKADDRESS);

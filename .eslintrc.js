@@ -53,7 +53,6 @@ module.exports = {
     },
   ],
   rules: {
-    'accessor-pairs': 'off',
     camelcase: 'off',
     'consistent-return': 'off',
     'default-case': 'off',
