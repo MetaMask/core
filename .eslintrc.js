@@ -25,10 +25,16 @@ module.exports = {
         // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
         '@typescript-eslint/consistent-type-definitions': 'off',
 
+        // Modified to include the 'ignoreRestSiblings' option
+        // TODO: Migrate this rule change back into `@metamask/eslint-config`
+        '@typescript-eslint/no-unused-vars': [
+          'error',
+          { vars: 'all', args: 'all', argsIgnorePattern: '[_]+', ignoreRestSiblings: true },
+        ],
+
         // TODO re-enable most of these rules
         '@typescript-eslint/no-non-null-assertion': 'off',
         '@typescript-eslint/no-require-imports': 'off',
-        '@typescript-eslint/no-unused-vars': 'off',
         '@typescript-eslint/no-var-requires': 'off',
         '@typescript-eslint/member-delimiter-style': [
           'error',
