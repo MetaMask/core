@@ -1,5 +1,5 @@
 import { stub } from 'sinon';
-import * as nock from 'nock';
+import nock from 'nock';
 import PhishingController from './PhishingController';
 
 describe('PhishingController', () => {

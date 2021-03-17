@@ -1,5 +1,5 @@
 import { errorCodes } from 'eth-rpc-errors';
-import * as sinon from 'sinon';
+import sinon from 'sinon';
 import ApprovalController from './ApprovalController';
 
 const STORE_KEY = 'pendingApprovals';

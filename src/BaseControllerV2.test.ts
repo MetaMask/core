@@ -1,5 +1,5 @@
 import type { Draft, Patch } from 'immer';
-import * as sinon from 'sinon';
+import sinon from 'sinon';
 
 import { BaseController, getAnonymizedState, getPersistentState } from './BaseControllerV2';
 import { ControllerMessenger } from './ControllerMessenger';
