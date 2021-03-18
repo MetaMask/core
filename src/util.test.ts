@@ -71,6 +71,7 @@ describe('util', () => {
     expect(util.getBuyURL('4')).toBe('https://www.rinkeby.io/');
     expect(util.getBuyURL('5')).toBe('https://goerli-faucet.slock.it/');
     expect(util.getBuyURL('42')).toBe('https://github.com/kovan-testnet/faucet');
+    expect(util.getBuyURL('unrecognized network ID')).toBeUndefined();
   });
 
   it('hexToBN', () => {

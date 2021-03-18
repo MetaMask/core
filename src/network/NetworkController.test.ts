@@ -1,5 +1,5 @@
 import { stub } from 'sinon';
-import NetworkController, { NetworksChainId, ProviderConfig } from './NetworkController';
+import NetworkController, { NetworksChainId, ProviderConfig, NetworkType } from './NetworkController';
 
 const Web3ProviderEngine = require('web3-provider-engine');
 
@@ -107,6 +107,11 @@ describe('NetworkController', () => {
     const controller = new NetworkController();
     controller.setProviderType('localhost');
     expect(controller.state.provider.type).toBe('localhost');
+  });
+
+  it('should throw when setting an unrecognized provider type', () => {
+    const controller = new NetworkController();
+    expect(() => controller.setProviderType('junk' as NetworkType)).toThrow();
   });
 
   it('should verify the network on an error', async () => {
