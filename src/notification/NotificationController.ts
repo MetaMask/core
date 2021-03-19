@@ -6,6 +6,7 @@ interface viewedNotification {
 
 interface Notification {
   id: number;
+  date: string;
 }
 
 interface StateNotification extends Notification {

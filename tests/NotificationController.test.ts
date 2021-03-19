@@ -9,9 +9,11 @@ const config1: NotificationConfig = {
   allNotifications: {
     1: {
       id: 1,
+      date: '12/8/2020',
     },
     2: {
       id: 2,
+      date: '12/8/2020',
     },
   },
 };
@@ -20,12 +22,15 @@ const config2: NotificationConfig = {
   allNotifications: {
     1: {
       id: 1,
+      date: '12/8/2020',
     },
     2: {
       id: 2,
+      date: '12/8/2020',
     },
     3: {
       id: 3,
+      date: '12/8/2020',
     },
   },
 };
@@ -34,10 +39,12 @@ const state1: NotificationState = {
   notifications: {
     1: {
       id: 1,
+      date: '12/8/2020',
       isShown: true,
     },
     2: {
       id: 2,
+      date: '12/8/2020',
       isShown: true,
     },
   },
