@@ -174,7 +174,9 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
   }
 
   /**
-   * Generates and stores a new list of stored identities based on address
+   * Generates and stores a new list of stored identities based on address. If the selected address
+   * is unset, or if it refers to an identity that was removed, it will be set to the first
+   * identity.
    *
    * @param addresses - List of addresses to use as a basis for each identity
    */
@@ -188,7 +190,11 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
       };
       return ids;
     }, {});
-    this.update({ identities: { ...identities } });
+    let { selectedAddress } = this.state;
+    if (!Object.keys(identities).includes(selectedAddress)) {
+      selectedAddress = Object.keys(identities)[0];
+    }
+    this.update({ identities: { ...identities }, selectedAddress });
   }
 
   /**
