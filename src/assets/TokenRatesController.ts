@@ -119,11 +119,17 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
   /**
    * Sets a new token list to track prices
    *
+   * TODO: Replace this wth a method
+   *
    * @param tokens - List of tokens to track exchange rates for
    */
   set tokens(tokens: Token[]) {
     this.tokenList = tokens;
     !this.disabled && safelyExecute(() => this.updateExchangeRates());
+  }
+
+  get tokens() {
+    throw new Error('Property only used for setting');
   }
 
   /**
