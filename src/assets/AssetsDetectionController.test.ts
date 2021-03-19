@@ -1,5 +1,5 @@
 import { createSandbox, stub } from 'sinon';
-import * as nock from 'nock';
+import nock from 'nock';
 import { BN } from 'ethereumjs-util';
 import { NetworkController, NetworksChainId } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';

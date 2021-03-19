@@ -36,26 +36,12 @@ module.exports = {
         '@typescript-eslint/no-non-null-assertion': 'off',
         '@typescript-eslint/no-require-imports': 'off',
         '@typescript-eslint/no-var-requires': 'off',
-        '@typescript-eslint/member-delimiter-style': [
-          'error',
-          {
-            multiline: {
-              delimiter: 'semi',
-              requireLast: true,
-            },
-            singleline: {
-              delimiter: 'semi',
-              requireLast: false,
-            },
-          },
-        ],
       },
     },
   ],
   rules: {
     camelcase: 'off',
     'consistent-return': 'off',
-    'default-case': 'off',
     'function-paren-newline': 'off',
     'guard-for-in': 'off',
     'implicit-arrow-linebreak': 'off',

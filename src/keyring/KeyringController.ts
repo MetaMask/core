@@ -90,6 +90,24 @@ export interface Keyring {
 }
 
 /**
+ * A strategy for importing an account
+ */
+export enum AccountImportStrategy {
+  privateKey = 'privateKey',
+  json = 'json',
+}
+
+/**
+ * The `signTypedMessage` version
+ * @see https://docs.metamask.io/guide/signing-data.html
+ */
+export enum SignTypedDataVersion {
+  V1 = 'V1',
+  V3 = 'V3',
+  V4 = 'V4',
+}
+
+/**
  * Controller responsible for establishing and managing user identity
  */
 export class KeyringController extends BaseController<KeyringConfig, KeyringState> {
@@ -258,9 +276,10 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    *
    * @param strategy - Import strategy name
    * @param args - Array of arguments to pass to the underlying stategy
+   * @throws Will throw when passed an unrecognized strategy
    * @returns - Promise resolving to current state when the import is complete
    */
-  async importAccountWithStrategy(strategy: string, args: any[]): Promise<KeyringMemState> {
+  async importAccountWithStrategy(strategy: AccountImportStrategy, args: any[]): Promise<KeyringMemState> {
     let privateKey;
     const preferences = this.context.PreferencesController as PreferencesController;
     switch (strategy) {
@@ -285,6 +304,8 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
         }
         privateKey = ethUtil.bufferToHex(wallet.getPrivateKey());
         break;
+      default:
+        throw new Error(`Unexpected import strategy: '${strategy}'`);
     }
     const newKeyring = await privates.get(this).keyring.addNewKeyring(KeyringTypes.simple, [privateKey]);
     const accounts = await newKeyring.getAccounts();
@@ -341,24 +362,27 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    *
    * @param messageParams - TypedMessageParams object to sign
    * @param version - Compatibility version EIP712
+   * @throws Will throw when passed an unrecognized version
    * @returns - Promise resolving to a signed message string or an error if any
    */
-  async signTypedMessage(messageParams: TypedMessageParams, version: string) {
+  async signTypedMessage(messageParams: TypedMessageParams, version: SignTypedDataVersion) {
     try {
       const address = normalizeAddress(messageParams.from);
       const { password } = privates.get(this).keyring;
       const privateKey = await this.exportAccount(password, address);
       const privateKeyBuffer = ethUtil.toBuffer(ethUtil.addHexPrefix(privateKey));
       switch (version) {
-        case 'V1':
+        case SignTypedDataVersion.V1:
           // signTypedDataLegacy will throw if the data is invalid.
           return signTypedDataLegacy(privateKeyBuffer, { data: messageParams.data as any });
-        case 'V3':
+        case SignTypedDataVersion.V3:
           return signTypedData(privateKeyBuffer, { data: JSON.parse(messageParams.data as string) });
-        case 'V4':
+        case SignTypedDataVersion.V4:
           return signTypedData_v4(privateKeyBuffer, {
             data: JSON.parse(messageParams.data as string),
           });
+        default:
+          throw new Error(`Unexpected signTypedMessage version: '${version}'`);
       }
     } catch (error) {
       throw new Error(`Keyring Controller signTypedMessage: ${error}`);

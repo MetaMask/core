@@ -1,7 +1,7 @@
 import { addHexPrefix, isValidAddress, bufferToHex } from 'ethereumjs-util';
 import { ethErrors } from 'eth-rpc-errors';
 import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
-import * as jsonschema from 'jsonschema';
+import jsonschema from 'jsonschema';
 import { Transaction, FetchAllOptions } from './transaction/TransactionController';
 import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
@@ -56,7 +56,7 @@ export function fractionBN(targetBN: any, numerator: number | string, denominato
  * @param amount - How much ETH is desired
  * @returns - URL to buy ETH based on network
  */
-export function getBuyURL(networkCode = '1', address?: string, amount = 5) {
+export function getBuyURL(networkCode = '1', address?: string, amount = 5): string | undefined {
   switch (networkCode) {
     case '1':
       return `https://buy.coinbase.com/?code=9ec56d01-7e81-5017-930c-513daa27bb6a&amount=${amount}&address=${address}&crypto_currency=ETH`;
@@ -68,6 +68,8 @@ export function getBuyURL(networkCode = '1', address?: string, amount = 5) {
       return 'https://goerli-faucet.slock.it/';
     case '42':
       return 'https://github.com/kovan-testnet/faucet';
+    default:
+      return undefined;
   }
 }
 

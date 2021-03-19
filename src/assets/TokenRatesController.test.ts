@@ -1,5 +1,5 @@
 import { stub } from 'sinon';
-import * as nock from 'nock';
+import nock from 'nock';
 import ComposableController from '../ComposableController';
 import { PreferencesController } from '../user/PreferencesController';
 import { NetworkController } from '../network/NetworkController';
