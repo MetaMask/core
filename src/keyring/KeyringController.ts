@@ -197,7 +197,6 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
       preferences.updateIdentities([]);
       const vault = await privates.get(this).keyring.createNewVaultAndRestore(password, seed);
       preferences.updateIdentities(await privates.get(this).keyring.getAccounts());
-      preferences.update({ selectedAddress: Object.keys(preferences.state.identities)[0] });
       this.fullUpdate();
       return vault;
     } finally {
@@ -217,7 +216,6 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
     try {
       const vault = await privates.get(this).keyring.createNewVaultAndKeychain(password);
       preferences.updateIdentities(await privates.get(this).keyring.getAccounts());
-      preferences.update({ selectedAddress: Object.keys(preferences.state.identities)[0] });
       this.fullUpdate();
       return vault;
     } finally {

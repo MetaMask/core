@@ -60,13 +60,72 @@ describe('PreferencesController', () => {
     expect(controller.state.selectedAddress).toBe('0xfoO');
   });
 
-  it('should update existing identities', () => {
+  it('should add new identities', () => {
     const controller = new PreferencesController();
     controller.updateIdentities(['foo', 'bar']);
     expect(controller.state.identities).toEqual({
       '0xbar': { address: '0xbar', name: 'Account 2' },
       '0xfoO': { address: '0xfoO', name: 'Account 1' },
     });
+  });
+
+  it('should not update existing identities', () => {
+    const controller = new PreferencesController(
+      {},
+      { identities: { '0xbar': { address: '0xbar', name: 'Custom name' } } },
+    );
+    controller.updateIdentities(['foo', 'bar']);
+    expect(controller.state.identities).toEqual({
+      '0xbar': { address: '0xbar', name: 'Custom name' },
+      '0xfoO': { address: '0xfoO', name: 'Account 1' },
+    });
+  });
+
+  it('should remove identities', () => {
+    const controller = new PreferencesController(
+      {},
+      {
+        identities: {
+          '0xbar': { address: '0xbar', name: 'Account 2' },
+          '0xfoO': { address: '0xfoO', name: 'Account 1' },
+        },
+      },
+    );
+    controller.updateIdentities(['foo']);
+    expect(controller.state.identities).toEqual({
+      '0xfoO': { address: '0xfoO', name: 'Account 1' },
+    });
+  });
+
+  it('should not update selected address if it is still among identities', () => {
+    const controller = new PreferencesController(
+      {},
+      {
+        identities: {
+          '0xbar': { address: '0xbar', name: 'Account 2' },
+          '0xfoO': { address: '0xfoO', name: 'Account 1' },
+        },
+        selectedAddress: '0xbar',
+      },
+    );
+    controller.updateIdentities(['foo', 'bar']);
+    expect(controller.state.selectedAddress).toEqual('0xbar');
+  });
+
+  it('should update selected address to first identity if it was removed from identities', () => {
+    const controller = new PreferencesController(
+      {},
+      {
+        identities: {
+          '0xbar': { address: '0xbar', name: 'Account 2' },
+          '0xbaz': { address: '0xbaz', name: 'Account 3' },
+          '0xfoO': { address: '0xfoO', name: 'Account 1' },
+        },
+        selectedAddress: '0xbaz',
+      },
+    );
+    controller.updateIdentities(['foo', 'bar']);
+    expect(controller.state.selectedAddress).toEqual('0xfoO');
   });
 
   it('should add custom rpc url', () => {
