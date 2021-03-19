@@ -1,13 +1,12 @@
 import 'isomorphic-fetch';
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
-
+import HttpProvider from 'ethjs-provider-http';
+import EthQuery from 'eth-query';
 import * as util from './util';
 
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
-const HttpProvider = require('ethjs-provider-http');
-const EthQuery = require('eth-query');
 
 const mockFlags: { [key: string]: any } = {
   estimateGas: null,

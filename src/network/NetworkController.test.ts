@@ -1,7 +1,6 @@
 import { stub } from 'sinon';
+import Web3ProviderEngine from 'web3-provider-engine';
 import NetworkController, { NetworksChainId, ProviderConfig, NetworkType } from './NetworkController';
-
-const Web3ProviderEngine = require('web3-provider-engine');
 
 const RPC_TARGET = 'http://foo';
 

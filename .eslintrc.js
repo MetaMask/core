@@ -34,8 +34,6 @@ module.exports = {
 
         // TODO re-enable most of these rules
         '@typescript-eslint/no-non-null-assertion': 'off',
-        '@typescript-eslint/no-require-imports': 'off',
-        '@typescript-eslint/no-var-requires': 'off',
       },
     },
   ],

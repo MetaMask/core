@@ -1,6 +1,6 @@
 import { createSandbox, stub } from 'sinon';
-import nock from 'nock';
 import { BN } from 'ethereumjs-util';
+import nock from 'nock';
 import { NetworkController, NetworksChainId } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
 import { ComposableController } from '../ComposableController';

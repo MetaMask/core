@@ -1,9 +1,8 @@
+import EthQuery from 'eth-query';
 import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import PreferencesController from '../user/PreferencesController';
 import { BNToHex, query, safelyExecuteWithTimeout } from '../util';
-
-const EthQuery = require('eth-query');
 
 /**
  * @type AccountInformation

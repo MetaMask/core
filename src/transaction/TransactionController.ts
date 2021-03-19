@@ -1,6 +1,9 @@
 import { EventEmitter } from 'events';
-import { BN, addHexPrefix, bufferToHex } from 'ethereumjs-util';
+import { addHexPrefix, bufferToHex, BN } from 'ethereumjs-util';
 import { ethErrors } from 'eth-rpc-errors';
+import MethodRegistry from 'eth-method-registry';
+import EthQuery from 'eth-query';
+import Transaction from 'ethereumjs-tx';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
@@ -17,10 +20,6 @@ import {
   handleTransactionFetch,
   query,
 } from '../util';
-
-const MethodRegistry = require('eth-method-registry');
-const EthQuery = require('eth-query');
-const Transaction = require('ethereumjs-tx');
 
 /**
  * @type Result

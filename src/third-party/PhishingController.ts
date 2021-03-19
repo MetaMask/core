@@ -1,8 +1,7 @@
+import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
+import PhishingDetector from 'eth-phishing-detect/src/detector';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute } from '../util';
-
-const DEFAULT_PHISHING_RESPONSE = require('eth-phishing-detect/src/config.json');
-const PhishingDetector = require('eth-phishing-detect/src/detector');
 
 /**
  * @type EthPhishingResponse

@@ -1,5 +1,6 @@
 import { createSandbox, stub } from 'sinon';
 import { BN } from 'ethereumjs-util';
+import HttpProvider from 'ethjs-provider-http';
 import ComposableController from '../ComposableController';
 import { NetworkController } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
@@ -7,8 +8,6 @@ import { AssetsController } from './AssetsController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
 import TokenBalancesController from './TokenBalancesController';
-
-const HttpProvider = require('ethjs-provider-http');
 
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
 

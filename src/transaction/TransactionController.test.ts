@@ -1,4 +1,5 @@
 import { stub } from 'sinon';
+import HttpProvider from 'ethjs-provider-http';
 import { NetworksChainId } from '../network/NetworkController';
 import { TransactionController, TransactionStatus, TransactionMeta } from './TransactionController';
 
@@ -57,8 +58,6 @@ function mockFetchs(data: any) {
     }),
   );
 }
-
-const HttpProvider = require('ethjs-provider-http');
 
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
 const PROVIDER = new HttpProvider('https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');

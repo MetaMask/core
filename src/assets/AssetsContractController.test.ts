@@ -1,6 +1,5 @@
+import HttpProvider from 'ethjs-provider-http';
 import { AssetsContractController } from './AssetsContractController';
-
-const HttpProvider = require('ethjs-provider-http');
 
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
 const GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';

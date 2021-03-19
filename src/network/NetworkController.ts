@@ -1,10 +1,9 @@
+import EthQuery from 'eth-query';
+import Subprovider from 'web3-provider-engine/subproviders/provider';
+import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
+import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-
-const EthQuery = require('eth-query');
-const Subprovider = require('web3-provider-engine/subproviders/provider.js');
-const createInfuraProvider = require('eth-json-rpc-infura/src/createProvider');
-const createMetamaskProvider = require('web3-provider-engine//zero.js');
 
 /**
  * Human-readable network name
