@@ -15,6 +15,11 @@ describe('AccountTrackerController', () => {
     });
   });
 
+  it('should throw when provider property is accessed', () => {
+    const controller = new AccountTrackerController();
+    expect(() => console.log(controller.provider)).toThrow();
+  });
+
   it('should get real balance', async () => {
     const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const controller = new AccountTrackerController({ provider });

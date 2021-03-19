@@ -190,6 +190,8 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
   /**
    * Sets a new configuration for web3-provider-engine
    *
+   * TODO: Replace this wth a method
+   *
    * @param providerConfig - web3-provider-engine configuration
    */
   set providerConfig(providerConfig: ProviderConfig) {
@@ -198,6 +200,10 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
     this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
     this.registerProvider();
     this.lookupNetwork();
+  }
+
+  get providerConfig() {
+    throw new Error('Property only used for setting');
   }
 
   /**

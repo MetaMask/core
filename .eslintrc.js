@@ -40,7 +40,6 @@ module.exports = {
     },
   ],
   rules: {
-    'accessor-pairs': 'off',
     camelcase: 'off',
     'function-paren-newline': 'off',
     'guard-for-in': 'off',

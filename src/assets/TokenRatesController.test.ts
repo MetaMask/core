@@ -49,6 +49,11 @@ describe('TokenRatesController', () => {
     });
   });
 
+  it('should throw when tokens property is accessed', () => {
+    const controller = new TokenRatesController();
+    expect(() => console.log(controller.tokens)).toThrow();
+  });
+
   it('should poll and update rate in the right interval', () => {
     return new Promise<void>((resolve) => {
       const mock = stub(TokenRatesController.prototype, 'fetchExchangeRate');

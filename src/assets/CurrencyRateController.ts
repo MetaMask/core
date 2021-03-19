@@ -101,6 +101,8 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
   /**
    * Sets a currency to track
    *
+   * TODO: Replace this wth a method
+   *
    * @param currentCurrency - ISO 4217 currency code
    */
   set currentCurrency(currentCurrency: string) {
@@ -108,14 +110,24 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
     safelyExecute(() => this.updateExchangeRate());
   }
 
+  get currentCurrency() {
+    throw new Error('Property only used for setting');
+  }
+
   /**
    * Sets a new native currency
+   *
+   * TODO: Replace this wth a method
    *
    * @param symbol - Symbol for the base asset
    */
   set nativeCurrency(symbol: string) {
     this.activeNativeCurrency = symbol;
     safelyExecute(() => this.updateExchangeRate());
+  }
+
+  get nativeCurrency() {
+    throw new Error('Property only used for setting');
   }
 
   /**

@@ -17,6 +17,11 @@ describe('NetworkController', () => {
     });
   });
 
+  it('should throw when providerConfig property is accessed', () => {
+    const controller = new NetworkController();
+    expect(() => console.log(controller.providerConfig)).toThrow();
+  });
+
   it('should create a provider instance for default infura network', () => {
     const testConfig = {
       infuraProjectId: 'foo',
