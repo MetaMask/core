@@ -784,7 +784,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
     const supportedNetworkIds = ['1', '3', '4', '42'];
     /* istanbul ignore next */
     if (supportedNetworkIds.indexOf(currentNetworkID) === -1) {
-      return;
+      return undefined;
     }
 
     const [etherscanTxResponse, etherscanTokenResponse] = await handleTransactionFetch(networkType, address, opt);

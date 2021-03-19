@@ -203,6 +203,7 @@ export async function safelyExecute(operation: () => Promise<any>, logError = fa
       console.error(error);
     }
     retry?.(error);
+    return undefined;
   }
 }
 
@@ -230,6 +231,7 @@ export async function safelyExecuteWithTimeout(operation: () => Promise<any>, lo
     if (logError) {
       console.error(error);
     }
+    return undefined;
   }
 }
 

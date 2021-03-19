@@ -151,7 +151,7 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
    */
   async updateExchangeRate(): Promise<CurrencyRateState | void> {
     if (this.disabled || !this.activeCurrency || !this.activeNativeCurrency) {
-      return;
+      return undefined;
     }
     const releaseLock = await this.mutex.acquire();
     try {
