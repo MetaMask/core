@@ -43,7 +43,6 @@ module.exports = {
     'accessor-pairs': 'off',
     camelcase: 'off',
     'consistent-return': 'off',
-    'default-case': 'off',
     'function-paren-newline': 'off',
     'guard-for-in': 'off',
     'implicit-arrow-linebreak': 'off',

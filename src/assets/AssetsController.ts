@@ -668,6 +668,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
             return reject(new Error('User rejected to watch the asset.'));
           case SuggestedAssetStatus.failed:
             return reject(new Error(meta.error.message));
+          /* istanbul ignore next */
+          default:
+            return reject(new Error(`Unknown status: ${meta.status}`));
         }
       });
     });

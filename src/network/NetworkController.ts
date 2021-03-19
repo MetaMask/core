@@ -99,6 +99,8 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
       case 'rpc':
         rpcTarget && this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
         break;
+      default:
+        throw new Error(`Unrecognized network type: '${type}'`);
     }
   }
 

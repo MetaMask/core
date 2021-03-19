@@ -9,7 +9,12 @@ import { stub } from 'sinon';
 import MockEncryptor from '../../tests/mocks/mockEncryptor';
 import PreferencesController from '../user/PreferencesController';
 import ComposableController from '../ComposableController';
-import KeyringController, { Keyring, KeyringConfig } from './KeyringController';
+import KeyringController, {
+  AccountImportStrategy,
+  Keyring,
+  KeyringConfig,
+  SignTypedDataVersion,
+} from './KeyringController';
 
 const Transaction = require('ethereumjs-tx');
 
@@ -101,13 +106,13 @@ describe('KeyringController', () => {
   it('should import account with strategy privateKey', async () => {
     let error1;
     try {
-      await keyringController.importAccountWithStrategy('privateKey', []);
+      await keyringController.importAccountWithStrategy(AccountImportStrategy.privateKey, []);
     } catch (e) {
       error1 = e;
     }
     let error2;
     try {
-      await keyringController.importAccountWithStrategy('privateKey', ['123']);
+      await keyringController.importAccountWithStrategy(AccountImportStrategy.privateKey, ['123']);
     } catch (e) {
       error2 = e;
     }
@@ -115,7 +120,7 @@ describe('KeyringController', () => {
     expect(error2.message).toBe('Cannot import invalid private key.');
     const address = '0x51253087e6f8358b5f10c0a94315d69db3357859';
     const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
-    const obj = await keyringController.importAccountWithStrategy('privateKey', [privateKey]);
+    const obj = await keyringController.importAccountWithStrategy(AccountImportStrategy.privateKey, [privateKey]);
     const modifiedState = { ...initialState, keyrings: [initialState.keyrings[0], newKeyring] };
     expect(obj).toEqual(modifiedState);
   });
@@ -123,17 +128,24 @@ describe('KeyringController', () => {
   it('should import account with strategy json', async () => {
     const somePassword = 'holachao123';
     const address = '0xb97c80fab7a3793bbe746864db80d236f1345ea7';
-    const obj = await keyringController.importAccountWithStrategy('json', [input, somePassword]);
+    const obj = await keyringController.importAccountWithStrategy(AccountImportStrategy.json, [input, somePassword]);
     const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
     const modifiedState = { ...initialState, keyrings: [initialState.keyrings[0], newKeyring] };
     expect(obj).toEqual(modifiedState);
+  });
+
+  it('should throw when passed an unrecognized strategy', async () => {
+    const somePassword = 'holachao123';
+    await expect(
+      keyringController.importAccountWithStrategy('junk' as AccountImportStrategy, [input, somePassword]),
+    ).rejects.toThrow();
   });
 
   it('should import account with strategy json wrong password', async () => {
     const somePassword = 'holachao12';
     let error;
     try {
-      await keyringController.importAccountWithStrategy('json', [input, somePassword]);
+      await keyringController.importAccountWithStrategy(AccountImportStrategy.json, [input, somePassword]);
     } catch (e) {
       error = e;
     }
@@ -141,7 +153,7 @@ describe('KeyringController', () => {
   });
 
   it('should remove account', async () => {
-    await keyringController.importAccountWithStrategy('privateKey', [privateKey]);
+    await keyringController.importAccountWithStrategy(AccountImportStrategy.privateKey, [privateKey]);
     const finalState = await keyringController.removeAccount('0x51253087e6f8358b5f10c0a94315d69db3357859');
     expect(finalState).toEqual(initialState);
   });
@@ -161,6 +173,25 @@ describe('KeyringController', () => {
     expect(account).toBe(recovered);
   });
 
+  it('should throw when given invalid version', async () => {
+    const typedMsgParams = [
+      {
+        name: 'Message',
+        type: 'string',
+        value: 'Hi, Alice!',
+      },
+      {
+        name: 'A number',
+        type: 'uint32',
+        value: '1337',
+      },
+    ];
+    const account = initialState.keyrings[0].accounts[0];
+    await expect(
+      keyringController.signTypedMessage({ data: typedMsgParams, from: account }, 'junk' as SignTypedDataVersion),
+    ).rejects.toThrow();
+  });
+
   it('should sign typed message V1', async () => {
     const typedMsgParams = [
       {
@@ -175,7 +206,10 @@ describe('KeyringController', () => {
       },
     ];
     const account = initialState.keyrings[0].accounts[0];
-    const signature = await keyringController.signTypedMessage({ data: typedMsgParams, from: account }, 'V1');
+    const signature = await keyringController.signTypedMessage(
+      { data: typedMsgParams, from: account },
+      SignTypedDataVersion.V1,
+    );
     const recovered = recoverTypedSignatureLegacy({ data: typedMsgParams, sig: signature as string });
     expect(account).toBe(recovered);
   });
@@ -215,7 +249,7 @@ describe('KeyringController', () => {
     const account = initialState.keyrings[0].accounts[0];
     const signature = await keyringController.signTypedMessage(
       { data: JSON.stringify(msgParams), from: account },
-      'V3',
+      SignTypedDataVersion.V3,
     );
     const recovered = recoverTypedSignature({ data: msgParams as any, sig: signature as string });
     expect(account).toBe(recovered);
@@ -273,7 +307,7 @@ describe('KeyringController', () => {
     const account = initialState.keyrings[0].accounts[0];
     const signature = await keyringController.signTypedMessage(
       { data: JSON.stringify(msgParams), from: account },
-      'V4',
+      SignTypedDataVersion.V4,
     );
     const recovered = recoverTypedSignature_v4({ data: msgParams as any, sig: signature as string });
     expect(account).toBe(recovered);
@@ -284,13 +318,13 @@ describe('KeyringController', () => {
     const account = initialState.keyrings[0].accounts[0];
     let error1;
     try {
-      await keyringController.signTypedMessage({ data: msgParams, from: account }, 'V1');
+      await keyringController.signTypedMessage({ data: msgParams, from: account }, SignTypedDataVersion.V1);
     } catch (e) {
       error1 = e;
     }
     let error2;
     try {
-      await keyringController.signTypedMessage({ data: msgParams, from: account }, 'V3');
+      await keyringController.signTypedMessage({ data: msgParams, from: account }, SignTypedDataVersion.V3);
     } catch (e) {
       error2 = e;
     }
@@ -322,7 +356,7 @@ describe('KeyringController', () => {
   it('should subscribe and unsubscribe', async () => {
     const listener = stub();
     keyringController.subscribe(listener);
-    await keyringController.importAccountWithStrategy('privateKey', [privateKey]);
+    await keyringController.importAccountWithStrategy(AccountImportStrategy.privateKey, [privateKey]);
     expect(listener.called).toBe(true);
     keyringController.unsubscribe(listener);
     await keyringController.removeAccount('0x51253087e6f8358b5f10c0a94315d69db3357859');
