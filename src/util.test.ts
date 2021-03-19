@@ -1,6 +1,6 @@
 import 'isomorphic-fetch';
 import { BN } from 'ethereumjs-util';
-import * as nock from 'nock';
+import nock from 'nock';
 
 import * as util from './util';
 

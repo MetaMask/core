@@ -1,6 +1,6 @@
 import { stub } from 'sinon';
 import { NetworksChainId } from '../network/NetworkController';
-import TransactionController from './TransactionController';
+import { TransactionController, TransactionStatus, TransactionMeta } from './TransactionController';
 
 const globalAny: any = global;
 
@@ -436,12 +436,12 @@ const TOKEN_TRANSACTIONS = [
   },
 ];
 
-const TRANSACTIONS_IN_STATE = [
+const TRANSACTIONS_IN_STATE: TransactionMeta[] = [
   // Token tx, hash is in TOKEN_TRANSACTIONS
   {
     id: 'token-transaction-id',
     chainId: '1',
-    status: 'confirmed',
+    status: TransactionStatus.confirmed,
     time: 1615497996125,
     transaction: {
       from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -459,7 +459,7 @@ const TRANSACTIONS_IN_STATE = [
   {
     id: 'eth-transaction-id',
     chainId: '1',
-    status: 'confirmed',
+    status: TransactionStatus.confirmed,
     time: 1615497996125,
     transaction: {
       from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -603,7 +603,7 @@ describe('TransactionController', () => {
     expect(controller.state.transactions[0].transaction.from).toBe(from);
     expect(controller.state.transactions[0].networkID).toBe(MOCK_NETWORK.state.network);
     expect(controller.state.transactions[0].chainId).toBe(MOCK_NETWORK.state.provider.chainId);
-    expect(controller.state.transactions[0].status).toBe('unapproved');
+    expect(controller.state.transactions[0].status).toBe(TransactionStatus.unapproved);
   });
 
   it('should cancel a transaction', () => {
@@ -621,7 +621,7 @@ describe('TransactionController', () => {
       controller.cancelTransaction('foo');
       controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
         expect(controller.state.transactions[0].transaction.from).toBe(from);
-        expect(controller.state.transactions[0].status).toBe('rejected');
+        expect(controller.state.transactions[0].status).toBe(TransactionStatus.rejected);
       });
       controller.cancelTransaction(controller.state.transactions[0].id);
       result.catch((error) => {
@@ -659,7 +659,7 @@ describe('TransactionController', () => {
       from: MOCK_PRFERENCES.state.selectedAddress,
       id: 'foo',
       networkID: '3',
-      status: 'submitted',
+      status: TransactionStatus.submitted,
       transactionHash: '1337',
     } as any);
     controller.wipeTransactions();
@@ -685,7 +685,7 @@ describe('TransactionController', () => {
         const { transaction, status } = controller.state.transactions[0];
         expect(transaction.from).toBe(from);
         expect(transaction.to).toBe(to);
-        expect(status).toBe('failed');
+        expect(status).toBe(TransactionStatus.failed);
         expect(error.message).toContain('foo');
         resolve('');
       });
@@ -730,7 +730,7 @@ describe('TransactionController', () => {
         const { transaction, status } = controller.state.transactions[0];
         expect(transaction.from).toBe(from);
         expect(transaction.to).toBe(to);
-        expect(status).toBe('failed');
+        expect(status).toBe(TransactionStatus.failed);
         expect(error.message).toContain('No sign method defined');
         resolve('');
       });
@@ -755,7 +755,7 @@ describe('TransactionController', () => {
         const { transaction, status } = controller.state.transactions[0];
         expect(transaction.from).toBe(from);
         expect(transaction.to).toBe(to);
-        expect(status).toBe('failed');
+        expect(status).toBe(TransactionStatus.failed);
         expect(error.message).toContain('No chainId defined');
         resolve('');
       });
@@ -784,7 +784,7 @@ describe('TransactionController', () => {
       controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
         const { transaction, status } = controller.state.transactions[0];
         expect(transaction.from).toBe(from);
-        expect(status).toBe('submitted');
+        expect(status).toBe(TransactionStatus.submitted);
         resolve('');
       });
       controller.approveTransaction(controller.state.transactions[0].id);
@@ -806,13 +806,13 @@ describe('TransactionController', () => {
         id: 'foo',
         networkID: '3',
         chainId: '3',
-        status: 'submitted',
+        status: TransactionStatus.submitted,
         transactionHash: '1337',
       } as any);
       controller.state.transactions.push({} as any);
 
       controller.hub.once(`${controller.state.transactions[0].id}:confirmed`, () => {
-        expect(controller.state.transactions[0].status).toBe('confirmed');
+        expect(controller.state.transactions[0].status).toBe(TransactionStatus.confirmed);
         resolve('');
       });
       controller.queryTransactionStatuses();
@@ -834,13 +834,13 @@ describe('TransactionController', () => {
         from: MOCK_PRFERENCES.state.selectedAddress,
         id: 'foo',
         networkID: '3',
-        status: 'submitted',
+        status: TransactionStatus.submitted,
         transactionHash: '1337',
       } as any);
       controller.state.transactions.push({} as any);
 
       controller.hub.once(`${controller.state.transactions[0].id}:confirmed`, () => {
-        expect(controller.state.transactions[0].status).toBe('confirmed');
+        expect(controller.state.transactions[0].status).toBe(TransactionStatus.confirmed);
         resolve('');
       });
       controller.queryTransactionStatuses();
