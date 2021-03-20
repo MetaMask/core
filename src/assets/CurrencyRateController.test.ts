@@ -49,13 +49,13 @@ describe('CurrencyRateController', () => {
   it('should throw when currentCurrency property is accessed', () => {
     const fetchExchangeRateStub = stub();
     const controller = new CurrencyRateController({}, {}, fetchExchangeRateStub);
-    expect(() => console.log(controller.currentCurrency)).toThrow();
+    expect(() => console.log(controller.currentCurrency)).toThrow('Property only used for setting');
   });
 
   it('should throw when nativeCurrency property is accessed', () => {
     const fetchExchangeRateStub = stub();
     const controller = new CurrencyRateController({}, {}, fetchExchangeRateStub);
-    expect(() => console.log(controller.nativeCurrency)).toThrow();
+    expect(() => console.log(controller.nativeCurrency)).toThrow('Property only used for setting');
   });
 
   it('should poll and update rate in the right interval', async () => {

@@ -18,7 +18,7 @@ describe('NetworkController', () => {
 
   it('should throw when providerConfig property is accessed', () => {
     const controller = new NetworkController();
-    expect(() => console.log(controller.providerConfig)).toThrow();
+    expect(() => console.log(controller.providerConfig)).toThrow('Property only used for setting');
   });
 
   it('should create a provider instance for default infura network', () => {
@@ -115,7 +115,7 @@ describe('NetworkController', () => {
 
   it('should throw when setting an unrecognized provider type', () => {
     const controller = new NetworkController();
-    expect(() => controller.setProviderType('junk' as NetworkType)).toThrow();
+    expect(() => controller.setProviderType('junk' as NetworkType)).toThrow("Unrecognized network type: 'junk'");
   });
 
   it('should verify the network on an error', async () => {

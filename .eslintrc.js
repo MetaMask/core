@@ -56,7 +56,6 @@ module.exports = {
     'jest/no-test-return-statement': 'off',
     'jest/no-try-expect': 'off',
     'jest/prefer-strict-equal': 'off',
-    'jest/require-to-throw-message': 'off',
     'jest/valid-expect-in-promise': 'off',
   },
   settings: {

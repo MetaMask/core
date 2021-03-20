@@ -51,7 +51,7 @@ describe('TokenRatesController', () => {
 
   it('should throw when tokens property is accessed', () => {
     const controller = new TokenRatesController();
-    expect(() => console.log(controller.tokens)).toThrow();
+    expect(() => console.log(controller.tokens)).toThrow('Property only used for setting');
   });
 
   it('should poll and update rate in the right interval', () => {

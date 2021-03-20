@@ -66,7 +66,7 @@ describe('BaseController', () => {
 
     expect(() => {
       controller.state = { count: 1 };
-    }).toThrow();
+    }).toThrow("Controller state cannot be directly mutated; use 'update' method instead.");
   });
 
   it('should allow updating state by modifying draft', () => {
@@ -115,7 +115,9 @@ describe('BaseController', () => {
         draft.count += 1;
         return { count: 10 };
       });
-    }).toThrow();
+    }).toThrow(
+      '[Immer] An immer producer returned a new value *and* modified its draft. Either return a new value *or* modify the draft.',
+    );
   });
 
   it('should inform subscribers of state changes', () => {
@@ -213,7 +215,7 @@ describe('BaseController', () => {
 
     expect(() => {
       controllerMessenger.unsubscribe('CountController:stateChange', listener1);
-    }).toThrow();
+    }).toThrow("Subscription not found for event: 'CountController:stateChange'");
   });
 
   it('should no longer update subscribers after being destroyed', () => {
