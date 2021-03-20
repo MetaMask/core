@@ -51,7 +51,6 @@ module.exports = {
     'no-negated-condition': 'off',
     'no-new': 'off',
     'no-param-reassign': 'off',
-    // 'no-prototype-builtins': 'off',
     radix: 'off',
     'require-atomic-updates': 'off',
 
