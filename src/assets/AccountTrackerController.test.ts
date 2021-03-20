@@ -16,7 +16,7 @@ describe('AccountTrackerController', () => {
 
   it('should throw when provider property is accessed', () => {
     const controller = new AccountTrackerController();
-    expect(() => console.log(controller.provider)).toThrow();
+    expect(() => console.log(controller.provider)).toThrow('Property only used for setting');
   });
 
   it('should get real balance', async () => {

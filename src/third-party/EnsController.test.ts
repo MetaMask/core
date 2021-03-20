@@ -175,7 +175,9 @@ describe('EnsController', () => {
     const controller = new EnsController();
     expect(() => {
       controller.set('a', name1, address1);
-    }).toThrow();
+    }).toThrow(
+      'Invalid ENS entry: { chainId:a, ensName:foobarb.eth, address:0x32Be343B94f860124dC4fEe278FDCBD38C102D88}',
+    );
     expect(controller.state).toEqual({ ensEntries: {} });
   });
 
@@ -183,7 +185,7 @@ describe('EnsController', () => {
     const controller = new EnsController();
     expect(() => {
       controller.set('1', 'foo.eth', address1);
-    }).toThrow();
+    }).toThrow('Invalid ENS name: foo.eth');
     expect(controller.state).toEqual({ ensEntries: {} });
   });
 
@@ -191,7 +193,7 @@ describe('EnsController', () => {
     const controller = new EnsController();
     expect(() => {
       controller.set('1', name1, 'foo');
-    }).toThrow();
+    }).toThrow('Invalid ENS entry: { chainId:1, ensName:foobarb.eth, address:foo}');
     expect(controller.state).toEqual({ ensEntries: {} });
   });
 

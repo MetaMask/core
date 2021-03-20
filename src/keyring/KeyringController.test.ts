@@ -86,14 +86,14 @@ describe('KeyringController', () => {
   it('should export seed phrase', () => {
     const seed = keyringController.exportSeedPhrase(password);
     expect(seed).not.toBe('');
-    expect(() => keyringController.exportSeedPhrase('')).toThrow();
+    expect(() => keyringController.exportSeedPhrase('')).toThrow('Invalid password');
   });
 
   it('should export account', async () => {
     const account = initialState.keyrings[0].accounts[0];
     const newPrivateKey = await keyringController.exportAccount(password, account);
     expect(newPrivateKey).not.toBe('');
-    expect(() => keyringController.exportAccount('', account)).toThrow();
+    expect(() => keyringController.exportAccount('', account)).toThrow('Invalid password');
   });
 
   it('should get accounts', async () => {
@@ -137,7 +137,7 @@ describe('KeyringController', () => {
     const somePassword = 'holachao123';
     await expect(
       keyringController.importAccountWithStrategy('junk' as AccountImportStrategy, [input, somePassword]),
-    ).rejects.toThrow();
+    ).rejects.toThrow("Unexpected import strategy: 'junk'");
   });
 
   it('should import account with strategy json wrong password', async () => {
@@ -188,7 +188,7 @@ describe('KeyringController', () => {
     const account = initialState.keyrings[0].accounts[0];
     await expect(
       keyringController.signTypedMessage({ data: typedMsgParams, from: account }, 'junk' as SignTypedDataVersion),
-    ).rejects.toThrow();
+    ).rejects.toThrow("Keyring Controller signTypedMessage: Error: Unexpected signTypedMessage version: 'junk'");
   });
 
   it('should sign typed message V1', async () => {

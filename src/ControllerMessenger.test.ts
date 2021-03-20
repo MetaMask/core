@@ -86,7 +86,7 @@ describe('ControllerMessenger', () => {
 
     expect(() => {
       controllerMessenger.registerActionHandler('ping', () => undefined);
-    }).toThrow();
+    }).toThrow('A handler for ping has already been registered');
   });
 
   it('should throw when calling unregistered action', () => {
@@ -95,7 +95,7 @@ describe('ControllerMessenger', () => {
 
     expect(() => {
       controllerMessenger.call('ping');
-    }).toThrow();
+    }).toThrow('A handler for ping has not been registered');
   });
 
   it('should throw when calling an action that has been unregistered', () => {
@@ -104,7 +104,7 @@ describe('ControllerMessenger', () => {
 
     expect(() => {
       controllerMessenger.call('ping');
-    }).toThrow();
+    }).toThrow('A handler for ping has not been registered');
 
     let pingCount = 0;
     controllerMessenger.registerActionHandler('ping', () => {
@@ -115,7 +115,7 @@ describe('ControllerMessenger', () => {
 
     expect(() => {
       controllerMessenger.call('ping');
-    }).toThrow();
+    }).toThrow('A handler for ping has not been registered');
     expect(pingCount).toEqual(0);
   });
 
@@ -125,7 +125,7 @@ describe('ControllerMessenger', () => {
 
     expect(() => {
       controllerMessenger.call('ping');
-    }).toThrow();
+    }).toThrow('A handler for ping has not been registered');
 
     let pingCount = 0;
     controllerMessenger.registerActionHandler('ping', () => {
@@ -136,7 +136,7 @@ describe('ControllerMessenger', () => {
 
     expect(() => {
       controllerMessenger.call('ping');
-    }).toThrow();
+    }).toThrow('A handler for ping has not been registered');
     expect(pingCount).toEqual(0);
   });
 
@@ -240,7 +240,9 @@ describe('ControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
 
     const handler = sinon.stub();
-    expect(() => controllerMessenger.unsubscribe('message', handler)).toThrow();
+    expect(() => controllerMessenger.unsubscribe('message', handler)).toThrow(
+      "Subscription not found for event: 'message'",
+    );
   });
 
   it('should throw when unsubscribing a handler that is not subscribed', () => {
@@ -251,7 +253,9 @@ describe('ControllerMessenger', () => {
     const handler2 = sinon.stub();
     controllerMessenger.subscribe('message', handler1);
 
-    expect(() => controllerMessenger.unsubscribe('message', handler2)).toThrow();
+    expect(() => controllerMessenger.unsubscribe('message', handler2)).toThrow(
+      "Subscription not found for event: 'message'",
+    );
   });
 
   it('should not call subscriber after clearing event subscriptions', () => {

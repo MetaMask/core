@@ -171,15 +171,21 @@ describe('util', () => {
 
   describe('validateTransaction', () => {
     it('should throw if no from address', () => {
-      expect(() => util.validateTransaction({} as any)).toThrow();
+      expect(() => util.validateTransaction({} as any)).toThrow(
+        'Invalid "from" address: undefined must be a valid string.',
+      );
     });
 
     it('should throw if non-string from address', () => {
-      expect(() => util.validateTransaction({ from: 1337 } as any)).toThrow();
+      expect(() => util.validateTransaction({ from: 1337 } as any)).toThrow(
+        'Invalid "from" address: 1337 must be a valid string.',
+      );
     });
 
     it('should throw if invalid from address', () => {
-      expect(() => util.validateTransaction({ from: '1337' } as any)).toThrow();
+      expect(() => util.validateTransaction({ from: '1337' } as any)).toThrow(
+        'Invalid "from" address: 1337 must be a valid string.',
+      );
     });
 
     it('should throw if no data', () => {
@@ -188,12 +194,12 @@ describe('util', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x',
         } as any),
-      ).toThrow();
+      ).toThrow('Invalid "to" address: 0x must be a valid string.');
       expect(() =>
         util.validateTransaction({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow();
+      ).toThrow('Invalid "to" address: undefined must be a valid string.');
     });
 
     it('should delete data', () => {
@@ -212,7 +218,7 @@ describe('util', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '1337',
         } as any),
-      ).toThrow();
+      ).toThrow('Invalid "to" address: 1337 must be a valid string.');
     });
 
     it('should throw if value is invalid', () => {
@@ -222,28 +228,28 @@ describe('util', () => {
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '133-7',
         } as any),
-      ).toThrow();
+      ).toThrow('Invalid "value": 133-7 is not a positive number.');
       expect(() =>
         util.validateTransaction({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '133.7',
         } as any),
-      ).toThrow();
+      ).toThrow('Invalid "value": 133.7 number must be denominated in wei.');
       expect(() =>
         util.validateTransaction({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: 'hello',
         } as any),
-      ).toThrow();
+      ).toThrow('Invalid "value": hello number must be a valid number.');
       expect(() =>
         util.validateTransaction({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: 'one million dollar$',
         } as any),
-      ).toThrow();
+      ).toThrow('Invalid "value": one million dollar$ number must be a valid number.');
       expect(() =>
         util.validateTransaction({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
@@ -274,7 +280,7 @@ describe('util', () => {
         util.validateSignMessageData({
           data: '0x879a05',
         } as any),
-      ).toThrow();
+      ).toThrow('Invalid "from" address: undefined must be a valid string.');
     });
 
     it('should throw if invalid from address', () => {
@@ -283,7 +289,7 @@ describe('util', () => {
           data: '0x879a05',
           from: '3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow();
+      ).toThrow('Invalid "from" address: 3244e191f1b4903970224322180f1fbbc415696b must be a valid string.');
     });
 
     it('should throw if invalid type from address', () => {
@@ -292,7 +298,7 @@ describe('util', () => {
           data: '0x879a05',
           from: 123,
         } as any),
-      ).toThrow();
+      ).toThrow('Invalid "from" address: 123 must be a valid string.');
     });
 
     it('should throw if no data', () => {
@@ -300,7 +306,7 @@ describe('util', () => {
         util.validateSignMessageData({
           data: '0x879a05',
         } as any),
-      ).toThrow();
+      ).toThrow('Invalid "from" address: undefined must be a valid string.');
     });
 
     it('should throw if invalid tyoe data', () => {
@@ -309,7 +315,7 @@ describe('util', () => {
           data: 123,
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow();
+      ).toThrow('Invalid message "data": 123 must be a valid string.');
     });
   });
 

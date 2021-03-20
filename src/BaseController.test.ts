@@ -73,6 +73,6 @@ describe('BaseController', () => {
     const controller = new TestController();
     expect(() => {
       new ComposableController([controller]);
-    }).toThrow();
+    }).toThrow('BaseController must be composed with Foo.');
   });
 });
