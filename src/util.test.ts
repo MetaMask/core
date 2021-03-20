@@ -99,11 +99,12 @@ describe('util', () => {
   });
 
   describe('safelyExecute', () => {
-
     it('should swallow errors', async () => {
-      await expect(util.safelyExecute(() => {
-        throw new Error('ahh');
-      })).resolves.toBeUndefined();
+      await expect(
+        util.safelyExecute(() => {
+          throw new Error('ahh');
+        }),
+      ).resolves.toBeUndefined();
     });
 
     it('should call retry function', async () => {
@@ -123,9 +124,11 @@ describe('util', () => {
 
   describe('safelyExecuteWithTimeout', () => {
     it('should swallow errors', async () => {
-      await expect(util.safelyExecuteWithTimeout(() => {
-        throw new Error('ahh');
-      })).resolves.toBeUndefined();
+      await expect(
+        util.safelyExecuteWithTimeout(() => {
+          throw new Error('ahh');
+        }),
+      ).resolves.toBeUndefined();
     });
 
     it('should resolve', async () => {
