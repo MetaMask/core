@@ -56,7 +56,6 @@ module.exports = {
     radix: 'off',
     'require-atomic-updates': 'off',
 
-    'jest/expect-expect': 'off',
     'jest/no-conditional-expect': 'off',
     'jest/no-restricted-matchers': 'off',
     'jest/no-test-return-statement': 'off',
