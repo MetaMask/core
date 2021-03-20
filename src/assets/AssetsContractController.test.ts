@@ -55,6 +55,12 @@ describe('AssetsContractController', () => {
     expect(tokenId).toEqual('https://api.godsunchained.com/card/0');
   });
 
+  it('should return empty string as URI when address given is not an NFT', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+    const tokenId = await assetsContract.getCollectibleTokenURI('0x0000000000000000000000000000000000000000', 0);
+    expect(tokenId).toEqual('');
+  });
+
   it('should get collectible name', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const name = await assetsContract.getAssetName(GODSADDRESS);

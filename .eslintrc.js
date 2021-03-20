@@ -52,7 +52,6 @@ module.exports = {
     'no-new': 'off',
     'no-param-reassign': 'off',
     'no-prototype-builtins': 'off',
-    'no-useless-escape': 'off',
     radix: 'off',
     'require-atomic-updates': 'off',
 

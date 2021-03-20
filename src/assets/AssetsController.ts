@@ -191,24 +191,6 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
   }
 
   /**
-   * Get collectible tokenURI API following ERC721
-   *
-   * @param contractAddress - ERC721 asset contract address
-   * @param tokenId - ERC721 asset identifier
-   * @returns - Collectible tokenURI
-   */
-  private async getCollectibleTokenURI(contractAddress: string, tokenId: number): Promise<string> {
-    const assetsContract = this.context.AssetsContractController as AssetsContractController;
-    const supportsMetadata = await assetsContract.contractSupportsMetadataInterface(contractAddress);
-    /* istanbul ignore if */
-    if (!supportsMetadata) {
-      return '';
-    }
-    const tokenURI = await assetsContract.getCollectibleTokenURI(contractAddress, tokenId);
-    return tokenURI;
-  }
-
-  /**
    * Request individual collectible information from OpenSea api
    *
    * @param contractAddress - Hex address of the collectible contract
@@ -242,7 +224,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     contractAddress: string,
     tokenId: number,
   ): Promise<CollectibleInformation> {
-    const tokenURI = await this.getCollectibleTokenURI(contractAddress, tokenId);
+    const assetsContract = this.context.AssetsContractController as AssetsContractController;
+    const tokenURI = await assetsContract.getCollectibleTokenURI(contractAddress, tokenId);
     const object = await handleFetch(tokenURI);
     const image = object.hasOwnProperty('image') ? 'image' : /* istanbul ignore next */ 'image_url';
     return { image: object[image], name: object.name };
