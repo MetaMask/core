@@ -31,9 +31,6 @@ module.exports = {
           'error',
           { vars: 'all', args: 'all', argsIgnorePattern: '[_]+', ignoreRestSiblings: true },
         ],
-
-        // TODO re-enable most of these rules
-        '@typescript-eslint/no-non-null-assertion': 'off',
       },
     },
   ],
