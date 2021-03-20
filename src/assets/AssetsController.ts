@@ -227,7 +227,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     const assetsContract = this.context.AssetsContractController as AssetsContractController;
     const tokenURI = await assetsContract.getCollectibleTokenURI(contractAddress, tokenId);
     const object = await handleFetch(tokenURI);
-    const image = Object.prototype.hasOwnProperty.call(object, 'image') ? 'image' : /* istanbul ignore next */ 'image_url';
+    const image = Object.prototype.hasOwnProperty.call(object, 'image')
+      ? 'image'
+      : /* istanbul ignore next */ 'image_url';
     return { image: object[image], name: object.name };
   }
 
