@@ -100,29 +100,35 @@ describe('util', () => {
 
   describe('safelyExecute', () => {
     it('should swallow errors', async () => {
-      await util.safelyExecute(() => {
-        throw new Error('ahh');
-      });
+      await expect(
+        util.safelyExecute(() => {
+          throw new Error('ahh');
+        }),
+      ).resolves.toBeUndefined();
     });
 
-    it('should call retry function', () => {
-      return new Promise((resolve) => {
+    it('should call retry function', async () => {
+      const mockRetry = jest.fn();
+      new Promise(() => {
         util.safelyExecute(
           () => {
             throw new Error('ahh');
           },
           false,
-          resolve,
+          mockRetry,
         );
       });
+      expect(mockRetry).toHaveBeenCalledWith(new Error('ahh'));
     });
   });
 
   describe('safelyExecuteWithTimeout', () => {
     it('should swallow errors', async () => {
-      await util.safelyExecuteWithTimeout(() => {
-        throw new Error('ahh');
-      });
+      await expect(
+        util.safelyExecuteWithTimeout(() => {
+          throw new Error('ahh');
+        }),
+      ).resolves.toBeUndefined();
     });
 
     it('should resolve', async () => {

@@ -31,9 +31,6 @@ module.exports = {
           'error',
           { vars: 'all', args: 'all', argsIgnorePattern: '[_]+', ignoreRestSiblings: true },
         ],
-
-        // TODO re-enable most of these rules
-        '@typescript-eslint/no-non-null-assertion': 'off',
       },
     },
   ],
@@ -51,11 +48,9 @@ module.exports = {
     'no-negated-condition': 'off',
     'no-new': 'off',
     'no-param-reassign': 'off',
-    'no-prototype-builtins': 'off',
     radix: 'off',
     'require-atomic-updates': 'off',
 
-    'jest/expect-expect': 'off',
     'jest/no-conditional-expect': 'off',
     'jest/no-restricted-matchers': 'off',
     'jest/no-test-return-statement': 'off',
