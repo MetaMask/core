@@ -400,7 +400,7 @@ describe('RestrictedControllerMessenger', () => {
 
     expect(() => {
       restrictedControllerMessenger.registerActionHandler('PingController:ping', () => undefined);
-    }).toThrow();
+    }).toThrow('A handler for PingController:ping has already been registered');
   });
 
   it('should throw when calling unregistered action', () => {
@@ -414,7 +414,7 @@ describe('RestrictedControllerMessenger', () => {
 
     expect(() => {
       restrictedControllerMessenger.call('PingController:ping');
-    }).toThrow();
+    }).toThrow('A handler for PingController:ping has not been registered');
   });
 
   it('should throw when calling an action that has been unregistered', () => {
@@ -428,7 +428,7 @@ describe('RestrictedControllerMessenger', () => {
 
     expect(() => {
       restrictedControllerMessenger.call('PingController:ping');
-    }).toThrow();
+    }).toThrow('A handler for PingController:ping has not been registered');
 
     let pingCount = 0;
     restrictedControllerMessenger.registerActionHandler('PingController:ping', () => {
@@ -439,7 +439,7 @@ describe('RestrictedControllerMessenger', () => {
 
     expect(() => {
       restrictedControllerMessenger.call('PingController:ping');
-    }).toThrow();
+    }).toThrow('A handler for PingController:ping has not been registered');
     expect(pingCount).toEqual(0);
   });
 
@@ -585,7 +585,9 @@ describe('RestrictedControllerMessenger', () => {
     });
 
     const handler = sinon.stub();
-    expect(() => restrictedControllerMessenger.unsubscribe('MessageController:message', handler)).toThrow();
+    expect(() => restrictedControllerMessenger.unsubscribe('MessageController:message', handler)).toThrow(
+      `Subscription not found for event: 'MessageController:message'`,
+    );
   });
 
   it('should throw when unsubscribing a handler that is not subscribed', () => {
@@ -601,7 +603,9 @@ describe('RestrictedControllerMessenger', () => {
     const handler2 = sinon.stub();
     restrictedControllerMessenger.subscribe('MessageController:message', handler1);
 
-    expect(() => restrictedControllerMessenger.unsubscribe('MessageController:message', handler2)).toThrow();
+    expect(() => restrictedControllerMessenger.unsubscribe('MessageController:message', handler2)).toThrow(
+      `Subscription not found for event: 'MessageController:message'`,
+    );
   });
 
   it('should not call subscriber after clearing event subscriptions', () => {
