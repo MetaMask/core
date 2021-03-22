@@ -20,7 +20,7 @@ describe('AssetsContractController', () => {
   });
 
   it('should throw when provider property is accessed', () => {
-    expect(() => console.log(assetsContract.provider)).toThrow();
+    expect(() => console.log(assetsContract.provider)).toThrow('Property only used for setting');
   });
 
   it('should determine if contract supports interface correctly', async () => {
