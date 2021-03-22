@@ -54,7 +54,6 @@ module.exports = {
     'jest/no-conditional-expect': 'off',
     'jest/no-restricted-matchers': 'off',
     'jest/no-test-return-statement': 'off',
-    'jest/no-try-expect': 'off',
     'jest/prefer-strict-equal': 'off',
     'jest/valid-expect-in-promise': 'off',
   },
