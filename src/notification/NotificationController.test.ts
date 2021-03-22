@@ -3,7 +3,7 @@ import {
   NotificationState,
   NotificationController,
   StateNotificationMap,
-} from '../src/notification/NotificationController';
+} from './NotificationController';
 
 const config1: NotificationConfig = {
   allNotifications: {
