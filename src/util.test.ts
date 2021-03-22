@@ -138,14 +138,12 @@ describe('util', () => {
       expect(response).toEqual('response');
     });
 
-    it('should timeout', () => {
-      try {
+    it('should timeout', async () => {
+      await expect(
         util.safelyExecuteWithTimeout(() => {
           return new Promise((res) => setTimeout(res, 800));
-        });
-      } catch (e) {
-        expect(e.message).toContain('timeout');
-      }
+        }),
+      ).resolves.toBeUndefined();
     });
   });
 
@@ -679,11 +677,7 @@ describe('util', () => {
     it('should query and reject if error', async () => {
       const ethQuery = new EthQuery(PROVIDER);
       mockFlags.gasPrice = 'Uh oh';
-      try {
-        await util.query(ethQuery, 'gasPrice', []);
-      } catch (error) {
-        expect(error.message).toContain('Uh oh');
-      }
+      await expect(util.query(ethQuery, 'gasPrice', [])).rejects.toThrow('Uh oh');
     });
   });
 });
