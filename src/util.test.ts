@@ -139,13 +139,15 @@ describe('util', () => {
     });
 
     it('should timeout', () => {
+      let error;
       try {
         util.safelyExecuteWithTimeout(() => {
           return new Promise((res) => setTimeout(res, 800));
         });
       } catch (e) {
-        expect(e.message).toContain('timeout');
+        error = e;
       }
+      expect(error).toBeUndefined();
     });
   });
 
@@ -679,11 +681,13 @@ describe('util', () => {
     it('should query and reject if error', async () => {
       const ethQuery = new EthQuery(PROVIDER);
       mockFlags.gasPrice = 'Uh oh';
+      let errorMessage;
       try {
         await util.query(ethQuery, 'gasPrice', []);
       } catch (error) {
-        expect(error.message).toContain('Uh oh');
+        errorMessage = error.message;
       }
+      expect(errorMessage).toContain('Uh oh');
     });
   });
 });
