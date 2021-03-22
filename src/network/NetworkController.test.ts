@@ -129,8 +129,8 @@ describe('NetworkController', () => {
     expect((controller.lookupNetwork as any).called).toBe(true);
   });
 
-  it('should look up the network', () => {
-    return new Promise((resolve) => {
+  it('should look up the network', async () => {
+    await new Promise((resolve) => {
       const testConfig = {
         // This test needs a real project ID as it makes a test
         // `eth_version` call; https://github.com/MetaMask/controllers/issues/1
