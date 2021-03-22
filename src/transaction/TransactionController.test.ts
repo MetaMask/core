@@ -578,13 +578,15 @@ describe('TransactionController', () => {
 
   it('should throw when adding invalid transaction', () => {
     return new Promise(async (resolve) => {
+      let errorMessage;
       const controller = new TransactionController();
       try {
         await controller.addTransaction({ from: 'foo' } as any);
       } catch (error) {
-        expect(error.message).toContain('Invalid "from" address');
+        errorMessage = error.message;
         resolve('');
       }
+      expect(errorMessage).toContain('Invalid "from" address');
     });
   });
 
@@ -701,15 +703,17 @@ describe('TransactionController', () => {
       } as any;
       controller.onComposed();
       mockFlags.estimateGas = 'Uh oh';
+      let errorMessage;
       try {
         await controller.addTransaction({
           from,
           to: from,
         });
       } catch (error) {
-        expect(error.message).toContain('Uh oh');
+        errorMessage = error.message;
         resolve('');
       }
+      expect(errorMessage).toContain('Uh oh');
     });
   });
 
@@ -1002,13 +1006,15 @@ describe('TransactionController', () => {
       const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
       const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
       await controller.addTransaction({ from, to });
+      let errorMessage;
       try {
         controller.stopTransaction('nonexistent');
         await controller.stopTransaction(controller.state.transactions[0].id);
       } catch (error) {
-        expect(error.message).toContain('No sign method defined');
+        errorMessage = error.message;
         resolve('');
       }
+      expect(errorMessage).toContain('No sign method defined');
     });
   });
 

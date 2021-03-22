@@ -186,6 +186,7 @@ describe('TypedMessageManager', () => {
     const messageData = '0x879';
     const version = 'V1';
     return new Promise<void>(async (resolve) => {
+      let errorMessage;
       const controller = new TypedMessageManager();
       try {
         await controller.addUnapprovedMessageAsync(
@@ -196,9 +197,10 @@ describe('TypedMessageManager', () => {
           version,
         );
       } catch (error) {
-        expect(error.message).toContain('Invalid message "data":');
+        errorMessage = error.message;
         resolve();
       }
+      expect(errorMessage).toContain('Invalid message "data":');
     });
   });
 
@@ -207,6 +209,7 @@ describe('TypedMessageManager', () => {
     const messageData = typedMessage;
     const version = 'V3';
     return new Promise<void>(async (resolve) => {
+      let errorMessage;
       const controller = new TypedMessageManager();
       try {
         await controller.addUnapprovedMessageAsync(
@@ -217,9 +220,10 @@ describe('TypedMessageManager', () => {
           version,
         );
       } catch (error) {
-        expect(error.message).toContain('Invalid message "data":');
+        errorMessage = error.message;
         resolve();
       }
+      expect(errorMessage).toContain('Invalid message "data":');
     });
   });
 
