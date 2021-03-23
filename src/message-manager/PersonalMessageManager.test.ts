@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-conditional-expect */
 import PersonalMessageManager from './PersonalMessageManager';
 
 describe('PersonalMessageManager', () => {

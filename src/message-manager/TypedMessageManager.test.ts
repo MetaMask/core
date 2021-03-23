@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-conditional-expect */
 import TypedMessageManager from './TypedMessageManager';
 
 const typedMessage = [
