@@ -131,18 +131,13 @@ describe('PersonalMessageManager', () => {
   it('should throw when adding invalid message', async () => {
     const from = 'foo';
     const messageData = '0x123';
-    await new Promise<void>(async (resolve) => {
-      const controller = new MessageManager();
-      try {
-        await controller.addUnapprovedMessageAsync({
-          data: messageData,
-          from,
-        });
-      } catch (error) {
-        expect(error.message).toContain('Invalid "from" address:');
-        resolve();
-      }
-    });
+    const controller = new MessageManager();
+    await expect(
+      controller.addUnapprovedMessageAsync({
+        data: messageData,
+        from,
+      }),
+    ).rejects.toThrow('Invalid "from" address:');
   });
 
   it('should get correct unapproved messages', () => {

@@ -185,42 +185,32 @@ describe('TypedMessageManager', () => {
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const messageData = '0x879';
     const version = 'V1';
-    await new Promise<void>(async (resolve) => {
-      const controller = new TypedMessageManager();
-      try {
-        await controller.addUnapprovedMessageAsync(
-          {
-            data: messageData,
-            from,
-          },
-          version,
-        );
-      } catch (error) {
-        expect(error.message).toContain('Invalid message "data":');
-        resolve();
-      }
-    });
+    const controller = new TypedMessageManager();
+    await expect(
+      controller.addUnapprovedMessageAsync(
+        {
+          data: messageData,
+          from,
+        },
+        version,
+      ),
+    ).rejects.toThrow('Invalid message "data":');
   });
 
   it('should throw when adding invalid typed message', async () => {
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const messageData = typedMessage;
     const version = 'V3';
-    await new Promise<void>(async (resolve) => {
-      const controller = new TypedMessageManager();
-      try {
-        await controller.addUnapprovedMessageAsync(
-          {
-            data: messageData,
-            from,
-          },
-          version,
-        );
-      } catch (error) {
-        expect(error.message).toContain('Invalid message "data":');
-        resolve();
-      }
-    });
+    const controller = new TypedMessageManager();
+    await expect(
+      controller.addUnapprovedMessageAsync(
+        {
+          data: messageData,
+          from,
+        },
+        version,
+      ),
+    ).rejects.toThrow('Invalid message "data":');
   });
 
   it('should get correct unapproved messages', () => {
