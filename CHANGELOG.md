@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Added
 
 - Add the Notification Controller (to support "what's new" type announcements in-app) ([#329](https://github.com/MetaMask/controllers/pull/329))
+- Add support for specifying a custom nonce ([#381](https://github.com/MetaMask/controllers/pull/381))
 
 ### Changed
 
@@ -20,7 +21,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Ensure `uuid` dependency is type-checked ([#403](https://github.com/MetaMask/controllers/pull/403))
 - Update TypeScript to v4.2 ([#369](https://github.com/MetaMask/controllers/pull/369))
 - Asset metadata type conditionally requires error field, disallows for non-errors ([#395](https://github.com/MetaMask/controllers/pull/395))
-- Add support for specifying a custom nonce ([#381](https://github.com/MetaMask/controllers/pull/381))
 - Improve TransactionMeta type: `status` now an enum, error conditional on status, default error added for failed etherscan transaction ([#406](https://github.com/MetaMask/controllers/pull/406))
 - `NetworkController` no longer a required controller of `TypedMessageManager` ([#416](https://github.com/MetaMask/controllers/pull/416))
 - Update `selectedAddress` when identities are updated in `PreferencesController.updateIdentities` ([#415](https://github.com/MetaMask/controllers/pull/415))
