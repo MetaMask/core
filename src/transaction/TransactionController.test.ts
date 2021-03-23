@@ -617,9 +617,12 @@ describe('TransactionController', () => {
       to: from,
     });
     controller.cancelTransaction('foo');
-    controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
-      expect(controller.state.transactions[0].transaction.from).toBe(from);
-      expect(controller.state.transactions[0].status).toBe(TransactionStatus.rejected);
+    await new Promise(async (resolve) => {
+      controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
+        expect(controller.state.transactions[0].transaction.from).toBe(from);
+        expect(controller.state.transactions[0].status).toBe(TransactionStatus.rejected);
+        resolve('');
+      });
     });
     controller.cancelTransaction(controller.state.transactions[0].id);
     await expect(result).rejects.toThrow('User rejected the transaction');
@@ -661,25 +664,25 @@ describe('TransactionController', () => {
   });
 
   it('should fail to approve an invalid transaction', async () => {
-      const controller = new TransactionController({
-        provider: PROVIDER,
-        sign: () => {
-          throw new Error('foo');
-        },
-      });
-      controller.context = {
-        NetworkController: MOCK_NETWORK,
-      } as any;
-      controller.onComposed();
-      const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
-      const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      const { result } = await controller.addTransaction({ from, to });
-      await controller.approveTransaction(controller.state.transactions[0].id);
-      const { transaction, status } = controller.state.transactions[0];
-      expect(transaction.from).toBe(from);
-      expect(transaction.to).toBe(to);
-      expect(status).toBe(TransactionStatus.failed);
-      await expect(result).rejects.toThrow('foo');
+    const controller = new TransactionController({
+      provider: PROVIDER,
+      sign: () => {
+        throw new Error('foo');
+      },
+    });
+    controller.context = {
+      NetworkController: MOCK_NETWORK,
+    } as any;
+    controller.onComposed();
+    const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
+    const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    const { result } = await controller.addTransaction({ from, to });
+    await controller.approveTransaction(controller.state.transactions[0].id);
+    const { transaction, status } = controller.state.transactions[0];
+    expect(transaction.from).toBe(from);
+    expect(transaction.to).toBe(to);
+    expect(status).toBe(TransactionStatus.failed);
+    await expect(result).rejects.toThrow('foo');
   });
 
   it('should fail transaction if gas calculation fails', async () => {
