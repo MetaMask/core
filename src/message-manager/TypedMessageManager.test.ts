@@ -54,108 +54,90 @@ describe('TypedMessageManager', () => {
   });
 
   it('should reject a message', async () => {
-    await new Promise<void>(async (resolve) => {
-      const controller = new TypedMessageManager();
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      const version = 'V1';
-      const messageData = typedMessage;
-      const result = controller.addUnapprovedMessageAsync(
-        {
-          data: messageData,
-          from,
-        },
-        version,
-      );
-      const unapprovedMessages = controller.getUnapprovedMessages();
-      const keys = Object.keys(unapprovedMessages);
-      controller.hub.once(`${keys[0]}:finished`, () => {
-        expect(unapprovedMessages[keys[0]].messageParams.from).toBe(from);
-        expect(unapprovedMessages[keys[0]].status).toBe('rejected');
-      });
-      controller.rejectMessage(keys[0]);
-      result.catch((error) => {
-        expect(error.message).toContain('User denied message signature');
-        resolve();
-      });
+    const controller = new TypedMessageManager();
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    const version = 'V1';
+    const messageData = typedMessage;
+    const result = controller.addUnapprovedMessageAsync(
+      {
+        data: messageData,
+        from,
+      },
+      version,
+    );
+    const unapprovedMessages = controller.getUnapprovedMessages();
+    const keys = Object.keys(unapprovedMessages);
+    controller.hub.once(`${keys[0]}:finished`, () => {
+      expect(unapprovedMessages[keys[0]].messageParams.from).toBe(from);
+      expect(unapprovedMessages[keys[0]].status).toBe('rejected');
     });
+    controller.rejectMessage(keys[0]);
+    await expect(result).rejects.toThrow('User denied message signature');
   });
 
   it('should sign a message', async () => {
-    await new Promise<void>(async (resolve) => {
-      const controller = new TypedMessageManager();
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      const version = 'V1';
-      const rawSig = '0x5f7a0';
-      const messageData = typedMessage;
-      const result = controller.addUnapprovedMessageAsync(
-        {
-          data: messageData,
-          from,
-        },
-        version,
-      );
-      const unapprovedMessages = controller.getUnapprovedMessages();
-      const keys = Object.keys(unapprovedMessages);
-      controller.hub.once(`${keys[0]}:finished`, () => {
-        expect(unapprovedMessages[keys[0]].messageParams.from).toBe(from);
-        expect(unapprovedMessages[keys[0]].status).toBe('signed');
-      });
-      controller.setMessageStatusSigned(keys[0], rawSig);
-      result.then((sig) => {
-        expect(sig).toEqual(rawSig);
-        resolve();
-      });
+    const controller = new TypedMessageManager();
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    const version = 'V1';
+    const rawSig = '0x5f7a0';
+    const messageData = typedMessage;
+    const result = controller.addUnapprovedMessageAsync(
+      {
+        data: messageData,
+        from,
+      },
+      version,
+    );
+    const unapprovedMessages = controller.getUnapprovedMessages();
+    const keys = Object.keys(unapprovedMessages);
+    controller.hub.once(`${keys[0]}:finished`, () => {
+      expect(unapprovedMessages[keys[0]].messageParams.from).toBe(from);
+      expect(unapprovedMessages[keys[0]].status).toBe('signed');
+    });
+    controller.setMessageStatusSigned(keys[0], rawSig);
+    await result.then((sig) => {
+      expect(sig).toEqual(rawSig);
     });
   });
 
   it("should set message status as 'errored'", async () => {
-    await new Promise<void>(async (resolve) => {
-      const controller = new TypedMessageManager();
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      const version = 'V1';
-      const messageData = typedMessage;
-      const result = controller.addUnapprovedMessageAsync(
-        {
-          data: messageData,
-          from,
-        },
-        version,
-      );
-      const unapprovedMessages = controller.getUnapprovedMessages();
-      const keys = Object.keys(unapprovedMessages);
-      controller.hub.once(`${keys[0]}:finished`, () => {
-        expect(unapprovedMessages[keys[0]].messageParams.from).toBe(from);
-        expect(unapprovedMessages[keys[0]].status).toBe('errored');
-      });
-      controller.setMessageStatusErrored(keys[0], 'error message');
-      result.catch((error) => {
-        expect(error.message).toContain('MetaMask Typed Message Signature: error message');
-        resolve();
-      });
+    const controller = new TypedMessageManager();
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    const version = 'V1';
+    const messageData = typedMessage;
+    const result = controller.addUnapprovedMessageAsync(
+      {
+        data: messageData,
+        from,
+      },
+      version,
+    );
+    const unapprovedMessages = controller.getUnapprovedMessages();
+    const keys = Object.keys(unapprovedMessages);
+    controller.hub.once(`${keys[0]}:finished`, () => {
+      expect(unapprovedMessages[keys[0]].messageParams.from).toBe(from);
+      expect(unapprovedMessages[keys[0]].status).toBe('errored');
     });
+    controller.setMessageStatusErrored(keys[0], 'error message');
+    await expect(result).rejects.toThrow('MetaMask Typed Message Signature: error message');
   });
 
   it('should throw when unapproved finishes', async () => {
-    await new Promise<void>(async (resolve) => {
-      const controller = new TypedMessageManager();
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      const version = 'V1';
-      const messageData = typedMessage;
-      const result = controller.addUnapprovedMessageAsync(
-        {
-          data: messageData,
-          from,
-        },
-        version,
-      );
-      const unapprovedMessages = controller.getUnapprovedMessages();
-      const keys = Object.keys(unapprovedMessages);
-      controller.hub.emit(`${keys[0]}:finished`, unapprovedMessages[keys[0]]);
-      result.catch((error) => {
-        expect(error.message).toContain('Unknown problem');
-        resolve();
-      });
-    });
+    const controller = new TypedMessageManager();
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    const version = 'V1';
+    const messageData = typedMessage;
+    const result = controller.addUnapprovedMessageAsync(
+      {
+        data: messageData,
+        from,
+      },
+      version,
+    );
+    const unapprovedMessages = controller.getUnapprovedMessages();
+    const keys = Object.keys(unapprovedMessages);
+    controller.hub.emit(`${keys[0]}:finished`, unapprovedMessages[keys[0]]);
+    await expect(result).rejects.toThrow('Unknown problem');
   });
 
   it('should add a valid unapproved message', async () => {

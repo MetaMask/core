@@ -606,28 +606,23 @@ describe('TransactionController', () => {
   });
 
   it('should cancel a transaction', async () => {
-    await new Promise(async (resolve) => {
-      const controller = new TransactionController({ provider: PROVIDER });
-      controller.context = {
-        NetworkController: MOCK_NETWORK,
-      } as any;
-      controller.onComposed();
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      const { result } = await controller.addTransaction({
-        from,
-        to: from,
-      });
-      controller.cancelTransaction('foo');
-      controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
-        expect(controller.state.transactions[0].transaction.from).toBe(from);
-        expect(controller.state.transactions[0].status).toBe(TransactionStatus.rejected);
-      });
-      controller.cancelTransaction(controller.state.transactions[0].id);
-      result.catch((error) => {
-        expect(error.message).toContain('User rejected the transaction');
-        resolve('');
-      });
+    const controller = new TransactionController({ provider: PROVIDER });
+    controller.context = {
+      NetworkController: MOCK_NETWORK,
+    } as any;
+    controller.onComposed();
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    const { result } = await controller.addTransaction({
+      from,
+      to: from,
     });
+    controller.cancelTransaction('foo');
+    controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
+      expect(controller.state.transactions[0].transaction.from).toBe(from);
+      expect(controller.state.transactions[0].status).toBe(TransactionStatus.rejected);
+    });
+    controller.cancelTransaction(controller.state.transactions[0].id);
+    await expect(result).rejects.toThrow('User rejected the transaction');
   });
 
   it('should wipe transactions', async () => {
@@ -666,30 +661,25 @@ describe('TransactionController', () => {
   });
 
   it('should fail to approve an invalid transaction', async () => {
-    await new Promise(async (resolve) => {
-      const controller = new TransactionController({
-        provider: PROVIDER,
-        sign: () => {
-          throw new Error('foo');
-        },
-      });
-      controller.context = {
-        NetworkController: MOCK_NETWORK,
-      } as any;
-      controller.onComposed();
-      const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
-      const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      const { result } = await controller.addTransaction({ from, to });
-      result.catch((error) => {
-        const { transaction, status } = controller.state.transactions[0];
-        expect(transaction.from).toBe(from);
-        expect(transaction.to).toBe(to);
-        expect(status).toBe(TransactionStatus.failed);
-        expect(error.message).toContain('foo');
-        resolve('');
-      });
-      await controller.approveTransaction(controller.state.transactions[0].id);
+    const controller = new TransactionController({
+      provider: PROVIDER,
+      sign: () => {
+        throw new Error('foo');
+      },
     });
+    controller.context = {
+      NetworkController: MOCK_NETWORK,
+    } as any;
+    controller.onComposed();
+    const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
+    const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    const { result } = await controller.addTransaction({ from, to });
+    const { transaction, status } = controller.state.transactions[0];
+    expect(transaction.from).toBe(from);
+    expect(transaction.to).toBe(to);
+    expect(status).toBe(TransactionStatus.unapproved);
+    await controller.approveTransaction(controller.state.transactions[0].id);
+    await expect(result).rejects.toThrow('foo');
   });
 
   it('should fail transaction if gas calculation fails', async () => {
@@ -714,52 +704,42 @@ describe('TransactionController', () => {
   });
 
   it('should fail if no sign method defined', async () => {
-    await new Promise(async (resolve) => {
-      const controller = new TransactionController({
-        provider: PROVIDER,
-      });
-      controller.context = {
-        NetworkController: MOCK_NETWORK,
-      } as any;
-      controller.onComposed();
-      const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
-      const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      const { result } = await controller.addTransaction({ from, to });
-      result.catch((error) => {
-        const { transaction, status } = controller.state.transactions[0];
-        expect(transaction.from).toBe(from);
-        expect(transaction.to).toBe(to);
-        expect(status).toBe(TransactionStatus.failed);
-        expect(error.message).toContain('No sign method defined');
-        resolve('');
-      });
-      await controller.approveTransaction(controller.state.transactions[0].id);
+    const controller = new TransactionController({
+      provider: PROVIDER,
     });
+    controller.context = {
+      NetworkController: MOCK_NETWORK,
+    } as any;
+    controller.onComposed();
+    const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
+    const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    const { result } = await controller.addTransaction({ from, to });
+    const { transaction, status } = controller.state.transactions[0];
+    expect(transaction.from).toBe(from);
+    expect(transaction.to).toBe(to);
+    expect(status).toBe(TransactionStatus.unapproved);
+    await controller.approveTransaction(controller.state.transactions[0].id);
+    await expect(result).rejects.toThrow('No sign method defined');
   });
 
   it('should fail if no chainId defined', async () => {
-    await new Promise(async (resolve) => {
-      const controller = new TransactionController({
-        provider: PROVIDER,
-        sign: async (transaction: any) => transaction,
-      });
-      controller.context = {
-        NetworkController: MOCK_NETWORK_WITHOUT_CHAIN_ID,
-      } as any;
-      controller.onComposed();
-      const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
-      const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      const { result } = await controller.addTransaction({ from, to });
-      result.catch((error) => {
-        const { transaction, status } = controller.state.transactions[0];
-        expect(transaction.from).toBe(from);
-        expect(transaction.to).toBe(to);
-        expect(status).toBe(TransactionStatus.failed);
-        expect(error.message).toContain('No chainId defined');
-        resolve('');
-      });
-      await controller.approveTransaction(controller.state.transactions[0].id);
+    const controller = new TransactionController({
+      provider: PROVIDER,
+      sign: async (transaction: any) => transaction,
     });
+    controller.context = {
+      NetworkController: MOCK_NETWORK_WITHOUT_CHAIN_ID,
+    } as any;
+    controller.onComposed();
+    const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
+    const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    const { result } = await controller.addTransaction({ from, to });
+    const { transaction, status } = controller.state.transactions[0];
+    expect(transaction.from).toBe(from);
+    expect(transaction.to).toBe(to);
+    expect(status).toBe(TransactionStatus.unapproved);
+    await controller.approveTransaction(controller.state.transactions[0].id);
+    await expect(result).rejects.toThrow('No chainId defined');
   });
 
   it('should approve a transaction', async () => {
@@ -965,29 +945,24 @@ describe('TransactionController', () => {
   });
 
   it('should stop a transaction', async () => {
-    await new Promise(async (resolve) => {
-      const controller = new TransactionController({
-        provider: PROVIDER,
-        sign: async (transaction: any) => transaction,
-      });
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      controller.context = {
-        NetworkController: MOCK_NETWORK,
-      } as any;
-      controller.onComposed();
-      const { result } = await controller.addTransaction({
-        from,
-        gas: '0x0',
-        gasPrice: '0x1',
-        to: from,
-        value: '0x0',
-      });
-      result.catch((error) => {
-        expect(error.message).toContain('User cancelled the transaction');
-        resolve('');
-      });
-      controller.stopTransaction(controller.state.transactions[0].id);
+    const controller = new TransactionController({
+      provider: PROVIDER,
+      sign: async (transaction: any) => transaction,
     });
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    controller.context = {
+      NetworkController: MOCK_NETWORK,
+    } as any;
+    controller.onComposed();
+    const { result } = await controller.addTransaction({
+      from,
+      gas: '0x0',
+      gasPrice: '0x1',
+      to: from,
+      value: '0x0',
+    });
+    controller.stopTransaction(controller.state.transactions[0].id);
+    await expect(result).rejects.toThrow('User cancelled the transaction');
   });
 
   it('should fail to stop a transaction if no sign method', async () => {
