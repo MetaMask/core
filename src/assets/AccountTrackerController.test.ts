@@ -52,8 +52,8 @@ describe('AccountTrackerController', () => {
     expect((controller.refresh as any).called).toBe(true);
   });
 
-  it('should call refresh every ten seconds', () => {
-    return new Promise<void>((resolve) => {
+  it('should call refresh every ten seconds', async () => {
+    await new Promise<void>((resolve) => {
       const preferences = new PreferencesController();
       const controller = new AccountTrackerController({ provider, interval: 100 });
       stub(controller, 'refresh');

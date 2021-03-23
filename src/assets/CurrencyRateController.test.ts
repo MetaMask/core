@@ -80,11 +80,11 @@ describe('CurrencyRateController', () => {
     expect(fetchExchangeRateStub.called).toBe(false);
   });
 
-  it('should clear previous interval', () => {
+  it('should clear previous interval', async () => {
     const fetchExchangeRateStub = stub();
     const mock = stub(global, 'clearTimeout');
     const controller = new CurrencyRateController({ interval: 1337 }, {}, fetchExchangeRateStub);
-    return new Promise<void>((resolve) => {
+    await new Promise<void>((resolve) => {
       setTimeout(() => {
         controller.poll(1338);
         expect(mock.called).toBe(true);

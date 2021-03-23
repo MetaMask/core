@@ -118,8 +118,8 @@ describe('AssetsDetectionController', () => {
     });
   });
 
-  it('should poll and detect assets on interval while on mainnet', () => {
-    return new Promise((resolve) => {
+  it('should poll and detect assets on interval while on mainnet', async () => {
+    await new Promise((resolve) => {
       const mockTokens = stub(AssetsDetectionController.prototype, 'detectTokens');
       const mockCollectibles = stub(AssetsDetectionController.prototype, 'detectCollectibles');
       new AssetsDetectionController({ interval: 10 });
@@ -142,8 +142,8 @@ describe('AssetsDetectionController', () => {
     expect(assetsDetection.isMainnet()).toEqual(false);
   });
 
-  it('should not autodetect while not on mainnet', () => {
-    return new Promise((resolve) => {
+  it('should not autodetect while not on mainnet', async () => {
+    await new Promise((resolve) => {
       const mockTokens = stub(AssetsDetectionController.prototype, 'detectTokens');
       const mockCollectibles = stub(AssetsDetectionController.prototype, 'detectCollectibles');
       new AssetsDetectionController({ interval: 10, networkType: ROPSTEN });

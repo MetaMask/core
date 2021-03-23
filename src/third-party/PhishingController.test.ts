@@ -20,8 +20,8 @@ describe('PhishingController', () => {
     expect(controller.config).toEqual({ interval: 3_600_000 });
   });
 
-  it('should poll and update rate in the right interval', () => {
-    return new Promise<void>((resolve) => {
+  it('should poll and update rate in the right interval', async () => {
+    await new Promise<void>((resolve) => {
       const mock = stub(PhishingController.prototype, 'updatePhishingLists');
       new PhishingController({ interval: 10 });
       expect(mock.called).toBe(true);
@@ -34,10 +34,10 @@ describe('PhishingController', () => {
     });
   });
 
-  it('should clear previous interval', () => {
+  it('should clear previous interval', async () => {
     const mock = stub(global, 'clearTimeout');
     const controller = new PhishingController({ interval: 1337 });
-    return new Promise<void>((resolve) => {
+    await new Promise<void>((resolve) => {
       setTimeout(() => {
         controller.poll(1338);
         expect(mock.called).toBe(true);

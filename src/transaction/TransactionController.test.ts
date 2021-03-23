@@ -537,8 +537,8 @@ describe('TransactionController', () => {
     });
   });
 
-  it('should poll and update transaction statuses in the right interval', () => {
-    return new Promise((resolve) => {
+  it('should poll and update transaction statuses in the right interval', async () => {
+    await new Promise((resolve) => {
       const mock = stub(TransactionController.prototype, 'queryTransactionStatuses');
       new TransactionController({ interval: 10 });
       expect(mock.called).toBe(true);
@@ -551,10 +551,10 @@ describe('TransactionController', () => {
     });
   });
 
-  it('should clear previous interval', () => {
+  it('should clear previous interval', async () => {
     const mock = stub(global, 'clearTimeout');
     const controller = new TransactionController({ interval: 1337 });
-    return new Promise((resolve) => {
+    await new Promise((resolve) => {
       setTimeout(() => {
         controller.poll(1338);
         expect(mock.called).toBe(true);
@@ -564,8 +564,8 @@ describe('TransactionController', () => {
     });
   });
 
-  it('should not update the state if there are no updates on transaction statuses', () => {
-    return new Promise((resolve) => {
+  it('should not update the state if there are no updates on transaction statuses', async () => {
+    await new Promise((resolve) => {
       const controller = new TransactionController({ interval: 10 });
       const func = stub(controller, 'update');
       setTimeout(() => {
@@ -576,16 +576,9 @@ describe('TransactionController', () => {
     });
   });
 
-  it('should throw when adding invalid transaction', () => {
-    return new Promise(async (resolve) => {
-      const controller = new TransactionController();
-      try {
-        await controller.addTransaction({ from: 'foo' } as any);
-      } catch (error) {
-        expect(error.message).toContain('Invalid "from" address');
-        resolve('');
-      }
-    });
+  it('should throw when adding invalid transaction', async () => {
+    const controller = new TransactionController();
+    await expect(controller.addTransaction({ from: 'foo' } as any)).rejects.toThrow('Invalid "from" address');
   });
 
   it('should add a valid transaction', async () => {
@@ -605,8 +598,8 @@ describe('TransactionController', () => {
     expect(controller.state.transactions[0].status).toBe(TransactionStatus.unapproved);
   });
 
-  it('should cancel a transaction', () => {
-    return new Promise(async (resolve) => {
+  it('should cancel a transaction', async () => {
+    await new Promise(async (resolve) => {
       const controller = new TransactionController({ provider: PROVIDER });
       controller.context = {
         NetworkController: MOCK_NETWORK,
@@ -665,8 +658,8 @@ describe('TransactionController', () => {
     expect(controller.state.transactions).toHaveLength(0);
   });
 
-  it('should fail to approve an invalid transaction', () => {
-    return new Promise(async (resolve) => {
+  it('should fail to approve an invalid transaction', async () => {
+    await new Promise(async (resolve) => {
       const controller = new TransactionController({
         provider: PROVIDER,
         sign: () => {
@@ -692,29 +685,24 @@ describe('TransactionController', () => {
     });
   });
 
-  it('should fail transaction if gas calculation fails', () => {
-    return new Promise(async (resolve) => {
-      const controller = new TransactionController({ provider: PROVIDER });
-      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      controller.context = {
-        NetworkController: MOCK_NETWORK,
-      } as any;
-      controller.onComposed();
-      mockFlags.estimateGas = 'Uh oh';
-      try {
-        await controller.addTransaction({
-          from,
-          to: from,
-        });
-      } catch (error) {
-        expect(error.message).toContain('Uh oh');
-        resolve('');
-      }
-    });
+  it('should fail transaction if gas calculation fails', async () => {
+    const controller = new TransactionController({ provider: PROVIDER });
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    controller.context = {
+      NetworkController: MOCK_NETWORK,
+    } as any;
+    controller.onComposed();
+    mockFlags.estimateGas = 'Uh oh';
+    await expect(
+      controller.addTransaction({
+        from,
+        to: from,
+      }),
+    ).rejects.toThrow('Uh oh');
   });
 
-  it('should fail if no sign method defined', () => {
-    return new Promise(async (resolve) => {
+  it('should fail if no sign method defined', async () => {
+    await new Promise(async (resolve) => {
       const controller = new TransactionController({
         provider: PROVIDER,
       });
@@ -737,8 +725,8 @@ describe('TransactionController', () => {
     });
   });
 
-  it('should fail if no chainId defined', () => {
-    return new Promise(async (resolve) => {
+  it('should fail if no chainId defined', async () => {
+    await new Promise(async (resolve) => {
       const controller = new TransactionController({
         provider: PROVIDER,
         sign: async (transaction: any) => transaction,
@@ -762,8 +750,8 @@ describe('TransactionController', () => {
     });
   });
 
-  it('should approve a transaction', () => {
-    return new Promise(async (resolve) => {
+  it('should approve a transaction', async () => {
+    await new Promise(async (resolve) => {
       const controller = new TransactionController({
         provider: PROVIDER,
         sign: async (transaction: any) => transaction,
@@ -790,8 +778,8 @@ describe('TransactionController', () => {
     });
   });
 
-  it('should query transaction statuses', () => {
-    return new Promise((resolve) => {
+  it('should query transaction statuses', async () => {
+    await new Promise((resolve) => {
       const controller = new TransactionController({
         provider: PROVIDER,
         sign: async (transaction: any) => transaction,
@@ -819,8 +807,8 @@ describe('TransactionController', () => {
   });
 
   // This tests the fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
-  it('should query transaction statuses with networkID only when there is no chainId', () => {
-    return new Promise((resolve) => {
+  it('should query transaction statuses with networkID only when there is no chainId', async () => {
+    await new Promise((resolve) => {
       const controller = new TransactionController({
         provider: PROVIDER,
         sign: async (transaction: any) => transaction,
@@ -965,7 +953,7 @@ describe('TransactionController', () => {
   });
 
   it('should stop a transaction', async () => {
-    return new Promise(async (resolve) => {
+    await new Promise(async (resolve) => {
       const controller = new TransactionController({
         provider: PROVIDER,
         sign: async (transaction: any) => transaction,
@@ -991,29 +979,24 @@ describe('TransactionController', () => {
   });
 
   it('should fail to stop a transaction if no sign method', async () => {
-    return new Promise(async (resolve) => {
-      const controller = new TransactionController({
-        provider: PROVIDER,
-      });
-      controller.context = {
-        NetworkController: MOCK_NETWORK,
-      } as any;
-      controller.onComposed();
-      const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
-      const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-      await controller.addTransaction({ from, to });
-      try {
-        controller.stopTransaction('nonexistent');
-        await controller.stopTransaction(controller.state.transactions[0].id);
-      } catch (error) {
-        expect(error.message).toContain('No sign method defined');
-        resolve('');
-      }
+    const controller = new TransactionController({
+      provider: PROVIDER,
     });
+    controller.context = {
+      NetworkController: MOCK_NETWORK,
+    } as any;
+    controller.onComposed();
+    const from = '0xe6509775f3f3614576c0d83f8647752f87cd6659';
+    const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    await controller.addTransaction({ from, to });
+    controller.stopTransaction('nonexistent');
+    await expect(controller.stopTransaction(controller.state.transactions[0].id)).rejects.toThrow(
+      'No sign method defined',
+    );
   });
 
   it('should speed up a transaction', async () => {
-    return new Promise(async (resolve) => {
+    await new Promise(async (resolve) => {
       const controller = new TransactionController({
         provider: PROVIDER,
         sign: async (transaction: any) => transaction,

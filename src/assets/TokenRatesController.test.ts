@@ -54,8 +54,8 @@ describe('TokenRatesController', () => {
     expect(() => console.log(controller.tokens)).toThrow('Property only used for setting');
   });
 
-  it('should poll and update rate in the right interval', () => {
-    return new Promise<void>((resolve) => {
+  it('should poll and update rate in the right interval', async () => {
+    await new Promise<void>((resolve) => {
       const mock = stub(TokenRatesController.prototype, 'fetchExchangeRate');
       new TokenRatesController({
         interval: 10,
@@ -81,10 +81,10 @@ describe('TokenRatesController', () => {
     expect((controller.fetchExchangeRate as any).called).toBe(false);
   });
 
-  it('should clear previous interval', () => {
+  it('should clear previous interval', async () => {
     const mock = stub(global, 'clearTimeout');
     const controller = new TokenRatesController({ interval: 1337 });
-    return new Promise<void>((resolve) => {
+    await new Promise<void>((resolve) => {
       setTimeout(() => {
         controller.poll(1338);
         expect(mock.called).toBe(true);
