@@ -1,28 +1,39 @@
 import { stub, spy } from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
 import type { ContactEntry } from '../user/AddressBookController';
-import PreferencesController from '../user/PreferencesController';
+import { PreferencesController } from '../user/PreferencesController';
 import AccountTrackerController from './AccountTrackerController';
 
 const provider = new HttpProvider('https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
 
 describe('AccountTrackerController', () => {
   it('should set default state', () => {
-    const controller = new AccountTrackerController({ onPreferencesStateChange: stub(), initialIdentities: {} });
+    const controller = new AccountTrackerController({
+      onPreferencesStateChange: stub(),
+      getIdentities: () => ({}),
+    });
     expect(controller.state).toEqual({
       accounts: {},
     });
   });
 
   it('should throw when provider property is accessed', () => {
-    const controller = new AccountTrackerController({ onPreferencesStateChange: stub(), initialIdentities: {} });
+    const controller = new AccountTrackerController({
+      onPreferencesStateChange: stub(),
+      getIdentities: () => ({}),
+    });
     expect(() => console.log(controller.provider)).toThrow('Property only used for setting');
   });
 
   it('should get real balance', async () => {
     const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const controller = new AccountTrackerController(
-      { onPreferencesStateChange: stub(), initialIdentities: { [address]: {} as ContactEntry } },
+      {
+        onPreferencesStateChange: stub(),
+        getIdentities: () => {
+          return { [address]: {} as ContactEntry };
+        },
+      },
       { provider },
     );
     await controller.refresh();
@@ -31,7 +42,12 @@ describe('AccountTrackerController', () => {
 
   it('should sync addresses', () => {
     const controller = new AccountTrackerController(
-      { onPreferencesStateChange: stub(), initialIdentities: { baz: {} as ContactEntry } },
+      {
+        onPreferencesStateChange: stub(),
+        getIdentities: () => {
+          return { baz: {} as ContactEntry };
+        },
+      },
       { provider },
       {
         accounts: {
@@ -47,7 +63,10 @@ describe('AccountTrackerController', () => {
   it('should subscribe to new sibling preference controllers', async () => {
     const preferences = new PreferencesController();
     const controller = new AccountTrackerController(
-      { onPreferencesStateChange: (listener) => preferences.subscribe(listener), initialIdentities: {} },
+      {
+        onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+        getIdentities: () => ({}),
+      },
       { provider },
     );
     controller.refresh = stub();
@@ -63,7 +82,7 @@ describe('AccountTrackerController', () => {
       const controller = new AccountTrackerController(
         {
           onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-          initialIdentities: {},
+          getIdentities: () => ({}),
         },
         { provider, interval: 100 },
       );

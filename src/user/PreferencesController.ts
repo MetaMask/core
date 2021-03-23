@@ -47,7 +47,6 @@ export interface PreferencesState extends BaseState {
   lostIdentities: { [address: string]: ContactEntry };
   selectedAddress: string;
 }
-
 /**
  * Controller that stores shared settings and exposes convenience methods
  */

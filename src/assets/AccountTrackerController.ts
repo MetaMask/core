@@ -50,7 +50,7 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
 
   private syncAccounts() {
     const { accounts } = this.state;
-    const addresses = Object.keys(this.identities);
+    const addresses = Object.keys(this.getIdentities());
     const existing = Object.keys(accounts);
     const newAddresses = addresses.filter((address) => existing.indexOf(address) === -1);
     const oldAddresses = existing.filter((address) => addresses.indexOf(address) === -1);
@@ -68,24 +68,24 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
    */
   name = 'AccountTrackerController';
 
-  private identities: PreferencesState['identities'];
+  private getIdentities: () => PreferencesState['identities'];
 
   /**
    * Creates an AccountTracker instance
    *
    * @param options
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes
-   * @param options.initialIdentities - The initial `identities` state from the Preferences controller
+   * @param options.getIdentities - Gets the identities from the Preferences store
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
   constructor(
     {
       onPreferencesStateChange,
-      initialIdentities,
+      getIdentities,
     }: {
       onPreferencesStateChange: (listener: (preferencesState: PreferencesState) => void) => void;
-      initialIdentities: PreferencesState['identities'];
+      getIdentities: () => PreferencesState['identities'];
     },
     config?: Partial<AccountTrackerConfig>,
     state?: Partial<AccountTrackerState>,
@@ -96,9 +96,8 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
     };
     this.defaultState = { accounts: {} };
     this.initialize();
-    this.identities = initialIdentities;
-    onPreferencesStateChange(({ identities }) => {
-      this.identities = identities;
+    this.getIdentities = getIdentities;
+    onPreferencesStateChange(() => {
       this.refresh();
     });
     this.poll();
