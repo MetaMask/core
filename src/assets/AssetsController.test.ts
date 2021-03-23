@@ -470,10 +470,9 @@ describe('AssetsController', () => {
       'ERC20',
     );
     await assetsController.acceptWatchAsset(suggestedAssetMeta.id);
-    await result.then((res) => {
-      expect(assetsController.state.suggestedAssets).toHaveLength(0);
-      expect(res).toBe('0xe9f786dfdd9ae4d57e830acb52296837765f0e5b');
-    });
+    const res = await result;
+    expect(assetsController.state.suggestedAssets).toHaveLength(0);
+    expect(res).toBe('0xe9f786dfdd9ae4d57e830acb52296837765f0e5b');
   });
 
   it('should fail a valid suggested asset via watchAsset with wrong type', async () => {
