@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [6.2.0] - 2021-03-23
+
+### Added
+
+- Add the Notification Controller (to support "what's new" type announcements in-app) ([#329](https://github.com/MetaMask/controllers/pull/329))
+- Add support for specifying a custom nonce ([#381](https://github.com/MetaMask/controllers/pull/381))
+
+### Changed
+
+- Explicitly add ethereumjs-tx as a package.json dependency ([#392](https://github.com/MetaMask/controllers/pull/392))
+- Add `types` manifest field to package.json ([#391](https://github.com/MetaMask/controllers/pull/391))
+- Use "options bag" for parameters for BaseControllerV2 constructor ([#388](https://github.com/MetaMask/controllers/pull/388))
+- Ensure `uuid` dependency is type-checked ([#403](https://github.com/MetaMask/controllers/pull/403))
+- Update TypeScript to v4.2 ([#369](https://github.com/MetaMask/controllers/pull/369))
+- Asset metadata type conditionally requires error field, disallows for non-errors ([#395](https://github.com/MetaMask/controllers/pull/395))
+- Improve TransactionMeta type: `status` now an enum, error conditional on status, default error added for failed etherscan transaction ([#406](https://github.com/MetaMask/controllers/pull/406))
+- `NetworkController` no longer a required controller of `TypedMessageManager` ([#416](https://github.com/MetaMask/controllers/pull/416))
+- Update `selectedAddress` when identities are updated in `PreferencesController.updateIdentities` ([#415](https://github.com/MetaMask/controllers/pull/415))
+- Add contract address validation to `AssetsContractController.getCollectibleTokenURI` ([#414](https://github.com/MetaMask/controllers/pull/414))
+- Add descriptive error messages to empty `toThrow` call ([#422](https://github.com/MetaMask/controllers/pull/422))
+
+### Fixed
+
+- Fix `signTransaction` transaction parameter type ([#400](https://github.com/MetaMask/controllers/pull/400))
+- Consistently use BN type for token balances ([#398](https://github.com/MetaMask/controllers/pull/398))
+
 ## [6.1.1] - 2021-03-12
 
 ### Added
@@ -230,7 +256,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v6.1.1...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v6.2.0...HEAD
+[6.2.0]:https://github.com/MetaMask/controllers/compare/v6.1.1...v6.2.0
 [6.1.1]:https://github.com/MetaMask/controllers/compare/v6.1.0...v6.1.1
 [6.1.0]:https://github.com/MetaMask/controllers/compare/v6.0.1...v6.1.0
 [6.0.1]:https://github.com/MetaMask/controllers/compare/v6.0.0...v6.0.1
