@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Added
 
-- Adds the Notification Controller (to support "what's new" type announcments in-app) ([#329](https://github.com/MetaMask/controllers/pull/329))
+- Add the Notification Controller (to support "what's new" type announcements in-app) ([#329](https://github.com/MetaMask/controllers/pull/329))
 
 ### Changed
 
