@@ -26,7 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `NetworkController` no longer a required controller of `TypedMessageManager` ([#416](https://github.com/MetaMask/controllers/pull/416))
 - Update `selectedAddress` when identities are updated in `PreferencesController.updateIdentities` ([#415](https://github.com/MetaMask/controllers/pull/415))
 - Add contract address validation to `AssetsContractController.getCollectibleTokenURI` ([#414](https://github.com/MetaMask/controllers/pull/414))
-- Add descriptive error messages to empty tothrow calls ([#422](https://github.com/MetaMask/controllers/pull/422))
+- Add descriptive error messages to empty `toThrow` call ([#422](https://github.com/MetaMask/controllers/pull/422))
 
 
 ### Fixed
