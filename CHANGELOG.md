@@ -6,7 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
-## [6.2.0] - 2021-03-23
+## [6.2.1] - 2021-03-23
+
+### Fixed
+
+- Restore BN export ([#428](https://github.com/MetaMask/controllers/pull/428))
+
+## [6.2.0] - 2021-03-23 [WITHDRAWN]
 
 ### Added
 
@@ -30,7 +36,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 
 - Fix `signTransaction` transaction parameter type ([#400](https://github.com/MetaMask/controllers/pull/400))
-- Consistently use BN type for token balances ([#398](https://github.com/MetaMask/controllers/pull/398))
+- [BREAKING] Consistently use BN type for token balances ([#398](https://github.com/MetaMask/controllers/pull/398))
 
 ## [6.1.1] - 2021-03-12
 
@@ -256,7 +262,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v6.2.0...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v6.2.1...HEAD
+[6.2.1]:https://github.com/MetaMask/controllers/compare/v6.2.0...v6.2.1
 [6.2.0]:https://github.com/MetaMask/controllers/compare/v6.1.1...v6.2.0
 [6.1.1]:https://github.com/MetaMask/controllers/compare/v6.1.0...v6.1.1
 [6.1.0]:https://github.com/MetaMask/controllers/compare/v6.0.1...v6.1.0
