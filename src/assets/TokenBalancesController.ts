@@ -5,6 +5,9 @@ import AssetsController from './AssetsController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
 
+// TODO: Remove this export in the next major release
+export { BN };
+
 /**
  * @type TokenBalancesConfig
  *

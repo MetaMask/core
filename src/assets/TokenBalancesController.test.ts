@@ -7,7 +7,7 @@ import { PreferencesController } from '../user/PreferencesController';
 import { AssetsController } from './AssetsController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
-import TokenBalancesController from './TokenBalancesController';
+import { BN as exportedBn, TokenBalancesController } from './TokenBalancesController';
 
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
 
@@ -26,6 +26,10 @@ describe('TokenBalancesController', () => {
 
   afterEach(() => {
     sandbox.restore();
+  });
+
+  it('should re-export BN', () => {
+    expect(exportedBn).toEqual(BN);
   });
 
   it('should set default state', () => {
