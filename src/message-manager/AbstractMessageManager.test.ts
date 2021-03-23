@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-conditional-expect */
 import { TypedMessage, TypedMessageParams, TypedMessageParamsMetamask } from './TypedMessageManager';
 import AbstractMessageManager from './AbstractMessageManager';
 
