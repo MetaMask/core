@@ -426,7 +426,7 @@ describe('AssetsController', () => {
   });
 
   it('should fail an invalid type suggested asset via watchAsset', async () => {
-    return new Promise(async (resolve) => {
+    await new Promise(async (resolve) => {
       await assetsController
         .watchAsset(
           {
@@ -443,8 +443,8 @@ describe('AssetsController', () => {
     });
   });
 
-  it('should reject a valid suggested asset via watchAsset', () => {
-    return new Promise(async (resolve) => {
+  it('should reject a valid suggested asset via watchAsset', async () => {
+    await new Promise(async (resolve) => {
       const { result, suggestedAssetMeta } = await assetsController.watchAsset(
         {
           address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
@@ -465,8 +465,8 @@ describe('AssetsController', () => {
     });
   });
 
-  it('should accept a valid suggested asset via watchAsset', () => {
-    return new Promise(async (resolve) => {
+  it('should accept a valid suggested asset via watchAsset', async () => {
+    await new Promise(async (resolve) => {
       const { result, suggestedAssetMeta } = await assetsController.watchAsset(
         {
           address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
@@ -484,8 +484,8 @@ describe('AssetsController', () => {
     });
   });
 
-  it('should fail a valid suggested asset via watchAsset with wrong type', () => {
-    return new Promise(async (resolve) => {
+  it('should fail a valid suggested asset via watchAsset with wrong type', async () => {
+    await new Promise(async (resolve) => {
       const { result, suggestedAssetMeta } = await assetsController.watchAsset(
         {
           address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
