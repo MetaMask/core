@@ -498,6 +498,36 @@ describe('util', () => {
       ).toThrow('Invalid symbol: not a string.');
     });
 
+    it('should throw if symbol is an empty string', () => {
+      expect(() =>
+        util.validateTokenToWatch({
+          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
+          decimals: 0,
+          symbol: '',
+        } as any),
+      ).toThrow('Must specify address, symbol, and decimals.');
+    });
+
+    it('should not throw if symbol is exactly 1 character long', () => {
+      expect(() =>
+        util.validateTokenToWatch({
+          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
+          decimals: 0,
+          symbol: 'T',
+        } as any),
+      ).not.toThrow();
+    });
+
+    it('should not throw if symbol is exactly 11 characters long', () => {
+      expect(() =>
+        util.validateTokenToWatch({
+          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
+          decimals: 0,
+          symbol: 'TKNTKNTKNTK',
+        } as any),
+      ).not.toThrow();
+    });
+
     it('should throw if symbol is more than 11 characters long', () => {
       expect(() =>
         util.validateTokenToWatch({
