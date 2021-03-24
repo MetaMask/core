@@ -617,7 +617,7 @@ describe('TransactionController', () => {
       to: from,
     });
     controller.cancelTransaction('foo');
-    await new Promise(async (resolve) => {
+    const transactionListener = new Promise(async (resolve) => {
       controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
         expect(controller.state.transactions[0].transaction.from).toBe(from);
         expect(controller.state.transactions[0].status).toBe(TransactionStatus.rejected);
@@ -626,6 +626,7 @@ describe('TransactionController', () => {
     });
     controller.cancelTransaction(controller.state.transactions[0].id);
     await expect(result).rejects.toThrow('User rejected the transaction');
+    await transactionListener;
   });
 
   it('should wipe transactions', async () => {
