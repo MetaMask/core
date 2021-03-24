@@ -1,32 +1,45 @@
 module.exports = {
-  root: true,
-
   extends: [
     '@metamask/eslint-config',
     '@metamask/eslint-config/config/nodejs',
   ],
-
+  plugins: [
+    'json',
+  ],
   parserOptions: {
-    ecmaVersion: 2017,
-    ecmaFeatures: {
-      arrowFunctions: true,
-      classes: true,
-    },
+    ecmaVersion: 2018,
   },
-
-  overrides: [{
-    files: [
-      '.eslintrc.js',
-    ],
-    parserOptions: {
-      sourceType: 'script',
+  overrides: [
+    {
+      files: ['*.ts'],
+      extends: [
+        '@metamask/eslint-config/config/typescript',
+      ],
     },
-  }, {
-    files: ['test/index.js'],
-    rules: {
-      'import/no-unresolved': 'off'
+    {
+      files: [
+        '*.js',
+        '*.json',
+      ],
+      parserOptions: {
+        sourceType: 'script',
+      },
+      rules: {
+        '@typescript-eslint/no-require-imports': 'off',
+        '@typescript-eslint/no-var-requires': 'off',
+      },
     },
-  }],
-
-  ignorePatterns: ['dist'],
-}
+    {
+      files: ['test/*'],
+      rules: {
+        // This happens before a build is created. It doesn't matter.
+        'import/no-unresolved': 'off',
+      },
+    },
+  ],
+  ignorePatterns: [
+    '!.eslintrc.js',
+    'dist/',
+    'node_modules/',
+  ],
+};

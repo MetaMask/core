@@ -1,4 +1,6 @@
-### 4.0.0
+# Changelog
+
+## 4.0.0
 
 Significant rewrite of `eth-block-tracker`. Primary reason was optimizing network IO.
 
@@ -16,8 +18,7 @@ The `block` event has been removed, please use `latest` or `sync`.
 - removed `block` event
 - removed test/util/testBlockMiddleware
 
-
-### 3.0.0
+## 3.0.0
 
 - npm module main now exports unprocessed source
 - module includes dist:

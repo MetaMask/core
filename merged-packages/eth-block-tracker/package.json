@@ -2,21 +2,16 @@
   "name": "eth-block-tracker",
   "version": "4.4.3",
   "description": "A block tracker for the Ethereum blockchain. Keeps track of the latest block.",
-  "main": "src/polling.js",
+  "main": "dist/index.js",
+  "files": [
+    "dist/"
+  ],
   "scripts": {
-    "lint": "eslint --ext .js .",
-    "test": "yarn build && yarn test:unit && yarn test:lint:deps",
-    "test:unit": "node test/index.js",
-    "test:lint:deps": "npx depcheck --ignore-dirs dist --ignores babelify,@babel/runtime,@babel/preset-env,@babel/plugin-transform-runtime",
-    "prepublishOnly": "yarn run build",
-    "build": "yarn build:clean && yarn build:es5 && yarn build:bundle && yarn build:validate",
-    "build:clean": "rm -rf ./dist && mkdir -p ./dist",
-    "build:es5": "babel ./src -d dist/es5/",
-    "build:bundle": "yarn build:bundle:polling && yarn build:bundle:base && yarn build:bundle:subscribe",
-    "build:bundle:polling": "browserify -s PollingBlockTracker -e src/polling.js -g babelify > dist/PollingBlockTracker.js",
-    "build:bundle:subscribe": "browserify -s SubscribeBlockTracker -e src/subscribe.js -g babelify > dist/SubscribeBlockTracker.js",
-    "build:bundle:base": "browserify -s BaseBlockTracker -e src/base.js -g babelify > dist/BaseBlockTracker.js",
-    "build:validate": "uglifyjs dist/es5/**.js > /dev/null"
+    "lint": "eslint . --ext ts,js,json",
+    "lint:fix": "yarn lint --fix",
+    "build": "tsc --project .",
+    "test": "yarn build && node test/index.js",
+    "prepublishOnly": "yarn lint && yarn test"
   },
   "license": "MIT",
   "resolutions": {
@@ -24,25 +19,24 @@
     "ganache-core/lodash": "^4.17.19"
   },
   "dependencies": {
+    "@metamask/safe-event-emitter": "^2.0.0",
     "json-rpc-random-id": "^1.0.1",
-    "pify": "^3.0.0",
-    "safe-event-emitter": "^1.0.1"
+    "pify": "^3.0.0"
   },
   "devDependencies": {
-    "@babel/cli": "^7.5.5",
-    "@babel/core": "^7.5.5",
-    "@babel/plugin-transform-regenerator": "^7.4.5",
-    "@babel/plugin-transform-runtime": "^7.5.5",
-    "@babel/preset-env": "^7.5.5",
-    "@babel/runtime": "^7.5.5",
-    "@metamask/eslint-config": "^3.0.0",
-    "babelify": "^10.0.0",
-    "browserify": "^16.5.0",
-    "eslint": "^6.8.0",
-    "eslint-plugin-import": "^2.20.1",
+    "@metamask/eslint-config": "^5.0.0",
+    "@types/json-rpc-random-id": "^1.0.0",
+    "@types/pify": "^5.0.0",
+    "@typescript-eslint/eslint-plugin": "^4.14.1",
+    "@typescript-eslint/parser": "^4.14.1",
+    "eslint": "^7.18.0",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-json": "^2.1.2",
+    "eslint-plugin-node": "^11.1.0",
     "ganache-core": "^2.7.0",
+    "json-rpc-engine": "^6.1.0",
     "tape": "^4.9.0",
-    "uglify-js": "^3.4.10"
+    "typescript": "^4.1.3"
   },
   "directories": {
     "test": "test"
