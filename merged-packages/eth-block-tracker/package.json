@@ -1,6 +1,6 @@
 {
   "name": "eth-block-tracker",
-  "version": "4.4.3",
+  "version": "5.0.0",
   "description": "A block tracker for the Ethereum blockchain. Keeps track of the latest block.",
   "main": "dist/index.js",
   "files": [
