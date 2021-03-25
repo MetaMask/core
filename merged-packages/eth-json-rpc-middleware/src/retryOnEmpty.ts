@@ -1,18 +1,17 @@
+import clone from 'clone';
+import { PollingBlockTracker } from 'eth-block-tracker';
 import {
   createAsyncMiddleware,
   JsonRpcMiddleware,
   PendingJsonRpcResponse,
 } from 'json-rpc-engine';
-import clone from 'clone';
 import pify from 'pify';
+
 import {
   Block,
   blockTagParamIndex,
   SafeEventEmitterProvider,
 } from './cache-utils';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-const BlockTracker = require('eth-block-tracker');
 
 //
 // RetryOnEmptyMiddleware will retry any request with an empty response that has
@@ -29,7 +28,7 @@ const emptyValues: (string|null|undefined)[] = [undefined, null, '\u003cnil\u003
 
 interface RetryOnEmptyMiddlewareOptions{
   provider?: SafeEventEmitterProvider;
-  blockTracker?: typeof BlockTracker;
+  blockTracker?: PollingBlockTracker;
 }
 
 function createRetryOnEmptyMiddleware(

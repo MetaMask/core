@@ -1,3 +1,4 @@
+import { PollingBlockTracker } from 'eth-block-tracker';
 import {
   createAsyncMiddleware,
   JsonRpcMiddleware,
@@ -14,14 +15,11 @@ import {
   JsonRpcRequestToCache,
 } from './cache-utils';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires,@typescript-eslint/no-require-imports
-const BlockTracker = require('eth-block-tracker');
-
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
 const emptyValues = [undefined, null, '\u003cnil\u003e'];
 
 interface BlockCacheMiddlewareOptions{
-  blockTracker?: typeof BlockTracker;
+  blockTracker?: PollingBlockTracker;
 }
 
 export = createBlockCacheMiddleware;
@@ -120,7 +118,7 @@ function createBlockCacheMiddleware(
 ): JsonRpcMiddleware<string[], Block> {
   // validate options
   if (!blockTracker) {
-    throw new Error('createBlockCacheMiddleware - No BlockTracker specified');
+    throw new Error('createBlockCacheMiddleware - No PollingBlockTracker specified');
   }
 
   // create caching strategies

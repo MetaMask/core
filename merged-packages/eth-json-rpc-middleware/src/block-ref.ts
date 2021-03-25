@@ -1,3 +1,4 @@
+import { PollingBlockTracker } from 'eth-block-tracker';
 import {
   createAsyncMiddleware,
   JsonRpcMiddleware,
@@ -11,11 +12,8 @@ import {
   blockTagParamIndex,
 } from './cache-utils';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires,@typescript-eslint/no-require-imports
-const BlockTracker = require('eth-block-tracker');
-
 interface BlockRefMiddlewareOptions{
-  blockTracker?: typeof BlockTracker;
+  blockTracker?: PollingBlockTracker;
   provider?: SafeEventEmitterProvider;
 }
 

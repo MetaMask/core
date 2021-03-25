@@ -37,7 +37,7 @@
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-json": "^2.1.2",
     "eslint-plugin-node": "^11.1.0",
-    "eth-block-tracker": "^4.4.1",
+    "eth-block-tracker": "^5.0.1",
     "ethjs-query": "^0.3.8",
     "ganache-core": "^2.13.2",
     "tape": "^4.6.3",

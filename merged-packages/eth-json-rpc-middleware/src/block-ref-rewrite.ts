@@ -1,11 +1,9 @@
+import { PollingBlockTracker } from 'eth-block-tracker';
 import { createAsyncMiddleware, JsonRpcMiddleware } from 'json-rpc-engine';
 import { blockTagParamIndex, Block } from './cache-utils';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires,@typescript-eslint/no-require-imports
-const BlockTracker = require('eth-block-tracker');
-
 interface BlockRefRewriteMiddlewareOptions{
-  blockTracker?: typeof BlockTracker;
+  blockTracker?: PollingBlockTracker;
 }
 
 export = createBlockRefRewriteMiddleware;

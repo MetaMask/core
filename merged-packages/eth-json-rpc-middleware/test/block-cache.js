@@ -1,6 +1,6 @@
 const test = require('tape');
 const { JsonRpcEngine } = require('json-rpc-engine');
-const BlockTracker = require('eth-block-tracker');
+const { PollingBlockTracker } = require('eth-block-tracker');
 const GanacheCore = require('ganache-core');
 const pify = require('pify');
 const createBlockCacheMiddleware = require('../dist/block-cache');
@@ -150,7 +150,7 @@ async function cacheTest(label, basePayloads, shouldCache) {
     try {
       // setup block tracker
       const dataProvider = GanacheCore.provider();
-      const blockTracker = new BlockTracker({
+      const blockTracker = new PollingBlockTracker({
         provider: dataProvider,
         pollingInterval: 200,
       });

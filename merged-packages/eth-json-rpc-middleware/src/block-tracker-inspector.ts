@@ -1,3 +1,4 @@
+import { PollingBlockTracker } from 'eth-block-tracker';
 import {
   createAsyncMiddleware,
   JsonRpcMiddleware,
@@ -7,13 +8,10 @@ import {
   Block,
 } from './cache-utils';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires,@typescript-eslint/no-require-imports
-const BlockTracker = require('eth-block-tracker');
-
 const futureBlockRefRequests: string[] = ['eth_getTransactionByHash', 'eth_getTransactionReceipt'];
 
 interface BlockTrackerInspectorMiddlewareOptions{
-  blockTracker: typeof BlockTracker;
+  blockTracker: PollingBlockTracker;
 }
 export = createBlockTrackerInspectorMiddleware;
 
@@ -34,7 +32,8 @@ function createBlockTrackerInspectorMiddleware(
     if (typeof res.result.blockNumber === 'string') {
       // if number is higher, suggest block-tracker check for a new block
       const blockNumber: number = Number.parseInt(res.result.blockNumber, 16);
-      const currentBlockNumber: number = Number.parseInt(blockTracker.getCurrentBlock(), 16);
+      // Typecast: If getCurrentBlock returns null, currentBlockNumber will be NaN, which is fine.
+      const currentBlockNumber: number = Number.parseInt(blockTracker.getCurrentBlock() as any, 16);
       if (blockNumber > currentBlockNumber) {
         await blockTracker.checkForLatestBlock();
       }
