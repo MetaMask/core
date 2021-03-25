@@ -18,9 +18,6 @@ module.exports = {
       extends: [
         '@metamask/eslint-config/config/typescript',
       ],
-      rules: {
-        'spaced-comment': ['error', 'always', { 'markers': ['/'] }],
-      },
     },
     {
       files: [

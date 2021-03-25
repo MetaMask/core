@@ -1,5 +1,3 @@
-/// <reference lib="dom" />
-
 import clone from 'clone';
 import {
   createAsyncMiddleware,

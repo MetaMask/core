@@ -3,7 +3,7 @@
     "declaration": true,
     "esModuleInterop": true,
     "inlineSources": true,
-    "lib": ["ES2017"],
+    "lib": ["DOM", "ES2017"],
     "module": "CommonJS",
     "moduleResolution": "Node",
     "outDir": "dist",
