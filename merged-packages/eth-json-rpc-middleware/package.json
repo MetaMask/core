@@ -3,7 +3,8 @@
   "version": "6.0.0",
   "main": "./dist/block-ref.js",
   "browser": {
-    "node-fetch": false
+    "node-fetch": false,
+    "btoa": false
   },
   "engines": {
     "node": ">=10.0.0"
