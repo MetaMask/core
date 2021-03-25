@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1] - 2021-03-25
+
+### Fixed
+
+- Add missing `types` field to `package.json` ([#75](https://github.com/MetaMask/eth-block-tracker/pull/75))
+
 ## [5.0.0] - 2021-03-25
 
 ### Changed
@@ -62,7 +68,8 @@ The `block` event has been removed, please use `latest` or `sync`.
 
 ## [1.0.0] - 2017-02-03
 
-[Unreleased]:https://github.com/MetaMask/eth-block-tracker/compare/v5.0.0...HEAD
+[Unreleased]:https://github.com/MetaMask/eth-block-tracker/compare/v5.0.1...HEAD
+[5.0.1]:https://github.com/MetaMask/eth-block-tracker/compare/v5.0.0...v5.0.1
 [5.0.0]:https://github.com/MetaMask/eth-block-tracker/compare/v4.4.3...v5.0.0
 [4.4.3]:https://github.com/MetaMask/eth-block-tracker/compare/v4.0.0...v4.4.3
 [4.0.0]:https://github.com/MetaMask/eth-block-tracker/compare/v3.0.0...v4.0.0
