@@ -1,4 +1,3 @@
-
 module.exports = createHitTrackerMiddleware;
 
 function createHitTrackerMiddleware() {

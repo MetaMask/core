@@ -1,16 +1,7 @@
-import {
-  createAsyncMiddleware,
-  JsonRpcMiddleware,
-} from 'json-rpc-engine';
-import {
-  EthereumRpcError,
-  ethErrors,
-} from 'eth-rpc-errors';
+import { createAsyncMiddleware, JsonRpcMiddleware } from 'json-rpc-engine';
+import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
 import btoa from 'btoa';
-import {
-  Payload,
-  Block,
-} from './cache-utils';
+import { Payload, Block } from './cache-utils';
 
 // eslint-disable-next-line node/global-require,@typescript-eslint/no-require-imports
 const fetch = global.fetch || require('node-fetch');
@@ -26,10 +17,10 @@ const RETRIABLE_ERRORS: string[] = [
   'Failed to fetch',
 ];
 
-interface PayloadwithOrgin extends Payload{
+interface PayloadwithOrgin extends Payload {
   origin?: string;
 }
-interface Request{
+interface Request {
   method: string;
   headers: Record<string, string>;
   body: string;
@@ -38,20 +29,25 @@ interface FetchConfig {
   fetchUrl: string;
   fetchParams: Request;
 }
-interface FetchMiddlewareOptions{
+interface FetchMiddlewareOptions {
   rpcUrl: string;
   originHttpHeaderKey?: string;
 }
 
-interface FetchMiddlewareFromReqOptions extends FetchMiddlewareOptions{
+interface FetchMiddlewareFromReqOptions extends FetchMiddlewareOptions {
   req: PayloadwithOrgin;
 }
 
-export function createFetchMiddleware(
-  { rpcUrl, originHttpHeaderKey }: FetchMiddlewareOptions
-): JsonRpcMiddleware<string[], Block> {
+export function createFetchMiddleware({
+  rpcUrl,
+  originHttpHeaderKey,
+}: FetchMiddlewareOptions): JsonRpcMiddleware<string[], Block> {
   return createAsyncMiddleware(async (req, res, _next) => {
-    const { fetchUrl, fetchParams } = createFetchConfigFromReq({ req, rpcUrl, originHttpHeaderKey });
+    const { fetchUrl, fetchParams } = createFetchConfigFromReq({
+      req,
+      rpcUrl,
+      originHttpHeaderKey,
+    });
 
     // attempt request multiple times
     const maxAttempts = 5;
@@ -67,7 +63,9 @@ export function createFetchMiddleware(
         try {
           fetchBody = JSON.parse(rawBody);
         } catch (_) {
-          throw new Error(`FetchMiddleware - failed to parse response body: "${rawBody}"`);
+          throw new Error(
+            `FetchMiddleware - failed to parse response body: "${rawBody}"`,
+          );
         }
         const result: Block = parseResponse(fetchRes, fetchBody);
         // set result and exit retry loop
@@ -87,9 +85,7 @@ export function createFetchMiddleware(
   });
 }
 
-function checkForHttpErrors(
-  fetchRes: Response
-): void {
+function checkForHttpErrors(fetchRes: Response): void {
   // check for errors
   switch (fetchRes.status) {
     case 405:
@@ -107,10 +103,7 @@ function checkForHttpErrors(
   }
 }
 
-function parseResponse(
-  fetchRes: Response,
-  body: Record<string, Block>
-): Block {
+function parseResponse(fetchRes: Response, body: Record<string, Block>): Block {
   // check for error code
   if (fetchRes.status !== 200) {
     throw ethErrors.rpc.internal({
@@ -128,9 +121,11 @@ function parseResponse(
   return body.result;
 }
 
-export function createFetchConfigFromReq(
-  { req, rpcUrl, originHttpHeaderKey }: FetchMiddlewareFromReqOptions
-): FetchConfig {
+export function createFetchConfigFromReq({
+  req,
+  rpcUrl,
+  originHttpHeaderKey,
+}: FetchMiddlewareFromReqOptions): FetchConfig {
   const parsedUrl: URL = new URL(rpcUrl);
   const fetchUrl: string = normalizeUrlFromParsed(parsedUrl);
 
@@ -144,7 +139,7 @@ export function createFetchConfigFromReq(
   };
 
   // extract 'origin' parameter from request
-  const originDomain: string|undefined = req.origin;
+  const originDomain: string | undefined = req.origin;
 
   // serialize request body
   const serializedPayload: string = JSON.stringify(payload);
@@ -153,7 +148,7 @@ export function createFetchConfigFromReq(
   const fetchParams: Request = {
     method: 'POST',
     headers: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'Content-Type': 'application/json',
     },
     body: serializedPayload,

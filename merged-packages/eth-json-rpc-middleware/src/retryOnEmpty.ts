@@ -24,31 +24,40 @@ export = createRetryOnEmptyMiddleware;
 
 // empty values used to determine if a request should be retried
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
-const emptyValues: (string|null|undefined)[] = [undefined, null, '\u003cnil\u003e'];
+const emptyValues: (string | null | undefined)[] = [
+  undefined,
+  null,
+  '\u003cnil\u003e',
+];
 
-interface RetryOnEmptyMiddlewareOptions{
+interface RetryOnEmptyMiddlewareOptions {
   provider?: SafeEventEmitterProvider;
   blockTracker?: PollingBlockTracker;
 }
 
-function createRetryOnEmptyMiddleware(
-  { provider, blockTracker }: RetryOnEmptyMiddlewareOptions = {}
-): JsonRpcMiddleware<string[], Block> {
+function createRetryOnEmptyMiddleware({
+  provider,
+  blockTracker,
+}: RetryOnEmptyMiddlewareOptions = {}): JsonRpcMiddleware<string[], Block> {
   if (!provider) {
-    throw Error('RetryOnEmptyMiddleware - mandatory "provider" option is missing.');
+    throw Error(
+      'RetryOnEmptyMiddleware - mandatory "provider" option is missing.',
+    );
   }
   if (!blockTracker) {
-    throw Error('RetryOnEmptyMiddleware - mandatory "blockTracker" option is missing.');
+    throw Error(
+      'RetryOnEmptyMiddleware - mandatory "blockTracker" option is missing.',
+    );
   }
 
   return createAsyncMiddleware(async (req, res, next) => {
-    const blockRefIndex: number|undefined = blockTagParamIndex(req);
+    const blockRefIndex: number | undefined = blockTagParamIndex(req);
     // skip if method does not include blockRef
     if (blockRefIndex === undefined) {
       return next();
     }
     // skip if not exact block references
-    let blockRef: string|undefined = req.params?.[blockRefIndex];
+    let blockRef: string | undefined = req.params?.[blockRefIndex];
     // omitted blockRef implies "latest"
     if (blockRef === undefined) {
       blockRef = 'latest';
@@ -64,7 +73,10 @@ function createRetryOnEmptyMiddleware(
     }
     // lookup latest block
     const latestBlockNumberHex: string = await blockTracker.getLatestBlock();
-    const latestBlockNumber: number = Number.parseInt(latestBlockNumberHex.slice(2), 16);
+    const latestBlockNumber: number = Number.parseInt(
+      latestBlockNumberHex.slice(2),
+      16,
+    );
     // skip if request block number is higher than current
     if (blockRefNumber > latestBlockNumber) {
       return next();
@@ -72,25 +84,33 @@ function createRetryOnEmptyMiddleware(
     // create child request with specific block-ref
     const childRequest = clone(req);
     // attempt child request until non-empty response is received
-    const childResponse: PendingJsonRpcResponse<Block> = await retry(10, async () => {
-      const attemptResponse: PendingJsonRpcResponse<Block> = await pify((provider as SafeEventEmitterProvider).sendAsync).call(provider, childRequest);
-      // verify result
-      if (emptyValues.includes(attemptResponse as any)) {
-        throw new Error(`RetryOnEmptyMiddleware - empty response "${JSON.stringify(attemptResponse)}" for request "${JSON.stringify(childRequest)}"`);
-      }
-      return attemptResponse;
-    });
+    const childResponse: PendingJsonRpcResponse<Block> = await retry(
+      10,
+      async () => {
+        const attemptResponse: PendingJsonRpcResponse<Block> = await pify(
+          (provider as SafeEventEmitterProvider).sendAsync,
+        ).call(provider, childRequest);
+        // verify result
+        if (emptyValues.includes(attemptResponse as any)) {
+          throw new Error(
+            `RetryOnEmptyMiddleware - empty response "${JSON.stringify(
+              attemptResponse,
+            )}" for request "${JSON.stringify(childRequest)}"`,
+          );
+        }
+        return attemptResponse;
+      },
+    );
     // copy child response onto original response
     res.result = childResponse.result;
     res.error = childResponse.error;
     return next();
   });
-
 }
 
 async function retry(
   maxRetries: number,
-  asyncFn: () => Promise<PendingJsonRpcResponse<Block>>
+  asyncFn: () => Promise<PendingJsonRpcResponse<Block>>,
 ): Promise<PendingJsonRpcResponse<Block>> {
   for (let index = 0; index < maxRetries; index++) {
     try {

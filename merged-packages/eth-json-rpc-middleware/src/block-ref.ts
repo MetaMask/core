@@ -12,32 +12,34 @@ import {
   blockTagParamIndex,
 } from './cache-utils';
 
-interface BlockRefMiddlewareOptions{
+interface BlockRefMiddlewareOptions {
   blockTracker?: PollingBlockTracker;
   provider?: SafeEventEmitterProvider;
 }
 
 export = createBlockRefMiddleware;
 
-function createBlockRefMiddleware(
-  { provider, blockTracker }: BlockRefMiddlewareOptions = {},
-): JsonRpcMiddleware<string[], Block> {
-
+function createBlockRefMiddleware({
+  provider,
+  blockTracker,
+}: BlockRefMiddlewareOptions = {}): JsonRpcMiddleware<string[], Block> {
   if (!provider) {
     throw Error('BlockRefMiddleware - mandatory "provider" option is missing.');
   }
   if (!blockTracker) {
-    throw Error('BlockRefMiddleware - mandatory "blockTracker" option is missing.');
+    throw Error(
+      'BlockRefMiddleware - mandatory "blockTracker" option is missing.',
+    );
   }
 
   return createAsyncMiddleware(async (req, res, next) => {
-    const blockRefIndex: number|undefined = blockTagParamIndex(req);
+    const blockRefIndex: number | undefined = blockTagParamIndex(req);
     // skip if method does not include blockRef
     if (blockRefIndex === undefined) {
       return next();
     }
     // skip if not "latest"
-    let blockRef: string|undefined = req.params?.[blockRefIndex];
+    let blockRef: string | undefined = req.params?.[blockRefIndex];
     // omitted blockRef implies "latest"
     if (blockRef === undefined) {
       blockRef = 'latest';
@@ -53,11 +55,12 @@ function createBlockRefMiddleware(
       childRequest.params[blockRefIndex] = latestBlockNumber;
     }
     // perform child request
-    const childRes: PendingJsonRpcResponse<Block> = await pify((provider as SafeEventEmitterProvider).sendAsync).call(provider, childRequest);
+    const childRes: PendingJsonRpcResponse<Block> = await pify(
+      (provider as SafeEventEmitterProvider).sendAsync,
+    ).call(provider, childRequest);
     // copy child response onto original response
     res.result = childRes.result;
     res.error = childRes.error;
     return next();
   });
-
 }

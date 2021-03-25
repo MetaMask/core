@@ -1,22 +1,17 @@
 {
-    "compilerOptions": {
-        "declaration": true,
-        "esModuleInterop": true,
-        "module": "CommonJS",
-        "moduleResolution": "Node",
-        "sourceMap": true,
-        "strict": true,
-        "target": "ES2017",
-        "typeRoots": [
-          "./node_modules/@types",
-        ],
-        "outDir": "dist"
-      },
-      "include": [
-        "src/**/*.ts",
-      ],
-      "exclude": [
-        "node_modules",
-        "dist"
-      ]
-  }
+  "compilerOptions": {
+    "declaration": true,
+    "esModuleInterop": true,
+    "inlineSources": true,
+    "lib": ["ES2017"],
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "dist",
+    "rootDir": "src",
+    "sourceMap": true,
+    "strict": true,
+    "target": "ES2017",
+    "typeRoots": ["./node_modules/@types"]
+  },
+  "include": ["./src/*.ts"]
+}

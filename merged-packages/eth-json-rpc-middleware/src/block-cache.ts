@@ -1,8 +1,5 @@
 import { PollingBlockTracker } from 'eth-block-tracker';
-import {
-  createAsyncMiddleware,
-  JsonRpcMiddleware,
-} from 'json-rpc-engine';
+import { createAsyncMiddleware, JsonRpcMiddleware } from 'json-rpc-engine';
 import {
   cacheIdentifierForPayload,
   blockTagForPayload,
@@ -18,7 +15,7 @@ import {
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
 const emptyValues = [undefined, null, '\u003cnil\u003e'];
 
-interface BlockCacheMiddlewareOptions{
+interface BlockCacheMiddlewareOptions {
   blockTracker?: PollingBlockTracker;
 }
 
@@ -29,14 +26,16 @@ export = createBlockCacheMiddleware;
 //
 
 class BlockCacheStrategy {
-
   private cache: Cache;
 
   constructor() {
     this.cache = {};
   }
 
-  getBlockCacheForPayload(_payload: Payload, blockNumberHex: string): BlockCache {
+  getBlockCacheForPayload(
+    _payload: Payload,
+    blockNumberHex: string,
+  ): BlockCache {
     const blockNumber: number = Number.parseInt(blockNumberHex, 16);
     let blockCache: BlockCache = this.cache[blockNumber];
     // create new cache if necesary
@@ -48,15 +47,25 @@ class BlockCacheStrategy {
     return blockCache;
   }
 
-  async get(payload: Payload, requestedBlockNumber: string): Promise<Block|undefined> {
+  async get(
+    payload: Payload,
+    requestedBlockNumber: string,
+  ): Promise<Block | undefined> {
     // lookup block cache
-    const blockCache: BlockCache = this.getBlockCacheForPayload(payload, requestedBlockNumber);
+    const blockCache: BlockCache = this.getBlockCacheForPayload(
+      payload,
+      requestedBlockNumber,
+    );
     // lookup payload in block cache
-    const identifier: string|null = cacheIdentifierForPayload(payload, true);
+    const identifier: string | null = cacheIdentifierForPayload(payload, true);
     return identifier ? blockCache[identifier] : undefined;
   }
 
-  async set(payload: Payload, requestedBlockNumber: string, result: Block): Promise<void> {
+  async set(
+    payload: Payload,
+    requestedBlockNumber: string,
+    result: Block,
+  ): Promise<void> {
     // check if we can cached this result
     const canCacheResult: boolean = this.canCacheResult(payload, result);
     if (!canCacheResult) {
@@ -64,11 +73,14 @@ class BlockCacheStrategy {
     }
 
     // set the value in the cache
-    const identifier: string|null = cacheIdentifierForPayload(payload, true);
+    const identifier: string | null = cacheIdentifierForPayload(payload, true);
     if (!identifier) {
       return;
     }
-    const blockCache: BlockCache = this.getBlockCacheForPayload(payload, requestedBlockNumber);
+    const blockCache: BlockCache = this.getBlockCacheForPayload(
+      payload,
+      requestedBlockNumber,
+    );
     blockCache[identifier] = result;
   }
 
@@ -78,7 +90,7 @@ class BlockCacheStrategy {
       return false;
     }
     // check blockTag
-    const blockTag: string|undefined = blockTagForPayload(payload);
+    const blockTag: string | undefined = blockTagForPayload(payload);
 
     if (blockTag === 'pending') {
       return false;
@@ -93,8 +105,18 @@ class BlockCacheStrategy {
       return false;
     }
     // check if transactions have block reference before caching
-    if (payload.method && ['eth_getTransactionByHash', 'eth_getTransactionReceipt'].includes(payload.method)) {
-      if (!result || !result.blockHash || result.blockHash === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+    if (
+      payload.method &&
+      ['eth_getTransactionByHash', 'eth_getTransactionReceipt'].includes(
+        payload.method,
+      )
+    ) {
+      if (
+        !result ||
+        !result.blockHash ||
+        result.blockHash ===
+          '0x0000000000000000000000000000000000000000000000000000000000000000'
+      ) {
         return false;
       }
     }
@@ -113,12 +135,14 @@ class BlockCacheStrategy {
   }
 }
 
-function createBlockCacheMiddleware(
-  { blockTracker }: BlockCacheMiddlewareOptions = {},
-): JsonRpcMiddleware<string[], Block> {
+function createBlockCacheMiddleware({
+  blockTracker,
+}: BlockCacheMiddlewareOptions = {}): JsonRpcMiddleware<string[], Block> {
   // validate options
   if (!blockTracker) {
-    throw new Error('createBlockCacheMiddleware - No PollingBlockTracker specified');
+    throw new Error(
+      'createBlockCacheMiddleware - No PollingBlockTracker specified',
+    );
   }
 
   // create caching strategies
@@ -147,7 +171,7 @@ function createBlockCacheMiddleware(
     }
 
     // get block reference (number or keyword)
-    let blockTag: string|undefined = blockTagForPayload(req);
+    let blockTag: string | undefined = blockTagForPayload(req);
     if (!blockTag) {
       blockTag = 'latest';
     }
@@ -168,7 +192,10 @@ function createBlockCacheMiddleware(
       requestedBlockNumber = blockTag;
     }
     // end on a hit, continue on a miss
-    const cacheResult: Block|undefined = await strategy.get(req, requestedBlockNumber);
+    const cacheResult: Block | undefined = await strategy.get(
+      req,
+      requestedBlockNumber,
+    );
     if (cacheResult === undefined) {
       // cache miss
       // wait for other middleware to handle request

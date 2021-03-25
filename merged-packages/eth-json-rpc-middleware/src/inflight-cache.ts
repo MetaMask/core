@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 import clone from 'clone';
 import {
   createAsyncMiddleware,
@@ -11,7 +13,7 @@ import {
 } from './cache-utils';
 
 type RequestHandlers = (handledRes: PendingJsonRpcResponse<Block>) => void;
-interface InflightRequest{
+interface InflightRequest {
   [cacheId: string]: RequestHandlers[];
 }
 export = createInflightCache;
@@ -25,7 +27,7 @@ function createInflightCache(): JsonRpcMiddleware<string[], Block> {
       return next();
     }
     // get cacheId, if cacheable
-    const cacheId: string|null = cacheIdentifierForPayload(req);
+    const cacheId: string | null = cacheIdentifierForPayload(req);
     // if not cacheable, skip
     if (!cacheId) {
       return next();
@@ -55,7 +57,7 @@ function createInflightCache(): JsonRpcMiddleware<string[], Block> {
 
   function createActiveRequestHandler(
     res: PendingJsonRpcResponse<Block>,
-    activeRequestHandlers: RequestHandlers[]
+    activeRequestHandlers: RequestHandlers[],
   ): Promise<void> {
     const { resolve, promise } = deferredPromise();
     activeRequestHandlers.push((handledRes: PendingJsonRpcResponse<Block>) => {
@@ -69,7 +71,7 @@ function createInflightCache(): JsonRpcMiddleware<string[], Block> {
 
   function handleActiveRequest(
     res: PendingJsonRpcResponse<Block>,
-    activeRequestHandlers: RequestHandlers[]
+    activeRequestHandlers: RequestHandlers[],
   ): void {
     // use setTimeout so we can resolve our original request first
     setTimeout(() => {

@@ -24,9 +24,15 @@ test('inflight-cache - basic', (t) => {
   });
 
   // fire first request (handled but stalled)
-  engine.handle({ id: 1, method: 'test_blockCache', params: [] }, firstReqResponse);
+  engine.handle(
+    { id: 1, method: 'test_blockCache', params: [] },
+    firstReqResponse,
+  );
   // fire second request (inflight cached)
-  engine.handle({ id: 2, method: 'test_blockCache', params: [] }, secondReqResponse);
+  engine.handle(
+    { id: 2, method: 'test_blockCache', params: [] },
+    secondReqResponse,
+  );
 
   function firstReqResponse(err, res) {
     t.equal(hitCount, 1, 'test prep - result handler was only hit once');

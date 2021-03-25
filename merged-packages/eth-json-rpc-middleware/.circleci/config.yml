@@ -3,20 +3,20 @@ version: 2.1
 workflows:
   build-test:
     jobs:
-      - prep-deps
+      - prep-deps-build
       - test-lint:
           requires:
-            - prep-deps
+            - prep-deps-build
       - test-unit:
           requires:
-            - prep-deps
+            - prep-deps-build
       - all-tests-pass:
           requires:
             - test-lint
             - test-unit
 
 jobs:
-  prep-deps:
+  prep-deps-build:
     docker:
       - image: circleci/node:10
     steps:
@@ -29,11 +29,15 @@ jobs:
           name: Collect yarn install HAR logs
           command: |
             .circleci/scripts/collect-har-artifact.sh
+      - run:
+          name: Build
+          command: yarn build
       - persist_to_workspace:
           root: .
           paths:
           - node_modules
           - build-artifacts
+          - dist
 
   test-lint:
     docker:
@@ -55,7 +59,7 @@ jobs:
           at: .
       - run:
           name: Unit tests
-          command: yarn test
+          command: yarn test:nobuild
 
   all-tests-pass:
     docker:

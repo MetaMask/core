@@ -15,7 +15,8 @@
     "build": "rm -rf ./dist && tsc --project .",
     "lint": "eslint . --ext ts,js,json",
     "lint:fix": "yarn lint --fix",
-    "test": "yarn build && node test/index.js"
+    "test:nobuild": "node test/index.js",
+    "test": "yarn build && yarn test:nobuild"
   },
   "author": "",
   "license": "ISC",
@@ -23,11 +24,12 @@
     "dist/"
   ],
   "devDependencies": {
-    "@metamask/eslint-config": "^4.1.0",
+    "@metamask/eslint-config": "^5.0.0",
     "@types/btoa": "^1.2.3",
     "@types/clone": "^2.1.0",
     "@types/eth-sig-util": "^2.1.0",
     "@types/json-stable-stringify": "^1.0.32",
+    "@types/node": "^14.14.36",
     "@types/pify": "^3.0.2",
     "@typescript-eslint/eslint-plugin": "^4.10.0",
     "@typescript-eslint/parser": "^4.10.0",

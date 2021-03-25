@@ -4,10 +4,12 @@ const test = require('tape');
 const concat = require('concat-stream');
 const series = require('async/series');
 const btoa = require('btoa');
-const { createFetchMiddleware, createFetchConfigFromReq } = require('../dist/fetch');
+const {
+  createFetchMiddleware,
+  createFetchConfigFromReq,
+} = require('../dist/fetch');
 
 test('fetch - basic', (t) => {
-
   const req = {
     method: 'eth_getBlockByNumber',
     params: ['0x482103', true],
@@ -19,17 +21,15 @@ test('fetch - basic', (t) => {
   t.deepEquals(fetchParams, {
     method: 'POST',
     headers: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(req),
   });
   t.end();
-
 });
 
 test('fetch - origin header', (t) => {
-
   const req = {
     method: 'eth_getBlockByNumber',
     params: ['0x482103', true],
@@ -40,24 +40,26 @@ test('fetch - origin header', (t) => {
 
   const rpcUrl = 'http://www.xyz.io/rabbit:3456';
   const originHttpHeaderKey = 'x-dapp-origin';
-  const { fetchUrl, fetchParams } = createFetchConfigFromReq({ req, rpcUrl, originHttpHeaderKey });
+  const { fetchUrl, fetchParams } = createFetchConfigFromReq({
+    req,
+    rpcUrl,
+    originHttpHeaderKey,
+  });
 
   t.equals(fetchUrl, rpcUrl);
   t.deepEquals(fetchParams, {
     method: 'POST',
     headers: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'Content-Type': 'application/json',
       'x-dapp-origin': 'happydapp.gov',
     },
     body: JSON.stringify(reqSanitized),
   });
   t.end();
-
 });
 
 test('fetch - auth in url', (t) => {
-
   const req = {
     method: 'eth_getBlockByNumber',
     params: ['0x482103', true],
@@ -73,18 +75,16 @@ test('fetch - auth in url', (t) => {
   t.deepEquals(fetchParams, {
     method: 'POST',
     headers: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'Content-Type': 'application/json',
-      'Authorization': `Basic ${encodedAuth}`,
+      Authorization: `Basic ${encodedAuth}`,
     },
     body: JSON.stringify(req),
   });
   t.end();
-
 });
 
 test('fetch - server test', (t) => {
-
   const rpcUrl = 'http://localhost:3000/abc/xyz';
 
   const req = {
@@ -97,11 +97,7 @@ test('fetch - server test', (t) => {
   let serverSideRequest;
   let serverSidePayload;
 
-  series([
-    createServer,
-    makeRequest,
-    closeServer,
-  ], (err) => {
+  series([createServer, makeRequest, closeServer], (err) => {
     t.ifError(err, 'should not error');
     // validate request
     t.equals(serverSideRequest.headers.accept, 'application/json');
@@ -116,18 +112,20 @@ test('fetch - server test', (t) => {
   });
 
   function requestHandler(request, response) {
-    request.pipe(concat((rawRequestBody) => {
-      const payload = JSON.parse(rawRequestBody.toString());
-      // save request details
-      serverSideRequest = request;
-      serverSidePayload = payload;
-      // send response
-      const responseBody = JSON.stringify({
-        id: 1,
-        result: 42,
-      });
-      response.end(responseBody);
-    }));
+    request.pipe(
+      concat((rawRequestBody) => {
+        const payload = JSON.parse(rawRequestBody.toString());
+        // save request details
+        serverSideRequest = request;
+        serverSidePayload = payload;
+        // send response
+        const responseBody = JSON.stringify({
+          id: 1,
+          result: 42,
+        });
+        response.end(responseBody);
+      }),
+    );
   }
 
   function createServer(cb) {
@@ -147,5 +145,4 @@ test('fetch - server test', (t) => {
   function failTest() {
     t.fail('something broke');
   }
-
 });
