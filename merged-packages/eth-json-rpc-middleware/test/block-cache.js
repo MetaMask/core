@@ -3,7 +3,7 @@ const { JsonRpcEngine } = require('json-rpc-engine');
 const { PollingBlockTracker } = require('eth-block-tracker');
 const GanacheCore = require('ganache-core');
 const pify = require('pify');
-const createBlockCacheMiddleware = require('../dist/block-cache');
+const { createBlockCacheMiddleware } = require('../dist');
 const createHitTrackerMiddleware = require('./util/createHitTrackerMiddleware');
 
 //
@@ -148,63 +148,6 @@ cacheTest(
   ],
   false,
 );
-
-//
-// result conditional cache
-//
-
-// these tests were imported from provider-engine but rely on state setup we dont have here yet
-
-// // tx by hash
-
-// cacheTest('getTransactionByHash for transaction that doesn\'t exist', {
-//   method: 'eth_getTransactionByHash',
-//   params: ['0x00000000000000000000000000000000000000000000000000deadbeefcafe00'],
-// }, false)
-
-// cacheTest('getTransactionByHash for transaction that\'s pending', {
-//   method: 'eth_getTransactionByHash',
-//   params: ['0x00000000000000000000000000000000000000000000000000deadbeefcafe01'],
-// }, false)
-
-// cacheTest('getTransactionByHash for mined transaction', {
-//   method: 'eth_getTransactionByHash',
-//   params: ['0x00000000000000000000000000000000000000000000000000deadbeefcafe02'],
-// }, true)
-
-// // code
-
-// cacheTest('getCode for latest block, then for earliest block, should not return cached response on second request', [{
-//   method: 'eth_getCode',
-//   params: ['0x1234', 'latest'],
-// }, {
-//   method: 'eth_getCode',
-//   params: ['0x1234', 'earliest'],
-// }], false)
-
-// cacheTest('getCode for a specific block, then for the one before it, should not return cached response on second request', [{
-//   method: 'eth_getCode',
-//   params: ['0x1234', '0x3'],
-// }, {
-//   method: 'eth_getCode',
-//   params: ['0x1234', '0x2'],
-// }], false)
-
-// cacheTest('getCode for a specific block, then the one after it, should return cached response on second request', [{
-//   method: 'eth_getCode',
-//   params: ['0x1234', '0x2'],
-// }, {
-//   method: 'eth_getCode',
-//   params: ['0x1234', '0x3'],
-// }], true)
-
-// cacheTest('getCode for an unspecified block, then for the latest, should return cached response on second request', [{
-//   method: 'eth_getCode',
-//   params: ['0x1234'],
-// }, {
-//   method: 'eth_getCode',
-//   params: ['0x1234', 'latest'],
-// }], true)
 
 async function cacheTest(label, basePayloads, shouldCache) {
   test(`block-cache - ${label}`, async (t) => {

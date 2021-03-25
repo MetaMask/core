@@ -7,7 +7,7 @@ import {
 } from 'json-rpc-engine';
 import * as sigUtil from 'eth-sig-util';
 import { ethErrors } from 'eth-rpc-errors';
-import { Block } from './cache-utils';
+import { Block } from './utils/cache';
 
 interface TransactionParams {
   from: string;
@@ -60,9 +60,7 @@ interface WalletMiddlewareOptions {
   ) => Promise<Record<string, unknown>>;
 }
 
-export = createWalletMiddleware;
-
-function createWalletMiddleware({
+export function createWalletMiddleware({
   getAccounts,
   processDecryptMessage,
   processEncryptionPublicKey,

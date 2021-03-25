@@ -26,7 +26,7 @@ export interface SafeEventEmitterProvider extends SafeEventEmitter {
     req: JsonRpcRequest<string[]>,
     callback: SendAsyncCallBack
   ) => void;
-  send: (req: JsonRpcRequest<string[]>, callback: VoidFunction) => void;
+  send: (req: JsonRpcRequest<string[]>, callback: () => void) => void;
 }
 
 export function cacheIdentifierForPayload(

@@ -4,10 +4,7 @@ const test = require('tape');
 const concat = require('concat-stream');
 const series = require('async/series');
 const btoa = require('btoa');
-const {
-  createFetchMiddleware,
-  createFetchConfigFromReq,
-} = require('../dist/fetch');
+const { createFetchMiddleware, createFetchConfigFromReq } = require('../dist');
 
 test('fetch - basic', (t) => {
   const req = {

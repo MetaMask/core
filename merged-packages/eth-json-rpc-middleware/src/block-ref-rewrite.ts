@@ -1,14 +1,12 @@
 import { PollingBlockTracker } from 'eth-block-tracker';
 import { createAsyncMiddleware, JsonRpcMiddleware } from 'json-rpc-engine';
-import { blockTagParamIndex, Block } from './cache-utils';
+import { blockTagParamIndex, Block } from './utils/cache';
 
 interface BlockRefRewriteMiddlewareOptions {
   blockTracker?: PollingBlockTracker;
 }
 
-export = createBlockRefRewriteMiddleware;
-
-function createBlockRefRewriteMiddleware({
+export function createBlockRefRewriteMiddleware({
   blockTracker,
 }: BlockRefRewriteMiddlewareOptions = {}): JsonRpcMiddleware<string[], Block> {
   if (!blockTracker) {

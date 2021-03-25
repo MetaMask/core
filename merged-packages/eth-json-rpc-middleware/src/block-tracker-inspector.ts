@@ -1,7 +1,7 @@
 import { PollingBlockTracker } from 'eth-block-tracker';
 import { createAsyncMiddleware, JsonRpcMiddleware } from 'json-rpc-engine';
 
-import { Block } from './cache-utils';
+import { Block } from './utils/cache';
 
 const futureBlockRefRequests: string[] = [
   'eth_getTransactionByHash',
@@ -11,10 +11,9 @@ const futureBlockRefRequests: string[] = [
 interface BlockTrackerInspectorMiddlewareOptions {
   blockTracker: PollingBlockTracker;
 }
-export = createBlockTrackerInspectorMiddleware;
 
 // inspect if response contains a block ref higher than our latest block
-function createBlockTrackerInspectorMiddleware({
+export function createBlockTrackerInspectorMiddleware({
   blockTracker,
 }: BlockTrackerInspectorMiddlewareOptions): JsonRpcMiddleware<string[], Block> {
   return createAsyncMiddleware(async (req, res, next) => {

@@ -4,9 +4,11 @@ const { PollingBlockTracker } = require('eth-block-tracker');
 const GanacheCore = require('ganache-core');
 const pify = require('pify');
 const EthQuery = require('ethjs-query');
-const createBlockRefMiddleware = require('../dist/block-ref');
-const providerFromEngine = require('../dist/providerFromEngine');
-const providerAsMiddleware = require('../dist/providerAsMiddleware');
+const {
+  createBlockRefMiddleware,
+  providerFromEngine,
+  providerAsMiddleware,
+} = require('../dist');
 const createHitTrackerMiddleware = require('./util/createHitTrackerMiddleware');
 
 test('contructor - no opts', (t) => {
@@ -34,21 +36,6 @@ test('contructor - empty opts', (t) => {
   );
   t.end();
 });
-
-// test('provider not ready - shouldnt hang non-"latest" requests', async (t) => {
-//   t.plan(3)
-//   const { engine } = createTestSetup()
-//
-//   try {
-//     const res = await pify(engine.handle).call(engine, { id: 1, method: 'net_listening', params: [] })
-//     console.log(res)
-//     t.ok(res, 'Has response')
-//     t.equal(res.result, true, 'Response result is correct.')
-//   } catch (err) {
-//     t.ifError(err, 'No error in response')
-//   }
-//   t.end()
-// })
 
 test('should rewrite "latest" blockRef to current block', async (t) => {
   t.plan(4);

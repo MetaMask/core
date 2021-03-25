@@ -11,7 +11,7 @@ import {
   Block,
   blockTagParamIndex,
   SafeEventEmitterProvider,
-} from './cache-utils';
+} from './utils/cache';
 
 //
 // RetryOnEmptyMiddleware will retry any request with an empty response that has
@@ -19,8 +19,6 @@ import {
 // Its useful for dealing with load-balanced ethereum JSON RPC
 // nodes that are not always in sync with each other.
 //
-
-export = createRetryOnEmptyMiddleware;
 
 // empty values used to determine if a request should be retried
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
@@ -35,7 +33,7 @@ interface RetryOnEmptyMiddlewareOptions {
   blockTracker?: PollingBlockTracker;
 }
 
-function createRetryOnEmptyMiddleware({
+export function createRetryOnEmptyMiddleware({
   provider,
   blockTracker,
 }: RetryOnEmptyMiddlewareOptions = {}): JsonRpcMiddleware<string[], Block> {

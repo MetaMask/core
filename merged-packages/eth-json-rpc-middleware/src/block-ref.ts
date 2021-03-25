@@ -10,16 +10,14 @@ import {
   Block,
   SafeEventEmitterProvider,
   blockTagParamIndex,
-} from './cache-utils';
+} from './utils/cache';
 
 interface BlockRefMiddlewareOptions {
   blockTracker?: PollingBlockTracker;
   provider?: SafeEventEmitterProvider;
 }
 
-export = createBlockRefMiddleware;
-
-function createBlockRefMiddleware({
+export function createBlockRefMiddleware({
   provider,
   blockTracker,
 }: BlockRefMiddlewareOptions = {}): JsonRpcMiddleware<string[], Block> {

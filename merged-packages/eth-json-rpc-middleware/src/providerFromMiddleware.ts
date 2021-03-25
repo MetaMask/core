@@ -1,10 +1,8 @@
 import { JsonRpcEngine, JsonRpcMiddleware } from 'json-rpc-engine';
-import { SafeEventEmitterProvider, Block } from './cache-utils';
-import providerFromEngine from './providerFromEngine';
+import { SafeEventEmitterProvider, Block } from './utils/cache';
+import { providerFromEngine } from './providerFromEngine';
 
-export = providerFromMiddleware;
-
-function providerFromMiddleware(
+export function providerFromMiddleware(
   middleware: JsonRpcMiddleware<string[], Block>,
 ): SafeEventEmitterProvider {
   const engine: JsonRpcEngine = new JsonRpcEngine();

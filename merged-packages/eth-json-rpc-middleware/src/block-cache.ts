@@ -10,7 +10,7 @@ import {
   BlockCache,
   Cache,
   JsonRpcRequestToCache,
-} from './cache-utils';
+} from './utils/cache';
 
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
 const emptyValues = [undefined, null, '\u003cnil\u003e'];
@@ -18,8 +18,6 @@ const emptyValues = [undefined, null, '\u003cnil\u003e'];
 interface BlockCacheMiddlewareOptions {
   blockTracker?: PollingBlockTracker;
 }
-
-export = createBlockCacheMiddleware;
 
 //
 // Cache Strategies
@@ -135,7 +133,7 @@ class BlockCacheStrategy {
   }
 }
 
-function createBlockCacheMiddleware({
+export function createBlockCacheMiddleware({
   blockTracker,
 }: BlockCacheMiddlewareOptions = {}): JsonRpcMiddleware<string[], Block> {
   // validate options

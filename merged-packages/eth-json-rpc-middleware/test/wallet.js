@@ -3,8 +3,7 @@ const { JsonRpcEngine } = require('json-rpc-engine');
 const EthQuery = require('ethjs-query');
 const GanacheCore = require('ganache-core');
 const pify = require('pify');
-const providerFromEngine = require('../dist/providerFromEngine');
-const createWalletMiddleware = require('../dist/wallet');
+const { providerFromEngine, createWalletMiddleware } = require('../dist');
 
 const testAddresses = [
   '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',

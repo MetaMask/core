@@ -1,9 +1,7 @@
 import { JsonRpcMiddleware, PendingJsonRpcResponse } from 'json-rpc-engine';
-import { Block, SafeEventEmitterProvider } from './cache-utils';
+import { Block, SafeEventEmitterProvider } from './utils/cache';
 
-export = providerAsMiddleware;
-
-function providerAsMiddleware(
+export function providerAsMiddleware(
   provider: SafeEventEmitterProvider,
 ): JsonRpcMiddleware<string[], Block> {
   return (req, res, _next, end) => {

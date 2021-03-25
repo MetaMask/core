@@ -1,6 +1,6 @@
 import { createAsyncMiddleware, JsonRpcMiddleware } from 'json-rpc-engine';
 import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
-import { Payload, Block } from './cache-utils';
+import { Payload, Block } from './utils/cache';
 
 /* eslint-disable node/global-require,@typescript-eslint/no-require-imports */
 const fetch = global.fetch || require('node-fetch');

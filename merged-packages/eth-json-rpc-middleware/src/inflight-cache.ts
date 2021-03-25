@@ -8,15 +8,14 @@ import {
   cacheIdentifierForPayload,
   Block,
   JsonRpcRequestToCache,
-} from './cache-utils';
+} from './utils/cache';
 
 type RequestHandlers = (handledRes: PendingJsonRpcResponse<Block>) => void;
 interface InflightRequest {
   [cacheId: string]: RequestHandlers[];
 }
-export = createInflightCache;
 
-function createInflightCache(): JsonRpcMiddleware<string[], Block> {
+export function createInflightCacheMiddleware(): JsonRpcMiddleware<string[], Block> {
   const inflightRequests: InflightRequest = {};
 
   return createAsyncMiddleware(async (req, res, next) => {
