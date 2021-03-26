@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **(BREAKING)** Parity middleware ([#63](https://github.com/MetaMask/eth-json-rpc-middleware/pull/63))
   - Previously imported as `eth-json-rpc-middleware/wallet-parity.js`
+- **(BREAKING)** Scaffold middleware ([#60](https://github.com/MetaMask/eth-json-rpc-middleware/pull/60))
+  - This was just a re-export from `json-rpc-engine`.
 
 ## [6.0.0] - 2020-09-22
 
