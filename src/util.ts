@@ -365,8 +365,8 @@ export function validateTokenToWatch(token: Token) {
   if (typeof symbol !== 'string') {
     throw ethErrors.rpc.invalidParams(`Invalid symbol: not a string.`);
   }
-  if (symbol.length > 6) {
-    throw ethErrors.rpc.invalidParams(`Invalid symbol "${symbol}": longer than 6 characters.`);
+  if (symbol.length > 11) {
+    throw ethErrors.rpc.invalidParams(`Invalid symbol "${symbol}": longer than 11 characters.`);
   }
   const numDecimals = parseInt((decimals as unknown) as string, 10);
   if (isNaN(numDecimals) || numDecimals > 36 || numDecimals < 0) {
