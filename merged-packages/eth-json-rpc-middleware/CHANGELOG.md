@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.1] - 2021-03-26
+
+### Fixed
+
+- `blockTrackerInspectorMiddleware` ([#88](https://github.com/MetaMask/eth-json-rpc-middleware/pull/88))
+  - Due to an error introduced in [#68](https://github.com/MetaMask/eth-json-rpc-middleware/pull/68), this middleware would sometimes hang indefinitely.
+
 ## [7.0.0] - 2021-03-25
 
 ### Added
@@ -55,7 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]:https://github.com/MetaMask/eth-json-rpc-middleware/compare/v7.0.0...HEAD
+[Unreleased]:https://github.com/MetaMask/eth-json-rpc-middleware/compare/v7.0.1...HEAD
+[7.0.1]:https://github.com/MetaMask/eth-json-rpc-middleware/compare/v7.0.0...v7.0.1
 [7.0.0]:https://github.com/MetaMask/eth-json-rpc-middleware/compare/v6.0.0...v7.0.0
 [6.0.0]:https://github.com/MetaMask/eth-json-rpc-middleware/compare/v5.1.0...v6.0.0
 [5.1.0]:https://github.com/MetaMask/eth-json-rpc-middleware/compare/v5.0.3...v5.1.0
