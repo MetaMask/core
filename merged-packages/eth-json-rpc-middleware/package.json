@@ -19,7 +19,8 @@
     "lint": "eslint . --ext ts,js,json",
     "lint:fix": "yarn lint --fix",
     "test:nobuild": "node test/index.js",
-    "test": "yarn build && yarn test:nobuild"
+    "test": "yarn build && yarn test:nobuild",
+    "prepublishOnly": "yarn build && yarn lint && yarn test:nobuild"
   },
   "license": "ISC",
   "files": [
