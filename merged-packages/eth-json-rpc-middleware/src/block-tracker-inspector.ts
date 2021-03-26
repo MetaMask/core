@@ -38,6 +38,6 @@ export function createBlockTrackerInspectorMiddleware({
         await blockTracker.checkForLatestBlock();
       }
     }
-    return next();
+    return undefined;
   });
 }
