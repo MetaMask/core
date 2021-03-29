@@ -167,6 +167,7 @@ export interface EtherscanTransactionMeta {
   confirmations: string;
   tokenDecimal: string;
   tokenSymbol: string;
+  confirmedLocally: boolean;
 }
 
 /**
@@ -411,9 +412,10 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    *
    * @param transaction - Transaction object to add
    * @param origin - Domain origin to append to the generated TransactionMeta
+   * @param confirmedLocally - Boolean to indicate if the transaction was confirmed on local device and append to the generated TransactionMeta
    * @returns - Object containing a promise resolving to the transaction hash if approved
    */
-  async addTransaction(transaction: Transaction, origin?: string): Promise<Result> {
+  async addTransaction(transaction: Transaction, origin?: string, confirmedLocally: boolean): Promise<Result> {
     const network = this.context.NetworkController as NetworkController;
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
@@ -434,6 +436,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
       transaction,
+      confirmedLocally: confirmedLocally
     };
 
     try {
