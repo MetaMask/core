@@ -10,9 +10,11 @@ import { BNToHex, query, safelyExecuteWithTimeout } from '../util';
  * Account information object
  *
  * @property balance - Hex string of an account balancec in wei
+ * @property importTime - Data time when an account as created/imported
  */
 export interface AccountInformation {
   balance: string;
+  importTime?: number;
 }
 
 /**
@@ -58,7 +60,8 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
     const newAddresses = addresses.filter((address) => existing.indexOf(address) === -1);
     const oldAddresses = existing.filter((address) => addresses.indexOf(address) === -1);
     newAddresses.forEach((address) => {
-      accounts[address] = { balance: '0x0' };
+      console.log('New Address');
+      accounts[address] = { balance: '0x0', importTime: Date.now() };
     });
     oldAddresses.forEach((address) => {
       delete accounts[address];
@@ -142,7 +145,8 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
     for (const address in accounts) {
       await safelyExecuteWithTimeout(async () => {
         const balance = await query(this.ethQuery, 'getBalance', [address]);
-        accounts[address] = { balance: BNToHex(balance) };
+        const { importTime } = accounts[address];
+        accounts[address] = { balance: BNToHex(balance), importTime };
         this.update({ accounts: { ...accounts } });
       });
     }
