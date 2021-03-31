@@ -60,7 +60,6 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
     const newAddresses = addresses.filter((address) => existing.indexOf(address) === -1);
     const oldAddresses = existing.filter((address) => addresses.indexOf(address) === -1);
     newAddresses.forEach((address) => {
-      console.log('New Address');
       accounts[address] = { balance: '0x0', importTime: Date.now() };
     });
     oldAddresses.forEach((address) => {

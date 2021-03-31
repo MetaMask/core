@@ -84,6 +84,15 @@ export enum TransactionStatus {
   unapproved = 'unapproved',
 }
 
+/**
+ * The device that confirmed a transaction.
+ */
+export enum ConfirmedDeviceTransaction {
+  MM_MOBILE = 'meta_mask_mobile',
+  MM_EXTENSION = 'meta_mask_extension',
+  OTHER = 'other_device'
+}
+
 type TransactionMetaBase = {
   isTransfer?: boolean;
   transferInformation?: {
@@ -101,7 +110,7 @@ type TransactionMetaBase = {
   transaction: Transaction;
   transactionHash?: string;
   blockNumber?: string;
-  confirmedLocal?: boolean;
+  confirmedLocal?: ConfirmedDeviceTransaction;
 };
 
 /**
@@ -413,10 +422,10 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    *
    * @param transaction - Transaction object to add
    * @param origin - Domain origin to append to the generated TransactionMeta
-   * @param confirmedLocalDevice - Boolean to indicate if the transaction was confirmed on local device and append to the generated TransactionMeta
+   * @param confirmedDevice - enum to indicate where device the transaction was confirmed to append to the generated TransactionMeta
    * @returns - Object containing a promise resolving to the transaction hash if approved
    */
-  async addTransaction(transaction: Transaction, origin?: string, confirmedLocalDevice?: boolean): Promise<Result> {
+  async addTransaction(transaction: Transaction, origin?: string, confirmedLocalDevice?: ConfirmedDeviceTransaction): Promise<Result> {
     const network = this.context.NetworkController as NetworkController;
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
