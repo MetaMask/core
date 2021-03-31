@@ -88,8 +88,8 @@ export enum TransactionStatus {
  * The device that confirmed a transaction.
  */
 export enum ConfirmedDeviceTransaction {
-  MM_MOBILE = 'meta_mask_mobile',
-  MM_EXTENSION = 'meta_mask_extension',
+  MM_MOBILE = 'metamask_mobile',
+  MM_EXTENSION = 'metamask_extension',
   OTHER = 'other_device',
 }
 
