@@ -122,7 +122,7 @@ type TransactionMetaBase = {
  * @property id - Generated UUID associated with this transaction
  * @property networkID - Network code as per EIP-155 for this transaction
  * @property origin - Origin this transaction was sent from
- * @property confirmedLocal - string to indicate what device the transaction was confirmed
+ * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed
  * @property rawTransaction - Hex representation of the underlying transaction
  * @property status - String status of this transaction
  * @property time - Timestamp associated with this transaction

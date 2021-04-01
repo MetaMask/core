@@ -53,6 +53,8 @@ describe('PreferencesController', () => {
     expect(controller.state.identities['0xbar'].name).toEqual('Account 2');
     expect(controller.state.identities['0xbar'].importTime).toBeLessThanOrEqual(Date.now());
     controller.syncIdentities(['foo']);
+    expect(controller.state.identities['0xfoO'].address).toEqual('0xfoO');
+    expect(controller.state.identities['0xfoO'].name).toEqual('Account 1');
     expect(controller.state.selectedAddress).toBe('0xfoO');
   });
 
