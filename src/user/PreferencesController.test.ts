@@ -67,7 +67,6 @@ describe('PreferencesController', () => {
     expect(controller.state.identities['0xbar'].address).toEqual('0xbar');
     expect(controller.state.identities['0xbar'].name).toEqual('Account 2');
     expect(controller.state.identities['0xbar'].importTime).toBeLessThanOrEqual(Date.now());
-
   });
 
   it('should not update existing identities', () => {
