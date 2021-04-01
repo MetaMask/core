@@ -90,7 +90,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
       }
       const identityCount = Object.keys(identities).length;
 
-      identities[address] = { name: `Account ${identityCount + 1}`, address };
+      identities[address] = { name: `Account ${identityCount + 1}`, address, importTime: Date.now() };
     });
     this.update({ identities: { ...identities } });
   }

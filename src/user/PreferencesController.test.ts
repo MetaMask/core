@@ -17,12 +17,9 @@ describe('PreferencesController', () => {
     const controller = new PreferencesController();
     controller.addIdentities(['foo']);
     controller.addIdentities(['foo']);
-    expect(controller.state.identities).toEqual({
-      '0xfoO': {
-        address: '0xfoO',
-        name: 'Account 1',
-      },
-    });
+    expect(controller.state.identities['0xfoO'].address).toEqual('0xfoO');
+    expect(controller.state.identities['0xfoO'].name).toEqual('Account 1');
+    expect(controller.state.identities['0xfoO'].importTime).toBeLessThanOrEqual(Date.now());
   });
 
   it('should remove identity', () => {
@@ -49,14 +46,13 @@ describe('PreferencesController', () => {
     const controller = new PreferencesController();
     controller.addIdentities(['foo', 'bar']);
     controller.syncIdentities(['foo', 'bar']);
-    expect(controller.state.identities).toEqual({
-      '0xbar': { address: '0xbar', name: 'Account 2' },
-      '0xfoO': { address: '0xfoO', name: 'Account 1' },
-    });
+    expect(controller.state.identities['0xfoO'].address).toEqual('0xfoO');
+    expect(controller.state.identities['0xfoO'].name).toEqual('Account 1');
+    expect(controller.state.identities['0xfoO'].importTime).toBeLessThanOrEqual(Date.now());
+    expect(controller.state.identities['0xbar'].address).toEqual('0xbar');
+    expect(controller.state.identities['0xbar'].name).toEqual('Account 2');
+    expect(controller.state.identities['0xbar'].importTime).toBeLessThanOrEqual(Date.now());
     controller.syncIdentities(['foo']);
-    expect(controller.state.identities).toEqual({
-      '0xfoO': { address: '0xfoO', name: 'Account 1' },
-    });
     expect(controller.state.selectedAddress).toBe('0xfoO');
   });
 

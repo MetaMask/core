@@ -25,7 +25,6 @@ describe('AccountTrackerController', () => {
     controller.context = { PreferencesController: { state: { identities: { [address]: {} } } } } as any;
     await controller.refresh();
     expect(controller.state.accounts[address].balance).toBeDefined();
-    expect(controller.state.accounts[address].importTime).toBeDefined();
   });
 
   it('should sync addresses', () => {
@@ -40,9 +39,7 @@ describe('AccountTrackerController', () => {
     );
     controller.context = { PreferencesController: { state: { identities: { baz: {} } } } } as any;
     controller.refresh();
-    expect(controller.state.accounts.baz.balance).toEqual('0x0');
-    expect(controller.state.accounts.baz.importTime).toBeDefined();
-    expect(controller.state.accounts.baz.importTime).toBeLessThanOrEqual(Date.now());
+    expect(controller.state.accounts).toEqual({ baz: { balance: '0x0' } });
   });
 
   it('should subscribe to new sibling preference controllers', async () => {
