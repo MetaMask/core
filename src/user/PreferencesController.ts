@@ -187,6 +187,7 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
       ids[address] = oldIdentities[address] || {
         address,
         name: `Account ${index + 1}`,
+        importTime: Date.now(),
       };
       return ids;
     }, {});
