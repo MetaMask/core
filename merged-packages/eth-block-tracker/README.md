@@ -73,3 +73,9 @@ The `error` event means an error occurred while polling for the latest block.
 ```js
 blockTracker.on('error', (err) => console.error(err))
 ```
+
+## Running Tests
+
+```bash
+yarn test
+```
