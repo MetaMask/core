@@ -425,11 +425,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    * @param deviceConfirmedOn - enum to indicate what device the transaction was confirmed to append to the generated TransactionMeta
    * @returns - Object containing a promise resolving to the transaction hash if approved
    */
-  async addTransaction(
-    transaction: Transaction,
-    origin?: string,
-    deviceConfirmedOn?: WalletDevice,
-  ): Promise<Result> {
+  async addTransaction(transaction: Transaction, origin?: string, deviceConfirmedOn?: WalletDevice): Promise<Result> {
     const network = this.context.NetworkController as NetworkController;
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
