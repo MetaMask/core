@@ -85,9 +85,9 @@ export enum TransactionStatus {
 }
 
 /**
- * The device that confirmed a transaction.
+ * Options for wallet device.
  */
-export enum ConfirmedDeviceTransaction {
+export enum WalletDevice {
   MM_MOBILE = 'metamask_mobile',
   MM_EXTENSION = 'metamask_extension',
   OTHER = 'other_device',
@@ -110,7 +110,7 @@ type TransactionMetaBase = {
   transaction: Transaction;
   transactionHash?: string;
   blockNumber?: string;
-  deviceConfirmedOn?: ConfirmedDeviceTransaction;
+  deviceConfirmedOn?: WalletDevice;
 };
 
 /**
@@ -428,7 +428,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
   async addTransaction(
     transaction: Transaction,
     origin?: string,
-    deviceConfirmedOn?: ConfirmedDeviceTransaction,
+    deviceConfirmedOn?: WalletDevice,
   ): Promise<Result> {
     const network = this.context.NetworkController as NetworkController;
     const { transactions } = this.state;
