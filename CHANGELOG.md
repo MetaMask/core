@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [7.0.0] - 2021-04-06
+
+### Added
+
+- Ability to indicate if a transaction was added from the users local device and account creation time ([#436](https://github.com/MetaMask/controllers/pull/436))
+
+### Changed
+
+- **BREAKING:** Organize assets by chainid ([#435](https://github.com/MetaMask/controllers/pull/435))
+- Support longer token symbols via wallet_watchAsset ([#433](https://github.com/MetaMask/controllers/pull/433))
+
 ## [6.2.1] - 2021-03-23
 
 ### Fixed
@@ -262,7 +273,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v6.2.1...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v7.0.0...HEAD
+[7.0.0]:https://github.com/MetaMask/controllers/compare/v6.2.1...v7.0.0
 [6.2.1]:https://github.com/MetaMask/controllers/compare/v6.2.0...v6.2.1
 [6.2.0]:https://github.com/MetaMask/controllers/compare/v6.1.1...v6.2.0
 [6.1.1]:https://github.com/MetaMask/controllers/compare/v6.1.0...v6.1.1
