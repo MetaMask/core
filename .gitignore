@@ -9,6 +9,7 @@ package-lock.json
 # tarball from `yarn pack`
 *.tgz
 
+.DS_STORE
 coverage
 dist
 docs

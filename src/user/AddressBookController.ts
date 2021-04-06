@@ -9,10 +9,12 @@ import BaseController, { BaseConfig, BaseState } from '../BaseController';
  *
  * @property address - Hex address of a recipient account
  * @property name - Nickname associated with this address
+ * @property importTime - Data time when an account as created/imported
  */
 export interface ContactEntry {
   address: string;
   name: string;
+  importTime?: number;
 }
 
 /**

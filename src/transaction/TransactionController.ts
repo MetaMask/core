@@ -84,6 +84,15 @@ export enum TransactionStatus {
   unapproved = 'unapproved',
 }
 
+/**
+ * Options for wallet device.
+ */
+export enum WalletDevice {
+  MM_MOBILE = 'metamask_mobile',
+  MM_EXTENSION = 'metamask_extension',
+  OTHER = 'other_device',
+}
+
 type TransactionMetaBase = {
   isTransfer?: boolean;
   transferInformation?: {
@@ -101,6 +110,7 @@ type TransactionMetaBase = {
   transaction: Transaction;
   transactionHash?: string;
   blockNumber?: string;
+  deviceConfirmedOn?: WalletDevice;
 };
 
 /**
@@ -112,6 +122,7 @@ type TransactionMetaBase = {
  * @property id - Generated UUID associated with this transaction
  * @property networkID - Network code as per EIP-155 for this transaction
  * @property origin - Origin this transaction was sent from
+ * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed
  * @property rawTransaction - Hex representation of the underlying transaction
  * @property status - String status of this transaction
  * @property time - Timestamp associated with this transaction
@@ -411,9 +422,10 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    *
    * @param transaction - Transaction object to add
    * @param origin - Domain origin to append to the generated TransactionMeta
+   * @param deviceConfirmedOn - enum to indicate what device the transaction was confirmed to append to the generated TransactionMeta
    * @returns - Object containing a promise resolving to the transaction hash if approved
    */
-  async addTransaction(transaction: Transaction, origin?: string): Promise<Result> {
+  async addTransaction(transaction: Transaction, origin?: string, deviceConfirmedOn?: WalletDevice): Promise<Result> {
     const network = this.context.NetworkController as NetworkController;
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
@@ -434,6 +446,7 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
       transaction,
+      deviceConfirmedOn,
     };
 
     try {
