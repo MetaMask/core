@@ -16,7 +16,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - **BREAKING:** Organize assets by chainid ([#435](https://github.com/MetaMask/controllers/pull/435))
 - Support longer token symbols via wallet_watchAsset ([#433](https://github.com/MetaMask/controllers/pull/433))
-- Add comment to explain why camelcase is disabled ([#432](https://github.com/MetaMask/controllers/pull/432))
 
 ## [6.2.1] - 2021-03-23
 
