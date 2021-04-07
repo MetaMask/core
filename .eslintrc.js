@@ -60,7 +60,6 @@ module.exports = {
     'jest/no-restricted-matchers': 'off',
     'jest/no-test-return-statement': 'off',
     'jest/prefer-strict-equal': 'off',
-    'jest/valid-expect-in-promise': 'off',
   },
   settings: {
     'import/resolver': {

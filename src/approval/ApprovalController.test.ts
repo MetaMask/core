@@ -312,33 +312,22 @@ describe('approval controller', () => {
 
     it('rejects approval promise', async () => {
       numDeletions = 1;
-
-      const approvalPromise = approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE }).catch((error) => {
-        expect(error).toMatchObject(getError('failure'));
-      });
-
+      const approvalPromise = approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
       approvalController.reject('foo', new Error('failure'));
-      await approvalPromise;
+      await expect(approvalPromise).rejects.toThrow('failure');
       expect(deleteSpy.callCount).toEqual(numDeletions);
     });
 
     it('rejects multiple approval promises out of order', async () => {
       numDeletions = 2;
 
-      const rejectionPromise1 = approvalController.add({ id: 'foo1', origin: 'bar.baz', type: TYPE }).catch((error) => {
-        expect(error).toMatchObject(getError('failure1'));
-      });
-      const rejectionPromise2 = approvalController
-        .add({ id: 'foo2', origin: 'bar.baz', type: 'myType2' })
-        .catch((error) => {
-          expect(error).toMatchObject(getError('failure2'));
-        });
+      const rejectionPromise1 = approvalController.add({ id: 'foo1', origin: 'bar.baz', type: TYPE });
+      const rejectionPromise2 = approvalController.add({ id: 'foo2', origin: 'bar.baz', type: 'myType2' });
 
       approvalController.reject('foo2', new Error('failure2'));
-      await rejectionPromise2;
-
       approvalController.reject('foo1', new Error('failure1'));
-      await rejectionPromise1;
+      await expect(rejectionPromise2).rejects.toThrow('failure2');
+      await expect(rejectionPromise1).rejects.toThrow('failure1');
       expect(deleteSpy.callCount).toEqual(numDeletions);
     });
 
@@ -354,12 +343,8 @@ describe('approval controller', () => {
 
       const promise1 = approvalController.add({ id: 'foo1', origin: 'bar.baz', type: TYPE });
       const promise2 = approvalController.add({ id: 'foo2', origin: 'bar.baz', type: 'myType2' });
-      const promise3 = approvalController.add({ id: 'foo3', origin: 'fizz.buzz', type: TYPE }).catch((error) => {
-        expect(error).toMatchObject(getError('failure3'));
-      });
-      const promise4 = approvalController.add({ id: 'foo4', origin: 'bar.baz', type: 'myType4' }).catch((error) => {
-        expect(error).toMatchObject(getError('failure4'));
-      });
+      const promise3 = approvalController.add({ id: 'foo3', origin: 'fizz.buzz', type: TYPE });
+      const promise4 = approvalController.add({ id: 'foo4', origin: 'bar.baz', type: 'myType4' });
 
       approvalController.resolve('foo2', 'success2');
 
@@ -367,10 +352,10 @@ describe('approval controller', () => {
       expect(result).toEqual('success2');
 
       approvalController.reject('foo4', new Error('failure4'));
-      await promise4;
+      await expect(promise4).rejects.toThrow('failure4');
 
       approvalController.reject('foo3', new Error('failure3'));
-      await promise3;
+      await expect(promise3).rejects.toThrow('failure3');
 
       expect(approvalController.has({ origin: 'fizz.buzz' })).toEqual(false);
       expect(approvalController.has({ origin: 'bar.baz' })).toEqual(true);

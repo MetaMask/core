@@ -444,67 +444,53 @@ describe('AssetsController', () => {
   });
 
   it('should reject a valid suggested asset via watchAsset', async () => {
-    await new Promise(async (resolve) => {
-      const { result, suggestedAssetMeta } = await assetsController.watchAsset(
-        {
-          address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
-          decimals: 18,
-          symbol: 'TKN',
-        },
-        'ERC20',
-      );
-      assetsController.rejectWatchAsset('foo');
-      assetsController.rejectWatchAsset(suggestedAssetMeta.id);
-      assetsController.hub.once(`${suggestedAssetMeta.id}:finished`, () => {
-        expect(assetsController.state.suggestedAssets).toHaveLength(0);
-      });
-      result.catch((error) => {
-        expect(error.message).toContain('User rejected to watch the asset.');
-        resolve('');
-      });
+    const { result, suggestedAssetMeta } = await assetsController.watchAsset(
+      {
+        address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
+        decimals: 18,
+        symbol: 'TKN',
+      },
+      'ERC20',
+    );
+    assetsController.rejectWatchAsset('foo');
+    assetsController.rejectWatchAsset(suggestedAssetMeta.id);
+    assetsController.hub.once(`${suggestedAssetMeta.id}:finished`, () => {
+      expect(assetsController.state.suggestedAssets).toHaveLength(0);
     });
+    await expect(result).rejects.toThrow('User rejected to watch the asset.');
   });
 
   it('should accept a valid suggested asset via watchAsset', async () => {
-    await new Promise(async (resolve) => {
-      const { result, suggestedAssetMeta } = await assetsController.watchAsset(
-        {
-          address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
-          decimals: 18,
-          symbol: 'TKN',
-        },
-        'ERC20',
-      );
-      result.then((res) => {
-        expect(assetsController.state.suggestedAssets).toHaveLength(0);
-        expect(res).toBe('0xe9f786dfdd9ae4d57e830acb52296837765f0e5b');
-        resolve('');
-      });
-      await assetsController.acceptWatchAsset(suggestedAssetMeta.id);
-    });
+    const { result, suggestedAssetMeta } = await assetsController.watchAsset(
+      {
+        address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
+        decimals: 18,
+        symbol: 'TKN',
+      },
+      'ERC20',
+    );
+    await assetsController.acceptWatchAsset(suggestedAssetMeta.id);
+    const res = await result;
+    expect(assetsController.state.suggestedAssets).toHaveLength(0);
+    expect(res).toBe('0xe9f786dfdd9ae4d57e830acb52296837765f0e5b');
   });
 
   it('should fail a valid suggested asset via watchAsset with wrong type', async () => {
-    await new Promise(async (resolve) => {
-      const { result, suggestedAssetMeta } = await assetsController.watchAsset(
-        {
-          address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
-          decimals: 18,
-          symbol: 'TKN',
-        },
-        'ERC20',
-      );
-      const { suggestedAssets } = assetsController.state;
-      const index = suggestedAssets.findIndex(({ id }) => suggestedAssetMeta.id === id);
-      const newSuggestedAssetMeta = suggestedAssets[index];
-      suggestedAssetMeta.type = 'ERC721';
-      assetsController.update({ suggestedAssets: [...suggestedAssets, newSuggestedAssetMeta] });
-      await assetsController.acceptWatchAsset(suggestedAssetMeta.id);
-      result.catch((error) => {
-        expect(error.message).toContain('Asset of type ERC721 not supported');
-        resolve('');
-      });
-    });
+    const { result, suggestedAssetMeta } = await assetsController.watchAsset(
+      {
+        address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
+        decimals: 18,
+        symbol: 'TKN',
+      },
+      'ERC20',
+    );
+    const { suggestedAssets } = assetsController.state;
+    const index = suggestedAssets.findIndex(({ id }) => suggestedAssetMeta.id === id);
+    const newSuggestedAssetMeta = suggestedAssets[index];
+    suggestedAssetMeta.type = 'ERC721';
+    assetsController.update({ suggestedAssets: [...suggestedAssets, newSuggestedAssetMeta] });
+    await assetsController.acceptWatchAsset(suggestedAssetMeta.id);
+    await expect(result).rejects.toThrow('Asset of type ERC721 not supported');
   });
 
   it('should not add duplicate tokens to the ignoredToken list', async () => {
