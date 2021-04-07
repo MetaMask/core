@@ -35,7 +35,12 @@ module.exports = {
     },
   ],
   rules: {
+    // Left disabled because various properties throughough this repo are snake_case because the
+    // names come from external sources or must comply with standards
+    // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
     camelcase: 'off',
+
+    // TODO: re-enble most of these rules
     'function-paren-newline': 'off',
     'guard-for-in': 'off',
     'implicit-arrow-linebreak': 'off',
@@ -53,7 +58,7 @@ module.exports = {
 
     'jest/no-conditional-expect': 'off',
     'jest/no-restricted-matchers': 'off',
-    'jest/no-try-expect': 'off',
+    'jest/no-test-return-statement': 'off',
     'jest/prefer-strict-equal': 'off',
   },
   settings: {
