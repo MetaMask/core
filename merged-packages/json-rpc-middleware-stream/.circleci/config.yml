@@ -18,7 +18,7 @@ workflows:
 jobs:
   prep-deps:
     docker:
-      - image: circleci/node:10
+      - image: circleci/node:12
     steps:
       - checkout
       - run:
@@ -37,7 +37,7 @@ jobs:
 
   test-lint:
     docker:
-      - image: circleci/node:10
+      - image: circleci/node:12
     steps:
       - checkout
       - attach_workspace:
@@ -48,7 +48,7 @@ jobs:
 
   test-build-unit:
     docker:
-      - image: circleci/node:10
+      - image: circleci/node:12
     steps:
       - checkout
       - attach_workspace:
@@ -59,7 +59,7 @@ jobs:
 
   all-tests-pass:
     docker:
-      - image: circleci/node:10
+      - image: circleci/node:12
     steps:
       - run:
           name: All tests passed
