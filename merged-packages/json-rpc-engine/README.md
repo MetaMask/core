@@ -143,3 +143,15 @@ engine.push(function(req, res, next, end){
   next() /* This will cause end(res.error) to be called. */
 })
 ```
+
+## Running tests
+
+Build the project if not already built:
+
+```bash
+yarn build
+```
+
+```bash
+yarn test
+```
