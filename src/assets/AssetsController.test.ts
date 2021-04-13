@@ -102,12 +102,14 @@ describe('AssetsController', () => {
     expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xfoO',
       decimals: 2,
+      image: undefined,
       symbol: 'bar',
     });
     await assetsController.addToken('foo', 'baz', 2);
     expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xfoO',
       decimals: 2,
+      image: undefined,
       symbol: 'baz',
     });
   });
@@ -120,11 +122,13 @@ describe('AssetsController', () => {
     expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xAdDRessA',
       decimals: 2,
+      image: undefined,
       symbol: 'barA',
     });
     expect(assetsController.state.tokens[1]).toStrictEqual({
       address: '0xAddReSSB',
       decimals: 2,
+      image: undefined,
       symbol: 'barB',
     });
     await assetsController.addTokens([
@@ -134,11 +138,13 @@ describe('AssetsController', () => {
     expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xAdDRessA',
       decimals: 2,
+      image: undefined,
       symbol: 'bazA',
     });
     expect(assetsController.state.tokens[1]).toStrictEqual({
       address: '0xAddReSSB',
       decimals: 2,
+      image: undefined,
       symbol: 'bazB',
     });
   });
@@ -155,6 +161,7 @@ describe('AssetsController', () => {
     expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xfoO',
       decimals: 2,
+      image: undefined,
       symbol: 'bar',
     });
   });
@@ -170,6 +177,7 @@ describe('AssetsController', () => {
     expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xfoO',
       decimals: 2,
+      image: undefined,
       symbol: 'bar',
     });
   });
@@ -193,6 +201,7 @@ describe('AssetsController', () => {
     expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xFOu',
       decimals: 2,
+      image: undefined,
       symbol: 'baz',
     });
   });
@@ -210,6 +219,7 @@ describe('AssetsController', () => {
     expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xFOu',
       decimals: 2,
+      image: undefined,
       symbol: 'baz',
     });
   });
