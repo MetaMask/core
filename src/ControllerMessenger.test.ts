@@ -681,4 +681,75 @@ describe('RestrictedControllerMessenger', () => {
     expect(handler.calledWithExactly('hello')).toBeTruthy();
     expect(handler.callCount).toEqual(1);
   });
+
+  it('should allow interacting with internal and external actions', () => {
+    type MessageAction =
+      | { type: 'MessageController:concat'; handler: (message: string) => void }
+      | { type: 'MessageController:reset'; handler: (initialMessage: string) => void };
+    type CountAction = { type: 'CountController:count'; handler: (increment: number) => void };
+    const controllerMessenger = new ControllerMessenger<MessageAction | CountAction, never>();
+
+    const messageControllerMessenger = controllerMessenger.getRestricted({
+      name: 'MessageController',
+      allowedActions: ['MessageController:reset', 'CountController:count'],
+      allowedEvents: [],
+    });
+    const countControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: [],
+    });
+
+    let count = 0;
+    countControllerMessenger.registerActionHandler('CountController:count', (increment: number) => {
+      count += increment;
+    });
+
+    let fullMessage = '';
+    messageControllerMessenger.registerActionHandler('MessageController:concat', (message: string) => {
+      fullMessage += message;
+    });
+    messageControllerMessenger.registerActionHandler('MessageController:reset', (message: string) => {
+      fullMessage = message;
+    });
+
+    messageControllerMessenger.call('MessageController:reset', 'hello');
+    messageControllerMessenger.call('CountController:count', 1);
+
+    expect(fullMessage).toEqual('hello');
+    expect(count).toEqual(1);
+  });
+
+  it('should allow interacting with internal and external events', () => {
+    type MessageEvent =
+      | { type: 'MessageController:message'; payload: [string] }
+      | { type: 'MessageController:ping'; payload: [] };
+    type CountEvent = { type: 'CountController:update'; payload: [number] };
+    const controllerMessenger = new ControllerMessenger<never, MessageEvent | CountEvent>();
+
+    const messageControllerMessenger = controllerMessenger.getRestricted({
+      name: 'MessageController',
+      allowedActions: [],
+      allowedEvents: ['MessageController:ping', 'CountController:update'],
+    });
+    const countControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: [],
+    });
+
+    let pings = 0;
+    messageControllerMessenger.subscribe('MessageController:ping', () => {
+      pings += 1;
+    });
+    let currentCount;
+    messageControllerMessenger.subscribe('CountController:update', (newCount: number) => {
+      currentCount = newCount;
+    });
+    messageControllerMessenger.publish('MessageController:ping');
+    countControllerMessenger.publish('CountController:update', 10);
+
+    expect(pings).toEqual(1);
+    expect(currentCount).toEqual(10);
+  });
 });
