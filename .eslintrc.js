@@ -6,6 +6,20 @@ module.exports = {
     {
       files: ['*.test.ts', '*.test.js'],
       extends: ['@metamask/eslint-config-jest'],
+      rules: {
+        'jest/no-conditional-expect': 'off',
+        'jest/no-restricted-matchers': [
+          'error',
+          {
+            resolves: 'Use `expect(await promise)` instead.',
+            // 'toBeFalsy': 'Avoid `toBeFalsy`',
+            // 'toBeTruthy': 'Avoid `toBeTruthy`',
+            toMatchSnapshot: 'Use `toMatchInlineSnapshot()` instead',
+            toThrowErrorMatchingSnapshot: 'Use `toThrowErrorMatchingInlineSnapshot()` instead',
+          },
+        ],
+        'jest/no-test-return-statement': 'off',
+      },
     },
     {
       files: ['*.js'],
@@ -56,11 +70,6 @@ module.exports = {
     'no-param-reassign': 'off',
     'radix': 'off',
     'require-atomic-updates': 'off',
-
-    'jest/no-conditional-expect': 'off',
-    'jest/no-restricted-matchers': 'off',
-    'jest/no-test-return-statement': 'off',
-    'jest/prefer-strict-equal': 'off',
   },
   settings: {
     'import/resolver': {
