@@ -1,25 +1,26 @@
 module.exports = {
   root: true,
-  extends: ['@metamask/eslint-config', '@metamask/eslint-config/config/jest', '@metamask/eslint-config/config/nodejs'],
+  extends: ['@metamask/eslint-config', '@metamask/eslint-config-nodejs'],
   ignorePatterns: ['!.eslintrc.js', '!jest.config.js', 'node_modules', 'dist', 'docs', 'coverage', '*.d.ts'],
   overrides: [
     {
+      files: ['*.test.ts', '*.test.js'],
+      extends: ['@metamask/eslint-config-jest']
+    },
+    {
       files: ['*.js'],
       parserOptions: {
-        ecmaVersion: '2018',
         sourceType: 'script',
       },
     },
     {
       files: ['*.ts'],
-      extends: ['@metamask/eslint-config/config/typescript'],
+      extends: ['@metamask/eslint-config-typescript'],
       rules: {
         // `no-shadow` has incompatibilities with TypeScript
+        // TODO: Migrate this into @metamask/eslint-config?
         'no-shadow': 'off',
         '@typescript-eslint/no-shadow': 'error',
-
-        // Prettier handles indentation. This rule conflicts with prettier in some cases
-        '@typescript-eslint/indent': 'off',
 
         // disabled due to incompatibility with Record<string, unknown>
         // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
