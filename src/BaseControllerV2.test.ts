@@ -577,6 +577,7 @@ describe('getPersistentState', () => {
     // The 'VisitorController' records strings that represent visitors.
     // The 'VisitorOverflowController' monitors the 'VisitorController' to ensure the number of
     // visitors doesn't exceed the maximum capacity. If it does, it will clear out all visitors.
+
     type VisitorControllerState = {
       visitors: string[];
     };
@@ -588,12 +589,14 @@ describe('getPersistentState', () => {
       type: `VisitorController:stateChange`;
       payload: [VisitorControllerState, Patch[]];
     };
+
     const visitorControllerStateMetadata = {
       visitors: {
         persist: true,
         anonymous: true,
       },
     };
+
     class VisitorController extends BaseController<'VisitorController', VisitorControllerState> {
       constructor(
         messagingSystem: RestrictedControllerMessenger<
