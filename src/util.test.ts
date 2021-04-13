@@ -12,7 +12,9 @@ const mockFlags: { [key: string]: any } = {
   estimateGas: null,
   gasPrice: null,
 };
-const PROVIDER = new HttpProvider('https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
+const PROVIDER = new HttpProvider(
+  'https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+);
 
 jest.mock('eth-query', () =>
   jest.fn().mockImplementation(() => {
@@ -27,7 +29,11 @@ jest.mock('eth-query', () =>
         }
         callback(undefined, '0x0');
       },
-      getBlockByNumber: (_blocknumber: any, _fetchTxs: boolean, callback: any) => {
+      getBlockByNumber: (
+        _blocknumber: any,
+        _fetchTxs: boolean,
+        callback: any,
+      ) => {
         callback(undefined, { gasLimit: '0x0' });
       },
       getCode: (_to: any, callback: any) => {
@@ -69,7 +75,9 @@ describe('util', () => {
     expect(util.getBuyURL('3')).toBe('https://faucet.metamask.io/');
     expect(util.getBuyURL('4')).toBe('https://www.rinkeby.io/');
     expect(util.getBuyURL('5')).toBe('https://goerli-faucet.slock.it/');
-    expect(util.getBuyURL('42')).toBe('https://github.com/kovan-testnet/faucet');
+    expect(util.getBuyURL('42')).toBe(
+      'https://github.com/kovan-testnet/faucet',
+    );
     expect(util.getBuyURL('unrecognized network ID')).toBeUndefined();
   });
 
@@ -158,7 +166,12 @@ describe('util', () => {
     });
     it('should return a correctly structured url with from block', () => {
       const fromBlock = 'xxxxxx';
-      const url = util.getEtherscanApiUrl(networkType, address, action, fromBlock);
+      const url = util.getEtherscanApiUrl(
+        networkType,
+        address,
+        action,
+        fromBlock,
+      );
       expect(url.indexOf(`&startBlock=${fromBlock}`)).toBeGreaterThan(0);
     });
     it('should return a correctly structured url with testnet subdomain', () => {
@@ -168,7 +181,13 @@ describe('util', () => {
     });
     it('should return a correctly structured url with apiKey', () => {
       const apiKey = 'xxxxxx';
-      const url = util.getEtherscanApiUrl(networkType, address, action, 'xxxxxx', apiKey);
+      const url = util.getEtherscanApiUrl(
+        networkType,
+        address,
+        action,
+        'xxxxxx',
+        apiKey,
+      );
       expect(url.indexOf(`&apikey=${apiKey}`)).toBeGreaterThan(0);
     });
   });
@@ -253,7 +272,9 @@ describe('util', () => {
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: 'one million dollar$',
         } as any),
-      ).toThrow('Invalid "value": one million dollar$ number must be a valid number.');
+      ).toThrow(
+        'Invalid "value": one million dollar$ number must be a valid number.',
+      );
       expect(() =>
         util.validateTransaction({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
@@ -269,7 +290,9 @@ describe('util', () => {
       '879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
     );
     const secondNormalized = util.normalizeMessageData('somedata');
-    expect(firstNormalized).toStrictEqual('0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0');
+    expect(firstNormalized).toStrictEqual(
+      '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
+    );
     expect(secondNormalized).toStrictEqual('0x736f6d6564617461');
   });
 
@@ -293,7 +316,9 @@ describe('util', () => {
           data: '0x879a05',
           from: '3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow('Invalid "from" address: 3244e191f1b4903970224322180f1fbbc415696b must be a valid string.');
+      ).toThrow(
+        'Invalid "from" address: 3244e191f1b4903970224322180f1fbbc415696b must be a valid string.',
+      );
     });
 
     it('should throw if invalid type from address', () => {
@@ -592,7 +617,9 @@ describe('util', () => {
       } catch (e) {
         error = e;
       }
-      expect(error.message).toBe(`Fetch failed with status '500' for request '${SOME_FAILING_API}'`);
+      expect(error.message).toBe(
+        `Fetch failed with status '500' for request '${SOME_FAILING_API}'`,
+      );
     });
   });
 
@@ -707,7 +734,9 @@ describe('util', () => {
     it('should query and reject if error', async () => {
       const ethQuery = new EthQuery(PROVIDER);
       mockFlags.gasPrice = 'Uh oh';
-      await expect(util.query(ethQuery, 'gasPrice', [])).rejects.toThrow('Uh oh');
+      await expect(util.query(ethQuery, 'gasPrice', [])).rejects.toThrow(
+        'Uh oh',
+      );
     });
   });
 });

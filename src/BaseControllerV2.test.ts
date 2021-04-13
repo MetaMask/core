@@ -1,8 +1,15 @@
 import type { Draft, Patch } from 'immer';
 import sinon from 'sinon';
 
-import { BaseController, getAnonymizedState, getPersistentState } from './BaseControllerV2';
-import { ControllerMessenger, RestrictedControllerMessenger } from './ControllerMessenger';
+import {
+  BaseController,
+  getAnonymizedState,
+  getPersistentState,
+} from './BaseControllerV2';
+import {
+  ControllerMessenger,
+  RestrictedControllerMessenger,
+} from './ControllerMessenger';
 
 type CountControllerState = {
   count: number;
@@ -20,8 +27,15 @@ const countControllerStateMetadata = {
   },
 };
 
-class CountController extends BaseController<'CountController', CountControllerState> {
-  update(callback: (state: Draft<CountControllerState>) => void | CountControllerState) {
+class CountController extends BaseController<
+  'CountController',
+  CountControllerState
+> {
+  update(
+    callback: (
+      state: Draft<CountControllerState>,
+    ) => void | CountControllerState,
+  ) {
     super.update(callback);
   }
 
@@ -32,7 +46,10 @@ class CountController extends BaseController<'CountController', CountControllerS
 
 describe('BaseController', () => {
   it('should set initial state', () => {
-    const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: [],
@@ -49,7 +66,10 @@ describe('BaseController', () => {
   });
 
   it('should set initial schema', () => {
-    const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: [],
@@ -62,11 +82,14 @@ describe('BaseController', () => {
       metadata: countControllerStateMetadata,
     });
 
-    expect(controller.metadata).toStrictEqual(CountControllerStateMetadata);
+    expect(controller.metadata).toStrictEqual(countControllerStateMetadata);
   });
 
   it('should not allow mutating state directly', () => {
-    const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: [],
@@ -81,11 +104,16 @@ describe('BaseController', () => {
 
     expect(() => {
       controller.state = { count: 1 };
-    }).toThrow("Controller state cannot be directly mutated; use 'update' method instead.");
+    }).toThrow(
+      "Controller state cannot be directly mutated; use 'update' method instead.",
+    );
   });
 
   it('should allow updating state by modifying draft', () => {
-    const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: [],
@@ -106,7 +134,10 @@ describe('BaseController', () => {
   });
 
   it('should allow updating state by return a value', () => {
-    const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: [],
@@ -127,7 +158,10 @@ describe('BaseController', () => {
   });
 
   it('should throw an error if update callback modifies draft and returns value', () => {
-    const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: [],
@@ -151,7 +185,10 @@ describe('BaseController', () => {
   });
 
   it('should inform subscribers of state changes', () => {
-    const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: [],
@@ -173,13 +210,22 @@ describe('BaseController', () => {
     });
 
     expect(listener1.callCount).toStrictEqual(1);
-    expect(listener1.firstCall.args).toStrictEqual([{ count: 1 }, [{ op: 'replace', path: [], value: { count: 1 } }]]);
+    expect(listener1.firstCall.args).toStrictEqual([
+      { count: 1 },
+      [{ op: 'replace', path: [], value: { count: 1 } }],
+    ]);
     expect(listener2.callCount).toStrictEqual(1);
-    expect(listener2.firstCall.args).toStrictEqual([{ count: 1 }, [{ op: 'replace', path: [], value: { count: 1 } }]]);
+    expect(listener2.firstCall.args).toStrictEqual([
+      { count: 1 },
+      [{ op: 'replace', path: [], value: { count: 1 } }],
+    ]);
   });
 
   it('should inform a subscriber of each state change once even after multiple subscriptions', () => {
-    const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: [],
@@ -201,11 +247,17 @@ describe('BaseController', () => {
     });
 
     expect(listener1.callCount).toStrictEqual(1);
-    expect(listener1.firstCall.args).toStrictEqual([{ count: 1 }, [{ op: 'replace', path: [], value: { count: 1 } }]]);
+    expect(listener1.firstCall.args).toStrictEqual([
+      { count: 1 },
+      [{ op: 'replace', path: [], value: { count: 1 } }],
+    ]);
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing', () => {
-    const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: [],
@@ -229,7 +281,10 @@ describe('BaseController', () => {
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
-    const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: [],
@@ -254,7 +309,10 @@ describe('BaseController', () => {
   });
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
-    const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: [],
@@ -270,11 +328,16 @@ describe('BaseController', () => {
 
     expect(() => {
       controllerMessenger.unsubscribe('CountController:stateChange', listener1);
-    }).toThrow("Subscription not found for event: 'CountController:stateChange'");
+    }).toThrow(
+      "Subscription not found for event: 'CountController:stateChange'",
+    );
   });
 
   it('should no longer update subscribers after being destroyed', () => {
-    const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: [],
@@ -307,7 +370,10 @@ describe('getAnonymizedState', () => {
   });
 
   it('should return empty state when no properties are anonymized', () => {
-    const anonymizedState = getAnonymizedState({ count: 1 }, { count: { anonymous: false, persist: false } });
+    const anonymizedState = getAnonymizedState(
+      { count: 1 },
+      { count: { anonymous: false, persist: false } },
+    );
     expect(anonymizedState).toStrictEqual({});
   });
 
@@ -338,7 +404,10 @@ describe('getAnonymizedState', () => {
         },
       },
     );
-    expect(anonymizedState).toStrictEqual({ network: 'mainnet', tokens: ['DAI', 'USDC'] });
+    expect(anonymizedState).toStrictEqual({
+      network: 'mainnet',
+      tokens: ['DAI', 'USDC'],
+    });
   });
 
   it('should use anonymizing function to anonymize state', () => {
@@ -385,7 +454,11 @@ describe('getAnonymizedState', () => {
   });
 
   it('should allow returning a nested partial object from an anonymizing function', () => {
-    const anonymizeTxMeta = (txMeta: { hash: string; value: number; history: { hash: string; value: number }[] }) => {
+    const anonymizeTxMeta = (txMeta: {
+      hash: string;
+      value: number;
+      history: { hash: string; value: number }[];
+    }) => {
       return {
         history: txMeta.history.map((entry) => {
           return { value: entry.value };
@@ -415,7 +488,9 @@ describe('getAnonymizedState', () => {
       },
     );
 
-    expect(anonymizedState).toStrictEqual({ txMeta: { history: [{ value: 9 }], value: 10 } });
+    expect(anonymizedState).toStrictEqual({
+      txMeta: { history: [{ value: 9 }], value: 10 },
+    });
   });
 
   it('should allow transforming types in an anonymizing function', () => {
@@ -441,7 +516,10 @@ describe('getPersistentState', () => {
   });
 
   it('should return empty state when no properties are persistent', () => {
-    const persistentState = getPersistentState({ count: 1 }, { count: { anonymous: false, persist: false } });
+    const persistentState = getPersistentState(
+      { count: 1 },
+      { count: { anonymous: false, persist: false } },
+    );
     expect(persistentState).toStrictEqual({});
   });
 
@@ -472,7 +550,10 @@ describe('getPersistentState', () => {
         },
       },
     );
-    expect(persistentState).toStrictEqual({ password: 'secret password', privateKey: '123' });
+    expect(persistentState).toStrictEqual({
+      password: 'secret password',
+      privateKey: '123',
+    });
   });
 
   it('should use function to derive persistent state', () => {
@@ -553,7 +634,9 @@ describe('getPersistentState', () => {
       },
     );
 
-    expect(persistentState).toStrictEqual({ txMeta: { history: [{ value: 9 }], value: 10 } });
+    expect(persistentState).toStrictEqual({
+      txMeta: { history: [{ value: 9 }], value: 10 },
+    });
   });
 
   it('should allow transforming types in a persist function', () => {
@@ -597,7 +680,10 @@ describe('getPersistentState', () => {
       },
     };
 
-    class VisitorController extends BaseController<'VisitorController', VisitorControllerState> {
+    class VisitorController extends BaseController<
+      'VisitorController',
+      VisitorControllerState
+    > {
       constructor(
         messagingSystem: RestrictedControllerMessenger<
           'VisitorController',
@@ -613,7 +699,10 @@ describe('getPersistentState', () => {
           name: 'VisitorController',
           state: { visitors: [] },
         });
-        messagingSystem.registerActionHandler('VisitorController:clear', this.clear);
+        messagingSystem.registerActionHandler(
+          'VisitorController:clear',
+          this.clear,
+        );
       }
 
       clear = () => {
@@ -671,8 +760,14 @@ describe('getPersistentState', () => {
           name: 'VisitorOverflowController',
           state: { maxVisitors: 5 },
         });
-        messagingSystem.registerActionHandler('VisitorOverflowController:updateMax', this.updateMax);
-        messagingSystem.subscribe('VisitorController:stateChange', this.onVisit);
+        messagingSystem.registerActionHandler(
+          'VisitorOverflowController:updateMax',
+          this.updateMax,
+        );
+        messagingSystem.subscribe(
+          'VisitorController:stateChange',
+          this.onVisit,
+        );
       }
 
       onVisit = ({ visitors }: VisitorControllerState) => {
@@ -702,20 +797,26 @@ describe('getPersistentState', () => {
         allowedActions: [],
         allowedEvents: [],
       });
-      const visitorController = new VisitorController(visitorControllerMessenger);
-      const visitorOverflowControllerMessenger = controllerMessenger.getRestricted({
-        name: 'VisitorOverflowController',
-        allowedActions: ['VisitorController:clear'],
-        allowedEvents: ['VisitorController:stateChange'],
-      });
-      const visitorOverflowController = new VisitorOverflowController(visitorOverflowControllerMessenger);
+      const visitorController = new VisitorController(
+        visitorControllerMessenger,
+      );
+      const visitorOverflowControllerMessenger = controllerMessenger.getRestricted(
+        {
+          name: 'VisitorOverflowController',
+          allowedActions: ['VisitorController:clear'],
+          allowedEvents: ['VisitorController:stateChange'],
+        },
+      );
+      const visitorOverflowController = new VisitorOverflowController(
+        visitorOverflowControllerMessenger,
+      );
 
       controllerMessenger.call('VisitorOverflowController:updateMax', 2);
       visitorController.addVisitor('A');
       visitorController.addVisitor('B');
       visitorController.addVisitor('C'); // this should trigger an overflow
 
-      expect(visitorOverflowController.state.maxVisitors).toEqual(2);
+      expect(visitorOverflowController.state.maxVisitors).toStrictEqual(2);
       expect(visitorController.state.visitors).toHaveLength(0);
     });
   });

@@ -110,6 +110,8 @@ describe('PhishingController', () => {
 
     const controller = new PhishingController();
 
-    await expect(controller.updatePhishingLists()).rejects.toThrow(/Fetch failed with status '500'/u);
+    await expect(controller.updatePhishingLists()).rejects.toThrow(
+      /Fetch failed with status '500'/u,
+    );
   });
 });

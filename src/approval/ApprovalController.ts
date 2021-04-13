@@ -54,7 +54,10 @@ export interface ApprovalState extends BaseState {
 const getAlreadyPendingMessage = (origin: string, type: string) =>
   `Request of type '${type}' already pending for origin ${origin}. Please wait.`;
 
-const defaultState: ApprovalState = { [APPROVALS_STORE_KEY]: {}, [APPROVAL_COUNT_STORE_KEY]: 0 };
+const defaultState: ApprovalState = {
+  [APPROVALS_STORE_KEY]: {},
+  [APPROVAL_COUNT_STORE_KEY]: 0,
+};
 
 /**
  * Controller for managing requests that require user approval.
@@ -65,7 +68,10 @@ const defaultState: ApprovalState = { [APPROVALS_STORE_KEY]: {}, [APPROVAL_COUNT
  * Adding a request returns a promise that resolves or rejects when the request
  * is approved or denied, respectively.
  */
-export class ApprovalController extends BaseController<ApprovalConfig, ApprovalState> {
+export class ApprovalController extends BaseController<
+  ApprovalConfig,
+  ApprovalState
+> {
   private _approvals: Map<string, ApprovalCallbacks>;
 
   private _origins: Map<string, Set<string>>;
@@ -113,7 +119,12 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
     type: string;
     requestData?: RequestData;
   }): Promise<unknown> {
-    const promise = this._add(opts.origin, opts.type, opts.id, opts.requestData);
+    const promise = this._add(
+      opts.origin,
+      opts.type,
+      opts.id,
+      opts.requestData,
+    );
     this._showApprovalRequest();
     return promise;
   }
@@ -134,7 +145,12 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * if any.
    * @returns The approval promise.
    */
-  add(opts: { id?: string; origin: string; type: string; requestData?: RequestData }): Promise<unknown> {
+  add(opts: {
+    id?: string;
+    origin: string;
+    type: string;
+    requestData?: RequestData;
+  }): Promise<unknown> {
     return this._add(opts.origin, opts.type, opts.id, opts.requestData);
   }
 
@@ -273,7 +289,9 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * Rejects and deletes all approval requests.
    */
   clear(): void {
-    const rejectionError = ethErrors.rpc.resourceUnavailable('The request was rejected; please try again.');
+    const rejectionError = ethErrors.rpc.resourceUnavailable(
+      'The request was rejected; please try again.',
+    );
 
     for (const id of this._approvals.keys()) {
       this.reject(id, rejectionError);
@@ -291,11 +309,18 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @param requestData - The request data associated with the approval request.
    * @returns The approval promise.
    */
-  private _add(origin: string, type: string, id: string = nanoid(), requestData?: RequestData): Promise<unknown> {
+  private _add(
+    origin: string,
+    type: string,
+    id: string = nanoid(),
+    requestData?: RequestData,
+  ): Promise<unknown> {
     this._validateAddParams(id, origin, type, requestData);
 
     if (this._origins.get(origin)?.has(type)) {
-      throw ethErrors.rpc.resourceUnavailable(getAlreadyPendingMessage(origin, type));
+      throw ethErrors.rpc.resourceUnavailable(
+        getAlreadyPendingMessage(origin, type),
+      );
     }
 
     // add pending approval
@@ -314,7 +339,12 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @param type - The type associated with the approval request.
    * @param requestData - The request data associated with the approval request.
    */
-  private _validateAddParams(id: string, origin: string, type: string, requestData?: RequestData): void {
+  private _validateAddParams(
+    id: string,
+    origin: string,
+    type: string,
+    requestData?: RequestData,
+  ): void {
     let errorMessage = null;
     if (!id || typeof id !== 'string') {
       errorMessage = 'Must specify non-empty string id.';
@@ -324,7 +354,10 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
       errorMessage = 'Must specify non-empty string origin.';
     } else if (!type || typeof type !== 'string') {
       errorMessage = 'Must specify non-empty string type.';
-    } else if (requestData && (typeof requestData !== 'object' || Array.isArray(requestData))) {
+    } else if (
+      requestData &&
+      (typeof requestData !== 'object' || Array.isArray(requestData))
+    ) {
       errorMessage = 'Request data must be a plain object if specified.';
     }
 
@@ -358,7 +391,12 @@ export class ApprovalController extends BaseController<ApprovalConfig, ApprovalS
    * @param type - The type associated with the approval request.
    * @param requestData - The request data associated with the approval request.
    */
-  private _addToStore(id: string, origin: string, type: string, requestData?: RequestData): void {
+  private _addToStore(
+    id: string,
+    origin: string,
+    type: string,
+    requestData?: RequestData,
+  ): void {
     const approval: Approval = { id, origin, type, time: Date.now() };
     if (requestData) {
       approval.requestData = requestData;

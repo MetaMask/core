@@ -64,7 +64,9 @@ describe('notification controller', () => {
         isShown: false,
       },
     };
-    expect(controller.state.notifications).toStrictEqual(expectedStateNotifications);
+    expect(controller.state.notifications).toStrictEqual(
+      expectedStateNotifications,
+    );
   });
 
   it('should add new notifcation to state', () => {

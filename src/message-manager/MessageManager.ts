@@ -54,7 +54,11 @@ export interface MessageParamsMetamask extends AbstractMessageParamsMetamask {
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
-export class MessageManager extends AbstractMessageManager<Message, MessageParams, MessageParamsMetamask> {
+export class MessageManager extends AbstractMessageManager<
+  Message,
+  MessageParams,
+  MessageParamsMetamask
+> {
   /**
    * Name of this controller used during composition
    */
@@ -68,7 +72,10 @@ export class MessageManager extends AbstractMessageManager<Message, MessageParam
    * @param req? - The original request object possibly containing the origin
    * @returns - Promise resolving to the raw data of the signature request
    */
-  addUnapprovedMessageAsync(messageParams: MessageParams, req?: OriginalRequest): Promise<string> {
+  addUnapprovedMessageAsync(
+    messageParams: MessageParams,
+    req?: OriginalRequest,
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
       validateSignMessageData(messageParams);
       const messageId = this.addUnapprovedMessage(messageParams, req);
@@ -77,9 +84,19 @@ export class MessageManager extends AbstractMessageManager<Message, MessageParam
           case 'signed':
             return resolve(data.rawSig as string);
           case 'rejected':
-            return reject(new Error('MetaMask Message Signature: User denied message signature.'));
+            return reject(
+              new Error(
+                'MetaMask Message Signature: User denied message signature.',
+              ),
+            );
           default:
-            return reject(new Error(`MetaMask Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`));
+            return reject(
+              new Error(
+                `MetaMask Message Signature: Unknown problem: ${JSON.stringify(
+                  messageParams,
+                )}`,
+              ),
+            );
         }
       });
     });
@@ -109,7 +126,10 @@ export class MessageManager extends AbstractMessageManager<Message, MessageParam
       type: 'eth_sign',
     };
     this.addMessage(messageData);
-    this.hub.emit(`unapprovedMessage`, { ...messageParams, ...{ metamaskId: messageId } });
+    this.hub.emit(`unapprovedMessage`, {
+      ...messageParams,
+      ...{ metamaskId: messageId },
+    });
     return messageId;
   }
 
@@ -120,7 +140,9 @@ export class MessageManager extends AbstractMessageManager<Message, MessageParam
    * @param messageParams - The messageParams to modify
    * @returns - Promise resolving to the messageParams with the metamaskId property removed
    */
-  prepMessageForSigning(messageParams: MessageParamsMetamask): Promise<MessageParams> {
+  prepMessageForSigning(
+    messageParams: MessageParamsMetamask,
+  ): Promise<MessageParams> {
     delete messageParams.metamaskId;
     return Promise.resolve(messageParams);
   }

@@ -4,7 +4,9 @@ import type { ContactEntry } from '../user/AddressBookController';
 import { PreferencesController } from '../user/PreferencesController';
 import AccountTrackerController from './AccountTrackerController';
 
-const provider = new HttpProvider('https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
+const provider = new HttpProvider(
+  'https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+);
 
 describe('AccountTrackerController', () => {
   it('should set default state', () => {
@@ -22,7 +24,9 @@ describe('AccountTrackerController', () => {
       onPreferencesStateChange: stub(),
       getIdentities: () => ({}),
     });
-    expect(() => console.log(controller.provider)).toThrow('Property only used for setting');
+    expect(() => console.log(controller.provider)).toThrow(
+      'Property only used for setting',
+    );
   });
 
   it('should get real balance', async () => {
@@ -57,7 +61,9 @@ describe('AccountTrackerController', () => {
       },
     );
     controller.refresh();
-    expect(controller.state.accounts).toStrictEqual({ baz: { balance: '0x0' } });
+    expect(controller.state.accounts).toStrictEqual({
+      baz: { balance: '0x0' },
+    });
   });
 
   it('should subscribe to new sibling preference controllers', async () => {
@@ -81,7 +87,8 @@ describe('AccountTrackerController', () => {
       const poll = spy(AccountTrackerController.prototype, 'poll');
       const controller = new AccountTrackerController(
         {
-          onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+          onPreferencesStateChange: (listener) =>
+            preferences.subscribe(listener),
           getIdentities: () => ({}),
         },
         { provider, interval: 100 },

@@ -5,7 +5,11 @@ import CurrencyRateController from './CurrencyRateController';
 describe('CurrencyRateController', () => {
   it('should set default state', () => {
     const fetchExchangeRateStub = stub();
-    const controller = new CurrencyRateController({}, {}, fetchExchangeRateStub);
+    const controller = new CurrencyRateController(
+      {},
+      {},
+      fetchExchangeRateStub,
+    );
     expect(controller.state).toStrictEqual({
       conversionDate: 0,
       conversionRate: 0,
@@ -19,7 +23,11 @@ describe('CurrencyRateController', () => {
 
   it('should initialize with the default config', () => {
     const fetchExchangeRateStub = stub();
-    const controller = new CurrencyRateController({}, {}, fetchExchangeRateStub);
+    const controller = new CurrencyRateController(
+      {},
+      {},
+      fetchExchangeRateStub,
+    );
     expect(controller.config).toStrictEqual({
       currentCurrency: 'usd',
       disabled: false,
@@ -34,7 +42,11 @@ describe('CurrencyRateController', () => {
   it('should initialize with the currency in state', () => {
     const fetchExchangeRateStub = stub();
     const existingState = { currentCurrency: 'rep' };
-    const controller = new CurrencyRateController({}, existingState, fetchExchangeRateStub);
+    const controller = new CurrencyRateController(
+      {},
+      existingState,
+      fetchExchangeRateStub,
+    );
     expect(controller.config).toStrictEqual({
       currentCurrency: 'rep',
       disabled: false,
@@ -48,19 +60,35 @@ describe('CurrencyRateController', () => {
 
   it('should throw when currentCurrency property is accessed', () => {
     const fetchExchangeRateStub = stub();
-    const controller = new CurrencyRateController({}, {}, fetchExchangeRateStub);
-    expect(() => console.log(controller.currentCurrency)).toThrow('Property only used for setting');
+    const controller = new CurrencyRateController(
+      {},
+      {},
+      fetchExchangeRateStub,
+    );
+    expect(() => console.log(controller.currentCurrency)).toThrow(
+      'Property only used for setting',
+    );
   });
 
   it('should throw when nativeCurrency property is accessed', () => {
     const fetchExchangeRateStub = stub();
-    const controller = new CurrencyRateController({}, {}, fetchExchangeRateStub);
-    expect(() => console.log(controller.nativeCurrency)).toThrow('Property only used for setting');
+    const controller = new CurrencyRateController(
+      {},
+      {},
+      fetchExchangeRateStub,
+    );
+    expect(() => console.log(controller.nativeCurrency)).toThrow(
+      'Property only used for setting',
+    );
   });
 
   it('should poll and update rate in the right interval', async () => {
     const fetchExchangeRateStub = stub();
-    const controller = new CurrencyRateController({ interval: 100 }, {}, fetchExchangeRateStub);
+    const controller = new CurrencyRateController(
+      { interval: 100 },
+      {},
+      fetchExchangeRateStub,
+    );
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 1));
     expect(fetchExchangeRateStub.called).toBe(true);
@@ -73,7 +101,11 @@ describe('CurrencyRateController', () => {
 
   it('should not update rates if disabled', async () => {
     const fetchExchangeRateStub = stub().resolves({});
-    const controller = new CurrencyRateController({ interval: 10 }, {}, fetchExchangeRateStub);
+    const controller = new CurrencyRateController(
+      { interval: 10 },
+      {},
+      fetchExchangeRateStub,
+    );
     controller.disabled = true;
 
     await controller.updateExchangeRate();
@@ -83,7 +115,11 @@ describe('CurrencyRateController', () => {
   it('should clear previous interval', async () => {
     const fetchExchangeRateStub = stub();
     const mock = stub(global, 'clearTimeout');
-    const controller = new CurrencyRateController({ interval: 1337 }, {}, fetchExchangeRateStub);
+    const controller = new CurrencyRateController(
+      { interval: 1337 },
+      {},
+      fetchExchangeRateStub,
+    );
     await new Promise<void>((resolve) => {
       setTimeout(() => {
         controller.poll(1338);
@@ -98,7 +134,11 @@ describe('CurrencyRateController', () => {
 
   it('should update currency', async () => {
     const fetchExchangeRateStub = stub().resolves({ conversionRate: 10 });
-    const controller = new CurrencyRateController({ interval: 10 }, {}, fetchExchangeRateStub);
+    const controller = new CurrencyRateController(
+      { interval: 10 },
+      {},
+      fetchExchangeRateStub,
+    );
     expect(controller.state.conversionRate).toStrictEqual(0);
     await controller.updateExchangeRate();
     expect(controller.state.conversionRate).toStrictEqual(10);
@@ -116,6 +156,8 @@ describe('CurrencyRateController', () => {
 
     await controller.updateExchangeRate();
 
-    expect(fetchExchangeRateStub.alwaysCalledWithExactly('xyz', 'ETH', true)).toBe(true);
+    expect(
+      fetchExchangeRateStub.alwaysCalledWithExactly('xyz', 'ETH', true),
+    ).toBe(true);
   });
 });

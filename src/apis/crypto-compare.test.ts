@@ -18,7 +18,9 @@ describe('CryptoCompare', () => {
   });
 
   it('should return CAD conversion rate', async () => {
-    nock(cryptoCompareHost).get('/data/price?fsym=ETH&tsyms=CAD').reply(200, { CAD: 2000.42 });
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=CAD')
+      .reply(200, { CAD: 2000.42 });
 
     const { conversionRate } = await fetchExchangeRate('CAD', 'ETH');
 
@@ -26,7 +28,9 @@ describe('CryptoCompare', () => {
   });
 
   it('should return conversion date', async () => {
-    nock(cryptoCompareHost).get('/data/price?fsym=ETH&tsyms=CAD').reply(200, { CAD: 2000.42 });
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=CAD')
+      .reply(200, { CAD: 2000.42 });
 
     const before = Date.now() / 1000;
     const { conversionDate } = await fetchExchangeRate('CAD', 'ETH');
@@ -37,7 +41,9 @@ describe('CryptoCompare', () => {
   });
 
   it('should return CAD conversion rate given lower-cased currency', async () => {
-    nock(cryptoCompareHost).get('/data/price?fsym=ETH&tsyms=CAD').reply(200, { CAD: 2000.42 });
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=CAD')
+      .reply(200, { CAD: 2000.42 });
 
     const { conversionRate } = await fetchExchangeRate('cad', 'ETH');
 
@@ -45,7 +51,9 @@ describe('CryptoCompare', () => {
   });
 
   it('should return CAD conversion rate given lower-cased native currency', async () => {
-    nock(cryptoCompareHost).get('/data/price?fsym=ETH&tsyms=CAD').reply(200, { CAD: 2000.42 });
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=CAD')
+      .reply(200, { CAD: 2000.42 });
 
     const { conversionRate } = await fetchExchangeRate('CAD', 'eth');
 
@@ -53,7 +61,9 @@ describe('CryptoCompare', () => {
   });
 
   it('should not return USD conversion rate when fetching just CAD conversion rate', async () => {
-    nock(cryptoCompareHost).get('/data/price?fsym=ETH&tsyms=CAD').reply(200, { CAD: 1000.42 });
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=CAD')
+      .reply(200, { CAD: 1000.42 });
 
     const { usdConversionRate } = await fetchExchangeRate('CAD', 'ETH');
 
@@ -61,36 +71,58 @@ describe('CryptoCompare', () => {
   });
 
   it('should return USD conversion rate for USD even when includeUSD is disabled', async () => {
-    nock(cryptoCompareHost).get('/data/price?fsym=ETH&tsyms=USD').reply(200, { USD: 1000.42 });
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=USD')
+      .reply(200, { USD: 1000.42 });
 
-    const { conversionRate, usdConversionRate } = await fetchExchangeRate('USD', 'ETH', false);
+    const { conversionRate, usdConversionRate } = await fetchExchangeRate(
+      'USD',
+      'ETH',
+      false,
+    );
 
     expect(conversionRate).toStrictEqual(1000.42);
     expect(usdConversionRate).toStrictEqual(1000.42);
   });
 
   it('should return USD conversion rate for USD when includeUSD is enabled', async () => {
-    nock(cryptoCompareHost).get('/data/price?fsym=ETH&tsyms=USD').reply(200, { USD: 1000.42 });
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=USD')
+      .reply(200, { USD: 1000.42 });
 
-    const { conversionRate, usdConversionRate } = await fetchExchangeRate('USD', 'ETH', true);
+    const { conversionRate, usdConversionRate } = await fetchExchangeRate(
+      'USD',
+      'ETH',
+      true,
+    );
 
     expect(conversionRate).toStrictEqual(1000.42);
     expect(usdConversionRate).toStrictEqual(1000.42);
   });
 
   it('should return CAD and USD conversion rate', async () => {
-    nock(cryptoCompareHost).get('/data/price?fsym=ETH&tsyms=CAD,USD').reply(200, { CAD: 2000.42, USD: 1000.42 });
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=CAD,USD')
+      .reply(200, { CAD: 2000.42, USD: 1000.42 });
 
-    const { conversionRate, usdConversionRate } = await fetchExchangeRate('CAD', 'ETH', true);
+    const { conversionRate, usdConversionRate } = await fetchExchangeRate(
+      'CAD',
+      'ETH',
+      true,
+    );
 
     expect(conversionRate).toStrictEqual(2000.42);
     expect(usdConversionRate).toStrictEqual(1000.42);
   });
 
   it('should throw if fetch throws', async () => {
-    nock(cryptoCompareHost).get('/data/price?fsym=ETH&tsyms=CAD').replyWithError('Example network error');
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=CAD')
+      .replyWithError('Example network error');
 
-    await expect(fetchExchangeRate('CAD', 'ETH')).rejects.toThrow('Example network error');
+    await expect(fetchExchangeRate('CAD', 'ETH')).rejects.toThrow(
+      'Example network error',
+    );
   });
 
   it('should throw if fetch returns unsuccessful response', async () => {
@@ -102,13 +134,19 @@ describe('CryptoCompare', () => {
   });
 
   it('should throw if conversion rate is invalid', async () => {
-    nock(cryptoCompareHost).get('/data/price?fsym=ETH&tsyms=CAD').reply(200, { CAD: 'invalid' });
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=CAD')
+      .reply(200, { CAD: 'invalid' });
 
-    await expect(fetchExchangeRate('CAD', 'ETH')).rejects.toThrow('Invalid response for CAD: invalid');
+    await expect(fetchExchangeRate('CAD', 'ETH')).rejects.toThrow(
+      'Invalid response for CAD: invalid',
+    );
   });
 
   it('should throw if USD conversion rate is invalid', async () => {
-    nock(cryptoCompareHost).get('/data/price?fsym=ETH&tsyms=CAD,USD').reply(200, { CAD: 2000.47, USD: 'invalid' });
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=CAD,USD')
+      .reply(200, { CAD: 2000.47, USD: 'invalid' });
 
     await expect(fetchExchangeRate('CAD', 'ETH', true)).rejects.toThrow(
       'Invalid response for usdConversionRate: invalid',

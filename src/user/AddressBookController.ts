@@ -50,7 +50,10 @@ export interface AddressBookState extends BaseState {
 /**
  * Controller that manages a list of recipient addresses associated with nicknames
  */
-export class AddressBookController extends BaseController<BaseConfig, AddressBookState> {
+export class AddressBookController extends BaseController<
+  BaseConfig,
+  AddressBookState
+> {
   /**
    * Name of this controller used during composition
    */
@@ -85,7 +88,11 @@ export class AddressBookController extends BaseController<BaseConfig, AddressBoo
    */
   delete(chainId: string, address: string) {
     address = toChecksumAddress(address);
-    if (!isValidAddress(address) || !this.state.addressBook[chainId] || !this.state.addressBook[chainId][address]) {
+    if (
+      !isValidAddress(address) ||
+      !this.state.addressBook[chainId] ||
+      !this.state.addressBook[chainId][address]
+    ) {
       return false;
     }
 

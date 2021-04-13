@@ -193,7 +193,9 @@ describe('EnsController', () => {
     const controller = new EnsController();
     expect(() => {
       controller.set('1', name1, 'foo');
-    }).toThrow('Invalid ENS entry: { chainId:1, ensName:foobarb.eth, address:foo}');
+    }).toThrow(
+      'Invalid ENS entry: { chainId:1, ensName:foobarb.eth, address:foo}',
+    );
     expect(controller.state).toStrictEqual({ ensEntries: {} });
   });
 

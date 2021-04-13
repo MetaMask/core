@@ -1,7 +1,15 @@
 import { stub } from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
-import { NetworksChainId, NetworkType, NetworkState } from '../network/NetworkController';
-import { TransactionController, TransactionStatus, TransactionMeta } from './TransactionController';
+import {
+  NetworksChainId,
+  NetworkType,
+  NetworkState,
+} from '../network/NetworkController';
+import {
+  TransactionController,
+  TransactionStatus,
+  TransactionMeta,
+} from './TransactionController';
 
 const globalAny: any = global;
 
@@ -22,7 +30,11 @@ jest.mock('eth-query', () =>
       gasPrice: (callback: any) => {
         callback(undefined, '0x0');
       },
-      getBlockByNumber: (_blocknumber: any, _fetchTxs: boolean, callback: any) => {
+      getBlockByNumber: (
+        _blocknumber: any,
+        _fetchTxs: boolean,
+        callback: any,
+      ) => {
         callback(undefined, { gasLimit: '0x0' });
       },
       getCode: (_to: any, callback: any) => {
@@ -60,11 +72,21 @@ function mockFetchs(data: any) {
 }
 
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
-const PROVIDER = new HttpProvider('https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
-const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
+const PROVIDER = new HttpProvider(
+  'https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+);
+const MAINNET_PROVIDER = new HttpProvider(
+  'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+);
 const MOCK_NETWORK = {
   getProvider: () => PROVIDER,
-  state: { network: '3', provider: { type: 'ropsten' as NetworkType, chainId: NetworksChainId.ropsten } },
+  state: {
+    network: '3',
+    provider: {
+      type: 'ropsten' as NetworkType,
+      chainId: NetworksChainId.ropsten,
+    },
+  },
   subscribe: () => undefined,
 };
 const MOCK_NETWORK_WITHOUT_CHAIN_ID = {
@@ -74,12 +96,20 @@ const MOCK_NETWORK_WITHOUT_CHAIN_ID = {
 };
 const MOCK_MAINNET_NETWORK = {
   getProvider: () => MAINNET_PROVIDER,
-  state: { network: '1', provider: { type: 'mainnet' as NetworkType, chainId: NetworksChainId.mainnet } },
+  state: {
+    network: '1',
+    provider: {
+      type: 'mainnet' as NetworkType,
+      chainId: NetworksChainId.mainnet,
+    },
+  },
   subscribe: () => undefined,
 };
 
-const TOKEN_TRANSACTION_HASH = '0x01d1cebeab9da8d887b36000c25fa175737e150f193ea37d5bb66347d834e999';
-const ETHER_TRANSACTION_HASH = '0xa9d17df83756011ea63e1f0ca50a6627df7cac9806809e36680fcf4e88cb9dae';
+const TOKEN_TRANSACTION_HASH =
+  '0x01d1cebeab9da8d887b36000c25fa175737e150f193ea37d5bb66347d834e999';
+const ETHER_TRANSACTION_HASH =
+  '0xa9d17df83756011ea63e1f0ca50a6627df7cac9806809e36680fcf4e88cb9dae';
 
 const ETH_TRANSACTIONS = [
   {
@@ -165,7 +195,8 @@ const TOKEN_TRANSACTIONS = [
     timeStamp: '1564091067',
     hash: TOKEN_TRANSACTION_HASH,
     nonce: '2329',
-    blockHash: '0x3c30a9be9aea7be13caad419444140c11839d72e70479ec7e9c6d8bd08c533bc',
+    blockHash:
+      '0x3c30a9be9aea7be13caad419444140c11839d72e70479ec7e9c6d8bd08c533bc',
     from: '0xdfa6edae2ec0cf1d4a60542422724a48195a5071',
     contractAddress: '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359',
     to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -186,7 +217,8 @@ const TOKEN_TRANSACTIONS = [
     timeStamp: '1564091247',
     hash: '0xdcd1c8bee545d3f76d80b20a23ad44276ba2e376681228eb4570cf3518491279',
     nonce: '2330',
-    blockHash: '0x16986dd66bedb20a5b846ec2b6c0ecaa62f1c4b51fac58c1326101fd9126dd82',
+    blockHash:
+      '0x16986dd66bedb20a5b846ec2b6c0ecaa62f1c4b51fac58c1326101fd9126dd82',
     from: '0xdfa6edae2ec0cf1d4a60542422724a48195a5071',
     contractAddress: '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359',
     to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -207,7 +239,8 @@ const TOKEN_TRANSACTIONS = [
     timeStamp: '1564111652',
     hash: '0x070369e6f560b0deca52e050ff1a961fa7b688bbec5cea08435921c9d9b0f52e',
     nonce: '2333',
-    blockHash: '0x0aff8b36881be99df6d176d7c64c2171672c0483684a10c112d2c90fefe30a0a',
+    blockHash:
+      '0x0aff8b36881be99df6d176d7c64c2171672c0483684a10c112d2c90fefe30a0a',
     from: '0xdfa6edae2ec0cf1d4a60542422724a48195a5071',
     contractAddress: '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359',
     to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -228,7 +261,8 @@ const TOKEN_TRANSACTIONS = [
     timeStamp: '1564126442',
     hash: '0x8ef20ec9597c8c2e945bcc76d2668e5d3bb088b081fe8c5b5af2e1cbd315a20f',
     nonce: '31',
-    blockHash: '0xb80d4d861ecb7a3cb14e591c0aaeb226842d0267772affa2acc1a590c7535647',
+    blockHash:
+      '0xb80d4d861ecb7a3cb14e591c0aaeb226842d0267772affa2acc1a590c7535647',
     from: '0x6c70e3563cef0c6835703bb2664c9f59a92353e4',
     contractAddress: '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359',
     to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -249,7 +283,8 @@ const TOKEN_TRANSACTIONS = [
     timeStamp: '1564168901',
     hash: '0xa0f2d7b558bb3cc28fa568f6feb8ed30eb28a01a674d7c0d4ae603fc691e6020',
     nonce: '2368',
-    blockHash: '0x62c515ea049842c968ca67499f47a32a11394364d319d9c9cc0a0211652a7294',
+    blockHash:
+      '0x62c515ea049842c968ca67499f47a32a11394364d319d9c9cc0a0211652a7294',
     from: '0xdfa6edae2ec0cf1d4a60542422724a48195a5071',
     contractAddress: '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359',
     to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -270,7 +305,8 @@ const TOKEN_TRANSACTIONS = [
     timeStamp: '1565339223',
     hash: '0x464df60fe00b6dd04c9e8ab341d02af9b10a619d2fcd60fd2971f10edf12118f',
     nonce: '206760',
-    blockHash: '0x98275388ef6708debe35ac7bf2e30143c9b1fd9e0e457ca03598fc1f4209e273',
+    blockHash:
+      '0x98275388ef6708debe35ac7bf2e30143c9b1fd9e0e457ca03598fc1f4209e273',
     from: '0x00cfbbaf7ddb3a1476767101c12a0162e241fbad',
     contractAddress: '0x4dc3643dbc642b72c158e7f3d2ff232df61cb6ce',
     to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -291,7 +327,8 @@ const TOKEN_TRANSACTIONS = [
     timeStamp: '1565815049',
     hash: '0xc0682327ad3efd56dfa33e8206b4e09efad4e419a6191076069d217e3ee2341f',
     nonce: '2506',
-    blockHash: '0xd0aa3c0e319fdfeb21b0192cf77b9760b8668060a5977a5f10f8413531083afa',
+    blockHash:
+      '0xd0aa3c0e319fdfeb21b0192cf77b9760b8668060a5977a5f10f8413531083afa',
     from: '0xdfa6edae2ec0cf1d4a60542422724a48195a5071',
     contractAddress: '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359',
     to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -312,7 +349,8 @@ const TOKEN_TRANSACTIONS = [
     timeStamp: '1565815221',
     hash: '0x989ea9f3ee576fa43957f44363e839adf1a4a397c3d8392a4f7cbbf7949fd0ae',
     nonce: '2',
-    blockHash: '0xb9cf1d29c665c052e3831b5754903e539c5b0b1d33b8bcab6cd2d450764d601f',
+    blockHash:
+      '0xb9cf1d29c665c052e3831b5754903e539c5b0b1d33b8bcab6cd2d450764d601f',
     from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
     contractAddress: '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359',
     to: '0x09cabec1ead1c0ba254b09efb3ee13841712be14',
@@ -333,7 +371,8 @@ const TOKEN_TRANSACTIONS = [
     timeStamp: '1570244087',
     hash: '0xc0016b89b3b525b30d73f242653b0d80ec3ebf285376dff5bb52cef3261498b2',
     nonce: '3',
-    blockHash: '0x1ceb2f8b83087f010773e2acf63d1526633c8a884bd1980f118a1bba576be69f',
+    blockHash:
+      '0x1ceb2f8b83087f010773e2acf63d1526633c8a884bd1980f118a1bba576be69f',
     from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
     contractAddress: '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359',
     to: '0xdfa6edae2ec0cf1d4a60542422724a48195a5071',
@@ -354,7 +393,8 @@ const TOKEN_TRANSACTIONS = [
     timeStamp: '1570244087',
     hash: '0xc0016b89b3b525b30d73f242653b0d80ec3ebf285376dff5bb52cef3261498b2',
     nonce: '3',
-    blockHash: '0x1ceb2f8b83087f010773e2acf63d1526633c8a884bd1980f118a1bba576be69f',
+    blockHash:
+      '0x1ceb2f8b83087f010773e2acf63d1526633c8a884bd1980f118a1bba576be69f',
     from: '0xdfa6edae2ec0cf1d4a60542422724a48195a5071',
     contractAddress: '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359',
     to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -375,7 +415,8 @@ const TOKEN_TRANSACTIONS = [
     timeStamp: '1570440625',
     hash: '0xd8397138bb93d56e50d01e92a9eae99ebd3ae28844acdaa4663976a5501116cf',
     nonce: '2837',
-    blockHash: '0xba45dd64e71e146066af9b6d2dd3bc5d72f4a3399148c155dced74c139fc3c51',
+    blockHash:
+      '0xba45dd64e71e146066af9b6d2dd3bc5d72f4a3399148c155dced74c139fc3c51',
     from: '0xdfa6edae2ec0cf1d4a60542422724a48195a5071',
     contractAddress: '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359',
     to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -396,7 +437,8 @@ const TOKEN_TRANSACTIONS = [
     timeStamp: '1600310867',
     hash: '0xc8bd16b6b41b4c24849eb6869702e1489c808cb5b125b01f084e38fefcb5ea77',
     nonce: '4',
-    blockHash: '0x7fa16a022bcf1f69c2d7adf6bd7d3f058e808eec5c66aaa910dfa8016a5333d1',
+    blockHash:
+      '0x7fa16a022bcf1f69c2d7adf6bd7d3f058e808eec5c66aaa910dfa8016a5333d1',
     from: '0x090d4613473dee047c3f2706764f49e0821d256e',
     contractAddress: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
     to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -417,7 +459,8 @@ const TOKEN_TRANSACTIONS = [
     timeStamp: '1600321973',
     hash: '0xa7162489faef826ee77862ed5210b01726524f09428f69842118dad394842d62',
     nonce: '6',
-    blockHash: '0xa74eb9d16f65f307dde4ce58c813c981b28f242edf1090ee2ac42caac9dccaca',
+    blockHash:
+      '0xa74eb9d16f65f307dde4ce58c813c981b28f242edf1090ee2ac42caac9dccaca',
     from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
     contractAddress: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
     to: '0x5e736f1f25992b2cad20ded179a52823d3d24b26',
@@ -530,7 +573,10 @@ describe('TransactionController', () => {
       onNetworkStateChange: MOCK_NETWORK.subscribe,
       getProvider: MOCK_NETWORK.getProvider,
     });
-    expect(controller.state).toEqual({ methodData: {}, transactions: [] });
+    expect(controller.state).toStrictEqual({
+      methodData: {},
+      transactions: [],
+    });
   });
 
   it('should set default config', () => {
@@ -539,15 +585,17 @@ describe('TransactionController', () => {
       onNetworkStateChange: MOCK_NETWORK.subscribe,
       getProvider: MOCK_NETWORK.getProvider,
     });
-    expect(controller.config).toEqual({
+    expect(controller.config).toStrictEqual({
       interval: 5000,
-      provider: undefined,
     });
   });
 
   it('should poll and update transaction statuses in the right interval', async () => {
     await new Promise((resolve) => {
-      const mock = stub(TransactionController.prototype, 'queryTransactionStatuses');
+      const mock = stub(
+        TransactionController.prototype,
+        'queryTransactionStatuses',
+      );
       new TransactionController(
         {
           getNetworkState: () => MOCK_NETWORK.state,
@@ -611,7 +659,9 @@ describe('TransactionController', () => {
       onNetworkStateChange: MOCK_NETWORK.subscribe,
       getProvider: MOCK_NETWORK.getProvider,
     });
-    await expect(controller.addTransaction({ from: 'foo' } as any)).rejects.toThrow('Invalid "from" address');
+    await expect(
+      controller.addTransaction({ from: 'foo' } as any),
+    ).rejects.toThrow('Invalid "from" address');
   });
 
   it('should add a valid transaction', async () => {
@@ -626,14 +676,22 @@ describe('TransactionController', () => {
       to: from,
     });
     expect(controller.state.transactions[0].transaction.from).toBe(from);
-    expect(controller.state.transactions[0].networkID).toBe(MOCK_NETWORK.state.network);
-    expect(controller.state.transactions[0].chainId).toBe(MOCK_NETWORK.state.provider.chainId);
-    expect(controller.state.transactions[0].status).toBe(TransactionStatus.unapproved);
+    expect(controller.state.transactions[0].networkID).toBe(
+      MOCK_NETWORK.state.network,
+    );
+    expect(controller.state.transactions[0].chainId).toBe(
+      MOCK_NETWORK.state.provider.chainId,
+    );
+    expect(controller.state.transactions[0].status).toBe(
+      TransactionStatus.unapproved,
+    );
   });
 
   it('should add a valid transaction after a network switch', async () => {
     const getNetworkState = stub().returns(MOCK_NETWORK.state);
-    let networkStateChangeListener: ((state: NetworkState) => void) | null = null;
+    let networkStateChangeListener:
+      | ((state: NetworkState) => void)
+      | null = null;
     const onNetworkStateChange = (listener: (state: NetworkState) => void) => {
       networkStateChangeListener = listener;
     };
@@ -656,9 +714,15 @@ describe('TransactionController', () => {
       to: from,
     });
     expect(controller.state.transactions[0].transaction.from).toBe(from);
-    expect(controller.state.transactions[0].networkID).toBe(MOCK_MAINNET_NETWORK.state.network);
-    expect(controller.state.transactions[0].chainId).toBe(MOCK_MAINNET_NETWORK.state.provider.chainId);
-    expect(controller.state.transactions[0].status).toBe(TransactionStatus.unapproved);
+    expect(controller.state.transactions[0].networkID).toBe(
+      MOCK_MAINNET_NETWORK.state.network,
+    );
+    expect(controller.state.transactions[0].chainId).toBe(
+      MOCK_MAINNET_NETWORK.state.provider.chainId,
+    );
+    expect(controller.state.transactions[0].status).toBe(
+      TransactionStatus.unapproved,
+    );
   });
 
   it('should cancel a transaction', async () => {
@@ -674,11 +738,16 @@ describe('TransactionController', () => {
     });
     controller.cancelTransaction('foo');
     const transactionListener = new Promise(async (resolve) => {
-      controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
-        expect(controller.state.transactions[0].transaction.from).toBe(from);
-        expect(controller.state.transactions[0].status).toBe(TransactionStatus.rejected);
-        resolve('');
-      });
+      controller.hub.once(
+        `${controller.state.transactions[0].id}:finished`,
+        () => {
+          expect(controller.state.transactions[0].transaction.from).toBe(from);
+          expect(controller.state.transactions[0].status).toBe(
+            TransactionStatus.rejected,
+          );
+          resolve('');
+        },
+      );
     });
     controller.cancelTransaction(controller.state.transactions[0].id);
     await expect(result).rejects.toThrow('User rejected the transaction');
@@ -783,7 +852,8 @@ describe('TransactionController', () => {
   it('should fail if no chainId is defined', async () => {
     const controller = new TransactionController(
       {
-        getNetworkState: () => MOCK_NETWORK_WITHOUT_CHAIN_ID.state as NetworkState,
+        getNetworkState: () =>
+          MOCK_NETWORK_WITHOUT_CHAIN_ID.state as NetworkState,
         onNetworkStateChange: MOCK_NETWORK_WITHOUT_CHAIN_ID.subscribe,
         getProvider: MOCK_NETWORK_WITHOUT_CHAIN_ID.getProvider,
       },
@@ -822,12 +892,15 @@ describe('TransactionController', () => {
         to: from,
         value: '0x0',
       });
-      controller.hub.once(`${controller.state.transactions[0].id}:finished`, () => {
-        const { transaction, status } = controller.state.transactions[0];
-        expect(transaction.from).toBe(from);
-        expect(status).toBe(TransactionStatus.submitted);
-        resolve('');
-      });
+      controller.hub.once(
+        `${controller.state.transactions[0].id}:finished`,
+        () => {
+          const { transaction, status } = controller.state.transactions[0];
+          expect(transaction.from).toBe(from);
+          expect(status).toBe(TransactionStatus.submitted);
+          resolve('');
+        },
+      );
       controller.approveTransaction(controller.state.transactions[0].id);
     });
   });
@@ -854,10 +927,15 @@ describe('TransactionController', () => {
       } as any);
       controller.state.transactions.push({} as any);
 
-      controller.hub.once(`${controller.state.transactions[0].id}:confirmed`, () => {
-        expect(controller.state.transactions[0].status).toBe(TransactionStatus.confirmed);
-        resolve('');
-      });
+      controller.hub.once(
+        `${controller.state.transactions[0].id}:confirmed`,
+        () => {
+          expect(controller.state.transactions[0].status).toBe(
+            TransactionStatus.confirmed,
+          );
+          resolve('');
+        },
+      );
       controller.queryTransactionStatuses();
     });
   });
@@ -884,10 +962,15 @@ describe('TransactionController', () => {
       } as any);
       controller.state.transactions.push({} as any);
 
-      controller.hub.once(`${controller.state.transactions[0].id}:confirmed`, () => {
-        expect(controller.state.transactions[0].status).toBe(TransactionStatus.confirmed);
-        resolve('');
-      });
+      controller.hub.once(
+        `${controller.state.transactions[0].id}:confirmed`,
+        () => {
+          expect(controller.state.transactions[0].status).toBe(
+            TransactionStatus.confirmed,
+          );
+          resolve('');
+        },
+      );
       controller.queryTransactionStatuses();
     });
   });
@@ -994,7 +1077,9 @@ describe('TransactionController', () => {
       args: [{ type: 'uint256' }, { type: 'uint256' }],
       name: 'Eth To Token Swap Input',
     });
-    expect(registry.registryMethod).toStrictEqual('ethToTokenSwapInput(uint256,uint256)');
+    expect(registry.registryMethod).toStrictEqual(
+      'ethToTokenSwapInput(uint256,uint256)',
+    );
   });
 
   it('should handle known method data', async () => {
@@ -1049,9 +1134,9 @@ describe('TransactionController', () => {
     const to = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     await controller.addTransaction({ from, to });
     controller.stopTransaction('nonexistent');
-    await expect(controller.stopTransaction(controller.state.transactions[0].id)).rejects.toThrow(
-      'No sign method defined',
-    );
+    await expect(
+      controller.stopTransaction(controller.state.transactions[0].id),
+    ).rejects.toThrow('No sign method defined');
   });
 
   it('should speed up a transaction', async () => {
@@ -1077,7 +1162,9 @@ describe('TransactionController', () => {
       await controller.speedUpTransaction(controller.state.transactions[0].id);
 
       expect(controller.state.transactions).toHaveLength(2);
-      expect(controller.state.transactions[1].transaction.gasPrice).toBe('0x5916a6d6');
+      expect(controller.state.transactions[1].transaction.gasPrice).toBe(
+        '0x5916a6d6',
+      );
       resolve('');
     });
   });

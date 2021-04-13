@@ -26,7 +26,12 @@ describe('AddressBookController', () => {
 
   it('should add a contact entry with chainId and memo', () => {
     const controller = new AddressBookController();
-    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo', '1', 'account 1');
+    controller.set(
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      'foo',
+      '1',
+      'account 1',
+    );
     expect(controller.state).toStrictEqual({
       addressBook: {
         1: {
@@ -44,8 +49,18 @@ describe('AddressBookController', () => {
 
   it('should add multiple contact entries with different chainIds', () => {
     const controller = new AddressBookController();
-    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo', '1', 'account 2');
-    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo', '2', 'account 2');
+    controller.set(
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      'foo',
+      '1',
+      'account 2',
+    );
+    controller.set(
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      'foo',
+      '2',
+      'account 2',
+    );
 
     expect(controller.state).toStrictEqual({
       addressBook: {
@@ -154,7 +169,10 @@ describe('AddressBookController', () => {
 
   it('should correctly mark ens entries', () => {
     const controller = new AddressBookController();
-    controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'metamask.eth');
+    controller.set(
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      'metamask.eth',
+    );
     expect(controller.state).toStrictEqual({
       addressBook: {
         1: {
@@ -180,7 +198,9 @@ describe('AddressBookController', () => {
 
   it('should return true to indicate an address book entry has been added', () => {
     const controller = new AddressBookController();
-    expect(controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo')).toBeTruthy();
+    expect(
+      controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo'),
+    ).toBeTruthy();
   });
 
   it('should return false to indicate an address book entry has NOT been added', () => {
@@ -191,7 +211,9 @@ describe('AddressBookController', () => {
   it('should return true to indicate an address book entry has been deleted', () => {
     const controller = new AddressBookController();
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
-    expect(controller.delete('1', '0x32Be343B94f860124dC4fEe278FDCBD38C102D88')).toBeTruthy();
+    expect(
+      controller.delete('1', '0x32Be343B94f860124dC4fEe278FDCBD38C102D88'),
+    ).toBeTruthy();
   });
 
   it('should return false to indicate an address book entry has NOT been deleted', () => {

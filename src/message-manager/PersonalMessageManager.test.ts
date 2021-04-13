@@ -3,7 +3,10 @@ import PersonalMessageManager from './PersonalMessageManager';
 describe('PersonalMessageManager', () => {
   it('should set default state', () => {
     const controller = new PersonalMessageManager();
-    expect(controller.state).toStrictEqual({ unapprovedMessages: {}, unapprovedMessagesCount: 0 });
+    expect(controller.state).toStrictEqual({
+      unapprovedMessages: {},
+      unapprovedMessagesCount: 0,
+    });
   });
 
   it('should set default config', () => {
@@ -102,7 +105,10 @@ describe('PersonalMessageManager', () => {
       from: '0xfoO',
     };
     const originalRequest = { origin: 'origin' };
-    const messageId = controller.addUnapprovedMessage(messageParams, originalRequest);
+    const messageId = controller.addUnapprovedMessage(
+      messageParams,
+      originalRequest,
+    );
     expect(messageId).not.toBeUndefined();
     const message = controller.getMessage(messageId);
     if (message) {
@@ -155,7 +161,10 @@ describe('PersonalMessageManager', () => {
     const controller = new PersonalMessageManager();
     const firstMessage = { from: 'foo', data: '0x123' };
     const messageId = controller.addUnapprovedMessage(firstMessage);
-    const messageParams = await controller.approveMessage({ ...firstMessage, metamaskId: messageId });
+    const messageParams = await controller.approveMessage({
+      ...firstMessage,
+      metamaskId: messageId,
+    });
     const message = controller.getMessage(messageId);
     expect(messageParams).toStrictEqual(firstMessage);
     expect(message).not.toBeUndefined();

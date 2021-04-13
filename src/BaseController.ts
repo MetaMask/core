@@ -114,7 +114,9 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    */
   configure(config: Partial<C>, overwrite = false, fullUpdate = true) {
     if (fullUpdate) {
-      this.internalConfig = overwrite ? (config as C) : Object.assign(this.internalConfig, config);
+      this.internalConfig = overwrite
+        ? (config as C)
+        : Object.assign(this.internalConfig, config);
 
       for (const key in this.internalConfig) {
         if (typeof this.internalConfig[key] !== 'undefined') {
@@ -172,7 +174,9 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    * @param overwrite - Overwrite state instead of merging
    */
   update(state: Partial<S>, overwrite = false) {
-    this.internalState = overwrite ? Object.assign({}, state as S) : Object.assign({}, this.internalState, state);
+    this.internalState = overwrite
+      ? Object.assign({}, state as S)
+      : Object.assign({}, this.internalState, state);
     this.notify();
   }
 }

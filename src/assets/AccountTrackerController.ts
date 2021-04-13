@@ -41,7 +41,10 @@ export interface AccountTrackerState extends BaseState {
 /**
  * Controller that tracks information for all accounts in the current keychain
  */
-export class AccountTrackerController extends BaseController<AccountTrackerConfig, AccountTrackerState> {
+export class AccountTrackerController extends BaseController<
+  AccountTrackerConfig,
+  AccountTrackerState
+> {
   private ethQuery: any;
 
   private mutex = new Mutex();
@@ -52,8 +55,12 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
     const { accounts } = this.state;
     const addresses = Object.keys(this.getIdentities());
     const existing = Object.keys(accounts);
-    const newAddresses = addresses.filter((address) => existing.indexOf(address) === -1);
-    const oldAddresses = existing.filter((address) => addresses.indexOf(address) === -1);
+    const newAddresses = addresses.filter(
+      (address) => existing.indexOf(address) === -1,
+    );
+    const oldAddresses = existing.filter(
+      (address) => addresses.indexOf(address) === -1,
+    );
     newAddresses.forEach((address) => {
       accounts[address] = { balance: '0x0' };
     });
@@ -84,7 +91,9 @@ export class AccountTrackerController extends BaseController<AccountTrackerConfi
       onPreferencesStateChange,
       getIdentities,
     }: {
-      onPreferencesStateChange: (listener: (preferencesState: PreferencesState) => void) => void;
+      onPreferencesStateChange: (
+        listener: (preferencesState: PreferencesState) => void,
+      ) => void;
       getIdentities: () => PreferencesState['identities'];
     },
     config?: Partial<AccountTrackerConfig>,

@@ -6,14 +6,20 @@ import { PreferencesController } from '../user/PreferencesController';
 import { AssetsController } from './AssetsController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
-import { BN as exportedBn, TokenBalancesController } from './TokenBalancesController';
+import {
+  BN as exportedBn,
+  TokenBalancesController,
+} from './TokenBalancesController';
 
 const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
 
 describe('TokenBalancesController', () => {
   const sandbox = createSandbox();
 
-  const getToken = (tokenBalances: TokenBalancesController, address: string) => {
+  const getToken = (
+    tokenBalances: TokenBalancesController,
+    address: string,
+  ) => {
     const { tokens } = tokenBalances.config;
     return tokens.find((token) => token.address === address);
   };
@@ -32,7 +38,7 @@ describe('TokenBalancesController', () => {
       getSelectedAddress: () => '0x1234',
       getBalanceOf: stub(),
     });
-    expect(tokenBalances.state).toEqual({ contractBalances: {} });
+    expect(tokenBalances.state).toStrictEqual({ contractBalances: {} });
   });
 
   it('should set default config', () => {
@@ -41,7 +47,7 @@ describe('TokenBalancesController', () => {
       getSelectedAddress: () => '0x1234',
       getBalanceOf: stub(),
     });
-    expect(tokenBalances.config).toEqual({
+    expect(tokenBalances.config).toStrictEqual({
       interval: 180000,
       tokens: [],
     });
@@ -114,7 +120,9 @@ describe('TokenBalancesController', () => {
       onNetworkStateChange: (listener) => network.subscribe(listener),
       getAssetName: assetsContract.getAssetName.bind(assetsContract),
       getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
-      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(assetsContract),
+      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
+        assetsContract,
+      ),
     });
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     const tokenBalances = new TokenBalancesController(
@@ -125,18 +133,24 @@ describe('TokenBalancesController', () => {
       },
       { interval: 1337, tokens: [{ address, decimals: 18, symbol: 'EOS' }] },
     );
-    expect(tokenBalances.state.contractBalances).toEqual({});
+    expect(tokenBalances.state.contractBalances).toStrictEqual({});
 
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     await tokenBalances.updateBalances();
     const mytoken = getToken(tokenBalances, address);
     expect(mytoken?.balanceError).toBeNull();
-    expect(Object.keys(tokenBalances.state.contractBalances)).toContain(address);
-    expect(tokenBalances.state.contractBalances[address].toNumber()).toBeGreaterThan(0);
+    expect(Object.keys(tokenBalances.state.contractBalances)).toContain(
+      address,
+    );
+    expect(
+      tokenBalances.state.contractBalances[address].toNumber(),
+    ).toBeGreaterThan(0);
   });
 
   it('should handle `getBalanceOf` error case', async () => {
-    const assetsContract = new AssetsContractController({ provider: MAINNET_PROVIDER });
+    const assetsContract = new AssetsContractController({
+      provider: MAINNET_PROVIDER,
+    });
     const network = new NetworkController();
     const preferences = new PreferencesController();
     const assets = new AssetsController({
@@ -144,11 +158,15 @@ describe('TokenBalancesController', () => {
       onNetworkStateChange: (listener) => network.subscribe(listener),
       getAssetName: assetsContract.getAssetName.bind(assetsContract),
       getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
-      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(assetsContract),
+      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
+        assetsContract,
+      ),
     });
     const errorMsg = 'Failed to get balance';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-    const getBalanceOfStub = stub().returns(Promise.reject(new Error(errorMsg)));
+    const getBalanceOfStub = stub().returns(
+      Promise.reject(new Error(errorMsg)),
+    );
     const tokenBalances = new TokenBalancesController(
       {
         onAssetsStateChange: (listener) => assets.subscribe(listener),
@@ -158,18 +176,24 @@ describe('TokenBalancesController', () => {
       { interval: 1337, tokens: [{ address, decimals: 18, symbol: 'EOS' }] },
     );
 
-    expect(tokenBalances.state.contractBalances).toEqual({});
+    expect(tokenBalances.state.contractBalances).toStrictEqual({});
     await tokenBalances.updateBalances();
     const mytoken = getToken(tokenBalances, address);
     expect(mytoken?.balanceError).toBeInstanceOf(Error);
     expect(mytoken?.balanceError?.message).toBe(errorMsg);
-    expect(tokenBalances.state.contractBalances[address].toNumber()).toStrictEqual(0);
+    expect(
+      tokenBalances.state.contractBalances[address].toNumber(),
+    ).toStrictEqual(0);
 
     getBalanceOfStub.returns(new BN(1));
     await tokenBalances.updateBalances();
     expect(mytoken?.balanceError).toBeNull();
-    expect(Object.keys(tokenBalances.state.contractBalances)).toContain(address);
-    expect(tokenBalances.state.contractBalances[address].toNumber()).toBeGreaterThan(0);
+    expect(Object.keys(tokenBalances.state.contractBalances)).toContain(
+      address,
+    );
+    expect(
+      tokenBalances.state.contractBalances[address].toNumber(),
+    ).toBeGreaterThan(0);
   });
 
   it('should subscribe to new sibling assets controllers', async () => {
@@ -181,7 +205,9 @@ describe('TokenBalancesController', () => {
       onNetworkStateChange: (listener) => network.subscribe(listener),
       getAssetName: assetsContract.getAssetName.bind(assetsContract),
       getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
-      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(assetsContract),
+      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
+        assetsContract,
+      ),
     });
     const tokenBalances = new TokenBalancesController(
       {

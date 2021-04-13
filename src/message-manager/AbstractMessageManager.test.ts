@@ -1,8 +1,18 @@
-import { TypedMessage, TypedMessageParams, TypedMessageParamsMetamask } from './TypedMessageManager';
+import {
+  TypedMessage,
+  TypedMessageParams,
+  TypedMessageParamsMetamask,
+} from './TypedMessageManager';
 import AbstractMessageManager from './AbstractMessageManager';
 
-class AbstractTestManager extends AbstractMessageManager<TypedMessage, TypedMessageParams, TypedMessageParamsMetamask> {
-  prepMessageForSigning(messageParams: TypedMessageParamsMetamask): Promise<TypedMessageParams> {
+class AbstractTestManager extends AbstractMessageManager<
+  TypedMessage,
+  TypedMessageParams,
+  TypedMessageParamsMetamask
+> {
+  prepMessageForSigning(
+    messageParams: TypedMessageParamsMetamask,
+  ): Promise<TypedMessageParams> {
     delete messageParams.metamaskId;
     delete messageParams.version;
     return Promise.resolve(messageParams);
@@ -34,7 +44,10 @@ const messageData = typedMessage;
 describe('AbstractTestManager', () => {
   it('should set default state', () => {
     const controller = new AbstractTestManager();
-    expect(controller.state).toStrictEqual({ unapprovedMessages: {}, unapprovedMessagesCount: 0 });
+    expect(controller.state).toStrictEqual({
+      unapprovedMessages: {},
+      unapprovedMessagesCount: 0,
+    });
   });
 
   it('should set default config', () => {
@@ -167,7 +180,11 @@ describe('AbstractTestManager', () => {
       time: messageTime,
       type: messageType,
     });
-    const messageParams = await controller.approveMessage({ ...firstMessage, metamaskId: messageId, version });
+    const messageParams = await controller.approveMessage({
+      ...firstMessage,
+      metamaskId: messageId,
+      version,
+    });
     const message = controller.getMessage(messageId);
     expect(messageParams).toStrictEqual(firstMessage);
     expect(message).not.toBeUndefined();
