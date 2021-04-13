@@ -100,11 +100,11 @@ describe('util', () => {
 
   describe('safelyExecute', () => {
     it('should swallow errors', async () => {
-      await expect(
-        util.safelyExecute(() => {
+      expect(
+        await util.safelyExecute(() => {
           throw new Error('ahh');
         }),
-      ).resolves.toBeUndefined();
+      ).toBeUndefined();
     });
 
     it('should call retry function', async () => {
@@ -124,11 +124,11 @@ describe('util', () => {
 
   describe('safelyExecuteWithTimeout', () => {
     it('should swallow errors', async () => {
-      await expect(
-        util.safelyExecuteWithTimeout(() => {
+      expect(
+        await util.safelyExecuteWithTimeout(() => {
           throw new Error('ahh');
         }),
-      ).resolves.toBeUndefined();
+      ).toBeUndefined();
     });
 
     it('should resolve', async () => {
@@ -139,11 +139,11 @@ describe('util', () => {
     });
 
     it('should timeout', async () => {
-      await expect(
-        util.safelyExecuteWithTimeout(() => {
+      expect(
+        await util.safelyExecuteWithTimeout(() => {
           return new Promise((res) => setTimeout(res, 800));
         }),
-      ).resolves.toBeUndefined();
+      ).toBeUndefined();
     });
   });
 
