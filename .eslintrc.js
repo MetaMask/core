@@ -1,7 +1,15 @@
 module.exports = {
   root: true,
   extends: ['@metamask/eslint-config', '@metamask/eslint-config-nodejs'],
-  ignorePatterns: ['!.eslintrc.js', '!jest.config.js', 'node_modules', 'dist', 'docs', 'coverage', '*.d.ts'],
+  ignorePatterns: [
+    '!.eslintrc.js',
+    '!jest.config.js',
+    'node_modules',
+    'dist',
+    'docs',
+    'coverage',
+    '*.d.ts',
+  ],
   overrides: [
     {
       files: ['*.test.ts', '*.test.js'],
@@ -15,7 +23,8 @@ module.exports = {
             // 'toBeFalsy': 'Avoid `toBeFalsy`',
             // 'toBeTruthy': 'Avoid `toBeTruthy`',
             toMatchSnapshot: 'Use `toMatchInlineSnapshot()` instead',
-            toThrowErrorMatchingSnapshot: 'Use `toThrowErrorMatchingInlineSnapshot()` instead',
+            toThrowErrorMatchingSnapshot:
+              'Use `toThrowErrorMatchingInlineSnapshot()` instead',
           },
         ],
         'jest/no-test-return-statement': 'off',
@@ -44,7 +53,12 @@ module.exports = {
         // TODO: Migrate this rule change back into `@metamask/eslint-config`
         '@typescript-eslint/no-unused-vars': [
           'error',
-          { vars: 'all', args: 'all', argsIgnorePattern: '[_]+', ignoreRestSiblings: true },
+          {
+            vars: 'all',
+            args: 'all',
+            argsIgnorePattern: '[_]+',
+            ignoreRestSiblings: true,
+          },
         ],
       },
     },

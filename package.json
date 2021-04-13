@@ -88,7 +88,6 @@
     "ethjs-provider-http": "^0.1.6",
     "jest": "^26.4.2",
     "jest-environment-jsdom": "^25.0.0",
-    "lint-staged": "^6.1.0",
     "nock": "^13.0.7",
     "prettier": "^2.2.1",
     "sinon": "^9.2.4",
@@ -124,20 +123,6 @@
     },
     "setupFiles": [
       "./tests/setupTests.ts"
-    ]
-  },
-  "prettier": {
-    "arrowParens": "always",
-    "parser": "typescript",
-    "printWidth": 120,
-    "singleQuote": true,
-    "trailingComma": "all"
-  },
-  "lint-staged": {
-    "*.ts": [
-      "prettier --ignore-path=.gitignore --write **/*.ts",
-      "yarn lint",
-      "git add"
     ]
   }
 }
