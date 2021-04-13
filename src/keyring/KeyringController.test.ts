@@ -47,11 +47,11 @@ describe('KeyringController', () => {
   });
 
   it('should set default state', () => {
-    expect(keyringController.state.keyrings).not.toEqual([]);
+    expect(keyringController.state.keyrings).not.toStrictEqual([]);
     const keyring = keyringController.state.keyrings[0];
-    expect(keyring.accounts).not.toEqual([]);
-    expect(keyring.index).toEqual(0);
-    expect(keyring.type).toEqual('HD Key Tree');
+    expect(keyring.accounts).not.toStrictEqual([]);
+    expect(keyring.index).toStrictEqual(0);
+    expect(keyring.type).toStrictEqual('HD Key Tree');
   });
 
   it('should add new account', async () => {
@@ -71,7 +71,7 @@ describe('KeyringController', () => {
     expect(initialState.keyrings[0].accounts).not.toBe(currentKeyringMemState.keyrings);
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
     const identitiesLength = Object.keys(preferences.state.identities).length;
-    expect(identitiesLength).toEqual(initialIdentitiesLength);
+    expect(identitiesLength).toStrictEqual(initialIdentitiesLength);
   });
 
   it('should create new vault and keychain', async () => {
@@ -105,7 +105,7 @@ describe('KeyringController', () => {
   it('should get accounts', async () => {
     const initialAccount = initialState.keyrings[0].accounts;
     const accounts = await keyringController.getAccounts();
-    expect(accounts).toEqual(initialAccount);
+    expect(accounts).toStrictEqual(initialAccount);
   });
 
   it('should import account with strategy privateKey', async () => {
@@ -127,7 +127,7 @@ describe('KeyringController', () => {
     const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
     const obj = await keyringController.importAccountWithStrategy(AccountImportStrategy.privateKey, [privateKey]);
     const modifiedState = { ...initialState, keyrings: [initialState.keyrings[0], newKeyring] };
-    expect(obj).toEqual(modifiedState);
+    expect(obj).toStrictEqual(modifiedState);
   });
 
   it('should import account with strategy json', async () => {
@@ -136,7 +136,7 @@ describe('KeyringController', () => {
     const obj = await keyringController.importAccountWithStrategy(AccountImportStrategy.json, [input, somePassword]);
     const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
     const modifiedState = { ...initialState, keyrings: [initialState.keyrings[0], newKeyring] };
-    expect(obj).toEqual(modifiedState);
+    expect(obj).toStrictEqual(modifiedState);
   });
 
   it('should throw when passed an unrecognized strategy', async () => {
@@ -160,7 +160,7 @@ describe('KeyringController', () => {
   it('should remove account', async () => {
     await keyringController.importAccountWithStrategy(AccountImportStrategy.privateKey, [privateKey]);
     const finalState = await keyringController.removeAccount('0x51253087e6f8358b5f10c0a94315d69db3357859');
-    expect(finalState).toEqual(initialState);
+    expect(finalState).toStrictEqual(initialState);
   });
 
   it('should sign message', async () => {
@@ -355,7 +355,7 @@ describe('KeyringController', () => {
 
   it('should submit password and decrypt', async () => {
     const state = await keyringController.submitPassword(password);
-    expect(state).toEqual(initialState);
+    expect(state).toStrictEqual(initialState);
   });
 
   it('should subscribe and unsubscribe', async () => {

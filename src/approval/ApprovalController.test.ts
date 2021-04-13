@@ -24,9 +24,9 @@ describe('approval controller', () => {
     it('adds correctly specified entry', () => {
       expect(() => approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE })).not.toThrow();
 
-      expect(approvalController.has({ id: 'foo' })).toEqual(true);
-      expect(approvalController.has({ origin: 'bar.baz', type: TYPE })).toEqual(true);
-      expect(approvalController.state[STORE_KEY]).toEqual({
+      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
+      expect(approvalController.has({ origin: 'bar.baz', type: TYPE })).toStrictEqual(true);
+      expect(approvalController.state[STORE_KEY]).toStrictEqual({
         foo: { id: 'foo', origin: 'bar.baz', time: 1, type: TYPE },
       });
     });
@@ -48,10 +48,10 @@ describe('approval controller', () => {
         }),
       ).not.toThrow();
 
-      expect(approvalController.has({ id: 'foo' })).toEqual(true);
-      expect(approvalController.has({ origin: 'bar.baz' })).toEqual(true);
-      expect(approvalController.has({ type: 'myType' })).toEqual(true);
-      expect(approvalController.state[STORE_KEY].foo.requestData).toEqual({ foo: 'bar' });
+      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
+      expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
+      expect(approvalController.has({ type: 'myType' })).toStrictEqual(true);
+      expect(approvalController.state[STORE_KEY].foo.requestData).toStrictEqual({ foo: 'bar' });
     });
 
     it('adds multiple entries for same origin with different types and ids', () => {
@@ -60,12 +60,12 @@ describe('approval controller', () => {
       expect(() => approvalController.add({ id: 'foo1', origin: ORIGIN, type: 'myType1' })).not.toThrow();
       expect(() => approvalController.add({ id: 'foo2', origin: ORIGIN, type: 'myType2' })).not.toThrow();
 
-      expect(approvalController.has({ id: 'foo1' }) && approvalController.has({ id: 'foo2' })).toEqual(true);
+      expect(approvalController.has({ id: 'foo1' }) && approvalController.has({ id: 'foo2' })).toStrictEqual(true);
       expect(
         approvalController.has({ origin: ORIGIN }) &&
           approvalController.has({ origin: ORIGIN, type: 'myType1' }) &&
           approvalController.has({ origin: ORIGIN, type: 'myType2' }),
-      ).toEqual(true);
+      ).toStrictEqual(true);
     });
 
     it('throws on id collision', () => {
@@ -100,8 +100,8 @@ describe('approval controller', () => {
         type: 'myType',
         requestData: { foo: 'bar' },
       });
-      expect(result instanceof Promise).toEqual(true);
-      expect(showApprovalSpy.calledOnce).toEqual(true);
+      expect(result instanceof Promise).toStrictEqual(true);
+      expect(showApprovalSpy.calledOnce).toStrictEqual(true);
     });
   });
 
@@ -109,7 +109,7 @@ describe('approval controller', () => {
     it('gets entry', () => {
       const approvalController = new ApprovalController({ ...defaultConfig });
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
-      expect(approvalController.get('foo')).toEqual({ id: 'foo', origin: 'bar.baz', type: 'myType', time: 1 });
+      expect(approvalController.get('foo')).toStrictEqual({ id: 'foo', origin: 'bar.baz', type: 'myType', time: 1 });
     });
   });
 
@@ -127,17 +127,17 @@ describe('approval controller', () => {
       addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
       addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
 
-      expect(approvalController.getApprovalCount({ origin: 'origin1', type: TYPE })).toEqual(1);
-      expect(approvalController.getApprovalCount({ origin: 'origin1', type: 'type1' })).toEqual(1);
-      expect(approvalController.getApprovalCount({ origin: 'origin1', type: 'type2' })).toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin1', type: TYPE })).toStrictEqual(1);
+      expect(approvalController.getApprovalCount({ origin: 'origin1', type: 'type1' })).toStrictEqual(1);
+      expect(approvalController.getApprovalCount({ origin: 'origin1', type: 'type2' })).toStrictEqual(0);
 
-      expect(approvalController.getApprovalCount({ origin: 'origin2', type: TYPE })).toEqual(0);
-      expect(approvalController.getApprovalCount({ origin: 'origin2', type: 'type1' })).toEqual(1);
-      expect(approvalController.getApprovalCount({ origin: 'origin2', type: 'type2' })).toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin2', type: TYPE })).toStrictEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin2', type: 'type1' })).toStrictEqual(1);
+      expect(approvalController.getApprovalCount({ origin: 'origin2', type: 'type2' })).toStrictEqual(0);
 
-      expect(approvalController.getApprovalCount({ origin: 'origin3', type: TYPE })).toEqual(0);
-      expect(approvalController.getApprovalCount({ origin: 'origin3', type: 'type1' })).toEqual(0);
-      expect(approvalController.getApprovalCount({ origin: 'origin3', type: 'type2' })).toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin3', type: TYPE })).toStrictEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin3', type: 'type1' })).toStrictEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin3', type: 'type2' })).toStrictEqual(0);
     });
 
     it('gets the count when specifying origin only', () => {
@@ -145,11 +145,11 @@ describe('approval controller', () => {
       addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
       addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
 
-      expect(approvalController.getApprovalCount({ origin: 'origin1' })).toEqual(2);
+      expect(approvalController.getApprovalCount({ origin: 'origin1' })).toStrictEqual(2);
 
-      expect(approvalController.getApprovalCount({ origin: 'origin2' })).toEqual(1);
+      expect(approvalController.getApprovalCount({ origin: 'origin2' })).toStrictEqual(1);
 
-      expect(approvalController.getApprovalCount({ origin: 'origin3' })).toEqual(0);
+      expect(approvalController.getApprovalCount({ origin: 'origin3' })).toStrictEqual(0);
     });
 
     it('gets the count when specifying type only', () => {
@@ -157,35 +157,35 @@ describe('approval controller', () => {
       addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
       addWithCatch({ id: '4', origin: 'origin2', type: 'type2' });
 
-      expect(approvalController.getApprovalCount({ type: 'type1' })).toEqual(2);
+      expect(approvalController.getApprovalCount({ type: 'type1' })).toStrictEqual(2);
 
-      expect(approvalController.getApprovalCount({ type: 'type2' })).toEqual(1);
+      expect(approvalController.getApprovalCount({ type: 'type2' })).toStrictEqual(1);
 
-      expect(approvalController.getApprovalCount({ type: 'type3' })).toEqual(0);
+      expect(approvalController.getApprovalCount({ type: 'type3' })).toStrictEqual(0);
     });
   });
 
   describe('getTotalApprovalCount', () => {
     it('gets the total approval count', () => {
       const approvalController = new ApprovalController({ ...defaultConfig });
-      expect(approvalController.getTotalApprovalCount()).toEqual(0);
+      expect(approvalController.getTotalApprovalCount()).toStrictEqual(0);
 
       const addWithCatch = (args: any) => approvalController.add(args).catch(() => undefined);
 
       addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
-      expect(approvalController.getTotalApprovalCount()).toEqual(1);
+      expect(approvalController.getTotalApprovalCount()).toStrictEqual(1);
 
       addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
-      expect(approvalController.getTotalApprovalCount()).toEqual(2);
+      expect(approvalController.getTotalApprovalCount()).toStrictEqual(2);
 
       addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
-      expect(approvalController.getTotalApprovalCount()).toEqual(3);
+      expect(approvalController.getTotalApprovalCount()).toStrictEqual(3);
 
       approvalController.reject('2', new Error('foo'));
-      expect(approvalController.getTotalApprovalCount()).toEqual(2);
+      expect(approvalController.getTotalApprovalCount()).toStrictEqual(2);
 
       approvalController.clear();
-      expect(approvalController.getTotalApprovalCount()).toEqual(0);
+      expect(approvalController.getTotalApprovalCount()).toStrictEqual(0);
     });
   });
 
@@ -199,55 +199,55 @@ describe('approval controller', () => {
     it('returns true for existing entry by id', () => {
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
-      expect(approvalController.has({ id: 'foo' })).toEqual(true);
+      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
     });
 
     it('returns true for existing entry by origin', () => {
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
-      expect(approvalController.has({ origin: 'bar.baz' })).toEqual(true);
+      expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
     });
 
     it('returns true for existing entry by origin and type', () => {
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
 
-      expect(approvalController.has({ origin: 'bar.baz', type: 'myType' })).toEqual(true);
+      expect(approvalController.has({ origin: 'bar.baz', type: 'myType' })).toStrictEqual(true);
     });
 
     it('returns true for existing type', () => {
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
 
-      expect(approvalController.has({ type: 'myType' })).toEqual(true);
+      expect(approvalController.has({ type: 'myType' })).toStrictEqual(true);
     });
 
     it('returns false for non-existing entry by id', () => {
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
-      expect(approvalController.has({ id: 'fizz' })).toEqual(false);
+      expect(approvalController.has({ id: 'fizz' })).toStrictEqual(false);
     });
 
     it('returns false for non-existing entry by origin', () => {
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
-      expect(approvalController.has({ origin: 'fizz.buzz' })).toEqual(false);
+      expect(approvalController.has({ origin: 'fizz.buzz' })).toStrictEqual(false);
     });
 
     it('returns false for non-existing entry by existing origin and non-existing type', () => {
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
-      expect(approvalController.has({ origin: 'bar.baz', type: 'myType' })).toEqual(false);
+      expect(approvalController.has({ origin: 'bar.baz', type: 'myType' })).toStrictEqual(false);
     });
 
     it('returns false for non-existing entry by non-existing origin and existing type', () => {
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
 
-      expect(approvalController.has({ origin: 'fizz.buzz', type: 'myType' })).toEqual(false);
+      expect(approvalController.has({ origin: 'fizz.buzz', type: 'myType' })).toStrictEqual(false);
     });
 
     it('returns false for non-existing entry by type', () => {
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType1' });
 
-      expect(approvalController.has({ type: 'myType2' })).toEqual(false);
+      expect(approvalController.has({ type: 'myType2' })).toStrictEqual(false);
     });
   });
 
@@ -270,8 +270,8 @@ describe('approval controller', () => {
       approvalController.resolve('foo', 'success');
 
       const result = await approvalPromise;
-      expect(result).toEqual('success');
-      expect(deleteSpy.callCount).toEqual(numDeletions);
+      expect(result).toStrictEqual('success');
+      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
 
     it('resolves multiple approval promises out of order', async () => {
@@ -283,18 +283,18 @@ describe('approval controller', () => {
       approvalController.resolve('foo2', 'success2');
 
       let result = await approvalPromise2;
-      expect(result).toEqual('success2');
+      expect(result).toStrictEqual('success2');
 
       approvalController.resolve('foo1', 'success1');
 
       result = await approvalPromise1;
-      expect(result).toEqual('success1');
-      expect(deleteSpy.callCount).toEqual(numDeletions);
+      expect(result).toStrictEqual('success1');
+      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
 
     it('throws on unknown id', () => {
       expect(() => approvalController.resolve('foo')).toThrow(getIdNotFoundError('foo'));
-      expect(deleteSpy.callCount).toEqual(numDeletions);
+      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
   });
 
@@ -315,7 +315,7 @@ describe('approval controller', () => {
       const approvalPromise = approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
       approvalController.reject('foo', new Error('failure'));
       await expect(approvalPromise).rejects.toThrow('failure');
-      expect(deleteSpy.callCount).toEqual(numDeletions);
+      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
 
     it('rejects multiple approval promises out of order', async () => {
@@ -328,12 +328,12 @@ describe('approval controller', () => {
       approvalController.reject('foo1', new Error('failure1'));
       await expect(rejectionPromise2).rejects.toThrow('failure2');
       await expect(rejectionPromise1).rejects.toThrow('failure1');
-      expect(deleteSpy.callCount).toEqual(numDeletions);
+      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
 
     it('throws on unknown id', () => {
       expect(() => approvalController.reject('foo', new Error('bar'))).toThrow(getIdNotFoundError('foo'));
-      expect(deleteSpy.callCount).toEqual(numDeletions);
+      expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
   });
 
@@ -349,7 +349,7 @@ describe('approval controller', () => {
       approvalController.resolve('foo2', 'success2');
 
       let result = await promise2;
-      expect(result).toEqual('success2');
+      expect(result).toStrictEqual('success2');
 
       approvalController.reject('foo4', new Error('failure4'));
       await expect(promise4).rejects.toThrow('failure4');
@@ -357,15 +357,15 @@ describe('approval controller', () => {
       approvalController.reject('foo3', new Error('failure3'));
       await expect(promise3).rejects.toThrow('failure3');
 
-      expect(approvalController.has({ origin: 'fizz.buzz' })).toEqual(false);
-      expect(approvalController.has({ origin: 'bar.baz' })).toEqual(true);
+      expect(approvalController.has({ origin: 'fizz.buzz' })).toStrictEqual(false);
+      expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
 
       approvalController.resolve('foo1', 'success1');
 
       result = await promise1;
-      expect(result).toEqual('success1');
+      expect(result).toStrictEqual('success1');
 
-      expect(approvalController.has({ origin: 'bar.baz' })).toEqual(false);
+      expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(false);
     });
   });
 
@@ -388,8 +388,8 @@ describe('approval controller', () => {
 
       approvalController.clear();
 
-      expect(approvalController.state[STORE_KEY]).toEqual({});
-      expect(rejectSpy.callCount).toEqual(2);
+      expect(approvalController.state[STORE_KEY]).toStrictEqual({});
+      expect(rejectSpy.callCount).toStrictEqual(2);
     });
   });
 });

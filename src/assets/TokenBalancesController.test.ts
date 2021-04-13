@@ -23,7 +23,7 @@ describe('TokenBalancesController', () => {
   });
 
   it('should re-export BN', () => {
-    expect(exportedBn).toEqual(BN);
+    expect(exportedBn).toStrictEqual(BN);
   });
 
   it('should set default state', () => {
@@ -163,7 +163,7 @@ describe('TokenBalancesController', () => {
     const mytoken = getToken(tokenBalances, address);
     expect(mytoken?.balanceError).toBeInstanceOf(Error);
     expect(mytoken?.balanceError?.message).toBe(errorMsg);
-    expect(tokenBalances.state.contractBalances[address].toNumber()).toEqual(0);
+    expect(tokenBalances.state.contractBalances[address].toNumber()).toStrictEqual(0);
 
     getBalanceOfStub.returns(new BN(1));
     await tokenBalances.updateBalances();

@@ -14,33 +14,33 @@ class TestController extends BaseController<BaseConfig, BaseState> {
 describe('BaseController', () => {
   it('should set initial state', () => {
     const controller = new TestController(undefined, STATE);
-    expect(controller.state).toEqual(STATE);
+    expect(controller.state).toStrictEqual(STATE);
   });
 
   it('should set initial config', () => {
     const controller = new TestController(CONFIG);
-    expect(controller.config).toEqual(CONFIG);
+    expect(controller.config).toStrictEqual(CONFIG);
   });
 
   it('should overwrite state', () => {
     const controller = new TestController();
-    expect(controller.state).toEqual({});
+    expect(controller.state).toStrictEqual({});
     controller.update(STATE, true);
-    expect(controller.state).toEqual(STATE);
+    expect(controller.state).toStrictEqual(STATE);
   });
 
   it('should overwrite config', () => {
     const controller = new TestController();
-    expect(controller.config).toEqual({});
+    expect(controller.config).toStrictEqual({});
     controller.configure(CONFIG, true);
-    expect(controller.config).toEqual(CONFIG);
+    expect(controller.config).toStrictEqual(CONFIG);
   });
 
   it('should be able to partially update the config', () => {
     const controller = new TestController(CONFIG);
-    expect(controller.config).toEqual(CONFIG);
+    expect(controller.config).toStrictEqual(CONFIG);
     controller.configure({ disabled: false }, false, false);
-    expect(controller.config).toEqual({ disabled: false });
+    expect(controller.config).toStrictEqual({ disabled: false });
   });
 
   it('should notify all listeners', () => {
@@ -52,8 +52,8 @@ describe('BaseController', () => {
     controller.notify();
     expect(listenerOne.calledOnce).toBe(true);
     expect(listenerTwo.calledOnce).toBe(true);
-    expect(listenerOne.getCall(0).args[0]).toEqual(STATE);
-    expect(listenerTwo.getCall(0).args[0]).toEqual(STATE);
+    expect(listenerOne.getCall(0).args[0]).toStrictEqual(STATE);
+    expect(listenerTwo.getCall(0).args[0]).toStrictEqual(STATE);
   });
 
   it('should not notify unsubscribed listeners', () => {

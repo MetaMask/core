@@ -9,6 +9,9 @@ package-lock.json
 # tarball from `yarn pack`
 *.tgz
 
+# eslint cache
+.eslintcache
+
 .DS_STORE
 coverage
 dist

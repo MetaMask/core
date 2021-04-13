@@ -124,7 +124,7 @@ describe('AssetsDetectionController', () => {
   });
 
   it('should set default config', () => {
-    expect(assetsDetection.config).toEqual({
+    expect(assetsDetection.config).toStrictEqual({
       interval: DEFAULT_INTERVAL,
       networkType: 'mainnet',
       selectedAddress: '',
@@ -163,9 +163,9 @@ describe('AssetsDetectionController', () => {
 
   it('should detect mainnet correctly', () => {
     assetsDetection.configure({ networkType: MAINNET });
-    expect(assetsDetection.isMainnet()).toEqual(true);
+    expect(assetsDetection.isMainnet()).toStrictEqual(true);
     assetsDetection.configure({ networkType: ROPSTEN });
-    expect(assetsDetection.isMainnet()).toEqual(false);
+    expect(assetsDetection.isMainnet()).toStrictEqual(false);
   });
 
   it('should not autodetect while not on mainnet', async () => {
@@ -196,7 +196,7 @@ describe('AssetsDetectionController', () => {
   it('should detect and add collectibles correctly', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     await assetsDetection.detectCollectibles();
-    expect(assets.state.collectibles).toEqual([
+    expect(assets.state.collectibles).toStrictEqual([
       {
         address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
         description: 'Description 2574',
@@ -215,7 +215,7 @@ describe('AssetsDetectionController', () => {
       name: 'ID 2573',
     });
     await assetsDetection.detectCollectibles();
-    expect(assets.state.collectibles).toEqual([
+    expect(assets.state.collectibles).toStrictEqual([
       {
         address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
         description: 'Description 2573',
@@ -247,7 +247,7 @@ describe('AssetsDetectionController', () => {
   it('should not detect and add collectibles if there is no selectedAddress', async () => {
     assetsDetection.configure({ networkType: MAINNET });
     await assetsDetection.detectCollectibles();
-    expect(assets.state.collectibles).toEqual([]);
+    expect(assets.state.collectibles).toStrictEqual([]);
   });
 
   it('should not add collectible if collectible or collectible contract has no information to display', async () => {
@@ -299,8 +299,8 @@ describe('AssetsDetectionController', () => {
     assetsDetection.configure({ selectedAddress: '0x1', networkType: MAINNET });
     await assetsDetection.detectCollectibles();
     // First fetch to API, only gets information from contract ending in HH
-    expect(assets.state.collectibles).toEqual([collectibleHH2574]);
-    expect(assets.state.collectibleContracts).toEqual([collectibleContractHH]);
+    expect(assets.state.collectibles).toStrictEqual([collectibleHH2574]);
+    expect(assets.state.collectibleContracts).toStrictEqual([collectibleContractHH]);
     // During next call of assets detection, API succeds returning contract ending in gg information
 
     nock(OPEN_SEA_HOST)
@@ -355,19 +355,19 @@ describe('AssetsDetectionController', () => {
 
     // Now user should have respective collectibles
     await assetsDetection.detectCollectibles();
-    expect(assets.state.collectibleContracts).toEqual([
+    expect(assets.state.collectibleContracts).toStrictEqual([
       collectibleContractHH,
       collectibleContractII,
       collectibleContractGG,
     ]);
-    expect(assets.state.collectibles).toEqual([collectibleHH2574, collectibleII2577, collectibleGG2574]);
+    expect(assets.state.collectibles).toStrictEqual([collectibleHH2574, collectibleII2577, collectibleGG2574]);
   });
 
   it('should detect tokens correctly', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     getBalancesInSingleCall.resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
-    expect(assets.state.tokens).toEqual([
+    expect(assets.state.tokens).toStrictEqual([
       {
         address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
         decimals: 18,
@@ -383,14 +383,14 @@ describe('AssetsDetectionController', () => {
 
     assets.removeAndIgnoreToken('0x6810e776880C02933D47DB1b9fc05908e5386b96');
     await assetsDetection.detectTokens();
-    expect(assets.state.tokens).toEqual([]);
+    expect(assets.state.tokens).toStrictEqual([]);
   });
 
   it('should not detect tokens if there is no selectedAddress set', async () => {
     assetsDetection.configure({ networkType: MAINNET });
     getBalancesInSingleCall.resolves({ '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1) });
     await assetsDetection.detectTokens();
-    expect(assets.state.tokens).toEqual([]);
+    expect(assets.state.tokens).toStrictEqual([]);
   });
 
   it('should subscribe to new sibling detecting assets when account changes', async () => {
@@ -410,6 +410,6 @@ describe('AssetsDetectionController', () => {
     network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
     expect(network.state.provider.type).toEqual(firstNetworkType);
     assets.update({ tokens: TOKENS });
-    expect(assetsDetection.config.tokens).toEqual(TOKENS);
+    expect(assetsDetection.config.tokens).toStrictEqual(TOKENS);
   });
 });

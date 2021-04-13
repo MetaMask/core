@@ -87,7 +87,7 @@ describe('util', () => {
       to: 'TO',
       value: 'value',
     });
-    expect(normalized).toEqual({
+    expect(normalized).toStrictEqual({
       data: '0xdata',
       from: '0xfrom',
       gas: '0xgas',
@@ -135,7 +135,7 @@ describe('util', () => {
       const response = await util.safelyExecuteWithTimeout(() => {
         return new Promise((res) => setTimeout(() => res('response'), 200));
       });
-      expect(response).toEqual('response');
+      expect(response).toStrictEqual('response');
     });
 
     it('should timeout', async () => {
@@ -269,13 +269,13 @@ describe('util', () => {
       '879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
     );
     const secondNormalized = util.normalizeMessageData('somedata');
-    expect(firstNormalized).toEqual('0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0');
-    expect(secondNormalized).toEqual('0x736f6d6564617461');
+    expect(firstNormalized).toStrictEqual('0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0');
+    expect(secondNormalized).toStrictEqual('0x736f6d6564617461');
   });
 
   it('messageHexToString', () => {
     const str = util.hexToText('68656c6c6f207468657265');
-    expect(str).toEqual('hello there');
+    expect(str).toStrictEqual('hello there');
   });
 
   describe('validateSignMessageData', () => {
@@ -582,7 +582,7 @@ describe('util', () => {
     it('should return successful fetch response', async () => {
       const res = await util.successfulFetch(SOME_API);
       const parsed = await res.json();
-      expect(parsed).toEqual({ foo: 'bar' });
+      expect(parsed).toStrictEqual({ foo: 'bar' });
     });
 
     it('should throw error for an unsuccessful fetch', async () => {
@@ -604,7 +604,7 @@ describe('util', () => {
     it('should fetch first if response is faster than timeout', async () => {
       const res = await util.timeoutFetch(SOME_API);
       const parsed = await res.json();
-      expect(parsed).toEqual({});
+      expect(parsed).toStrictEqual({});
     });
 
     it('should fail fetch with timeout', async () => {
@@ -621,31 +621,31 @@ describe('util', () => {
   describe('normalizeEnsName', () => {
     it('should normalize with valid 2LD', async () => {
       let valid = util.normalizeEnsName('metamask.eth');
-      expect(valid).toEqual('metamask.eth');
+      expect(valid).toStrictEqual('metamask.eth');
       valid = util.normalizeEnsName('foobar1.eth');
-      expect(valid).toEqual('foobar1.eth');
+      expect(valid).toStrictEqual('foobar1.eth');
       valid = util.normalizeEnsName('foo-bar.eth');
-      expect(valid).toEqual('foo-bar.eth');
+      expect(valid).toStrictEqual('foo-bar.eth');
       valid = util.normalizeEnsName('1-foo-bar.eth');
-      expect(valid).toEqual('1-foo-bar.eth');
+      expect(valid).toStrictEqual('1-foo-bar.eth');
     });
 
     it('should normalize with valid 2LD and "test" TLD', async () => {
       const valid = util.normalizeEnsName('metamask.test');
-      expect(valid).toEqual('metamask.test');
+      expect(valid).toStrictEqual('metamask.test');
     });
 
     it('should normalize with valid 2LD and 3LD', async () => {
       let valid = util.normalizeEnsName('a.metamask.eth');
-      expect(valid).toEqual('a.metamask.eth');
+      expect(valid).toStrictEqual('a.metamask.eth');
       valid = util.normalizeEnsName('aa.metamask.eth');
-      expect(valid).toEqual('aa.metamask.eth');
+      expect(valid).toStrictEqual('aa.metamask.eth');
       valid = util.normalizeEnsName('a-a.metamask.eth');
-      expect(valid).toEqual('a-a.metamask.eth');
+      expect(valid).toStrictEqual('a-a.metamask.eth');
       valid = util.normalizeEnsName('1-a.metamask.eth');
-      expect(valid).toEqual('1-a.metamask.eth');
+      expect(valid).toStrictEqual('1-a.metamask.eth');
       valid = util.normalizeEnsName('1-2.metamask.eth');
-      expect(valid).toEqual('1-2.metamask.eth');
+      expect(valid).toStrictEqual('1-2.metamask.eth');
     });
 
     it('should return null with invalid 2LD', async () => {
@@ -701,7 +701,7 @@ describe('util', () => {
     it('should query and resolve', async () => {
       const ethQuery = new EthQuery(PROVIDER);
       const gasPrice = await util.query(ethQuery, 'gasPrice', []);
-      expect(gasPrice).toEqual('0x0');
+      expect(gasPrice).toStrictEqual('0x0');
     });
 
     it('should query and reject if error', async () => {

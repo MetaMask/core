@@ -17,7 +17,7 @@ describe('ControllerMessenger', () => {
     });
     controllerMessenger.call('count', 1);
 
-    expect(count).toEqual(1);
+    expect(count).toStrictEqual(1);
   });
 
   it('should allow registering and calling multiple different action handlers', () => {
@@ -37,7 +37,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.call('reset', 'hello');
     controllerMessenger.call('concat', ', world');
 
-    expect(message).toEqual('hello, world');
+    expect(message).toStrictEqual('hello, world');
   });
 
   it('should allow registering and calling an action handler with no parameters', () => {
@@ -50,7 +50,7 @@ describe('ControllerMessenger', () => {
     });
     controllerMessenger.call('increment');
 
-    expect(count).toEqual(1);
+    expect(count).toStrictEqual(1);
   });
 
   it('should allow registering and calling an action handler with multiple parameters', () => {
@@ -63,7 +63,7 @@ describe('ControllerMessenger', () => {
     });
     controllerMessenger.call('message', '0x123', 'hello');
 
-    expect(messages['0x123']).toEqual('hello');
+    expect(messages['0x123']).toStrictEqual('hello');
   });
 
   it('should allow registering and calling an action handler with a return value', () => {
@@ -75,7 +75,7 @@ describe('ControllerMessenger', () => {
     });
     const result = controllerMessenger.call('add', 5, 10);
 
-    expect(result).toEqual(15);
+    expect(result).toStrictEqual(15);
   });
 
   it('should not allow registering multiple action handlers under the same name', () => {
@@ -116,7 +116,7 @@ describe('ControllerMessenger', () => {
     expect(() => {
       controllerMessenger.call('ping');
     }).toThrow('A handler for ping has not been registered');
-    expect(pingCount).toEqual(0);
+    expect(pingCount).toStrictEqual(0);
   });
 
   it('should throw when calling an action after actions have been reset', () => {
@@ -137,7 +137,7 @@ describe('ControllerMessenger', () => {
     expect(() => {
       controllerMessenger.call('ping');
     }).toThrow('A handler for ping has not been registered');
-    expect(pingCount).toEqual(0);
+    expect(pingCount).toStrictEqual(0);
   });
 
   it('should publish event to subscriber', () => {
@@ -149,7 +149,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.publish('message', 'hello');
 
     expect(handler.calledWithExactly('hello')).toBeTruthy();
-    expect(handler.callCount).toEqual(1);
+    expect(handler.callCount).toStrictEqual(1);
   });
 
   it('should allow publishing multiple different events to subscriber', () => {
@@ -165,9 +165,9 @@ describe('ControllerMessenger', () => {
     controllerMessenger.publish('ping');
 
     expect(messageHandler.calledWithExactly('hello')).toBeTruthy();
-    expect(messageHandler.callCount).toEqual(1);
+    expect(messageHandler.callCount).toStrictEqual(1);
     expect(pingHandler.calledWithExactly()).toBeTruthy();
-    expect(pingHandler.callCount).toEqual(1);
+    expect(pingHandler.callCount).toStrictEqual(1);
   });
 
   it('should publish event with no payload to subscriber', () => {
@@ -179,7 +179,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.publish('ping');
 
     expect(handler.calledWithExactly()).toBeTruthy();
-    expect(handler.callCount).toEqual(1);
+    expect(handler.callCount).toStrictEqual(1);
   });
 
   it('should publish event with multiple payload parameters to subscriber', () => {
@@ -191,7 +191,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.publish('message', 'hello', 'there');
 
     expect(handler.calledWithExactly('hello', 'there')).toBeTruthy();
-    expect(handler.callCount).toEqual(1);
+    expect(handler.callCount).toStrictEqual(1);
   });
 
   it('should publish event once to subscriber even if subscribed multiple times', () => {
@@ -204,7 +204,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.publish('message', 'hello');
 
     expect(handler.calledWithExactly('hello')).toBeTruthy();
-    expect(handler.callCount).toEqual(1);
+    expect(handler.callCount).toStrictEqual(1);
   });
 
   it('should publish event to many subscribers', () => {
@@ -218,9 +218,9 @@ describe('ControllerMessenger', () => {
     controllerMessenger.publish('message', 'hello');
 
     expect(handler1.calledWithExactly('hello')).toBeTruthy();
-    expect(handler1.callCount).toEqual(1);
+    expect(handler1.callCount).toStrictEqual(1);
     expect(handler2.calledWithExactly('hello')).toBeTruthy();
-    expect(handler2.callCount).toEqual(1);
+    expect(handler2.callCount).toStrictEqual(1);
   });
 
   it('should not call subscriber after unsubscribing', () => {
@@ -232,7 +232,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.unsubscribe('message', handler);
     controllerMessenger.publish('message', 'hello');
 
-    expect(handler.callCount).toEqual(0);
+    expect(handler.callCount).toStrictEqual(0);
   });
 
   it('should throw when unsubscribing when there are no subscriptions', () => {
@@ -267,7 +267,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.clearEventSubscriptions('message');
     controllerMessenger.publish('message', 'hello');
 
-    expect(handler.callCount).toEqual(0);
+    expect(handler.callCount).toStrictEqual(0);
   });
 
   it('should not throw when clearing event that has no subscriptions', () => {
@@ -286,7 +286,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.clearSubscriptions();
     controllerMessenger.publish('message', 'hello');
 
-    expect(handler.callCount).toEqual(0);
+    expect(handler.callCount).toStrictEqual(0);
   });
 });
 

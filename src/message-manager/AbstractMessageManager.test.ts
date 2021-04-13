@@ -34,12 +34,12 @@ const messageData = typedMessage;
 describe('AbstractTestManager', () => {
   it('should set default state', () => {
     const controller = new AbstractTestManager();
-    expect(controller.state).toEqual({ unapprovedMessages: {}, unapprovedMessagesCount: 0 });
+    expect(controller.state).toStrictEqual({ unapprovedMessages: {}, unapprovedMessagesCount: 0 });
   });
 
   it('should set default config', () => {
     const controller = new AbstractTestManager();
-    expect(controller.config).toEqual({});
+    expect(controller.config).toStrictEqual({});
   });
 
   it('should add a valid message', async () => {
@@ -149,8 +149,8 @@ describe('AbstractTestManager', () => {
     const controller = new AbstractTestManager();
     controller.addMessage(firstMessage);
     controller.addMessage(secondMessage);
-    expect(controller.getUnapprovedMessagesCount()).toEqual(2);
-    expect(controller.getUnapprovedMessages()).toEqual({
+    expect(controller.getUnapprovedMessagesCount()).toStrictEqual(2);
+    expect(controller.getUnapprovedMessages()).toStrictEqual({
       [firstMessage.id]: firstMessage,
       [secondMessage.id]: secondMessage,
     });
@@ -169,10 +169,10 @@ describe('AbstractTestManager', () => {
     });
     const messageParams = await controller.approveMessage({ ...firstMessage, metamaskId: messageId, version });
     const message = controller.getMessage(messageId);
-    expect(messageParams).toEqual(firstMessage);
+    expect(messageParams).toStrictEqual(firstMessage);
     expect(message).not.toBeUndefined();
     if (message) {
-      expect(message.status).toEqual('approved');
+      expect(message.status).toStrictEqual('approved');
     }
   });
 
@@ -187,11 +187,11 @@ describe('AbstractTestManager', () => {
         type: 'type',
       });
       const messageBefore = controller.getMessage(messageId);
-      expect(messageBefore?.status).toEqual('status');
+      expect(messageBefore?.status).toStrictEqual('status');
 
       controller.setMessageStatus(messageId, 'newstatus');
       const messageAfter = controller.getMessage(messageId);
-      expect(messageAfter?.status).toEqual('newstatus');
+      expect(messageAfter?.status).toStrictEqual('newstatus');
     });
 
     it('should throw an error if message is not found', () => {

@@ -123,7 +123,7 @@ describe('TokenRatesController', () => {
     );
     const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
     const address2 = '0xfoO';
-    expect(controller.state.contractExchangeRates).toEqual({});
+    expect(controller.state.contractExchangeRates).toStrictEqual({});
     controller.tokens = [
       { address, decimals: 18, symbol: 'DAI' },
       { address: address2, decimals: 0, symbol: '' },
@@ -132,7 +132,7 @@ describe('TokenRatesController', () => {
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(address);
     expect(controller.state.contractExchangeRates[address]).toBeGreaterThan(0);
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(address2);
-    expect(controller.state.contractExchangeRates[address2]).toEqual(0);
+    expect(controller.state.contractExchangeRates[address2]).toStrictEqual(0);
   });
 
   it('should handle balance not found in API', async () => {
@@ -141,7 +141,7 @@ describe('TokenRatesController', () => {
       { interval: 10 },
     );
     stub(controller, 'fetchExchangeRate').throws({ error: 'Not Found', message: 'Not Found' });
-    expect(controller.state.contractExchangeRates).toEqual({});
+    expect(controller.state.contractExchangeRates).toStrictEqual({});
     controller.tokens = [{ address: 'bar', decimals: 0, symbol: '' }];
     const mock = stub(controller, 'updateExchangeRates');
     await controller.updateExchangeRates();
@@ -172,6 +172,6 @@ describe('TokenRatesController', () => {
     const { tokens } = assets.state;
     const found = tokens.filter((token: Token) => token.address === '0xfoO');
     expect(found.length > 0).toBe(true);
-    expect(controller.config.nativeCurrency).toEqual('gno');
+    expect(controller.config.nativeCurrency).toStrictEqual('gno');
   });
 });

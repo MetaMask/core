@@ -104,7 +104,7 @@ describe('ApprovalController: Input Validation', () => {
           !approvalController.has({ type: 'type' }) &&
           !approvalController.has({ origin: 'bar.baz' }) &&
           !approvalController.state[STORE_KEY].foo,
-      ).toEqual(true);
+      ).toStrictEqual(true);
     });
 
     it('deletes one entry out of many without side-effects', () => {
@@ -115,9 +115,11 @@ describe('ApprovalController: Input Validation', () => {
 
       expect(
         !approvalController.has({ id: 'fizz' }) && !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
-      ).toEqual(true);
+      ).toStrictEqual(true);
 
-      expect(approvalController.has({ id: 'foo' }) && approvalController.has({ origin: 'bar.baz' })).toEqual(true);
+      expect(approvalController.has({ id: 'foo' }) && approvalController.has({ origin: 'bar.baz' })).toStrictEqual(
+        true,
+      );
     });
   });
 

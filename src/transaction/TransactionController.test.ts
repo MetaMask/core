@@ -944,8 +944,8 @@ describe('TransactionController', () => {
     const ethTransaction = controller.state.transactions.find(
       ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
     ) || { id: '' };
-    expect(tokenTransaction?.id).toEqual('token-transaction-id');
-    expect(ethTransaction?.id).toEqual('eth-transaction-id');
+    expect(tokenTransaction?.id).toStrictEqual('token-transaction-id');
+    expect(ethTransaction?.id).toStrictEqual('eth-transaction-id');
   });
 
   it('should fetch all the transactions from an address, including incoming transactions, in mainnet from block', async () => {
@@ -990,11 +990,11 @@ describe('TransactionController', () => {
       {},
     );
     const registry = await controller.handleMethodData('0xf39b5b9b');
-    expect(registry.parsedRegistryMethod).toEqual({
+    expect(registry.parsedRegistryMethod).toStrictEqual({
       args: [{ type: 'uint256' }, { type: 'uint256' }],
       name: 'Eth To Token Swap Input',
     });
-    expect(registry.registryMethod).toEqual('ethToTokenSwapInput(uint256,uint256)');
+    expect(registry.registryMethod).toStrictEqual('ethToTokenSwapInput(uint256,uint256)');
   });
 
   it('should handle known method data', async () => {
@@ -1007,7 +1007,7 @@ describe('TransactionController', () => {
       {},
     );
     const registry = await controller.handleMethodData('0xf39b5b9b');
-    expect(registry.parsedRegistryMethod).toEqual({
+    expect(registry.parsedRegistryMethod).toStrictEqual({
       args: [{ type: 'uint256' }, { type: 'uint256' }],
       name: 'Eth To Token Swap Input',
     });

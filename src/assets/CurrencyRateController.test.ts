@@ -6,7 +6,7 @@ describe('CurrencyRateController', () => {
   it('should set default state', () => {
     const fetchExchangeRateStub = stub();
     const controller = new CurrencyRateController({}, {}, fetchExchangeRateStub);
-    expect(controller.state).toEqual({
+    expect(controller.state).toStrictEqual({
       conversionDate: 0,
       conversionRate: 0,
       currentCurrency: 'usd',
@@ -20,7 +20,7 @@ describe('CurrencyRateController', () => {
   it('should initialize with the default config', () => {
     const fetchExchangeRateStub = stub();
     const controller = new CurrencyRateController({}, {}, fetchExchangeRateStub);
-    expect(controller.config).toEqual({
+    expect(controller.config).toStrictEqual({
       currentCurrency: 'usd',
       disabled: false,
       interval: 180000,
@@ -35,7 +35,7 @@ describe('CurrencyRateController', () => {
     const fetchExchangeRateStub = stub();
     const existingState = { currentCurrency: 'rep' };
     const controller = new CurrencyRateController({}, existingState, fetchExchangeRateStub);
-    expect(controller.config).toEqual({
+    expect(controller.config).toStrictEqual({
       currentCurrency: 'rep',
       disabled: false,
       interval: 180000,
@@ -99,9 +99,9 @@ describe('CurrencyRateController', () => {
   it('should update currency', async () => {
     const fetchExchangeRateStub = stub().resolves({ conversionRate: 10 });
     const controller = new CurrencyRateController({ interval: 10 }, {}, fetchExchangeRateStub);
-    expect(controller.state.conversionRate).toEqual(0);
+    expect(controller.state.conversionRate).toStrictEqual(0);
     await controller.updateExchangeRate();
-    expect(controller.state.conversionRate).toEqual(10);
+    expect(controller.state.conversionRate).toStrictEqual(10);
 
     controller.disabled = true;
   });

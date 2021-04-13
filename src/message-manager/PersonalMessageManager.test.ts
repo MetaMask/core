@@ -3,12 +3,12 @@ import PersonalMessageManager from './PersonalMessageManager';
 describe('PersonalMessageManager', () => {
   it('should set default state', () => {
     const controller = new PersonalMessageManager();
-    expect(controller.state).toEqual({ unapprovedMessages: {}, unapprovedMessagesCount: 0 });
+    expect(controller.state).toStrictEqual({ unapprovedMessages: {}, unapprovedMessagesCount: 0 });
   });
 
   it('should set default config', () => {
     const controller = new PersonalMessageManager();
-    expect(controller.config).toEqual({});
+    expect(controller.config).toStrictEqual({});
   });
 
   it('should add a valid message', async () => {
@@ -144,8 +144,8 @@ describe('PersonalMessageManager', () => {
     const controller = new PersonalMessageManager();
     controller.addMessage(firstMessage);
     controller.addMessage(secondMessage);
-    expect(controller.getUnapprovedMessagesCount()).toEqual(2);
-    expect(controller.getUnapprovedMessages()).toEqual({
+    expect(controller.getUnapprovedMessagesCount()).toStrictEqual(2);
+    expect(controller.getUnapprovedMessages()).toStrictEqual({
       [firstMessage.id]: firstMessage,
       [secondMessage.id]: secondMessage,
     });
@@ -157,10 +157,10 @@ describe('PersonalMessageManager', () => {
     const messageId = controller.addUnapprovedMessage(firstMessage);
     const messageParams = await controller.approveMessage({ ...firstMessage, metamaskId: messageId });
     const message = controller.getMessage(messageId);
-    expect(messageParams).toEqual(firstMessage);
+    expect(messageParams).toStrictEqual(firstMessage);
     expect(message).not.toBeUndefined();
     if (message) {
-      expect(message.status).toEqual('approved');
+      expect(message.status).toStrictEqual('approved');
     }
   });
 
@@ -174,8 +174,8 @@ describe('PersonalMessageManager', () => {
     const message = controller.getMessage(messageId);
     expect(message).not.toBeUndefined();
     if (message) {
-      expect(message.rawSig).toEqual(rawSig);
-      expect(message.status).toEqual('signed');
+      expect(message.rawSig).toStrictEqual(rawSig);
+      expect(message.status).toStrictEqual('signed');
     }
   });
 
@@ -187,7 +187,7 @@ describe('PersonalMessageManager', () => {
     const message = controller.getMessage(messageId);
     expect(message).not.toBeUndefined();
     if (message) {
-      expect(message.status).toEqual('rejected');
+      expect(message.status).toStrictEqual('rejected');
     }
   });
 });

@@ -12,7 +12,7 @@ describe('AccountTrackerController', () => {
       onPreferencesStateChange: stub(),
       getIdentities: () => ({}),
     });
-    expect(controller.state).toEqual({
+    expect(controller.state).toStrictEqual({
       accounts: {},
     });
   });
@@ -57,7 +57,7 @@ describe('AccountTrackerController', () => {
       },
     );
     controller.refresh();
-    expect(controller.state.accounts).toEqual({ baz: { balance: '0x0' } });
+    expect(controller.state.accounts).toStrictEqual({ baz: { balance: '0x0' } });
   });
 
   it('should subscribe to new sibling preference controllers', async () => {

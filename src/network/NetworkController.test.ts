@@ -7,7 +7,7 @@ const RPC_TARGET = 'http://foo';
 describe('NetworkController', () => {
   it('should set default state', () => {
     const controller = new NetworkController();
-    expect(controller.state).toEqual({
+    expect(controller.state).toStrictEqual({
       network: 'loading',
       provider: {
         type: 'mainnet',

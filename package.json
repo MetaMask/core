@@ -72,7 +72,7 @@
     "@metamask/eslint-config-jest": "^6.0.0",
     "@metamask/eslint-config-nodejs": "^6.0.0",
     "@metamask/eslint-config-typescript": "^6.0.0",
-    "@types/jest": "^22.2.3",
+    "@types/jest": "^26.0.22",
     "@types/node": "^14.14.31",
     "@types/sinon": "^9.0.10",
     "@types/web3": "^1.0.6",

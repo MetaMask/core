@@ -45,7 +45,7 @@ describe('BaseController', () => {
       metadata: countControllerStateMetadata,
     });
 
-    expect(controller.state).toEqual({ count: 0 });
+    expect(controller.state).toStrictEqual({ count: 0 });
   });
 
   it('should set initial schema', () => {
@@ -62,7 +62,7 @@ describe('BaseController', () => {
       metadata: countControllerStateMetadata,
     });
 
-    expect(controller.metadata).toEqual(countControllerStateMetadata);
+    expect(controller.metadata).toStrictEqual(CountControllerStateMetadata);
   });
 
   it('should not allow mutating state directly', () => {
@@ -102,7 +102,7 @@ describe('BaseController', () => {
       draft.count += 1;
     });
 
-    expect(controller.state).toEqual({ count: 1 });
+    expect(controller.state).toStrictEqual({ count: 1 });
   });
 
   it('should allow updating state by return a value', () => {
@@ -123,7 +123,7 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(controller.state).toEqual({ count: 1 });
+    expect(controller.state).toStrictEqual({ count: 1 });
   });
 
   it('should throw an error if update callback modifies draft and returns value', () => {
@@ -172,10 +172,10 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toEqual(1);
-    expect(listener1.firstCall.args).toEqual([{ count: 1 }, [{ op: 'replace', path: [], value: { count: 1 } }]]);
-    expect(listener2.callCount).toEqual(1);
-    expect(listener2.firstCall.args).toEqual([{ count: 1 }, [{ op: 'replace', path: [], value: { count: 1 } }]]);
+    expect(listener1.callCount).toStrictEqual(1);
+    expect(listener1.firstCall.args).toStrictEqual([{ count: 1 }, [{ op: 'replace', path: [], value: { count: 1 } }]]);
+    expect(listener2.callCount).toStrictEqual(1);
+    expect(listener2.firstCall.args).toStrictEqual([{ count: 1 }, [{ op: 'replace', path: [], value: { count: 1 } }]]);
   });
 
   it('should inform a subscriber of each state change once even after multiple subscriptions', () => {
@@ -200,8 +200,8 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toEqual(1);
-    expect(listener1.firstCall.args).toEqual([{ count: 1 }, [{ op: 'replace', path: [], value: { count: 1 } }]]);
+    expect(listener1.callCount).toStrictEqual(1);
+    expect(listener1.firstCall.args).toStrictEqual([{ count: 1 }, [{ op: 'replace', path: [], value: { count: 1 } }]]);
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing', () => {
@@ -225,7 +225,7 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toEqual(0);
+    expect(listener1.callCount).toStrictEqual(0);
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
@@ -250,7 +250,7 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toEqual(0);
+    expect(listener1.callCount).toStrictEqual(0);
   });
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
@@ -296,19 +296,19 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toEqual(0);
-    expect(listener2.callCount).toEqual(0);
+    expect(listener1.callCount).toStrictEqual(0);
+    expect(listener2.callCount).toStrictEqual(0);
   });
 });
 
 describe('getAnonymizedState', () => {
   it('should return empty state', () => {
-    expect(getAnonymizedState({}, {})).toEqual({});
+    expect(getAnonymizedState({}, {})).toStrictEqual({});
   });
 
   it('should return empty state when no properties are anonymized', () => {
     const anonymizedState = getAnonymizedState({ count: 1 }, { count: { anonymous: false, persist: false } });
-    expect(anonymizedState).toEqual({});
+    expect(anonymizedState).toStrictEqual({});
   });
 
   it('should return state that is already anonymized', () => {
@@ -338,7 +338,7 @@ describe('getAnonymizedState', () => {
         },
       },
     );
-    expect(anonymizedState).toEqual({ network: 'mainnet', tokens: ['DAI', 'USDC'] });
+    expect(anonymizedState).toStrictEqual({ network: 'mainnet', tokens: ['DAI', 'USDC'] });
   });
 
   it('should use anonymizing function to anonymize state', () => {
@@ -358,7 +358,7 @@ describe('getAnonymizedState', () => {
       },
     );
 
-    expect(anonymizedState).toEqual({ transactionHash: '4321x0' });
+    expect(anonymizedState).toStrictEqual({ transactionHash: '4321x0' });
   });
 
   it('should allow returning a partial object from an anonymizing function', () => {
@@ -381,7 +381,7 @@ describe('getAnonymizedState', () => {
       },
     );
 
-    expect(anonymizedState).toEqual({ txMeta: { value: 10 } });
+    expect(anonymizedState).toStrictEqual({ txMeta: { value: 10 } });
   });
 
   it('should allow returning a nested partial object from an anonymizing function', () => {
@@ -415,7 +415,7 @@ describe('getAnonymizedState', () => {
       },
     );
 
-    expect(anonymizedState).toEqual({ txMeta: { history: [{ value: 9 }], value: 10 } });
+    expect(anonymizedState).toStrictEqual({ txMeta: { history: [{ value: 9 }], value: 10 } });
   });
 
   it('should allow transforming types in an anonymizing function', () => {
@@ -431,18 +431,18 @@ describe('getAnonymizedState', () => {
       },
     );
 
-    expect(anonymizedState).toEqual({ count: 1 });
+    expect(anonymizedState).toStrictEqual({ count: 1 });
   });
 });
 
 describe('getPersistentState', () => {
   it('should return empty state', () => {
-    expect(getPersistentState({}, {})).toEqual({});
+    expect(getPersistentState({}, {})).toStrictEqual({});
   });
 
   it('should return empty state when no properties are persistent', () => {
     const persistentState = getPersistentState({ count: 1 }, { count: { anonymous: false, persist: false } });
-    expect(persistentState).toEqual({});
+    expect(persistentState).toStrictEqual({});
   });
 
   it('should return persistent state', () => {
@@ -472,7 +472,7 @@ describe('getPersistentState', () => {
         },
       },
     );
-    expect(persistentState).toEqual({ password: 'secret password', privateKey: '123' });
+    expect(persistentState).toStrictEqual({ password: 'secret password', privateKey: '123' });
   });
 
   it('should use function to derive persistent state', () => {
@@ -492,7 +492,7 @@ describe('getPersistentState', () => {
       },
     );
 
-    expect(persistentState).toEqual({ transactionHash: '0x1234' });
+    expect(persistentState).toStrictEqual({ transactionHash: '0x1234' });
   });
 
   it('should allow returning a partial object from a persist function', () => {
@@ -515,7 +515,7 @@ describe('getPersistentState', () => {
       },
     );
 
-    expect(persistentState).toEqual({ txMeta: { value: 10 } });
+    expect(persistentState).toStrictEqual({ txMeta: { value: 10 } });
   });
 
   it('should allow returning a nested partial object from a persist function', () => {
@@ -553,7 +553,7 @@ describe('getPersistentState', () => {
       },
     );
 
-    expect(persistentState).toEqual({ txMeta: { history: [{ value: 9 }], value: 10 } });
+    expect(persistentState).toStrictEqual({ txMeta: { history: [{ value: 9 }], value: 10 } });
   });
 
   it('should allow transforming types in a persist function', () => {
@@ -569,7 +569,7 @@ describe('getPersistentState', () => {
       },
     );
 
-    expect(persistentState).toEqual({ count: 1 });
+    expect(persistentState).toStrictEqual({ count: 1 });
   });
 
   describe('inter-controller communication', () => {

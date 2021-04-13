@@ -22,7 +22,7 @@ describe('CryptoCompare', () => {
 
     const { conversionRate } = await fetchExchangeRate('CAD', 'ETH');
 
-    expect(conversionRate).toEqual(2000.42);
+    expect(conversionRate).toStrictEqual(2000.42);
   });
 
   it('should return conversion date', async () => {
@@ -41,7 +41,7 @@ describe('CryptoCompare', () => {
 
     const { conversionRate } = await fetchExchangeRate('cad', 'ETH');
 
-    expect(conversionRate).toEqual(2000.42);
+    expect(conversionRate).toStrictEqual(2000.42);
   });
 
   it('should return CAD conversion rate given lower-cased native currency', async () => {
@@ -49,7 +49,7 @@ describe('CryptoCompare', () => {
 
     const { conversionRate } = await fetchExchangeRate('CAD', 'eth');
 
-    expect(conversionRate).toEqual(2000.42);
+    expect(conversionRate).toStrictEqual(2000.42);
   });
 
   it('should not return USD conversion rate when fetching just CAD conversion rate', async () => {
@@ -65,8 +65,8 @@ describe('CryptoCompare', () => {
 
     const { conversionRate, usdConversionRate } = await fetchExchangeRate('USD', 'ETH', false);
 
-    expect(conversionRate).toEqual(1000.42);
-    expect(usdConversionRate).toEqual(1000.42);
+    expect(conversionRate).toStrictEqual(1000.42);
+    expect(usdConversionRate).toStrictEqual(1000.42);
   });
 
   it('should return USD conversion rate for USD when includeUSD is enabled', async () => {
@@ -74,8 +74,8 @@ describe('CryptoCompare', () => {
 
     const { conversionRate, usdConversionRate } = await fetchExchangeRate('USD', 'ETH', true);
 
-    expect(conversionRate).toEqual(1000.42);
-    expect(usdConversionRate).toEqual(1000.42);
+    expect(conversionRate).toStrictEqual(1000.42);
+    expect(usdConversionRate).toStrictEqual(1000.42);
   });
 
   it('should return CAD and USD conversion rate', async () => {
@@ -83,8 +83,8 @@ describe('CryptoCompare', () => {
 
     const { conversionRate, usdConversionRate } = await fetchExchangeRate('CAD', 'ETH', true);
 
-    expect(conversionRate).toEqual(2000.42);
-    expect(usdConversionRate).toEqual(1000.42);
+    expect(conversionRate).toStrictEqual(2000.42);
+    expect(usdConversionRate).toStrictEqual(1000.42);
   });
 
   it('should throw if fetch throws', async () => {
