@@ -104,7 +104,7 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address
    * @param options.addTokens - Add a list of tokens
    * @param options.addCollectible - Add a collectible
-   * @param options.initialAssetsState - The initial state of the Assets controller
+   * @param options.getAssetsState - Gets the current state of the Assets controller
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
