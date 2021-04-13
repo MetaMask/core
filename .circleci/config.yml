@@ -13,14 +13,10 @@ workflows:
       - test-unit:
           requires:
             - prep-build
-      - test-format:
-          requires:
-            - prep-build
       - all-tests-pass:
           requires:
             - test-lint
             - test-unit
-            - test-format
 
 jobs:
   prep-deps:
@@ -56,17 +52,6 @@ jobs:
           root: .
           paths:
             - dist
-
-  test-format:
-    docker:
-      - image: circleci/node:12
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          name: Format
-          command: yarn format
 
   test-lint:
     docker:
