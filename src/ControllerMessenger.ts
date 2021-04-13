@@ -90,7 +90,7 @@ export class RestrictedControllerMessenger<
    * @throws Will throw when a handler has been registered for this action type already.
    */
   registerActionHandler<T extends Namespaced<N, Action['type']>>(action: T, handler: ActionHandler<Action, T>) {
-    /* istanbul ignore if */
+    /* istanbul ignore if */ // Branch unreachable with valid types
     if (!action.startsWith(`${this.controllerName}:`)) {
       throw new Error(`Only allowed registering action handlers prefixed by '${this.controllerName}:'`);
     }
@@ -107,7 +107,7 @@ export class RestrictedControllerMessenger<
    * @param actionType - The action type. This is a unqiue identifier for this action.
    */
   unregisterActionHandler<T extends Namespaced<N, Action['type']>>(action: T) {
-    /* istanbul ignore if */
+    /* istanbul ignore if */ // Branch unreachable with valid types
     if (!action.startsWith(`${this.controllerName}:`)) {
       throw new Error(`Only allowed unregistering action handlers prefixed by '${this.controllerName}:'`);
     }
@@ -131,7 +131,7 @@ export class RestrictedControllerMessenger<
     action: T,
     ...params: ExtractActionParameters<Action, T>
   ): ExtractActionResponse<Action, T> {
-    /* istanbul ignore if */
+    /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.allowedActions.includes(action)) {
       throw new Error(`Action missing from allow list: ${action}`);
     }
@@ -150,7 +150,7 @@ export class RestrictedControllerMessenger<
    *   match the type of this payload.
    */
   publish<E extends Namespaced<N, Event['type']>>(event: E, ...payload: ExtractEventPayload<Event, E>) {
-    /* istanbul ignore if */
+    /* istanbul ignore if */ // Branch unreachable with valid types
     if (!event.startsWith(`${this.controllerName}:`)) {
       throw new Error(`Only allowed publishing events prefixed by '${this.controllerName}:'`);
     }
@@ -169,7 +169,7 @@ export class RestrictedControllerMessenger<
    *   match the type of the payload for this event type.
    */
   subscribe<E extends AllowedEvent>(event: E, handler: ExtractEvenHandler<Event, E>) {
-    /* istanbul ignore if */
+    /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.allowedEvents.includes(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
@@ -188,7 +188,7 @@ export class RestrictedControllerMessenger<
    * @throws Will throw when the given event handler is not registered for this event.
    */
   unsubscribe<E extends AllowedEvent>(event: E, handler: ExtractEvenHandler<Event, E>) {
-    /* istanbul ignore if */
+    /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.allowedEvents.includes(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
@@ -205,7 +205,7 @@ export class RestrictedControllerMessenger<
    * @param eventType - The event type. This is a unique identifier for this event.
    */
   clearEventSubscriptions<E extends Namespaced<N, Event['type']>>(event: E) {
-    /* istanbul ignore if */
+    /* istanbul ignore if */ // Branch unreachable with valid types
     if (!event.startsWith(`${this.controllerName}:`)) {
       throw new Error(`Only allowed clearing events prefixed by '${this.controllerName}:'`);
     }
