@@ -659,10 +659,10 @@
     "@types/yargs" "^15.0.0"
     chalk "^4.0.0"
 
-"@metamask/contract-metadata@^1.23.0":
-  version "1.23.0"
-  resolved "https://registry.yarnpkg.com/@metamask/contract-metadata/-/contract-metadata-1.23.0.tgz#c70be7f3eaeeb791651ce793b7cdc230e9780b18"
-  integrity sha512-oTUqL9dtXtbng60DZMRsBmZ5HiOUUfEsZjuswOJ0yHO24YsW0ktCcgCJVYPv1HcOsF0SVrRtG4rtrvOl4nY+HA==
+"@metamask/contract-metadata@^1.24.0":
+  version "1.24.0"
+  resolved "https://registry.yarnpkg.com/@metamask/contract-metadata/-/contract-metadata-1.24.0.tgz#9f9c50378e805be082745f5b470b6819221af3c7"
+  integrity sha512-0/DIOU+vCnayfJarLHv8LrYyXl+JZwUlpRuESXtAjY7TT74Yi6rEpEQK15PE/VY415XrmJ80EG9ZP6NJULK6wg==
 
 "@metamask/eslint-config@^5.0.0":
   version "5.0.0"
