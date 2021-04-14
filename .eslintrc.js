@@ -41,7 +41,7 @@ module.exports = {
       extends: ['@metamask/eslint-config-typescript'],
       rules: {
         // `no-shadow` has incompatibilities with TypeScript
-        // TODO: Migrate this into @metamask/eslint-config?
+        // TODO: Migrate this into @metamask/eslint-config
         'no-shadow': 'off',
         '@typescript-eslint/no-shadow': 'error',
 
