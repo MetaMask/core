@@ -1,10 +1,19 @@
 import * as ethUtil from 'ethereumjs-util';
 import { stripHexPrefix } from 'ethjs-util';
-import { normalize as normalizeAddress, signTypedData, signTypedData_v4, signTypedDataLegacy } from 'eth-sig-util';
+import {
+  normalize as normalizeAddress,
+  signTypedData,
+  signTypedData_v4,
+  signTypedDataLegacy,
+} from 'eth-sig-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import Keyring from 'eth-keyring-controller';
 import { Mutex } from 'async-mutex';
-import BaseController, { BaseConfig, BaseState, Listener } from '../BaseController';
+import BaseController, {
+  BaseConfig,
+  BaseState,
+  Listener,
+} from '../BaseController';
 import PreferencesController from '../user/PreferencesController';
 import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
 import { TypedMessageParams } from '../message-manager/TypedMessageManager';
@@ -109,7 +118,10 @@ export enum SignTypedDataVersion {
 /**
  * Controller responsible for establishing and managing user identity
  */
-export class KeyringController extends BaseController<KeyringConfig, KeyringState> {
+export class KeyringController extends BaseController<
+  KeyringConfig,
+  KeyringState
+> {
   private mutex = new Mutex();
 
   /**
@@ -152,7 +164,9 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
     state?: Partial<KeyringState>,
   ) {
     super(config, state);
-    privates.set(this, { keyring: new Keyring(Object.assign({ initState: state }, config)) });
+    privates.set(this, {
+      keyring: new Keyring(Object.assign({ initState: state }, config)),
+    });
     this.defaultState = {
       ...privates.get(this).keyring.store.getState(),
       keyrings: [],
@@ -171,7 +185,9 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    * @returns - Promise resolving to current state when the account is added
    */
   async addNewAccount(): Promise<KeyringMemState> {
-    const primaryKeyring = privates.get(this).keyring.getKeyringsByType('HD Key Tree')[0];
+    const primaryKeyring = privates
+      .get(this)
+      .keyring.getKeyringsByType('HD Key Tree')[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
       throw new Error('No HD keyring found');
@@ -197,7 +213,9 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    * @returns - Promise resolving to current state when the account is added
    */
   async addNewAccountWithoutUpdate(): Promise<KeyringMemState> {
-    const primaryKeyring = privates.get(this).keyring.getKeyringsByType('HD Key Tree')[0];
+    const primaryKeyring = privates
+      .get(this)
+      .keyring.getKeyringsByType('HD Key Tree')[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
       throw new Error('No HD keyring found');
@@ -219,7 +237,9 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
     const releaseLock = await this.mutex.acquire();
     try {
       this.updateIdentities([]);
-      const vault = await privates.get(this).keyring.createNewVaultAndRestore(password, seed);
+      const vault = await privates
+        .get(this)
+        .keyring.createNewVaultAndRestore(password, seed);
       this.updateIdentities(await privates.get(this).keyring.getAccounts());
       this.fullUpdate();
       return vault;
@@ -237,7 +257,9 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
   async createNewVaultAndKeychain(password: string) {
     const releaseLock = await this.mutex.acquire();
     try {
-      const vault = await privates.get(this).keyring.createNewVaultAndKeychain(password);
+      const vault = await privates
+        .get(this)
+        .keyring.createNewVaultAndKeychain(password);
       this.updateIdentities(await privates.get(this).keyring.getAccounts());
       this.fullUpdate();
       return vault;
@@ -299,7 +321,10 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    * @throws Will throw when passed an unrecognized strategy
    * @returns - Promise resolving to current state when the import is complete
    */
-  async importAccountWithStrategy(strategy: AccountImportStrategy, args: any[]): Promise<KeyringMemState> {
+  async importAccountWithStrategy(
+    strategy: AccountImportStrategy,
+    args: any[],
+  ): Promise<KeyringMemState> {
     let privateKey;
     switch (strategy) {
       case 'privateKey':
@@ -326,7 +351,9 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
       default:
         throw new Error(`Unexpected import strategy: '${strategy}'`);
     }
-    const newKeyring = await privates.get(this).keyring.addNewKeyring(KeyringTypes.simple, [privateKey]);
+    const newKeyring = await privates
+      .get(this)
+      .keyring.addNewKeyring(KeyringTypes.simple, [privateKey]);
     const accounts = await newKeyring.getAccounts();
     const allAccounts = await privates.get(this).keyring.getAccounts();
     this.updateIdentities(allAccounts);
@@ -383,18 +410,27 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    * @throws Will throw when passed an unrecognized version
    * @returns - Promise resolving to a signed message string or an error if any
    */
-  async signTypedMessage(messageParams: TypedMessageParams, version: SignTypedDataVersion) {
+  async signTypedMessage(
+    messageParams: TypedMessageParams,
+    version: SignTypedDataVersion,
+  ) {
     try {
       const address = normalizeAddress(messageParams.from);
       const { password } = privates.get(this).keyring;
       const privateKey = await this.exportAccount(password, address);
-      const privateKeyBuffer = ethUtil.toBuffer(ethUtil.addHexPrefix(privateKey));
+      const privateKeyBuffer = ethUtil.toBuffer(
+        ethUtil.addHexPrefix(privateKey),
+      );
       switch (version) {
         case SignTypedDataVersion.V1:
           // signTypedDataLegacy will throw if the data is invalid.
-          return signTypedDataLegacy(privateKeyBuffer, { data: messageParams.data as any });
+          return signTypedDataLegacy(privateKeyBuffer, {
+            data: messageParams.data as any,
+          });
         case SignTypedDataVersion.V3:
-          return signTypedData(privateKeyBuffer, { data: JSON.parse(messageParams.data as string) });
+          return signTypedData(privateKeyBuffer, {
+            data: JSON.parse(messageParams.data as string),
+          });
         case SignTypedDataVersion.V4:
           return signTypedData_v4(privateKeyBuffer, {
             data: JSON.parse(messageParams.data as string),
@@ -476,7 +512,9 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
    * @returns - Promise resolving if the verification succeeds
    */
   async verifySeedPhrase(): Promise<string> {
-    const primaryKeyring = privates.get(this).keyring.getKeyringsByType(KeyringTypes.hd)[0];
+    const primaryKeyring = privates
+      .get(this)
+      .keyring.getKeyringsByType(KeyringTypes.hd)[0];
     /* istanbul ignore if */
     if (!primaryKeyring) {
       throw new Error('No HD keyring found.');
@@ -489,8 +527,13 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
       throw new Error('Cannot verify an empty keyring.');
     }
 
-    const TestKeyringClass = privates.get(this).keyring.getKeyringClassForType(KeyringTypes.hd);
-    const testKeyring = new TestKeyringClass({ mnemonic: seedWords, numberOfAccounts: accounts.length });
+    const TestKeyringClass = privates
+      .get(this)
+      .keyring.getKeyringClassForType(KeyringTypes.hd);
+    const testKeyring = new TestKeyringClass({
+      mnemonic: seedWords,
+      numberOfAccounts: accounts.length,
+    });
     const testAccounts = await testKeyring.getAccounts();
     /* istanbul ignore if */
     if (testAccounts.length !== accounts.length) {
@@ -518,7 +561,9 @@ export class KeyringController extends BaseController<KeyringConfig, KeyringStat
         async (keyring: KeyringObject, index: number): Promise<Keyring> => {
           const keyringAccounts = await keyring.getAccounts();
           const accounts = Array.isArray(keyringAccounts)
-            ? keyringAccounts.map((address) => ethUtil.toChecksumAddress(address))
+            ? keyringAccounts.map((address) =>
+                ethUtil.toChecksumAddress(address),
+              )
             : /* istanbul ignore next */ [];
           return {
             accounts,

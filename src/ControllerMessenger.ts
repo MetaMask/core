@@ -1,15 +1,27 @@
 type ActionHandler<Action, ActionType> = (
   ...args: ExtractActionParameters<Action, ActionType>
 ) => ExtractActionResponse<Action, ActionType>;
-type ExtractActionParameters<Action, T> = Action extends { type: T; handler: (...args: infer H) => any } ? H : never;
-type ExtractActionResponse<Action, T> = Action extends { type: T; handler: (...args: any) => infer H } ? H : never;
+type ExtractActionParameters<Action, T> = Action extends {
+  type: T;
+  handler: (...args: infer H) => any;
+}
+  ? H
+  : never;
+type ExtractActionResponse<Action, T> = Action extends {
+  type: T;
+  handler: (...args: any) => infer H;
+}
+  ? H
+  : never;
 
 type ExtractEvenHandler<Event, T> = Event extends { type: T; payload: infer P }
   ? P extends any[]
     ? (...payload: P) => void
     : never
   : never;
-type ExtractEventPayload<Event, T> = Event extends { type: T; payload: infer P } ? P : never;
+type ExtractEventPayload<Event, T> = Event extends { type: T; payload: infer P }
+  ? P
+  : never;
 
 type ActionConstraint = { type: string; handler: (...args: any) => unknown };
 type EventConstraint = { type: string; payload: unknown[] };
@@ -19,7 +31,9 @@ type EventConstraint = { type: string; payload: unknown[] };
  *
  * This type verifies that the string T is prefixed by the string Name followed by a colon.
  */
-export type Namespaced<Name extends string, T> = T extends `${Name}:${string}` ? T : never;
+export type Namespaced<Name extends string, T> = T extends `${Name}:${string}`
+  ? T
+  : never;
 
 /**
  * A restricted controller messenger.
@@ -89,10 +103,15 @@ export class RestrictedControllerMessenger<
    *   invoked with the given action type.
    * @throws Will throw when a handler has been registered for this action type already.
    */
-  registerActionHandler<T extends Namespaced<N, Action['type']>>(action: T, handler: ActionHandler<Action, T>) {
+  registerActionHandler<T extends Namespaced<N, Action['type']>>(
+    action: T,
+    handler: ActionHandler<Action, T>,
+  ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!action.startsWith(`${this.controllerName}:`)) {
-      throw new Error(`Only allowed registering action handlers prefixed by '${this.controllerName}:'`);
+      throw new Error(
+        `Only allowed registering action handlers prefixed by '${this.controllerName}:'`,
+      );
     }
     return this.controllerMessenger.registerActionHandler(action, handler);
   }
@@ -109,7 +128,9 @@ export class RestrictedControllerMessenger<
   unregisterActionHandler<T extends Namespaced<N, Action['type']>>(action: T) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!action.startsWith(`${this.controllerName}:`)) {
-      throw new Error(`Only allowed unregistering action handlers prefixed by '${this.controllerName}:'`);
+      throw new Error(
+        `Only allowed unregistering action handlers prefixed by '${this.controllerName}:'`,
+      );
     }
     return this.controllerMessenger.unregisterActionHandler(action);
   }
@@ -149,10 +170,15 @@ export class RestrictedControllerMessenger<
    * @param payload - The event payload. The type of the parameters for each event handler must
    *   match the type of this payload.
    */
-  publish<E extends Namespaced<N, Event['type']>>(event: E, ...payload: ExtractEventPayload<Event, E>) {
+  publish<E extends Namespaced<N, Event['type']>>(
+    event: E,
+    ...payload: ExtractEventPayload<Event, E>
+  ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!event.startsWith(`${this.controllerName}:`)) {
-      throw new Error(`Only allowed publishing events prefixed by '${this.controllerName}:'`);
+      throw new Error(
+        `Only allowed publishing events prefixed by '${this.controllerName}:'`,
+      );
     }
     return this.controllerMessenger.publish(event, ...payload);
   }
@@ -168,7 +194,10 @@ export class RestrictedControllerMessenger<
    * @param handler - The event handler. The type of the parameters for this event handler must
    *   match the type of the payload for this event type.
    */
-  subscribe<E extends AllowedEvent>(event: E, handler: ExtractEvenHandler<Event, E>) {
+  subscribe<E extends AllowedEvent>(
+    event: E,
+    handler: ExtractEvenHandler<Event, E>,
+  ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.allowedEvents.includes(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
@@ -187,7 +216,10 @@ export class RestrictedControllerMessenger<
    * @param handler - The event handler to unregister.
    * @throws Will throw when the given event handler is not registered for this event.
    */
-  unsubscribe<E extends AllowedEvent>(event: E, handler: ExtractEvenHandler<Event, E>) {
+  unsubscribe<E extends AllowedEvent>(
+    event: E,
+    handler: ExtractEvenHandler<Event, E>,
+  ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.allowedEvents.includes(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
@@ -207,7 +239,9 @@ export class RestrictedControllerMessenger<
   clearEventSubscriptions<E extends Namespaced<N, Event['type']>>(event: E) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!event.startsWith(`${this.controllerName}:`)) {
-      throw new Error(`Only allowed clearing events prefixed by '${this.controllerName}:'`);
+      throw new Error(
+        `Only allowed clearing events prefixed by '${this.controllerName}:'`,
+      );
     }
     return this.controllerMessenger.clearEventSubscriptions(event);
   }
@@ -220,7 +254,10 @@ export class RestrictedControllerMessenger<
  * and it allows publishing and subscribing to events. Both actions and events are identified by
  * unique strings.
  */
-export class ControllerMessenger<Action extends ActionConstraint, Event extends EventConstraint> {
+export class ControllerMessenger<
+  Action extends ActionConstraint,
+  Event extends EventConstraint
+> {
   private actions = new Map<Action['type'], unknown>();
 
   private events = new Map<Event['type'], Set<unknown>>();
@@ -235,9 +272,14 @@ export class ControllerMessenger<Action extends ActionConstraint, Event extends 
    *   invoked with the given action type.
    * @throws Will throw when a handler has been registered for this action type already.
    */
-  registerActionHandler<T extends Action['type']>(actionType: T, handler: ActionHandler<Action, T>) {
+  registerActionHandler<T extends Action['type']>(
+    actionType: T,
+    handler: ActionHandler<Action, T>,
+  ) {
     if (this.actions.has(actionType)) {
-      throw new Error(`A handler for ${actionType} has already been registered`);
+      throw new Error(
+        `A handler for ${actionType} has already been registered`,
+      );
     }
     this.actions.set(actionType, handler);
   }
@@ -293,8 +335,13 @@ export class ControllerMessenger<Action extends ActionConstraint, Event extends 
    * @param payload - The event payload. The type of the parameters for each event handler must
    *   match the type of this payload.
    */
-  publish<E extends Event['type']>(eventType: E, ...payload: ExtractEventPayload<Event, E>) {
-    const subscribers = this.events.get(eventType) as Set<ExtractEvenHandler<Event, E>>;
+  publish<E extends Event['type']>(
+    eventType: E,
+    ...payload: ExtractEventPayload<Event, E>
+  ) {
+    const subscribers = this.events.get(eventType) as Set<
+      ExtractEvenHandler<Event, E>
+    >;
 
     if (subscribers) {
       for (const eventHandler of subscribers) {
@@ -312,7 +359,10 @@ export class ControllerMessenger<Action extends ActionConstraint, Event extends 
    * @param handler - The event handler. The type of the parameters for this event handler must
    *   match the type of the payload for this event type.
    */
-  subscribe<E extends Event['type']>(eventType: E, handler: ExtractEvenHandler<Event, E>) {
+  subscribe<E extends Event['type']>(
+    eventType: E,
+    handler: ExtractEvenHandler<Event, E>,
+  ) {
     let subscribers = this.events.get(eventType);
     if (!subscribers) {
       subscribers = new Set();
@@ -330,7 +380,10 @@ export class ControllerMessenger<Action extends ActionConstraint, Event extends 
    * @param handler - The event handler to unregister.
    * @throws Will throw when the given event handler is not registered for this event.
    */
-  unsubscribe<E extends Event['type']>(eventType: E, handler: ExtractEvenHandler<Event, E>) {
+  unsubscribe<E extends Event['type']>(
+    eventType: E,
+    handler: ExtractEvenHandler<Event, E>,
+  ) {
     const subscribers = this.events.get(eventType);
 
     if (!subscribers || !subscribers.has(handler)) {
@@ -379,7 +432,11 @@ export class ControllerMessenger<Action extends ActionConstraint, Event extends 
    * @param options.allowedEvents - The list of events that this restricted controller messenger
    *   should be allowed to subscribe to.
    */
-  getRestricted<N extends string, AllowedAction extends string, AllowedEvent extends string>({
+  getRestricted<
+    N extends string,
+    AllowedAction extends string,
+    AllowedEvent extends string
+  >({
     name,
     allowedActions,
     allowedEvents,
@@ -388,7 +445,13 @@ export class ControllerMessenger<Action extends ActionConstraint, Event extends 
     allowedActions: Extract<Action['type'], AllowedAction>[] | [];
     allowedEvents: Extract<Event['type'], AllowedEvent>[] | [];
   }) {
-    return new RestrictedControllerMessenger<N, Action, Event, AllowedAction, AllowedEvent>({
+    return new RestrictedControllerMessenger<
+      N,
+      Action,
+      Event,
+      AllowedAction,
+      AllowedEvent
+    >({
       controllerMessenger: this,
       name,
       allowedActions,

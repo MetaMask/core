@@ -17,7 +17,7 @@ describe('PhishingController', () => {
 
   it('should set default config', () => {
     const controller = new PhishingController();
-    expect(controller.config).toEqual({ interval: 3_600_000 });
+    expect(controller.config).toStrictEqual({ interval: 3_600_000 });
   });
 
   it('should poll and update rate in the right interval', async () => {
@@ -110,6 +110,8 @@ describe('PhishingController', () => {
 
     const controller = new PhishingController();
 
-    await expect(controller.updatePhishingLists()).rejects.toThrow(/Fetch failed with status '500'/u);
+    await expect(controller.updatePhishingLists()).rejects.toThrow(
+      /Fetch failed with status '500'/u,
+    );
   });
 });

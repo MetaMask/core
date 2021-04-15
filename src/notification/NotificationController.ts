@@ -49,7 +49,10 @@ const defaultState = {
 /**
  * Controller for managing in-app announcement notifications.
  */
-export class NotificationController extends BaseController<NotificationConfig, NotificationState> {
+export class NotificationController extends BaseController<
+  NotificationConfig,
+  NotificationState
+> {
   /**
    * Creates a NotificationController instance
    *
@@ -73,14 +76,18 @@ export class NotificationController extends BaseController<NotificationConfig, N
   private _addNotifications(): void {
     const newNotifications: StateNotificationMap = {};
     const { allNotifications } = this.config;
-    Object.values(allNotifications).forEach((notification: StateNotification) => {
-      newNotifications[notification.id] = this.state.notifications[notification.id]
-        ? this.state.notifications[notification.id]
-        : {
-            ...notification,
-            isShown: false,
-          };
-    });
+    Object.values(allNotifications).forEach(
+      (notification: StateNotification) => {
+        newNotifications[notification.id] = this.state.notifications[
+          notification.id
+        ]
+          ? this.state.notifications[notification.id]
+          : {
+              ...notification,
+              isShown: false,
+            };
+      },
+    );
     this.update({ notifications: newNotifications });
   }
 

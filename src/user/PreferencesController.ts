@@ -51,7 +51,10 @@ export interface PreferencesState extends BaseState {
 /**
  * Controller that stores shared settings and exposes convenience methods
  */
-export class PreferencesController extends BaseController<BaseConfig, PreferencesState> {
+export class PreferencesController extends BaseController<
+  BaseConfig,
+  PreferencesState
+> {
   /**
    * Name of this controller used during composition
    */
@@ -90,7 +93,11 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
       }
       const identityCount = Object.keys(identities).length;
 
-      identities[address] = { name: `Account ${identityCount + 1}`, address, importTime: Date.now() };
+      identities[address] = {
+        name: `Account ${identityCount + 1}`,
+        address,
+        importTime: Date.now(),
+      };
     });
     this.update({ identities: { ...identities } });
   }
@@ -163,7 +170,10 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
       }
     }
 
-    this.update({ identities: { ...identities }, lostIdentities: { ...lostIdentities } });
+    this.update({
+      identities: { ...identities },
+      lostIdentities: { ...lostIdentities },
+    });
     this.addIdentities(addresses);
 
     if (addresses.indexOf(this.state.selectedAddress) === -1) {
@@ -183,14 +193,17 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
   updateIdentities(addresses: string[]) {
     addresses = addresses.map((address: string) => toChecksumAddress(address));
     const oldIdentities = this.state.identities;
-    const identities = addresses.reduce((ids: { [address: string]: ContactEntry }, address, index) => {
-      ids[address] = oldIdentities[address] || {
-        address,
-        name: `Account ${index + 1}`,
-        importTime: Date.now(),
-      };
-      return ids;
-    }, {});
+    const identities = addresses.reduce(
+      (ids: { [address: string]: ContactEntry }, address, index) => {
+        ids[address] = oldIdentities[address] || {
+          address,
+          name: `Account ${index + 1}`,
+          importTime: Date.now(),
+        };
+        return ids;
+      },
+      {},
+    );
     let { selectedAddress } = this.state;
     if (!Object.keys(identities).includes(selectedAddress)) {
       selectedAddress = Object.keys(identities)[0];
@@ -208,7 +221,13 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
    * @param rpcPrefs? - Personalized preferences
    *
    */
-  addToFrequentRpcList(url: string, chainId?: number, ticker?: string, nickname?: string, rpcPrefs?: RpcPreferences) {
+  addToFrequentRpcList(
+    url: string,
+    chainId?: number,
+    ticker?: string,
+    nickname?: string,
+    rpcPrefs?: RpcPreferences,
+  ) {
     const { frequentRpcList } = this.state;
     const index = frequentRpcList.findIndex(({ rpcUrl }) => {
       return rpcUrl === url;
@@ -216,7 +235,13 @@ export class PreferencesController extends BaseController<BaseConfig, Preference
     if (index !== -1) {
       frequentRpcList.splice(index, 1);
     }
-    const newFrequestRpc: FrequentRpc = { rpcUrl: url, chainId, ticker, nickname, rpcPrefs };
+    const newFrequestRpc: FrequentRpc = {
+      rpcUrl: url,
+      chainId,
+      ticker,
+      nickname,
+      rpcPrefs,
+    };
     frequentRpcList.push(newFrequestRpc);
     this.update({ frequentRpcList: [...frequentRpcList] });
   }

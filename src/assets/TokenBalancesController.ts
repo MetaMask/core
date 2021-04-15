@@ -37,7 +37,10 @@ export interface TokenBalancesState extends BaseState {
  * Controller that passively polls on a set interval token balances
  * for tokens stored in the AssetsController
  */
-export class TokenBalancesController extends BaseController<TokenBalancesConfig, TokenBalancesState> {
+export class TokenBalancesController extends BaseController<
+  TokenBalancesConfig,
+  TokenBalancesState
+> {
   private handle?: NodeJS.Timer;
 
   /**
@@ -65,7 +68,9 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
       getSelectedAddress,
       getBalanceOf,
     }: {
-      onAssetsStateChange: (listener: (tokenState: AssetsState) => void) => void;
+      onAssetsStateChange: (
+        listener: (tokenState: AssetsState) => void,
+      ) => void;
       getSelectedAddress: () => PreferencesState['selectedAddress'];
       getBalanceOf: AssetsContractController['getBalanceOf'];
     },
@@ -116,7 +121,10 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
     for (const i in tokens) {
       const { address } = tokens[i];
       try {
-        newContractBalances[address] = await this.getBalanceOf(address, this.getSelectedAddress());
+        newContractBalances[address] = await this.getBalanceOf(
+          address,
+          this.getSelectedAddress(),
+        );
         tokens[i].balanceError = null;
       } catch (error) {
         newContractBalances[address] = new BN(0);

@@ -69,7 +69,11 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
    */
   delete(chainId: string, ensName: string): boolean {
     const normalizedEnsName = normalizeEnsName(ensName);
-    if (!normalizedEnsName || !this.state.ensEntries[chainId] || !this.state.ensEntries[chainId][normalizedEnsName]) {
+    if (
+      !normalizedEnsName ||
+      !this.state.ensEntries[chainId] ||
+      !this.state.ensEntries[chainId][normalizedEnsName]
+    ) {
       return false;
     }
 
@@ -120,7 +124,9 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
       typeof ensName !== 'string' ||
       (address && !isValidAddress(address))
     ) {
-      throw new Error(`Invalid ENS entry: { chainId:${chainId}, ensName:${ensName}, address:${address}}`);
+      throw new Error(
+        `Invalid ENS entry: { chainId:${chainId}, ensName:${ensName}, address:${address}}`,
+      );
     }
 
     const normalizedEnsName = normalizeEnsName(ensName);
@@ -131,7 +137,10 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
     const normalizedAddress = address ? toChecksumAddress(address) : null;
     const subState = this.state.ensEntries[chainId];
 
-    if (subState?.[normalizedEnsName] && subState[normalizedEnsName].address === normalizedAddress) {
+    if (
+      subState?.[normalizedEnsName] &&
+      subState[normalizedEnsName].address === normalizedAddress
+    ) {
       return false;
     }
 

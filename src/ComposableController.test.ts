@@ -5,7 +5,10 @@ import ComposableController from './ComposableController';
 import PreferencesController from './user/PreferencesController';
 import TokenRatesController from './assets/TokenRatesController';
 import { AssetsController } from './assets/AssetsController';
-import { NetworkController, NetworksChainId } from './network/NetworkController';
+import {
+  NetworkController,
+  NetworksChainId,
+} from './network/NetworkController';
 import { AssetsContractController } from './assets/AssetsContractController';
 import CurrencyRateController from './assets/CurrencyRateController';
 
@@ -15,11 +18,18 @@ describe('ComposableController', () => {
     const networkController = new NetworkController();
     const assetContractController = new AssetsContractController();
     const assetController = new AssetsController({
-      onPreferencesStateChange: (listener) => preferencesController.subscribe(listener),
+      onPreferencesStateChange: (listener) =>
+        preferencesController.subscribe(listener),
       onNetworkStateChange: (listener) => networkController.subscribe(listener),
-      getAssetName: assetContractController.getAssetName.bind(assetContractController),
-      getAssetSymbol: assetContractController.getAssetSymbol.bind(assetContractController),
-      getCollectibleTokenURI: assetContractController.getCollectibleTokenURI.bind(assetContractController),
+      getAssetName: assetContractController.getAssetName.bind(
+        assetContractController,
+      ),
+      getAssetSymbol: assetContractController.getAssetSymbol.bind(
+        assetContractController,
+      ),
+      getCollectibleTokenURI: assetContractController.getCollectibleTokenURI.bind(
+        assetContractController,
+      ),
     });
     const currencyRateController = new CurrencyRateController();
     const controller = new ComposableController([
@@ -32,10 +42,11 @@ describe('ComposableController', () => {
       preferencesController,
       new TokenRatesController({
         onAssetsStateChange: (listener) => assetController.subscribe(listener),
-        onCurrencyRateStateChange: (listener) => currencyRateController.subscribe(listener),
+        onCurrencyRateStateChange: (listener) =>
+          currencyRateController.subscribe(listener),
       }),
     ]);
-    expect(controller.state).toEqual({
+    expect(controller.state).toStrictEqual({
       AddressBookController: { addressBook: {} },
       AssetsContractController: {},
       AssetsController: {
@@ -80,11 +91,18 @@ describe('ComposableController', () => {
     const networkController = new NetworkController();
     const assetContractController = new AssetsContractController();
     const assetController = new AssetsController({
-      onPreferencesStateChange: (listener) => preferencesController.subscribe(listener),
+      onPreferencesStateChange: (listener) =>
+        preferencesController.subscribe(listener),
       onNetworkStateChange: (listener) => networkController.subscribe(listener),
-      getAssetName: assetContractController.getAssetName.bind(assetContractController),
-      getAssetSymbol: assetContractController.getAssetSymbol.bind(assetContractController),
-      getCollectibleTokenURI: assetContractController.getCollectibleTokenURI.bind(assetContractController),
+      getAssetName: assetContractController.getAssetName.bind(
+        assetContractController,
+      ),
+      getAssetSymbol: assetContractController.getAssetSymbol.bind(
+        assetContractController,
+      ),
+      getCollectibleTokenURI: assetContractController.getCollectibleTokenURI.bind(
+        assetContractController,
+      ),
     });
     const currencyRateController = new CurrencyRateController();
     const controller = new ComposableController([
@@ -97,10 +115,11 @@ describe('ComposableController', () => {
       preferencesController,
       new TokenRatesController({
         onAssetsStateChange: (listener) => assetController.subscribe(listener),
-        onCurrencyRateStateChange: (listener) => currencyRateController.subscribe(listener),
+        onCurrencyRateStateChange: (listener) =>
+          currencyRateController.subscribe(listener),
       }),
     ]);
-    expect(controller.flatState).toEqual({
+    expect(controller.flatState).toStrictEqual({
       addressBook: {},
       allCollectibleContracts: {},
       allCollectibles: {},
@@ -143,8 +162,10 @@ describe('ComposableController', () => {
         },
       },
     };
-    const controller = new ComposableController([new AddressBookController(undefined, state)]);
-    expect(controller.state).toEqual({ AddressBookController: state });
+    const controller = new ComposableController([
+      new AddressBookController(undefined, state),
+    ]);
+    expect(controller.state).toStrictEqual({ AddressBookController: state });
   });
 
   it('should notify listeners of nested state change', () => {
@@ -152,9 +173,12 @@ describe('ComposableController', () => {
     const controller = new ComposableController([addressBookController]);
     const listener = stub();
     controller.subscribe(listener);
-    addressBookController.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
+    addressBookController.set(
+      '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+      'foo',
+    );
     expect(listener.calledOnce).toBe(true);
-    expect(listener.getCall(0).args[0]).toEqual({
+    expect(listener.getCall(0).args[0]).toStrictEqual({
       AddressBookController: {
         addressBook: {
           1: {

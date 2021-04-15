@@ -2,12 +2,17 @@ import { createSandbox } from 'sinon';
 import nock from 'nock';
 import HttpProvider from 'ethjs-provider-http';
 import PreferencesController from '../user/PreferencesController';
-import { NetworkController, NetworksChainId } from '../network/NetworkController';
+import {
+  NetworkController,
+  NetworksChainId,
+} from '../network/NetworkController';
 import { AssetsContractController } from './AssetsContractController';
 import AssetsController from './AssetsController';
 
 const KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
-const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035');
+const MAINNET_PROVIDER = new HttpProvider(
+  'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+);
 const OPEN_SEA_HOST = 'https://api.opensea.io';
 const OPEN_SEA_PATH = '/api/v1';
 
@@ -27,7 +32,9 @@ describe('AssetsController', () => {
       onNetworkStateChange: (listener) => network.subscribe(listener),
       getAssetName: assetsContract.getAssetName.bind(assetsContract),
       getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
-      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(assetsContract),
+      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
+        assetsContract,
+      ),
     });
 
     nock(OPEN_SEA_HOST)
@@ -53,17 +60,25 @@ describe('AssetsController', () => {
         image_original_url: 'url',
         name: 'Name',
       })
-      .get(`${OPEN_SEA_PATH}/asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203`)
+      .get(
+        `${OPEN_SEA_PATH}/asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203`,
+      )
       .reply(200, {
         description: 'Kudos Description',
         image_original_url: 'Kudos url',
         name: 'Kudos Name',
       })
-      .get(`${OPEN_SEA_PATH}/asset/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/798958393`)
+      .get(
+        `${OPEN_SEA_PATH}/asset/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/798958393`,
+      )
       .replyWithError(new TypeError('Failed to fetch'))
-      .get(`${OPEN_SEA_PATH}/asset_contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab`)
+      .get(
+        `${OPEN_SEA_PATH}/asset_contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab`,
+      )
       .replyWithError(new TypeError('Failed to fetch'))
-      .get(`${OPEN_SEA_PATH}/asset_contract/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163`)
+      .get(
+        `${OPEN_SEA_PATH}/asset_contract/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163`,
+      )
       .reply(200, {
         description: 'Kudos Description',
         image_url: 'Kudos url',
@@ -72,10 +87,12 @@ describe('AssetsController', () => {
         total_supply: 10,
       });
 
-    nock('https://ipfs.gitcoin.co:443').get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov').reply(200, {
-      image: 'Kudos Image',
-      name: 'Kudos Name',
-    });
+    nock('https://ipfs.gitcoin.co:443')
+      .get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov')
+      .reply(200, {
+        image: 'Kudos Image',
+        name: 'Kudos Name',
+      });
   });
 
   afterEach(() => {
@@ -84,7 +101,7 @@ describe('AssetsController', () => {
   });
 
   it('should set default state', () => {
-    expect(assetsController.state).toEqual({
+    expect(assetsController.state).toStrictEqual({
       allCollectibleContracts: {},
       allCollectibles: {},
       allTokens: {},
@@ -99,15 +116,17 @@ describe('AssetsController', () => {
 
   it('should add token', async () => {
     await assetsController.addToken('foo', 'bar', 2);
-    expect(assetsController.state.tokens[0]).toEqual({
+    expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xfoO',
       decimals: 2,
+      image: undefined,
       symbol: 'bar',
     });
     await assetsController.addToken('foo', 'baz', 2);
-    expect(assetsController.state.tokens[0]).toEqual({
+    expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xfoO',
       decimals: 2,
+      image: undefined,
       symbol: 'baz',
     });
   });
@@ -117,28 +136,32 @@ describe('AssetsController', () => {
       { address: 'addressA', symbol: 'barA', decimals: 2 },
       { address: 'addressB', symbol: 'barB', decimals: 2 },
     ]);
-    expect(assetsController.state.tokens[0]).toEqual({
+    expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xAdDRessA',
       decimals: 2,
+      image: undefined,
       symbol: 'barA',
     });
-    expect(assetsController.state.tokens[1]).toEqual({
+    expect(assetsController.state.tokens[1]).toStrictEqual({
       address: '0xAddReSSB',
       decimals: 2,
+      image: undefined,
       symbol: 'barB',
     });
     await assetsController.addTokens([
       { address: 'addressA', symbol: 'bazA', decimals: 2 },
       { address: 'addressB', symbol: 'bazB', decimals: 2 },
     ]);
-    expect(assetsController.state.tokens[0]).toEqual({
+    expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xAdDRessA',
       decimals: 2,
+      image: undefined,
       symbol: 'bazA',
     });
-    expect(assetsController.state.tokens[1]).toEqual({
+    expect(assetsController.state.tokens[1]).toStrictEqual({
       address: '0xAddReSSB',
       decimals: 2,
+      image: undefined,
       symbol: 'bazB',
     });
   });
@@ -152,9 +175,10 @@ describe('AssetsController', () => {
     preferences.update({ selectedAddress: secondAddress });
     expect(assetsController.state.tokens).toHaveLength(0);
     preferences.update({ selectedAddress: firstAddress });
-    expect(assetsController.state.tokens[0]).toEqual({
+    expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xfoO',
       decimals: 2,
+      image: undefined,
       symbol: 'bar',
     });
   });
@@ -162,14 +186,30 @@ describe('AssetsController', () => {
   it('should add token by provider type', async () => {
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'ropsten';
-    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
+    network.update({
+      provider: {
+        type: firstNetworkType,
+        chainId: NetworksChainId[firstNetworkType],
+      },
+    });
     await assetsController.addToken('foo', 'bar', 2);
-    network.update({ provider: { type: secondNetworkType, chainId: NetworksChainId[secondNetworkType] } });
+    network.update({
+      provider: {
+        type: secondNetworkType,
+        chainId: NetworksChainId[secondNetworkType],
+      },
+    });
     expect(assetsController.state.tokens).toHaveLength(0);
-    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
-    expect(assetsController.state.tokens[0]).toEqual({
+    network.update({
+      provider: {
+        type: firstNetworkType,
+        chainId: NetworksChainId[firstNetworkType],
+      },
+    });
+    expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xfoO',
       decimals: 2,
+      image: undefined,
       symbol: 'bar',
     });
   });
@@ -190,9 +230,10 @@ describe('AssetsController', () => {
     assetsController.removeToken('0xfoO');
     expect(assetsController.state.tokens).toHaveLength(0);
     preferences.update({ selectedAddress: firstAddress });
-    expect(assetsController.state.tokens[0]).toEqual({
+    expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xFOu',
       decimals: 2,
+      image: undefined,
       symbol: 'baz',
     });
   });
@@ -200,30 +241,50 @@ describe('AssetsController', () => {
   it('should remove token by provider type', async () => {
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'ropsten';
-    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
+    network.update({
+      provider: {
+        type: firstNetworkType,
+        chainId: NetworksChainId[firstNetworkType],
+      },
+    });
     await assetsController.addToken('fou', 'baz', 2);
-    network.update({ provider: { type: secondNetworkType, chainId: NetworksChainId[secondNetworkType] } });
+    network.update({
+      provider: {
+        type: secondNetworkType,
+        chainId: NetworksChainId[secondNetworkType],
+      },
+    });
     await assetsController.addToken('foo', 'bar', 2);
     assetsController.removeToken('0xfoO');
     expect(assetsController.state.tokens).toHaveLength(0);
-    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
-    expect(assetsController.state.tokens[0]).toEqual({
+    network.update({
+      provider: {
+        type: firstNetworkType,
+        chainId: NetworksChainId[firstNetworkType],
+      },
+    });
+    expect(assetsController.state.tokens[0]).toStrictEqual({
       address: '0xFOu',
       decimals: 2,
+      image: undefined,
       symbol: 'baz',
     });
   });
 
   it('should add collectible and collectible contract', async () => {
-    await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
-    expect(assetsController.state.collectibles[0]).toEqual({
+    await assetsController.addCollectible('foo', 1, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
+    expect(assetsController.state.collectibles[0]).toStrictEqual({
       address: '0xfoO',
       description: 'description',
       image: 'image',
       name: 'name',
       tokenId: 1,
     });
-    expect(assetsController.state.collectibleContracts[0]).toEqual({
+    expect(assetsController.state.collectibleContracts[0]).toStrictEqual({
       address: '0xfoO',
       description: 'Description',
       logo: 'url',
@@ -234,22 +295,38 @@ describe('AssetsController', () => {
   });
 
   it('should not duplicate collectible nor collectible contract if already added', async () => {
-    await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
-    await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+    await assetsController.addCollectible('foo', 1, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
+    await assetsController.addCollectible('foo', 1, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
     expect(assetsController.state.collectibles).toHaveLength(1);
     expect(assetsController.state.collectibleContracts).toHaveLength(1);
   });
 
   it('should not add collectible contract if collectible contract already exists', async () => {
-    await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
-    await assetsController.addCollectible('foo', 2, { name: 'name', image: 'image', description: 'description' });
+    await assetsController.addCollectible('foo', 1, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
+    await assetsController.addCollectible('foo', 2, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
     expect(assetsController.state.collectibles).toHaveLength(2);
     expect(assetsController.state.collectibleContracts).toHaveLength(1);
   });
 
   it('should add collectible and get information from OpenSea', async () => {
     await assetsController.addCollectible('foo', 1);
-    expect(assetsController.state.collectibles[0]).toEqual({
+    expect(assetsController.state.collectibles[0]).toStrictEqual({
       address: '0xfoO',
       description: 'Description',
       image: 'url',
@@ -260,17 +337,21 @@ describe('AssetsController', () => {
 
   it('should add collectible and get collectible contract information from contract', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    sandbox.stub(assetsController, 'getCollectibleContractInformationFromApi' as any).returns(undefined);
-    sandbox.stub(assetsController, 'getCollectibleInformationFromApi' as any).returns(undefined);
+    sandbox
+      .stub(assetsController, 'getCollectibleContractInformationFromApi' as any)
+      .returns(undefined);
+    sandbox
+      .stub(assetsController, 'getCollectibleInformationFromApi' as any)
+      .returns(undefined);
     await assetsController.addCollectible(KUDOSADDRESS, 1203);
-    expect(assetsController.state.collectibles[0]).toEqual({
+    expect(assetsController.state.collectibles[0]).toStrictEqual({
       address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
       description: undefined,
       image: 'Kudos Image',
       name: 'Kudos Name',
       tokenId: 1203,
     });
-    expect(assetsController.state.collectibleContracts[0]).toEqual({
+    expect(assetsController.state.collectibleContracts[0]).toStrictEqual({
       address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
       description: undefined,
       logo: undefined,
@@ -291,7 +372,7 @@ describe('AssetsController', () => {
     preferences.update({ selectedAddress: secondAddress });
     await assetsController.addCollectible('fou', 4321);
     preferences.update({ selectedAddress: firstAddress });
-    expect(assetsController.state.collectibles[0]).toEqual({
+    expect(assetsController.state.collectibles[0]).toStrictEqual({
       address: '0xfoO',
       description: 'description',
       image: 'url',
@@ -306,12 +387,27 @@ describe('AssetsController', () => {
     sandbox
       .stub(assetsController, 'getCollectibleInformation' as any)
       .returns({ name: 'name', image: 'url', description: 'description' });
-    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
+    network.update({
+      provider: {
+        type: firstNetworkType,
+        chainId: NetworksChainId[firstNetworkType],
+      },
+    });
     await assetsController.addCollectible('foo', 1234);
-    network.update({ provider: { type: secondNetworkType, chainId: NetworksChainId[secondNetworkType] } });
+    network.update({
+      provider: {
+        type: secondNetworkType,
+        chainId: NetworksChainId[secondNetworkType],
+      },
+    });
     expect(assetsController.state.collectibles).toHaveLength(0);
-    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
-    expect(assetsController.state.collectibles[0]).toEqual({
+    network.update({
+      provider: {
+        type: firstNetworkType,
+        chainId: NetworksChainId[firstNetworkType],
+      },
+    });
+    expect(assetsController.state.collectibles[0]).toStrictEqual({
       address: '0xfoO',
       description: 'description',
       image: 'url',
@@ -321,11 +417,21 @@ describe('AssetsController', () => {
   });
 
   it('should not add collectibles with no contract information when auto detecting', async () => {
-    await assetsController.addCollectible('0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab', 123, undefined, true);
-    expect(assetsController.state.collectibles).toEqual([]);
-    expect(assetsController.state.collectibleContracts).toEqual([]);
-    await assetsController.addCollectible('0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163', 1203, undefined, true);
-    expect(assetsController.state.collectibles).toEqual([
+    await assetsController.addCollectible(
+      '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
+      123,
+      undefined,
+      true,
+    );
+    expect(assetsController.state.collectibles).toStrictEqual([]);
+    expect(assetsController.state.collectibleContracts).toStrictEqual([]);
+    await assetsController.addCollectible(
+      '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+      1203,
+      undefined,
+      true,
+    );
+    expect(assetsController.state.collectibles).toStrictEqual([
       {
         address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
         description: 'Kudos Description',
@@ -334,7 +440,7 @@ describe('AssetsController', () => {
         tokenId: 1203,
       },
     ]);
-    expect(assetsController.state.collectibleContracts).toEqual([
+    expect(assetsController.state.collectibleContracts).toStrictEqual([
       {
         address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
         description: 'Kudos Description',
@@ -347,15 +453,27 @@ describe('AssetsController', () => {
   });
 
   it('should remove collectible and collectible contract', async () => {
-    await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+    await assetsController.addCollectible('foo', 1, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
     assetsController.removeCollectible('0xfoO', 1);
     expect(assetsController.state.collectibles).toHaveLength(0);
     expect(assetsController.state.collectibleContracts).toHaveLength(0);
   });
 
   it('should not remove collectible contract if collectible still exists', async () => {
-    await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
-    await assetsController.addCollectible('foo', 2, { name: 'name', image: 'image', description: 'description' });
+    await assetsController.addCollectible('foo', 1, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
+    await assetsController.addCollectible('foo', 2, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
     assetsController.removeCollectible('0xfoO', 1);
     expect(assetsController.state.collectibles).toHaveLength(1);
     expect(assetsController.state.collectibleContracts).toHaveLength(1);
@@ -374,7 +492,7 @@ describe('AssetsController', () => {
     assetsController.removeCollectible('0xfoO', 1234);
     expect(assetsController.state.collectibles).toHaveLength(0);
     preferences.update({ selectedAddress: firstAddress });
-    expect(assetsController.state.collectibles[0]).toEqual({
+    expect(assetsController.state.collectibles[0]).toStrictEqual({
       address: '0xFOu',
       description: 'description',
       image: 'url',
@@ -389,15 +507,30 @@ describe('AssetsController', () => {
       .returns({ name: 'name', image: 'url', description: 'description' });
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'ropsten';
-    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
+    network.update({
+      provider: {
+        type: firstNetworkType,
+        chainId: NetworksChainId[firstNetworkType],
+      },
+    });
     await assetsController.addCollectible('fou', 4321);
-    network.update({ provider: { type: secondNetworkType, chainId: NetworksChainId[secondNetworkType] } });
+    network.update({
+      provider: {
+        type: secondNetworkType,
+        chainId: NetworksChainId[secondNetworkType],
+      },
+    });
     await assetsController.addCollectible('foo', 1234);
     assetsController.removeToken('0xfoO');
     assetsController.removeCollectible('0xfoO', 1234);
     expect(assetsController.state.collectibles).toHaveLength(0);
-    network.update({ provider: { type: firstNetworkType, chainId: NetworksChainId[firstNetworkType] } });
-    expect(assetsController.state.collectibles[0]).toEqual({
+    network.update({
+      provider: {
+        type: firstNetworkType,
+        chainId: NetworksChainId[firstNetworkType],
+      },
+    });
+    expect(assetsController.state.collectibles[0]).toStrictEqual({
       address: '0xFOu',
       description: 'description',
       image: 'url',
@@ -410,9 +543,11 @@ describe('AssetsController', () => {
     const networkType = 'rinkeby';
     const address = '0x123';
     preferences.update({ selectedAddress: address });
-    expect(preferences.state.selectedAddress).toEqual(address);
-    network.update({ provider: { type: networkType, chainId: NetworksChainId[networkType] } });
-    expect(network.state.provider.type).toEqual(networkType);
+    expect(preferences.state.selectedAddress).toStrictEqual(address);
+    network.update({
+      provider: { type: networkType, chainId: NetworksChainId[networkType] },
+    });
+    expect(network.state.provider.type).toStrictEqual(networkType);
   });
 
   it('should add a valid suggested asset via watchAsset', async () => {
@@ -424,7 +559,9 @@ describe('AssetsController', () => {
       },
       'ERC20',
     );
-    expect(assetsController.state.suggestedAssets[0].asset.address).toBe('0xe9f786dfdd9ae4d57e830acb52296837765f0e5b');
+    expect(assetsController.state.suggestedAssets[0].asset.address).toBe(
+      '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
+    );
     expect(assetsController.state.suggestedAssets[0].status).toBe('pending');
   });
 
@@ -488,10 +625,14 @@ describe('AssetsController', () => {
       'ERC20',
     );
     const { suggestedAssets } = assetsController.state;
-    const index = suggestedAssets.findIndex(({ id }) => suggestedAssetMeta.id === id);
+    const index = suggestedAssets.findIndex(
+      ({ id }) => suggestedAssetMeta.id === id,
+    );
     const newSuggestedAssetMeta = suggestedAssets[index];
     suggestedAssetMeta.type = 'ERC721';
-    assetsController.update({ suggestedAssets: [...suggestedAssets, newSuggestedAssetMeta] });
+    assetsController.update({
+      suggestedAssets: [...suggestedAssets, newSuggestedAssetMeta],
+    });
     await assetsController.acceptWatchAsset(suggestedAssetMeta.id);
     await expect(result).rejects.toThrow('Asset of type ERC721 not supported');
   });
@@ -511,8 +652,16 @@ describe('AssetsController', () => {
   });
 
   it('should not add duplicate collectibles to the ignoredCollectibles list', async () => {
-    await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
-    await assetsController.addCollectible('foo', 2, { name: 'name', image: 'image', description: 'description' });
+    await assetsController.addCollectible('foo', 1, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
+    await assetsController.addCollectible('foo', 2, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
 
     expect(assetsController.state.collectibles).toHaveLength(2);
     expect(assetsController.state.ignoredCollectibles).toHaveLength(0);
@@ -521,7 +670,11 @@ describe('AssetsController', () => {
     expect(assetsController.state.collectibles).toHaveLength(1);
     expect(assetsController.state.ignoredCollectibles).toHaveLength(1);
 
-    await assetsController.addCollectible('foo', 1, { name: 'name', image: 'image', description: 'description' });
+    await assetsController.addCollectible('foo', 1, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
     expect(assetsController.state.collectibles).toHaveLength(2);
     expect(assetsController.state.ignoredCollectibles).toHaveLength(1);
 
@@ -541,7 +694,11 @@ describe('AssetsController', () => {
   });
 
   it('should be able to clear the ignoredCollectibles list', async () => {
-    await assetsController.addCollectible('0xfoO', 1, { name: 'name', image: 'image', description: 'description' });
+    await assetsController.addCollectible('0xfoO', 1, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
 
     expect(assetsController.state.collectibles).toHaveLength(1);
     expect(assetsController.state.ignoredCollectibles).toHaveLength(0);

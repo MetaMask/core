@@ -8,7 +8,14 @@ import BaseController, { BaseConfig, BaseState } from '../BaseController';
 /**
  * Human-readable network name
  */
-export type NetworkType = 'kovan' | 'localhost' | 'mainnet' | 'rinkeby' | 'goerli' | 'ropsten' | 'rpc';
+export type NetworkType =
+  | 'kovan'
+  | 'localhost'
+  | 'mainnet'
+  | 'rinkeby'
+  | 'goerli'
+  | 'ropsten'
+  | 'rpc';
 
 export enum NetworksChainId {
   mainnet = '1',
@@ -70,7 +77,10 @@ const LOCALHOST_RPC_URL = 'http://localhost:8545';
 /**
  * Controller that creates and manages an Ethereum network provider
  */
-export class NetworkController extends BaseController<NetworkConfig, NetworkState> {
+export class NetworkController extends BaseController<
+  NetworkConfig,
+  NetworkState
+> {
   private ethQuery: any;
 
   private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
@@ -96,7 +106,8 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
         this.setupStandardProvider(LOCALHOST_RPC_URL);
         break;
       case 'rpc':
-        rpcTarget && this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
+        rpcTarget &&
+          this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
@@ -116,7 +127,10 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
   }
 
   private setupInfuraProvider(type: NetworkType) {
-    const infuraProvider = createInfuraProvider({ network: type, projectId: this.config.infuraProjectId });
+    const infuraProvider = createInfuraProvider({
+      network: type,
+      projectId: this.config.infuraProjectId,
+    });
     const infuraSubprovider = new Subprovider(infuraProvider);
     const config = {
       ...this.internalProviderConfig,
@@ -131,7 +145,12 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
     this.updateProvider(createMetamaskProvider(config));
   }
 
-  private setupStandardProvider(rpcTarget: string, chainId?: string, ticker?: string, nickname?: string) {
+  private setupStandardProvider(
+    rpcTarget: string,
+    chainId?: string,
+    ticker?: string,
+    nickname?: string,
+  ) {
     const config = {
       ...this.internalProviderConfig,
       ...{
@@ -214,10 +233,15 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
       return;
     }
     const releaseLock = await this.mutex.acquire();
-    this.ethQuery.sendAsync({ method: 'net_version' }, (error: Error, network: string) => {
-      this.update({ network: error ? /* istanbul ignore next*/ 'loading' : network });
-      releaseLock();
-    });
+    this.ethQuery.sendAsync(
+      { method: 'net_version' },
+      (error: Error, network: string) => {
+        this.update({
+          network: error ? /* istanbul ignore next*/ 'loading' : network,
+        });
+        releaseLock();
+      },
+    );
   }
 
   /**
@@ -226,7 +250,12 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
    * @param type - Human readable network name
    */
   setProviderType(type: NetworkType) {
-    const { rpcTarget, chainId, nickname, ...providerState } = this.state.provider;
+    const {
+      rpcTarget,
+      chainId,
+      nickname,
+      ...providerState
+    } = this.state.provider;
     this.update({
       provider: {
         ...providerState,
@@ -244,7 +273,12 @@ export class NetworkController extends BaseController<NetworkConfig, NetworkStat
    * @param ticker? - Currency ticker
    * @param nickname? - Personalized network name
    */
-  setRpcTarget(rpcTarget: string, chainId: string, ticker?: string, nickname?: string) {
+  setRpcTarget(
+    rpcTarget: string,
+    chainId: string,
+    ticker?: string,
+    nickname?: string,
+  ) {
     this.update({
       provider: {
         ...this.state.provider,

@@ -17,10 +17,11 @@
   },
   "scripts": {
     "prepublishOnly": "yarn build",
-    "lint": "eslint --ext js,ts .",
+    "lint:eslint": "eslint . --cache --ext js,ts",
+    "lint:json": "prettier '**/*.json' --ignore-path .gitignore",
+    "lint": "yarn lint:eslint && yarn lint:json --check",
+    "lint:fix": "yarn lint:eslint --fix && yarn lint:json --write",
     "test": "jest --coverage",
-    "format": "prettier '**/*.ts' '**/*.js' --check --ignore-path=.gitignore",
-    "format:fix": "prettier '**/*.ts' '**/*.js' --write --ignore-path=.gitignore",
     "build": "rm -rf dist && tsc",
     "build:watch": "yarn build && tsc -w",
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
@@ -67,22 +68,26 @@
     "web3-provider-engine": "^16.0.1"
   },
   "devDependencies": {
-    "@metamask/eslint-config": "^5.0.0",
-    "@types/jest": "^22.2.3",
+    "@metamask/eslint-config": "^6.0.0",
+    "@metamask/eslint-config-jest": "^6.0.0",
+    "@metamask/eslint-config-nodejs": "^6.0.0",
+    "@metamask/eslint-config-typescript": "^6.0.0",
+    "@types/jest": "^26.0.22",
     "@types/node": "^14.14.31",
     "@types/sinon": "^9.0.10",
     "@types/web3": "^1.0.6",
-    "@typescript-eslint/eslint-plugin": "^4.18.0",
-    "@typescript-eslint/parser": "^4.18.0",
-    "eslint": "^7.20.0",
+    "@typescript-eslint/eslint-plugin": "^4.22.0",
+    "@typescript-eslint/parser": "^4.22.0",
+    "eslint": "^7.24.0",
+    "eslint-config-prettier": "^8.1.0",
     "eslint-import-resolver-typescript": "^2.4.0",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-jest": "^24.1.5",
     "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-prettier": "^3.3.1",
     "ethjs-provider-http": "^0.1.6",
     "jest": "^26.4.2",
     "jest-environment-jsdom": "^25.0.0",
-    "lint-staged": "^6.1.0",
     "nock": "^13.0.7",
     "prettier": "^2.2.1",
     "sinon": "^9.2.4",
@@ -118,20 +123,6 @@
     },
     "setupFiles": [
       "./tests/setupTests.ts"
-    ]
-  },
-  "prettier": {
-    "arrowParens": "always",
-    "parser": "typescript",
-    "printWidth": 120,
-    "singleQuote": true,
-    "trailingComma": "all"
-  },
-  "lint-staged": {
-    "*.ts": [
-      "prettier --ignore-path=.gitignore --write **/*.ts",
-      "yarn lint",
-      "git add"
     ]
   }
 }

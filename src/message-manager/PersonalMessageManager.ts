@@ -47,7 +47,8 @@ export interface PersonalMessageParams extends AbstractMessageParams {
  * @property from - Address to sign this message from
  * @property origin? - Added for request origin identification
  */
-export interface PersonalMessageParamsMetamask extends AbstractMessageParamsMetamask {
+export interface PersonalMessageParamsMetamask
+  extends AbstractMessageParamsMetamask {
   data: string;
 }
 
@@ -72,7 +73,10 @@ export class PersonalMessageManager extends AbstractMessageManager<
    * @param req? - The original request object possibly containing the origin
    * @returns - Promise resolving to the raw data of the signature request
    */
-  addUnapprovedMessageAsync(messageParams: PersonalMessageParams, req?: OriginalRequest): Promise<string> {
+  addUnapprovedMessageAsync(
+    messageParams: PersonalMessageParams,
+    req?: OriginalRequest,
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
       validateSignMessageData(messageParams);
       const messageId = this.addUnapprovedMessage(messageParams, req);
@@ -81,10 +85,18 @@ export class PersonalMessageManager extends AbstractMessageManager<
           case 'signed':
             return resolve(data.rawSig as string);
           case 'rejected':
-            return reject(new Error('MetaMask Personal Message Signature: User denied message signature.'));
+            return reject(
+              new Error(
+                'MetaMask Personal Message Signature: User denied message signature.',
+              ),
+            );
           default:
             return reject(
-              new Error(`MetaMask Personal Message Signature: Unknown problem: ${JSON.stringify(messageParams)}`),
+              new Error(
+                `MetaMask Personal Message Signature: Unknown problem: ${JSON.stringify(
+                  messageParams,
+                )}`,
+              ),
             );
         }
       });
@@ -101,7 +113,10 @@ export class PersonalMessageManager extends AbstractMessageManager<
    * @param req? - The original request object possibly containing the origin
    * @returns - The id of the newly created message
    */
-  addUnapprovedMessage(messageParams: PersonalMessageParams, req?: OriginalRequest) {
+  addUnapprovedMessage(
+    messageParams: PersonalMessageParams,
+    req?: OriginalRequest,
+  ) {
     if (req) {
       messageParams.origin = req.origin;
     }
@@ -115,7 +130,10 @@ export class PersonalMessageManager extends AbstractMessageManager<
       type: 'personal_sign',
     };
     this.addMessage(messageData);
-    this.hub.emit(`unapprovedMessage`, { ...messageParams, ...{ metamaskId: messageId } });
+    this.hub.emit(`unapprovedMessage`, {
+      ...messageParams,
+      ...{ metamaskId: messageId },
+    });
     return messageId;
   }
 
@@ -126,7 +144,9 @@ export class PersonalMessageManager extends AbstractMessageManager<
    * @param messageParams - The messageParams to modify
    * @returns - Promise resolving to the messageParams with the metamaskId property removed
    */
-  prepMessageForSigning(messageParams: PersonalMessageParamsMetamask): Promise<PersonalMessageParams> {
+  prepMessageForSigning(
+    messageParams: PersonalMessageParamsMetamask,
+  ): Promise<PersonalMessageParams> {
     delete messageParams.metamaskId;
     return Promise.resolve(messageParams);
   }

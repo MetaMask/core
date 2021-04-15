@@ -1,6 +1,10 @@
 import { handleFetch } from '../util';
 
-function getPricingURL(currentCurrency: string, nativeCurrency: string, includeUSDRate?: boolean) {
+function getPricingURL(
+  currentCurrency: string,
+  nativeCurrency: string,
+  includeUSDRate?: boolean,
+) {
   return (
     `https://min-api.cryptocompare.com/data/price?fsym=` +
     `${nativeCurrency.toUpperCase()}&tsyms=${currentCurrency.toUpperCase()}` +
@@ -20,12 +24,22 @@ export async function fetchExchangeRate(
   currency: string,
   nativeCurrency: string,
   includeUSDRate?: boolean,
-): Promise<{ conversionDate: number; conversionRate: number; usdConversionRate: number }> {
-  const json = await handleFetch(getPricingURL(currency, nativeCurrency, includeUSDRate));
+): Promise<{
+  conversionDate: number;
+  conversionRate: number;
+  usdConversionRate: number;
+}> {
+  const json = await handleFetch(
+    getPricingURL(currency, nativeCurrency, includeUSDRate),
+  );
   const conversionRate = Number(json[currency.toUpperCase()]);
   const usdConversionRate = Number(json.USD);
   if (!Number.isFinite(conversionRate)) {
-    throw new Error(`Invalid response for ${currency.toUpperCase()}: ${json[currency.toUpperCase()]}`);
+    throw new Error(
+      `Invalid response for ${currency.toUpperCase()}: ${
+        json[currency.toUpperCase()]
+      }`,
+    );
   }
   if (includeUSDRate && !Number.isFinite(usdConversionRate)) {
     throw new Error(`Invalid response for usdConversionRate: ${json.USD}`);

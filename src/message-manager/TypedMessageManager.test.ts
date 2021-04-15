@@ -15,12 +15,15 @@ const typedMessage = [
 describe('TypedMessageManager', () => {
   it('should set default state', () => {
     const controller = new TypedMessageManager();
-    expect(controller.state).toEqual({ unapprovedMessages: {}, unapprovedMessagesCount: 0 });
+    expect(controller.state).toStrictEqual({
+      unapprovedMessages: {},
+      unapprovedMessagesCount: 0,
+    });
   });
 
   it('should set default config', () => {
     const controller = new TypedMessageManager();
-    expect(controller.config).toEqual({});
+    expect(controller.config).toStrictEqual({});
   });
 
   it('should add a valid message', async () => {
@@ -118,7 +121,9 @@ describe('TypedMessageManager', () => {
       expect(unapprovedMessages[keys[0]].status).toBe('errored');
     });
     controller.setMessageStatusErrored(keys[0], 'error message');
-    await expect(result).rejects.toThrow('MetaMask Typed Message Signature: error message');
+    await expect(result).rejects.toThrow(
+      'MetaMask Typed Message Signature: error message',
+    );
   });
 
   it('should throw when unapproved finishes', async () => {
@@ -150,7 +155,11 @@ describe('TypedMessageManager', () => {
       from: '0xfoO',
     };
     const originalRequest = { origin: 'origin' };
-    const messageId = controller.addUnapprovedMessage(messageParams, version, originalRequest);
+    const messageId = controller.addUnapprovedMessage(
+      messageParams,
+      version,
+      originalRequest,
+    );
     expect(messageId).not.toBeUndefined();
     const message = controller.getMessage(messageId);
     if (message) {
@@ -236,8 +245,8 @@ describe('TypedMessageManager', () => {
     const controller = new TypedMessageManager();
     controller.addMessage(firstMessage);
     controller.addMessage(secondMessage);
-    expect(controller.getUnapprovedMessagesCount()).toEqual(2);
-    expect(controller.getUnapprovedMessages()).toEqual({
+    expect(controller.getUnapprovedMessagesCount()).toStrictEqual(2);
+    expect(controller.getUnapprovedMessages()).toStrictEqual({
       [firstMessage.id]: firstMessage,
       [secondMessage.id]: secondMessage,
     });
@@ -249,12 +258,16 @@ describe('TypedMessageManager', () => {
     const firstMessage = { from: '0xfoO', data: messageData };
     const version = 'V1';
     const messageId = controller.addUnapprovedMessage(firstMessage, version);
-    const messageParams = await controller.approveMessage({ ...firstMessage, metamaskId: messageId, version });
+    const messageParams = await controller.approveMessage({
+      ...firstMessage,
+      metamaskId: messageId,
+      version,
+    });
     const message = controller.getMessage(messageId);
-    expect(messageParams).toEqual(firstMessage);
+    expect(messageParams).toStrictEqual(firstMessage);
     expect(message).not.toBeUndefined();
     if (message) {
-      expect(message.status).toEqual('approved');
+      expect(message.status).toStrictEqual('approved');
     }
   });
 
@@ -269,8 +282,8 @@ describe('TypedMessageManager', () => {
     const message = controller.getMessage(messageId);
     expect(message).not.toBeUndefined();
     if (message) {
-      expect(message.rawSig).toEqual(rawSig);
-      expect(message.status).toEqual('signed');
+      expect(message.rawSig).toStrictEqual(rawSig);
+      expect(message.status).toStrictEqual('signed');
     }
   });
 
@@ -284,7 +297,7 @@ describe('TypedMessageManager', () => {
     const message = controller.getMessage(messageId);
     expect(message).not.toBeUndefined();
     if (message) {
-      expect(message.status).toEqual('rejected');
+      expect(message.status).toStrictEqual('rejected');
     }
   });
 
@@ -298,7 +311,7 @@ describe('TypedMessageManager', () => {
     const message = controller.getMessage(messageId);
     expect(message).not.toBeUndefined();
     if (message) {
-      expect(message.status).toEqual('errored');
+      expect(message.status).toStrictEqual('errored');
     }
   });
 });

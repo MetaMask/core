@@ -3,12 +3,15 @@ import MessageManager from './MessageManager';
 describe('PersonalMessageManager', () => {
   it('should set default state', () => {
     const controller = new MessageManager();
-    expect(controller.state).toEqual({ unapprovedMessages: {}, unapprovedMessagesCount: 0 });
+    expect(controller.state).toStrictEqual({
+      unapprovedMessages: {},
+      unapprovedMessagesCount: 0,
+    });
   });
 
   it('should set default config', () => {
     const controller = new MessageManager();
-    expect(controller.config).toEqual({});
+    expect(controller.config).toStrictEqual({});
   });
 
   it('should add a valid message', async () => {
@@ -102,7 +105,10 @@ describe('PersonalMessageManager', () => {
       from: '0xfoO',
     };
     const originalRequest = { origin: 'origin' };
-    const messageId = controller.addUnapprovedMessage(messageParams, originalRequest);
+    const messageId = controller.addUnapprovedMessage(
+      messageParams,
+      originalRequest,
+    );
     expect(messageId).not.toBeUndefined();
     const message = controller.getMessage(messageId);
     if (message) {
@@ -144,8 +150,8 @@ describe('PersonalMessageManager', () => {
     const controller = new MessageManager();
     controller.addMessage(firstMessage);
     controller.addMessage(secondMessage);
-    expect(controller.getUnapprovedMessagesCount()).toEqual(2);
-    expect(controller.getUnapprovedMessages()).toEqual({
+    expect(controller.getUnapprovedMessagesCount()).toStrictEqual(2);
+    expect(controller.getUnapprovedMessages()).toStrictEqual({
       [firstMessage.id]: firstMessage,
       [secondMessage.id]: secondMessage,
     });
@@ -155,12 +161,15 @@ describe('PersonalMessageManager', () => {
     const controller = new MessageManager();
     const firstMessage = { from: 'foo', data: '0x123' };
     const messageId = controller.addUnapprovedMessage(firstMessage);
-    const messageParams = await controller.approveMessage({ ...firstMessage, metamaskId: messageId });
+    const messageParams = await controller.approveMessage({
+      ...firstMessage,
+      metamaskId: messageId,
+    });
     const message = controller.getMessage(messageId);
-    expect(messageParams).toEqual(firstMessage);
+    expect(messageParams).toStrictEqual(firstMessage);
     expect(message).not.toBeUndefined();
     if (message) {
-      expect(message.status).toEqual('approved');
+      expect(message.status).toStrictEqual('approved');
     }
   });
 
@@ -174,8 +183,8 @@ describe('PersonalMessageManager', () => {
     const message = controller.getMessage(messageId);
     expect(message).not.toBeUndefined();
     if (message) {
-      expect(message.rawSig).toEqual(rawSig);
-      expect(message.status).toEqual('signed');
+      expect(message.rawSig).toStrictEqual(rawSig);
+      expect(message.status).toStrictEqual('signed');
     }
   });
 
@@ -187,7 +196,7 @@ describe('PersonalMessageManager', () => {
     const message = controller.getMessage(messageId);
     expect(message).not.toBeUndefined();
     if (message) {
-      expect(message.status).toEqual('rejected');
+      expect(message.status).toStrictEqual('rejected');
     }
   });
 });

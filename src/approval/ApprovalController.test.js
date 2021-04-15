@@ -5,17 +5,20 @@ const defaultConfig = {
   showApprovalRequest: () => undefined,
 };
 
-const getApprovalController = () => new ApprovalController({ ...defaultConfig });
+const getApprovalController = () =>
+  new ApprovalController({ ...defaultConfig });
 
 const STORE_KEY = 'pendingApprovals';
 
 describe('ApprovalController: Input Validation', () => {
   describe('constructor', () => {
     it('throws on invalid input', () => {
-      expect(() => new ApprovalController({})).toThrow(getInvalidShowApprovalRequestError());
-      expect(() => new ApprovalController({ showApprovalRequest: 'bar' })).toThrow(
+      expect(() => new ApprovalController({})).toThrow(
         getInvalidShowApprovalRequestError(),
       );
+      expect(
+        () => new ApprovalController({ showApprovalRequest: 'bar' }),
+      ).toThrow(getInvalidShowApprovalRequestError());
     });
   });
 
@@ -23,19 +26,25 @@ describe('ApprovalController: Input Validation', () => {
     it('validates input', () => {
       const approvalController = getApprovalController();
 
-      expect(() => approvalController.add({ id: null, origin: 'bar.baz' })).toThrow(getInvalidIdError());
+      expect(() =>
+        approvalController.add({ id: null, origin: 'bar.baz' }),
+      ).toThrow(getInvalidIdError());
 
-      expect(() => approvalController.add({ id: 'foo' })).toThrow(getInvalidOriginError());
-
-      expect(() => approvalController.add({ id: 'foo', origin: true })).toThrow(getInvalidOriginError());
-
-      expect(() => approvalController.add({ id: 'foo', origin: 'bar.baz', type: {} })).toThrow(
-        getInvalidTypeError(errorCodes.rpc.internal),
+      expect(() => approvalController.add({ id: 'foo' })).toThrow(
+        getInvalidOriginError(),
       );
 
-      expect(() => approvalController.add({ id: 'foo', origin: 'bar.baz', type: '' })).toThrow(
-        getInvalidTypeError(errorCodes.rpc.internal),
+      expect(() => approvalController.add({ id: 'foo', origin: true })).toThrow(
+        getInvalidOriginError(),
       );
+
+      expect(() =>
+        approvalController.add({ id: 'foo', origin: 'bar.baz', type: {} }),
+      ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
+
+      expect(() =>
+        approvalController.add({ id: 'foo', origin: 'bar.baz', type: '' }),
+      ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
 
       expect(() =>
         approvalController.add({
@@ -66,10 +75,18 @@ describe('ApprovalController: Input Validation', () => {
     it('validates input', () => {
       const approvalController = getApprovalController();
 
-      expect(() => approvalController.getApprovalCount()).toThrow(getApprovalCountParamsError());
-      expect(() => approvalController.getApprovalCount({})).toThrow(getApprovalCountParamsError());
-      expect(() => approvalController.getApprovalCount({ origin: null })).toThrow(getApprovalCountParamsError());
-      expect(() => approvalController.getApprovalCount({ type: false })).toThrow(getApprovalCountParamsError());
+      expect(() => approvalController.getApprovalCount()).toThrow(
+        getApprovalCountParamsError(),
+      );
+      expect(() => approvalController.getApprovalCount({})).toThrow(
+        getApprovalCountParamsError(),
+      );
+      expect(() =>
+        approvalController.getApprovalCount({ origin: null }),
+      ).toThrow(getApprovalCountParamsError());
+      expect(() =>
+        approvalController.getApprovalCount({ type: false }),
+      ).toThrow(getApprovalCountParamsError());
     });
   });
 
@@ -77,11 +94,21 @@ describe('ApprovalController: Input Validation', () => {
     it('validates input', () => {
       const approvalController = getApprovalController();
 
-      expect(() => approvalController.has()).toThrow(getInvalidHasParamsError());
-      expect(() => approvalController.has({})).toThrow(getInvalidHasParamsError());
-      expect(() => approvalController.has({ id: true })).toThrow(getInvalidHasIdError());
-      expect(() => approvalController.has({ origin: true })).toThrow(getInvalidHasOriginError());
-      expect(() => approvalController.has({ type: true })).toThrow(getInvalidHasTypeError());
+      expect(() => approvalController.has()).toThrow(
+        getInvalidHasParamsError(),
+      );
+      expect(() => approvalController.has({})).toThrow(
+        getInvalidHasParamsError(),
+      );
+      expect(() => approvalController.has({ id: true })).toThrow(
+        getInvalidHasIdError(),
+      );
+      expect(() => approvalController.has({ origin: true })).toThrow(
+        getInvalidHasOriginError(),
+      );
+      expect(() => approvalController.has({ type: true })).toThrow(
+        getInvalidHasTypeError(),
+      );
     });
   });
 
@@ -104,7 +131,7 @@ describe('ApprovalController: Input Validation', () => {
           !approvalController.has({ type: 'type' }) &&
           !approvalController.has({ origin: 'bar.baz' }) &&
           !approvalController.state[STORE_KEY].foo,
-      ).toEqual(true);
+      ).toStrictEqual(true);
     });
 
     it('deletes one entry out of many without side-effects', () => {
@@ -114,10 +141,14 @@ describe('ApprovalController: Input Validation', () => {
       approvalController._delete('fizz');
 
       expect(
-        !approvalController.has({ id: 'fizz' }) && !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
-      ).toEqual(true);
+        !approvalController.has({ id: 'fizz' }) &&
+          !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
+      ).toStrictEqual(true);
 
-      expect(approvalController.has({ id: 'foo' }) && approvalController.has({ origin: 'bar.baz' })).toEqual(true);
+      expect(
+        approvalController.has({ id: 'foo' }) &&
+          approvalController.has({ origin: 'bar.baz' }),
+      ).toStrictEqual(true);
     });
   });
 
@@ -152,11 +183,17 @@ function getInvalidHasTypeError() {
 }
 
 function getInvalidOriginError() {
-  return getError('Must specify non-empty string origin.', errorCodes.rpc.internal);
+  return getError(
+    'Must specify non-empty string origin.',
+    errorCodes.rpc.internal,
+  );
 }
 
 function getInvalidRequestDataError() {
-  return getError('Request data must be a plain object if specified.', errorCodes.rpc.internal);
+  return getError(
+    'Request data must be a plain object if specified.',
+    errorCodes.rpc.internal,
+  );
 }
 
 function getInvalidTypeError(code) {

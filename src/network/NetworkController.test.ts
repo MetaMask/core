@@ -1,13 +1,17 @@
 import { stub } from 'sinon';
 import Web3ProviderEngine from 'web3-provider-engine';
-import NetworkController, { NetworksChainId, ProviderConfig, NetworkType } from './NetworkController';
+import NetworkController, {
+  NetworksChainId,
+  ProviderConfig,
+  NetworkType,
+} from './NetworkController';
 
 const RPC_TARGET = 'http://foo';
 
 describe('NetworkController', () => {
   it('should set default state', () => {
     const controller = new NetworkController();
-    expect(controller.state).toEqual({
+    expect(controller.state).toStrictEqual({
       network: 'loading',
       provider: {
         type: 'mainnet',
@@ -18,7 +22,9 @@ describe('NetworkController', () => {
 
   it('should throw when providerConfig property is accessed', () => {
     const controller = new NetworkController();
-    expect(() => console.log(controller.providerConfig)).toThrow('Property only used for setting');
+    expect(() => console.log(controller.providerConfig)).toThrow(
+      'Property only used for setting',
+    );
   });
 
   it('should create a provider instance for default infura network', () => {
@@ -115,14 +121,18 @@ describe('NetworkController', () => {
 
   it('should throw when setting an unrecognized provider type', () => {
     const controller = new NetworkController();
-    expect(() => controller.setProviderType('junk' as NetworkType)).toThrow("Unrecognized network type: 'junk'");
+    expect(() => controller.setProviderType('junk' as NetworkType)).toThrow(
+      "Unrecognized network type: 'junk'",
+    );
   });
 
   it('should verify the network on an error', async () => {
     const testConfig = {
       infuraProjectId: 'foo',
     };
-    const controller = new NetworkController(testConfig, { network: 'loading' });
+    const controller = new NetworkController(testConfig, {
+      network: 'loading',
+    });
     controller.providerConfig = {} as ProviderConfig;
     controller.lookupNetwork = stub();
     controller.provider.emit('error', {});

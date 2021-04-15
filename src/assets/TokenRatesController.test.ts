@@ -13,8 +13,12 @@ const COINGECKO_PATH = '/api/v3/simple/token_price/ethereum';
 describe('TokenRatesController', () => {
   beforeEach(() => {
     nock(COINGECKO_HOST)
-      .get(`${COINGECKO_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,0xfoO&vs_currencies=eth`)
-      .reply(200, { '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 } })
+      .get(
+        `${COINGECKO_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,0xfoO&vs_currencies=eth`,
+      )
+      .reply(200, {
+        '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
+      })
       .get(`${COINGECKO_PATH}?contract_addresses=0xfoO&vs_currencies=eth`)
       .reply(200, {})
       .get(`${COINGECKO_PATH}?contract_addresses=bar&vs_currencies=eth`)
@@ -34,13 +38,19 @@ describe('TokenRatesController', () => {
   });
 
   it('should set default state', () => {
-    const controller = new TokenRatesController({ onAssetsStateChange: stub(), onCurrencyRateStateChange: stub() });
-    expect(controller.state).toEqual({ contractExchangeRates: {} });
+    const controller = new TokenRatesController({
+      onAssetsStateChange: stub(),
+      onCurrencyRateStateChange: stub(),
+    });
+    expect(controller.state).toStrictEqual({ contractExchangeRates: {} });
   });
 
   it('should initialize with the default config', () => {
-    const controller = new TokenRatesController({ onAssetsStateChange: stub(), onCurrencyRateStateChange: stub() });
-    expect(controller.config).toEqual({
+    const controller = new TokenRatesController({
+      onAssetsStateChange: stub(),
+      onCurrencyRateStateChange: stub(),
+    });
+    expect(controller.config).toStrictEqual({
       disabled: false,
       interval: 180000,
       nativeCurrency: 'eth',
@@ -49,8 +59,13 @@ describe('TokenRatesController', () => {
   });
 
   it('should throw when tokens property is accessed', () => {
-    const controller = new TokenRatesController({ onAssetsStateChange: stub(), onCurrencyRateStateChange: stub() });
-    expect(() => console.log(controller.tokens)).toThrow('Property only used for setting');
+    const controller = new TokenRatesController({
+      onAssetsStateChange: stub(),
+      onCurrencyRateStateChange: stub(),
+    });
+    expect(() => console.log(controller.tokens)).toThrow(
+      'Property only used for setting',
+    );
   });
 
   it('should poll and update rate in the right interval', async () => {
@@ -111,28 +126,35 @@ describe('TokenRatesController', () => {
       onNetworkStateChange: (listener) => network.subscribe(listener),
       getAssetName: assetsContract.getAssetName.bind(assetsContract),
       getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
-      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(assetsContract),
+      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
+        assetsContract,
+      ),
     });
     const currencyRate = new CurrencyRateController();
     const controller = new TokenRatesController(
       {
         onAssetsStateChange: (listener) => assets.subscribe(listener),
-        onCurrencyRateStateChange: (listener) => currencyRate.subscribe(listener),
+        onCurrencyRateStateChange: (listener) =>
+          currencyRate.subscribe(listener),
       },
       { interval: 10 },
     );
     const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
     const address2 = '0xfoO';
-    expect(controller.state.contractExchangeRates).toEqual({});
+    expect(controller.state.contractExchangeRates).toStrictEqual({});
     controller.tokens = [
       { address, decimals: 18, symbol: 'DAI' },
       { address: address2, decimals: 0, symbol: '' },
     ];
     await controller.updateExchangeRates();
-    expect(Object.keys(controller.state.contractExchangeRates)).toContain(address);
+    expect(Object.keys(controller.state.contractExchangeRates)).toContain(
+      address,
+    );
     expect(controller.state.contractExchangeRates[address]).toBeGreaterThan(0);
-    expect(Object.keys(controller.state.contractExchangeRates)).toContain(address2);
-    expect(controller.state.contractExchangeRates[address2]).toEqual(0);
+    expect(Object.keys(controller.state.contractExchangeRates)).toContain(
+      address2,
+    );
+    expect(controller.state.contractExchangeRates[address2]).toStrictEqual(0);
   });
 
   it('should handle balance not found in API', async () => {
@@ -140,8 +162,11 @@ describe('TokenRatesController', () => {
       { onAssetsStateChange: stub(), onCurrencyRateStateChange: stub() },
       { interval: 10 },
     );
-    stub(controller, 'fetchExchangeRate').throws({ error: 'Not Found', message: 'Not Found' });
-    expect(controller.state.contractExchangeRates).toEqual({});
+    stub(controller, 'fetchExchangeRate').throws({
+      error: 'Not Found',
+      message: 'Not Found',
+    });
+    expect(controller.state.contractExchangeRates).toStrictEqual({});
     controller.tokens = [{ address: 'bar', decimals: 0, symbol: '' }];
     const mock = stub(controller, 'updateExchangeRates');
     await controller.updateExchangeRates();
@@ -157,13 +182,16 @@ describe('TokenRatesController', () => {
       onNetworkStateChange: (listener) => network.subscribe(listener),
       getAssetName: assetsContract.getAssetName.bind(assetsContract),
       getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
-      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(assetsContract),
+      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
+        assetsContract,
+      ),
     });
     const currencyRate = new CurrencyRateController();
     const controller = new TokenRatesController(
       {
         onAssetsStateChange: (listener) => assets.subscribe(listener),
-        onCurrencyRateStateChange: (listener) => currencyRate.subscribe(listener),
+        onCurrencyRateStateChange: (listener) =>
+          currencyRate.subscribe(listener),
       },
       { interval: 10 },
     );
@@ -172,6 +200,6 @@ describe('TokenRatesController', () => {
     const { tokens } = assets.state;
     const found = tokens.filter((token: Token) => token.address === '0xfoO');
     expect(found.length > 0).toBe(true);
-    expect(controller.config.nativeCurrency).toEqual('gno');
+    expect(controller.config.nativeCurrency).toStrictEqual('gno');
   });
 });

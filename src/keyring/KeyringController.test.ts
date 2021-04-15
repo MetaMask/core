@@ -22,14 +22,20 @@ const input =
   '"cipherparams":{"iv":"eba107752a238d2dd26e543860dccec4"},"cipher":"aes-128-ctr","kdf":"scrypt",' +
   '"kdfparams":{"dklen":32,"salt":"2a8894ff056db4cc1851e45390996dd26b075e5ceaf72c13ca4c202f94ca468a",' +
   '"n":131072,"r":8,"p":1},"mac":"8bd084028ecb331275a76583d41fe0e1212825a6d155e904d1baf448d33e7150"}}';
-const seedWords = 'puzzle seed penalty soldier say clay field arctic metal hen cage runway';
-const privateKey = '1e4e6a4c0c077f4ae8ddfbf372918e61dd0fb4a4cfa592cb16e7546d505e68fc';
+const seedWords =
+  'puzzle seed penalty soldier say clay field arctic metal hen cage runway';
+const privateKey =
+  '1e4e6a4c0c077f4ae8ddfbf372918e61dd0fb4a4cfa592cb16e7546d505e68fc';
 const password = 'password123';
 
 describe('KeyringController', () => {
   let keyringController: KeyringController;
   let preferences: PreferencesController;
-  let initialState: { isUnlocked: boolean; keyringTypes: string[]; keyrings: Keyring[] };
+  let initialState: {
+    isUnlocked: boolean;
+    keyringTypes: string[];
+    keyrings: Keyring[];
+  };
   const baseConfig: Partial<KeyringConfig> = { encryptor: new MockEncryptor() };
   beforeEach(async () => {
     preferences = new PreferencesController();
@@ -47,40 +53,51 @@ describe('KeyringController', () => {
   });
 
   it('should set default state', () => {
-    expect(keyringController.state.keyrings).not.toEqual([]);
+    expect(keyringController.state.keyrings).not.toStrictEqual([]);
     const keyring = keyringController.state.keyrings[0];
-    expect(keyring.accounts).not.toEqual([]);
-    expect(keyring.index).toEqual(0);
-    expect(keyring.type).toEqual('HD Key Tree');
+    expect(keyring.accounts).not.toStrictEqual([]);
+    expect(keyring.index).toStrictEqual(0);
+    expect(keyring.type).toStrictEqual('HD Key Tree');
   });
 
   it('should add new account', async () => {
-    const initialIdentitiesLength = Object.keys(preferences.state.identities).length;
+    const initialIdentitiesLength = Object.keys(preferences.state.identities)
+      .length;
     const currentKeyringMemState = await keyringController.addNewAccount();
     expect(initialState.keyrings).toHaveLength(1);
-    expect(initialState.keyrings[0].accounts).not.toBe(currentKeyringMemState.keyrings);
+    expect(initialState.keyrings[0].accounts).not.toBe(
+      currentKeyringMemState.keyrings,
+    );
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
     const identitiesLength = Object.keys(preferences.state.identities).length;
     expect(identitiesLength).toBeGreaterThan(initialIdentitiesLength);
   });
 
   it('should add new account without updating', async () => {
-    const initialIdentitiesLength = Object.keys(preferences.state.identities).length;
+    const initialIdentitiesLength = Object.keys(preferences.state.identities)
+      .length;
     const currentKeyringMemState = await keyringController.addNewAccountWithoutUpdate();
     expect(initialState.keyrings).toHaveLength(1);
-    expect(initialState.keyrings[0].accounts).not.toBe(currentKeyringMemState.keyrings);
+    expect(initialState.keyrings[0].accounts).not.toBe(
+      currentKeyringMemState.keyrings,
+    );
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
     const identitiesLength = Object.keys(preferences.state.identities).length;
-    expect(identitiesLength).toEqual(initialIdentitiesLength);
+    expect(identitiesLength).toStrictEqual(initialIdentitiesLength);
   });
 
   it('should create new vault and keychain', async () => {
-    const currentState = await keyringController.createNewVaultAndKeychain(password);
+    const currentState = await keyringController.createNewVaultAndKeychain(
+      password,
+    );
     expect(initialState).not.toBe(currentState);
   });
 
   it('should create new vault and restore', async () => {
-    const currentState = await keyringController.createNewVaultAndRestore(password, seedWords);
+    const currentState = await keyringController.createNewVaultAndRestore(
+      password,
+      seedWords,
+    );
     expect(initialState).not.toBe(currentState);
   });
 
@@ -92,32 +109,45 @@ describe('KeyringController', () => {
   it('should export seed phrase', () => {
     const seed = keyringController.exportSeedPhrase(password);
     expect(seed).not.toBe('');
-    expect(() => keyringController.exportSeedPhrase('')).toThrow('Invalid password');
+    expect(() => keyringController.exportSeedPhrase('')).toThrow(
+      'Invalid password',
+    );
   });
 
   it('should export account', async () => {
     const account = initialState.keyrings[0].accounts[0];
-    const newPrivateKey = await keyringController.exportAccount(password, account);
+    const newPrivateKey = await keyringController.exportAccount(
+      password,
+      account,
+    );
     expect(newPrivateKey).not.toBe('');
-    expect(() => keyringController.exportAccount('', account)).toThrow('Invalid password');
+    expect(() => keyringController.exportAccount('', account)).toThrow(
+      'Invalid password',
+    );
   });
 
   it('should get accounts', async () => {
     const initialAccount = initialState.keyrings[0].accounts;
     const accounts = await keyringController.getAccounts();
-    expect(accounts).toEqual(initialAccount);
+    expect(accounts).toStrictEqual(initialAccount);
   });
 
   it('should import account with strategy privateKey', async () => {
     let error1;
     try {
-      await keyringController.importAccountWithStrategy(AccountImportStrategy.privateKey, []);
+      await keyringController.importAccountWithStrategy(
+        AccountImportStrategy.privateKey,
+        [],
+      );
     } catch (e) {
       error1 = e;
     }
     let error2;
     try {
-      await keyringController.importAccountWithStrategy(AccountImportStrategy.privateKey, ['123']);
+      await keyringController.importAccountWithStrategy(
+        AccountImportStrategy.privateKey,
+        ['123'],
+      );
     } catch (e) {
       error2 = e;
     }
@@ -125,24 +155,39 @@ describe('KeyringController', () => {
     expect(error2.message).toBe('Cannot import invalid private key.');
     const address = '0x51253087e6f8358b5f10c0a94315d69db3357859';
     const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
-    const obj = await keyringController.importAccountWithStrategy(AccountImportStrategy.privateKey, [privateKey]);
-    const modifiedState = { ...initialState, keyrings: [initialState.keyrings[0], newKeyring] };
-    expect(obj).toEqual(modifiedState);
+    const obj = await keyringController.importAccountWithStrategy(
+      AccountImportStrategy.privateKey,
+      [privateKey],
+    );
+    const modifiedState = {
+      ...initialState,
+      keyrings: [initialState.keyrings[0], newKeyring],
+    };
+    expect(obj).toStrictEqual(modifiedState);
   });
 
   it('should import account with strategy json', async () => {
     const somePassword = 'holachao123';
     const address = '0xb97c80fab7a3793bbe746864db80d236f1345ea7';
-    const obj = await keyringController.importAccountWithStrategy(AccountImportStrategy.json, [input, somePassword]);
+    const obj = await keyringController.importAccountWithStrategy(
+      AccountImportStrategy.json,
+      [input, somePassword],
+    );
     const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
-    const modifiedState = { ...initialState, keyrings: [initialState.keyrings[0], newKeyring] };
-    expect(obj).toEqual(modifiedState);
+    const modifiedState = {
+      ...initialState,
+      keyrings: [initialState.keyrings[0], newKeyring],
+    };
+    expect(obj).toStrictEqual(modifiedState);
   });
 
   it('should throw when passed an unrecognized strategy', async () => {
     const somePassword = 'holachao123';
     await expect(
-      keyringController.importAccountWithStrategy('junk' as AccountImportStrategy, [input, somePassword]),
+      keyringController.importAccountWithStrategy(
+        'junk' as AccountImportStrategy,
+        [input, somePassword],
+      ),
     ).rejects.toThrow("Unexpected import strategy: 'junk'");
   });
 
@@ -150,30 +195,47 @@ describe('KeyringController', () => {
     const somePassword = 'holachao12';
     let error;
     try {
-      await keyringController.importAccountWithStrategy(AccountImportStrategy.json, [input, somePassword]);
+      await keyringController.importAccountWithStrategy(
+        AccountImportStrategy.json,
+        [input, somePassword],
+      );
     } catch (e) {
       error = e;
     }
-    expect(error.message).toBe('Key derivation failed - possibly wrong passphrase');
+    expect(error.message).toBe(
+      'Key derivation failed - possibly wrong passphrase',
+    );
   });
 
   it('should remove account', async () => {
-    await keyringController.importAccountWithStrategy(AccountImportStrategy.privateKey, [privateKey]);
-    const finalState = await keyringController.removeAccount('0x51253087e6f8358b5f10c0a94315d69db3357859');
-    expect(finalState).toEqual(initialState);
+    await keyringController.importAccountWithStrategy(
+      AccountImportStrategy.privateKey,
+      [privateKey],
+    );
+    const finalState = await keyringController.removeAccount(
+      '0x51253087e6f8358b5f10c0a94315d69db3357859',
+    );
+    expect(finalState).toStrictEqual(initialState);
   });
 
   it('should sign message', async () => {
-    const data = '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
+    const data =
+      '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
     const account = initialState.keyrings[0].accounts[0];
-    const signature = await keyringController.signMessage({ data, from: account });
+    const signature = await keyringController.signMessage({
+      data,
+      from: account,
+    });
     expect(signature).not.toBe('');
   });
 
   it('should sign personal message', async () => {
     const data = ethUtil.bufferToHex(Buffer.from('Hello from test', 'utf8'));
     const account = initialState.keyrings[0].accounts[0];
-    const signature = await keyringController.signPersonalMessage({ data, from: account });
+    const signature = await keyringController.signPersonalMessage({
+      data,
+      from: account,
+    });
     const recovered = recoverPersonalSignature({ data, sig: signature });
     expect(account).toBe(recovered);
   });
@@ -193,8 +255,13 @@ describe('KeyringController', () => {
     ];
     const account = initialState.keyrings[0].accounts[0];
     await expect(
-      keyringController.signTypedMessage({ data: typedMsgParams, from: account }, 'junk' as SignTypedDataVersion),
-    ).rejects.toThrow("Keyring Controller signTypedMessage: Error: Unexpected signTypedMessage version: 'junk'");
+      keyringController.signTypedMessage(
+        { data: typedMsgParams, from: account },
+        'junk' as SignTypedDataVersion,
+      ),
+    ).rejects.toThrow(
+      "Keyring Controller signTypedMessage: Error: Unexpected signTypedMessage version: 'junk'",
+    );
   });
 
   it('should sign typed message V1', async () => {
@@ -215,7 +282,10 @@ describe('KeyringController', () => {
       { data: typedMsgParams, from: account },
       SignTypedDataVersion.V1,
     );
-    const recovered = recoverTypedSignatureLegacy({ data: typedMsgParams, sig: signature as string });
+    const recovered = recoverTypedSignatureLegacy({
+      data: typedMsgParams,
+      sig: signature as string,
+    });
     expect(account).toBe(recovered);
   });
 
@@ -229,8 +299,14 @@ describe('KeyringController', () => {
       },
       message: {
         contents: 'Hello, Bob!',
-        from: { name: 'Cow', wallet: '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826' },
-        to: { name: 'Bob', wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB' },
+        from: {
+          name: 'Cow',
+          wallet: '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826',
+        },
+        to: {
+          name: 'Bob',
+          wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+        },
       },
       primaryType: 'Mail',
       types: {
@@ -256,7 +332,10 @@ describe('KeyringController', () => {
       { data: JSON.stringify(msgParams), from: account },
       SignTypedDataVersion.V3,
     );
-    const recovered = recoverTypedSignature({ data: msgParams as any, sig: signature as string });
+    const recovered = recoverTypedSignature({
+      data: msgParams as any,
+      sig: signature as string,
+    });
     expect(account).toBe(recovered);
   });
 
@@ -272,7 +351,10 @@ describe('KeyringController', () => {
         contents: 'Hello, Bob!',
         from: {
           name: 'Cow',
-          wallets: ['0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826', '0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF'],
+          wallets: [
+            '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826',
+            '0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF',
+          ],
         },
         to: [
           {
@@ -314,7 +396,10 @@ describe('KeyringController', () => {
       { data: JSON.stringify(msgParams), from: account },
       SignTypedDataVersion.V4,
     );
-    const recovered = recoverTypedSignature_v4({ data: msgParams as any, sig: signature as string });
+    const recovered = recoverTypedSignature_v4({
+      data: msgParams as any,
+      sig: signature as string,
+    });
     expect(account).toBe(recovered);
   });
 
@@ -323,13 +408,19 @@ describe('KeyringController', () => {
     const account = initialState.keyrings[0].accounts[0];
     let error1;
     try {
-      await keyringController.signTypedMessage({ data: msgParams, from: account }, SignTypedDataVersion.V1);
+      await keyringController.signTypedMessage(
+        { data: msgParams, from: account },
+        SignTypedDataVersion.V1,
+      );
     } catch (e) {
       error1 = e;
     }
     let error2;
     try {
-      await keyringController.signTypedMessage({ data: msgParams, from: account }, SignTypedDataVersion.V3);
+      await keyringController.signTypedMessage(
+        { data: msgParams, from: account },
+        SignTypedDataVersion.V3,
+      );
     } catch (e) {
       error2 = e;
     }
@@ -349,22 +440,30 @@ describe('KeyringController', () => {
       value: '0x5208',
     };
     const ethTransaction = new Transaction({ ...transaction });
-    const signature = await keyringController.signTransaction(ethTransaction, account);
+    const signature = await keyringController.signTransaction(
+      ethTransaction,
+      account,
+    );
     expect(signature).not.toBe('');
   });
 
   it('should submit password and decrypt', async () => {
     const state = await keyringController.submitPassword(password);
-    expect(state).toEqual(initialState);
+    expect(state).toStrictEqual(initialState);
   });
 
   it('should subscribe and unsubscribe', async () => {
     const listener = stub();
     keyringController.subscribe(listener);
-    await keyringController.importAccountWithStrategy(AccountImportStrategy.privateKey, [privateKey]);
+    await keyringController.importAccountWithStrategy(
+      AccountImportStrategy.privateKey,
+      [privateKey],
+    );
     expect(listener.called).toBe(true);
     keyringController.unsubscribe(listener);
-    await keyringController.removeAccount('0x51253087e6f8358b5f10c0a94315d69db3357859');
+    await keyringController.removeAccount(
+      '0x51253087e6f8358b5f10c0a94315d69db3357859',
+    );
     expect(listener.calledTwice).toBe(false);
   });
 

@@ -64,7 +64,10 @@ export interface TokenRatesState extends BaseState {
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
  * for tokens stored in the AssetsController
  */
-export class TokenRatesController extends BaseController<TokenRatesConfig, TokenRatesState> {
+export class TokenRatesController extends BaseController<
+  TokenRatesConfig,
+  TokenRatesState
+> {
   private handle?: NodeJS.Timer;
 
   private tokenList: Token[] = [];
@@ -92,8 +95,12 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
       onAssetsStateChange,
       onCurrencyRateStateChange,
     }: {
-      onAssetsStateChange: (listener: (assetState: AssetsState) => void) => void;
-      onCurrencyRateStateChange: (listener: (currencyRateState: CurrencyRateState) => void) => void;
+      onAssetsStateChange: (
+        listener: (assetState: AssetsState) => void,
+      ) => void;
+      onCurrencyRateStateChange: (
+        listener: (currencyRateState: CurrencyRateState) => void,
+      ) => void;
     },
     config?: Partial<TokenRatesConfig>,
     state?: Partial<TokenRatesState>,
@@ -174,7 +181,9 @@ export class TokenRatesController extends BaseController<TokenRatesConfig, Token
     this.tokenList.forEach((token) => {
       const address = toChecksumAddress(token.address);
       const price = prices[token.address.toLowerCase()];
-      newContractExchangeRates[address] = price ? price[nativeCurrency.toLowerCase()] : 0;
+      newContractExchangeRates[address] = price
+        ? price[nativeCurrency.toLowerCase()]
+        : 0;
     });
     this.update({ contractExchangeRates: newContractExchangeRates });
   }

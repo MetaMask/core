@@ -136,9 +136,15 @@ type SuggestedAssetMetaBase = {
  * @property asset - Asset suggested object
  */
 export type SuggestedAssetMeta =
-  | (SuggestedAssetMetaBase & { status: SuggestedAssetStatus.failed; error: Error })
   | (SuggestedAssetMetaBase & {
-      status: SuggestedAssetStatus.accepted | SuggestedAssetStatus.rejected | SuggestedAssetStatus.pending;
+      status: SuggestedAssetStatus.failed;
+      error: Error;
+    })
+  | (SuggestedAssetMetaBase & {
+      status:
+        | SuggestedAssetStatus.accepted
+        | SuggestedAssetStatus.rejected
+        | SuggestedAssetStatus.pending;
     });
 
 /**
@@ -158,7 +164,9 @@ export type SuggestedAssetMeta =
  */
 export interface AssetsState extends BaseState {
   allTokens: { [key: string]: { [key: string]: Token[] } };
-  allCollectibleContracts: { [key: string]: { [key: string]: CollectibleContract[] } };
+  allCollectibleContracts: {
+    [key: string]: { [key: string]: CollectibleContract[] };
+  };
   allCollectibles: { [key: string]: { [key: string]: Collectible[] } };
   collectibleContracts: CollectibleContract[];
   collectibles: Collectible[];
@@ -171,7 +179,10 @@ export interface AssetsState extends BaseState {
 /**
  * Controller that stores assets and exposes convenience methods
  */
-export class AssetsController extends BaseController<AssetsConfig, AssetsState> {
+export class AssetsController extends BaseController<
+  AssetsConfig,
+  AssetsState
+> {
   private mutex = new Mutex();
 
   private getCollectibleApi(contractAddress: string, tokenId: number) {
@@ -182,13 +193,19 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
   }
 
-  private failSuggestedAsset(suggestedAssetMeta: SuggestedAssetMeta, error: Error) {
+  private failSuggestedAsset(
+    suggestedAssetMeta: SuggestedAssetMeta,
+    error: Error,
+  ) {
     const failedSuggestedAssetMeta = {
       ...suggestedAssetMeta,
       status: SuggestedAssetStatus.failed,
       error,
     };
-    this.hub.emit(`${suggestedAssetMeta.id}:finished`, failedSuggestedAssetMeta);
+    this.hub.emit(
+      `${suggestedAssetMeta.id}:finished`,
+      failedSuggestedAssetMeta,
+    );
   }
 
   /**
@@ -206,7 +223,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     let collectibleInformation: ApiCollectibleResponse;
     /* istanbul ignore if */
     if (this.openSeaApiKey) {
-      collectibleInformation = await handleFetch(tokenURI, { headers: { 'X-API-KEY': this.openSeaApiKey } });
+      collectibleInformation = await handleFetch(tokenURI, {
+        headers: { 'X-API-KEY': this.openSeaApiKey },
+      });
     } else {
       collectibleInformation = await handleFetch(tokenURI);
     }
@@ -225,7 +244,10 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     contractAddress: string,
     tokenId: number,
   ): Promise<CollectibleInformation> {
-    const tokenURI = await this.getCollectibleTokenURI(contractAddress, tokenId);
+    const tokenURI = await this.getCollectibleTokenURI(
+      contractAddress,
+      tokenId,
+    );
     const object = await handleFetch(tokenURI);
     const image = Object.prototype.hasOwnProperty.call(object, 'image')
       ? 'image'
@@ -240,18 +262,27 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
    * @param tokenId - The collectible identifier
    * @returns - Promise resolving to the current collectible name and image
    */
-  private async getCollectibleInformation(contractAddress: string, tokenId: number): Promise<CollectibleInformation> {
+  private async getCollectibleInformation(
+    contractAddress: string,
+    tokenId: number,
+  ): Promise<CollectibleInformation> {
     let information;
     // First try with OpenSea
     information = await safelyExecute(async () => {
-      return await this.getCollectibleInformationFromApi(contractAddress, tokenId);
+      return await this.getCollectibleInformationFromApi(
+        contractAddress,
+        tokenId,
+      );
     });
     if (information) {
       return information;
     }
     // Then following ERC721 standard
     information = await safelyExecute(async () => {
-      return await this.getCollectibleInformationFromTokenURI(contractAddress, tokenId);
+      return await this.getCollectibleInformationFromTokenURI(
+        contractAddress,
+        tokenId,
+      );
     });
     /* istanbul ignore next */
     if (information) {
@@ -274,11 +305,19 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     let collectibleContractObject;
     /* istanbul ignore if */
     if (this.openSeaApiKey) {
-      collectibleContractObject = await handleFetch(api, { headers: { 'X-API-KEY': this.openSeaApiKey } });
+      collectibleContractObject = await handleFetch(api, {
+        headers: { 'X-API-KEY': this.openSeaApiKey },
+      });
     } else {
       collectibleContractObject = await handleFetch(api);
     }
-    const { name, symbol, image_url, description, total_supply } = collectibleContractObject;
+    const {
+      name,
+      symbol,
+      image_url,
+      description,
+      total_supply,
+    } = collectibleContractObject;
     return { name, symbol, image_url, description, total_supply };
   }
 
@@ -302,18 +341,24 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
    * @param contractAddress - Hex address of the collectible contract
    * @returns - Promise resolving to the collectible contract name, image and description
    */
-  private async getCollectibleContractInformation(contractAddress: string): Promise<ApiCollectibleContractResponse> {
+  private async getCollectibleContractInformation(
+    contractAddress: string,
+  ): Promise<ApiCollectibleContractResponse> {
     let information;
     // First try with OpenSea
     information = await safelyExecute(async () => {
-      return await this.getCollectibleContractInformationFromApi(contractAddress);
+      return await this.getCollectibleContractInformationFromApi(
+        contractAddress,
+      );
     });
     if (information) {
       return information;
     }
     // Then following ERC721 standard
     information = await safelyExecute(async () => {
-      return await this.getCollectibleContractInformationFromContract(contractAddress);
+      return await this.getCollectibleContractInformationFromContract(
+        contractAddress,
+      );
     });
     if (information) {
       return information;
@@ -341,18 +386,35 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
       const { allCollectibles, collectibles } = this.state;
       const { chainId, selectedAddress } = this.config;
       const existingEntry = collectibles.find(
-        (collectible) => collectible.address === address && collectible.tokenId === tokenId,
+        (collectible) =>
+          collectible.address === address && collectible.tokenId === tokenId,
       );
       if (existingEntry) {
         return collectibles;
       }
-      const { name, image, description } = opts || (await this.getCollectibleInformation(address, tokenId));
-      const newEntry: Collectible = { address, tokenId, name, image, description };
+      const { name, image, description } =
+        opts || (await this.getCollectibleInformation(address, tokenId));
+      const newEntry: Collectible = {
+        address,
+        tokenId,
+        name,
+        image,
+        description,
+      };
       const newCollectibles = [...collectibles, newEntry];
       const addressCollectibles = allCollectibles[selectedAddress];
-      const newAddressCollectibles = { ...addressCollectibles, ...{ [chainId]: newCollectibles } };
-      const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
-      this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
+      const newAddressCollectibles = {
+        ...addressCollectibles,
+        ...{ [chainId]: newCollectibles },
+      };
+      const newAllCollectibles = {
+        ...allCollectibles,
+        ...{ [selectedAddress]: newAddressCollectibles },
+      };
+      this.update({
+        allCollectibles: newAllCollectibles,
+        collectibles: newCollectibles,
+      });
       return newCollectibles;
     } finally {
       releaseLock();
@@ -366,21 +428,37 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
    * @param detection? - Whether the collectible is manually added or auto-detected
    * @returns - Promise resolving to the current collectible contracts list
    */
-  private async addCollectibleContract(address: string, detection?: boolean): Promise<CollectibleContract[]> {
+  private async addCollectibleContract(
+    address: string,
+    detection?: boolean,
+  ): Promise<CollectibleContract[]> {
     const releaseLock = await this.mutex.acquire();
     try {
       address = toChecksumAddress(address);
       const { allCollectibleContracts, collectibleContracts } = this.state;
       const { chainId, selectedAddress } = this.config;
-      const existingEntry = collectibleContracts.find((collectibleContract) => collectibleContract.address === address);
+      const existingEntry = collectibleContracts.find(
+        (collectibleContract) => collectibleContract.address === address,
+      );
       if (existingEntry) {
         return collectibleContracts;
       }
-      const contractInformation = await this.getCollectibleContractInformation(address);
-      const { name, symbol, image_url, description, total_supply } = contractInformation;
+      const contractInformation = await this.getCollectibleContractInformation(
+        address,
+      );
+      const {
+        name,
+        symbol,
+        image_url,
+        description,
+        total_supply,
+      } = contractInformation;
       // If being auto-detected opensea information is expected
       // Oherwise at least name and symbol from contract is needed
-      if ((detection && !image_url) || Object.keys(contractInformation).length === 0) {
+      if (
+        (detection && !image_url) ||
+        Object.keys(contractInformation).length === 0
+      ) {
         return collectibleContracts;
       }
       const newEntry: CollectibleContract = {
@@ -392,7 +470,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
         totalSupply: total_supply,
       };
       const newCollectibleContracts = [...collectibleContracts, newEntry];
-      const addressCollectibleContracts = allCollectibleContracts[selectedAddress];
+      const addressCollectibleContracts =
+        allCollectibleContracts[selectedAddress];
       const newAddressCollectibleContracts = {
         ...addressCollectibleContracts,
         ...{ [chainId]: newCollectibleContracts },
@@ -417,22 +496,33 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
    * @param address - Hex address of the collectible contract
    * @param tokenId - Token identifier of the collectible
    */
-  private removeAndIgnoreIndividualCollectible(address: string, tokenId: number) {
+  private removeAndIgnoreIndividualCollectible(
+    address: string,
+    tokenId: number,
+  ) {
     address = toChecksumAddress(address);
     const { allCollectibles, collectibles, ignoredCollectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
     const newIgnoredCollectibles = [...ignoredCollectibles];
     const newCollectibles = collectibles.filter((collectible) => {
       if (collectible.address === address && collectible.tokenId === tokenId) {
-        const alreadyIgnored = newIgnoredCollectibles.find((c) => c.address === address && c.tokenId === tokenId);
+        const alreadyIgnored = newIgnoredCollectibles.find(
+          (c) => c.address === address && c.tokenId === tokenId,
+        );
         !alreadyIgnored && newIgnoredCollectibles.push(collectible);
         return false;
       }
       return true;
     });
     const addressCollectibles = allCollectibles[selectedAddress];
-    const newAddressCollectibles = { ...addressCollectibles, ...{ [chainId]: newCollectibles } };
-    const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
+    const newAddressCollectibles = {
+      ...addressCollectibles,
+      ...{ [chainId]: newCollectibles },
+    };
+    const newAllCollectibles = {
+      ...allCollectibles,
+      ...{ [selectedAddress]: newAddressCollectibles },
+    };
     this.update({
       allCollectibles: newAllCollectibles,
       collectibles: newCollectibles,
@@ -451,12 +541,22 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     const { allCollectibles, collectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
     const newCollectibles = collectibles.filter(
-      (collectible) => !(collectible.address === address && collectible.tokenId === tokenId),
+      (collectible) =>
+        !(collectible.address === address && collectible.tokenId === tokenId),
     );
     const addressCollectibles = allCollectibles[selectedAddress];
-    const newAddressCollectibles = { ...addressCollectibles, ...{ [chainId]: newCollectibles } };
-    const newAllCollectibles = { ...allCollectibles, ...{ [selectedAddress]: newAddressCollectibles } };
-    this.update({ allCollectibles: newAllCollectibles, collectibles: newCollectibles });
+    const newAddressCollectibles = {
+      ...addressCollectibles,
+      ...{ [chainId]: newCollectibles },
+    };
+    const newAllCollectibles = {
+      ...allCollectibles,
+      ...{ [selectedAddress]: newAddressCollectibles },
+    };
+    this.update({
+      allCollectibles: newAllCollectibles,
+      collectibles: newCollectibles,
+    });
   }
 
   /**
@@ -472,7 +572,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     const newCollectibleContracts = collectibleContracts.filter(
       (collectibleContract) => !(collectibleContract.address === address),
     );
-    const addressCollectibleContracts = allCollectibleContracts[selectedAddress];
+    const addressCollectibleContracts =
+      allCollectibleContracts[selectedAddress];
     const newAddressCollectibleContracts = {
       ...addressCollectibleContracts,
       ...{ [chainId]: newCollectibleContracts },
@@ -529,8 +630,12 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
       getAssetSymbol,
       getCollectibleTokenURI,
     }: {
-      onPreferencesStateChange: (listener: (preferencesState: PreferencesState) => void) => void;
-      onNetworkStateChange: (listener: (networkState: NetworkState) => void) => void;
+      onPreferencesStateChange: (
+        listener: (preferencesState: PreferencesState) => void,
+      ) => void;
+      onNetworkStateChange: (
+        listener: (networkState: NetworkState) => void,
+      ) => void;
       getAssetName: AssetsContractController['getAssetName'];
       getAssetSymbol: AssetsContractController['getAssetSymbol'];
       getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
@@ -560,22 +665,32 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     this.getAssetSymbol = getAssetSymbol;
     this.getCollectibleTokenURI = getCollectibleTokenURI;
     onPreferencesStateChange(({ selectedAddress }) => {
-      const { allCollectibleContracts, allCollectibles, allTokens } = this.state;
+      const {
+        allCollectibleContracts,
+        allCollectibles,
+        allTokens,
+      } = this.state;
       const { chainId } = this.config;
       this.configure({ selectedAddress });
       this.update({
-        collectibleContracts: allCollectibleContracts[selectedAddress]?.[chainId] || [],
+        collectibleContracts:
+          allCollectibleContracts[selectedAddress]?.[chainId] || [],
         collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
         tokens: allTokens[selectedAddress]?.[chainId] || [],
       });
     });
     onNetworkStateChange(({ provider }) => {
-      const { allCollectibleContracts, allCollectibles, allTokens } = this.state;
+      const {
+        allCollectibleContracts,
+        allCollectibles,
+        allTokens,
+      } = this.state;
       const { selectedAddress } = this.config;
       const { chainId } = provider;
       this.configure({ chainId });
       this.update({
-        collectibleContracts: allCollectibleContracts[selectedAddress]?.[chainId] || [],
+        collectibleContracts:
+          allCollectibleContracts[selectedAddress]?.[chainId] || [],
         collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
         tokens: allTokens[selectedAddress]?.[chainId] || [],
       });
@@ -600,7 +715,12 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
    * @param image - Image of the token
    * @returns - Current token list
    */
-  async addToken(address: string, symbol: string, decimals: number, image?: string): Promise<Token[]> {
+  async addToken(
+    address: string,
+    symbol: string,
+    decimals: number,
+    image?: string,
+  ): Promise<Token[]> {
     const releaseLock = await this.mutex.acquire();
     try {
       address = toChecksumAddress(address);
@@ -616,7 +736,10 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
       }
       const addressTokens = allTokens[selectedAddress];
       const newAddressTokens = { ...addressTokens, ...{ [chainId]: tokens } };
-      const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newAddressTokens } };
+      const newAllTokens = {
+        ...allTokens,
+        ...{ [selectedAddress]: newAddressTokens },
+      };
       const newTokens = [...tokens];
       this.update({ allTokens: newAllTokens, tokens: newTokens });
       return newTokens;
@@ -641,8 +764,15 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
         const { address, symbol, decimals, image } = tokenToAdd;
         const checksumAddress = toChecksumAddress(address);
 
-        const newEntry: Token = { address: checksumAddress, symbol, decimals, image };
-        const previousEntry = tokens.find((token) => token.address === checksumAddress);
+        const newEntry: Token = {
+          address: checksumAddress,
+          symbol,
+          decimals,
+          image,
+        };
+        const previousEntry = tokens.find(
+          (token) => token.address === checksumAddress,
+        );
         if (previousEntry) {
           const previousIndex = tokens.indexOf(previousEntry);
           tokens[previousIndex] = newEntry;
@@ -653,7 +783,10 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
 
       const addressTokens = allTokens[selectedAddress];
       const newAddressTokens = { ...addressTokens, ...{ [chainId]: tokens } };
-      const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newAddressTokens } };
+      const newAllTokens = {
+        ...allTokens,
+        ...{ [selectedAddress]: newAddressTokens },
+      };
       const newTokens = [...tokens];
       this.update({ allTokens: newAllTokens, tokens: newTokens });
       return newTokens;
@@ -692,19 +825,22 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     }
 
     const result: Promise<string> = new Promise((resolve, reject) => {
-      this.hub.once(`${suggestedAssetMeta.id}:finished`, (meta: SuggestedAssetMeta) => {
-        switch (meta.status) {
-          case SuggestedAssetStatus.accepted:
-            return resolve(meta.asset.address);
-          case SuggestedAssetStatus.rejected:
-            return reject(new Error('User rejected to watch the asset.'));
-          case SuggestedAssetStatus.failed:
-            return reject(new Error(meta.error.message));
-          /* istanbul ignore next */
-          default:
-            return reject(new Error(`Unknown status: ${meta.status}`));
-        }
-      });
+      this.hub.once(
+        `${suggestedAssetMeta.id}:finished`,
+        (meta: SuggestedAssetMeta) => {
+          switch (meta.status) {
+            case SuggestedAssetStatus.accepted:
+              return resolve(meta.asset.address);
+            case SuggestedAssetStatus.rejected:
+              return reject(new Error('User rejected to watch the asset.'));
+            case SuggestedAssetStatus.failed:
+              return reject(new Error(meta.error.message));
+            /* istanbul ignore next */
+            default:
+              return reject(new Error(`Unknown status: ${meta.status}`));
+          }
+        },
+      );
     });
     const { suggestedAssets } = this.state;
     suggestedAssets.push(suggestedAssetMeta);
@@ -723,7 +859,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
    */
   async acceptWatchAsset(suggestedAssetID: string): Promise<void> {
     const { suggestedAssets } = this.state;
-    const index = suggestedAssets.findIndex(({ id }) => suggestedAssetID === id);
+    const index = suggestedAssets.findIndex(
+      ({ id }) => suggestedAssetID === id,
+    );
     const suggestedAssetMeta = suggestedAssets[index];
     try {
       switch (suggestedAssetMeta.type) {
@@ -731,15 +869,22 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
           const { address, symbol, decimals, image } = suggestedAssetMeta.asset;
           await this.addToken(address, symbol, decimals, image);
           suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
-          this.hub.emit(`${suggestedAssetMeta.id}:finished`, suggestedAssetMeta);
+          this.hub.emit(
+            `${suggestedAssetMeta.id}:finished`,
+            suggestedAssetMeta,
+          );
           break;
         default:
-          throw new Error(`Asset of type ${suggestedAssetMeta.type} not supported`);
+          throw new Error(
+            `Asset of type ${suggestedAssetMeta.type} not supported`,
+          );
       }
     } catch (error) {
       this.failSuggestedAsset(suggestedAssetMeta, error);
     }
-    const newSuggestedAssets = suggestedAssets.filter(({ id }) => id !== suggestedAssetID);
+    const newSuggestedAssets = suggestedAssets.filter(
+      ({ id }) => id !== suggestedAssetID,
+    );
     this.update({ suggestedAssets: [...newSuggestedAssets] });
   }
 
@@ -751,14 +896,18 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
    */
   rejectWatchAsset(suggestedAssetID: string) {
     const { suggestedAssets } = this.state;
-    const index = suggestedAssets.findIndex(({ id }) => suggestedAssetID === id);
+    const index = suggestedAssets.findIndex(
+      ({ id }) => suggestedAssetID === id,
+    );
     const suggestedAssetMeta = suggestedAssets[index];
     if (!suggestedAssetMeta) {
       return;
     }
     suggestedAssetMeta.status = SuggestedAssetStatus.rejected;
     this.hub.emit(`${suggestedAssetMeta.id}:finished`, suggestedAssetMeta);
-    const newSuggestedAssets = suggestedAssets.filter(({ id }) => id !== suggestedAssetID);
+    const newSuggestedAssets = suggestedAssets.filter(
+      ({ id }) => id !== suggestedAssetID,
+    );
     this.update({ suggestedAssets: [...newSuggestedAssets] });
   }
 
@@ -771,11 +920,21 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
    * @param detection? - Whether the collectible is manually added or autodetected
    * @returns - Promise resolving to the current collectible list
    */
-  async addCollectible(address: string, tokenId: number, opts?: CollectibleInformation, detection?: boolean) {
+  async addCollectible(
+    address: string,
+    tokenId: number,
+    opts?: CollectibleInformation,
+    detection?: boolean,
+  ) {
     address = toChecksumAddress(address);
-    const newCollectibleContracts = await this.addCollectibleContract(address, detection);
+    const newCollectibleContracts = await this.addCollectibleContract(
+      address,
+      detection,
+    );
     // If collectible contract was not added, do not add individual collectible
-    const collectibleContract = newCollectibleContracts.find((contract) => contract.address === address);
+    const collectibleContract = newCollectibleContracts.find(
+      (contract) => contract.address === address,
+    );
     // If collectible contract information, add individual collectible
     if (collectibleContract) {
       await this.addIndividualCollectible(address, tokenId, opts);
@@ -794,7 +953,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     const newIgnoredTokens = [...ignoredTokens];
     const newTokens = tokens.filter((token) => {
       if (token.address === address) {
-        const alreadyIgnored = newIgnoredTokens.find((t) => t.address === address);
+        const alreadyIgnored = newIgnoredTokens.find(
+          (t) => t.address === address,
+        );
         !alreadyIgnored && newIgnoredTokens.push(token);
         return false;
       }
@@ -802,8 +963,15 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     });
     const addressTokens = allTokens[selectedAddress];
     const newAddressTokens = { ...addressTokens, ...{ [chainId]: newTokens } };
-    const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newAddressTokens } };
-    this.update({ allTokens: newAllTokens, tokens: newTokens, ignoredTokens: newIgnoredTokens });
+    const newAllTokens = {
+      ...allTokens,
+      ...{ [selectedAddress]: newAddressTokens },
+    };
+    this.update({
+      allTokens: newAllTokens,
+      tokens: newTokens,
+      ignoredTokens: newIgnoredTokens,
+    });
   }
 
   /**
@@ -818,7 +986,10 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     const newTokens = tokens.filter((token) => token.address !== address);
     const addressTokens = allTokens[selectedAddress];
     const newAddressTokens = { ...addressTokens, ...{ [chainId]: newTokens } };
-    const newAllTokens = { ...allTokens, ...{ [selectedAddress]: newAddressTokens } };
+    const newAllTokens = {
+      ...allTokens,
+      ...{ [selectedAddress]: newAddressTokens },
+    };
     this.update({ allTokens: newAllTokens, tokens: newTokens });
   }
 
@@ -832,7 +1003,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     address = toChecksumAddress(address);
     this.removeIndividualCollectible(address, tokenId);
     const { collectibles } = this.state;
-    const remainingCollectible = collectibles.find((collectible) => collectible.address === address);
+    const remainingCollectible = collectibles.find(
+      (collectible) => collectible.address === address,
+    );
     if (!remainingCollectible) {
       this.removeCollectibleContract(address);
     }
@@ -848,7 +1021,9 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     address = toChecksumAddress(address);
     this.removeAndIgnoreIndividualCollectible(address, tokenId);
     const { collectibles } = this.state;
-    const remainingCollectible = collectibles.find((collectible) => collectible.address === address);
+    const remainingCollectible = collectibles.find(
+      (collectible) => collectible.address === address,
+    );
     if (!remainingCollectible) {
       this.removeCollectibleContract(address);
     }

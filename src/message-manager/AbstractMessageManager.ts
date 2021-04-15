@@ -65,7 +65,8 @@ export interface AbstractMessageParamsMetamask extends AbstractMessageParams {
  * @property unapprovedMessages - A collection of all Messages in the 'unapproved' state
  * @property unapprovedMessagesCount - The count of all Messages in this.unapprovedMessages
  */
-export interface MessageManagerState<M extends AbstractMessage> extends BaseState {
+export interface MessageManagerState<M extends AbstractMessage>
+  extends BaseState {
   unapprovedMessages: { [key: string]: M };
   unapprovedMessagesCount: number;
 }
@@ -141,7 +142,10 @@ export abstract class AbstractMessageManager<
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(config?: Partial<BaseConfig>, state?: Partial<MessageManagerState<M>>) {
+  constructor(
+    config?: Partial<BaseConfig>,
+    state?: Partial<MessageManagerState<M>>,
+  ) {
     super(config, state);
     this.defaultState = {
       unapprovedMessages: {},

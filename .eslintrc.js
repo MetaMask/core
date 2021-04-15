@@ -1,25 +1,51 @@
 module.exports = {
   root: true,
-  extends: ['@metamask/eslint-config', '@metamask/eslint-config/config/jest', '@metamask/eslint-config/config/nodejs'],
-  ignorePatterns: ['!.eslintrc.js', '!jest.config.js', 'node_modules', 'dist', 'docs', 'coverage', '*.d.ts'],
+  extends: ['@metamask/eslint-config', '@metamask/eslint-config-nodejs'],
+  ignorePatterns: [
+    '!.eslintrc.js',
+    '!jest.config.js',
+    'node_modules',
+    'dist',
+    'docs',
+    'coverage',
+    '*.d.ts',
+  ],
   overrides: [
+    {
+      files: ['*.test.ts', '*.test.js'],
+      extends: ['@metamask/eslint-config-jest'],
+      rules: {
+        // TODO: Re-enable most of these rules
+        'jest/no-conditional-expect': 'off',
+        'jest/no-restricted-matchers': [
+          'error',
+          {
+            resolves: 'Use `expect(await promise)` instead.',
+            toMatchSnapshot: 'Use `toMatchInlineSnapshot()` instead',
+            toThrowErrorMatchingSnapshot:
+              'Use `toThrowErrorMatchingInlineSnapshot()` instead',
+            // TODO: Re-enable these. Requires lots of manual fixes.
+            // 'toBeFalsy': 'Avoid `toBeFalsy`',
+            // 'toBeTruthy': 'Avoid `toBeTruthy`',
+          },
+        ],
+        'jest/no-test-return-statement': 'off',
+      },
+    },
     {
       files: ['*.js'],
       parserOptions: {
-        ecmaVersion: '2018',
         sourceType: 'script',
       },
     },
     {
       files: ['*.ts'],
-      extends: ['@metamask/eslint-config/config/typescript'],
+      extends: ['@metamask/eslint-config-typescript'],
       rules: {
         // `no-shadow` has incompatibilities with TypeScript
+        // TODO: Migrate this into @metamask/eslint-config
         'no-shadow': 'off',
         '@typescript-eslint/no-shadow': 'error',
-
-        // Prettier handles indentation. This rule conflicts with prettier in some cases
-        '@typescript-eslint/indent': 'off',
 
         // disabled due to incompatibility with Record<string, unknown>
         // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
@@ -29,7 +55,12 @@ module.exports = {
         // TODO: Migrate this rule change back into `@metamask/eslint-config`
         '@typescript-eslint/no-unused-vars': [
           'error',
-          { vars: 'all', args: 'all', argsIgnorePattern: '[_]+', ignoreRestSiblings: true },
+          {
+            vars: 'all',
+            args: 'all',
+            argsIgnorePattern: '[_]+',
+            ignoreRestSiblings: true,
+          },
         ],
       },
     },
@@ -38,7 +69,7 @@ module.exports = {
     // Left disabled because various properties throughough this repo are snake_case because the
     // names come from external sources or must comply with standards
     // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
-    camelcase: 'off',
+    'camelcase': 'off',
 
     // TODO: re-enble most of these rules
     'function-paren-newline': 'off',
@@ -53,13 +84,8 @@ module.exports = {
     'no-negated-condition': 'off',
     'no-new': 'off',
     'no-param-reassign': 'off',
-    radix: 'off',
+    'radix': 'off',
     'require-atomic-updates': 'off',
-
-    'jest/no-conditional-expect': 'off',
-    'jest/no-restricted-matchers': 'off',
-    'jest/no-test-return-statement': 'off',
-    'jest/prefer-strict-equal': 'off',
   },
   settings: {
     'import/resolver': {

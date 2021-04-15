@@ -43,7 +43,10 @@ export interface CurrencyRateState extends BaseState {
  * Controller that passively polls on a set interval for an exchange rate from the current base
  * asset to the current currency
  */
-export class CurrencyRateController extends BaseController<CurrencyRateConfig, CurrencyRateState> {
+export class CurrencyRateController extends BaseController<
+  CurrencyRateConfig,
+  CurrencyRateState
+> {
   /* Optional config to include conversion to usd in all price url fetches and on state */
   includeUSDRate?: boolean;
 
@@ -155,7 +158,11 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
     }
     const releaseLock = await this.mutex.acquire();
     try {
-      const { conversionDate, conversionRate, usdConversionRate } = await this.fetchExchangeRate(
+      const {
+        conversionDate,
+        conversionRate,
+        usdConversionRate,
+      } = await this.fetchExchangeRate(
         this.activeCurrency,
         this.activeNativeCurrency,
         this.includeUSDRate,
@@ -165,7 +172,9 @@ export class CurrencyRateController extends BaseController<CurrencyRateConfig, C
         conversionRate,
         currentCurrency: this.activeCurrency,
         nativeCurrency: this.activeNativeCurrency,
-        usdConversionRate: this.includeUSDRate ? usdConversionRate : this.defaultState.usdConversionRate,
+        usdConversionRate: this.includeUSDRate
+          ? usdConversionRate
+          : this.defaultState.usdConversionRate,
       };
       this.update(newState);
 
