@@ -210,7 +210,6 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
     await safelyExecute(async () => {
       const assetsController = this.context.AssetsController as AssetsController;
       const { ignoredCollectibles } = assetsController.state;
-      let collectiblesToRemove = assetsController.state.collectibles;
       const apiCollectibles = await this.getOwnerCollectibles();
       const addCollectiblesPromises = apiCollectibles.map(async (collectible: ApiCollectibleResponse) => {
         const {
@@ -242,14 +241,8 @@ export class AssetsDetectionController extends BaseController<AssetsDetectionCon
             true,
           );
         }
-        collectiblesToRemove = collectiblesToRemove.filter((c) => {
-          return !(c.tokenId === Number(token_id) && c.address === toChecksumAddress(address));
-        });
       });
       await Promise.all(addCollectiblesPromises);
-      collectiblesToRemove.forEach(({ address, tokenId }) => {
-        assetsController.removeCollectible(address, tokenId);
-      });
     });
   }
 
