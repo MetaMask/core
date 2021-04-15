@@ -3,12 +3,12 @@ import { toChecksumAddress } from 'ethereumjs-util';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import PreferencesController from '../user/PreferencesController';
-import NetworkController, { NetworkType } from '../network/NetworkController';
+import type { PreferencesState } from '../user/PreferencesController';
+import type { NetworkState, NetworkType } from '../network/NetworkController';
 import { safelyExecute, handleFetch, validateTokenToWatch } from '../util';
-import { Token } from './TokenRatesController';
-import { AssetsContractController } from './AssetsContractController';
-import { ApiCollectibleResponse } from './AssetsDetectionController';
+import type { Token } from './TokenRatesController';
+import type { ApiCollectibleResponse } from './AssetsDetectionController';
+import type { AssetsContractController } from './AssetsContractController';
 
 /**
  * @type Collectible
@@ -225,8 +225,7 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
     contractAddress: string,
     tokenId: number,
   ): Promise<CollectibleInformation> {
-    const assetsContract = this.context.AssetsContractController as AssetsContractController;
-    const tokenURI = await assetsContract.getCollectibleTokenURI(contractAddress, tokenId);
+    const tokenURI = await this.getCollectibleTokenURI(contractAddress, tokenId);
     const object = await handleFetch(tokenURI);
     const image = Object.prototype.hasOwnProperty.call(object, 'image')
       ? 'image'
@@ -292,9 +291,8 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
   private async getCollectibleContractInformationFromContract(
     contractAddress: string,
   ): Promise<ApiCollectibleContractResponse> {
-    const assetsContractController = this.context.AssetsContractController as AssetsContractController;
-    const name = await assetsContractController.getAssetName(contractAddress);
-    const symbol = await assetsContractController.getAssetSymbol(contractAddress);
+    const name = await this.getAssetName(contractAddress);
+    const symbol = await this.getAssetSymbol(contractAddress);
     return { name, symbol };
   }
 
@@ -505,18 +503,41 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
    */
   name = 'AssetsController';
 
-  /**
-   * List of required sibling controllers this controller needs to function
-   */
-  requiredControllers = ['AssetsContractController', 'NetworkController', 'PreferencesController'];
+  private getAssetName: AssetsContractController['getAssetName'];
+
+  private getAssetSymbol: AssetsContractController['getAssetSymbol'];
+
+  private getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
 
   /**
    * Creates a AssetsController instance
    *
+   * @param options
+   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes
+   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes
+   * @param options.getAssetName - Gets the name of the asset at the given address
+   * @param options.getAssetSymbol - Gets the symbol of the asset at the given address
+   * @param options.getCollectibleTokenURI - Gets the URI of the NFT at the given address, with the given ID
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(config?: Partial<BaseConfig>, state?: Partial<AssetsState>) {
+  constructor(
+    {
+      onPreferencesStateChange,
+      onNetworkStateChange,
+      getAssetName,
+      getAssetSymbol,
+      getCollectibleTokenURI,
+    }: {
+      onPreferencesStateChange: (listener: (preferencesState: PreferencesState) => void) => void;
+      onNetworkStateChange: (listener: (networkState: NetworkState) => void) => void;
+      getAssetName: AssetsContractController['getAssetName'];
+      getAssetSymbol: AssetsContractController['getAssetSymbol'];
+      getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
+    },
+    config?: Partial<BaseConfig>,
+    state?: Partial<AssetsState>,
+  ) {
     super(config, state);
     this.defaultConfig = {
       networkType: 'mainnet',
@@ -535,6 +556,30 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
       tokens: [],
     };
     this.initialize();
+    this.getAssetName = getAssetName;
+    this.getAssetSymbol = getAssetSymbol;
+    this.getCollectibleTokenURI = getCollectibleTokenURI;
+    onPreferencesStateChange(({ selectedAddress }) => {
+      const { allCollectibleContracts, allCollectibles, allTokens } = this.state;
+      const { chainId } = this.config;
+      this.configure({ selectedAddress });
+      this.update({
+        collectibleContracts: allCollectibleContracts[selectedAddress]?.[chainId] || [],
+        collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
+        tokens: allTokens[selectedAddress]?.[chainId] || [],
+      });
+    });
+    onNetworkStateChange(({ provider }) => {
+      const { allCollectibleContracts, allCollectibles, allTokens } = this.state;
+      const { selectedAddress } = this.config;
+      const { chainId } = provider;
+      this.configure({ chainId });
+      this.update({
+        collectibleContracts: allCollectibleContracts[selectedAddress]?.[chainId] || [],
+        collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
+        tokens: allTokens[selectedAddress]?.[chainId] || [],
+      });
+    });
   }
 
   /**
@@ -821,37 +866,6 @@ export class AssetsController extends BaseController<AssetsConfig, AssetsState> 
    */
   clearIgnoredCollectibles() {
     this.update({ ignoredCollectibles: [] });
-  }
-
-  /**
-   * Extension point called if and when this controller is composed
-   * with other controllers using a ComposableController
-   */
-  onComposed() {
-    super.onComposed();
-    const preferences = this.context.PreferencesController as PreferencesController;
-    const network = this.context.NetworkController as NetworkController;
-    preferences.subscribe(({ selectedAddress }) => {
-      const { allCollectibleContracts, allCollectibles, allTokens } = this.state;
-      const { chainId } = this.config;
-      this.configure({ selectedAddress });
-      this.update({
-        collectibleContracts: allCollectibleContracts[selectedAddress]?.[chainId] || [],
-        collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
-        tokens: allTokens[selectedAddress]?.[chainId] || [],
-      });
-    });
-    network.subscribe(({ provider }) => {
-      const { allCollectibleContracts, allCollectibles, allTokens } = this.state;
-      const { selectedAddress } = this.config;
-      const { chainId } = provider;
-      this.configure({ chainId });
-      this.update({
-        collectibleContracts: allCollectibleContracts[selectedAddress]?.[chainId] || [],
-        collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
-        tokens: allTokens[selectedAddress]?.[chainId] || [],
-      });
-    });
   }
 }
 

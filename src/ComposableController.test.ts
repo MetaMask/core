@@ -11,15 +11,29 @@ import CurrencyRateController from './assets/CurrencyRateController';
 
 describe('ComposableController', () => {
   it('should compose controller state', () => {
+    const preferencesController = new PreferencesController();
+    const networkController = new NetworkController();
+    const assetContractController = new AssetsContractController();
+    const assetController = new AssetsController({
+      onPreferencesStateChange: (listener) => preferencesController.subscribe(listener),
+      onNetworkStateChange: (listener) => networkController.subscribe(listener),
+      getAssetName: assetContractController.getAssetName.bind(assetContractController),
+      getAssetSymbol: assetContractController.getAssetSymbol.bind(assetContractController),
+      getCollectibleTokenURI: assetContractController.getCollectibleTokenURI.bind(assetContractController),
+    });
+    const currencyRateController = new CurrencyRateController();
     const controller = new ComposableController([
       new AddressBookController(),
-      new AssetsController(),
-      new AssetsContractController(),
+      assetController,
+      assetContractController,
       new EnsController(),
-      new CurrencyRateController(),
-      new NetworkController(),
-      new PreferencesController(),
-      new TokenRatesController(),
+      currencyRateController,
+      networkController,
+      preferencesController,
+      new TokenRatesController({
+        onAssetsStateChange: (listener) => assetController.subscribe(listener),
+        onCurrencyRateStateChange: (listener) => currencyRateController.subscribe(listener),
+      }),
     ]);
     expect(controller.state).toEqual({
       AddressBookController: { addressBook: {} },
@@ -62,15 +76,29 @@ describe('ComposableController', () => {
   });
 
   it('should compose flat controller state', () => {
+    const preferencesController = new PreferencesController();
+    const networkController = new NetworkController();
+    const assetContractController = new AssetsContractController();
+    const assetController = new AssetsController({
+      onPreferencesStateChange: (listener) => preferencesController.subscribe(listener),
+      onNetworkStateChange: (listener) => networkController.subscribe(listener),
+      getAssetName: assetContractController.getAssetName.bind(assetContractController),
+      getAssetSymbol: assetContractController.getAssetSymbol.bind(assetContractController),
+      getCollectibleTokenURI: assetContractController.getCollectibleTokenURI.bind(assetContractController),
+    });
+    const currencyRateController = new CurrencyRateController();
     const controller = new ComposableController([
       new AddressBookController(),
-      new AssetsController(),
-      new AssetsContractController(),
+      assetController,
+      assetContractController,
       new EnsController(),
-      new CurrencyRateController(),
-      new NetworkController(),
-      new PreferencesController(),
-      new TokenRatesController(),
+      currencyRateController,
+      networkController,
+      preferencesController,
+      new TokenRatesController({
+        onAssetsStateChange: (listener) => assetController.subscribe(listener),
+        onCurrencyRateStateChange: (listener) => currencyRateController.subscribe(listener),
+      }),
     ]);
     expect(controller.flatState).toEqual({
       addressBook: {},
@@ -101,26 +129,12 @@ describe('ComposableController', () => {
     });
   });
 
-  it('should expose sibling context', () => {
-    const controller = new ComposableController([
-      new AddressBookController(),
-      new AssetsController(),
-      new AssetsContractController(),
-      new CurrencyRateController(),
-      new EnsController(),
-      new NetworkController(),
-      new PreferencesController(),
-      new TokenRatesController(),
-    ]);
-    const addressContext = controller.context.TokenRatesController.context
-      .AddressBookController as AddressBookController;
-    expect(addressContext).toBeDefined();
-    addressContext.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
-    expect(controller.flatState).toEqual({
+  it('should set initial state', () => {
+    const state = {
       addressBook: {
-        1: {
-          '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': {
-            address: '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
+        '0x1': {
+          '0x1234': {
+            address: 'bar',
             chainId: '1',
             isEns: false,
             memo: '',
@@ -128,58 +142,9 @@ describe('ComposableController', () => {
           },
         },
       },
-      allCollectibleContracts: {},
-      allCollectibles: {},
-      allTokens: {},
-      collectibleContracts: [],
-      collectibles: [],
-      contractExchangeRates: {},
-      conversionDate: 0,
-      conversionRate: 0,
-      currentCurrency: 'usd',
-      ensEntries: {},
-      featureFlags: {},
-      frequentRpcList: [],
-      identities: {},
-      ignoredCollectibles: [],
-      ignoredTokens: [],
-      ipfsGateway: 'https://ipfs.io/ipfs/',
-      lostIdentities: {},
-      nativeCurrency: 'ETH',
-      network: 'loading',
-      provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
-      selectedAddress: '',
-      suggestedAssets: [],
-      tokens: [],
-      usdConversionRate: 0,
-    });
-  });
-
-  it('should get and set new stores', () => {
-    const controller = new ComposableController();
-    const addressBook = new AddressBookController();
-    controller.controllers = [addressBook];
-    expect(controller.controllers).toEqual([addressBook]);
-  });
-
-  it('should set initial state', () => {
-    const state = {
-      AddressBookController: {
-        addressBook: [
-          {
-            1: {
-              address: 'bar',
-              chainId: '1',
-              isEns: false,
-              memo: '',
-              name: 'foo',
-            },
-          },
-        ],
-      },
     };
-    const controller = new ComposableController([new AddressBookController()], state);
-    expect(controller.state).toEqual(state);
+    const controller = new ComposableController([new AddressBookController(undefined, state)]);
+    expect(controller.state).toEqual({ AddressBookController: state });
   });
 
   it('should notify listeners of nested state change', () => {

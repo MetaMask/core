@@ -7,8 +7,7 @@ import Transaction from 'ethereumjs-tx';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import NetworkController from '../network/NetworkController';
-
+import type { NetworkState, NetworkController } from '../network/NetworkController';
 import {
   BNToHex,
   fractionBN,
@@ -191,7 +190,6 @@ export interface EtherscanTransactionMeta {
  */
 export interface TransactionConfig extends BaseConfig {
   interval: number;
-  provider: any;
   sign?: (transaction: Transaction, from: string) => Promise<any>;
 }
 
@@ -242,6 +240,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
   private handle?: NodeJS.Timer;
 
   private mutex = new Mutex();
+
+  private getNetworkState: () => NetworkState;
 
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
@@ -350,11 +350,6 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
   name = 'TransactionController';
 
   /**
-   * List of required sibling controllers this controller needs to function
-   */
-  requiredControllers = ['NetworkController'];
-
-  /**
    * Method used to sign transactions
    */
   sign?: (transaction: Transaction, from: string) => Promise<void>;
@@ -362,20 +357,44 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
   /**
    * Creates a TransactionController instance
    *
+   * @param options
+   * @param options.getNetworkState - Gets the state of the network controller
+   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes
+   * @param options.getProvider - Returns a provider for the current network
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(config?: Partial<TransactionConfig>, state?: Partial<TransactionState>) {
+  constructor(
+    {
+      getNetworkState,
+      onNetworkStateChange,
+      getProvider,
+    }: {
+      getNetworkState: () => NetworkState;
+      onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
+      getProvider: () => NetworkController['provider'];
+    },
+    config?: Partial<TransactionConfig>,
+    state?: Partial<TransactionState>,
+  ) {
     super(config, state);
     this.defaultConfig = {
       interval: 5000,
-      provider: undefined,
     };
     this.defaultState = {
       methodData: {},
       transactions: [],
     };
     this.initialize();
+    const provider = getProvider();
+    this.getNetworkState = getNetworkState;
+    this.ethQuery = new EthQuery(provider);
+    this.registry = new MethodRegistry({ provider });
+    onNetworkStateChange(() => {
+      const newProvider = getProvider();
+      this.ethQuery = new EthQuery(newProvider);
+      this.registry = new MethodRegistry({ provider: newProvider });
+    });
     this.poll();
   }
 
@@ -426,22 +445,15 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    * @returns - Object containing a promise resolving to the transaction hash if approved
    */
   async addTransaction(transaction: Transaction, origin?: string, deviceConfirmedOn?: WalletDevice): Promise<Result> {
-    const network = this.context.NetworkController as NetworkController;
+    const { provider, network } = this.getNetworkState();
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
-    const {
-      state: {
-        network: networkID,
-        provider: { chainId },
-      },
-    } = network;
-
     const transactionMeta = {
       id: random(),
-      networkID,
-      chainId,
+      networkID: network,
+      chainId: provider.chainId,
       origin,
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
@@ -494,9 +506,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
   async approveTransaction(transactionID: string) {
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
-    const network = this.context.NetworkController as NetworkController;
-    /* istanbul ignore next */
-    const currentChainId = network?.state?.provider?.chainId;
+    const { provider } = this.getNetworkState();
+    const { chainId: currentChainId } = provider;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const { nonce } = transactionMeta.transaction;
@@ -682,23 +693,6 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
   }
 
   /**
-   * Extension point called if and when this controller is composed
-   * with other controllers using a ComposableController
-   */
-  onComposed() {
-    super.onComposed();
-    const network = this.context.NetworkController as NetworkController;
-    const onProviderUpdate = () => {
-      this.ethQuery = network.provider ? new EthQuery(network.provider) : /* istanbul ignore next */ null;
-      this.registry = network.provider
-        ? new MethodRegistry({ provider: network.provider }) /* istanbul ignore next */
-        : null;
-    };
-    onProviderUpdate();
-    network.subscribe(onProviderUpdate);
-  }
-
-  /**
    * Resiliently checks all submitted transactions on the blockchain
    * and verifies that it has been included in a block
    * when that happens, the tx status is updated to confirmed
@@ -707,9 +701,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    */
   async queryTransactionStatuses() {
     const { transactions } = this.state;
-    const network = this.context.NetworkController;
-    const currentChainId = network.state.provider.chainId;
-    const currentNetworkID = network.state.network;
+    const { provider, network: currentNetworkID } = this.getNetworkState();
+    const { chainId: currentChainId } = provider;
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
@@ -761,12 +754,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
       this.update({ transactions: [] });
       return;
     }
-    const network = this.context.NetworkController as NetworkController;
-    if (!network) {
-      return;
-    }
-    const currentChainId = network.state.provider.chainId;
-    const currentNetworkID = network.state.network;
+    const { provider, network: currentNetworkID } = this.getNetworkState();
+    const { chainId: currentChainId } = provider;
     const newTransactions = this.state.transactions.filter(({ networkID, chainId }) => {
       // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
       const isCurrentNetwork = chainId === currentChainId || (!chainId && networkID === currentNetworkID);
@@ -785,13 +774,8 @@ export class TransactionController extends BaseController<TransactionConfig, Tra
    * @returns - Promise resolving to an string containing the block number of the latest incoming transaction.
    */
   async fetchAll(address: string, opt?: FetchAllOptions): Promise<string | void> {
-    const network = this.context.NetworkController;
-    const {
-      state: {
-        network: currentNetworkID,
-        provider: { type: networkType, chainId: currentChainId },
-      },
-    } = network;
+    const { provider, network: currentNetworkID } = this.getNetworkState();
+    const { chainId: currentChainId, type: networkType } = provider;
 
     const supportedNetworkIds = ['1', '3', '4', '42'];
     /* istanbul ignore next */

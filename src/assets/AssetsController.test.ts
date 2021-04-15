@@ -1,7 +1,6 @@
 import { createSandbox } from 'sinon';
 import nock from 'nock';
 import HttpProvider from 'ethjs-provider-http';
-import ComposableController from '../ComposableController';
 import PreferencesController from '../user/PreferencesController';
 import { NetworkController, NetworksChainId } from '../network/NetworkController';
 import { AssetsContractController } from './AssetsContractController';
@@ -20,12 +19,16 @@ describe('AssetsController', () => {
   const sandbox = createSandbox();
 
   beforeEach(() => {
-    assetsController = new AssetsController();
     preferences = new PreferencesController();
     network = new NetworkController();
     assetsContract = new AssetsContractController();
-
-    new ComposableController([assetsController, assetsContract, network, preferences]);
+    assetsController = new AssetsController({
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      getAssetName: assetsContract.getAssetName.bind(assetsContract),
+      getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
+      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(assetsContract),
+    });
 
     nock(OPEN_SEA_HOST)
       .get(`${OPEN_SEA_PATH}/asset_contract/0xfoO`)
@@ -407,9 +410,9 @@ describe('AssetsController', () => {
     const networkType = 'rinkeby';
     const address = '0x123';
     preferences.update({ selectedAddress: address });
-    expect(assetsController.context.PreferencesController.state.selectedAddress).toEqual(address);
+    expect(preferences.state.selectedAddress).toEqual(address);
     network.update({ provider: { type: networkType, chainId: NetworksChainId[networkType] } });
-    expect(assetsController.context.NetworkController.state.provider.type).toEqual(networkType);
+    expect(network.state.provider.type).toEqual(networkType);
   });
 
   it('should add a valid suggested asset via watchAsset', async () => {

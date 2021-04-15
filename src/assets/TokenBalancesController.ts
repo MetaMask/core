@@ -1,9 +1,10 @@
 import { BN } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute } from '../util';
-import AssetsController from './AssetsController';
+import type { PreferencesState } from '../user/PreferencesController';
 import { Token } from './TokenRatesController';
-import { AssetsContractController } from './AssetsContractController';
+import type { AssetsState } from './AssetsController';
+import type { AssetsContractController } from './AssetsContractController';
 
 // TODO: Remove this export in the next major release
 export { BN };
@@ -44,18 +45,33 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
    */
   name = 'TokenBalancesController';
 
-  /**
-   * List of required sibling controllers this controller needs to function
-   */
-  requiredControllers = ['AssetsContractController', 'AssetsController'];
+  private getSelectedAddress: () => PreferencesState['selectedAddress'];
+
+  private getBalanceOf: AssetsContractController['getBalanceOf'];
 
   /**
    * Creates a TokenBalancesController instance
    *
+   * @param options
+   * @param options.onAssetsStateChange - Allows subscribing to assets controller state changes
+   * @param options.getSelectedAddress - Gets the current selected address
+   * @param options.getBalanceOf - Gets the balance of the given account at the given contract address
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(config?: Partial<TokenBalancesConfig>, state?: Partial<TokenBalancesState>) {
+  constructor(
+    {
+      onAssetsStateChange,
+      getSelectedAddress,
+      getBalanceOf,
+    }: {
+      onAssetsStateChange: (listener: (tokenState: AssetsState) => void) => void;
+      getSelectedAddress: () => PreferencesState['selectedAddress'];
+      getBalanceOf: AssetsContractController['getBalanceOf'];
+    },
+    config?: Partial<TokenBalancesConfig>,
+    state?: Partial<TokenBalancesState>,
+  ) {
     super(config, state);
     this.defaultConfig = {
       interval: 180000,
@@ -63,6 +79,12 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
     };
     this.defaultState = { contractBalances: {} };
     this.initialize();
+    onAssetsStateChange(({ tokens }) => {
+      this.configure({ tokens });
+      this.updateBalances();
+    });
+    this.getSelectedAddress = getSelectedAddress;
+    this.getBalanceOf = getBalanceOf;
     this.poll();
   }
 
@@ -89,15 +111,12 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
     if (this.disabled) {
       return;
     }
-    const assetsContract = this.context.AssetsContractController as AssetsContractController;
-    const assets = this.context.AssetsController as AssetsController;
-    const { selectedAddress } = assets.config;
     const { tokens } = this.config;
     const newContractBalances: { [address: string]: BN } = {};
     for (const i in tokens) {
       const { address } = tokens[i];
       try {
-        newContractBalances[address] = await assetsContract.getBalanceOf(address, selectedAddress);
+        newContractBalances[address] = await this.getBalanceOf(address, this.getSelectedAddress());
         tokens[i].balanceError = null;
       } catch (error) {
         newContractBalances[address] = new BN(0);
@@ -105,19 +124,6 @@ export class TokenBalancesController extends BaseController<TokenBalancesConfig,
       }
     }
     this.update({ contractBalances: newContractBalances });
-  }
-
-  /**
-   * Extension point called if and when this controller is composed
-   * with other controllers using a ComposableController
-   */
-  onComposed() {
-    super.onComposed();
-    const assets = this.context.AssetsController as AssetsController;
-    assets.subscribe(({ tokens }) => {
-      this.configure({ tokens });
-      this.updateBalances();
-    });
   }
 }
 
