@@ -2,7 +2,7 @@ import type { Draft, Patch } from 'immer';
 import sinon from 'sinon';
 
 import { BaseController, getAnonymizedState, getPersistentState } from './BaseControllerV2';
-import { ControllerMessenger } from './ControllerMessenger';
+import { ControllerMessenger, RestrictedControllerMessenger } from './ControllerMessenger';
 
 type CountControllerState = {
   count: number;
@@ -13,14 +13,14 @@ type CountControllerEvent = {
   payload: [CountControllerState, Patch[]];
 };
 
-const CountControllerStateMetadata = {
+const countControllerStateMetadata = {
   count: {
     persist: true,
     anonymous: true,
   },
 };
 
-class MockController extends BaseController<'CountController', CountControllerState> {
+class CountController extends BaseController<'CountController', CountControllerState> {
   update(callback: (state: Draft<CountControllerState>) => void | CountControllerState) {
     super.update(callback);
   }
@@ -33,11 +33,16 @@ class MockController extends BaseController<'CountController', CountControllerSt
 describe('BaseController', () => {
   it('should set initial state', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController({
-      messenger: controllerMessenger,
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: ['CountController:stateChange'],
+    });
+    const controller = new CountController({
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
-      metadata: CountControllerStateMetadata,
+      metadata: countControllerStateMetadata,
     });
 
     expect(controller.state).toEqual({ count: 0 });
@@ -45,23 +50,33 @@ describe('BaseController', () => {
 
   it('should set initial schema', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController({
-      messenger: controllerMessenger,
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: ['CountController:stateChange'],
+    });
+    const controller = new CountController({
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
-      metadata: CountControllerStateMetadata,
+      metadata: countControllerStateMetadata,
     });
 
-    expect(controller.metadata).toEqual(CountControllerStateMetadata);
+    expect(controller.metadata).toEqual(countControllerStateMetadata);
   });
 
   it('should not allow mutating state directly', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController({
-      messenger: controllerMessenger,
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: ['CountController:stateChange'],
+    });
+    const controller = new CountController({
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
-      metadata: CountControllerStateMetadata,
+      metadata: countControllerStateMetadata,
     });
 
     expect(() => {
@@ -71,11 +86,16 @@ describe('BaseController', () => {
 
   it('should allow updating state by modifying draft', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController({
-      messenger: controllerMessenger,
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: ['CountController:stateChange'],
+    });
+    const controller = new CountController({
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
-      metadata: CountControllerStateMetadata,
+      metadata: countControllerStateMetadata,
     });
 
     controller.update((draft) => {
@@ -87,11 +107,16 @@ describe('BaseController', () => {
 
   it('should allow updating state by return a value', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController({
-      messenger: controllerMessenger,
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: ['CountController:stateChange'],
+    });
+    const controller = new CountController({
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
-      metadata: CountControllerStateMetadata,
+      metadata: countControllerStateMetadata,
     });
 
     controller.update(() => {
@@ -103,11 +128,16 @@ describe('BaseController', () => {
 
   it('should throw an error if update callback modifies draft and returns value', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController({
-      messenger: controllerMessenger,
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: ['CountController:stateChange'],
+    });
+    const controller = new CountController({
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
-      metadata: CountControllerStateMetadata,
+      metadata: countControllerStateMetadata,
     });
 
     expect(() => {
@@ -122,11 +152,16 @@ describe('BaseController', () => {
 
   it('should inform subscribers of state changes', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController({
-      messenger: controllerMessenger,
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: ['CountController:stateChange'],
+    });
+    const controller = new CountController({
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
-      metadata: CountControllerStateMetadata,
+      metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
     const listener2 = sinon.stub();
@@ -145,11 +180,16 @@ describe('BaseController', () => {
 
   it('should inform a subscriber of each state change once even after multiple subscriptions', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController({
-      messenger: controllerMessenger,
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: ['CountController:stateChange'],
+    });
+    const controller = new CountController({
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
-      metadata: CountControllerStateMetadata,
+      metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
 
@@ -166,11 +206,16 @@ describe('BaseController', () => {
 
   it('should no longer inform a subscriber about state changes after unsubscribing', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController({
-      messenger: controllerMessenger,
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: ['CountController:stateChange'],
+    });
+    const controller = new CountController({
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
-      metadata: CountControllerStateMetadata,
+      metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
 
@@ -185,11 +230,16 @@ describe('BaseController', () => {
 
   it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController({
-      messenger: controllerMessenger,
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: ['CountController:stateChange'],
+    });
+    const controller = new CountController({
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
-      metadata: CountControllerStateMetadata,
+      metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
 
@@ -205,11 +255,16 @@ describe('BaseController', () => {
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    new MockController({
-      messenger: controllerMessenger,
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: ['CountController:stateChange'],
+    });
+    new CountController({
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
-      metadata: CountControllerStateMetadata,
+      metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
 
@@ -220,11 +275,16 @@ describe('BaseController', () => {
 
   it('should no longer update subscribers after being destroyed', () => {
     const controllerMessenger = new ControllerMessenger<never, CountControllerEvent>();
-    const controller = new MockController({
-      messenger: controllerMessenger,
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'CountController',
+      allowedActions: [],
+      allowedEvents: ['CountController:stateChange'],
+    });
+    const controller = new CountController({
+      messenger: restrictedControllerMessenger,
       name: 'CountController',
       state: { count: 0 },
-      metadata: CountControllerStateMetadata,
+      metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
     const listener2 = sinon.stub();
@@ -510,5 +570,153 @@ describe('getPersistentState', () => {
     );
 
     expect(persistentState).toEqual({ count: 1 });
+  });
+
+  describe('inter-controller communication', () => {
+    // These two contrived mock controllers are setup to test with.
+    // The 'VisitorController' records strings that represent visitors.
+    // The 'VisitorOverflowController' monitors the 'VisitorController' to ensure the number of
+    // visitors doesn't exceed the maximum capacity. If it does, it will clear out all visitors.
+
+    type VisitorControllerState = {
+      visitors: string[];
+    };
+    type VisitorControllerAction = {
+      type: `VisitorController:clear`;
+      handler: () => void;
+    };
+    type VisitorControllerEvent = {
+      type: `VisitorController:stateChange`;
+      payload: [VisitorControllerState, Patch[]];
+    };
+
+    const visitorControllerStateMetadata = {
+      visitors: {
+        persist: true,
+        anonymous: true,
+      },
+    };
+
+    class VisitorController extends BaseController<'VisitorController', VisitorControllerState> {
+      constructor(
+        messagingSystem: RestrictedControllerMessenger<
+          'VisitorController',
+          VisitorControllerAction | VisitorOverflowControllerAction,
+          VisitorControllerEvent | VisitorOverflowControllerEvent,
+          never,
+          never
+        >,
+      ) {
+        super({
+          messenger: messagingSystem,
+          metadata: visitorControllerStateMetadata,
+          name: 'VisitorController',
+          state: { visitors: [] },
+        });
+        messagingSystem.registerActionHandler('VisitorController:clear', this.clear);
+      }
+
+      clear = () => {
+        this.update(() => {
+          return { visitors: [] };
+        });
+      };
+
+      addVisitor(visitor: string) {
+        this.update(({ visitors }) => {
+          return { visitors: [...visitors, visitor] };
+        });
+      }
+
+      destroy() {
+        super.destroy();
+      }
+    }
+
+    type VisitorOverflowControllerState = {
+      maxVisitors: number;
+    };
+    type VisitorOverflowControllerAction = {
+      type: `VisitorOverflowController:updateMax`;
+      handler: (max: number) => void;
+    };
+    type VisitorOverflowControllerEvent = {
+      type: `VisitorOverflowController:stateChange`;
+      payload: [VisitorOverflowControllerState, Patch[]];
+    };
+
+    const visitorOverflowControllerMetadata = {
+      maxVisitors: {
+        persist: false,
+        anonymous: true,
+      },
+    };
+
+    class VisitorOverflowController extends BaseController<
+      'VisitorOverflowController',
+      VisitorOverflowControllerState
+    > {
+      constructor(
+        messagingSystem: RestrictedControllerMessenger<
+          'VisitorOverflowController',
+          VisitorControllerAction | VisitorOverflowControllerAction,
+          VisitorControllerEvent | VisitorOverflowControllerEvent,
+          'VisitorController:clear',
+          'VisitorController:stateChange'
+        >,
+      ) {
+        super({
+          messenger: messagingSystem,
+          metadata: visitorOverflowControllerMetadata,
+          name: 'VisitorOverflowController',
+          state: { maxVisitors: 5 },
+        });
+        messagingSystem.registerActionHandler('VisitorOverflowController:updateMax', this.updateMax);
+        messagingSystem.subscribe('VisitorController:stateChange', this.onVisit);
+      }
+
+      onVisit = ({ visitors }: VisitorControllerState) => {
+        if (visitors.length > this.state.maxVisitors) {
+          this.messagingSystem.call('VisitorController:clear');
+        }
+      };
+
+      updateMax = (max: number) => {
+        this.update(() => {
+          return { maxVisitors: max };
+        });
+      };
+
+      destroy() {
+        super.destroy();
+      }
+    }
+
+    it('should allow messaging between controllers', () => {
+      const controllerMessenger = new ControllerMessenger<
+        VisitorControllerAction | VisitorOverflowControllerAction,
+        VisitorControllerEvent | VisitorOverflowControllerEvent
+      >();
+      const visitorControllerMessenger = controllerMessenger.getRestricted({
+        name: 'VisitorController',
+        allowedActions: [],
+        allowedEvents: [],
+      });
+      const visitorController = new VisitorController(visitorControllerMessenger);
+      const visitorOverflowControllerMessenger = controllerMessenger.getRestricted({
+        name: 'VisitorOverflowController',
+        allowedActions: ['VisitorController:clear'],
+        allowedEvents: ['VisitorController:stateChange'],
+      });
+      const visitorOverflowController = new VisitorOverflowController(visitorOverflowControllerMessenger);
+
+      controllerMessenger.call('VisitorOverflowController:updateMax', 2);
+      visitorController.addVisitor('A');
+      visitorController.addVisitor('B');
+      visitorController.addVisitor('C'); // this should trigger an overflow
+
+      expect(visitorOverflowController.state.maxVisitors).toEqual(2);
+      expect(visitorController.state.visitors).toHaveLength(0);
+    });
   });
 });
