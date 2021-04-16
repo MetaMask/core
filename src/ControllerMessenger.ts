@@ -24,7 +24,7 @@ type ExtractEventPayload<Event, T> = Event extends { type: T; payload: infer P }
   : never;
 
 type ActionConstraint = { type: string; handler: (...args: any) => unknown };
-type EventConstraint = { type: string; payload: unknown[] };
+export type EventConstraint = { type: string; payload: unknown[] };
 
 /**
  * A namespaced string

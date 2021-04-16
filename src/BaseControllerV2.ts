@@ -129,7 +129,7 @@ export class BaseController<
     string | never
   >;
 
-  private name: N;
+  public readonly name: N;
 
   public readonly metadata: StateMetadata<S>;
 
