@@ -82,8 +82,8 @@ export class RestrictedControllerMessenger<
   }: {
     controllerMessenger: ControllerMessenger<Action, Event>;
     name: N;
-    allowedActions?: AllowedAction[] | never;
-    allowedEvents?: AllowedEvent[] | never;
+    allowedActions?: AllowedAction[];
+    allowedEvents?: AllowedEvent[];
   }) {
     this.controllerMessenger = controllerMessenger;
     this.controllerName = name;
@@ -448,8 +448,8 @@ export class ControllerMessenger<
     allowedEvents,
   }: {
     name: N;
-    allowedActions?: Extract<Action['type'], AllowedAction>[] | never;
-    allowedEvents?: Extract<Event['type'], AllowedEvent>[] | never;
+    allowedActions?: Extract<Action['type'], AllowedAction>[];
+    allowedEvents?: Extract<Event['type'], AllowedEvent>[];
   }) {
     return new RestrictedControllerMessenger<
       N,
