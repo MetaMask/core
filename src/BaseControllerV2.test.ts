@@ -52,7 +52,6 @@ describe('BaseController', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
       allowedEvents: ['CountController:stateChange'],
     });
     const controller = new CountController({
@@ -72,7 +71,6 @@ describe('BaseController', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
       allowedEvents: ['CountController:stateChange'],
     });
     const controller = new CountController({
@@ -92,7 +90,6 @@ describe('BaseController', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
       allowedEvents: ['CountController:stateChange'],
     });
     const controller = new CountController({
@@ -116,7 +113,6 @@ describe('BaseController', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
       allowedEvents: ['CountController:stateChange'],
     });
     const controller = new CountController({
@@ -140,7 +136,6 @@ describe('BaseController', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
       allowedEvents: ['CountController:stateChange'],
     });
     const controller = new CountController({
@@ -164,7 +159,6 @@ describe('BaseController', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
       allowedEvents: ['CountController:stateChange'],
     });
     const controller = new CountController({
@@ -191,7 +185,6 @@ describe('BaseController', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
       allowedEvents: ['CountController:stateChange'],
     });
     const controller = new CountController({
@@ -228,7 +221,6 @@ describe('BaseController', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
       allowedEvents: ['CountController:stateChange'],
     });
     const controller = new CountController({
@@ -260,7 +252,6 @@ describe('BaseController', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
       allowedEvents: ['CountController:stateChange'],
     });
     const controller = new CountController({
@@ -287,7 +278,6 @@ describe('BaseController', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
       allowedEvents: ['CountController:stateChange'],
     });
     const controller = new CountController({
@@ -315,7 +305,6 @@ describe('BaseController', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
       allowedEvents: ['CountController:stateChange'],
     });
     new CountController({
@@ -340,7 +329,6 @@ describe('BaseController', () => {
     >();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
       allowedEvents: ['CountController:stateChange'],
     });
     const controller = new CountController({
@@ -792,10 +780,12 @@ describe('getPersistentState', () => {
         VisitorControllerAction | VisitorOverflowControllerAction,
         VisitorControllerEvent | VisitorOverflowControllerEvent
       >();
-      const visitorControllerMessenger = controllerMessenger.getRestricted({
+      const visitorControllerMessenger = controllerMessenger.getRestricted<
+        'VisitorController',
+        never,
+        never
+      >({
         name: 'VisitorController',
-        allowedActions: [],
-        allowedEvents: [],
       });
       const visitorController = new VisitorController(
         visitorControllerMessenger,
