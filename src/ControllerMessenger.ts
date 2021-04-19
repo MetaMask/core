@@ -45,16 +45,16 @@ export class RestrictedControllerMessenger<
   N extends string,
   Action extends ActionConstraint,
   Event extends EventConstraint,
-  AllowedAction extends string,
-  AllowedEvent extends string
+  AllowedAction extends string | never,
+  AllowedEvent extends string | never
 > {
   private controllerMessenger: ControllerMessenger<Action, Event>;
 
   private controllerName: N;
 
-  private allowedActions: AllowedAction[];
+  private allowedActions: AllowedAction[] | null;
 
-  private allowedEvents: AllowedEvent[];
+  private allowedEvents: AllowedEvent[] | null;
 
   /**
    * Constructs a restricted controller messenger
@@ -82,13 +82,13 @@ export class RestrictedControllerMessenger<
   }: {
     controllerMessenger: ControllerMessenger<Action, Event>;
     name: N;
-    allowedActions: AllowedAction[];
-    allowedEvents: AllowedEvent[];
+    allowedActions?: AllowedAction[] | never;
+    allowedEvents?: AllowedEvent[] | never;
   }) {
     this.controllerMessenger = controllerMessenger;
     this.controllerName = name;
-    this.allowedActions = allowedActions;
-    this.allowedEvents = allowedEvents;
+    this.allowedActions = allowedActions || null;
+    this.allowedEvents = allowedEvents || null;
   }
 
   /**
@@ -148,12 +148,14 @@ export class RestrictedControllerMessenger<
    *   registered action handler.
    * @throws Will throw when no handler has been registered for the given type.
    */
-  call<T extends AllowedAction>(
+  call<T extends AllowedAction & string>(
     action: T,
     ...params: ExtractActionParameters<Action, T>
   ): ExtractActionResponse<Action, T> {
-    /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!this.allowedActions.includes(action)) {
+    /* istanbul ignore next */ // Branches unreachable with valid types
+    if (this.allowedActions === null) {
+      throw new Error('No actions allowed');
+    } else if (!this.allowedActions.includes(action)) {
       throw new Error(`Action missing from allow list: ${action}`);
     }
     return this.controllerMessenger.call(action, ...params);
@@ -194,12 +196,14 @@ export class RestrictedControllerMessenger<
    * @param handler - The event handler. The type of the parameters for this event handler must
    *   match the type of the payload for this event type.
    */
-  subscribe<E extends AllowedEvent>(
+  subscribe<E extends AllowedEvent & string>(
     event: E,
     handler: ExtractEventHandler<Event, E>,
   ) {
-    /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!this.allowedEvents.includes(event)) {
+    /* istanbul ignore next */ // Branches unreachable with valid types
+    if (this.allowedEvents === null) {
+      throw new Error('No events allowed');
+    } else if (!this.allowedEvents.includes(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
     return this.controllerMessenger.subscribe(event, handler);
@@ -216,12 +220,14 @@ export class RestrictedControllerMessenger<
    * @param handler - The event handler to unregister.
    * @throws Will throw when the given event handler is not registered for this event.
    */
-  unsubscribe<E extends AllowedEvent>(
+  unsubscribe<E extends AllowedEvent & string>(
     event: E,
     handler: ExtractEventHandler<Event, E>,
   ) {
-    /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!this.allowedEvents.includes(event)) {
+    /* istanbul ignore next */ // Branches unreachable with valid types
+    if (this.allowedEvents === null) {
+      throw new Error('No events allowed');
+    } else if (!this.allowedEvents.includes(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
     return this.controllerMessenger.unsubscribe(event, handler);
@@ -434,16 +440,16 @@ export class ControllerMessenger<
    */
   getRestricted<
     N extends string,
-    AllowedAction extends string,
-    AllowedEvent extends string
+    AllowedAction extends string | never,
+    AllowedEvent extends string | never
   >({
     name,
     allowedActions,
     allowedEvents,
   }: {
     name: N;
-    allowedActions: Extract<Action['type'], AllowedAction>[] | [];
-    allowedEvents: Extract<Event['type'], AllowedEvent>[] | [];
+    allowedActions?: Extract<Action['type'], AllowedAction>[] | never;
+    allowedEvents?: Extract<Event['type'], AllowedEvent>[] | never;
   }) {
     return new RestrictedControllerMessenger<
       N,
