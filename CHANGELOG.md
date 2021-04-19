@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## [8.0.0] - 2021-04-15
+
+### Added
+
+- Add restricted controller messenger ([#378](https://github.com/MetaMask/controllers/pull/378))
+
+### Changed
+
+- **BREAKING:** Update minimum Node.js version to v12 ([#441](https://github.com/MetaMask/controllers/pull/441))
+- **BREAKING:** Replace controller context ([#387](https://github.com/MetaMask/controllers/pull/387))
+- Bump @metamask/contract-metadata from 1.23.0 to 1.24.0 ([#440](https://github.com/MetaMask/controllers/pull/440))
+- Update lint rules ([#442](https://github.com/MetaMask/controllers/pull/442), [#426](https://github.com/MetaMask/controllers/pull/426))
+
+### Fixed
+
+- Don't remove collectibles during auto detection ([#439](https://github.com/MetaMask/controllers/pull/439))
+
 ## [7.0.0] - 2021-04-06
 
 ### Added
@@ -273,7 +290,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v7.0.0...HEAD
+[Unreleased]:https://github.com/MetaMask/controllers/compare/v8.0.0...HEAD
+[8.0.0]:https://github.com/MetaMask/controllers/compare/v7.0.0...v8.0.0
 [7.0.0]:https://github.com/MetaMask/controllers/compare/v6.2.1...v7.0.0
 [6.2.1]:https://github.com/MetaMask/controllers/compare/v6.2.0...v6.2.1
 [6.2.0]:https://github.com/MetaMask/controllers/compare/v6.1.1...v6.2.0
