@@ -14,7 +14,7 @@ type ExtractActionResponse<Action, T> = Action extends {
   ? H
   : never;
 
-type ExtractEvenHandler<Event, T> = Event extends { type: T; payload: infer P }
+type ExtractEventHandler<Event, T> = Event extends { type: T; payload: infer P }
   ? P extends any[]
     ? (...payload: P) => void
     : never
@@ -196,7 +196,7 @@ export class RestrictedControllerMessenger<
    */
   subscribe<E extends AllowedEvent>(
     event: E,
-    handler: ExtractEvenHandler<Event, E>,
+    handler: ExtractEventHandler<Event, E>,
   ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.allowedEvents.includes(event)) {
@@ -218,7 +218,7 @@ export class RestrictedControllerMessenger<
    */
   unsubscribe<E extends AllowedEvent>(
     event: E,
-    handler: ExtractEvenHandler<Event, E>,
+    handler: ExtractEventHandler<Event, E>,
   ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.allowedEvents.includes(event)) {
@@ -340,7 +340,7 @@ export class ControllerMessenger<
     ...payload: ExtractEventPayload<Event, E>
   ) {
     const subscribers = this.events.get(eventType) as Set<
-      ExtractEvenHandler<Event, E>
+      ExtractEventHandler<Event, E>
     >;
 
     if (subscribers) {
@@ -361,7 +361,7 @@ export class ControllerMessenger<
    */
   subscribe<E extends Event['type']>(
     eventType: E,
-    handler: ExtractEvenHandler<Event, E>,
+    handler: ExtractEventHandler<Event, E>,
   ) {
     let subscribers = this.events.get(eventType);
     if (!subscribers) {
@@ -382,7 +382,7 @@ export class ControllerMessenger<
    */
   unsubscribe<E extends Event['type']>(
     eventType: E,
-    handler: ExtractEvenHandler<Event, E>,
+    handler: ExtractEventHandler<Event, E>,
   ) {
     const subscribers = this.events.get(eventType);
 
