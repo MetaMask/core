@@ -6,6 +6,12 @@ import {
 
 /**
  * List of child controller instances
+ *
+ * This type encompasses controllers based up either BaseController or
+ * BaseControllerV2. The BaseControllerV2 type can't be included directly
+ * because the generic parameters it expects require knowing the exact state
+ * shape, so instead we look for an object with the BaseControllerV2 properties
+ * that we use in the ComposableController (name and state).
  */
 export type ControllerList = (
   | BaseController<any, any>
