@@ -24,14 +24,7 @@ type ExtractEventPayload<Event, T> = Event extends { type: T; payload: infer P }
   : never;
 
 type ActionConstraint = { type: string; handler: (...args: any) => unknown };
-
-/**
- * A valid ControllerMessenger Event.
- *
- * This type is used to constrain generic Event parameters, to ensure valid
- * Event types are given.
- */
-export type EventConstraint = { type: string; payload: unknown[] };
+type EventConstraint = { type: string; payload: unknown[] };
 
 /**
  * A namespaced string

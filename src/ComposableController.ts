@@ -1,8 +1,5 @@
 import BaseController from './BaseController';
-import {
-  RestrictedControllerMessenger,
-  EventConstraint,
-} from './ControllerMessenger';
+import { RestrictedControllerMessenger } from './ControllerMessenger';
 
 /**
  * List of child controller instances
@@ -21,18 +18,15 @@ export type ControllerList = (
 /**
  * Controller that can be used to compose multiple controllers together
  */
-export class ComposableController<
-  Events extends EventConstraint,
-  AllowedEvents extends string
-> extends BaseController<never, any> {
+export class ComposableController extends BaseController<never, any> {
   private controllers: ControllerList = [];
 
   private messagingSystem?: RestrictedControllerMessenger<
     'ComposableController',
     never,
-    Events,
+    any,
     never,
-    AllowedEvents
+    any
   >;
 
   /**
@@ -51,9 +45,9 @@ export class ComposableController<
     messenger?: RestrictedControllerMessenger<
       'ComposableController',
       never,
-      Events,
+      any,
       never,
-      AllowedEvents
+      any
     >,
   ) {
     super(
