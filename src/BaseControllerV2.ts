@@ -129,7 +129,12 @@ export class BaseController<
     string | never
   >;
 
-  private name: N;
+  /**
+   * The name of the controller.
+   *
+   * This is used by the ComposableController to construct a composed application state.
+   */
+  public readonly name: N;
 
   public readonly metadata: StateMetadata<S>;
 
