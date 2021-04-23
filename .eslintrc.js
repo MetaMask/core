@@ -28,7 +28,6 @@ module.exports = {
             // 'toBeTruthy': 'Avoid `toBeTruthy`',
           },
         ],
-        'jest/no-test-return-statement': 'off',
       },
     },
     {
