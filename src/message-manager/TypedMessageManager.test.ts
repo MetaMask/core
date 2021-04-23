@@ -46,14 +46,12 @@ describe('TypedMessageManager', () => {
     });
     const message = controller.getMessage(messageId);
     expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.id).toBe(messageId);
-      expect(message.messageParams.from).toBe(from);
-      expect(message.messageParams.data).toBe(messageData);
-      expect(message.time).toBe(messageTime);
-      expect(message.status).toBe(messageStatus);
-      expect(message.type).toBe(messageType);
-    }
+    expect(message.id).toBe(messageId);
+    expect(message.messageParams.from).toBe(from);
+    expect(message.messageParams.data).toBe(messageData);
+    expect(message.time).toBe(messageTime);
+    expect(message.status).toBe(messageStatus);
+    expect(message.type).toBe(messageType);
   });
 
   it('should reject a message', async () => {
@@ -162,13 +160,11 @@ describe('TypedMessageManager', () => {
     );
     expect(messageId).not.toBeUndefined();
     const message = controller.getMessage(messageId);
-    if (message) {
-      expect(message.messageParams.from).toBe(messageParams.from);
-      expect(message.messageParams.data).toBe(messageParams.data);
-      expect(message.time).not.toBeUndefined();
-      expect(message.status).toBe(messageStatus);
-      expect(message.type).toBe(messageType);
-    }
+    expect(message.messageParams.from).toBe(messageParams.from);
+    expect(message.messageParams.data).toBe(messageParams.data);
+    expect(message.time).not.toBeUndefined();
+    expect(message.status).toBe(messageStatus);
+    expect(message.type).toBe(messageType);
   });
 
   it('should throw when adding invalid legacy typed message', async () => {
@@ -266,9 +262,7 @@ describe('TypedMessageManager', () => {
     const message = controller.getMessage(messageId);
     expect(messageParams).toStrictEqual(firstMessage);
     expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.status).toStrictEqual('approved');
-    }
+    expect(message.status).toStrictEqual('approved');
   });
 
   it('should set message status signed', () => {
@@ -281,10 +275,8 @@ describe('TypedMessageManager', () => {
     controller.setMessageStatusSigned(messageId, rawSig);
     const message = controller.getMessage(messageId);
     expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.rawSig).toStrictEqual(rawSig);
-      expect(message.status).toStrictEqual('signed');
-    }
+    expect(message.rawSig).toStrictEqual(rawSig);
+    expect(message.status).toStrictEqual('signed');
   });
 
   it('should reject message', () => {
@@ -296,9 +288,7 @@ describe('TypedMessageManager', () => {
     controller.rejectMessage(messageId);
     const message = controller.getMessage(messageId);
     expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.status).toStrictEqual('rejected');
-    }
+    expect(message.status).toStrictEqual('rejected');
   });
 
   it('should set message status errored', () => {
@@ -310,8 +300,6 @@ describe('TypedMessageManager', () => {
     controller.setMessageStatusErrored(messageId, 'errored');
     const message = controller.getMessage(messageId);
     expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.status).toStrictEqual('errored');
-    }
+    expect(message.status).toStrictEqual('errored');
   });
 });
