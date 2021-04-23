@@ -34,7 +34,7 @@ describe('PersonalMessageManager', () => {
     });
     const message = controller.getMessage(messageId);
     if (!message) {
-      throw new Error('"message" is undefined');
+      throw new Error('"message" is falsy');
     }
     expect(message.id).toBe(messageId);
     expect(message.messageParams.from).toBe(from);
@@ -112,7 +112,7 @@ describe('PersonalMessageManager', () => {
     expect(messageId).not.toBeUndefined();
     const message = controller.getMessage(messageId);
     if (!message) {
-      throw new Error('"message" is undefined');
+      throw new Error('"message" is falsy');
     }
     expect(message.messageParams.from).toBe(messageParams.from);
     expect(message.messageParams.data).toBe(messageParams.data);
@@ -169,7 +169,7 @@ describe('PersonalMessageManager', () => {
     const message = controller.getMessage(messageId);
     expect(messageParams).toStrictEqual(firstMessage);
     if (!message) {
-      throw new Error('"message" is undefined');
+      throw new Error('"message" is falsy');
     }
     expect(message.status).toStrictEqual('approved');
   });
@@ -183,7 +183,7 @@ describe('PersonalMessageManager', () => {
     controller.setMessageStatusSigned(messageId, rawSig);
     const message = controller.getMessage(messageId);
     if (!message) {
-      throw new Error('"message" is undefined');
+      throw new Error('"message" is falsy');
     }
     expect(message.rawSig).toStrictEqual(rawSig);
     expect(message.status).toStrictEqual('signed');
@@ -196,7 +196,7 @@ describe('PersonalMessageManager', () => {
     controller.rejectMessage(messageId);
     const message = controller.getMessage(messageId);
     if (!message) {
-      throw new Error('"message" is undefined');
+      throw new Error('"message" is falsy');
     }
     expect(message.status).toStrictEqual('rejected');
   });

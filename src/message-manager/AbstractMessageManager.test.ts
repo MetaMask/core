@@ -69,7 +69,7 @@ describe('AbstractTestManager', () => {
     });
     const message = controller.getMessage(messageId);
     if (!message) {
-      throw new Error('"message" is undefined');
+      throw new Error('"message" is falsy');
     }
     expect(message.id).toBe(messageId);
     expect(message.messageParams.from).toBe(from);
@@ -94,7 +94,7 @@ describe('AbstractTestManager', () => {
     controller.rejectMessage(messageId);
     const message = controller.getMessage(messageId);
     if (!message) {
-      throw new Error('"message" is undefined');
+      throw new Error('"message" is falsy');
     }
     expect(message.status).toBe('rejected');
   });
@@ -114,7 +114,7 @@ describe('AbstractTestManager', () => {
     controller.setMessageStatusSigned(messageId, 'rawSig');
     const message = controller.getMessage(messageId);
     if (!message) {
-      throw new Error('"message" is undefined');
+      throw new Error('"message" is falsy');
     }
     expect(message.status).toBe('signed');
     expect(message.rawSig).toBe('rawSig');
@@ -188,7 +188,7 @@ describe('AbstractTestManager', () => {
     const message = controller.getMessage(messageId);
     expect(messageParams).toStrictEqual(firstMessage);
     if (!message) {
-      throw new Error('"message" is undefined');
+      throw new Error('"message" is falsy');
     }
     expect(message.status).toStrictEqual('approved');
   });
