@@ -45,7 +45,9 @@ describe('TypedMessageManager', () => {
       type: messageType,
     });
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
+    if (!message) {
+      throw new Error('"message" is undefined');
+    }
     expect(message.id).toBe(messageId);
     expect(message.messageParams.from).toBe(from);
     expect(message.messageParams.data).toBe(messageData);
@@ -160,6 +162,9 @@ describe('TypedMessageManager', () => {
     );
     expect(messageId).not.toBeUndefined();
     const message = controller.getMessage(messageId);
+    if (!message) {
+      throw new Error('"message" is undefined');
+    }
     expect(message.messageParams.from).toBe(messageParams.from);
     expect(message.messageParams.data).toBe(messageParams.data);
     expect(message.time).not.toBeUndefined();
@@ -261,7 +266,9 @@ describe('TypedMessageManager', () => {
     });
     const message = controller.getMessage(messageId);
     expect(messageParams).toStrictEqual(firstMessage);
-    expect(message).not.toBeUndefined();
+    if (!message) {
+      throw new Error('"message" is undefined');
+    }
     expect(message.status).toStrictEqual('approved');
   });
 
@@ -274,7 +281,9 @@ describe('TypedMessageManager', () => {
     const messageId = controller.addUnapprovedMessage(firstMessage, version);
     controller.setMessageStatusSigned(messageId, rawSig);
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
+    if (!message) {
+      throw new Error('"message" is undefined');
+    }
     expect(message.rawSig).toStrictEqual(rawSig);
     expect(message.status).toStrictEqual('signed');
   });
@@ -287,7 +296,9 @@ describe('TypedMessageManager', () => {
     const messageId = controller.addUnapprovedMessage(firstMessage, version);
     controller.rejectMessage(messageId);
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
+    if (!message) {
+      throw new Error('"message" is undefined');
+    }
     expect(message.status).toStrictEqual('rejected');
   });
 
@@ -299,7 +310,9 @@ describe('TypedMessageManager', () => {
     const messageId = controller.addUnapprovedMessage(firstMessage, version);
     controller.setMessageStatusErrored(messageId, 'errored');
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
+    if (!message) {
+      throw new Error('"message" is undefined');
+    }
     expect(message.status).toStrictEqual('errored');
   });
 });

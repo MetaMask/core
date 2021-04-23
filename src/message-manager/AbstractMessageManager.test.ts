@@ -68,7 +68,9 @@ describe('AbstractTestManager', () => {
       type: messageType,
     });
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
+    if (!message) {
+      throw new Error('"message" is undefined');
+    }
     expect(message.id).toBe(messageId);
     expect(message.messageParams.from).toBe(from);
     expect(message.messageParams.data).toBe(messageData);
@@ -91,7 +93,9 @@ describe('AbstractTestManager', () => {
     });
     controller.rejectMessage(messageId);
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
+    if (!message) {
+      throw new Error('"message" is undefined');
+    }
     expect(message.status).toBe('rejected');
   });
 
@@ -109,7 +113,9 @@ describe('AbstractTestManager', () => {
     });
     controller.setMessageStatusSigned(messageId, 'rawSig');
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
+    if (!message) {
+      throw new Error('"message" is undefined');
+    }
     expect(message.status).toBe('signed');
     expect(message.rawSig).toBe('rawSig');
   });
@@ -181,7 +187,9 @@ describe('AbstractTestManager', () => {
     });
     const message = controller.getMessage(messageId);
     expect(messageParams).toStrictEqual(firstMessage);
-    expect(message).not.toBeUndefined();
+    if (!message) {
+      throw new Error('"message" is undefined');
+    }
     expect(message.status).toStrictEqual('approved');
   });
 
