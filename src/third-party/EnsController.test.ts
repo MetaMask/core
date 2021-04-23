@@ -87,7 +87,7 @@ describe('EnsController', () => {
   it('should not update an ENS entry if the address is the same (valid address) and return false', () => {
     const controller = new EnsController();
     expect(controller.set('1', name1, address1)).toStrictEqual(true);
-    expect(controller.set('1', name1, address1)).toBeFalsy();
+    expect(controller.set('1', name1, address1)).toStrictEqual(false);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         1: {
@@ -104,7 +104,7 @@ describe('EnsController', () => {
   it('should not update an ENS entry if the address is the same (null) and return false', () => {
     const controller = new EnsController();
     expect(controller.set('1', name1, null)).toStrictEqual(true);
-    expect(controller.set('1', name1, null)).toBeFalsy();
+    expect(controller.set('1', name1, null)).toStrictEqual(false);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         1: {
@@ -209,8 +209,8 @@ describe('EnsController', () => {
   it('should return false if an ENS entry was NOT deleted', () => {
     const controller = new EnsController();
     controller.set('1', name1, address1);
-    expect(controller.delete('1', 'bar')).toBeFalsy();
-    expect(controller.delete('2', 'bar')).toBeFalsy();
+    expect(controller.delete('1', 'bar')).toStrictEqual(false);
+    expect(controller.delete('2', 'bar')).toStrictEqual(false);
     expect(controller.state).toStrictEqual({
       ensEntries: {
         1: {
