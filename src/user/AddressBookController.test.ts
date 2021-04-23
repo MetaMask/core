@@ -200,7 +200,7 @@ describe('AddressBookController', () => {
     const controller = new AddressBookController();
     expect(
       controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo'),
-    ).toBeTruthy();
+    ).toStrictEqual(true);
   });
 
   it('should return false to indicate an address book entry has NOT been added', () => {
@@ -213,7 +213,7 @@ describe('AddressBookController', () => {
     controller.set('0x32Be343B94f860124dC4fEe278FDCBD38C102D88', 'foo');
     expect(
       controller.delete('1', '0x32Be343B94f860124dC4fEe278FDCBD38C102D88'),
-    ).toBeTruthy();
+    ).toStrictEqual(true);
   });
 
   it('should return false to indicate an address book entry has NOT been deleted', () => {
