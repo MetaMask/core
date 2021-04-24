@@ -17,7 +17,6 @@ module.exports = {
       rules: {
         // TODO: Re-enable these
         'jest/no-conditional-expect': 'off',
-        'jest/no-test-return-statement': 'off',
       },
     },
     {
