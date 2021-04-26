@@ -11,12 +11,18 @@ import {
   RestrictedControllerMessenger,
 } from './ControllerMessenger';
 
+const countControllerName = 'CountController';
+
 type CountControllerState = {
   count: number;
 };
+type CountControllerAction = {
+  type: `${typeof countControllerName}:getState`;
+  handler: () => CountControllerState;
+};
 
 type CountControllerEvent = {
-  type: `CountController:stateChange`;
+  type: `${typeof countControllerName}:stateChange`;
   payload: [CountControllerState, Patch[]];
 };
 
@@ -27,8 +33,33 @@ const countControllerStateMetadata = {
   },
 };
 
+type CountMessenger = RestrictedControllerMessenger<
+  typeof countControllerName,
+  CountControllerAction,
+  CountControllerEvent,
+  never,
+  never
+>;
+
+function getCountMessenger(
+  controllerMessenger?: ControllerMessenger<
+    CountControllerAction,
+    CountControllerEvent
+  >,
+): CountMessenger {
+  if (!controllerMessenger) {
+    controllerMessenger = new ControllerMessenger<
+      CountControllerAction,
+      CountControllerEvent
+    >();
+  }
+  return controllerMessenger.getRestricted({
+    name: countControllerName,
+  });
+}
+
 class CountController extends BaseController<
-  'CountController',
+  typeof countControllerName,
   CountControllerState
 > {
   update(
@@ -46,18 +77,9 @@ class CountController extends BaseController<
 
 describe('BaseController', () => {
   it('should set initial state', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
-      name: 'CountController',
-      allowedActions: [],
-      allowedEvents: ['CountController:stateChange'],
-    });
     const controller = new CountController({
-      messenger: restrictedControllerMessenger,
-      name: 'CountController',
+      messenger: getCountMessenger(),
+      name: countControllerName,
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
@@ -66,17 +88,8 @@ describe('BaseController', () => {
   });
 
   it('should set initial schema', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
-      name: 'CountController',
-      allowedActions: [],
-      allowedEvents: ['CountController:stateChange'],
-    });
     const controller = new CountController({
-      messenger: restrictedControllerMessenger,
+      messenger: getCountMessenger(),
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -86,17 +99,8 @@ describe('BaseController', () => {
   });
 
   it('should not allow mutating state directly', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
-      name: 'CountController',
-      allowedActions: [],
-      allowedEvents: ['CountController:stateChange'],
-    });
     const controller = new CountController({
-      messenger: restrictedControllerMessenger,
+      messenger: getCountMessenger(),
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -110,17 +114,8 @@ describe('BaseController', () => {
   });
 
   it('should allow updating state by modifying draft', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
-      name: 'CountController',
-      allowedActions: [],
-      allowedEvents: ['CountController:stateChange'],
-    });
     const controller = new CountController({
-      messenger: restrictedControllerMessenger,
+      messenger: getCountMessenger(),
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -134,17 +129,8 @@ describe('BaseController', () => {
   });
 
   it('should allow updating state by return a value', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
-      name: 'CountController',
-      allowedActions: [],
-      allowedEvents: ['CountController:stateChange'],
-    });
     const controller = new CountController({
-      messenger: restrictedControllerMessenger,
+      messenger: getCountMessenger(),
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -158,17 +144,8 @@ describe('BaseController', () => {
   });
 
   it('should throw an error if update callback modifies draft and returns value', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
-      name: 'CountController',
-      allowedActions: [],
-      allowedEvents: ['CountController:stateChange'],
-    });
     const controller = new CountController({
-      messenger: restrictedControllerMessenger,
+      messenger: getCountMessenger(),
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -189,13 +166,8 @@ describe('BaseController', () => {
       never,
       CountControllerEvent
     >();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
-      name: 'CountController',
-      allowedActions: [],
-      allowedEvents: ['CountController:stateChange'],
-    });
     const controller = new CountController({
-      messenger: restrictedControllerMessenger,
+      messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -226,13 +198,8 @@ describe('BaseController', () => {
       never,
       CountControllerEvent
     >();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
-      name: 'CountController',
-      allowedActions: [],
-      allowedEvents: ['CountController:stateChange'],
-    });
     const controller = new CountController({
-      messenger: restrictedControllerMessenger,
+      messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -258,13 +225,8 @@ describe('BaseController', () => {
       never,
       CountControllerEvent
     >();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
-      name: 'CountController',
-      allowedActions: [],
-      allowedEvents: ['CountController:stateChange'],
-    });
     const controller = new CountController({
-      messenger: restrictedControllerMessenger,
+      messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -285,13 +247,8 @@ describe('BaseController', () => {
       never,
       CountControllerEvent
     >();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
-      name: 'CountController',
-      allowedActions: [],
-      allowedEvents: ['CountController:stateChange'],
-    });
     const controller = new CountController({
-      messenger: restrictedControllerMessenger,
+      messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -313,13 +270,8 @@ describe('BaseController', () => {
       never,
       CountControllerEvent
     >();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
-      name: 'CountController',
-      allowedActions: [],
-      allowedEvents: ['CountController:stateChange'],
-    });
     new CountController({
-      messenger: restrictedControllerMessenger,
+      messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -338,13 +290,8 @@ describe('BaseController', () => {
       never,
       CountControllerEvent
     >();
-    const restrictedControllerMessenger = controllerMessenger.getRestricted({
-      name: 'CountController',
-      allowedActions: [],
-      allowedEvents: ['CountController:stateChange'],
-    });
     const controller = new CountController({
-      messenger: restrictedControllerMessenger,
+      messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -661,15 +608,17 @@ describe('getPersistentState', () => {
     // The 'VisitorOverflowController' monitors the 'VisitorController' to ensure the number of
     // visitors doesn't exceed the maximum capacity. If it does, it will clear out all visitors.
 
+    const visitorName = 'VisitorController';
+
     type VisitorControllerState = {
       visitors: string[];
     };
     type VisitorControllerAction = {
-      type: `VisitorController:clear`;
+      type: `${typeof visitorName}:clear`;
       handler: () => void;
     };
     type VisitorControllerEvent = {
-      type: `VisitorController:stateChange`;
+      type: `${typeof visitorName}:stateChange`;
       payload: [VisitorControllerState, Patch[]];
     };
 
@@ -680,23 +629,22 @@ describe('getPersistentState', () => {
       },
     };
 
+    type VisitorMessenger = RestrictedControllerMessenger<
+      typeof visitorName,
+      VisitorControllerAction | VisitorOverflowControllerAction,
+      VisitorControllerEvent | VisitorOverflowControllerEvent,
+      never,
+      never
+    >;
     class VisitorController extends BaseController<
-      'VisitorController',
+      typeof visitorName,
       VisitorControllerState
     > {
-      constructor(
-        messagingSystem: RestrictedControllerMessenger<
-          'VisitorController',
-          VisitorControllerAction | VisitorOverflowControllerAction,
-          VisitorControllerEvent | VisitorOverflowControllerEvent,
-          never,
-          never
-        >,
-      ) {
+      constructor(messagingSystem: VisitorMessenger) {
         super({
           messenger: messagingSystem,
           metadata: visitorControllerStateMetadata,
-          name: 'VisitorController',
+          name: visitorName,
           state: { visitors: [] },
         });
         messagingSystem.registerActionHandler(
@@ -722,15 +670,17 @@ describe('getPersistentState', () => {
       }
     }
 
+    const visitorOverflowName = 'VisitorOverflowController';
+
     type VisitorOverflowControllerState = {
       maxVisitors: number;
     };
     type VisitorOverflowControllerAction = {
-      type: `VisitorOverflowController:updateMax`;
+      type: `${typeof visitorOverflowName}:updateMax`;
       handler: (max: number) => void;
     };
     type VisitorOverflowControllerEvent = {
-      type: `VisitorOverflowController:stateChange`;
+      type: `${typeof visitorOverflowName}:stateChange`;
       payload: [VisitorOverflowControllerState, Patch[]];
     };
 
@@ -741,23 +691,23 @@ describe('getPersistentState', () => {
       },
     };
 
+    type VisitorOverflowMessenger = RestrictedControllerMessenger<
+      typeof visitorOverflowName,
+      VisitorControllerAction | VisitorOverflowControllerAction,
+      VisitorControllerEvent | VisitorOverflowControllerEvent,
+      `${typeof visitorName}:clear`,
+      `${typeof visitorName}:stateChange`
+    >;
+
     class VisitorOverflowController extends BaseController<
-      'VisitorOverflowController',
+      typeof visitorOverflowName,
       VisitorOverflowControllerState
     > {
-      constructor(
-        messagingSystem: RestrictedControllerMessenger<
-          'VisitorOverflowController',
-          VisitorControllerAction | VisitorOverflowControllerAction,
-          VisitorControllerEvent | VisitorOverflowControllerEvent,
-          'VisitorController:clear',
-          'VisitorController:stateChange'
-        >,
-      ) {
+      constructor(messagingSystem: VisitorOverflowMessenger) {
         super({
           messenger: messagingSystem,
           metadata: visitorOverflowControllerMetadata,
-          name: 'VisitorOverflowController',
+          name: visitorOverflowName,
           state: { maxVisitors: 5 },
         });
         messagingSystem.registerActionHandler(
@@ -792,17 +742,19 @@ describe('getPersistentState', () => {
         VisitorControllerAction | VisitorOverflowControllerAction,
         VisitorControllerEvent | VisitorOverflowControllerEvent
       >();
-      const visitorControllerMessenger = controllerMessenger.getRestricted({
-        name: 'VisitorController',
-        allowedActions: [],
-        allowedEvents: [],
+      const visitorControllerMessenger = controllerMessenger.getRestricted<
+        typeof visitorName,
+        never,
+        never
+      >({
+        name: visitorName,
       });
       const visitorController = new VisitorController(
         visitorControllerMessenger,
       );
       const visitorOverflowControllerMessenger = controllerMessenger.getRestricted(
         {
-          name: 'VisitorOverflowController',
+          name: visitorOverflowName,
           allowedActions: ['VisitorController:clear'],
           allowedEvents: ['VisitorController:stateChange'],
         },

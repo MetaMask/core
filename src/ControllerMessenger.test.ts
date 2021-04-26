@@ -313,7 +313,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: ['CountController:count'],
-      allowedEvents: [],
     });
 
     let count = 0;
@@ -339,7 +338,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
       allowedActions: ['MessageController:reset', 'MessageController:concat'],
-      allowedEvents: [],
     });
 
     let message = '';
@@ -374,7 +372,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: ['CountController:increment'],
-      allowedEvents: [],
     });
 
     let count = 0;
@@ -398,7 +395,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
       allowedActions: ['MessageController:message'],
-      allowedEvents: [],
     });
 
     const messages: Record<string, string> = {};
@@ -426,7 +422,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MathController',
       allowedActions: ['MathController:add'],
-      allowedEvents: [],
     });
 
     restrictedControllerMessenger.registerActionHandler(
@@ -450,7 +445,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
       allowedActions: ['PingController:ping'],
-      allowedEvents: [],
     });
 
     restrictedControllerMessenger.registerActionHandler(
@@ -472,7 +466,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
       allowedActions: ['PingController:ping'],
-      allowedEvents: [],
     });
 
     expect(() => {
@@ -486,7 +479,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
       allowedActions: ['PingController:ping'],
-      allowedEvents: [],
     });
 
     expect(() => {
@@ -519,7 +511,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -541,7 +532,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message', 'MessageController:ping'],
     });
 
@@ -570,7 +560,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, PingEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
-      allowedActions: [],
       allowedEvents: ['PingController:ping'],
     });
 
@@ -590,7 +579,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -617,7 +605,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -644,7 +631,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -674,7 +660,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -700,7 +685,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -721,7 +705,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -748,7 +731,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -773,7 +755,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -793,14 +774,11 @@ describe('RestrictedControllerMessenger', () => {
     const externalRestrictedControllerMessenger = controllerMessenger.getRestricted(
       {
         name: 'CountController',
-        allowedActions: [],
-        allowedEvents: [],
       },
     );
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'OtherController',
       allowedActions: ['CountController:count'],
-      allowedEvents: [],
     });
 
     let count = 0;
@@ -824,13 +802,10 @@ describe('RestrictedControllerMessenger', () => {
     const externalRestrictedControllerMessenger = controllerMessenger.getRestricted(
       {
         name: 'MessageController',
-        allowedActions: [],
-        allowedEvents: [],
       },
     );
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'OtherController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -867,12 +842,9 @@ describe('RestrictedControllerMessenger', () => {
     const messageControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
       allowedActions: ['MessageController:reset', 'CountController:count'],
-      allowedEvents: [],
     });
     const countControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
-      allowedEvents: [],
     });
 
     let count = 0;
@@ -916,13 +888,10 @@ describe('RestrictedControllerMessenger', () => {
 
     const messageControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:ping', 'CountController:update'],
     });
     const countControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
-      allowedEvents: [],
     });
 
     let pings = 0;

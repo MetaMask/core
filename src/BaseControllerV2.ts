@@ -125,11 +125,16 @@ export class BaseController<
     N,
     any,
     StateChangeEvent<N, S, any>,
-    string,
-    string
+    string | never,
+    string | never
   >;
 
-  private name: N;
+  /**
+   * The name of the controller.
+   *
+   * This is used by the ComposableController to construct a composed application state.
+   */
+  public readonly name: N;
 
   public readonly metadata: StateMetadata<S>;
 
@@ -153,8 +158,8 @@ export class BaseController<
       N,
       any,
       StateChangeEvent<N, S, any>,
-      string,
-      string
+      string | never,
+      string | never
     >;
     metadata: StateMetadata<S>;
     name: N;
