@@ -14,21 +14,6 @@ module.exports = {
     {
       files: ['*.test.ts', '*.test.js'],
       extends: ['@metamask/eslint-config-jest'],
-      rules: {
-        // TODO: Re-enable these rules
-        'jest/no-restricted-matchers': [
-          'error',
-          {
-            resolves: 'Use `expect(await promise)` instead.',
-            toMatchSnapshot: 'Use `toMatchInlineSnapshot()` instead',
-            toThrowErrorMatchingSnapshot:
-              'Use `toThrowErrorMatchingInlineSnapshot()` instead',
-            // TODO: Re-enable these. Requires lots of manual fixes.
-            // 'toBeFalsy': 'Avoid `toBeFalsy`',
-            // 'toBeTruthy': 'Avoid `toBeTruthy`',
-          },
-        ],
-      },
     },
     {
       files: ['*.js'],

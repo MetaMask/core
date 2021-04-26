@@ -67,7 +67,7 @@ describe('CryptoCompare', () => {
 
     const { usdConversionRate } = await fetchExchangeRate('CAD', 'ETH');
 
-    expect(usdConversionRate).toBeFalsy();
+    expect(usdConversionRate).toBeNaN();
   });
 
   it('should return USD conversion rate for USD even when includeUSD is disabled', async () => {
