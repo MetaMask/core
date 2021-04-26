@@ -157,7 +157,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.subscribe('message', handler);
     controllerMessenger.publish('message', 'hello');
 
-    expect(handler.calledWithExactly('hello')).toBeTruthy();
+    expect(handler.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -175,9 +175,9 @@ describe('ControllerMessenger', () => {
     controllerMessenger.publish('message', 'hello');
     controllerMessenger.publish('ping');
 
-    expect(messageHandler.calledWithExactly('hello')).toBeTruthy();
+    expect(messageHandler.calledWithExactly('hello')).toStrictEqual(true);
     expect(messageHandler.callCount).toStrictEqual(1);
-    expect(pingHandler.calledWithExactly()).toBeTruthy();
+    expect(pingHandler.calledWithExactly()).toStrictEqual(true);
     expect(pingHandler.callCount).toStrictEqual(1);
   });
 
@@ -189,7 +189,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.subscribe('ping', handler);
     controllerMessenger.publish('ping');
 
-    expect(handler.calledWithExactly()).toBeTruthy();
+    expect(handler.calledWithExactly()).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -201,7 +201,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.subscribe('message', handler);
     controllerMessenger.publish('message', 'hello', 'there');
 
-    expect(handler.calledWithExactly('hello', 'there')).toBeTruthy();
+    expect(handler.calledWithExactly('hello', 'there')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -214,7 +214,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.subscribe('message', handler);
     controllerMessenger.publish('message', 'hello');
 
-    expect(handler.calledWithExactly('hello')).toBeTruthy();
+    expect(handler.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -228,9 +228,9 @@ describe('ControllerMessenger', () => {
     controllerMessenger.subscribe('message', handler2);
     controllerMessenger.publish('message', 'hello');
 
-    expect(handler1.calledWithExactly('hello')).toBeTruthy();
+    expect(handler1.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler1.callCount).toStrictEqual(1);
-    expect(handler2.calledWithExactly('hello')).toBeTruthy();
+    expect(handler2.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler2.callCount).toStrictEqual(1);
   });
 
@@ -521,7 +521,7 @@ describe('RestrictedControllerMessenger', () => {
     );
     restrictedControllerMessenger.publish('MessageController:message', 'hello');
 
-    expect(handler.calledWithExactly('hello')).toBeTruthy();
+    expect(handler.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -549,9 +549,9 @@ describe('RestrictedControllerMessenger', () => {
     restrictedControllerMessenger.publish('MessageController:message', 'hello');
     restrictedControllerMessenger.publish('MessageController:ping');
 
-    expect(messageHandler.calledWithExactly('hello')).toBeTruthy();
+    expect(messageHandler.calledWithExactly('hello')).toStrictEqual(true);
     expect(messageHandler.callCount).toStrictEqual(1);
-    expect(pingHandler.calledWithExactly()).toBeTruthy();
+    expect(pingHandler.calledWithExactly()).toStrictEqual(true);
     expect(pingHandler.callCount).toStrictEqual(1);
   });
 
@@ -567,7 +567,7 @@ describe('RestrictedControllerMessenger', () => {
     restrictedControllerMessenger.subscribe('PingController:ping', handler);
     restrictedControllerMessenger.publish('PingController:ping');
 
-    expect(handler.calledWithExactly()).toBeTruthy();
+    expect(handler.calledWithExactly()).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -593,7 +593,7 @@ describe('RestrictedControllerMessenger', () => {
       'there',
     );
 
-    expect(handler.calledWithExactly('hello', 'there')).toBeTruthy();
+    expect(handler.calledWithExactly('hello', 'there')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -619,7 +619,7 @@ describe('RestrictedControllerMessenger', () => {
     );
     restrictedControllerMessenger.publish('MessageController:message', 'hello');
 
-    expect(handler.calledWithExactly('hello')).toBeTruthy();
+    expect(handler.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -646,9 +646,9 @@ describe('RestrictedControllerMessenger', () => {
     );
     restrictedControllerMessenger.publish('MessageController:message', 'hello');
 
-    expect(handler1.calledWithExactly('hello')).toBeTruthy();
+    expect(handler1.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler1.callCount).toStrictEqual(1);
-    expect(handler2.calledWithExactly('hello')).toBeTruthy();
+    expect(handler2.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler2.callCount).toStrictEqual(1);
   });
 
@@ -819,7 +819,7 @@ describe('RestrictedControllerMessenger', () => {
       'hello',
     );
 
-    expect(handler.calledWithExactly('hello')).toBeTruthy();
+    expect(handler.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
