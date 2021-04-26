@@ -68,15 +68,15 @@ describe('AbstractTestManager', () => {
       type: messageType,
     });
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.id).toBe(messageId);
-      expect(message.messageParams.from).toBe(from);
-      expect(message.messageParams.data).toBe(messageData);
-      expect(message.time).toBe(messageTime);
-      expect(message.status).toBe(messageStatus);
-      expect(message.type).toBe(messageType);
+    if (!message) {
+      throw new Error('"message" is falsy');
     }
+    expect(message.id).toBe(messageId);
+    expect(message.messageParams.from).toBe(from);
+    expect(message.messageParams.data).toBe(messageData);
+    expect(message.time).toBe(messageTime);
+    expect(message.status).toBe(messageStatus);
+    expect(message.type).toBe(messageType);
   });
 
   it('should reject a message', () => {
@@ -93,10 +93,10 @@ describe('AbstractTestManager', () => {
     });
     controller.rejectMessage(messageId);
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.status).toBe('rejected');
+    if (!message) {
+      throw new Error('"message" is falsy');
     }
+    expect(message.status).toBe('rejected');
   });
 
   it('should sign a message', () => {
@@ -113,11 +113,11 @@ describe('AbstractTestManager', () => {
     });
     controller.setMessageStatusSigned(messageId, 'rawSig');
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.status).toBe('signed');
-      expect(message.rawSig).toBe('rawSig');
+    if (!message) {
+      throw new Error('"message" is falsy');
     }
+    expect(message.status).toBe('signed');
+    expect(message.rawSig).toBe('rawSig');
   });
 
   it('should get correct unapproved messages', () => {
@@ -187,10 +187,10 @@ describe('AbstractTestManager', () => {
     });
     const message = controller.getMessage(messageId);
     expect(messageParams).toStrictEqual(firstMessage);
-    expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.status).toStrictEqual('approved');
+    if (!message) {
+      throw new Error('"message" is falsy');
     }
+    expect(message.status).toStrictEqual('approved');
   });
 
   describe('setMessageStatus', () => {
