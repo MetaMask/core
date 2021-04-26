@@ -45,8 +45,8 @@ export class RestrictedControllerMessenger<
   N extends string,
   Action extends ActionConstraint,
   Event extends EventConstraint,
-  AllowedAction extends string | never,
-  AllowedEvent extends string | never
+  AllowedAction extends string,
+  AllowedEvent extends string
 > {
   private controllerMessenger: ControllerMessenger<Action, Event>;
 
@@ -440,8 +440,8 @@ export class ControllerMessenger<
    */
   getRestricted<
     N extends string,
-    AllowedAction extends string | never,
-    AllowedEvent extends string | never
+    AllowedAction extends string,
+    AllowedEvent extends string
   >({
     name,
     allowedActions,

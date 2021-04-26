@@ -125,8 +125,8 @@ export class BaseController<
     N,
     any,
     StateChangeEvent<N, S, any>,
-    string | never,
-    string | never
+    string,
+    string
   >;
 
   /**
@@ -158,8 +158,8 @@ export class BaseController<
       N,
       any,
       StateChangeEvent<N, S, any>,
-      string | never,
-      string | never
+      string,
+      string
     >;
     metadata: StateMetadata<S>;
     name: N;
