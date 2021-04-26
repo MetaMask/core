@@ -15,8 +15,7 @@ module.exports = {
       files: ['*.test.ts', '*.test.js'],
       extends: ['@metamask/eslint-config-jest'],
       rules: {
-        // TODO: Re-enable most of these rules
-        'jest/no-conditional-expect': 'off',
+        // TODO: Re-enable these rules
         'jest/no-restricted-matchers': [
           'error',
           {
