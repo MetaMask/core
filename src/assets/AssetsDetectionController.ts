@@ -33,7 +33,7 @@ const MAINNET = 'mainnet';
  */
 export interface ApiCollectible {
   token_id: string;
-  num_sales: 0;
+  num_sales: number;
   background_color: string;
   image_url: string;
   image_preview_url: string | null;

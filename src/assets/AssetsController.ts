@@ -23,9 +23,9 @@ import type { AssetsContractController } from './AssetsContractController';
  */
 export interface Collectible {
   address: string;
-  description?: string;
-  image?: string;
-  name?: string;
+  description: string | null;
+  image: string | null;
+  name: string | null;
   tokenId: number;
 }
 
@@ -79,9 +79,9 @@ export interface ApiCollectibleContractResponse {
  * @property image - Image custom image URI
  */
 export interface CollectibleInformation {
-  description?: string;
-  image?: string;
-  name?: string;
+  description: string | null;
+  image: string | null;
+  name: string | null;
 }
 
 /**
