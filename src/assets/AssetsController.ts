@@ -7,7 +7,11 @@ import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import { safelyExecute, handleFetch, validateTokenToWatch } from '../util';
 import type { Token } from './TokenRatesController';
-import type { ApiCollectible, ApiCollectibleCreator, ApiCollectibleContract } from './AssetsDetectionController';
+import type {
+  ApiCollectible,
+  ApiCollectibleCreator,
+  ApiCollectibleContract,
+} from './AssetsDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
 import { compareCollectiblesMetadata } from './assetsUtil';
 
@@ -59,7 +63,7 @@ export interface CollectibleContract {
   symbol?: string;
   description?: string;
   totalSupply?: string;
-  assetContractType?: string,
+  assetContractType?: string;
   createdDate?: string;
   schemaName?: string;
   externalLink?: string;
@@ -87,7 +91,7 @@ export interface CollectibleMetadata {
   name?: string;
   description?: string;
   numberOfSales?: number;
-  backgroundColor?: string; 
+  backgroundColor?: string;
   image?: string;
   imagePreview?: string;
   imageThumbnail?: string;
@@ -244,11 +248,13 @@ export class AssetsController extends BaseController<
       collectibleInformation = await handleFetch(tokenURI);
     }
     const { name, description, image_original_url } = collectibleInformation;
-    return Object.assign({},
+    return Object.assign(
+      {},
       {},
       image_original_url && { image: image_original_url },
       name && { name },
-      description && { description })
+      description && { description },
+    );
   }
 
   /**
@@ -270,8 +276,8 @@ export class AssetsController extends BaseController<
     const image = Object.prototype.hasOwnProperty.call(object, 'image')
       ? 'image'
       : /* istanbul ignore next */ 'image_url';
-      return { image: object[image], name: object.name };
-    }
+    return { image: object[image], name: object.name };
+  }
 
   /**
    * Request individual collectible information (name, image url and description)
@@ -307,7 +313,7 @@ export class AssetsController extends BaseController<
       return information;
     }
     /* istanbul ignore next */
-    return { };
+    return {};
   }
 
   /**
@@ -353,7 +359,8 @@ export class AssetsController extends BaseController<
       total_supply: null,
       description: null,
       external_link: null,
-      image_url: null, };
+      image_url: null,
+    };
   }
 
   /**
@@ -421,28 +428,34 @@ export class AssetsController extends BaseController<
         (collectible) =>
           collectible.address === address && collectible.tokenId === tokenId,
       );
-      collectibleMetadata = collectibleMetadata || (await this.getCollectibleInformation(address, tokenId));
+      collectibleMetadata =
+        collectibleMetadata ||
+        (await this.getCollectibleInformation(address, tokenId));
 
       if (existingEntry) {
-        const differentMetadata = compareCollectiblesMetadata(collectibleMetadata, existingEntry)
+        const differentMetadata = compareCollectiblesMetadata(
+          collectibleMetadata,
+          existingEntry,
+        );
         if (differentMetadata) {
           const indexToRemove = collectibles.findIndex(
             (collectible) =>
-              collectible.address === address && collectible.tokenId === tokenId,
+              collectible.address === address &&
+              collectible.tokenId === tokenId,
           );
           /* istanbul ignore next */
           if (indexToRemove !== -1) {
-            collectibles.splice(indexToRemove, 1)
+            collectibles.splice(indexToRemove, 1);
           }
         } else {
           return collectibles;
         }
       }
-      
+
       const newEntry: Collectible = {
         address,
         tokenId,
-        ...collectibleMetadata
+        ...collectibleMetadata,
       };
       const newCollectibles = [...collectibles, newEntry];
       const addressCollectibles = allCollectibles[selectedAddress];
@@ -509,17 +522,18 @@ export class AssetsController extends BaseController<
         return collectibleContracts;
       }
       /* istanbul ignore next */
-      const newEntry: CollectibleContract = Object.assign({},
+      const newEntry: CollectibleContract = Object.assign(
+        {},
         { address },
-        description && {description},
-        name && {name},
-        image_url && {logo: image_url},
-        symbol && {symbol},
-        total_supply !== null && {totalSupply: total_supply},
-        asset_contract_type && {assetContractType: asset_contract_type},
-        created_date && {createdDate: created_date},
-        schema_name && {schemaName: schema_name},
-        external_link && {externalLink: external_link},
+        description && { description },
+        name && { name },
+        image_url && { logo: image_url },
+        symbol && { symbol },
+        total_supply !== null && { totalSupply: total_supply },
+        asset_contract_type && { assetContractType: asset_contract_type },
+        created_date && { createdDate: created_date },
+        schema_name && { schemaName: schema_name },
+        external_link && { externalLink: external_link },
       );
 
       const newCollectibleContracts = [...collectibleContracts, newEntry];
@@ -990,7 +1004,11 @@ export class AssetsController extends BaseController<
     );
     // If collectible contract information, add individual collectible
     if (collectibleContract) {
-      await this.addIndividualCollectible(address, tokenId, collectibleMetadata);
+      await this.addIndividualCollectible(
+        address,
+        tokenId,
+        collectibleMetadata,
+      );
     }
   }
 

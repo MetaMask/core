@@ -4,7 +4,11 @@ import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
 import { safelyExecute, timeoutFetch } from '../util';
-import type { AssetsController, AssetsState, CollectibleMetadata } from './AssetsController';
+import type {
+  AssetsController,
+  AssetsState,
+  CollectibleMetadata,
+} from './AssetsController';
 import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
 
@@ -376,20 +380,23 @@ export class AssetsDetectionController extends BaseController<
           /* istanbul ignore else */
           if (!ignored) {
             /* istanbul ignore next */
-            const collectibleMetadata: CollectibleMetadata = Object.assign({},
+            const collectibleMetadata: CollectibleMetadata = Object.assign(
+              {},
               { name },
               creator && { creator },
               description && { description },
-              image_url && {image: image_url},
-              num_sales && {numberOfSales: num_sales},
-              background_color && {backgroundColor: background_color},
-              image_preview_url && {imagePreview: image_preview_url},
-              image_thumbnail_url && {imageThumbnail: image_thumbnail_url},
-              image_original_url && {imageOriginal: image_original_url},
-              animation_url && {animation: animation_url},
-              animation_original_url && {animationOriginal: animation_original_url},
-              external_link && { externalLink: external_link }
-            )
+              image_url && { image: image_url },
+              num_sales && { numberOfSales: num_sales },
+              background_color && { backgroundColor: background_color },
+              image_preview_url && { imagePreview: image_preview_url },
+              image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
+              image_original_url && { imageOriginal: image_original_url },
+              animation_url && { animation: animation_url },
+              animation_original_url && {
+                animationOriginal: animation_original_url,
+              },
+              external_link && { externalLink: external_link },
+            );
             await this.addCollectible(
               address,
               Number(token_id),

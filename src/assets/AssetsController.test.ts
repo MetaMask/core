@@ -321,7 +321,6 @@ describe('AssetsController', () => {
     });
   });
 
-
   it('should not duplicate collectible nor collectible contract if already added', async () => {
     await assetsController.addCollectible('foo', 1, {
       name: 'name',
