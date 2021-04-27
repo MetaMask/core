@@ -105,13 +105,6 @@ type Json =
   | Json[]
   | { [prop: string]: Json };
 
-type StateChangeEvent<N extends string, S, E> = E extends {
-  type: `${N}:stateChange`;
-  payload: [S, Patch[]];
-}
-  ? E
-  : never;
-
 /**
  * Controller class that provides state management, subscriptions, and state metadata
  */
@@ -124,7 +117,7 @@ export class BaseController<
   protected messagingSystem: RestrictedControllerMessenger<
     N,
     any,
-    StateChangeEvent<N, S, any>,
+    any,
     string,
     string
   >;
@@ -154,13 +147,7 @@ export class BaseController<
     name,
     state,
   }: {
-    messenger: RestrictedControllerMessenger<
-      N,
-      any,
-      StateChangeEvent<N, S, any>,
-      string,
-      string
-    >;
+    messenger: RestrictedControllerMessenger<N, any, any, string, string>;
     metadata: StateMetadata<S>;
     name: N;
     state: IsJsonable<S>;
