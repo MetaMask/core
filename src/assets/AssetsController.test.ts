@@ -374,7 +374,6 @@ describe('AssetsController', () => {
     await assetsController.addCollectible(KUDOSADDRESS, 1203);
     expect(assetsController.state.collectibles[0]).toStrictEqual({
       address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
-      description: null,
       image: 'Kudos Image',
       name: 'Kudos Name',
       tokenId: 1203,

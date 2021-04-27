@@ -4,7 +4,7 @@ import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
 import { safelyExecute, timeoutFetch } from '../util';
-import type { AssetsController, AssetsState } from './AssetsController';
+import type { AssetsController, AssetsState, CollectibleMetadata } from './AssetsController';
 import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
 
@@ -33,9 +33,9 @@ const MAINNET = 'mainnet';
  */
 export interface ApiCollectible {
   token_id: string;
-  num_sales: number;
-  background_color: string;
-  image_url: string;
+  num_sales: number | null;
+  background_color: string | null;
+  image_url: string | null;
   image_preview_url: string | null;
   image_thumbnail_url: string | null;
   image_original_url: string | null;
@@ -346,9 +346,18 @@ export class AssetsDetectionController extends BaseController<
         async (collectible: ApiCollectible) => {
           const {
             token_id,
+            num_sales,
+            background_color,
+            image_url,
+            image_preview_url,
+            image_thumbnail_url,
             image_original_url,
+            animation_url,
+            animation_original_url,
             name,
             description,
+            external_link,
+            creator,
             asset_contract: { address },
           } = collectible;
 
@@ -366,14 +375,24 @@ export class AssetsDetectionController extends BaseController<
           }
           /* istanbul ignore else */
           if (!ignored) {
+            const collectibleMetadata: CollectibleMetadata = Object.assign({},
+              { name },
+              creator && { creator },
+              description && { description },
+              image_url && {image: image_url},
+              num_sales && {numberOfSales: num_sales},
+              background_color && {backgroundColor: background_color},
+              image_preview_url && {imagePreview: image_preview_url},
+              image_thumbnail_url && {imageThumbnail: image_thumbnail_url},
+              image_original_url && {imageOriginal: image_original_url},
+              animation_url && {animation: animation_url},
+              animation_original_url && {animationOriginal: animation_original_url},
+              external_link && { externalLink: external_link }
+            )
             await this.addCollectible(
               address,
               Number(token_id),
-              {
-                description,
-                image: image_original_url,
-                name,
-              },
+              collectibleMetadata,
               true,
             );
           }

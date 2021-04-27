@@ -7,7 +7,7 @@ import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import { safelyExecute, handleFetch, validateTokenToWatch } from '../util';
 import type { Token } from './TokenRatesController';
-import type { ApiCollectible } from './AssetsDetectionController';
+import type { ApiCollectible, ApiCollectibleCreator } from './AssetsDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
 
 /**
@@ -20,13 +20,19 @@ import type { AssetsContractController } from './AssetsContractController';
  * @property image - URI of custom collectible image associated with this tokenId
  * @property name - Name associated with this tokenId and contract address
  * @property tokenId - The collectible identifier
+ * @property numberOfSales - Number of sales
+ * @property backgroundColor - The background color to be displayed with the item
+ * @property imagePreview - URI of a smaller image associated with this collectible
+ * @property imageThumbnail - URI of a thumbnail image associated with this collectible
+ * @property imageOriginal - URI of the original image associated with this collectible
+ * @property animation - URI of a animation associated with this collectible
+ * @property animationOriginal - URI of the original animation associated with this collectible
+ * @property externalLink - External link containing additional information
+ * @property creator - The collectible owner information object
  */
-export interface Collectible {
-  address: string;
-  description: string | null;
-  image: string | null;
-  name: string | null;
+export interface Collectible extends CollectibleMetadata {
   tokenId: number;
+  address: string;
 }
 
 /**
@@ -70,18 +76,36 @@ export interface ApiCollectibleContractResponse {
 }
 
 /**
- * @type CollectibleInformation
+ * @type CollectibleMetadata
  *
  * Collectible custom information
  *
- * @property description - The collectible description
  * @property name - Collectible custom name
+ * @property description - The collectible description
+ * @property numberOfSales - Number of sales
+ * @property backgroundColor - The background color to be displayed with the item
  * @property image - Image custom image URI
+ * @property imagePreview - URI of a smaller image associated with this collectible
+ * @property imageThumbnail - URI of a thumbnail image associated with this collectible
+ * @property imageOriginal - URI of the original image associated with this collectible
+ * @property animation - URI of a animation associated with this collectible
+ * @property animationOriginal - URI of the original animation associated with this collectible
+ * @property externalLink - External link containing additional information
+ * @property creator - The collectible owner information object
  */
-export interface CollectibleInformation {
-  description: string | null;
-  image: string | null;
-  name: string | null;
+export interface CollectibleMetadata {
+  name?: string;
+  description?: string;
+  numberOfSales?: number;
+  backgroundColor?: string; 
+  image?: string;
+  imagePreview?: string;
+  imageThumbnail?: string;
+  imageOriginal?: string;
+  animation?: string;
+  animationOriginal?: string;
+  externalLink?: string;
+  creator?: ApiCollectibleCreator;
 }
 
 /**
@@ -218,7 +242,7 @@ export class AssetsController extends BaseController<
   private async getCollectibleInformationFromApi(
     contractAddress: string,
     tokenId: number,
-  ): Promise<CollectibleInformation> {
+  ): Promise<CollectibleMetadata> {
     const tokenURI = this.getCollectibleApi(contractAddress, tokenId);
     let collectibleInformation: ApiCollectible;
     /* istanbul ignore if */
@@ -230,7 +254,11 @@ export class AssetsController extends BaseController<
       collectibleInformation = await handleFetch(tokenURI);
     }
     const { name, description, image_original_url } = collectibleInformation;
-    return { image: image_original_url, name, description };
+    return Object.assign({},
+      {},
+      image_original_url && { image: image_original_url },
+      name && { name },
+      description && { description })
   }
 
   /**
@@ -243,7 +271,7 @@ export class AssetsController extends BaseController<
   private async getCollectibleInformationFromTokenURI(
     contractAddress: string,
     tokenId: number,
-  ): Promise<CollectibleInformation> {
+  ): Promise<CollectibleMetadata> {
     const tokenURI = await this.getCollectibleTokenURI(
       contractAddress,
       tokenId,
@@ -252,7 +280,7 @@ export class AssetsController extends BaseController<
     const image = Object.prototype.hasOwnProperty.call(object, 'image')
       ? 'image'
       : /* istanbul ignore next */ 'image_url';
-      return { image: object[image], name: object.name, description: null };
+      return { image: object[image], name: object.name };
     }
 
   /**
@@ -265,7 +293,7 @@ export class AssetsController extends BaseController<
   private async getCollectibleInformation(
     contractAddress: string,
     tokenId: number,
-  ): Promise<CollectibleInformation> {
+  ): Promise<CollectibleMetadata> {
     let information;
     // First try with OpenSea
     information = await safelyExecute(async () => {
@@ -289,7 +317,7 @@ export class AssetsController extends BaseController<
       return information;
     }
     /* istanbul ignore next */
-    return { image: null, name: null, description: null };
+    return { };
   }
 
   /**
@@ -378,7 +406,7 @@ export class AssetsController extends BaseController<
   private async addIndividualCollectible(
     address: string,
     tokenId: number,
-    opts?: CollectibleInformation,
+    collectibleMetadata?: CollectibleMetadata,
   ): Promise<Collectible[]> {
     const releaseLock = await this.mutex.acquire();
     try {
@@ -390,11 +418,10 @@ export class AssetsController extends BaseController<
           collectible.address === address && collectible.tokenId === tokenId,
       );
 
-      const { name, image, description } =
-        opts || (await this.getCollectibleInformation(address, tokenId));
+      collectibleMetadata = collectibleMetadata || (await this.getCollectibleInformation(address, tokenId));
       
       if (existingEntry) {
-        if (image && image !== existingEntry.image) {
+        if (collectibleMetadata.image && collectibleMetadata.image !== existingEntry.image) {
           const indexToRemove = collectibles.findIndex(
             (collectible) =>
               collectible.address === address && collectible.tokenId === tokenId,
@@ -410,9 +437,7 @@ export class AssetsController extends BaseController<
       const newEntry: Collectible = {
         address,
         tokenId,
-        name,
-        image,
-        description,
+        ...collectibleMetadata
       };
       const newCollectibles = [...collectibles, newEntry];
       const addressCollectibles = allCollectibles[selectedAddress];
@@ -929,14 +954,14 @@ export class AssetsController extends BaseController<
    *
    * @param address - Hex address of the collectible contract
    * @param tokenId - The collectible identifier
-   * @param opts - Collectible optional information (name, image and description)
+   * @param collectibleMetadata - Collectible optional metadata
    * @param detection? - Whether the collectible is manually added or autodetected
    * @returns - Promise resolving to the current collectible list
    */
   async addCollectible(
     address: string,
     tokenId: number,
-    opts?: CollectibleInformation,
+    collectibleMetadata?: CollectibleMetadata,
     detection?: boolean,
   ) {
     address = toChecksumAddress(address);
@@ -950,7 +975,7 @@ export class AssetsController extends BaseController<
     );
     // If collectible contract information, add individual collectible
     if (collectibleContract) {
-      await this.addIndividualCollectible(address, tokenId, opts);
+      await this.addIndividualCollectible(address, tokenId, collectibleMetadata);
     }
   }
 
