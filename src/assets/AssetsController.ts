@@ -7,7 +7,7 @@ import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import { safelyExecute, handleFetch, validateTokenToWatch } from '../util';
 import type { Token } from './TokenRatesController';
-import type { ApiCollectibleResponse } from './AssetsDetectionController';
+import type { ApiCollectible } from './AssetsDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
 
 /**
@@ -220,7 +220,7 @@ export class AssetsController extends BaseController<
     tokenId: number,
   ): Promise<CollectibleInformation> {
     const tokenURI = this.getCollectibleApi(contractAddress, tokenId);
-    let collectibleInformation: ApiCollectibleResponse;
+    let collectibleInformation: ApiCollectible;
     /* istanbul ignore if */
     if (this.openSeaApiKey) {
       collectibleInformation = await handleFetch(tokenURI, {
@@ -252,8 +252,8 @@ export class AssetsController extends BaseController<
     const image = Object.prototype.hasOwnProperty.call(object, 'image')
       ? 'image'
       : /* istanbul ignore next */ 'image_url';
-    return { image: object[image], name: object.name };
-  }
+      return { image: object[image], name: object.name, description: null };
+    }
 
   /**
    * Request individual collectible information (name, image url and description)
@@ -289,7 +289,7 @@ export class AssetsController extends BaseController<
       return information;
     }
     /* istanbul ignore next */
-    return {};
+    return { image: null, name: null, description: null };
   }
 
   /**
@@ -389,11 +389,24 @@ export class AssetsController extends BaseController<
         (collectible) =>
           collectible.address === address && collectible.tokenId === tokenId,
       );
-      if (existingEntry) {
-        return collectibles;
-      }
+
       const { name, image, description } =
         opts || (await this.getCollectibleInformation(address, tokenId));
+      
+      if (existingEntry) {
+        if (image && image !== existingEntry.image) {
+          const indexToRemove = collectibles.findIndex(
+            (collectible) =>
+              collectible.address === address && collectible.tokenId === tokenId,
+          );
+          if (indexToRemove !== -1) {
+            collectibles.splice(indexToRemove, 1)
+          }
+        } else {
+          return collectibles;
+        }
+      }
+      
       const newEntry: Collectible = {
         address,
         tokenId,

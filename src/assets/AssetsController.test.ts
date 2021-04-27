@@ -294,6 +294,34 @@ describe('AssetsController', () => {
     });
   });
 
+  it('should update collectible if image is different', async () => {
+    await assetsController.addCollectible('foo', 1, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
+    expect(assetsController.state.collectibles[0]).toStrictEqual({
+      address: '0xfoO',
+      description: 'description',
+      image: 'image',
+      name: 'name',
+      tokenId: 1,
+    });
+    await assetsController.addCollectible('foo', 1, {
+      name: 'name',
+      image: 'image-updated',
+      description: 'description',
+    });
+    expect(assetsController.state.collectibles[0]).toStrictEqual({
+      address: '0xfoO',
+      description: 'description',
+      image: 'image-updated',
+      name: 'name',
+      tokenId: 1,
+    });
+  });
+
+
   it('should not duplicate collectible nor collectible contract if already added', async () => {
     await assetsController.addCollectible('foo', 1, {
       name: 'name',
@@ -346,7 +374,7 @@ describe('AssetsController', () => {
     await assetsController.addCollectible(KUDOSADDRESS, 1203);
     expect(assetsController.state.collectibles[0]).toStrictEqual({
       address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
-      description: undefined,
+      description: null,
       image: 'Kudos Image',
       name: 'Kudos Name',
       tokenId: 1203,
