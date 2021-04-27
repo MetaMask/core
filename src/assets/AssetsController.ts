@@ -9,6 +9,7 @@ import { safelyExecute, handleFetch, validateTokenToWatch } from '../util';
 import type { Token } from './TokenRatesController';
 import type { ApiCollectible, ApiCollectibleCreator, ApiCollectibleContract } from './AssetsDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
+import { compareCollectiblesMetadata } from './assetsUtil';
 
 /**
  * @type Collectible
@@ -416,15 +417,15 @@ export class AssetsController extends BaseController<
       address = toChecksumAddress(address);
       const { allCollectibles, collectibles } = this.state;
       const { chainId, selectedAddress } = this.config;
-      const existingEntry = collectibles.find(
+      const existingEntry: Collectible | undefined = collectibles.find(
         (collectible) =>
           collectible.address === address && collectible.tokenId === tokenId,
       );
-
       collectibleMetadata = collectibleMetadata || (await this.getCollectibleInformation(address, tokenId));
-      
+
       if (existingEntry) {
-        if (collectibleMetadata.image && collectibleMetadata.image !== existingEntry.image) {
+        const differentMetadata = compareCollectiblesMetadata(collectibleMetadata, existingEntry)
+        if (differentMetadata) {
           const indexToRemove = collectibles.findIndex(
             (collectible) =>
               collectible.address === address && collectible.tokenId === tokenId,
