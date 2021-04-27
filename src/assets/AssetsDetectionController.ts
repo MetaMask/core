@@ -12,7 +12,7 @@ const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 
 /**
- * @type ApiCollectibleResponse
+ * @type ApiCollectible
  *
  * Collectible object coming from OpenSea api
  *
@@ -22,12 +22,39 @@ const MAINNET = 'mainnet';
  * @property description - The collectible description
  * @property assetContract - The collectible contract basic information, in this case the address
  */
-export interface ApiCollectibleResponse {
+export interface ApiCollectible {
   token_id: string;
+  num_sales: 0;
+  background_color: string;
+  image_url: string;
+  image_preview_url: string;
+  image_thumbnail_url: string;
   image_original_url: string;
+  animation_url: string;
+  animation_original_url: string;
   name: string;
   description: string;
-  asset_contract: { [address: string]: string };
+  external_link: string;
+  asset_contract: ApiCollectibleContract;
+}
+
+export interface ApiCollectibleContract {
+  address: string;
+  asset_contract_type: string;
+  created_date: string;
+  name: string;
+  schema_name: string;
+  symbol: string;
+  total_supply: string;
+  description: string;
+  external_link: string;
+  image_url: string;
+}
+
+export interface ApiCollectibleCreator {
+  user: {username: string};
+  profile_img_url: string;
+  address: string;
 }
 
 /**
@@ -281,7 +308,7 @@ export class AssetsDetectionController extends BaseController<
     await safelyExecute(async () => {
       const apiCollectibles = await this.getOwnerCollectibles();
       const addCollectiblesPromises = apiCollectibles.map(
-        async (collectible: ApiCollectibleResponse) => {
+        async (collectible: ApiCollectible) => {
           const {
             token_id,
             image_original_url,
