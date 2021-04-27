@@ -380,11 +380,8 @@ describe('AssetsController', () => {
     });
     expect(assetsController.state.collectibleContracts[0]).toStrictEqual({
       address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
-      description: undefined,
-      logo: undefined,
       name: 'KudosToken',
       symbol: 'KDO',
-      totalSupply: undefined,
     });
   });
 

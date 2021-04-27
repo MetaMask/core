@@ -66,10 +66,10 @@ export interface ApiCollectible {
  */
 export interface ApiCollectibleContract {
   address: string;
-  asset_contract_type: string;
-  created_date: string;
+  asset_contract_type: string | null;
+  created_date: string | null;
   name: string | null;
-  schema_name: string;
+  schema_name: string | null;
   symbol: string | null;
   total_supply: string | null;
   description: string | null;
