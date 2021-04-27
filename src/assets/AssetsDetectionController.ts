@@ -375,6 +375,7 @@ export class AssetsDetectionController extends BaseController<
           }
           /* istanbul ignore else */
           if (!ignored) {
+            /* istanbul ignore next */
             const collectibleMetadata: CollectibleMetadata = Object.assign({},
               { name },
               creator && { creator },

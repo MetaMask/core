@@ -430,6 +430,7 @@ export class AssetsController extends BaseController<
             (collectible) =>
               collectible.address === address && collectible.tokenId === tokenId,
           );
+          /* istanbul ignore next */
           if (indexToRemove !== -1) {
             collectibles.splice(indexToRemove, 1)
           }
@@ -507,6 +508,7 @@ export class AssetsController extends BaseController<
       ) {
         return collectibleContracts;
       }
+      /* istanbul ignore next */
       const newEntry: CollectibleContract = Object.assign({},
         { address },
         description && {description},
