@@ -25,6 +25,11 @@ type CountControllerEvent = {
   payload: [CountControllerState, Patch[]];
 };
 
+type BadCountControllerEvent = {
+  type: `${typeof countControllerName}:statehange`;
+  payload: [CountControllerState, Patch[]];
+};
+
 const countControllerStateMetadata = {
   count: {
     persist: true,
@@ -35,7 +40,7 @@ const countControllerStateMetadata = {
 type CountMessenger = RestrictedControllerMessenger<
   typeof countControllerName,
   CountControllerAction,
-  CountControllerEvent,
+  CountControllerEvent | BadCountControllerEvent,
   never,
   never
 >;
@@ -49,13 +54,13 @@ type CountMessenger = RestrictedControllerMessenger<
 function getCountMessenger(
   controllerMessenger?: ControllerMessenger<
     CountControllerAction,
-    CountControllerEvent
+    CountControllerEvent | BadCountControllerEvent
   >,
 ): CountMessenger {
   if (!controllerMessenger) {
     controllerMessenger = new ControllerMessenger<
       CountControllerAction,
-      CountControllerEvent
+      CountControllerEvent | BadCountControllerEvent
     >();
   }
   return controllerMessenger.getRestricted<'CountController', never, never>({
@@ -89,6 +94,23 @@ class CountController extends BaseController<
 describe('BaseController', () => {
   afterEach(() => {
     sinon.restore();
+  });
+
+  it('should fail to compile when passed a messenger without the update event', () => {
+    const controllerMessenger = new ControllerMessenger<
+      CountControllerAction,
+      BadCountControllerEvent
+    >();
+    const controller = new CountController({
+      messenger: controllerMessenger.getRestricted({
+        name: countControllerName,
+      }),
+      name: countControllerName,
+      state: { count: 0 },
+      metadata: countControllerStateMetadata,
+    });
+
+    expect(controller.state).toStrictEqual({ count: 0 });
   });
 
   it('should set initial state', () => {
