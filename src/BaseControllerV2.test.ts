@@ -87,6 +87,23 @@ describe('BaseController', () => {
     expect(controller.state).toStrictEqual({ count: 0 });
   });
 
+  it('should allow getting state via the getState action', () => {
+    const controllerMessenger = new ControllerMessenger<
+      CountControllerAction,
+      CountControllerEvent
+    >();
+    new CountController({
+      messenger: getCountMessenger(controllerMessenger),
+      name: countControllerName,
+      state: { count: 0 },
+      metadata: countControllerStateMetadata,
+    });
+
+    expect(controllerMessenger.call('CountController:getState')).toStrictEqual({
+      count: 0,
+    });
+  });
+
   it('should set initial schema', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
