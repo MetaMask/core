@@ -156,6 +156,11 @@ export class BaseController<
     this.name = name;
     this.internalState = state;
     this.metadata = metadata;
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getState`,
+      () => this.state,
+    );
   }
 
   /**
