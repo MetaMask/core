@@ -34,6 +34,7 @@ const MAINNET = 'mainnet';
  * @property external_link - External link containing additional information
  * @property assetContract - The collectible contract information object
  * @property creator - The collectible owner information object
+ * @property lastSale - When this item was last sold
  */
 export interface ApiCollectible {
   token_id: string;
@@ -50,6 +51,7 @@ export interface ApiCollectible {
   external_link: string | null;
   asset_contract: ApiCollectibleContract;
   creator: ApiCollectibleCreator;
+  lastSale: ApiCollectibleLastSale | null;
 }
 
 /**
@@ -79,6 +81,21 @@ export interface ApiCollectibleContract {
   description: string | null;
   external_link: string | null;
   image_url: string | null;
+}
+
+/**
+ * @type ApiCollectibleLastSale
+ *
+ * Collectible sale object coming from OpenSea api
+ *
+ * @property event_timestamp - Object containing a `username`
+ * @property total_price - URI of collectible image associated with this owner
+ * @property transaction - Object containing transaction_hash and block_hash
+ */
+export interface ApiCollectibleLastSale {
+  event_timestamp: string;
+  total_price: string;
+  transaction: { transaction_hash: string; block_hash: string };
 }
 
 /**
@@ -127,8 +144,10 @@ export class AssetsDetectionController extends BaseController<
   }
 
   private async getOwnerCollectibles() {
-    const { selectedAddress } = this.config;
-    const api = this.getOwnerCollectiblesApi(selectedAddress);
+    // const { selectedAddress } = this.config;
+    const api = this.getOwnerCollectiblesApi(
+      '0x6030f4c1657b61dd2db605be4510e79f9be141bb',
+    );
     let response: Response;
     try {
       const openSeaApiKey = this.getOpenSeaApiKey();
@@ -363,6 +382,7 @@ export class AssetsDetectionController extends BaseController<
             external_link,
             creator,
             asset_contract: { address },
+            last_sale,
           } = collectible;
 
           let ignored;
@@ -396,6 +416,7 @@ export class AssetsDetectionController extends BaseController<
                 animationOriginal: animation_original_url,
               },
               external_link && { externalLink: external_link },
+              last_sale && { lastSale: last_sale },
             );
             await this.addCollectible(
               address,

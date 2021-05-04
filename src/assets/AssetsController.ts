@@ -11,6 +11,7 @@ import type {
   ApiCollectible,
   ApiCollectibleCreator,
   ApiCollectibleContract,
+  ApiCollectibleLastSale,
 } from './AssetsDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
 import { compareCollectiblesMetadata } from './assetsUtil';
@@ -100,6 +101,7 @@ export interface CollectibleMetadata {
   animationOriginal?: string;
   externalLink?: string;
   creator?: ApiCollectibleCreator;
+  lastSale?: ApiCollectibleLastSale;
 }
 
 /**
