@@ -51,7 +51,7 @@ export interface ApiCollectible {
   external_link: string | null;
   asset_contract: ApiCollectibleContract;
   creator: ApiCollectibleCreator;
-  lastSale: ApiCollectibleLastSale | null;
+  last_sale: ApiCollectibleLastSale | null;
 }
 
 /**
@@ -144,10 +144,8 @@ export class AssetsDetectionController extends BaseController<
   }
 
   private async getOwnerCollectibles() {
-    // const { selectedAddress } = this.config;
-    const api = this.getOwnerCollectiblesApi(
-      '0x6030f4c1657b61dd2db605be4510e79f9be141bb',
-    );
+    const { selectedAddress } = this.config;
+    const api = this.getOwnerCollectiblesApi(selectedAddress);
     let response: Response;
     try {
       const openSeaApiKey = this.getOpenSeaApiKey();
