@@ -38,6 +38,18 @@ export type Namespaced<Name extends string, T> = T extends `${Name}:${string}`
   ? T
   : never;
 
+type NarrowToNamespace<T, Namespace extends string> = T extends {
+  type: `${Namespace}:${string}`;
+}
+  ? T
+  : never;
+
+type NarrowToAllowed<T, Allowed extends string> = T extends {
+  type: Allowed;
+}
+  ? T
+  : never;
+
 /**
  * A restricted controller messenger.
  *
@@ -59,7 +71,10 @@ export class RestrictedControllerMessenger<
   AllowedAction extends string,
   AllowedEvent extends string
 > {
-  private controllerMessenger: ControllerMessenger<Action, Event>;
+  private controllerMessenger: ControllerMessenger<
+    ActionConstraint,
+    EventConstraint
+  >;
 
   private controllerName: N;
 
@@ -91,7 +106,7 @@ export class RestrictedControllerMessenger<
     allowedActions,
     allowedEvents,
   }: {
-    controllerMessenger: ControllerMessenger<Action, Event>;
+    controllerMessenger: ControllerMessenger<ActionConstraint, EventConstraint>;
     name: N;
     allowedActions?: AllowedAction[];
     allowedEvents?: AllowedEvent[];
@@ -483,11 +498,17 @@ export class ControllerMessenger<
     name: N;
     allowedActions?: Extract<Action['type'], AllowedAction>[];
     allowedEvents?: Extract<Event['type'], AllowedEvent>[];
-  }) {
+  }): RestrictedControllerMessenger<
+    N,
+    NarrowToNamespace<Action, N> | NarrowToAllowed<Action, AllowedAction>,
+    NarrowToNamespace<Event, N> | NarrowToAllowed<Event, AllowedEvent>,
+    AllowedAction,
+    AllowedEvent
+  > {
     return new RestrictedControllerMessenger<
       N,
-      Action,
-      Event,
+      NarrowToNamespace<Action, N> | NarrowToAllowed<Action, AllowedAction>,
+      NarrowToNamespace<Event, N> | NarrowToAllowed<Event, AllowedEvent>,
       AllowedAction,
       AllowedEvent
     >({

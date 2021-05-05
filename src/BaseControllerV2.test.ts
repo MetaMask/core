@@ -53,7 +53,7 @@ function getCountMessenger(
       CountControllerEvent
     >();
   }
-  return controllerMessenger.getRestricted({
+  return controllerMessenger.getRestricted<'CountController', never, never>({
     name: countControllerName,
   });
 }
