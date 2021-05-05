@@ -65,9 +65,9 @@ export class CurrencyRateController extends BaseController<
 > {
   private mutex = new Mutex();
 
-  private pollTimeout?: NodeJS.Timeout;
+  private intervalId?: NodeJS.Timeout;
 
-  private interval;
+  private intervalDelay;
 
   private fetchExchangeRate;
 
@@ -109,7 +109,7 @@ export class CurrencyRateController extends BaseController<
       state: { ...defaultState, ...state },
     });
     this.includeUsdRate = includeUsdRate;
-    this.interval = interval;
+    this.intervalDelay = interval;
     this.fetchExchangeRate = fetchExchangeRate;
   }
 
@@ -162,8 +162,8 @@ export class CurrencyRateController extends BaseController<
   }
 
   private stopPolling() {
-    if (this.pollTimeout) {
-      clearInterval(this.pollTimeout);
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
     }
   }
 
@@ -174,9 +174,9 @@ export class CurrencyRateController extends BaseController<
     this.stopPolling();
     // TODO: Expose polling currency rate update errors
     await safelyExecute(() => this.updateExchangeRate());
-    this.pollTimeout = setInterval(async () => {
+    this.intervalId = setInterval(async () => {
       await safelyExecute(() => this.updateExchangeRate());
-    }, this.interval);
+    }, this.intervalDelay);
   }
 
   /**
