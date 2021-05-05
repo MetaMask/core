@@ -65,7 +65,7 @@ export class CurrencyRateController extends BaseController<
 > {
   private mutex = new Mutex();
 
-  private handle?: NodeJS.Timer;
+  private pollTimeout?: NodeJS.Timeout;
 
   private interval;
 
@@ -162,8 +162,8 @@ export class CurrencyRateController extends BaseController<
   }
 
   private stopPolling() {
-    if (this.handle) {
-      clearInterval(this.handle);
+    if (this.pollTimeout) {
+      clearInterval(this.pollTimeout);
     }
   }
 
@@ -174,7 +174,7 @@ export class CurrencyRateController extends BaseController<
     this.stopPolling();
     // TODO: Expose polling currency rate update errors
     await safelyExecute(() => this.updateExchangeRate());
-    this.handle = setInterval(async () => {
+    this.pollTimeout = setInterval(async () => {
       await safelyExecute(() => this.updateExchangeRate());
     }, this.interval);
   }
