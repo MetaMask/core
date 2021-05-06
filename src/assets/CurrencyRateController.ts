@@ -35,6 +35,11 @@ export type CurrencyRateStateChange = {
   payload: [CurrencyRateState, Patch[]];
 };
 
+export type GetCurrencyRateState = {
+  type: `${typeof name}:getState`;
+  handler: () => CurrencyRateState;
+};
+
 const metadata = {
   conversionDate: { persist: true, anonymous: true },
   conversionRate: { persist: true, anonymous: true },
@@ -94,8 +99,8 @@ export class CurrencyRateController extends BaseController<
     interval?: number;
     messenger: RestrictedControllerMessenger<
       typeof name,
-      any,
-      any,
+      GetCurrencyRateState,
+      CurrencyRateStateChange,
       never,
       never
     >;
