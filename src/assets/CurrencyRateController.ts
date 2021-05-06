@@ -1,184 +1,216 @@
 import { Mutex } from 'async-mutex';
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import type { Patch } from 'immer';
+
+import { BaseController } from '../BaseControllerV2';
 import { safelyExecute } from '../util';
 import { fetchExchangeRate as defaultFetchExchangeRate } from '../apis/crypto-compare';
 
-/**
- * @type CurrencyRateConfig
- *
- * Currency rate controller configuration
- *
- * @property currentCurrency - Currently-active ISO 4217 currency code
- * @property interval - Polling interval used to fetch new currency rate
- * @property nativeCurrency - Symbol for the base asset used for conversion
- * @property includeUSDRate - Whether to include the usd rate in addition to the currentCurrency
- */
-export interface CurrencyRateConfig extends BaseConfig {
-  currentCurrency: string;
-  interval: number;
-  nativeCurrency: string;
-  includeUSDRate?: boolean;
-}
+import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 
 /**
  * @type CurrencyRateState
- *
- * Currency rate controller state
  *
  * @property conversionDate - Timestamp of conversion rate expressed in ms since UNIX epoch
  * @property conversionRate - Conversion rate from current base asset to the current currency
  * @property currentCurrency - Currently-active ISO 4217 currency code
  * @property nativeCurrency - Symbol for the base asset used for conversion
+ * @property pendingCurrentCurrency - The currency being switched to
+ * @property pendingNativeCurrency - The base asset currency being switched to
  * @property usdConversionRate - Conversion rate from usd to the current currency
  */
-export interface CurrencyRateState extends BaseState {
+export type CurrencyRateState = {
   conversionDate: number;
   conversionRate: number;
   currentCurrency: string;
   nativeCurrency: string;
-  usdConversionRate?: number;
-}
+  pendingCurrentCurrency: string | null;
+  pendingNativeCurrency: string | null;
+  usdConversionRate: number | null;
+};
+
+const name = 'CurrencyRateController';
+
+export type CurrencyRateStateChange = {
+  type: `${typeof name}:stateChange`;
+  payload: [CurrencyRateState, Patch[]];
+};
+
+const metadata = {
+  conversionDate: { persist: true, anonymous: true },
+  conversionRate: { persist: true, anonymous: true },
+  currentCurrency: { persist: true, anonymous: true },
+  nativeCurrency: { persist: true, anonymous: true },
+  pendingCurrentCurrency: { persist: false, anonymous: true },
+  pendingNativeCurrency: { persist: false, anonymous: true },
+  usdConversionRate: { persist: true, anonymous: true },
+};
+
+const defaultState = {
+  conversionDate: 0,
+  conversionRate: 0,
+  currentCurrency: 'usd',
+  nativeCurrency: 'ETH',
+  pendingCurrentCurrency: null,
+  pendingNativeCurrency: null,
+  usdConversionRate: null,
+};
 
 /**
  * Controller that passively polls on a set interval for an exchange rate from the current base
  * asset to the current currency
  */
 export class CurrencyRateController extends BaseController<
-  CurrencyRateConfig,
+  typeof name,
   CurrencyRateState
 > {
-  /* Optional config to include conversion to usd in all price url fetches and on state */
-  includeUSDRate?: boolean;
-
-  private activeCurrency = '';
-
-  private activeNativeCurrency = '';
-
   private mutex = new Mutex();
 
-  private handle?: NodeJS.Timer;
+  private intervalId?: NodeJS.Timeout;
 
-  private fetchExchangeRate: typeof defaultFetchExchangeRate;
+  private intervalDelay;
 
-  private getCurrentCurrencyFromState(state?: Partial<CurrencyRateState>) {
-    return state?.currentCurrency ? state.currentCurrency : 'usd';
-  }
+  private fetchExchangeRate;
 
-  /**
-   * Name of this controller used during composition
-   */
-  name = 'CurrencyRateController';
+  private includeUsdRate;
 
   /**
    * Creates a CurrencyRateController instance
    *
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
+   * @param options - Constructor options
+   * @param options.includeUsdRate - Keep track of the USD rate in addition to the current currency rate
+   * @param options.interval - The polling interval, in milliseconds
+   * @param options.messenger - A reference to the messaging system
+   * @param options.state - Initial state to set on this controller
+   * @param options.fetchExchangeRate - Fetches the exchange rate from an external API. This option is primarily meant for use in unit tests.
    */
-  constructor(
-    config?: Partial<CurrencyRateConfig>,
-    state?: Partial<CurrencyRateState>,
+  constructor({
+    includeUsdRate = false,
+    interval = 180000,
+    messenger,
+    state,
     fetchExchangeRate = defaultFetchExchangeRate,
-  ) {
-    super(config, state);
+  }: {
+    includeUsdRate?: boolean;
+    interval?: number;
+    messenger: RestrictedControllerMessenger<
+      typeof name,
+      any,
+      any,
+      never,
+      never
+    >;
+    state?: Partial<CurrencyRateState>;
+    fetchExchangeRate?: typeof defaultFetchExchangeRate;
+  }) {
+    super({
+      name,
+      metadata,
+      messenger,
+      state: { ...defaultState, ...state },
+    });
+    this.includeUsdRate = includeUsdRate;
+    this.intervalDelay = interval;
     this.fetchExchangeRate = fetchExchangeRate;
-    this.defaultConfig = {
-      currentCurrency: this.getCurrentCurrencyFromState(state),
-      disabled: true,
-      interval: 180000,
-      nativeCurrency: 'ETH',
-      includeUSDRate: false,
-    };
-    this.defaultState = {
-      conversionDate: 0,
-      conversionRate: 0,
-      currentCurrency: this.defaultConfig.currentCurrency,
-      nativeCurrency: this.defaultConfig.nativeCurrency,
-      usdConversionRate: 0,
-    };
-    this.initialize();
-    this.configure({ disabled: false }, false, false);
-    this.poll();
+  }
+
+  /**
+   * Start polling for the currency rate
+   */
+  async start() {
+    await this.startPolling();
+  }
+
+  /**
+   * Stop polling for the currency rate
+   */
+  stop() {
+    this.stopPolling();
+  }
+
+  /**
+   * Prepare to discard this controller.
+   *
+   * This stops any active polling.
+   */
+  destroy() {
+    super.destroy();
+    this.stopPolling();
   }
 
   /**
    * Sets a currency to track
    *
-   * TODO: Replace this wth a method
-   *
    * @param currentCurrency - ISO 4217 currency code
    */
-  set currentCurrency(currentCurrency: string) {
-    this.activeCurrency = currentCurrency;
-    safelyExecute(() => this.updateExchangeRate());
-  }
-
-  get currentCurrency() {
-    throw new Error('Property only used for setting');
+  async setCurrentCurrency(currentCurrency: string) {
+    this.update((state) => {
+      state.pendingCurrentCurrency = currentCurrency;
+    });
+    await this.updateExchangeRate();
   }
 
   /**
    * Sets a new native currency
    *
-   * TODO: Replace this wth a method
-   *
    * @param symbol - Symbol for the base asset
    */
-  set nativeCurrency(symbol: string) {
-    this.activeNativeCurrency = symbol;
-    safelyExecute(() => this.updateExchangeRate());
+  async setNativeCurrency(symbol: string) {
+    this.update((state) => {
+      state.pendingNativeCurrency = symbol;
+    });
+    await this.updateExchangeRate();
   }
 
-  get nativeCurrency() {
-    throw new Error('Property only used for setting');
+  private stopPolling() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+    }
   }
 
   /**
    * Starts a new polling interval
-   *
-   * @param interval - Polling interval used to fetch new exchange rate
    */
-  async poll(interval?: number): Promise<void> {
-    interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
+  private async startPolling(): Promise<void> {
+    this.stopPolling();
+    // TODO: Expose polling currency rate update errors
     await safelyExecute(() => this.updateExchangeRate());
-    this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
-    }, this.config.interval);
+    this.intervalId = setInterval(async () => {
+      await safelyExecute(() => this.updateExchangeRate());
+    }, this.intervalDelay);
   }
 
   /**
    * Updates exchange rate for the current currency
-   *
-   * @returns Promise resolving to currency data or undefined if disabled
    */
   async updateExchangeRate(): Promise<CurrencyRateState | void> {
-    if (this.disabled || !this.activeCurrency || !this.activeNativeCurrency) {
-      return undefined;
-    }
     const releaseLock = await this.mutex.acquire();
+    const {
+      currentCurrency,
+      nativeCurrency,
+      pendingCurrentCurrency,
+      pendingNativeCurrency,
+    } = this.state;
     try {
       const {
         conversionDate,
         conversionRate,
         usdConversionRate,
       } = await this.fetchExchangeRate(
-        this.activeCurrency,
-        this.activeNativeCurrency,
-        this.includeUSDRate,
+        pendingCurrentCurrency || currentCurrency,
+        pendingNativeCurrency || nativeCurrency,
+        this.includeUsdRate,
       );
-      const newState: CurrencyRateState = {
-        conversionDate,
-        conversionRate,
-        currentCurrency: this.activeCurrency,
-        nativeCurrency: this.activeNativeCurrency,
-        usdConversionRate: this.includeUSDRate
-          ? usdConversionRate
-          : this.defaultState.usdConversionRate,
-      };
-      this.update(newState);
-
-      return this.state;
+      this.update(() => {
+        return {
+          conversionDate,
+          conversionRate,
+          currentCurrency: pendingCurrentCurrency || currentCurrency,
+          nativeCurrency: pendingNativeCurrency || nativeCurrency,
+          pendingCurrentCurrency: null,
+          pendingNativeCurrency: null,
+          usdConversionRate,
+        };
+      });
     } finally {
       releaseLock();
     }
