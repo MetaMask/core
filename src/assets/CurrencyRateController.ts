@@ -33,10 +33,10 @@ export interface CurrencyRateConfig extends BaseConfig {
  */
 export interface CurrencyRateState extends BaseState {
   conversionDate: number;
-  conversionRate: number;
+  conversionRate: number | null;
   currentCurrency: string;
   nativeCurrency: string;
-  usdConversionRate?: number;
+  usdConversionRate?: number | null;
 }
 
 /**
