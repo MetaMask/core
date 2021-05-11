@@ -20,7 +20,7 @@ import type { RestrictedControllerMessenger } from '../ControllerMessenger';
  */
 export type CurrencyRateState = {
   conversionDate: number;
-  conversionRate: number;
+  conversionRate: number | null;
   currentCurrency: string;
   nativeCurrency: string;
   pendingCurrentCurrency: string | null;
