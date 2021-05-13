@@ -195,8 +195,12 @@ export class CurrencyRateController extends BaseController<
       pendingCurrentCurrency,
       pendingNativeCurrency,
     } = this.state;
+
+    let conversionDate: number = Date.now() / 1000;
+    let conversionRate: number | null = null;
+    let usdConversionRate: number | null = null;
     try {
-      const {
+      ({
         conversionDate,
         conversionRate,
         usdConversionRate,
@@ -204,7 +208,12 @@ export class CurrencyRateController extends BaseController<
         pendingCurrentCurrency || currentCurrency,
         pendingNativeCurrency || nativeCurrency,
         this.includeUsdRate,
-      );
+      ));
+    } catch (error) {
+      if (!error.message.includes('market does not exist for this coin pair')) {
+        throw error;
+      }
+    } finally {
       this.update(() => {
         return {
           conversionDate,
@@ -216,9 +225,9 @@ export class CurrencyRateController extends BaseController<
           usdConversionRate,
         };
       });
-    } finally {
       releaseLock();
     }
+    return this.state;
   }
 }
 

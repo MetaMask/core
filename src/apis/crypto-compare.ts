@@ -29,14 +29,35 @@ export async function fetchExchangeRate(
   conversionRate: number | null;
   usdConversionRate: number | null;
 }> {
+  if (!currency || !nativeCurrency) {
+    return {
+      conversionDate: Date.now() / 1000,
+      conversionRate: null,
+      usdConversionRate: null,
+    };
+  }
+
   const json = await handleFetch(
     getPricingURL(currency, nativeCurrency, includeUSDRate),
   );
 
-  const conversionRate = isNaN(Number(json[currency.toUpperCase()]))
-    ? null
-    : Number(json[currency.toUpperCase()]);
-  const usdConversionRate = isNaN(Number(json.USD)) ? null : Number(json.USD);
+  if (json.Response === 'Error') {
+    throw new Error(json.Message);
+  }
+
+  const conversionRate = Number(json[currency.toUpperCase()]);
+
+  const usdConversionRate = Number(json.USD);
+  if (!Number.isFinite(conversionRate)) {
+    throw new Error(
+      `Invalid response for ${currency.toUpperCase()}: ${
+        json[currency.toUpperCase()]
+      }`,
+    );
+  }
+  if (includeUSDRate && !Number.isFinite(usdConversionRate)) {
+    throw new Error(`Invalid response for usdConversionRate: ${json.USD}`);
+  }
 
   return {
     conversionDate: Date.now() / 1000,
