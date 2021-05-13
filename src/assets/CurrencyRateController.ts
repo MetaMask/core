@@ -157,8 +157,13 @@ export class CurrencyRateController extends BaseController<
       return undefined;
     }
     const releaseLock = await this.mutex.acquire();
+
+    let conversionDate: number = Date.now() / 1000;
+    let conversionRate: number | null = null;
+    let usdConversionRate: number | null = null;
+    
     try {
-      const {
+      ({
         conversionDate,
         conversionRate,
         usdConversionRate,
@@ -166,7 +171,11 @@ export class CurrencyRateController extends BaseController<
         this.activeCurrency,
         this.activeNativeCurrency,
         this.includeUSDRate,
-      );
+      ))
+
+    } catch (error){
+    }
+
       const newState: CurrencyRateState = {
         conversionDate,
         conversionRate,
@@ -176,10 +185,10 @@ export class CurrencyRateController extends BaseController<
           ? usdConversionRate
           : this.defaultState.usdConversionRate,
       };
-      this.update(newState);
-
-      return this.state;
-    } finally {
+      try{
+        this.update(newState);
+        return this.state;
+      } finally {
       releaseLock();
     }
   }
