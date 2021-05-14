@@ -1,4 +1,4 @@
-import * as ethUtil from 'ethereumjs-util';
+import { bufferToHex } from 'ethereumjs-util';
 import {
   recoverPersonalSignature,
   recoverTypedSignature,
@@ -230,7 +230,7 @@ describe('KeyringController', () => {
   });
 
   it('should sign personal message', async () => {
-    const data = ethUtil.bufferToHex(Buffer.from('Hello from test', 'utf8'));
+    const data = bufferToHex(Buffer.from('Hello from test', 'utf8'));
     const account = initialState.keyrings[0].accounts[0];
     const signature = await keyringController.signPersonalMessage({
       data,

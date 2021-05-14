@@ -1,4 +1,10 @@
-import * as ethUtil from 'ethereumjs-util';
+import {
+  addHexPrefix,
+  bufferToHex,
+  isValidPrivate,
+  toChecksumAddress,
+  toBuffer,
+} from 'ethereumjs-util';
 import { stripHexPrefix } from 'ethjs-util';
 import {
   normalize as normalizeAddress,
@@ -332,8 +338,8 @@ export class KeyringController extends BaseController<
         if (!importedKey) {
           throw new Error('Cannot import an empty key.');
         }
-        const prefixed = ethUtil.addHexPrefix(importedKey);
-        if (!ethUtil.isValidPrivate(ethUtil.toBuffer(prefixed))) {
+        const prefixed = addHexPrefix(importedKey);
+        if (!isValidPrivate(toBuffer(prefixed))) {
           throw new Error('Cannot import invalid private key.');
         }
         privateKey = stripHexPrefix(prefixed);
@@ -346,7 +352,7 @@ export class KeyringController extends BaseController<
         } catch (e) {
           wallet = wallet || (await Wallet.fromV3(input, password, true));
         }
-        privateKey = ethUtil.bufferToHex(wallet.getPrivateKey());
+        privateKey = bufferToHex(wallet.getPrivateKey());
         break;
       default:
         throw new Error(`Unexpected import strategy: '${strategy}'`);
@@ -418,9 +424,7 @@ export class KeyringController extends BaseController<
       const address = normalizeAddress(messageParams.from);
       const { password } = privates.get(this).keyring;
       const privateKey = await this.exportAccount(password, address);
-      const privateKeyBuffer = ethUtil.toBuffer(
-        ethUtil.addHexPrefix(privateKey),
-      );
+      const privateKeyBuffer = toBuffer(addHexPrefix(privateKey));
       switch (version) {
         case SignTypedDataVersion.V1:
           // signTypedDataLegacy will throw if the data is invalid.
@@ -561,9 +565,7 @@ export class KeyringController extends BaseController<
         async (keyring: KeyringObject, index: number): Promise<Keyring> => {
           const keyringAccounts = await keyring.getAccounts();
           const accounts = Array.isArray(keyringAccounts)
-            ? keyringAccounts.map((address) =>
-                ethUtil.toChecksumAddress(address),
-              )
+            ? keyringAccounts.map((address) => toChecksumAddress(address))
             : /* istanbul ignore next */ [];
           return {
             accounts,
