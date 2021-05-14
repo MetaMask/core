@@ -82,7 +82,7 @@ describe('AssetsDetectionController', () => {
         total_supply: 0,
       })
       .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x1D963688FE2209A98db35c67A041524822cf04Hh`,
+        `${OPEN_SEA_PATH}/asset_contract/0x02`,
       )
       .reply(200, {
         description: 'Description HH',
@@ -122,7 +122,7 @@ describe('AssetsDetectionController', () => {
           },
           {
             asset_contract: {
-              address: '0x1d963688FE2209A98db35c67A041524822CF04hh',
+              address: '0x02',
             },
             description: 'Description 2574',
             image_url: 'image/2574.png',
@@ -231,7 +231,7 @@ describe('AssetsDetectionController', () => {
     await assetsDetection.detectCollectibles();
     expect(assets.state.collectibles).toStrictEqual([
       {
-        address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+        address: '0x02',
         description: 'Description 2574',
         image: 'image/2574.png',
         name: 'ID 2574',
@@ -243,7 +243,7 @@ describe('AssetsDetectionController', () => {
   it('should detect, add collectibles and do nor remove not detected collectibles correctly', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     await assets.addCollectible(
-      '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+      '0x02',
       2573,
       {
         description: 'Description 2573',
@@ -254,14 +254,14 @@ describe('AssetsDetectionController', () => {
     await assetsDetection.detectCollectibles();
     expect(assets.state.collectibles).toStrictEqual([
       {
-        address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+        address: '0x02',
         description: 'Description 2573',
         image: 'image/2573.png',
         name: 'ID 2573',
         tokenId: 2573,
       },
       {
-        address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+        address: '0x02',
         description: 'Description 2574',
         image: 'image/2574.png',
         name: 'ID 2574',
@@ -292,7 +292,7 @@ describe('AssetsDetectionController', () => {
 
   it('should not add collectible if collectible or collectible contract has no information to display', async () => {
     const collectibleHH2574 = {
-      address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+      address: '0x02',
       description: 'Description 2574',
       image: 'image/2574.png',
       name: 'ID 2574',
@@ -313,7 +313,7 @@ describe('AssetsDetectionController', () => {
       tokenId: 2577,
     };
     const collectibleContractHH = {
-      address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+      address: '0x02',
       description: 'Description HH',
       logo: 'url HH',
       name: 'Name HH',
@@ -389,7 +389,7 @@ describe('AssetsDetectionController', () => {
           },
           {
             asset_contract: {
-              address: '0x1d963688FE2209A98db35c67A041524822CF04hh',
+              address: '0x02',
             },
             description: 'Description 2574',
             image_url: 'image/2574.png',

@@ -218,9 +218,9 @@ describe('TokenBalancesController', () => {
       { interval: 1337 },
     );
     const updateBalances = sandbox.stub(tokenBalances, 'updateBalances');
-    await assets.addToken('0xfoO', 'FOO', 18);
+    await assets.addToken('0x00', 'FOO', 18);
     const { tokens } = assets.state;
-    const found = tokens.filter((token: Token) => token.address === '0xfoO');
+    const found = tokens.filter((token: Token) => token.address === '0x00');
     expect(found.length > 0).toBe(true);
     expect(updateBalances.called).toBe(true);
   });

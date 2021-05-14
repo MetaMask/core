@@ -8,21 +8,22 @@ import { AssetsContractController } from './AssetsContractController';
 
 const COINGECKO_HOST = 'https://api.coingecko.com';
 const COINGECKO_PATH = '/api/v3/simple/token_price/ethereum';
+const ADDRESS = '0x01';
 
 describe('TokenRatesController', () => {
   beforeEach(() => {
     nock(COINGECKO_HOST)
       .get(
-        `${COINGECKO_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,0xfoO&vs_currencies=eth`,
+        `${COINGECKO_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,${ADDRESS}&vs_currencies=eth`,
       )
       .reply(200, {
         '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
       })
-      .get(`${COINGECKO_PATH}?contract_addresses=0xfoO&vs_currencies=eth`)
+      .get(`${COINGECKO_PATH}?contract_addresses=${ADDRESS}&vs_currencies=eth`)
       .reply(200, {})
       .get(`${COINGECKO_PATH}?contract_addresses=bar&vs_currencies=eth`)
       .reply(200, {})
-      .get(`${COINGECKO_PATH}?contract_addresses=0xfoO&vs_currencies=gno`)
+      .get(`${COINGECKO_PATH}?contract_addresses=${ADDRESS}&vs_currencies=gno`)
       .reply(200, {})
       .persist();
 
@@ -137,7 +138,7 @@ describe('TokenRatesController', () => {
       { interval: 10 },
     );
     const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
-    const address2 = '0xfoO';
+    const address2 = ADDRESS;
     expect(controller.state.contractExchangeRates).toStrictEqual({});
     controller.tokens = [
       { address, decimals: 18, symbol: 'DAI' },
