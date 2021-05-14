@@ -81,9 +81,7 @@ describe('AssetsDetectionController', () => {
         symbol: 'FOO',
         total_supply: 0,
       })
-      .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x02`,
-      )
+      .get(`${OPEN_SEA_PATH}/asset_contract/0x02`)
       .reply(200, {
         description: 'Description HH',
         image_url: 'url HH',
@@ -242,15 +240,11 @@ describe('AssetsDetectionController', () => {
 
   it('should detect, add collectibles and do nor remove not detected collectibles correctly', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
-    await assets.addCollectible(
-      '0x02',
-      2573,
-      {
-        description: 'Description 2573',
-        image: 'image/2573.png',
-        name: 'ID 2573',
-      },
-    );
+    await assets.addCollectible('0x02', 2573, {
+      description: 'Description 2573',
+      image: 'image/2573.png',
+      name: 'ID 2573',
+    });
     await assetsDetection.detectCollectibles();
     expect(assets.state.collectibles).toStrictEqual([
       {

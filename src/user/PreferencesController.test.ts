@@ -18,9 +18,7 @@ describe('PreferencesController', () => {
     controller.addIdentities(['0x00']);
     controller.addIdentities(['0x00']);
     expect(controller.state.identities['0x00'].address).toStrictEqual('0x00');
-    expect(controller.state.identities['0x00'].name).toStrictEqual(
-      'Account 1',
-    );
+    expect(controller.state.identities['0x00'].name).toStrictEqual('Account 1');
     expect(controller.state.identities['0x00'].importTime).toBeLessThanOrEqual(
       Date.now(),
     );
@@ -51,24 +49,18 @@ describe('PreferencesController', () => {
     controller.addIdentities(['0x00', '0x01']);
     controller.syncIdentities(['0x00', '0x01']);
     expect(controller.state.identities['0x00'].address).toStrictEqual('0x00');
-    expect(controller.state.identities['0x00'].name).toStrictEqual(
-      'Account 1',
-    );
+    expect(controller.state.identities['0x00'].name).toStrictEqual('Account 1');
     expect(controller.state.identities['0x00'].importTime).toBeLessThanOrEqual(
       Date.now(),
     );
     expect(controller.state.identities['0x01'].address).toStrictEqual('0x01');
-    expect(controller.state.identities['0x01'].name).toStrictEqual(
-      'Account 2',
-    );
+    expect(controller.state.identities['0x01'].name).toStrictEqual('Account 2');
     expect(controller.state.identities['0x01'].importTime).toBeLessThanOrEqual(
       Date.now(),
     );
     controller.syncIdentities(['0x00']);
     expect(controller.state.identities['0x00'].address).toStrictEqual('0x00');
-    expect(controller.state.identities['0x00'].name).toStrictEqual(
-      'Account 1',
-    );
+    expect(controller.state.identities['0x00'].name).toStrictEqual('Account 1');
     expect(controller.state.selectedAddress).toBe('0x00');
   });
 
@@ -76,16 +68,12 @@ describe('PreferencesController', () => {
     const controller = new PreferencesController();
     controller.updateIdentities(['0x00', '0x01']);
     expect(controller.state.identities['0x00'].address).toStrictEqual('0x00');
-    expect(controller.state.identities['0x00'].name).toStrictEqual(
-      'Account 1',
-    );
+    expect(controller.state.identities['0x00'].name).toStrictEqual('Account 1');
     expect(controller.state.identities['0x00'].importTime).toBeLessThanOrEqual(
       Date.now(),
     );
     expect(controller.state.identities['0x01'].address).toStrictEqual('0x01');
-    expect(controller.state.identities['0x01'].name).toStrictEqual(
-      'Account 2',
-    );
+    expect(controller.state.identities['0x01'].name).toStrictEqual('Account 2');
     expect(controller.state.identities['0x01'].importTime).toBeLessThanOrEqual(
       Date.now(),
     );
@@ -98,9 +86,7 @@ describe('PreferencesController', () => {
     );
     controller.updateIdentities(['0x00', '0x01']);
     expect(controller.state.identities['0x00'].address).toStrictEqual('0x00');
-    expect(controller.state.identities['0x00'].name).toStrictEqual(
-      'Account 1',
-    );
+    expect(controller.state.identities['0x00'].name).toStrictEqual('Account 1');
     expect(controller.state.identities['0x00'].importTime).toBeLessThanOrEqual(
       Date.now(),
     );
