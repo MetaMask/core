@@ -23,6 +23,21 @@ import {
   query,
 } from '../util';
 
+
+/**
+ * Major issuse attempting to fix with these suggestions is that the tx state stored locally does not
+ * reflect the blockchain. This can result in a number of different app behaviors.
+ * - duplicate transactions
+ * - incorrect transactions state
+ * 
+ * Suggested changes
+ * - added property to txMeta to identify if tx has been reconsiled with the blockchain
+ * - add method to force update unreconsiled tx
+ * - reconsiled tx on controller construction
+ * - correct logic that allows duplicate nonces in (addTransaction & speedUpTransaction)
+ */
+
+
 /**
  * @type Result
  *
@@ -95,6 +110,15 @@ export enum WalletDevice {
   OTHER = 'other_device',
 }
 
+/**
+ * Reconsile method that the Transaction Controller used to confirm completed transaction 
+ */
+ export enum StateReconsileMethod {
+  ETHERSCAN = 'etherscan',
+  BLOCKCHAIN = 'blockchain',
+  OTHER = 'other'
+}
+
 type TransactionMetaBase = {
   isTransfer?: boolean;
   transferInformation?: {
@@ -113,6 +137,7 @@ type TransactionMetaBase = {
   transactionHash?: string;
   blockNumber?: string;
   deviceConfirmedOn?: WalletDevice;
+  stateReconsileMethod?: StateReconsileMethod; // Used as a property to indicate if the transaction has been reconsiled with etherscan/blockchain
 };
 
 /**
@@ -125,6 +150,7 @@ type TransactionMetaBase = {
  * @property networkID - Network code as per EIP-155 for this transaction
  * @property origin - Origin this transaction was sent from
  * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed
+ * @property stateReconsileMethod - string to indicate if the local transaction has been confirmed on the blockchain or etherscan
  * @property rawTransaction - Hex representation of the underlying transaction
  * @property status - String status of this transaction
  * @property time - Timestamp associated with this transaction
@@ -413,6 +439,12 @@ export class TransactionController extends BaseController<
       this.ethQuery = new EthQuery(newProvider);
       this.registry = new MethodRegistry({ provider: newProvider });
     });
+
+    /** This will allow for the tx controller to attempt to resovle any transactions that occured while the 
+    * app was in the background. 
+    */
+    // transactionStateReconciler ();
+    
     this.poll();
   }
 
@@ -952,6 +984,18 @@ export class TransactionController extends BaseController<
     }
     return latestIncomingTxBlockNumber;
   }
+
+  /**
+   * Resolves the locally stored transactions with the blockchain or etherscan. Then updated TransactionController State
+   * @param address - public address to resolve transactions against
+   * @param method - use StateReconsileMethod enum to specifiy method of resolution. Default will be the blockchain
+   */
+  async transactionStateReconciler (address: string, method?: StateReconsileMethod) {
+    
+    //Leverage fetchAll() or queryTransactionStatuses() to resolve locally stored txs
+
+  }
+
 }
 
 export default TransactionController;
