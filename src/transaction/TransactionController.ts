@@ -29,14 +29,18 @@ import {
  * reflect the blockchain. This can result in a number of different app behaviors.
  * - duplicate transactions
  * - incorrect transactions state
- * 
+ *   - On transaction history we're currently using the gas values that the user sent the transaction with, but in many cases the actual gas spent was less so we are showing misleading informaction.
+ *   - Wrong transaction state: showing failed transaction, when the tx was successful.
+ *   - Wrong transaction state: “Dropped and replaced” shows up in etherscan and our end shows pending.
+ *   - Wrong value being shown on history: showing gas fee instead of the amount swapped.
+ *   - The states of transactions 2 transactions with same nonce are shown wrongly.
  * Suggested changes
- * - added property to txMeta to identify if tx has been reconsiled with the blockchain
+ * - add property to txMeta to identify if tx has been reconsiled with the blockchain
+ * - add property to group txMetas
  * - add method to force update unreconsiled tx
  * - reconsiled tx on controller construction
  * - correct logic that allows duplicate nonces in (addTransaction & speedUpTransaction)
  */
-
 
 /**
  * @type Result
@@ -137,7 +141,8 @@ type TransactionMetaBase = {
   transactionHash?: string;
   blockNumber?: string;
   deviceConfirmedOn?: WalletDevice;
-  stateReconsileMethod?: StateReconsileMethod; // Used as a property to indicate if the transaction has been reconsiled with etherscan/blockchain
+  stateReconsileMethod?: StateReconsileMethod; 
+  groupByValue?: string; 
 };
 
 /**
@@ -151,6 +156,7 @@ type TransactionMetaBase = {
  * @property origin - Origin this transaction was sent from
  * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed
  * @property stateReconsileMethod - string to indicate if the local transaction has been confirmed on the blockchain or etherscan
+ * @property groupByValue - string to indicate if the local transaction has been confirmed on the blockchain or etherscan
  * @property rawTransaction - Hex representation of the underlying transaction
  * @property status - String status of this transaction
  * @property time - Timestamp associated with this transaction
