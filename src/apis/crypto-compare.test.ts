@@ -133,21 +133,23 @@ describe('CryptoCompare', () => {
     );
   });
 
-  it('should return null for conversionRate if fetched rate is invalid', async () => {
+  it('should throw if conversion rate is invalid', async () => {
     nock(cryptoCompareHost)
       .get('/data/price?fsym=ETH&tsyms=CAD')
       .reply(200, { CAD: 'invalid' });
 
-    const { conversionRate } = await fetchExchangeRate('CAD', 'ETH');
-    expect(conversionRate).toBeNull();
+    await expect(fetchExchangeRate('CAD', 'ETH')).rejects.toThrow(
+      'Invalid response for CAD: invalid',
+    );
   });
 
-  it('should return null for usdConversionRate if fetched USD conversion rate is invalid', async () => {
+  it('should throw if USD conversion rate is invalid', async () => {
     nock(cryptoCompareHost)
       .get('/data/price?fsym=ETH&tsyms=CAD,USD')
       .reply(200, { CAD: 2000.47, USD: 'invalid' });
 
-    const { usdConversionRate } = await fetchExchangeRate('CAD', 'ETH', true);
-    expect(usdConversionRate).toBeNull();
+    await expect(fetchExchangeRate('CAD', 'ETH', true)).rejects.toThrow(
+      'Invalid response for usdConversionRate: invalid',
+    );
   });
 });
