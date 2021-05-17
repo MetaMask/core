@@ -245,4 +245,47 @@ describe('CurrencyRateController', () => {
 
     controller.destroy();
   });
+
+  it('should throw unexpected errors', async () => {
+    const cryptoCompareHost = 'https://min-api.cryptocompare.com';
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=XYZ')
+      .reply(200, {
+        Response: 'Error',
+        Message: 'this method has been deprecated',
+      })
+      .persist();
+
+    const messenger = getRestrictedMessenger();
+    const controller = new CurrencyRateController({
+      messenger,
+      state: { currentCurrency: 'xyz' },
+    });
+
+    await expect(controller.updateExchangeRate()).rejects.toThrow(
+      'this method has been deprecated',
+    );
+    controller.destroy();
+  });
+
+  it('should catch expected errors', async () => {
+    const cryptoCompareHost = 'https://min-api.cryptocompare.com';
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=XYZ')
+      .reply(200, {
+        Response: 'Error',
+        Message: 'market does not exist for this coin pair',
+      })
+      .persist();
+
+    const messenger = getRestrictedMessenger();
+    const controller = new CurrencyRateController({
+      messenger,
+      state: { currentCurrency: 'xyz' },
+    });
+
+    await controller.updateExchangeRate();
+    expect(controller.state.conversionRate).toBeNull();
+    controller.destroy();
+  });
 });

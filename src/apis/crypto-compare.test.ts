@@ -152,4 +152,28 @@ describe('CryptoCompare', () => {
       'Invalid response for usdConversionRate: invalid',
     );
   });
+
+  it('should return null if either currency inputs are empty', async () => {
+    const { conversionRate, usdConversionRate } = await fetchExchangeRate(
+      '',
+      'ETH',
+      true,
+    );
+
+    expect(conversionRate).toBeNull();
+    expect(usdConversionRate).toBeNull();
+  });
+
+  it('should throw an error if either currency is invalid', async () => {
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=EUABRT')
+      .reply(200, {
+        Response: 'Error',
+        Message: 'Market does not exist for this coin pair',
+      });
+
+    await expect(fetchExchangeRate('EUABRT', 'ETH')).rejects.toThrow(
+      'Market does not exist for this coin pair',
+    );
+  });
 });
