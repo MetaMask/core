@@ -998,8 +998,11 @@ export class TransactionController extends BaseController<
    */
   async transactionStateReconciler (address: string, method?: StateReconsileMethod) {
     
-    //Leverage fetchAll() or queryTransactionStatuses() to resolve locally stored txs
+    // Leverage fetchAll() or queryTransactionStatuses() to resolve locally stored txs
 
+    // If the transaction reported on the blockchain/etherscan has reach an end state 
+    // (cancelled = 'cancelled', confirmed = 'confirmed', failed = 'failed', rejected = 'rejected') 
+    // updated local tx & meta data
   }
 
 }
