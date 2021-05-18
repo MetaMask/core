@@ -68,22 +68,22 @@ export interface PendingJsonRpcResponse<T> extends JsonRpcResponseBase {
 export type JsonRpcEngineCallbackError = Error | JsonRpcError | null;
 
 export type JsonRpcEngineReturnHandler = (
-  done: (error?: JsonRpcEngineCallbackError) => void
+  done: (error?: JsonRpcEngineCallbackError) => void,
 ) => void;
 
 export type JsonRpcEngineNextCallback = (
-  returnHandlerCallback?: JsonRpcEngineReturnHandler
+  returnHandlerCallback?: JsonRpcEngineReturnHandler,
 ) => void;
 
 export type JsonRpcEngineEndCallback = (
-  error?: JsonRpcEngineCallbackError
+  error?: JsonRpcEngineCallbackError,
 ) => void;
 
 export type JsonRpcMiddleware<T, U> = (
   req: JsonRpcRequest<T>,
   res: PendingJsonRpcResponse<U>,
   next: JsonRpcEngineNextCallback,
-  end: JsonRpcEngineEndCallback
+  end: JsonRpcEngineEndCallback,
 ) => void;
 
 /**
@@ -175,11 +175,8 @@ export class JsonRpcEngine extends SafeEventEmitter {
   asMiddleware(): JsonRpcMiddleware<unknown, unknown> {
     return async (req, res, next, end) => {
       try {
-        const [
-          middlewareError,
-          isComplete,
-          returnHandlers,
-        ] = await JsonRpcEngine._runAllMiddleware(req, res, this._middleware);
+        const [middlewareError, isComplete, returnHandlers] =
+          await JsonRpcEngine._runAllMiddleware(req, res, this._middleware);
 
         if (isComplete) {
           await JsonRpcEngine._runReturnHandlers(returnHandlers);
@@ -324,11 +321,8 @@ export class JsonRpcEngine extends SafeEventEmitter {
     req: JsonRpcRequest<unknown>,
     res: PendingJsonRpcResponse<unknown>,
   ): Promise<void> {
-    const [
-      error,
-      isComplete,
-      returnHandlers,
-    ] = await JsonRpcEngine._runAllMiddleware(req, res, this._middleware);
+    const [error, isComplete, returnHandlers] =
+      await JsonRpcEngine._runAllMiddleware(req, res, this._middleware);
 
     // Throw if "end" was not called, or if the response has neither a result
     // nor an error.
@@ -362,7 +356,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       boolean, // isComplete
       JsonRpcEngineReturnHandler[],
     ]
-    > {
+  > {
     const returnHandlers: JsonRpcEngineReturnHandler[] = [];
     let error = null;
     let isComplete = false;

@@ -13,8 +13,10 @@
   ],
   "scripts": {
     "build": "tsc --project .",
-    "lint": "eslint . --ext ts,js,json",
-    "lint:fix": "eslint . --ext ts,js,json --fix",
+    "lint:eslint": "eslint . --cache --ext js,ts",
+    "lint:misc": "prettier '**/*.json' '**/*.md' '**/*.yml' --single-quote --ignore-path .gitignore",
+    "lint": "yarn lint:eslint && yarn lint:misc --check",
+    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
     "test": "mocha ./test",
     "coverage": "nyc --check-coverage yarn test",
     "prepublishOnly": "yarn && yarn lint && yarn build && yarn coverage"
@@ -24,19 +26,24 @@
     "eth-rpc-errors": "^4.0.2"
   },
   "devDependencies": {
-    "@metamask/eslint-config": "^4.1.0",
+    "@metamask/eslint-config": "^6.0.0",
+    "@metamask/eslint-config-mocha": "^6.0.0",
+    "@metamask/eslint-config-nodejs": "^6.0.0",
+    "@metamask/eslint-config-typescript": "^6.0.0",
     "@types/node": "^14.14.7",
-    "@typescript-eslint/eslint-plugin": "^4.8.0",
-    "@typescript-eslint/parser": "^4.8.0",
-    "eslint": "^7.13.0",
-    "eslint-plugin-import": "^2.20.1",
-    "eslint-plugin-json": "^2.1.0",
-    "eslint-plugin-mocha": "^6.3.0",
+    "@typescript-eslint/eslint-plugin": "^4.24.0",
+    "@typescript-eslint/parser": "^4.24.0",
+    "eslint": "^7.26.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-import": "^2.23.2",
+    "eslint-plugin-mocha": "^8.1.0",
     "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-prettier": "^3.4.0",
     "mocha": "^7.1.1",
     "nyc": "^15.1.0",
+    "prettier": "^2.3.0",
     "sinon": "^9.0.2",
-    "typescript": "^4.0.5"
+    "typescript": "^4.2.4"
   },
   "repository": {
     "type": "git",

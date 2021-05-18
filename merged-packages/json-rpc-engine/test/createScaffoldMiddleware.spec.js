@@ -9,12 +9,12 @@ describe('createScaffoldMiddleware', function () {
     const engine = new JsonRpcEngine();
 
     const scaffold = {
-      'method1': 'foo',
-      'method2': (_req, res, _next, end) => {
+      method1: 'foo',
+      method2: (_req, res, _next, end) => {
         res.result = 42;
         end();
       },
-      'method3': (_req, res, _next, end) => {
+      method3: (_req, res, _next, end) => {
         res.error = new Error('method3');
         end();
       },
@@ -35,7 +35,15 @@ describe('createScaffoldMiddleware', function () {
 
     assert.equal(response1.result, 'foo', 'should have expected result');
     assert.equal(response2.result, 42, 'should have expected result');
-    assert.equal(response3.error.message, 'method3', 'should have expected error');
-    assert.equal(response4.result, 'passthrough', 'should have expected result');
+    assert.equal(
+      response3.error.message,
+      'method3',
+      'should have expected error',
+    );
+    assert.equal(
+      response4.result,
+      'passthrough',
+      'should have expected result',
+    );
   });
 });

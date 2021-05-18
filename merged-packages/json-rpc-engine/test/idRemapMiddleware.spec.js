@@ -42,8 +42,16 @@ describe('idRemapMiddleware', function () {
       assert.equal(observedIds.before.req, observedIds.before.res, 'ids match');
       assert.equal(observedIds.after.req, observedIds.after.res, 'ids match');
       // correct behavior
-      assert.notEqual(observedIds.before.req, observedIds.after.req, 'ids are different');
-      assert.equal(observedIds.before.req, res.id, 'result id matches original');
+      assert.notEqual(
+        observedIds.before.req,
+        observedIds.after.req,
+        'ids are different',
+      );
+      assert.equal(
+        observedIds.before.req,
+        res.id,
+        'result id matches original',
+      );
       assert.equal(payload.id, res.id, 'result id matches original');
       assert.equal(payloadCopy.id, res.id, 'result id matches original');
       done();

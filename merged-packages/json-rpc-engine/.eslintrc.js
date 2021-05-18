@@ -1,44 +1,24 @@
 module.exports = {
   root: true,
 
-  parserOptions: {
-    ecmaVersion: 2017,
-  },
+  plugins: ['import'],
 
-  plugins: [
-    'json',
-    'import',
-  ],
-
-  extends: [
-    '@metamask/eslint-config',
-    '@metamask/eslint-config/config/mocha',
-    '@metamask/eslint-config/config/nodejs',
-    '@metamask/eslint-config/config/typescript',
-  ],
+  extends: ['@metamask/eslint-config', '@metamask/eslint-config-nodejs'],
 
   rules: {
     'prefer-object-spread': 'off',
   },
 
-  overrides: [{
-    files: [
-      '*.js',
-      '*.json',
-    ],
-    parserOptions: {
-      sourceType: 'script',
+  overrides: [
+    {
+      files: ['*.ts'],
+      extends: ['@metamask/eslint-config-typescript'],
     },
-    rules: {
-      '@typescript-eslint/no-require-imports': 'off',
-      '@typescript-eslint/no-var-requires': 'off',
+    {
+      files: ['test/*'],
+      extends: ['@metamask/eslint-config-mocha'],
     },
-  }],
-
-  ignorePatterns: [
-    '!.eslintrc.js',
-    '.nyc*',
-    'coverage/',
-    'dist/',
   ],
+
+  ignorePatterns: ['!.eslintrc.js', '.nyc*', 'coverage/', 'dist/'],
 };

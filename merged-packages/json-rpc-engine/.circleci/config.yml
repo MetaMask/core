@@ -10,6 +10,7 @@ workflows:
       - test-lint:
           requires:
             - prep-deps
+            - prep-build
       - test-unit:
           requires:
             - prep-deps
@@ -36,8 +37,8 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
-          - node_modules
-          - build-artifacts
+            - node_modules
+            - build-artifacts
 
   test-lint:
     docker:
@@ -63,7 +64,7 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
-          - dist
+            - dist
 
   test-unit:
     docker:

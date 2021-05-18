@@ -25,7 +25,11 @@ describe('asMiddleware', function () {
       assert.ok(res, 'has res');
       assert.equal(originalReq.id, res.id, 'id matches');
       assert.equal(originalReq.jsonrpc, res.jsonrpc, 'jsonrpc version matches');
-      assert.equal(res.result, 'saw subengine', 'response was handled by nested engine');
+      assert.equal(
+        res.result,
+        'saw subengine',
+        'response was handled by nested engine',
+      );
       done();
     });
   });
@@ -226,5 +230,4 @@ describe('asMiddleware', function () {
       done();
     });
   });
-
 });

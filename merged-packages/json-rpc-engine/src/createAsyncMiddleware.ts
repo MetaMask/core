@@ -9,7 +9,7 @@ export type AsyncJsonRpcEngineNextCallback = () => Promise<void>;
 export type AsyncJsonrpcMiddleware<T, U> = (
   req: JsonRpcRequest<T>,
   res: PendingJsonRpcResponse<U>,
-  next: AsyncJsonRpcEngineNextCallback
+  next: AsyncJsonRpcEngineNextCallback,
 ) => Promise<void>;
 
 type ReturnHandlerCallback = (error: null | Error) => void;

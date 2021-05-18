@@ -70,7 +70,11 @@ describe('JsonRpcEngine', function () {
       assert.ifError(err, 'did not error');
       assert.ok(res, 'has res');
       assert.equal(res.result, 42, 'has expected result');
-      assert.equal(payload.method, 'hello', 'original request object is not mutated by middleware');
+      assert.equal(
+        payload.method,
+        'hello',
+        'original request object is not mutated by middleware',
+      );
       done();
     });
   });
@@ -224,7 +228,9 @@ describe('JsonRpcEngine', function () {
       assert.ok(res.error, 'should have error on response');
       assert.equal(res.error.code, -32603, 'should have expected error');
       assert.ok(
-        res.error.message.startsWith('JsonRpcEngine: "next" return handlers must be functions.'),
+        res.error.message.startsWith(
+          'JsonRpcEngine: "next" return handlers must be functions.',
+        ),
         'should have expected error',
       );
       assert.ok(!res.result, 'should not have result on response');
