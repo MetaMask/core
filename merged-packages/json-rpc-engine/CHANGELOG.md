@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `isJsonRpcSuccess` and `isJsonRpcFailure` type guard utilities ([#91](https://github.com/MetaMask/json-rpc-engine/pull/91))
+- JSON-RPC ID validation utility and type guard, via `getJsonRpcIdValidator` ([#91](https://github.com/MetaMask/json-rpc-engine/pull/91))
+
+### Changed
+
+- **(BREAKING)** Return a `null` instead of `undefined` response `id` for malformed request objects ([#91](https://github.com/MetaMask/json-rpc-engine/pull/91))
+  - This is very unlikely to be breaking in practice, but the behavior could have been relied on.
+
 ## [6.1.0] - 2020-11-20
 
 ### Added

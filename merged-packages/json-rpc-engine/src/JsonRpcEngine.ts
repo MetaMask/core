@@ -23,7 +23,7 @@ export type JsonRpcVersion = '2.0';
  * notification. The value SHOULD normally not be Null and Numbers SHOULD
  * NOT contain fractional parts.
  */
-export type JsonRpcId = number | string | void;
+export type JsonRpcId = number | string | null;
 
 export interface JsonRpcError {
   code: number;
@@ -274,7 +274,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
         `Requests must be plain objects. Received: ${typeof callerReq}`,
         { request: callerReq },
       );
-      return cb(error, { id: undefined, jsonrpc: '2.0', error });
+      return cb(error, { id: null, jsonrpc: '2.0', error });
     }
 
     if (typeof callerReq.method !== 'string') {
