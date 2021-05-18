@@ -156,7 +156,7 @@ type TransactionMetaBase = {
  * @property origin - Origin this transaction was sent from
  * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed
  * @property stateReconsileMethod - string to indicate if the local transaction has been confirmed on the blockchain or etherscan
- * @property groupByValue - string to indicate if the local transaction has been confirmed on the blockchain or etherscan
+ * @property groupByValue - string to indicate if the transaction should be grouped
  * @property rawTransaction - Hex representation of the underlying transaction
  * @property status - String status of this transaction
  * @property time - Timestamp associated with this transaction
