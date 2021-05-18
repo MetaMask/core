@@ -196,19 +196,21 @@ export class CurrencyRateController extends BaseController<
       pendingNativeCurrency,
     } = this.state;
 
-    let conversionDate: number = Date.now() / 1000;
+    const conversionDate: number = Date.now() / 1000;
     let conversionRate: number | null = null;
     let usdConversionRate: number | null = null;
     try {
-      ({
-        conversionDate,
-        conversionRate,
-        usdConversionRate,
-      } = await this.fetchExchangeRate(
-        pendingCurrentCurrency || currentCurrency,
-        pendingNativeCurrency || nativeCurrency,
-        this.includeUsdRate,
-      ));
+      if (
+        (pendingCurrentCurrency || currentCurrency) &&
+        (pendingNativeCurrency || nativeCurrency) &&
+        pendingNativeCurrency !== ''
+      ) {
+        ({ conversionRate, usdConversionRate } = await this.fetchExchangeRate(
+          pendingCurrentCurrency || currentCurrency,
+          pendingNativeCurrency || nativeCurrency,
+          this.includeUsdRate,
+        ));
+      }
     } catch (error) {
       if (!error.message.includes('market does not exist for this coin pair')) {
         throw error;

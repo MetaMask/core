@@ -25,22 +25,21 @@ export async function fetchExchangeRate(
   nativeCurrency: string,
   includeUSDRate?: boolean,
 ): Promise<{
-  conversionDate: number;
-  conversionRate: number | null;
-  usdConversionRate: number | null;
+  conversionRate: number;
+  usdConversionRate: number;
 }> {
-  if (!currency || !nativeCurrency) {
-    return {
-      conversionDate: Date.now() / 1000,
-      conversionRate: null,
-      usdConversionRate: null,
-    };
-  }
-
   const json = await handleFetch(
     getPricingURL(currency, nativeCurrency, includeUSDRate),
   );
 
+  /* 
+  Example expected error response (if pair is not found)
+  {
+    Response: "Error",
+    Message: "cccagg_or_exchange market does not exist for this coin pair (ETH-<NON_EXISTENT_TOKEN>)",
+    HasWarning: false,
+  }
+  */
   if (json.Response === 'Error') {
     throw new Error(json.Message);
   }
@@ -60,7 +59,6 @@ export async function fetchExchangeRate(
   }
 
   return {
-    conversionDate: Date.now() / 1000,
     conversionRate,
     usdConversionRate,
   };

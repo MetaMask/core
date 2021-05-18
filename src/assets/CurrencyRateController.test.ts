@@ -37,9 +37,15 @@ function getRestrictedMessenger() {
   return messenger;
 }
 
+const getStubbedDate = () => {
+  return new Date('2019-04-07T10:20:30Z').getTime();
+};
+
 describe('CurrencyRateController', () => {
+  const realDate = Date.now;
   afterEach(() => {
     nock.cleanAll();
+    global.Date.now = realDate;
   });
 
   it('should set default state', () => {
@@ -287,5 +293,33 @@ describe('CurrencyRateController', () => {
     await controller.updateExchangeRate();
     expect(controller.state.conversionRate).toBeNull();
     controller.destroy();
+  });
+
+  it('should update conversionRates in state to null if either currentCurrency or nativeCurrency is null', async () => {
+    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+    const cryptoCompareHost = 'https://min-api.cryptocompare.com';
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=XYZ')
+      .reply(200, { XYZ: 2000.42 })
+      .persist();
+
+    const messenger = getRestrictedMessenger();
+    const existingState = { currentCurrency: '', nativeCurrency: 'BNB' };
+    const controller = new CurrencyRateController({
+      messenger,
+      state: existingState,
+    });
+
+    await controller.updateExchangeRate();
+
+    expect(controller.state).toStrictEqual({
+      conversionDate: getStubbedDate() / 1000,
+      conversionRate: null,
+      currentCurrency: '',
+      nativeCurrency: 'BNB',
+      pendingCurrentCurrency: null,
+      pendingNativeCurrency: null,
+      usdConversionRate: null,
+    });
   });
 });
