@@ -99,6 +99,7 @@ export enum TransactionStatus {
   cancelled = 'cancelled',
   confirmed = 'confirmed',
   failed = 'failed',
+  failedBeforeChain = 'failedBeforeChain',
   rejected = 'rejected',
   signed = 'signed',
   submitted = 'submitted',
@@ -115,7 +116,7 @@ export enum WalletDevice {
 }
 
 /**
- * Reconsile method that the Transaction Controller used to confirm completed transaction 
+ * Source of data used to reconsile local transactions end state 
  */
  export enum StateReconsileMethod {
   ETHERSCAN = 'etherscan',
@@ -142,7 +143,8 @@ type TransactionMetaBase = {
   blockNumber?: string;
   deviceConfirmedOn?: WalletDevice;
   stateReconsileMethod?: StateReconsileMethod; 
-  groupByValue?: string; 
+  intentId?: number;
+  //Add status group property (pending (unapproved, approved, signed, submitted), finished(cancelled, failed, failedBeforeChain, rejected, confirmed))
 };
 
 /**
@@ -155,8 +157,6 @@ type TransactionMetaBase = {
  * @property networkID - Network code as per EIP-155 for this transaction
  * @property origin - Origin this transaction was sent from
  * @property deviceConfirmedOn - string to indicate what device the transaction was confirmed
- * @property stateReconsileMethod - string to indicate if the local transaction has been confirmed on the blockchain or etherscan
- * @property groupByValue - string to indicate if the transaction should be grouped
  * @property rawTransaction - Hex representation of the underlying transaction
  * @property status - String status of this transaction
  * @property time - Timestamp associated with this transaction
@@ -164,7 +164,9 @@ type TransactionMetaBase = {
  * @property transaction - Underlying Transaction object
  * @property transactionHash - Hash of a successful transaction
  * @property blockNumber - Number of the block where the transaction has been included
- */
+ * @property stateReconsileMethod - string to indicate the method of reconciliation of the local transactions end state 
+ * @property intentId - hash used to group a set of transactions based on intent
+*/
 export type TransactionMeta =
   | ({
       status: Exclude<TransactionStatus, TransactionStatus.failed>;
@@ -287,7 +289,7 @@ export class TransactionController extends BaseController<
     const newTransactionMeta = {
       ...transactionMeta,
       error,
-      status: TransactionStatus.failed,
+      status: TransactionStatus.failedBeforeChain,
     };
     this.updateTransaction(newTransactionMeta);
     this.hub.emit(`${transactionMeta.id}:finished`, newTransactionMeta);
@@ -836,6 +838,7 @@ export class TransactionController extends BaseController<
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
+        /************* Extract lines below to return and refactor to include reconcilation method */        
         transactions.map(async (meta, index) => {
           // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
           if (
@@ -950,6 +953,9 @@ export class TransactionController extends BaseController<
     allTxs.sort((a, b) => (a.time < b.time ? -1 : 1));
 
     let latestIncomingTxBlockNumber: string | undefined;
+
+    /************* Extract lines below to return and refactor to include reconcilation method and use boolean to indicate whether updates 
+     * were completed this.state.transactions.length should not be the only trigger for an update */
     allTxs.forEach(async (tx) => {
       /* istanbul ignore next */
       if (
@@ -993,13 +999,9 @@ export class TransactionController extends BaseController<
 
   /**
    * Resolves the locally stored transactions with the blockchain or etherscan. Then updated TransactionController State
-   * @param address - public address to resolve transactions against
-   * @param method - use StateReconsileMethod enum to specifiy method of resolution. Default will be the blockchain
    */
   async transactionStateReconciler (address: string, method?: StateReconsileMethod) {
     
-    // Leverage fetchAll() or queryTransactionStatuses() to resolve locally stored txs
-
     // If the transaction reported on the blockchain/etherscan has reach an end state 
     // (cancelled = 'cancelled', confirmed = 'confirmed', failed = 'failed', rejected = 'rejected') 
     // updated local tx & meta data
