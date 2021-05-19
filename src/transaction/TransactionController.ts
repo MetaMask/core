@@ -96,7 +96,7 @@ export interface Transaction {
  */
 export enum TransactionStatus {
   approved = 'approved',
-  cancelled = 'cancelled',
+  cancelled = 'cancelled', //(is also "dropped" for transactions on chain)
   confirmed = 'confirmed',
   failed = 'failed',
   failedBeforeChain = 'failedBeforeChain',
@@ -838,7 +838,8 @@ export class TransactionController extends BaseController<
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
-        /************* Extract lines below to return and refactor to include reconcilation method */        
+        /************* Refactor to include reconcilation method (transactionStateReconciler()) and use boolean to indicate whether updates 
+        * were completed this.state.transactions.length should not be the only trigger for an update at the bottom fot he method */
         transactions.map(async (meta, index) => {
           // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
           if (
@@ -942,6 +943,8 @@ export class TransactionController extends BaseController<
         this.normalizeTokenTx(tx, currentNetworkID, currentChainId),
     );
 
+    /************* Refactor to include reconcilation method (transactionStateReconciler()) and use boolean to indicate whether updates 
+    * were completed this.state.transactions.length should not be the only trigger for an update at the bottom fot he method */
     const remoteTxs = [...normalizedTxs, ...normalizedTokenTxs].filter((tx) => {
       const alreadyInTransactions = this.state.transactions.find(
         ({ transactionHash }) => transactionHash === tx.transactionHash,
@@ -954,8 +957,7 @@ export class TransactionController extends BaseController<
 
     let latestIncomingTxBlockNumber: string | undefined;
 
-    /************* Extract lines below to return and refactor to include reconcilation method and use boolean to indicate whether updates 
-     * were completed this.state.transactions.length should not be the only trigger for an update */
+
     allTxs.forEach(async (tx) => {
       /* istanbul ignore next */
       if (
@@ -1000,11 +1002,11 @@ export class TransactionController extends BaseController<
   /**
    * Resolves the locally stored transactions with the blockchain or etherscan. Then updated TransactionController State
    */
-  async transactionStateReconciler (address: string, method?: StateReconsileMethod) {
+  async transactionStateReconciler (localTx: , remoteTx: method?: StateReconsileMethod) {
     
     // If the transaction reported on the blockchain/etherscan has reach an end state 
     // (cancelled = 'cancelled', confirmed = 'confirmed', failed = 'failed', rejected = 'rejected') 
-    // updated local tx & meta data
+    // updated local tx to match on chain state & meta data property stateReconsileMethod 
   }
 
 }
