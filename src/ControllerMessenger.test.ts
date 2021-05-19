@@ -157,7 +157,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.subscribe('message', handler);
     controllerMessenger.publish('message', 'hello');
 
-    expect(handler.calledWithExactly('hello')).toBeTruthy();
+    expect(handler.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -175,9 +175,9 @@ describe('ControllerMessenger', () => {
     controllerMessenger.publish('message', 'hello');
     controllerMessenger.publish('ping');
 
-    expect(messageHandler.calledWithExactly('hello')).toBeTruthy();
+    expect(messageHandler.calledWithExactly('hello')).toStrictEqual(true);
     expect(messageHandler.callCount).toStrictEqual(1);
-    expect(pingHandler.calledWithExactly()).toBeTruthy();
+    expect(pingHandler.calledWithExactly()).toStrictEqual(true);
     expect(pingHandler.callCount).toStrictEqual(1);
   });
 
@@ -189,7 +189,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.subscribe('ping', handler);
     controllerMessenger.publish('ping');
 
-    expect(handler.calledWithExactly()).toBeTruthy();
+    expect(handler.calledWithExactly()).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -201,7 +201,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.subscribe('message', handler);
     controllerMessenger.publish('message', 'hello', 'there');
 
-    expect(handler.calledWithExactly('hello', 'there')).toBeTruthy();
+    expect(handler.calledWithExactly('hello', 'there')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -214,7 +214,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.subscribe('message', handler);
     controllerMessenger.publish('message', 'hello');
 
-    expect(handler.calledWithExactly('hello')).toBeTruthy();
+    expect(handler.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -228,9 +228,9 @@ describe('ControllerMessenger', () => {
     controllerMessenger.subscribe('message', handler2);
     controllerMessenger.publish('message', 'hello');
 
-    expect(handler1.calledWithExactly('hello')).toBeTruthy();
+    expect(handler1.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler1.callCount).toStrictEqual(1);
-    expect(handler2.calledWithExactly('hello')).toBeTruthy();
+    expect(handler2.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler2.callCount).toStrictEqual(1);
   });
 
@@ -313,7 +313,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: ['CountController:count'],
-      allowedEvents: [],
     });
 
     let count = 0;
@@ -339,7 +338,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
       allowedActions: ['MessageController:reset', 'MessageController:concat'],
-      allowedEvents: [],
     });
 
     let message = '';
@@ -374,7 +372,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
       allowedActions: ['CountController:increment'],
-      allowedEvents: [],
     });
 
     let count = 0;
@@ -398,7 +395,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
       allowedActions: ['MessageController:message'],
-      allowedEvents: [],
     });
 
     const messages: Record<string, string> = {};
@@ -426,7 +422,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MathController',
       allowedActions: ['MathController:add'],
-      allowedEvents: [],
     });
 
     restrictedControllerMessenger.registerActionHandler(
@@ -450,7 +445,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
       allowedActions: ['PingController:ping'],
-      allowedEvents: [],
     });
 
     restrictedControllerMessenger.registerActionHandler(
@@ -472,7 +466,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
       allowedActions: ['PingController:ping'],
-      allowedEvents: [],
     });
 
     expect(() => {
@@ -486,7 +479,6 @@ describe('RestrictedControllerMessenger', () => {
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
       allowedActions: ['PingController:ping'],
-      allowedEvents: [],
     });
 
     expect(() => {
@@ -519,7 +511,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -530,7 +521,7 @@ describe('RestrictedControllerMessenger', () => {
     );
     restrictedControllerMessenger.publish('MessageController:message', 'hello');
 
-    expect(handler.calledWithExactly('hello')).toBeTruthy();
+    expect(handler.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -541,7 +532,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message', 'MessageController:ping'],
     });
 
@@ -559,9 +549,9 @@ describe('RestrictedControllerMessenger', () => {
     restrictedControllerMessenger.publish('MessageController:message', 'hello');
     restrictedControllerMessenger.publish('MessageController:ping');
 
-    expect(messageHandler.calledWithExactly('hello')).toBeTruthy();
+    expect(messageHandler.calledWithExactly('hello')).toStrictEqual(true);
     expect(messageHandler.callCount).toStrictEqual(1);
-    expect(pingHandler.calledWithExactly()).toBeTruthy();
+    expect(pingHandler.calledWithExactly()).toStrictEqual(true);
     expect(pingHandler.callCount).toStrictEqual(1);
   });
 
@@ -570,7 +560,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, PingEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'PingController',
-      allowedActions: [],
       allowedEvents: ['PingController:ping'],
     });
 
@@ -578,7 +567,7 @@ describe('RestrictedControllerMessenger', () => {
     restrictedControllerMessenger.subscribe('PingController:ping', handler);
     restrictedControllerMessenger.publish('PingController:ping');
 
-    expect(handler.calledWithExactly()).toBeTruthy();
+    expect(handler.calledWithExactly()).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -590,7 +579,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -605,7 +593,7 @@ describe('RestrictedControllerMessenger', () => {
       'there',
     );
 
-    expect(handler.calledWithExactly('hello', 'there')).toBeTruthy();
+    expect(handler.calledWithExactly('hello', 'there')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -617,7 +605,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -632,7 +619,7 @@ describe('RestrictedControllerMessenger', () => {
     );
     restrictedControllerMessenger.publish('MessageController:message', 'hello');
 
-    expect(handler.calledWithExactly('hello')).toBeTruthy();
+    expect(handler.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -644,7 +631,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -660,9 +646,9 @@ describe('RestrictedControllerMessenger', () => {
     );
     restrictedControllerMessenger.publish('MessageController:message', 'hello');
 
-    expect(handler1.calledWithExactly('hello')).toBeTruthy();
+    expect(handler1.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler1.callCount).toStrictEqual(1);
-    expect(handler2.calledWithExactly('hello')).toBeTruthy();
+    expect(handler2.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler2.callCount).toStrictEqual(1);
   });
 
@@ -674,7 +660,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -700,7 +685,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -721,7 +705,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -748,7 +731,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -773,7 +755,6 @@ describe('RestrictedControllerMessenger', () => {
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -793,14 +774,11 @@ describe('RestrictedControllerMessenger', () => {
     const externalRestrictedControllerMessenger = controllerMessenger.getRestricted(
       {
         name: 'CountController',
-        allowedActions: [],
-        allowedEvents: [],
       },
     );
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'OtherController',
       allowedActions: ['CountController:count'],
-      allowedEvents: [],
     });
 
     let count = 0;
@@ -824,13 +802,10 @@ describe('RestrictedControllerMessenger', () => {
     const externalRestrictedControllerMessenger = controllerMessenger.getRestricted(
       {
         name: 'MessageController',
-        allowedActions: [],
-        allowedEvents: [],
       },
     );
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'OtherController',
-      allowedActions: [],
       allowedEvents: ['MessageController:message'],
     });
 
@@ -844,7 +819,7 @@ describe('RestrictedControllerMessenger', () => {
       'hello',
     );
 
-    expect(handler.calledWithExactly('hello')).toBeTruthy();
+    expect(handler.calledWithExactly('hello')).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
   });
 
@@ -867,12 +842,9 @@ describe('RestrictedControllerMessenger', () => {
     const messageControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
       allowedActions: ['MessageController:reset', 'CountController:count'],
-      allowedEvents: [],
     });
     const countControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
-      allowedEvents: [],
     });
 
     let count = 0;
@@ -916,13 +888,10 @@ describe('RestrictedControllerMessenger', () => {
 
     const messageControllerMessenger = controllerMessenger.getRestricted({
       name: 'MessageController',
-      allowedActions: [],
       allowedEvents: ['MessageController:ping', 'CountController:update'],
     });
     const countControllerMessenger = controllerMessenger.getRestricted({
       name: 'CountController',
-      allowedActions: [],
-      allowedEvents: [],
     });
 
     let pings = 0;

@@ -40,13 +40,13 @@
     "url": "https://github.com/MetaMask/controllers/issues"
   },
   "dependencies": {
-    "@metamask/contract-metadata": "^1.24.0",
+    "@metamask/contract-metadata": "^1.25.0",
     "@types/uuid": "^8.3.0",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
     "eth-ens-namehash": "^2.0.8",
     "eth-json-rpc-infura": "^5.1.0",
-    "eth-keyring-controller": "^6.1.0",
+    "eth-keyring-controller": "^6.2.1",
     "eth-method-registry": "1.1.0",
     "eth-phishing-detect": "^1.1.13",
     "eth-query": "^2.1.2",
@@ -68,6 +68,7 @@
     "web3-provider-engine": "^16.0.1"
   },
   "devDependencies": {
+    "@metamask/auto-changelog": "^1.0.0",
     "@metamask/eslint-config": "^6.0.0",
     "@metamask/eslint-config-jest": "^6.0.0",
     "@metamask/eslint-config-nodejs": "^6.0.0",

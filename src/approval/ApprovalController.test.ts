@@ -45,7 +45,7 @@ describe('approval controller', () => {
       ).not.toThrow();
 
       const id = Object.keys(approvalController.state[STORE_KEY])[0];
-      expect(id && typeof id === 'string').toBeTruthy();
+      expect(id && typeof id === 'string').toStrictEqual(true);
     });
 
     it('adds correctly specified entry with request data', () => {

@@ -105,13 +105,6 @@ type Json =
   | Json[]
   | { [prop: string]: Json };
 
-type StateChangeEvent<N extends string, S, E> = E extends {
-  type: `${N}:stateChange`;
-  payload: [S, Patch[]];
-}
-  ? E
-  : never;
-
 /**
  * Controller class that provides state management, subscriptions, and state metadata
  */
@@ -124,14 +117,27 @@ export class BaseController<
   protected messagingSystem: RestrictedControllerMessenger<
     N,
     any,
-    StateChangeEvent<N, S, any>,
+    any,
     string,
     string
   >;
 
-  private name: N;
+  /**
+   * The name of the controller.
+   *
+   * This is used by the ComposableController to construct a composed application state.
+   */
+  public readonly name: N;
 
   public readonly metadata: StateMetadata<S>;
+
+  /**
+   * The existence of the `subscribe` property is how the ComposableController detects whether a
+   * controller extends the old BaseController or the new one. We set it to `never` here to ensure
+   * this property is never used for new BaseController-based controllers, to ensure the
+   * ComposableController never mistakes them for an older style controller.
+   */
+  public readonly subscribe: never;
 
   /**
    * Creates a BaseController instance.
@@ -149,13 +155,7 @@ export class BaseController<
     name,
     state,
   }: {
-    messenger: RestrictedControllerMessenger<
-      N,
-      any,
-      StateChangeEvent<N, S, any>,
-      string,
-      string
-    >;
+    messenger: RestrictedControllerMessenger<N, any, any, string, string>;
     metadata: StateMetadata<S>;
     name: N;
     state: IsJsonable<S>;
@@ -164,6 +164,11 @@ export class BaseController<
     this.name = name;
     this.internalState = state;
     this.metadata = metadata;
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getState`,
+      () => this.state,
+    );
   }
 
   /**
