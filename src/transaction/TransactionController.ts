@@ -34,6 +34,8 @@ import {
  *   - Wrong transaction state: “Dropped and replaced” shows up in etherscan and our end shows pending.
  *   - Wrong value being shown on history: showing gas fee instead of the amount swapped.
  *   - The states of transactions 2 transactions with same nonce are shown wrongly.
+ *   - SWAPS transactions not updating correctly
+ *   - Group by nonce doesn't mean it is the same tx (drop then retry) group by the intent of tx (examine tx params, data field, github link WIP: https://github.com/MetaMask/metamask-extension/blob/869c446068e1d6a54020a391e168d031c0e26702/shared/helpers/transaction.js#L14)
  * Suggested changes
  * - add property to txMeta to identify if tx has been reconsiled with the blockchain
  * - add property to group txMetas
@@ -144,7 +146,7 @@ type TransactionMetaBase = {
   deviceConfirmedOn?: WalletDevice;
   stateReconsileMethod?: StateReconsileMethod; 
   intentId?: number;
-  //Add status group property (pending (unapproved, approved, signed, submitted), finished(cancelled, failed, failedBeforeChain, rejected, confirmed))
+  //OPTIONAL: Add status group property (pending (unapproved, approved, signed, submitted), completed(cancelled, failed, failedBeforeChain, rejected, confirmed))
 };
 
 /**
