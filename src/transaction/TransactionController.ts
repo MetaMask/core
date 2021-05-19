@@ -37,10 +37,10 @@ import {
  *   - SWAPS transactions not updating correctly
  *   - Group by nonce doesn't mean it is the same tx (drop then retry) group by the intent of tx (examine tx params, data field, github link WIP: https://github.com/MetaMask/metamask-extension/blob/869c446068e1d6a54020a391e168d031c0e26702/shared/helpers/transaction.js#L14)
  * Suggested changes
- * - add property to txMeta to identify if tx has been reconsiled with the blockchain
+ * - add property to txMeta to identify if tx has been reconciled with the blockchain
  * - add property to group txMetas
- * - add method to force update unreconsiled tx
- * - reconsiled tx on controller construction
+ * - add method to force update unreconciled tx
+ * - reconciled tx on controller construction
  * - correct logic that allows duplicate nonces in (addTransaction & speedUpTransaction)
  */
 
@@ -118,9 +118,9 @@ export enum WalletDevice {
 }
 
 /**
- * Source of data used to reconsile local transactions end state 
+ * Source of data used to reconcile local transactions end state 
  */
- export enum StateReconsileMethod {
+ export enum StateReconcileMethod {
   ETHERSCAN = 'etherscan',
   BLOCKCHAIN = 'blockchain',
   OTHER = 'other'
@@ -144,7 +144,7 @@ type TransactionMetaBase = {
   transactionHash?: string;
   blockNumber?: string;
   deviceConfirmedOn?: WalletDevice;
-  stateReconsileMethod?: StateReconsileMethod; 
+  stateReconcileMethod?: StateReconcileMethod; 
   intentId?: number;
   //OPTIONAL: Add status group property (pending (unapproved, approved, signed, submitted), completed(cancelled, failed, failedBeforeChain, rejected, confirmed))
 };
@@ -166,7 +166,7 @@ type TransactionMetaBase = {
  * @property transaction - Underlying Transaction object
  * @property transactionHash - Hash of a successful transaction
  * @property blockNumber - Number of the block where the transaction has been included
- * @property stateReconsileMethod - string to indicate the method of reconciliation of the local transactions end state 
+ * @property stateReconcileMethod - string to indicate the method of reconciliation of the local transactions end state 
  * @property intentId - hash used to group a set of transactions based on intent
 */
 export type TransactionMeta =
@@ -1004,11 +1004,11 @@ export class TransactionController extends BaseController<
   /**
    * Resolves the locally stored transactions with the blockchain or etherscan. Then updated TransactionController State
    */
-  async transactionStateReconciler (localTx: , remoteTx: method?: StateReconsileMethod) {
+  async transactionStateReconciler (localTx: , remoteTx: method?: StateReconcileMethod) {
     
     // If the transaction reported on the blockchain/etherscan has reach an end state 
     // (cancelled = 'cancelled', confirmed = 'confirmed', failed = 'failed', rejected = 'rejected') 
-    // updated local tx to match on chain state & meta data property stateReconsileMethod 
+    // updated local tx to match on chain state & meta data property stateReconcileMethod 
   }
 
 }
