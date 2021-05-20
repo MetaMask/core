@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.1.0] = 2021-05-20
 ### Added
-- Add support for unicode domans to PhishingController ([#471](https://github.com/MetaMask/controllers/pull/471))
+- Add support for unicode domains to PhishingController ([#471](https://github.com/MetaMask/controllers/pull/471))
 
 ### Changed
 - AssetsController collectibles metadata improvements ([#454](https://github.com/MetaMask/controllers/pull/454))
