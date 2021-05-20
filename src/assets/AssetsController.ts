@@ -249,14 +249,43 @@ export class AssetsController extends BaseController<
     } else {
       collectibleInformation = await handleFetch(tokenURI);
     }
-    const { name, description, image_original_url } = collectibleInformation;
-    return Object.assign(
+    const {
+      num_sales,
+      background_color,
+      image_url,
+      image_preview_url,
+      image_thumbnail_url,
+      image_original_url,
+      animation_url,
+      animation_original_url,
+      name,
+      description,
+      external_link,
+      creator,
+      last_sale,
+    } = collectibleInformation;
+
+    /* istanbul ignore next */
+    const collectibleMetadata: CollectibleMetadata = Object.assign(
       {},
-      {},
-      image_original_url && { image: image_original_url },
-      name && { name },
+      { name },
+      creator && { creator },
       description && { description },
+      image_url && { image: image_url },
+      num_sales && { numberOfSales: num_sales },
+      background_color && { backgroundColor: background_color },
+      image_preview_url && { imagePreview: image_preview_url },
+      image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
+      image_original_url && { imageOriginal: image_original_url },
+      animation_url && { animation: animation_url },
+      animation_original_url && {
+        animationOriginal: animation_original_url,
+      },
+      external_link && { externalLink: external_link },
+      last_sale && { lastSale: last_sale },
     );
+
+    return collectibleMetadata;
   }
 
   /**
@@ -1000,6 +1029,11 @@ export class AssetsController extends BaseController<
       address,
       detection,
     );
+
+    collectibleMetadata =
+      collectibleMetadata ||
+      (await this.getCollectibleInformation(address, tokenId));
+
     // If collectible contract was not added, do not add individual collectible
     const collectibleContract = newCollectibleContracts.find(
       (contract) => contract.address === address,
