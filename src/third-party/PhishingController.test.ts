@@ -1,3 +1,4 @@
+import { strict as assert } from 'assert';
 import { stub } from 'sinon';
 import nock from 'nock';
 import PhishingController from './PhishingController';
@@ -77,16 +78,83 @@ describe('PhishingController', () => {
     expect(async () => await controller.updatePhishingLists()).not.toThrow();
   });
 
-  it('should verify approved domain', () => {
+  it('should return negative result for safe domain', () => {
     const controller = new PhishingController();
     expect(controller.test('metamask.io')).toBe(false);
   });
 
+  it('should return negative result for safe unicode domain', () => {
+    const controller = new PhishingController();
+    expect(controller.test('i❤.ws')).toBe(false);
+  });
+
+  it('should return negative result for safe punycode domain', () => {
+    const controller = new PhishingController();
+    expect(controller.test('xn--i-7iq.ws')).toBe(false);
+  });
+
+  it('should return positive result for unsafe domain', () => {
+    const controller = new PhishingController();
+    expect(controller.test('etnerscan.io')).toBe(true);
+  });
+
+  it('should return positive result for unsafe unicode domain', () => {
+    const controller = new PhishingController();
+    expect(controller.test('myetherẉalletṭ.com')).toBe(true);
+  });
+
+  it('should return positive result for unsafe punycode domain', () => {
+    const controller = new PhishingController();
+    expect(controller.test('xn--myetherallet-4k5fwn.com')).toBe(true);
+  });
+
   it('should bypass a given domain', () => {
     const controller = new PhishingController();
-    controller.bypass('electrum.mx');
-    controller.bypass('electrum.mx');
-    expect(controller.test('electrum.mx')).toBe(false);
+    const unsafeDomain = 'electrum.mx';
+    assert.equal(
+      controller.test(unsafeDomain),
+      true,
+      'Example unsafe domain seems to be safe',
+    );
+    controller.bypass(unsafeDomain);
+    expect(controller.test(unsafeDomain)).toBe(false);
+  });
+
+  it('should ignore second attempt to bypass a domain', () => {
+    const controller = new PhishingController();
+    const unsafeDomain = 'electrum.mx';
+    assert.equal(
+      controller.test(unsafeDomain),
+      true,
+      'Example unsafe domain seems to be safe',
+    );
+    controller.bypass(unsafeDomain);
+    controller.bypass(unsafeDomain);
+    expect(controller.test(unsafeDomain)).toBe(false);
+  });
+
+  it('should bypass a given unicode domain', () => {
+    const controller = new PhishingController();
+    const unsafeDomain = 'myetherẉalletṭ.com';
+    assert.equal(
+      controller.test(unsafeDomain),
+      true,
+      'Example unsafe domain seems to be safe',
+    );
+    controller.bypass(unsafeDomain);
+    expect(controller.test(unsafeDomain)).toBe(false);
+  });
+
+  it('should bypass a given punycode domain', () => {
+    const controller = new PhishingController();
+    const unsafeDomain = 'xn--myetherallet-4k5fwn.com';
+    assert.equal(
+      controller.test(unsafeDomain),
+      true,
+      'Example unsafe domain seems to be safe',
+    );
+    controller.bypass(unsafeDomain);
+    expect(controller.test(unsafeDomain)).toBe(false);
   });
 
   it('should not update phishing lists if fetch returns 304', async () => {
