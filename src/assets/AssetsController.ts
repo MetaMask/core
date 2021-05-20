@@ -459,6 +459,7 @@ export class AssetsController extends BaseController<
         (collectible) =>
           collectible.address === address && collectible.tokenId === tokenId,
       );
+      /* istanbul ignore next */
       collectibleMetadata =
         collectibleMetadata ||
         (await this.getCollectibleInformation(address, tokenId));
