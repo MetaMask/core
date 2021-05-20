@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.0] - 2021-05-20
+### Added
+- Add support for unicode domains to PhishingController ([#471](https://github.com/MetaMask/controllers/pull/471))
+
+### Changed
+- AssetsController collectibles metadata improvements ([#454](https://github.com/MetaMask/controllers/pull/454))
+
 ## [9.0.0]
 ### Added
 - Add `getState` action to BaseControllerV2 ([#457](https://github.com/MetaMask/controllers/pull/457))
@@ -236,7 +243,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v9.1.0...HEAD
+[9.1.0]: https://github.com/MetaMask/controllers/compare/v9.0.0...v9.1.0
 [9.0.0]: https://github.com/MetaMask/controllers/compare/v8.0.0...v9.0.0
 [8.0.0]: https://github.com/MetaMask/controllers/compare/v7.0.0...v8.0.0
 [7.0.0]: https://github.com/MetaMask/controllers/compare/v6.2.1...v7.0.0
