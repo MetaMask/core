@@ -356,7 +356,7 @@ describe('AssetsController', () => {
     expect(assetsController.state.collectibles[0]).toStrictEqual({
       address: '0xfoO',
       description: 'Description',
-      image: 'url',
+      imageOriginal: 'url',
       name: 'Name',
       tokenId: 1,
     });
@@ -458,7 +458,7 @@ describe('AssetsController', () => {
       {
         address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
         description: 'Kudos Description',
-        image: 'Kudos url',
+        imageOriginal: 'Kudos url',
         name: 'Kudos Name',
         tokenId: 1203,
       },
