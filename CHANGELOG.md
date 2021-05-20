@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [9.1.0] = 2021-05-20
+## [9.1.0] - 2021-05-20
 ### Added
 - Add support for unicode domains to PhishingController ([#471](https://github.com/MetaMask/controllers/pull/471))
 
