@@ -1,3 +1,4 @@
+import punycode from 'punycode/';
 import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
 import PhishingDetector from 'eth-phishing-detect/src/detector';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
@@ -108,21 +109,23 @@ export class PhishingController extends BaseController<
    * @returns - True if the origin is an unapproved origin
    */
   test(origin: string): boolean {
-    if (this.state.whitelist.indexOf(origin) !== -1) {
+    const punycodeOrigin = punycode.toASCII(origin);
+    if (this.state.whitelist.indexOf(punycodeOrigin) !== -1) {
       return false;
     }
-    return this.detector.check(origin).result;
+    return this.detector.check(punycodeOrigin).result;
   }
 
   /**
    * Temporarily marks a given origin as approved
    */
   bypass(origin: string) {
+    const punycodeOrigin = punycode.toASCII(origin);
     const { whitelist } = this.state;
-    if (whitelist.indexOf(origin) !== -1) {
+    if (whitelist.indexOf(punycodeOrigin) !== -1) {
       return;
     }
-    this.update({ whitelist: [...whitelist, origin] });
+    this.update({ whitelist: [...whitelist, punycodeOrigin] });
   }
 
   /**
