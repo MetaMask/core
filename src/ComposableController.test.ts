@@ -10,14 +10,12 @@ import {
   RestrictedControllerMessenger,
 } from './ControllerMessenger';
 import PreferencesController from './user/PreferencesController';
-import TokenRatesController from './assets/TokenRatesController';
 import { AssetsController } from './assets/AssetsController';
 import {
   NetworkController,
   NetworksChainId,
 } from './network/NetworkController';
 import { AssetsContractController } from './assets/AssetsContractController';
-import CurrencyRateController from './assets/CurrencyRateController';
 
 // Mock BaseControllerV2 classes
 
@@ -107,21 +105,13 @@ describe('ComposableController', () => {
           assetContractController,
         ),
       });
-      const currencyRateController = new CurrencyRateController();
       const controller = new ComposableController([
         new AddressBookController(),
         assetController,
         assetContractController,
         new EnsController(),
-        currencyRateController,
         networkController,
         preferencesController,
-        new TokenRatesController({
-          onAssetsStateChange: (listener) =>
-            assetController.subscribe(listener),
-          onCurrencyRateStateChange: (listener) =>
-            currencyRateController.subscribe(listener),
-        }),
       ]);
       expect(controller.state).toStrictEqual({
         AddressBookController: { addressBook: {} },
@@ -136,13 +126,6 @@ describe('ComposableController', () => {
           ignoredTokens: [],
           suggestedAssets: [],
           tokens: [],
-        },
-        CurrencyRateController: {
-          conversionDate: 0,
-          conversionRate: 0,
-          currentCurrency: 'usd',
-          nativeCurrency: 'ETH',
-          usdConversionRate: 0,
         },
         EnsController: {
           ensEntries: {},
@@ -159,7 +142,6 @@ describe('ComposableController', () => {
           lostIdentities: {},
           selectedAddress: '',
         },
-        TokenRatesController: { contractExchangeRates: {} },
       });
     });
 
@@ -182,21 +164,13 @@ describe('ComposableController', () => {
           assetContractController,
         ),
       });
-      const currencyRateController = new CurrencyRateController();
       const controller = new ComposableController([
         new AddressBookController(),
         assetController,
         assetContractController,
         new EnsController(),
-        currencyRateController,
         networkController,
         preferencesController,
-        new TokenRatesController({
-          onAssetsStateChange: (listener) =>
-            assetController.subscribe(listener),
-          onCurrencyRateStateChange: (listener) =>
-            currencyRateController.subscribe(listener),
-        }),
       ]);
       expect(controller.flatState).toStrictEqual({
         addressBook: {},
@@ -205,10 +179,6 @@ describe('ComposableController', () => {
         allTokens: {},
         collectibleContracts: [],
         collectibles: [],
-        contractExchangeRates: {},
-        conversionDate: 0,
-        conversionRate: 0,
-        currentCurrency: 'usd',
         ensEntries: {},
         featureFlags: {},
         frequentRpcList: [],
@@ -217,13 +187,11 @@ describe('ComposableController', () => {
         ignoredTokens: [],
         ipfsGateway: 'https://ipfs.io/ipfs/',
         lostIdentities: {},
-        nativeCurrency: 'ETH',
         network: 'loading',
         provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
         selectedAddress: '',
         suggestedAssets: [],
         tokens: [],
-        usdConversionRate: 0,
       });
     });
 

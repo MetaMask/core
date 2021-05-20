@@ -1,54 +1,55 @@
 # Changelog
-
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [8.0.0] - 2021-04-15
-
+## [9.0.0]
 ### Added
+- Add `getState` action to BaseControllerV2 ([#457](https://github.com/MetaMask/controllers/pull/457))
 
+### Changed
+- **BREAKING:** Migrate CurrencyRateController to BaseControllerV2 ([#372](https://github.com/MetaMask/controllers/pull/372))
+- Add BaseControllerV2 support to ComposableController ([#447](https://github.com/MetaMask/controllers/pull/447))
+- Update eth-keyring-controller ([#460](https://github.com/MetaMask/controllers/pull/460))
+- Export BaseControllerV2 and ControllerMessenger ([#462](https://github.com/MetaMask/controllers/pull/462))
+- Improve restricted messenger types for controllers ([#461](https://github.com/MetaMask/controllers/pull/461))
+- Document all ControllerMessenger generic parameters ([#456](https://github.com/MetaMask/controllers/pull/456))
+- Bump @metamask/contract-metadata from 1.24.0 to 1.25.0 ([#444](https://github.com/MetaMask/controllers/pull/444))
+
+## [8.0.0] - 2021-04-15
+### Added
 - Add restricted controller messenger ([#378](https://github.com/MetaMask/controllers/pull/378))
 
 ### Changed
-
 - **BREAKING:** Update minimum Node.js version to v12 ([#441](https://github.com/MetaMask/controllers/pull/441))
 - **BREAKING:** Replace controller context ([#387](https://github.com/MetaMask/controllers/pull/387))
 - Bump @metamask/contract-metadata from 1.23.0 to 1.24.0 ([#440](https://github.com/MetaMask/controllers/pull/440))
 - Update lint rules ([#442](https://github.com/MetaMask/controllers/pull/442), [#426](https://github.com/MetaMask/controllers/pull/426))
 
 ### Fixed
-
 - Don't remove collectibles during auto detection ([#439](https://github.com/MetaMask/controllers/pull/439))
 
 ## [7.0.0] - 2021-04-06
-
 ### Added
-
 - Ability to indicate if a transaction was added from the users local device and account creation time ([#436](https://github.com/MetaMask/controllers/pull/436))
 
 ### Changed
-
 - **BREAKING:** Organize assets by chainid ([#435](https://github.com/MetaMask/controllers/pull/435))
 - Support longer token symbols via wallet_watchAsset ([#433](https://github.com/MetaMask/controllers/pull/433))
 
 ## [6.2.1] - 2021-03-23
-
 ### Fixed
-
 - Restore BN export ([#428](https://github.com/MetaMask/controllers/pull/428))
 
 ## [6.2.0] - 2021-03-23 [WITHDRAWN]
-
 ### Added
-
 - Add the Notification Controller (to support "what's new" type announcements in-app) ([#329](https://github.com/MetaMask/controllers/pull/329))
 - Add support for specifying a custom nonce ([#381](https://github.com/MetaMask/controllers/pull/381))
 
 ### Changed
-
 - Explicitly add ethereumjs-tx as a package.json dependency ([#392](https://github.com/MetaMask/controllers/pull/392))
 - Add `types` manifest field to package.json ([#391](https://github.com/MetaMask/controllers/pull/391))
 - Use "options bag" for parameters for BaseControllerV2 constructor ([#388](https://github.com/MetaMask/controllers/pull/388))
@@ -62,31 +63,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Add descriptive error messages to empty `toThrow` call ([#422](https://github.com/MetaMask/controllers/pull/422))
 
 ### Fixed
-
 - Fix `signTransaction` transaction parameter type ([#400](https://github.com/MetaMask/controllers/pull/400))
 - [BREAKING] Consistently use BN type for token balances ([#398](https://github.com/MetaMask/controllers/pull/398))
 
 ## [6.1.1] - 2021-03-12
-
 ### Added
-
 - Add controller messaging system ([#377](https://github.com/MetaMask/controllers/pull/377))
 
 ### Fixed
-
 - bugfix/dont modify current transactions ([#386](https://github.com/MetaMask/controllers/pull/386))
 - Fix `format` commands ([#385](https://github.com/MetaMask/controllers/pull/385))
 
 ## [6.1.0] - 2021-03-10
-
 ### Added
-
 - Add Base Controller v2 ([#358](https://github.com/MetaMask/controllers/pull/358))
 - Add `babel-runtime` dependency required by `ethjs-query` ([#341](https://github.com/MetaMask/controllers/pull/341))
 - Add Dependabot config ([#343](https://github.com/MetaMask/controllers/pull/343))
 
 ### Changed
-
 - Add chainId to every transaction ([#349](https://github.com/MetaMask/controllers/pull/349))
 - Add normalizeTokenTx for incoming transactions ([#380](https://github.com/MetaMask/controllers/pull/380))
 - Bump elliptic from 6.5.3 to 6.5.4 ([#383](https://github.com/MetaMask/controllers/pull/383))
@@ -118,117 +112,86 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Update `eth-json-rpc-filters` in lockfile ([#336](https://github.com/MetaMask/controllers/pull/336))
 
 ### Fixed
-
 - Fix AbstractMessageManager error ([#367](https://github.com/MetaMask/controllers/pull/367))
 - Enforce the usage of `chainId` instead of `networkId` in `NetworkController` ([#324](https://github.com/MetaMask/controllers/pull/324))
 
 ## [6.0.1] - 2021-02-05
-
 ### Changed
-
 - Update `typedoc` from v0.15 to v20.20 ([#333](https://github.com/MetaMask/controllers/pull/333))
 - Update `@metamask/contract-metadata` from v1.19 to v1.22 ([#332](https://github.com/MetaMask/controllers/pull/332))
 - Bump node-notifier from 8.0.0 to 8.0.1 ([#323](https://github.com/MetaMask/controllers/pull/323))
 
 ### Fixed
-
 - Add `safelyExecuteWithTimeout` for `accountTracker.refresh` ([#331](https://github.com/MetaMask/controllers/pull/331))
 - Add try/catch for `assetsContract.getBalanceOf` ([#328](https://github.com/MetaMask/controllers/pull/328))
 
 ## [6.0.0] - 2021-01-19
-
 ### Changed
-
 - Remove default approval controller type ([#321](https://github.com/MetaMask/controllers/pull/321))
 
 ### Fixed
-
 - Enforce the usage of `chainId` instead of `networkId` in `NetworkController` ([#324](https://github.com/MetaMask/controllers/pull/324))
 
 ## [5.1.0] - 2020-12-02
-
 ### Changed
-
 - Updated automatically detected assets ([#318](https://github.com/MetaMask/controllers/pull/318))
 
 ### Fixed
-
 - Robustified `wallet_watchAssets` params validation, and improved errors ([#317](https://github.com/MetaMask/controllers/pull/317))
 
 ## [5.0.0] - 2020-11-19
-
 ### Added
-
 - `ApprovalController` ([#309](https://github.com/MetaMask/controllers/pull/309))
   - Add user-defined default type
   - Add `Date.now()` timestamps to request (`approval.time`)
   - Enable `has` lookups by `type` only
 
 ### Changed
-
 - **Breaking:** `ApprovalController`: Require types for all requests ([#309](https://github.com/MetaMask/controllers/pull/309))
 - `ApprovalController`: Rename `ApprovalInfo` interface to `Approval` ([#309](https://github.com/MetaMask/controllers/pull/309))
 - `PhishingController`: Make `no-cache` fetch option explicit ([#297](https://github.com/MetaMask/controllers/pull/297))
 - Make package compatible with Node 12 ([#287](https://github.com/MetaMask/controllers/pull/287))
 
 ### Fixed
-
 - `ApprovalController`: Fix faulty `origin` parameter type check ([#309](https://github.com/MetaMask/controllers/pull/309))
   - The type check was too loose, and would've permitted some invalid origins.
 
 ## [4.2.0] - 2020-11-13
-
 ### Added
-
 - Expose `ApprovalController` count state ([#306](https://github.com/MetaMask/controllers/pull/306))
 - `KeyringController` `onLock`/`onUnlock` event handlers ([#307](https://github.com/MetaMask/controllers/pull/307))
 
 ### Fixed
-
 - Properly initialize `ApprovalController` ([#306](https://github.com/MetaMask/controllers/pull/306))
 
 ## [4.1.0] - 2020-11-10
-
 ### Added
-
 - `ApprovalController` approval count methods ([#304](https://github.com/MetaMask/controllers/pull/304))
 
 ## [4.0.2] - 2020-11-09
-
 ### Changed
-
 - Unpin `eth-sig-util` dependency ([#302](https://github.com/MetaMask/controllers/pull/302))
 
 ## [4.0.1] - 2020-11-09
-
 ### Fixed
-
 - Fix `ApprovalController` export ([#300](https://github.com/MetaMask/controllers/pull/300))
 
 ## [4.0.0] - 2020-11-09
-
 ### Added
-
 - Add `ApprovalController` ([#289](https://github.com/MetaMask/controllers/pull/289))
 
 ### Changed
-
 - Allow configuring `CurrencyController` to always fetch USD rate ([#292](https://github.com/MetaMask/controllers/pull/292))
 
 ### Removed
-
 - **BREAKING:** Remove `NetworkStatusController` ([#298](https://github.com/MetaMask/controllers/pull/298))
 
 ## [3.2.0] - 2020-10-21
-
 ### Added
-
 - Add `addNewAccountWithoutUpdate` method ([#288](https://github.com/MetaMask/controllers/pull/288))
 
 ## [3.1.0] - 2020-09-23
-
 ### Changed
-
 - Update various dependencies
   - eth-rpc-errors@3.0.0 ([#284](https://github.com/MetaMask/controllers/pull/284))
   - web3-provider-engine@16.0.1 ([#283](https://github.com/MetaMask/controllers/pull/283))
@@ -236,83 +199,67 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - eth-json-rpc-infura@5.1.0 ([#281](https://github.com/MetaMask/controllers/pull/281))
 
 ## [3.0.1] - 2020-09-15
-
 ### Changed
-
 - Remove `If-None-Match` header from phishing config requests ([#277](https://github.com/MetaMask/controllers/pull/277))
 
 ## [3.0.0] - 2020-09-11
-
 ### Changed
-
 - Use Infura v3 API ([#267](https://github.com/MetaMask/controllers/pull/267))
 
 ## [2.0.5] - 2020-08-18
-
 ### Changed
-
 - Add prepublishOnly build script (#260)
 
 ## [2.0.4] - 2020-08-18
-
 ### Changed
-
 - Use jsDelivr instead of the GitHub API for content (#256)
 - Lower phishing config poll rate to 1 req/hr (#257)
 - Use renamed `eth-rpc-error` package (#252)
 
 ## [2.0.3] - 2020-07-27
-
 ### Added
-
 - TransactionsController: Bugfix cancel / speedup transactions (#248)
 
 ## [2.0.2] - 2020-07-14
-
 ### Added
-
 - TransactionsController: Fetch incoming token transactions (#247)
 
 ## [2.0.1] - 2020-06-18
-
 ### Changed
-
 - Update `PhishingController` endpoint to use GitHub API (#244)
 
 ## [2.0.0] - 2020-05-07
-
 ### Changed
-
 - Rebrand as `@metamask/controllers` (#226)
 - Use yarn & drop `npm-shrinkwrap.json` (#193)
 
 ## Removed
-
 - Remove shapeshift controller (#209)
 
-[Unreleased]:https://github.com/MetaMask/controllers/compare/v8.0.0...HEAD
-[8.0.0]:https://github.com/MetaMask/controllers/compare/v7.0.0...v8.0.0
-[7.0.0]:https://github.com/MetaMask/controllers/compare/v6.2.1...v7.0.0
-[6.2.1]:https://github.com/MetaMask/controllers/compare/v6.2.0...v6.2.1
-[6.2.0]:https://github.com/MetaMask/controllers/compare/v6.1.1...v6.2.0
-[6.1.1]:https://github.com/MetaMask/controllers/compare/v6.1.0...v6.1.1
-[6.1.0]:https://github.com/MetaMask/controllers/compare/v6.0.1...v6.1.0
-[6.0.1]:https://github.com/MetaMask/controllers/compare/v6.0.0...v6.0.1
-[6.0.0]:https://github.com/MetaMask/controllers/compare/v5.1.0...v6.0.0
-[5.1.0]:https://github.com/MetaMask/controllers/compare/v5.0.0...v5.1.0
-[5.0.0]:https://github.com/MetaMask/controllers/compare/v4.2.0...v5.0.0
-[4.2.0]:https://github.com/MetaMask/controllers/compare/v4.1.0...v4.2.0
-[4.1.0]:https://github.com/MetaMask/controllers/compare/v4.0.2...v4.1.0
-[4.0.2]:https://github.com/MetaMask/controllers/compare/v4.0.1...v4.0.2
-[4.0.1]:https://github.com/MetaMask/controllers/compare/v4.0.0...v4.0.1
-[4.0.0]:https://github.com/MetaMask/controllers/compare/v3.2.0...v4.0.0
-[3.2.0]:https://github.com/MetaMask/controllers/compare/v3.1.0...v3.2.0
-[3.1.0]:https://github.com/MetaMask/controllers/compare/v3.0.1...v3.1.0
-[3.0.1]:https://github.com/MetaMask/controllers/compare/v3.0.0...v3.0.1
-[3.0.0]:https://github.com/MetaMask/controllers/compare/v2.0.5...v3.0.0
-[2.0.5]:https://github.com/MetaMask/controllers/compare/v2.0.4...v2.0.5
-[2.0.4]:https://github.com/MetaMask/controllers/compare/v2.0.3...v2.0.4
-[2.0.3]:https://github.com/MetaMask/controllers/compare/v2.0.2...v2.0.3
-[2.0.2]:https://github.com/MetaMask/controllers/compare/v2.0.1...v2.0.2
-[2.0.1]:https://github.com/MetaMask/controllers/compare/v2.0.0...v2.0.1
-[2.0.0]:https://github.com/MetaMask/controllers/tree/v2.0.0
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/controllers/compare/v8.0.0...v9.0.0
+[8.0.0]: https://github.com/MetaMask/controllers/compare/v7.0.0...v8.0.0
+[7.0.0]: https://github.com/MetaMask/controllers/compare/v6.2.1...v7.0.0
+[6.2.1]: https://github.com/MetaMask/controllers/compare/v6.2.0...v6.2.1
+[6.2.0]: https://github.com/MetaMask/controllers/compare/v6.1.1...v6.2.0
+[6.1.1]: https://github.com/MetaMask/controllers/compare/v6.1.0...v6.1.1
+[6.1.0]: https://github.com/MetaMask/controllers/compare/v6.0.1...v6.1.0
+[6.0.1]: https://github.com/MetaMask/controllers/compare/v6.0.0...v6.0.1
+[6.0.0]: https://github.com/MetaMask/controllers/compare/v5.1.0...v6.0.0
+[5.1.0]: https://github.com/MetaMask/controllers/compare/v5.0.0...v5.1.0
+[5.0.0]: https://github.com/MetaMask/controllers/compare/v4.2.0...v5.0.0
+[4.2.0]: https://github.com/MetaMask/controllers/compare/v4.1.0...v4.2.0
+[4.1.0]: https://github.com/MetaMask/controllers/compare/v4.0.2...v4.1.0
+[4.0.2]: https://github.com/MetaMask/controllers/compare/v4.0.1...v4.0.2
+[4.0.1]: https://github.com/MetaMask/controllers/compare/v4.0.0...v4.0.1
+[4.0.0]: https://github.com/MetaMask/controllers/compare/v3.2.0...v4.0.0
+[3.2.0]: https://github.com/MetaMask/controllers/compare/v3.1.0...v3.2.0
+[3.1.0]: https://github.com/MetaMask/controllers/compare/v3.0.1...v3.1.0
+[3.0.1]: https://github.com/MetaMask/controllers/compare/v3.0.0...v3.0.1
+[3.0.0]: https://github.com/MetaMask/controllers/compare/v2.0.5...v3.0.0
+[2.0.5]: https://github.com/MetaMask/controllers/compare/v2.0.4...v2.0.5
+[2.0.4]: https://github.com/MetaMask/controllers/compare/v2.0.3...v2.0.4
+[2.0.3]: https://github.com/MetaMask/controllers/compare/v2.0.2...v2.0.3
+[2.0.2]: https://github.com/MetaMask/controllers/compare/v2.0.1...v2.0.2
+[2.0.1]: https://github.com/MetaMask/controllers/compare/v2.0.0...v2.0.1
+[2.0.0]: https://github.com/MetaMask/controllers/releases/tag/v2.0.0
