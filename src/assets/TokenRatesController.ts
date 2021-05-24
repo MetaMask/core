@@ -85,7 +85,7 @@ export class TokenRatesController extends BaseController<
 
   private async updateChainSlugIdentifier(chainId: string) {
     const platforms: [
-      { id: string; chain_identifier: number },
+      { id: string; chain_identifier: number | null },
     ] = await handleFetch('https://api.coingecko.com/api/v3/asset_platforms');
     const chain = platforms.find(
       ({ chain_identifier }) =>
@@ -137,10 +137,13 @@ export class TokenRatesController extends BaseController<
       disabled: true,
       interval: 180000,
       nativeCurrency: 'eth',
-      chainId: '',
+      chainId: '1',
       tokens: [],
     };
-    this.defaultState = { contractExchangeRates: {}, chainSlugIdentifier: '' };
+    this.defaultState = {
+      contractExchangeRates: {},
+      chainSlugIdentifier: 'ethereum',
+    };
     this.initialize();
     this.configure({ disabled: false }, false, false);
     onAssetsStateChange((assetsState) => {
