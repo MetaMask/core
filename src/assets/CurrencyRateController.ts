@@ -190,8 +190,8 @@ export class CurrencyRateController extends BaseController<
   async updateExchangeRate(): Promise<CurrencyRateState | void> {
     const releaseLock = await this.mutex.acquire();
     const {
-      currentCurrency,
-      nativeCurrency,
+      currentCurrency: stateCurrentCurrency,
+      nativeCurrency: stateNativeCurrency,
       pendingCurrentCurrency,
       pendingNativeCurrency,
     } = this.state;
@@ -199,15 +199,22 @@ export class CurrencyRateController extends BaseController<
     const conversionDate: number = Date.now() / 1000;
     let conversionRate: number | null = null;
     let usdConversionRate: number | null = null;
+    const currentCurrency = pendingCurrentCurrency ?? stateCurrentCurrency;
+    const nativeCurrency = pendingNativeCurrency ?? stateNativeCurrency;
+
     try {
       if (
-        (pendingCurrentCurrency || currentCurrency) &&
-        (pendingNativeCurrency || nativeCurrency) &&
-        pendingNativeCurrency !== ''
+        currentCurrency &&
+        nativeCurrency &&
+        // if either currency is an empty string we can skip the comparison
+        // because it will result in an error from the api and ultimately
+        // a null conversionRate either way.
+        currentCurrency !== '' &&
+        nativeCurrency !== ''
       ) {
         ({ conversionRate, usdConversionRate } = await this.fetchExchangeRate(
-          pendingCurrentCurrency || currentCurrency,
-          pendingNativeCurrency || nativeCurrency,
+          currentCurrency,
+          nativeCurrency,
           this.includeUsdRate,
         ));
       }
@@ -216,18 +223,24 @@ export class CurrencyRateController extends BaseController<
         throw error;
       }
     } finally {
-      this.update(() => {
-        return {
-          conversionDate,
-          conversionRate,
-          currentCurrency: pendingCurrentCurrency || currentCurrency,
-          nativeCurrency: pendingNativeCurrency || nativeCurrency,
-          pendingCurrentCurrency: null,
-          pendingNativeCurrency: null,
-          usdConversionRate,
-        };
-      });
-      releaseLock();
+      try {
+        this.update(() => {
+          return {
+            conversionDate,
+            conversionRate,
+            // we currently allow and handle an empty string as a valid nativeCurrency
+            // in cases where a user has not entered a native ticker symbol for a custom network
+            // currentCurrency is not from user input but this protects us from unexpected changes.
+            nativeCurrency,
+            currentCurrency,
+            pendingCurrentCurrency: null,
+            pendingNativeCurrency: null,
+            usdConversionRate,
+          };
+        });
+      } finally {
+        releaseLock();
+      }
     }
     return this.state;
   }
