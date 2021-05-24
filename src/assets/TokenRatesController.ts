@@ -2,6 +2,7 @@ import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute, handleFetch } from '../util';
 
+import type { NetworkState } from '../network/NetworkController';
 import type { AssetsState } from './AssetsController';
 import type { CurrencyRateState } from './CurrencyRateController';
 
@@ -46,7 +47,12 @@ export interface Token {
 export interface TokenRatesConfig extends BaseConfig {
   interval: number;
   nativeCurrency: string;
+  chainId: string;
   tokens: Token[];
+}
+
+interface ContractExchangeRates {
+  [address: string]: number | undefined;
 }
 
 /**
@@ -57,7 +63,8 @@ export interface TokenRatesConfig extends BaseConfig {
  * @property contractExchangeRates - Hash of token contract addresses to exchange rates
  */
 export interface TokenRatesState extends BaseState {
-  contractExchangeRates: { [address: string]: number };
+  contractExchangeRates: ContractExchangeRates;
+  chainSlugIdentifier: string;
 }
 
 /**
@@ -72,8 +79,24 @@ export class TokenRatesController extends BaseController<
 
   private tokenList: Token[] = [];
 
-  private getPricingURL(query: string) {
-    return `https://api.coingecko.com/api/v3/simple/token_price/ethereum?${query}`;
+  private getPricingURL(chainSlugIdentifier: string, query: string) {
+    return `https://api.coingecko.com/api/v3/simple/token_price/${chainSlugIdentifier}?${query}`;
+  }
+
+  private async updateChainSlugIdentifier(chainId: string) {
+    const platforms: [
+      { id: string; chain_identifier: number },
+    ] = await handleFetch('https://api.coingecko.com/api/v3/asset_platforms');
+    const chain = platforms.find(
+      ({ chain_identifier }) =>
+        chain_identifier !== null && String(chain_identifier) === chainId,
+    );
+    if (chain?.id) {
+      this.update({ chainSlugIdentifier: chain.id });
+    } else {
+      this.update({ chainSlugIdentifier: '' });
+    }
+    !this.disabled && safelyExecute(() => this.updateExchangeRates());
   }
 
   /**
@@ -94,12 +117,16 @@ export class TokenRatesController extends BaseController<
     {
       onAssetsStateChange,
       onCurrencyRateStateChange,
+      onNetworkStateChange,
     }: {
       onAssetsStateChange: (
         listener: (assetState: AssetsState) => void,
       ) => void;
       onCurrencyRateStateChange: (
         listener: (currencyRateState: CurrencyRateState) => void,
+      ) => void;
+      onNetworkStateChange: (
+        listener: (networkState: NetworkState) => void,
       ) => void;
     },
     config?: Partial<TokenRatesConfig>,
@@ -110,9 +137,10 @@ export class TokenRatesController extends BaseController<
       disabled: true,
       interval: 180000,
       nativeCurrency: 'eth',
+      chainId: '',
       tokens: [],
     };
-    this.defaultState = { contractExchangeRates: {} };
+    this.defaultState = { contractExchangeRates: {}, chainSlugIdentifier: '' };
     this.initialize();
     this.configure({ disabled: false }, false, false);
     onAssetsStateChange((assetsState) => {
@@ -120,6 +148,11 @@ export class TokenRatesController extends BaseController<
     });
     onCurrencyRateStateChange((currencyRateState) => {
       this.configure({ nativeCurrency: currencyRateState.nativeCurrency });
+    });
+    onNetworkStateChange(({ provider }) => {
+      const { chainId } = provider;
+      this.configure({ chainId });
+      this.updateChainSlugIdentifier(chainId);
     });
     this.poll();
   }
@@ -157,11 +190,15 @@ export class TokenRatesController extends BaseController<
   /**
    * Fetches a pairs of token address and native currency
    *
+   * @param chainSlugIdentifier - Chain string identifier
    * @param query - Query according to tokens in tokenList and native currency
    * @returns - Promise resolving to exchange rates for given pairs
    */
-  async fetchExchangeRate(query: string): Promise<CoinGeckoResponse> {
-    return handleFetch(this.getPricingURL(query));
+  async fetchExchangeRate(
+    chainSlugIdentifier: string,
+    query: string,
+  ): Promise<CoinGeckoResponse> {
+    return handleFetch(this.getPricingURL(chainSlugIdentifier, query));
   }
 
   /**
@@ -173,18 +210,27 @@ export class TokenRatesController extends BaseController<
     if (this.tokenList.length === 0) {
       return;
     }
-    const newContractExchangeRates: { [address: string]: number } = {};
     const { nativeCurrency } = this.config;
-    const pairs = this.tokenList.map((token) => token.address).join(',');
-    const query = `contract_addresses=${pairs}&vs_currencies=${nativeCurrency.toLowerCase()}`;
-    const prices = await this.fetchExchangeRate(query);
-    this.tokenList.forEach((token) => {
-      const address = toChecksumAddress(token.address);
-      const price = prices[token.address.toLowerCase()];
-      newContractExchangeRates[address] = price
-        ? price[nativeCurrency.toLowerCase()]
-        : 0;
-    });
+    const { chainSlugIdentifier } = this.state;
+
+    const newContractExchangeRates: ContractExchangeRates = {};
+    if (!chainSlugIdentifier) {
+      this.tokenList.forEach((token) => {
+        const address = toChecksumAddress(token.address);
+        newContractExchangeRates[address] = undefined;
+      });
+    } else {
+      const pairs = this.tokenList.map((token) => token.address).join(',');
+      const query = `contract_addresses=${pairs}&vs_currencies=${nativeCurrency.toLowerCase()}`;
+      const prices = await this.fetchExchangeRate(chainSlugIdentifier, query);
+      this.tokenList.forEach((token) => {
+        const address = toChecksumAddress(token.address);
+        const price = prices[token.address.toLowerCase()];
+        newContractExchangeRates[address] = price
+          ? price[nativeCurrency.toLowerCase()]
+          : 0;
+      });
+    }
     this.update({ contractExchangeRates: newContractExchangeRates });
   }
 }
