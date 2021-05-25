@@ -1,5 +1,5 @@
-import { isValidAddress, toChecksumAddress } from 'ethereumjs-util';
-import { normalizeEnsName } from '../util';
+import { toChecksumAddress } from 'ethereumjs-util';
+import { normalizeEnsName, isValidHexAddress } from '../util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 
 /**
@@ -89,7 +89,7 @@ export class AddressBookController extends BaseController<
   delete(chainId: string, address: string) {
     address = toChecksumAddress(address);
     if (
-      !isValidAddress(address) ||
+      !isValidHexAddress(address) ||
       !this.state.addressBook[chainId] ||
       !this.state.addressBook[chainId][address]
     ) {
@@ -118,7 +118,7 @@ export class AddressBookController extends BaseController<
    */
   set(address: string, name: string, chainId = '1', memo = '') {
     address = toChecksumAddress(address);
-    if (!isValidAddress(address)) {
+    if (!isValidHexAddress(address)) {
       return false;
     }
 

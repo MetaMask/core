@@ -192,6 +192,18 @@ describe('util', () => {
     });
   });
 
+  describe('isValidHexAddress', () => {
+    it('should return false for invalid address', () => {
+      expect(util.isValidHexAddress('0x00')).toBe(false);
+    });
+
+    it('should throw if no from address', () => {
+      expect(util.isValidHexAddress('0x00', { allowNonPrefixed: false })).toBe(
+        false,
+      );
+    });
+  });
+
   describe('validateTransaction', () => {
     it('should throw if no from address', () => {
       expect(() => util.validateTransaction({} as any)).toThrow(
@@ -363,7 +375,7 @@ describe('util', () => {
           data: [],
           from: '3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow('Invalid "from" address:');
+      ).toThrow('Expected EIP712 typed data.');
     });
 
     it('should throw if invalid type from address', () => {
@@ -420,7 +432,7 @@ describe('util', () => {
           data: '0x879a05',
           from: '3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow('Invalid "from" address:');
+      ).toThrow('Data must be passed as a valid JSON string.');
     });
 
     it('should throw if invalid type from address', () => {

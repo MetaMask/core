@@ -1,4 +1,10 @@
-import { addHexPrefix, isValidAddress, bufferToHex, BN } from 'ethereumjs-util';
+import {
+  addHexPrefix,
+  isValidAddress,
+  isHexString,
+  bufferToHex,
+  BN,
+} from 'ethereumjs-util';
 import { stripHexPrefix } from 'ethjs-util';
 import { ethErrors } from 'eth-rpc-errors';
 import ensNamehash from 'eth-ens-namehash';
@@ -271,6 +277,23 @@ export async function safelyExecuteWithTimeout(
   }
 }
 
+export function isValidHexAddress(
+  possibleAddress: string,
+  { allowNonPrefixed = true } = {},
+) {
+  const addressToCheck = allowNonPrefixed
+    ? addHexPrefix(possibleAddress)
+    : possibleAddress;
+  if (!isHexString(addressToCheck)) {
+    return false;
+  }
+
+  console.log({ addressToCheck });
+  console.log('is valid address:', isValidAddress(addressToCheck));
+
+  return isValidAddress(addressToCheck);
+}
+
 /**
  * Validates a Transaction object for required properties and throws in
  * the event of any validation error.
@@ -281,7 +304,7 @@ export function validateTransaction(transaction: Transaction) {
   if (
     !transaction.from ||
     typeof transaction.from !== 'string' ||
-    !isValidAddress(transaction.from)
+    !isValidHexAddress(transaction.from)
   ) {
     throw new Error(
       `Invalid "from" address: ${transaction.from} must be a valid string.`,
@@ -295,7 +318,10 @@ export function validateTransaction(transaction: Transaction) {
         `Invalid "to" address: ${transaction.to} must be a valid string.`,
       );
     }
-  } else if (transaction.to !== undefined && !isValidAddress(transaction.to)) {
+  } else if (
+    transaction.to !== undefined &&
+    !isValidHexAddress(transaction.to)
+  ) {
     throw new Error(
       `Invalid "to" address: ${transaction.to} must be a valid string.`,
     );
@@ -353,19 +379,17 @@ export function normalizeMessageData(data: string) {
 export function validateSignMessageData(
   messageData: PersonalMessageParams | MessageParams,
 ) {
+  const { from, data } = messageData;
   if (
-    !messageData.from ||
-    typeof messageData.from !== 'string' ||
-    !isValidAddress(messageData.from)
+    !from ||
+    typeof from !== 'string' ||
+    !isValidHexAddress(from) ||
+    !isValidAddress(from)
   ) {
-    throw new Error(
-      `Invalid "from" address: ${messageData.from} must be a valid string.`,
-    );
+    throw new Error(`Invalid "from" address: ${from} must be a valid string.`);
   }
-  if (!messageData.data || typeof messageData.data !== 'string') {
-    throw new Error(
-      `Invalid message "data": ${messageData.data} must be a valid string.`,
-    );
+  if (!data || typeof data !== 'string') {
+    throw new Error(`Invalid message "data": ${data} must be a valid string.`);
   }
 }
 
@@ -382,7 +406,7 @@ export function validateTypedSignMessageDataV1(
   if (
     !messageData.from ||
     typeof messageData.from !== 'string' ||
-    !isValidAddress(messageData.from)
+    !isValidHexAddress(messageData.from)
   ) {
     throw new Error(
       `Invalid "from" address: ${messageData.from} must be a valid string.`,
@@ -413,7 +437,7 @@ export function validateTypedSignMessageDataV3(
   if (
     !messageData.from ||
     typeof messageData.from !== 'string' ||
-    !isValidAddress(messageData.from)
+    !isValidHexAddress(messageData.from)
   ) {
     throw new Error(
       `Invalid "from" address: ${messageData.from} must be a valid string.`,
@@ -464,7 +488,7 @@ export function validateTokenToWatch(token: Token) {
       `Invalid decimals "${decimals}": must be 0 <= 36.`,
     );
   }
-  if (!isValidAddress(address)) {
+  if (!isValidHexAddress(address)) {
     throw ethErrors.rpc.invalidParams(`Invalid address "${address}".`);
   }
 }
