@@ -6,6 +6,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.0] - 2021-05-20
+### Added
+- Add support for unicode domains to PhishingController ([#471](https://github.com/MetaMask/controllers/pull/471))
+
+### Changed
+- AssetsController collectibles metadata improvements ([#454](https://github.com/MetaMask/controllers/pull/454))
+
+## [9.0.0]
+### Added
+- Add `getState` action to BaseControllerV2 ([#457](https://github.com/MetaMask/controllers/pull/457))
+
+### Changed
+- **BREAKING:** Migrate CurrencyRateController to BaseControllerV2 ([#372](https://github.com/MetaMask/controllers/pull/372))
+- Add BaseControllerV2 support to ComposableController ([#447](https://github.com/MetaMask/controllers/pull/447))
+- Update eth-keyring-controller ([#460](https://github.com/MetaMask/controllers/pull/460))
+- Export BaseControllerV2 and ControllerMessenger ([#462](https://github.com/MetaMask/controllers/pull/462))
+- Improve restricted messenger types for controllers ([#461](https://github.com/MetaMask/controllers/pull/461))
+- Document all ControllerMessenger generic parameters ([#456](https://github.com/MetaMask/controllers/pull/456))
+- Bump @metamask/contract-metadata from 1.24.0 to 1.25.0 ([#444](https://github.com/MetaMask/controllers/pull/444))
+
 ## [8.0.0] - 2021-04-15
 ### Added
 - Add restricted controller messenger ([#378](https://github.com/MetaMask/controllers/pull/378))
@@ -223,7 +243,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v9.1.0...HEAD
+[9.1.0]: https://github.com/MetaMask/controllers/compare/v9.0.0...v9.1.0
+[9.0.0]: https://github.com/MetaMask/controllers/compare/v8.0.0...v9.0.0
 [8.0.0]: https://github.com/MetaMask/controllers/compare/v7.0.0...v8.0.0
 [7.0.0]: https://github.com/MetaMask/controllers/compare/v6.2.1...v7.0.0
 [6.2.1]: https://github.com/MetaMask/controllers/compare/v6.2.0...v6.2.1
