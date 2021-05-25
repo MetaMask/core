@@ -288,9 +288,6 @@ export function isValidHexAddress(
     return false;
   }
 
-  console.log({ addressToCheck });
-  console.log('is valid address:', isValidAddress(addressToCheck));
-
   return isValidAddress(addressToCheck);
 }
 
