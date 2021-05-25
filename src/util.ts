@@ -377,11 +377,7 @@ export function validateSignMessageData(
   messageData: PersonalMessageParams | MessageParams,
 ) {
   const { from, data } = messageData;
-  if (
-    !from ||
-    typeof from !== 'string' ||
-    !isValidHexAddress(from)
-  ) {
+  if (!from || typeof from !== 'string' || !isValidHexAddress(from)) {
     throw new Error(`Invalid "from" address: ${from} must be a valid string.`);
   }
   if (!data || typeof data !== 'string') {
