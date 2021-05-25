@@ -64,7 +64,7 @@ interface ContractExchangeRates {
  */
 export interface TokenRatesState extends BaseState {
   contractExchangeRates: ContractExchangeRates;
-  chainSlugIdentifier: string;
+  chainSlugIdentifier: string | null | undefined;
 }
 
 /**
@@ -83,7 +83,9 @@ export class TokenRatesController extends BaseController<
     return `https://api.coingecko.com/api/v3/simple/token_price/${chainSlugIdentifier}?${query}`;
   }
 
-  private async updateChainSlugIdentifier(chainId: string) {
+  private async getChainSlugIdentifier(
+    chainId: string,
+  ): Promise<string | undefined> {
     const platforms: [
       { id: string; chain_identifier: number | null },
     ] = await handleFetch('https://api.coingecko.com/api/v3/asset_platforms');
@@ -91,12 +93,7 @@ export class TokenRatesController extends BaseController<
       ({ chain_identifier }) =>
         chain_identifier !== null && String(chain_identifier) === chainId,
     );
-    if (chain?.id) {
-      this.update({ chainSlugIdentifier: chain.id });
-    } else {
-      this.update({ chainSlugIdentifier: '' });
-    }
-    !this.disabled && safelyExecute(() => this.updateExchangeRates());
+    return chain?.id;
   }
 
   /**
@@ -142,7 +139,7 @@ export class TokenRatesController extends BaseController<
     };
     this.defaultState = {
       contractExchangeRates: {},
-      chainSlugIdentifier: 'ethereum',
+      chainSlugIdentifier: undefined,
     };
     this.initialize();
     this.configure({ disabled: false }, false, false);
@@ -155,7 +152,6 @@ export class TokenRatesController extends BaseController<
     onNetworkStateChange(({ provider }) => {
       const { chainId } = provider;
       this.configure({ chainId });
-      this.updateChainSlugIdentifier(chainId);
     });
     this.poll();
   }
@@ -172,6 +168,14 @@ export class TokenRatesController extends BaseController<
     this.handle = setTimeout(() => {
       this.poll(this.config.interval);
     }, this.config.interval);
+  }
+
+  set chainId(_chainId: string) {
+    !this.disabled && safelyExecute(() => this.updateExchangeRates());
+  }
+
+  get chainId() {
+    throw new Error('Property only used for setting');
   }
 
   /**
@@ -210,14 +214,27 @@ export class TokenRatesController extends BaseController<
    * @returns Promise resolving when this operation completes
    */
   async updateExchangeRates() {
-    if (this.tokenList.length === 0) {
+    if (this.tokenList.length === 0 || this.disabled) {
       return;
     }
-    const { nativeCurrency } = this.config;
+    const { nativeCurrency, chainId } = this.config;
     const { chainSlugIdentifier } = this.state;
 
-    const newContractExchangeRates: ContractExchangeRates = {};
+    let chainSlug;
+
     if (!chainSlugIdentifier) {
+      try {
+        chainSlug = await this.getChainSlugIdentifier(chainId);
+        if (!chainSlug) {
+          this.update({ chainSlugIdentifier: null });
+        }
+      } catch {
+        this.update({ chainSlugIdentifier: undefined });
+      }
+    }
+
+    const newContractExchangeRates: ContractExchangeRates = {};
+    if (!chainSlug) {
       this.tokenList.forEach((token) => {
         const address = toChecksumAddress(token.address);
         newContractExchangeRates[address] = undefined;
@@ -225,7 +242,7 @@ export class TokenRatesController extends BaseController<
     } else {
       const pairs = this.tokenList.map((token) => token.address).join(',');
       const query = `contract_addresses=${pairs}&vs_currencies=${nativeCurrency.toLowerCase()}`;
-      const prices = await this.fetchExchangeRate(chainSlugIdentifier, query);
+      const prices = await this.fetchExchangeRate(chainSlug, query);
       this.tokenList.forEach((token) => {
         const address = toChecksumAddress(token.address);
         const price = prices[token.address.toLowerCase()];
