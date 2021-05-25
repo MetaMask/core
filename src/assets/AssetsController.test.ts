@@ -295,25 +295,25 @@ describe('AssetsController', () => {
   });
 
   it('should update collectible if image is different', async () => {
-    await assetsController.addCollectible('foo', 1, {
+    await assetsController.addCollectible('0x01', 1, {
       name: 'name',
       image: 'image',
       description: 'description',
     });
     expect(assetsController.state.collectibles[0]).toStrictEqual({
-      address: '0xfoO',
+      address: '0x01',
       description: 'description',
       image: 'image',
       name: 'name',
       tokenId: 1,
     });
-    await assetsController.addCollectible('foo', 1, {
+    await assetsController.addCollectible('0x01', 1, {
       name: 'name',
       image: 'image-updated',
       description: 'description',
     });
     expect(assetsController.state.collectibles[0]).toStrictEqual({
-      address: '0xfoO',
+      address: '0x01',
       description: 'description',
       image: 'image-updated',
       name: 'name',

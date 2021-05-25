@@ -326,11 +326,9 @@ describe('util', () => {
       expect(() =>
         util.validateSignMessageData({
           data: '0x879a05',
-          from: '3244e191f1b4903970224322180f1fbbc415696b',
+          from: '01',
         } as any),
-      ).toThrow(
-        'Invalid "from" address: 3244e191f1b4903970224322180f1fbbc415696b must be a valid string.',
-      );
+      ).toThrow('Invalid "from" address: 01 must be a valid string.');
     });
 
     it('should throw if invalid type from address', () => {

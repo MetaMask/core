@@ -380,8 +380,7 @@ export function validateSignMessageData(
   if (
     !from ||
     typeof from !== 'string' ||
-    !isValidHexAddress(from) ||
-    !isValidAddress(from)
+    !isValidHexAddress(from)
   ) {
     throw new Error(`Invalid "from" address: ${from} must be a valid string.`);
   }
