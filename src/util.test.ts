@@ -192,6 +192,17 @@ describe('util', () => {
     });
   });
 
+  describe('toChecksumHexAddress', () => {
+    const noPrefixAddress = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
+    const fullAddress = `0x${noPrefixAddress}`;
+    it('should return true for valid address', () => {
+      expect(util.toChecksumHexAddress(fullAddress)).toBe(fullAddress);
+    });
+    it('should return true for non prefix address', () => {
+      expect(util.toChecksumHexAddress(noPrefixAddress)).toBe(fullAddress);
+    });
+  });
+
   describe('isValidHexAddress', () => {
     it('should return false for invalid address', () => {
       expect(util.isValidHexAddress('0x00')).toBe(false);
