@@ -22,7 +22,7 @@ import BaseController, {
 import PreferencesController from '../user/PreferencesController';
 import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
 import { TypedMessageParams } from '../message-manager/TypedMessageManager';
-import { toChecksumHexAddress } from '../util'
+import { toChecksumHexAddress } from '../util';
 
 const privates = new WeakMap();
 

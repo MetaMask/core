@@ -1,6 +1,6 @@
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { ContactEntry } from './AddressBookController';
 import { toChecksumHexAddress } from '../util';
+import { ContactEntry } from './AddressBookController';
 
 /**
  * Custom RPC network information
@@ -153,7 +153,9 @@ export class PreferencesController extends BaseController<
    * @returns - Newly-selected address after syncing
    */
   syncIdentities(addresses: string[]) {
-    addresses = addresses.map((address: string) => toChecksumHexAddress(address));
+    addresses = addresses.map((address: string) =>
+      toChecksumHexAddress(address),
+    );
     const { identities, lostIdentities } = this.state;
     const newlyLost: { [address: string]: ContactEntry } = {};
 
@@ -191,7 +193,9 @@ export class PreferencesController extends BaseController<
    * @param addresses - List of addresses to use as a basis for each identity
    */
   updateIdentities(addresses: string[]) {
-    addresses = addresses.map((address: string) => toChecksumHexAddress(address));
+    addresses = addresses.map((address: string) =>
+      toChecksumHexAddress(address),
+    );
     const oldIdentities = this.state.identities;
     const identities = addresses.reduce(
       (ids: { [address: string]: ContactEntry }, address, index) => {
