@@ -2,7 +2,6 @@ import {
   addHexPrefix,
   bufferToHex,
   isValidPrivate,
-  toChecksumAddress,
   toBuffer,
 } from 'ethereumjs-util';
 import { stripHexPrefix } from 'ethjs-util';
@@ -23,6 +22,7 @@ import BaseController, {
 import PreferencesController from '../user/PreferencesController';
 import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
 import { TypedMessageParams } from '../message-manager/TypedMessageManager';
+import { toChecksumHexAddress } from '../util'
 
 const privates = new WeakMap();
 
@@ -566,7 +566,7 @@ export class KeyringController extends BaseController<
         async (keyring: KeyringObject, index: number): Promise<Keyring> => {
           const keyringAccounts = await keyring.getAccounts();
           const accounts = Array.isArray(keyringAccounts)
-            ? keyringAccounts.map((address) => toChecksumAddress(address))
+            ? keyringAccounts.map((address) => toChecksumHexAddress(address))
             : /* istanbul ignore next */ [];
           return {
             accounts,
