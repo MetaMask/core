@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+### Fixed
+- **BREAKING**: Fix stale conversionRate after switching network ([#465](git+https://github.com/MetaMask/controllers/pull/465))
+  - The breaking change is the change in type of the `conversionRate` state of the `CurrencyRateController` - it's now nullable.
+
 ## [9.1.0] - 2021-05-20
 ### Added
 - Add support for unicode domains to PhishingController ([#471](https://github.com/MetaMask/controllers/pull/471))
@@ -243,7 +248,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v9.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/controllers/compare/v9.1.0...v10.0.0
 [9.1.0]: https://github.com/MetaMask/controllers/compare/v9.0.0...v9.1.0
 [9.0.0]: https://github.com/MetaMask/controllers/compare/v8.0.0...v9.0.0
 [8.0.0]: https://github.com/MetaMask/controllers/compare/v7.0.0...v8.0.0
