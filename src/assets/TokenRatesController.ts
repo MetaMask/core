@@ -1,6 +1,5 @@
-import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { safelyExecute, handleFetch } from '../util';
+import { safelyExecute, handleFetch, toChecksumHexAddress } from '../util';
 
 import type { AssetsState } from './AssetsController';
 import type { CurrencyRateState } from './CurrencyRateController';
@@ -179,7 +178,7 @@ export class TokenRatesController extends BaseController<
     const query = `contract_addresses=${pairs}&vs_currencies=${nativeCurrency.toLowerCase()}`;
     const prices = await this.fetchExchangeRate(query);
     this.tokenList.forEach((token) => {
-      const address = toChecksumAddress(token.address);
+      const address = toChecksumHexAddress(token.address);
       const price = prices[token.address.toLowerCase()];
       newContractExchangeRates[address] = price
         ? price[nativeCurrency.toLowerCase()]

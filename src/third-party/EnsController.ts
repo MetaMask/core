@@ -1,6 +1,9 @@
-import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { normalizeEnsName, isValidHexAddress } from '../util';
+import {
+  normalizeEnsName,
+  isValidHexAddress,
+  toChecksumHexAddress,
+} from '../util';
 
 /**
  * @type EnsEntry
@@ -134,7 +137,7 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
       throw new Error(`Invalid ENS name: ${ensName}`);
     }
 
-    const normalizedAddress = address ? toChecksumAddress(address) : null;
+    const normalizedAddress = address ? toChecksumHexAddress(address) : null;
     const subState = this.state.ensEntries[chainId];
 
     if (

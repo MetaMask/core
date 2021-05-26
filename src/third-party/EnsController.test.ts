@@ -1,5 +1,4 @@
-import { toChecksumAddress } from 'ethereumjs-util';
-
+import { toChecksumHexAddress } from '../util';
 import EnsController from './EnsController';
 
 const address1 = '0x32Be343B94f860124dC4fEe278FDCBD38C102D88';
@@ -8,9 +7,9 @@ const address3 = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
 const name1 = 'foobarb.eth';
 const name2 = 'bazbarb.eth';
 
-const address1Checksum = toChecksumAddress(address1);
-const address2Checksum = toChecksumAddress(address2);
-const address3Checksum = toChecksumAddress(address3);
+const address1Checksum = toChecksumHexAddress(address1);
+const address2Checksum = toChecksumHexAddress(address2);
+const address3Checksum = toChecksumHexAddress(address3);
 
 describe('EnsController', () => {
   it('should set default state', () => {
