@@ -4,6 +4,7 @@ import {
   isHexString,
   bufferToHex,
   BN,
+  toChecksumAddress,
 } from 'ethereumjs-util';
 import { stripHexPrefix } from 'ethjs-util';
 import { ethErrors } from 'eth-rpc-errors';
@@ -277,6 +278,39 @@ export async function safelyExecuteWithTimeout(
   }
 }
 
+export function toChecksumHexAddress(address: string) {
+  if (!address) {
+    // our internal checksumAddress function that this method replaces would
+    // return an empty string for nullish input. If any direct usages of
+    // ethereumjs-util.toChecksumAddress were called with nullish input it
+    // would have resulted in an error on version 5.1.
+    return '';
+  }
+  const hexPrefixed = addHexPrefix(address);
+  if (!isHexString(hexPrefixed)) {
+    // Version 5.1 of ethereumjs-utils would have returned '0xY' for input 'y'
+    // but we shouldn't waste effort trying to change case on a clearly invalid
+    // string. Instead just return the hex prefixed original string which most
+    // closely mimics the original behavior.
+    return hexPrefixed;
+  }
+  return toChecksumAddress(hexPrefixed);
+}
+
+/**
+ * Validates that the input is a hex address. This utility method is a thin
+ * wrapper around ethereumjs-util.isValidAddress, with the exception that it
+ * does not throw an error when provided values that are not hex strings. In
+ * addition, and by default, this method will return true for hex strings that
+ * meet the length requirement of a hex address, but are not prefixed with `0x`
+ * Finally, if the mixedCaseUseChecksum flag is true and a mixed case string is
+ * provided this method will validate it has the proper checksum formatting.
+ * @param {string} possibleAddress - Input parameter to check against
+ * @param {Object} [options] - options bag
+ * @param {boolean} [options.allowNonPrefixed] - If true will first ensure '0x'
+ *  is prepended to the string
+ * @returns {boolean} whether or not the input is a valid hex address
+ */
 export function isValidHexAddress(
   possibleAddress: string,
   { allowNonPrefixed = true } = {},
