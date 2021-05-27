@@ -138,11 +138,10 @@ describe('TokenRatesController', () => {
       { interval: 10 },
     );
     const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
-    const address2 = ADDRESS;
     expect(controller.state.contractExchangeRates).toStrictEqual({});
     controller.tokens = [
       { address, decimals: 18, symbol: 'DAI' },
-      { address: address2, decimals: 0, symbol: '' },
+      { address: ADDRESS, decimals: 0, symbol: '' },
     ];
     await controller.updateExchangeRates();
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(
@@ -150,9 +149,9 @@ describe('TokenRatesController', () => {
     );
     expect(controller.state.contractExchangeRates[address]).toBeGreaterThan(0);
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(
-      address2,
+      ADDRESS,
     );
-    expect(controller.state.contractExchangeRates[address2]).toStrictEqual(0);
+    expect(controller.state.contractExchangeRates[ADDRESS]).toStrictEqual(0);
   });
 
   it('should handle balance not found in API', async () => {
