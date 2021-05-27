@@ -3,15 +3,21 @@ import { Mutex } from 'async-mutex';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { safelyExecute, timeoutFetch } from '../util';
-import { Token } from './TokenRatesController';
 
 const DEFAULT_INTERVAL = 180 * 1000;
 
-export type TokenListMap = {
+export type Token = {
+  address: string;
+  decimals: number;
+  symbol: string;
+  occurances: number;
+  aggregators: string[];
+};
+export type TokenMap = {
   [address: string]: Token;
 };
 export type TokenListState = {
-  tokens: TokenListMap;
+  tokens: TokenMap;
 };
 const name = 'TokenListController';
 
@@ -117,7 +123,7 @@ export class TokenListController extends BaseController<
 
   private async fetchTokenList(): Promise<TokenListState | void> {
     const releaseLock = await this.mutex.acquire();
-    const { tokens }: { tokens: TokenListMap } = this.state;
+    const { tokens }: { tokens: TokenMap } = this.state;
     try {
       const tokensResponse = await safelyExecute(() =>
         this.metaswapsTokenQuery(),
@@ -134,7 +140,9 @@ export class TokenListController extends BaseController<
     } finally {
       try {
         this.update(() => {
-          tokens;
+          return {
+            tokens,
+          };
         });
       } finally {
         releaseLock();
