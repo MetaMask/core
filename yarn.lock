@@ -658,10 +658,10 @@
     "@types/yargs" "^15.0.0"
     chalk "^4.0.0"
 
-"@metamask/auto-changelog@^2.1.0":
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/@metamask/auto-changelog/-/auto-changelog-2.1.0.tgz#5cb546f05b07695476d9489540b8d2744d350eda"
-  integrity sha512-FO1NsgcrHQY6CWlD9wFEWgmxWgam1GqtfFGiRH7lp4aYSGn/43ktBMkZ/rF0//7XvUDXn27nC2CClRUBCrg8Jg==
+"@metamask/auto-changelog@^2.2.0":
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/@metamask/auto-changelog/-/auto-changelog-2.2.0.tgz#ccc5f8d2f056793e9736445c0444596d4fcd6ffd"
+  integrity sha512-MZiEAx5QOrCInjBn9Ao/j00qyAivcqK7dEuDD+g+yabCNPFFvNq8U8i53h2Vb4zdj5NzKHIRwYNShOoQxt9BmA==
   dependencies:
     cross-spawn "^7.0.3"
     diff "^5.0.0"
