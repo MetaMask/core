@@ -195,10 +195,10 @@ describe('util', () => {
 
   describe('toChecksumHexAddress', () => {
     const fullAddress = `0x${VALID}`;
-    it('should return true for valid address', () => {
+    it('should return address for valid address', () => {
       expect(util.toChecksumHexAddress(fullAddress)).toBe(fullAddress);
     });
-    it('should return true for non prefix address', () => {
+    it('should return address for non prefix address', () => {
       expect(util.toChecksumHexAddress(VALID)).toBe(fullAddress);
     });
   });
