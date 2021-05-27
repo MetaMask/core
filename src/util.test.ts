@@ -5,6 +5,7 @@ import HttpProvider from 'ethjs-provider-http';
 import EthQuery from 'eth-query';
 import * as util from './util';
 
+const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
 
@@ -193,22 +194,23 @@ describe('util', () => {
   });
 
   describe('toChecksumHexAddress', () => {
-    const noPrefixAddress = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
-    const fullAddress = `0x${noPrefixAddress}`;
+    const fullAddress = `0x${VALID}`;
     it('should return true for valid address', () => {
       expect(util.toChecksumHexAddress(fullAddress)).toBe(fullAddress);
     });
     it('should return true for non prefix address', () => {
-      expect(util.toChecksumHexAddress(noPrefixAddress)).toBe(fullAddress);
+      expect(util.toChecksumHexAddress(VALID)).toBe(fullAddress);
     });
   });
 
   describe('isValidHexAddress', () => {
+    it('should return true for valid address', () => {
+      expect(util.isValidHexAddress(VALID)).toBe(true);
+    });
     it('should return false for invalid address', () => {
       expect(util.isValidHexAddress('0x00')).toBe(false);
     });
-
-    it('should throw if no from address', () => {
+    it('should allow allowNonPrefixed to be false', () => {
       expect(util.isValidHexAddress('0x00', { allowNonPrefixed: false })).toBe(
         false,
       );
