@@ -7,9 +7,15 @@ import {
   NetworksChainId,
 } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
+import { ControllerMessenger } from '../ControllerMessenger';
 import { AssetsController } from './AssetsController';
 import { AssetsContractController } from './AssetsContractController';
 import { AssetsDetectionController } from './AssetsDetectionController';
+import {
+  TokenListController,
+  GetTokenListState,
+  TokenListStateChange,
+} from './TokenListController';
 
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
@@ -18,11 +24,27 @@ const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
 const OPEN_SEA_HOST = 'https://api.opensea.io';
 const OPEN_SEA_PATH = '/api/v1';
 
+function getTokenListMessenger() {
+  const controllerMessenger = new ControllerMessenger<
+    GetTokenListState,
+    TokenListStateChange
+  >();
+  const messenger = controllerMessenger.getRestricted<
+    'TokenListController',
+    never,
+    never
+  >({
+    name: 'TokenListController',
+  });
+  return messenger;
+}
+
 describe('AssetsDetectionController', () => {
   let assetsDetection: AssetsDetectionController;
   let preferences: PreferencesController;
   let network: NetworkController;
   let assets: AssetsController;
+  let tokenList: TokenListController;
   let assetsContract: AssetsContractController;
   let getBalancesInSingleCall: SinonStub<
     Parameters<AssetsContractController['getBalancesInSingleCall']>,
@@ -30,7 +52,7 @@ describe('AssetsDetectionController', () => {
   >;
   const sandbox = createSandbox();
 
-  beforeEach(() => {
+  beforeEach(async () => {
     preferences = new PreferencesController();
     network = new NetworkController();
     assetsContract = new AssetsContractController();
@@ -43,6 +65,9 @@ describe('AssetsDetectionController', () => {
         assetsContract,
       ),
     });
+    const messenger = getTokenListMessenger();
+    tokenList = new TokenListController({ messenger });
+    await tokenList.start();
     getBalancesInSingleCall = sandbox.stub();
     assetsDetection = new AssetsDetectionController({
       onAssetsStateChange: (listener) => assets.subscribe(listener),
@@ -53,6 +78,7 @@ describe('AssetsDetectionController', () => {
       addTokens: assets.addTokens.bind(assets),
       addCollectible: assets.addCollectible.bind(assets),
       getAssetsState: () => assets.state,
+      getTokenListState: () => tokenList.state,
     });
 
     nock(OPEN_SEA_HOST)
@@ -153,6 +179,7 @@ describe('AssetsDetectionController', () => {
   afterEach(() => {
     nock.cleanAll();
     sandbox.reset();
+    tokenList.destroy();
   });
 
   it('should set default config', () => {
@@ -187,6 +214,7 @@ describe('AssetsDetectionController', () => {
           addTokens: assets.addTokens.bind(assets),
           addCollectible: assets.addCollectible.bind(assets),
           getAssetsState: () => assets.state,
+          getTokenListState: () => tokenList.state,
         },
         { interval: 10 },
       );
@@ -232,6 +260,7 @@ describe('AssetsDetectionController', () => {
           addTokens: assets.addTokens.bind(assets),
           addCollectible: assets.addCollectible.bind(assets),
           getAssetsState: () => assets.state,
+          getTokenListState: () => tokenList.state,
         },
         { interval: 10, networkType: ROPSTEN },
       );
@@ -447,15 +476,15 @@ describe('AssetsDetectionController', () => {
   it('should detect tokens correctly', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     getBalancesInSingleCall.resolves({
-      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toStrictEqual([
       {
-        address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
+        address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        symbol: 'LINK',
         decimals: 18,
         image: undefined,
-        symbol: 'GNO',
       },
     ]);
   });
@@ -525,11 +554,11 @@ describe('AssetsDetectionController', () => {
   it('should not autodetect tokens that exist in the ignoreList', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     getBalancesInSingleCall.resolves({
-      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
     await assetsDetection.detectTokens();
 
-    assets.removeAndIgnoreToken('0x6810e776880C02933D47DB1b9fc05908e5386b96');
+    assets.removeAndIgnoreToken('0x514910771af9ca656af840dff83e8264ecf986ca');
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toStrictEqual([]);
   });
@@ -537,7 +566,7 @@ describe('AssetsDetectionController', () => {
   it('should not detect tokens if there is no selectedAddress set', async () => {
     assetsDetection.configure({ networkType: MAINNET });
     getBalancesInSingleCall.resolves({
-      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toStrictEqual([]);

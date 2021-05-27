@@ -1,4 +1,3 @@
-import contractMap from '@metamask/contract-metadata';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
@@ -11,6 +10,7 @@ import type {
 } from './AssetsController';
 import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
+import { TokenListState } from './TokenListController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -182,6 +182,8 @@ export class AssetsDetectionController extends BaseController<
 
   private getAssetsState: () => AssetsState;
 
+  private getTokenListState: () => TokenListState;
+
   /**
    * Creates a AssetsDetectionController instance
    *
@@ -207,6 +209,7 @@ export class AssetsDetectionController extends BaseController<
       addTokens,
       addCollectible,
       getAssetsState,
+      getTokenListState,
     }: {
       onAssetsStateChange: (
         listener: (assetsState: AssetsState) => void,
@@ -222,6 +225,7 @@ export class AssetsDetectionController extends BaseController<
       addTokens: AssetsController['addTokens'];
       addCollectible: AssetsController['addCollectible'];
       getAssetsState: () => AssetsState;
+      getTokenListState: () => TokenListState;
     },
     config?: Partial<AssetsDetectionConfig>,
     state?: Partial<BaseState>,
@@ -235,6 +239,7 @@ export class AssetsDetectionController extends BaseController<
     };
     this.initialize();
     this.getAssetsState = getAssetsState;
+    this.getTokenListState = getTokenListState;
     this.addTokens = addTokens;
     onAssetsStateChange(({ tokens }) => {
       this.configure({ tokens });
@@ -304,10 +309,10 @@ export class AssetsDetectionController extends BaseController<
     const tokensAddresses = this.config.tokens.map(
       /* istanbul ignore next*/ (token) => token.address,
     );
+    const { tokens } = this.getTokenListState();
     const tokensToDetect: string[] = [];
-    for (const address in contractMap) {
-      const contract = contractMap[address];
-      if (contract.erc20 && !tokensAddresses.includes(address)) {
+    for (const address in tokens) {
+      if (!(address in tokensAddresses)) {
         tokensToDetect.push(address);
       }
     }
@@ -335,8 +340,8 @@ export class AssetsDetectionController extends BaseController<
         if (!ignored) {
           tokensToAdd.push({
             address: tokenAddress,
-            decimals: contractMap[tokenAddress].decimals,
-            symbol: contractMap[tokenAddress].symbol,
+            decimals: tokens[tokenAddress].decimals,
+            symbol: tokens[tokenAddress].symbol,
           });
         }
       }
