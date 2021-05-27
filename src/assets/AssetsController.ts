@@ -1,11 +1,15 @@
 import { EventEmitter } from 'events';
-import { toChecksumAddress } from 'ethereumjs-util';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
-import { safelyExecute, handleFetch, validateTokenToWatch } from '../util';
+import {
+  safelyExecute,
+  handleFetch,
+  validateTokenToWatch,
+  toChecksumHexAddress,
+} from '../util';
 import type { Token } from './TokenRatesController';
 import type {
   ApiCollectible,
@@ -452,7 +456,7 @@ export class AssetsController extends BaseController<
   ): Promise<Collectible[]> {
     const releaseLock = await this.mutex.acquire();
     try {
-      address = toChecksumAddress(address);
+      address = toChecksumHexAddress(address);
       const { allCollectibles, collectibles } = this.state;
       const { chainId, selectedAddress } = this.config;
       const existingEntry: Collectible | undefined = collectibles.find(
@@ -522,7 +526,7 @@ export class AssetsController extends BaseController<
   ): Promise<CollectibleContract[]> {
     const releaseLock = await this.mutex.acquire();
     try {
-      address = toChecksumAddress(address);
+      address = toChecksumHexAddress(address);
       const { allCollectibleContracts, collectibleContracts } = this.state;
       const { chainId, selectedAddress } = this.config;
       const existingEntry = collectibleContracts.find(
@@ -599,7 +603,7 @@ export class AssetsController extends BaseController<
     address: string,
     tokenId: number,
   ) {
-    address = toChecksumAddress(address);
+    address = toChecksumHexAddress(address);
     const { allCollectibles, collectibles, ignoredCollectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
     const newIgnoredCollectibles = [...ignoredCollectibles];
@@ -636,7 +640,7 @@ export class AssetsController extends BaseController<
    * @param tokenId - Token identifier of the collectible
    */
   private removeIndividualCollectible(address: string, tokenId: number) {
-    address = toChecksumAddress(address);
+    address = toChecksumHexAddress(address);
     const { allCollectibles, collectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
     const newCollectibles = collectibles.filter(
@@ -665,7 +669,7 @@ export class AssetsController extends BaseController<
    * @returns - Promise resolving to the current collectible contracts list
    */
   private removeCollectibleContract(address: string): CollectibleContract[] {
-    address = toChecksumAddress(address);
+    address = toChecksumHexAddress(address);
     const { allCollectibleContracts, collectibleContracts } = this.state;
     const { chainId, selectedAddress } = this.config;
     const newCollectibleContracts = collectibleContracts.filter(
@@ -822,7 +826,7 @@ export class AssetsController extends BaseController<
   ): Promise<Token[]> {
     const releaseLock = await this.mutex.acquire();
     try {
-      address = toChecksumAddress(address);
+      address = toChecksumHexAddress(address);
       const { allTokens, tokens } = this.state;
       const { chainId, selectedAddress } = this.config;
       const newEntry: Token = { address, symbol, decimals, image };
@@ -861,7 +865,7 @@ export class AssetsController extends BaseController<
     try {
       tokensToAdd.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image } = tokenToAdd;
-        const checksumAddress = toChecksumAddress(address);
+        const checksumAddress = toChecksumHexAddress(address);
 
         const newEntry: Token = {
           address: checksumAddress,
@@ -1025,7 +1029,7 @@ export class AssetsController extends BaseController<
     collectibleMetadata?: CollectibleMetadata,
     detection?: boolean,
   ) {
-    address = toChecksumAddress(address);
+    address = toChecksumHexAddress(address);
     const newCollectibleContracts = await this.addCollectibleContract(
       address,
       detection,
@@ -1055,7 +1059,7 @@ export class AssetsController extends BaseController<
    * @param address - Hex address of the token contract
    */
   removeAndIgnoreToken(address: string) {
-    address = toChecksumAddress(address);
+    address = toChecksumHexAddress(address);
     const { allTokens, tokens, ignoredTokens } = this.state;
     const { chainId, selectedAddress } = this.config;
     const newIgnoredTokens = [...ignoredTokens];
@@ -1088,7 +1092,7 @@ export class AssetsController extends BaseController<
    * @param address - Hex address of the token contract
    */
   removeToken(address: string) {
-    address = toChecksumAddress(address);
+    address = toChecksumHexAddress(address);
     const { allTokens, tokens } = this.state;
     const { chainId, selectedAddress } = this.config;
     const newTokens = tokens.filter((token) => token.address !== address);
@@ -1108,7 +1112,7 @@ export class AssetsController extends BaseController<
    * @param tokenId - Token identifier of the collectible
    */
   removeCollectible(address: string, tokenId: number) {
-    address = toChecksumAddress(address);
+    address = toChecksumHexAddress(address);
     this.removeIndividualCollectible(address, tokenId);
     const { collectibles } = this.state;
     const remainingCollectible = collectibles.find(
@@ -1126,7 +1130,7 @@ export class AssetsController extends BaseController<
    * @param tokenId - Token identifier of the collectible
    */
   removeAndIgnoreCollectible(address: string, tokenId: number) {
-    address = toChecksumAddress(address);
+    address = toChecksumHexAddress(address);
     this.removeAndIgnoreIndividualCollectible(address, tokenId);
     const { collectibles } = this.state;
     const remainingCollectible = collectibles.find(

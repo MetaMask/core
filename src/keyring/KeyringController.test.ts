@@ -1,4 +1,4 @@
-import * as ethUtil from 'ethereumjs-util';
+import { bufferToHex } from 'ethereumjs-util';
 import {
   recoverPersonalSignature,
   recoverTypedSignature,
@@ -152,7 +152,9 @@ describe('KeyringController', () => {
       error2 = e;
     }
     expect(error1.message).toBe('Cannot import an empty key.');
-    expect(error2.message).toBe('Cannot import invalid private key.');
+    expect(error2.message).toBe(
+      'Expected private key to be an Uint8Array with length 32',
+    );
     const address = '0x51253087e6f8358b5f10c0a94315d69db3357859';
     const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
     const obj = await keyringController.importAccountWithStrategy(
@@ -230,7 +232,7 @@ describe('KeyringController', () => {
   });
 
   it('should sign personal message', async () => {
-    const data = ethUtil.bufferToHex(Buffer.from('Hello from test', 'utf8'));
+    const data = bufferToHex(Buffer.from('Hello from test', 'utf8'));
     const account = initialState.keyrings[0].accounts[0];
     const signature = await keyringController.signPersonalMessage({
       data,

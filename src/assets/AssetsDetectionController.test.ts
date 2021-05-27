@@ -82,7 +82,7 @@ describe('AssetsDetectionController', () => {
         total_supply: 0,
       })
       .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x1D963688FE2209A98db35c67A041524822cf04Hh`,
+        `${OPEN_SEA_PATH}/asset_contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`,
       )
       .reply(200, {
         description: 'Description HH',
@@ -92,11 +92,11 @@ describe('AssetsDetectionController', () => {
         total_supply: 10,
       })
       .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x1d963688FE2209A98db35c67A041524822CF04gg`,
+        `${OPEN_SEA_PATH}/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`,
       )
       .replyWithError(new TypeError('Failed to fetch'))
       .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x1D963688fe2209a98dB35c67a041524822Cf04ii`,
+        `${OPEN_SEA_PATH}/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
       )
       .replyWithError(new TypeError('Failed to fetch'))
       .get(`${OPEN_SEA_PATH}/assets?owner=0x1&limit=300`)
@@ -104,7 +104,7 @@ describe('AssetsDetectionController', () => {
         assets: [
           {
             asset_contract: {
-              address: '0x1d963688FE2209A98db35c67A041524822CF04gg',
+              address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
             },
             description: 'Description 2577',
             image_url: 'image/2577.png',
@@ -113,7 +113,7 @@ describe('AssetsDetectionController', () => {
           },
           {
             asset_contract: {
-              address: '0x1d963688FE2209A98db35c67A041524822CF04ii',
+              address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
             },
             description: 'Description 2578',
             image_url: 'image/2578.png',
@@ -122,7 +122,7 @@ describe('AssetsDetectionController', () => {
           },
           {
             asset_contract: {
-              address: '0x1d963688FE2209A98db35c67A041524822CF04hh',
+              address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
             },
             description: 'Description 2574',
             image_url: 'image/2574.png',
@@ -231,7 +231,7 @@ describe('AssetsDetectionController', () => {
     await assetsDetection.detectCollectibles();
     expect(assets.state.collectibles).toStrictEqual([
       {
-        address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+        address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
         description: 'Description 2574',
         image: 'image/2574.png',
         name: 'ID 2574',
@@ -243,7 +243,7 @@ describe('AssetsDetectionController', () => {
   it('should detect, add collectibles and do nor remove not detected collectibles correctly', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     await assets.addCollectible(
-      '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+      '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       2573,
       {
         description: 'Description 2573',
@@ -254,14 +254,14 @@ describe('AssetsDetectionController', () => {
     await assetsDetection.detectCollectibles();
     expect(assets.state.collectibles).toStrictEqual([
       {
-        address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+        address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
         description: 'Description 2573',
         image: 'image/2573.png',
         name: 'ID 2573',
         tokenId: 2573,
       },
       {
-        address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+        address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
         description: 'Description 2574',
         image: 'image/2574.png',
         name: 'ID 2574',
@@ -292,28 +292,28 @@ describe('AssetsDetectionController', () => {
 
   it('should not add collectible if collectible or collectible contract has no information to display', async () => {
     const collectibleHH2574 = {
-      address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+      address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       description: 'Description 2574',
       image: 'image/2574.png',
       name: 'ID 2574',
       tokenId: 2574,
     };
     const collectibleGG2574 = {
-      address: '0x1d963688FE2209A98db35c67A041524822CF04gg',
+      address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
       description: 'Description 2574',
       image: 'image/2574.png',
       name: 'ID 2574',
       tokenId: 2574,
     };
     const collectibleII2577 = {
-      address: '0x1D963688fe2209a98dB35c67a041524822Cf04ii',
+      address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
       description: 'Description 2577',
       image: 'image/2577.png',
       name: 'ID 2577',
       tokenId: 2577,
     };
     const collectibleContractHH = {
-      address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+      address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       description: 'Description HH',
       logo: 'url HH',
       name: 'Name HH',
@@ -321,7 +321,7 @@ describe('AssetsDetectionController', () => {
       totalSupply: 10,
     };
     const collectibleContractGG = {
-      address: '0x1d963688FE2209A98db35c67A041524822CF04gg',
+      address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
       description: 'Description GG',
       logo: 'url GG',
       name: 'Name GG',
@@ -329,7 +329,7 @@ describe('AssetsDetectionController', () => {
       totalSupply: 10,
     };
     const collectibleContractII = {
-      address: '0x1D963688fe2209a98dB35c67a041524822Cf04ii',
+      address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
       description: 'Description II',
       logo: 'url II',
       name: 'Name II',
@@ -347,7 +347,7 @@ describe('AssetsDetectionController', () => {
 
     nock(OPEN_SEA_HOST)
       .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x1d963688FE2209A98db35c67A041524822CF04gg`,
+        `${OPEN_SEA_PATH}/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`,
       )
       .reply(200, {
         description: 'Description GG',
@@ -357,7 +357,7 @@ describe('AssetsDetectionController', () => {
         total_supply: 10,
       })
       .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x1D963688fe2209a98dB35c67a041524822Cf04ii`,
+        `${OPEN_SEA_PATH}/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
       )
       .reply(200, {
         description: 'Description II',
@@ -371,7 +371,7 @@ describe('AssetsDetectionController', () => {
         assets: [
           {
             asset_contract: {
-              address: '0x1d963688FE2209A98db35c67A041524822CF04ii',
+              address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
             },
             description: 'Description 2577',
             image_url: 'image/2577.png',
@@ -380,7 +380,7 @@ describe('AssetsDetectionController', () => {
           },
           {
             asset_contract: {
-              address: '0x1D963688fe2209a98dB35c67a041524822Cf04gg',
+              address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
             },
             description: 'Description 2574',
             image_url: 'image/2574.png',
@@ -389,7 +389,7 @@ describe('AssetsDetectionController', () => {
           },
           {
             asset_contract: {
-              address: '0x1d963688FE2209A98db35c67A041524822CF04hh',
+              address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
             },
             description: 'Description 2574',
             image_url: 'image/2574.png',
