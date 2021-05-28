@@ -121,7 +121,7 @@ export class TokenListController extends BaseController<
     }, this.intervalDelay);
   }
 
-  private async fetchTokenList(): Promise<TokenListState | void> {
+  async fetchTokenList(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
     const { tokens }: { tokens: TokenMap } = this.state;
     try {
@@ -135,20 +135,14 @@ export class TokenListController extends BaseController<
           tokens[token.address] = token;
         }
       }
-    } catch (error) {
-      throw new Error(`Unable to fetch token list.${error}`);
+      this.update(() => {
+        return {
+          tokens,
+        };
+      });
     } finally {
-      try {
-        this.update(() => {
-          return {
-            tokens,
-          };
-        });
-      } finally {
-        releaseLock();
-      }
+      releaseLock();
     }
-    return this.state;
   }
 
   private async metaswapsTokenQuery(): Promise<Response> {
