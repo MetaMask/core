@@ -26,7 +26,7 @@ export type Listener<T> = (state: T, patches: Patch[]) => void;
 
 type primitive = null | boolean | number | string;
 
-type DefinitelyNotJsonable = ((...args: any[]) => any) | undefined;
+type DefinitelyNotJsonable = (...args: any[]) => any;
 
 // Credit to https://github.com/grant-dennison for this type
 // Source: https://github.com/Microsoft/TypeScript/issues/1897#issuecomment-710744173
