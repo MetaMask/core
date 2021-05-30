@@ -307,7 +307,7 @@ export class AssetsDetectionController extends BaseController<
     const tokensToDetect: string[] = [];
     for (const address in contractMap) {
       const contract = contractMap[address];
-      if (contract.erc20 && !(tokensAddresses.includes(address))) {
+      if (contract.erc20 && !tokensAddresses.includes(address)) {
         tokensToDetect.push(address);
       }
     }
