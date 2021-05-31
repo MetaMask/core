@@ -245,27 +245,29 @@ console.log(datamodel.state); // {NetworkController: {...}, TokenRatesController
 console.log(datamodel.flatState); // {infura: {...}, contractExchangeRates: [...]}
 ```
 
-## Linking during development
+## Contributing
+
+### Setup
+
+- Install [Node.js](https://nodejs.org) version 12
+  - If you are using [nvm](https://github.com/creationix/nvm#installation) (recommended) running `nvm use` will automatically choose the right node version for you.
+- Install [Yarn v1](https://yarnpkg.com/en/docs/install)
+- Run `yarn setup` to install dependencies and run any requried post-install scripts
+  - **Warning:** Do not use the `yarn` / `yarn install` command directly. Use `yarn setup` instead. The normal install command will skip required post-install scripts, leaving your development environment in an invalid state.
+
+### Testing and Linting
+
+Run `yarn test` to run the tests once. To run tests on file changes, run `yarn test:watch`.
+
+Run `yarn lint` to run the linter, or run `yarn lint:fix` to run the linter and fix any automatically fixable issues.
+
+### Linking During Development
 
 Linking `@metamask/controllers` into other projects involves a special NPM command to ensure that dependencies are not duplicated. This is because `@metamask/controllers` ships modules that are transpiled but not bundled, and [NPM does not deduplicate](https://github.com/npm/npm/issues/7742) linked dependency trees.
 
-First, link `@metamask/controllers`.
+First, `yarn build:link` in this repository, then link `@metamask/controllers` by running `yarn link` in the consumer repository.
 
-```sh
-$ yarn build:link
-# or
-$ npm run build:link
-```
-
-Then, link into other projects.
-
-```sh
-$ yarn link @metamask/controllers
-# or
-$ npm link @metamask/controllers
-```
-
-## Release & Publishing
+### Release & Publishing
 
 The project follows the same release process as the other libraries in the MetaMask organization:
 
