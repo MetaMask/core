@@ -28,4 +28,7 @@ module.exports = {
   testEnvironment: 'node',
   testRegex: ['\\.test\\.(ts|js)$'],
   testTimeout: 5000,
+  transform: {
+    '^.+\\.tsx?$': 'ts-jest',
+  },
 };
