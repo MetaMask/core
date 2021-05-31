@@ -101,12 +101,14 @@ export interface StatePropertyMetadata<T> {
   anonymous: boolean | StateDeriver<T>;
 
   /**
-   * Indicates whether this property should be communicated across serialization
-   * boundaries such as `window.postMessage` (`true` if so, `false` if not), or
-   * is set to a function that derives state that should be serialized from this
-   * state.
+   * Indicates whether this property is communicated to consumers by default
+   * (`true` if so,`false` if not), or is set to a function that derives
+   * such state from this state.
+   *
+   * This is not a security feature, and designating state as **not** public
+   * does not make it impossible for consumers to access it in practice.
    */
-  serialize: boolean | StateDeriver<T>;
+  public: boolean | StateDeriver<T>;
 }
 
 type Json =
@@ -177,9 +179,8 @@ export class BaseController<
     this.internalState = state;
     this.metadata = metadata;
 
-    this.messagingSystem.registerActionHandler(
-      `${name}:getState`,
-      () => this.state,
+    this.messagingSystem.registerActionHandler(`${name}:getState`, () =>
+      deriveStateFromMetadata(this.state, this.metadata, 'public'),
     );
   }
 
@@ -270,16 +271,21 @@ export function getPersistentState<S extends Record<string, unknown>>(
   return deriveStateFromMetadata(state, metadata, 'persist');
 }
 
-function deriveStateFromMetadata<S extends Record<string, unknown>>(
+function deriveStateFromMetadata<
+  S extends Record<string, unknown>,
+  P extends keyof StatePropertyMetadata<S>
+>(
   state: IsJsonable<S>,
   metadata: StateMetadata<S>,
-  metadataProperty: 'anonymous' | 'persist',
+  metadataProperty: P,
 ): IsJsonable<Record<string, Json>> {
   return Object.keys(state).reduce((persistedState, key) => {
     const propertyMetadata = metadata[key as keyof S][metadataProperty];
     const stateProperty = state[key];
     if (typeof propertyMetadata === 'function') {
-      persistedState[key as string] = propertyMetadata(stateProperty);
+      persistedState[key as string] = (propertyMetadata as StateDeriver<S>)(
+        stateProperty,
+      );
     } else if (propertyMetadata) {
       persistedState[key as string] = stateProperty;
     }

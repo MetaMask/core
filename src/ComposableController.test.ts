@@ -31,7 +31,7 @@ const fooControllerStateMetadata = {
   foo: {
     persist: true,
     anonymous: true,
-    serialize: true,
+    public: true,
   },
 };
 

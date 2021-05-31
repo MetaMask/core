@@ -41,13 +41,13 @@ export type GetCurrencyRateState = {
 };
 
 const metadata = {
-  conversionDate: { persist: true, anonymous: true, serialize: true },
-  conversionRate: { persist: true, anonymous: true, serialize: true },
-  currentCurrency: { persist: true, anonymous: true, serialize: true },
-  nativeCurrency: { persist: true, anonymous: true, serialize: true },
-  pendingCurrentCurrency: { persist: false, anonymous: true, serialize: true },
-  pendingNativeCurrency: { persist: false, anonymous: true, serialize: true },
-  usdConversionRate: { persist: true, anonymous: true, serialize: true },
+  conversionDate: { persist: true, anonymous: true, public: true },
+  conversionRate: { persist: true, anonymous: true, public: true },
+  currentCurrency: { persist: true, anonymous: true, public: true },
+  nativeCurrency: { persist: true, anonymous: true, public: true },
+  pendingCurrentCurrency: { persist: false, anonymous: true, public: true },
+  pendingNativeCurrency: { persist: false, anonymous: true, public: true },
+  usdConversionRate: { persist: true, anonymous: true, public: true },
 };
 
 const defaultState = {
