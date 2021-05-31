@@ -429,6 +429,40 @@ describe('AssetsDetectionController', () => {
     ]);
   });
 
+  it('should update the tokens list when new tokens are detected', async () => {
+    assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
+    getBalancesInSingleCall.resolves({
+      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+    });
+    await assetsDetection.detectTokens();
+    expect(assets.state.tokens).toStrictEqual([
+      {
+        address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
+        decimals: 18,
+        image: undefined,
+        symbol: 'GNO',
+      },
+    ]);
+    getBalancesInSingleCall.resolves({
+      '0x514910771AF9Ca656af840dff83E8264EcF986CA': new BN(1),
+    });
+    await assetsDetection.detectTokens();
+    expect(assets.state.tokens).toStrictEqual([
+      {
+        address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
+        decimals: 18,
+        image: undefined,
+        symbol: 'GNO',
+      },
+      {
+        address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        decimals: 18,
+        image: undefined,
+        symbol: 'LINK',
+      },
+    ]);
+  });
+
   it('should not autodetect tokens that exist in the ignoreList', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     getBalancesInSingleCall.resolves({
