@@ -30,6 +30,7 @@ const countControllerStateMetadata = {
   count: {
     persist: true,
     anonymous: true,
+    serialize: true,
   },
 };
 
@@ -336,7 +337,7 @@ describe('getAnonymizedState', () => {
   it('should return empty state when no properties are anonymized', () => {
     const anonymizedState = getAnonymizedState(
       { count: 1 },
-      { count: { anonymous: false, persist: false } },
+      { count: { anonymous: false, persist: false, serialize: false } },
     );
     expect(anonymizedState).toStrictEqual({});
   });
@@ -353,18 +354,22 @@ describe('getAnonymizedState', () => {
         password: {
           anonymous: false,
           persist: false,
+          serialize: true,
         },
         privateKey: {
           anonymous: false,
           persist: false,
+          serialize: true,
         },
         network: {
           anonymous: true,
           persist: false,
+          serialize: true,
         },
         tokens: {
           anonymous: true,
           persist: false,
+          serialize: true,
         },
       },
     );
@@ -387,6 +392,7 @@ describe('getAnonymizedState', () => {
         transactionHash: {
           anonymous: anonymizeTransactionHash,
           persist: false,
+          serialize: true,
         },
       },
     );
@@ -410,6 +416,7 @@ describe('getAnonymizedState', () => {
         txMeta: {
           anonymous: anonymizeTxMeta,
           persist: false,
+          serialize: true,
         },
       },
     );
@@ -448,6 +455,7 @@ describe('getAnonymizedState', () => {
         txMeta: {
           anonymous: anonymizeTxMeta,
           persist: false,
+          serialize: true,
         },
       },
     );
@@ -466,6 +474,7 @@ describe('getAnonymizedState', () => {
         count: {
           anonymous: (count) => Number(count),
           persist: false,
+          serialize: true,
         },
       },
     );
@@ -482,7 +491,7 @@ describe('getPersistentState', () => {
   it('should return empty state when no properties are persistent', () => {
     const persistentState = getPersistentState(
       { count: 1 },
-      { count: { anonymous: false, persist: false } },
+      { count: { anonymous: false, persist: false, serialize: false } },
     );
     expect(persistentState).toStrictEqual({});
   });
@@ -499,18 +508,22 @@ describe('getPersistentState', () => {
         password: {
           anonymous: false,
           persist: true,
+          serialize: true,
         },
         privateKey: {
           anonymous: false,
           persist: true,
+          serialize: true,
         },
         network: {
           anonymous: false,
           persist: false,
+          serialize: true,
         },
         tokens: {
           anonymous: false,
           persist: false,
+          serialize: true,
         },
       },
     );
@@ -533,6 +546,7 @@ describe('getPersistentState', () => {
         transactionHash: {
           anonymous: false,
           persist: normalizeTransacitonHash,
+          serialize: true,
         },
       },
     );
@@ -556,6 +570,7 @@ describe('getPersistentState', () => {
         txMeta: {
           anonymous: false,
           persist: getPersistentTxMeta,
+          serialize: true,
         },
       },
     );
@@ -594,6 +609,7 @@ describe('getPersistentState', () => {
         txMeta: {
           anonymous: false,
           persist: getPersistentTxMeta,
+          serialize: true,
         },
       },
     );
@@ -612,6 +628,7 @@ describe('getPersistentState', () => {
         count: {
           anonymous: false,
           persist: (count) => Number(count),
+          serialize: true,
         },
       },
     );
@@ -643,6 +660,7 @@ describe('getPersistentState', () => {
       visitors: {
         persist: true,
         anonymous: true,
+        serialize: true,
       },
     };
 
@@ -705,6 +723,7 @@ describe('getPersistentState', () => {
       maxVisitors: {
         persist: false,
         anonymous: true,
+        serialize: true,
       },
     };
 
