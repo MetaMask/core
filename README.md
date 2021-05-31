@@ -4,17 +4,17 @@ A collection of platform-agnostic modules for creating secure data models for cr
 
 ## Table of Contents
 
-- [Usage](#usage)
-- [Modules](#modules)
-- [Concepts](#concepts)
-  - [Initialization](#initialization)
-  - [Configuration](#configuration)
-  - [State management](#state-management)
-  - [Subscription](#subscription)
-  - [Composition](#composition)
-- [Linking](#linking-during-development)
-- [API documentation](#api-documentation)
-- [License](#license)
+-   [Usage](#usage)
+-   [Modules](#modules)
+-   [Concepts](#concepts)
+    -   [Initialization](#initialization)
+    -   [Configuration](#configuration)
+    -   [State management](#state-management)
+    -   [Subscription](#subscription)
+    -   [Composition](#composition)
+-   [Linking](#linking-during-development)
+-   [API documentation](#api-documentation)
+-   [License](#license)
 
 ## Usage
 
@@ -28,17 +28,19 @@ Then, compose stores to create a data model.
 
 ```js
 import {
-  ComposableController,
-  NetworkController,
-  TokenRatesController,
-} from '@metamask/controllers';
+    ComposableController,
+    NetworkController,
+    TokenRatesController,
+} from "@metamask/controllers";
 
 const datamodel = new ComposableController([
-  new NetworkController(),
-  new TokenRatesController()
+    new NetworkController(),
+    new TokenRatesController(),
 ]);
 
-datamodel.subscribe((state) => {/* data model has changed */});
+datamodel.subscribe((state) => {
+    /* data model has changed */
+});
 ```
 
 ## Modules
@@ -48,7 +50,7 @@ datamodel.subscribe((state) => {/* data model has changed */});
 ### AccountTrackerController
 
 ```ts
-import AccountTrackerController from '@metamask/controllers';
+import AccountTrackerController from "@metamask/controllers";
 ```
 
 The AccountTrackerController tracks information associated with specific Ethereum accounts.
@@ -56,7 +58,7 @@ The AccountTrackerController tracks information associated with specific Ethereu
 ### AddressBookController
 
 ```ts
-import AddressBookController from '@metamask/controllers';
+import AddressBookController from "@metamask/controllers";
 ```
 
 The AddressBookController exposes functions for managing a list of recipient addresses and associated nicknames.
@@ -64,7 +66,7 @@ The AddressBookController exposes functions for managing a list of recipient add
 ### ComposableController
 
 ```ts
-import ComposableController from '@metamask/controllers';
+import ComposableController from "@metamask/controllers";
 ```
 
 The ComposableController can be used to compose multiple controllers together into a single controller.
@@ -72,7 +74,7 @@ The ComposableController can be used to compose multiple controllers together in
 ### CurrencyRateController
 
 ```ts
-import CurrencyRateController from '@metamask/controllers';
+import CurrencyRateController from "@metamask/controllers";
 ```
 
 The CurrencyRateController passively polls for an ETH-to-fiat exchange rate based on a chosen currency.
@@ -80,7 +82,7 @@ The CurrencyRateController passively polls for an ETH-to-fiat exchange rate base
 ### KeyringController
 
 ```ts
-import KeyringController from '@metamask/controllers';
+import KeyringController from "@metamask/controllers";
 ```
 
 The KeyringController is responsible for establishing and managing Ethereum address-based identities.
@@ -88,7 +90,7 @@ The KeyringController is responsible for establishing and managing Ethereum addr
 ### NetworkController
 
 ```ts
-import NetworkController from '@metamask/controllers';
+import NetworkController from "@metamask/controllers";
 ```
 
 The NetworkController is responsible for creating an underlying provider and for refreshing its configuration.
@@ -96,7 +98,7 @@ The NetworkController is responsible for creating an underlying provider and for
 ### PhishingController
 
 ```ts
-import PhishingController from '@metamask/controllers';
+import PhishingController from "@metamask/controllers";
 ```
 
 The PhishingController passively polls for community-maintained lists of approved and unapproved website origins.
@@ -104,7 +106,7 @@ The PhishingController passively polls for community-maintained lists of approve
 ### PreferencesController
 
 ```ts
-import PreferencesController from '@metamask/controllers';
+import PreferencesController from "@metamask/controllers";
 ```
 
 The PreferencesController manages agnostic global settings and exposes convenience methods for updating them.
@@ -112,7 +114,7 @@ The PreferencesController manages agnostic global settings and exposes convenien
 ### TokenRatesController
 
 ```ts
-import TokenRatesController from '@metamask/controllers';
+import TokenRatesController from "@metamask/controllers";
 ```
 
 The TokenRatesController passively polls on a set interval for token-to-fiat exchange rates.
@@ -120,7 +122,7 @@ The TokenRatesController passively polls on a set interval for token-to-fiat exc
 ### TransactionController
 
 ```ts
-import TransactionController from '@metamask/controllers';
+import TransactionController from "@metamask/controllers";
 ```
 
 The TransactionController is responsible for submitting and managing transactions.
@@ -128,7 +130,7 @@ The TransactionController is responsible for submitting and managing transaction
 ### util
 
 ```ts
-import util from '@metamask/controllers';
+import util from "@metamask/controllers";
 ```
 
 The util module exposes a set of utility functions for common operations like gas estimation and generating crypto-buying URLs.
@@ -158,15 +160,15 @@ const controller = new Controller(<initial_config>, <initial_state>)
 A controller can also be configured (or reconfigured) after initialization by passing a configuration object to its `configure` method:
 
 ```ts
-const controller = new Controller()
-controller.configure({ foo: 'bar', baz: 'qux' });
+const controller = new Controller();
+controller.configure({ foo: "bar", baz: "qux" });
 ```
 
 Regardless of how a controller is configured, whether it's during or after initialization, configuration options can always be accessed on a controller as instance variables for convenience:
 
 ```ts
-const controller = new Controller()
-controller.configure({ foo: 'bar', baz: 'qux' });
+const controller = new Controller();
+controller.configure({ foo: "bar", baz: "qux" });
 console.log(controller.foo, controller.baz); // "bar qux"
 ```
 
@@ -178,8 +180,8 @@ A controller's state can be directly modified by calling its `update` method and
 
 ```ts
 const controller = new Controller();
-controller.update({ foo: 'bar' }); // merge with existing state
-controller.update({ foo: 'bar' }, true); // overwrite existing state
+controller.update({ foo: "bar" }); // merge with existing state
+controller.update({ foo: "bar" }, true); // overwrite existing state
 ```
 
 A controller's state can be indirectly modified by calling any state-modifying API methods it may expose. For example, the AddressBookController exposes a `set` method that accepts a new address to save and an associated nickname; calling this method will internally update its `state.addressBook` array.
@@ -198,7 +200,9 @@ Since each controller maintains an internal state object, there should be a way 
 Change handlers can be registered with a controller by passing a function to its `subscribe` method. This function will be called anytime the controller's underlying state changes and will be passed the current state as its only function argument:
 
 ```ts
-function onChange(state) { /* state data changed */ }
+function onChange(state) {
+    /* state data changed */
+}
 const controller = new Controller();
 controller.subscribe(onChange);
 ```
@@ -206,7 +210,9 @@ controller.subscribe(onChange);
 Change handlers can be removed from a controller by passing a function to its `unsubscribe` method. Any function passed to `unsubscribe` will be removed from the internal list of handlers and will no longer be called when state data changes:
 
 ```ts
-function onChange(state) { /* state data changed */ }
+function onChange(state) {
+    /* state data changed */
+}
 const controller = new Controller();
 controller.subscribe(onChange);
 // ...
@@ -221,21 +227,23 @@ The ComposableController is initialized by passing an array of controller instan
 
 ```ts
 import {
-  ComposableController,
-  NetworkController,
-  TokenRatesController
-} from '@metamask/controllers';
+    ComposableController,
+    NetworkController,
+    TokenRatesController,
+} from "@metamask/controllers";
 
 const datamodel = new ComposableController([
-  new NetworkController(),
-  new TokenRatesController()
+    new NetworkController(),
+    new TokenRatesController(),
 ]);
 ```
 
 The resulting composed controller exposes the same APIs as every other controller for configuration, state management, and subscription:
 
 ```ts
-datamodel.subscribe((state) => { /* some child state has changed */ });
+datamodel.subscribe((state) => {
+    /* some child state has changed */
+});
 ```
 
 The internal state maintained by a ComposableController will be keyed by child controller class name. It's also possible to access the `flatState` instance variable that is a convenience accessor for merged child state:
@@ -249,11 +257,11 @@ console.log(datamodel.flatState); // {infura: {...}, contractExchangeRates: [...
 
 ### Setup
 
-- Install [Node.js](https://nodejs.org) version 12
-  - If you are using [nvm](https://github.com/creationix/nvm#installation) (recommended) running `nvm use` will automatically choose the right node version for you.
-- Install [Yarn v1](https://yarnpkg.com/en/docs/install)
-- Run `yarn setup` to install dependencies and run any requried post-install scripts
-  - **Warning:** Do not use the `yarn` / `yarn install` command directly. Use `yarn setup` instead. The normal install command will skip required post-install scripts, leaving your development environment in an invalid state.
+-   Install [Node.js](https://nodejs.org) version 12
+    -   If you are using [nvm](https://github.com/creationix/nvm#installation) (recommended) running `nvm use` will automatically choose the right node version for you.
+-   Install [Yarn v1](https://yarnpkg.com/en/docs/install)
+-   Run `yarn setup` to install dependencies and run any requried post-install scripts
+    -   **Warning:** Do not use the `yarn` / `yarn install` command directly. Use `yarn setup` instead. The normal install command will skip required post-install scripts, leaving your development environment in an invalid state.
 
 ### Testing and Linting
 
@@ -272,8 +280,8 @@ First, `yarn build:link` in this repository, then link `@metamask/controllers` b
 The project follows the same release process as the other libraries in the MetaMask organization:
 
 1. Create a release branch
-   - For a typical release, this would be based on `main`
-   - To update an older maintained major version, base the release branch on the major version branch (e.g. `1.x`)
+    - For a typical release, this would be based on `main`
+    - To update an older maintained major version, base the release branch on the major version branch (e.g. `1.x`)
 2. Update the changelog
 3. Update version in package.json file (e.g. `yarn version --minor --no-git-tag-version`)
 4. Create a pull request targeting the base branch (e.g. `main` or `1.x`)
