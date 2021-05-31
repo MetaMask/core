@@ -153,9 +153,10 @@ export class TokenListController extends BaseController<
       method: 'GET',
       mode: 'cors',
     };
-    if (!(fetchOptions.headers instanceof window.Headers)) {
-      fetchOptions.headers = new window.Headers(fetchOptions.headers);
-    }
+    // if (!fetchOptions.headers || !(fetchOptions.headers instanceof window.Headers)) {
+    //   fetchOptions.headers = new window.Headers(fetchOptions.headers);
+    // }
+    fetchOptions.headers = new window.Headers();
     fetchOptions.headers.set('Content-Type', 'application/json');
     return await timeoutFetch(url, fetchOptions);
   }
