@@ -97,7 +97,7 @@ export interface StatePropertyMetadata<T> {
   anonymous: boolean | StateDeriver<T>;
 }
 
-type Json =
+export type Json =
   | null
   | boolean
   | number
