@@ -2,7 +2,8 @@ import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
-import { safelyExecute, timeoutFetch } from '../util';
+import { safelyExecute } from '../util';
+import { fetchTokenList } from '../apis/fetch-token-list';
 
 const DEFAULT_INTERVAL = 180 * 1000;
 
@@ -125,10 +126,7 @@ export class TokenListController extends BaseController<
     const releaseLock = await this.mutex.acquire();
     const { tokens }: { tokens: TokenMap } = this.state;
     try {
-      const tokensResponse = await safelyExecute(() =>
-        this.metaswapsTokenQuery(),
-      );
-      const tokenList: Token[] = await tokensResponse.json();
+      const tokenList: Token[] = await safelyExecute(() => fetchTokenList());
 
       for (const token of tokenList) {
         if (!tokens[token.address]) {
@@ -143,21 +141,5 @@ export class TokenListController extends BaseController<
     } finally {
       releaseLock();
     }
-  }
-
-  private async metaswapsTokenQuery(): Promise<Response> {
-    const url = `https://metaswap-api.airswap-dev.codefi.network/tokens`;
-    const fetchOptions: RequestInit = {
-      referrer: url,
-      referrerPolicy: 'no-referrer-when-downgrade',
-      method: 'GET',
-      mode: 'cors',
-    };
-    // if (!fetchOptions.headers || !(fetchOptions.headers instanceof window.Headers)) {
-    //   fetchOptions.headers = new window.Headers(fetchOptions.headers);
-    // }
-    fetchOptions.headers = new window.Headers();
-    fetchOptions.headers.set('Content-Type', 'application/json');
-    return await timeoutFetch(url, fetchOptions);
   }
 }
