@@ -355,9 +355,10 @@ export class AssetsDetectionController extends BaseController<
     if (!this.isMainnet()) {
       return;
     }
-    const { selectedAddress } = this.config;
+    const requestedSelectedAddress = this.config.selectedAddress;
+
     /* istanbul ignore else */
-    if (!selectedAddress) {
+    if (!requestedSelectedAddress) {
       return;
     }
     await safelyExecute(async () => {
@@ -395,8 +396,10 @@ export class AssetsDetectionController extends BaseController<
             });
           }
           /* istanbul ignore else */
-          if (!ignored) {
-            /* istanbul ignore next */
+          if (
+            !ignored &&
+            requestedSelectedAddress === this.config.selectedAddress
+          ) {
             const collectibleMetadata: CollectibleMetadata = Object.assign(
               {},
               { name },

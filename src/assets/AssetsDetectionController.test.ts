@@ -130,6 +130,21 @@ describe('AssetsDetectionController', () => {
             token_id: '2574',
           },
         ],
+      })
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x9&limit=300`)
+      .delay(800)
+      .reply(200, {
+        assets: [
+          {
+            asset_contract: {
+              address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+            },
+            description: 'Description 2574',
+            image_url: 'image/2574.png',
+            name: 'ID 2574',
+            token_id: '2574',
+          },
+        ],
       });
   });
 
@@ -287,6 +302,20 @@ describe('AssetsDetectionController', () => {
   it('should not detect and add collectibles if there is no selectedAddress', async () => {
     assetsDetection.configure({ networkType: MAINNET });
     await assetsDetection.detectCollectibles();
+    expect(assets.state.collectibles).toStrictEqual([]);
+  });
+
+  it('should not detect and add collectibles to the wrong selectedAddress', async () => {
+    assetsDetection.configure({
+      networkType: MAINNET,
+      selectedAddress: '0x9',
+    });
+    assets.configure({ selectedAddress: '0x9' });
+    assetsDetection.detectCollectibles();
+    assetsDetection.configure({ selectedAddress: '0x12' });
+    assets.configure({ selectedAddress: '0x12' });
+    await new Promise((res) => setTimeout(() => res(true), 1000));
+    expect(assetsDetection.config.selectedAddress).toStrictEqual('0x12');
     expect(assets.state.collectibles).toStrictEqual([]);
   });
 
