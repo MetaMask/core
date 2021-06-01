@@ -400,6 +400,7 @@ export class AssetsDetectionController extends BaseController<
             !ignored &&
             requestedSelectedAddress === this.config.selectedAddress
           ) {
+            /* istanbul ignore next */
             const collectibleMetadata: CollectibleMetadata = Object.assign(
               {},
               { name },
