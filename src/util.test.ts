@@ -5,6 +5,7 @@ import HttpProvider from 'ethjs-provider-http';
 import EthQuery from 'eth-query';
 import * as util from './util';
 
+const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
 
@@ -192,6 +193,30 @@ describe('util', () => {
     });
   });
 
+  describe('toChecksumHexAddress', () => {
+    const fullAddress = `0x${VALID}`;
+    it('should return address for valid address', () => {
+      expect(util.toChecksumHexAddress(fullAddress)).toBe(fullAddress);
+    });
+    it('should return address for non prefix address', () => {
+      expect(util.toChecksumHexAddress(VALID)).toBe(fullAddress);
+    });
+  });
+
+  describe('isValidHexAddress', () => {
+    it('should return true for valid address', () => {
+      expect(util.isValidHexAddress(VALID)).toBe(true);
+    });
+    it('should return false for invalid address', () => {
+      expect(util.isValidHexAddress('0x00')).toBe(false);
+    });
+    it('should allow allowNonPrefixed to be false', () => {
+      expect(util.isValidHexAddress('0x00', { allowNonPrefixed: false })).toBe(
+        false,
+      );
+    });
+  });
+
   describe('validateTransaction', () => {
     it('should throw if no from address', () => {
       expect(() => util.validateTransaction({} as any)).toThrow(
@@ -314,11 +339,9 @@ describe('util', () => {
       expect(() =>
         util.validateSignMessageData({
           data: '0x879a05',
-          from: '3244e191f1b4903970224322180f1fbbc415696b',
+          from: '01',
         } as any),
-      ).toThrow(
-        'Invalid "from" address: 3244e191f1b4903970224322180f1fbbc415696b must be a valid string.',
-      );
+      ).toThrow('Invalid "from" address: 01 must be a valid string.');
     });
 
     it('should throw if invalid type from address', () => {
@@ -363,7 +386,7 @@ describe('util', () => {
           data: [],
           from: '3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow('Invalid "from" address:');
+      ).toThrow('Expected EIP712 typed data.');
     });
 
     it('should throw if invalid type from address', () => {
@@ -420,7 +443,7 @@ describe('util', () => {
           data: '0x879a05',
           from: '3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow('Invalid "from" address:');
+      ).toThrow('Data must be passed as a valid JSON string.');
     });
 
     it('should throw if invalid type from address', () => {

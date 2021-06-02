@@ -1,6 +1,5 @@
-import { toChecksumAddress } from 'ethereumjs-util';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { safelyExecute, handleFetch } from '../util';
+import { safelyExecute, handleFetch, toChecksumHexAddress } from '../util';
 
 import type { NetworkState } from '../network/NetworkController';
 import type { AssetsState } from './AssetsController';

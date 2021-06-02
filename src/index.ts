@@ -13,6 +13,7 @@ export {
   getPersistentState,
   getAnonymizedState,
   IsJsonable,
+  Json,
   StateDeriver,
   StateMetadata,
   StatePropertyMetadata,

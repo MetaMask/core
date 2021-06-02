@@ -27,19 +27,6 @@ describe('CryptoCompare', () => {
     expect(conversionRate).toStrictEqual(2000.42);
   });
 
-  it('should return conversion date', async () => {
-    nock(cryptoCompareHost)
-      .get('/data/price?fsym=ETH&tsyms=CAD')
-      .reply(200, { CAD: 2000.42 });
-
-    const before = Date.now() / 1000;
-    const { conversionDate } = await fetchExchangeRate('CAD', 'ETH');
-    const after = Date.now() / 1000;
-
-    expect(conversionDate).toBeGreaterThanOrEqual(before);
-    expect(conversionDate).toBeLessThanOrEqual(after);
-  });
-
   it('should return CAD conversion rate given lower-cased currency', async () => {
     nock(cryptoCompareHost)
       .get('/data/price?fsym=ETH&tsyms=CAD')
@@ -150,6 +137,19 @@ describe('CryptoCompare', () => {
 
     await expect(fetchExchangeRate('CAD', 'ETH', true)).rejects.toThrow(
       'Invalid response for usdConversionRate: invalid',
+    );
+  });
+
+  it('should throw an error if either currency is invalid', async () => {
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=EUABRT')
+      .reply(200, {
+        Response: 'Error',
+        Message: 'Market does not exist for this coin pair',
+      });
+
+    await expect(fetchExchangeRate('EUABRT', 'ETH')).rejects.toThrow(
+      'Market does not exist for this coin pair',
     );
   });
 });

@@ -1,9 +1,8 @@
-import { toChecksumAddress } from 'ethereumjs-util';
 import contractMap from '@metamask/contract-metadata';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
-import { safelyExecute, timeoutFetch } from '../util';
+import { safelyExecute, timeoutFetch, toChecksumHexAddress } from '../util';
 import type {
   AssetsController,
   AssetsState,
@@ -330,7 +329,7 @@ export class AssetsDetectionController extends BaseController<
         const { ignoredTokens } = this.getAssetsState();
         if (ignoredTokens.length) {
           ignored = ignoredTokens.find(
-            (token) => token.address === toChecksumAddress(tokenAddress),
+            (token) => token.address === toChecksumHexAddress(tokenAddress),
           );
         }
         if (!ignored) {
@@ -390,7 +389,7 @@ export class AssetsDetectionController extends BaseController<
             ignored = ignoredCollectibles.find((c) => {
               /* istanbul ignore next */
               return (
-                c.address === toChecksumAddress(address) &&
+                c.address === toChecksumHexAddress(address) &&
                 c.tokenId === Number(token_id)
               );
             });
