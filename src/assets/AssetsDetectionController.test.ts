@@ -1,6 +1,7 @@
 import { createSandbox, SinonStub, stub } from 'sinon';
 import nock from 'nock';
 import { BN } from 'ethereumjs-util';
+import contractMap from '@metamask/contract-metadata';
 import {
   NetworkController,
   NetworksChainId,
@@ -24,7 +25,8 @@ describe('AssetsDetectionController', () => {
   let assets: AssetsController;
   let assetsContract: AssetsContractController;
   let getBalancesInSingleCall: SinonStub<
-    [AssetsContractController['getBalancesInSingleCall']]
+    Parameters<AssetsContractController['getBalancesInSingleCall']>,
+    ReturnType<AssetsContractController['getBalancesInSingleCall']>
   >;
   const sandbox = createSandbox();
 
@@ -461,6 +463,34 @@ describe('AssetsDetectionController', () => {
         symbol: 'LINK',
       },
     ]);
+  });
+
+  it('should call getBalancesInSingle with token address that is not present on the asset state', async () => {
+    assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
+    getBalancesInSingleCall.resolves({
+      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+    });
+    const tokensToDetect: string[] = [];
+    for (const address in contractMap) {
+      const contract = contractMap[address];
+      if (contract.erc20) {
+        tokensToDetect.push(address);
+      }
+    }
+    await assetsDetection.detectTokens();
+    expect(getBalancesInSingleCall.calledWith('0x1', tokensToDetect)).toBe(
+      true,
+    );
+    getBalancesInSingleCall.resolves({
+      '0x514910771AF9Ca656af840dff83E8264EcF986CA': new BN(1),
+    });
+    const updatedTokensToDetect = tokensToDetect.filter(
+      (address) => address !== '0x6810e776880C02933D47DB1b9fc05908e5386b96',
+    );
+    await assetsDetection.detectTokens();
+    expect(
+      getBalancesInSingleCall.calledWith('0x1', updatedTokensToDetect),
+    ).toBe(true);
   });
 
   it('should not autodetect tokens that exist in the ignoreList', async () => {
