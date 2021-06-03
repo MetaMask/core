@@ -13,9 +13,6 @@ export async function fetchTokenList(): Promise<Response> {
     method: 'GET',
     mode: 'cors',
   };
-  // if (!fetchOptions.headers || !(fetchOptions.headers instanceof window.Headers)) {
-  //   fetchOptions.headers = new window.Headers(fetchOptions.headers);
-  // }
   fetchOptions.headers = new window.Headers();
   fetchOptions.headers.set('Content-Type', 'application/json');
   const tokenResponse = await timeoutFetch(url, fetchOptions);

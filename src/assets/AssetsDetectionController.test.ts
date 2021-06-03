@@ -1,7 +1,6 @@
 import { createSandbox, SinonStub, stub } from 'sinon';
 import nock from 'nock';
 import { BN } from 'ethereumjs-util';
-import contractMap from '@metamask/contract-metadata';
 import {
   NetworkController,
   NetworksChainId,
@@ -23,6 +22,65 @@ const ROPSTEN = 'ropsten';
 const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
 const OPEN_SEA_HOST = 'https://api.opensea.io';
 const OPEN_SEA_PATH = '/api/v1';
+const sampleTokenList = [
+  {
+    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
+    symbol: 'LINK',
+    decimals: 18,
+    occurances: 11,
+    aggregators: [
+      'paraswap',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+  },
+  {
+    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
+    symbol: 'BNT',
+    decimals: 18,
+    occurances: 11,
+    aggregators: [
+      'paraswap',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+  },
+  {
+    address: '0x6810e776880c02933d47db1b9fc05908e5386b96',
+    symbol: 'GNO',
+    name: 'Gnosis',
+    decimals: 18,
+    occurances: 10,
+    aggregators: [
+      'paraswap',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+  },
+];
 
 function getTokenListMessenger() {
   const controllerMessenger = new ControllerMessenger<
@@ -174,6 +232,10 @@ describe('AssetsDetectionController', () => {
           },
         ],
       });
+    nock('https://metaswap-api.airswap-dev.codefi.network')
+      .get('/tokens')
+      .reply(200, sampleTokenList)
+      .persist();
   });
 
   afterEach(() => {
@@ -522,65 +584,29 @@ describe('AssetsDetectionController', () => {
     ]);
   });
 
-  it('should update the tokens list when new tokens are detected', async () => {
-    assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
-    getBalancesInSingleCall.resolves({
-      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
-    });
-    await assetsDetection.detectTokens();
-    expect(assets.state.tokens).toStrictEqual([
-      {
-        address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
-        decimals: 18,
-        image: undefined,
-        symbol: 'GNO',
-      },
-    ]);
-    getBalancesInSingleCall.resolves({
-      '0x514910771AF9Ca656af840dff83E8264EcF986CA': new BN(1),
-    });
-    await assetsDetection.detectTokens();
-    expect(assets.state.tokens).toStrictEqual([
-      {
-        address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
-        decimals: 18,
-        image: undefined,
-        symbol: 'GNO',
-      },
-      {
-        address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
-        decimals: 18,
-        image: undefined,
-        symbol: 'LINK',
-      },
-    ]);
-  });
-
   it('should call getBalancesInSingle with token address that is not present on the asset state', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     getBalancesInSingleCall.resolves({
-      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+      '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
     });
-    const tokensToDetect: string[] = [];
-    for (const address in contractMap) {
-      const contract = contractMap[address];
-      if (contract.erc20) {
-        tokensToDetect.push(address);
-      }
-    }
+    const tokensToDetect: string[] = Object.keys(tokenList.state.tokens);
     await assetsDetection.detectTokens();
-    expect(getBalancesInSingleCall.calledWith('0x1', tokensToDetect)).toBe(
-      true,
-    );
+    expect(
+      getBalancesInSingleCall
+        .getCall(0)
+        .calledWithExactly('0x1', tokensToDetect),
+    ).toBe(true);
     getBalancesInSingleCall.resolves({
-      '0x514910771AF9Ca656af840dff83E8264EcF986CA': new BN(1),
+      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
     const updatedTokensToDetect = tokensToDetect.filter(
-      (address) => address !== '0x6810e776880C02933D47DB1b9fc05908e5386b96',
+      (address) => address !== '0x6810e776880c02933d47db1b9fc05908e5386b96',
     );
     await assetsDetection.detectTokens();
     expect(
-      getBalancesInSingleCall.calledWith('0x1', updatedTokensToDetect),
+      getBalancesInSingleCall
+        .getCall(1)
+        .calledWithExactly('0x1', updatedTokensToDetect),
     ).toBe(true);
   });
 
