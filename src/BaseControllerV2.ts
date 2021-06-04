@@ -271,21 +271,16 @@ export function getPersistentState<S extends Record<string, unknown>>(
   return deriveStateFromMetadata(state, metadata, 'persist');
 }
 
-function deriveStateFromMetadata<
-  S extends Record<string, unknown>,
-  P extends keyof StatePropertyMetadata<S>
->(
+function deriveStateFromMetadata<S extends Record<string, unknown>>(
   state: IsJsonable<S>,
   metadata: StateMetadata<S>,
-  metadataProperty: P,
+  metadataProperty: keyof StatePropertyMetadata<S>,
 ): IsJsonable<Record<string, Json>> {
   return Object.keys(state).reduce((persistedState, key) => {
-    const propertyMetadata = metadata[key as keyof S][metadataProperty];
+    const propertyMetadata = metadata[key][metadataProperty];
     const stateProperty = state[key];
     if (typeof propertyMetadata === 'function') {
-      persistedState[key as string] = (propertyMetadata as StateDeriver<S>)(
-        stateProperty,
-      );
+      persistedState[key as string] = propertyMetadata(stateProperty);
     } else if (propertyMetadata) {
       persistedState[key as string] = stateProperty;
     }
