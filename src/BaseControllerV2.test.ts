@@ -5,6 +5,7 @@ import {
   BaseController,
   getAnonymizedState,
   getPersistentState,
+  PublicState,
 } from './BaseControllerV2';
 import {
   ControllerMessenger,
@@ -756,8 +757,13 @@ describe('getPersistentState', () => {
         );
       }
 
-      onVisit = ({ visitors }: VisitorControllerState) => {
-        if (visitors.length > this.state.maxVisitors) {
+      onVisit = (
+        state: PublicState<
+          VisitorControllerState,
+          typeof visitorControllerStateMetadata
+        >,
+      ) => {
+        if (state.visitors.length > this.state.maxVisitors) {
           this.messagingSystem.call('VisitorController:clear');
         }
       };

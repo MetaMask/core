@@ -1,4 +1,5 @@
 import { enablePatches, produceWithPatches } from 'immer';
+import { cloneDeep } from 'lodash';
 
 // Imported separately because only the type is used
 // eslint-disable-next-line no-duplicate-imports
@@ -113,8 +114,15 @@ export interface StatePropertyMetadata<T> {
    * This is not a security feature, and designating state as **not** public
    * does not make it impossible for consumers to access it in practice.
    */
-  public: boolean | StateDeriver<T>;
+  public: boolean;
 }
+
+export type PublicState<
+  S extends Record<string, unknown>,
+  M extends StateMetadata<S>
+> = {
+  [P in keyof S]: M[P]['public'] extends true ? never : S[P];
+};
 
 export type Json =
   | null
@@ -185,7 +193,7 @@ export class BaseController<
     this.metadata = metadata;
 
     this.messagingSystem.registerActionHandler(`${name}:getState`, () =>
-      deriveStateFromMetadata(this.state, this.metadata, 'public'),
+      getPublicState(this.state, this.metadata),
     );
   }
 
@@ -221,10 +229,15 @@ export class BaseController<
       callback,
     );
     this.internalState = nextState as IsJsonable<S>;
+    const publicState = getPublicState(
+      nextState as IsJsonable<S>,
+      this.metadata,
+    );
+    const publicPatches = getPublicPatches(patches, this.metadata);
     this.messagingSystem.publish(
       `${this.name}:stateChange` as Namespaced<N, any>,
-      nextState as S,
-      patches,
+      publicState,
+      publicPatches,
     );
   }
 
@@ -274,6 +287,56 @@ export function getPersistentState<S extends Record<string, unknown>>(
   metadata: StateMetadata<S>,
 ): IsJsonable<Record<string, Json>> {
   return deriveStateFromMetadata(state, metadata, 'persist');
+}
+
+export function getPublicPatches<S extends Record<string, unknown>>(
+  patches: Patch[],
+  metadata: StateMetadata<S>,
+): Patch[] {
+  const publicProperties: string[] = [];
+  for (const key of Object.keys(metadata)) {
+    const isPublic = metadata[key].public;
+    if (isPublic) {
+      publicProperties.push(key);
+    }
+  }
+  return patches
+    .filter(({ path, value }) => {
+      if (path.length) {
+        const firstPathSegment = path[0] as string;
+        return publicProperties.includes(firstPathSegment);
+      }
+      return Object.keys(value).some((key) => publicProperties.includes(key));
+    })
+    .map((patch) => {
+      if (patch.path.length > 0) {
+        return patch;
+      }
+      const publicValue = Object.keys(patch.value).reduce((value, key) => {
+        if (publicProperties.includes(key)) {
+          value[key] = patch.value[key];
+        }
+        return value;
+      }, {} as Partial<typeof patch.value>);
+      return {
+        ...patch,
+        value: publicValue,
+      };
+    });
+}
+
+export function getPublicState<S extends Record<string, unknown>>(
+  state: IsJsonable<S>,
+  metadata: StateMetadata<S>,
+): IsJsonable<PublicState<S, StateMetadata<S>>> {
+  const publicState = cloneDeep(state);
+  for (const key of Object.keys(state)) {
+    const isPublic = metadata[key].public;
+    if (!isPublic) {
+      delete publicState[key];
+    }
+  }
+  return publicState as IsJsonable<PublicState<S, StateMetadata<S>>>;
 }
 
 function deriveStateFromMetadata<S extends Record<string, unknown>>(
