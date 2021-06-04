@@ -101,9 +101,14 @@ export interface StatePropertyMetadata<T> {
   anonymous: boolean | StateDeriver<T>;
 
   /**
-   * Indicates whether this property is communicated to consumers by default
-   * (`true` if so,`false` if not), or is set to a function that derives
-   * such state from this state.
+   * Indicates whether this property is meant to be used in other modules. If this is set to
+   * `true`, it will be made available via `getState` and the `stateChange` event. If this is set
+   * to `false`, it will be filtered out from `getState` and `stateChange`.
+   *
+   * Note that non-public state is still accessible via the `state` getter, and may still be
+   * persisted or included in metrics and error reports. The `state` getter still returns the
+   * complete internal state so that it may be used with the `deriveStateFromMetadata` function to
+   * derive the persistant or anonymous state.
    *
    * This is not a security feature, and designating state as **not** public
    * does not make it impossible for consumers to access it in practice.
