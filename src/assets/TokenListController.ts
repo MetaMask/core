@@ -34,7 +34,7 @@ export type GetTokenListState = {
 const metadata = {
   tokens: { persist: true, anonymous: true },
 };
-const defaultState: any = {
+const defaultState: TokenListState = {
   tokens: {},
 };
 /**
