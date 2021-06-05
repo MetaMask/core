@@ -41,17 +41,30 @@ export interface Token {
  * Token rates controller configuration
  *
  * @property interval - Polling interval used to fetch new token rates
+ * @property nativeCurrency - Current native currency selected to use base of rates
+ * @property chainId - Current network chainId
  * @property tokens - List of tokens to track exchange rates for
+ * @property threshold - Threshold to invalidate a ChainCache
  */
 export interface TokenRatesConfig extends BaseConfig {
   interval: number;
   nativeCurrency: string;
   chainId: string;
   tokens: Token[];
+  threshold: number;
 }
 
 interface ContractExchangeRates {
   [address: string]: number | undefined;
+}
+
+interface ChainCache {
+  slug: string | null;
+  timestamp: number;
+}
+
+interface ChainCaches {
+  [chainId: string]: ChainCache;
 }
 
 /**
@@ -60,10 +73,34 @@ interface ContractExchangeRates {
  * Token rates controller state
  *
  * @property contractExchangeRates - Hash of token contract addresses to exchange rates
+ * @property supportedChains - Cached chain data
  */
 export interface TokenRatesState extends BaseState {
   contractExchangeRates: ContractExchangeRates;
-  chainSlugIdentifier: string | null | undefined;
+  supportedChains: ChainCaches;
+}
+
+const COINGECKO_API = {
+  BASE_URL: 'https://api.coingecko.com/api/v3',
+  getTokenPriceURL(chainSlug: string, query: string) {
+    return `${this.BASE_URL}/simple/token_price/${chainSlug}?${query}`;
+  },
+  getPlatformsURL() {
+    return `${this.BASE_URL}/asset_platforms`;
+  },
+};
+
+function getUpdatedSupportedChains(
+  supportedChains: ChainCaches,
+  chainId: string,
+  chainCache?: ChainCache,
+): ChainCaches {
+  const chainCacheData: ChainCache = chainCache || { slug: null, timestamp: 0 };
+
+  return {
+    ...supportedChains,
+    [chainId]: { ...supportedChains?.[chainId], ...chainCacheData },
+  };
 }
 
 /**
@@ -77,23 +114,6 @@ export class TokenRatesController extends BaseController<
   private handle?: NodeJS.Timer;
 
   private tokenList: Token[] = [];
-
-  private getPricingURL(chainSlugIdentifier: string, query: string) {
-    return `https://api.coingecko.com/api/v3/simple/token_price/${chainSlugIdentifier}?${query}`;
-  }
-
-  private async getChainSlugIdentifier(
-    chainId: string,
-  ): Promise<string | undefined> {
-    const platforms: [
-      { id: string; chain_identifier: number | null },
-    ] = await handleFetch('https://api.coingecko.com/api/v3/asset_platforms');
-    const chain = platforms.find(
-      ({ chain_identifier }) =>
-        chain_identifier !== null && String(chain_identifier) === chainId,
-    );
-    return chain?.id;
-  }
 
   /**
    * Name of this controller used during composition
@@ -135,10 +155,13 @@ export class TokenRatesController extends BaseController<
       nativeCurrency: 'eth',
       chainId: '1',
       tokens: [],
+      threshold: 1 * 60 * 1000,
     };
     this.defaultState = {
       contractExchangeRates: {},
-      chainSlugIdentifier: undefined,
+      supportedChains: {
+        '1': { slug: 'ethereum', timestamp: 0 },
+      },
     };
     this.initialize();
     this.configure({ disabled: false }, false, false);
@@ -169,7 +192,15 @@ export class TokenRatesController extends BaseController<
     }, this.config.interval);
   }
 
-  set chainId(_chainId: string) {
+  set chainId(chainId: string) {
+    if (!this.state.supportedChains[chainId]) {
+      this.update({
+        supportedChains: getUpdatedSupportedChains(
+          this.state.supportedChains,
+          chainId,
+        ),
+      });
+    }
     !this.disabled && safelyExecute(() => this.updateExchangeRates());
   }
 
@@ -193,18 +224,68 @@ export class TokenRatesController extends BaseController<
     throw new Error('Property only used for setting');
   }
 
+  private async fetchChainSlug(chainId: string): Promise<string | null> {
+    const platforms: [
+      { id: string; chain_identifier: number | null },
+    ] = await handleFetch(COINGECKO_API.getPlatformsURL());
+    const chain = platforms.find(
+      ({ chain_identifier }) =>
+        chain_identifier !== null && String(chain_identifier) === chainId,
+    );
+    return chain?.id || null;
+  }
+
   /**
    * Fetches a pairs of token address and native currency
    *
-   * @param chainSlugIdentifier - Chain string identifier
+   * @param chainSlug - Chain string identifier
    * @param query - Query according to tokens in tokenList and native currency
    * @returns - Promise resolving to exchange rates for given pairs
    */
   async fetchExchangeRate(
-    chainSlugIdentifier: string,
+    chainSlug: string,
     query: string,
   ): Promise<CoinGeckoResponse> {
-    return handleFetch(this.getPricingURL(chainSlugIdentifier, query));
+    return handleFetch(COINGECKO_API.getTokenPriceURL(chainSlug, query));
+  }
+
+  async getChainSlug(): Promise<string | null> {
+    const { threshold, chainId } = this.config;
+    const { supportedChains } = this.state;
+
+    const chainCache = supportedChains[chainId];
+    // supportedChain has not been created, we skip this execution
+    if (!chainCache) {
+      return null;
+    }
+
+    const { slug, timestamp } = chainCache;
+    const currentTime = Date.now();
+
+    if (currentTime - timestamp <= threshold) {
+      return slug;
+    }
+
+    try {
+      const updatedSlug = await this.fetchChainSlug(chainId);
+      this.update({
+        supportedChains: getUpdatedSupportedChains(
+          this.state.supportedChains,
+          chainId,
+          { slug: updatedSlug, timestamp: Date.now() },
+        ),
+      });
+      return updatedSlug;
+    } catch {
+      this.update({
+        supportedChains: getUpdatedSupportedChains(
+          this.state.supportedChains,
+          chainId,
+          { slug, timestamp: 0 },
+        ),
+      });
+      return slug;
+    }
   }
 
   /**
@@ -216,34 +297,22 @@ export class TokenRatesController extends BaseController<
     if (this.tokenList.length === 0 || this.disabled) {
       return;
     }
-    const { nativeCurrency, chainId } = this.config;
-    const { chainSlugIdentifier } = this.state;
+    const { nativeCurrency } = this.config;
 
-    let chainSlug;
-
-    if (!chainSlugIdentifier) {
-      try {
-        chainSlug = await this.getChainSlugIdentifier(chainId);
-        if (!chainSlug) {
-          this.update({ chainSlugIdentifier: null });
-        }
-      } catch {
-        this.update({ chainSlugIdentifier: undefined });
-      }
-    }
+    const slug = await this.getChainSlug();
 
     const newContractExchangeRates: ContractExchangeRates = {};
-    if (!chainSlug) {
+    if (!slug) {
       this.tokenList.forEach((token) => {
-        const address = toChecksumAddress(token.address);
+        const address = toChecksumHexAddress(token.address);
         newContractExchangeRates[address] = undefined;
       });
     } else {
       const pairs = this.tokenList.map((token) => token.address).join(',');
       const query = `contract_addresses=${pairs}&vs_currencies=${nativeCurrency.toLowerCase()}`;
-      const prices = await this.fetchExchangeRate(chainSlug, query);
+      const prices = await this.fetchExchangeRate(slug, query);
       this.tokenList.forEach((token) => {
-        const address = toChecksumAddress(token.address);
+        const address = toChecksumHexAddress(token.address);
         const price = prices[token.address.toLowerCase()];
         newContractExchangeRates[address] = price
           ? price[nativeCurrency.toLowerCase()]
