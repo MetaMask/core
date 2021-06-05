@@ -7,7 +7,7 @@ import { fetchTokenList } from '../apis/fetch-token-list';
 
 const DEFAULT_INTERVAL = 180 * 1000;
 
-export type Token = {
+type Token = {
   address: string;
   decimals: number;
   symbol: string;
@@ -143,3 +143,5 @@ export class TokenListController extends BaseController<
     }
   }
 }
+
+export default TokenListController;
