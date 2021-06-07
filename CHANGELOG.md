@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export BaseControllerV2 Json type ([#482](https://github.com/MetaMask/controllers/pull/482))
 
 ### Changed
-- Improve collectible detection by acccount ([#487](https://github.com/MetaMask/controllers/pull/487))
+- Improve collectible detection by account ([#487](https://github.com/MetaMask/controllers/pull/487))
 - Mapping token address strings instead of Token objects while checking for new tokens ([#480](https://github.com/MetaMask/controllers/pull/480))
 - Upgrade ethereumjs util ([#466](https://github.com/MetaMask/controllers/pull/466))
 
