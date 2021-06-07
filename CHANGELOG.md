@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.1.0] - 2021-06-7
+### Added
+- Export BaseControllerV2 Json type ([#482](https://github.com/MetaMask/controllers/pull/482))
+
+### Changed
+- Improve collectible detection by account ([#487](https://github.com/MetaMask/controllers/pull/487))
+- Upgrade ethereumjs util ([#466](https://github.com/MetaMask/controllers/pull/466))
+
+### Fixed
+- Skip token detection for tokens that are already tracked ([#480](https://github.com/MetaMask/controllers/pull/480))
+
 ## [10.0.0]
 ### Fixed
 - **BREAKING**: Fix stale conversionRate after switching network ([#465](git+https://github.com/MetaMask/controllers/pull/465))
@@ -248,7 +259,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v10.1.0...HEAD
+[10.1.0]: https://github.com/MetaMask/controllers/compare/v10.0.0...v10.1.0
 [10.0.0]: https://github.com/MetaMask/controllers/compare/v9.1.0...v10.0.0
 [9.1.0]: https://github.com/MetaMask/controllers/compare/v9.0.0...v9.1.0
 [9.0.0]: https://github.com/MetaMask/controllers/compare/v8.0.0...v9.0.0
