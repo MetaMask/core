@@ -575,17 +575,15 @@ export class TransactionController extends BaseController<
         return;
       }
 
-      const { chainId } = transactionMeta;
+      const txNonce =
+        nonce ||
+        (await query(this.ethQuery, 'getTransactionCount', [from, 'pending']));
+
       const txParams = {
         ...transactionMeta.transaction,
         gasLimit: transactionMeta.transaction.gas,
-        chainId: chainId || parseInt(currentChainId, undefined),
-        nonce:
-          nonce ||
-          (await query(this.ethQuery, 'getTransactionCount', [
-            from,
-            'pending',
-          ])),
+        chainId: parseInt(currentChainId, undefined),
+        nonce: txNonce,
         status: TransactionStatus.approved,
       };
 
