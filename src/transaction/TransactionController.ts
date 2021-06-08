@@ -371,7 +371,10 @@ export class TransactionController extends BaseController<
   /**
    * Method used to sign transactions
    */
-  sign?: (transaction: TypedTransaction, from: string) => Promise<void>;
+  sign?: (
+    transaction: TypedTransaction,
+    from: string,
+  ) => Promise<TypedTransaction>;
 
   /**
    * Creates a TransactionController instance
@@ -586,14 +589,16 @@ export class TransactionController extends BaseController<
         status: TransactionStatus.approved,
       };
 
-      const ethTransaction = TransactionFactory.fromTxData(txParams, {
+      const unsignedEthTx = TransactionFactory.fromTxData(txParams, {
         common: this.getCommon(),
         freeze: false,
       });
-      await this.sign(ethTransaction, from);
+      const signedTx = await this.sign(unsignedEthTx, from);
       transactionMeta.status = TransactionStatus.signed;
       this.updateTransaction(transactionMeta);
-      const rawTransaction = bufferToHex(ethTransaction.serialize());
+      const rawTransaction = bufferToHex(signedTx.serialize());
+
+      console.log({ rawTransaction });
 
       transactionMeta.rawTransaction = rawTransaction;
       this.updateTransaction(transactionMeta);
