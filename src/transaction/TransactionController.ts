@@ -4,7 +4,6 @@ import { ethErrors } from 'eth-rpc-errors';
 import MethodRegistry from 'eth-method-registry';
 import EthQuery from 'eth-query';
 import Common from '@ethereumjs/common';
-import Transaction from 'ethereumjs-tx';
 import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
@@ -663,13 +662,18 @@ export class TransactionController extends BaseController<
       )}`,
     );
 
-    const ethTransaction = new Transaction({
+    const txParams = {
       from: transactionMeta.transaction.from,
       gas: transactionMeta.transaction.gas,
       gasPrice,
       nonce: transactionMeta.transaction.nonce,
       to: transactionMeta.transaction.from,
       value: '0x0',
+    };
+
+    const ethTransaction = TransactionFactory.fromTxData(txParams, {
+      common: this.getCommon(),
+      freeze: false,
     });
 
     await this.sign(ethTransaction, transactionMeta.transaction.from);
@@ -710,9 +714,15 @@ export class TransactionController extends BaseController<
         16,
       )}`,
     );
-    const ethTransaction = new Transaction({
+
+    const txParams = {
       ...transactionMeta.transaction,
       gasPrice,
+    };
+
+    const ethTransaction = TransactionFactory.fromTxData(txParams, {
+      common: this.getCommon(),
+      freeze: false,
     });
     await this.sign(ethTransaction, transactionMeta.transaction.from);
     const rawTransaction = bufferToHex(ethTransaction.serialize());
