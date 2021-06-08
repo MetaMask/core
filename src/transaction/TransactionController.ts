@@ -24,6 +24,8 @@ import {
   query,
 } from '../util';
 
+const hardfork = 'berlin';
+
 /**
  * @type Result
  *
@@ -540,8 +542,11 @@ export class TransactionController extends BaseController<
   }
 
   getCommon() {
-    // TODO: get chain from Network controller
-    return new Common({ chain: 'rinkeby', hardfork: 'berlin' });
+    const {
+      provider: { type: chain },
+    } = this.getNetworkState();
+
+    return new Common({ chain, hardfork });
   }
 
   /**
