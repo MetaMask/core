@@ -603,8 +603,6 @@ export class TransactionController extends BaseController<
       this.updateTransaction(transactionMeta);
       const rawTransaction = bufferToHex(signedTx.serialize());
 
-      console.log({ rawTransaction });
-
       transactionMeta.rawTransaction = rawTransaction;
       this.updateTransaction(transactionMeta);
       const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
