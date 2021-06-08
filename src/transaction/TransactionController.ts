@@ -684,13 +684,16 @@ export class TransactionController extends BaseController<
       value: '0x0',
     };
 
-    const ethTransaction = TransactionFactory.fromTxData(txParams, {
+    const unsignedEthTx = TransactionFactory.fromTxData(txParams, {
       common: this.getCommon(),
       freeze: false,
     });
 
-    await this.sign(ethTransaction, transactionMeta.transaction.from);
-    const rawTransaction = bufferToHex(ethTransaction.serialize());
+    const signedTx = await this.sign(
+      unsignedEthTx,
+      transactionMeta.transaction.from,
+    );
+    const rawTransaction = bufferToHex(signedTx.serialize());
     await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
     transactionMeta.status = TransactionStatus.cancelled;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
@@ -733,12 +736,15 @@ export class TransactionController extends BaseController<
       gasPrice,
     };
 
-    const ethTransaction = TransactionFactory.fromTxData(txParams, {
+    const unsignedEthTx = TransactionFactory.fromTxData(txParams, {
       common: this.getCommon(),
       freeze: false,
     });
-    await this.sign(ethTransaction, transactionMeta.transaction.from);
-    const rawTransaction = bufferToHex(ethTransaction.serialize());
+    const signedTx = await this.sign(
+      unsignedEthTx,
+      transactionMeta.transaction.from,
+    );
+    const rawTransaction = bufferToHex(signedTx.serialize());
     const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
       rawTransaction,
     ]);
