@@ -3,7 +3,9 @@ import { addHexPrefix, bufferToHex, BN } from 'ethereumjs-util';
 import { ethErrors } from 'eth-rpc-errors';
 import MethodRegistry from 'eth-method-registry';
 import EthQuery from 'eth-query';
+import Common from '@ethereumjs/common';
 import Transaction from 'ethereumjs-tx';
+import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
@@ -370,7 +372,7 @@ export class TransactionController extends BaseController<
   /**
    * Method used to sign transactions
    */
-  sign?: (transaction: Transaction, from: string) => Promise<void>;
+  sign?: (transaction: TypedTransaction, from: string) => Promise<void>;
 
   /**
    * Creates a TransactionController instance
@@ -535,6 +537,11 @@ export class TransactionController extends BaseController<
     return { result, transactionMeta };
   }
 
+  getCommon() {
+    // TODO: get chain from Network controller
+    return new Common({ chain: 'rinkeby', hardfork: 'berlin' });
+  }
+
   /**
    * Approves a transaction and updates it's status in state. If this is not a
    * retry transaction, a nonce will be generated. The transaction is signed
@@ -568,16 +575,25 @@ export class TransactionController extends BaseController<
         return;
       }
 
-      transactionMeta.status = TransactionStatus.approved;
-      transactionMeta.transaction.nonce =
-        nonce ||
-        (await query(this.ethQuery, 'getTransactionCount', [from, 'pending']));
-      transactionMeta.transaction.chainId = parseInt(currentChainId, undefined);
-
-      const ethTransaction = new Transaction({
+      const { chainId } = transactionMeta;
+      const txParams = {
         ...transactionMeta.transaction,
+        gasLimit: transactionMeta.transaction.gas,
+        chainId: chainId || parseInt(currentChainId, undefined),
+        nonce:
+          nonce ||
+          (await query(this.ethQuery, 'getTransactionCount', [
+            from,
+            'pending',
+          ])),
+        status: TransactionStatus.approved,
+      };
+
+      const ethTransaction = TransactionFactory.fromTxData(txParams, {
+        common: this.getCommon(),
+        freeze: false,
       });
-      await this.sign(ethTransaction, transactionMeta.transaction.from);
+      await this.sign(ethTransaction, from);
       transactionMeta.status = TransactionStatus.signed;
       this.updateTransaction(transactionMeta);
       const rawTransaction = bufferToHex(ethTransaction.serialize());
