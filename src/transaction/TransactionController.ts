@@ -541,20 +541,20 @@ export class TransactionController extends BaseController<
     return { result, transactionMeta };
   }
 
-  prepareUnsignedEthTx = (txParams: Record<string, unknown>) => {
+  prepareUnsignedEthTx(txParams: Record<string, unknown>): TypedTransaction {
     return TransactionFactory.fromTxData(txParams, {
       common: this.getCommon(),
       freeze: false,
     });
-  };
+  }
 
-  getCommon = () => {
+  getCommon(): Common {
     const {
       provider: { type: chain },
     } = this.getNetworkState();
 
     return new Common({ chain, hardfork });
-  };
+  }
 
   /**
    * Approves a transaction and updates it's status in state. If this is not a
