@@ -541,13 +541,20 @@ export class TransactionController extends BaseController<
     return { result, transactionMeta };
   }
 
-  getCommon() {
+  prepareUnsignedEthTx = (txParams: Record<string, unknown>) => {
+    return TransactionFactory.fromTxData(txParams, {
+      common: this.getCommon(),
+      freeze: false,
+    });
+  };
+
+  getCommon = () => {
     const {
       provider: { type: chain },
     } = this.getNetworkState();
 
     return new Common({ chain, hardfork });
-  }
+  };
 
   /**
    * Approves a transaction and updates it's status in state. If this is not a
@@ -599,10 +606,8 @@ export class TransactionController extends BaseController<
         status: TransactionStatus.approved,
       };
 
-      const unsignedEthTx = TransactionFactory.fromTxData(txParams, {
-        common: this.getCommon(),
-        freeze: false,
-      });
+      const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+
       const signedTx = await this.sign(unsignedEthTx, from);
       transactionMeta.status = TransactionStatus.signed;
       this.updateTransaction(transactionMeta);
@@ -684,10 +689,7 @@ export class TransactionController extends BaseController<
       value: '0x0',
     };
 
-    const unsignedEthTx = TransactionFactory.fromTxData(txParams, {
-      common: this.getCommon(),
-      freeze: false,
-    });
+    const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
 
     const signedTx = await this.sign(
       unsignedEthTx,
@@ -736,10 +738,8 @@ export class TransactionController extends BaseController<
       gasPrice,
     };
 
-    const unsignedEthTx = TransactionFactory.fromTxData(txParams, {
-      common: this.getCommon(),
-      freeze: false,
-    });
+    const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+
     const signedTx = await this.sign(
       unsignedEthTx,
       transactionMeta.transaction.from,
