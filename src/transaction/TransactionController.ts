@@ -551,16 +551,22 @@ export class TransactionController extends BaseController<
   getCommon(): Common {
     const {
       provider,
+      network,
       provider: { type: chain, chainId, nickname: name },
     } = this.getNetworkState();
 
     const commonConfig = { chain, hardfork };
-    console.log({ provider, chain });
+    console.log({ provider, chain, network });
 
     if (chain === 'rpc') {
-      const customChainParams = { name, chainId: parseInt(chainId, undefined) };
-      console.log({ provider, chain });
-      return Common.forCustomChain('mainnet', customChainParams, 'byzantium');
+      const customChainParams = {
+        name,
+        chainId: parseInt(chainId, undefined),
+        network,
+      };
+      console.log({ provider, chain, network });
+      console.log({ customChainParams });
+      return Common.forCustomChain('mainnet', customChainParams, hardfork);
     }
 
     return new Common(commonConfig);
