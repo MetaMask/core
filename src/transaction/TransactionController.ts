@@ -695,7 +695,7 @@ export class TransactionController extends BaseController<
 
     const txParams = {
       from: transactionMeta.transaction.from,
-      gas: transactionMeta.transaction.gas,
+      gasLimit: transactionMeta.transaction.gas,
       gasPrice,
       nonce: transactionMeta.transaction.nonce,
       to: transactionMeta.transaction.from,
