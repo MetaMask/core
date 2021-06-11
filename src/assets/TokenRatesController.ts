@@ -16,6 +16,18 @@ export interface CoinGeckoResponse {
     [currency: string]: number;
   };
 }
+/**
+ * @type CoinGeckoPlatform
+ *
+ * CoinGecko supported platform API representation
+ *
+ */
+export interface CoinGeckoPlatform {
+  id: string;
+  chain_identifier: null | number;
+  name: string;
+  shortname: string;
+}
 
 /**
  * @type Token
@@ -44,7 +56,7 @@ export interface Token {
  * @property nativeCurrency - Current native currency selected to use base of rates
  * @property chainId - Current network chainId
  * @property tokens - List of tokens to track exchange rates for
- * @property threshold - Threshold to invalidate a ChainCache
+ * @property threshold - Threshold to invalidate the supportedChains
  */
 export interface TokenRatesConfig extends BaseConfig {
   interval: number;
@@ -58,13 +70,9 @@ interface ContractExchangeRates {
   [address: string]: number | undefined;
 }
 
-interface ChainCache {
-  slug: string | null;
+interface SupportedChainsCache {
   timestamp: number;
-}
-
-interface ChainCaches {
-  [chainId: string]: ChainCache;
+  data: CoinGeckoPlatform[] | null;
 }
 
 /**
@@ -77,7 +85,7 @@ interface ChainCaches {
  */
 export interface TokenRatesState extends BaseState {
   contractExchangeRates: ContractExchangeRates;
-  supportedChains: ChainCaches;
+  supportedChains: SupportedChainsCache;
 }
 
 const COINGECKO_API = {
@@ -90,17 +98,26 @@ const COINGECKO_API = {
   },
 };
 
-function getUpdatedSupportedChains(
-  supportedChains: ChainCaches,
+/**
+ * Finds the chain slug in the data array given a chainId
+ *
+ * @param chainId current chainId
+ * @param data Array of supported platforms from CoinGecko API
+ * @returns Slug of chainId
+ */
+function findChainSlug(
   chainId: string,
-  chainCache?: ChainCache,
-): ChainCaches {
-  const chainCacheData: ChainCache = chainCache || { slug: null, timestamp: 0 };
-
-  return {
-    ...supportedChains,
-    [chainId]: { ...supportedChains?.[chainId], ...chainCacheData },
-  };
+  data: CoinGeckoPlatform[] | null,
+): string | null {
+  if (!data) {
+    return null;
+  }
+  const chain =
+    data.find(
+      ({ chain_identifier }) =>
+        chain_identifier !== null && String(chain_identifier) === chainId,
+    ) ?? null;
+  return chain?.id || null;
 }
 
 /**
@@ -153,14 +170,15 @@ export class TokenRatesController extends BaseController<
       disabled: true,
       interval: 180000,
       nativeCurrency: 'eth',
-      chainId: '1',
+      chainId: '',
       tokens: [],
       threshold: 1 * 60 * 1000,
     };
     this.defaultState = {
       contractExchangeRates: {},
       supportedChains: {
-        '1': { slug: 'ethereum', timestamp: 0 },
+        timestamp: 0,
+        data: null,
       },
     };
     this.initialize();
@@ -192,15 +210,14 @@ export class TokenRatesController extends BaseController<
     }, this.config.interval);
   }
 
-  set chainId(chainId: string) {
-    if (!this.state.supportedChains[chainId]) {
-      this.update({
-        supportedChains: getUpdatedSupportedChains(
-          this.state.supportedChains,
-          chainId,
-        ),
-      });
-    }
+  /**
+   * Sets a new chainId
+   *
+   * TODO: Replace this with a method
+   *
+   * @param chainId current chainId
+   */
+  set chainId(_chainId: string) {
     !this.disabled && safelyExecute(() => this.updateExchangeRates());
   }
 
@@ -211,7 +228,7 @@ export class TokenRatesController extends BaseController<
   /**
    * Sets a new token list to track prices
    *
-   * TODO: Replace this wth a method
+   * TODO: Replace this with a method
    *
    * @param tokens - List of tokens to track exchange rates for
    */
@@ -224,15 +241,20 @@ export class TokenRatesController extends BaseController<
     throw new Error('Property only used for setting');
   }
 
-  private async fetchChainSlug(chainId: string): Promise<string | null> {
-    const platforms: [
-      { id: string; chain_identifier: number | null },
-    ] = await handleFetch(COINGECKO_API.getPlatformsURL());
-    const chain = platforms.find(
-      ({ chain_identifier }) =>
-        chain_identifier !== null && String(chain_identifier) === chainId,
-    );
-    return chain?.id || null;
+  /**
+   * Fetches supported platforms from CoinGecko API
+   *
+   * @returns Array of supported platforms by CoinGecko API
+   */
+  async fetchSupportedChains(): Promise<CoinGeckoPlatform[] | null> {
+    try {
+      const platforms: CoinGeckoPlatform[] = await handleFetch(
+        COINGECKO_API.getPlatformsURL(),
+      );
+      return platforms;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -249,43 +271,35 @@ export class TokenRatesController extends BaseController<
     return handleFetch(COINGECKO_API.getTokenPriceURL(chainSlug, query));
   }
 
+  /**
+   * Gets current chainId slug from cached supported platforms CoinGecko API response.
+   * If cached supported platforms response is stale, fetches and updates it.
+   *
+   * @returns current chainId
+   */
   async getChainSlug(): Promise<string | null> {
     const { threshold, chainId } = this.config;
     const { supportedChains } = this.state;
+    const { data, timestamp } = supportedChains;
 
-    const chainCache = supportedChains[chainId];
-    // supportedChain has not been created, we skip this execution
-    if (!chainCache) {
-      return null;
+    const now = Date.now();
+
+    if (now - timestamp > threshold) {
+      try {
+        const platforms = await this.fetchSupportedChains();
+        this.update({
+          supportedChains: {
+            data: platforms,
+            timestamp: Date.now(),
+          },
+        });
+        return findChainSlug(chainId, platforms);
+      } catch {
+        return findChainSlug(chainId, data);
+      }
     }
 
-    const { slug, timestamp } = chainCache;
-    const currentTime = Date.now();
-
-    if (currentTime - timestamp <= threshold) {
-      return slug;
-    }
-
-    try {
-      const updatedSlug = await this.fetchChainSlug(chainId);
-      this.update({
-        supportedChains: getUpdatedSupportedChains(
-          this.state.supportedChains,
-          chainId,
-          { slug: updatedSlug, timestamp: Date.now() },
-        ),
-      });
-      return updatedSlug;
-    } catch {
-      this.update({
-        supportedChains: getUpdatedSupportedChains(
-          this.state.supportedChains,
-          chainId,
-          { slug, timestamp: 0 },
-        ),
-      });
-      return slug;
-    }
+    return findChainSlug(chainId, data);
   }
 
   /**

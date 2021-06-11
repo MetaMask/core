@@ -80,7 +80,8 @@ describe('TokenRatesController', () => {
     expect(controller.state).toStrictEqual({
       contractExchangeRates: {},
       supportedChains: {
-        '1': { slug: 'ethereum', timestamp: 0 },
+        data: null,
+        timestamp: 0,
       },
     });
   });
@@ -95,7 +96,7 @@ describe('TokenRatesController', () => {
       disabled: false,
       interval: 180000,
       nativeCurrency: 'eth',
-      chainId: '1',
+      chainId: '',
       tokens: [],
       threshold: 60000,
     });
@@ -192,7 +193,7 @@ describe('TokenRatesController', () => {
         onCurrencyRateStateChange: stub(),
         onNetworkStateChange: (listener) => network.subscribe(listener),
       },
-      { interval: 10 },
+      { interval: 10, chainId: '1' },
     );
     const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
     expect(controller.state.contractExchangeRates).toStrictEqual({});
