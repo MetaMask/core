@@ -46,6 +46,14 @@ export interface ProviderConfig {
   nickname?: string;
 }
 
+export interface Block {
+  baseFee?: string;
+}
+
+export interface NetworkProperties {
+  isEIP1559Compatible?: boolean;
+}
+
 /**
  * @type NetworkConfig
  *
@@ -70,6 +78,7 @@ export interface NetworkConfig extends BaseConfig {
 export interface NetworkState extends BaseState {
   network: string;
   provider: ProviderConfig;
+  properties: NetworkProperties;
 }
 
 const LOCALHOST_RPC_URL = 'http://localhost:8545';
@@ -203,6 +212,7 @@ export class NetworkController extends BaseController<
       provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
     };
     this.initialize();
+    this.getNetworkProperties();
   }
 
   /**
@@ -286,6 +296,19 @@ export class NetworkController extends BaseController<
       },
     });
     this.refreshNetwork();
+  }
+
+  getNetworkProperties() {
+    this.ethQuery.sendAsync(
+      { method: 'eth_getBlockByNumber', params: ['latest', false] },
+      (error: Error, block: Block) => {
+        this.update({
+          properties: {
+            isEIP1559Compatible: typeof block.baseFee !== undefined,
+          }
+        });
+      },
+    );
   }
 }
 
