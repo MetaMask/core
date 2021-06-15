@@ -24,7 +24,7 @@ import {
   query,
 } from '../util';
 
-const hardfork = 'berlin';
+const HARDFORK = 'berlin';
 
 /**
  * @type Result
@@ -563,17 +563,17 @@ export class TransactionController extends BaseController<
       provider: { type: chain, chainId, nickname: name },
     } = this.getNetworkState();
 
-    if (chain === 'rpc') {
-      const customChainParams = {
-        name,
-        chainId: parseInt(chainId, undefined),
-        networkId: parseInt(networkId, undefined),
-      };
-
-      return Common.forCustomChain('mainnet', customChainParams, hardfork);
+    if (chain !== 'rpc') {
+      return new Common({ chain, hardfork: HARDFORK });
     }
 
-    return new Common({ chain, hardfork });
+    const customChainParams = {
+      name,
+      chainId: parseInt(chainId, undefined),
+      networkId: parseInt(networkId, undefined),
+    };
+
+    return Common.forCustomChain('mainnet', customChainParams, HARDFORK);
   }
 
   /**
