@@ -543,12 +543,21 @@ export class TransactionController extends BaseController<
 
   prepareUnsignedEthTx(txParams: Record<string, unknown>): TypedTransaction {
     return TransactionFactory.fromTxData(txParams, {
-      common: this.getCommon(),
+      common: this.getCommonConfiguration(),
       freeze: false,
     });
   }
 
-  getCommon(): Common {
+  /**
+   * @ethereumjs/tx uses @ethereumjs/common as a configuration tool for
+   * specifying which chain, network, hardfork and EIPs to support for
+   * a transaction. By referencing this configuration, and analyzing the fields
+   * specified in txParams, @ethereumjs/tx is able to determine which EIP-2718
+   * transaction type to use.
+   * @returns {Common} common configuration object
+   */
+
+  getCommonConfiguration(): Common {
     const {
       network: networkId,
       provider: { type: chain, chainId, nickname: name },
