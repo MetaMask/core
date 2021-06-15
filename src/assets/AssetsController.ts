@@ -19,6 +19,7 @@ import type {
 } from './AssetsDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
 import { compareCollectiblesMetadata } from './assetsUtil';
+import { MAINNET } from '../constants';
 
 /**
  * @type Collectible
@@ -748,7 +749,7 @@ export class AssetsController extends BaseController<
   ) {
     super(config, state);
     this.defaultConfig = {
-      networkType: 'mainnet',
+      networkType: MAINNET,
       selectedAddress: '',
       chainId: '',
     };
