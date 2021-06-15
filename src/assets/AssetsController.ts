@@ -10,6 +10,7 @@ import {
   validateTokenToWatch,
   toChecksumHexAddress,
 } from '../util';
+import { MAINNET } from '../constants';
 import type { Token } from './TokenRatesController';
 import type {
   ApiCollectible,
@@ -19,7 +20,6 @@ import type {
 } from './AssetsDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
 import { compareCollectiblesMetadata } from './assetsUtil';
-import { MAINNET } from '../constants';
 
 /**
  * @type Collectible
