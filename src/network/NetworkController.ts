@@ -4,6 +4,7 @@ import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { RPC } from '../constants';
 
 /**
  * Human-readable network name
@@ -15,7 +16,7 @@ export type NetworkType =
   | 'rinkeby'
   | 'goerli'
   | 'ropsten'
-  | 'rpc';
+  | RPC;
 
 export enum NetworksChainId {
   mainnet = '1',
@@ -105,7 +106,7 @@ export class NetworkController extends BaseController<
       case 'localhost':
         this.setupStandardProvider(LOCALHOST_RPC_URL);
         break;
-      case 'rpc':
+      case RPC:
         rpcTarget &&
           this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
         break;
@@ -282,7 +283,7 @@ export class NetworkController extends BaseController<
     this.update({
       provider: {
         ...this.state.provider,
-        ...{ type: 'rpc', ticker, rpcTarget, chainId, nickname },
+        ...{ type: RPC, ticker, rpcTarget, chainId, nickname },
       },
     });
     this.refreshNetwork();

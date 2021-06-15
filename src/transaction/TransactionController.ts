@@ -23,6 +23,7 @@ import {
   handleTransactionFetch,
   query,
 } from '../util';
+import { MAINNET, RPC } from '../constants';
 
 const HARDFORK = 'berlin';
 
@@ -563,7 +564,7 @@ export class TransactionController extends BaseController<
       provider: { type: chain, chainId, nickname: name },
     } = this.getNetworkState();
 
-    if (chain !== 'rpc') {
+    if (chain !== RPC) {
       return new Common({ chain, hardfork: HARDFORK });
     }
 
@@ -573,7 +574,7 @@ export class TransactionController extends BaseController<
       networkId: parseInt(networkId, undefined),
     };
 
-    return Common.forCustomChain('mainnet', customChainParams, HARDFORK);
+    return Common.forCustomChain(MAINNET, customChainParams, HARDFORK);
   }
 
   /**
