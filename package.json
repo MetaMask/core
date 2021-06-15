@@ -25,7 +25,8 @@
     "build": "rm -rf dist && tsc",
     "build:watch": "yarn build && tsc -w",
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
-    "doc": "typedoc && touch docs/.nojekyll"
+    "doc": "typedoc && touch docs/.nojekyll",
+    "start-eip1559-server": "node ./src/apis/eip-1559-mock.js"
   },
   "homepage": "https://github.com/MetaMask/controllers#readme",
   "repository": {
