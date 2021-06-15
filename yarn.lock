@@ -686,10 +686,10 @@
     semver "^7.3.5"
     yargs "^17.0.1"
 
-"@metamask/contract-metadata@^1.25.0":
-  version "1.25.0"
-  resolved "https://registry.yarnpkg.com/@metamask/contract-metadata/-/contract-metadata-1.25.0.tgz#442ace91fb40165310764b68d8096d0017bb0492"
-  integrity sha512-yhmYB9CQPv0dckNcPoWDcgtrdUp0OgK0uvkRE5QIBv4b3qENI1/03BztvK2ijbTuMlORUpjPq7/1MQDUPoRPVw==
+"@metamask/contract-metadata@^1.26.0":
+  version "1.26.0"
+  resolved "https://registry.yarnpkg.com/@metamask/contract-metadata/-/contract-metadata-1.26.0.tgz#06be4f4dc645da69f6364f75cb2bd47afa642fe6"
+  integrity sha512-58A8csapIPoc854n6AI+3jwJcQfh75BzVrl6SAySgJ9fWTa1XItm9Tx/ORaqYrwaR/9JqH4SnkbXtqyFwuUL6w==
 
 "@metamask/eslint-config-jest@^6.0.0":
   version "6.0.0"
@@ -3413,9 +3413,9 @@ getpass@^0.1.1:
     assert-plus "^1.0.0"
 
 glob-parent@^5.0.0, glob-parent@^5.1.0:
-  version "5.1.1"
-  resolved "https://registry.yarnpkg.com/glob-parent/-/glob-parent-5.1.1.tgz#b6c1ef417c4e5663ea498f1c45afac6916bbc229"
-  integrity sha512-FnI+VGOpnlGHWZxthPGR+QhR78fuiK0sNLkHQv+bL9fQi57lNNdquIbna/WrfROrolq8GK5Ek6BiMwqL/voRYQ==
+  version "5.1.2"
+  resolved "https://registry.yarnpkg.com/glob-parent/-/glob-parent-5.1.2.tgz#869832c58034fe68a4093c17dc15e8340d8401c4"
+  integrity sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow==
   dependencies:
     is-glob "^4.0.1"
 
@@ -7312,9 +7312,9 @@ write-file-atomic@^3.0.0:
     typedarray-to-buffer "^3.1.5"
 
 ws@^5.1.1:
-  version "5.2.2"
-  resolved "https://registry.yarnpkg.com/ws/-/ws-5.2.2.tgz#dffef14866b8e8dc9133582514d1befaf96e980f"
-  integrity sha512-jaHFD6PFv6UgoIVda6qZllptQsMlDEJkTQcybzzXDYM1XO9Y8em691FGMPmM46WGyLU4z9KMgQN+qrux/nhlHA==
+  version "5.2.3"
+  resolved "https://registry.yarnpkg.com/ws/-/ws-5.2.3.tgz#05541053414921bc29c63bee14b8b0dd50b07b3d"
+  integrity sha512-jZArVERrMsKUatIdnLzqvcfydI85dvd/Fp1u/VOpfdDWQ4c9qWXe+VIeAbQ5FrDwciAkr+lzofXLz3Kuf26AOA==
   dependencies:
     async-limiter "~1.0.0"
 

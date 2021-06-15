@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "10.0.0",
+  "version": "10.1.0",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "license": "MIT",
   "files": [
@@ -41,7 +41,7 @@
     "url": "https://github.com/MetaMask/controllers/issues"
   },
   "dependencies": {
-    "@metamask/contract-metadata": "^1.25.0",
+    "@metamask/contract-metadata": "^1.26.0",
     "@types/uuid": "^8.3.0",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
