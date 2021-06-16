@@ -3,7 +3,6 @@ import { NetworksChainId } from '../network/NetworkController';
 import {
   fetchTokenList,
   syncTokens,
-  fetchTopAssets,
   fetchTokenMetadata,
 } from './token-service';
 
@@ -106,28 +105,7 @@ const sampleTokenList = [
     ],
   },
 ];
-const sampleTopAssets = [
-  {
-    address: '0xbbbbca6a901c926f240b89eacb641d8aec7aeafd',
-    symbol: 'LRC',
-  },
-  {
-    address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
-    symbol: 'SNX',
-  },
-  {
-    address: '0x408e41876cccdc0f92210600ef50372656052a38',
-    symbol: 'REN',
-  },
-  {
-    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-    symbol: 'LINK',
-  },
-  {
-    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
-    symbol: 'BNT',
-  },
-];
+
 const sampleToken = {
   address: '0x514910771af9ca656af840dff83e8264ecf986ca',
   symbol: 'LINK',
@@ -178,16 +156,6 @@ describe('FetchtokenList', () => {
       .persist();
 
     expect(await syncTokens(NetworksChainId.mainnet)).toBeUndefined();
-  });
-  it('should call api for topAssets and return the list of address and symbol of topAssets', async () => {
-    nock(TOKEN_END_POINT_API)
-      .get(`/topAssets/${NetworksChainId.mainnet}`)
-      .reply(200, sampleTopAssets)
-      .persist();
-
-    const topAssets = await fetchTopAssets(NetworksChainId.mainnet);
-
-    expect(topAssets).toStrictEqual(sampleTopAssets);
   });
   it('should call the api to return the token metadata for eth address provided', async () => {
     nock(TOKEN_END_POINT_API)

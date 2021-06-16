@@ -7,24 +7,10 @@ import {
   TokenListStateChange,
   GetTokenListState,
 } from './TokenListController';
-// import * as tokenServices from '../apis/token-service'
 
 const name = 'TokenListController';
 const TOKEN_END_POINT_API = 'https://token-api.airswap-prod.codefi.network';
-const sampleTopAssets = [
-  {
-    address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
-    symbol: 'SNX',
-  },
-  {
-    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-    symbol: 'LINK',
-  },
-  {
-    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
-    symbol: 'BNT',
-  },
-];
+
 const sampleState = {
   tokens: {
     '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f': {
@@ -85,7 +71,6 @@ const sampleState = {
       ],
     },
   },
-  topAssets: sampleTopAssets,
 };
 const sampleTokenList = [
   {
@@ -166,6 +151,50 @@ const sampleTokenMetaData = {
     'oneInch',
   ],
 };
+const existingState = {
+  tokens: {
+    '0x514910771af9ca656af840dff83e8264ecf986ca': {
+      address: '0x514910771af9ca656af840dff83e8264ecf986ca',
+      symbol: 'LINK',
+      decimals: 18,
+      occurances: 11,
+      aggregators: [
+        'paraswap',
+        'pmm',
+        'airswapLight',
+        'zeroEx',
+        'bancor',
+        'coinGecko',
+        'zapper',
+        'kleros',
+        'zerion',
+        'cmc',
+        'oneInch',
+      ],
+    },
+  },
+};
+const outdatedExistingState = {
+  tokens: {
+    '0x514910771af9ca656af840dff83e8264ecf986ca': {
+      address: '0x514910771af9ca656af840dff83e8264ecf986ca',
+      symbol: 'LINK',
+      decimals: 18,
+      occurances: 9,
+      aggregators: [
+        'paraswap',
+        'pmm',
+        'airswapLight',
+        'zeroEx',
+        'bancor',
+        'coinGecko',
+        'zapper',
+        'kleros',
+        'zerion',
+      ],
+    },
+  },
+};
 function getRestrictedMessenger() {
   const controllerMessenger = new ControllerMessenger<
     GetTokenListState,
@@ -195,42 +224,12 @@ describe('TokenListController', () => {
 
     expect(controller.state).toStrictEqual({
       tokens: {},
-      topAssets: [],
     });
 
     controller.destroy();
   });
 
   it('should initialize with initial state', () => {
-    const existingState = {
-      tokens: {
-        '0x514910771af9ca656af840dff83e8264ecf986ca': {
-          address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-          symbol: 'LINK',
-          decimals: 18,
-          occurances: 11,
-          aggregators: [
-            'paraswap',
-            'pmm',
-            'airswapLight',
-            'zeroEx',
-            'bancor',
-            'coinGecko',
-            'zapper',
-            'kleros',
-            'zerion',
-            'cmc',
-            'oneInch',
-          ],
-        },
-      },
-      topAssets: [
-        {
-          address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-          symbol: 'LINK',
-        },
-      ],
-    };
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
@@ -259,12 +258,6 @@ describe('TokenListController', () => {
           ],
         },
       },
-      topAssets: [
-        {
-          address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-          symbol: 'LINK',
-        },
-      ],
     });
 
     controller.destroy();
@@ -280,14 +273,12 @@ describe('TokenListController', () => {
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     expect(controller.state.tokens).toStrictEqual({});
-    expect(controller.state.topAssets).toStrictEqual([]);
 
     controller.destroy();
   });
 
   it('should poll and update rate in the right interval', async () => {
     const tokenListMock = stub(TokenListController.prototype, 'fetchTokenList');
-    const topAssetMock = stub(TokenListController.prototype, 'fetchTopAssets');
 
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
@@ -299,21 +290,16 @@ describe('TokenListController', () => {
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 1));
     expect(tokenListMock.called).toBe(true);
-    expect(topAssetMock.called).toBe(true);
     expect(tokenListMock.calledTwice).toBe(false);
-    expect(topAssetMock.calledTwice).toBe(false);
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     expect(tokenListMock.calledTwice).toBe(true);
-    expect(topAssetMock.calledTwice).toBe(true);
 
     controller.destroy();
     tokenListMock.restore();
-    topAssetMock.restore();
   });
 
   it('should not poll after being stopped', async () => {
     const tokenListMock = stub(TokenListController.prototype, 'fetchTokenList');
-    const topAssetMock = stub(TokenListController.prototype, 'fetchTopAssets');
 
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
@@ -326,22 +312,17 @@ describe('TokenListController', () => {
 
     // called once upon initial start
     expect(tokenListMock.called).toBe(true);
-    expect(topAssetMock.called).toBe(true);
     expect(tokenListMock.calledTwice).toBe(false);
-    expect(topAssetMock.calledTwice).toBe(false);
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     expect(tokenListMock.calledTwice).toBe(false);
-    expect(topAssetMock.calledTwice).toBe(false);
 
     controller.destroy();
     tokenListMock.restore();
-    topAssetMock.restore();
   });
 
   it('should poll correctly after being started, stopped, and started again', async () => {
     const tokenListMock = stub(TokenListController.prototype, 'fetchTokenList');
-    const topAssetMock = stub(TokenListController.prototype, 'fetchTopAssets');
 
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
@@ -354,60 +335,22 @@ describe('TokenListController', () => {
 
     // called once upon initial start
     expect(tokenListMock.called).toBe(true);
-    expect(topAssetMock.called).toBe(true);
     expect(tokenListMock.calledTwice).toBe(false);
-    expect(topAssetMock.calledTwice).toBe(false);
 
     await controller.start();
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 1));
     expect(tokenListMock.calledTwice).toBe(true);
-    expect(topAssetMock.calledThrice).toBe(false);
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     expect(tokenListMock.calledThrice).toBe(true);
-    expect(topAssetMock.calledThrice).toBe(true);
     controller.destroy();
     tokenListMock.restore();
-    topAssetMock.restore();
   });
 
-  it('should update token list and topAssets', async () => {
-    const existingState = {
-      tokens: {
-        '0x514910771af9ca656af840dff83e8264ecf986ca': {
-          address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-          symbol: 'LINK',
-          decimals: 18,
-          occurances: 11,
-          aggregators: [
-            'paraswap',
-            'pmm',
-            'airswapLight',
-            'zeroEx',
-            'bancor',
-            'coinGecko',
-            'zapper',
-            'kleros',
-            'zerion',
-            'cmc',
-            'oneInch',
-          ],
-        },
-      },
-      topAssets: [
-        {
-          address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-          symbol: 'LINK',
-        },
-      ],
-    };
+  it('should update token list', async () => {
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${NetworksChainId.mainnet}`)
       .reply(200, sampleTokenList)
-      .persist();
-    nock(TOKEN_END_POINT_API)
-      .get(`/topAssets/${NetworksChainId.mainnet}`)
-      .reply(200, sampleTopAssets)
       .persist();
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
@@ -422,35 +365,9 @@ describe('TokenListController', () => {
   });
 
   it('should update token list when the token property changes', async () => {
-    const outdatedExistingState = {
-      tokens: {
-        '0x514910771af9ca656af840dff83e8264ecf986ca': {
-          address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-          symbol: 'LINK',
-          decimals: 18,
-          occurances: 9,
-          aggregators: [
-            'paraswap',
-            'pmm',
-            'airswapLight',
-            'zeroEx',
-            'bancor',
-            'coinGecko',
-            'zapper',
-            'kleros',
-            'zerion',
-          ],
-        },
-      },
-      topAssets: [],
-    };
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${NetworksChainId.mainnet}`)
       .reply(200, sampleTokenList)
-      .persist();
-    nock(TOKEN_END_POINT_API)
-      .get(`/topAssets/${NetworksChainId.mainnet}`)
-      .reply(200, sampleTopAssets)
       .persist();
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
@@ -474,56 +391,6 @@ describe('TokenListController', () => {
       messenger,
     });
     expect(await controller.syncTokens()).toBeUndefined();
-    controller.destroy();
-  });
-  it('should update topAssets in the state', async () => {
-    const existingState = {
-      tokens: {
-        '0x514910771af9ca656af840dff83e8264ecf986ca': {
-          address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-          symbol: 'LINK',
-          decimals: 18,
-          occurances: 11,
-          aggregators: [
-            'paraswap',
-            'pmm',
-            'airswapLight',
-            'zeroEx',
-            'bancor',
-            'coinGecko',
-            'zapper',
-            'kleros',
-            'zerion',
-            'cmc',
-            'oneInch',
-          ],
-        },
-      },
-      topAssets: [
-        {
-          address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-          symbol: 'LINK',
-        },
-      ],
-    };
-    nock(TOKEN_END_POINT_API)
-      .get(`/topAssets/${NetworksChainId.mainnet}`)
-      .reply(200, sampleTopAssets)
-      .persist();
-    const messenger = getRestrictedMessenger();
-    const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
-      messenger,
-      state: existingState,
-    });
-    await controller.fetchTopAssets();
-    expect(controller.state).toStrictEqual({
-      tokens: {
-        '0x514910771af9ca656af840dff83e8264ecf986ca': sampleTokenMetaData,
-      },
-      topAssets: sampleTopAssets,
-    });
-
     controller.destroy();
   });
   it('should return the metadata for a tokenAddress provided', async () => {

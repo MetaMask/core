@@ -1,13 +1,11 @@
 import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
-import { isEqual } from 'lodash';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { safelyExecute } from '../util';
 import {
   fetchTokenList,
   syncTokens,
-  fetchTopAssets,
   fetchTokenMetadata,
 } from '../apis/token-service';
 
@@ -20,16 +18,12 @@ type Token = {
   occurances: number;
   aggregators: string[];
 };
-type TopAsset = {
-  address: string;
-  symbol: string;
-};
+
 type TokenMap = {
   [address: string]: Token;
 };
 export type TokenListState = {
   tokens: TokenMap;
-  topAssets: TopAsset[];
 };
 const name = 'TokenListController';
 
@@ -44,11 +38,9 @@ export type GetTokenListState = {
 };
 const metadata = {
   tokens: { persist: true, anonymous: true },
-  topAssets: { persist: true, anonymous: true },
 };
 const defaultState: TokenListState = {
   tokens: {},
-  topAssets: [],
 };
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
@@ -135,32 +127,24 @@ export class TokenListController extends BaseController<
    */
   private async startPolling(): Promise<void> {
     await safelyExecute(() => this.fetchTokenList());
-    await safelyExecute(() => this.fetchTopAssets());
     this.intervalId = setInterval(async () => {
       await safelyExecute(() => this.fetchTokenList());
-      await safelyExecute(() => this.fetchTopAssets());
     }, this.intervalDelay);
   }
 
   async fetchTokenList(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
-    const { tokens, ...topAssets }: TokenListState = this.state;
+    const { tokens }: TokenListState = this.state;
     try {
       const tokenList: Token[] = await safelyExecute(() =>
         fetchTokenList(this.chainId),
       );
       for (const token of tokenList) {
-        const existingToken = tokens[token.address];
-        if (!existingToken) {
-          tokens[token.address] = token;
-        } else if (!isEqual(existingToken, token)) {
-          tokens[token.address] = token;
-        }
+        tokens[token.address] = token;
       }
       this.update(() => {
         return {
           tokens,
-          ...topAssets,
         };
       });
     } finally {
@@ -172,22 +156,6 @@ export class TokenListController extends BaseController<
     const releaseLock = await this.mutex.acquire();
     try {
       await safelyExecute(() => syncTokens(this.chainId));
-    } finally {
-      releaseLock();
-    }
-  }
-
-  async fetchTopAssets(): Promise<void> {
-    const releaseLock = await this.mutex.acquire();
-    try {
-      const { topAssets, ...tokens } = this.state;
-      const assets = await safelyExecute(() => fetchTopAssets(this.chainId));
-      this.update(() => {
-        return {
-          ...tokens,
-          topAssets: assets,
-        };
-      });
     } finally {
       releaseLock();
     }

@@ -8,9 +8,6 @@ function syncTokensURL(chainId: string) {
 function getTokensURL(chainId: string) {
   return `${END_POINT}/tokens/${chainId}`;
 }
-function getTopAssetsURL(chainId: string) {
-  return `${END_POINT}/topAssets/${chainId}`;
-}
 function getTokenMetadataURL(chainId: string, tokenAddress: string) {
   return `${END_POINT}/tokens/${chainId}?address=${tokenAddress}`;
 }
@@ -50,25 +47,6 @@ export async function syncTokens(chainId: string): Promise<void> {
   fetchOptions.headers = new window.Headers();
   fetchOptions.headers.set('Content-Type', 'application/json');
   await timeoutFetch(syncURL, fetchOptions);
-}
-
-/**
- * Fetches  all the top assets token metadata for a given network chainId
- *
- * @return Promise resolving top assets
- */
-export async function fetchTopAssets(chainId: string): Promise<Response> {
-  const topAssetURL = getTopAssetsURL(chainId);
-  const fetchOptions: RequestInit = {
-    referrer: topAssetURL,
-    referrerPolicy: 'no-referrer-when-downgrade',
-    method: 'GET',
-    mode: 'cors',
-  };
-  fetchOptions.headers = new window.Headers();
-  fetchOptions.headers.set('Content-Type', 'application/json');
-  const tokenResponse = await timeoutFetch(topAssetURL, fetchOptions);
-  return await tokenResponse.json();
 }
 
 /**
