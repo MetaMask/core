@@ -210,6 +210,7 @@ export class NetworkController extends BaseController<
     this.defaultState = {
       network: 'loading',
       provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
+      properties: { isEIP1559Compatible: false },
     };
     this.initialize();
     this.getNetworkProperties();
@@ -302,11 +303,15 @@ export class NetworkController extends BaseController<
     this.ethQuery.sendAsync(
       { method: 'eth_getBlockByNumber', params: ['latest', false] },
       (error: Error, block: Block) => {
-        this.update({
-          properties: {
-            isEIP1559Compatible: typeof block.baseFee !== undefined,
-          }
-        });
+        if (error) {
+          console.error(error);
+        } else {
+          this.update({
+            properties: {
+              isEIP1559Compatible: typeof block.baseFee !== undefined,
+            },
+          });
+        }
       },
     );
   }
