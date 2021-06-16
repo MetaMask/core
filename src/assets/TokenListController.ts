@@ -1,9 +1,15 @@
 import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
+import { isEqual } from 'lodash';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { safelyExecute } from '../util';
-import { fetchTokenList } from '../apis/fetch-token-list';
+import {
+  fetchTokenList,
+  syncTokens,
+  fetchTopAssets,
+  fetchTokenMetadata,
+} from '../apis/token-service';
 
 const DEFAULT_INTERVAL = 180 * 1000;
 
@@ -14,11 +20,16 @@ type Token = {
   occurances: number;
   aggregators: string[];
 };
-export type TokenMap = {
+type TopAsset = {
+  address: string;
+  symbol: string;
+};
+type TokenMap = {
   [address: string]: Token;
 };
 export type TokenListState = {
   tokens: TokenMap;
+  topAssets: TopAsset[];
 };
 const name = 'TokenListController';
 
@@ -33,9 +44,11 @@ export type GetTokenListState = {
 };
 const metadata = {
   tokens: { persist: true, anonymous: true },
+  topAssets: { persist: true, anonymous: true },
 };
 const defaultState: TokenListState = {
   tokens: {},
+  topAssets: [],
 };
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
@@ -50,6 +63,8 @@ export class TokenListController extends BaseController<
 
   private intervalDelay: number;
 
+  private chainId: string;
+
   /**
    * Creates a TokenListController instance
    *
@@ -59,10 +74,12 @@ export class TokenListController extends BaseController<
    * @param options.state - Initial state to set on this controller
    */
   constructor({
+    chainId,
     interval = DEFAULT_INTERVAL,
     messenger,
     state,
   }: {
+    chainId: string;
     interval?: number;
     messenger: RestrictedControllerMessenger<
       typeof name,
@@ -80,6 +97,7 @@ export class TokenListController extends BaseController<
       state: { ...defaultState, ...state },
     });
     this.intervalDelay = interval;
+    this.chainId = chainId;
   }
 
   /**
@@ -117,27 +135,71 @@ export class TokenListController extends BaseController<
    */
   private async startPolling(): Promise<void> {
     await safelyExecute(() => this.fetchTokenList());
+    await safelyExecute(() => this.fetchTopAssets());
     this.intervalId = setInterval(async () => {
       await safelyExecute(() => this.fetchTokenList());
+      await safelyExecute(() => this.fetchTopAssets());
     }, this.intervalDelay);
   }
 
   async fetchTokenList(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
-    const { tokens }: { tokens: TokenMap } = this.state;
+    const { tokens, ...topAssets }: TokenListState = this.state;
     try {
-      const tokenList: Token[] = await safelyExecute(() => fetchTokenList());
-
+      const tokenList: Token[] = await safelyExecute(() =>
+        fetchTokenList(this.chainId),
+      );
       for (const token of tokenList) {
-        if (!tokens[token.address]) {
+        const existingToken = tokens[token.address];
+        if (!existingToken) {
+          tokens[token.address] = token;
+        } else if (!isEqual(existingToken, token)) {
           tokens[token.address] = token;
         }
       }
       this.update(() => {
         return {
           tokens,
+          ...topAssets,
         };
       });
+    } finally {
+      releaseLock();
+    }
+  }
+
+  async syncTokens(): Promise<void> {
+    const releaseLock = await this.mutex.acquire();
+    try {
+      await safelyExecute(() => syncTokens(this.chainId));
+    } finally {
+      releaseLock();
+    }
+  }
+
+  async fetchTopAssets(): Promise<void> {
+    const releaseLock = await this.mutex.acquire();
+    try {
+      const { topAssets, ...tokens } = this.state;
+      const assets = await safelyExecute(() => fetchTopAssets(this.chainId));
+      this.update(() => {
+        return {
+          ...tokens,
+          topAssets: assets,
+        };
+      });
+    } finally {
+      releaseLock();
+    }
+  }
+
+  async fetchTokenMetadata(tokenAddress: string): Promise<Token> {
+    const releaseLock = await this.mutex.acquire();
+    try {
+      const token = await safelyExecute(() =>
+        fetchTokenMetadata(this.chainId, tokenAddress),
+      );
+      return token;
     } finally {
       releaseLock();
     }

@@ -22,6 +22,7 @@ const ROPSTEN = 'ropsten';
 const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
 const OPEN_SEA_HOST = 'https://api.opensea.io';
 const OPEN_SEA_PATH = '/api/v1';
+const TOKEN_END_POINT_API = 'https://token-api.airswap-prod.codefi.network';
 const sampleTokenList = [
   {
     address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -124,7 +125,10 @@ describe('AssetsDetectionController', () => {
       ),
     });
     const messenger = getTokenListMessenger();
-    tokenList = new TokenListController({ messenger });
+    tokenList = new TokenListController({
+      chainId: NetworksChainId.mainnet,
+      messenger,
+    });
     await tokenList.start();
     getBalancesInSingleCall = sandbox.stub();
     assetsDetection = new AssetsDetectionController({
@@ -232,8 +236,8 @@ describe('AssetsDetectionController', () => {
           },
         ],
       });
-    nock('https://metaswap-api.airswap-dev.codefi.network')
-      .get('/tokens')
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${NetworksChainId.mainnet}`)
       .reply(200, sampleTokenList)
       .persist();
   });
