@@ -1,11 +1,9 @@
-import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 
 import { BaseController } from '../BaseControllerV2';
 import { safelyExecute } from '../util';
-import { fetchGasEstimates as defaultFetchGasEstimates } from './gas-util';
-
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
+import { fetchGasEstimates as defaultFetchGasEstimates } from './gas-util';
 
 /**
  * @type LegacyGasFee
@@ -16,7 +14,7 @@ import type { RestrictedControllerMessenger } from '../ControllerMessenger';
  */
 
 interface LegacyGasFee {
-  gasPrice: string, // a GWEI hex number
+  gasPrice: string; // a GWEI hex number
 }
 
 /**
@@ -31,28 +29,28 @@ interface LegacyGasFee {
  * @property calculatedTotalMinFee - suggestedMaxPriorityFeePerGas + estimatedNextBlockBaseFee
  */
 
- /**
-  * @type LegacyGasPriceEstimates
-  *
-  * Data necessary to provide multiple GasFee estimates, and supporting information, to the user
-  *
-  * @property low - A LegacyGasFee for a minimum necessary gas price
-  * @property medium - A LegacyGasFee for a recommended gas price
-  * @property high - A GasLegacyGasFeeFee for a high gas price
-  */
+/**
+ * @type LegacyGasPriceEstimates
+ *
+ * Data necessary to provide multiple GasFee estimates, and supporting information, to the user
+ *
+ * @property low - A LegacyGasFee for a minimum necessary gas price
+ * @property medium - A LegacyGasFee for a recommended gas price
+ * @property high - A GasLegacyGasFeeFee for a high gas price
+ */
 
 interface LegacyGasPriceEstimates {
- low: LegacyGasFee,
- medium: LegacyGasFee,
- high: LegacyGasFee,
+  low: LegacyGasFee;
+  medium: LegacyGasFee;
+  high: LegacyGasFee;
 }
 
 interface Eip1559GasFee {
-  minWaitTimeEstimate: number, // a time duration in milliseconds
-  maxWaitTimeEstimate: number, // a time duration in milliseconds
-  suggestedMaxPriorityFeePerGas: string, // a GWEI hex number
-  suggestedMaxFeePerGas: string, // a GWEI hex number
-  calculatedTotalMinFee: string, // a GWEI hex number
+  minWaitTimeEstimate: number; // a time duration in milliseconds
+  maxWaitTimeEstimate: number; // a time duration in milliseconds
+  suggestedMaxPriorityFeePerGas: string; // a GWEI hex number
+  suggestedMaxFeePerGas: string; // a GWEI hex number
+  calculatedTotalMinFee: string; // a GWEI hex number
 }
 
 /**
@@ -69,16 +67,20 @@ interface Eip1559GasFee {
  * @property lastBlockMaxPriorityFee - The highest tip that succeeded in the most recent block. A GWEI hex number
  */
 
- interface GasFeeEstimates {
-  low: Eip1559GasFee,
-  medium: Eip1559GasFee,
-  high: Eip1559GasFee,
-  estimatedNextBlockBaseFee: string,
-  lastBlockBaseFee: string,
-  lastBlockMinPriorityFee: string,
-  lastBlockMaxPriorityFee: string,
- }
+export interface GasFeeEstimates {
+  low: Eip1559GasFee;
+  medium: Eip1559GasFee;
+  high: Eip1559GasFee;
+  estimatedNextBlockBaseFee: string;
+  lastBlockBaseFee: string;
+  lastBlockMinPriorityFee: string;
+  lastBlockMaxPriorityFee: string;
+}
 
+const metadata = {
+  legacyGasPriceEstimates: { persist: true, anonymous: false },
+  gasFeeEstimates: { persist: true, anonymous: false },
+};
 
 /**
  * @type GasFeeState
@@ -88,10 +90,10 @@ interface Eip1559GasFee {
  * @property legacyGasPriceEstimates - Gas fee estimate data using the legacy `gasPrice` property
  * @property gasFeeEstimates - Gas fee estimate data based on new EIP-1559 properties
  */
-export interface GasFeeState extends BaseState {
-  legacyGasPriceEstimates: LegacyGasPriceEstimates | undefined;
-  gasFeeEstimates: GasFeeEstimates | undefined;
-}
+export type GasFeeState = {
+  legacyGasPriceEstimates: LegacyGasPriceEstimates | Record<string, never>;
+  gasFeeEstimates: GasFeeEstimates | Record<string, never>;
+};
 
 const name = 'GasFeeController';
 
@@ -106,28 +108,21 @@ export type GetGasFeeState = {
 };
 
 const defaultState = {
-  legacyGasPriceEstimates: undefined,
-  gasFeeEstimates: undefined,
+  legacyGasPriceEstimates: {},
+  gasFeeEstimates: {},
 };
 
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
  */
-export class GasFeeController extends BaseController<
-  typeof name,
-  GasFeeState
-> {
-  private mutex = new Mutex();
-
+export class GasFeeController extends BaseController<typeof name, GasFeeState> {
   private intervalId?: NodeJS.Timeout;
 
   private intervalDelay;
 
-  private getChainEIP1559Compatibility;
+  private pollCount = 0;
 
-  private getAccountEIP1559Compatibility;
-
-  private pollCount: number = 0;
+  private fetchGasEstimates;
 
   /**
    * Creates a GasFeeController instance
@@ -149,28 +144,28 @@ export class GasFeeController extends BaseController<
     >;
     state?: Partial<GasFeeState>;
     fetchGasEstimates?: typeof defaultFetchGasEstimates;
-    getChainEIP1559Compatibility?: Function;
-    getAccountEIP1559Compatibility?: Function;
   }) {
     super({
       name,
+      metadata,
       messenger,
       state: { ...defaultState, ...state },
     });
     this.intervalDelay = interval;
+    this.fetchGasEstimates = fetchGasEstimates;
   }
 
   async getGasFeeEstimatesAndStartPolling(): Promise<GasFeeState | undefined> {
-    let gasEstimates
+    let gasEstimates;
     if (this.pollCount > 0) {
-      gasEstimates = this.state
+      gasEstimates = this.state;
     } else {
-      gasEstimates = await this._fetchGasFeeEstimateData()
+      gasEstimates = await this._fetchGasFeeEstimateData();
     }
 
-    this._startPolling()
+    this._startPolling();
 
-    return gasEstimates
+    return gasEstimates;
   }
 
   /**
@@ -179,20 +174,20 @@ export class GasFeeController extends BaseController<
    * @returns GasFeeEstimates
    */
   async _fetchGasFeeEstimateData(): Promise<GasFeeState | undefined> {
-    let newEstimates: GasFeeState;
+    let newEstimates = this.state;
     try {
       const estimates = await this.fetchGasEstimates();
       newEstimates = {
         legacyGasPriceEstimates: {
           low: {
-            gasPrice: estimates.low.suggestedMaxFeePerGas
+            gasPrice: estimates.low.suggestedMaxFeePerGas,
           },
           medium: {
-            gasPrice: estimates.medium.suggestedMaxFeePerGas
+            gasPrice: estimates.medium.suggestedMaxFeePerGas,
           },
           high: {
-            gasPrice: estimates.high.suggestedMaxFeePerGas
-          }
+            gasPrice: estimates.high.suggestedMaxFeePerGas,
+          },
         },
         gasFeeEstimates: estimates,
       };
@@ -203,23 +198,11 @@ export class GasFeeController extends BaseController<
         this.update(() => {
           return newEstimates;
         });
-      } finally {
-        return newEstimates;
+      } catch (error) {
+        console.error(error);
       }
     }
-  }
-
-  async _startPolling() {
-    if (this.pollCount === 0) {
-      this._poll();
-    }
-    this.pollCount += 1;
-  }
-
-  async _poll() {
-    this.intervalId = setInterval(async () => {
-      await safelyExecute(() => this._fetchGasFeeEstimateData());
-    }, this.intervalDelay);
+    return newEstimates;
   }
 
   /**
@@ -232,7 +215,7 @@ export class GasFeeController extends BaseController<
     }
   }
 
-  private stopPolling() {
+  stopPolling() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
     }
@@ -240,20 +223,32 @@ export class GasFeeController extends BaseController<
     this.resetState();
   }
 
-  private resetState() {
-    this.state = defaultState;
-  }
-
   /**
    * Prepare to discard this controller.
    *
    * This stops any active polling.
    */
-  private destroy() {
+  destroy() {
     super.destroy();
     this.stopPolling();
   }
 
+  private async _startPolling() {
+    if (this.pollCount === 0) {
+      this._poll();
+    }
+    this.pollCount += 1;
+  }
+
+  private async _poll() {
+    this.intervalId = setInterval(async () => {
+      await safelyExecute(() => this._fetchGasFeeEstimateData());
+    }, this.intervalDelay);
+  }
+
+  private resetState() {
+    this.state = defaultState;
+  }
 }
 
 export default GasFeeController;
