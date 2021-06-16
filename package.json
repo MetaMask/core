@@ -23,6 +23,7 @@
     "lint": "yarn lint:eslint && yarn lint:misc --check",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
     "test": "jest",
+    "test:watch": "jest --watch",
     "build": "rimraf dist && tsc --project .",
     "build:watch": "yarn build --watch",
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
