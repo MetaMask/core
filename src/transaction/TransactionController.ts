@@ -758,6 +758,7 @@ export class TransactionController extends BaseController<
 
     const txParams = {
       ...transactionMeta.transaction,
+      gasLimit: transactionMeta.transaction.gas,
       gasPrice,
     };
 
