@@ -1,6 +1,7 @@
 import { createSandbox, SinonStub, stub } from 'sinon';
 import nock from 'nock';
 import { BN } from 'ethereumjs-util';
+import contractMap from '@metamask/contract-metadata';
 import {
   NetworkController,
   NetworksChainId,
@@ -24,7 +25,8 @@ describe('AssetsDetectionController', () => {
   let assets: AssetsController;
   let assetsContract: AssetsContractController;
   let getBalancesInSingleCall: SinonStub<
-    [AssetsContractController['getBalancesInSingleCall']]
+    Parameters<AssetsContractController['getBalancesInSingleCall']>,
+    ReturnType<AssetsContractController['getBalancesInSingleCall']>
   >;
   const sandbox = createSandbox();
 
@@ -120,6 +122,21 @@ describe('AssetsDetectionController', () => {
             name: 'ID 2578',
             token_id: '2578',
           },
+          {
+            asset_contract: {
+              address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+            },
+            description: 'Description 2574',
+            image_url: 'image/2574.png',
+            name: 'ID 2574',
+            token_id: '2574',
+          },
+        ],
+      })
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x9&limit=300`)
+      .delay(800)
+      .reply(200, {
+        assets: [
           {
             asset_contract: {
               address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -290,6 +307,20 @@ describe('AssetsDetectionController', () => {
     expect(assets.state.collectibles).toStrictEqual([]);
   });
 
+  it('should not detect and add collectibles to the wrong selectedAddress', async () => {
+    assetsDetection.configure({
+      networkType: MAINNET,
+      selectedAddress: '0x9',
+    });
+    assets.configure({ selectedAddress: '0x9' });
+    assetsDetection.detectCollectibles();
+    assetsDetection.configure({ selectedAddress: '0x12' });
+    assets.configure({ selectedAddress: '0x12' });
+    await new Promise((res) => setTimeout(() => res(true), 1000));
+    expect(assetsDetection.config.selectedAddress).toStrictEqual('0x12');
+    expect(assets.state.collectibles).toStrictEqual([]);
+  });
+
   it('should not add collectible if collectible or collectible contract has no information to display', async () => {
     const collectibleHH2574 = {
       address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -427,6 +458,68 @@ describe('AssetsDetectionController', () => {
         symbol: 'GNO',
       },
     ]);
+  });
+
+  it('should update the tokens list when new tokens are detected', async () => {
+    assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
+    getBalancesInSingleCall.resolves({
+      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+    });
+    await assetsDetection.detectTokens();
+    expect(assets.state.tokens).toStrictEqual([
+      {
+        address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
+        decimals: 18,
+        image: undefined,
+        symbol: 'GNO',
+      },
+    ]);
+    getBalancesInSingleCall.resolves({
+      '0x514910771AF9Ca656af840dff83E8264EcF986CA': new BN(1),
+    });
+    await assetsDetection.detectTokens();
+    expect(assets.state.tokens).toStrictEqual([
+      {
+        address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
+        decimals: 18,
+        image: undefined,
+        symbol: 'GNO',
+      },
+      {
+        address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        decimals: 18,
+        image: undefined,
+        symbol: 'LINK',
+      },
+    ]);
+  });
+
+  it('should call getBalancesInSingle with token address that is not present on the asset state', async () => {
+    assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
+    getBalancesInSingleCall.resolves({
+      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+    });
+    const tokensToDetect: string[] = [];
+    for (const address in contractMap) {
+      const contract = contractMap[address];
+      if (contract.erc20) {
+        tokensToDetect.push(address);
+      }
+    }
+    await assetsDetection.detectTokens();
+    expect(getBalancesInSingleCall.calledWith('0x1', tokensToDetect)).toBe(
+      true,
+    );
+    getBalancesInSingleCall.resolves({
+      '0x514910771AF9Ca656af840dff83E8264EcF986CA': new BN(1),
+    });
+    const updatedTokensToDetect = tokensToDetect.filter(
+      (address) => address !== '0x6810e776880C02933D47DB1b9fc05908e5386b96',
+    );
+    await assetsDetection.detectTokens();
+    expect(
+      getBalancesInSingleCall.calledWith('0x1', updatedTokensToDetect),
+    ).toBe(true);
   });
 
   it('should not autodetect tokens that exist in the ignoreList', async () => {

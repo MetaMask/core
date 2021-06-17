@@ -301,13 +301,13 @@ export class AssetsDetectionController extends BaseController<
     if (!this.isMainnet()) {
       return;
     }
-    const tokensAddresses = this.config.tokens.filter(
+    const tokensAddresses = this.config.tokens.map(
       /* istanbul ignore next*/ (token) => token.address,
     );
     const tokensToDetect: string[] = [];
     for (const address in contractMap) {
       const contract = contractMap[address];
-      if (contract.erc20 && !(address in tokensAddresses)) {
+      if (contract.erc20 && !tokensAddresses.includes(address)) {
         tokensToDetect.push(address);
       }
     }
@@ -355,9 +355,10 @@ export class AssetsDetectionController extends BaseController<
     if (!this.isMainnet()) {
       return;
     }
-    const { selectedAddress } = this.config;
+    const requestedSelectedAddress = this.config.selectedAddress;
+
     /* istanbul ignore else */
-    if (!selectedAddress) {
+    if (!requestedSelectedAddress) {
       return;
     }
     await safelyExecute(async () => {
@@ -395,7 +396,10 @@ export class AssetsDetectionController extends BaseController<
             });
           }
           /* istanbul ignore else */
-          if (!ignored) {
+          if (
+            !ignored &&
+            requestedSelectedAddress === this.config.selectedAddress
+          ) {
             /* istanbul ignore next */
             const collectibleMetadata: CollectibleMetadata = Object.assign(
               {},
