@@ -18,18 +18,6 @@ interface LegacyGasFee {
 }
 
 /**
- * @type Eip1559GasFee
- *
- * Data necessary to provide an estimate of a gas fee with a specific tip
- *
- * @property minWaitTimeEstimate - The fastest the transaction will take, in milliseconds
- * @property maxWaitTimeEstimate - The slowest the transaction will take, in milliseconds
- * @property suggestedMaxPriorityFeePerGas - A suggested "tip", a GWEI hex number
- * @property suggestedMaxFeePerGas - A suggested max fee, the most a user will pay. a GWEI hex number
- * @property calculatedTotalMinFee - suggestedMaxPriorityFeePerGas + estimatedNextBlockBaseFee
- */
-
-/**
  * @type LegacyGasPriceEstimates
  *
  * Data necessary to provide multiple GasFee estimates, and supporting information, to the user
@@ -45,12 +33,22 @@ interface LegacyGasPriceEstimates {
   high: LegacyGasFee;
 }
 
+/**
+ * @type Eip1559GasFee
+ *
+ * Data necessary to provide an estimate of a gas fee with a specific tip
+ *
+ * @property minWaitTimeEstimate - The fastest the transaction will take, in milliseconds
+ * @property maxWaitTimeEstimate - The slowest the transaction will take, in milliseconds
+ * @property suggestedMaxPriorityFeePerGas - A suggested "tip", a GWEI hex number
+ * @property suggestedMaxFeePerGas - A suggested max fee, the most a user will pay. a GWEI hex number
+ */
+
 interface Eip1559GasFee {
   minWaitTimeEstimate: number; // a time duration in milliseconds
   maxWaitTimeEstimate: number; // a time duration in milliseconds
   suggestedMaxPriorityFeePerGas: string; // a GWEI hex number
   suggestedMaxFeePerGas: string; // a GWEI hex number
-  calculatedTotalMinFee: string; // a GWEI hex number
 }
 
 /**
@@ -62,19 +60,13 @@ interface Eip1559GasFee {
  * @property medium - A GasFee for a recommended combination of tip and maxFee
  * @property high - A GasFee for a high combination of tip and maxFee
  * @property estimatedNextBlockBaseFee - An estimate of what the base fee will be for the pending/next block. A GWEI hex number
- * @property lastBlockBaseFee - The base fee for the most recent block. A GWEI hex number
- * @property lastBlockMinPriorityFee - The lowest tip that succeeded in the most recent block. A GWEI hex number
- * @property lastBlockMaxPriorityFee - The highest tip that succeeded in the most recent block. A GWEI hex number
  */
 
 export interface GasFeeEstimates {
   low: Eip1559GasFee;
   medium: Eip1559GasFee;
   high: Eip1559GasFee;
-  estimatedNextBlockBaseFee: string;
-  lastBlockBaseFee: string;
-  lastBlockMinPriorityFee: string;
-  lastBlockMaxPriorityFee: string;
+  estimatedBaseFee: string;
 }
 
 const metadata = {
