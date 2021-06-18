@@ -13,6 +13,7 @@ describe('NetworkController', () => {
     const controller = new NetworkController();
     expect(controller.state).toStrictEqual({
       network: 'loading',
+      properties: { isEIP1559Compatible: false },
       provider: {
         type: 'mainnet',
         chainId: '1',
