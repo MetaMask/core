@@ -82,7 +82,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
 
   private intervalDelay;
 
-  private pollCount = 0;
+  private pollTokens: Set<string>;
 
   private fetchGasEstimates;
 
@@ -115,17 +115,20 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     });
     this.intervalDelay = interval;
     this.fetchGasEstimates = fetchGasEstimates;
+    this.pollTokens = new Set();
   }
 
-  async getGasFeeEstimatesAndStartPolling(): Promise<GasFeeState | undefined> {
+  async getGasFeeEstimatesAndStartPolling(
+    pollToken: string,
+  ): Promise<GasFeeState | undefined> {
     let gasEstimates;
-    if (this.pollCount > 0) {
+    if (this.pollTokens.size > 0) {
       gasEstimates = this.state;
     } else {
       gasEstimates = await this._fetchGasFeeEstimateData();
     }
 
-    this._startPolling();
+    this._startPolling(pollToken);
 
     return gasEstimates;
   }
@@ -157,11 +160,11 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
   }
 
   /**
-   * Reduce the count of opened transactions for which polling is needed, and stop polling if polling is no longer needed
+   * Remove the poll token, and stop polling if the set of poll tokens is empty
    */
-  disconnectPoller() {
-    this.pollCount -= 1;
-    if (this.pollCount === 0) {
+  disconnectPoller(pollToken: string) {
+    this.pollTokens.delete(pollToken);
+    if (this.pollTokens.size === 0) {
       this.stopPolling();
     }
   }
@@ -170,7 +173,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     if (this.intervalId) {
       clearInterval(this.intervalId);
     }
-    this.pollCount = 0;
+    this.pollTokens.clear();
     this.resetState();
   }
 
@@ -185,14 +188,17 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
   }
 
   // should take a token, so we know that we are only counting once for each open transaction
-  private async _startPolling() {
-    if (this.pollCount === 0) {
+  private async _startPolling(pollToken: string) {
+    if (this.pollTokens.size === 0) {
       this._poll();
     }
-    this.pollCount += 1;
+    this.pollTokens.add(pollToken);
   }
 
   private async _poll() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+    }
     this.intervalId = setInterval(async () => {
       await safelyExecute(() => this._fetchGasFeeEstimateData());
     }, this.intervalDelay);
