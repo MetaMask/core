@@ -213,7 +213,7 @@ export class NetworkController extends BaseController<
       properties: { isEIP1559Compatible: false },
     };
     this.initialize();
-    this.getNetworkProperties();
+    this.getEIP1559Compatibility();
   }
 
   /**
@@ -299,21 +299,30 @@ export class NetworkController extends BaseController<
     this.refreshNetwork();
   }
 
-  getNetworkProperties() {
-    this.ethQuery.sendAsync(
-      { method: 'eth_getBlockByNumber', params: ['latest', false] },
-      (error: Error, block: Block) => {
-        if (error) {
-          console.error(error);
-        } else {
-          this.update({
-            properties: {
-              isEIP1559Compatible: typeof block.baseFee !== undefined,
-            },
-          });
-        }
-      },
-    );
+  getEIP1559Compatibility() {
+    const { properties = {} } = this.state;
+
+    if (!properties.isEIP1559Compatible) {
+      return new Promise((resolve, reject) => {
+        this.ethQuery.sendAsync(
+          { method: 'eth_getBlockByNumber', params: ['latest', false] },
+          (error: Error, block: Block) => {
+            if (error) {
+              reject(error);
+            } else {
+              const isEIP1559Compatible = typeof block.baseFee !== undefined;
+              this.update({
+                properties: {
+                  isEIP1559Compatible,
+                },
+              });
+              resolve(isEIP1559Compatible);
+            }
+          },
+        );
+      });
+    }
+    return Promise.resolve(true);
   }
 }
 
