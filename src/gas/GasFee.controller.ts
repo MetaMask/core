@@ -6,34 +6,6 @@ import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { fetchGasEstimates as defaultFetchGasEstimates } from './gas-util';
 
 /**
- * @type LegacyGasFee
- *
- * Data necessary to provide an estimated legacy gas price
- *
- * @property gasPrice - A representation of a single `gasPrice`, for legacy transactions. A GWEI hex number
- */
-
-interface LegacyGasFee {
-  gasPrice: string; // a GWEI hex number
-}
-
-/**
- * @type LegacyGasPriceEstimates
- *
- * Data necessary to provide multiple GasFee estimates, and supporting information, to the user
- *
- * @property low - A LegacyGasFee for a minimum necessary gas price
- * @property medium - A LegacyGasFee for a recommended gas price
- * @property high - A GasLegacyGasFeeFee for a high gas price
- */
-
-interface LegacyGasPriceEstimates {
-  low: LegacyGasFee;
-  medium: LegacyGasFee;
-  high: LegacyGasFee;
-}
-
-/**
  * @type Eip1559GasFee
  *
  * Data necessary to provide an estimate of a gas fee with a specific tip
@@ -83,7 +55,6 @@ const metadata = {
  * @property gasFeeEstimates - Gas fee estimate data based on new EIP-1559 properties
  */
 export type GasFeeState = {
-  legacyGasPriceEstimates: LegacyGasPriceEstimates | Record<string, never>;
   gasFeeEstimates: GasFeeEstimates | Record<string, never>;
 };
 
@@ -100,7 +71,6 @@ export type GetGasFeeState = {
 };
 
 const defaultState = {
-  legacyGasPriceEstimates: {},
   gasFeeEstimates: {},
 };
 
@@ -170,17 +140,6 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     try {
       const estimates = await this.fetchGasEstimates();
       newEstimates = {
-        legacyGasPriceEstimates: {
-          low: {
-            gasPrice: estimates.low.suggestedMaxFeePerGas,
-          },
-          medium: {
-            gasPrice: estimates.medium.suggestedMaxFeePerGas,
-          },
-          high: {
-            gasPrice: estimates.high.suggestedMaxFeePerGas,
-          },
-        },
         gasFeeEstimates: estimates,
       };
     } catch (error) {
@@ -225,6 +184,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     this.stopPolling();
   }
 
+  // should take a token, so we know that we are only counting once for each open transaction
   private async _startPolling() {
     if (this.pollCount === 0) {
       this._poll();
