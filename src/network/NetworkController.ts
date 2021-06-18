@@ -4,6 +4,7 @@ import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { MAINNET, RPC } from '../constants';
 
 /**
  * Human-readable network name
@@ -105,7 +106,7 @@ export class NetworkController extends BaseController<
   ) {
     switch (type) {
       case 'kovan':
-      case 'mainnet':
+      case MAINNET:
       case 'rinkeby':
       case 'goerli':
       case 'ropsten':
@@ -114,7 +115,7 @@ export class NetworkController extends BaseController<
       case 'localhost':
         this.setupStandardProvider(LOCALHOST_RPC_URL);
         break;
-      case 'rpc':
+      case RPC:
         rpcTarget &&
           this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
         break;
@@ -209,7 +210,7 @@ export class NetworkController extends BaseController<
     super(config, state);
     this.defaultState = {
       network: 'loading',
-      provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
+      provider: { type: MAINNET, chainId: NetworksChainId.mainnet },
       properties: { isEIP1559Compatible: false },
     };
     this.initialize();
@@ -293,7 +294,7 @@ export class NetworkController extends BaseController<
     this.update({
       provider: {
         ...this.state.provider,
-        ...{ type: 'rpc', ticker, rpcTarget, chainId, nickname },
+        ...{ type: RPC, ticker, rpcTarget, chainId, nickname },
       },
     });
     this.refreshNetwork();

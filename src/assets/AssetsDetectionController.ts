@@ -3,6 +3,7 @@ import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
 import { safelyExecute, timeoutFetch, toChecksumHexAddress } from '../util';
+import { MAINNET } from '../constants';
 import type {
   AssetsController,
   AssetsState,
@@ -12,7 +13,6 @@ import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
 
 const DEFAULT_INTERVAL = 180000;
-const MAINNET = 'mainnet';
 
 /**
  * @type ApiCollectible
@@ -229,7 +229,7 @@ export class AssetsDetectionController extends BaseController<
     super(config, state);
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
-      networkType: 'mainnet',
+      networkType: MAINNET,
       selectedAddress: '',
       tokens: [],
     };

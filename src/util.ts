@@ -19,6 +19,7 @@ import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
+import { MAINNET } from './constants';
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 
@@ -106,7 +107,7 @@ export function getEtherscanApiUrl(
   etherscanApiKey?: string,
 ): string {
   let etherscanSubdomain = 'api';
-  if (networkType !== 'mainnet') {
+  if (networkType !== MAINNET) {
     etherscanSubdomain = `api-${networkType}`;
   }
   const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
