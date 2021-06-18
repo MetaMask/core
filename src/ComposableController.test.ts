@@ -132,6 +132,7 @@ describe('ComposableController', () => {
         },
         NetworkController: {
           network: 'loading',
+          properties: { isEIP1559Compatible: false },
           provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
         },
         PreferencesController: {
@@ -188,6 +189,7 @@ describe('ComposableController', () => {
         ipfsGateway: 'https://ipfs.io/ipfs/',
         lostIdentities: {},
         network: 'loading',
+        properties: { isEIP1559Compatible: false },
         provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
         selectedAddress: '',
         suggestedAssets: [],
