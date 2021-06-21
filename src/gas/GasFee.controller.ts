@@ -1,9 +1,29 @@
 import type { Patch } from 'immer';
 
+import EthQuery from 'eth-query';
 import { BaseController } from '../BaseControllerV2';
 import { safelyExecute } from '../util';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
-import { fetchGasEstimates as defaultFetchGasEstimates } from './gas-util';
+import type {
+  NetworkController,
+  NetworkState,
+} from '../network/NetworkController';
+import {
+  fetchGasEstimates as defaultFetchGasEstimates,
+  fetchLegacyGasPriceEstimate as defaultFetchLegacyGasPriceEstimate,
+} from './gas-util';
+
+/**
+ * @type LegacyGasPriceEstimate
+ *
+ * A single gas price estimate for networks and accounts that don't support EIP-1559
+ *
+ * @property gasPrice - A GWEI hex number, the result of a call to eth_gasPrice
+ */
+
+export interface LegacyGasPriceEstimate {
+  gasPrice: string;
+}
 
 /**
  * @type Eip1559GasFee
@@ -42,7 +62,6 @@ export interface GasFeeEstimates {
 }
 
 const metadata = {
-  legacyGasPriceEstimates: { persist: true, anonymous: false },
   gasFeeEstimates: { persist: true, anonymous: false },
 };
 
@@ -55,7 +74,10 @@ const metadata = {
  * @property gasFeeEstimates - Gas fee estimate data based on new EIP-1559 properties
  */
 export type GasFeeState = {
-  gasFeeEstimates: GasFeeEstimates | Record<string, never>;
+  gasFeeEstimates:
+    | GasFeeEstimates
+    | LegacyGasPriceEstimate
+    | Record<string, never>;
 };
 
 const name = 'GasFeeController';
@@ -86,6 +108,14 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
 
   private fetchGasEstimates;
 
+  private fetchLegacyGasPriceEstimate;
+
+  private getCurrentNetworkEIP1559Compatibility;
+
+  private getCurrentAccountEIP1559Compatibility;
+
+  private ethQuery: any;
+
   /**
    * Creates a GasFeeController instance
    *
@@ -95,6 +125,11 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     messenger,
     state,
     fetchGasEstimates = defaultFetchGasEstimates,
+    fetchLegacyGasPriceEstimate = defaultFetchLegacyGasPriceEstimate,
+    getCurrentNetworkEIP1559Compatibility,
+    getCurrentAccountEIP1559Compatibility,
+    getProvider,
+    onNetworkStateChange,
   }: {
     interval?: number;
     messenger: RestrictedControllerMessenger<
@@ -106,6 +141,11 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     >;
     state?: Partial<GasFeeState>;
     fetchGasEstimates?: typeof defaultFetchGasEstimates;
+    fetchLegacyGasPriceEstimate?: typeof defaultFetchLegacyGasPriceEstimate;
+    getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+    getCurrentAccountEIP1559Compatibility?: () => boolean;
+    getProvider: () => NetworkController['provider'];
+    onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
   }) {
     super({
       name,
@@ -115,7 +155,17 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     });
     this.intervalDelay = interval;
     this.fetchGasEstimates = fetchGasEstimates;
+    this.fetchLegacyGasPriceEstimate = fetchLegacyGasPriceEstimate;
     this.pollTokens = new Set();
+    this.getCurrentNetworkEIP1559Compatibility = getCurrentNetworkEIP1559Compatibility;
+    this.getCurrentAccountEIP1559Compatibility = getCurrentAccountEIP1559Compatibility;
+
+    const provider = getProvider();
+    this.ethQuery = new EthQuery(provider);
+    onNetworkStateChange(() => {
+      const newProvider = getProvider();
+      this.ethQuery = new EthQuery(newProvider);
+    });
   }
 
   async getGasFeeEstimatesAndStartPolling(
@@ -140,8 +190,17 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
    */
   async _fetchGasFeeEstimateData(): Promise<GasFeeState | undefined> {
     let newEstimates = this.state;
+    let isEIP1559Compatible;
     try {
-      const estimates = await this.fetchGasEstimates();
+      isEIP1559Compatible = await this.getEIP1559Compatibility();
+    } catch (e) {
+      console.error(e);
+      isEIP1559Compatible = false;
+    }
+    try {
+      const estimates = isEIP1559Compatible
+        ? await this.fetchGasEstimates()
+        : await this.fetchLegacyGasPriceEstimate(this.ethQuery);
       newEstimates = {
         gasFeeEstimates: estimates,
       };
@@ -206,6 +265,16 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
 
   private resetState() {
     this.state = defaultState;
+  }
+
+  private async getEIP1559Compatibility() {
+    const currentNetworkIsEIP1559Compatible = await this.getCurrentNetworkEIP1559Compatibility();
+    const currentAccountIsEIP1559Compatible =
+      this.getCurrentAccountEIP1559Compatibility?.() ?? true;
+
+    return (
+      currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
+    );
   }
 }
 
