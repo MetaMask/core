@@ -12,7 +12,15 @@ import type {
 import {
   fetchGasEstimates as defaultFetchGasEstimates,
   fetchLegacyGasPriceEstimate as defaultFetchLegacyGasPriceEstimate,
+  calculateTimeEstimate,
 } from './gas-util';
+
+export type unknownString = 'unknown';
+
+export interface EstimatedGasFeeTimeBounds {
+  lowerTimeBound: number | null;
+  upperTimeBound: number | unknownString;
+}
 
 /**
  * @type LegacyGasPriceEstimate
@@ -44,6 +52,16 @@ interface Eip1559GasFee {
   suggestedMaxFeePerGas: string; // a GWEI hex number
 }
 
+function isEIP1559GasFeee(object: any): object is Eip1559GasFee {
+  return (
+    'minWaitTimeEstimate' in object &&
+    'maxWaitTimeEstimate' in object &&
+    'suggestedMaxPriorityFeePerGas' in object &&
+    'suggestedMaxFeePerGas' in object &&
+    Object.keys(object).length === 4
+  );
+}
+
 /**
  * @type GasFeeEstimates
  *
@@ -60,6 +78,18 @@ export interface GasFeeEstimates {
   medium: Eip1559GasFee;
   high: Eip1559GasFee;
   estimatedBaseFee: string;
+}
+
+function isEIP1559Estimate(object: any): object is GasFeeEstimates {
+  return (
+    'low' in object &&
+    isEIP1559GasFeee(object.low) &&
+    'medium' in object &&
+    isEIP1559GasFeee(object.medium) &&
+    'high' in object &&
+    isEIP1559GasFeee(object.high) &&
+    'estimatedBaseFee' in object
+  );
 }
 
 const metadata = {
@@ -274,6 +304,23 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
 
     return (
       currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
+    );
+  }
+
+  getTimeEstimate(
+    maxPriorityFeePerGas: string,
+    maxFeePerGas: string,
+  ): EstimatedGasFeeTimeBounds | undefined {
+    if (
+      !this.state.gasFeeEstimates ||
+      !isEIP1559Estimate(this.state.gasFeeEstimates)
+    ) {
+      return undefined;
+    }
+    return calculateTimeEstimate(
+      maxPriorityFeePerGas,
+      maxFeePerGas,
+      this.state.gasFeeEstimates,
     );
   }
 }
