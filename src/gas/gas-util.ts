@@ -1,4 +1,5 @@
-import { GasFeeEstimates } from './GasFee.controller';
+import { query } from '../util';
+import { GasFeeEstimates, LegacyGasPriceEstimate } from './GasFee.controller';
 
 // import { handleFetch } from '../util';
 
@@ -142,4 +143,10 @@ export function fetchGasEstimates(): Promise<GasFeeEstimates> {
   return new Promise((resolve) => {
     resolve(getMockApiResponse());
   });
+}
+
+export async function fetchLegacyGasPriceEstimate(
+  ethQuery: any,
+): Promise<LegacyGasPriceEstimate> {
+  return await query(ethQuery, 'gasPrice');
 }
