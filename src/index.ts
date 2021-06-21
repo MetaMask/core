@@ -32,4 +32,5 @@ export * from './transaction/TransactionController';
 export * from './message-manager/PersonalMessageManager';
 export * from './message-manager/TypedMessageManager';
 export * from './notification/NotificationController';
+export * from './gas/GasFee.controller';
 export { util };
