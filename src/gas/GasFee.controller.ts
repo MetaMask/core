@@ -1,6 +1,7 @@
 import type { Patch } from 'immer';
 
 import EthQuery from 'eth-query';
+import { v1 as random } from 'uuid';
 import { BaseController } from '../BaseControllerV2';
 import { safelyExecute } from '../util';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
@@ -169,18 +170,17 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
   }
 
   async getGasFeeEstimatesAndStartPolling(
-    pollToken: string,
-  ): Promise<GasFeeState | undefined> {
-    let gasEstimates;
-    if (this.pollTokens.size > 0) {
-      gasEstimates = this.state;
-    } else {
-      gasEstimates = await this._fetchGasFeeEstimateData();
+    pollToken: string | undefined,
+  ): Promise<string> {
+    if (this.pollTokens.size === 0) {
+      await this._fetchGasFeeEstimateData();
     }
 
-    this._startPolling(pollToken);
+    const _pollToken = pollToken || random();
 
-    return gasEstimates;
+    this._startPolling(_pollToken);
+
+    return _pollToken;
   }
 
   /**
