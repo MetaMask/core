@@ -309,9 +309,9 @@ export class AssetsDetectionController extends BaseController<
     const tokensAddresses = this.config.tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
-    const { tokens } = this.getTokenListState();
+    const { tokenList } = this.getTokenListState();
     const tokensToDetect: string[] = [];
-    for (const address in tokens) {
+    for (const address in tokenList) {
       if (!tokensAddresses.includes(address)) {
         tokensToDetect.push(address);
       }
@@ -340,8 +340,8 @@ export class AssetsDetectionController extends BaseController<
         if (!ignored) {
           tokensToAdd.push({
             address: tokenAddress,
-            decimals: tokens[tokenAddress].decimals,
-            symbol: tokens[tokenAddress].symbol,
+            decimals: tokenList[tokenAddress].decimals,
+            symbol: tokenList[tokenAddress].symbol,
           });
         }
       }

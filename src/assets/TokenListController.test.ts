@@ -12,7 +12,7 @@ const name = 'TokenListController';
 const TOKEN_END_POINT_API = 'https://token-api.airswap-prod.codefi.network';
 
 const sampleState = {
-  tokens: {
+  tokenList: {
     '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f': {
       address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
       symbol: 'SNX',
@@ -152,7 +152,7 @@ const sampleTokenMetaData = {
   ],
 };
 const existingState = {
-  tokens: {
+  tokenList: {
     '0x514910771af9ca656af840dff83e8264ecf986ca': {
       address: '0x514910771af9ca656af840dff83e8264ecf986ca',
       symbol: 'LINK',
@@ -175,7 +175,7 @@ const existingState = {
   },
 };
 const outdatedExistingState = {
-  tokens: {
+  tokenList: {
     '0x514910771af9ca656af840dff83e8264ecf986ca': {
       address: '0x514910771af9ca656af840dff83e8264ecf986ca',
       symbol: 'LINK',
@@ -223,7 +223,7 @@ describe('TokenListController', () => {
     });
 
     expect(controller.state).toStrictEqual({
-      tokens: {},
+      tokenList: {},
     });
 
     controller.destroy();
@@ -237,7 +237,7 @@ describe('TokenListController', () => {
       state: existingState,
     });
     expect(controller.state).toStrictEqual({
-      tokens: {
+      tokenList: {
         '0x514910771af9ca656af840dff83e8264ecf986ca': {
           address: '0x514910771af9ca656af840dff83e8264ecf986ca',
           symbol: 'LINK',
@@ -272,7 +272,7 @@ describe('TokenListController', () => {
     });
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(controller.state.tokens).toStrictEqual({});
+    expect(controller.state.tokenList).toStrictEqual({});
 
     controller.destroy();
   });

@@ -23,7 +23,7 @@ type TokenMap = {
   [address: string]: Token;
 };
 export type TokenListState = {
-  tokens: TokenMap;
+  tokenList: TokenMap;
 };
 const name = 'TokenListController';
 
@@ -37,10 +37,10 @@ export type GetTokenListState = {
   handler: () => TokenListState;
 };
 const metadata = {
-  tokens: { persist: true, anonymous: true },
+  tokenList: { persist: true, anonymous: true },
 };
 const defaultState: TokenListState = {
-  tokens: {},
+  tokenList: {},
 };
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
@@ -134,17 +134,17 @@ export class TokenListController extends BaseController<
 
   async fetchTokenList(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
-    const { tokens }: TokenListState = this.state;
+    const { tokenList }: TokenListState = this.state;
     try {
-      const tokenList: Token[] = await safelyExecute(() =>
+      const tokensFromAPI: Token[] = await safelyExecute(() =>
         fetchTokenList(this.chainId),
       );
-      for (const token of tokenList) {
-        tokens[token.address] = token;
+      for (const token of tokensFromAPI) {
+        tokenList[token.address] = token;
       }
       this.update(() => {
         return {
-          tokens,
+          tokenList,
         };
       });
     } finally {
