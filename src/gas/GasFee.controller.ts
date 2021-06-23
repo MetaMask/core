@@ -199,7 +199,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     });
   }
 
-  async fetchGasFeeEstimates () {
+  async fetchGasFeeEstimates() {
     return await this._fetchGasFeeEstimateData();
   }
 
@@ -223,7 +223,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
    * @returns GasFeeEstimates
    */
   async _fetchGasFeeEstimateData(): Promise<GasFeeState | undefined> {
-    let newEstimates = this.state;
+    let estimates;
     let isEIP1559Compatible;
     try {
       isEIP1559Compatible = await this.getEIP1559Compatibility();
@@ -231,25 +231,38 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
       console.error(e);
       isEIP1559Compatible = false;
     }
-    try {
-      const estimates = isEIP1559Compatible
-        ? await this.fetchGasEstimates()
-        : await this.fetchLegacyGasPriceEstimate(this.ethQuery);
-      newEstimates = {
-        gasFeeEstimates: estimates,
-      };
-    } catch (error) {
-      console.error(error);
-    } finally {
+
+    if (isEIP1559Compatible) {
       try {
-        this.update(() => {
-          return newEstimates;
-        });
+        estimates = await this.fetchGasEstimates();
       } catch (error) {
-        console.error(error);
+        try {
+          estimates = await this.fetchLegacyGasPriceEstimate(this.ethQuery);
+        } catch (error2) {
+          throw new Error(
+            `Gas fee/price estimation failed. Message: ${error2.message}`,
+          );
+        }
+      }
+    } else {
+      try {
+        estimates = await this.fetchLegacyGasPriceEstimate(this.ethQuery);
+      } catch (error2) {
+        throw new Error(
+          `Gas fee/price estimation failed. Message: ${error2.message}`,
+        );
       }
     }
-    return newEstimates;
+
+    const newState: GasFeeState = {
+      gasFeeEstimates: estimates,
+    };
+
+    this.update(() => {
+      return newState;
+    });
+
+    return newState;
   }
 
   /**
