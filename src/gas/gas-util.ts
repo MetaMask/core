@@ -5,7 +5,7 @@ import {
   LegacyGasPriceEstimate,
   EstimatedGasFeeTimeBounds,
   unknownString,
-} from './GasFee.controller';
+} from './GasFeeController';
 
 // import { handleFetch } from '../util';
 
