@@ -168,7 +168,7 @@ export class TokenRatesController extends BaseController<
     super(config, state);
     this.defaultConfig = {
       disabled: true,
-      interval: 180000,
+      interval: 3 * 60 * 1000,
       nativeCurrency: 'eth',
       chainId: '',
       tokens: [],

@@ -112,29 +112,30 @@ describe('TokenRatesController', () => {
       'Property only used for setting',
     );
   });
-  // FIXME: how to test this correctly?
-  it.skip('should poll and update rate in the right interval', async () => {
-    await new Promise<void>((resolve) => {
-      const mock = stub(TokenRatesController.prototype, 'fetchExchangeRate');
-      new TokenRatesController(
-        {
-          onAssetsStateChange: stub(),
-          onCurrencyRateStateChange: stub(),
-          onNetworkStateChange: stub(),
-        },
-        {
-          interval: 10,
-          tokens: [{ address: 'bar', decimals: 0, symbol: '' }],
-        },
-      );
-      expect(mock.called).toBe(true);
-      expect(mock.calledTwice).toBe(false);
-      setTimeout(() => {
-        expect(mock.calledTwice).toBe(true);
-        mock.restore();
-        resolve();
-      }, 15);
+
+  it('should poll and update rate in the right interval', async () => {
+    const pollSpy = jest.spyOn(TokenRatesController.prototype, 'poll');
+    const interval = 100;
+    const times = 5;
+    new TokenRatesController(
+      {
+        onAssetsStateChange: jest.fn(),
+        onCurrencyRateStateChange: jest.fn(),
+        onNetworkStateChange: jest.fn(),
+      },
+      {
+        interval,
+        tokens: [{ address: 'bar', decimals: 0, symbol: '' }],
+      },
+    );
+
+    expect(pollSpy).toHaveBeenCalledTimes(1);
+    expect(pollSpy).not.toHaveBeenCalledTimes(times);
+    await new Promise((resolve) => {
+      setTimeout(resolve, interval * (times - 0.5));
     });
+    expect(pollSpy).toHaveBeenCalledTimes(times);
+    pollSpy.mockClear();
   });
 
   it('should not update rates if disabled', async () => {
