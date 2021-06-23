@@ -3,7 +3,8 @@ import { addHexPrefix, bufferToHex, BN } from 'ethereumjs-util';
 import { ethErrors } from 'eth-rpc-errors';
 import MethodRegistry from 'eth-method-registry';
 import EthQuery from 'eth-query';
-import Transaction from 'ethereumjs-tx';
+import Common from '@ethereumjs/common';
+import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
@@ -22,6 +23,9 @@ import {
   handleTransactionFetch,
   query,
 } from '../util';
+import { MAINNET, RPC } from '../constants';
+
+const HARDFORK = 'berlin';
 
 /**
  * @type Result
@@ -370,7 +374,10 @@ export class TransactionController extends BaseController<
   /**
    * Method used to sign transactions
    */
-  sign?: (transaction: Transaction, from: string) => Promise<void>;
+  sign?: (
+    transaction: TypedTransaction,
+    from: string,
+  ) => Promise<TypedTransaction>;
 
   /**
    * Creates a TransactionController instance
@@ -535,6 +542,41 @@ export class TransactionController extends BaseController<
     return { result, transactionMeta };
   }
 
+  prepareUnsignedEthTx(txParams: Record<string, unknown>): TypedTransaction {
+    return TransactionFactory.fromTxData(txParams, {
+      common: this.getCommonConfiguration(),
+      freeze: false,
+    });
+  }
+
+  /**
+   * @ethereumjs/tx uses @ethereumjs/common as a configuration tool for
+   * specifying which chain, network, hardfork and EIPs to support for
+   * a transaction. By referencing this configuration, and analyzing the fields
+   * specified in txParams, @ethereumjs/tx is able to determine which EIP-2718
+   * transaction type to use.
+   * @returns {Common} common configuration object
+   */
+
+  getCommonConfiguration(): Common {
+    const {
+      network: networkId,
+      provider: { type: chain, chainId, nickname: name },
+    } = this.getNetworkState();
+
+    if (chain !== RPC) {
+      return new Common({ chain, hardfork: HARDFORK });
+    }
+
+    const customChainParams = {
+      name,
+      chainId: parseInt(chainId, undefined),
+      networkId: parseInt(networkId, undefined),
+    };
+
+    return Common.forCustomChain(MAINNET, customChainParams, HARDFORK);
+  }
+
   /**
    * Approves a transaction and updates it's status in state. If this is not a
    * retry transaction, a nonce will be generated. The transaction is signed
@@ -568,19 +610,31 @@ export class TransactionController extends BaseController<
         return;
       }
 
-      transactionMeta.status = TransactionStatus.approved;
-      transactionMeta.transaction.nonce =
+      const chainId = parseInt(currentChainId, undefined);
+      const { approved: status } = TransactionStatus;
+
+      const txNonce =
         nonce ||
         (await query(this.ethQuery, 'getTransactionCount', [from, 'pending']));
-      transactionMeta.transaction.chainId = parseInt(currentChainId, undefined);
 
-      const ethTransaction = new Transaction({
+      transactionMeta.status = status;
+      transactionMeta.transaction.nonce = txNonce;
+      transactionMeta.transaction.chainId = chainId;
+
+      const txParams = {
         ...transactionMeta.transaction,
-      });
-      await this.sign(ethTransaction, transactionMeta.transaction.from);
+        gasLimit: transactionMeta.transaction.gas,
+        chainId,
+        nonce: txNonce,
+        status,
+      };
+
+      const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+
+      const signedTx = await this.sign(unsignedEthTx, from);
       transactionMeta.status = TransactionStatus.signed;
       this.updateTransaction(transactionMeta);
-      const rawTransaction = bufferToHex(ethTransaction.serialize());
+      const rawTransaction = bufferToHex(signedTx.serialize());
 
       transactionMeta.rawTransaction = rawTransaction;
       this.updateTransaction(transactionMeta);
@@ -649,17 +703,22 @@ export class TransactionController extends BaseController<
       )}`,
     );
 
-    const ethTransaction = new Transaction({
+    const txParams = {
       from: transactionMeta.transaction.from,
-      gas: transactionMeta.transaction.gas,
+      gasLimit: transactionMeta.transaction.gas,
       gasPrice,
       nonce: transactionMeta.transaction.nonce,
       to: transactionMeta.transaction.from,
       value: '0x0',
-    });
+    };
 
-    await this.sign(ethTransaction, transactionMeta.transaction.from);
-    const rawTransaction = bufferToHex(ethTransaction.serialize());
+    const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+
+    const signedTx = await this.sign(
+      unsignedEthTx,
+      transactionMeta.transaction.from,
+    );
+    const rawTransaction = bufferToHex(signedTx.serialize());
     await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
     transactionMeta.status = TransactionStatus.cancelled;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
@@ -696,12 +755,20 @@ export class TransactionController extends BaseController<
         16,
       )}`,
     );
-    const ethTransaction = new Transaction({
+
+    const txParams = {
       ...transactionMeta.transaction,
+      gasLimit: transactionMeta.transaction.gas,
       gasPrice,
-    });
-    await this.sign(ethTransaction, transactionMeta.transaction.from);
-    const rawTransaction = bufferToHex(ethTransaction.serialize());
+    };
+
+    const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+
+    const signedTx = await this.sign(
+      unsignedEthTx,
+      transactionMeta.transaction.from,
+    );
+    const rawTransaction = bufferToHex(signedTx.serialize());
     const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
       rawTransaction,
     ]);
