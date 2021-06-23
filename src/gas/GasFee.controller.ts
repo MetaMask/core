@@ -199,6 +199,10 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     });
   }
 
+  async fetchGasFeeEstimates () {
+    return await this._fetchGasFeeEstimateData();
+  }
+
   async getGasFeeEstimatesAndStartPolling(
     pollToken: string | undefined,
   ): Promise<string> {
