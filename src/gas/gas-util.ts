@@ -154,7 +154,10 @@ export function fetchGasEstimates(): Promise<GasFeeEstimates> {
 export async function fetchLegacyGasPriceEstimate(
   ethQuery: any,
 ): Promise<LegacyGasPriceEstimate> {
-  return await query(ethQuery, 'gasPrice');
+  const gasPrice = await query(ethQuery, 'gasPrice');
+  return {
+    gasPrice,
+  };
 }
 
 function gweiHexToWEIBN(n: any) {
