@@ -94,6 +94,7 @@ function isEIP1559Estimate(object: any): object is GasFeeEstimates {
 
 const metadata = {
   gasFeeEstimates: { persist: true, anonymous: false },
+  estimatedGasFeeTimeBounds: { persist: true, anonymous: false },
 };
 
 /**
@@ -101,14 +102,15 @@ const metadata = {
  *
  * Gas Fee controller state
  *
- * @property legacyGasPriceEstimates - Gas fee estimate data using the legacy `gasPrice` property
  * @property gasFeeEstimates - Gas fee estimate data based on new EIP-1559 properties
+ * @property estimatedGasFeeTimeBounds - Estimates representing the minimum and maximum
  */
 export type GasFeeState = {
   gasFeeEstimates:
     | GasFeeEstimates
     | LegacyGasPriceEstimate
     | Record<string, never>;
+  estimatedGasFeeTimeBounds: EstimatedGasFeeTimeBounds | Record<string, never>;
 };
 
 const name = 'GasFeeController';
@@ -125,6 +127,7 @@ export type GetGasFeeState = {
 
 const defaultState = {
   gasFeeEstimates: {},
+  estimatedGasFeeTimeBounds: {},
 };
 
 /**
@@ -224,6 +227,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
    */
   async _fetchGasFeeEstimateData(): Promise<GasFeeState | undefined> {
     let estimates;
+    let estimatedGasFeeTimeBounds = {};
     let isEIP1559Compatible;
     try {
       isEIP1559Compatible = await this.getEIP1559Compatibility();
@@ -235,6 +239,14 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     if (isEIP1559Compatible) {
       try {
         estimates = await this.fetchGasEstimates();
+        const {
+          suggestedMaxPriorityFeePerGas,
+          suggestedMaxFeePerGas,
+        } = estimates.medium;
+        estimatedGasFeeTimeBounds = this.getTimeEstimate(
+          suggestedMaxPriorityFeePerGas,
+          suggestedMaxFeePerGas,
+        );
       } catch (error) {
         try {
           estimates = await this.fetchLegacyGasPriceEstimate(this.ethQuery);
@@ -256,6 +268,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
 
     const newState: GasFeeState = {
       gasFeeEstimates: estimates,
+      estimatedGasFeeTimeBounds,
     };
 
     this.update(() => {
@@ -327,12 +340,12 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
   getTimeEstimate(
     maxPriorityFeePerGas: string,
     maxFeePerGas: string,
-  ): EstimatedGasFeeTimeBounds | undefined {
+  ): EstimatedGasFeeTimeBounds | Record<string, never> {
     if (
       !this.state.gasFeeEstimates ||
       !isEIP1559Estimate(this.state.gasFeeEstimates)
     ) {
-      return undefined;
+      return {};
     }
     return calculateTimeEstimate(
       maxPriorityFeePerGas,
