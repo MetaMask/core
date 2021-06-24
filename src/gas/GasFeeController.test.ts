@@ -26,7 +26,6 @@ describe('GasFeeController', () => {
   it('should initialize', () => {
     const controller = new GasFeeController({
       interval: 10000,
-      // TODO: fix this
       messenger: controllerMessenger,
       getProvider: () => stub(),
       onNetworkStateChange: () => stub(),
