@@ -40,4 +40,19 @@ describe('GasFeeController', () => {
     const estimates = await controller._fetchGasFeeEstimateData();
     expect(estimates).toHaveProperty('gasFeeEstimates');
   });
+
+  it('should fail to re-initialize', () => {
+    expect(() => {
+      const controller = new GasFeeController({
+        interval: 10000,
+        messenger: controllerMessenger,
+        getProvider: () => stub(),
+        onNetworkStateChange: () => stub(),
+        getCurrentNetworkEIP1559Compatibility: () => Promise.resolve(true), // change this for networkController.state.properties.isEIP1559Compatible ???
+      });
+      console.log({ controller });
+    }).toThrow(
+      'A handler for GasFeeController:getState has already been registered',
+    );
+  });
 });
