@@ -36,5 +36,8 @@ describe('GasFeeController', () => {
       undefined,
     );
     expect(result).toHaveLength(36);
+
+    const estimates = await controller._fetchGasFeeEstimateData();
+    expect(estimates).toHaveProperty('gasFeeEstimates');
   });
 });
