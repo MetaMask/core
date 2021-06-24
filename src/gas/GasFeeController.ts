@@ -324,7 +324,9 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
   }
 
   private resetState() {
-    this.state = defaultState;
+    this.update(() => {
+      return defaultState;
+    });
   }
 
   private async getEIP1559Compatibility() {
