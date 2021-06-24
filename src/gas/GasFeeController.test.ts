@@ -62,5 +62,8 @@ describe('GasFeeController', () => {
     expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
     const estimates = await gasFeeController._fetchGasFeeEstimateData();
     expect(estimates).toHaveProperty('gasFeeEstimates');
+    expect(gasFeeController.state.gasFeeEstimates).toHaveProperty(
+      'estimatedBaseFee',
+    );
   });
 });
