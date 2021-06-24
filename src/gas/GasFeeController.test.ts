@@ -45,20 +45,21 @@ describe('GasFeeController', () => {
   });
 
   it('should getGasFeeEstimatesAndStartPolling', async () => {
+    expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
     const result = await gasFeeController.getGasFeeEstimatesAndStartPolling(
       undefined,
     );
     expect(result).toHaveLength(36);
-
-    const { gasFeeEstimates } = gasFeeController.state;
-
-    expect(gasFeeEstimates).toHaveProperty('low');
-    expect(gasFeeEstimates).toHaveProperty('medium');
-    expect(gasFeeEstimates).toHaveProperty('high');
-    expect(gasFeeEstimates).toHaveProperty('estimatedBaseFee');
+    expect(gasFeeController.state.gasFeeEstimates).toHaveProperty('low');
+    expect(gasFeeController.state.gasFeeEstimates).toHaveProperty('medium');
+    expect(gasFeeController.state.gasFeeEstimates).toHaveProperty('high');
+    expect(gasFeeController.state.gasFeeEstimates).toHaveProperty(
+      'estimatedBaseFee',
+    );
   });
 
   it('should _fetchGasFeeEstimateData', async () => {
+    expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
     const estimates = await gasFeeController._fetchGasFeeEstimateData();
     expect(estimates).toHaveProperty('gasFeeEstimates');
   });
