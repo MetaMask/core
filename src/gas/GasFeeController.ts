@@ -209,6 +209,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
   async getGasFeeEstimatesAndStartPolling(
     pollToken: string | undefined,
   ): Promise<string> {
+    console.log('pollTokens', this.pollTokens);
     if (this.pollTokens.size === 0) {
       await this._fetchGasFeeEstimateData();
     }
