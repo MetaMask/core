@@ -49,6 +49,13 @@ describe('GasFeeController', () => {
       undefined,
     );
     expect(result).toHaveLength(36);
+
+    const { gasFeeEstimates } = gasFeeController.state;
+
+    expect(gasFeeEstimates).toHaveProperty('low');
+    expect(gasFeeEstimates).toHaveProperty('medium');
+    expect(gasFeeEstimates).toHaveProperty('high');
+    expect(gasFeeEstimates).toHaveProperty('estimatedBaseFee');
   });
 
   it('should _fetchGasFeeEstimateData', async () => {
