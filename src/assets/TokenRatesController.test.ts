@@ -98,7 +98,7 @@ describe('TokenRatesController', () => {
       nativeCurrency: 'eth',
       chainId: '',
       tokens: [],
-      threshold: 60000,
+      threshold: 21600000,
     });
   });
 

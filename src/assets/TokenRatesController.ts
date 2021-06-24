@@ -172,7 +172,7 @@ export class TokenRatesController extends BaseController<
       nativeCurrency: 'eth',
       chainId: '',
       tokens: [],
-      threshold: 1 * 60 * 1000,
+      threshold: 6 * 60 * 60 * 1000,
     };
     this.defaultState = {
       contractExchangeRates: {},
