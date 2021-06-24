@@ -23,7 +23,7 @@ const controllerMessenger = new RestrictedControllerMessenger<
 });
 
 describe('GasFeeController', () => {
-  it('should initialize', () => {
+  it('should getGasFeeEstimatesAndStartPolling', async () => {
     const controller = new GasFeeController({
       interval: 10000,
       messenger: controllerMessenger,
@@ -31,7 +31,10 @@ describe('GasFeeController', () => {
       onNetworkStateChange: () => stub(),
       getCurrentNetworkEIP1559Compatibility: () => Promise.resolve(true), // change this for networkController.state.properties.isEIP1559Compatible ???
     });
-
     expect(controller.name).toBe(name);
+    const result = await controller.getGasFeeEstimatesAndStartPolling(
+      undefined,
+    );
+    expect(result).toHaveLength(36);
   });
 });
