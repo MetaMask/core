@@ -1,8 +1,5 @@
 import { stub } from 'sinon';
-import {
-  ControllerMessenger,
-  RestrictedControllerMessenger,
-} from '../ControllerMessenger';
+import { ControllerMessenger } from '../ControllerMessenger';
 import {
   GasFeeController,
   GetGasFeeState,
@@ -11,48 +8,51 @@ import {
 
 const name = 'GasFeeController';
 
-const controllerMessenger = new RestrictedControllerMessenger<
-  typeof name,
-  GetGasFeeState,
-  GasFeeStateChange,
-  never,
-  never
->({
-  name,
-  controllerMessenger: new ControllerMessenger(),
-});
+function getRestrictedMessenger() {
+  const controllerMessenger = new ControllerMessenger<
+    GetGasFeeState,
+    GasFeeStateChange
+  >();
+  const messenger = controllerMessenger.getRestricted<
+    typeof name,
+    never,
+    never
+  >({
+    name,
+  });
+  return messenger;
+}
 
 describe('GasFeeController', () => {
-  it('should getGasFeeEstimatesAndStartPolling', async () => {
-    const controller = new GasFeeController({
+  let gasFeeController: GasFeeController;
+
+  beforeEach(() => {
+    gasFeeController = new GasFeeController({
       interval: 10000,
-      messenger: controllerMessenger,
+      messenger: getRestrictedMessenger(),
       getProvider: () => stub(),
       onNetworkStateChange: () => stub(),
       getCurrentNetworkEIP1559Compatibility: () => Promise.resolve(true), // change this for networkController.state.properties.isEIP1559Compatible ???
     });
-    expect(controller.name).toBe(name);
-    const result = await controller.getGasFeeEstimatesAndStartPolling(
+  });
+
+  afterEach(() => {
+    gasFeeController.destroy();
+  });
+
+  it('should initialize', async () => {
+    expect(gasFeeController.name).toBe(name);
+  });
+
+  it('should getGasFeeEstimatesAndStartPolling', async () => {
+    const result = await gasFeeController.getGasFeeEstimatesAndStartPolling(
       undefined,
     );
     expect(result).toHaveLength(36);
-
-    const estimates = await controller._fetchGasFeeEstimateData();
-    expect(estimates).toHaveProperty('gasFeeEstimates');
   });
 
-  it('should fail to re-initialize', () => {
-    expect(() => {
-      const controller = new GasFeeController({
-        interval: 10000,
-        messenger: controllerMessenger,
-        getProvider: () => stub(),
-        onNetworkStateChange: () => stub(),
-        getCurrentNetworkEIP1559Compatibility: () => Promise.resolve(true), // change this for networkController.state.properties.isEIP1559Compatible ???
-      });
-      console.log({ controller });
-    }).toThrow(
-      'A handler for GasFeeController:getState has already been registered',
-    );
+  it('should _fetchGasFeeEstimateData', async () => {
+    const estimates = await gasFeeController._fetchGasFeeEstimateData();
+    expect(estimates).toHaveProperty('gasFeeEstimates');
   });
 });
