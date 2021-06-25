@@ -24,42 +24,6 @@ enablePatches();
  */
 export type Listener<T> = (state: T, patches: Patch[]) => void;
 
-type primitive = null | boolean | number | string;
-
-type DefinitelyNotJsonable = ((...args: any[]) => any) | undefined;
-
-// Credit to https://github.com/grant-dennison for this type
-// Source: https://github.com/Microsoft/TypeScript/issues/1897#issuecomment-710744173
-export type IsJsonable<T> =
-  // Check if there are any non-jsonable types represented in the union
-  // Note: use of tuples in this first condition side-steps distributive conditional types
-  // (see https://github.com/microsoft/TypeScript/issues/29368#issuecomment-453529532)
-  [Extract<T, DefinitelyNotJsonable>] extends [never]
-    ? // Non-jsonable type union was found empty
-      T extends primitive
-      ? // Primitive is acceptable
-        T
-      : // Otherwise check if array
-      T extends (infer U)[]
-      ? // Arrays are special; just check array element type
-        IsJsonable<U>[]
-      : // Otherwise check if object
-      // eslint-disable-next-line @typescript-eslint/ban-types
-      T extends object
-      ? // It's an object
-        {
-          // Iterate over keys in object case
-          [P in keyof T]: P extends string
-            ? // Recursive call for children
-              IsJsonable<T[P]>
-            : // Exclude non-string keys
-              never;
-        }
-      : // Otherwise any other non-object no bueno
-        never
-    : // Otherwise non-jsonable type union was found not empty
-      never;
-
 /**
  * An function to derive state.
  *
@@ -69,7 +33,7 @@ export type IsJsonable<T> =
  * @param value - A piece of controller state
  * @returns Something derived from controller state
  */
-export type StateDeriver<T> = (value: IsJsonable<T>) => IsJsonable<Json>;
+export type StateDeriver<T extends Json> = (value: T) => Json;
 
 /**
  * State metadata.
@@ -77,7 +41,7 @@ export type StateDeriver<T> = (value: IsJsonable<T>) => IsJsonable<Json>;
  * This metadata describes which parts of state should be persisted, and how to
  * get an anonymized representation of the state.
  */
-export type StateMetadata<T> = {
+export type StateMetadata<T extends Record<string, Json>> = {
   [P in keyof T]: StatePropertyMetadata<T[P]>;
 };
 
@@ -92,7 +56,7 @@ export type StateMetadata<T> = {
  *   identifiable), or is set to a function that returns an anonymized
  *   representation of this state.
  */
-export interface StatePropertyMetadata<T> {
+export interface StatePropertyMetadata<T extends Json> {
   persist: boolean | StateDeriver<T>;
   anonymous: boolean | StateDeriver<T>;
 }
@@ -110,10 +74,10 @@ export type Json =
  */
 export class BaseController<
   N extends string,
-  S extends Record<string, unknown>,
+  S extends Record<string, Json>,
   messenger extends RestrictedControllerMessenger<N, any, any, string, string>
 > {
-  private internalState: IsJsonable<S>;
+  private internalState: S;
 
   protected messagingSystem: messenger;
 
@@ -153,7 +117,7 @@ export class BaseController<
     messenger: messenger;
     metadata: StateMetadata<S>;
     name: N;
-    state: IsJsonable<S>;
+    state: S;
   }) {
     this.messagingSystem = messenger;
     this.name = name;
@@ -190,17 +154,18 @@ export class BaseController<
    * @param callback - Callback for updating state, passed a draft state
    *   object. Return a new state object or mutate the draft to update state.
    */
-  protected update(
-    callback: (state: Draft<IsJsonable<S>>) => void | IsJsonable<S>,
-  ) {
-    const [nextState, patches] = produceWithPatches(
-      this.internalState,
-      callback,
-    );
-    this.internalState = nextState as IsJsonable<S>;
+  protected update(callback: (state: Draft<S>) => void | S) {
+    // We run into ts2589, "infinite type depth", if we don't cast
+    // produceWithPatches here.
+    const [nextState, patches] = ((produceWithPatches as unknown) as (
+      state: S,
+      cb: typeof callback,
+    ) => [S, Patch[], Patch[]])(this.internalState, callback);
+
+    this.internalState = nextState;
     this.messagingSystem.publish(
       `${this.name}:stateChange` as Namespaced<N, any>,
-      nextState as S,
+      nextState,
       patches,
     );
   }
@@ -232,10 +197,10 @@ export class BaseController<
  *   anonymized state
  * @returns The anonymized controller state
  */
-export function getAnonymizedState<S extends Record<string, unknown>>(
-  state: IsJsonable<S>,
+export function getAnonymizedState<S extends Record<string, Json>>(
+  state: S,
   metadata: StateMetadata<S>,
-): IsJsonable<Record<string, Json>> {
+): Record<string, Json> {
   return deriveStateFromMetadata(state, metadata, 'anonymous');
 }
 
@@ -246,26 +211,28 @@ export function getAnonymizedState<S extends Record<string, unknown>>(
  * @param metadata - The controller state metadata, which describes which pieces of state should be persisted
  * @returns The subset of controller state that should be persisted
  */
-export function getPersistentState<S extends Record<string, unknown>>(
-  state: IsJsonable<S>,
+export function getPersistentState<S extends Record<string, Json>>(
+  state: S,
   metadata: StateMetadata<S>,
-): IsJsonable<Record<string, Json>> {
+): Record<string, Json> {
   return deriveStateFromMetadata(state, metadata, 'persist');
 }
 
-function deriveStateFromMetadata<S extends Record<string, unknown>>(
-  state: IsJsonable<S>,
+function deriveStateFromMetadata<S extends Record<string, Json>>(
+  state: S,
   metadata: StateMetadata<S>,
   metadataProperty: 'anonymous' | 'persist',
-): IsJsonable<Record<string, Json>> {
+): Record<string, Json> {
   return Object.keys(state).reduce((persistedState, key) => {
     const propertyMetadata = metadata[key as keyof S][metadataProperty];
     const stateProperty = state[key];
     if (typeof propertyMetadata === 'function') {
-      persistedState[key as string] = propertyMetadata(stateProperty);
+      persistedState[key as string] = propertyMetadata(
+        stateProperty as S[keyof S],
+      );
     } else if (propertyMetadata) {
       persistedState[key as string] = stateProperty;
     }
     return persistedState;
-  }, {} as IsJsonable<Record<string, Json>>);
+  }, {} as Record<string, Json>);
 }
