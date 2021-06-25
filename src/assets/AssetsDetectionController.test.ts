@@ -28,7 +28,7 @@ const sampleTokenList = [
     address: '0x514910771af9ca656af840dff83e8264ecf986ca',
     symbol: 'LINK',
     decimals: 18,
-    occurances: 11,
+    occurrences: 11,
     aggregators: [
       'paraswap',
       'pmm',
@@ -42,12 +42,13 @@ const sampleTokenList = [
       'cmc',
       'oneInch',
     ],
+    name: 'Chainlink',
   },
   {
     address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
     symbol: 'BNT',
     decimals: 18,
-    occurances: 11,
+    occurrences: 11,
     aggregators: [
       'paraswap',
       'pmm',
@@ -61,13 +62,14 @@ const sampleTokenList = [
       'cmc',
       'oneInch',
     ],
+    name: 'Bancor',
   },
   {
     address: '0x6810e776880c02933d47db1b9fc05908e5386b96',
     symbol: 'GNO',
     name: 'Gnosis',
     decimals: 18,
-    occurances: 10,
+    occurrences: 10,
     aggregators: [
       'paraswap',
       'airswapLight',
@@ -82,7 +84,6 @@ const sampleTokenList = [
     ],
   },
 ];
-
 function getTokenListMessenger() {
   const controllerMessenger = new ControllerMessenger<
     GetTokenListState,
@@ -124,9 +125,14 @@ describe('AssetsDetectionController', () => {
         assetsContract,
       ),
     });
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .reply(200, sampleTokenList)
+      .persist();
     const messenger = getTokenListMessenger();
     tokenList = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      onNetworkStateChange: (listener) => network.subscribe(listener),
       messenger,
     });
     await tokenList.start();
@@ -236,10 +242,6 @@ describe('AssetsDetectionController', () => {
           },
         ],
       });
-    nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
-      .reply(200, sampleTokenList)
-      .persist();
   });
 
   afterEach(() => {
@@ -594,6 +596,7 @@ describe('AssetsDetectionController', () => {
       '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
     });
     const tokensToDetect: string[] = Object.keys(tokenList.state.tokenList);
+    console.log(tokensToDetect);
     await assetsDetection.detectTokens();
     expect(
       getBalancesInSingleCall

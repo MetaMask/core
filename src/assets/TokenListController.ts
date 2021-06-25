@@ -8,24 +8,38 @@ import {
   syncTokens,
   fetchTokenMetadata,
 } from '../apis/token-service';
+import { NetworkState } from '../network/NetworkController';
 
-const DEFAULT_INTERVAL = 180 * 1000;
+const DEFAULT_INTERVAL = 360 * 1000;
+const DEFAULT_THRESHOLD = 360 * 1000;
+
+const name = 'TokenListController';
+
+interface DataCache {
+  timeStamp: number;
+  data: Token[];
+}
+interface TokensChainsCache {
+  [chainSlug: string]: DataCache;
+}
 
 type Token = {
+  name: string;
   address: string;
   decimals: number;
   symbol: string;
-  occurances: number;
+  occurrences: number;
   aggregators: string[];
 };
 
 type TokenMap = {
   [address: string]: Token;
 };
+
 export type TokenListState = {
   tokenList: TokenMap;
+  tokensChainsCache: TokensChainsCache;
 };
-const name = 'TokenListController';
 
 export type TokenListStateChange = {
   type: `${typeof name}:stateChange`;
@@ -36,12 +50,17 @@ export type GetTokenListState = {
   type: `${typeof name}:getState`;
   handler: () => TokenListState;
 };
+
 const metadata = {
   tokenList: { persist: true, anonymous: true },
+  tokensChainsCache: { persist: true, anonymous: true },
 };
+
 const defaultState: TokenListState = {
   tokenList: {},
+  tokensChainsCache: {},
 };
+
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
  */
@@ -55,6 +74,8 @@ export class TokenListController extends BaseController<
 
   private intervalDelay: number;
 
+  private cacheRefreshThreshold: number;
+
   private chainId: string;
 
   /**
@@ -67,12 +88,18 @@ export class TokenListController extends BaseController<
    */
   constructor({
     chainId,
+    onNetworkStateChange,
     interval = DEFAULT_INTERVAL,
+    cacheRefreshThreshold = DEFAULT_THRESHOLD,
     messenger,
     state,
   }: {
     chainId: string;
+    onNetworkStateChange: (
+      listener: (networkState: NetworkState) => void,
+    ) => void;
     interval?: number;
+    cacheRefreshThreshold?: number;
     messenger: RestrictedControllerMessenger<
       typeof name,
       GetTokenListState,
@@ -89,7 +116,11 @@ export class TokenListController extends BaseController<
       state: { ...defaultState, ...state },
     });
     this.intervalDelay = interval;
+    this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
+    onNetworkStateChange((networkState) => {
+      this.chainId = networkState.provider.chainId;
+    });
   }
 
   /**
@@ -132,19 +163,41 @@ export class TokenListController extends BaseController<
     }, this.intervalDelay);
   }
 
+  /**
+   * Fetching token list from the Token Service API
+   */
   async fetchTokenList(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
-    const { tokenList }: TokenListState = this.state;
     try {
       const tokensFromAPI: Token[] = await safelyExecute(() =>
-        fetchTokenList(this.chainId),
+        this.fetchFromCache(),
       );
-      for (const token of tokensFromAPI) {
+      const { tokensChainsCache } = this.state;
+      const tokenList: TokenMap = {};
+
+      // filtering out tokens with less than 2 occurences
+      const filteredTokenList = tokensFromAPI.filter(
+        (token) => token.occurrences >= 2,
+      );
+      // removing the tokens with symbol conflicts
+      const symbolsList = filteredTokenList.map((token) => token.symbol);
+      const duplicateSymbols = [
+        ...new Set(
+          symbolsList.filter(
+            (symbol, index) => symbolsList.indexOf(symbol) !== index,
+          ),
+        ),
+      ];
+      const uniqueTokenList = filteredTokenList.filter(
+        (token) => !duplicateSymbols.includes(token.name),
+      );
+      for (const token of uniqueTokenList) {
         tokenList[token.address] = token;
       }
       this.update(() => {
         return {
           tokenList,
+          tokensChainsCache,
         };
       });
     } finally {
@@ -152,6 +205,41 @@ export class TokenListController extends BaseController<
     }
   }
 
+  /**
+   * Checks if the Cache timestamp is valid,
+   *  if yes data in cache will be returned
+   *  otherwise a call to the API service will be made.
+   * @returns Promise that resolves into a TokenList
+   */
+  async fetchFromCache(): Promise<Token[]> {
+    const { tokensChainsCache, ...tokensData }: TokenListState = this.state;
+    const dataCache = tokensChainsCache[this.chainId];
+    const now = Date.now();
+    if (dataCache && now - dataCache.timeStamp < this.cacheRefreshThreshold) {
+      return dataCache.data;
+    }
+    const tokenList: Token[] = await safelyExecute(() =>
+      fetchTokenList(this.chainId),
+    );
+    const updatedTokensChainsCache = {
+      ...tokensChainsCache,
+      [this.chainId]: {
+        timeStamp: Date.now(),
+        data: tokenList,
+      },
+    };
+    this.update(() => {
+      return {
+        ...tokensData,
+        tokensChainsCache: updatedTokensChainsCache,
+      };
+    });
+    return tokenList;
+  }
+
+  /**
+   * Calls the API to sync the tokens in the token service
+   */
   async syncTokens(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
     try {
@@ -161,6 +249,11 @@ export class TokenListController extends BaseController<
     }
   }
 
+  /**
+   * Fetch metadata for a token whose address is send to the API
+   * @param tokenAddress
+   * @returns Promise that resolvesto Token Metadata
+   */
   async fetchTokenMetadata(tokenAddress: string): Promise<Token> {
     const releaseLock = await this.mutex.acquire();
     try {

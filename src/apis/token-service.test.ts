@@ -46,6 +46,7 @@ const sampleTokenList = [
       'cmc',
       'oneInch',
     ],
+    name: 'Synthetix',
   },
   {
     address: '0x408e41876cccdc0f92210600ef50372656052a38',
@@ -84,6 +85,7 @@ const sampleTokenList = [
       'cmc',
       'oneInch',
     ],
+    name: 'Chainlink',
   },
   {
     address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
@@ -103,6 +105,7 @@ const sampleTokenList = [
       'cmc',
       'oneInch',
     ],
+    name: 'Bancor',
   },
 ];
 
@@ -124,6 +127,7 @@ const sampleToken = {
     'cmc',
     'oneInch',
   ],
+  name: 'Chainlink',
 };
 
 describe('FetchtokenList', () => {
