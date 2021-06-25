@@ -596,7 +596,6 @@ describe('AssetsDetectionController', () => {
       '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
     });
     const tokensToDetect: string[] = Object.keys(tokenList.state.tokenList);
-    console.log(tokensToDetect);
     await assetsDetection.detectTokens();
     expect(
       getBalancesInSingleCall
