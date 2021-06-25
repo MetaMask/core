@@ -32,6 +32,9 @@ const NORMALIZERS: { [param in keyof Transaction]: any } = {
   nonce: (nonce: string) => addHexPrefix(nonce),
   to: (to: string) => addHexPrefix(to).toLowerCase(),
   value: (value: string) => addHexPrefix(value),
+  maxFeePerGas: (maxFeePerGas: string) => addHexPrefix(maxFeePerGas),
+  maxPriorityFeePerGas: (maxPriorityFeePerGas: string) =>
+    addHexPrefix(maxPriorityFeePerGas),
 };
 
 /**
@@ -236,6 +239,9 @@ export function hexToText(hex: string) {
  * @returns - Normalized Transaction object
  */
 export function normalizeTransaction(transaction: Transaction) {
+  console.log(`normalizeTransaction before delete:`, transaction);
+  delete transaction.gasPrice;
+  console.log(`normalizeTransaction after delete:`, transaction);
   const normalizedTransaction: Transaction = { from: '' };
   let key: keyof Transaction;
   for (key in NORMALIZERS) {

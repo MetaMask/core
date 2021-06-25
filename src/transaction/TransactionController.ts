@@ -72,6 +72,8 @@ export interface Transaction {
   nonce?: string;
   to?: string;
   value?: string;
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
 }
 
 /**
@@ -481,6 +483,7 @@ export class TransactionController extends BaseController<
     const { provider, network } = this.getNetworkState();
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
+    console.log('addTransaction:', transaction);
     validateTransaction(transaction);
 
     const transactionMeta = {
@@ -494,14 +497,21 @@ export class TransactionController extends BaseController<
       deviceConfirmedOn,
     };
 
+    console.log('transaction before:', transaction);
+
     try {
-      const { gas, gasPrice } = await this.estimateGas(transaction);
+      const { gas } = await this.estimateGas(transaction);
       transaction.gas = gas;
-      transaction.gasPrice = gasPrice;
+      // transaction.gasPrice = gasPrice;
     } catch (error) {
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
     }
+
+    console.log('transaction after:', transaction);
+    // delete transaction.maxFeePerGas;
+    // delete transaction.maxPriorityFeePerGas;
+    // console.log('transaction after delete:', transaction);
 
     const result: Promise<string> = new Promise((resolve, reject) => {
       this.hub.once(
@@ -621,13 +631,38 @@ export class TransactionController extends BaseController<
       transactionMeta.transaction.nonce = txNonce;
       transactionMeta.transaction.chainId = chainId;
 
-      const txParams = {
+      console.log('approveTransaction transactionMeta:', transactionMeta);
+
+      const {
+        maxFeePerGas = undefined,
+        maxPriorityFeePerGas = undefined,
+      } = transactionMeta.transaction;
+
+      console.log({ maxFeePerGas, maxPriorityFeePerGas });
+
+      const baseTxParams = {
         ...transactionMeta.transaction,
         gasLimit: transactionMeta.transaction.gas,
         chainId,
         nonce: txNonce,
         status,
       };
+
+      const txParams =
+        maxFeePerGas && maxPriorityFeePerGas
+          ? {
+              ...baseTxParams,
+              maxFeePerGas,
+              maxPriorityFeePerGas,
+            }
+          : baseTxParams;
+
+      // delete gasPrice if maxFeePerGas and maxPriorityFeePerGas are set
+      if (maxFeePerGas && maxPriorityFeePerGas) {
+        delete txParams.gasPrice;
+      }
+
+      console.log(`txParams after delete:`, txParams);
 
       const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
 
