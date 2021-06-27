@@ -10,8 +10,8 @@ import {
 } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
 
-const DEFAULT_INTERVAL = 360 * 1000;
-const DEFAULT_THRESHOLD = 360 * 1000;
+const DEFAULT_INTERVAL = 60 * 60 * 1000;
+const DEFAULT_THRESHOLD = 60 * 30 * 1000;
 
 const name = 'TokenListController';
 
