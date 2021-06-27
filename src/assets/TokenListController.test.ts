@@ -303,7 +303,7 @@ const expiredCacheExistingState = {
   },
   tokensChainsCache: {
     '1': {
-      timestamp: timestamp - 360000,
+      timestamp: timestamp - 1800000,
       data: [
         {
           address: '0x514910771af9ca656af840dff83e8264ecf986ca',
