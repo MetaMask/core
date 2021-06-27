@@ -16,7 +16,7 @@ const DEFAULT_THRESHOLD = 360 * 1000;
 const name = 'TokenListController';
 
 interface DataCache {
-  timeStamp: number;
+  timestamp: number;
   data: Token[];
 }
 interface TokensChainsCache {
@@ -118,8 +118,9 @@ export class TokenListController extends BaseController<
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
-    onNetworkStateChange((networkState) => {
+    onNetworkStateChange(async (networkState) => {
       this.chainId = networkState.provider.chainId;
+      await safelyExecute(() => this.fetchTokenList());
     });
   }
 
@@ -215,7 +216,10 @@ export class TokenListController extends BaseController<
     const { tokensChainsCache, ...tokensData }: TokenListState = this.state;
     const dataCache = tokensChainsCache[this.chainId];
     const now = Date.now();
-    if (dataCache && now - dataCache.timeStamp < this.cacheRefreshThreshold) {
+    if (
+      dataCache?.data &&
+      now - dataCache?.timestamp < this.cacheRefreshThreshold
+    ) {
       return dataCache.data;
     }
     const tokenList: Token[] = await safelyExecute(() =>
@@ -224,7 +228,7 @@ export class TokenListController extends BaseController<
     const updatedTokensChainsCache = {
       ...tokensChainsCache,
       [this.chainId]: {
-        timeStamp: Date.now(),
+        timestamp: Date.now(),
         data: tokenList,
       },
     };
@@ -244,6 +248,20 @@ export class TokenListController extends BaseController<
     const releaseLock = await this.mutex.acquire();
     try {
       await safelyExecute(() => syncTokens(this.chainId));
+      const { tokenList, tokensChainsCache } = this.state;
+      const updatedTokensChainsCache = {
+        ...tokensChainsCache,
+        [this.chainId]: {
+          timestamp: 0,
+          data: [],
+        },
+      };
+      this.update(() => {
+        return {
+          tokenList,
+          tokensChainsCache: updatedTokensChainsCache,
+        };
+      });
     } finally {
       releaseLock();
     }

@@ -160,7 +160,7 @@ const sampleSingleChainState = {
   },
   tokensChainsCache: {
     '1': {
-      timeStamp: timestamp,
+      timestamp,
       data: sampleMainnetTokenList,
     },
   },
@@ -187,7 +187,7 @@ const sampleTwoChainState = {
   },
   tokensChainsCache: {
     '1': {
-      timeStamp: timestamp,
+      timestamp,
       data: sampleMainnetTokenList,
     },
     '56': {
@@ -243,7 +243,7 @@ const existingState = {
   },
   tokensChainsCache: {
     '1': {
-      timeStamp: timestamp,
+      timestamp,
       data: sampleMainnetTokenList,
     },
   },
@@ -274,7 +274,7 @@ const outdatedExistingState = {
   },
   tokensChainsCache: {
     '1': {
-      timeStamp: timestamp,
+      timestamp,
       data: sampleMainnetTokenList,
     },
   },
@@ -303,7 +303,7 @@ const expiredCacheExistingState = {
   },
   tokensChainsCache: {
     '1': {
-      timeStamp: timestamp - 360000,
+      timestamp: timestamp - 360000,
       data: [
         {
           address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -403,7 +403,7 @@ describe('TokenListController', () => {
       },
       tokensChainsCache: {
         '1': {
-          timeStamp: timestamp,
+          timestamp,
           data: sampleMainnetTokenList,
         },
       },
@@ -521,19 +521,45 @@ describe('TokenListController', () => {
       sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
     expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].timeStamp,
+      controller.state.tokensChainsCache[NetworksChainId.mainnet].timestamp,
     ).toBeGreaterThanOrEqual(
       sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet]
-        .timeStamp,
+        .timestamp,
     );
     controller.destroy();
   });
 
-  it('should update token list from cache', async () => {
+  it('should update the cache before threshold time if the current data is undefined', async () => {
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .once()
+      .reply(200, undefined);
+
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${NetworksChainId.mainnet}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
+    const messenger = getRestrictedMessenger();
+    const controller = new TokenListController({
+      chainId: NetworksChainId.mainnet,
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      messenger,
+      interval: 100,
+    });
+    await controller.start();
+    expect(controller.state.tokenList).toStrictEqual({});
+    expect(controller.state.tokensChainsCache.data).toBeUndefined();
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleSingleChainState.tokenList,
+    );
+    expect(controller.state.tokensChainsCache['1'].data).toStrictEqual(
+      sampleSingleChainState.tokensChainsCache['1'].data,
+    );
+    controller.destroy();
+  });
+
+  it('should update token list from cache before reaching the threshold time', async () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
@@ -580,10 +606,10 @@ describe('TokenListController', () => {
     expect(controller.state).toStrictEqual(expiredCacheExistingState);
     await controller.start();
     expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].timeStamp,
+      controller.state.tokensChainsCache[NetworksChainId.mainnet].timestamp,
     ).toBeGreaterThan(
       sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet]
-        .timeStamp,
+        .timestamp,
     );
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
@@ -617,7 +643,7 @@ describe('TokenListController', () => {
         chainId: '56',
       },
     });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 10));
     expect(controller.state.tokenList).toStrictEqual(
       sampleTwoChainState.tokenList,
     );
@@ -633,26 +659,90 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
-  it('should call syncTokens to update the token list in the backend and returns nothing', async () => {
+  it('should call syncTokens to update the token list in the backend and clears the cache for the next fetch', async () => {
+    const tokenListBeforeSync = [
+      {
+        address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
+        symbol: 'SNX',
+        decimals: 18,
+        occurrences: 11,
+        aggregators: [
+          'paraswap',
+          'pmm',
+          'airswapLight',
+          'zeroEx',
+          'bancor',
+          'coinGecko',
+          'zapper',
+          'kleros',
+          'zerion',
+          'cmc',
+          'oneInch',
+        ],
+        name: 'Synthetix',
+      },
+    ];
     nock(TOKEN_END_POINT_API)
       .get(`/sync/${NetworksChainId.mainnet}`)
       .reply(200)
       .persist();
+
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .once()
+      .reply(200, tokenListBeforeSync);
+
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .reply(200, sampleMainnetTokenList)
+      .persist();
+
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
       onNetworkStateChange: (listener) => network.subscribe(listener),
       messenger,
+      interval: 200,
+    });
+    await controller.start();
+    expect(controller.state.tokenList).toStrictEqual({
+      '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f': {
+        address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
+        symbol: 'SNX',
+        decimals: 18,
+        occurrences: 11,
+        aggregators: [
+          'paraswap',
+          'pmm',
+          'airswapLight',
+          'zeroEx',
+          'bancor',
+          'coinGecko',
+          'zapper',
+          'kleros',
+          'zerion',
+          'cmc',
+          'oneInch',
+        ],
+        name: 'Synthetix',
+      },
     });
     expect(await controller.syncTokens()).toBeUndefined();
+    expect(controller.state.tokensChainsCache['1']).toStrictEqual({
+      timestamp: 0,
+      data: [],
+    });
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 300));
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleSingleChainState.tokenList,
+    );
     controller.destroy();
   });
 
   it('should return the metadata for a tokenAddress provided', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(
-        `/tokens/${NetworksChainId.mainnet}?address=0x514910771af9ca656af840dff83e8264ecf986ca`,
-      )
+      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .query({ address: '0x514910771af9ca656af840dff83e8264ecf986ca' })
       .reply(200, sampleTokenMetaData)
       .persist();
     const messenger = getRestrictedMessenger();
