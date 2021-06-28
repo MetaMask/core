@@ -190,7 +190,7 @@ export class TokenListController extends BaseController<
         ),
       ];
       const uniqueTokenList = filteredTokenList.filter(
-        (token) => !duplicateSymbols.includes(token.name),
+        (token) => !duplicateSymbols.includes(token.symbol),
       );
       for (const token of uniqueTokenList) {
         tokenList[token.address] = token;

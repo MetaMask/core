@@ -76,7 +76,106 @@ const sampleMainnetTokenList = [
     name: 'Bancor',
   },
 ];
-
+const sampleWithDuplicateSymbols = [
+  {
+    address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
+    symbol: 'SNX',
+    decimals: 18,
+    occurrences: 11,
+    aggregators: [
+      'paraswap',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+    name: 'Synthetix',
+  },
+  {
+    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
+    symbol: 'SNX',
+    decimals: 18,
+    occurrences: 11,
+    aggregators: [
+      'paraswap',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+    name: 'Chainlink',
+  },
+  {
+    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
+    symbol: 'BNT',
+    decimals: 18,
+    occurrences: 11,
+    aggregators: [
+      'paraswap',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+    name: 'Bancor',
+  },
+];
+const sampleWithLessThan2Occurences = [
+  {
+    address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
+    symbol: 'SNX',
+    decimals: 18,
+    occurrences: 2,
+    aggregators: ['paraswap', 'pmm'],
+    name: 'Synthetix',
+  },
+  {
+    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
+    symbol: 'LINK',
+    decimals: 18,
+    occurrences: 11,
+    aggregators: [
+      'paraswap',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+    name: 'Chainlink',
+  },
+  {
+    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
+    symbol: 'BNT',
+    decimals: 18,
+    occurrences: 1,
+    aggregators: ['paraswap'],
+    name: 'Bancor',
+  },
+];
 const sampleBinanceTokenList = [
   {
     address: '0x7083609fce4d1d8dc0c979aab8c869ea2c873402',
@@ -570,6 +669,94 @@ describe('TokenListController', () => {
     expect(controller.state).toStrictEqual(existingState);
     await controller.start();
     expect(controller.state).toStrictEqual(sampleSingleChainState);
+    controller.destroy();
+  });
+
+  it('should update token list after removing data with duplicate symbols', async () => {
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .reply(200, sampleWithDuplicateSymbols)
+      .persist();
+    const messenger = getRestrictedMessenger();
+    const controller = new TokenListController({
+      chainId: NetworksChainId.mainnet,
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      messenger,
+    });
+    await controller.start();
+    expect(controller.state.tokenList).toStrictEqual({
+      '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c': {
+        address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
+        symbol: 'BNT',
+        decimals: 18,
+        occurrences: 11,
+        aggregators: [
+          'paraswap',
+          'pmm',
+          'airswapLight',
+          'zeroEx',
+          'bancor',
+          'coinGecko',
+          'zapper',
+          'kleros',
+          'zerion',
+          'cmc',
+          'oneInch',
+        ],
+        name: 'Bancor',
+      },
+    });
+    expect(
+      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+    ).toStrictEqual(sampleWithDuplicateSymbols);
+    controller.destroy();
+  });
+
+  it('should update token list after removing data less than 2 occurrences', async () => {
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .reply(200, sampleWithLessThan2Occurences)
+      .persist();
+    const messenger = getRestrictedMessenger();
+    const controller = new TokenListController({
+      chainId: NetworksChainId.mainnet,
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      messenger,
+    });
+    await controller.start();
+    expect(controller.state.tokenList).toStrictEqual({
+      '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f': {
+        address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
+        symbol: 'SNX',
+        decimals: 18,
+        occurrences: 2,
+        aggregators: ['paraswap', 'pmm'],
+        name: 'Synthetix',
+      },
+      '0x514910771af9ca656af840dff83e8264ecf986ca': {
+        address: '0x514910771af9ca656af840dff83e8264ecf986ca',
+        symbol: 'LINK',
+        decimals: 18,
+        occurrences: 11,
+        aggregators: [
+          'paraswap',
+          'pmm',
+          'airswapLight',
+          'zeroEx',
+          'bancor',
+          'coinGecko',
+          'zapper',
+          'kleros',
+          'zerion',
+          'cmc',
+          'oneInch',
+        ],
+        name: 'Chainlink',
+      },
+    });
+    expect(
+      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+    ).toStrictEqual(sampleWithLessThan2Occurences);
     controller.destroy();
   });
 
