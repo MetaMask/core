@@ -483,7 +483,6 @@ export class TransactionController extends BaseController<
     const { provider, network } = this.getNetworkState();
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
-    console.log('addTransaction:', transaction);
     validateTransaction(transaction);
 
     const transactionMeta = {
@@ -500,6 +499,7 @@ export class TransactionController extends BaseController<
     console.log('transaction before:', transaction);
 
     try {
+      // TODO: adjust gas estimation to work in eip 1559 world
       const { gas } = await this.estimateGas(transaction);
       transaction.gas = gas;
       // transaction.gasPrice = gasPrice;
@@ -507,11 +507,6 @@ export class TransactionController extends BaseController<
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
     }
-
-    console.log('transaction after:', transaction);
-    // delete transaction.maxFeePerGas;
-    // delete transaction.maxPriorityFeePerGas;
-    // console.log('transaction after delete:', transaction);
 
     const result: Promise<string> = new Promise((resolve, reject) => {
       this.hub.once(
@@ -575,7 +570,7 @@ export class TransactionController extends BaseController<
     } = this.getNetworkState();
 
     if (chain !== RPC) {
-      // TODO: detech if network supports london/1559
+      // TODO: detect if network supports london/1559
       const common = new Common({ chain, hardfork: HARDFORK, eips: [1559] });
       return common;
     }
@@ -735,8 +730,6 @@ export class TransactionController extends BaseController<
       )}`,
     );
 
-    console.log({ gasPrice });
-
     const txParams = {
       from: transactionMeta.transaction.from,
       gasLimit: transactionMeta.transaction.gas,
@@ -745,8 +738,6 @@ export class TransactionController extends BaseController<
       to: transactionMeta.transaction.from,
       value: '0x0',
     };
-
-    console.log({ txParams });
 
     const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
 

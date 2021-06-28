@@ -239,9 +239,8 @@ export function hexToText(hex: string) {
  * @returns - Normalized Transaction object
  */
 export function normalizeTransaction(transaction: Transaction) {
-  console.log(`normalizeTransaction before delete:`, transaction);
+  // TODO: get rid of this hack
   delete transaction.gasPrice;
-  console.log(`normalizeTransaction after delete:`, transaction);
   const normalizedTransaction: Transaction = { from: '' };
   let key: keyof Transaction;
   for (key in NORMALIZERS) {
