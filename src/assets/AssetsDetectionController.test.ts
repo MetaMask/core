@@ -1,15 +1,20 @@
 import { createSandbox, SinonStub, stub } from 'sinon';
 import nock from 'nock';
 import { BN } from 'ethereumjs-util';
-import contractMap from '@metamask/contract-metadata';
 import {
   NetworkController,
   NetworksChainId,
 } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
+import { ControllerMessenger } from '../ControllerMessenger';
 import { AssetsController } from './AssetsController';
 import { AssetsContractController } from './AssetsContractController';
 import { AssetsDetectionController } from './AssetsDetectionController';
+import {
+  TokenListController,
+  GetTokenListState,
+  TokenListStateChange,
+} from './TokenListController';
 
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
@@ -17,12 +22,89 @@ const ROPSTEN = 'ropsten';
 const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
 const OPEN_SEA_HOST = 'https://api.opensea.io';
 const OPEN_SEA_PATH = '/api/v1';
+const TOKEN_END_POINT_API = 'https://token-api.airswap-prod.codefi.network';
+const sampleTokenList = [
+  {
+    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
+    symbol: 'LINK',
+    decimals: 18,
+    occurrences: 11,
+    aggregators: [
+      'paraswap',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+    name: 'Chainlink',
+  },
+  {
+    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
+    symbol: 'BNT',
+    decimals: 18,
+    occurrences: 11,
+    aggregators: [
+      'paraswap',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+    name: 'Bancor',
+  },
+  {
+    address: '0x6810e776880c02933d47db1b9fc05908e5386b96',
+    symbol: 'GNO',
+    name: 'Gnosis',
+    decimals: 18,
+    occurrences: 10,
+    aggregators: [
+      'paraswap',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+  },
+];
+function getTokenListMessenger() {
+  const controllerMessenger = new ControllerMessenger<
+    GetTokenListState,
+    TokenListStateChange
+  >();
+  const messenger = controllerMessenger.getRestricted<
+    'TokenListController',
+    never,
+    never
+  >({
+    name: 'TokenListController',
+  });
+  return messenger;
+}
 
 describe('AssetsDetectionController', () => {
   let assetsDetection: AssetsDetectionController;
   let preferences: PreferencesController;
   let network: NetworkController;
   let assets: AssetsController;
+  let tokenList: TokenListController;
   let assetsContract: AssetsContractController;
   let getBalancesInSingleCall: SinonStub<
     Parameters<AssetsContractController['getBalancesInSingleCall']>,
@@ -30,7 +112,7 @@ describe('AssetsDetectionController', () => {
   >;
   const sandbox = createSandbox();
 
-  beforeEach(() => {
+  beforeEach(async () => {
     preferences = new PreferencesController();
     network = new NetworkController();
     assetsContract = new AssetsContractController();
@@ -43,6 +125,17 @@ describe('AssetsDetectionController', () => {
         assetsContract,
       ),
     });
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .reply(200, sampleTokenList)
+      .persist();
+    const messenger = getTokenListMessenger();
+    tokenList = new TokenListController({
+      chainId: NetworksChainId.mainnet,
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      messenger,
+    });
+    await tokenList.start();
     getBalancesInSingleCall = sandbox.stub();
     assetsDetection = new AssetsDetectionController({
       onAssetsStateChange: (listener) => assets.subscribe(listener),
@@ -53,6 +146,7 @@ describe('AssetsDetectionController', () => {
       addTokens: assets.addTokens.bind(assets),
       addCollectible: assets.addCollectible.bind(assets),
       getAssetsState: () => assets.state,
+      getTokenListState: () => tokenList.state,
     });
 
     nock(OPEN_SEA_HOST)
@@ -153,6 +247,7 @@ describe('AssetsDetectionController', () => {
   afterEach(() => {
     nock.cleanAll();
     sandbox.reset();
+    tokenList.destroy();
   });
 
   it('should set default config', () => {
@@ -187,6 +282,7 @@ describe('AssetsDetectionController', () => {
           addTokens: assets.addTokens.bind(assets),
           addCollectible: assets.addCollectible.bind(assets),
           getAssetsState: () => assets.state,
+          getTokenListState: () => tokenList.state,
         },
         { interval: 10 },
       );
@@ -232,6 +328,7 @@ describe('AssetsDetectionController', () => {
           addTokens: assets.addTokens.bind(assets),
           addCollectible: assets.addCollectible.bind(assets),
           getAssetsState: () => assets.state,
+          getTokenListState: () => tokenList.state,
         },
         { interval: 10, networkType: ROPSTEN },
       );
@@ -447,23 +544,22 @@ describe('AssetsDetectionController', () => {
   it('should detect tokens correctly', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     getBalancesInSingleCall.resolves({
-      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+      '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
     });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toStrictEqual([
       {
         address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
+        symbol: 'GNO',
         decimals: 18,
         image: undefined,
-        symbol: 'GNO',
       },
     ]);
   });
-
   it('should update the tokens list when new tokens are detected', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     getBalancesInSingleCall.resolves({
-      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+      '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
     });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toStrictEqual([
@@ -475,7 +571,7 @@ describe('AssetsDetectionController', () => {
       },
     ]);
     getBalancesInSingleCall.resolves({
-      '0x514910771AF9Ca656af840dff83E8264EcF986CA': new BN(1),
+      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toStrictEqual([
@@ -487,9 +583,9 @@ describe('AssetsDetectionController', () => {
       },
       {
         address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        symbol: 'LINK',
         decimals: 18,
         image: undefined,
-        symbol: 'LINK',
       },
     ]);
   });
@@ -497,39 +593,37 @@ describe('AssetsDetectionController', () => {
   it('should call getBalancesInSingle with token address that is not present on the asset state', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     getBalancesInSingleCall.resolves({
-      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+      '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
     });
-    const tokensToDetect: string[] = [];
-    for (const address in contractMap) {
-      const contract = contractMap[address];
-      if (contract.erc20) {
-        tokensToDetect.push(address);
-      }
-    }
+    const tokensToDetect: string[] = Object.keys(tokenList.state.tokenList);
     await assetsDetection.detectTokens();
-    expect(getBalancesInSingleCall.calledWith('0x1', tokensToDetect)).toBe(
-      true,
-    );
+    expect(
+      getBalancesInSingleCall
+        .getCall(0)
+        .calledWithExactly('0x1', tokensToDetect),
+    ).toBe(true);
     getBalancesInSingleCall.resolves({
-      '0x514910771AF9Ca656af840dff83E8264EcF986CA': new BN(1),
+      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
     const updatedTokensToDetect = tokensToDetect.filter(
-      (address) => address !== '0x6810e776880C02933D47DB1b9fc05908e5386b96',
+      (address) => address !== '0x6810e776880c02933d47db1b9fc05908e5386b96',
     );
     await assetsDetection.detectTokens();
     expect(
-      getBalancesInSingleCall.calledWith('0x1', updatedTokensToDetect),
+      getBalancesInSingleCall
+        .getCall(1)
+        .calledWithExactly('0x1', updatedTokensToDetect),
     ).toBe(true);
   });
 
   it('should not autodetect tokens that exist in the ignoreList', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     getBalancesInSingleCall.resolves({
-      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
     await assetsDetection.detectTokens();
 
-    assets.removeAndIgnoreToken('0x6810e776880C02933D47DB1b9fc05908e5386b96');
+    assets.removeAndIgnoreToken('0x514910771af9ca656af840dff83e8264ecf986ca');
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toStrictEqual([]);
   });
@@ -537,7 +631,7 @@ describe('AssetsDetectionController', () => {
   it('should not detect tokens if there is no selectedAddress set', async () => {
     assetsDetection.configure({ networkType: MAINNET });
     getBalancesInSingleCall.resolves({
-      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toStrictEqual([]);
