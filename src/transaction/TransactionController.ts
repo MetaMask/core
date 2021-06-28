@@ -496,8 +496,6 @@ export class TransactionController extends BaseController<
       deviceConfirmedOn,
     };
 
-    console.log('transaction before:', transaction);
-
     try {
       // TODO: adjust gas estimation to work in eip 1559 world
       const { gas } = await this.estimateGas(transaction);
