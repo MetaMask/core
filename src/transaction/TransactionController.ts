@@ -25,7 +25,7 @@ import {
 } from '../util';
 import { MAINNET, RPC } from '../constants';
 
-const HARDFORK = 'berlin';
+const HARDFORK = 'london';
 
 /**
  * @type Result
@@ -575,7 +575,9 @@ export class TransactionController extends BaseController<
     } = this.getNetworkState();
 
     if (chain !== RPC) {
-      return new Common({ chain, hardfork: HARDFORK });
+      // TODO: detech if network supports london/1559
+      const common = new Common({ chain, hardfork: HARDFORK, eips: [1559] });
+      return common;
     }
 
     const customChainParams = {
@@ -631,14 +633,10 @@ export class TransactionController extends BaseController<
       transactionMeta.transaction.nonce = txNonce;
       transactionMeta.transaction.chainId = chainId;
 
-      console.log('approveTransaction transactionMeta:', transactionMeta);
-
       const {
         maxFeePerGas = undefined,
         maxPriorityFeePerGas = undefined,
       } = transactionMeta.transaction;
-
-      console.log({ maxFeePerGas, maxPriorityFeePerGas });
 
       const baseTxParams = {
         ...transactionMeta.transaction,
@@ -654,6 +652,8 @@ export class TransactionController extends BaseController<
               ...baseTxParams,
               maxFeePerGas,
               maxPriorityFeePerGas,
+              // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
+              type: 2,
             }
           : baseTxParams;
 
@@ -662,10 +662,7 @@ export class TransactionController extends BaseController<
         delete txParams.gasPrice;
       }
 
-      console.log(`txParams after delete:`, txParams);
-
       const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
-
       const signedTx = await this.sign(unsignedEthTx, from);
       transactionMeta.status = TransactionStatus.signed;
       this.updateTransaction(transactionMeta);
@@ -738,6 +735,8 @@ export class TransactionController extends BaseController<
       )}`,
     );
 
+    console.log({ gasPrice });
+
     const txParams = {
       from: transactionMeta.transaction.from,
       gasLimit: transactionMeta.transaction.gas,
@@ -746,6 +745,8 @@ export class TransactionController extends BaseController<
       to: transactionMeta.transaction.from,
       value: '0x0',
     };
+
+    console.log({ txParams });
 
     const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
 
