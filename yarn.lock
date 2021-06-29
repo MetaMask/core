@@ -722,10 +722,10 @@
   resolved "https://registry.yarnpkg.com/@metamask/eslint-config-typescript/-/eslint-config-typescript-6.0.0.tgz#c7bee90a48ed3c49f9f786c53dcdfea4cfd2a6db"
   integrity sha512-pfchVgPz03jHvBMu+/wRNVVf4gIIgjZ+CtfsoZF6PkxzD3h0T5e+7aGcgDET7SlkOVnAySMQxr39lSnYXHQPvQ==
 
-"@metamask/eslint-config@^6.0.0":
-  version "6.0.0"
-  resolved "https://registry.yarnpkg.com/@metamask/eslint-config/-/eslint-config-6.0.0.tgz#ec53e8ab278073e882411ed89705bc7d06b78c81"
-  integrity sha512-LyakGYGwM8UQOGhwWa+5erAI1hXuiTgf/y7USzOomX6H9KiuY09IAUYnPh7ToPG2sedD2F48UF1bUm8yvCoZOw==
+"@metamask/eslint-config@^7.0.0":
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/@metamask/eslint-config/-/eslint-config-7.0.0.tgz#9a1edd5322372d5e59307343f01caaa2e20a5d7c"
+  integrity sha512-JY4ERiApPbZITcZ4fQPxMO2WLJbKNm5RwFjQ2oMwbqmupeRt0u0L5Z7QcVL9zOEEORNJ/elNrTNUbiZm9qQfgQ==
 
 "@metamask/safe-event-emitter@^2.0.0":
   version "2.0.0"
