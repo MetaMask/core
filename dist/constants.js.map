@@ -1,0 +1,1 @@
+{"version":3,"file":"constants.js","sourceRoot":"","sources":["../src/constants.ts"],"names":[],"mappings":";;;AAAa,QAAA,OAAO,GAAG,SAAS,CAAC;AACpB,QAAA,GAAG,GAAG,KAAK,CAAC","sourcesContent":["export const MAINNET = 'mainnet';\nexport const RPC = 'rpc';\n"]}
