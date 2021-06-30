@@ -7,7 +7,7 @@ import {
   unknownString,
 } from './GasFeeController';
 
-const GAS_FEE_API = 'http://127.0.0.1:3000';
+const GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/';
 
 export async function fetchGasEstimates(): Promise<GasFeeEstimates> {
   return await handleFetch(GAS_FEE_API);
