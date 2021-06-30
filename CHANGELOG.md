@@ -8,10 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.2.0] - 2021-06-30
 ### Added
-- Add TokenListController to fetch the token list from token services API ([#478](git+https://github.com/MetaMask/controllers/pull/478))
-- Feature/use @ethereumjs/tx (dependency updates to support EIP1559 transactions) ([#489](git+https://github.com/MetaMask/controllers/pull/489))
-- Standardize repository ([#486](git+https://github.com/MetaMask/controllers/pull/486))
-- Bump @metamask/contract-metadata from 1.25.0 to 1.26.0 and 1.26.0 to 1.27.0 ([#492](git+https://github.com/MetaMask/controllers/pull/492),[#501](git+https://github.com/MetaMask/controllers/pull/501))
+- Add TokenListController to fetch the token list from token services API ([#478](https://github.com/MetaMask/controllers/pull/478))
+- Feature/use @ethereumjs/tx (dependency updates to support EIP1559 transactions) ([#489](https://github.com/MetaMask/controllers/pull/489))
+- Standardize repository ([#486](https://github.com/MetaMask/controllers/pull/486))
+- Bump @metamask/contract-metadata from 1.25.0 to 1.26.0 and 1.26.0 to 1.27.0 ([#492](https://github.com/MetaMask/controllers/pull/492),[#501](https://github.com/MetaMask/controllers/pull/501))
 
 ## [10.1.0]
 ### Added
@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.0.0]
 ### Fixed
-- **BREAKING**: Fix stale conversionRate after switching network ([#465](git+https://github.com/MetaMask/controllers/pull/465))
+- **BREAKING**: Fix stale conversionRate after switching network ([#465](https://github.com/MetaMask/controllers/pull/465))
   - The breaking change is the change in type of the `conversionRate` state of the `CurrencyRateController` - it's now nullable.
 
 ## [9.1.0] - 2021-05-20
