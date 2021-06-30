@@ -6,7 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [10.1.0] - 2021-06-7
+## [10.2.0]
+
+### Added
+- Adding TokenListController to fetch the token list from token services API ([#478](git+https://github.com/MetaMask/controllers/pull/478))
+- Feature/use @ethereumjs/tx ([#489](git+https://github.com/MetaMask/controllers/pull/489))
+- Standardize repository ([#486](git+https://github.com/MetaMask/controllers/pull/486))
+- Bump @metamask/contract-metadata from 1.25.0 to 1.26.0 ([#492](git+https://github.com/MetaMask/controllers/pull/492))
+### Changed
+- Bump @metamask/contract-metadata from 1.26.0 to 1.27.0 ([#501](git+https://github.com/MetaMask/controllers/pull/501))
+- Bump @metamask/auto-changelog from 2.3.0 to 2.4.0 ([#499](git+https://github.com/MetaMask/controllers/pull/499))
+- Bump ws from 5.2.2 to 5.2.3 ([#491](git+https://github.com/MetaMask/controllers/pull/491))
+- Bump glob-parent from 5.1.1 to 5.1.2 ([#490](git+https://github.com/MetaMask/controllers/pull/490))
+
+## [10.1.0]
 ### Added
 - Export BaseControllerV2 Json type ([#482](https://github.com/MetaMask/controllers/pull/482))
 
@@ -259,33 +272,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v10.1.0...HEAD
-[10.1.0]: https://github.com/MetaMask/controllers/compare/v10.0.0...v10.1.0
-[10.0.0]: https://github.com/MetaMask/controllers/compare/v9.1.0...v10.0.0
-[9.1.0]: https://github.com/MetaMask/controllers/compare/v9.0.0...v9.1.0
-[9.0.0]: https://github.com/MetaMask/controllers/compare/v8.0.0...v9.0.0
-[8.0.0]: https://github.com/MetaMask/controllers/compare/v7.0.0...v8.0.0
-[7.0.0]: https://github.com/MetaMask/controllers/compare/v6.2.1...v7.0.0
-[6.2.1]: https://github.com/MetaMask/controllers/compare/v6.2.0...v6.2.1
-[6.2.0]: https://github.com/MetaMask/controllers/compare/v6.1.1...v6.2.0
-[6.1.1]: https://github.com/MetaMask/controllers/compare/v6.1.0...v6.1.1
-[6.1.0]: https://github.com/MetaMask/controllers/compare/v6.0.1...v6.1.0
-[6.0.1]: https://github.com/MetaMask/controllers/compare/v6.0.0...v6.0.1
-[6.0.0]: https://github.com/MetaMask/controllers/compare/v5.1.0...v6.0.0
-[5.1.0]: https://github.com/MetaMask/controllers/compare/v5.0.0...v5.1.0
-[5.0.0]: https://github.com/MetaMask/controllers/compare/v4.2.0...v5.0.0
-[4.2.0]: https://github.com/MetaMask/controllers/compare/v4.1.0...v4.2.0
-[4.1.0]: https://github.com/MetaMask/controllers/compare/v4.0.2...v4.1.0
-[4.0.2]: https://github.com/MetaMask/controllers/compare/v4.0.1...v4.0.2
-[4.0.1]: https://github.com/MetaMask/controllers/compare/v4.0.0...v4.0.1
-[4.0.0]: https://github.com/MetaMask/controllers/compare/v3.2.0...v4.0.0
-[3.2.0]: https://github.com/MetaMask/controllers/compare/v3.1.0...v3.2.0
-[3.1.0]: https://github.com/MetaMask/controllers/compare/v3.0.1...v3.1.0
-[3.0.1]: https://github.com/MetaMask/controllers/compare/v3.0.0...v3.0.1
-[3.0.0]: https://github.com/MetaMask/controllers/compare/v2.0.5...v3.0.0
-[2.0.5]: https://github.com/MetaMask/controllers/compare/v2.0.4...v2.0.5
-[2.0.4]: https://github.com/MetaMask/controllers/compare/v2.0.3...v2.0.4
-[2.0.3]: https://github.com/MetaMask/controllers/compare/v2.0.2...v2.0.3
-[2.0.2]: https://github.com/MetaMask/controllers/compare/v2.0.1...v2.0.2
-[2.0.1]: https://github.com/MetaMask/controllers/compare/v2.0.0...v2.0.1
-[2.0.0]: https://github.com/MetaMask/controllers/releases/tag/v2.0.0
+[Unreleased]: git+https://github.com/MetaMask/controllers/compare/v10.2.0...HEAD
+[10.2.0]: git+https://github.com/MetaMask/controllers/compare/v10.1.0...v10.2.0
+[10.1.0]: git+https://github.com/MetaMask/controllers/compare/v10.0.0...v10.1.0
+[10.0.0]: git+https://github.com/MetaMask/controllers/compare/v9.1.0...v10.0.0
+[9.1.0]: git+https://github.com/MetaMask/controllers/compare/v9.0.0...v9.1.0
+[9.0.0]: git+https://github.com/MetaMask/controllers/compare/v8.0.0...v9.0.0
+[8.0.0]: git+https://github.com/MetaMask/controllers/compare/v7.0.0...v8.0.0
+[7.0.0]: git+https://github.com/MetaMask/controllers/compare/v6.2.1...v7.0.0
+[6.2.1]: git+https://github.com/MetaMask/controllers/compare/v6.2.0...v6.2.1
+[6.2.0]: git+https://github.com/MetaMask/controllers/compare/v6.1.1...v6.2.0
+[6.1.1]: git+https://github.com/MetaMask/controllers/compare/v6.1.0...v6.1.1
+[6.1.0]: git+https://github.com/MetaMask/controllers/compare/v6.0.1...v6.1.0
+[6.0.1]: git+https://github.com/MetaMask/controllers/compare/v6.0.0...v6.0.1
+[6.0.0]: git+https://github.com/MetaMask/controllers/compare/v5.1.0...v6.0.0
+[5.1.0]: git+https://github.com/MetaMask/controllers/compare/v5.0.0...v5.1.0
+[5.0.0]: git+https://github.com/MetaMask/controllers/compare/v4.2.0...v5.0.0
+[4.2.0]: git+https://github.com/MetaMask/controllers/compare/v4.1.0...v4.2.0
+[4.1.0]: git+https://github.com/MetaMask/controllers/compare/v4.0.2...v4.1.0
+[4.0.2]: git+https://github.com/MetaMask/controllers/compare/v4.0.1...v4.0.2
+[4.0.1]: git+https://github.com/MetaMask/controllers/compare/v4.0.0...v4.0.1
+[4.0.0]: git+https://github.com/MetaMask/controllers/compare/v3.2.0...v4.0.0
+[3.2.0]: git+https://github.com/MetaMask/controllers/compare/v3.1.0...v3.2.0
+[3.1.0]: git+https://github.com/MetaMask/controllers/compare/v3.0.1...v3.1.0
+[3.0.1]: git+https://github.com/MetaMask/controllers/compare/v3.0.0...v3.0.1
+[3.0.0]: git+https://github.com/MetaMask/controllers/compare/v2.0.5...v3.0.0
+[2.0.5]: git+https://github.com/MetaMask/controllers/compare/v2.0.4...v2.0.5
+[2.0.4]: git+https://github.com/MetaMask/controllers/compare/v2.0.3...v2.0.4
+[2.0.3]: git+https://github.com/MetaMask/controllers/compare/v2.0.2...v2.0.3
+[2.0.2]: git+https://github.com/MetaMask/controllers/compare/v2.0.1...v2.0.2
+[2.0.1]: git+https://github.com/MetaMask/controllers/compare/v2.0.0...v2.0.1
+[2.0.0]: git+https://github.com/MetaMask/controllers/releases/tag/v2.0.0
