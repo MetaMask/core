@@ -1,5 +1,5 @@
 import { BN } from 'ethereumjs-util';
-import { query, handleFetch } from '../util';
+import { query, handleFetch, gweiDecToWEIBN } from '../util';
 import {
   GasFeeEstimates,
   LegacyGasPriceEstimate,
@@ -22,11 +22,6 @@ export async function fetchLegacyGasPriceEstimate(
   };
 }
 
-function gweiHexToWEIBN(n: any) {
-  const BN_1000 = new BN(1000, 10);
-  return new BN(n, 16).mul(BN_1000);
-}
-
 export function calculateTimeEstimate(
   maxPriorityFeePerGas: string,
   maxFeePerGas: string,
@@ -34,22 +29,22 @@ export function calculateTimeEstimate(
 ): EstimatedGasFeeTimeBounds {
   const { low, medium, high, estimatedBaseFee } = gasFeeEstimates;
 
-  const maxPriorityFeePerGasInWEI = gweiHexToWEIBN(maxPriorityFeePerGas);
-  const maxFeePerGasInWEI = gweiHexToWEIBN(maxFeePerGas);
-  const estimatedBaseFeeInWEI = gweiHexToWEIBN(estimatedBaseFee);
+  const maxPriorityFeePerGasInWEI = gweiDecToWEIBN(maxPriorityFeePerGas);
+  const maxFeePerGasInWEI = gweiDecToWEIBN(maxFeePerGas);
+  const estimatedBaseFeeInWEI = gweiDecToWEIBN(estimatedBaseFee);
 
   const effectiveMaxPriorityFee = BN.min(
     maxPriorityFeePerGasInWEI,
     maxFeePerGasInWEI.sub(estimatedBaseFeeInWEI),
   );
 
-  const lowMaxPriorityFeeInWEI = gweiHexToWEIBN(
+  const lowMaxPriorityFeeInWEI = gweiDecToWEIBN(
     low.suggestedMaxPriorityFeePerGas,
   );
-  const mediumMaxPriorityFeeInWEI = gweiHexToWEIBN(
+  const mediumMaxPriorityFeeInWEI = gweiDecToWEIBN(
     medium.suggestedMaxPriorityFeePerGas,
   );
-  const highMaxPriorityFeeInWEI = gweiHexToWEIBN(
+  const highMaxPriorityFeeInWEI = gweiDecToWEIBN(
     high.suggestedMaxPriorityFeePerGas,
   );
 
