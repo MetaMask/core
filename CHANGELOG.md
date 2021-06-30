@@ -6,8 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [10.2.0]
-
+## [10.2.0] - 2021-06-30
 ### Added
 - Adding TokenListController to fetch the token list from token services API ([#478](git+https://github.com/MetaMask/controllers/pull/478))
 - Feature/use @ethereumjs/tx ([#489](git+https://github.com/MetaMask/controllers/pull/489))
@@ -19,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump ws from 5.2.2 to 5.2.3 ([#491](git+https://github.com/MetaMask/controllers/pull/491))
 - Bump glob-parent from 5.1.1 to 5.1.2 ([#490](git+https://github.com/MetaMask/controllers/pull/490))
 
-## [10.1.0]
+## [10.1.0] - 2021-06-7
 ### Added
 - Export BaseControllerV2 Json type ([#482](https://github.com/MetaMask/controllers/pull/482))
 
