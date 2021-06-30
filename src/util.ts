@@ -62,6 +62,27 @@ export function fractionBN(
   return targetBN.mul(numBN).div(denomBN);
 }
 
+const BN_1000 = new BN(1000, 10);
+
+/**
+ * Used to convert a base-10 number from GWEI to WEI. Can handle numbers with decimal parts
+ *
+ * @param n - The base 10 number to convert to WEI
+ * @returns - The number in WEI, as a BN
+ */
+export function gweiDecToWEIBN(n: number | string) {
+  const wholePart = Math.floor(Number(n));
+  const decimalPartMatch = Number(n)
+    .toFixed(3)
+    .match(/\.(\d+)/u);
+  const decimalPart = decimalPartMatch ? decimalPartMatch[1] : '0';
+
+  const wholePartAsWEI = new BN(wholePart, 10).mul(BN_1000);
+  const decimalPartAsWEI = new BN(decimalPart, 10);
+
+  return wholePartAsWEI.add(decimalPartAsWEI);
+}
+
 /**
  * Return a URL that can be used to obtain ETH for a given network
  *
