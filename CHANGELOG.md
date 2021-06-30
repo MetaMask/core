@@ -12,13 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature/use @ethereumjs/tx ([#489](git+https://github.com/MetaMask/controllers/pull/489))
 - Standardize repository ([#486](git+https://github.com/MetaMask/controllers/pull/486))
 - Bump @metamask/contract-metadata from 1.25.0 to 1.26.0 ([#492](git+https://github.com/MetaMask/controllers/pull/492))
+
 ### Changed
 - Bump @metamask/contract-metadata from 1.26.0 to 1.27.0 ([#501](git+https://github.com/MetaMask/controllers/pull/501))
 - Bump @metamask/auto-changelog from 2.3.0 to 2.4.0 ([#499](git+https://github.com/MetaMask/controllers/pull/499))
 - Bump ws from 5.2.2 to 5.2.3 ([#491](git+https://github.com/MetaMask/controllers/pull/491))
 - Bump glob-parent from 5.1.1 to 5.1.2 ([#490](git+https://github.com/MetaMask/controllers/pull/490))
 
-## [10.1.0] - 2021-06-7
+## [10.1.0]
 ### Added
 - Export BaseControllerV2 Json type ([#482](https://github.com/MetaMask/controllers/pull/482))
 
