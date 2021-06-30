@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Bump @metamask/contract-metadata from 1.25.0 to 1.26.0 and 1.26.0 to 1.27.0 ([#492](https://github.com/MetaMask/controllers/pull/492),[#501](https://github.com/MetaMask/controllers/pull/501))
 
-## [10.1.0]
+## [10.1.0] - 2021-06-07
 ### Added
 - Export BaseControllerV2 Json type ([#482](https://github.com/MetaMask/controllers/pull/482))
 
