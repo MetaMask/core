@@ -1,10 +1,13 @@
 import { stub } from 'sinon';
+import nock from 'nock';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
   GasFeeController,
   GetGasFeeState,
   GasFeeStateChange,
 } from './GasFeeController';
+
+const GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/';
 
 const name = 'GasFeeController';
 
@@ -26,7 +29,44 @@ function getRestrictedMessenger() {
 describe('GasFeeController', () => {
   let gasFeeController: GasFeeController;
 
+  beforeAll(() => {
+    nock.disableNetConnect();
+  });
+
+  afterAll(() => {
+    nock.enableNetConnect();
+  });
+
+  afterEach(() => {
+    nock.cleanAll();
+  });
+
   beforeEach(() => {
+    nock(GAS_FEE_API)
+      .get('/')
+      .reply(200,  {
+          low: {
+            minWaitTimeEstimate: 60000,
+            maxWaitTimeEstimate: 600000,
+            suggestedMaxPriorityFeePerGas: '1',
+            suggestedMaxFeePerGas: '35',
+          },
+          medium: {
+            minWaitTimeEstimate: 15000,
+            maxWaitTimeEstimate: 60000,
+            suggestedMaxPriorityFeePerGas: '1.8',
+            suggestedMaxFeePerGas: '38',
+          },
+          high: {
+            minWaitTimeEstimate: 0,
+            maxWaitTimeEstimate: 15000,
+            suggestedMaxPriorityFeePerGas: '2',
+            suggestedMaxFeePerGas: '50',
+          },
+          estimatedBaseFee: '28',
+        },
+      )
+
     gasFeeController = new GasFeeController({
       interval: 10000,
       messenger: getRestrictedMessenger(),
