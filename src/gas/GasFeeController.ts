@@ -45,14 +45,14 @@ export interface LegacyGasPriceEstimate {
  * @property suggestedMaxFeePerGas - A suggested max fee, the most a user will pay. a GWEI hex number
  */
 
-interface Eip1559GasFee {
+export interface Eip1559GasFee {
   minWaitTimeEstimate: number; // a time duration in milliseconds
   maxWaitTimeEstimate: number; // a time duration in milliseconds
   suggestedMaxPriorityFeePerGas: string; // a GWEI hex number
   suggestedMaxFeePerGas: string; // a GWEI hex number
 }
 
-function isEIP1559GasFeee(object: any): object is Eip1559GasFee {
+function isEIP1559GasFee(object: any): object is Eip1559GasFee {
   return (
     'minWaitTimeEstimate' in object &&
     'maxWaitTimeEstimate' in object &&
@@ -83,11 +83,11 @@ export interface GasFeeEstimates {
 function isEIP1559Estimate(object: any): object is GasFeeEstimates {
   return (
     'low' in object &&
-    isEIP1559GasFeee(object.low) &&
+    isEIP1559GasFee(object.low) &&
     'medium' in object &&
-    isEIP1559GasFeee(object.medium) &&
+    isEIP1559GasFee(object.medium) &&
     'high' in object &&
-    isEIP1559GasFeee(object.high) &&
+    isEIP1559GasFee(object.high) &&
     'estimatedBaseFee' in object
   );
 }
