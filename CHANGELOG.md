@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [10.2.0] - 2021-06-30
 ### Added
 - Add TokenListController to fetch the token list from token services API ([#478](https://github.com/MetaMask/controllers/pull/478))
-- Feature/use @ethereumjs/tx (dependency updates to support EIP1559 transactions) ([#489](https://github.com/MetaMask/controllers/pull/489))
+- Update `@ethereumjs-tx` to `@ethereumjs/tx` and add `@ethereumjs/common` to support EIP1559 compliant transactions ([#489](https://github.com/MetaMask/controllers/pull/489))
+
+### Changed
 - Bump @metamask/contract-metadata from 1.25.0 to 1.26.0 and 1.26.0 to 1.27.0 ([#492](https://github.com/MetaMask/controllers/pull/492),[#501](https://github.com/MetaMask/controllers/pull/501))
 
 ## [10.1.0]
