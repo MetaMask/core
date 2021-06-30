@@ -1,6 +1,7 @@
 import { stub } from 'sinon';
 import Web3ProviderEngine from 'web3-provider-engine';
-import NetworkController, {
+import {
+  NetworkController,
   NetworksChainId,
   ProviderConfig,
   NetworkType,

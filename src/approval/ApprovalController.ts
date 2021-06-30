@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid';
 import { ethErrors } from 'eth-rpc-errors';
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
 
 const APPROVALS_STORE_KEY = 'pendingApprovals';
 const APPROVAL_COUNT_STORE_KEY = 'pendingApprovalCount';

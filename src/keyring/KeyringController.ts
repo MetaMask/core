@@ -14,12 +14,13 @@ import {
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import Keyring from 'eth-keyring-controller';
 import { Mutex } from 'async-mutex';
-import BaseController, {
+import {
+  BaseController,
   BaseConfig,
   BaseState,
   Listener,
 } from '../BaseController';
-import PreferencesController from '../user/PreferencesController';
+import { PreferencesController } from '../user/PreferencesController';
 import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
 import { TypedMessageParams } from '../message-manager/TypedMessageManager';
 import { toChecksumHexAddress } from '../util';

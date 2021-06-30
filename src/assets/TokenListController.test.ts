@@ -1,7 +1,8 @@
 import { stub } from 'sinon';
 import nock from 'nock';
 import { ControllerMessenger } from '../ControllerMessenger';
-import NetworkController, {
+import {
+  NetworkController,
   NetworksChainId,
 } from '../network/NetworkController';
 import {

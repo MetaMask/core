@@ -3,7 +3,7 @@ import Subprovider from 'web3-provider-engine/subproviders/provider';
 import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Mutex } from 'async-mutex';
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { MAINNET, RPC } from '../constants';
 
 /**

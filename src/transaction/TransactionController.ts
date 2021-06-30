@@ -7,7 +7,7 @@ import Common from '@ethereumjs/common';
 import { TransactionFactory, TypedTransaction } from '@ethereumjs/tx';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type {
   NetworkState,
   NetworkController,

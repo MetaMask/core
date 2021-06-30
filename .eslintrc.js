@@ -52,7 +52,7 @@ module.exports = {
     // Left disabled because various properties throughough this repo are snake_case because the
     // names come from external sources or must comply with standards
     // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
-    'camelcase': 'off',
+    camelcase: 'off',
 
     // TODO: re-enble most of these rules
     'function-paren-newline': 'off',
@@ -67,7 +67,7 @@ module.exports = {
     'no-negated-condition': 'off',
     'no-new': 'off',
     'no-param-reassign': 'off',
-    'radix': 'off',
+    radix: 'off',
     'require-atomic-updates': 'off',
   },
   settings: {

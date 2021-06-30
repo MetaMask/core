@@ -1,4 +1,4 @@
-import TypedMessageManager from './TypedMessageManager';
+import { TypedMessageManager } from './TypedMessageManager';
 
 const typedMessage = [
   {

@@ -11,7 +11,7 @@ import { fromWei, toWei } from 'ethjs-unit';
 import { ethErrors } from 'eth-rpc-errors';
 import ensNamehash from 'eth-ens-namehash';
 import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
-import jsonschema from 'jsonschema';
+import { validate } from 'jsonschema';
 import {
   Transaction,
   FetchAllOptions,
@@ -498,7 +498,7 @@ export function validateTypedSignMessageDataV3(
   } catch (e) {
     throw new Error('Data must be passed as a valid JSON string.');
   }
-  const validation = jsonschema.validate(data, TYPED_MESSAGE_SCHEMA);
+  const validation = validate(data, TYPED_MESSAGE_SCHEMA);
   if (validation.errors.length > 0) {
     throw new Error(
       'Data must conform to EIP-712 schema. See https://git.io/fNtcx.',

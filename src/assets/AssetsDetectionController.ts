@@ -1,4 +1,4 @@
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
 import { safelyExecute, timeoutFetch, toChecksumHexAddress } from '../util';

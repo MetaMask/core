@@ -1,4 +1,4 @@
-import AddressBookController from './AddressBookController';
+import { AddressBookController } from './AddressBookController';
 
 describe('AddressBookController', () => {
   it('should set default state', () => {

@@ -1,12 +1,12 @@
 const { errorCodes } = require('eth-rpc-errors');
-const ApprovalController = require('./ApprovalController').default;
+const { ApprovalController } = require('./ApprovalController');
 
 const defaultConfig = {
   showApprovalRequest: () => undefined,
 };
 
 const getApprovalController = () =>
-  new ApprovalController({ ...defaultConfig });
+  new ApprovalController(Object.assign({}, defaultConfig));
 
 const STORE_KEY = 'pendingApprovals';
 
@@ -118,7 +118,9 @@ describe('ApprovalController: Input Validation', () => {
     let approvalController;
 
     beforeEach(() => {
-      approvalController = new ApprovalController({ ...defaultConfig });
+      approvalController = new ApprovalController(
+        Object.assign({}, defaultConfig),
+      );
     });
 
     it('deletes entry', () => {

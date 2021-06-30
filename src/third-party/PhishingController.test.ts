@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import { stub } from 'sinon';
 import nock from 'nock';
-import PhishingController from './PhishingController';
+import { PhishingController } from './PhishingController';
 
 describe('PhishingController', () => {
   afterEach(() => {

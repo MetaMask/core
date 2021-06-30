@@ -1,4 +1,4 @@
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
 
 interface viewedNotification {
   [id: number]: boolean;
