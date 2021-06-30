@@ -37,35 +37,30 @@ describe('GasFeeController', () => {
     nock.enableNetConnect();
   });
 
-  afterEach(() => {
-    nock.cleanAll();
-  });
-
   beforeEach(() => {
     nock(GAS_FEE_API)
       .get('/')
-      .reply(200,  {
-          low: {
-            minWaitTimeEstimate: 60000,
-            maxWaitTimeEstimate: 600000,
-            suggestedMaxPriorityFeePerGas: '1',
-            suggestedMaxFeePerGas: '35',
-          },
-          medium: {
-            minWaitTimeEstimate: 15000,
-            maxWaitTimeEstimate: 60000,
-            suggestedMaxPriorityFeePerGas: '1.8',
-            suggestedMaxFeePerGas: '38',
-          },
-          high: {
-            minWaitTimeEstimate: 0,
-            maxWaitTimeEstimate: 15000,
-            suggestedMaxPriorityFeePerGas: '2',
-            suggestedMaxFeePerGas: '50',
-          },
-          estimatedBaseFee: '28',
+      .reply(200, {
+        low: {
+          minWaitTimeEstimate: 60000,
+          maxWaitTimeEstimate: 600000,
+          suggestedMaxPriorityFeePerGas: '1',
+          suggestedMaxFeePerGas: '35',
         },
-      )
+        medium: {
+          minWaitTimeEstimate: 15000,
+          maxWaitTimeEstimate: 60000,
+          suggestedMaxPriorityFeePerGas: '1.8',
+          suggestedMaxFeePerGas: '38',
+        },
+        high: {
+          minWaitTimeEstimate: 0,
+          maxWaitTimeEstimate: 15000,
+          suggestedMaxPriorityFeePerGas: '2',
+          suggestedMaxFeePerGas: '50',
+        },
+        estimatedBaseFee: '28',
+      });
 
     gasFeeController = new GasFeeController({
       interval: 10000,
@@ -77,6 +72,7 @@ describe('GasFeeController', () => {
   });
 
   afterEach(() => {
+    nock.cleanAll();
     gasFeeController.destroy();
   });
 
