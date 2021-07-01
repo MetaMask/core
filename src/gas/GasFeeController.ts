@@ -305,7 +305,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
       } else {
         throw new Error('Main gas fee/price estimation failed. Use fallback');
       }
-    } catch (error) {
+    } catch {
       try {
         estimates = await this.fetchEthGasPriceEstimate(this.ethQuery);
         gasEstimateType = GAS_ESTIMATE_TYPES.ETH_GASPRICE;
