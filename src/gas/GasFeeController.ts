@@ -11,11 +11,27 @@ import type {
 } from '../network/NetworkController';
 import {
   fetchGasEstimates as defaultFetchGasEstimates,
-  fetchLegacyGasPriceEstimate as defaultFetchLegacyGasPriceEstimate,
+  fetchEthGasPriceEstimate as defaultFetchEthGasPriceEstimate,
+  fetchLegacyGasPriceEstimates as defaultFetchLegacyGasPriceEstimates,
   calculateTimeEstimate,
 } from './gas-util';
 
 export type unknownString = 'unknown';
+
+/**
+ * Indicates which type of gasEstimate the controller is currently returning.
+ * This is useful as a way of asserting that the shape of gasEstimates matches
+ * expectations. NONE is a special case indicating that no previous gasEstimate
+ * has been fetched.
+ */
+export const GAS_ESTIMATE_TYPES = {
+  FEE_MARKET: 'fee-market' as const,
+  LEGACY: 'legacy' as const,
+  ETH_GASPRICE: 'eth_gasPrice' as const,
+  NONE: 'none' as const,
+};
+
+export type GasEstimateType = typeof GAS_ESTIMATE_TYPES[keyof typeof GAS_ESTIMATE_TYPES];
 
 export interface EstimatedGasFeeTimeBounds {
   lowerTimeBound: number | null;
@@ -23,15 +39,34 @@ export interface EstimatedGasFeeTimeBounds {
 }
 
 /**
- * @type LegacyGasPriceEstimate
+ * @type EthGasPriceEstimate
  *
  * A single gas price estimate for networks and accounts that don't support EIP-1559
+ * This estimate comes from eth_gasPrice but is converted to dec gwei to match other
+ * return values
  *
- * @property gasPrice - A GWEI hex number, the result of a call to eth_gasPrice
+ * @property gasPrice - A GWEI dec string
  */
 
-export interface LegacyGasPriceEstimate {
+export interface EthGasPriceEstimate {
   gasPrice: string;
+}
+
+/**
+ * @type LegacyGasPriceEstimate
+ *
+ * A set of gas price estimates for networks and accounts that don't support EIP-1559
+ * These estimates include low, medium and high all as strings representing gwei in
+ * decimal format.
+ *
+ * @property high - gasPrice, in decimal gwei string format, suggested for fast inclusion
+ * @property medium - gasPrice, in decimal gwei string format, suggested for avg inclusion
+ * @property low - gasPrice, in decimal gwei string format, suggested for slow inclusion
+ */
+export interface LegacyGasPriceEstimate {
+  high: string;
+  medium: string;
+  low: string;
 }
 
 /**
@@ -48,8 +83,8 @@ export interface LegacyGasPriceEstimate {
 export interface Eip1559GasFee {
   minWaitTimeEstimate: number; // a time duration in milliseconds
   maxWaitTimeEstimate: number; // a time duration in milliseconds
-  suggestedMaxPriorityFeePerGas: string; // a GWEI hex number
-  suggestedMaxFeePerGas: string; // a GWEI hex number
+  suggestedMaxPriorityFeePerGas: string; // a GWEI decimal number
+  suggestedMaxFeePerGas: string; // a GWEI decimal number
 }
 
 function isEIP1559GasFee(object: any): object is Eip1559GasFee {
@@ -70,7 +105,7 @@ function isEIP1559GasFee(object: any): object is Eip1559GasFee {
  * @property low - A GasFee for a minimum necessary combination of tip and maxFee
  * @property medium - A GasFee for a recommended combination of tip and maxFee
  * @property high - A GasFee for a high combination of tip and maxFee
- * @property estimatedNextBlockBaseFee - An estimate of what the base fee will be for the pending/next block. A GWEI hex number
+ * @property estimatedBaseFee - An estimate of what the base fee will be for the pending/next block. A GWEI dec number
  */
 
 export interface GasFeeEstimates {
@@ -95,6 +130,7 @@ function isEIP1559Estimate(object: any): object is GasFeeEstimates {
 const metadata = {
   gasFeeEstimates: { persist: true, anonymous: false },
   estimatedGasFeeTimeBounds: { persist: true, anonymous: false },
+  gasEstimateType: { persist: true, anonymous: false },
 };
 
 /**
@@ -108,9 +144,11 @@ const metadata = {
 export type GasFeeState = {
   gasFeeEstimates:
     | GasFeeEstimates
+    | EthGasPriceEstimate
     | LegacyGasPriceEstimate
     | Record<string, never>;
   estimatedGasFeeTimeBounds: EstimatedGasFeeTimeBounds | Record<string, never>;
+  gasEstimateType: GasEstimateType;
 };
 
 const name = 'GasFeeController';
@@ -128,6 +166,7 @@ export type GetGasFeeState = {
 const defaultState = {
   gasFeeEstimates: {},
   estimatedGasFeeTimeBounds: {},
+  gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
 };
 
 /**
@@ -142,11 +181,15 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
 
   private fetchGasEstimates;
 
-  private fetchLegacyGasPriceEstimate;
+  private fetchEthGasPriceEstimate;
+
+  private fetchLegacyGasPriceEstimates;
 
   private getCurrentNetworkEIP1559Compatibility;
 
   private getCurrentAccountEIP1559Compatibility;
+
+  private getIsMainnet;
 
   private ethQuery: any;
 
@@ -159,9 +202,11 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     messenger,
     state,
     fetchGasEstimates = defaultFetchGasEstimates,
-    fetchLegacyGasPriceEstimate = defaultFetchLegacyGasPriceEstimate,
+    fetchEthGasPriceEstimate = defaultFetchEthGasPriceEstimate,
+    fetchLegacyGasPriceEstimates = defaultFetchLegacyGasPriceEstimates,
     getCurrentNetworkEIP1559Compatibility,
     getCurrentAccountEIP1559Compatibility,
+    getIsMainnet,
     getProvider,
     onNetworkStateChange,
   }: {
@@ -175,9 +220,11 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     >;
     state?: Partial<GasFeeState>;
     fetchGasEstimates?: typeof defaultFetchGasEstimates;
-    fetchLegacyGasPriceEstimate?: typeof defaultFetchLegacyGasPriceEstimate;
+    fetchEthGasPriceEstimate?: typeof defaultFetchEthGasPriceEstimate;
+    fetchLegacyGasPriceEstimates?: typeof defaultFetchLegacyGasPriceEstimates;
     getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
     getCurrentAccountEIP1559Compatibility?: () => boolean;
+    getIsMainnet: () => boolean;
     getProvider: () => NetworkController['provider'];
     onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
   }) {
@@ -189,10 +236,12 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     });
     this.intervalDelay = interval;
     this.fetchGasEstimates = fetchGasEstimates;
-    this.fetchLegacyGasPriceEstimate = fetchLegacyGasPriceEstimate;
+    this.fetchEthGasPriceEstimate = fetchEthGasPriceEstimate;
+    this.fetchLegacyGasPriceEstimates = fetchLegacyGasPriceEstimates;
     this.pollTokens = new Set();
     this.getCurrentNetworkEIP1559Compatibility = getCurrentNetworkEIP1559Compatibility;
     this.getCurrentAccountEIP1559Compatibility = getCurrentAccountEIP1559Compatibility;
+    this.getIsMainnet = getIsMainnet;
 
     const provider = getProvider();
     this.ethQuery = new EthQuery(provider);
@@ -226,15 +275,30 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
    * @returns GasFeeEstimates
    */
   async _fetchGasFeeEstimateData(): Promise<GasFeeState | undefined> {
-    let estimates;
+    let estimates: GasFeeState['gasFeeEstimates'];
     let estimatedGasFeeTimeBounds = {};
     let isEIP1559Compatible;
+    let gasEstimateType: GasEstimateType = GAS_ESTIMATE_TYPES.NONE;
+    const isMainnet = this.getIsMainnet();
     try {
       isEIP1559Compatible = await this.getEIP1559Compatibility();
     } catch (e) {
       console.error(e);
       isEIP1559Compatible = false;
     }
+
+    const tryEthGasPrice = async () => {
+      try {
+        return {
+          estimates: await this.fetchEthGasPriceEstimate(this.ethQuery),
+          gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
+        };
+      } catch (error) {
+        throw new Error(
+          `Gas fee/price estimation failed. Message: ${error.message}`,
+        );
+      }
+    };
 
     if (isEIP1559Compatible) {
       try {
@@ -247,28 +311,32 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
           suggestedMaxPriorityFeePerGas,
           suggestedMaxFeePerGas,
         );
+        gasEstimateType = GAS_ESTIMATE_TYPES.FEE_MARKET;
       } catch (error) {
-        try {
-          estimates = await this.fetchLegacyGasPriceEstimate(this.ethQuery);
-        } catch (error2) {
-          throw new Error(
-            `Gas fee/price estimation failed. Message: ${error2.message}`,
-          );
-        }
+        const result = await tryEthGasPrice();
+        estimates = result.estimates;
+        gasEstimateType = result.gasEstimateType;
+      }
+    } else if (isMainnet) {
+      try {
+        estimates = await this.fetchLegacyGasPriceEstimates();
+        gasEstimateType = GAS_ESTIMATE_TYPES.LEGACY;
+      } catch (error) {
+        console.log(error);
+        const result = await tryEthGasPrice();
+        estimates = result.estimates;
+        gasEstimateType = result.gasEstimateType;
       }
     } else {
-      try {
-        estimates = await this.fetchLegacyGasPriceEstimate(this.ethQuery);
-      } catch (error2) {
-        throw new Error(
-          `Gas fee/price estimation failed. Message: ${error2.message}`,
-        );
-      }
+      const result = await tryEthGasPrice();
+      estimates = result.estimates;
+      gasEstimateType = result.gasEstimateType;
     }
 
     const newState: GasFeeState = {
       gasFeeEstimates: estimates,
       estimatedGasFeeTimeBounds,
+      gasEstimateType,
     };
 
     this.update(() => {
