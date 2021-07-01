@@ -2,28 +2,28 @@ import { stub } from 'sinon';
 import nock from 'nock';
 import { PreferencesController } from '../user/PreferencesController';
 import { NetworkController } from '../network/NetworkController';
-import TokenRatesController, { Token } from './TokenRatesController';
+import TokenRatesController from './TokenRatesController';
 import { AssetsController } from './AssetsController';
 import { AssetsContractController } from './AssetsContractController';
-import CurrencyRateController from './CurrencyRateController';
 
 const COINGECKO_HOST = 'https://api.coingecko.com';
 const COINGECKO_PATH = '/api/v3/simple/token_price/ethereum';
+const ADDRESS = '0x01';
 
 describe('TokenRatesController', () => {
   beforeEach(() => {
     nock(COINGECKO_HOST)
       .get(
-        `${COINGECKO_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,0xfoO&vs_currencies=eth`,
+        `${COINGECKO_PATH}?contract_addresses=0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359,${ADDRESS}&vs_currencies=eth`,
       )
       .reply(200, {
         '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359': { eth: 0.00561045 },
       })
-      .get(`${COINGECKO_PATH}?contract_addresses=0xfoO&vs_currencies=eth`)
+      .get(`${COINGECKO_PATH}?contract_addresses=${ADDRESS}&vs_currencies=eth`)
       .reply(200, {})
       .get(`${COINGECKO_PATH}?contract_addresses=bar&vs_currencies=eth`)
       .reply(200, {})
-      .get(`${COINGECKO_PATH}?contract_addresses=0xfoO&vs_currencies=gno`)
+      .get(`${COINGECKO_PATH}?contract_addresses=${ADDRESS}&vs_currencies=gno`)
       .reply(200, {})
       .persist();
 
@@ -130,21 +130,18 @@ describe('TokenRatesController', () => {
         assetsContract,
       ),
     });
-    const currencyRate = new CurrencyRateController();
     const controller = new TokenRatesController(
       {
         onAssetsStateChange: (listener) => assets.subscribe(listener),
-        onCurrencyRateStateChange: (listener) =>
-          currencyRate.subscribe(listener),
+        onCurrencyRateStateChange: stub(),
       },
       { interval: 10 },
     );
     const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
-    const address2 = '0xfoO';
     expect(controller.state.contractExchangeRates).toStrictEqual({});
     controller.tokens = [
       { address, decimals: 18, symbol: 'DAI' },
-      { address: address2, decimals: 0, symbol: '' },
+      { address: ADDRESS, decimals: 0, symbol: '' },
     ];
     await controller.updateExchangeRates();
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(
@@ -152,9 +149,9 @@ describe('TokenRatesController', () => {
     );
     expect(controller.state.contractExchangeRates[address]).toBeGreaterThan(0);
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(
-      address2,
+      ADDRESS,
     );
-    expect(controller.state.contractExchangeRates[address2]).toStrictEqual(0);
+    expect(controller.state.contractExchangeRates[ADDRESS]).toStrictEqual(0);
   });
 
   it('should handle balance not found in API', async () => {
@@ -173,33 +170,43 @@ describe('TokenRatesController', () => {
     expect(mock).not.toThrow();
   });
 
-  it('should subscribe to new sibling assets controllers', async () => {
-    const assetsContract = new AssetsContractController();
-    const network = new NetworkController();
-    const preferences = new PreferencesController();
-    const assets = new AssetsController({
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) => network.subscribe(listener),
-      getAssetName: assetsContract.getAssetName.bind(assetsContract),
-      getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
-      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
-        assetsContract,
-      ),
+  it('should update exchange rates when assets change', async () => {
+    let assetStateChangeListener: (state: any) => void;
+    const onAssetsStateChange = stub().callsFake((listener) => {
+      assetStateChangeListener = listener;
     });
-    const currencyRate = new CurrencyRateController();
+    const onCurrencyRateStateChange = stub();
     const controller = new TokenRatesController(
       {
-        onAssetsStateChange: (listener) => assets.subscribe(listener),
-        onCurrencyRateStateChange: (listener) =>
-          currencyRate.subscribe(listener),
+        onAssetsStateChange,
+        onCurrencyRateStateChange,
       },
       { interval: 10 },
     );
-    await assets.addToken('0xfoO', 'FOO', 18);
-    currencyRate.update({ nativeCurrency: 'gno' });
-    const { tokens } = assets.state;
-    const found = tokens.filter((token: Token) => token.address === '0xfoO');
-    expect(found.length > 0).toBe(true);
-    expect(controller.config.nativeCurrency).toStrictEqual('gno');
+
+    const updateExchangeRatesStub = stub(controller, 'updateExchangeRates');
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    assetStateChangeListener!({ tokens: [] });
+    expect(updateExchangeRatesStub.callCount).toStrictEqual(1);
+  });
+
+  it('should update exchange rates when native currency changes', async () => {
+    let currencyRateStateChangeListener: (state: any) => void;
+    const onAssetsStateChange = stub();
+    const onCurrencyRateStateChange = stub().callsFake((listener) => {
+      currencyRateStateChangeListener = listener;
+    });
+    const controller = new TokenRatesController(
+      {
+        onAssetsStateChange,
+        onCurrencyRateStateChange,
+      },
+      { interval: 10 },
+    );
+
+    const updateExchangeRatesStub = stub(controller, 'updateExchangeRates');
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    currencyRateStateChangeListener!({ nativeCurrency: 'dai' });
+    expect(updateExchangeRatesStub.callCount).toStrictEqual(1);
   });
 });

@@ -1,33 +1,115 @@
-import { toChecksumAddress } from 'ethereumjs-util';
-import contractMap from '@metamask/contract-metadata';
 import BaseController, { BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
-import { safelyExecute, timeoutFetch } from '../util';
-import type { AssetsController, AssetsState } from './AssetsController';
+import { safelyExecute, timeoutFetch, toChecksumHexAddress } from '../util';
+import { MAINNET } from '../constants';
+import type {
+  AssetsController,
+  AssetsState,
+  CollectibleMetadata,
+} from './AssetsController';
 import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
+import { TokenListState } from './TokenListController';
 
 const DEFAULT_INTERVAL = 180000;
-const MAINNET = 'mainnet';
 
 /**
- * @type ApiCollectibleResponse
+ * @type ApiCollectible
  *
  * Collectible object coming from OpenSea api
  *
  * @property token_id - The collectible identifier
- * @property image_original_url - URI of collectible image associated with this collectible
+ * @property num_sales - Number of sales
+ * @property background_color - The background color to be displayed with the item
+ * @property image_url - URI of an image associated with this collectible
+ * @property image_preview_url - URI of a smaller image associated with this collectible
+ * @property image_thumbnail_url - URI of a thumbnail image associated with this collectible
+ * @property image_original_url - URI of the original image associated with this collectible
+ * @property animation_url - URI of a animation associated with this collectible
+ * @property animation_original_url - URI of the original animation associated with this collectible
  * @property name - The collectible name
  * @property description - The collectible description
- * @property assetContract - The collectible contract basic information, in this case the address
+ * @property external_link - External link containing additional information
+ * @property assetContract - The collectible contract information object
+ * @property creator - The collectible owner information object
+ * @property lastSale - When this item was last sold
  */
-export interface ApiCollectibleResponse {
+export interface ApiCollectible {
   token_id: string;
-  image_original_url: string;
-  name: string;
-  description: string;
-  asset_contract: { [address: string]: string };
+  num_sales: number | null;
+  background_color: string | null;
+  image_url: string | null;
+  image_preview_url: string | null;
+  image_thumbnail_url: string | null;
+  image_original_url: string | null;
+  animation_url: string | null;
+  animation_original_url: string | null;
+  name: string | null;
+  description: string | null;
+  external_link: string | null;
+  asset_contract: ApiCollectibleContract;
+  creator: ApiCollectibleCreator;
+  last_sale: ApiCollectibleLastSale | null;
+}
+
+/**
+ * @type ApiCollectibleContract
+ *
+ * Collectible contract object coming from OpenSea api
+ *
+ * @property address - Address of the collectible contract
+ * @property asset_contract_type - The collectible type, it could be `semi-fungible` or `non-fungible`
+ * @property created_date - Creation date
+ * @property name - The collectible contract name
+ * @property schema_name - The schema followed by the contract, it could be `ERC721` or `ERC1155`
+ * @property symbol - The collectible contract symbol
+ * @property total_supply - Total supply of collectibles
+ * @property description - The collectible contract description
+ * @property external_link - External link containing additional information
+ * @property image_url - URI of an image associated with this collectible contract
+ */
+export interface ApiCollectibleContract {
+  address: string;
+  asset_contract_type: string | null;
+  created_date: string | null;
+  name: string | null;
+  schema_name: string | null;
+  symbol: string | null;
+  total_supply: string | null;
+  description: string | null;
+  external_link: string | null;
+  image_url: string | null;
+}
+
+/**
+ * @type ApiCollectibleLastSale
+ *
+ * Collectible sale object coming from OpenSea api
+ *
+ * @property event_timestamp - Object containing a `username`
+ * @property total_price - URI of collectible image associated with this owner
+ * @property transaction - Object containing transaction_hash and block_hash
+ */
+export interface ApiCollectibleLastSale {
+  event_timestamp: string;
+  total_price: string;
+  transaction: { transaction_hash: string; block_hash: string };
+}
+
+/**
+ * @type ApiCollectibleCreator
+ *
+ * Collectible creator object coming from OpenSea api
+ *
+ * @property user - Object containing a `username`
+ * @property profile_img_url - URI of collectible image associated with this owner
+ * @property address - The owner address
+ */
+export interface ApiCollectibleCreator {
+  user: { username: string };
+  profile_img_url: string;
+  address: string;
 }
 
 /**
@@ -100,6 +182,8 @@ export class AssetsDetectionController extends BaseController<
 
   private getAssetsState: () => AssetsState;
 
+  private getTokenListState: () => TokenListState;
+
   /**
    * Creates a AssetsDetectionController instance
    *
@@ -125,6 +209,7 @@ export class AssetsDetectionController extends BaseController<
       addTokens,
       addCollectible,
       getAssetsState,
+      getTokenListState,
     }: {
       onAssetsStateChange: (
         listener: (assetsState: AssetsState) => void,
@@ -140,6 +225,7 @@ export class AssetsDetectionController extends BaseController<
       addTokens: AssetsController['addTokens'];
       addCollectible: AssetsController['addCollectible'];
       getAssetsState: () => AssetsState;
+      getTokenListState: () => TokenListState;
     },
     config?: Partial<AssetsDetectionConfig>,
     state?: Partial<BaseState>,
@@ -147,12 +233,13 @@ export class AssetsDetectionController extends BaseController<
     super(config, state);
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
-      networkType: 'mainnet',
+      networkType: MAINNET,
       selectedAddress: '',
       tokens: [],
     };
     this.initialize();
     this.getAssetsState = getAssetsState;
+    this.getTokenListState = getTokenListState;
     this.addTokens = addTokens;
     onAssetsStateChange(({ tokens }) => {
       this.configure({ tokens });
@@ -219,13 +306,13 @@ export class AssetsDetectionController extends BaseController<
     if (!this.isMainnet()) {
       return;
     }
-    const tokensAddresses = this.config.tokens.filter(
-      /* istanbul ignore next*/ (token) => token.address,
+    const tokensAddresses = this.config.tokens.map(
+      /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
+    const { tokenList } = this.getTokenListState();
     const tokensToDetect: string[] = [];
-    for (const address in contractMap) {
-      const contract = contractMap[address];
-      if (contract.erc20 && !(address in tokensAddresses)) {
+    for (const address in tokenList) {
+      if (!tokensAddresses.includes(address)) {
         tokensToDetect.push(address);
       }
     }
@@ -247,14 +334,14 @@ export class AssetsDetectionController extends BaseController<
         const { ignoredTokens } = this.getAssetsState();
         if (ignoredTokens.length) {
           ignored = ignoredTokens.find(
-            (token) => token.address === toChecksumAddress(tokenAddress),
+            (token) => token.address === toChecksumHexAddress(tokenAddress),
           );
         }
         if (!ignored) {
           tokensToAdd.push({
             address: tokenAddress,
-            decimals: contractMap[tokenAddress].decimals,
-            symbol: contractMap[tokenAddress].symbol,
+            decimals: tokenList[tokenAddress].decimals,
+            symbol: tokenList[tokenAddress].symbol,
           });
         }
       }
@@ -273,21 +360,32 @@ export class AssetsDetectionController extends BaseController<
     if (!this.isMainnet()) {
       return;
     }
-    const { selectedAddress } = this.config;
+    const requestedSelectedAddress = this.config.selectedAddress;
+
     /* istanbul ignore else */
-    if (!selectedAddress) {
+    if (!requestedSelectedAddress) {
       return;
     }
     await safelyExecute(async () => {
       const apiCollectibles = await this.getOwnerCollectibles();
       const addCollectiblesPromises = apiCollectibles.map(
-        async (collectible: ApiCollectibleResponse) => {
+        async (collectible: ApiCollectible) => {
           const {
             token_id,
+            num_sales,
+            background_color,
+            image_url,
+            image_preview_url,
+            image_thumbnail_url,
             image_original_url,
+            animation_url,
+            animation_original_url,
             name,
             description,
+            external_link,
+            creator,
             asset_contract: { address },
+            last_sale,
           } = collectible;
 
           let ignored;
@@ -297,21 +395,39 @@ export class AssetsDetectionController extends BaseController<
             ignored = ignoredCollectibles.find((c) => {
               /* istanbul ignore next */
               return (
-                c.address === toChecksumAddress(address) &&
+                c.address === toChecksumHexAddress(address) &&
                 c.tokenId === Number(token_id)
               );
             });
           }
           /* istanbul ignore else */
-          if (!ignored) {
+          if (
+            !ignored &&
+            requestedSelectedAddress === this.config.selectedAddress
+          ) {
+            /* istanbul ignore next */
+            const collectibleMetadata: CollectibleMetadata = Object.assign(
+              {},
+              { name },
+              creator && { creator },
+              description && { description },
+              image_url && { image: image_url },
+              num_sales && { numberOfSales: num_sales },
+              background_color && { backgroundColor: background_color },
+              image_preview_url && { imagePreview: image_preview_url },
+              image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
+              image_original_url && { imageOriginal: image_original_url },
+              animation_url && { animation: animation_url },
+              animation_original_url && {
+                animationOriginal: animation_original_url,
+              },
+              external_link && { externalLink: external_link },
+              last_sale && { lastSale: last_sale },
+            );
             await this.addCollectible(
               address,
               Number(token_id),
-              {
-                description,
-                image: image_original_url,
-                name,
-              },
+              collectibleMetadata,
               true,
             );
           }

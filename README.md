@@ -35,10 +35,12 @@ import {
 
 const datamodel = new ComposableController([
   new NetworkController(),
-  new TokenRatesController()
+  new TokenRatesController(),
 ]);
 
-datamodel.subscribe((state) => {/* data model has changed */});
+datamodel.subscribe((state) => {
+  /* data model has changed */
+});
 ```
 
 ## Modules
@@ -158,14 +160,14 @@ const controller = new Controller(<initial_config>, <initial_state>)
 A controller can also be configured (or reconfigured) after initialization by passing a configuration object to its `configure` method:
 
 ```ts
-const controller = new Controller()
+const controller = new Controller();
 controller.configure({ foo: 'bar', baz: 'qux' });
 ```
 
 Regardless of how a controller is configured, whether it's during or after initialization, configuration options can always be accessed on a controller as instance variables for convenience:
 
 ```ts
-const controller = new Controller()
+const controller = new Controller();
 controller.configure({ foo: 'bar', baz: 'qux' });
 console.log(controller.foo, controller.baz); // "bar qux"
 ```
@@ -198,7 +200,9 @@ Since each controller maintains an internal state object, there should be a way 
 Change handlers can be registered with a controller by passing a function to its `subscribe` method. This function will be called anytime the controller's underlying state changes and will be passed the current state as its only function argument:
 
 ```ts
-function onChange(state) { /* state data changed */ }
+function onChange(state) {
+  /* state data changed */
+}
 const controller = new Controller();
 controller.subscribe(onChange);
 ```
@@ -206,7 +210,9 @@ controller.subscribe(onChange);
 Change handlers can be removed from a controller by passing a function to its `unsubscribe` method. Any function passed to `unsubscribe` will be removed from the internal list of handlers and will no longer be called when state data changes:
 
 ```ts
-function onChange(state) { /* state data changed */ }
+function onChange(state) {
+  /* state data changed */
+}
 const controller = new Controller();
 controller.subscribe(onChange);
 // ...
@@ -223,19 +229,21 @@ The ComposableController is initialized by passing an array of controller instan
 import {
   ComposableController,
   NetworkController,
-  TokenRatesController
+  TokenRatesController,
 } from '@metamask/controllers';
 
 const datamodel = new ComposableController([
   new NetworkController(),
-  new TokenRatesController()
+  new TokenRatesController(),
 ]);
 ```
 
 The resulting composed controller exposes the same APIs as every other controller for configuration, state management, and subscription:
 
 ```ts
-datamodel.subscribe((state) => { /* some child state has changed */ });
+datamodel.subscribe((state) => {
+  /* some child state has changed */
+});
 ```
 
 The internal state maintained by a ComposableController will be keyed by child controller class name. It's also possible to access the `flatState` instance variable that is a convenience accessor for merged child state:
@@ -245,46 +253,42 @@ console.log(datamodel.state); // {NetworkController: {...}, TokenRatesController
 console.log(datamodel.flatState); // {infura: {...}, contractExchangeRates: [...]}
 ```
 
-## Linking during development
+## Contributing
+
+### Setup
+
+- Install [Node.js](https://nodejs.org) version 12
+  - If you are using [nvm](https://github.com/creationix/nvm#installation) (recommended) running `nvm use` will automatically choose the right node version for you.
+- Install [Yarn v1](https://yarnpkg.com/en/docs/install)
+- Run `yarn setup` to install dependencies and run any requried post-install scripts
+  - **Warning:** Do not use the `yarn` / `yarn install` command directly. Use `yarn setup` instead. The normal install command will skip required post-install scripts, leaving your development environment in an invalid state.
+
+### Testing and Linting
+
+Run `yarn test` to run the tests once. To run tests on file changes, run `yarn test:watch`.
+
+Run `yarn lint` to run the linter, or run `yarn lint:fix` to run the linter and fix any automatically fixable issues.
+
+### Linking During Development
 
 Linking `@metamask/controllers` into other projects involves a special NPM command to ensure that dependencies are not duplicated. This is because `@metamask/controllers` ships modules that are transpiled but not bundled, and [NPM does not deduplicate](https://github.com/npm/npm/issues/7742) linked dependency trees.
 
-First, link `@metamask/controllers`.
+First, `yarn build:link` in this repository, then link `@metamask/controllers` by running `yarn link` in the consumer repository.
 
-```sh
-$ yarn build:link
-# or
-$ npm run build:link
-```
-
-Then, link into other projects.
-
-```sh
-$ yarn link @metamask/controllers
-# or
-$ npm link @metamask/controllers
-```
-
-## Release & Publishing
+### Release & Publishing
 
 The project follows the same release process as the other libraries in the MetaMask organization:
 
 1. Create a release branch
-    - For a typical release, this would be based on `master`
-    - To update an older maintained major version, base the release branch on the major version branch (e.g. `1.x`)
+   - For a typical release, this would be based on `main`
+   - To update an older maintained major version, base the release branch on the major version branch (e.g. `1.x`)
 2. Update the changelog
 3. Update version in package.json file (e.g. `yarn version --minor --no-git-tag-version`)
-4. Create a pull request targeting the base branch (e.g. master or 1.x)
+4. Create a pull request targeting the base branch (e.g. `main` or `1.x`)
 5. Code review and QA
 6. Once approved, the PR is squashed & merged
 7. The commit on the base branch is tagged
 8. The tag can be published as needed
-
-## API documentation
-
-API documentation is auto-generated for the `@metamask/controllers` package on every commit to the `master` branch.
-
-[View API documentation](https://metamask.github.io/@metamask/controllers/)
 
 ## License
 

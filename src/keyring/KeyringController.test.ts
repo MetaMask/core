@@ -1,4 +1,4 @@
-import * as ethUtil from 'ethereumjs-util';
+import { bufferToHex } from 'ethereumjs-util';
 import {
   recoverPersonalSignature,
   recoverTypedSignature,
@@ -6,7 +6,8 @@ import {
   recoverTypedSignatureLegacy,
 } from 'eth-sig-util';
 import { stub } from 'sinon';
-import Transaction from 'ethereumjs-tx';
+import Common from '@ethereumjs/common';
+import { TransactionFactory } from '@ethereumjs/tx';
 import MockEncryptor from '../../tests/mocks/mockEncryptor';
 import PreferencesController from '../user/PreferencesController';
 import KeyringController, {
@@ -27,6 +28,8 @@ const seedWords =
 const privateKey =
   '1e4e6a4c0c077f4ae8ddfbf372918e61dd0fb4a4cfa592cb16e7546d505e68fc';
 const password = 'password123';
+
+const commonConfig = { chain: 'rinkeby', hardfork: 'berlin' };
 
 describe('KeyringController', () => {
   let keyringController: KeyringController;
@@ -152,7 +155,9 @@ describe('KeyringController', () => {
       error2 = e;
     }
     expect(error1.message).toBe('Cannot import an empty key.');
-    expect(error2.message).toBe('Cannot import invalid private key.');
+    expect(error2.message).toBe(
+      'Expected private key to be an Uint8Array with length 32',
+    );
     const address = '0x51253087e6f8358b5f10c0a94315d69db3357859';
     const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
     const obj = await keyringController.importAccountWithStrategy(
@@ -230,7 +235,7 @@ describe('KeyringController', () => {
   });
 
   it('should sign personal message', async () => {
-    const data = ethUtil.bufferToHex(Buffer.from('Hello from test', 'utf8'));
+    const data = bufferToHex(Buffer.from('Hello from test', 'utf8'));
     const account = initialState.keyrings[0].accounts[0];
     const signature = await keyringController.signPersonalMessage({
       data,
@@ -430,7 +435,7 @@ describe('KeyringController', () => {
 
   it('should sign transaction', async () => {
     const account = initialState.keyrings[0].accounts[0];
-    const transaction = {
+    const txParams = {
       chainId: 3,
       data: '0x1',
       from: account,
@@ -439,12 +444,17 @@ describe('KeyringController', () => {
       to: '0x51253087e6f8358b5f10c0a94315d69db3357859',
       value: '0x5208',
     };
-    const ethTransaction = new Transaction({ ...transaction });
-    const signature = await keyringController.signTransaction(
-      ethTransaction,
+    const unsignedEthTx = TransactionFactory.fromTxData(txParams, {
+      common: new Common(commonConfig),
+      freeze: false,
+    });
+    expect(unsignedEthTx.v).toBeUndefined();
+    const signedTx = await keyringController.signTransaction(
+      unsignedEthTx,
       account,
     );
-    expect(signature).not.toBe('');
+    expect(signedTx.v).not.toBeUndefined();
+    expect(signedTx).not.toBe('');
   });
 
   it('should submit password and decrypt', async () => {

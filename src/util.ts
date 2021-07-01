@@ -1,4 +1,11 @@
-import { addHexPrefix, isValidAddress, bufferToHex, BN } from 'ethereumjs-util';
+import {
+  addHexPrefix,
+  isValidAddress,
+  isHexString,
+  bufferToHex,
+  BN,
+  toChecksumAddress,
+} from 'ethereumjs-util';
 import { stripHexPrefix } from 'ethjs-util';
 import { ethErrors } from 'eth-rpc-errors';
 import ensNamehash from 'eth-ens-namehash';
@@ -12,6 +19,7 @@ import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
+import { MAINNET } from './constants';
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 
@@ -99,7 +107,7 @@ export function getEtherscanApiUrl(
   etherscanApiKey?: string,
 ): string {
   let etherscanSubdomain = 'api';
-  if (networkType !== 'mainnet') {
+  if (networkType !== MAINNET) {
     etherscanSubdomain = `api-${networkType}`;
   }
   const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
@@ -271,6 +279,46 @@ export async function safelyExecuteWithTimeout(
   }
 }
 
+export function toChecksumHexAddress(address: string) {
+  const hexPrefixed = addHexPrefix(address);
+  if (!isHexString(hexPrefixed)) {
+    // Version 5.1 of ethereumjs-utils would have returned '0xY' for input 'y'
+    // but we shouldn't waste effort trying to change case on a clearly invalid
+    // string. Instead just return the hex prefixed original string which most
+    // closely mimics the original behavior.
+    return hexPrefixed;
+  }
+  return toChecksumAddress(hexPrefixed);
+}
+
+/**
+ * Validates that the input is a hex address. This utility method is a thin
+ * wrapper around ethereumjs-util.isValidAddress, with the exception that it
+ * does not throw an error when provided values that are not hex strings. In
+ * addition, and by default, this method will return true for hex strings that
+ * meet the length requirement of a hex address, but are not prefixed with `0x`
+ * Finally, if the mixedCaseUseChecksum flag is true and a mixed case string is
+ * provided this method will validate it has the proper checksum formatting.
+ * @param {string} possibleAddress - Input parameter to check against
+ * @param {Object} [options] - options bag
+ * @param {boolean} [options.allowNonPrefixed] - If true will first ensure '0x'
+ *  is prepended to the string
+ * @returns {boolean} whether or not the input is a valid hex address
+ */
+export function isValidHexAddress(
+  possibleAddress: string,
+  { allowNonPrefixed = true } = {},
+) {
+  const addressToCheck = allowNonPrefixed
+    ? addHexPrefix(possibleAddress)
+    : possibleAddress;
+  if (!isHexString(addressToCheck)) {
+    return false;
+  }
+
+  return isValidAddress(addressToCheck);
+}
+
 /**
  * Validates a Transaction object for required properties and throws in
  * the event of any validation error.
@@ -281,7 +329,7 @@ export function validateTransaction(transaction: Transaction) {
   if (
     !transaction.from ||
     typeof transaction.from !== 'string' ||
-    !isValidAddress(transaction.from)
+    !isValidHexAddress(transaction.from)
   ) {
     throw new Error(
       `Invalid "from" address: ${transaction.from} must be a valid string.`,
@@ -295,7 +343,10 @@ export function validateTransaction(transaction: Transaction) {
         `Invalid "to" address: ${transaction.to} must be a valid string.`,
       );
     }
-  } else if (transaction.to !== undefined && !isValidAddress(transaction.to)) {
+  } else if (
+    transaction.to !== undefined &&
+    !isValidHexAddress(transaction.to)
+  ) {
     throw new Error(
       `Invalid "to" address: ${transaction.to} must be a valid string.`,
     );
@@ -353,19 +404,12 @@ export function normalizeMessageData(data: string) {
 export function validateSignMessageData(
   messageData: PersonalMessageParams | MessageParams,
 ) {
-  if (
-    !messageData.from ||
-    typeof messageData.from !== 'string' ||
-    !isValidAddress(messageData.from)
-  ) {
-    throw new Error(
-      `Invalid "from" address: ${messageData.from} must be a valid string.`,
-    );
+  const { from, data } = messageData;
+  if (!from || typeof from !== 'string' || !isValidHexAddress(from)) {
+    throw new Error(`Invalid "from" address: ${from} must be a valid string.`);
   }
-  if (!messageData.data || typeof messageData.data !== 'string') {
-    throw new Error(
-      `Invalid message "data": ${messageData.data} must be a valid string.`,
-    );
+  if (!data || typeof data !== 'string') {
+    throw new Error(`Invalid message "data": ${data} must be a valid string.`);
   }
 }
 
@@ -382,7 +426,7 @@ export function validateTypedSignMessageDataV1(
   if (
     !messageData.from ||
     typeof messageData.from !== 'string' ||
-    !isValidAddress(messageData.from)
+    !isValidHexAddress(messageData.from)
   ) {
     throw new Error(
       `Invalid "from" address: ${messageData.from} must be a valid string.`,
@@ -413,7 +457,7 @@ export function validateTypedSignMessageDataV3(
   if (
     !messageData.from ||
     typeof messageData.from !== 'string' ||
-    !isValidAddress(messageData.from)
+    !isValidHexAddress(messageData.from)
   ) {
     throw new Error(
       `Invalid "from" address: ${messageData.from} must be a valid string.`,
@@ -464,7 +508,7 @@ export function validateTokenToWatch(token: Token) {
       `Invalid decimals "${decimals}": must be 0 <= 36.`,
     );
   }
-  if (!isValidAddress(address)) {
+  if (!isValidHexAddress(address)) {
     throw ethErrors.rpc.invalidParams(`Invalid address "${address}".`);
   }
 }

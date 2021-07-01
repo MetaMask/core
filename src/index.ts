@@ -8,7 +8,18 @@ export * from './assets/AssetsContractController';
 export * from './assets/AssetsController';
 export * from './assets/AssetsDetectionController';
 export * from './BaseController';
+export {
+  BaseController as BaseControllerV2,
+  getPersistentState,
+  getAnonymizedState,
+  IsJsonable,
+  Json,
+  StateDeriver,
+  StateMetadata,
+  StatePropertyMetadata,
+} from './BaseControllerV2';
 export * from './ComposableController';
+export * from './ControllerMessenger';
 export * from './assets/CurrencyRateController';
 export * from './keyring/KeyringController';
 export * from './message-manager/MessageManager';
@@ -21,4 +32,5 @@ export * from './transaction/TransactionController';
 export * from './message-manager/PersonalMessageManager';
 export * from './message-manager/TypedMessageManager';
 export * from './notification/NotificationController';
+export * from './assets/TokenListController';
 export { util };

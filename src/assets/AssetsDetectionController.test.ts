@@ -6,9 +6,15 @@ import {
   NetworksChainId,
 } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
+import { ControllerMessenger } from '../ControllerMessenger';
 import { AssetsController } from './AssetsController';
 import { AssetsContractController } from './AssetsContractController';
 import { AssetsDetectionController } from './AssetsDetectionController';
+import {
+  TokenListController,
+  GetTokenListState,
+  TokenListStateChange,
+} from './TokenListController';
 
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
@@ -16,19 +22,97 @@ const ROPSTEN = 'ropsten';
 const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
 const OPEN_SEA_HOST = 'https://api.opensea.io';
 const OPEN_SEA_PATH = '/api/v1';
+const TOKEN_END_POINT_API = 'https://token-api.airswap-prod.codefi.network';
+const sampleTokenList = [
+  {
+    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
+    symbol: 'LINK',
+    decimals: 18,
+    occurrences: 11,
+    aggregators: [
+      'paraswap',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+    name: 'Chainlink',
+  },
+  {
+    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
+    symbol: 'BNT',
+    decimals: 18,
+    occurrences: 11,
+    aggregators: [
+      'paraswap',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+    name: 'Bancor',
+  },
+  {
+    address: '0x6810e776880c02933d47db1b9fc05908e5386b96',
+    symbol: 'GNO',
+    name: 'Gnosis',
+    decimals: 18,
+    occurrences: 10,
+    aggregators: [
+      'paraswap',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+  },
+];
+function getTokenListMessenger() {
+  const controllerMessenger = new ControllerMessenger<
+    GetTokenListState,
+    TokenListStateChange
+  >();
+  const messenger = controllerMessenger.getRestricted<
+    'TokenListController',
+    never,
+    never
+  >({
+    name: 'TokenListController',
+  });
+  return messenger;
+}
 
 describe('AssetsDetectionController', () => {
   let assetsDetection: AssetsDetectionController;
   let preferences: PreferencesController;
   let network: NetworkController;
   let assets: AssetsController;
+  let tokenList: TokenListController;
   let assetsContract: AssetsContractController;
   let getBalancesInSingleCall: SinonStub<
-    [AssetsContractController['getBalancesInSingleCall']]
+    Parameters<AssetsContractController['getBalancesInSingleCall']>,
+    ReturnType<AssetsContractController['getBalancesInSingleCall']>
   >;
   const sandbox = createSandbox();
 
-  beforeEach(() => {
+  beforeEach(async () => {
     preferences = new PreferencesController();
     network = new NetworkController();
     assetsContract = new AssetsContractController();
@@ -41,6 +125,17 @@ describe('AssetsDetectionController', () => {
         assetsContract,
       ),
     });
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .reply(200, sampleTokenList)
+      .persist();
+    const messenger = getTokenListMessenger();
+    tokenList = new TokenListController({
+      chainId: NetworksChainId.mainnet,
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      messenger,
+    });
+    await tokenList.start();
     getBalancesInSingleCall = sandbox.stub();
     assetsDetection = new AssetsDetectionController({
       onAssetsStateChange: (listener) => assets.subscribe(listener),
@@ -51,6 +146,7 @@ describe('AssetsDetectionController', () => {
       addTokens: assets.addTokens.bind(assets),
       addCollectible: assets.addCollectible.bind(assets),
       getAssetsState: () => assets.state,
+      getTokenListState: () => tokenList.state,
     });
 
     nock(OPEN_SEA_HOST)
@@ -82,7 +178,7 @@ describe('AssetsDetectionController', () => {
         total_supply: 0,
       })
       .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x1D963688FE2209A98db35c67A041524822cf04Hh`,
+        `${OPEN_SEA_PATH}/asset_contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`,
       )
       .reply(200, {
         description: 'Description HH',
@@ -92,11 +188,11 @@ describe('AssetsDetectionController', () => {
         total_supply: 10,
       })
       .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x1d963688FE2209A98db35c67A041524822CF04gg`,
+        `${OPEN_SEA_PATH}/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`,
       )
       .replyWithError(new TypeError('Failed to fetch'))
       .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x1D963688fe2209a98dB35c67a041524822Cf04ii`,
+        `${OPEN_SEA_PATH}/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
       )
       .replyWithError(new TypeError('Failed to fetch'))
       .get(`${OPEN_SEA_PATH}/assets?owner=0x1&limit=300`)
@@ -104,28 +200,43 @@ describe('AssetsDetectionController', () => {
         assets: [
           {
             asset_contract: {
-              address: '0x1d963688FE2209A98db35c67A041524822CF04gg',
+              address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
             },
             description: 'Description 2577',
-            image_original_url: 'image/2577.png',
+            image_url: 'image/2577.png',
             name: 'ID 2577',
             token_id: '2577',
           },
           {
             asset_contract: {
-              address: '0x1d963688FE2209A98db35c67A041524822CF04ii',
+              address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
             },
             description: 'Description 2578',
-            image_original_url: 'image/2578.png',
+            image_url: 'image/2578.png',
             name: 'ID 2578',
             token_id: '2578',
           },
           {
             asset_contract: {
-              address: '0x1d963688FE2209A98db35c67A041524822CF04hh',
+              address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
             },
             description: 'Description 2574',
-            image_original_url: 'image/2574.png',
+            image_url: 'image/2574.png',
+            name: 'ID 2574',
+            token_id: '2574',
+          },
+        ],
+      })
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x9&limit=300`)
+      .delay(800)
+      .reply(200, {
+        assets: [
+          {
+            asset_contract: {
+              address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+            },
+            description: 'Description 2574',
+            image_url: 'image/2574.png',
             name: 'ID 2574',
             token_id: '2574',
           },
@@ -136,6 +247,7 @@ describe('AssetsDetectionController', () => {
   afterEach(() => {
     nock.cleanAll();
     sandbox.reset();
+    tokenList.destroy();
   });
 
   it('should set default config', () => {
@@ -170,6 +282,7 @@ describe('AssetsDetectionController', () => {
           addTokens: assets.addTokens.bind(assets),
           addCollectible: assets.addCollectible.bind(assets),
           getAssetsState: () => assets.state,
+          getTokenListState: () => tokenList.state,
         },
         { interval: 10 },
       );
@@ -215,6 +328,7 @@ describe('AssetsDetectionController', () => {
           addTokens: assets.addTokens.bind(assets),
           addCollectible: assets.addCollectible.bind(assets),
           getAssetsState: () => assets.state,
+          getTokenListState: () => tokenList.state,
         },
         { interval: 10, networkType: ROPSTEN },
       );
@@ -231,7 +345,7 @@ describe('AssetsDetectionController', () => {
     await assetsDetection.detectCollectibles();
     expect(assets.state.collectibles).toStrictEqual([
       {
-        address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+        address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
         description: 'Description 2574',
         image: 'image/2574.png',
         name: 'ID 2574',
@@ -243,7 +357,7 @@ describe('AssetsDetectionController', () => {
   it('should detect, add collectibles and do nor remove not detected collectibles correctly', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     await assets.addCollectible(
-      '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+      '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       2573,
       {
         description: 'Description 2573',
@@ -254,14 +368,14 @@ describe('AssetsDetectionController', () => {
     await assetsDetection.detectCollectibles();
     expect(assets.state.collectibles).toStrictEqual([
       {
-        address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+        address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
         description: 'Description 2573',
         image: 'image/2573.png',
         name: 'ID 2573',
         tokenId: 2573,
       },
       {
-        address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+        address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
         description: 'Description 2574',
         image: 'image/2574.png',
         name: 'ID 2574',
@@ -290,30 +404,44 @@ describe('AssetsDetectionController', () => {
     expect(assets.state.collectibles).toStrictEqual([]);
   });
 
+  it('should not detect and add collectibles to the wrong selectedAddress', async () => {
+    assetsDetection.configure({
+      networkType: MAINNET,
+      selectedAddress: '0x9',
+    });
+    assets.configure({ selectedAddress: '0x9' });
+    assetsDetection.detectCollectibles();
+    assetsDetection.configure({ selectedAddress: '0x12' });
+    assets.configure({ selectedAddress: '0x12' });
+    await new Promise((res) => setTimeout(() => res(true), 1000));
+    expect(assetsDetection.config.selectedAddress).toStrictEqual('0x12');
+    expect(assets.state.collectibles).toStrictEqual([]);
+  });
+
   it('should not add collectible if collectible or collectible contract has no information to display', async () => {
     const collectibleHH2574 = {
-      address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+      address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       description: 'Description 2574',
       image: 'image/2574.png',
       name: 'ID 2574',
       tokenId: 2574,
     };
     const collectibleGG2574 = {
-      address: '0x1d963688FE2209A98db35c67A041524822CF04gg',
+      address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
       description: 'Description 2574',
       image: 'image/2574.png',
       name: 'ID 2574',
       tokenId: 2574,
     };
     const collectibleII2577 = {
-      address: '0x1D963688fe2209a98dB35c67a041524822Cf04ii',
+      address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
       description: 'Description 2577',
       image: 'image/2577.png',
       name: 'ID 2577',
       tokenId: 2577,
     };
     const collectibleContractHH = {
-      address: '0x1D963688FE2209A98db35c67A041524822cf04Hh',
+      address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       description: 'Description HH',
       logo: 'url HH',
       name: 'Name HH',
@@ -321,7 +449,7 @@ describe('AssetsDetectionController', () => {
       totalSupply: 10,
     };
     const collectibleContractGG = {
-      address: '0x1d963688FE2209A98db35c67A041524822CF04gg',
+      address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
       description: 'Description GG',
       logo: 'url GG',
       name: 'Name GG',
@@ -329,7 +457,7 @@ describe('AssetsDetectionController', () => {
       totalSupply: 10,
     };
     const collectibleContractII = {
-      address: '0x1D963688fe2209a98dB35c67a041524822Cf04ii',
+      address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
       description: 'Description II',
       logo: 'url II',
       name: 'Name II',
@@ -347,7 +475,7 @@ describe('AssetsDetectionController', () => {
 
     nock(OPEN_SEA_HOST)
       .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x1d963688FE2209A98db35c67A041524822CF04gg`,
+        `${OPEN_SEA_PATH}/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`,
       )
       .reply(200, {
         description: 'Description GG',
@@ -357,7 +485,7 @@ describe('AssetsDetectionController', () => {
         total_supply: 10,
       })
       .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x1D963688fe2209a98dB35c67a041524822Cf04ii`,
+        `${OPEN_SEA_PATH}/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
       )
       .reply(200, {
         description: 'Description II',
@@ -371,28 +499,28 @@ describe('AssetsDetectionController', () => {
         assets: [
           {
             asset_contract: {
-              address: '0x1d963688FE2209A98db35c67A041524822CF04ii',
+              address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
             },
             description: 'Description 2577',
-            image_original_url: 'image/2577.png',
+            image_url: 'image/2577.png',
             name: 'ID 2577',
             token_id: '2577',
           },
           {
             asset_contract: {
-              address: '0x1D963688fe2209a98dB35c67a041524822Cf04gg',
+              address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
             },
             description: 'Description 2574',
-            image_original_url: 'image/2574.png',
+            image_url: 'image/2574.png',
             name: 'ID 2574',
             token_id: '2574',
           },
           {
             asset_contract: {
-              address: '0x1d963688FE2209A98db35c67A041524822CF04hh',
+              address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
             },
             description: 'Description 2574',
-            image_original_url: 'image/2574.png',
+            image_url: 'image/2574.png',
             name: 'ID 2574',
             token_id: '2574',
           },
@@ -416,7 +544,22 @@ describe('AssetsDetectionController', () => {
   it('should detect tokens correctly', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     getBalancesInSingleCall.resolves({
-      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+      '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
+    });
+    await assetsDetection.detectTokens();
+    expect(assets.state.tokens).toStrictEqual([
+      {
+        address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
+        symbol: 'GNO',
+        decimals: 18,
+        image: undefined,
+      },
+    ]);
+  });
+  it('should update the tokens list when new tokens are detected', async () => {
+    assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
+    getBalancesInSingleCall.resolves({
+      '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
     });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toStrictEqual([
@@ -427,16 +570,60 @@ describe('AssetsDetectionController', () => {
         symbol: 'GNO',
       },
     ]);
+    getBalancesInSingleCall.resolves({
+      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
+    });
+    await assetsDetection.detectTokens();
+    expect(assets.state.tokens).toStrictEqual([
+      {
+        address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
+        decimals: 18,
+        image: undefined,
+        symbol: 'GNO',
+      },
+      {
+        address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        symbol: 'LINK',
+        decimals: 18,
+        image: undefined,
+      },
+    ]);
+  });
+
+  it('should call getBalancesInSingle with token address that is not present on the asset state', async () => {
+    assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
+    getBalancesInSingleCall.resolves({
+      '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
+    });
+    const tokensToDetect: string[] = Object.keys(tokenList.state.tokenList);
+    await assetsDetection.detectTokens();
+    expect(
+      getBalancesInSingleCall
+        .getCall(0)
+        .calledWithExactly('0x1', tokensToDetect),
+    ).toBe(true);
+    getBalancesInSingleCall.resolves({
+      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
+    });
+    const updatedTokensToDetect = tokensToDetect.filter(
+      (address) => address !== '0x6810e776880c02933d47db1b9fc05908e5386b96',
+    );
+    await assetsDetection.detectTokens();
+    expect(
+      getBalancesInSingleCall
+        .getCall(1)
+        .calledWithExactly('0x1', updatedTokensToDetect),
+    ).toBe(true);
   });
 
   it('should not autodetect tokens that exist in the ignoreList', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     getBalancesInSingleCall.resolves({
-      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
     await assetsDetection.detectTokens();
 
-    assets.removeAndIgnoreToken('0x6810e776880C02933D47DB1b9fc05908e5386b96');
+    assets.removeAndIgnoreToken('0x514910771af9ca656af840dff83e8264ecf986ca');
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toStrictEqual([]);
   });
@@ -444,7 +631,7 @@ describe('AssetsDetectionController', () => {
   it('should not detect tokens if there is no selectedAddress set', async () => {
     assetsDetection.configure({ networkType: MAINNET });
     getBalancesInSingleCall.resolves({
-      '0x6810e776880C02933D47DB1b9fc05908e5386b96': new BN(1),
+      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
     await assetsDetection.detectTokens();
     expect(assets.state.tokens).toStrictEqual([]);
