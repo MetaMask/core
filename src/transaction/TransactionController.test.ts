@@ -124,6 +124,7 @@ const MOCK_CUSTOM_NETWORK = {
   getProvider: () => MAINNET_PROVIDER,
   state: {
     network: '80001',
+    isCustomNetwork: true,
     provider: {
       type: 'rpc' as NetworkType,
       chainId: '80001',
