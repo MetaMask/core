@@ -62,7 +62,7 @@ export function fractionBN(
   return targetBN.mul(numBN).div(denomBN);
 }
 
-const BN_1000 = new BN(1000, 10);
+const BN_1GWEI_IN_WEI = new BN(1000000000, 10);
 
 /**
  * Used to convert a base-10 number from GWEI to WEI. Can handle numbers with decimal parts
@@ -73,11 +73,11 @@ const BN_1000 = new BN(1000, 10);
 export function gweiDecToWEIBN(n: number | string) {
   const wholePart = Math.floor(Number(n));
   const decimalPartMatch = Number(n)
-    .toFixed(3)
+    .toFixed(9)
     .match(/\.(\d+)/u);
   const decimalPart = decimalPartMatch ? decimalPartMatch[1] : '0';
 
-  const wholePartAsWEI = new BN(wholePart, 10).mul(BN_1000);
+  const wholePartAsWEI = new BN(wholePart, 10).mul(BN_1GWEI_IN_WEI);
   const decimalPartAsWEI = new BN(decimalPart, 10);
 
   return wholePartAsWEI.add(decimalPartAsWEI);
