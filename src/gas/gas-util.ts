@@ -1,24 +1,50 @@
 import { BN } from 'ethereumjs-util';
-import { query, handleFetch, gweiDecToWEIBN } from '../util';
+import { query, handleFetch, gweiDecToWEIBN, weiHexToGweiDec } from '../util';
 import {
   GasFeeEstimates,
-  LegacyGasPriceEstimate,
+  EthGasPriceEstimate,
   EstimatedGasFeeTimeBounds,
   unknownString,
 } from './GasFeeController';
 
 const GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/';
+export const EXTERNAL_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
 
 export async function fetchGasEstimates(): Promise<GasFeeEstimates> {
   return await handleFetch(GAS_FEE_API);
 }
 
-export async function fetchLegacyGasPriceEstimate(
+/**
+ * Hit the legacy MetaSwaps gasPrices estimate api and return the low, medium
+ * high values from that API.
+ */
+export async function fetchLegacyGasPriceEstimates(): Promise<{
+  low: string;
+  medium: string;
+  high: string;
+}> {
+  const result = await handleFetch(EXTERNAL_GAS_PRICES_API_URL, {
+    referrer: EXTERNAL_GAS_PRICES_API_URL,
+    referrerPolicy: 'no-referrer-when-downgrade',
+    method: 'GET',
+    mode: 'cors',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  return {
+    low: result.SafeGasPrice,
+    medium: result.ProposeGasPrice,
+    high: result.FastGasPrice,
+  };
+}
+
+export async function fetchEthGasPriceEstimate(
   ethQuery: any,
-): Promise<LegacyGasPriceEstimate> {
+): Promise<EthGasPriceEstimate> {
   const gasPrice = await query(ethQuery, 'gasPrice');
   return {
-    gasPrice,
+    gasPrice: weiHexToGweiDec(gasPrice).toString(),
   };
 }
 

@@ -5,7 +5,9 @@ import {
   GasFeeController,
   GetGasFeeState,
   GasFeeStateChange,
+  LegacyGasPriceEstimate,
 } from './GasFeeController';
+import { EXTERNAL_GAS_PRICES_API_URL } from './gas-util';
 
 const GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/';
 
@@ -28,6 +30,8 @@ function getRestrictedMessenger() {
 
 describe('GasFeeController', () => {
   let gasFeeController: GasFeeController;
+  let getIsMainnet: jest.Mock<boolean>;
+  let getIsEIP1559Compatible: jest.Mock<Promise<boolean>>;
 
   beforeAll(() => {
     nock.disableNetConnect();
@@ -38,8 +42,12 @@ describe('GasFeeController', () => {
   });
 
   beforeEach(() => {
+    getIsMainnet = jest.fn().mockImplementation(() => false);
+    getIsEIP1559Compatible = jest
+      .fn()
+      .mockImplementation(() => Promise.resolve(true));
     nock(GAS_FEE_API)
-      .get('/')
+      .get(/.+/u)
       .reply(200, {
         low: {
           minWaitTimeEstimate: 60000,
@@ -60,14 +68,25 @@ describe('GasFeeController', () => {
           suggestedMaxFeePerGas: '50',
         },
         estimatedBaseFee: '28',
-      });
+      })
+      .persist();
+
+    nock(EXTERNAL_GAS_PRICES_API_URL)
+      .get(/.+/u)
+      .reply(200, {
+        SafeGasPrice: '22',
+        ProposeGasPrice: '25',
+        FastGasPrice: '30',
+      })
+      .persist();
 
     gasFeeController = new GasFeeController({
       interval: 10000,
       messenger: getRestrictedMessenger(),
       getProvider: () => stub(),
       onNetworkStateChange: () => stub(),
-      getCurrentNetworkEIP1559Compatibility: () => Promise.resolve(true), // change this for networkController.state.properties.isEIP1559Compatible ???
+      getIsMainnet,
+      getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkController.state.properties.isEIP1559Compatible ???
     });
   });
 
@@ -94,12 +113,28 @@ describe('GasFeeController', () => {
     );
   });
 
-  it('should _fetchGasFeeEstimateData', async () => {
-    expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
-    const estimates = await gasFeeController._fetchGasFeeEstimateData();
-    expect(estimates).toHaveProperty('gasFeeEstimates');
-    expect(gasFeeController.state.gasFeeEstimates).toHaveProperty(
-      'estimatedBaseFee',
-    );
+  describe('when on mainnet before london', () => {
+    it('should _fetchGasFeeEstimateData', async () => {
+      getIsMainnet.mockImplementation(() => true);
+      getIsEIP1559Compatible.mockImplementation(() => Promise.resolve(false));
+      expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
+      const estimates = await gasFeeController._fetchGasFeeEstimateData();
+      expect(estimates).toHaveProperty('gasFeeEstimates');
+      expect(
+        (gasFeeController.state.gasFeeEstimates as LegacyGasPriceEstimate).high,
+      ).toBe('30');
+    });
+  });
+
+  describe('when on any network supporting EIP-1559', () => {
+    it('should _fetchGasFeeEstimateData', async () => {
+      getIsMainnet.mockImplementation(() => true);
+      expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
+      const estimates = await gasFeeController._fetchGasFeeEstimateData();
+      expect(estimates).toHaveProperty('gasFeeEstimates');
+      expect(gasFeeController.state.gasFeeEstimates).toHaveProperty(
+        'estimatedBaseFee',
+      );
+    });
   });
 });
