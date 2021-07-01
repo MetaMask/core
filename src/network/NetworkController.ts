@@ -107,9 +107,9 @@ export class NetworkController extends BaseController<
       case MAINNET:
       case 'rinkeby':
       case 'goerli':
-      case 'ropsten':
       case 'optimism':
       case 'optimismTest':
+      case 'ropsten':
         this.setupInfuraProvider(type);
         break;
       case 'localhost':
