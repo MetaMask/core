@@ -287,21 +287,8 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
       isEIP1559Compatible = false;
     }
 
-    const tryEthGasPrice = async () => {
-      try {
-        return {
-          estimates: await this.fetchEthGasPriceEstimate(this.ethQuery),
-          gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
-        };
-      } catch (error) {
-        throw new Error(
-          `Gas fee/price estimation failed. Message: ${error.message}`,
-        );
-      }
-    };
-
-    if (isEIP1559Compatible) {
-      try {
+    try {
+      if (isEIP1559Compatible) {
         estimates = await this.fetchGasEstimates();
         const {
           suggestedMaxPriorityFeePerGas,
@@ -312,25 +299,21 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
           suggestedMaxFeePerGas,
         );
         gasEstimateType = GAS_ESTIMATE_TYPES.FEE_MARKET;
-      } catch (error) {
-        const result = await tryEthGasPrice();
-        estimates = result.estimates;
-        gasEstimateType = result.gasEstimateType;
-      }
-    } else if (isMainnet) {
-      try {
+      } else if (isMainnet) {
         estimates = await this.fetchLegacyGasPriceEstimates();
         gasEstimateType = GAS_ESTIMATE_TYPES.LEGACY;
-      } catch (error) {
-        console.log(error);
-        const result = await tryEthGasPrice();
-        estimates = result.estimates;
-        gasEstimateType = result.gasEstimateType;
+      } else {
+        throw new Error('Main gas fee/price estimation failed. Use fallback');
       }
-    } else {
-      const result = await tryEthGasPrice();
-      estimates = result.estimates;
-      gasEstimateType = result.gasEstimateType;
+    } catch (error) {
+      try {
+        estimates = await this.fetchEthGasPriceEstimate(this.ethQuery);
+        gasEstimateType = GAS_ESTIMATE_TYPES.ETH_GASPRICE;
+      } catch (error2) {
+        throw new Error(
+          `Gas fee/price estimation failed. Message: ${error2.message}`,
+        );
+      }
     }
 
     const newState: GasFeeState = {
