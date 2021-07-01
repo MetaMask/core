@@ -6,7 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [10.1.0] - 2021-06-7
+## [10.2.0] - 2021-06-30
+### Added
+- Add TokenListController to fetch the token list from token services API ([#478](https://github.com/MetaMask/controllers/pull/478))
+- Update `@ethereumjs-tx` to `@ethereumjs/tx` and add `@ethereumjs/common` to support EIP1559 compliant transactions ([#489](https://github.com/MetaMask/controllers/pull/489))
+
+### Changed
+- Bump @metamask/contract-metadata from 1.25.0 to 1.26.0 and 1.26.0 to 1.27.0 ([#492](https://github.com/MetaMask/controllers/pull/492),[#501](https://github.com/MetaMask/controllers/pull/501))
+
+## [10.1.0] - 2021-06-07
 ### Added
 - Export BaseControllerV2 Json type ([#482](https://github.com/MetaMask/controllers/pull/482))
 
@@ -19,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.0.0]
 ### Fixed
-- **BREAKING**: Fix stale conversionRate after switching network ([#465](git+https://github.com/MetaMask/controllers/pull/465))
+- **BREAKING**: Fix stale conversionRate after switching network ([#465](https://github.com/MetaMask/controllers/pull/465))
   - The breaking change is the change in type of the `conversionRate` state of the `CurrencyRateController` - it's now nullable.
 
 ## [9.1.0] - 2021-05-20
@@ -259,7 +267,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v10.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v10.2.0...HEAD
+[10.2.0]: https://github.com/MetaMask/controllers/compare/v10.1.0...v10.2.0
 [10.1.0]: https://github.com/MetaMask/controllers/compare/v10.0.0...v10.1.0
 [10.0.0]: https://github.com/MetaMask/controllers/compare/v9.1.0...v10.0.0
 [9.1.0]: https://github.com/MetaMask/controllers/compare/v9.0.0...v9.1.0

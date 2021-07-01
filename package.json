@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "10.1.0",
+  "version": "10.2.0",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "license": "MIT",
   "files": [
@@ -44,7 +44,7 @@
   "dependencies": {
     "@ethereumjs/common": "^2.3.1",
     "@ethereumjs/tx": "^3.2.1",
-    "@metamask/contract-metadata": "^1.26.0",
+    "@metamask/contract-metadata": "^1.27.0",
     "@types/uuid": "^8.3.0",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
@@ -73,7 +73,7 @@
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^1.0.6",
-    "@metamask/auto-changelog": "^2.3.0",
+    "@metamask/auto-changelog": "^2.4.0",
     "@metamask/eslint-config": "^6.0.0",
     "@metamask/eslint-config-jest": "^6.0.0",
     "@metamask/eslint-config-nodejs": "^6.0.0",
