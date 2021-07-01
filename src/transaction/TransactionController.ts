@@ -749,7 +749,8 @@ export class TransactionController extends BaseController<
       false,
     ]);
 
-    // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000
+    // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000.
+    // If the newtwork is a custom network then bypass this check and fetch 'estimateGas'.
     /* istanbul ignore next */
     const code = to ? await query(this.ethQuery, 'getCode', [to]) : undefined;
     /* istanbul ignore next */
@@ -769,7 +770,8 @@ export class TransactionController extends BaseController<
       estimatedTransaction,
     ]);
 
-    // 4. Pad estimated gas without exceeding the most recent block gasLimit
+    // 4. Pad estimated gas without exceeding the most recent block gasLimit. If the network is a
+    // a custom network then return the eth_estimateGas value.
     const gasBN = hexToBN(gasHex);
     const maxGasBN = gasLimitBN.muln(0.9);
     const paddedGasBN = gasBN.muln(1.5);
