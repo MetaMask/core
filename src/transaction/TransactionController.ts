@@ -806,7 +806,7 @@ export class TransactionController extends BaseController<
       typeof providedGasPrice === 'undefined'
         ? await query(this.ethQuery, 'gasPrice')
         : providedGasPrice;
-    const { isCustomNetwork } = this.getNetworkState()
+    const { isCustomNetwork } = this.getNetworkState();
     // 1. If gas is already defined on the transaction, use it
     if (typeof gas !== 'undefined') {
       return { gas, gasPrice };
@@ -821,7 +821,10 @@ export class TransactionController extends BaseController<
     /* istanbul ignore next */
     const code = to ? await query(this.ethQuery, 'getCode', [to]) : undefined;
     /* istanbul ignore next */
-    if ( !isCustomNetwork && (!to || (to && !data && (!code || code === '0x')))) {
+    if (
+      !isCustomNetwork &&
+      (!to || (to && !data && (!code || code === '0x')))
+    ) {
       return { gas: '0x5208', gasPrice };
     }
     // if data, should be hex string format

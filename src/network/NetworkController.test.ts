@@ -64,7 +64,6 @@ describe('NetworkController', () => {
     expect(controller.state.isCustomNetwork).toBe(false);
   });
 
-
   it('should create a provider instance for optimism network', () => {
     const testConfig = {
       infuraProjectId: 'foo',

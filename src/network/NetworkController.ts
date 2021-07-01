@@ -28,8 +28,8 @@ export enum NetworksChainId {
   ropsten = '3',
   localhost = '',
   rpc = '',
-  optimism = 'a', 
-  optimismTest = '45'
+  optimism = 'a',
+  optimismTest = '45',
 }
 
 /**
@@ -155,13 +155,15 @@ export class NetworkController extends BaseController<
     this.updateProvider(createMetamaskProvider(config));
   }
 
-  private getisCustomNetwork(chainId? :String){
-    return ( chainId !== NetworksChainId.mainnet &&
-            chainId !== NetworksChainId.kovan &&
-            chainId !== NetworksChainId.rinkeby &&
-            chainId !== NetworksChainId.goerli &&
-            chainId !== NetworksChainId.ropsten &&
-            chainId !== NetworksChainId.localhost )
+  private getisCustomNetwork(chainId?: string) {
+    return (
+      chainId !== NetworksChainId.mainnet &&
+      chainId !== NetworksChainId.kovan &&
+      chainId !== NetworksChainId.rinkeby &&
+      chainId !== NetworksChainId.goerli &&
+      chainId !== NetworksChainId.ropsten &&
+      chainId !== NetworksChainId.localhost
+    );
   }
 
   private setupStandardProvider(
