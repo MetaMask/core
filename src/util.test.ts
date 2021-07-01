@@ -141,6 +141,35 @@ describe('util', () => {
     });
   });
 
+  describe('hexWei', () => {
+    it('should convert a whole number to WEI', () => {
+      const numbersInGwei = [1, 123, 101, 1234];
+      numbersInGwei.forEach((gweiDec) => {
+        expect(
+          util.weiHexToGweiDec(util.gweiDecToWEIBN(gweiDec).toString(16)),
+        ).toBe(gweiDec.toString());
+      });
+    });
+
+    it('should convert a number with a decimal part to WEI', () => {
+      const numbersInGwei = [1.1, 123.01, 101.001, 1234.567];
+      numbersInGwei.forEach((gweiDec) => {
+        expect(
+          util.weiHexToGweiDec(util.gweiDecToWEIBN(gweiDec).toString(16)),
+        ).toBe(gweiDec.toString());
+      });
+    });
+
+    it('should convert a number < 1 to WEI', () => {
+      const numbersInGwei = [0.1, 0.01, 0.001, 0.567];
+      numbersInGwei.forEach((gweiDec) => {
+        expect(
+          util.weiHexToGweiDec(util.gweiDecToWEIBN(gweiDec).toString(16)),
+        ).toBe(gweiDec.toString());
+      });
+    });
+  });
+
   describe('safelyExecute', () => {
     it('should swallow errors', async () => {
       expect(
