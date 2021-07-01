@@ -18,6 +18,8 @@ declare module 'ethjs-provider-http';
 
 declare module 'ethjs-util';
 
+declare module 'ethjs-unit';
+
 declare module 'human-standard-collectible-abi';
 
 declare module 'human-standard-token-abi';
