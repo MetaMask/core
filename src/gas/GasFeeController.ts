@@ -309,9 +309,9 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
       try {
         estimates = await this.fetchEthGasPriceEstimate(this.ethQuery);
         gasEstimateType = GAS_ESTIMATE_TYPES.ETH_GASPRICE;
-      } catch (error2) {
+      } catch (error) {
         throw new Error(
-          `Gas fee/price estimation failed. Message: ${error2.message}`,
+          `Gas fee/price estimation failed. Message: ${error.message}`,
         );
       }
     }
