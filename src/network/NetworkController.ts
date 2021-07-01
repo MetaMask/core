@@ -15,7 +15,9 @@ export type NetworkType =
   | 'rinkeby'
   | 'goerli'
   | 'ropsten'
-  | 'rpc';
+  | 'rpc'
+  | 'optimism'
+  | 'optimismTest';
 
 export enum NetworksChainId {
   mainnet = '1',
@@ -25,6 +27,8 @@ export enum NetworksChainId {
   ropsten = '3',
   localhost = '',
   rpc = '',
+  optimism = 'a', 
+  optimismTest = '45'
 }
 
 /**
@@ -65,10 +69,12 @@ export interface NetworkConfig extends BaseConfig {
  * Network controller state
  *
  * @property network - Network ID as per net_version
+ * @property isCustomNetwork - Identifies if the network is a custom network
  * @property provider - RPC URL and network name provider settings
  */
 export interface NetworkState extends BaseState {
   network: string;
+  isCustomNetwork: boolean;
   provider: ProviderConfig;
 }
 
@@ -94,12 +100,15 @@ export class NetworkController extends BaseController<
     ticker?: string,
     nickname?: string,
   ) {
+    this.state.isCustomNetwork = this.getisCustomNetwork(chainId);
     switch (type) {
       case 'kovan':
       case 'mainnet':
       case 'rinkeby':
       case 'goerli':
       case 'ropsten':
+      case 'optimism':
+      case 'optimismTest':
         this.setupInfuraProvider(type);
         break;
       case 'localhost':
@@ -143,6 +152,15 @@ export class NetworkController extends BaseController<
       },
     };
     this.updateProvider(createMetamaskProvider(config));
+  }
+
+  private getisCustomNetwork(chainId? :String){
+    return ( chainId !== NetworksChainId.mainnet &&
+            chainId !== NetworksChainId.kovan &&
+            chainId !== NetworksChainId.rinkeby &&
+            chainId !== NetworksChainId.goerli &&
+            chainId !== NetworksChainId.ropsten &&
+            chainId !== NetworksChainId.localhost )
   }
 
   private setupStandardProvider(
@@ -200,6 +218,7 @@ export class NetworkController extends BaseController<
     super(config, state);
     this.defaultState = {
       network: 'loading',
+      isCustomNetwork: false,
       provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
     };
     this.initialize();

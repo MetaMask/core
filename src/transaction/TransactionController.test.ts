@@ -82,6 +82,7 @@ const MOCK_NETWORK = {
   getProvider: () => PROVIDER,
   state: {
     network: '3',
+    isCustomNetwork: false,
     provider: {
       type: 'ropsten' as NetworkType,
       chainId: NetworksChainId.ropsten,
@@ -89,8 +90,21 @@ const MOCK_NETWORK = {
   },
   subscribe: () => undefined,
 };
+const MOCK_NETWORK_CUSTOM = {
+  getProvider: () => PROVIDER,
+  state: {
+    network: 'a',
+    isCustomNetwork: true,
+    provider: {
+      type: 'optimism' as NetworkType,
+      chainId: NetworksChainId.optimism,
+    },
+  },
+  subscribe: () => undefined,
+};
 const MOCK_NETWORK_WITHOUT_CHAIN_ID = {
   getProvider: () => PROVIDER,
+  isCustomNetwork: false,
   state: { network: '3', provider: { type: 'ropsten' as NetworkType } },
   subscribe: () => undefined,
 };
@@ -98,6 +112,7 @@ const MOCK_MAINNET_NETWORK = {
   getProvider: () => MAINNET_PROVIDER,
   state: {
     network: '1',
+    isCustomNetwork: false,
     provider: {
       type: 'mainnet' as NetworkType,
       chainId: NetworksChainId.mainnet,
@@ -719,6 +734,44 @@ describe('TransactionController', () => {
     );
     expect(controller.state.transactions[0].chainId).toBe(
       MOCK_MAINNET_NETWORK.state.provider.chainId,
+    );
+    expect(controller.state.transactions[0].status).toBe(
+      TransactionStatus.unapproved,
+    );
+  });
+
+  it('should add a valid transaction after a switch to custom network', async () => {
+    const getNetworkState = stub().returns(MOCK_NETWORK.state);
+    let networkStateChangeListener:
+      | ((state: NetworkState) => void)
+      | null = null;
+    const onNetworkStateChange = (listener: (state: NetworkState) => void) => {
+      networkStateChangeListener = listener;
+    };
+    const getProvider = stub().returns(PROVIDER);
+    const controller = new TransactionController({
+      getNetworkState,
+      onNetworkStateChange,
+      getProvider,
+    });
+
+    // switch from Ropsten to Mainnet
+    getNetworkState.returns(MOCK_NETWORK_CUSTOM.state);
+    getProvider.returns(PROVIDER);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    networkStateChangeListener!(MOCK_NETWORK_CUSTOM.state);
+
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    await controller.addTransaction({
+      from,
+      to: from,
+    });
+    expect(controller.state.transactions[0].transaction.from).toBe(from);
+    expect(controller.state.transactions[0].networkID).toBe(
+      MOCK_NETWORK_CUSTOM.state.network,
+    );
+    expect(controller.state.transactions[0].chainId).toBe(
+      MOCK_NETWORK_CUSTOM.state.provider.chainId,
     );
     expect(controller.state.transactions[0].status).toBe(
       TransactionStatus.unapproved,
