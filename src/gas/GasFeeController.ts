@@ -18,9 +18,20 @@ import {
 
 export type unknownString = 'unknown';
 
+// Fee Market describes the way gas is set after the london hardfork, and was
+// defined by EIP-1559.
 export type FeeMarketEstimateType = 'fee-market';
+// Legacy describes gasPrice estimates from before london hardfork, when the
+// user is connected to mainnet and are presented with fast/average/slow
+// estimate levels to choose from.
 export type LegacyEstimateType = 'legacy';
+// EthGasPrice describes a gasPrice estimate received from eth_gasPrice. Post
+// london this value should only be used for legacy type transactions when on
+// networks that support EIP-1559. This type of estimate is the most accurate
+// to display on custom networks that don't support EIP-1559.
 export type EthGasPriceEstimateType = 'eth_gasPrice';
+// NoEstimate describes the state of the controller before receiving its first
+// estimate.
 export type NoEstimateType = 'none';
 
 /**
