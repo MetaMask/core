@@ -117,7 +117,6 @@ export interface Eip1559GasFee {
  * @property high - A GasFee for a high combination of tip and maxFee
  * @property estimatedBaseFee - An estimate of what the base fee will be for the pending/next block. A GWEI dec number
  */
-
 export interface GasFeeEstimates {
   low: Eip1559GasFee;
   medium: Eip1559GasFee;
@@ -269,10 +268,24 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     });
   }
 
+  /**
+   * Used to fetchGasFeeEstimates without beginning the polling mechanism.
+   * This method will be useful in priming data for views before beginning to
+   * check for updated estimates
+   * @returns - gas fee estimates per the current network status.
+   */
   async fetchGasFeeEstimates() {
     return await this._fetchGasFeeEstimateData();
   }
 
+  /**
+   * Used to begin polling for gasFeeEstimates. This immediately fetches the
+   * gas estimates and sets them in state, then creates a new polling token
+   * and returns it. Polling tokens are used to inform the controller that a
+   * given view no longer requires live data. The token can be used with the
+   * disconnectPoller method in cleanup methods.
+   * @returns - A string token representing a subscription to gasFeeEstimates
+   */
   async getGasFeeEstimatesAndStartPolling(
     pollToken: string | undefined,
   ): Promise<string> {
@@ -288,11 +301,20 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
   }
 
   /**
-   * Gets and sets gasFeeEstimates in state
+   * Gets and sets gasFeeEstimates in state.
    *
-   * @returns GasFeeEstimates
+   * This method will first decide if EIP 1559 is currently supported by the
+   * network and account selected. If it is the new FeeMarketEstimateType will
+   * be queried for. If EIP 1559 is not supported, and we're currently on
+   * mainnet (indicating pre-london hardfork) we query for LegacyEstimateType.
+   * If we aren't on mainnet or either of the prior queries fails we fetch
+   * EthGasPriceEstimateType.
+   *
+   * The resulting estimate is saved into state.
+   *
+   * @returns - the current state of the controller
    */
-  async _fetchGasFeeEstimateData(): Promise<GasFeeState | undefined> {
+  async _fetchGasFeeEstimateData(): Promise<GasFeeState> {
     let isEIP1559Compatible;
     const isMainnet = this.getIsMainnet();
     try {
@@ -366,6 +388,10 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     }
   }
 
+  /**
+   * Removes all poll tokens and stops polling, also reset's the controller
+   * state.
+   */
   stopPolling() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
@@ -384,7 +410,13 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     this.stopPolling();
   }
 
-  // should take a token, so we know that we are only counting once for each open transaction
+  /**
+   * Multiple components, views and transactions might need to subscribe to
+   * gas fee estimates simultaneously. In order to effectively know when there
+   * is no need to hit the gasFeeEstimate APIs we use a uniquely generated
+   * token per request to startPolling. This token is returned to the consumer
+   * and can be used to turn polling off.
+   */
   private async _startPolling(pollToken: string) {
     if (this.pollTokens.size === 0) {
       this._poll();
@@ -392,6 +424,11 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     this.pollTokens.add(pollToken);
   }
 
+  /**
+   * Used to begin polling, first clearing any active intervalId before
+   * creating a new interval. Interval is set by the intervalDelay property
+   * set in the constructor, and passed in via the `interval` argument.
+   */
   private async _poll() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
@@ -401,12 +438,25 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     }, this.intervalDelay);
   }
 
+  /**
+   * Sets the state of the controller to the defaultState value. When this
+   * occurs the 'NoEstimateType' will be the current gasEstimateType.
+   */
   private resetState() {
     this.update(() => {
       return defaultState;
     });
   }
 
+  /**
+   * Networks must support EIP-1559 and certain keyrings (trezor, ledger) must
+   * also support EIP-1559 before we can use the EIP-1559 estimate API. There
+   * are a set of methods that are provided to this controller at instantiation
+   * that are called in this method to determine whether to return the
+   * FeeMarketEstimateType
+   * @returns - Boolean indicating whether the current network/account combo
+   *  supports EIP-1559.
+   */
   private async getEIP1559Compatibility() {
     const currentNetworkIsEIP1559Compatible = await this.getCurrentNetworkEIP1559Compatibility();
     const currentAccountIsEIP1559Compatible =
