@@ -5,6 +5,7 @@ import {
   EthGasPriceEstimate,
   EstimatedGasFeeTimeBounds,
   unknownString,
+  LegacyGasPriceEstimate,
 } from './GasFeeController';
 
 const GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/';
@@ -18,11 +19,7 @@ export async function fetchGasEstimates(): Promise<GasFeeEstimates> {
  * Hit the legacy MetaSwaps gasPrices estimate api and return the low, medium
  * high values from that API.
  */
-export async function fetchLegacyGasPriceEstimates(): Promise<{
-  low: string;
-  medium: string;
-  high: string;
-}> {
+export async function fetchLegacyGasPriceEstimates(): Promise<LegacyGasPriceEstimate> {
   const result = await handleFetch(EXTERNAL_GAS_PRICES_API_URL, {
     referrer: EXTERNAL_GAS_PRICES_API_URL,
     referrerPolicy: 'no-referrer-when-downgrade',
