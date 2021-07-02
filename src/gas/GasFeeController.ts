@@ -18,6 +18,22 @@ import {
 
 export type unknownString = 'unknown';
 
+// Fee Market describes the way gas is set after the london hardfork, and was
+// defined by EIP-1559.
+export type FeeMarketEstimateType = 'fee-market';
+// Legacy describes gasPrice estimates from before london hardfork, when the
+// user is connected to mainnet and are presented with fast/average/slow
+// estimate levels to choose from.
+export type LegacyEstimateType = 'legacy';
+// EthGasPrice describes a gasPrice estimate received from eth_gasPrice. Post
+// london this value should only be used for legacy type transactions when on
+// networks that support EIP-1559. This type of estimate is the most accurate
+// to display on custom networks that don't support EIP-1559.
+export type EthGasPriceEstimateType = 'eth_gasPrice';
+// NoEstimate describes the state of the controller before receiving its first
+// estimate.
+export type NoEstimateType = 'none';
+
 /**
  * Indicates which type of gasEstimate the controller is currently returning.
  * This is useful as a way of asserting that the shape of gasEstimates matches
@@ -25,13 +41,17 @@ export type unknownString = 'unknown';
  * has been fetched.
  */
 export const GAS_ESTIMATE_TYPES = {
-  FEE_MARKET: 'fee-market' as const,
-  LEGACY: 'legacy' as const,
-  ETH_GASPRICE: 'eth_gasPrice' as const,
-  NONE: 'none' as const,
+  FEE_MARKET: 'fee-market' as FeeMarketEstimateType,
+  LEGACY: 'legacy' as LegacyEstimateType,
+  ETH_GASPRICE: 'eth_gasPrice' as EthGasPriceEstimateType,
+  NONE: 'none' as NoEstimateType,
 };
 
-export type GasEstimateType = typeof GAS_ESTIMATE_TYPES[keyof typeof GAS_ESTIMATE_TYPES];
+export type GasEstimateType =
+  | FeeMarketEstimateType
+  | EthGasPriceEstimateType
+  | LegacyEstimateType
+  | NoEstimateType;
 
 export interface EstimatedGasFeeTimeBounds {
   lowerTimeBound: number | null;
@@ -87,16 +107,6 @@ export interface Eip1559GasFee {
   suggestedMaxFeePerGas: string; // a GWEI decimal number
 }
 
-function isEIP1559GasFee(object: any): object is Eip1559GasFee {
-  return (
-    'minWaitTimeEstimate' in object &&
-    'maxWaitTimeEstimate' in object &&
-    'suggestedMaxPriorityFeePerGas' in object &&
-    'suggestedMaxFeePerGas' in object &&
-    Object.keys(object).length === 4
-  );
-}
-
 /**
  * @type GasFeeEstimates
  *
@@ -115,22 +125,34 @@ export interface GasFeeEstimates {
   estimatedBaseFee: string;
 }
 
-function isEIP1559Estimate(object: any): object is GasFeeEstimates {
-  return (
-    'low' in object &&
-    isEIP1559GasFee(object.low) &&
-    'medium' in object &&
-    isEIP1559GasFee(object.medium) &&
-    'high' in object &&
-    isEIP1559GasFee(object.high) &&
-    'estimatedBaseFee' in object
-  );
-}
-
 const metadata = {
   gasFeeEstimates: { persist: true, anonymous: false },
   estimatedGasFeeTimeBounds: { persist: true, anonymous: false },
   gasEstimateType: { persist: true, anonymous: false },
+};
+
+export type GasFeeStateEthGasPrice = {
+  gasFeeEstimates: EthGasPriceEstimate;
+  estimatedGasFeeTimeBounds: Record<string, never>;
+  gasEstimateType: EthGasPriceEstimateType;
+};
+
+export type GasFeeStateFeeMarket = {
+  gasFeeEstimates: GasFeeEstimates;
+  estimatedGasFeeTimeBounds: EstimatedGasFeeTimeBounds | Record<string, never>;
+  gasEstimateType: FeeMarketEstimateType;
+};
+
+export type GasFeeStateLegacy = {
+  gasFeeEstimates: LegacyGasPriceEstimate;
+  estimatedGasFeeTimeBounds: Record<string, never>;
+  gasEstimateType: LegacyEstimateType;
+};
+
+export type GasFeeStateNoEstimates = {
+  gasFeeEstimates: Record<string, never>;
+  estimatedGasFeeTimeBounds: Record<string, never>;
+  gasEstimateType: NoEstimateType;
 };
 
 /**
@@ -141,15 +163,11 @@ const metadata = {
  * @property gasFeeEstimates - Gas fee estimate data based on new EIP-1559 properties
  * @property estimatedGasFeeTimeBounds - Estimates representing the minimum and maximum
  */
-export type GasFeeState = {
-  gasFeeEstimates:
-    | GasFeeEstimates
-    | EthGasPriceEstimate
-    | LegacyGasPriceEstimate
-    | Record<string, never>;
-  estimatedGasFeeTimeBounds: EstimatedGasFeeTimeBounds | Record<string, never>;
-  gasEstimateType: GasEstimateType;
-};
+export type GasFeeState =
+  | GasFeeStateEthGasPrice
+  | GasFeeStateFeeMarket
+  | GasFeeStateLegacy
+  | GasFeeStateNoEstimates;
 
 const name = 'GasFeeController';
 
@@ -163,7 +181,7 @@ export type GetGasFeeState = {
   handler: () => GasFeeState;
 };
 
-const defaultState = {
+const defaultState: GasFeeState = {
   gasFeeEstimates: {},
   estimatedGasFeeTimeBounds: {},
   gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
@@ -218,7 +236,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
       never,
       never
     >;
-    state?: Partial<GasFeeState>;
+    state?: GasFeeState;
     fetchGasEstimates?: typeof defaultFetchGasEstimates;
     fetchEthGasPriceEstimate?: typeof defaultFetchEthGasPriceEstimate;
     fetchLegacyGasPriceEstimates?: typeof defaultFetchLegacyGasPriceEstimates;
@@ -275,10 +293,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
    * @returns GasFeeEstimates
    */
   async _fetchGasFeeEstimateData(): Promise<GasFeeState | undefined> {
-    let estimates: GasFeeState['gasFeeEstimates'];
-    let estimatedGasFeeTimeBounds = {};
     let isEIP1559Compatible;
-    let gasEstimateType: GasEstimateType = GAS_ESTIMATE_TYPES.NONE;
     const isMainnet = this.getIsMainnet();
     try {
       isEIP1559Compatible = await this.getEIP1559Compatibility();
@@ -287,40 +302,52 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
       isEIP1559Compatible = false;
     }
 
+    let newState: GasFeeState = {
+      gasFeeEstimates: {},
+      estimatedGasFeeTimeBounds: {},
+      gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
+    };
+
     try {
       if (isEIP1559Compatible) {
-        estimates = await this.fetchGasEstimates();
+        const estimates = await this.fetchGasEstimates();
         const {
           suggestedMaxPriorityFeePerGas,
           suggestedMaxFeePerGas,
         } = estimates.medium;
-        estimatedGasFeeTimeBounds = this.getTimeEstimate(
+        const estimatedGasFeeTimeBounds = this.getTimeEstimate(
           suggestedMaxPriorityFeePerGas,
           suggestedMaxFeePerGas,
         );
-        gasEstimateType = GAS_ESTIMATE_TYPES.FEE_MARKET;
+        newState = {
+          gasFeeEstimates: estimates,
+          estimatedGasFeeTimeBounds,
+          gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
+        };
       } else if (isMainnet) {
-        estimates = await this.fetchLegacyGasPriceEstimates();
-        gasEstimateType = GAS_ESTIMATE_TYPES.LEGACY;
+        const estimates = await this.fetchLegacyGasPriceEstimates();
+        newState = {
+          gasFeeEstimates: estimates,
+          estimatedGasFeeTimeBounds: {},
+          gasEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
+        };
       } else {
         throw new Error('Main gas fee/price estimation failed. Use fallback');
       }
     } catch {
       try {
-        estimates = await this.fetchEthGasPriceEstimate(this.ethQuery);
-        gasEstimateType = GAS_ESTIMATE_TYPES.ETH_GASPRICE;
+        const estimates = await this.fetchEthGasPriceEstimate(this.ethQuery);
+        newState = {
+          gasFeeEstimates: estimates,
+          estimatedGasFeeTimeBounds: {},
+          gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
+        };
       } catch (error) {
         throw new Error(
           `Gas fee/price estimation failed. Message: ${error.message}`,
         );
       }
     }
-
-    const newState: GasFeeState = {
-      gasFeeEstimates: estimates,
-      estimatedGasFeeTimeBounds,
-      gasEstimateType,
-    };
 
     this.update(() => {
       return newState;
@@ -396,7 +423,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
   ): EstimatedGasFeeTimeBounds | Record<string, never> {
     if (
       !this.state.gasFeeEstimates ||
-      !isEIP1559Estimate(this.state.gasFeeEstimates)
+      this.state.gasEstimateType !== GAS_ESTIMATE_TYPES.FEE_MARKET
     ) {
       return {};
     }
