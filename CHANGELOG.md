@@ -6,9 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [10.2.0] - 2021-06-30
+## [11.0.0] - 2021-07-02
+### Changed
+- We accidentally shipped a breaking change in v10.2.0. The changelog has been updated to explain the breaking change, and it has been republished as v11.0.0.
+
+## [10.2.0] - 2021-06-30 [DEPRECATED]
 ### Added
-- Add TokenListController to fetch the token list from token services API ([#478](https://github.com/MetaMask/controllers/pull/478))
+- **BREAKING**: Add TokenListController to fetch the token list from token services API ([#478](https://github.com/MetaMask/controllers/pull/478))
+  - The breaking change here is that `AssetsDetectionController` now requires `getTokenListState` as a constructor parameter.
 - Update `@ethereumjs-tx` to `@ethereumjs/tx` and add `@ethereumjs/common` to support EIP1559 compliant transactions ([#489](https://github.com/MetaMask/controllers/pull/489))
 
 ### Changed
@@ -267,7 +272,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v10.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/controllers/compare/v10.2.0...v11.0.0
 [10.2.0]: https://github.com/MetaMask/controllers/compare/v10.1.0...v10.2.0
 [10.1.0]: https://github.com/MetaMask/controllers/compare/v10.0.0...v10.1.0
 [10.0.0]: https://github.com/MetaMask/controllers/compare/v9.1.0...v10.0.0
