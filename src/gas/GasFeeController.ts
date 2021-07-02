@@ -274,7 +274,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
    * check for updated estimates
    * @returns - gas fee estimates per the current network status.
    */
-  async fetchGasFeeEstimates() {
+  async fetchGasFeeEstimates(): Promise<GasFeeState> {
     return await this._fetchGasFeeEstimateData();
   }
 
@@ -389,7 +389,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
   }
 
   /**
-   * Removes all poll tokens and stops polling, also reset's the controller
+   * Removes all poll tokens and stops polling, also resets the controller
    * state.
    */
   stopPolling() {
