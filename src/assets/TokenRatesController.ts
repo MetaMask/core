@@ -88,7 +88,7 @@ export interface TokenRatesState extends BaseState {
   supportedChains: SupportedChainsCache;
 }
 
-const COINGECKO_API = {
+const CoinGeckoApi = {
   BASE_URL: 'https://api.coingecko.com/api/v3',
   getTokenPriceURL(chainSlug: string, query: string) {
     return `${this.BASE_URL}/simple/token_price/${chainSlug}?${query}`;
@@ -249,7 +249,7 @@ export class TokenRatesController extends BaseController<
   async fetchSupportedChains(): Promise<CoinGeckoPlatform[] | null> {
     try {
       const platforms: CoinGeckoPlatform[] = await handleFetch(
-        COINGECKO_API.getPlatformsURL(),
+        CoinGeckoApi.getPlatformsURL(),
       );
       return platforms;
     } catch {
@@ -268,7 +268,7 @@ export class TokenRatesController extends BaseController<
     chainSlug: string,
     query: string,
   ): Promise<CoinGeckoResponse> {
-    return handleFetch(COINGECKO_API.getTokenPriceURL(chainSlug, query));
+    return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query));
   }
 
   /**
