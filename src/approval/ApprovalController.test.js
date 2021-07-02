@@ -6,7 +6,7 @@ const defaultConfig = {
 };
 
 const getApprovalController = () =>
-  new ApprovalController(Object.assign({}, defaultConfig));
+  new ApprovalController({ ...defaultConfig });
 
 const STORE_KEY = 'pendingApprovals';
 
@@ -118,9 +118,7 @@ describe('ApprovalController: Input Validation', () => {
     let approvalController;
 
     beforeEach(() => {
-      approvalController = new ApprovalController(
-        Object.assign({}, defaultConfig),
-      );
+      approvalController = new ApprovalController({ ...defaultConfig });
     });
 
     it('deletes entry', () => {
