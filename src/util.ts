@@ -82,7 +82,7 @@ export function gweiDecToWEIBN(n: number | string) {
  * @returns - value in dec gwei as string
  */
 export function weiHexToGweiDec(hex: string) {
-  const hexWei = new BN(hex, 16);
+  const hexWei = new BN(stripHexPrefix(hex), 16);
   return fromWei(hexWei, 'gwei').toString(10);
 }
 
