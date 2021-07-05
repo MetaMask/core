@@ -141,7 +141,7 @@ describe('util', () => {
     });
   });
 
-  describe('hexWei', () => {
+  describe('weiHexToGweiDec', () => {
     it('should convert a whole number to WEI', () => {
       const numbersInGwei = [1, 123, 101, 1234];
       numbersInGwei.forEach((gweiDec) => {
@@ -167,6 +167,10 @@ describe('util', () => {
           util.weiHexToGweiDec(util.gweiDecToWEIBN(gweiDec).toString(16)),
         ).toBe(gweiDec.toString());
       });
+    });
+
+    it('should work with 0x prefixed values', () => {
+      expect(util.weiHexToGweiDec('0x5f48b0f7')).toBe('1.598599415');
     });
   });
 
