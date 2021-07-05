@@ -48,7 +48,7 @@ export interface ProviderConfig {
 }
 
 export interface Block {
-  baseFee?: string;
+  baseFeePerGas?: string;
 }
 
 export interface NetworkProperties {
@@ -314,7 +314,8 @@ export class NetworkController extends BaseController<
             if (error) {
               reject(error);
             } else {
-              const isEIP1559Compatible = typeof block.baseFee !== undefined;
+              const isEIP1559Compatible =
+                typeof block.baseFeePerGas !== 'undefined';
               this.update({
                 properties: {
                   isEIP1559Compatible,
