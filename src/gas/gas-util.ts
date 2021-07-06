@@ -8,20 +8,19 @@ import {
   LegacyGasPriceEstimate,
 } from './GasFeeController';
 
-const GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/';
-export const EXTERNAL_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
-
-export async function fetchGasEstimates(): Promise<GasFeeEstimates> {
-  return await handleFetch(GAS_FEE_API);
+export async function fetchGasEstimates(url: string): Promise<GasFeeEstimates> {
+  return await handleFetch(url);
 }
 
 /**
  * Hit the legacy MetaSwaps gasPrices estimate api and return the low, medium
  * high values from that API.
  */
-export async function fetchLegacyGasPriceEstimates(): Promise<LegacyGasPriceEstimate> {
-  const result = await handleFetch(EXTERNAL_GAS_PRICES_API_URL, {
-    referrer: EXTERNAL_GAS_PRICES_API_URL,
+export async function fetchLegacyGasPriceEstimates(
+  url: string,
+): Promise<LegacyGasPriceEstimate> {
+  const result = await handleFetch(url, {
+    referrer: url,
     referrerPolicy: 'no-referrer-when-downgrade',
     method: 'GET',
     mode: 'cors',
