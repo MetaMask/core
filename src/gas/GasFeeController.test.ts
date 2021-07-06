@@ -32,7 +32,7 @@ describe('GasFeeController', () => {
   let gasFeeController: GasFeeController;
   let getCurrentNetworkLegacyGasAPICompatibility: jest.Mock<boolean>;
   let getIsEIP1559Compatible: jest.Mock<Promise<boolean>>;
-  let getChainId: jest.Mock<`0x${string}`>;
+  let getChainId: jest.Mock<`0x${string}` | `${number}` | number>;
 
   beforeAll(() => {
     nock.disableNetConnect();
@@ -43,7 +43,7 @@ describe('GasFeeController', () => {
   });
 
   beforeEach(() => {
-    getChainId = jest.fn().mockImplementation(() => '1');
+    getChainId = jest.fn().mockImplementation(() => '0x1');
     getCurrentNetworkLegacyGasAPICompatibility = jest
       .fn()
       .mockImplementation(() => false);
@@ -120,8 +120,46 @@ describe('GasFeeController', () => {
     );
   });
 
-  describe('when on mainnet before london', () => {
+  describe('when on any network supporting legacy gas estimation api', () => {
     it('should _fetchGasFeeEstimateData', async () => {
+      getCurrentNetworkLegacyGasAPICompatibility.mockImplementation(() => true);
+      getIsEIP1559Compatible.mockImplementation(() => Promise.resolve(false));
+      expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
+      const estimates = await gasFeeController._fetchGasFeeEstimateData();
+      expect(estimates).toHaveProperty('gasFeeEstimates');
+      expect(
+        (gasFeeController.state.gasFeeEstimates as LegacyGasPriceEstimate).high,
+      ).toBe('30');
+    });
+  });
+
+  describe('getChainId', () => {
+    it('should work with a number input', async () => {
+      getChainId.mockImplementation(() => 1);
+      getCurrentNetworkLegacyGasAPICompatibility.mockImplementation(() => true);
+      getIsEIP1559Compatible.mockImplementation(() => Promise.resolve(false));
+      expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
+      const estimates = await gasFeeController._fetchGasFeeEstimateData();
+      expect(estimates).toHaveProperty('gasFeeEstimates');
+      expect(
+        (gasFeeController.state.gasFeeEstimates as LegacyGasPriceEstimate).high,
+      ).toBe('30');
+    });
+
+    it('should work with a hexstring input', async () => {
+      getChainId.mockImplementation(() => '0x1');
+      getCurrentNetworkLegacyGasAPICompatibility.mockImplementation(() => true);
+      getIsEIP1559Compatible.mockImplementation(() => Promise.resolve(false));
+      expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
+      const estimates = await gasFeeController._fetchGasFeeEstimateData();
+      expect(estimates).toHaveProperty('gasFeeEstimates');
+      expect(
+        (gasFeeController.state.gasFeeEstimates as LegacyGasPriceEstimate).high,
+      ).toBe('30');
+    });
+
+    it('should work with a numeric string input', async () => {
+      getChainId.mockImplementation(() => '1');
       getCurrentNetworkLegacyGasAPICompatibility.mockImplementation(() => true);
       getIsEIP1559Compatible.mockImplementation(() => Promise.resolve(false));
       expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});

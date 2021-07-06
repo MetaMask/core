@@ -2,7 +2,7 @@ import type { Patch } from 'immer';
 
 import EthQuery from 'eth-query';
 import { v1 as random } from 'uuid';
-import { addHexPrefix, isHexString } from 'ethereumjs-util';
+import { isHexString } from 'ethereumjs-util';
 import { BaseController } from '../BaseControllerV2';
 import { safelyExecute } from '../util';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
@@ -256,7 +256,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
     getCurrentNetworkLegacyGasAPICompatibility: () => boolean;
     getCurrentAccountEIP1559Compatibility?: () => boolean;
-    getChainId: () => `0x${string}` | number;
+    getChainId: () => `0x${string}` | `${number}` | number;
     getProvider: () => NetworkController['provider'];
     onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
@@ -316,7 +316,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     const isLegacyGasAPICompatible = this.getCurrentNetworkLegacyGasAPICompatibility();
 
     let chainId = this.getChainId();
-    if (typeof chainId === 'string' && isHexString(addHexPrefix(chainId))) {
+    if (typeof chainId === 'string' && isHexString(chainId)) {
       chainId = parseInt(chainId, 16);
     }
     try {
