@@ -34,6 +34,7 @@ const sampleMainnetTokenList = [
       'oneInch',
     ],
     name: 'Synthetix',
+    iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
   },
   {
     address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -54,6 +55,7 @@ const sampleMainnetTokenList = [
       'oneInch',
     ],
     name: 'Chainlink',
+    iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
   },
   {
     address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
@@ -74,6 +76,7 @@ const sampleMainnetTokenList = [
       'oneInch',
     ],
     name: 'Bancor',
+    iconUrl: 'https://s3.amazonaws.com/airswap-token-images/BNT.png',
   },
 ];
 const sampleWithDuplicateSymbols = [
@@ -96,6 +99,7 @@ const sampleWithDuplicateSymbols = [
       'oneInch',
     ],
     name: 'Synthetix',
+    iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
   },
   {
     address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -116,6 +120,7 @@ const sampleWithDuplicateSymbols = [
       'oneInch',
     ],
     name: 'Chainlink',
+    iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
   },
   {
     address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
@@ -136,6 +141,7 @@ const sampleWithDuplicateSymbols = [
       'oneInch',
     ],
     name: 'Bancor',
+    iconUrl: 'https://s3.amazonaws.com/airswap-token-images/BNT.png',
   },
 ];
 const sampleWithLessThan2Occurences = [
@@ -146,6 +152,7 @@ const sampleWithLessThan2Occurences = [
     occurrences: 2,
     aggregators: ['paraswap', 'pmm'],
     name: 'Synthetix',
+    iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
   },
   {
     address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -166,6 +173,7 @@ const sampleWithLessThan2Occurences = [
       'oneInch',
     ],
     name: 'Chainlink',
+    iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
   },
   {
     address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
@@ -174,6 +182,7 @@ const sampleWithLessThan2Occurences = [
     occurrences: 1,
     aggregators: ['paraswap'],
     name: 'Bancor',
+    iconUrl: 'https://s3.amazonaws.com/airswap-token-images/BNT.png',
   },
 ];
 const sampleBinanceTokenList = [
@@ -215,6 +224,7 @@ const sampleSingleChainState = {
         'oneInch',
       ],
       name: 'Synthetix',
+      iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
     },
     '0x514910771af9ca656af840dff83e8264ecf986ca': {
       address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -235,6 +245,7 @@ const sampleSingleChainState = {
         'oneInch',
       ],
       name: 'Chainlink',
+      iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
     },
     '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c': {
       address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
@@ -255,6 +266,7 @@ const sampleSingleChainState = {
         'oneInch',
       ],
       name: 'Bancor',
+      iconUrl: 'https://s3.amazonaws.com/airswap-token-images/BNT.png',
     },
   },
   tokensChainsCache: {
@@ -315,6 +327,7 @@ const sampleTokenMetaData = {
     'oneInch',
   ],
   name: 'Chainlink',
+  iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
 };
 
 const existingState = {
@@ -338,6 +351,7 @@ const existingState = {
         'oneInch',
       ],
       name: 'Chainlink',
+      iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
     },
   },
   tokensChainsCache: {
@@ -369,6 +383,7 @@ const outdatedExistingState = {
         'oneInch',
       ],
       name: 'Chainlink',
+      iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
     },
   },
   tokensChainsCache: {
@@ -398,6 +413,7 @@ const expiredCacheExistingState = {
         'zerion',
       ],
       name: 'Chainlink',
+      iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
     },
   },
   tokensChainsCache: {
@@ -423,6 +439,7 @@ const expiredCacheExistingState = {
             'oneInch',
           ],
           name: 'Chainlink',
+          iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
         },
       ],
     },
@@ -498,6 +515,7 @@ describe('TokenListController', () => {
             'oneInch',
           ],
           name: 'Chainlink',
+          iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
         },
       },
       tokensChainsCache: {
@@ -704,6 +722,7 @@ describe('TokenListController', () => {
           'oneInch',
         ],
         name: 'Bancor',
+        iconUrl: 'https://s3.amazonaws.com/airswap-token-images/BNT.png',
       },
     });
     expect(
@@ -732,6 +751,7 @@ describe('TokenListController', () => {
         occurrences: 2,
         aggregators: ['paraswap', 'pmm'],
         name: 'Synthetix',
+        iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
       },
       '0x514910771af9ca656af840dff83e8264ecf986ca': {
         address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -752,6 +772,7 @@ describe('TokenListController', () => {
           'oneInch',
         ],
         name: 'Chainlink',
+        iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
       },
     });
     expect(
@@ -867,6 +888,7 @@ describe('TokenListController', () => {
           'oneInch',
         ],
         name: 'Synthetix',
+        iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
       },
     ];
     nock(TOKEN_END_POINT_API)
@@ -912,6 +934,7 @@ describe('TokenListController', () => {
           'oneInch',
         ],
         name: 'Synthetix',
+        iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
       },
     });
     expect(await controller.syncTokens()).toBeUndefined();

@@ -30,6 +30,7 @@ type Token = {
   symbol: string;
   occurrences: number;
   aggregators: string[];
+  iconUrl: string;
 };
 
 type TokenMap = {
