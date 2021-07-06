@@ -3,8 +3,7 @@ import nock from 'nock';
 import { PreferencesController } from '../user/PreferencesController';
 import { NetworkController } from '../network/NetworkController';
 import { TokenRatesController } from './TokenRatesController';
-import { AssetsController } from './AssetsController';
-import { AssetsContractController } from './AssetsContractController';
+import { TokensController } from './TokensController';
 
 const COINGECKO_HOST = 'https://api.coingecko.com';
 const COINGECKO_ETH_PATH = '/api/v3/simple/token_price/ethereum';
@@ -73,7 +72,7 @@ describe('TokenRatesController', () => {
 
   it('should set default state', () => {
     const controller = new TokenRatesController({
-      onAssetsStateChange: stub(),
+      onTokensStateChange: stub(),
       onCurrencyRateStateChange: stub(),
       onNetworkStateChange: stub(),
     });
@@ -88,7 +87,7 @@ describe('TokenRatesController', () => {
 
   it('should initialize with the default config', () => {
     const controller = new TokenRatesController({
-      onAssetsStateChange: stub(),
+      onTokensStateChange: stub(),
       onCurrencyRateStateChange: stub(),
       onNetworkStateChange: stub(),
     });
@@ -104,7 +103,7 @@ describe('TokenRatesController', () => {
 
   it('should throw when tokens property is accessed', () => {
     const controller = new TokenRatesController({
-      onAssetsStateChange: stub(),
+      onTokensStateChange: stub(),
       onCurrencyRateStateChange: stub(),
       onNetworkStateChange: stub(),
     });
@@ -119,7 +118,7 @@ describe('TokenRatesController', () => {
     const times = 5;
     new TokenRatesController(
       {
-        onAssetsStateChange: jest.fn(),
+        onTokensStateChange: jest.fn(),
         onCurrencyRateStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
       },
@@ -141,7 +140,7 @@ describe('TokenRatesController', () => {
   it('should not update rates if disabled', async () => {
     const controller = new TokenRatesController(
       {
-        onAssetsStateChange: stub(),
+        onTokensStateChange: stub(),
         onCurrencyRateStateChange: stub(),
         onNetworkStateChange: stub(),
       },
@@ -159,7 +158,7 @@ describe('TokenRatesController', () => {
     const mock = stub(global, 'clearTimeout');
     const controller = new TokenRatesController(
       {
-        onAssetsStateChange: stub(),
+        onTokensStateChange: stub(),
         onCurrencyRateStateChange: stub(),
         onNetworkStateChange: stub(),
       },
@@ -176,21 +175,15 @@ describe('TokenRatesController', () => {
   });
 
   it('should update all rates', async () => {
-    const assetsContract = new AssetsContractController();
     const network = new NetworkController();
     const preferences = new PreferencesController();
-    const assets = new AssetsController({
+    const tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      getAssetName: assetsContract.getAssetName.bind(assetsContract),
-      getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
-      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
-        assetsContract,
-      ),
     });
     const controller = new TokenRatesController(
       {
-        onAssetsStateChange: (listener) => assets.subscribe(listener),
+        onTokensStateChange: (listener) => tokensController.subscribe(listener),
         onCurrencyRateStateChange: stub(),
         onNetworkStateChange: (listener) => network.subscribe(listener),
       },
@@ -216,7 +209,7 @@ describe('TokenRatesController', () => {
   it('should handle balance not found in API', async () => {
     const controller = new TokenRatesController(
       {
-        onAssetsStateChange: stub(),
+        onTokensStateChange: stub(),
         onCurrencyRateStateChange: stub(),
         onNetworkStateChange: stub(),
       },
@@ -233,16 +226,16 @@ describe('TokenRatesController', () => {
     expect(mock).not.toThrow();
   });
 
-  it('should update exchange rates when assets change', async () => {
-    let assetStateChangeListener: (state: any) => void;
-    const onAssetsStateChange = stub().callsFake((listener) => {
-      assetStateChangeListener = listener;
+  it('should update exchange rates when tokens change', async () => {
+    let tokenStateChangeListener: (state: any) => void;
+    const onTokensStateChange = stub().callsFake((listener) => {
+      tokenStateChangeListener = listener;
     });
     const onCurrencyRateStateChange = stub();
     const onNetworkStateChange = stub();
     const controller = new TokenRatesController(
       {
-        onAssetsStateChange,
+        onTokensStateChange,
         onCurrencyRateStateChange,
         onNetworkStateChange,
       },
@@ -251,21 +244,21 @@ describe('TokenRatesController', () => {
 
     const updateExchangeRatesStub = stub(controller, 'updateExchangeRates');
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    assetStateChangeListener!({ tokens: [] });
+    tokenStateChangeListener!({ tokens: [] });
     // FIXME: This is now being called twice
     expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
   });
 
   it('should update exchange rates when native currency changes', async () => {
     let currencyRateStateChangeListener: (state: any) => void;
-    const onAssetsStateChange = stub();
+    const onTokensStateChange = stub();
     const onCurrencyRateStateChange = stub().callsFake((listener) => {
       currencyRateStateChangeListener = listener;
     });
     const onNetworkStateChange = stub();
     const controller = new TokenRatesController(
       {
-        onAssetsStateChange,
+        onTokensStateChange,
         onCurrencyRateStateChange,
         onNetworkStateChange,
       },

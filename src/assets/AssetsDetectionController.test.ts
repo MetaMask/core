@@ -7,7 +7,8 @@ import {
 } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
 import { ControllerMessenger } from '../ControllerMessenger';
-import { AssetsController } from './AssetsController';
+import { TokensController } from './TokensController';
+import { CollectiblesController } from './CollectiblesController';
 import { AssetsContractController } from './AssetsContractController';
 import { AssetsDetectionController } from './AssetsDetectionController';
 import {
@@ -103,7 +104,8 @@ describe('AssetsDetectionController', () => {
   let assetsDetection: AssetsDetectionController;
   let preferences: PreferencesController;
   let network: NetworkController;
-  let assets: AssetsController;
+  let tokensController: TokensController;
+  let collectiblesController: CollectiblesController;
   let tokenList: TokenListController;
   let assetsContract: AssetsContractController;
   let getBalancesInSingleCall: SinonStub<
@@ -116,7 +118,11 @@ describe('AssetsDetectionController', () => {
     preferences = new PreferencesController();
     network = new NetworkController();
     assetsContract = new AssetsContractController();
-    assets = new AssetsController({
+    tokensController = new TokensController({
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+    });
+    collectiblesController = new CollectiblesController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
       getAssetName: assetsContract.getAssetName.bind(assetsContract),
@@ -138,15 +144,20 @@ describe('AssetsDetectionController', () => {
     await tokenList.start();
     getBalancesInSingleCall = sandbox.stub();
     assetsDetection = new AssetsDetectionController({
-      onAssetsStateChange: (listener) => assets.subscribe(listener),
+      onTokensStateChange: (listener) => tokensController.subscribe(listener),
+      onCollectiblesStateChange: (listener) =>
+        collectiblesController.subscribe(listener),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      getOpenSeaApiKey: () => assets.openSeaApiKey,
+      getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
       getBalancesInSingleCall: (getBalancesInSingleCall as unknown) as AssetsContractController['getBalancesInSingleCall'],
-      addTokens: assets.addTokens.bind(assets),
-      addCollectible: assets.addCollectible.bind(assets),
-      getAssetsState: () => assets.state,
+      addTokens: tokensController.addTokens.bind(tokensController),
+      addCollectible: collectiblesController.addCollectible.bind(
+        collectiblesController,
+      ),
+      getTokensState: () => tokensController.state,
       getTokenListState: () => tokenList.state,
+      getCollectiblesState: () => collectiblesController.state,
     });
 
     nock(OPEN_SEA_HOST)
@@ -271,18 +282,24 @@ describe('AssetsDetectionController', () => {
       );
       new AssetsDetectionController(
         {
-          onAssetsStateChange: (listener) => assets.subscribe(listener),
+          onTokensStateChange: (listener) =>
+            tokensController.subscribe(listener),
+          onCollectiblesStateChange: (listener) =>
+            collectiblesController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
           onNetworkStateChange: (listener) => network.subscribe(listener),
-          getOpenSeaApiKey: () => assets.openSeaApiKey,
+          getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
           getBalancesInSingleCall: assetsContract.getBalancesInSingleCall.bind(
             assetsContract,
           ),
-          addTokens: assets.addTokens.bind(assets),
-          addCollectible: assets.addCollectible.bind(assets),
-          getAssetsState: () => assets.state,
+          addTokens: tokensController.addTokens.bind(tokensController),
+          addCollectible: collectiblesController.addCollectible.bind(
+            collectiblesController,
+          ),
+          getTokensState: () => tokensController.state,
           getTokenListState: () => tokenList.state,
+          getCollectiblesState: () => collectiblesController.state,
         },
         { interval: 10 },
       );
@@ -317,18 +334,24 @@ describe('AssetsDetectionController', () => {
       );
       new AssetsDetectionController(
         {
-          onAssetsStateChange: (listener) => assets.subscribe(listener),
+          onTokensStateChange: (listener) =>
+            tokensController.subscribe(listener),
+          onCollectiblesStateChange: (listener) =>
+            collectiblesController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
           onNetworkStateChange: (listener) => network.subscribe(listener),
-          getOpenSeaApiKey: () => assets.openSeaApiKey,
+          getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
           getBalancesInSingleCall: assetsContract.getBalancesInSingleCall.bind(
             assetsContract,
           ),
-          addTokens: assets.addTokens.bind(assets),
-          addCollectible: assets.addCollectible.bind(assets),
-          getAssetsState: () => assets.state,
+          addTokens: tokensController.addTokens.bind(tokensController),
+          addCollectible: collectiblesController.addCollectible.bind(
+            collectiblesController,
+          ),
+          getTokensState: () => tokensController.state,
           getTokenListState: () => tokenList.state,
+          getCollectiblesState: () => collectiblesController.state,
         },
         { interval: 10, networkType: ROPSTEN },
       );
@@ -343,7 +366,7 @@ describe('AssetsDetectionController', () => {
   it('should detect and add collectibles correctly', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     await assetsDetection.detectCollectibles();
-    expect(assets.state.collectibles).toStrictEqual([
+    expect(collectiblesController.state.collectibles).toStrictEqual([
       {
         address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
         description: 'Description 2574',
@@ -356,7 +379,7 @@ describe('AssetsDetectionController', () => {
 
   it('should detect, add collectibles and do nor remove not detected collectibles correctly', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
-    await assets.addCollectible(
+    await collectiblesController.addCollectible(
       '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       2573,
       {
@@ -366,7 +389,7 @@ describe('AssetsDetectionController', () => {
       },
     );
     await assetsDetection.detectCollectibles();
-    expect(assets.state.collectibles).toStrictEqual([
+    expect(collectiblesController.state.collectibles).toStrictEqual([
       {
         address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
         description: 'Description 2573',
@@ -387,21 +410,21 @@ describe('AssetsDetectionController', () => {
   it('should not autodetect collectibles that exist in the ignoreList', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x2' });
     await assetsDetection.detectCollectibles();
-    expect(assets.state.collectibles).toHaveLength(1);
-    expect(assets.state.ignoredCollectibles).toHaveLength(0);
-    assets.removeAndIgnoreCollectible(
+    expect(collectiblesController.state.collectibles).toHaveLength(1);
+    expect(collectiblesController.state.ignoredCollectibles).toHaveLength(0);
+    collectiblesController.removeAndIgnoreCollectible(
       '0x1d963688fe2209a98db35c67a041524822cf04ff',
       2577,
     );
     await assetsDetection.detectCollectibles();
-    expect(assets.state.collectibles).toHaveLength(0);
-    expect(assets.state.ignoredCollectibles).toHaveLength(1);
+    expect(collectiblesController.state.collectibles).toHaveLength(0);
+    expect(collectiblesController.state.ignoredCollectibles).toHaveLength(1);
   });
 
   it('should not detect and add collectibles if there is no selectedAddress', async () => {
     assetsDetection.configure({ networkType: MAINNET });
     await assetsDetection.detectCollectibles();
-    expect(assets.state.collectibles).toStrictEqual([]);
+    expect(collectiblesController.state.collectibles).toStrictEqual([]);
   });
 
   it('should not detect and add collectibles to the wrong selectedAddress', async () => {
@@ -409,13 +432,13 @@ describe('AssetsDetectionController', () => {
       networkType: MAINNET,
       selectedAddress: '0x9',
     });
-    assets.configure({ selectedAddress: '0x9' });
+    collectiblesController.configure({ selectedAddress: '0x9' });
     assetsDetection.detectCollectibles();
     assetsDetection.configure({ selectedAddress: '0x12' });
-    assets.configure({ selectedAddress: '0x12' });
+    collectiblesController.configure({ selectedAddress: '0x12' });
     await new Promise((res) => setTimeout(() => res(true), 1000));
     expect(assetsDetection.config.selectedAddress).toStrictEqual('0x12');
-    expect(assets.state.collectibles).toStrictEqual([]);
+    expect(collectiblesController.state.collectibles).toStrictEqual([]);
   });
 
   it('should not add collectible if collectible or collectible contract has no information to display', async () => {
@@ -467,8 +490,10 @@ describe('AssetsDetectionController', () => {
     assetsDetection.configure({ selectedAddress: '0x1', networkType: MAINNET });
     await assetsDetection.detectCollectibles();
     // First fetch to API, only gets information from contract ending in HH
-    expect(assets.state.collectibles).toStrictEqual([collectibleHH2574]);
-    expect(assets.state.collectibleContracts).toStrictEqual([
+    expect(collectiblesController.state.collectibles).toStrictEqual([
+      collectibleHH2574,
+    ]);
+    expect(collectiblesController.state.collectibleContracts).toStrictEqual([
       collectibleContractHH,
     ]);
     // During next call of assets detection, API succeds returning contract ending in gg information
@@ -529,12 +554,12 @@ describe('AssetsDetectionController', () => {
 
     // Now user should have respective collectibles
     await assetsDetection.detectCollectibles();
-    expect(assets.state.collectibleContracts).toStrictEqual([
+    expect(collectiblesController.state.collectibleContracts).toStrictEqual([
       collectibleContractHH,
       collectibleContractII,
       collectibleContractGG,
     ]);
-    expect(assets.state.collectibles).toStrictEqual([
+    expect(collectiblesController.state.collectibles).toStrictEqual([
       collectibleHH2574,
       collectibleII2577,
       collectibleGG2574,
@@ -547,7 +572,7 @@ describe('AssetsDetectionController', () => {
       '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
     });
     await assetsDetection.detectTokens();
-    expect(assets.state.tokens).toStrictEqual([
+    expect(tokensController.state.tokens).toStrictEqual([
       {
         address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
         symbol: 'GNO',
@@ -562,7 +587,7 @@ describe('AssetsDetectionController', () => {
       '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
     });
     await assetsDetection.detectTokens();
-    expect(assets.state.tokens).toStrictEqual([
+    expect(tokensController.state.tokens).toStrictEqual([
       {
         address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
         decimals: 18,
@@ -574,7 +599,7 @@ describe('AssetsDetectionController', () => {
       '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
     await assetsDetection.detectTokens();
-    expect(assets.state.tokens).toStrictEqual([
+    expect(tokensController.state.tokens).toStrictEqual([
       {
         address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
         decimals: 18,
@@ -623,9 +648,11 @@ describe('AssetsDetectionController', () => {
     });
     await assetsDetection.detectTokens();
 
-    assets.removeAndIgnoreToken('0x514910771af9ca656af840dff83e8264ecf986ca');
+    tokensController.removeAndIgnoreToken(
+      '0x514910771af9ca656af840dff83e8264ecf986ca',
+    );
     await assetsDetection.detectTokens();
-    expect(assets.state.tokens).toStrictEqual([]);
+    expect(tokensController.state.tokens).toStrictEqual([]);
   });
 
   it('should not detect tokens if there is no selectedAddress set', async () => {
@@ -634,7 +661,7 @@ describe('AssetsDetectionController', () => {
       '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
     await assetsDetection.detectTokens();
-    expect(assets.state.tokens).toStrictEqual([]);
+    expect(tokensController.state.tokens).toStrictEqual([]);
   });
 
   it('should subscribe to new sibling detecting assets when account changes', async () => {
@@ -663,7 +690,7 @@ describe('AssetsDetectionController', () => {
       },
     });
     expect(network.state.provider.type).toStrictEqual(firstNetworkType);
-    assets.update({ tokens: TOKENS });
+    tokensController.update({ tokens: TOKENS });
     expect(assetsDetection.config.tokens).toStrictEqual(TOKENS);
   });
 });
