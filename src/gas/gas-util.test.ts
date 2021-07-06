@@ -1,13 +1,10 @@
 import nock from 'nock';
-import {
-  EXTERNAL_GAS_PRICES_API_URL,
-  fetchLegacyGasPriceEstimates,
-} from './gas-util';
+import { fetchLegacyGasPriceEstimates } from './gas-util';
 
 describe('gas utils', () => {
   describe('fetchLegacyGasPriceEstimates', () => {
     it('should fetch external gasPrices and return high/medium/low', async () => {
-      const scope = nock(EXTERNAL_GAS_PRICES_API_URL)
+      const scope = nock('https://not-a-real-url/')
         .get(/.+/u)
         .reply(200, {
           SafeGasPrice: '22',
@@ -15,7 +12,9 @@ describe('gas utils', () => {
           FastGasPrice: '30',
         })
         .persist();
-      const result = await fetchLegacyGasPriceEstimates();
+      const result = await fetchLegacyGasPriceEstimates(
+        'https://not-a-real-url/',
+      );
       expect(result).toMatchObject({
         high: '30',
         medium: '25',
