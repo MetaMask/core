@@ -7,9 +7,9 @@ import {
   GasFeeStateChange,
   LegacyGasPriceEstimate,
 } from './GasFeeController';
-import { EXTERNAL_GAS_PRICES_API_URL } from './gas-util';
 
-const GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/';
+const TEST_GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/<chain_id>';
+const TEST_LEGACY_FEE_API = 'https://test/<chain_id>';
 
 const name = 'GasFeeController';
 
@@ -30,8 +30,9 @@ function getRestrictedMessenger() {
 
 describe('GasFeeController', () => {
   let gasFeeController: GasFeeController;
-  let getIsMainnet: jest.Mock<boolean>;
+  let getCurrentNetworkLegacyGasAPICompatibility: jest.Mock<boolean>;
   let getIsEIP1559Compatible: jest.Mock<Promise<boolean>>;
+  let getChainId: jest.Mock<`0x${string}`>;
 
   beforeAll(() => {
     nock.disableNetConnect();
@@ -42,11 +43,14 @@ describe('GasFeeController', () => {
   });
 
   beforeEach(() => {
-    getIsMainnet = jest.fn().mockImplementation(() => false);
+    getChainId = jest.fn().mockImplementation(() => '1');
+    getCurrentNetworkLegacyGasAPICompatibility = jest
+      .fn()
+      .mockImplementation(() => false);
     getIsEIP1559Compatible = jest
       .fn()
       .mockImplementation(() => Promise.resolve(true));
-    nock(GAS_FEE_API)
+    nock(TEST_GAS_FEE_API.replace('<chain_id>', '1'))
       .get(/.+/u)
       .reply(200, {
         low: {
@@ -71,7 +75,7 @@ describe('GasFeeController', () => {
       })
       .persist();
 
-    nock(EXTERNAL_GAS_PRICES_API_URL)
+    nock(TEST_LEGACY_FEE_API.replace('<chain_id>', '0x1'))
       .get(/.+/u)
       .reply(200, {
         SafeGasPrice: '22',
@@ -84,8 +88,11 @@ describe('GasFeeController', () => {
       interval: 10000,
       messenger: getRestrictedMessenger(),
       getProvider: () => stub(),
+      getChainId,
+      legacyAPIEndpoint: TEST_LEGACY_FEE_API,
+      EIP1559APIEndpoint: TEST_GAS_FEE_API,
       onNetworkStateChange: () => stub(),
-      getIsMainnet,
+      getCurrentNetworkLegacyGasAPICompatibility,
       getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkController.state.properties.isEIP1559Compatible ???
     });
   });
@@ -115,7 +122,7 @@ describe('GasFeeController', () => {
 
   describe('when on mainnet before london', () => {
     it('should _fetchGasFeeEstimateData', async () => {
-      getIsMainnet.mockImplementation(() => true);
+      getCurrentNetworkLegacyGasAPICompatibility.mockImplementation(() => true);
       getIsEIP1559Compatible.mockImplementation(() => Promise.resolve(false));
       expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
       const estimates = await gasFeeController._fetchGasFeeEstimateData();
@@ -128,7 +135,7 @@ describe('GasFeeController', () => {
 
   describe('when on any network supporting EIP-1559', () => {
     it('should _fetchGasFeeEstimateData', async () => {
-      getIsMainnet.mockImplementation(() => true);
+      getCurrentNetworkLegacyGasAPICompatibility.mockImplementation(() => true);
       expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
       const estimates = await gasFeeController._fetchGasFeeEstimateData();
       expect(estimates).toHaveProperty('gasFeeEstimates');
