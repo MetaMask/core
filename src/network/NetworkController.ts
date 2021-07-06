@@ -304,7 +304,7 @@ export class NetworkController extends BaseController<
     const { properties = {} } = this.state;
 
     if (!properties.isEIP1559Compatible) {
-      if (!this.ethQuery || !this.ethQuery.sendAsync) {
+      if (typeof this.ethQuery?.sendAsync !== 'function') {
         return Promise.resolve(true);
       }
       return new Promise((resolve, reject) => {
