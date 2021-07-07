@@ -7,6 +7,7 @@ import {
   toChecksumAddress,
 } from 'ethereumjs-util';
 import { stripHexPrefix } from 'ethjs-util';
+import { fromWei, toWei } from 'ethjs-unit';
 import { ethErrors } from 'eth-rpc-errors';
 import ensNamehash from 'eth-ens-namehash';
 import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
@@ -60,6 +61,29 @@ export function fractionBN(
   const numBN = new BN(numerator);
   const denomBN = new BN(denominator);
   return targetBN.mul(numBN).div(denomBN);
+}
+
+/**
+ * Used to convert a base-10 number from GWEI to WEI. Can handle numbers with decimal parts
+ *
+ * @param n - The base 10 number to convert to WEI
+ * @returns - The number in WEI, as a BN
+ */
+export function gweiDecToWEIBN(n: number | string) {
+  if (Number.isNaN(n)) {
+    return new BN(0);
+  }
+  return toWei(n.toString(), 'gwei');
+}
+
+/**
+ * Used to convert values from wei hex format to dec gwei format
+ * @param hex - value in hex wei
+ * @returns - value in dec gwei as string
+ */
+export function weiHexToGweiDec(hex: string) {
+  const hexWei = new BN(stripHexPrefix(hex), 16);
+  return fromWei(hexWei, 'gwei').toString(10);
 }
 
 /**

@@ -47,6 +47,14 @@ export interface ProviderConfig {
   nickname?: string;
 }
 
+export interface Block {
+  baseFeePerGas?: string;
+}
+
+export interface NetworkProperties {
+  isEIP1559Compatible?: boolean;
+}
+
 /**
  * @type NetworkConfig
  *
@@ -71,6 +79,7 @@ export interface NetworkConfig extends BaseConfig {
 export interface NetworkState extends BaseState {
   network: string;
   provider: ProviderConfig;
+  properties: NetworkProperties;
 }
 
 const LOCALHOST_RPC_URL = 'http://localhost:8545';
@@ -202,8 +211,10 @@ export class NetworkController extends BaseController<
     this.defaultState = {
       network: 'loading',
       provider: { type: MAINNET, chainId: NetworksChainId.mainnet },
+      properties: { isEIP1559Compatible: false },
     };
     this.initialize();
+    this.getEIP1559Compatibility();
   }
 
   /**
@@ -287,6 +298,36 @@ export class NetworkController extends BaseController<
       },
     });
     this.refreshNetwork();
+  }
+
+  getEIP1559Compatibility() {
+    const { properties = {} } = this.state;
+
+    if (!properties.isEIP1559Compatible) {
+      if (typeof this.ethQuery?.sendAsync !== 'function') {
+        return Promise.resolve(true);
+      }
+      return new Promise((resolve, reject) => {
+        this.ethQuery.sendAsync(
+          { method: 'eth_getBlockByNumber', params: ['latest', false] },
+          (error: Error, block: Block) => {
+            if (error) {
+              reject(error);
+            } else {
+              const isEIP1559Compatible =
+                typeof block.baseFeePerGas !== 'undefined';
+              this.update({
+                properties: {
+                  isEIP1559Compatible,
+                },
+              });
+              resolve(isEIP1559Compatible);
+            }
+          },
+        );
+      });
+    }
+    return Promise.resolve(true);
   }
 }
 
