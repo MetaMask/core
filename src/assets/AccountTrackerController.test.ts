@@ -2,7 +2,7 @@ import { stub, spy } from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
 import type { ContactEntry } from '../user/AddressBookController';
 import { PreferencesController } from '../user/PreferencesController';
-import AccountTrackerController from './AccountTrackerController';
+import { AccountTrackerController } from './AccountTrackerController';
 
 const provider = new HttpProvider(
   'https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',

@@ -1,5 +1,5 @@
 import { BN } from 'ethereumjs-util';
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute } from '../util';
 import type { PreferencesState } from '../user/PreferencesController';
 import { Token } from './TokenRatesController';

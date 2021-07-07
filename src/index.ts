@@ -34,5 +34,4 @@ export * from './message-manager/TypedMessageManager';
 export * from './notification/NotificationController';
 export * from './assets/TokenListController';
 export * from './gas/GasFeeController';
-export * from './assets/TokenListController';
 export { util };

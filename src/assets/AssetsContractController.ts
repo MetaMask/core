@@ -3,7 +3,7 @@ import Web3 from 'web3';
 import abiERC20 from 'human-standard-token-abi';
 import abiERC721 from 'human-standard-collectible-abi';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
 
 const ERC721METADATA_INTERFACE_ID = '0x5b5e139f';
 const ERC721ENUMERABLE_INTERFACE_ID = '0x780e9d63';

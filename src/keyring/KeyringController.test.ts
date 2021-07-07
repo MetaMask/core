@@ -9,8 +9,9 @@ import { stub } from 'sinon';
 import Common from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
 import MockEncryptor from '../../tests/mocks/mockEncryptor';
-import PreferencesController from '../user/PreferencesController';
-import KeyringController, {
+import { PreferencesController } from '../user/PreferencesController';
+import {
+  KeyringController,
   AccountImportStrategy,
   Keyring,
   KeyringConfig,
