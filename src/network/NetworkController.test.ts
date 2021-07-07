@@ -71,7 +71,7 @@ describe('NetworkController', () => {
       infuraProjectId: 'foo',
     };
     const controller = new NetworkController(testConfig, {
-      network: 'a',
+      network: '10',
       provider: { type: 'optimism', chainId: NetworksChainId.optimism },
     });
     controller.providerConfig = {} as ProviderConfig;
