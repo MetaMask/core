@@ -3,7 +3,7 @@ import {
   TypedMessageParams,
   TypedMessageParamsMetamask,
 } from './TypedMessageManager';
-import AbstractMessageManager from './AbstractMessageManager';
+import { AbstractMessageManager } from './AbstractMessageManager';
 
 class AbstractTestManager extends AbstractMessageManager<
   TypedMessage,

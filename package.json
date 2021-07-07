@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "11.0.0",
+  "version": "12.0.0",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "license": "MIT",
   "files": [
@@ -32,7 +32,7 @@
   "homepage": "https://github.com/MetaMask/controllers#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MetaMask/controllers.git"
+    "url": "https://github.com/MetaMask/controllers.git"
   },
   "keywords": [
     "MetaMask",
@@ -58,6 +58,7 @@
     "eth-sig-util": "^3.0.0",
     "ethereumjs-util": "^7.0.10",
     "ethereumjs-wallet": "^1.0.1",
+    "ethjs-unit": "^0.1.6",
     "ethjs-util": "^0.1.6",
     "human-standard-collectible-abi": "^1.0.2",
     "human-standard-token-abi": "^2.0.0",
@@ -74,10 +75,10 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^1.0.6",
     "@metamask/auto-changelog": "^2.4.0",
-    "@metamask/eslint-config": "^6.0.0",
-    "@metamask/eslint-config-jest": "^6.0.0",
-    "@metamask/eslint-config-nodejs": "^6.0.0",
-    "@metamask/eslint-config-typescript": "^6.0.0",
+    "@metamask/eslint-config": "^7.0.1",
+    "@metamask/eslint-config-jest": "^7.0.0",
+    "@metamask/eslint-config-nodejs": "^7.0.1",
+    "@metamask/eslint-config-typescript": "^7.0.1",
     "@types/jest": "^26.0.22",
     "@types/node": "^14.14.31",
     "@types/punycode": "^2.1.0",

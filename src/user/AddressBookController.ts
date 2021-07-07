@@ -3,7 +3,7 @@ import {
   isValidHexAddress,
   toChecksumHexAddress,
 } from '../util';
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
 
 /**
  * @type ContactEntry

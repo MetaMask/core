@@ -1,4 +1,4 @@
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { toChecksumHexAddress } from '../util';
 import { ContactEntry } from './AddressBookController';
 

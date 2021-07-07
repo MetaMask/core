@@ -1,5 +1,5 @@
 const { errorCodes } = require('eth-rpc-errors');
-const ApprovalController = require('./ApprovalController').default;
+const { ApprovalController } = require('./ApprovalController');
 
 const defaultConfig = {
   showApprovalRequest: () => undefined,

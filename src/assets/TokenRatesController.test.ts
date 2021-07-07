@@ -2,7 +2,7 @@ import { stub } from 'sinon';
 import nock from 'nock';
 import { PreferencesController } from '../user/PreferencesController';
 import { NetworkController } from '../network/NetworkController';
-import TokenRatesController from './TokenRatesController';
+import { TokenRatesController } from './TokenRatesController';
 import { AssetsController } from './AssetsController';
 import { AssetsContractController } from './AssetsContractController';
 

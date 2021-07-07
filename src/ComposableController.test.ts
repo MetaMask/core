@@ -1,15 +1,15 @@
 import { stub } from 'sinon';
 import type { Patch } from 'immer';
-import AddressBookController from './user/AddressBookController';
-import EnsController from './third-party/EnsController';
-import ComposableController from './ComposableController';
+import { AddressBookController } from './user/AddressBookController';
+import { EnsController } from './third-party/EnsController';
+import { ComposableController } from './ComposableController';
 import { BaseController, BaseState } from './BaseController';
 import { BaseController as BaseControllerV2 } from './BaseControllerV2';
 import {
   ControllerMessenger,
   RestrictedControllerMessenger,
 } from './ControllerMessenger';
-import PreferencesController from './user/PreferencesController';
+import { PreferencesController } from './user/PreferencesController';
 import { AssetsController } from './assets/AssetsController';
 import {
   NetworkController,
@@ -133,6 +133,7 @@ describe('ComposableController', () => {
         NetworkController: {
           network: 'loading',
           isCustomNetwork: false,
+          properties: { isEIP1559Compatible: false },
           provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
         },
         PreferencesController: {
@@ -190,6 +191,7 @@ describe('ComposableController', () => {
         lostIdentities: {},
         network: 'loading',
         isCustomNetwork: false,
+        properties: { isEIP1559Compatible: false },
         provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
         selectedAddress: '',
         suggestedAssets: [],

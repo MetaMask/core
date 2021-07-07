@@ -1,5 +1,5 @@
 import { stub } from 'sinon';
-import BaseController, { BaseConfig, BaseState } from './BaseController';
+import { BaseController, BaseConfig, BaseState } from './BaseController';
 
 const STATE = { name: 'foo' };
 const CONFIG = { disabled: true };

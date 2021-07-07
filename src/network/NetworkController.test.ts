@@ -1,6 +1,7 @@
 import { stub } from 'sinon';
 import Web3ProviderEngine from 'web3-provider-engine';
-import NetworkController, {
+import {
+  NetworkController,
   NetworksChainId,
   ProviderConfig,
   NetworkType,
@@ -14,6 +15,7 @@ describe('NetworkController', () => {
     expect(controller.state).toStrictEqual({
       network: 'loading',
       isCustomNetwork: false,
+      properties: { isEIP1559Compatible: false },
       provider: {
         type: 'mainnet',
         chainId: '1',

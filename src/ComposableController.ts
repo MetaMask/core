@@ -1,4 +1,4 @@
-import BaseController from './BaseController';
+import { BaseController } from './BaseController';
 import { RestrictedControllerMessenger } from './ControllerMessenger';
 
 /**
