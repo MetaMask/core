@@ -28,8 +28,8 @@ export enum NetworksChainId {
   ropsten = '3',
   localhost = '',
   rpc = '',
-  optimism = 'a',
-  optimismTest = '45',
+  optimism = '10',
+  optimismTest = '69',
 }
 
 /**
