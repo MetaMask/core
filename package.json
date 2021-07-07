@@ -32,7 +32,7 @@
   "homepage": "https://github.com/MetaMask/controllers#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MetaMask/controllers.git"
+    "url": "https://github.com/MetaMask/controllers.git"
   },
   "keywords": [
     "MetaMask",
