@@ -96,6 +96,7 @@ const MOCK_NETWORK_CUSTOM = {
   state: {
     network: 'a',
     isCustomNetwork: true,
+    properties: { isEIP1559Compatible: false },
     provider: {
       type: 'optimism' as NetworkType,
       chainId: NetworksChainId.optimism,
