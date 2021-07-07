@@ -142,30 +142,77 @@ describe('util', () => {
   });
 
   describe('weiHexToGweiDec', () => {
-    it('should convert a WEI hex representing whole amounts of GWEI to whole number', () => {
-      const numbersInGwei = [1, 123, 101, 1234];
-      numbersInGwei.forEach((gweiDec) => {
-        expect(
-          util.weiHexToGweiDec(util.gweiDecToWEIBN(gweiDec).toString(16)),
-        ).toBe(gweiDec.toString());
+    it('should convert a whole number to WEI', () => {
+      const testData = [
+        {
+          input: '3b9aca00',
+          expectedResult: '1',
+        },
+        {
+          input: '1ca35f0e00',
+          expectedResult: '123',
+        },
+        {
+          input: '178411b200',
+          expectedResult: '101',
+        },
+        {
+          input: '11f5021b400',
+          expectedResult: '1234',
+        },
+      ];
+      testData.forEach(({ input, expectedResult }) => {
+        expect(util.weiHexToGweiDec(input)).toBe(expectedResult);
       });
     });
 
-    it('should convert a WEI hex representing fractional GWEI into a decimal number', () => {
-      const numbersInGwei = [1.1, 123.01, 101.001, 1234.567];
-      numbersInGwei.forEach((gweiDec) => {
-        expect(
-          util.weiHexToGweiDec(util.gweiDecToWEIBN(gweiDec).toString(16)),
-        ).toBe(gweiDec.toString());
+    it('should convert a number with a decimal part to WEI', () => {
+      const testData = [
+        {
+          input: '4190ab00',
+          expectedResult: '1.1',
+        },
+        {
+          input: '1ca3f7a480',
+          expectedResult: '123.01',
+        },
+        {
+          input: '178420f440',
+          expectedResult: '101.001',
+        },
+        {
+          input: '11f71ed6fc0',
+          expectedResult: '1234.567',
+        },
+      ];
+
+      testData.forEach(({ input, expectedResult }) => {
+        expect(util.weiHexToGweiDec(input)).toBe(expectedResult);
       });
     });
 
-    it('should convert a WEI hex representing values less than 1 GWEI into decimal numbers', () => {
-      const numbersInGwei = [0.1, 0.01, 0.001, 0.567];
-      numbersInGwei.forEach((gweiDec) => {
-        expect(
-          util.weiHexToGweiDec(util.gweiDecToWEIBN(gweiDec).toString(16)),
-        ).toBe(gweiDec.toString());
+    it('should convert a number < 1 to WEI', () => {
+      const testData = [
+        {
+          input: '5f5e100',
+          expectedResult: '0.1',
+        },
+        {
+          input: '989680',
+          expectedResult: '0.01',
+        },
+        {
+          input: 'f4240',
+          expectedResult: '0.001',
+        },
+        {
+          input: '21cbbbc0',
+          expectedResult: '0.567',
+        },
+      ];
+
+      testData.forEach(({ input, expectedResult }) => {
+        expect(util.weiHexToGweiDec(input)).toBe(expectedResult);
       });
     });
 
