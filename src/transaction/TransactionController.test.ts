@@ -82,6 +82,7 @@ const MOCK_NETWORK = {
   getProvider: () => PROVIDER,
   state: {
     network: '3',
+    properties: { isEIP1559Compatible: false },
     provider: {
       type: 'ropsten' as NetworkType,
       chainId: NetworksChainId.ropsten,
@@ -98,6 +99,7 @@ const MOCK_MAINNET_NETWORK = {
   getProvider: () => MAINNET_PROVIDER,
   state: {
     network: '1',
+    properties: { isEIP1559Compatible: false },
     provider: {
       type: 'mainnet' as NetworkType,
       chainId: NetworksChainId.mainnet,
@@ -109,6 +111,7 @@ const MOCK_CUSTOM_NETWORK = {
   getProvider: () => MAINNET_PROVIDER,
   state: {
     network: '80001',
+    properties: { isEIP1559Compatible: false },
     provider: {
       type: 'rpc' as NetworkType,
       chainId: '80001',
