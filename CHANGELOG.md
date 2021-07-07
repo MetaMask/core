@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.0] - 2021-07-07
+### Added
+- Added GasFeeController to provide gas fee estimates [#494](https://github.com/MetaMask/controllers/pull/494)
+
+### Changed
+- Added chainId support to TokenRatesControllers [#476](https://github.com/MetaMask/controllers/pull/476)
+- Added iconUrl to Token type in TokenListController [#512](https://github.com/MetaMask/controllers/pull/512)
+
 ## [11.0.0] - 2021-07-02
 ### Changed
 - We accidentally shipped a breaking change in v10.2.0. The changelog has been updated to explain the breaking change, and it has been republished as v11.0.0.
