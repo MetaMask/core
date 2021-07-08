@@ -6,7 +6,7 @@ import {
   NetworkController,
   NetworksChainId,
 } from '../network/NetworkController';
-import PreferencesController from '../user/PreferencesController';
+import { PreferencesController } from '../user/PreferencesController';
 import {
   TokenListController,
   TokenListStateChange,
@@ -1016,7 +1016,7 @@ describe('TokenListController', () => {
     preferences.update({
       useStaticTokenList: false,
     });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 50));
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 10));
     expect(controller.state.tokenList).toStrictEqual(
       sampleTwoChainState.tokenList,
     );
