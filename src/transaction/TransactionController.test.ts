@@ -94,7 +94,7 @@ const MOCK_NETWORK = {
 const MOCK_NETWORK_CUSTOM = {
   getProvider: () => PROVIDER,
   state: {
-    network: 'a',
+    network: '10',
     isCustomNetwork: true,
     properties: { isEIP1559Compatible: false },
     provider: {
