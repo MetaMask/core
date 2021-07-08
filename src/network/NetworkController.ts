@@ -110,7 +110,7 @@ export class NetworkController extends BaseController<
     ticker?: string,
     nickname?: string,
   ) {
-    this.state.isCustomNetwork = this.getisCustomNetwork(chainId);
+    this.update({ isCustomNetwork: this.getisCustomNetwork(chainId) });
     switch (type) {
       case 'kovan':
       case MAINNET:
