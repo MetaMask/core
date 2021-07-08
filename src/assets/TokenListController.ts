@@ -1,5 +1,6 @@
 import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
+import contractmap from '@metamask/contract-metadata';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { safelyExecute } from '../util';
@@ -9,6 +10,7 @@ import {
   fetchTokenMetadata,
 } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
+import { PreferencesState } from '../user/PreferencesController';
 
 const DEFAULT_INTERVAL = 60 * 60 * 1000;
 const DEFAULT_THRESHOLD = 60 * 30 * 1000;
@@ -28,8 +30,8 @@ type Token = {
   address: string;
   decimals: number;
   symbol: string;
-  occurrences: number;
-  aggregators: string[];
+  occurrences: number | null;
+  aggregators: string[] | null;
   iconUrl: string;
 };
 
@@ -79,6 +81,8 @@ export class TokenListController extends BaseController<
 
   private chainId: string;
 
+  private useStaticTokenList: boolean;
+
   /**
    * Creates a TokenListController instance
    *
@@ -89,15 +93,21 @@ export class TokenListController extends BaseController<
    */
   constructor({
     chainId,
+    useStaticTokenList,
     onNetworkStateChange,
+    onPreferencesStateChange,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
     messenger,
     state,
   }: {
     chainId: string;
+    useStaticTokenList: boolean;
     onNetworkStateChange: (
       listener: (networkState: NetworkState) => void,
+    ) => void;
+    onPreferencesStateChange: (
+      listener: (preferencesState: PreferencesState) => void,
     ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
@@ -119,8 +129,13 @@ export class TokenListController extends BaseController<
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
+    this.useStaticTokenList = useStaticTokenList;
     onNetworkStateChange(async (networkState) => {
       this.chainId = networkState.provider.chainId;
+      await safelyExecute(() => this.fetchTokenList());
+    });
+    onPreferencesStateChange(async (preferencesState) => {
+      this.useStaticTokenList = preferencesState.useStaticTokenList;
       await safelyExecute(() => this.fetchTokenList());
     });
   }
@@ -166,9 +181,39 @@ export class TokenListController extends BaseController<
   }
 
   /**
-   * Fetching token list from the Token Service API
+   * Fetching token list
    */
   async fetchTokenList(): Promise<void> {
+    if (this.useStaticTokenList) {
+      await this.fetchFromStaticTokenList();
+    } else {
+      await this.fetchFromDynamicTokenList();
+    }
+  }
+
+  /**
+   * Fetching token list from the contract-metadata as a fallback
+   */
+  async fetchFromStaticTokenList(): Promise<void> {
+    const tokenList: TokenMap = {};
+    for (const tokenAddress in contractmap) {
+      const { erc20, logo, ...token } = contractmap[tokenAddress];
+      if (erc20) {
+        tokenList[tokenAddress] = { ...token, iconUrl: logo };
+      }
+    }
+    this.update(() => {
+      return {
+        tokenList,
+        tokensChainsCache: {},
+      };
+    });
+  }
+
+  /**
+   * Fetching token list from the Token Service API
+   */
+  async fetchFromDynamicTokenList(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
     try {
       const tokensFromAPI: Token[] = await safelyExecute(() =>
@@ -179,7 +224,7 @@ export class TokenListController extends BaseController<
 
       // filtering out tokens with less than 2 occurences
       const filteredTokenList = tokensFromAPI.filter(
-        (token) => token.occurrences >= 2,
+        (token) => token.occurrences && token.occurrences >= 2,
       );
       // removing the tokens with symbol conflicts
       const symbolsList = filteredTokenList.map((token) => token.symbol);

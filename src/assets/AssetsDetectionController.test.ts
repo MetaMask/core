@@ -132,7 +132,9 @@ describe('AssetsDetectionController', () => {
     const messenger = getTokenListMessenger();
     tokenList = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      useDynamicTokenList: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
     await tokenList.start();
