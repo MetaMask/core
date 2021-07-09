@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added support for custom network gas estimation [#505] https://github.com/MetaMask/controllers/pull/505
+- Added support for custom network gas estimation [#505](https://github.com/MetaMask/controllers/pull/505)
 
 ## [12.0.0] - 2021-07-07
 
