@@ -110,7 +110,7 @@ export class NetworkController extends BaseController<
     ticker?: string,
     nickname?: string,
   ) {
-    this.update({ isCustomNetwork: this.getisCustomNetwork(chainId) });
+    this.update({ isCustomNetwork: this.getIsCustomNetwork(chainId) });
     switch (type) {
       case 'kovan':
       case MAINNET:
@@ -164,7 +164,7 @@ export class NetworkController extends BaseController<
     this.updateProvider(createMetamaskProvider(config));
   }
 
-  private getisCustomNetwork(chainId?: string) {
+  private getIsCustomNetwork(chainId?: string) {
     return (
       chainId !== NetworksChainId.mainnet &&
       chainId !== NetworksChainId.kovan &&
