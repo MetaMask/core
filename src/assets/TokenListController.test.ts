@@ -925,7 +925,7 @@ it('should use static token list when useStaticTokenList flag is set to true', a
     controller.destroy();
   });
 
-  it('should switch between static and dynamic list based on the prefernce change', async () => {
+  it('should switch between static and dynamic list based on the preference change', async () => {
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${NetworksChainId.mainnet}`)
       .reply(200, sampleMainnetTokenList)
