@@ -907,7 +907,7 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
-it('should use static token list when useStaticTokenList flag is set to true', async () => {
+  it('should use static token list when useStaticTokenList flag is set to true', async () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
