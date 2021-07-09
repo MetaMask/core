@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.1.0] - 2021-07-09
+### Added
+- Support for custom network and gas estimation ([#505](https://github.com/MetaMask/controllers/pull/505))
+- A fallback for the token list API service based on user preference ([#517](https://github.com/MetaMask/controllers/pull/517))
+
 ## [12.0.0] - 2021-07-07
 ### Added
 - Add GasFeeController to provide gas fee estimates [#494](https://github.com/MetaMask/controllers/pull/494)
@@ -278,10 +283,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rebrand as `@metamask/controllers` (#226)
 - Use yarn & drop `npm-shrinkwrap.json` (#193)
 
-## Removed
+### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v12.1.0...HEAD
+[12.1.0]: https://github.com/MetaMask/controllers/compare/v12.0.0...v12.1.0
 [12.0.0]: https://github.com/MetaMask/controllers/compare/v11.0.0...v12.0.0
 [11.0.0]: https://github.com/MetaMask/controllers/compare/v10.2.0...v11.0.0
 [10.2.0]: https://github.com/MetaMask/controllers/compare/v10.1.0...v10.2.0
