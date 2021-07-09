@@ -16,7 +16,9 @@ export type NetworkType =
   | 'rinkeby'
   | 'goerli'
   | 'ropsten'
-  | 'rpc';
+  | 'rpc'
+  | 'optimism'
+  | 'optimismTest';
 
 export enum NetworksChainId {
   mainnet = '1',
@@ -26,6 +28,8 @@ export enum NetworksChainId {
   ropsten = '3',
   localhost = '',
   rpc = '',
+  optimism = '10',
+  optimismTest = '69',
 }
 
 /**
@@ -74,10 +78,12 @@ export interface NetworkConfig extends BaseConfig {
  * Network controller state
  *
  * @property network - Network ID as per net_version
+ * @property isCustomNetwork - Identifies if the network is a custom network
  * @property provider - RPC URL and network name provider settings
  */
 export interface NetworkState extends BaseState {
   network: string;
+  isCustomNetwork: boolean;
   provider: ProviderConfig;
   properties: NetworkProperties;
 }
@@ -104,11 +110,14 @@ export class NetworkController extends BaseController<
     ticker?: string,
     nickname?: string,
   ) {
+    this.update({ isCustomNetwork: this.getIsCustomNetwork(chainId) });
     switch (type) {
       case 'kovan':
       case MAINNET:
       case 'rinkeby':
       case 'goerli':
+      case 'optimism':
+      case 'optimismTest':
       case 'ropsten':
         this.setupInfuraProvider(type);
         break;
@@ -153,6 +162,17 @@ export class NetworkController extends BaseController<
       },
     };
     this.updateProvider(createMetamaskProvider(config));
+  }
+
+  private getIsCustomNetwork(chainId?: string) {
+    return (
+      chainId !== NetworksChainId.mainnet &&
+      chainId !== NetworksChainId.kovan &&
+      chainId !== NetworksChainId.rinkeby &&
+      chainId !== NetworksChainId.goerli &&
+      chainId !== NetworksChainId.ropsten &&
+      chainId !== NetworksChainId.localhost
+    );
   }
 
   private setupStandardProvider(
@@ -210,6 +230,7 @@ export class NetworkController extends BaseController<
     super(config, state);
     this.defaultState = {
       network: 'loading',
+      isCustomNetwork: false,
       provider: { type: MAINNET, chainId: NetworksChainId.mainnet },
       properties: { isEIP1559Compatible: false },
     };
