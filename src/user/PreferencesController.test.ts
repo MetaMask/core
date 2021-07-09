@@ -10,6 +10,7 @@ describe('PreferencesController', () => {
       ipfsGateway: 'https://ipfs.io/ipfs/',
       lostIdentities: {},
       selectedAddress: '',
+      useStaticTokenList: false,
     });
   });
 
@@ -207,5 +208,11 @@ describe('PreferencesController', () => {
     expect(controller.state.selectedAddress).toStrictEqual(
       '0x95D2bC047B0dDEc1E4A178EeB64d59F5E735cd0A',
     );
+  });
+
+  it('should set useStaticTokenList', () => {
+    const controller = new PreferencesController();
+    controller.setUseStaticTokenList(true);
+    expect(controller.state.useStaticTokenList).toStrictEqual(true);
   });
 });

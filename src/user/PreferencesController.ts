@@ -46,6 +46,7 @@ export interface PreferencesState extends BaseState {
   identities: { [address: string]: ContactEntry };
   lostIdentities: { [address: string]: ContactEntry };
   selectedAddress: string;
+  useStaticTokenList: boolean;
 }
 
 /**
@@ -75,6 +76,7 @@ export class PreferencesController extends BaseController<
       ipfsGateway: 'https://ipfs.io/ipfs/',
       lostIdentities: {},
       selectedAddress: '',
+      useStaticTokenList: false,
     };
     this.initialize();
   }
@@ -282,6 +284,15 @@ export class PreferencesController extends BaseController<
    */
   setIpfsGateway(ipfsGateway: string) {
     this.update({ ipfsGateway });
+  }
+
+  /**
+   * Toggle the token detection setting to use dynamic token list
+   *
+   * @param useStaticTokenList - IPFS gateway string
+   */
+  setUseStaticTokenList(useStaticTokenList: boolean) {
+    this.update({ useStaticTokenList });
   }
 }
 
