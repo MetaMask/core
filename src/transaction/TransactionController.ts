@@ -806,7 +806,7 @@ export class TransactionController extends BaseController<
       typeof providedGasPrice === 'undefined'
         ? await query(this.ethQuery, 'gasPrice')
         : providedGasPrice;
-
+    const { isCustomNetwork } = this.getNetworkState();
     // 1. If gas is already defined on the transaction, use it
     if (typeof gas !== 'undefined') {
       return { gas, gasPrice };
@@ -816,11 +816,15 @@ export class TransactionController extends BaseController<
       false,
     ]);
 
-    // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000
+    // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000.
+    // If the newtwork is a custom network then bypass this check and fetch 'estimateGas'.
     /* istanbul ignore next */
     const code = to ? await query(this.ethQuery, 'getCode', [to]) : undefined;
     /* istanbul ignore next */
-    if (!to || (to && !data && (!code || code === '0x'))) {
+    if (
+      !isCustomNetwork &&
+      (!to || (to && !data && (!code || code === '0x')))
+    ) {
       return { gas: '0x5208', gasPrice };
     }
     // if data, should be hex string format
@@ -836,12 +840,13 @@ export class TransactionController extends BaseController<
       estimatedTransaction,
     ]);
 
-    // 4. Pad estimated gas without exceeding the most recent block gasLimit
+    // 4. Pad estimated gas without exceeding the most recent block gasLimit. If the network is a
+    // a custom network then return the eth_estimateGas value.
     const gasBN = hexToBN(gasHex);
     const maxGasBN = gasLimitBN.muln(0.9);
     const paddedGasBN = gasBN.muln(1.5);
     /* istanbul ignore next */
-    if (gasBN.gt(maxGasBN)) {
+    if (gasBN.gt(maxGasBN) || isCustomNetwork) {
       return { gas: addHexPrefix(gasHex), gasPrice };
     }
     /* istanbul ignore next */
