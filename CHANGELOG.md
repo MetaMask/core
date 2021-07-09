@@ -9,11 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [12.1.0] - 2021-07-09
 ### Added
 - Support for custom network and gas estimation ([#505](https://github.com/MetaMask/controllers/pull/505))
-- A fallback for tokenList API service based on user preference ([#517](https://github.com/MetaMask/controllers/pull/517))
-- Changelog validation to CI ([#511](https://github.com/MetaMask/controllers/pull/511))
-
-### Changed
-- Update ESLint config to v7 ([#502](https://github.com/MetaMask/controllers/pull/502))
+- A fallback for the token list API service based on user preference ([#517](https://github.com/MetaMask/controllers/pull/517))
 
 ## [12.0.0] - 2021-07-07
 ### Added
