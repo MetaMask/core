@@ -32,6 +32,9 @@ const NORMALIZERS: { [param in keyof Transaction]: any } = {
   nonce: (nonce: string) => addHexPrefix(nonce),
   to: (to: string) => addHexPrefix(to).toLowerCase(),
   value: (value: string) => addHexPrefix(value),
+  maxFeePerGas: (maxFeePerGas: string) => addHexPrefix(maxFeePerGas),
+  maxPriorityFeePerGas: (maxPriorityFeePerGas: string) =>
+    addHexPrefix(maxPriorityFeePerGas),
 };
 
 /**

@@ -25,7 +25,7 @@ import {
 } from '../util';
 import { MAINNET, RPC } from '../constants';
 
-const HARDFORK = 'berlin';
+const HARDFORK = 'london';
 
 /**
  * @type Result
@@ -72,6 +72,8 @@ export interface Transaction {
   nonce?: string;
   to?: string;
   value?: string;
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
 }
 
 /**
@@ -495,9 +497,11 @@ export class TransactionController extends BaseController<
     };
 
     try {
-      const { gas, gasPrice } = await this.estimateGas(transaction);
+      const { gas } = await this.estimateGas(transaction);
       transaction.gas = gas;
-      transaction.gasPrice = gasPrice;
+
+      // TODO(eip1559) check if this is not needed for legacy
+      // transaction.gasPrice = gasPrice;
     } catch (error) {
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
@@ -565,7 +569,8 @@ export class TransactionController extends BaseController<
     } = this.getNetworkState();
 
     if (chain !== RPC) {
-      return new Common({ chain, hardfork: HARDFORK });
+      const common = new Common({ chain, hardfork: HARDFORK, eips: [1559] });
+      return common;
     }
 
     const customChainParams = {
@@ -621,7 +626,12 @@ export class TransactionController extends BaseController<
       transactionMeta.transaction.nonce = txNonce;
       transactionMeta.transaction.chainId = chainId;
 
-      const txParams = {
+      const {
+        maxFeePerGas = undefined,
+        maxPriorityFeePerGas = undefined,
+      } = transactionMeta.transaction;
+
+      const baseTxParams = {
         ...transactionMeta.transaction,
         gasLimit: transactionMeta.transaction.gas,
         chainId,
@@ -629,8 +639,23 @@ export class TransactionController extends BaseController<
         status,
       };
 
-      const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+      const txParams =
+        maxFeePerGas && maxPriorityFeePerGas
+          ? {
+              ...baseTxParams,
+              maxFeePerGas,
+              maxPriorityFeePerGas,
+              // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
+              type: 2,
+            }
+          : baseTxParams;
 
+      // delete gasPrice if maxFeePerGas and maxPriorityFeePerGas are set
+      if (maxFeePerGas && maxPriorityFeePerGas) {
+        delete txParams.gasPrice;
+      }
+
+      const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
       const signedTx = await this.sign(unsignedEthTx, from);
       transactionMeta.status = TransactionStatus.signed;
       this.updateTransaction(transactionMeta);
