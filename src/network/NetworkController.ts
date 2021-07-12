@@ -134,7 +134,7 @@ export class NetworkController extends BaseController<
   }
 
   private refreshNetwork() {
-    this.update({ network: 'loading' });
+    this.update({ network: 'loading', properties: {} });
     const { rpcTarget, type, chainId, ticker } = this.state.provider;
     this.initializeProvider(type, rpcTarget, chainId, ticker);
     this.lookupNetwork();
@@ -324,7 +324,7 @@ export class NetworkController extends BaseController<
   getEIP1559Compatibility() {
     const { properties = {} } = this.state;
 
-    if (!properties.isEIP1559Compatible) {
+    if (properties.isEIP1559Compatible === undefined) {
       if (typeof this.ethQuery?.sendAsync !== 'function') {
         return Promise.resolve(true);
       }
@@ -348,7 +348,7 @@ export class NetworkController extends BaseController<
         );
       });
     }
-    return Promise.resolve(true);
+    return Promise.resolve(properties.isEIP1559Compatible);
   }
 }
 
