@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0] - 2021-07-12
+### Changed
+- **BREAKING**: Remove AssetsController and add CollectiblesController and TokensController in its place ([#518](https://github.com/MetaMask/controllers/pull/518))
+
 ## [12.1.0] - 2021-07-09
 ### Added
 - Support for custom network and gas estimation ([#505](https://github.com/MetaMask/controllers/pull/505))
@@ -286,7 +290,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v12.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/controllers/compare/v12.1.0...v13.0.0
 [12.1.0]: https://github.com/MetaMask/controllers/compare/v12.0.0...v12.1.0
 [12.0.0]: https://github.com/MetaMask/controllers/compare/v11.0.0...v12.0.0
 [11.0.0]: https://github.com/MetaMask/controllers/compare/v10.2.0...v11.0.0
