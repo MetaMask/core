@@ -2,7 +2,7 @@ import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute, handleFetch, toChecksumHexAddress } from '../util';
 
 import type { NetworkState } from '../network/NetworkController';
-import { TokensState } from './TokensController';
+import type { TokensState } from './TokensController';
 import type { CurrencyRateState } from './CurrencyRateController';
 
 /**

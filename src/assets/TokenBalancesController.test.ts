@@ -1,6 +1,5 @@
 import { createSandbox, stub } from 'sinon';
 import { BN } from 'ethereumjs-util';
-// import HttpProvider from 'ethjs-provider-http';
 import { NetworkController } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
 import { TokensController } from './TokensController';
