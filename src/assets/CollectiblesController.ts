@@ -1,17 +1,10 @@
 import { EventEmitter } from 'events';
-import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
-import {
-  safelyExecute,
-  handleFetch,
-  validateTokenToWatch,
-  toChecksumHexAddress,
-} from '../util';
+import { safelyExecute, handleFetch, toChecksumHexAddress } from '../util';
 import { MAINNET } from '../constants';
-import type { Token } from './TokenRatesController';
 import type {
   ApiCollectible,
   ApiCollectibleCreator,
@@ -110,103 +103,46 @@ export interface CollectibleMetadata {
 }
 
 /**
- * @type AssetsConfig
+ * @type CollectiblesConfig
  *
- * Assets controller configuration
+ * Collectibles controller configuration
  *
  * @property networkType - Network ID as per net_version
  * @property selectedAddress - Vault selected address
  */
-export interface AssetsConfig extends BaseConfig {
+export interface CollectiblesConfig extends BaseConfig {
   networkType: NetworkType;
   selectedAddress: string;
   chainId: string;
 }
 
 /**
- * @type AssetSuggestionResult
- *
- * @property result - Promise resolving to a new suggested asset address
- * @property suggestedAssetMeta - Meta information about this new suggested asset
- */
-export interface AssetSuggestionResult {
-  result: Promise<string>;
-  suggestedAssetMeta: SuggestedAssetMeta;
-}
-
-enum SuggestedAssetStatus {
-  accepted = 'accepted',
-  failed = 'failed',
-  pending = 'pending',
-  rejected = 'rejected',
-}
-
-type SuggestedAssetMetaBase = {
-  id: string;
-  time: number;
-  type: string;
-  asset: Token;
-};
-
-/**
- * @type SuggestedAssetMeta
- *
- * Suggested asset by EIP747 meta data
- *
- * @property error - Synthesized error information for failed asset suggestions
- * @property id - Generated UUID associated with this suggested asset
- * @property status - String status of this this suggested asset
- * @property time - Timestamp associated with this this suggested asset
- * @property type - Type type this suggested asset
- * @property asset - Asset suggested object
- */
-export type SuggestedAssetMeta =
-  | (SuggestedAssetMetaBase & {
-      status: SuggestedAssetStatus.failed;
-      error: Error;
-    })
-  | (SuggestedAssetMetaBase & {
-      status:
-        | SuggestedAssetStatus.accepted
-        | SuggestedAssetStatus.rejected
-        | SuggestedAssetStatus.pending;
-    });
-
-/**
- * @type AssetsState
+ * @type CollectiblesState
  *
  * Assets controller state
  *
- * @property allTokens - Object containing tokens per account and network
  * @property allCollectibleContracts - Object containing collectibles contract information
  * @property allCollectibles - Object containing collectibles per account and network
  * @property collectibleContracts - List of collectibles contracts associated with the active vault
  * @property collectibles - List of collectibles associated with the active vault
- * @property suggestedAssets - List of suggested assets associated with the active vault
- * @property tokens - List of tokens associated with the active vault
- * @property ignoredTokens - List of tokens that should be ignored
  * @property ignoredCollectibles - List of collectibles that should be ignored
  */
-export interface AssetsState extends BaseState {
-  allTokens: { [key: string]: { [key: string]: Token[] } };
+export interface CollectiblesState extends BaseState {
   allCollectibleContracts: {
     [key: string]: { [key: string]: CollectibleContract[] };
   };
   allCollectibles: { [key: string]: { [key: string]: Collectible[] } };
   collectibleContracts: CollectibleContract[];
   collectibles: Collectible[];
-  ignoredTokens: Token[];
   ignoredCollectibles: Collectible[];
-  suggestedAssets: SuggestedAssetMeta[];
-  tokens: Token[];
 }
 
 /**
  * Controller that stores assets and exposes convenience methods
  */
-export class AssetsController extends BaseController<
-  AssetsConfig,
-  AssetsState
+export class CollectiblesController extends BaseController<
+  CollectiblesConfig,
+  CollectiblesState
 > {
   private mutex = new Mutex();
 
@@ -216,21 +152,6 @@ export class AssetsController extends BaseController<
 
   private getCollectibleContractInformationApi(contractAddress: string) {
     return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
-  }
-
-  private failSuggestedAsset(
-    suggestedAssetMeta: SuggestedAssetMeta,
-    error: Error,
-  ) {
-    const failedSuggestedAssetMeta = {
-      ...suggestedAssetMeta,
-      status: SuggestedAssetStatus.failed,
-      error,
-    };
-    this.hub.emit(
-      `${suggestedAssetMeta.id}:finished`,
-      failedSuggestedAssetMeta,
-    );
   }
 
   /**
@@ -706,7 +627,7 @@ export class AssetsController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'AssetsController';
+  name = 'CollectiblesController';
 
   private getAssetName: AssetsContractController['getAssetName'];
 
@@ -715,7 +636,7 @@ export class AssetsController extends BaseController<
   private getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
 
   /**
-   * Creates a AssetsController instance
+   * Creates a CollectiblesController instance
    *
    * @param options
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes
@@ -745,7 +666,7 @@ export class AssetsController extends BaseController<
       getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
     },
     config?: Partial<BaseConfig>,
-    state?: Partial<AssetsState>,
+    state?: Partial<CollectiblesState>,
   ) {
     super(config, state);
     this.defaultConfig = {
@@ -756,39 +677,26 @@ export class AssetsController extends BaseController<
     this.defaultState = {
       allCollectibleContracts: {},
       allCollectibles: {},
-      allTokens: {},
       collectibleContracts: [],
       collectibles: [],
       ignoredCollectibles: [],
-      ignoredTokens: [],
-      suggestedAssets: [],
-      tokens: [],
     };
     this.initialize();
     this.getAssetName = getAssetName;
     this.getAssetSymbol = getAssetSymbol;
     this.getCollectibleTokenURI = getCollectibleTokenURI;
     onPreferencesStateChange(({ selectedAddress }) => {
-      const {
-        allCollectibleContracts,
-        allCollectibles,
-        allTokens,
-      } = this.state;
+      const { allCollectibleContracts, allCollectibles } = this.state;
       const { chainId } = this.config;
       this.configure({ selectedAddress });
       this.update({
         collectibleContracts:
           allCollectibleContracts[selectedAddress]?.[chainId] || [],
         collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
-        tokens: allTokens[selectedAddress]?.[chainId] || [],
       });
     });
     onNetworkStateChange(({ provider }) => {
-      const {
-        allCollectibleContracts,
-        allCollectibles,
-        allTokens,
-      } = this.state;
+      const { allCollectibleContracts, allCollectibles } = this.state;
       const { selectedAddress } = this.config;
       const { chainId } = provider;
       this.configure({ chainId });
@@ -796,7 +704,6 @@ export class AssetsController extends BaseController<
         collectibleContracts:
           allCollectibleContracts[selectedAddress]?.[chainId] || [],
         collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
-        tokens: allTokens[selectedAddress]?.[chainId] || [],
       });
     });
   }
@@ -808,211 +715,6 @@ export class AssetsController extends BaseController<
    */
   setApiKey(openSeaApiKey: string) {
     this.openSeaApiKey = openSeaApiKey;
-  }
-
-  /**
-   * Adds a token to the stored token list
-   *
-   * @param address - Hex address of the token contract
-   * @param symbol - Symbol of the token
-   * @param decimals - Number of decimals the token uses
-   * @param image - Image of the token
-   * @returns - Current token list
-   */
-  async addToken(
-    address: string,
-    symbol: string,
-    decimals: number,
-    image?: string,
-  ): Promise<Token[]> {
-    const releaseLock = await this.mutex.acquire();
-    try {
-      address = toChecksumHexAddress(address);
-      const { allTokens, tokens } = this.state;
-      const { chainId, selectedAddress } = this.config;
-      const newEntry: Token = { address, symbol, decimals, image };
-      const previousEntry = tokens.find((token) => token.address === address);
-      if (previousEntry) {
-        const previousIndex = tokens.indexOf(previousEntry);
-        tokens[previousIndex] = newEntry;
-      } else {
-        tokens.push(newEntry);
-      }
-      const addressTokens = allTokens[selectedAddress];
-      const newAddressTokens = { ...addressTokens, ...{ [chainId]: tokens } };
-      const newAllTokens = {
-        ...allTokens,
-        ...{ [selectedAddress]: newAddressTokens },
-      };
-      const newTokens = [...tokens];
-      this.update({ allTokens: newAllTokens, tokens: newTokens });
-      return newTokens;
-    } finally {
-      releaseLock();
-    }
-  }
-
-  /**
-   * Adds a batch of tokens to the stored token list
-   *
-   * @param tokens - Array of Tokens to be added or updated
-   * @returns - Current token list
-   */
-  async addTokens(tokensToAdd: Token[]): Promise<Token[]> {
-    const releaseLock = await this.mutex.acquire();
-    const { allTokens, tokens } = this.state;
-    const { chainId, selectedAddress } = this.config;
-
-    try {
-      tokensToAdd.forEach((tokenToAdd) => {
-        const { address, symbol, decimals, image } = tokenToAdd;
-        const checksumAddress = toChecksumHexAddress(address);
-
-        const newEntry: Token = {
-          address: checksumAddress,
-          symbol,
-          decimals,
-          image,
-        };
-        const previousEntry = tokens.find(
-          (token) => token.address === checksumAddress,
-        );
-        if (previousEntry) {
-          const previousIndex = tokens.indexOf(previousEntry);
-          tokens[previousIndex] = newEntry;
-        } else {
-          tokens.push(newEntry);
-        }
-      });
-
-      const addressTokens = allTokens[selectedAddress];
-      const newAddressTokens = { ...addressTokens, ...{ [chainId]: tokens } };
-      const newAllTokens = {
-        ...allTokens,
-        ...{ [selectedAddress]: newAddressTokens },
-      };
-      const newTokens = [...tokens];
-      this.update({ allTokens: newAllTokens, tokens: newTokens });
-      return newTokens;
-    } finally {
-      releaseLock();
-    }
-  }
-
-  /**
-   * Adds a new suggestedAsset to state. Parameters will be validated according to
-   * asset type being watched. A `<suggestedAssetMeta.id>:pending` hub event will be emitted once added.
-   *
-   * @param asset - Asset to be watched. For now only ERC20 tokens are accepted.
-   * @param type - Asset type
-   * @returns - Object containing a promise resolving to the suggestedAsset address if accepted
-   */
-  async watchAsset(asset: Token, type: string): Promise<AssetSuggestionResult> {
-    const suggestedAssetMeta = {
-      asset,
-      id: random(),
-      status: SuggestedAssetStatus.pending as SuggestedAssetStatus.pending,
-      time: Date.now(),
-      type,
-    };
-    try {
-      switch (type) {
-        case 'ERC20':
-          validateTokenToWatch(asset);
-          break;
-        default:
-          throw new Error(`Asset of type ${type} not supported`);
-      }
-    } catch (error) {
-      this.failSuggestedAsset(suggestedAssetMeta, error);
-      return Promise.reject(error);
-    }
-
-    const result: Promise<string> = new Promise((resolve, reject) => {
-      this.hub.once(
-        `${suggestedAssetMeta.id}:finished`,
-        (meta: SuggestedAssetMeta) => {
-          switch (meta.status) {
-            case SuggestedAssetStatus.accepted:
-              return resolve(meta.asset.address);
-            case SuggestedAssetStatus.rejected:
-              return reject(new Error('User rejected to watch the asset.'));
-            case SuggestedAssetStatus.failed:
-              return reject(new Error(meta.error.message));
-            /* istanbul ignore next */
-            default:
-              return reject(new Error(`Unknown status: ${meta.status}`));
-          }
-        },
-      );
-    });
-    const { suggestedAssets } = this.state;
-    suggestedAssets.push(suggestedAssetMeta);
-    this.update({ suggestedAssets: [...suggestedAssets] });
-    this.hub.emit('pendingSuggestedAsset', suggestedAssetMeta);
-    return { result, suggestedAssetMeta };
-  }
-
-  /**
-   * Accepts to watch an asset and updates it's status and deletes the suggestedAsset from state,
-   * adding the asset to corresponding asset state. In this case ERC20 tokens.
-   * A `<suggestedAssetMeta.id>:finished` hub event is fired after accepted or failure.
-   *
-   * @param suggestedAssetID - ID of the suggestedAsset to accept
-   * @returns - Promise resolving when this operation completes
-   */
-  async acceptWatchAsset(suggestedAssetID: string): Promise<void> {
-    const { suggestedAssets } = this.state;
-    const index = suggestedAssets.findIndex(
-      ({ id }) => suggestedAssetID === id,
-    );
-    const suggestedAssetMeta = suggestedAssets[index];
-    try {
-      switch (suggestedAssetMeta.type) {
-        case 'ERC20':
-          const { address, symbol, decimals, image } = suggestedAssetMeta.asset;
-          await this.addToken(address, symbol, decimals, image);
-          suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
-          this.hub.emit(
-            `${suggestedAssetMeta.id}:finished`,
-            suggestedAssetMeta,
-          );
-          break;
-        default:
-          throw new Error(
-            `Asset of type ${suggestedAssetMeta.type} not supported`,
-          );
-      }
-    } catch (error) {
-      this.failSuggestedAsset(suggestedAssetMeta, error);
-    }
-    const newSuggestedAssets = suggestedAssets.filter(
-      ({ id }) => id !== suggestedAssetID,
-    );
-    this.update({ suggestedAssets: [...newSuggestedAssets] });
-  }
-
-  /**
-   * Rejects a watchAsset request based on its ID by setting its status to "rejected"
-   * and emitting a `<suggestedAssetMeta.id>:finished` hub event.
-   *
-   * @param suggestedAssetID - ID of the suggestedAsset to accept
-   */
-  rejectWatchAsset(suggestedAssetID: string) {
-    const { suggestedAssets } = this.state;
-    const index = suggestedAssets.findIndex(
-      ({ id }) => suggestedAssetID === id,
-    );
-    const suggestedAssetMeta = suggestedAssets[index];
-    if (!suggestedAssetMeta) {
-      return;
-    }
-    suggestedAssetMeta.status = SuggestedAssetStatus.rejected;
-    this.hub.emit(`${suggestedAssetMeta.id}:finished`, suggestedAssetMeta);
-    const newSuggestedAssets = suggestedAssets.filter(
-      ({ id }) => id !== suggestedAssetID,
-    );
-    this.update({ suggestedAssets: [...newSuggestedAssets] });
   }
 
   /**
@@ -1055,58 +757,6 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Removes a token from the stored token list and saves it in ignored tokens list
-   *
-   * @param address - Hex address of the token contract
-   */
-  removeAndIgnoreToken(address: string) {
-    address = toChecksumHexAddress(address);
-    const { allTokens, tokens, ignoredTokens } = this.state;
-    const { chainId, selectedAddress } = this.config;
-    const newIgnoredTokens = [...ignoredTokens];
-    const newTokens = tokens.filter((token) => {
-      if (token.address === address) {
-        const alreadyIgnored = newIgnoredTokens.find(
-          (t) => t.address === address,
-        );
-        !alreadyIgnored && newIgnoredTokens.push(token);
-        return false;
-      }
-      return true;
-    });
-    const addressTokens = allTokens[selectedAddress];
-    const newAddressTokens = { ...addressTokens, ...{ [chainId]: newTokens } };
-    const newAllTokens = {
-      ...allTokens,
-      ...{ [selectedAddress]: newAddressTokens },
-    };
-    this.update({
-      allTokens: newAllTokens,
-      tokens: newTokens,
-      ignoredTokens: newIgnoredTokens,
-    });
-  }
-
-  /**
-   * Removes a token from the stored token list
-   *
-   * @param address - Hex address of the token contract
-   */
-  removeToken(address: string) {
-    address = toChecksumHexAddress(address);
-    const { allTokens, tokens } = this.state;
-    const { chainId, selectedAddress } = this.config;
-    const newTokens = tokens.filter((token) => token.address !== address);
-    const addressTokens = allTokens[selectedAddress];
-    const newAddressTokens = { ...addressTokens, ...{ [chainId]: newTokens } };
-    const newAllTokens = {
-      ...allTokens,
-      ...{ [selectedAddress]: newAddressTokens },
-    };
-    this.update({ allTokens: newAllTokens, tokens: newTokens });
-  }
-
-  /**
    * Removes a collectible from the stored token list
    *
    * @param address - Hex address of the collectible contract
@@ -1143,13 +793,6 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Removes all tokens from the ignored list
-   */
-  clearIgnoredTokens() {
-    this.update({ ignoredTokens: [] });
-  }
-
-  /**
    * Removes all collectibles from the ignored list
    */
   clearIgnoredCollectibles() {
@@ -1157,4 +800,4 @@ export class AssetsController extends BaseController<
   }
 }
 
-export default AssetsController;
+export default CollectiblesController;

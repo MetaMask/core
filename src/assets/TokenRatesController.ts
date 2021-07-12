@@ -2,7 +2,7 @@ import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute, handleFetch, toChecksumHexAddress } from '../util';
 
 import type { NetworkState } from '../network/NetworkController';
-import type { AssetsState } from './AssetsController';
+import type { TokensState } from './TokensController';
 import type { CurrencyRateState } from './CurrencyRateController';
 
 /**
@@ -122,7 +122,7 @@ function findChainSlug(
 
 /**
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
- * for tokens stored in the AssetsController
+ * for tokens stored in the TokensController
  */
 export class TokenRatesController extends BaseController<
   TokenRatesConfig,
@@ -148,12 +148,12 @@ export class TokenRatesController extends BaseController<
    */
   constructor(
     {
-      onAssetsStateChange,
+      onTokensStateChange,
       onCurrencyRateStateChange,
       onNetworkStateChange,
     }: {
-      onAssetsStateChange: (
-        listener: (assetState: AssetsState) => void,
+      onTokensStateChange: (
+        listener: (tokensState: TokensState) => void,
       ) => void;
       onCurrencyRateStateChange: (
         listener: (currencyRateState: CurrencyRateState) => void,
@@ -183,8 +183,8 @@ export class TokenRatesController extends BaseController<
     };
     this.initialize();
     this.configure({ disabled: false }, false, false);
-    onAssetsStateChange((assetsState) => {
-      this.configure({ tokens: assetsState.tokens });
+    onTokensStateChange((tokensState) => {
+      this.configure({ tokens: tokensState.tokens });
     });
     onCurrencyRateStateChange((currencyRateState) => {
       this.configure({ nativeCurrency: currencyRateState.nativeCurrency });

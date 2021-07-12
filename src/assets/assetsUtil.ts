@@ -1,4 +1,4 @@
-import { Collectible, CollectibleMetadata } from './AssetsController';
+import { Collectible, CollectibleMetadata } from './CollectiblesController';
 
 /**
  * Compares collectible metadata entries to any collectible entry

@@ -5,7 +5,6 @@ export * from './assets/AccountTrackerController';
 export * from './user/AddressBookController';
 export * from './approval/ApprovalController';
 export * from './assets/AssetsContractController';
-export * from './assets/AssetsController';
 export * from './assets/AssetsDetectionController';
 export * from './BaseController';
 export {
@@ -34,4 +33,6 @@ export * from './message-manager/TypedMessageManager';
 export * from './notification/NotificationController';
 export * from './assets/TokenListController';
 export * from './gas/GasFeeController';
+export * from './assets/TokensController';
+export * from './assets/CollectiblesController';
 export { util };

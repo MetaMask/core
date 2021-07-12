@@ -1,17 +1,14 @@
 import { createSandbox, stub } from 'sinon';
 import { BN } from 'ethereumjs-util';
-import HttpProvider from 'ethjs-provider-http';
 import { NetworkController } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
-import { AssetsController } from './AssetsController';
+import { TokensController } from './TokensController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
 import {
   BN as exportedBn,
   TokenBalancesController,
 } from './TokenBalancesController';
-
-const MAINNET_PROVIDER = new HttpProvider('https://mainnet.infura.io');
 
 describe('TokenBalancesController', () => {
   const sandbox = createSandbox();
@@ -34,7 +31,7 @@ describe('TokenBalancesController', () => {
 
   it('should set default state', () => {
     const tokenBalances = new TokenBalancesController({
-      onAssetsStateChange: stub(),
+      onTokensStateChange: stub(),
       getSelectedAddress: () => '0x1234',
       getBalanceOf: stub(),
     });
@@ -43,7 +40,7 @@ describe('TokenBalancesController', () => {
 
   it('should set default config', () => {
     const tokenBalances = new TokenBalancesController({
-      onAssetsStateChange: stub(),
+      onTokensStateChange: stub(),
       getSelectedAddress: () => '0x1234',
       getBalanceOf: stub(),
     });
@@ -58,7 +55,7 @@ describe('TokenBalancesController', () => {
       const mock = stub(TokenBalancesController.prototype, 'updateBalances');
       new TokenBalancesController(
         {
-          onAssetsStateChange: stub(),
+          onTokensStateChange: stub(),
           getSelectedAddress: () => '0x1234',
           getBalanceOf: stub(),
         },
@@ -77,7 +74,7 @@ describe('TokenBalancesController', () => {
   it('should not update rates if disabled', async () => {
     const tokenBalances = new TokenBalancesController(
       {
-        onAssetsStateChange: stub(),
+        onTokensStateChange: stub(),
         getSelectedAddress: () => '0x1234',
         getBalanceOf: stub(),
       },
@@ -95,7 +92,7 @@ describe('TokenBalancesController', () => {
     const mock = stub(global, 'clearTimeout');
     const tokenBalances = new TokenBalancesController(
       {
-        onAssetsStateChange: stub(),
+        onTokensStateChange: stub(),
         getSelectedAddress: () => '0x1234',
         getBalanceOf: stub(),
       },
@@ -112,22 +109,16 @@ describe('TokenBalancesController', () => {
   });
 
   it('should update all balances', async () => {
-    const assetsContract = new AssetsContractController();
     const network = new NetworkController();
     const preferences = new PreferencesController();
-    const assets = new AssetsController({
+    const assets = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      getAssetName: assetsContract.getAssetName.bind(assetsContract),
-      getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
-      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
-        assetsContract,
-      ),
     });
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     const tokenBalances = new TokenBalancesController(
       {
-        onAssetsStateChange: (listener) => assets.subscribe(listener),
+        onTokensStateChange: (listener) => assets.subscribe(listener),
         getSelectedAddress: () => preferences.state.selectedAddress,
         getBalanceOf: stub().returns(new BN(1)),
       },
@@ -135,7 +126,6 @@ describe('TokenBalancesController', () => {
     );
     expect(tokenBalances.state.contractBalances).toStrictEqual({});
 
-    assetsContract.configure({ provider: MAINNET_PROVIDER });
     await tokenBalances.updateBalances();
     const mytoken = getToken(tokenBalances, address);
     expect(mytoken?.balanceError).toBeNull();
@@ -148,19 +138,11 @@ describe('TokenBalancesController', () => {
   });
 
   it('should handle `getBalanceOf` error case', async () => {
-    const assetsContract = new AssetsContractController({
-      provider: MAINNET_PROVIDER,
-    });
     const network = new NetworkController();
     const preferences = new PreferencesController();
-    const assets = new AssetsController({
+    const assets = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      getAssetName: assetsContract.getAssetName.bind(assetsContract),
-      getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
-      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
-        assetsContract,
-      ),
     });
     const errorMsg = 'Failed to get balance';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
@@ -169,7 +151,7 @@ describe('TokenBalancesController', () => {
     );
     const tokenBalances = new TokenBalancesController(
       {
-        onAssetsStateChange: (listener) => assets.subscribe(listener),
+        onTokensStateChange: (listener) => assets.subscribe(listener),
         getSelectedAddress: () => preferences.state.selectedAddress,
         getBalanceOf: getBalanceOfStub,
       },
@@ -200,18 +182,13 @@ describe('TokenBalancesController', () => {
     const assetsContract = new AssetsContractController();
     const network = new NetworkController();
     const preferences = new PreferencesController();
-    const assets = new AssetsController({
+    const assets = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      getAssetName: assetsContract.getAssetName.bind(assetsContract),
-      getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
-      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
-        assetsContract,
-      ),
     });
     const tokenBalances = new TokenBalancesController(
       {
-        onAssetsStateChange: (listener) => assets.subscribe(listener),
+        onTokensStateChange: (listener) => assets.subscribe(listener),
         getSelectedAddress: () => preferences.state.selectedAddress,
         getBalanceOf: assetsContract.getBalanceOf.bind(assetsContract),
       },
