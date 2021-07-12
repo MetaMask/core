@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [13.0.0] - 2021-07-12
 ### Changed
-- **BREAKING**: Removes AssetsController and adds CollectiblesController and TokensController in its place ([#518](https://github.com/MetaMask/controllers/pull/518))
+- **BREAKING**: Remove AssetsController and add CollectiblesController and TokensController in its place ([#518](https://github.com/MetaMask/controllers/pull/518))
 
 ## [12.1.0] - 2021-07-09
 ### Added
