@@ -238,11 +238,6 @@ export interface TransactionState extends BaseState {
 export const CANCEL_RATE = 1.5;
 
 /**
- * Multiplier used to determine a transaction's increased gas fee during speed up
- */
-export const SPEED_UP_RATE = 1.1;
-
-/**
  * Controller responsible for submitting and managing transactions
  */
 export class TransactionController extends BaseController<
