@@ -769,18 +769,17 @@ export class TransactionController extends BaseController<
       throw new Error('No sign method defined.');
     }
 
+    const convertPriceToDecimal = (val: string | undefined): number =>
+      parseInt(val === undefined ? '0x0' : val, 16);
+
+    const getIncreasedPriceHex = (val: number): string =>
+      addHexPrefix(`${parseInt(`${val * SPEED_UP_RATE}`, 10).toString(16)}`);
+
     const { transactions } = this.state;
     const existingGasPrice = transactionMeta.transaction.gasPrice;
     /* istanbul ignore next */
-    const existingGasPriceDecimal = parseInt(
-      existingGasPrice === undefined ? '0x0' : existingGasPrice,
-      16,
-    );
-    const gasPrice = addHexPrefix(
-      `${parseInt(`${existingGasPriceDecimal * SPEED_UP_RATE}`, 10).toString(
-        16,
-      )}`,
-    );
+    const existingGasPriceDecimal = convertPriceToDecimal(existingGasPrice);
+    const gasPrice = getIncreasedPriceHex(existingGasPriceDecimal);
 
     const txParams = {
       ...transactionMeta.transaction,
