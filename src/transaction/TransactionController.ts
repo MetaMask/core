@@ -723,14 +723,37 @@ export class TransactionController extends BaseController<
       CANCEL_RATE,
     );
 
-    const txParams = {
-      from: transactionMeta.transaction.from,
-      gasLimit: transactionMeta.transaction.gas,
-      gasPrice,
-      nonce: transactionMeta.transaction.nonce,
-      to: transactionMeta.transaction.from,
-      value: '0x0',
-    };
+    const existingMaxFeePerGas = transactionMeta.transaction?.maxFeePerGas;
+    const existingMaxPriorityFeePerGas =
+      transactionMeta.transaction?.maxPriorityFeePerGas;
+
+    const newMaxFeePerGas =
+      existingMaxFeePerGas &&
+      getIncreasedPriceFromExisting(existingMaxFeePerGas, CANCEL_RATE);
+    const newMaxPriorityFeePerGas =
+      existingMaxPriorityFeePerGas &&
+      getIncreasedPriceFromExisting(existingMaxPriorityFeePerGas, CANCEL_RATE);
+
+    const txParams =
+      newMaxFeePerGas && newMaxFeePerGas
+        ? {
+            from: transactionMeta.transaction.from,
+            gasLimit: transactionMeta.transaction.gas,
+            maxFeePerGas: newMaxFeePerGas,
+            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+            type: 2,
+            nonce: transactionMeta.transaction.nonce,
+            to: transactionMeta.transaction.from,
+            value: '0x0',
+          }
+        : {
+            from: transactionMeta.transaction.from,
+            gasLimit: transactionMeta.transaction.gas,
+            gasPrice,
+            nonce: transactionMeta.transaction.nonce,
+            to: transactionMeta.transaction.from,
+            value: '0x0',
+          };
 
     const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
 
