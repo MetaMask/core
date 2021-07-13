@@ -781,11 +781,37 @@ export class TransactionController extends BaseController<
     const existingGasPriceDecimal = convertPriceToDecimal(existingGasPrice);
     const gasPrice = getIncreasedPriceHex(existingGasPriceDecimal);
 
-    const txParams = {
-      ...transactionMeta.transaction,
-      gasLimit: transactionMeta.transaction.gas,
-      gasPrice,
-    };
+    const existingMaxFeePerGas = transactionMeta.transaction?.maxFeePerGas;
+    const existingMaxPriorityFeePerGas =
+      transactionMeta.transaction?.maxPriorityFeePerGas;
+
+    const existingMaxFeePerGasDecimal =
+      existingMaxFeePerGas && convertPriceToDecimal(existingMaxFeePerGas);
+
+    const existingMaxPriorityFeePerGasDecimal =
+      existingMaxPriorityFeePerGas &&
+      convertPriceToDecimal(existingMaxPriorityFeePerGas);
+
+    const newMaxFeePerGas =
+      existingMaxFeePerGasDecimal &&
+      getIncreasedPriceHex(existingMaxFeePerGasDecimal);
+    const newMaxPriorityFeePerGas =
+      existingMaxPriorityFeePerGasDecimal &&
+      getIncreasedPriceHex(existingMaxPriorityFeePerGasDecimal);
+
+    const txParams =
+      newMaxFeePerGas && newMaxPriorityFeePerGas
+        ? {
+            ...transactionMeta.transaction,
+            gasLimit: transactionMeta.transaction.gas,
+            maxFeePerGas: newMaxFeePerGas,
+            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+          }
+        : {
+            ...transactionMeta.transaction,
+            gasLimit: transactionMeta.transaction.gas,
+            gasPrice,
+          };
 
     const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
 
@@ -797,16 +823,29 @@ export class TransactionController extends BaseController<
     const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
       rawTransaction,
     ]);
-    const newTransactionMeta = {
+    const baseTransactionMeta = {
       ...transactionMeta,
       id: random(),
       time: Date.now(),
-      transaction: {
-        ...transactionMeta.transaction,
-        gasPrice,
-      },
       transactionHash,
     };
+    const newTransactionMeta =
+      newMaxFeePerGas && newMaxPriorityFeePerGas
+        ? {
+            ...baseTransactionMeta,
+            transaction: {
+              ...transactionMeta.transaction,
+              maxFeePerGas: newMaxFeePerGas,
+              maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+            },
+          }
+        : {
+            ...baseTransactionMeta,
+            transaction: {
+              ...transactionMeta.transaction,
+              gasPrice,
+            },
+          };
     transactions.push(newTransactionMeta);
     this.update({ transactions: [...transactions] });
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
