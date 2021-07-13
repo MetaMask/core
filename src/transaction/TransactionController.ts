@@ -789,12 +789,16 @@ export class TransactionController extends BaseController<
 
     console.log({ transactionMeta });
 
-    const newMaxFeePerGas = getIncreasedPriceFromExisting(
-      transactionMeta.transaction?.maxFeePerGas,
-    );
-    const newMaxPriorityFeePerGas = getIncreasedPriceFromExisting(
-      transactionMeta.transaction?.maxPriorityFeePerGas,
-    );
+    const existingMaxFeePerGas = transactionMeta.transaction?.maxFeePerGas;
+    const existingMaxPriorityFeePerGas =
+      transactionMeta.transaction?.maxPriorityFeePerGas;
+
+    const newMaxFeePerGas =
+      existingMaxFeePerGas &&
+      getIncreasedPriceFromExisting(existingMaxFeePerGas);
+    const newMaxPriorityFeePerGas =
+      existingMaxPriorityFeePerGas &&
+      getIncreasedPriceFromExisting(existingMaxPriorityFeePerGas);
 
     console.log({ newMaxFeePerGas, newMaxPriorityFeePerGas });
 
