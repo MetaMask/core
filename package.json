@@ -2,19 +2,24 @@
   "name": "@metamask/controllers",
   "version": "13.0.0",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/controllers#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/controllers/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/controllers.git"
+  },
   "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist/"
   ],
-  "engines": {
-    "node": ">=12.0.0"
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
-    "access": "public"
-  },
   "scripts": {
     "setup": "yarn install && yarn allow-scripts",
     "prepublishOnly": "yarn build",
@@ -28,18 +33,6 @@
     "build:watch": "yarn build --watch",
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
     "doc": "typedoc && touch docs/.nojekyll"
-  },
-  "homepage": "https://github.com/MetaMask/controllers#readme",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/MetaMask/controllers.git"
-  },
-  "keywords": [
-    "MetaMask",
-    "Ethereum"
-  ],
-  "bugs": {
-    "url": "https://github.com/MetaMask/controllers/issues"
   },
   "dependencies": {
     "@ethereumjs/common": "^2.3.1",
@@ -98,11 +91,19 @@
     "jest-environment-jsdom": "^25.0.0",
     "nock": "^13.0.7",
     "prettier": "^2.2.1",
+    "prettier-plugin-packagejson": "^2.2.11",
     "rimraf": "^3.0.2",
     "sinon": "^9.2.4",
     "ts-jest": "^26.5.2",
     "typedoc": "^0.20.32",
     "typescript": "~4.2.2"
+  },
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "lavamoat": {
     "allowScripts": {
