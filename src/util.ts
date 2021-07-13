@@ -657,6 +657,23 @@ export function query(
   });
 }
 
+/**
+ * Multiplier used to determine a transaction's increased gas fee during speed up
+ */
+const SPEED_UP_RATE = 1.1;
+
+const convertPriceToDecimal = (value: string | undefined): number =>
+  parseInt(value === undefined ? '0x0' : value, 16);
+
+const getIncreasedPriceHex = (value: number): string =>
+  addHexPrefix(`${parseInt(`${value * SPEED_UP_RATE}`, 10).toString(16)}`);
+
+export const getIncreasedPriceFromExisting = (
+  value: string | undefined,
+): string => {
+  return getIncreasedPriceHex(convertPriceToDecimal(value));
+};
+
 export default {
   BNToHex,
   fractionBN,

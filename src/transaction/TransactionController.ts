@@ -22,6 +22,7 @@ import {
   isSmartContractCode,
   handleTransactionFetch,
   query,
+  getIncreasedPriceFromExisting,
 } from '../util';
 import { MAINNET, RPC } from '../constants';
 
@@ -769,25 +770,11 @@ export class TransactionController extends BaseController<
       throw new Error('No sign method defined.');
     }
 
-    const convertPriceToDecimal = (value: string | undefined): number =>
-      parseInt(value === undefined ? '0x0' : value, 16);
-
-    const getIncreasedPriceHex = (value: number): string =>
-      addHexPrefix(`${parseInt(`${value * SPEED_UP_RATE}`, 10).toString(16)}`);
-
-    const getIncreasedPriceFromExisting = (
-      value: string | undefined,
-    ): string => {
-      return getIncreasedPriceHex(convertPriceToDecimal(value));
-    };
-
     const { transactions } = this.state;
     /* istanbul ignore next */
     const gasPrice = getIncreasedPriceFromExisting(
       transactionMeta.transaction.gasPrice,
     );
-
-    console.log({ transactionMeta });
 
     const existingMaxFeePerGas = transactionMeta.transaction?.maxFeePerGas;
     const existingMaxPriorityFeePerGas =
@@ -799,8 +786,6 @@ export class TransactionController extends BaseController<
     const newMaxPriorityFeePerGas =
       existingMaxPriorityFeePerGas &&
       getIncreasedPriceFromExisting(existingMaxPriorityFeePerGas);
-
-    console.log({ newMaxFeePerGas, newMaxPriorityFeePerGas });
 
     const txParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
