@@ -769,15 +769,16 @@ export class TransactionController extends BaseController<
       throw new Error('No sign method defined.');
     }
 
-    const convertPriceToDecimal = (val: string | undefined): number =>
-      parseInt(val === undefined ? '0x0' : val, 16);
+    const convertPriceToDecimal = (value: string | undefined): number =>
+      parseInt(value === undefined ? '0x0' : value, 16);
 
-    const getIncreasedPriceHex = (val: number): string =>
-      addHexPrefix(`${parseInt(`${val * SPEED_UP_RATE}`, 10).toString(16)}`);
+    const getIncreasedPriceHex = (value: number): string =>
+      addHexPrefix(`${parseInt(`${value * SPEED_UP_RATE}`, 10).toString(16)}`);
 
-    const getIncreasedPriceFromExisting = (val: string | undefined): string => {
-      const existingToDecimal = convertPriceToDecimal(val);
-      return getIncreasedPriceHex(existingToDecimal);
+    const getIncreasedPriceFromExisting = (
+      value: string | undefined,
+    ): string => {
+      return getIncreasedPriceHex(convertPriceToDecimal(value));
     };
 
     const { transactions } = this.state;
