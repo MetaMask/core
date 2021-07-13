@@ -95,6 +95,8 @@ describe('util', () => {
       nonce: 'nonce',
       to: 'TO',
       value: 'value',
+      maxFeePerGas: 'maxFeePerGas',
+      maxPriorityFeePerGas: 'maxPriorityFeePerGas',
     });
     expect(normalized).toStrictEqual({
       data: '0xdata',
@@ -104,6 +106,8 @@ describe('util', () => {
       nonce: '0xnonce',
       to: '0xto',
       value: '0xvalue',
+      maxFeePerGas: '0xmaxFeePerGas',
+      maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
     });
   });
 
