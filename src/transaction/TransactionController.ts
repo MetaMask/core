@@ -775,29 +775,27 @@ export class TransactionController extends BaseController<
     const getIncreasedPriceHex = (val: number): string =>
       addHexPrefix(`${parseInt(`${val * SPEED_UP_RATE}`, 10).toString(16)}`);
 
+    const getIncreasedPriceFromExisting = (val: string | undefined): string => {
+      const existingToDecimal = convertPriceToDecimal(val);
+      return getIncreasedPriceHex(existingToDecimal);
+    };
+
     const { transactions } = this.state;
-    const existingGasPrice = transactionMeta.transaction.gasPrice;
     /* istanbul ignore next */
-    const existingGasPriceDecimal = convertPriceToDecimal(existingGasPrice);
-    const gasPrice = getIncreasedPriceHex(existingGasPriceDecimal);
+    const gasPrice = getIncreasedPriceFromExisting(
+      transactionMeta.transaction.gasPrice,
+    );
 
-    const existingMaxFeePerGas = transactionMeta.transaction?.maxFeePerGas;
-    const existingMaxPriorityFeePerGas =
-      transactionMeta.transaction?.maxPriorityFeePerGas;
+    console.log({ transactionMeta });
 
-    const existingMaxFeePerGasDecimal =
-      existingMaxFeePerGas && convertPriceToDecimal(existingMaxFeePerGas);
+    const newMaxFeePerGas = getIncreasedPriceFromExisting(
+      transactionMeta.transaction?.maxFeePerGas,
+    );
+    const newMaxPriorityFeePerGas = getIncreasedPriceFromExisting(
+      transactionMeta.transaction?.maxPriorityFeePerGas,
+    );
 
-    const existingMaxPriorityFeePerGasDecimal =
-      existingMaxPriorityFeePerGas &&
-      convertPriceToDecimal(existingMaxPriorityFeePerGas);
-
-    const newMaxFeePerGas =
-      existingMaxFeePerGasDecimal &&
-      getIncreasedPriceHex(existingMaxFeePerGasDecimal);
-    const newMaxPriorityFeePerGas =
-      existingMaxPriorityFeePerGasDecimal &&
-      getIncreasedPriceHex(existingMaxPriorityFeePerGasDecimal);
+    console.log({ newMaxFeePerGas, newMaxPriorityFeePerGas });
 
     const txParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
