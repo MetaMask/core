@@ -662,10 +662,10 @@ export function query(
  */
 const SPEED_UP_RATE = 1.1;
 
-const convertPriceToDecimal = (value: string | undefined): number =>
+export const convertPriceToDecimal = (value: string | undefined): number =>
   parseInt(value === undefined ? '0x0' : value, 16);
 
-const getIncreasedPriceHex = (value: number): string =>
+export const getIncreasedPriceHex = (value: number): string =>
   addHexPrefix(`${parseInt(`${value * SPEED_UP_RATE}`, 10).toString(16)}`);
 
 export const getIncreasedPriceFromExisting = (

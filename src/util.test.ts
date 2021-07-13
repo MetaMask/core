@@ -880,4 +880,29 @@ describe('util', () => {
       );
     });
   });
+
+  describe('convertPriceToDecimal', () => {
+    it('should convert hex price to decimal', () => {
+      expect(util.convertPriceToDecimal('0x50fd51da')).toStrictEqual(
+        1358778842,
+      );
+    });
+    it('should return zero when undefined', () => {
+      expect(util.convertPriceToDecimal(undefined)).toStrictEqual(0);
+    });
+  });
+
+  describe('getIncreasedPriceHex', () => {
+    it('should get increased price from number as hex', () => {
+      expect(util.getIncreasedPriceHex(1358778842)).toStrictEqual('0x5916a6d6');
+    });
+  });
+
+  describe('getIncreasedPriceFromExisting', () => {
+    it('should get increased price from number as hex', () => {
+      expect(util.getIncreasedPriceFromExisting('0x50fd51da')).toStrictEqual(
+        '0x5916a6d6',
+      );
+    });
+  });
 });

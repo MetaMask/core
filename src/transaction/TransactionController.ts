@@ -771,7 +771,6 @@ export class TransactionController extends BaseController<
     }
 
     const { transactions } = this.state;
-    /* istanbul ignore next */
     const gasPrice = getIncreasedPriceFromExisting(
       transactionMeta.transaction.gasPrice,
     );
