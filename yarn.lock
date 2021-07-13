@@ -7722,7 +7722,7 @@ walker@^1.0.7, walker@~1.0.5:
   dependencies:
     makeerror "1.0.x"
 
-"web3-provider-engine@git+https://github.com/MetaMask/web3-provider-engine.git#feature/use-ethereumjs/tx":
+"web3-provider-engine@git+https://github.com/MetaMask/web3-provider-engine.git#de4f74069dcf82f94ffa1162de779c6859f255ff":
   version "16.0.1"
   resolved "git+https://github.com/MetaMask/web3-provider-engine.git#de4f74069dcf82f94ffa1162de779c6859f255ff"
   dependencies:
