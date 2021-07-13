@@ -657,21 +657,17 @@ export function query(
   });
 }
 
-/**
- * Multiplier used to determine a transaction's increased gas fee during speed up
- */
-const SPEED_UP_RATE = 1.1;
-
 export const convertPriceToDecimal = (value: string | undefined): number =>
   parseInt(value === undefined ? '0x0' : value, 16);
 
-export const getIncreasedPriceHex = (value: number): string =>
-  addHexPrefix(`${parseInt(`${value * SPEED_UP_RATE}`, 10).toString(16)}`);
+export const getIncreasedPriceHex = (value: number, rate: number): string =>
+  addHexPrefix(`${parseInt(`${value * rate}`, 10).toString(16)}`);
 
 export const getIncreasedPriceFromExisting = (
   value: string | undefined,
+  rate: number,
 ): string => {
-  return getIncreasedPriceHex(convertPriceToDecimal(value));
+  return getIncreasedPriceHex(convertPriceToDecimal(value), rate);
 };
 
 export default {

@@ -894,15 +894,17 @@ describe('util', () => {
 
   describe('getIncreasedPriceHex', () => {
     it('should get increased price from number as hex', () => {
-      expect(util.getIncreasedPriceHex(1358778842)).toStrictEqual('0x5916a6d6');
+      expect(util.getIncreasedPriceHex(1358778842, 1.1)).toStrictEqual(
+        '0x5916a6d6',
+      );
     });
   });
 
   describe('getIncreasedPriceFromExisting', () => {
     it('should get increased price from number as hex', () => {
-      expect(util.getIncreasedPriceFromExisting('0x50fd51da')).toStrictEqual(
-        '0x5916a6d6',
-      );
+      expect(
+        util.getIncreasedPriceFromExisting('0x50fd51da', 1.1),
+      ).toStrictEqual('0x5916a6d6');
     });
   });
 });

@@ -238,6 +238,11 @@ export interface TransactionState extends BaseState {
 export const CANCEL_RATE = 1.5;
 
 /**
+ * Multiplier used to determine a transaction's increased gas fee during speed up
+ */
+export const SPEED_UP_RATE = 1.1;
+
+/**
  * Controller responsible for submitting and managing transactions
  */
 export class TransactionController extends BaseController<
@@ -713,16 +718,9 @@ export class TransactionController extends BaseController<
       throw new Error('No sign method defined.');
     }
 
-    const existingGasPrice = transactionMeta.transaction.gasPrice;
-    /* istanbul ignore next */
-    const existingGasPriceDecimal = parseInt(
-      existingGasPrice === undefined ? '0x0' : existingGasPrice,
-      16,
-    );
-    const gasPrice = addHexPrefix(
-      `${parseInt(`${existingGasPriceDecimal * CANCEL_RATE}`, 10).toString(
-        16,
-      )}`,
+    const gasPrice = getIncreasedPriceFromExisting(
+      transactionMeta.transaction.gasPrice,
+      CANCEL_RATE,
     );
 
     const txParams = {
@@ -768,6 +766,7 @@ export class TransactionController extends BaseController<
     const { transactions } = this.state;
     const gasPrice = getIncreasedPriceFromExisting(
       transactionMeta.transaction.gasPrice,
+      SPEED_UP_RATE,
     );
 
     const existingMaxFeePerGas = transactionMeta.transaction?.maxFeePerGas;
@@ -776,10 +775,13 @@ export class TransactionController extends BaseController<
 
     const newMaxFeePerGas =
       existingMaxFeePerGas &&
-      getIncreasedPriceFromExisting(existingMaxFeePerGas);
+      getIncreasedPriceFromExisting(existingMaxFeePerGas, SPEED_UP_RATE);
     const newMaxPriorityFeePerGas =
       existingMaxPriorityFeePerGas &&
-      getIncreasedPriceFromExisting(existingMaxPriorityFeePerGas);
+      getIncreasedPriceFromExisting(
+        existingMaxPriorityFeePerGas,
+        SPEED_UP_RATE,
+      );
 
     const txParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
