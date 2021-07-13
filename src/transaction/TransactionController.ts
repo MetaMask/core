@@ -804,6 +804,7 @@ export class TransactionController extends BaseController<
             gasLimit: transactionMeta.transaction.gas,
             maxFeePerGas: newMaxFeePerGas,
             maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+            type: 2,
           }
         : {
             ...transactionMeta.transaction,
