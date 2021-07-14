@@ -467,6 +467,13 @@ export class TransactionController extends BaseController<
     }
   }
 
+  isEIP1559Transaction(transaction: Transaction): boolean {
+    return (
+      Boolean(transaction.maxFeePerGas) &&
+      Boolean(transaction.maxPriorityFeePerGas)
+    );
+  }
+
   /**
    * Add a new unapproved transaction to state. Parameters will be validated, a
    * unique transaction id will be generated, and gas and gasPrice will be calculated
@@ -499,11 +506,14 @@ export class TransactionController extends BaseController<
     };
 
     try {
-      const { gas } = await this.estimateGas(transaction);
-      transaction.gas = gas;
-
-      // TODO(eip1559) check if this is not needed for legacy
-      // transaction.gasPrice = gasPrice;
+      if (this.isEIP1559Transaction(transaction)) {
+        const { gas } = await this.estimateGas(transaction);
+        transaction.gas = gas;
+      } else {
+        const { gas, gasPrice } = await this.estimateGas(transaction);
+        transaction.gas = gas;
+        transaction.gasPrice = gasPrice;
+      }
     } catch (error) {
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
@@ -628,11 +638,6 @@ export class TransactionController extends BaseController<
       transactionMeta.transaction.nonce = txNonce;
       transactionMeta.transaction.chainId = chainId;
 
-      const {
-        maxFeePerGas = undefined,
-        maxPriorityFeePerGas = undefined,
-      } = transactionMeta.transaction;
-
       const baseTxParams = {
         ...transactionMeta.transaction,
         gasLimit: transactionMeta.transaction.gas,
@@ -641,19 +646,23 @@ export class TransactionController extends BaseController<
         status,
       };
 
-      const txParams =
-        maxFeePerGas && maxPriorityFeePerGas
-          ? {
-              ...baseTxParams,
-              maxFeePerGas,
-              maxPriorityFeePerGas,
-              // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
-              type: 2,
-            }
-          : baseTxParams;
+      const isEIP1559Transaction = this.isEIP1559Transaction(
+        transactionMeta.transaction,
+      );
+
+      const txParams = isEIP1559Transaction
+        ? {
+            ...baseTxParams,
+            maxFeePerGas: transactionMeta.transaction.maxFeePerGas,
+            maxPriorityFeePerGas:
+              transactionMeta.transaction.maxPriorityFeePerGas,
+            // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
+            type: 2,
+          }
+        : baseTxParams;
 
       // delete gasPrice if maxFeePerGas and maxPriorityFeePerGas are set
-      if (maxFeePerGas && maxPriorityFeePerGas) {
+      if (isEIP1559Transaction) {
         delete txParams.gasPrice;
       }
 
