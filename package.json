@@ -51,6 +51,7 @@
     "eth-sig-util": "^3.0.0",
     "ethereumjs-util": "^7.0.10",
     "ethereumjs-wallet": "^1.0.1",
+    "ethers": "^5.4.1",
     "ethjs-unit": "^0.1.6",
     "ethjs-util": "^0.1.6",
     "human-standard-collectible-abi": "^1.0.2",

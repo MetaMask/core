@@ -580,6 +580,7 @@ describe('AssetsDetectionController', () => {
         symbol: 'GNO',
         decimals: 18,
         image: undefined,
+        isERC721: false,
       },
     ]);
   });
@@ -595,6 +596,7 @@ describe('AssetsDetectionController', () => {
         decimals: 18,
         image: undefined,
         symbol: 'GNO',
+        isERC721: false,
       },
     ]);
     getBalancesInSingleCall.resolves({
@@ -607,12 +609,14 @@ describe('AssetsDetectionController', () => {
         decimals: 18,
         image: undefined,
         symbol: 'GNO',
+        isERC721: false,
       },
       {
         address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
         symbol: 'LINK',
         decimals: 18,
         image: undefined,
+        isERC721: false,
       },
     ]);
   });

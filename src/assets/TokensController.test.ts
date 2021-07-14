@@ -1,4 +1,5 @@
-import { createSandbox } from 'sinon';
+import sinon from 'sinon';
+import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '../user/PreferencesController';
 import {
   NetworkController,
@@ -10,7 +11,7 @@ describe('TokensController', () => {
   let tokensController: TokensController;
   let preferences: PreferencesController;
   let network: NetworkController;
-  const sandbox = createSandbox();
+  let supportsInterfaceStub: () => Promise<any>;
 
   beforeEach(() => {
     preferences = new PreferencesController();
@@ -19,10 +20,16 @@ describe('TokensController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
     });
+
+    sinon
+      .stub(tokensController, '_createEthersContract')
+      .callsFake(() =>
+        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+      );
   });
 
   afterEach(() => {
-    sandbox.reset();
+    sinon.restore();
   });
 
   it('should set default state', () => {
@@ -35,12 +42,14 @@ describe('TokensController', () => {
   });
 
   it('should add token', async () => {
+    supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
     await tokensController.addToken('0x01', 'bar', 2);
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
       decimals: 2,
       image: undefined,
       symbol: 'bar',
+      isERC721: false,
     });
     await tokensController.addToken('0x01', 'baz', 2);
     expect(tokensController.state.tokens[0]).toStrictEqual({
@@ -48,6 +57,7 @@ describe('TokensController', () => {
       decimals: 2,
       image: undefined,
       symbol: 'baz',
+      isERC721: false,
     });
   });
 
@@ -61,12 +71,14 @@ describe('TokensController', () => {
       decimals: 2,
       image: undefined,
       symbol: 'barA',
+      isERC721: false,
     });
     expect(tokensController.state.tokens[1]).toStrictEqual({
       address: '0x02',
       decimals: 2,
       image: undefined,
       symbol: 'barB',
+      isERC721: false,
     });
     await tokensController.addTokens([
       { address: '0x01', symbol: 'bazA', decimals: 2 },
@@ -77,12 +89,14 @@ describe('TokensController', () => {
       decimals: 2,
       image: undefined,
       symbol: 'bazA',
+      isERC721: false,
     });
     expect(tokensController.state.tokens[1]).toStrictEqual({
       address: '0x02',
       decimals: 2,
       image: undefined,
       symbol: 'bazB',
+      isERC721: false,
     });
   });
 
@@ -100,6 +114,7 @@ describe('TokensController', () => {
       decimals: 2,
       image: undefined,
       symbol: 'bar',
+      isERC721: false,
     });
   });
 
@@ -131,6 +146,7 @@ describe('TokensController', () => {
       decimals: 2,
       image: undefined,
       symbol: 'bar',
+      isERC721: false,
     });
   });
 
@@ -155,6 +171,7 @@ describe('TokensController', () => {
       decimals: 2,
       image: undefined,
       symbol: 'baz',
+      isERC721: false,
     });
   });
 
@@ -188,6 +205,7 @@ describe('TokensController', () => {
       decimals: 2,
       image: undefined,
       symbol: 'baz',
+      isERC721: false,
     });
   });
 
@@ -311,5 +329,60 @@ describe('TokensController', () => {
     expect(tokensController.state.ignoredTokens).toHaveLength(1);
     tokensController.clearIgnoredTokens();
     expect(tokensController.state.ignoredTokens).toHaveLength(0);
+  });
+
+  it('should add isERC721 = true to token object in state when token is collectible and in our contract-metadata repo', async function () {
+    supportsInterfaceStub = sinon.stub().returns(Promise.resolve(true));
+    const contractAddresses = Object.keys(contractMaps);
+    const erc721ContractAddresses = contractAddresses.filter(
+      (contractAddress) => contractMaps[contractAddress].erc721 === true,
+    );
+    const address = erc721ContractAddresses[0];
+    const { symbol, decimals } = contractMaps[address];
+    tokensController.update({
+      tokens: [{ address, symbol, decimals }],
+    });
+    const result = await tokensController.updateTokenType(address);
+    expect(result.isERC721).toBe(true);
+  });
+
+  it('should add isERC721 = true to token object in state when token is collectible and not in our contract-metadata repo', async function () {
+    const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
+    tokensController.update({
+      tokens: [
+        {
+          address: tokenAddress,
+          symbol: 'TESTNFT',
+          decimals: 0,
+        },
+      ],
+    });
+
+    const result = await tokensController.updateTokenType(tokenAddress);
+
+    expect(result.isERC721).toBe(true);
+  });
+
+  it('should return true when token is in our contract-metadata repo', async function () {
+    const tokenAddress = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
+
+    const result = await tokensController._detectIsERC721(tokenAddress);
+    expect(result).toBe(true);
+  });
+
+  it('should return true when the token is not in our contract-metadata repo but tokenContract.supportsInterface returns true', async function () {
+    const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
+
+    const result = await tokensController._detectIsERC721(tokenAddress);
+
+    expect(result).toBe(true);
+  });
+
+  it('should return false when the token is not in our contract-metadata repo and tokenContract.supportsInterface returns false', async function () {
+    supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
+    const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
+
+    const result = await tokensController._detectIsERC721(tokenAddress);
+    expect(result).toBe(false);
   });
 });

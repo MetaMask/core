@@ -1,6 +1,9 @@
 import { EventEmitter } from 'events';
+import contractsMap from '@metamask/contract-metadata';
+import abiERC721 from 'human-standard-collectible-abi';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
+import { ethers } from 'ethers';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
@@ -8,6 +11,7 @@ import { validateTokenToWatch, toChecksumHexAddress } from '../util';
 import { MAINNET } from '../constants';
 import type { Token } from './TokenRatesController';
 
+const ERC721_INTERFACE_ID = '0x80ac58cd';
 /**
  * @type TokensConfig
  *
@@ -20,6 +24,7 @@ export interface TokensConfig extends BaseConfig {
   networkType: NetworkType;
   selectedAddress: string;
   chainId: string;
+  provider: any;
 }
 
 /**
@@ -97,6 +102,8 @@ export class TokensController extends BaseController<
 > {
   private mutex = new Mutex();
 
+  private ethersProvider: any;
+
   private failSuggestedAsset(
     suggestedAssetMeta: SuggestedAssetMeta,
     error: Error,
@@ -143,7 +150,7 @@ export class TokensController extends BaseController<
         listener: (networkState: NetworkState) => void,
       ) => void;
     },
-    config?: Partial<BaseConfig>,
+    config?: Partial<TokensConfig>,
     state?: Partial<TokensState>,
   ) {
     super(config, state);
@@ -151,6 +158,7 @@ export class TokensController extends BaseController<
       networkType: MAINNET,
       selectedAddress: '',
       chainId: '',
+      provider: undefined,
     };
     this.defaultState = {
       allTokens: {},
@@ -158,6 +166,7 @@ export class TokensController extends BaseController<
       suggestedAssets: [],
       tokens: [],
     };
+
     this.initialize();
     onPreferencesStateChange(({ selectedAddress }) => {
       const { allTokens } = this.state;
@@ -176,6 +185,10 @@ export class TokensController extends BaseController<
         tokens: allTokens[selectedAddress]?.[chainId] || [],
       });
     });
+  }
+
+  configureProvider(provider: any) {
+    this.ethersProvider = new ethers.providers.Web3Provider(provider);
   }
 
   /**
@@ -198,7 +211,8 @@ export class TokensController extends BaseController<
       address = toChecksumHexAddress(address);
       const { allTokens, tokens } = this.state;
       const { chainId, selectedAddress } = this.config;
-      const newEntry: Token = { address, symbol, decimals, image };
+      const isERC721 = await this._detectIsERC721(address);
+      const newEntry: Token = { address, symbol, decimals, image, isERC721 };
       const previousEntry = tokens.find((token) => token.address === address);
       if (previousEntry) {
         const previousIndex = tokens.indexOf(previousEntry);
@@ -232,15 +246,22 @@ export class TokensController extends BaseController<
     const { chainId, selectedAddress } = this.config;
 
     try {
-      tokensToAdd.forEach((tokenToAdd) => {
-        const { address, symbol, decimals, image } = tokenToAdd;
-        const checksumAddress = toChecksumHexAddress(address);
+      tokensToAdd = await Promise.all(
+        tokensToAdd.map(async (token) => {
+          token.isERC721 = await this._detectIsERC721(token.address);
+          return token;
+        }),
+      );
 
+      tokensToAdd.forEach((tokenToAdd) => {
+        const { address, symbol, decimals, image, isERC721 } = tokenToAdd;
+        const checksumAddress = toChecksumHexAddress(address);
         const newEntry: Token = {
           address: checksumAddress,
           symbol,
           decimals,
           image,
+          isERC721,
         };
         const previousEntry = tokens.find(
           (token) => token.address === checksumAddress,
@@ -266,6 +287,64 @@ export class TokensController extends BaseController<
     } finally {
       releaseLock();
     }
+  }
+
+  /**
+   * Adds isERC721 field to token object
+   * (Called when a user attempts to add tokens that were previously added which do not yet had isERC721 field)
+   *
+   * @param {string} tokenAddress - The contract address of the token requiring the isERC721 field added.
+   * @returns {Promise<object>} The new token object with the added isERC721 field.
+   *
+   */
+  async updateTokenType(tokenAddress: string) {
+    const { tokens } = this.state;
+    const tokenIndex = tokens.findIndex((token) => {
+      return token.address === tokenAddress;
+    });
+    tokens[tokenIndex].isERC721 = await this._detectIsERC721(tokenAddress);
+    this.update({ tokens });
+    return Promise.resolve(tokens[tokenIndex]);
+  }
+
+  /**
+   * Detects whether or not a token is ERC-721 compatible.
+   *
+   * @param {string} tokensAddress - the token contract address.
+   *
+   */
+  async _detectIsERC721(tokenAddress: string) {
+    const checksumAddress = toChecksumHexAddress(tokenAddress);
+    // if this token is already in our contract metadata map we don't need
+    // to check against the contract
+    if (contractsMap[checksumAddress]?.erc721 === true) {
+      return Promise.resolve(true);
+    }
+    const tokenContract = await this._createEthersContract(
+      tokenAddress,
+      abiERC721,
+      this.ethersProvider,
+    );
+
+    return await tokenContract
+      .supportsInterface(ERC721_INTERFACE_ID)
+      .catch((error: Error) => {
+        console.log('error', error);
+        return false;
+      });
+  }
+
+  async _createEthersContract(
+    tokenAddress: string,
+    abi: string,
+    ethersProvider: any,
+  ): Promise<any> {
+    const tokenContract = await new ethers.Contract(
+      tokenAddress,
+      abi,
+      ethersProvider,
+    );
+    return tokenContract;
   }
 
   /**
