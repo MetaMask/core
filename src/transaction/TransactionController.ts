@@ -467,6 +467,13 @@ export class TransactionController extends BaseController<
     }
   }
 
+  /**
+   * Checks if a transaction is EIP-1559 by checking for the extence of
+   * maxFeePerGas and maxPriorityFeePerGas within its parameters
+   *
+   * @param transaction - Transaction object to add
+   * @returns - Boolean that is true if the transaction is EIP-1559 (has maxFeePerGas and maxPriorityFeePerGas), otherwise returns false
+   */
   isEIP1559Transaction(transaction: Transaction): boolean {
     return (
       Boolean(transaction.maxFeePerGas) &&
