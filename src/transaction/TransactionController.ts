@@ -468,7 +468,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Checks if a transaction is EIP-1559 by checking for the extence of
+   * Checks if a transaction is EIP-1559 by checking for the existence of
    * maxFeePerGas and maxPriorityFeePerGas within its parameters
    *
    * @param transaction - Transaction object to add
