@@ -475,9 +475,11 @@ export class TransactionController extends BaseController<
    * @returns - Boolean that is true if the transaction is EIP-1559 (has maxFeePerGas and maxPriorityFeePerGas), otherwise returns false
    */
   isEIP1559Transaction(transaction: Transaction): boolean {
+    const hasOwnProp = (obj: Transaction, key: string) =>
+      Object.prototype.hasOwnProperty.call(obj, key);
     return (
-      Boolean(transaction.maxFeePerGas) &&
-      Boolean(transaction.maxPriorityFeePerGas)
+      hasOwnProp(transaction, 'maxFeePerGas') &&
+      hasOwnProp(transaction, 'maxPriorityFeePerGas')
     );
   }
 
