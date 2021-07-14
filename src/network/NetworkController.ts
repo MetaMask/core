@@ -324,7 +324,7 @@ export class NetworkController extends BaseController<
   getEIP1559Compatibility() {
     const { properties = {} } = this.state;
 
-    if (properties.isEIP1559Compatible === undefined) {
+    if (!properties.isEIP1559Compatible) {
       if (typeof this.ethQuery?.sendAsync !== 'function') {
         return Promise.resolve(true);
       }
@@ -348,7 +348,7 @@ export class NetworkController extends BaseController<
         );
       });
     }
-    return Promise.resolve(properties.isEIP1559Compatible);
+    return Promise.resolve(true);
   }
 }
 
