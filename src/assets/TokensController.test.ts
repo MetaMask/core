@@ -6,7 +6,6 @@ import {
   NetworksChainId,
 } from '../network/NetworkController';
 import { TokensController } from './TokensController';
-import type { Token } from './TokenRatesController';
 
 describe('TokensController', () => {
   let tokensController: TokensController;
@@ -338,63 +337,66 @@ describe('TokensController', () => {
     expect(tokensController.state.ignoredTokens).toHaveLength(0);
   });
 
-  it('should add isERC721 = true to token object in state when token is collectible and in our contract-metadata repo', async function () {
+  describe('isERC721 flag', function () {
+    it('should add isERC721 = true to token object in state when token is collectible and in our contract-metadata repo', async function () {
+      supportsInterfaceStub = sinon.stub().returns(Promise.resolve(true));
+      const contractAddresses = Object.keys(contractMaps);
+      const erc721ContractAddresses = contractAddresses.filter(
+        (contractAddress) => contractMaps[contractAddress].erc721 === true,
+      );
+      const address = erc721ContractAddresses[0];
+      const { symbol, decimals } = contractMaps[address];
+      tokensController.update({
+        tokens: [{ address, symbol, decimals }],
+      });
+      const result = await tokensController.updateTokenType(address);
+      expect(result.isERC721).toBe(true);
+    });
+
+    it('should add isERC721 = true to token object in state when token is collectible and not in our contract-metadata repo', async function () {
+      const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
+      tokensController.update({
+        tokens: [
+          {
+            address: tokenAddress,
+            symbol: 'TESTNFT',
+            decimals: 0,
+          },
+        ],
+      });
+
+      const result = await tokensController.updateTokenType(tokenAddress);
+
+      expect(result.isERC721).toBe(true);
+    });
+
     supportsInterfaceStub = sinon.stub().returns(Promise.resolve(true));
-    const contractAddresses = Object.keys(contractMaps);
-    const erc721ContractAddresses = contractAddresses.filter(
-      (contractAddress) => contractMaps[contractAddress].erc721 === true,
-    );
-    const address = erc721ContractAddresses[0];
-    const { symbol, decimals } = contractMaps[address];
-    tokensController.update({
-      tokens: [{ address, symbol, decimals }],
-    });
-    const result = await tokensController.updateTokenType(address);
-    expect(result.isERC721).toBe(true);
-  });
+    it('should return true when token is in our contract-metadata repo', async function () {
+      const tokenAddress = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
 
-  it('should add isERC721 = true to token object in state when token is collectible and not in our contract-metadata repo', async function () {
-    const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
-    tokensController.update({
-      tokens: [
-        {
-          address: tokenAddress,
-          symbol: 'TESTNFT',
-          decimals: 0,
-        },
-      ],
+      const result = await tokensController._detectIsERC721(tokenAddress);
+      expect(result).toBe(true);
     });
 
-    const result = await tokensController.updateTokenType(tokenAddress);
+    it('should return true when the token is not in our contract-metadata repo but tokenContract.supportsInterface returns true', async function () {
+      const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
 
-    expect(result.isERC721).toBe(true);
-  });
+      const result = await tokensController._detectIsERC721(tokenAddress);
 
-  it('should return true when token is in our contract-metadata repo', async function () {
-    const tokenAddress = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
+      expect(result).toBe(true);
+    });
 
-    const result = await tokensController._detectIsERC721(tokenAddress);
-    expect(result).toBe(true);
-  });
+    it('should return false when the token is not in our contract-metadata repo and tokenContract.supportsInterface returns false', async function () {
+      supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
+      const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
 
-  it('should return true when the token is not in our contract-metadata repo but tokenContract.supportsInterface returns true', async function () {
-    const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
-
-    const result = await tokensController._detectIsERC721(tokenAddress);
-
-    expect(result).toBe(true);
-  });
-
-  it('should return false when the token is not in our contract-metadata repo and tokenContract.supportsInterface returns false', async function () {
-    supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
-
-    const result = await tokensController._detectIsERC721(tokenAddress);
-    expect(result).toBe(false);
+      const result = await tokensController._detectIsERC721(tokenAddress);
+      expect(result).toBe(false);
+    });
   });
 
   describe('on watchAsset', function () {
-    let asset: Token, type: any;
+    let asset: any, type: any;
 
     beforeEach(function () {
       type = 'ERC20';
@@ -402,6 +404,7 @@ describe('TokensController', () => {
         address: '0x000000000000000000000000000000000000dEaD',
         decimals: 12,
         symbol: 'SES',
+        image: 'image',
       };
     });
 
@@ -425,12 +428,72 @@ describe('TokensController', () => {
       );
     });
 
+    it('should error if address is not defined', async function () {
+      asset.address = undefined;
+      const result = tokensController.watchAsset(asset, type);
+      await expect(result).rejects.toThrow(
+        'Must specify address, symbol, and decimals.',
+      );
+    });
+
+    it('should error if decimals is not defined', async function () {
+      asset.decimals = undefined;
+      const result = tokensController.watchAsset(asset, type);
+      await expect(result).rejects.toThrow(
+        'Must specify address, symbol, and decimals.',
+      );
+    });
+
+    it('should error if symbol is not defined', async function () {
+      asset.symbol = undefined;
+      const result = tokensController.watchAsset(asset, type);
+      await expect(result).rejects.toThrow(
+        'Must specify address, symbol, and decimals.',
+      );
+    });
+
+    it('should error if symbol is empty', async function () {
+      asset.symbol = '';
+      const result = tokensController.watchAsset(asset, type);
+      await expect(result).rejects.toThrow(
+        'Must specify address, symbol, and decimals.',
+      );
+    });
+
+    it('should error if symbol is too long', async function () {
+      asset.symbol = 'ABCDEFGHIJKLM';
+      const result = tokensController.watchAsset(asset, type);
+      await expect(result).rejects.toThrow(
+        'Invalid symbol "ABCDEFGHIJKLM": longer than 11 characters.',
+      );
+    });
+
+    it('should error if decimals is invalid', async function () {
+      asset.decimals = -1;
+      const result1 = tokensController.watchAsset(asset, type);
+      await expect(result1).rejects.toThrow(
+        'Invalid decimals "-1": must be 0 <= 36.',
+      );
+
+      asset.decimals = 37;
+      const result2 = tokensController.watchAsset(asset, type);
+      await expect(result2).rejects.toThrow(
+        'Invalid decimals "37": must be 0 <= 36.',
+      );
+    });
+
+    it('should error if address is invalid', async function () {
+      asset.address = '0x123';
+      const result1 = tokensController.watchAsset(asset, type);
+      await expect(result1).rejects.toThrow('Invalid address "0x123".');
+    });
+
     it('should handle ERC20 type and add to suggestedAssets', async function () {
       sinon
         .stub(tokensController, '_generateRandomId')
         .callsFake(() => '12345');
       type = 'ERC20';
-      tokensController.watchAsset(asset, type);
+      await tokensController.watchAsset(asset, type);
       await expect(tokensController.state.suggestedAssets).toStrictEqual([
         {
           id: '12345',
@@ -440,6 +503,147 @@ describe('TokensController', () => {
           asset,
         },
       ]);
+    });
+
+    it('should add token correctly if user confirms', async function () {
+      sinon
+        .stub(tokensController, '_generateRandomId')
+        .callsFake(() => '12345');
+      type = 'ERC20';
+      await tokensController.watchAsset(asset, type);
+
+      await tokensController.acceptWatchAsset('12345');
+      await expect(tokensController.state.suggestedAssets).toStrictEqual([]);
+      await expect(tokensController.state.tokens).toHaveLength(1);
+      await expect(tokensController.state.tokens).toStrictEqual([
+        {
+          isERC721: false,
+          ...asset,
+        },
+      ]);
+    });
+  });
+
+  describe('onPreferencesStateChange', function () {
+    it('should update tokens list when set address changes', async function () {
+      supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
+      preferences.setSelectedAddress('0x1');
+      await tokensController.addToken('0x01', 'A', 4);
+      await tokensController.addToken('0x02', 'B', 5);
+      preferences.setSelectedAddress('0x2');
+      expect(tokensController.state.tokens).toStrictEqual([]);
+      await tokensController.addToken('0x03', 'C', 6);
+      preferences.setSelectedAddress('0x1');
+      expect(tokensController.state.tokens).toStrictEqual([
+        {
+          address: '0x01',
+          decimals: 4,
+          image: undefined,
+          isERC721: false,
+          symbol: 'A',
+        },
+        {
+          address: '0x02',
+          decimals: 5,
+          image: undefined,
+          isERC721: false,
+          symbol: 'B',
+        },
+      ]);
+      preferences.setSelectedAddress('0x2');
+      expect(tokensController.state.tokens).toStrictEqual([
+        {
+          address: '0x03',
+          decimals: 6,
+          image: undefined,
+          isERC721: false,
+          symbol: 'C',
+        },
+      ]);
+    });
+  });
+
+  describe('onNetworkStateChange', function () {
+    it('should remove a token from its state on corresponding network', async function () {
+      supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
+      const firstNetworkType = 'rinkeby';
+      const secondNetworkType = 'ropsten';
+      network.update({
+        provider: {
+          type: firstNetworkType,
+          chainId: NetworksChainId[firstNetworkType],
+        },
+      });
+
+      await tokensController.addToken('0x01', 'A', 4);
+      await tokensController.addToken('0x02', 'B', 5);
+      const initialTokensFirst = tokensController.state.tokens;
+
+      network.update({
+        provider: {
+          type: secondNetworkType,
+          chainId: NetworksChainId[secondNetworkType],
+        },
+      });
+
+      await tokensController.addToken('0x03', 'C', 4);
+      await tokensController.addToken('0x04', 'D', 5);
+
+      const initialTokensSecond = tokensController.state.tokens;
+
+      expect(initialTokensFirst).not.toStrictEqual(initialTokensSecond);
+
+      expect(initialTokensFirst).toStrictEqual([
+        {
+          address: '0x01',
+          decimals: 4,
+          image: undefined,
+          isERC721: false,
+          symbol: 'A',
+        },
+        {
+          address: '0x02',
+          decimals: 5,
+          image: undefined,
+          isERC721: false,
+          symbol: 'B',
+        },
+      ]);
+
+      expect(initialTokensSecond).toStrictEqual([
+        {
+          address: '0x03',
+          decimals: 4,
+          image: undefined,
+          isERC721: false,
+          symbol: 'C',
+        },
+        {
+          address: '0x04',
+          decimals: 5,
+          image: undefined,
+          isERC721: false,
+          symbol: 'D',
+        },
+      ]);
+
+      network.update({
+        provider: {
+          type: firstNetworkType,
+          chainId: NetworksChainId[firstNetworkType],
+        },
+      });
+
+      expect(initialTokensFirst).toStrictEqual(tokensController.state.tokens);
+
+      network.update({
+        provider: {
+          type: secondNetworkType,
+          chainId: NetworksChainId[secondNetworkType],
+        },
+      });
+
+      expect(initialTokensSecond).toStrictEqual(tokensController.state.tokens);
     });
   });
 });
