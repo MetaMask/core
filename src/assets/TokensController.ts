@@ -300,24 +300,26 @@ export class TokensController extends BaseController<
    * (Called when a user attempts to add tokens that were previously added which do not yet had isERC721 field)
    *
    * @param {string} tokenAddress - The contract address of the token requiring the isERC721 field added.
-   * @returns {Promise<object>} The new token object with the added isERC721 field.
+   * @returns The new token object with the added isERC721 field.
    *
    */
   async updateTokenType(tokenAddress: string) {
+    const isERC721 = await this._detectIsERC721(tokenAddress);
     const { tokens } = this.state;
     const tokenIndex = tokens.findIndex((token) => {
       return token.address === tokenAddress;
     });
-    tokens[tokenIndex].isERC721 = await this._detectIsERC721(tokenAddress);
+    tokens[tokenIndex].isERC721 = isERC721;
     this.update({ tokens });
-    return Promise.resolve(tokens[tokenIndex]);
+    return tokens[tokenIndex];
   }
 
   /**
    * Detects whether or not a token is ERC-721 compatible.
    *
    * @param {string} tokensAddress - the token contract address.
-   *
+   * @returns boolean indicating whether the token address passed in supports the EIP-721 interface.
+   * 
    */
   async _detectIsERC721(tokenAddress: string) {
     const checksumAddress = toChecksumHexAddress(tokenAddress);
@@ -331,12 +333,15 @@ export class TokensController extends BaseController<
       abiERC721,
       this.ethersProvider,
     );
-
+      
     return await tokenContract
       .supportsInterface(ERC721_INTERFACE_ID)
-      .catch((error: Error) => {
-        console.log('error', error);
-        return false;
+      .catch((error: { code: string, method: string }) => {
+        if(error.code === "UNPREDICTABLE_GAS_LIMIT"){
+          return false;
+        } else {
+          throw error;
+        }
       });
   }
 
