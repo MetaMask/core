@@ -7722,10 +7722,9 @@ walker@^1.0.7, walker@~1.0.5:
   dependencies:
     makeerror "1.0.x"
 
-web3-provider-engine@^16.0.2:
+"web3-provider-engine@git+https://github.com/MetaMask/web3-provider-engine.git#fd81cf93304e0ca0e78997250dbfe56687295037":
   version "16.0.2"
-  resolved "https://registry.yarnpkg.com/web3-provider-engine/-/web3-provider-engine-16.0.2.tgz#40c7224b1fe9b8689723f6d8595718375c7e3392"
-  integrity sha512-fUl88aHdfIdCuQhMTtKP95uL/DJWiv2jKyZodsO3NENXfczyab2dygYsaY7Y8tVghY1KAzn5nzCZIkNuNB+7uw==
+  resolved "git+https://github.com/MetaMask/web3-provider-engine.git#fd81cf93304e0ca0e78997250dbfe56687295037"
   dependencies:
     "@ethereumjs/tx" "^3.3.0"
     async "^2.5.0"

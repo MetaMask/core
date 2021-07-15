@@ -64,7 +64,7 @@
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^8.3.2",
     "web3": "^0.20.7",
-    "web3-provider-engine": "^16.0.2"
+    "web3-provider-engine": "git+https://github.com/MetaMask/web3-provider-engine.git#fd81cf93304e0ca0e78997250dbfe56687295037"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^1.0.6",
