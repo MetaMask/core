@@ -101,6 +101,7 @@ export class TokensController extends BaseController<
   TokensState
 > {
   private mutex = new Mutex();
+
   private ethersProvider: any;
 
   private failSuggestedAsset(
@@ -137,23 +138,21 @@ export class TokensController extends BaseController<
    * @param config - Initial options used to configure this controller
    * @param state - Initial state to set on this controller
    */
-  constructor(
-    {
-      onPreferencesStateChange,
-      onNetworkStateChange,
-      config,
-      state,
-    }: {
-      onPreferencesStateChange: (
-        listener: (preferencesState: PreferencesState) => void,
-      ) => void;
-      onNetworkStateChange: (
-        listener: (networkState: NetworkState) => void,
-      ) => void;
-      config?: Partial<TokensConfig>,
-      state?: Partial<TokensState>,
-    },
-  ) {
+  constructor({
+    onPreferencesStateChange,
+    onNetworkStateChange,
+    config,
+    state,
+  }: {
+    onPreferencesStateChange: (
+      listener: (preferencesState: PreferencesState) => void,
+    ) => void;
+    onNetworkStateChange: (
+      listener: (networkState: NetworkState) => void,
+    ) => void;
+    config?: Partial<TokensConfig>;
+    state?: Partial<TokensState>;
+  }) {
     super(config, state);
 
     this.defaultConfig = {
@@ -187,7 +186,7 @@ export class TokensController extends BaseController<
       const { selectedAddress } = this.config;
       const { chainId } = provider;
       this.configure({ chainId });
-      this.ethersProvider = this._instantiateNewEthersProvider()
+      this.ethersProvider = this._instantiateNewEthersProvider();
       this.update({
         tokens: allTokens[selectedAddress]?.[chainId] || [],
       });
@@ -354,9 +353,10 @@ export class TokensController extends BaseController<
     return tokenContract;
   }
 
-  _generateRandomId(): string{
-    return random()
+  _generateRandomId(): string {
+    return random();
   }
+
   /**
    * Adds a new suggestedAsset to state. Parameters will be validated according to
    * asset type being watched. A `<suggestedAssetMeta.id>:pending` hub event will be emitted once added.

@@ -31,7 +31,7 @@ describe('TokensController', () => {
       );
     sinon
       .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => {});
+      .callsFake(() => null);
   });
 
   afterEach(() => {
@@ -426,16 +426,20 @@ describe('TokensController', () => {
     });
 
     it('should handle ERC20 type and add to suggestedAssets', async function () {
-      sinon.stub(tokensController, '_generateRandomId').callsFake(() => '12345')
+      sinon
+        .stub(tokensController, '_generateRandomId')
+        .callsFake(() => '12345');
       type = 'ERC20';
       tokensController.watchAsset(asset, type);
-      await expect(tokensController.state.suggestedAssets).toEqual([{
-        id: '12345',
-        status: 'pending',
-        time: 1,
-        type: 'ERC20',
-        asset: asset,
-      }]);
+      await expect(tokensController.state.suggestedAssets).toStrictEqual([
+        {
+          id: '12345',
+          status: 'pending',
+          time: 1,
+          type: 'ERC20',
+          asset,
+        },
+      ]);
     });
   });
 });
