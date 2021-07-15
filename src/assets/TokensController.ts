@@ -187,11 +187,15 @@ export class TokensController extends BaseController<
       const { selectedAddress } = this.config;
       const { chainId } = provider;
       this.configure({ chainId });
-      this.ethersProvider = new ethers.providers.Web3Provider(this.config?.provider);
+      this.ethersProvider = this._instantiateNewEthersProvider()
       this.update({
         tokens: allTokens[selectedAddress]?.[chainId] || [],
       });
     });
+  }
+
+  _instantiateNewEthersProvider(): any {
+    return new ethers.providers.Web3Provider(this.config?.provider);
   }
 
   /**
@@ -350,6 +354,9 @@ export class TokensController extends BaseController<
     return tokenContract;
   }
 
+  _generateRandomId(): string{
+    return random()
+  }
   /**
    * Adds a new suggestedAsset to state. Parameters will be validated according to
    * asset type being watched. A `<suggestedAssetMeta.id>:pending` hub event will be emitted once added.
@@ -361,7 +368,7 @@ export class TokensController extends BaseController<
   async watchAsset(asset: Token, type: string): Promise<AssetSuggestionResult> {
     const suggestedAssetMeta = {
       asset,
-      id: random(),
+      id: this._generateRandomId(),
       status: SuggestedAssetStatus.pending as SuggestedAssetStatus.pending,
       time: Date.now(),
       type,
@@ -397,6 +404,7 @@ export class TokensController extends BaseController<
         },
       );
     });
+
     const { suggestedAssets } = this.state;
     suggestedAssets.push(suggestedAssetMeta);
     this.update({ suggestedAssets: [...suggestedAssets] });

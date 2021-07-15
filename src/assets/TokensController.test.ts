@@ -1,4 +1,4 @@
-import sinon from 'sinon';
+import sinon, { SinonFakeTimers } from 'sinon';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '../user/PreferencesController';
 import {
@@ -6,12 +6,14 @@ import {
   NetworksChainId,
 } from '../network/NetworkController';
 import { TokensController } from './TokensController';
+import type { Token } from './TokenRatesController';
 
 describe('TokensController', () => {
   let tokensController: TokensController;
   let preferences: PreferencesController;
   let network: NetworkController;
   let supportsInterfaceStub: () => Promise<any>;
+  let clock: SinonFakeTimers;
 
   beforeEach(() => {
     preferences = new PreferencesController();
@@ -21,14 +23,19 @@ describe('TokensController', () => {
       onNetworkStateChange: (listener) => network.subscribe(listener),
     });
 
+    clock = sinon.useFakeTimers(1);
     sinon
       .stub(tokensController, '_createEthersContract')
       .callsFake(() =>
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
       );
+    sinon
+      .stub(tokensController, '_instantiateNewEthersProvider')
+      .callsFake(() => {});
   });
 
   afterEach(() => {
+    clock.restore();
     sinon.restore();
   });
 
@@ -118,7 +125,7 @@ describe('TokensController', () => {
     });
   });
 
-  it('should add token by provider type', async () => {
+  it('should add token by network', async () => {
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'ropsten';
     network.update({
@@ -384,5 +391,51 @@ describe('TokensController', () => {
 
     const result = await tokensController._detectIsERC721(tokenAddress);
     expect(result).toBe(false);
+  });
+
+  describe('on watchAsset', function () {
+    let asset: Token, type: any;
+
+    beforeEach(function () {
+      type = 'ERC20';
+      asset = {
+        address: '0x000000000000000000000000000000000000dEaD',
+        decimals: 12,
+        symbol: 'SES',
+      };
+    });
+
+    afterEach(function () {
+      sinon.restore();
+    });
+
+    it('should error if passed no type', async function () {
+      type = undefined;
+      const result = tokensController.watchAsset(asset, type);
+      await expect(result).rejects.toThrow(
+        'Asset of type undefined not supported',
+      );
+    });
+
+    it('should error if asset type is not supported', async function () {
+      type = 'ERC721';
+      const result = tokensController.watchAsset(asset, type);
+      await expect(result).rejects.toThrow(
+        'Asset of type ERC721 not supported',
+      );
+    });
+
+    it('should handle ERC20 type and add to suggestedAssets', async function () {
+      sinon.stub(tokensController, '_generateRandomId').callsFake(() => '12345')
+      type = 'ERC20';
+      tokensController.watchAsset(asset, type);
+      await expect(tokensController.state.suggestedAssets).toEqual([{
+        id: '12345',
+        status: 'pending',
+        time: 1,
+        type: 'ERC20',
+        asset: asset,
+      }]);
+    });
   });
 });

@@ -671,6 +671,8 @@ describe('AssetsDetectionController', () => {
   });
 
   it('should subscribe to new sibling detecting assets when account changes', async () => {
+      stub(tokensController, '_instantiateNewEthersProvider')
+      .callsFake(() => {});
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'mainnet';
     const firstAddress = '0x123';
