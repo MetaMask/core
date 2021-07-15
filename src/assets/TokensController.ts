@@ -101,7 +101,6 @@ export class TokensController extends BaseController<
   TokensState
 > {
   private mutex = new Mutex();
-
   private ethersProvider: any;
 
   private failSuggestedAsset(
@@ -142,6 +141,8 @@ export class TokensController extends BaseController<
     {
       onPreferencesStateChange,
       onNetworkStateChange,
+      config,
+      state,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -149,25 +150,30 @@ export class TokensController extends BaseController<
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
       ) => void;
+      config?: Partial<TokensConfig>,
+      state?: Partial<TokensState>,
     },
-    config?: Partial<TokensConfig>,
-    state?: Partial<TokensState>,
   ) {
     super(config, state);
+
     this.defaultConfig = {
       networkType: MAINNET,
       selectedAddress: '',
       chainId: '',
       provider: undefined,
+      ...config,
     };
+
     this.defaultState = {
       allTokens: {},
       ignoredTokens: [],
       suggestedAssets: [],
       tokens: [],
+      ...state,
     };
 
     this.initialize();
+
     onPreferencesStateChange(({ selectedAddress }) => {
       const { allTokens } = this.state;
       const { chainId } = this.config;
@@ -181,14 +187,11 @@ export class TokensController extends BaseController<
       const { selectedAddress } = this.config;
       const { chainId } = provider;
       this.configure({ chainId });
+      this.ethersProvider = new ethers.providers.Web3Provider(this.config?.provider);
       this.update({
         tokens: allTokens[selectedAddress]?.[chainId] || [],
       });
     });
-  }
-
-  configureProvider(provider: any) {
-    this.ethersProvider = new ethers.providers.Web3Provider(provider);
   }
 
   /**
