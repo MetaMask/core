@@ -67,7 +67,7 @@ class CountController extends BaseController<
       state: Draft<CountControllerState>,
     ) => void | CountControllerState,
   ) {
-    super.update(callback);
+    return super.update(callback);
   }
 
   destroy() {
@@ -158,6 +158,24 @@ describe('BaseController', () => {
     });
 
     expect(controller.state).toStrictEqual({ count: 1 });
+  });
+
+  it('should return next state and patches', () => {
+    const controller = new CountController({
+      messenger: getCountMessenger(),
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: countControllerStateMetadata,
+    });
+
+    const [nextState, patches] = controller.update((draft) => {
+      draft.count += 1;
+    });
+
+    expect(nextState).toStrictEqual(controller.state);
+    expect(patches).toStrictEqual([
+      { op: 'replace', path: ['count'], value: 1 },
+    ]);
   });
 
   it('should throw an error if update callback modifies draft and returns value', () => {
