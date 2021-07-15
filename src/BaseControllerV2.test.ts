@@ -138,11 +138,14 @@ describe('BaseController', () => {
       metadata: countControllerStateMetadata,
     });
 
-    controller.update((draft) => {
+    const patches = controller.update((draft) => {
       draft.count += 1;
     });
 
     expect(controller.state).toStrictEqual({ count: 1 });
+    expect(patches).toStrictEqual([
+      { op: 'replace', path: ['count'], value: 1 },
+    ]);
   });
 
   it('should allow updating state by return a value', () => {
@@ -153,28 +156,13 @@ describe('BaseController', () => {
       metadata: countControllerStateMetadata,
     });
 
-    controller.update(() => {
+    const patches = controller.update(() => {
       return { count: 1 };
     });
 
     expect(controller.state).toStrictEqual({ count: 1 });
-  });
-
-  it('should return next state and patches', () => {
-    const controller = new CountController({
-      messenger: getCountMessenger(),
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-
-    const [nextState, patches] = controller.update((draft) => {
-      draft.count += 1;
-    });
-
-    expect(nextState).toStrictEqual(controller.state);
     expect(patches).toStrictEqual([
-      { op: 'replace', path: ['count'], value: 1 },
+      { op: 'replace', path: [], value: { count: 1 } },
     ]);
   });
 

@@ -208,7 +208,7 @@ export class BaseController<
       nextState as S,
       patches,
     );
-    return [nextState, patches];
+    return patches;
   }
 
   /**
