@@ -279,7 +279,6 @@ export class TokensController extends BaseController<
           tokens.push(newEntry);
         }
       });
-
       const addressTokens = allTokens[selectedAddress];
       const newAddressTokens = { ...addressTokens, ...{ [chainId]: tokens } };
       const newAllTokens = {
@@ -319,7 +318,7 @@ export class TokensController extends BaseController<
    *
    * @param {string} tokensAddress - the token contract address.
    * @returns boolean indicating whether the token address passed in supports the EIP-721 interface.
-   * 
+   *
    */
   async _detectIsERC721(tokenAddress: string) {
     const checksumAddress = toChecksumHexAddress(tokenAddress);
@@ -333,15 +332,14 @@ export class TokensController extends BaseController<
       abiERC721,
       this.ethersProvider,
     );
-      
+
     return await tokenContract
       .supportsInterface(ERC721_INTERFACE_ID)
-      .catch((error: { code: string, method: string }) => {
-        if(error.code === "UNPREDICTABLE_GAS_LIMIT"){
+      .catch((error: { code: string; method: string }) => {
+        if (error.code === 'UNPREDICTABLE_GAS_LIMIT') {
           return false;
-        } else {
-          throw error;
         }
+        throw error;
       });
   }
 

@@ -255,6 +255,9 @@ describe('AssetsDetectionController', () => {
           },
         ],
       });
+    stub(tokensController, '_detectIsERC721').callsFake(() =>
+      Promise.resolve(false),
+    );
   });
 
   afterEach(() => {
