@@ -403,10 +403,6 @@ describe('TokensController', () => {
         );
     });
 
-    afterEach(function () {
-      sinon.restore();
-    });
-
     it('should error if passed no type', async function () {
       type = undefined;
       const result = tokensController.watchAsset(asset, type);
@@ -518,20 +514,6 @@ describe('TokensController', () => {
           ...asset,
         },
       ]);
-    });
-    it('should add a valid suggested asset via watchAsset', async () => {
-      await tokensController.watchAsset(
-        {
-          address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
-          decimals: 18,
-          symbol: 'TKN',
-        },
-        'ERC20',
-      );
-      expect(tokensController.state.suggestedAssets[0].asset.address).toBe(
-        '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
-      );
-      expect(tokensController.state.suggestedAssets[0].status).toBe('pending');
     });
 
     it('should fail an invalid type suggested asset via watchAsset', async () => {
