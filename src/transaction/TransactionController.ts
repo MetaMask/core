@@ -76,6 +76,7 @@ export interface Transaction {
   // type?: number;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
+  estimatedBaseFee?: string;
 }
 
 /**
@@ -515,14 +516,11 @@ export class TransactionController extends BaseController<
     };
 
     try {
-      if (this.isEIP1559Transaction(transaction)) {
-        const { gas } = await this.estimateGas(transaction);
-        transaction.gas = gas;
-      } else {
-        const { gas, gasPrice } = await this.estimateGas(transaction);
-        transaction.gas = gas;
-        transaction.gasPrice = gasPrice;
-      }
+      const { gas } = await this.estimateGas(transaction);
+      transaction.gas = gas;
+
+      // TODO(eip1559) check if this is not needed for legacy
+      // transaction.gasPrice = gasPrice;
     } catch (error) {
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
@@ -665,6 +663,7 @@ export class TransactionController extends BaseController<
             maxFeePerGas: transactionMeta.transaction.maxFeePerGas,
             maxPriorityFeePerGas:
               transactionMeta.transaction.maxPriorityFeePerGas,
+            estimatedBaseFee: transactionMeta.transaction.estimatedBaseFee,
             // specify type 2 if maxFeePerGas and maxPriorityFeePerGas are set
             type: 2,
           }

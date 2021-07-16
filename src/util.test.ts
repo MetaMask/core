@@ -97,6 +97,7 @@ describe('util', () => {
       value: 'value',
       maxFeePerGas: 'maxFeePerGas',
       maxPriorityFeePerGas: 'maxPriorityFeePerGas',
+      estimatedBaseFee: 'estimatedBaseFee',
     });
     expect(normalized).toStrictEqual({
       data: '0xdata',
@@ -108,6 +109,7 @@ describe('util', () => {
       value: '0xvalue',
       maxFeePerGas: '0xmaxFeePerGas',
       maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
+      estimatedBaseFee: 'estimatedBaseFee',
     });
   });
 
