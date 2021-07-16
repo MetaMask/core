@@ -23,6 +23,7 @@ import {
   handleTransactionFetch,
   query,
   getIncreasedPriceFromExisting,
+  isEIP1559Transaction,
 } from '../util';
 import { MAINNET, RPC } from '../constants';
 
@@ -469,22 +470,6 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Checks if a transaction is EIP-1559 by checking for the existence of
-   * maxFeePerGas and maxPriorityFeePerGas within its parameters
-   *
-   * @param transaction - Transaction object to add
-   * @returns - Boolean that is true if the transaction is EIP-1559 (has maxFeePerGas and maxPriorityFeePerGas), otherwise returns false
-   */
-  isEIP1559Transaction(transaction: Transaction): boolean {
-    const hasOwnProp = (obj: Transaction, key: string) =>
-      Object.prototype.hasOwnProperty.call(obj, key);
-    return (
-      hasOwnProp(transaction, 'maxFeePerGas') &&
-      hasOwnProp(transaction, 'maxPriorityFeePerGas')
-    );
-  }
-
-  /**
    * Add a new unapproved transaction to state. Parameters will be validated, a
    * unique transaction id will be generated, and gas and gasPrice will be calculated
    * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
@@ -653,11 +638,9 @@ export class TransactionController extends BaseController<
         status,
       };
 
-      const isEIP1559Transaction = this.isEIP1559Transaction(
-        transactionMeta.transaction,
-      );
+      const isEIP1559 = isEIP1559Transaction(transactionMeta.transaction);
 
-      const txParams = isEIP1559Transaction
+      const txParams = isEIP1559
         ? {
             ...baseTxParams,
             maxFeePerGas: transactionMeta.transaction.maxFeePerGas,
@@ -670,7 +653,7 @@ export class TransactionController extends BaseController<
         : baseTxParams;
 
       // delete gasPrice if maxFeePerGas and maxPriorityFeePerGas are set
-      if (isEIP1559Transaction) {
+      if (isEIP1559) {
         delete txParams.gasPrice;
       }
 

@@ -4,6 +4,7 @@ import nock from 'nock';
 import HttpProvider from 'ethjs-provider-http';
 import EthQuery from 'eth-query';
 import * as util from './util';
+import { Transaction } from './transaction/TransactionController';
 
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
@@ -907,6 +908,19 @@ describe('util', () => {
       expect(
         util.getIncreasedPriceFromExisting('0x50fd51da', 1.1),
       ).toStrictEqual('0x5916a6d6');
+    });
+  });
+
+  describe('isEIP1559Transaction', () => {
+    it('should detect EIP1559 transaction', () => {
+      const tx = { from: '' };
+      const eip1559tx: Transaction = {
+        ...tx,
+        maxFeePerGas: '2',
+        maxPriorityFeePerGas: '3',
+      };
+      expect(util.isEIP1559Transaction(eip1559tx)).toBe(true);
+      expect(util.isEIP1559Transaction(tx)).toBe(false);
     });
   });
 });
