@@ -39,7 +39,7 @@ describe('TokensController', () => {
 
   it('should add a token', async () => {
     const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    await sinon
+    sinon
       .stub(tokensController, '_createEthersContract')
       .callsFake(() =>
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
@@ -64,7 +64,7 @@ describe('TokensController', () => {
 
   it('should add tokens', async () => {
     const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    await sinon
+    sinon
       .stub(tokensController, '_createEthersContract')
       .callsFake(() =>
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
@@ -109,7 +109,7 @@ describe('TokensController', () => {
 
   it('should add token by selected address', async () => {
     const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    await sinon
+    sinon
       .stub(tokensController, '_createEthersContract')
       .callsFake(() =>
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
@@ -134,7 +134,7 @@ describe('TokensController', () => {
 
   it('should add token by network', async () => {
     const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    await sinon
+    sinon
       .stub(tokensController, '_createEthersContract')
       .callsFake(() =>
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
@@ -172,7 +172,7 @@ describe('TokensController', () => {
 
   it('should remove token', async () => {
     const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    await sinon
+    sinon
       .stub(tokensController, '_createEthersContract')
       .callsFake(() =>
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
@@ -184,7 +184,7 @@ describe('TokensController', () => {
 
   it('should remove token by selected address', async () => {
     const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    await sinon
+    sinon
       .stub(tokensController, '_createEthersContract')
       .callsFake(() =>
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
@@ -209,7 +209,7 @@ describe('TokensController', () => {
 
   it('should remove token by provider type', async () => {
     const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    await sinon
+    sinon
       .stub(tokensController, '_createEthersContract')
       .callsFake(() =>
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
@@ -260,7 +260,7 @@ describe('TokensController', () => {
 
   it('should not add duplicate tokens to the ignoredToken list', async () => {
     const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    await sinon
+    sinon
       .stub(tokensController, '_createEthersContract')
       .callsFake(() =>
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
@@ -280,7 +280,7 @@ describe('TokensController', () => {
 
   it('should be able to clear the ignoredToken list', async () => {
     const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    await sinon
+    sinon
       .stub(tokensController, '_createEthersContract')
       .callsFake(() =>
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),

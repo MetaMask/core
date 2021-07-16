@@ -501,8 +501,8 @@ export class TokensController extends BaseController<
       return true;
     });
 
-    if(!newIgnoredTokens.find((token: Token) => token.address === address)){
-      newIgnoredTokens.push({address: address, decimals: 0, symbol: ''})
+    if (!newIgnoredTokens.find((token: Token) => token.address === address)) {
+      newIgnoredTokens.push({ address, decimals: 0, symbol: '' });
     }
 
     const addressTokens = allTokens[selectedAddress];
