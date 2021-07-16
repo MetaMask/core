@@ -109,7 +109,7 @@ describe('util', () => {
       value: '0xvalue',
       maxFeePerGas: '0xmaxFeePerGas',
       maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
-      estimatedBaseFee: 'estimatedBaseFee',
+      estimatedBaseFee: '0xestimatedBaseFee',
     });
   });
 
