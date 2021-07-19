@@ -21,7 +21,7 @@ import { PersonalMessageParams } from './message-manager/PersonalMessageManager'
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
 import { MAINNET } from './constants';
-const pack = require('../../package.json'); // eslint-disable-line
+const pack = require('../package.json');
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 
@@ -656,7 +656,7 @@ export function query(
 }
 
 /**
- * Utility function to return corresponding @metamask/contract-metadata logo
+ * Utility function to return URL corresponding @metamask/contract-metadata logo
  *
  * @param {string} logo - Logo path from `@metamask/contract-metadata`
  */

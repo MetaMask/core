@@ -876,4 +876,12 @@ describe('util', () => {
       );
     });
   });
+
+  describe('getImageFromContractMetadata', () => {
+    it('should convert logo file name to URL', () => {
+      const logoFileName = 'dai.svg';
+      const url = `https://raw.githubusercontent.com/metamask/contract-metadata/v1.27.0/images/${logoFileName}`;
+      expect(util.getImageFromContractMetadata('dai.svg')).toBe(url);
+    });
+  })
 });

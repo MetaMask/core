@@ -1,6 +1,5 @@
 import { stub } from 'sinon';
 import nock from 'nock';
-import contractmap from '@metamask/contract-metadata';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
   NetworkController,
@@ -11,17 +10,22 @@ import {
   TokenListController,
   TokenListStateChange,
   GetTokenListState,
+  ContractMap,
+  TokenMap
 } from './TokenListController';
+import { getImageFromContractMetadata } from '../util';
+const contractMap: ContractMap = require('@metamask/contract-metadata');
 
 const name = 'TokenListController';
 const TOKEN_END_POINT_API = 'https://token-api.airswap-prod.codefi.network';
 const timestamp = Date.now();
 
-const staticTokenList: any = {};
-for (const tokenAddress in contractmap) {
-  const { erc20, logo, ...token } = contractmap[tokenAddress];
+const staticTokenList: TokenMap = {};
+for (const tokenAddress in contractMap) {
+  const { erc20, logo, ...token } = contractMap[tokenAddress];
+  const iconUrl = getImageFromContractMetadata(logo);
   if (erc20) {
-    staticTokenList[tokenAddress] = { ...token, iconUrl: logo };
+    staticTokenList[tokenAddress] = { ...token, iconUrl, address: tokenAddress, occurrences: null, aggregators: null };
   }
 }
 const sampleMainnetTokenList = [

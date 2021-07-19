@@ -1,6 +1,5 @@
 import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
-import contractmap from '@metamask/contract-metadata';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { getImageFromContractMetadata, safelyExecute } from '../util';
@@ -11,6 +10,7 @@ import {
 } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
 import { PreferencesState } from '../user/PreferencesController';
+const contractMap: ContractMap = require('@metamask/contract-metadata');
 
 const DEFAULT_INTERVAL = 60 * 60 * 1000;
 const DEFAULT_THRESHOLD = 60 * 30 * 1000;
@@ -35,6 +35,10 @@ type LegacyToken = {
   logo: string;
   erc20: boolean;
 } & BaseToken;
+
+export type ContractMap = {
+  [address: string]: LegacyToken
+}
 
 export type Token = {
   address: string;
@@ -205,8 +209,8 @@ export class TokenListController extends BaseController<
    */
   async fetchFromStaticTokenList(): Promise<void> {
     const tokenList: TokenMap = {};
-    for (const tokenAddress in contractmap) {
-      const { erc20, logo, ...token } = contractmap[tokenAddress] as LegacyToken;
+    for (const tokenAddress in contractMap) {
+      const { erc20, logo, ...token } = contractMap[tokenAddress];
       const iconUrl = getImageFromContractMetadata(logo);
       if (erc20) {
         tokenList[tokenAddress] = { ...token, iconUrl, address: tokenAddress, occurrences: null, aggregators: null };
