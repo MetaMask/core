@@ -21,6 +21,7 @@ import { PersonalMessageParams } from './message-manager/PersonalMessageManager'
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
 import { MAINNET } from './constants';
+const pack = require('../../package.json'); // eslint-disable-line
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 
@@ -654,6 +655,19 @@ export function query(
   });
 }
 
+/**
+ * Utility function to return corresponding @metamask/contract-metadata logo
+ *
+ * @param {string} logo - Logo path from `@metamask/contract-metadata`
+ */
+export function getImageFromContractMetadata(logo: string): string {
+	if (!logo) return '';
+	const version = pack.dependencies['@metamask/contract-metadata']?.replace('^', '');
+	const path = `https://raw.githubusercontent.com/metamask/contract-metadata/v${version}/images/`;
+	const uri = path + logo;
+	return uri;
+}
+
 export default {
   BNToHex,
   fractionBN,
@@ -672,4 +686,5 @@ export default {
   validateTransaction,
   validateTypedSignMessageDataV1,
   validateTypedSignMessageDataV3,
+  getImageFromContractMetadata,
 };

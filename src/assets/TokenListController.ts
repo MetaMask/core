@@ -3,7 +3,7 @@ import { Mutex } from 'async-mutex';
 import contractmap from '@metamask/contract-metadata';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
-import { safelyExecute } from '../util';
+import { getImageFromContractMetadata, safelyExecute } from '../util';
 import {
   fetchTokenList,
   syncTokens,
@@ -25,17 +25,26 @@ interface TokensChainsCache {
   [chainSlug: string]: DataCache;
 }
 
-type Token = {
+type BaseToken = {
   name: string;
-  address: string;
-  decimals: number;
   symbol: string;
+  decimals: number;
+}
+
+type LegacyToken = {
+  logo: string;
+  erc20: boolean;
+} & BaseToken;
+
+export type Token = {
+  address: string;
   occurrences: number | null;
   aggregators: string[] | null;
   iconUrl: string;
-};
+} & BaseToken;
 
-type TokenMap = {
+
+export type TokenMap = {
   [address: string]: Token;
 };
 
@@ -197,9 +206,10 @@ export class TokenListController extends BaseController<
   async fetchFromStaticTokenList(): Promise<void> {
     const tokenList: TokenMap = {};
     for (const tokenAddress in contractmap) {
-      const { erc20, logo, ...token } = contractmap[tokenAddress];
+      const { erc20, logo, ...token } = contractmap[tokenAddress] as LegacyToken;
+      const iconUrl = getImageFromContractMetadata(logo);
       if (erc20) {
-        tokenList[tokenAddress] = { ...token, iconUrl: logo };
+        tokenList[tokenAddress] = { ...token, iconUrl, address: tokenAddress, occurrences: null, aggregators: null };
       }
     }
     this.update(() => {
@@ -316,12 +326,12 @@ export class TokenListController extends BaseController<
   /**
    * Fetch metadata for a token whose address is send to the API
    * @param tokenAddress
-   * @returns Promise that resolvesto Token Metadata
+   * @returns Promise that resolves to Token Metadata
    */
   async fetchTokenMetadata(tokenAddress: string): Promise<Token> {
     const releaseLock = await this.mutex.acquire();
     try {
-      const token = await safelyExecute(() =>
+      const token: Token = await safelyExecute(() =>
         fetchTokenMetadata(this.chainId, tokenAddress),
       );
       return token;
