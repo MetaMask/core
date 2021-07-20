@@ -182,21 +182,28 @@ describe('TokenBalancesController', () => {
     const assetsContract = new AssetsContractController();
     const network = new NetworkController();
     const preferences = new PreferencesController();
-    const assets = new TokensController({
+    const tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
     });
+
+    const supportsInterfaceStub = stub().returns(Promise.resolve(false));
+
+    stub(tokensController, '_createEthersContract').callsFake(() =>
+      Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+    );
+
     const tokenBalances = new TokenBalancesController(
       {
-        onTokensStateChange: (listener) => assets.subscribe(listener),
+        onTokensStateChange: (listener) => tokensController.subscribe(listener),
         getSelectedAddress: () => preferences.state.selectedAddress,
         getBalanceOf: assetsContract.getBalanceOf.bind(assetsContract),
       },
       { interval: 1337 },
     );
     const updateBalances = sandbox.stub(tokenBalances, 'updateBalances');
-    await assets.addToken('0x00', 'FOO', 18);
-    const { tokens } = assets.state;
+    await tokensController.addToken('0x00', 'FOO', 18);
+    const { tokens } = tokensController.state;
     const found = tokens.filter((token: Token) => token.address === '0x00');
     expect(found.length > 0).toBe(true);
     expect(updateBalances.called).toBe(true);

@@ -255,6 +255,9 @@ describe('AssetsDetectionController', () => {
           },
         ],
       });
+    stub(tokensController, '_detectIsERC721').callsFake(() =>
+      Promise.resolve(false),
+    );
   });
 
   afterEach(() => {
@@ -580,6 +583,7 @@ describe('AssetsDetectionController', () => {
         symbol: 'GNO',
         decimals: 18,
         image: undefined,
+        isERC721: false,
       },
     ]);
   });
@@ -595,6 +599,7 @@ describe('AssetsDetectionController', () => {
         decimals: 18,
         image: undefined,
         symbol: 'GNO',
+        isERC721: false,
       },
     ]);
     getBalancesInSingleCall.resolves({
@@ -607,12 +612,14 @@ describe('AssetsDetectionController', () => {
         decimals: 18,
         image: undefined,
         symbol: 'GNO',
+        isERC721: false,
       },
       {
         address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
         symbol: 'LINK',
         decimals: 18,
         image: undefined,
+        isERC721: false,
       },
     ]);
   });
@@ -667,6 +674,9 @@ describe('AssetsDetectionController', () => {
   });
 
   it('should subscribe to new sibling detecting assets when account changes', async () => {
+    stub(tokensController, '_instantiateNewEthersProvider').callsFake(
+      () => null,
+    );
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'mainnet';
     const firstAddress = '0x123';
