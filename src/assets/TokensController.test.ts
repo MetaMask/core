@@ -295,90 +295,176 @@ describe('TokensController', () => {
   });
 
   describe('isERC721 flag', function () {
-    it('should add isERC721 = true to token object in state when token is collectible and in our contract-metadata repo', async function () {
-      const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(true));
-      await sinon
-        .stub(tokensController, '_createEthersContract')
-        .callsFake(() =>
-          Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+    describe('updateTokenType method', function () {
+      it('should add isERC721 = true to token object already in state when token is collectible and in our contract-metadata repo', async function () {
+        const contractAddresses = Object.keys(contractMaps);
+        const erc721ContractAddresses = contractAddresses.filter(
+          (contractAddress) => contractMaps[contractAddress].erc721 === true,
         );
-      const contractAddresses = Object.keys(contractMaps);
-      const erc721ContractAddresses = contractAddresses.filter(
-        (contractAddress) => contractMaps[contractAddress].erc721 === true,
-      );
-      const address = erc721ContractAddresses[0];
-      const { symbol, decimals } = contractMaps[address];
-      tokensController.update({
-        tokens: [{ address, symbol, decimals }],
+        const address = erc721ContractAddresses[0];
+        const { symbol, decimals } = contractMaps[address];
+        tokensController.update({
+          tokens: [{ address, symbol, decimals }],
+        });
+        const result = await tokensController.updateTokenType(address);
+        expect(result.isERC721).toBe(true);
       });
-      const result = await tokensController.updateTokenType(address);
-      expect(result.isERC721).toBe(true);
+
+      it('should add isERC721 = false to token object already in state when token is not a collectible and is in our contract-metadata repo', async function () {
+        const contractAddresses = Object.keys(contractMaps);
+        const erc20ContractAddresses = contractAddresses.filter(
+          (contractAddress) => contractMaps[contractAddress].erc20 === true,
+        );
+        const address = erc20ContractAddresses[0];
+        const { symbol, decimals } = contractMaps[address];
+        tokensController.update({
+          tokens: [{ address, symbol, decimals }],
+        });
+        const result = await tokensController.updateTokenType(address);
+        expect(result.isERC721).toBe(false);
+      });
+
+      it('should add isERC721 = true to token object already in state when token is collectible and is not in our contract-metadata repo', async function () {
+        const supportsInterfaceStub = sinon
+          .stub()
+          .returns(Promise.resolve(true));
+        await sinon
+          .stub(tokensController, '_createEthersContract')
+          .callsFake(() =>
+            Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+          );
+        const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
+        tokensController.update({
+          tokens: [
+            {
+              address: tokenAddress,
+              symbol: 'TESTNFT',
+              decimals: 0,
+            },
+          ],
+        });
+
+        const result = await tokensController.updateTokenType(tokenAddress);
+
+        expect(result.isERC721).toBe(true);
+      });
+
+      it('should add isERC721 = false to token object already in state when token is not a collectible and not in our contract-metadata repo', async function () {
+        const supportsInterfaceStub = sinon
+          .stub()
+          .returns(Promise.resolve(false));
+        await sinon
+          .stub(tokensController, '_createEthersContract')
+          .callsFake(() =>
+            Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+          );
+        const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
+        tokensController.update({
+          tokens: [
+            {
+              address: tokenAddress,
+              symbol: 'TESTNFT',
+              decimals: 0,
+            },
+          ],
+        });
+
+        const result = await tokensController.updateTokenType(tokenAddress);
+
+        expect(result.isERC721).toBe(false);
+      });
     });
 
-    it('should add isERC721 = true to token object in state when token is collectible and not in our contract-metadata repo', async function () {
-      const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(true));
-      await sinon
-        .stub(tokensController, '_createEthersContract')
-        .callsFake(() =>
-          Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+    describe('addToken method', function () {
+      it('should add isERC721 = true when token is a collectible and is in our contract-metadata repo', async function () {
+        const contractAddresses = Object.keys(contractMaps);
+        const erc721ContractAddresses = contractAddresses.filter(
+          (contractAddress) => contractMaps[contractAddress].erc721 === true,
         );
-      const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
-      tokensController.update({
-        tokens: [
+        const address = erc721ContractAddresses[0];
+        const { symbol, decimals } = contractMaps[address];
+        await tokensController.addToken(address, symbol, decimals);
+
+        expect(tokensController.state.tokens).toStrictEqual([
+          {
+            address,
+            symbol,
+            isERC721: true,
+            image: undefined,
+            decimals,
+          },
+        ]);
+      });
+
+      it('should add isERC721 = true when the token is a collectible but not in our contract-metadata repo', async function () {
+        const supportsInterfaceStub = sinon
+          .stub()
+          .returns(Promise.resolve(true));
+        await sinon
+          .stub(tokensController, '_createEthersContract')
+          .callsFake(() =>
+            Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+          );
+
+        const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
+
+        await tokensController.addToken(tokenAddress, 'REST', 4);
+
+        expect(tokensController.state.tokens).toStrictEqual([
           {
             address: tokenAddress,
-            symbol: 'TESTNFT',
-            decimals: 0,
+            symbol: 'REST',
+            isERC721: true,
+            image: undefined,
+            decimals: 4,
           },
-        ],
+        ]);
       });
 
-      const result = await tokensController.updateTokenType(tokenAddress);
-
-      expect(result.isERC721).toBe(true);
-    });
-
-    it('should return true when token is in our contract-metadata repo', async function () {
-      const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(true));
-      await sinon
-        .stub(tokensController, '_createEthersContract')
-        .callsFake(() =>
-          Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+      it('should add isERC721 = false to token object already in state when token is not a collectible and in our contract-metadata repo', async function () {
+        const contractAddresses = Object.keys(contractMaps);
+        const erc20ContractAddresses = contractAddresses.filter(
+          (contractAddress) => contractMaps[contractAddress].erc20 === true,
         );
-      const tokenAddress = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
+        const address = erc20ContractAddresses[0];
+        const { symbol, decimals } = contractMaps[address];
 
-      const result = await tokensController._detectIsERC721(tokenAddress);
-      expect(result).toBe(true);
-    });
+        await tokensController.addToken(address, symbol, decimals);
 
-    it('should return true when the token is not in our contract-metadata repo but tokenContract.supportsInterface returns true', async function () {
-      const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(true));
-      await sinon
-        .stub(tokensController, '_createEthersContract')
-        .callsFake(() =>
-          Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-        );
+        expect(tokensController.state.tokens).toStrictEqual([
+          {
+            address,
+            symbol,
+            isERC721: false,
+            image: undefined,
+            decimals,
+          },
+        ]);
+      });
 
-      const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
+      it('should add isERC721 = false when the token is not a collectible and not in our contract-metadata repo', async function () {
+        const supportsInterfaceStub = sinon
+          .stub()
+          .returns(Promise.resolve(false));
+        await sinon
+          .stub(tokensController, '_createEthersContract')
+          .callsFake(() =>
+            Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+          );
+        const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
 
-      const result = await tokensController._detectIsERC721(tokenAddress);
+        await tokensController.addToken(tokenAddress, 'LEST', 5);
 
-      expect(result).toBe(true);
-    });
-
-    it('should return false when the token is not in our contract-metadata repo and tokenContract.supportsInterface returns false', async function () {
-      const supportsInterfaceStub = sinon
-        .stub()
-        .returns(Promise.resolve(false));
-      await sinon
-        .stub(tokensController, '_createEthersContract')
-        .callsFake(() =>
-          Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-        );
-      const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
-
-      const result = await tokensController._detectIsERC721(tokenAddress);
-      expect(result).toBe(false);
+        expect(tokensController.state.tokens).toStrictEqual([
+          {
+            address: tokenAddress,
+            symbol: 'LEST',
+            isERC721: false,
+            image: undefined,
+            decimals: 5,
+          },
+        ]);
+      });
     });
   });
 

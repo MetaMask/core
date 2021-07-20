@@ -326,7 +326,10 @@ export class TokensController extends BaseController<
     // to check against the contract
     if (contractsMap[checksumAddress]?.erc721 === true) {
       return Promise.resolve(true);
+    } else if (contractsMap[checksumAddress]?.erc20 === true) {
+      return Promise.resolve(false);
     }
+
     const tokenContract = await this._createEthersContract(
       tokenAddress,
       abiERC721,
