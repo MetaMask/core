@@ -573,8 +573,7 @@ export class TransactionController extends BaseController<
     } = this.getNetworkState();
 
     if (chain !== RPC) {
-      const common = new Common({ chain, hardfork: HARDFORK, eips: [1559] });
-      return common;
+      return new Common({ chain, hardfork: HARDFORK });
     }
 
     const customChainParams = {
