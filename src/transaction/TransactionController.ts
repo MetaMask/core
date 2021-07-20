@@ -74,7 +74,6 @@ export interface Transaction {
   nonce?: string;
   to?: string;
   value?: string;
-  // type?: number;
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
   estimatedBaseFee?: string;
