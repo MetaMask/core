@@ -19,7 +19,7 @@ const name = 'TokenListController';
 
 interface DataCache {
   timestamp: number;
-  data: Token[];
+  data: TokenListToken[];
 }
 interface TokensChainsCache {
   [chainSlug: string]: DataCache;
@@ -40,7 +40,7 @@ export type ContractMap = {
   [address: string]: LegacyToken
 }
 
-export type Token = {
+export type TokenListToken = {
   address: string;
   occurrences: number | null;
   aggregators: string[] | null;
@@ -49,7 +49,7 @@ export type Token = {
 
 
 export type TokenMap = {
-  [address: string]: Token;
+  [address: string]: TokenListToken;
 };
 
 export type TokenListState = {
@@ -235,7 +235,7 @@ export class TokenListController extends BaseController<
   async fetchFromDynamicTokenList(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
     try {
-      const tokensFromAPI: Token[] = await safelyExecute(() =>
+      const tokensFromAPI: TokenListToken[] = await safelyExecute(() =>
         this.fetchFromCache(),
       );
       const { tokensChainsCache } = this.state;
@@ -277,7 +277,7 @@ export class TokenListController extends BaseController<
    *  otherwise a call to the API service will be made.
    * @returns Promise that resolves into a TokenList
    */
-  async fetchFromCache(): Promise<Token[]> {
+  async fetchFromCache(): Promise<TokenListToken[]> {
     const { tokensChainsCache, ...tokensData }: TokenListState = this.state;
     const dataCache = tokensChainsCache[this.chainId];
     const now = Date.now();
@@ -287,7 +287,7 @@ export class TokenListController extends BaseController<
     ) {
       return dataCache.data;
     }
-    const tokenList: Token[] = await safelyExecute(() =>
+    const tokenList: TokenListToken[] = await safelyExecute(() =>
       fetchTokenList(this.chainId),
     );
     const updatedTokensChainsCache = {
@@ -337,10 +337,10 @@ export class TokenListController extends BaseController<
    * @param tokenAddress
    * @returns Promise that resolves to Token Metadata
    */
-  async fetchTokenMetadata(tokenAddress: string): Promise<Token> {
+  async fetchTokenMetadata(tokenAddress: string): Promise<TokenListToken> {
     const releaseLock = await this.mutex.acquire();
     try {
-      const token: Token = await safelyExecute(() =>
+      const token: TokenListToken = await safelyExecute(() =>
         fetchTokenMetadata(this.chainId, tokenAddress),
       );
       return token;
