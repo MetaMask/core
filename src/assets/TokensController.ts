@@ -338,14 +338,11 @@ export class TokensController extends BaseController<
     try {
       return await tokenContract.supportsInterface(ERC721_INTERFACE_ID);
     } catch (error: any) {
-      // currently error.code === UNPREDICTABLE_GAS_LIMIT is our best way of
-      // determining when a token is ERC20 (or not ERC721 compatible)
-      // its possible this has to do with the fact that ERC20's don't need to
-      // implement the supportsInterface method. But more research should be done here.
-      if (error?.code === 'UNPREDICTABLE_GAS_LIMIT') {
-        return false;
-      }
-      throw error;
+      // currently we see a variety of errors across different networks when
+      // token contracts are not ERC721 compatible. We need to figure out a better
+      // way of differentiating token interface types but for now if we get an error
+      // we have to assume the token is not ERC721 compatible.
+      return false;
     }
   }
 
