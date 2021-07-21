@@ -904,7 +904,7 @@ describe('util', () => {
   });
 
   describe('getIncreasedPriceFromExisting', () => {
-    it('should get increased price from number as hex', () => {
+    it('should get increased price from hex as hex', () => {
       expect(
         util.getIncreasedPriceFromExisting('0x50fd51da', 1.1),
       ).toStrictEqual('0x5916a6d6');
@@ -913,7 +913,7 @@ describe('util', () => {
 
   describe('isEIP1559Transaction', () => {
     it('should detect EIP1559 transaction', () => {
-      const tx = { from: '' };
+      const tx: Transaction = { from: '' };
       const eip1559tx: Transaction = {
         ...tx,
         maxFeePerGas: '2',
