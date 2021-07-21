@@ -79,6 +79,12 @@ export interface Transaction {
   estimatedBaseFee?: string;
 }
 
+export interface GasValues {
+  gasPrice?: string;
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
+}
+
 /**
  * The status of the transaction. Each status represents the state of the transaction internally
  * in the wallet. Some of these correspond with the state of the transaction on the network, but
@@ -701,7 +707,7 @@ export class TransactionController extends BaseController<
    *
    * @param transactionID - ID of the transaction to cancel
    */
-  async stopTransaction(transactionID: string) {
+  async stopTransaction(transactionID: string, gasValues: GasValues) {
     const transactionMeta = this.state.transactions.find(
       ({ id }) => id === transactionID,
     );
@@ -713,21 +719,28 @@ export class TransactionController extends BaseController<
       throw new Error('No sign method defined.');
     }
 
-    const gasPrice = getIncreasedPriceFromExisting(
-      transactionMeta.transaction.gasPrice,
-      CANCEL_RATE,
-    );
+    const gasPrice =
+      gasValues?.gasPrice ||
+      getIncreasedPriceFromExisting(
+        transactionMeta.transaction.gasPrice,
+        CANCEL_RATE,
+      );
 
     const existingMaxFeePerGas = transactionMeta.transaction?.maxFeePerGas;
     const existingMaxPriorityFeePerGas =
       transactionMeta.transaction?.maxPriorityFeePerGas;
 
     const newMaxFeePerGas =
-      existingMaxFeePerGas &&
-      getIncreasedPriceFromExisting(existingMaxFeePerGas, CANCEL_RATE);
+      gasValues?.maxFeePerGas ||
+      (existingMaxFeePerGas &&
+        getIncreasedPriceFromExisting(existingMaxFeePerGas, CANCEL_RATE));
     const newMaxPriorityFeePerGas =
-      existingMaxPriorityFeePerGas &&
-      getIncreasedPriceFromExisting(existingMaxPriorityFeePerGas, CANCEL_RATE);
+      gasValues?.maxPriorityFeePerGas ||
+      (existingMaxPriorityFeePerGas &&
+        getIncreasedPriceFromExisting(
+          existingMaxPriorityFeePerGas,
+          CANCEL_RATE,
+        ));
 
     const txParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
@@ -767,7 +780,7 @@ export class TransactionController extends BaseController<
    *
    * @param transactionID - ID of the transaction to speed up
    */
-  async speedUpTransaction(transactionID: string) {
+  async speedUpTransaction(transactionID: string, gasValues?: GasValues) {
     const transactionMeta = this.state.transactions.find(
       ({ id }) => id === transactionID,
     );
@@ -782,24 +795,28 @@ export class TransactionController extends BaseController<
     }
 
     const { transactions } = this.state;
-    const gasPrice = getIncreasedPriceFromExisting(
-      transactionMeta.transaction.gasPrice,
-      SPEED_UP_RATE,
-    );
+    const gasPrice =
+      gasValues?.gasPrice ||
+      getIncreasedPriceFromExisting(
+        transactionMeta.transaction.gasPrice,
+        SPEED_UP_RATE,
+      );
 
     const existingMaxFeePerGas = transactionMeta.transaction?.maxFeePerGas;
     const existingMaxPriorityFeePerGas =
       transactionMeta.transaction?.maxPriorityFeePerGas;
 
     const newMaxFeePerGas =
-      existingMaxFeePerGas &&
-      getIncreasedPriceFromExisting(existingMaxFeePerGas, SPEED_UP_RATE);
+      gasValues?.maxFeePerGas ||
+      (existingMaxFeePerGas &&
+        getIncreasedPriceFromExisting(existingMaxFeePerGas, SPEED_UP_RATE));
     const newMaxPriorityFeePerGas =
-      existingMaxPriorityFeePerGas &&
-      getIncreasedPriceFromExisting(
-        existingMaxPriorityFeePerGas,
-        SPEED_UP_RATE,
-      );
+      gasValues?.maxPriorityFeePerGas ||
+      (existingMaxPriorityFeePerGas &&
+        getIncreasedPriceFromExisting(
+          existingMaxPriorityFeePerGas,
+          SPEED_UP_RATE,
+        ));
 
     const txParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
