@@ -733,7 +733,7 @@ export class TransactionController extends BaseController<
       getIncreasedPriceFromExisting(existingMaxPriorityFeePerGas, CANCEL_RATE);
 
     const txParams =
-      newMaxFeePerGas && newMaxFeePerGas
+      newMaxFeePerGas && newMaxPriorityFeePerGas
         ? {
             from: transactionMeta.transaction.from,
             gasLimit: transactionMeta.transaction.gas,
