@@ -45,6 +45,7 @@ export interface Token {
   symbol: string;
   image?: string;
   balanceError?: Error | null;
+  isERC721?: boolean;
 }
 
 /**
