@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.1.0]
+### Uncategorized
+- revert error handling of supportsInterface method to general catch with no rethrow ([#530](https://github.com/MetaMask/controllers/pull/530))
+- adding ERC721 detection to TokensController ([#524](https://github.com/MetaMask/controllers/pull/524))
+- Add `prettier-plugin-packagejson` ([#523](https://github.com/MetaMask/controllers/pull/523))
+- Add release automation ([#522](https://github.com/MetaMask/controllers/pull/522))
+
 ## [13.0.0] - 2021-07-12
 ### Changed
 - **BREAKING**: Remove AssetsController and add CollectiblesController and TokensController in its place ([#518](https://github.com/MetaMask/controllers/pull/518))
@@ -290,7 +297,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v13.1.0...HEAD
+[13.1.0]: https://github.com/MetaMask/controllers/compare/v13.0.0...v13.1.0
 [13.0.0]: https://github.com/MetaMask/controllers/compare/v12.1.0...v13.0.0
 [12.1.0]: https://github.com/MetaMask/controllers/compare/v12.0.0...v12.1.0
 [12.0.0]: https://github.com/MetaMask/controllers/compare/v11.0.0...v12.0.0
