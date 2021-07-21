@@ -7,10 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [13.1.0]
-### Fixed
-- revert error handling of supportsInterface method to general catch with no rethrow ([#530](https://github.com/MetaMask/controllers/pull/530))
-## Added
-- adding ERC721 detection to TokensController ([#524](https://github.com/MetaMask/controllers/pull/524))
+### Added
+- Add ERC721 detection to TokensController ([#524](https://github.com/MetaMask/controllers/pull/524)), ([#530](https://github.com/MetaMask/controllers/pull/530))
 
 ## [13.0.0] - 2021-07-12
 ### Changed
