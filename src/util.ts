@@ -21,7 +21,6 @@ import { PersonalMessageParams } from './message-manager/PersonalMessageManager'
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
 import { MAINNET } from './constants';
-const pack = require('../package.json');
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 
@@ -660,12 +659,10 @@ export function query(
  *
  * @param {string} logo - Logo path from `@metamask/contract-metadata`
  */
-export function getImageFromContractMetadata(logo: string): string {
-	if (!logo) return '';
-	const version = pack.dependencies['@metamask/contract-metadata']?.replace('^', '');
-	const path = `https://raw.githubusercontent.com/metamask/contract-metadata/v${version}/images/`;
-	const uri = path + logo;
-	return uri;
+export function getImageFromContractMetadata({rootPath, filePath}: {rootPath: string, filePath: string}): string {
+	if (!filePath) return '';
+	const url = `${rootPath}/node_modules/@metamask/controllers/node_modules/contract-metadata/images/${filePath}`;
+	return url;
 }
 
 export default {

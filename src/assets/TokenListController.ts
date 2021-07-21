@@ -96,6 +96,8 @@ export class TokenListController extends BaseController<
 
   private useStaticTokenList: boolean;
 
+  private staticTokenRootImagePath: string;
+
   /**
    * Creates a TokenListController instance
    *
@@ -113,6 +115,7 @@ export class TokenListController extends BaseController<
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
     messenger,
     state,
+    staticTokenRootImagePath,
   }: {
     chainId: string;
     useStaticTokenList: boolean;
@@ -132,6 +135,7 @@ export class TokenListController extends BaseController<
       never
     >;
     state?: Partial<TokenListState>;
+    staticTokenRootImagePath: string;
   }) {
     super({
       name,
@@ -139,6 +143,7 @@ export class TokenListController extends BaseController<
       messenger,
       state: { ...defaultState, ...state },
     });
+    this.staticTokenRootImagePath = staticTokenRootImagePath;
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
@@ -210,8 +215,8 @@ export class TokenListController extends BaseController<
   async fetchFromStaticTokenList(): Promise<void> {
     const tokenList: TokenMap = {};
     for (const tokenAddress in contractMap) {
-      const { erc20, logo, ...token } = contractMap[tokenAddress];
-      const iconUrl = getImageFromContractMetadata(logo);
+      const { erc20, logo: filePath, ...token } = contractMap[tokenAddress];
+      const iconUrl = getImageFromContractMetadata({rootPath: this.staticTokenRootImagePath, filePath});
       if (erc20) {
         tokenList[tokenAddress] = { ...token, iconUrl, address: tokenAddress, occurrences: null, aggregators: null };
       }
