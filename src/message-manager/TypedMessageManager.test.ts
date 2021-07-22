@@ -1,4 +1,4 @@
-import TypedMessageManager from './TypedMessageManager';
+import { TypedMessageManager } from './TypedMessageManager';
 
 const typedMessage = [
   {
@@ -45,15 +45,15 @@ describe('TypedMessageManager', () => {
       type: messageType,
     });
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.id).toBe(messageId);
-      expect(message.messageParams.from).toBe(from);
-      expect(message.messageParams.data).toBe(messageData);
-      expect(message.time).toBe(messageTime);
-      expect(message.status).toBe(messageStatus);
-      expect(message.type).toBe(messageType);
+    if (!message) {
+      throw new Error('"message" is falsy');
     }
+    expect(message.id).toBe(messageId);
+    expect(message.messageParams.from).toBe(from);
+    expect(message.messageParams.data).toBe(messageData);
+    expect(message.time).toBe(messageTime);
+    expect(message.status).toBe(messageStatus);
+    expect(message.type).toBe(messageType);
   });
 
   it('should reject a message', async () => {
@@ -162,13 +162,14 @@ describe('TypedMessageManager', () => {
     );
     expect(messageId).not.toBeUndefined();
     const message = controller.getMessage(messageId);
-    if (message) {
-      expect(message.messageParams.from).toBe(messageParams.from);
-      expect(message.messageParams.data).toBe(messageParams.data);
-      expect(message.time).not.toBeUndefined();
-      expect(message.status).toBe(messageStatus);
-      expect(message.type).toBe(messageType);
+    if (!message) {
+      throw new Error('"message" is falsy');
     }
+    expect(message.messageParams.from).toBe(messageParams.from);
+    expect(message.messageParams.data).toBe(messageParams.data);
+    expect(message.time).not.toBeUndefined();
+    expect(message.status).toBe(messageStatus);
+    expect(message.type).toBe(messageType);
   });
 
   it('should throw when adding invalid legacy typed message', async () => {
@@ -265,10 +266,10 @@ describe('TypedMessageManager', () => {
     });
     const message = controller.getMessage(messageId);
     expect(messageParams).toStrictEqual(firstMessage);
-    expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.status).toStrictEqual('approved');
+    if (!message) {
+      throw new Error('"message" is falsy');
     }
+    expect(message.status).toStrictEqual('approved');
   });
 
   it('should set message status signed', () => {
@@ -280,11 +281,11 @@ describe('TypedMessageManager', () => {
     const messageId = controller.addUnapprovedMessage(firstMessage, version);
     controller.setMessageStatusSigned(messageId, rawSig);
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.rawSig).toStrictEqual(rawSig);
-      expect(message.status).toStrictEqual('signed');
+    if (!message) {
+      throw new Error('"message" is falsy');
     }
+    expect(message.rawSig).toStrictEqual(rawSig);
+    expect(message.status).toStrictEqual('signed');
   });
 
   it('should reject message', () => {
@@ -295,10 +296,10 @@ describe('TypedMessageManager', () => {
     const messageId = controller.addUnapprovedMessage(firstMessage, version);
     controller.rejectMessage(messageId);
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.status).toStrictEqual('rejected');
+    if (!message) {
+      throw new Error('"message" is falsy');
     }
+    expect(message.status).toStrictEqual('rejected');
   });
 
   it('should set message status errored', () => {
@@ -309,9 +310,9 @@ describe('TypedMessageManager', () => {
     const messageId = controller.addUnapprovedMessage(firstMessage, version);
     controller.setMessageStatusErrored(messageId, 'errored');
     const message = controller.getMessage(messageId);
-    expect(message).not.toBeUndefined();
-    if (message) {
-      expect(message.status).toStrictEqual('errored');
+    if (!message) {
+      throw new Error('"message" is falsy');
     }
+    expect(message.status).toStrictEqual('errored');
   });
 });

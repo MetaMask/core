@@ -1,6 +1,9 @@
-import { isValidAddress, toChecksumAddress } from 'ethereumjs-util';
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
-import { normalizeEnsName } from '../util';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import {
+  normalizeEnsName,
+  isValidHexAddress,
+  toChecksumHexAddress,
+} from '../util';
 
 /**
  * @type EnsEntry
@@ -122,7 +125,7 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
       !Number.isInteger(Number.parseInt(chainId, 10)) ||
       !ensName ||
       typeof ensName !== 'string' ||
-      (address && !isValidAddress(address))
+      (address && !isValidHexAddress(address))
     ) {
       throw new Error(
         `Invalid ENS entry: { chainId:${chainId}, ensName:${ensName}, address:${address}}`,
@@ -134,7 +137,7 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
       throw new Error(`Invalid ENS name: ${ensName}`);
     }
 
-    const normalizedAddress = address ? toChecksumAddress(address) : null;
+    const normalizedAddress = address ? toChecksumHexAddress(address) : null;
     const subState = this.state.ensEntries[chainId];
 
     if (

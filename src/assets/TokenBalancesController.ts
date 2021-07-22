@@ -1,9 +1,9 @@
 import { BN } from 'ethereumjs-util';
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute } from '../util';
 import type { PreferencesState } from '../user/PreferencesController';
 import { Token } from './TokenRatesController';
-import type { AssetsState } from './AssetsController';
+import { TokensState } from './TokensController';
 import type { AssetsContractController } from './AssetsContractController';
 
 // TODO: Remove this export in the next major release
@@ -35,7 +35,7 @@ export interface TokenBalancesState extends BaseState {
 
 /**
  * Controller that passively polls on a set interval token balances
- * for tokens stored in the AssetsController
+ * for tokens stored in the TokensController
  */
 export class TokenBalancesController extends BaseController<
   TokenBalancesConfig,
@@ -56,7 +56,7 @@ export class TokenBalancesController extends BaseController<
    * Creates a TokenBalancesController instance
    *
    * @param options
-   * @param options.onAssetsStateChange - Allows subscribing to assets controller state changes
+   * @param options.onTokensStateChange - Allows subscribing to assets controller state changes
    * @param options.getSelectedAddress - Gets the current selected address
    * @param options.getBalanceOf - Gets the balance of the given account at the given contract address
    * @param config - Initial options used to configure this controller
@@ -64,12 +64,12 @@ export class TokenBalancesController extends BaseController<
    */
   constructor(
     {
-      onAssetsStateChange,
+      onTokensStateChange,
       getSelectedAddress,
       getBalanceOf,
     }: {
-      onAssetsStateChange: (
-        listener: (tokenState: AssetsState) => void,
+      onTokensStateChange: (
+        listener: (tokenState: TokensState) => void,
       ) => void;
       getSelectedAddress: () => PreferencesState['selectedAddress'];
       getBalanceOf: AssetsContractController['getBalanceOf'];
@@ -84,7 +84,7 @@ export class TokenBalancesController extends BaseController<
     };
     this.defaultState = { contractBalances: {} };
     this.initialize();
-    onAssetsStateChange(({ tokens }) => {
+    onTokensStateChange(({ tokens }) => {
       this.configure({ tokens });
       this.updateBalances();
     });

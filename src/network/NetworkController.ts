@@ -3,7 +3,8 @@ import Subprovider from 'web3-provider-engine/subproviders/provider';
 import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Mutex } from 'async-mutex';
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import { MAINNET, RPC } from '../constants';
 
 /**
  * Human-readable network name
@@ -15,7 +16,9 @@ export type NetworkType =
   | 'rinkeby'
   | 'goerli'
   | 'ropsten'
-  | 'rpc';
+  | 'rpc'
+  | 'optimism'
+  | 'optimismTest';
 
 export enum NetworksChainId {
   mainnet = '1',
@@ -25,6 +28,8 @@ export enum NetworksChainId {
   ropsten = '3',
   localhost = '',
   rpc = '',
+  optimism = '10',
+  optimismTest = '69',
 }
 
 /**
@@ -46,6 +51,14 @@ export interface ProviderConfig {
   nickname?: string;
 }
 
+export interface Block {
+  baseFeePerGas?: string;
+}
+
+export interface NetworkProperties {
+  isEIP1559Compatible?: boolean;
+}
+
 /**
  * @type NetworkConfig
  *
@@ -65,11 +78,14 @@ export interface NetworkConfig extends BaseConfig {
  * Network controller state
  *
  * @property network - Network ID as per net_version
+ * @property isCustomNetwork - Identifies if the network is a custom network
  * @property provider - RPC URL and network name provider settings
  */
 export interface NetworkState extends BaseState {
   network: string;
+  isCustomNetwork: boolean;
   provider: ProviderConfig;
+  properties: NetworkProperties;
 }
 
 const LOCALHOST_RPC_URL = 'http://localhost:8545';
@@ -94,18 +110,21 @@ export class NetworkController extends BaseController<
     ticker?: string,
     nickname?: string,
   ) {
+    this.update({ isCustomNetwork: this.getIsCustomNetwork(chainId) });
     switch (type) {
       case 'kovan':
-      case 'mainnet':
+      case MAINNET:
       case 'rinkeby':
       case 'goerli':
+      case 'optimism':
+      case 'optimismTest':
       case 'ropsten':
         this.setupInfuraProvider(type);
         break;
       case 'localhost':
         this.setupStandardProvider(LOCALHOST_RPC_URL);
         break;
-      case 'rpc':
+      case RPC:
         rpcTarget &&
           this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
         break;
@@ -143,6 +162,17 @@ export class NetworkController extends BaseController<
       },
     };
     this.updateProvider(createMetamaskProvider(config));
+  }
+
+  private getIsCustomNetwork(chainId?: string) {
+    return (
+      chainId !== NetworksChainId.mainnet &&
+      chainId !== NetworksChainId.kovan &&
+      chainId !== NetworksChainId.rinkeby &&
+      chainId !== NetworksChainId.goerli &&
+      chainId !== NetworksChainId.ropsten &&
+      chainId !== NetworksChainId.localhost
+    );
   }
 
   private setupStandardProvider(
@@ -200,9 +230,12 @@ export class NetworkController extends BaseController<
     super(config, state);
     this.defaultState = {
       network: 'loading',
-      provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
+      isCustomNetwork: false,
+      provider: { type: MAINNET, chainId: NetworksChainId.mainnet },
+      properties: { isEIP1559Compatible: false },
     };
     this.initialize();
+    this.getEIP1559Compatibility();
   }
 
   /**
@@ -282,10 +315,40 @@ export class NetworkController extends BaseController<
     this.update({
       provider: {
         ...this.state.provider,
-        ...{ type: 'rpc', ticker, rpcTarget, chainId, nickname },
+        ...{ type: RPC, ticker, rpcTarget, chainId, nickname },
       },
     });
     this.refreshNetwork();
+  }
+
+  getEIP1559Compatibility() {
+    const { properties = {} } = this.state;
+
+    if (!properties.isEIP1559Compatible) {
+      if (typeof this.ethQuery?.sendAsync !== 'function') {
+        return Promise.resolve(true);
+      }
+      return new Promise((resolve, reject) => {
+        this.ethQuery.sendAsync(
+          { method: 'eth_getBlockByNumber', params: ['latest', false] },
+          (error: Error, block: Block) => {
+            if (error) {
+              reject(error);
+            } else {
+              const isEIP1559Compatible =
+                typeof block.baseFeePerGas !== 'undefined';
+              this.update({
+                properties: {
+                  isEIP1559Compatible,
+                },
+              });
+              resolve(isEIP1559Compatible);
+            }
+          },
+        );
+      });
+    }
+    return Promise.resolve(true);
   }
 }
 

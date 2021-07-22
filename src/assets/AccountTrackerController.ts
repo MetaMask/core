@@ -1,6 +1,6 @@
 import EthQuery from 'eth-query';
 import { Mutex } from 'async-mutex';
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { PreferencesState } from '../user/PreferencesController';
 import { BNToHex, query, safelyExecuteWithTimeout } from '../util';
 

@@ -5,6 +5,7 @@ import HttpProvider from 'ethjs-provider-http';
 import EthQuery from 'eth-query';
 import * as util from './util';
 
+const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
 
@@ -106,6 +107,120 @@ describe('util', () => {
     });
   });
 
+  describe('gweiDecToWEIBN', () => {
+    it('should convert a whole number to WEI', () => {
+      expect(util.gweiDecToWEIBN(1).toNumber()).toBe(1000000000);
+      expect(util.gweiDecToWEIBN(123).toNumber()).toBe(123000000000);
+      expect(util.gweiDecToWEIBN(101).toNumber()).toBe(101000000000);
+      expect(util.gweiDecToWEIBN(1234).toNumber()).toBe(1234000000000);
+    });
+
+    it('should convert a number with a decimal part to WEI', () => {
+      expect(util.gweiDecToWEIBN(1.1).toNumber()).toBe(1100000000);
+      expect(util.gweiDecToWEIBN(123.01).toNumber()).toBe(123010000000);
+      expect(util.gweiDecToWEIBN(101.001).toNumber()).toBe(101001000000);
+      expect(util.gweiDecToWEIBN(1234.567).toNumber()).toBe(1234567000000);
+    });
+
+    it('should convert a number < 1 to WEI', () => {
+      expect(util.gweiDecToWEIBN(0.1).toNumber()).toBe(100000000);
+      expect(util.gweiDecToWEIBN(0.01).toNumber()).toBe(10000000);
+      expect(util.gweiDecToWEIBN(0.001).toNumber()).toBe(1000000);
+      expect(util.gweiDecToWEIBN(0.567).toNumber()).toBe(567000000);
+    });
+
+    it('should round to whole WEI numbers', () => {
+      expect(util.gweiDecToWEIBN(0.1001).toNumber()).toBe(100100000);
+      expect(util.gweiDecToWEIBN(0.0109).toNumber()).toBe(10900000);
+      expect(util.gweiDecToWEIBN(0.0014).toNumber()).toBe(1400000);
+      expect(util.gweiDecToWEIBN(0.5676).toNumber()).toBe(567600000);
+    });
+
+    it('should handle NaN', () => {
+      expect(util.gweiDecToWEIBN(NaN).toNumber()).toBe(0);
+    });
+  });
+
+  describe('weiHexToGweiDec', () => {
+    it('should convert a whole number to WEI', () => {
+      const testData = [
+        {
+          input: '3b9aca00',
+          expectedResult: '1',
+        },
+        {
+          input: '1ca35f0e00',
+          expectedResult: '123',
+        },
+        {
+          input: '178411b200',
+          expectedResult: '101',
+        },
+        {
+          input: '11f5021b400',
+          expectedResult: '1234',
+        },
+      ];
+      testData.forEach(({ input, expectedResult }) => {
+        expect(util.weiHexToGweiDec(input)).toBe(expectedResult);
+      });
+    });
+
+    it('should convert a number with a decimal part to WEI', () => {
+      const testData = [
+        {
+          input: '4190ab00',
+          expectedResult: '1.1',
+        },
+        {
+          input: '1ca3f7a480',
+          expectedResult: '123.01',
+        },
+        {
+          input: '178420f440',
+          expectedResult: '101.001',
+        },
+        {
+          input: '11f71ed6fc0',
+          expectedResult: '1234.567',
+        },
+      ];
+
+      testData.forEach(({ input, expectedResult }) => {
+        expect(util.weiHexToGweiDec(input)).toBe(expectedResult);
+      });
+    });
+
+    it('should convert a number < 1 to WEI', () => {
+      const testData = [
+        {
+          input: '5f5e100',
+          expectedResult: '0.1',
+        },
+        {
+          input: '989680',
+          expectedResult: '0.01',
+        },
+        {
+          input: 'f4240',
+          expectedResult: '0.001',
+        },
+        {
+          input: '21cbbbc0',
+          expectedResult: '0.567',
+        },
+      ];
+
+      testData.forEach(({ input, expectedResult }) => {
+        expect(util.weiHexToGweiDec(input)).toBe(expectedResult);
+      });
+    });
+
+    it('should work with 0x prefixed values', () => {
+      expect(util.weiHexToGweiDec('0x5f48b0f7')).toBe('1.598599415');
+    });
+  });
+
   describe('safelyExecute', () => {
     it('should swallow errors', async () => {
       expect(
@@ -189,6 +304,30 @@ describe('util', () => {
         apiKey,
       );
       expect(url.indexOf(`&apikey=${apiKey}`)).toBeGreaterThan(0);
+    });
+  });
+
+  describe('toChecksumHexAddress', () => {
+    const fullAddress = `0x${VALID}`;
+    it('should return address for valid address', () => {
+      expect(util.toChecksumHexAddress(fullAddress)).toBe(fullAddress);
+    });
+    it('should return address for non prefix address', () => {
+      expect(util.toChecksumHexAddress(VALID)).toBe(fullAddress);
+    });
+  });
+
+  describe('isValidHexAddress', () => {
+    it('should return true for valid address', () => {
+      expect(util.isValidHexAddress(VALID)).toBe(true);
+    });
+    it('should return false for invalid address', () => {
+      expect(util.isValidHexAddress('0x00')).toBe(false);
+    });
+    it('should allow allowNonPrefixed to be false', () => {
+      expect(util.isValidHexAddress('0x00', { allowNonPrefixed: false })).toBe(
+        false,
+      );
     });
   });
 
@@ -314,11 +453,9 @@ describe('util', () => {
       expect(() =>
         util.validateSignMessageData({
           data: '0x879a05',
-          from: '3244e191f1b4903970224322180f1fbbc415696b',
+          from: '01',
         } as any),
-      ).toThrow(
-        'Invalid "from" address: 3244e191f1b4903970224322180f1fbbc415696b must be a valid string.',
-      );
+      ).toThrow('Invalid "from" address: 01 must be a valid string.');
     });
 
     it('should throw if invalid type from address', () => {
@@ -363,7 +500,7 @@ describe('util', () => {
           data: [],
           from: '3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow('Invalid "from" address:');
+      ).toThrow('Expected EIP712 typed data.');
     });
 
     it('should throw if invalid type from address', () => {
@@ -420,7 +557,7 @@ describe('util', () => {
           data: '0x879a05',
           from: '3244e191f1b4903970224322180f1fbbc415696b',
         } as any),
-      ).toThrow('Invalid "from" address:');
+      ).toThrow('Data must be passed as a valid JSON string.');
     });
 
     it('should throw if invalid type from address', () => {

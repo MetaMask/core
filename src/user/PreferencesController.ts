@@ -1,5 +1,5 @@
-import { toChecksumAddress } from 'ethereumjs-util';
-import BaseController, { BaseConfig, BaseState } from '../BaseController';
+import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import { toChecksumHexAddress } from '../util';
 import { ContactEntry } from './AddressBookController';
 
 /**
@@ -46,6 +46,7 @@ export interface PreferencesState extends BaseState {
   identities: { [address: string]: ContactEntry };
   lostIdentities: { [address: string]: ContactEntry };
   selectedAddress: string;
+  useStaticTokenList: boolean;
 }
 
 /**
@@ -75,6 +76,7 @@ export class PreferencesController extends BaseController<
       ipfsGateway: 'https://ipfs.io/ipfs/',
       lostIdentities: {},
       selectedAddress: '',
+      useStaticTokenList: false,
     };
     this.initialize();
   }
@@ -87,7 +89,7 @@ export class PreferencesController extends BaseController<
   addIdentities(addresses: string[]) {
     const { identities } = this.state;
     addresses.forEach((address) => {
-      address = toChecksumAddress(address);
+      address = toChecksumHexAddress(address);
       if (identities[address]) {
         return;
       }
@@ -108,7 +110,7 @@ export class PreferencesController extends BaseController<
    * @param address - Address of the identity to remove
    */
   removeIdentity(address: string) {
-    address = toChecksumAddress(address);
+    address = toChecksumHexAddress(address);
     const { identities } = this.state;
     if (!identities[address]) {
       return;
@@ -127,7 +129,7 @@ export class PreferencesController extends BaseController<
    * @param label - New label to assign
    */
   setAccountLabel(address: string, label: string) {
-    address = toChecksumAddress(address);
+    address = toChecksumHexAddress(address);
     const { identities } = this.state;
     identities[address] = identities[address] || {};
     identities[address].name = label;
@@ -153,7 +155,9 @@ export class PreferencesController extends BaseController<
    * @returns - Newly-selected address after syncing
    */
   syncIdentities(addresses: string[]) {
-    addresses = addresses.map((address: string) => toChecksumAddress(address));
+    addresses = addresses.map((address: string) =>
+      toChecksumHexAddress(address),
+    );
     const { identities, lostIdentities } = this.state;
     const newlyLost: { [address: string]: ContactEntry } = {};
 
@@ -191,7 +195,9 @@ export class PreferencesController extends BaseController<
    * @param addresses - List of addresses to use as a basis for each identity
    */
   updateIdentities(addresses: string[]) {
-    addresses = addresses.map((address: string) => toChecksumAddress(address));
+    addresses = addresses.map((address: string) =>
+      toChecksumHexAddress(address),
+    );
     const oldIdentities = this.state.identities;
     const identities = addresses.reduce(
       (ids: { [address: string]: ContactEntry }, address, index) => {
@@ -268,7 +274,7 @@ export class PreferencesController extends BaseController<
    * @param selectedAddress - Ethereum address
    */
   setSelectedAddress(selectedAddress: string) {
-    this.update({ selectedAddress: toChecksumAddress(selectedAddress) });
+    this.update({ selectedAddress: toChecksumHexAddress(selectedAddress) });
   }
 
   /**
@@ -278,6 +284,15 @@ export class PreferencesController extends BaseController<
    */
   setIpfsGateway(ipfsGateway: string) {
     this.update({ ipfsGateway });
+  }
+
+  /**
+   * Toggle the token detection setting to use dynamic token list
+   *
+   * @param useStaticTokenList - IPFS gateway string
+   */
+  setUseStaticTokenList(useStaticTokenList: boolean) {
+    this.update({ useStaticTokenList });
   }
 }
 

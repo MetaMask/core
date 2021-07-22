@@ -1,60 +1,58 @@
 {
   "name": "@metamask/controllers",
-  "version": "8.0.0",
+  "version": "13.2.0",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
-  "license": "MIT",
-  "files": [
-    "dist/"
-  ],
-  "engines": {
-    "node": ">=12.0.0"
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
-    "access": "public"
-  },
-  "scripts": {
-    "prepublishOnly": "yarn build",
-    "lint:eslint": "eslint . --cache --ext js,ts",
-    "lint:json": "prettier '**/*.json' --ignore-path .gitignore",
-    "lint": "yarn lint:eslint && yarn lint:json --check",
-    "lint:fix": "yarn lint:eslint --fix && yarn lint:json --write",
-    "test": "jest --coverage",
-    "build": "rm -rf dist && tsc",
-    "build:watch": "yarn build && tsc -w",
-    "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
-    "doc": "typedoc && touch docs/.nojekyll"
-  },
-  "homepage": "https://github.com/MetaMask/controllers#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/MetaMask/controllers.git"
-  },
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
+  "homepage": "https://github.com/MetaMask/controllers#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/controllers/issues"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/controllers.git"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "setup": "yarn install && yarn allow-scripts",
+    "prepublishOnly": "yarn build",
+    "lint:eslint": "eslint . --cache --ext js,ts",
+    "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' --ignore-path .gitignore",
+    "lint": "yarn lint:eslint && yarn lint:misc --check",
+    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "build": "rimraf dist && tsc --project .",
+    "build:watch": "yarn build --watch",
+    "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
+    "doc": "typedoc && touch docs/.nojekyll"
+  },
   "dependencies": {
-    "@metamask/contract-metadata": "^1.24.0",
+    "@ethereumjs/common": "^2.3.1",
+    "@ethereumjs/tx": "^3.2.1",
+    "@metamask/contract-metadata": "^1.27.0",
     "@types/uuid": "^8.3.0",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
     "eth-ens-namehash": "^2.0.8",
     "eth-json-rpc-infura": "^5.1.0",
-    "eth-keyring-controller": "^6.1.0",
+    "eth-keyring-controller": "^6.2.1",
     "eth-method-registry": "1.1.0",
-    "eth-phishing-detect": "^1.1.13",
+    "eth-phishing-detect": "^1.1.14",
     "eth-query": "^2.1.2",
     "eth-rpc-errors": "^4.0.0",
     "eth-sig-util": "^3.0.0",
-    "ethereumjs-tx": "^1.3.7",
-    "ethereumjs-util": "^6.1.0",
+    "ethereumjs-util": "^7.0.10",
     "ethereumjs-wallet": "^1.0.1",
+    "ethers": "^5.4.1",
+    "ethjs-unit": "^0.1.6",
     "ethjs-util": "^0.1.6",
     "human-standard-collectible-abi": "^1.0.2",
     "human-standard-token-abi": "^2.0.0",
@@ -62,18 +60,22 @@
     "isomorphic-fetch": "^3.0.0",
     "jsonschema": "^1.2.4",
     "nanoid": "^3.1.12",
+    "punycode": "^2.1.1",
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^8.3.2",
     "web3": "^0.20.7",
     "web3-provider-engine": "^16.0.1"
   },
   "devDependencies": {
-    "@metamask/eslint-config": "^6.0.0",
-    "@metamask/eslint-config-jest": "^6.0.0",
-    "@metamask/eslint-config-nodejs": "^6.0.0",
-    "@metamask/eslint-config-typescript": "^6.0.0",
+    "@lavamoat/allow-scripts": "^1.0.6",
+    "@metamask/auto-changelog": "^2.4.0",
+    "@metamask/eslint-config": "^7.0.1",
+    "@metamask/eslint-config-jest": "^7.0.0",
+    "@metamask/eslint-config-nodejs": "^7.0.1",
+    "@metamask/eslint-config-typescript": "^7.0.1",
     "@types/jest": "^26.0.22",
     "@types/node": "^14.14.31",
+    "@types/punycode": "^2.1.0",
     "@types/sinon": "^9.0.10",
     "@types/web3": "^1.0.6",
     "@typescript-eslint/eslint-plugin": "^4.22.0",
@@ -90,39 +92,27 @@
     "jest-environment-jsdom": "^25.0.0",
     "nock": "^13.0.7",
     "prettier": "^2.2.1",
+    "prettier-plugin-packagejson": "^2.2.11",
+    "rimraf": "^3.0.2",
     "sinon": "^9.2.4",
     "ts-jest": "^26.5.2",
     "typedoc": "^0.20.32",
     "typescript": "~4.2.2"
   },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "ts",
-      "json",
-      "node"
-    ],
-    "transform": {
-      "^.+\\.tsx?$": "ts-jest"
-    },
-    "testMatch": [
-      "**/*.test.ts",
-      "**/*.test.js"
-    ],
-    "coveragePathIgnorePatterns": [
-      "/node_modules/",
-      "tests/"
-    ],
-    "coverageThreshold": {
-      "global": {
-        "branches": 100,
-        "functions": 100,
-        "lines": 100,
-        "statements": 100
-      }
-    },
-    "setupFiles": [
-      "./tests/setupTests.ts"
-    ]
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "@lavamoat/preinstall-always-fail": false,
+      "core-js": false,
+      "keccak": true,
+      "secp256k1": true,
+      "sha3": true
+    }
   }
 }

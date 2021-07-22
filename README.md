@@ -35,10 +35,12 @@ import {
 
 const datamodel = new ComposableController([
   new NetworkController(),
-  new TokenRatesController()
+  new TokenRatesController(),
 ]);
 
-datamodel.subscribe((state) => {/* data model has changed */});
+datamodel.subscribe((state) => {
+  /* data model has changed */
+});
 ```
 
 ## Modules
@@ -158,14 +160,14 @@ const controller = new Controller(<initial_config>, <initial_state>)
 A controller can also be configured (or reconfigured) after initialization by passing a configuration object to its `configure` method:
 
 ```ts
-const controller = new Controller()
+const controller = new Controller();
 controller.configure({ foo: 'bar', baz: 'qux' });
 ```
 
 Regardless of how a controller is configured, whether it's during or after initialization, configuration options can always be accessed on a controller as instance variables for convenience:
 
 ```ts
-const controller = new Controller()
+const controller = new Controller();
 controller.configure({ foo: 'bar', baz: 'qux' });
 console.log(controller.foo, controller.baz); // "bar qux"
 ```
@@ -198,7 +200,9 @@ Since each controller maintains an internal state object, there should be a way 
 Change handlers can be registered with a controller by passing a function to its `subscribe` method. This function will be called anytime the controller's underlying state changes and will be passed the current state as its only function argument:
 
 ```ts
-function onChange(state) { /* state data changed */ }
+function onChange(state) {
+  /* state data changed */
+}
 const controller = new Controller();
 controller.subscribe(onChange);
 ```
@@ -206,7 +210,9 @@ controller.subscribe(onChange);
 Change handlers can be removed from a controller by passing a function to its `unsubscribe` method. Any function passed to `unsubscribe` will be removed from the internal list of handlers and will no longer be called when state data changes:
 
 ```ts
-function onChange(state) { /* state data changed */ }
+function onChange(state) {
+  /* state data changed */
+}
 const controller = new Controller();
 controller.subscribe(onChange);
 // ...
@@ -223,19 +229,21 @@ The ComposableController is initialized by passing an array of controller instan
 import {
   ComposableController,
   NetworkController,
-  TokenRatesController
+  TokenRatesController,
 } from '@metamask/controllers';
 
 const datamodel = new ComposableController([
   new NetworkController(),
-  new TokenRatesController()
+  new TokenRatesController(),
 ]);
 ```
 
 The resulting composed controller exposes the same APIs as every other controller for configuration, state management, and subscription:
 
 ```ts
-datamodel.subscribe((state) => { /* some child state has changed */ });
+datamodel.subscribe((state) => {
+  /* some child state has changed */
+});
 ```
 
 The internal state maintained by a ComposableController will be keyed by child controller class name. It's also possible to access the `flatState` instance variable that is a convenience accessor for merged child state:
@@ -245,47 +253,62 @@ console.log(datamodel.state); // {NetworkController: {...}, TokenRatesController
 console.log(datamodel.flatState); // {infura: {...}, contractExchangeRates: [...]}
 ```
 
-## Linking during development
+## Contributing
+
+### Setup
+
+- Install [Node.js](https://nodejs.org) version 12
+  - If you are using [nvm](https://github.com/creationix/nvm#installation) (recommended) running `nvm use` will automatically choose the right node version for you.
+- Install [Yarn v1](https://yarnpkg.com/en/docs/install)
+- Run `yarn setup` to install dependencies and run any requried post-install scripts
+  - **Warning:** Do not use the `yarn` / `yarn install` command directly. Use `yarn setup` instead. The normal install command will skip required post-install scripts, leaving your development environment in an invalid state.
+
+### Testing and Linting
+
+Run `yarn test` to run the tests once. To run tests on file changes, run `yarn test:watch`.
+
+Run `yarn lint` to run the linter, or run `yarn lint:fix` to run the linter and fix any automatically fixable issues.
+
+### Linking During Development
 
 Linking `@metamask/controllers` into other projects involves a special NPM command to ensure that dependencies are not duplicated. This is because `@metamask/controllers` ships modules that are transpiled but not bundled, and [NPM does not deduplicate](https://github.com/npm/npm/issues/7742) linked dependency trees.
 
-First, link `@metamask/controllers`.
+First, `yarn build:link` in this repository, then link `@metamask/controllers` by running `yarn link` in the consumer repository.
 
-```sh
-$ yarn build:link
-# or
-$ npm run build:link
-```
+### Release & Publishing
 
-Then, link into other projects.
+The project follows the same release process as the other libraries in the MetaMask organization. The GitHub Actions [`action-create-release-pr`](https://github.com/MetaMask/action-create-release-pr) and [`action-publish-release`](https://github.com/MetaMask/action-publish-release) are used to automate the release process; see those repositories for more information about how they work.
 
-```sh
-$ yarn link @metamask/controllers
-# or
-$ npm link @metamask/controllers
-```
+1. Choose a release version.
 
-## Release & Publishing
+   - The release version should be chosen according to SemVer. Analyze the changes to see whether they include any breaking changes, new features, or deprecations, then choose the appropriate SemVer version. See [the SemVer specification](https://semver.org/) for more information.
 
-The project follows the same release process as the other libraries in the MetaMask organization:
+2. If this release is backporting changes onto a previous release, then ensure there is a major version branch for that version (e.g. `1.x` for a `v1` backport release).
 
-1. Create a release branch
-    - For a typical release, this would be based on `master`
-    - To update an older maintained major version, base the release branch on the major version branch (e.g. `1.x`)
-2. Update the changelog
-3. Update version in package.json file (e.g. `yarn version --minor --no-git-tag-version`)
-4. Create a pull request targeting the base branch (e.g. master or 1.x)
-5. Code review and QA
-6. Once approved, the PR is squashed & merged
-7. The commit on the base branch is tagged
-8. The tag can be published as needed
+   - The major version branch should be set to the most recent release with that major version. For example, when backporting a `v1.0.2` release, you'd want to ensure there was a `1.x` branch that was set to the `v1.0.1` tag.
 
-## API documentation
+3. Trigger the [`workflow_dispatch`](https://docs.github.com/en/actions/reference/events-that-trigger-workflows#workflow_dispatch) event [manually](https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow) for the `Create Release Pull Request` action to create the release PR.
 
-API documentation is auto-generated for the `@metamask/controllers` package on every commit to the `master` branch.
+   - For a backport release, the base branch should be the major version branch that you ensured existed in step 2. For a normal release, the base branch should be the main branch for that repository (which should be the default value).
+   - This should trigger the [`action-create-release-pr`](https://github.com/MetaMask/action-create-release-pr) workflow to create the release PR.
 
-[View API documentation](https://metamask.github.io/@metamask/controllers/)
+4. Update the changelog to move each change entry into the appropriate change category ([See here](https://keepachangelog.com/en/1.0.0/#types) for the full list of change categories, and the correct ordering), and edit them to be more easily understood by users of the package.
 
-## License
+   - Generally any changes that don't affect consumers of the package (e.g. lockfile changes or development environment changes) are omitted. Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
+   - Try to explain each change in terms that users of the package would understand (e.g. avoid referencing internal variables/concepts).
+   - Consolidate related changes into one change entry if it makes it easier to explain.
+   - Run `yarn auto-changelog validate --rc` to check that the changelog is correctly formatted.
 
-[MIT](./LICENSE)
+5. Review and QA the release.
+
+   - If changes are made to the base branch, the release branch will need to be updated with these changes and review/QA will need to restart again. As such, it's probably best to avoid merging other PRs into the base branch while review is underway.
+
+6. Squash & Merge the release.
+
+   - This should trigger the [`action-publish-release`](https://github.com/MetaMask/action-publish-release) workflow to tag the final release commit and publish the release on GitHub.
+
+7. Publish the release on npm.
+
+   - Be very careful to use a clean local environment to publish the release, and follow exactly the same steps used during CI.
+   - Use `npm publish --dry-run` to examine the release contents to ensure the correct files are included. Compare to previous releases if necessary (e.g. using `https://unpkg.com/browse/[package name]@[package version]/`).
+   - Once you are confident the release contents are correct, publish the release using `npm publish`.

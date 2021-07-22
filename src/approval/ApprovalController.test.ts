@@ -1,6 +1,6 @@
 import { errorCodes } from 'eth-rpc-errors';
 import sinon from 'sinon';
-import ApprovalController from './ApprovalController';
+import { ApprovalController } from './ApprovalController';
 
 const STORE_KEY = 'pendingApprovals';
 
@@ -45,7 +45,7 @@ describe('approval controller', () => {
       ).not.toThrow();
 
       const id = Object.keys(approvalController.state[STORE_KEY])[0];
-      expect(id && typeof id === 'string').toBeTruthy();
+      expect(id && typeof id === 'string').toStrictEqual(true);
     });
 
     it('adds correctly specified entry with request data', () => {

@@ -1,6 +1,7 @@
 import { v1 as random } from 'uuid';
 import { validateSignMessageData, normalizeMessageData } from '../util';
-import AbstractMessageManager, {
+import {
+  AbstractMessageManager,
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,

@@ -14,28 +14,12 @@ module.exports = {
     {
       files: ['*.test.ts', '*.test.js'],
       extends: ['@metamask/eslint-config-jest'],
-      rules: {
-        // TODO: Re-enable most of these rules
-        'jest/no-conditional-expect': 'off',
-        'jest/no-restricted-matchers': [
-          'error',
-          {
-            resolves: 'Use `expect(await promise)` instead.',
-            toMatchSnapshot: 'Use `toMatchInlineSnapshot()` instead',
-            toThrowErrorMatchingSnapshot:
-              'Use `toThrowErrorMatchingInlineSnapshot()` instead',
-            // TODO: Re-enable these. Requires lots of manual fixes.
-            // 'toBeFalsy': 'Avoid `toBeFalsy`',
-            // 'toBeTruthy': 'Avoid `toBeTruthy`',
-          },
-        ],
-        'jest/no-test-return-statement': 'off',
-      },
     },
     {
       files: ['*.js'],
       parserOptions: {
         sourceType: 'script',
+        ecmaVersion: '2018',
       },
     },
     {
@@ -69,7 +53,7 @@ module.exports = {
     // Left disabled because various properties throughough this repo are snake_case because the
     // names come from external sources or must comply with standards
     // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
-    'camelcase': 'off',
+    camelcase: 'off',
 
     // TODO: re-enble most of these rules
     'function-paren-newline': 'off',
@@ -84,7 +68,7 @@ module.exports = {
     'no-negated-condition': 'off',
     'no-new': 'off',
     'no-param-reassign': 'off',
-    'radix': 'off',
+    radix: 'off',
     'require-atomic-updates': 'off',
   },
   settings: {

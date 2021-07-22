@@ -1,6 +1,7 @@
 import { stub } from 'sinon';
 import Web3ProviderEngine from 'web3-provider-engine';
-import NetworkController, {
+import {
+  NetworkController,
   NetworksChainId,
   ProviderConfig,
   NetworkType,
@@ -13,6 +14,8 @@ describe('NetworkController', () => {
     const controller = new NetworkController();
     expect(controller.state).toStrictEqual({
       network: 'loading',
+      isCustomNetwork: false,
+      properties: { isEIP1559Compatible: false },
       provider: {
         type: 'mainnet',
         chainId: '1',
@@ -47,6 +50,7 @@ describe('NetworkController', () => {
     });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
+    expect(controller.state.isCustomNetwork).toBe(false);
   });
 
   it('should create a provider instance for rinkeby infura network', () => {
@@ -59,6 +63,20 @@ describe('NetworkController', () => {
     });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
+    expect(controller.state.isCustomNetwork).toBe(false);
+  });
+
+  it('should create a provider instance for optimism network', () => {
+    const testConfig = {
+      infuraProjectId: 'foo',
+    };
+    const controller = new NetworkController(testConfig, {
+      network: '10',
+      provider: { type: 'optimism', chainId: NetworksChainId.optimism },
+    });
+    controller.providerConfig = {} as ProviderConfig;
+    expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
+    expect(controller.state.isCustomNetwork).toBe(true);
   });
 
   it('should create a provider instance for ropsten infura network', () => {
@@ -71,6 +89,7 @@ describe('NetworkController', () => {
     });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
+    expect(controller.state.isCustomNetwork).toBe(false);
   });
 
   it('should create a provider instance for mainnet infura network', () => {
@@ -83,6 +102,7 @@ describe('NetworkController', () => {
     });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
+    expect(controller.state.isCustomNetwork).toBe(false);
   });
 
   it('should create a provider instance for local network', () => {
@@ -92,6 +112,7 @@ describe('NetworkController', () => {
     });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
+    expect(controller.state.isCustomNetwork).toBe(false);
   });
 
   it('should create a provider instance for rpc network', () => {
@@ -105,18 +126,21 @@ describe('NetworkController', () => {
     });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
+    expect(controller.state.isCustomNetwork).toBe(false);
   });
 
   it('should set new RPC target', () => {
     const controller = new NetworkController();
     controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
     expect(controller.state.provider.rpcTarget).toBe(RPC_TARGET);
+    expect(controller.state.isCustomNetwork).toBe(false);
   });
 
   it('should set new provider type', () => {
     const controller = new NetworkController();
     controller.setProviderType('localhost');
     expect(controller.state.provider.type).toBe('localhost');
+    expect(controller.state.isCustomNetwork).toBe(false);
   });
 
   it('should throw when setting an unrecognized provider type', () => {

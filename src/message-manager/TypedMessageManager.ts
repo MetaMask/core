@@ -3,7 +3,8 @@ import {
   validateTypedSignMessageDataV3,
   validateTypedSignMessageDataV1,
 } from '../util';
-import AbstractMessageManager, {
+import {
+  AbstractMessageManager,
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,

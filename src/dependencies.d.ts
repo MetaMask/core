@@ -14,11 +14,11 @@ declare module 'eth-phishing-detect/src/detector';
 
 declare module 'eth-query';
 
-declare module 'ethereumjs-tx';
-
 declare module 'ethjs-provider-http';
 
 declare module 'ethjs-util';
+
+declare module 'ethjs-unit';
 
 declare module 'human-standard-collectible-abi';
 
