@@ -67,15 +67,11 @@ export class AssetsDetectionController extends BaseController<
     try {
       const openSeaApiKey = this.getOpenSeaApiKey();
       /* istanbul ignore if */
-      if (openSeaApiKey) {
-        response = await timeoutFetch(
-          api,
-          { headers: { 'X-API-KEY': openSeaApiKey } },
-          15000,
-        );
-      } else {
-        response = await timeoutFetch(api, {}, 15000);
-      }
+      response = await timeoutFetch(
+        api,
+        openSeaApiKey ? { headers: { 'X-API-KEY': openSeaApiKey } } : {},
+        15000,
+      );
     } catch (e) {
       /* istanbul ignore next */
       return [];
