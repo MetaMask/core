@@ -163,7 +163,7 @@ describe('AssetsDetectionController', () => {
     });
 
     nock(OPEN_SEA_HOST)
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x2&limit=300`)
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x2&limit=50`)
       .reply(200, {
         assets: [
           {
@@ -208,7 +208,7 @@ describe('AssetsDetectionController', () => {
         `${OPEN_SEA_PATH}/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
       )
       .replyWithError(new TypeError('Failed to fetch'))
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&limit=300`)
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&limit=50`)
       .reply(200, {
         assets: [
           {
@@ -524,7 +524,7 @@ describe('AssetsDetectionController', () => {
         symbol: 'II',
         total_supply: 10,
       })
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&limit=300`)
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&limit=50`)
       .reply(200, {
         assets: [
           {
