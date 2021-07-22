@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.2.0]
+### Added
+- Add options to GasFeeController fetchGasFeeEstimates ([#526](https://github.com/MetaMask/controllers/pull/526))
+
 ## [13.1.0]
 ### Added
 - Add ERC721 detection to TokensController ([#524](https://github.com/MetaMask/controllers/pull/524)), ([#530](https://github.com/MetaMask/controllers/pull/530))
@@ -294,7 +298,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v13.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v13.2.0...HEAD
+[13.2.0]: https://github.com/MetaMask/controllers/compare/v13.1.0...v13.2.0
 [13.1.0]: https://github.com/MetaMask/controllers/compare/v13.0.0...v13.1.0
 [13.0.0]: https://github.com/MetaMask/controllers/compare/v12.1.0...v13.0.0
 [12.1.0]: https://github.com/MetaMask/controllers/compare/v12.0.0...v12.1.0
