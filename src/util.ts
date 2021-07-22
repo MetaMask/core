@@ -661,7 +661,7 @@ export function query(
  */
 export function getImageFromContractMetadata({rootPath, filePath}: {rootPath: string, filePath: string}): string {
 	if (!filePath) return '';
-	const url = `${rootPath}/node_modules/@metamask/controllers/node_modules/contract-metadata/images/${filePath}`;
+	const url = `${rootPath}/node_modules/@metamask/contract-metadata/images/${filePath}`;
 	return url;
 }
 

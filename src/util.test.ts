@@ -880,8 +880,8 @@ describe('util', () => {
   describe('getImageFromContractMetadata', () => {
     it('should convert logo file path to URL', () => {
       const filePath = 'dai.svg';
-      const rootPath = '/static-tokens';
-      const url = `${rootPath}/node_modules/@metamask/controllers/node_modules/contract-metadata/images/${filePath}`;
+      const rootPath = 'metamask';
+      const url = `${rootPath}/node_modules/@metamask/contract-metadata/images/${filePath}`;
       expect(util.getImageFromContractMetadata({ rootPath, filePath})).toBe(url);
     });
   })
