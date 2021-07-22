@@ -707,7 +707,7 @@ export class TransactionController extends BaseController<
    *
    * @param transactionID - ID of the transaction to cancel
    */
-  async stopTransaction(transactionID: string, gasValues: GasValues) {
+  async stopTransaction(transactionID: string, gasValues?: GasValues) {
     const transactionMeta = this.state.transactions.find(
       ({ id }) => id === transactionID,
     );
