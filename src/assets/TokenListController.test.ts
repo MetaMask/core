@@ -1,5 +1,6 @@
 import { stub } from 'sinon';
 import nock from 'nock';
+import contractMap from '@metamask/contract-metadata';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
   NetworkController,
@@ -14,7 +15,6 @@ import {
   IconPath,
   MediaExtType,
 } from './TokenListController';
-import contractMap from '@metamask/contract-metadata';
 
 const name = 'TokenListController';
 const TOKEN_END_POINT_API = 'https://token-api.airswap-prod.codefi.network';
@@ -24,9 +24,16 @@ const staticTokenList: TokenListMap = {};
 for (const tokenAddress in contractMap) {
   const { erc20, logo: filePath, ...token } = contractMap[tokenAddress];
   const extType = filePath.split('.')[1].toUpperCase() as MediaExtType;
-  const iconPath: IconPath = {filePath, type: extType};
+  const iconPath: IconPath = { filePath, type: extType };
   if (erc20) {
-    staticTokenList[tokenAddress] = { ...token, iconPath, address: tokenAddress, iconUrl: filePath, occurrences: null, aggregators: null };
+    staticTokenList[tokenAddress] = {
+      ...token,
+      iconPath,
+      address: tokenAddress,
+      iconUrl: filePath,
+      occurrences: null, 
+      aggregators: null,
+    };
   }
 }
 const sampleMainnetTokenList = [
@@ -875,7 +882,7 @@ describe('TokenListController', () => {
     expect(controller.state).toStrictEqual(existingState);
     await controller.start();
     expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList
+      sampleSingleChainState.tokenList,
     );
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,

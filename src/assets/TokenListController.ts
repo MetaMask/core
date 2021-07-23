@@ -1,8 +1,9 @@
+import contractMap from '@metamask/contract-metadata';
 import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
-import {  safelyExecute } from '../util';
+import { safelyExecute } from '../util';
 import {
   fetchTokenList,
   syncTokens,
@@ -10,7 +11,6 @@ import {
 } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
 import { PreferencesState } from '../user/PreferencesController';
-const contractMap: ContractMap = require('@metamask/contract-metadata');
 
 const DEFAULT_INTERVAL = 60 * 60 * 1000;
 const DEFAULT_THRESHOLD = 60 * 30 * 1000;
@@ -21,7 +21,7 @@ type BaseToken = {
   name: string;
   symbol: string;
   decimals: number;
-}
+};
 
 type StaticToken = {
   logo: string;
@@ -30,7 +30,7 @@ type StaticToken = {
 
 export type ContractMap = {
   [address: string]: StaticToken
-}
+};
 
 export type DynamicToken = {
   address: string;
@@ -43,12 +43,12 @@ export enum MediaExtType {
   SVG = 'SVG',
   PNG = 'PNG',
   JPG = 'JPG'
-}
+};
 
 export type IconPath = {
   filePath: string;
   type: MediaExtType;
-}
+};
 
 export type TokenListToken = {
   address: string;
