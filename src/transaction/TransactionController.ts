@@ -502,9 +502,6 @@ export class TransactionController extends BaseController<
     try {
       const { gas } = await this.estimateGas(transaction);
       transaction.gas = gas;
-
-      // TODO(eip1559) check if this is not needed for legacy
-      // transaction.gasPrice = gasPrice;
     } catch (error) {
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
