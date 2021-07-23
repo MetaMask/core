@@ -233,7 +233,8 @@ export class TokenListController extends BaseController<
       if (erc20) {
         // Specify iconUrl here as filePath for backwards compatibility for extension
         tokenList[tokenAddress] = {
-          ...token, iconPath,
+          ...token,
+          iconPath,
           address: tokenAddress,
           iconUrl: filePath,
           occurrences: null,
