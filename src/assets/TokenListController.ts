@@ -2,7 +2,7 @@ import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
-import { getImageFromContractMetadata, safelyExecute } from '../util';
+import {  safelyExecute } from '../util';
 import {
   fetchTokenList,
   syncTokens,
@@ -39,18 +39,31 @@ export type DynamicToken = {
   iconUrl: string;
 } & BaseToken;
 
+export enum MediaExtType {
+  SVG = 'SVG',
+  PNG = 'PNG',
+  JPG = 'JPG'
+}
+
+export type IconPath = {
+  filePath: string;
+  type: MediaExtType;
+}
+
 export type TokenListToken = {
   address: string;
   iconUrl: string | null;
-  iconPath: string | null;
+  iconPath: IconPath | null;
+  occurrences: number | null;
+  aggregators: string[] | null;
 } & BaseToken;
 
-export type TokenMap = {
+export type TokenListMap = {
   [address: string]: TokenListToken;
 };
 
 export type TokenListState = {
-  tokenList: TokenMap;
+  tokenList: TokenListMap;
   tokensChainsCache: TokensChainsCache;
 };
 
@@ -100,8 +113,6 @@ export class TokenListController extends BaseController<
 
   private useStaticTokenList: boolean;
 
-  private staticTokenRootImagePath: string;
-
   /**
    * Creates a TokenListController instance
    *
@@ -119,7 +130,6 @@ export class TokenListController extends BaseController<
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
     messenger,
     state,
-    staticTokenRootImagePath,
   }: {
     chainId: string;
     useStaticTokenList: boolean;
@@ -139,7 +149,6 @@ export class TokenListController extends BaseController<
       never
     >;
     state?: Partial<TokenListState>;
-    staticTokenRootImagePath: string;
   }) {
     super({
       name,
@@ -147,7 +156,6 @@ export class TokenListController extends BaseController<
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.staticTokenRootImagePath = staticTokenRootImagePath;
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
@@ -217,12 +225,14 @@ export class TokenListController extends BaseController<
    * Fetching token list from the contract-metadata as a fallback
    */
   async fetchFromStaticTokenList(): Promise<void> {
-    const tokenList: TokenMap = {};
+    const tokenList: TokenListMap = {};
     for (const tokenAddress in contractMap) {
       const { erc20, logo: filePath, ...token } = contractMap[tokenAddress];
-      const iconPath = getImageFromContractMetadata({rootPath: this.staticTokenRootImagePath, filePath});
+      const extType = (filePath.split(".")[1]).toUpperCase() as MediaExtType;
+      const iconPath: IconPath = {filePath, type: extType}
       if (erc20) {
-        tokenList[tokenAddress] = { ...token, iconPath, address: tokenAddress, iconUrl: null };
+        // Specify iconUrl here as filePath for backwards compatibility for extension
+        tokenList[tokenAddress] = { ...token, iconPath, address: tokenAddress, iconUrl: filePath, occurrences: null, aggregators: null };
       }
     }
     this.update(() => {
@@ -243,7 +253,7 @@ export class TokenListController extends BaseController<
         this.fetchFromCache(),
       );
       const { tokensChainsCache, ...tokensData } = this.state;
-      const tokenList: TokenMap = {};
+      const tokenList: TokenListMap = {};
       if (cachedTokens) {
         for (const token of cachedTokens) {
           tokenList[token.address] = token;

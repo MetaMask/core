@@ -654,17 +654,6 @@ export function query(
   });
 }
 
-/**
- * Utility function to return URL corresponding @metamask/contract-metadata logo
- *
- * @param {string} logo - Logo path from `@metamask/contract-metadata`
- */
-export function getImageFromContractMetadata({rootPath, filePath}: {rootPath: string, filePath: string}): string {
-	if (!filePath) return '';
-	const url = `${rootPath}/node_modules/@metamask/contract-metadata/images/${filePath}`;
-	return url;
-}
-
 export default {
   BNToHex,
   fractionBN,
@@ -683,5 +672,4 @@ export default {
   validateTransaction,
   validateTypedSignMessageDataV1,
   validateTypedSignMessageDataV3,
-  getImageFromContractMetadata,
 };
