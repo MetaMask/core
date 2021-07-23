@@ -4,6 +4,7 @@ import nock from 'nock';
 import HttpProvider from 'ethjs-provider-http';
 import EthQuery from 'eth-query';
 import * as util from './util';
+import { Transaction } from './transaction/TransactionController';
 
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
@@ -95,6 +96,9 @@ describe('util', () => {
       nonce: 'nonce',
       to: 'TO',
       value: 'value',
+      maxFeePerGas: 'maxFeePerGas',
+      maxPriorityFeePerGas: 'maxPriorityFeePerGas',
+      estimatedBaseFee: 'estimatedBaseFee',
     });
     expect(normalized).toStrictEqual({
       data: '0xdata',
@@ -104,6 +108,9 @@ describe('util', () => {
       nonce: '0xnonce',
       to: '0xto',
       value: '0xvalue',
+      maxFeePerGas: '0xmaxFeePerGas',
+      maxPriorityFeePerGas: '0xmaxPriorityFeePerGas',
+      estimatedBaseFee: '0xestimatedBaseFee',
     });
   });
 
@@ -874,6 +881,46 @@ describe('util', () => {
       await expect(util.query(ethQuery, 'gasPrice', [])).rejects.toThrow(
         'Uh oh',
       );
+    });
+  });
+
+  describe('convertPriceToDecimal', () => {
+    it('should convert hex price to decimal', () => {
+      expect(util.convertPriceToDecimal('0x50fd51da')).toStrictEqual(
+        1358778842,
+      );
+    });
+    it('should return zero when undefined', () => {
+      expect(util.convertPriceToDecimal(undefined)).toStrictEqual(0);
+    });
+  });
+
+  describe('getIncreasedPriceHex', () => {
+    it('should get increased price from number as hex', () => {
+      expect(util.getIncreasedPriceHex(1358778842, 1.1)).toStrictEqual(
+        '0x5916a6d6',
+      );
+    });
+  });
+
+  describe('getIncreasedPriceFromExisting', () => {
+    it('should get increased price from hex as hex', () => {
+      expect(
+        util.getIncreasedPriceFromExisting('0x50fd51da', 1.1),
+      ).toStrictEqual('0x5916a6d6');
+    });
+  });
+
+  describe('isEIP1559Transaction', () => {
+    it('should detect EIP1559 transaction', () => {
+      const tx: Transaction = { from: '' };
+      const eip1559tx: Transaction = {
+        ...tx,
+        maxFeePerGas: '2',
+        maxPriorityFeePerGas: '3',
+      };
+      expect(util.isEIP1559Transaction(eip1559tx)).toBe(true);
+      expect(util.isEIP1559Transaction(tx)).toBe(false);
     });
   });
 });
