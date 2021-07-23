@@ -31,7 +31,7 @@ for (const tokenAddress in contractMap) {
       iconPath,
       address: tokenAddress,
       iconUrl: filePath,
-      occurrences: null, 
+      occurrences: null,
       aggregators: null,
     };
   }

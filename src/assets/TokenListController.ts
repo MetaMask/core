@@ -29,7 +29,7 @@ type StaticToken = {
 } & BaseToken;
 
 export type ContractMap = {
-  [address: string]: StaticToken
+  [address: string]: StaticToken;
 };
 
 export type DynamicToken = {
@@ -42,8 +42,8 @@ export type DynamicToken = {
 export enum MediaExtType {
   SVG = 'SVG',
   PNG = 'PNG',
-  JPG = 'JPG'
-};
+  JPG = 'JPG',
+}
 
 export type IconPath = {
   filePath: string;
@@ -228,11 +228,17 @@ export class TokenListController extends BaseController<
     const tokenList: TokenListMap = {};
     for (const tokenAddress in contractMap) {
       const { erc20, logo: filePath, ...token } = contractMap[tokenAddress];
-      const extType = (filePath.split(".")[1]).toUpperCase() as MediaExtType;
-      const iconPath: IconPath = {filePath, type: extType}
+      const extType = filePath.split('.')[1].toUpperCase() as MediaExtType;
+      const iconPath: IconPath = { filePath, type: extType };
       if (erc20) {
         // Specify iconUrl here as filePath for backwards compatibility for extension
-        tokenList[tokenAddress] = { ...token, iconPath, address: tokenAddress, iconUrl: filePath, occurrences: null, aggregators: null };
+        tokenList[tokenAddress] = {
+          ...token, iconPath,
+          address: tokenAddress,
+          iconUrl: filePath,
+          occurrences: null,
+          aggregators: null,
+        };
       }
     }
     this.update(() => {
@@ -262,7 +268,7 @@ export class TokenListController extends BaseController<
         const tokensFromAPI: DynamicToken[] = await safelyExecute(() =>
           fetchTokenList(this.chainId),
         );
-        // filtering out tokens with less than 2 occurences
+        // filtering out tokens with less than 2 occurrences
         const filteredTokenList = tokensFromAPI.filter(
           (token) => token.occurrences && token.occurrences >= 2,
         );
@@ -279,7 +285,7 @@ export class TokenListController extends BaseController<
           (token) => !duplicateSymbols.includes(token.symbol),
         );
         for (const token of uniqueTokenList) {
-          tokenList[token.address] = {...token, iconPath: null};
+          tokenList[token.address] = { ...token, iconPath: null };
         }
       }
       const updatedTokensChainsCache: TokensChainsCache = {
