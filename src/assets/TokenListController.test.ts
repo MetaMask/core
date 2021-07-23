@@ -10,12 +10,11 @@ import {
   TokenListController,
   TokenListStateChange,
   GetTokenListState,
-  ContractMap,
   TokenListMap,
   IconPath,
-  MediaExtType
+  MediaExtType,
 } from './TokenListController';
-const contractMap: ContractMap = require('@metamask/contract-metadata');
+import contractMap from '@metamask/contract-metadata';
 
 const name = 'TokenListController';
 const TOKEN_END_POINT_API = 'https://token-api.airswap-prod.codefi.network';
@@ -24,8 +23,8 @@ const timestamp = Date.now();
 const staticTokenList: TokenListMap = {};
 for (const tokenAddress in contractMap) {
   const { erc20, logo: filePath, ...token } = contractMap[tokenAddress];
-  const extType = (filePath.split(".")[1]).toUpperCase() as MediaExtType;
-  const iconPath: IconPath = {filePath, type: extType}
+  const extType = filePath.split('.')[1].toUpperCase() as MediaExtType;
+  const iconPath: IconPath = {filePath, type: extType};
   if (erc20) {
     staticTokenList[tokenAddress] = { ...token, iconPath, address: tokenAddress, iconUrl: filePath, occurrences: null, aggregators: null };
   }
@@ -262,7 +261,7 @@ const sampleTwoChainState = {
       name: 'PolkadotBEP2',
       aggregators: ['binanceDex', 'oneInch', 'pancake', 'swipe', 'venus'],
       occurrences: 5,
-      iconPath: null
+      iconPath: null,
     },
     '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3': {
       address: '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3',
@@ -271,7 +270,7 @@ const sampleTwoChainState = {
       name: 'DaiBEP2',
       aggregators: ['binanceDex', 'oneInch', 'pancake', 'swipe', 'venus'],
       occurrences: 5,
-      iconPath: null
+      iconPath: null,
     },
   },
   tokensChainsCache: {
@@ -690,7 +689,9 @@ describe('TokenListController', () => {
     });
     expect(controller.state).toStrictEqual(existingState);
     await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(sampleSingleChainState.tokenList);
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleSingleChainState.tokenList,
+    );
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(
@@ -813,7 +814,9 @@ describe('TokenListController', () => {
     });
     expect(controller.state).toStrictEqual(outdatedExistingState);
     await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(sampleSingleChainState.tokenList);
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleSingleChainState.tokenList,
+    );
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(
@@ -871,7 +874,9 @@ describe('TokenListController', () => {
     });
     expect(controller.state).toStrictEqual(existingState);
     await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(sampleSingleChainState.tokenList);
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleSingleChainState.tokenList
+    );
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(
