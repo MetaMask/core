@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "13.1.0",
+  "version": "13.2.0",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "keywords": [
     "MetaMask",
@@ -64,7 +64,7 @@
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^8.3.2",
     "web3": "^0.20.7",
-    "web3-provider-engine": "^16.0.1"
+    "web3-provider-engine": "^16.0.3"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^1.0.6",
