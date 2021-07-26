@@ -413,9 +413,9 @@ export class ControllerMessenger<
     let subscribers = this.events.get(eventType);
     if (!subscribers) {
       subscribers = new Set();
+      this.events.set(eventType, subscribers);
     }
     subscribers.add(handler);
-    this.events.set(eventType, subscribers);
   }
 
   /**
@@ -439,7 +439,6 @@ export class ControllerMessenger<
     }
 
     subscribers.delete(handler);
-    this.events.set(eventType, subscribers);
   }
 
   /**
