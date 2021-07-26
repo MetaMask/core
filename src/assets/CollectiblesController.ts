@@ -383,7 +383,8 @@ export class CollectiblesController extends BaseController<
       const { chainId, selectedAddress } = this.config;
       const existingEntry: Collectible | undefined = collectibles.find(
         (collectible) =>
-          collectible.address === address && collectible.tokenId === tokenId,
+          collectible.address.toLowerCase() === address.toLowerCase() &&
+          collectible.tokenId === tokenId,
       );
       /* istanbul ignore next */
       collectibleMetadata =
@@ -398,7 +399,7 @@ export class CollectiblesController extends BaseController<
         if (differentMetadata) {
           const indexToRemove = collectibles.findIndex(
             (collectible) =>
-              collectible.address === address &&
+              collectible.address.toLowerCase() === address.toLowerCase() &&
               collectible.tokenId === tokenId,
           );
           /* istanbul ignore next */
@@ -452,7 +453,8 @@ export class CollectiblesController extends BaseController<
       const { allCollectibleContracts, collectibleContracts } = this.state;
       const { chainId, selectedAddress } = this.config;
       const existingEntry = collectibleContracts.find(
-        (collectibleContract) => collectibleContract.address === address,
+        (collectibleContract) =>
+          collectibleContract.address.toLowerCase() === address.toLowerCase(),
       );
       if (existingEntry) {
         return collectibleContracts;
@@ -530,7 +532,10 @@ export class CollectiblesController extends BaseController<
     const { chainId, selectedAddress } = this.config;
     const newIgnoredCollectibles = [...ignoredCollectibles];
     const newCollectibles = collectibles.filter((collectible) => {
-      if (collectible.address === address && collectible.tokenId === tokenId) {
+      if (
+        collectible.address.toLowerCase() === address.toLowerCase() &&
+        collectible.tokenId === tokenId
+      ) {
         const alreadyIgnored = newIgnoredCollectibles.find(
           (c) => c.address === address && c.tokenId === tokenId,
         );
@@ -567,7 +572,10 @@ export class CollectiblesController extends BaseController<
     const { chainId, selectedAddress } = this.config;
     const newCollectibles = collectibles.filter(
       (collectible) =>
-        !(collectible.address === address && collectible.tokenId === tokenId),
+        !(
+          collectible.address.toLowerCase() === address.toLowerCase() &&
+          collectible.tokenId === tokenId
+        ),
     );
     const addressCollectibles = allCollectibles[selectedAddress];
     const newAddressCollectibles = {
@@ -595,7 +603,8 @@ export class CollectiblesController extends BaseController<
     const { allCollectibleContracts, collectibleContracts } = this.state;
     const { chainId, selectedAddress } = this.config;
     const newCollectibleContracts = collectibleContracts.filter(
-      (collectibleContract) => !(collectibleContract.address === address),
+      (collectibleContract) =>
+        !(collectibleContract.address.toLowerCase() === address.toLowerCase()),
     );
     const addressCollectibleContracts =
       allCollectibleContracts[selectedAddress];
@@ -744,7 +753,7 @@ export class CollectiblesController extends BaseController<
 
     // If collectible contract was not added, do not add individual collectible
     const collectibleContract = newCollectibleContracts.find(
-      (contract) => contract.address === address,
+      (contract) => contract.address.toLowerCase() === address.toLowerCase(),
     );
     // If collectible contract information, add individual collectible
     if (collectibleContract) {
@@ -767,7 +776,8 @@ export class CollectiblesController extends BaseController<
     this.removeIndividualCollectible(address, tokenId);
     const { collectibles } = this.state;
     const remainingCollectible = collectibles.find(
-      (collectible) => collectible.address === address,
+      (collectible) =>
+        collectible.address.toLowerCase() === address.toLowerCase(),
     );
     if (!remainingCollectible) {
       this.removeCollectibleContract(address);
@@ -785,7 +795,8 @@ export class CollectiblesController extends BaseController<
     this.removeAndIgnoreIndividualCollectible(address, tokenId);
     const { collectibles } = this.state;
     const remainingCollectible = collectibles.find(
-      (collectible) => collectible.address === address,
+      (collectible) =>
+        collectible.address.toLowerCase() === address.toLowerCase(),
     );
     if (!remainingCollectible) {
       this.removeCollectibleContract(address);
