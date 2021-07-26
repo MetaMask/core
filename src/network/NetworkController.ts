@@ -134,7 +134,7 @@ export class NetworkController extends BaseController<
   }
 
   private refreshNetwork() {
-    this.update({ network: 'loading' });
+    this.update({ network: 'loading', properties: {} });
     const { rpcTarget, type, chainId, ticker } = this.state.provider;
     this.initializeProvider(type, rpcTarget, chainId, ticker);
     this.lookupNetwork();
