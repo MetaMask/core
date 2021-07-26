@@ -25,6 +25,7 @@ export class ComposableController extends BaseController<never, any> {
     'ComposableController',
     never,
     any,
+    any,
     never,
     any
   >;
@@ -45,6 +46,7 @@ export class ComposableController extends BaseController<never, any> {
     messenger?: RestrictedControllerMessenger<
       'ComposableController',
       never,
+      any,
       any,
       never,
       any

@@ -115,6 +115,7 @@ export class TokenListController extends BaseController<
       typeof name,
       GetTokenListState,
       TokenListStateChange,
+      TokenListStateChange,
       never,
       never
     >;

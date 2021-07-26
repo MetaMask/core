@@ -1,3 +1,5 @@
+import type { Json } from './BaseControllerV2';
+
 type ActionHandler<Action, ActionType> = (
   ...args: ExtractActionParameters<Action, ActionType>
 ) => ExtractActionResponse<Action, ActionType>;
@@ -23,8 +25,28 @@ type ExtractEventPayload<Event, T> = Event extends { type: T; payload: infer P }
   ? P
   : never;
 
+/**
+ * The suffix of controller state change event names.
+ */
+const STATE_CHANGE_SUFFIX = `:stateChange`;
+
 type ActionConstraint = { type: string; handler: (...args: any) => unknown };
 type EventConstraint = { type: string; payload: unknown[] };
+// TODO: Should we use this?
+// type StateEventConstraint<Namespace extends string> = {
+//   type: `${Namespace}${typeof STATE_CHANGE_SUFFIX}`;
+//   payload: unknown[];
+// };
+
+type StateSelector<S extends Record<string, Json>> = (state: S) => S[keyof S];
+type StateEventHandler<S extends Record<string, Json>> = (
+  subState: S[keyof S],
+) => void;
+
+type StateEventSubscriptionMap<S extends Record<string, Json>> = Map<
+  StateEventHandler<S>,
+  StateSelector<S>
+>;
 
 /**
  * A namespaced string
@@ -68,12 +90,14 @@ export class RestrictedControllerMessenger<
   N extends string,
   Action extends ActionConstraint,
   Event extends EventConstraint,
+  StateEvent extends Event,
   AllowedAction extends string,
   AllowedEvent extends string
 > {
   private controllerMessenger: ControllerMessenger<
     ActionConstraint,
-    EventConstraint
+    EventConstraint,
+    StateEvent
   >;
 
   private controllerName: N;
@@ -106,7 +130,11 @@ export class RestrictedControllerMessenger<
     allowedActions,
     allowedEvents,
   }: {
-    controllerMessenger: ControllerMessenger<ActionConstraint, EventConstraint>;
+    controllerMessenger: ControllerMessenger<
+      ActionConstraint,
+      EventConstraint,
+      StateEvent
+    >;
     name: N;
     allowedActions?: AllowedAction[];
     allowedEvents?: AllowedEvent[];
@@ -298,11 +326,20 @@ export class RestrictedControllerMessenger<
  */
 export class ControllerMessenger<
   Action extends ActionConstraint,
-  Event extends EventConstraint
+  Event extends EventConstraint,
+  StateEvent extends Event
 > {
   private actions = new Map<Action['type'], unknown>();
 
   private events = new Map<Event['type'], Set<unknown>>();
+
+  // TODO: Why can't the first generic be StateEvent['type']?
+  private stateSubscriptions = new Map<
+    Event['type'],
+    StateEventSubscriptionMap<Record<string, Json>>
+  >();
+
+  private cachedStates = new Map<StateSelector<Record<string, Json>>, Json>();
 
   /**
    * Register an action handler.
@@ -394,6 +431,31 @@ export class ControllerMessenger<
         eventHandler(...payload);
       }
     }
+
+    if (eventType.endsWith(STATE_CHANGE_SUFFIX)) {
+      const stateSubscriptions = this.stateSubscriptions.get(eventType);
+      if (stateSubscriptions) {
+        this._publishStateEvents(
+          stateSubscriptions,
+          ...(payload as [Record<string, Json>, unknown[]]),
+        );
+      }
+    }
+  }
+
+  private _publishStateEvents(
+    stateSubscriptions: StateEventSubscriptionMap<Record<string, Json>>,
+    newState: Record<string, Json>,
+    _patches: unknown[],
+  ) {
+    for (const [handler, selector] of stateSubscriptions.entries()) {
+      const lastKnownValue = this.cachedStates.get(selector);
+      const newValue = selector(newState);
+      if (newValue !== lastKnownValue) {
+        this.cachedStates.set(selector, newValue);
+        handler(newValue);
+      }
+    }
   }
 
   /**
@@ -419,6 +481,28 @@ export class ControllerMessenger<
   }
 
   /**
+   *
+   * @param namespace The name of the thing whose state to subscribe to.
+   * @param subStateListeners
+   * @returns
+   */
+  subscribeToStateChanges<E extends Event['type']>(
+    namespace: string,
+    selector: (state: Record<string, Json>) => Json,
+    handler: ExtractEventHandler<Event, E>,
+  ) {
+    const eventType = this._getStateEventType(namespace);
+
+    let subscriptions = this.stateSubscriptions.get(eventType);
+    if (!subscriptions) {
+      subscriptions = new Map();
+      this.stateSubscriptions.set(eventType, subscriptions);
+    }
+
+    subscriptions.set(handler, selector);
+  }
+
+  /**
    * Unsubscribe from an event.
    *
    * Unregisters the given function as an event handler for the given event.
@@ -435,10 +519,45 @@ export class ControllerMessenger<
     const subscribers = this.events.get(eventType);
 
     if (!subscribers || !subscribers.has(handler)) {
-      throw new Error(`Subscription not found for event: '${eventType}'`);
+      throw new Error(`Subscription not found for event: ${eventType}`);
     }
 
     subscribers.delete(handler);
+  }
+
+  unsubscribeFromStateChanges<E extends Event['type']>(
+    namespace: string,
+    handler: ExtractEventHandler<Event, E>,
+  ) {
+    const eventType = this._getStateEventType(namespace);
+
+    const subscribers = this.stateSubscriptions.get(eventType);
+    if (!subscribers || !subscribers.has(handler)) {
+      throw new Error(
+        `State change subscription not found for namespace: ${namespace}`,
+      );
+    }
+
+    const selector = subscribers.get(handler) as StateSelector<
+      Record<string, Json>
+    >;
+    // This will delete cached states for handlers that share selectors, but
+    // that's fine so long as it's a rare occurrence.
+    this.cachedStates.delete(selector);
+
+    subscribers.delete(handler);
+    if (subscribers.size === 0) {
+      this.stateSubscriptions.delete(eventType);
+    }
+  }
+
+  private _getStateEventType(namespace: string): string {
+    const eventType = `${namespace}${STATE_CHANGE_SUFFIX}`;
+    if (!this.events.has(eventType)) {
+      throw new Error(`The namespace "${namespace}" does not exist.`);
+    }
+
+    return eventType;
   }
 
   /**
@@ -501,6 +620,8 @@ export class ControllerMessenger<
     N,
     NarrowToNamespace<Action, N> | NarrowToAllowed<Action, AllowedAction>,
     NarrowToNamespace<Event, N> | NarrowToAllowed<Event, AllowedEvent>,
+    | NarrowToNamespace<StateEvent, N>
+    | NarrowToAllowed<StateEvent, AllowedEvent>,
     AllowedAction,
     AllowedEvent
   > {
@@ -508,6 +629,8 @@ export class ControllerMessenger<
       N,
       NarrowToNamespace<Action, N> | NarrowToAllowed<Action, AllowedAction>,
       NarrowToNamespace<Event, N> | NarrowToAllowed<Event, AllowedEvent>,
+      | NarrowToNamespace<StateEvent, N>
+      | NarrowToAllowed<StateEvent, AllowedEvent>,
       AllowedAction,
       AllowedEvent
     >({
