@@ -219,7 +219,9 @@ export class TokensController extends BaseController<
       const { chainId, selectedAddress } = this.config;
       const isERC721 = await this._detectIsERC721(address);
       const newEntry: Token = { address, symbol, decimals, image, isERC721 };
-      const previousEntry = tokens.find((token) => token.address === address);
+      const previousEntry = tokens.find(
+        (token) => token.address.toLowerCase() === address.toLowerCase(),
+      );
       if (previousEntry) {
         const previousIndex = tokens.indexOf(previousEntry);
         tokens[previousIndex] = newEntry;
@@ -270,7 +272,8 @@ export class TokensController extends BaseController<
           isERC721,
         };
         const previousEntry = tokens.find(
-          (token) => token.address === checksumAddress,
+          (token) =>
+            token.address.toLowerCase() === checksumAddress.toLowerCase(),
         );
         if (previousEntry) {
           const previousIndex = tokens.indexOf(previousEntry);
@@ -306,7 +309,7 @@ export class TokensController extends BaseController<
     const isERC721 = await this._detectIsERC721(tokenAddress);
     const { tokens } = this.state;
     const tokenIndex = tokens.findIndex((token) => {
-      return token.address === tokenAddress;
+      return token.address.toLowerCase() === tokenAddress.toLowerCase();
     });
     tokens[tokenIndex].isERC721 = isERC721;
     this.update({ tokens });
@@ -491,9 +494,9 @@ export class TokensController extends BaseController<
     const { chainId, selectedAddress } = this.config;
     const newIgnoredTokens = [...ignoredTokens];
     const newTokens = tokens.filter((token) => {
-      if (token.address === address) {
+      if (token.address.toLowerCase() === address.toLowerCase()) {
         const alreadyIgnored = newIgnoredTokens.find(
-          (t) => t.address === address,
+          (t) => t.address.toLowerCase() === address.toLowerCase(),
         );
         !alreadyIgnored && newIgnoredTokens.push(token);
         return false;
@@ -501,7 +504,11 @@ export class TokensController extends BaseController<
       return true;
     });
 
-    if (!newIgnoredTokens.find((token: Token) => token.address === address)) {
+    if (
+      !newIgnoredTokens.find(
+        (token: Token) => token.address.toLowerCase() === address.toLowerCase(),
+      )
+    ) {
       newIgnoredTokens.push({ address, decimals: 0, symbol: '' });
     }
 
