@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.3.0]
+### Added
+- Add EIP1559 support including `speedUpTransaction` and `stopTransaction`
+
 ## [13.2.0]
 ### Added
 - Add options to GasFeeController fetchGasFeeEstimates ([#526](https://github.com/MetaMask/controllers/pull/526))
@@ -298,7 +302,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v13.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v13.3.0...HEAD
+[13.3.0]: https://github.com/MetaMask/controllers/compare/v13.2.0...v13.3.0
 [13.2.0]: https://github.com/MetaMask/controllers/compare/v13.1.0...v13.2.0
 [13.1.0]: https://github.com/MetaMask/controllers/compare/v13.0.0...v13.1.0
 [13.0.0]: https://github.com/MetaMask/controllers/compare/v12.1.0...v13.0.0
