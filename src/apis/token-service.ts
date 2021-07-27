@@ -68,5 +68,9 @@ export async function fetchTokenMetadata(
   fetchOptions.headers = new window.Headers();
   fetchOptions.headers.set('Content-Type', 'application/json');
   const tokenResponse = await timeoutFetch(tokenMetadataURL, fetchOptions);
-  return await tokenResponse.json();
+  const responseObj = await tokenResponse.json();
+  if (responseObj.error) {
+    throw new Error(`TokenService Error: ${responseObj.error}`);
+  }
+  return responseObj;
 }
