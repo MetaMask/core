@@ -163,7 +163,7 @@ describe('AssetsDetectionController', () => {
     });
 
     nock(OPEN_SEA_HOST)
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x2&limit=300`)
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x2&offset=0&limit=50`)
       .reply(200, {
         assets: [
           {
@@ -176,6 +176,10 @@ describe('AssetsDetectionController', () => {
             token_id: '2577',
           },
         ],
+      })
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x2&offset=50&limit=50`)
+      .reply(200, {
+        assets: [],
       })
       .persist();
 
@@ -208,7 +212,7 @@ describe('AssetsDetectionController', () => {
         `${OPEN_SEA_PATH}/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
       )
       .replyWithError(new TypeError('Failed to fetch'))
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&limit=300`)
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&offset=0&limit=50`)
       .reply(200, {
         assets: [
           {
@@ -240,7 +244,11 @@ describe('AssetsDetectionController', () => {
           },
         ],
       })
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x9&limit=300`)
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&offset=50&limit=50`)
+      .reply(200, {
+        assets: [],
+      })
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x9&offset=50&limit=50`)
       .delay(800)
       .reply(200, {
         assets: [
@@ -254,6 +262,10 @@ describe('AssetsDetectionController', () => {
             token_id: '2574',
           },
         ],
+      })
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x9&offset=50&limit=50`)
+      .reply(200, {
+        assets: [],
       });
     stub(tokensController, '_detectIsERC721').callsFake(() =>
       Promise.resolve(false),
@@ -524,7 +536,7 @@ describe('AssetsDetectionController', () => {
         symbol: 'II',
         total_supply: 10,
       })
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&limit=300`)
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&offset=0&limit=50`)
       .reply(200, {
         assets: [
           {
@@ -555,6 +567,10 @@ describe('AssetsDetectionController', () => {
             token_id: '2574',
           },
         ],
+      })
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&offset=50&limit=50`)
+      .reply(200, {
+        assets: [],
       });
 
     // Now user should have respective collectibles
