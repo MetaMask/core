@@ -12,6 +12,10 @@ function getTokenMetadataURL(chainId: string, tokenAddress: string) {
   return `${END_POINT}/tokens/${chainId}?address=${tokenAddress}`;
 }
 
+// Token list averages 1.6 MB in size. 
+// timeoutFetch by default has a 500ms timeout, which will almost always timeout given the response size.
+const timeout = 2000;
+
 /**
  * Fetches the list of token metadata for a given network chainId
  *
@@ -27,7 +31,7 @@ export async function fetchTokenList(chainId: string): Promise<Response> {
   };
   fetchOptions.headers = new window.Headers();
   fetchOptions.headers.set('Content-Type', 'application/json');
-  const tokenResponse = await timeoutFetch(tokenURL, fetchOptions);
+  const tokenResponse = await timeoutFetch(tokenURL, fetchOptions, timeout);
   return await tokenResponse.json();
 }
 
@@ -46,7 +50,7 @@ export async function syncTokens(chainId: string): Promise<void> {
   };
   fetchOptions.headers = new window.Headers();
   fetchOptions.headers.set('Content-Type', 'application/json');
-  await timeoutFetch(syncURL, fetchOptions);
+  await timeoutFetch(syncURL, fetchOptions, timeout);
 }
 
 /**
@@ -67,6 +71,6 @@ export async function fetchTokenMetadata(
   };
   fetchOptions.headers = new window.Headers();
   fetchOptions.headers.set('Content-Type', 'application/json');
-  const tokenResponse = await timeoutFetch(tokenMetadataURL, fetchOptions);
+  const tokenResponse = await timeoutFetch(tokenMetadataURL, fetchOptions, timeout);
   return await tokenResponse.json();
 }
