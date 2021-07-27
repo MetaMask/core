@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [13.3.0]
 ### Added
-- Add EIP1559 support including `speedUpTransaction` and `stopTransaction`
+- Add EIP1559 support including `speedUpTransaction` and `stopTransaction` ([#521](https://github.com/MetaMask/controllers/pull/521))
 
 ## [13.2.0]
 ### Added
