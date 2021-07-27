@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+### Added
+- **BREAKING** Add EIP1559 support including `speedUpTransaction` and `stopTransaction` ([#521](https://github.com/MetaMask/controllers/pull/521))
+ - The breaking change here is that consumers of this repo now have to check if the transaction object includes a gas price and fetch and add it themselves (if need be).
+
+### Changed
+- Make equality comparisons for token and collectible addresses in TokensController and CollectiblesController case insensitive  ([#537](https://github.com/MetaMask/controllers/pull/537))
+- Reset gas fee estimate polling onNetworkStateChange in the gasFeeController ([#534](https://github.com/MetaMask/controllers/pull/534))
+
+### Fixed
+- Update AssetDetectionController to handle new fetch limits for the OpenSea collectibles api ([#536](https://github.com/MetaMask/controllers/pull/536))
+
 ## [13.2.0]
 ### Added
 - Add options to GasFeeController fetchGasFeeEstimates ([#526](https://github.com/MetaMask/controllers/pull/526))
@@ -298,7 +310,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v13.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/controllers/compare/v13.2.0...v14.0.0
 [13.2.0]: https://github.com/MetaMask/controllers/compare/v13.1.0...v13.2.0
 [13.1.0]: https://github.com/MetaMask/controllers/compare/v13.0.0...v13.1.0
 [13.0.0]: https://github.com/MetaMask/controllers/compare/v12.1.0...v13.0.0
