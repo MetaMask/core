@@ -32,6 +32,11 @@ const NORMALIZERS: { [param in keyof Transaction]: any } = {
   nonce: (nonce: string) => addHexPrefix(nonce),
   to: (to: string) => addHexPrefix(to).toLowerCase(),
   value: (value: string) => addHexPrefix(value),
+  maxFeePerGas: (maxFeePerGas: string) => addHexPrefix(maxFeePerGas),
+  maxPriorityFeePerGas: (maxPriorityFeePerGas: string) =>
+    addHexPrefix(maxPriorityFeePerGas),
+  estimatedBaseFee: (maxPriorityFeePerGas: string) =>
+    addHexPrefix(maxPriorityFeePerGas),
 };
 
 /**
@@ -653,6 +658,35 @@ export function query(
     });
   });
 }
+
+/**
+ * Checks if a transaction is EIP-1559 by checking for the existence of
+ * maxFeePerGas and maxPriorityFeePerGas within its parameters
+ *
+ * @param transaction - Transaction object to add
+ * @returns - Boolean that is true if the transaction is EIP-1559 (has maxFeePerGas and maxPriorityFeePerGas), otherwise returns false
+ */
+export const isEIP1559Transaction = (transaction: Transaction): boolean => {
+  const hasOwnProp = (obj: Transaction, key: string) =>
+    Object.prototype.hasOwnProperty.call(obj, key);
+  return (
+    hasOwnProp(transaction, 'maxFeePerGas') &&
+    hasOwnProp(transaction, 'maxPriorityFeePerGas')
+  );
+};
+
+export const convertPriceToDecimal = (value: string | undefined): number =>
+  parseInt(value === undefined ? '0x0' : value, 16);
+
+export const getIncreasedPriceHex = (value: number, rate: number): string =>
+  addHexPrefix(`${parseInt(`${value * rate}`, 10).toString(16)}`);
+
+export const getIncreasedPriceFromExisting = (
+  value: string | undefined,
+  rate: number,
+): string => {
+  return getIncreasedPriceHex(convertPriceToDecimal(value), rate);
+};
 
 export default {
   BNToHex,
