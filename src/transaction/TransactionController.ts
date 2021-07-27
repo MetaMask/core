@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { addHexPrefix, bufferToHex, BN } from 'ethereumjs-util';
+import { addHexPrefix, bufferToHex, BN, isHexString } from 'ethereumjs-util';
 import { ethErrors } from 'eth-rpc-errors';
 import MethodRegistry from 'eth-method-registry';
 import EthQuery from 'eth-query';
@@ -708,6 +708,9 @@ export class TransactionController extends BaseController<
    * @param transactionID - ID of the transaction to cancel
    */
   async stopTransaction(transactionID: string, gasValues?: GasValues) {
+    if (gasValues) {
+      this.checkGasValues(gasValues);
+    }
     const transactionMeta = this.state.transactions.find(
       ({ id }) => id === transactionID,
     );
@@ -775,12 +778,27 @@ export class TransactionController extends BaseController<
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
   }
 
+  checkGasValues(gasValues: GasValues) {
+    const keys = Object.keys(gasValues);
+    keys.forEach((key) => {
+      const val = (gasValues as any)[key];
+      if (typeof val !== 'string' || !isHexString(val)) {
+        throw new TypeError(
+          `expected hex string for ${key} but received: ${typeof val}`,
+        );
+      }
+    });
+  }
+
   /**
    * Attemps to speed up a transaction increasing transaction gasPrice by ten percent
    *
    * @param transactionID - ID of the transaction to speed up
    */
   async speedUpTransaction(transactionID: string, gasValues?: GasValues) {
+    if (gasValues) {
+      this.checkGasValues(gasValues);
+    }
     const transactionMeta = this.state.transactions.find(
       ({ id }) => id === transactionID,
     );

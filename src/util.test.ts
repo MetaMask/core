@@ -4,7 +4,7 @@ import nock from 'nock';
 import HttpProvider from 'ethjs-provider-http';
 import EthQuery from 'eth-query';
 import * as util from './util';
-import { Transaction } from './transaction/TransactionController';
+import { Transaction, GasValues } from './transaction/TransactionController';
 
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
@@ -921,6 +921,19 @@ describe('util', () => {
       };
       expect(util.isEIP1559Transaction(eip1559tx)).toBe(true);
       expect(util.isEIP1559Transaction(tx)).toBe(false);
+    });
+  });
+
+  describe('checkGasValues', () => {
+    it('should be invalid', () => {
+      const gasValues: GasValues = { maxFeePerGas: 'lol' };
+      expect(() => util.checkGasValues(gasValues)).toThrow(
+        'expected hex string for maxFeePerGas but received: lol',
+      );
+    });
+    it('should be valid', () => {
+      const gasValues: GasValues = { maxFeePerGas: '0x1' };
+      expect(util.checkGasValues(gasValues)).toBe(true);
     });
   });
 });

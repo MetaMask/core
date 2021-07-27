@@ -15,6 +15,7 @@ import { validate } from 'jsonschema';
 import {
   Transaction,
   FetchAllOptions,
+  GasValues,
 } from './transaction/TransactionController';
 import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
@@ -686,6 +687,17 @@ export const getIncreasedPriceFromExisting = (
   rate: number,
 ): string => {
   return getIncreasedPriceHex(convertPriceToDecimal(value), rate);
+};
+
+export const checkGasValues = (gasValues: GasValues) => {
+  const keys = Object.keys(gasValues);
+  keys.forEach((key) => {
+    const val = (gasValues as any)[key];
+    if (typeof val !== 'string' || !isHexString(val)) {
+      throw new Error(`expected hex string for ${key} but received: ${val}`);
+    }
+  });
+  return true;
 };
 
 export default {
