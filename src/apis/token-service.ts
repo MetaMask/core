@@ -15,20 +15,11 @@ function getTokenMetadataURL(chainId: string, tokenAddress: string) {
 /**
  * Fetches the list of token metadata for a given network chainId
  *
- * @returns - Promise resolving token  List
+ * @returns - Promise resolving token List
  */
-export async function fetchTokenList(chainId: string): Promise<Response> {
+export async function fetchTokenList(chainId: string): Promise<Object> {
   const tokenURL = getTokensURL(chainId);
-  const fetchOptions: RequestInit = {
-    referrer: tokenURL,
-    referrerPolicy: 'no-referrer-when-downgrade',
-    method: 'GET',
-    mode: 'cors',
-  };
-  fetchOptions.headers = new window.Headers();
-  fetchOptions.headers.set('Content-Type', 'application/json');
-  const tokenResponse = await timeoutFetch(tokenURL, fetchOptions);
-  return await tokenResponse.json();
+  return queryApi(tokenURL);
 }
 
 /**
@@ -38,15 +29,7 @@ export async function fetchTokenList(chainId: string): Promise<Response> {
  */
 export async function syncTokens(chainId: string): Promise<void> {
   const syncURL = syncTokensURL(chainId);
-  const fetchOptions: RequestInit = {
-    referrer: syncURL,
-    referrerPolicy: 'no-referrer-when-downgrade',
-    method: 'GET',
-    mode: 'cors',
-  };
-  fetchOptions.headers = new window.Headers();
-  fetchOptions.headers.set('Content-Type', 'application/json');
-  await timeoutFetch(syncURL, fetchOptions);
+  queryApi(syncURL);
 }
 
 /**
@@ -57,17 +40,26 @@ export async function syncTokens(chainId: string): Promise<void> {
 export async function fetchTokenMetadata(
   chainId: string,
   tokenAddress: string,
-): Promise<Response> {
+): Promise<Object> {
   const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
+  return queryApi(tokenMetadataURL);
+}
+
+/**
+ * Fetch metadata for the token address provided for a given network chainId
+ *
+ * @return Promise resolving request response json obj
+ */
+async function queryApi (apiURL: string): Promise<Object> {
   const fetchOptions: RequestInit = {
-    referrer: tokenMetadataURL,
+    referrer: apiURL,
     referrerPolicy: 'no-referrer-when-downgrade',
     method: 'GET',
     mode: 'cors',
   };
   fetchOptions.headers = new window.Headers();
   fetchOptions.headers.set('Content-Type', 'application/json');
-  const tokenResponse = await timeoutFetch(tokenMetadataURL, fetchOptions);
+  const tokenResponse = await timeoutFetch(apiURL, fetchOptions);
   const responseObj = await tokenResponse.json();
   // api may return errors as json without setting an error http status code
   if (responseObj.error) {
