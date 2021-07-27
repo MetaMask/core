@@ -286,10 +286,24 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
 
     const provider = getProvider();
     this.ethQuery = new EthQuery(provider);
-    onNetworkStateChange(() => {
+    onNetworkStateChange(async () => {
       const newProvider = getProvider();
       this.ethQuery = new EthQuery(newProvider);
+      await this.resetPolling();
     });
+  }
+
+  async resetPolling() {
+    if (this.pollTokens.size !== 0) {
+      // restart polling
+      const { getGasFeeEstimatesAndStartPolling } = this;
+      const tokens = Array.from(this.pollTokens);
+      this.stopPolling();
+      await getGasFeeEstimatesAndStartPolling(tokens[0]);
+      tokens.slice(1).forEach((token) => {
+        this.pollTokens.add(token);
+      });
+    }
   }
 
   async fetchGasFeeEstimates(options?: FetchGasFeeEstimateOptions) {
