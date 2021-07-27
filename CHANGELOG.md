@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add EIP1559 support including `speedUpTransaction` and `stopTransaction` ([#521](https://github.com/MetaMask/controllers/pull/521))
 
+### Changed
+- Make equality comparisons for token and collectible addresses in TokensController and CollectiblesController case insensitive  ([#537](https://github.com/MetaMask/controllers/pull/537))
+- Reset gas fee estimate polling onNetworkStateChange in the gasFeeController ([#534](https://github.com/MetaMask/controllers/pull/534))
+
 ## [13.2.0]
 ### Added
 - Add options to GasFeeController fetchGasFeeEstimates ([#526](https://github.com/MetaMask/controllers/pull/526))
