@@ -69,6 +69,7 @@ export async function fetchTokenMetadata(
   fetchOptions.headers.set('Content-Type', 'application/json');
   const tokenResponse = await timeoutFetch(tokenMetadataURL, fetchOptions);
   const responseObj = await tokenResponse.json();
+  // api may return errors as json without setting an error http status code
   if (responseObj.error) {
     throw new Error(`TokenService Error: ${responseObj.error}`);
   }
