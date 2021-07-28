@@ -9,7 +9,7 @@ function getTokensURL(chainId: string) {
   return `${END_POINT}/tokens/${chainId}`;
 }
 function getTokenMetadataURL(chainId: string, tokenAddress: string) {
-  return `${END_POINT}/tokens/${chainId}?address=${tokenAddress}`;
+  return `${END_POINT}/token/${chainId}?address=${tokenAddress}`;
 }
 
 /**
