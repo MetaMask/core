@@ -1108,33 +1108,35 @@ export class TransactionController extends BaseController<
    */
   private updateStateWithTransactions(transactions: TransactionMeta[]) {
     const nonceNetworkSet = new Set();
-    const txsToDelete = transactions
-      .reverse()
-      .filter((tx) => {
-        const { chainId, networkID, status, transaction } = tx;
-        if (transaction) {
-          const key = `${transaction.nonce}-${chainId ?? networkID}`;
-          if (nonceNetworkSet.has(key)) {
-            return false;
-          } else if (
-            nonceNetworkSet.size < this.config.txHistoryLimit - 1 ||
-            !this.isFinalState(status)
-          ) {
-            nonceNetworkSet.add(key);
-            return false;
-          }
-        }
-        return true;
-      })
-      .map((tx) => tx.id);
 
-    txsToDelete.forEach((txId) => {
-      delete transactions[Number(txId)];
+    const txsToKeep = transactions.reverse().filter((tx) => {
+      const { chainId, networkID, status, transaction } = tx;
+      if (transaction) {
+        const key = `${transaction.nonce}-${chainId ?? networkID}`;
+        if (nonceNetworkSet.has(key)) {
+          return true;
+        } else if (
+          nonceNetworkSet.size <= this.config.txHistoryLimit ||
+          !this.isFinalState(status)
+        ) {
+          nonceNetworkSet.add(key);
+          return true;
+        }
+      }
+      return false;
     });
 
-    transactions.reverse();
+    txsToKeep.reverse();
 
-    this.update({ transactions: [...transactions] });
+    // Due to the possiblity of having duplicate nonces for
+    // tx completed on other devices or on the mobile app allow
+    // have a maximum of 2x txHistoryLimit.
+    const maxTxHistoryLimit = this.config.txHistoryLimit * 2;
+    txsToKeep.length > maxTxHistoryLimit
+      ? this.update({
+          transactions: [...txsToKeep.slice(0, maxTxHistoryLimit)],
+        })
+      : this.update({ transactions: [...txsToKeep] });
   }
 
   /**
