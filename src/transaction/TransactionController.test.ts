@@ -618,6 +618,7 @@ describe('TransactionController', () => {
     });
     expect(controller.config).toStrictEqual({
       interval: 5000,
+      txHistoryLimit: 40,
     });
   });
 
@@ -1166,6 +1167,7 @@ describe('TransactionController', () => {
   });
 
   it('should handle new method data', async () => {
+    console.log('should handle new method data');
     const controller = new TransactionController(
       {
         getNetworkState: () => MOCK_MAINNET_NETWORK.state,
@@ -1262,11 +1264,68 @@ describe('TransactionController', () => {
         value: '0x0',
       });
       await controller.speedUpTransaction(controller.state.transactions[0].id);
-
       expect(controller.state.transactions).toHaveLength(2);
       expect(controller.state.transactions[1].transaction.gasPrice).toBe(
         '0x5916a6d6',
       );
+      resolve('');
+    });
+  });
+  it('should limit tx state to a length of 1', async () => {
+    await new Promise(async (resolve) => {
+      const controller = new TransactionController(
+        {
+          getNetworkState: () => MOCK_NETWORK.state,
+          onNetworkStateChange: MOCK_NETWORK.subscribe,
+          getProvider: MOCK_NETWORK.getProvider,
+        },
+        {
+          interval: 5000,
+          sign: async (transaction: any) => transaction,
+          txHistoryLimit: 1,
+        },
+      );
+      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+      await controller.addTransaction({
+        from,
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: from,
+        value: '0x0',
+      });
+      expect(controller.state.transactions).toHaveLength(1);
+      expect(controller.state.transactions[0].transaction.gasPrice).toBe(
+        '0x50fd51da',
+      );
+      resolve('');
+    });
+  });
+
+  it('should allow tx state to be greater than txHistorylimit due to speed up same nonce', async () => {
+    await new Promise(async (resolve) => {
+      const controller = new TransactionController(
+        {
+          getNetworkState: () => MOCK_NETWORK.state,
+          onNetworkStateChange: MOCK_NETWORK.subscribe,
+          getProvider: MOCK_NETWORK.getProvider,
+        },
+        {
+          interval: 5000,
+          sign: async (transaction: any) => transaction,
+          txHistoryLimit: 1,
+        },
+      );
+      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+      await controller.addTransaction({
+        from,
+        nonce: '1',
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: from,
+        value: '0x0',
+      });
+      await controller.speedUpTransaction(controller.state.transactions[0].id);
+      expect(controller.state.transactions).toHaveLength(2);
       resolve('');
     });
   });

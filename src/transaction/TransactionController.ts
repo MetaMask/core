@@ -1111,17 +1111,18 @@ export class TransactionController extends BaseController<
     const txsToDelete = transactions
       .reverse()
       .filter((tx) => {
-        const { nonce } = tx.transaction;
-        const { chainId, networkID, status } = tx;
-        const key = `${nonce}-${chainId ?? networkID}`;
-        if (nonceNetworkSet.has(key)) {
-          return false;
-        } else if (
-          nonceNetworkSet.size < this.config.txHistoryLimit ||
-          !this.isFinalState(status)
-        ) {
-          nonceNetworkSet.add(key);
-          return false;
+        const { chainId, networkID, status, transaction } = tx;
+        if (transaction) {
+          const key = `${transaction.nonce}-${chainId ?? networkID}`;
+          if (nonceNetworkSet.has(key)) {
+            return false;
+          } else if (
+            nonceNetworkSet.size < this.config.txHistoryLimit - 1 ||
+            !this.isFinalState(status)
+          ) {
+            nonceNetworkSet.add(key);
+            return false;
+          }
         }
         return true;
       })
@@ -1130,6 +1131,8 @@ export class TransactionController extends BaseController<
     txsToDelete.forEach((txId) => {
       delete transactions[Number(txId)];
     });
+
+    transactions.reverse();
 
     this.update({ transactions: [...transactions] });
   }
