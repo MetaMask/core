@@ -216,9 +216,8 @@ export class TokenListController extends BaseController<
   async fetchFromDynamicTokenList(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
     try {
-      const tokensFromAPI: Token[] = await safelyExecute(() =>
-        this.fetchFromCache(),
-      );
+      const tokensFromAPI: Token[] =
+        (await safelyExecute(() => this.fetchFromCache())) || [];
       const { tokensChainsCache } = this.state;
       const tokenList: TokenMap = {};
 
