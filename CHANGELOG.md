@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.2]
+### Changed
+- Fix `resetPolling` functionality ([#546](https://github.com/MetaMask/controllers/pull/546))
+- TokenService improvements ([#541](https://github.com/MetaMask/controllers/pull/541))
+
 ## [14.0.1]
 ### Changed
 - Ensure gas estimate fetching in gasFeeController correctly handles responses with invalid number of decimals ([#544](https://github.com/MetaMask/controllers/pull/544))
@@ -315,7 +320,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v14.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v14.0.2...HEAD
+[14.0.2]: https://github.com/MetaMask/controllers/compare/v14.0.1...v14.0.2
 [14.0.1]: https://github.com/MetaMask/controllers/compare/v14.0.0...v14.0.1
 [14.0.0]: https://github.com/MetaMask/controllers/compare/v13.2.0...v14.0.0
 [13.2.0]: https://github.com/MetaMask/controllers/compare/v13.1.0...v13.2.0
