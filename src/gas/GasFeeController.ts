@@ -290,7 +290,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     this.ethQuery = new EthQuery(provider);
     onNetworkStateChange(async () => {
       const newProvider = getProvider();
-      const newChainId = newProvider.getChainId();
+      const newChainId = this.getChainId();
       this.ethQuery = new EthQuery(newProvider);
       if (this.currentChainId !== newChainId) {
         this.currentChainId = newChainId;
