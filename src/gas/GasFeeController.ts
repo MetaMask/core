@@ -290,10 +290,11 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     this.ethQuery = new EthQuery(provider);
     onNetworkStateChange(async () => {
       const newProvider = getProvider();
+      const newChainId = newProvider.getChainId();
       this.ethQuery = new EthQuery(newProvider);
-      if (this.currentChainId !== newProvider.chainId) {
+      if (this.currentChainId !== newChainId) {
+        this.currentChainId = newChainId;
         await this.resetPolling();
-        this.currentChainId = newProvider.chainId;
       }
     });
   }
