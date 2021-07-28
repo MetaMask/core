@@ -295,11 +295,9 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
 
   async resetPolling() {
     if (this.pollTokens.size !== 0) {
-      // restart polling
-      const { getGasFeeEstimatesAndStartPolling } = this;
       const tokens = Array.from(this.pollTokens);
       this.stopPolling();
-      await getGasFeeEstimatesAndStartPolling(tokens[0]);
+      await this.getGasFeeEstimatesAndStartPolling(tokens[0]);
       tokens.slice(1).forEach((token) => {
         this.pollTokens.add(token);
       });
