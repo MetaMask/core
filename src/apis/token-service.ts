@@ -17,7 +17,7 @@ function getTokenMetadataURL(chainId: string, tokenAddress: string) {
  *
  * @returns - Promise resolving token List
  */
-export async function fetchTokenList(chainId: string): Promise<Object> {
+export async function fetchTokenList(chainId: string): Promise<unknown> {
   const tokenURL = getTokensURL(chainId);
   return queryApi(tokenURL);
 }
@@ -40,7 +40,7 @@ export async function syncTokens(chainId: string): Promise<void> {
 export async function fetchTokenMetadata(
   chainId: string,
   tokenAddress: string,
-): Promise<Object> {
+): Promise<unknown> {
   const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
   return queryApi(tokenMetadataURL);
 }
@@ -48,9 +48,9 @@ export async function fetchTokenMetadata(
 /**
  * Fetch metadata for the token address provided for a given network chainId
  *
- * @return Promise resolving request response json obj
+ * @return Promise resolving request response json value
  */
-async function queryApi (apiURL: string): Promise<Object> {
+async function queryApi(apiURL: string): Promise<unknown> {
   const fetchOptions: RequestInit = {
     referrer: apiURL,
     referrerPolicy: 'no-referrer-when-downgrade',
@@ -62,7 +62,7 @@ async function queryApi (apiURL: string): Promise<Object> {
   const tokenResponse = await timeoutFetch(apiURL, fetchOptions);
   const responseObj = await tokenResponse.json();
   // api may return errors as json without setting an error http status code
-  if (responseObj.error) {
+  if (responseObj?.error) {
     throw new Error(`TokenService Error: ${responseObj.error}`);
   }
   return responseObj;
