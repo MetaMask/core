@@ -19,7 +19,22 @@ function getTokenMetadataURL(chainId: string, tokenAddress: string) {
  */
 export async function fetchTokenList(chainId: string): Promise<unknown> {
   const tokenURL = getTokensURL(chainId);
-  return queryApi(tokenURL);
+  const response = await queryApi(tokenURL);
+  return parseJsonResponse(response);
+}
+
+/**
+ * Fetch metadata for the token address provided for a given network chainId
+ *
+ * @return Promise resolving token metadata for the tokenAddress provided
+ */
+export async function fetchTokenMetadata(
+  chainId: string,
+  tokenAddress: string,
+): Promise<unknown> {
+  const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
+  const response = await queryApi(tokenMetadataURL);
+  return parseJsonResponse(response);
 }
 
 /**
@@ -33,24 +48,11 @@ export async function syncTokens(chainId: string): Promise<void> {
 }
 
 /**
- * Fetch metadata for the token address provided for a given network chainId
+ * Perform fetch request against the api
  *
- * @return Promise resolving token metadata for the tokenAddress provided
+ * @return Promise resolving request response
  */
-export async function fetchTokenMetadata(
-  chainId: string,
-  tokenAddress: string,
-): Promise<unknown> {
-  const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
-  return queryApi(tokenMetadataURL);
-}
-
-/**
- * Fetch metadata for the token address provided for a given network chainId
- *
- * @return Promise resolving request response json value
- */
-async function queryApi(apiURL: string): Promise<unknown> {
+async function queryApi(apiURL: string): Promise<Response> {
   const fetchOptions: RequestInit = {
     referrer: apiURL,
     referrerPolicy: 'no-referrer-when-downgrade',
@@ -59,8 +61,16 @@ async function queryApi(apiURL: string): Promise<unknown> {
   };
   fetchOptions.headers = new window.Headers();
   fetchOptions.headers.set('Content-Type', 'application/json');
-  const tokenResponse = await timeoutFetch(apiURL, fetchOptions);
-  const responseObj = await tokenResponse.json();
+  return await timeoutFetch(apiURL, fetchOptions);
+}
+
+/**
+ * Parse response
+ *
+ * @return Promise resolving request response json value
+ */
+async function parseJsonResponse(apiResponse: Response): Promise<unknown> {
+  const responseObj = await apiResponse.json();
   // api may return errors as json without setting an error http status code
   if (responseObj?.error) {
     throw new Error(`TokenService Error: ${responseObj.error}`);
