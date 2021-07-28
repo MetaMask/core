@@ -928,14 +928,14 @@ describe('util', () => {
     const MAX_FEE_PER_GAS = 'maxFeePerGas';
     const FAIL = 'lol';
     const PASS = '0x1';
-    it('should be invalid', () => {
+    it('should throw when provided invalid gas values', () => {
       const gasValues: GasValues = { [MAX_FEE_PER_GAS]: FAIL };
       expect(() => util.validateGasValues(gasValues)).toThrow(TypeError);
       expect(() => util.validateGasValues(gasValues)).toThrow(
         `expected hex string for ${MAX_FEE_PER_GAS} but received: ${FAIL}`,
       );
     });
-    it('should be valid', () => {
+    it('should return true when provided valid gas values', () => {
       const gasValues: GasValues = { [MAX_FEE_PER_GAS]: PASS };
       expect(util.validateGasValues(gasValues)).toBe(true);
     });
