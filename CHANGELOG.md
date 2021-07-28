@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.1]
+### Changed
+- Make gweiDecToWEIBN util resilient against params with too many decimals ([#544](https://github.com/MetaMask/controllers/pull/544))
+- Bump @metamask/contract-metadata from 1.27.0 to 1.28.0 ([#540](https://github.com/MetaMask/controllers/pull/540))
+
 ## [14.0.0]
 ### Added
 - **BREAKING** Add EIP1559 support including `speedUpTransaction` and `stopTransaction` ([#521](https://github.com/MetaMask/controllers/pull/521))
@@ -310,7 +315,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v14.0.1...HEAD
+[14.0.1]: https://github.com/MetaMask/controllers/compare/v14.0.0...v14.0.1
 [14.0.0]: https://github.com/MetaMask/controllers/compare/v13.2.0...v14.0.0
 [13.2.0]: https://github.com/MetaMask/controllers/compare/v13.1.0...v13.2.0
 [13.1.0]: https://github.com/MetaMask/controllers/compare/v13.0.0...v13.1.0
