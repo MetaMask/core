@@ -320,7 +320,10 @@ export class TokenListController extends BaseController<
   async fetchTokenMetadata(tokenAddress: string): Promise<Token> {
     const releaseLock = await this.mutex.acquire();
     try {
-      const token = await fetchTokenMetadata(this.chainId, tokenAddress) as Token;
+      const token = (await fetchTokenMetadata(
+        this.chainId,
+        tokenAddress,
+      )) as Token;
       return token;
     } finally {
       releaseLock();
