@@ -154,6 +154,14 @@ describe('util', () => {
       expect(util.gweiDecToWEIBN(123456.0000005998).toNumber()).toBe(
         123456000000600,
       );
+      expect(util.gweiDecToWEIBN(1.000000016025).toNumber()).toBe(1000000016);
+      expect(util.gweiDecToWEIBN(1.0000000160000028).toNumber()).toBe(
+        1000000016,
+      );
+      expect(util.gweiDecToWEIBN(1.000000016522).toNumber()).toBe(1000000017);
+      expect(util.gweiDecToWEIBN(1.000000016800022).toNumber()).toBe(
+        1000000017,
+      );
     });
 
     it('should work if there are extraneous trailing decimal zeroes', () => {

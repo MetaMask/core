@@ -89,12 +89,14 @@ export function gweiDecToWEIBN(n: number | string) {
   if (decimalPart.length <= 9) {
     return toWei(`${wholePart}.${decimalPart}`, 'gwei');
   }
-  const lastDecimalDigit = decimalPart[decimalPart.length - 1];
+
+  const decimalPartToRemove = decimalPart.slice(9);
+  const decimalRoundingDigit = decimalPartToRemove[0];
 
   decimalPart = decimalPart.slice(0, 9);
   let wei = toWei(`${wholePart}.${decimalPart}`, 'gwei');
 
-  if (Number(lastDecimalDigit) >= 5) {
+  if (Number(decimalRoundingDigit) >= 5) {
     wei = wei.add(new BN(1));
   }
 
