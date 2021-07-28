@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [14.0.1]
 ### Changed
-- Make gweiDecToWEIBN util resilient against params with too many decimals ([#544](https://github.com/MetaMask/controllers/pull/544))
+- Ensure gas estimate fetching in gasFeeController correctly handles responses with invalid number of decimals ([#544](https://github.com/MetaMask/controllers/pull/544))
 - Bump @metamask/contract-metadata from 1.27.0 to 1.28.0 ([#540](https://github.com/MetaMask/controllers/pull/540))
 
 ## [14.0.0]
