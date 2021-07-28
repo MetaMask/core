@@ -924,16 +924,20 @@ describe('util', () => {
     });
   });
 
-  describe('checkGasValues', () => {
+  describe('validateGasValues', () => {
+    const MAX_FEE_PER_GAS = 'maxFeePerGas';
+    const FAIL = 'lol';
+    const PASS = '0x1';
     it('should be invalid', () => {
-      const gasValues: GasValues = { maxFeePerGas: 'lol' };
-      expect(() => util.checkGasValues(gasValues)).toThrow(
-        'expected hex string for maxFeePerGas but received: lol',
+      const gasValues: GasValues = { [MAX_FEE_PER_GAS]: FAIL };
+      expect(() => util.validateGasValues(gasValues)).toThrow(TypeError);
+      expect(() => util.validateGasValues(gasValues)).toThrow(
+        `expected hex string for ${MAX_FEE_PER_GAS} but received: ${FAIL}`,
       );
     });
     it('should be valid', () => {
-      const gasValues: GasValues = { maxFeePerGas: '0x1' };
-      expect(util.checkGasValues(gasValues)).toBe(true);
+      const gasValues: GasValues = { [MAX_FEE_PER_GAS]: PASS };
+      expect(util.validateGasValues(gasValues)).toBe(true);
     });
   });
 });

@@ -689,12 +689,13 @@ export const getIncreasedPriceFromExisting = (
   return getIncreasedPriceHex(convertPriceToDecimal(value), rate);
 };
 
-export const checkGasValues = (gasValues: GasValues) => {
-  const keys = Object.keys(gasValues);
-  keys.forEach((key) => {
-    const val = (gasValues as any)[key];
-    if (typeof val !== 'string' || !isHexString(val)) {
-      throw new Error(`expected hex string for ${key} but received: ${val}`);
+export const validateGasValues = (gasValues: GasValues) => {
+  Object.keys(gasValues).forEach((key) => {
+    const value = (gasValues as any)[key];
+    if (typeof value !== 'string' || !isHexString(value)) {
+      throw new TypeError(
+        `expected hex string for ${key} but received: ${value}`,
+      );
     }
   });
   return true;

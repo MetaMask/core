@@ -24,7 +24,7 @@ import {
   query,
   getIncreasedPriceFromExisting,
   isEIP1559Transaction,
-  checkGasValues,
+  validateGasValues,
 } from '../util';
 import { MAINNET, RPC } from '../constants';
 
@@ -710,7 +710,7 @@ export class TransactionController extends BaseController<
    */
   async stopTransaction(transactionID: string, gasValues?: GasValues) {
     if (gasValues) {
-      checkGasValues(gasValues);
+      validateGasValues(gasValues);
     }
     const transactionMeta = this.state.transactions.find(
       ({ id }) => id === transactionID,
@@ -786,7 +786,7 @@ export class TransactionController extends BaseController<
    */
   async speedUpTransaction(transactionID: string, gasValues?: GasValues) {
     if (gasValues) {
-      checkGasValues(gasValues);
+      validateGasValues(gasValues);
     }
     const transactionMeta = this.state.transactions.find(
       ({ id }) => id === transactionID,
