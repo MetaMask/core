@@ -223,6 +223,8 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
 
   private getChainId;
 
+  private currentChainId;
+
   private ethQuery: any;
 
   /**
@@ -283,13 +285,15 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     this.EIP1559APIEndpoint = EIP1559APIEndpoint;
     this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.getChainId = getChainId;
-
+    this.currentChainId = this.getChainId();
     const provider = getProvider();
     this.ethQuery = new EthQuery(provider);
     onNetworkStateChange(async () => {
       const newProvider = getProvider();
       this.ethQuery = new EthQuery(newProvider);
-      await this.resetPolling();
+      if (this.currentChainId !== newProvider.chainId) {
+        await this.resetPolling();
+      }
     });
   }
 
