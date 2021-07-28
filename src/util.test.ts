@@ -120,12 +120,14 @@ describe('util', () => {
       expect(util.gweiDecToWEIBN(123).toNumber()).toBe(123000000000);
       expect(util.gweiDecToWEIBN(101).toNumber()).toBe(101000000000);
       expect(util.gweiDecToWEIBN(1234).toNumber()).toBe(1234000000000);
+      expect(util.gweiDecToWEIBN(1000).toNumber()).toBe(1000000000000);
     });
 
     it('should convert a number with a decimal part to WEI', () => {
       expect(util.gweiDecToWEIBN(1.1).toNumber()).toBe(1100000000);
       expect(util.gweiDecToWEIBN(123.01).toNumber()).toBe(123010000000);
       expect(util.gweiDecToWEIBN(101.001).toNumber()).toBe(101001000000);
+      expect(util.gweiDecToWEIBN(100.001).toNumber()).toBe(100001000000);
       expect(util.gweiDecToWEIBN(1234.567).toNumber()).toBe(1234567000000);
     });
 
@@ -141,6 +143,33 @@ describe('util', () => {
       expect(util.gweiDecToWEIBN(0.0109).toNumber()).toBe(10900000);
       expect(util.gweiDecToWEIBN(0.0014).toNumber()).toBe(1400000);
       expect(util.gweiDecToWEIBN(0.5676).toNumber()).toBe(567600000);
+    });
+
+    it('should handle inputs with more than 9 decimal places', () => {
+      expect(util.gweiDecToWEIBN(1.0000000162).toNumber()).toBe(1000000016);
+      expect(util.gweiDecToWEIBN(1.0000000165).toNumber()).toBe(1000000017);
+      expect(util.gweiDecToWEIBN(1.0000000199).toNumber()).toBe(1000000020);
+      expect(util.gweiDecToWEIBN(1.9999999999).toNumber()).toBe(2000000000);
+      expect(util.gweiDecToWEIBN(1.0000005998).toNumber()).toBe(1000000600);
+      expect(util.gweiDecToWEIBN(123456.0000005998).toNumber()).toBe(
+        123456000000600,
+      );
+    });
+
+    it('should work if there are extraneous trailing decimal zeroes', () => {
+      expect(util.gweiDecToWEIBN('0.5000').toNumber()).toBe(500000000);
+      expect(util.gweiDecToWEIBN('123.002300').toNumber()).toBe(123002300000);
+      expect(util.gweiDecToWEIBN('123.002300000000').toNumber()).toBe(
+        123002300000,
+      );
+      expect(util.gweiDecToWEIBN('0.00000200000').toNumber()).toBe(2000);
+    });
+
+    it('should work if there is no whole number specified', () => {
+      expect(util.gweiDecToWEIBN('.1').toNumber()).toBe(100000000);
+      expect(util.gweiDecToWEIBN('.01').toNumber()).toBe(10000000);
+      expect(util.gweiDecToWEIBN('.001').toNumber()).toBe(1000000);
+      expect(util.gweiDecToWEIBN('.567').toNumber()).toBe(567000000);
     });
 
     it('should handle NaN', () => {
