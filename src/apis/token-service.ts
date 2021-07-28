@@ -14,7 +14,7 @@ function getTokenMetadataURL(chainId: string, tokenAddress: string) {
 
 // Token list averages 1.6 MB in size
 // timeoutFetch by default has a 500ms timeout, which will almost always timeout given the response size.
-const timeout = 2000;
+const timeout = 10000;
 
 /**
  * Fetches the list of token metadata for a given network chainId
