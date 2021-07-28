@@ -926,10 +926,23 @@ describe('util', () => {
 
   describe('validateGasValues', () => {
     const MAX_FEE_PER_GAS = 'maxFeePerGas';
+    const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
+    const GAS_PRICE = 'gasPrice';
     const FAIL = 'lol';
     const PASS = '0x1';
     it('should throw when provided invalid gas values', () => {
       const gasValues: GasValues = { [MAX_FEE_PER_GAS]: FAIL };
+      expect(() => util.validateGasValues(gasValues)).toThrow(TypeError);
+      expect(() => util.validateGasValues(gasValues)).toThrow(
+        `expected hex string for ${MAX_FEE_PER_GAS} but received: ${FAIL}`,
+      );
+    });
+    it('should throw when any provided gas values are invalid', () => {
+      const gasValues: GasValues = {
+        [MAX_PRIORITY_FEE_PER_GAS]: PASS,
+        [MAX_FEE_PER_GAS]: FAIL,
+        [GAS_PRICE]: PASS,
+      };
       expect(() => util.validateGasValues(gasValues)).toThrow(TypeError);
       expect(() => util.validateGasValues(gasValues)).toThrow(
         `expected hex string for ${MAX_FEE_PER_GAS} but received: ${FAIL}`,
