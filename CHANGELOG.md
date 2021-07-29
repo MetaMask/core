@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Fix `resetPolling` functionality ([#546](https://github.com/MetaMask/controllers/pull/546))
   - This fix addresses a bug that was discovered in `resetPolling` in `GasFeeController` functionality being called too frequently.
+- Improve token list API error handling ([#541](https://github.com/MetaMask/controllers/pull/541))
 
 ## [14.0.1] - 2021-07-28 [DEPRECATED]
 ### Changed
