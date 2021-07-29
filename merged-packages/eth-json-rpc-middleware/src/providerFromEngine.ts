@@ -8,7 +8,7 @@ export function providerFromEngine(
   const provider: SafeEventEmitterProvider = new SafeEventEmitter() as SafeEventEmitterProvider;
   // handle both rpc send methods
   provider.sendAsync = engine.handle.bind(engine);
-  provider.send = (req: JsonRpcRequest<string[]>, callback: () => void) => {
+  provider.send = (req: JsonRpcRequest<string[]>, callback: (error: any, providerRes: any) => void) => {
     if (typeof callback !== 'function') {
       throw new Error('Must provide callback to "send" method.');
     }
