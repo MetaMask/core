@@ -56,6 +56,24 @@ transactionTest({
   fromAddressIsValid: false,
 });
 
+signTransactionTest({
+  testLabel: 'sign txn - valid address',
+  txParams: {
+    from: testAddresses[0],
+  },
+  accounts: testAddresses,
+  fromAddressIsValid: true,
+});
+
+signTransactionTest({
+  testLabel: 'sign txn - invalid address',
+  txParams: {
+    from: testUnkownAddress,
+  },
+  accounts: testAddresses,
+  fromAddressIsValid: false,
+});
+
 //
 // message signature
 //
@@ -349,6 +367,56 @@ function transactionTest({
         t.ok(sendTxResult, 'got result');
         t.equal(sendTxResult, testTxHash, 'got expected tx hash');
         t.equal(witnessedTxParams.length, 1, 'witnessed one tx request');
+        t.deepEqual(
+          witnessedTxParams[0],
+          txParams,
+          'witnessed txParams matches input',
+        );
+      } else {
+        t.fail('should have validated that fromAddress is invalid');
+      }
+    } catch (err) {
+      if (
+        !fromAddressIsValid &&
+        err.message.includes(
+          'Invalid parameters: must provide an Ethereum address.',
+        )
+      ) {
+        t.pass('correctly errored on invalid sender.');
+      } else {
+        t.ifError(err);
+      }
+    }
+    t.end();
+  });
+}
+
+function signTransactionTest({
+  testLabel,
+  txParams,
+  accounts,
+  fromAddressIsValid,
+}) {
+  const { engine } = createTestSetup();
+
+  const witnessedTxParams = [];
+
+  const getAccounts = async () => accounts.slice();
+  const processSignTransaction = async (_txParams) => {
+    witnessedTxParams.push(_txParams);
+    return testTxHash;
+  };
+  engine.push(createWalletMiddleware({ getAccounts, processSignTransaction }));
+
+  test(testLabel, async (t) => {
+    try {
+      const payload = { method: 'eth_signTransaction', params: [txParams] };
+      const sendTxResponse = await pify(engine.handle).call(engine, payload);
+      const sendTxResult = sendTxResponse.result;
+      if (fromAddressIsValid) {
+        t.ok(sendTxResult, 'got result');
+        t.equal(sendTxResult, testTxHash, 'got expected signed tx hash');
+        t.equal(witnessedTxParams.length, 1, 'witnessed one sign tx request');
         t.deepEqual(
           witnessedTxParams[0],
           txParams,
