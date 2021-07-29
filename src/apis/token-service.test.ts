@@ -164,7 +164,7 @@ describe('FetchtokenList', () => {
   it('should call the api to return the token metadata for eth address provided', async () => {
     nock(TOKEN_END_POINT_API)
       .get(
-        `/tokens/${NetworksChainId.mainnet}?address=0x514910771af9ca656af840dff83e8264ecf986ca`,
+        `/token/${NetworksChainId.mainnet}?address=0x514910771af9ca656af840dff83e8264ecf986ca`,
       )
       .reply(200, sampleToken)
       .persist();

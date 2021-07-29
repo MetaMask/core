@@ -78,7 +78,29 @@ export function gweiDecToWEIBN(n: number | string) {
   if (Number.isNaN(n)) {
     return new BN(0);
   }
-  return toWei(n.toString(), 'gwei');
+
+  const parts = n.toString().split('.');
+  const wholePart = parts[0] || '0';
+  let decimalPart = parts[1] || '';
+
+  if (!decimalPart) {
+    return toWei(wholePart, 'gwei');
+  }
+  if (decimalPart.length <= 9) {
+    return toWei(`${wholePart}.${decimalPart}`, 'gwei');
+  }
+
+  const decimalPartToRemove = decimalPart.slice(9);
+  const decimalRoundingDigit = decimalPartToRemove[0];
+
+  decimalPart = decimalPart.slice(0, 9);
+  let wei = toWei(`${wholePart}.${decimalPart}`, 'gwei');
+
+  if (Number(decimalRoundingDigit) >= 5) {
+    wei = wei.add(new BN(1));
+  }
+
+  return wei;
 }
 
 /**

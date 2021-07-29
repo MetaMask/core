@@ -8,8 +8,45 @@ import {
   LegacyGasPriceEstimate,
 } from './GasFeeController';
 
+export function normalizeGWEIDecimalNumbers(n: string | number) {
+  const numberAsWEIHex = gweiDecToWEIBN(n).toString(16);
+  const numberAsGWEI = weiHexToGweiDec(numberAsWEIHex).toString(10);
+  return numberAsGWEI;
+}
+
 export async function fetchGasEstimates(url: string): Promise<GasFeeEstimates> {
-  return await handleFetch(url);
+  const estimates: GasFeeEstimates = await handleFetch(url);
+  const normalizedEstimates: GasFeeEstimates = {
+    estimatedBaseFee: normalizeGWEIDecimalNumbers(estimates.estimatedBaseFee),
+    low: {
+      ...estimates.low,
+      suggestedMaxPriorityFeePerGas: normalizeGWEIDecimalNumbers(
+        estimates.low.suggestedMaxPriorityFeePerGas,
+      ),
+      suggestedMaxFeePerGas: normalizeGWEIDecimalNumbers(
+        estimates.low.suggestedMaxFeePerGas,
+      ),
+    },
+    medium: {
+      ...estimates.medium,
+      suggestedMaxPriorityFeePerGas: normalizeGWEIDecimalNumbers(
+        estimates.medium.suggestedMaxPriorityFeePerGas,
+      ),
+      suggestedMaxFeePerGas: normalizeGWEIDecimalNumbers(
+        estimates.medium.suggestedMaxFeePerGas,
+      ),
+    },
+    high: {
+      ...estimates.high,
+      suggestedMaxPriorityFeePerGas: normalizeGWEIDecimalNumbers(
+        estimates.high.suggestedMaxPriorityFeePerGas,
+      ),
+      suggestedMaxFeePerGas: normalizeGWEIDecimalNumbers(
+        estimates.high.suggestedMaxFeePerGas,
+      ),
+    },
+  };
+  return normalizedEstimates;
 }
 
 /**

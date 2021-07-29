@@ -365,9 +365,10 @@ export class TokenListController extends BaseController<
   async fetchTokenMetadata(tokenAddress: string): Promise<DynamicToken> {
     const releaseLock = await this.mutex.acquire();
     try {
-      const token: DynamicToken = await safelyExecute(() =>
-        fetchTokenMetadata(this.chainId, tokenAddress),
-      );
+      const token = (await fetchTokenMetadata(
+        this.chainId,
+        tokenAddress,
+      )) as DynamicToken;
       return token;
     } finally {
       releaseLock();
