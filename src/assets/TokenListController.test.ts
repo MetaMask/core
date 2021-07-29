@@ -14,6 +14,7 @@ import {
   TokenListMap,
   IconPath,
   MediaExtType,
+  ContractMap,
 } from './TokenListController';
 
 const name = 'TokenListController';
@@ -22,8 +23,12 @@ const timestamp = Date.now();
 
 const staticTokenList: TokenListMap = {};
 for (const tokenAddress in contractMap) {
-  const { erc20, logo: filePath, ...token } = contractMap[tokenAddress];
-  const extType = filePath.split('.')[1].toUpperCase() as MediaExtType;
+  const { erc20, logo: filePath, ...token } = (contractMap as ContractMap)[
+    tokenAddress
+  ];
+  const extType = filePath
+    .substr(filePath.lastIndexOf('.') + 1)
+    .toUpperCase() as MediaExtType;
   const iconPath: IconPath = { filePath, type: extType };
   if (erc20) {
     staticTokenList[tokenAddress] = {
