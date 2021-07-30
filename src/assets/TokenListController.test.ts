@@ -13,8 +13,8 @@ import {
   GetTokenListState,
   TokenListMap,
   IconPath,
-  MediaExtType,
   ContractMap,
+  getFileExt,
 } from './TokenListController';
 
 const name = 'TokenListController';
@@ -26,10 +26,7 @@ for (const tokenAddress in contractMap) {
   const { erc20, logo: filePath, ...token } = (contractMap as ContractMap)[
     tokenAddress
   ];
-  const extType = filePath
-    .substr(filePath.lastIndexOf('.') + 1)
-    .toUpperCase() as MediaExtType;
-  const iconPath: IconPath = { filePath, type: extType };
+  const iconPath: IconPath = { filePath, type: getFileExt(filePath) };
   if (erc20) {
     staticTokenList[tokenAddress] = {
       ...token,
@@ -1145,5 +1142,10 @@ describe('TokenListController', () => {
     expect(tokenMeta).toStrictEqual(sampleTokenMetaData);
 
     controller.destroy();
+  });
+
+  it('should get the file extension', () => {
+    const { iconUrl } = sampleMainnetTokenList[0];
+    expect(getFileExt(iconUrl)).toBe('PNG');
   });
 });

@@ -94,6 +94,9 @@ const defaultState: TokenListState = {
   tokensChainsCache: {},
 };
 
+export const getFileExt = (filePath: string): MediaExtType =>
+  filePath.substr(filePath.lastIndexOf('.') + 1).toUpperCase() as MediaExtType;
+
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
  */
@@ -230,10 +233,7 @@ export class TokenListController extends BaseController<
       const { erc20, logo: filePath, ...token } = (contractMap as ContractMap)[
         tokenAddress
       ];
-      const extType = filePath
-        .substr(filePath.lastIndexOf('.') + 1)
-        .toUpperCase() as MediaExtType;
-      const iconPath: IconPath = { filePath, type: extType };
+      const iconPath: IconPath = { filePath, type: getFileExt(filePath) };
       if (erc20) {
         // Specify iconUrl here as filePath for backwards compatibility for extension
         tokenList[tokenAddress] = {
