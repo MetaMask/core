@@ -1108,7 +1108,7 @@ export class TransactionController extends BaseController<
    */
   private trimTransactionsForState(transactions: TransactionMeta[]) {
     const nonceNetworkSet = new Set();
-    const txsToKeep = transactions.filter((tx) => {
+    const txsToKeep = transactions.reverse().filter((tx) => {
       const { chainId, networkID, status, transaction, time } = tx;
       if (transaction) {
         const key = `${transaction.nonce}-${chainId ?? networkID}-${new Date(
@@ -1126,6 +1126,7 @@ export class TransactionController extends BaseController<
       }
       return false;
     });
+    txsToKeep.reverse();
     this.update({ transactions: [...txsToKeep] });
   }
 
