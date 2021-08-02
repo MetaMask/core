@@ -1167,7 +1167,6 @@ describe('TransactionController', () => {
   });
 
   it('should handle new method data', async () => {
-    console.log('should handle new method data');
     const controller = new TransactionController(
       {
         getNetworkState: () => MOCK_MAINNET_NETWORK.state,
