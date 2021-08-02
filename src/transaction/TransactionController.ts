@@ -1101,22 +1101,24 @@ export class TransactionController extends BaseController<
    * Pending or unapproved transactions will not be removed by this
    * operation. For safety of presenting a fully functional transaction UI
    * representation, this function will not break apart transactions with the
-   * same nonce, per network. Not accounting for transactions of the same
-   * nonce and network combo can result in confusing or broken experiences
+   * same nonce, created on the same day, per network. Not accounting for transactions of the same
+   * nonce, same day and network combo can result in confusing or broken experiences
    * in the UI. The transactions are then updated using the BaseController update.
    * @param transactions - arrray of transactions to be applied to the state
    */
   private updateStateWithTransactions(transactions: TransactionMeta[]) {
     const nonceNetworkSet = new Set();
-
     const txsToKeep = transactions.reverse().filter((tx) => {
-      const { chainId, networkID, status, transaction } = tx;
+      const { chainId, networkID, status, transaction, time } = tx;
       if (transaction) {
-        const key = `${transaction.nonce}-${chainId ?? networkID}`;
+        const key = `${transaction.nonce}-${chainId ?? networkID}-${new Date(
+          time,
+        ).toDateString()}`;
+        console.log(key);
         if (nonceNetworkSet.has(key)) {
           return true;
         } else if (
-          nonceNetworkSet.size <= this.config.txHistoryLimit ||
+          nonceNetworkSet.size < this.config.txHistoryLimit ||
           !this.isFinalState(status)
         ) {
           nonceNetworkSet.add(key);
@@ -1125,18 +1127,8 @@ export class TransactionController extends BaseController<
       }
       return false;
     });
-
     txsToKeep.reverse();
-
-    // Due to the possiblity of having duplicate nonces for
-    // tx completed on other devices or on the mobile app allow
-    // have a maximum of 2x txHistoryLimit.
-    const maxTxHistoryLimit = this.config.txHistoryLimit * 2;
-    txsToKeep.length > maxTxHistoryLimit
-      ? this.update({
-          transactions: [...txsToKeep.slice(0, maxTxHistoryLimit)],
-        })
-      : this.update({ transactions: [...txsToKeep] });
+    this.update({ transactions: [...txsToKeep] });
   }
 
   /**
