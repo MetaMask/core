@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "14.0.0",
+  "version": "14.0.2",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "keywords": [
     "MetaMask",
@@ -68,7 +68,7 @@
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^1.0.6",
-    "@metamask/auto-changelog": "^2.4.0",
+    "@metamask/auto-changelog": "^2.5.0",
     "@metamask/eslint-config": "^7.0.1",
     "@metamask/eslint-config-jest": "^7.0.0",
     "@metamask/eslint-config-nodejs": "^7.0.1",

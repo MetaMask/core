@@ -216,9 +216,8 @@ export class TokenListController extends BaseController<
   async fetchFromDynamicTokenList(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
     try {
-      const tokensFromAPI: Token[] = await safelyExecute(() =>
-        this.fetchFromCache(),
-      );
+      const tokensFromAPI: Token[] =
+        (await safelyExecute(() => this.fetchFromCache())) || [];
       const { tokensChainsCache } = this.state;
       const tokenList: TokenMap = {};
 
@@ -316,14 +315,15 @@ export class TokenListController extends BaseController<
   /**
    * Fetch metadata for a token whose address is send to the API
    * @param tokenAddress
-   * @returns Promise that resolvesto Token Metadata
+   * @returns Promise that resolves to Token Metadata
    */
   async fetchTokenMetadata(tokenAddress: string): Promise<Token> {
     const releaseLock = await this.mutex.acquire();
     try {
-      const token = await safelyExecute(() =>
-        fetchTokenMetadata(this.chainId, tokenAddress),
-      );
+      const token = (await fetchTokenMetadata(
+        this.chainId,
+        tokenAddress,
+      )) as Token;
       return token;
     } finally {
       releaseLock();
