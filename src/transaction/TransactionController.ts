@@ -543,7 +543,7 @@ export class TransactionController extends BaseController<
     });
 
     transactions.push(transactionMeta);
-    this.updateStateWithTransactions(transactions);
+    this.trimTransactionsForState(transactions);
     this.hub.emit(`unapprovedTransaction`, transactionMeta);
     return { result, transactionMeta };
   }
@@ -694,7 +694,7 @@ export class TransactionController extends BaseController<
     const transactions = this.state.transactions.filter(
       ({ id }) => id !== transactionID,
     );
-    this.updateStateWithTransactions(transactions);
+    this.trimTransactionsForState(transactions);
   }
 
   /**
@@ -852,7 +852,7 @@ export class TransactionController extends BaseController<
             },
           };
     transactions.push(newTransactionMeta);
-    this.updateStateWithTransactions(transactions);
+    this.trimTransactionsForState(transactions);
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
   }
 
@@ -961,7 +961,7 @@ export class TransactionController extends BaseController<
     );
     /* istanbul ignore else */
     if (gotUpdates) {
-      this.updateStateWithTransactions(transactions);
+      this.trimTransactionsForState(transactions);
     }
   }
 
@@ -978,7 +978,7 @@ export class TransactionController extends BaseController<
     validateTransaction(transactionMeta.transaction);
     const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
     transactions[index] = transactionMeta;
-    this.updateStateWithTransactions(transactions);
+    this.trimTransactionsForState(transactions);
   }
 
   /**
@@ -989,7 +989,7 @@ export class TransactionController extends BaseController<
   wipeTransactions(ignoreNetwork?: boolean) {
     /* istanbul ignore next */
     if (ignoreNetwork) {
-      this.updateStateWithTransactions([]);
+      this.trimTransactionsForState([]);
       return;
     }
     const { provider, network: currentNetworkID } = this.getNetworkState();
@@ -1004,7 +1004,7 @@ export class TransactionController extends BaseController<
       },
     );
 
-    this.updateStateWithTransactions(newTransactions);
+    this.trimTransactionsForState(newTransactions);
   }
 
   /**
@@ -1089,7 +1089,7 @@ export class TransactionController extends BaseController<
     });
     // Update state only if new transactions were fetched
     if (allTxs.length > this.state.transactions.length) {
-      this.updateStateWithTransactions(allTxs);
+      this.trimTransactionsForState(allTxs);
     }
     return latestIncomingTxBlockNumber;
   }
@@ -1106,15 +1106,14 @@ export class TransactionController extends BaseController<
    * in the UI. The transactions are then updated using the BaseController update.
    * @param transactions - arrray of transactions to be applied to the state
    */
-  private updateStateWithTransactions(transactions: TransactionMeta[]) {
+  private trimTransactionsForState(transactions: TransactionMeta[]) {
     const nonceNetworkSet = new Set();
-    const txsToKeep = transactions.reverse().filter((tx) => {
+    const txsToKeep = transactions.filter((tx) => {
       const { chainId, networkID, status, transaction, time } = tx;
       if (transaction) {
         const key = `${transaction.nonce}-${chainId ?? networkID}-${new Date(
           time,
         ).toDateString()}`;
-        console.log(key);
         if (nonceNetworkSet.has(key)) {
           return true;
         } else if (
@@ -1127,7 +1126,6 @@ export class TransactionController extends BaseController<
       }
       return false;
     });
-    txsToKeep.reverse();
     this.update({ transactions: [...txsToKeep] });
   }
 
