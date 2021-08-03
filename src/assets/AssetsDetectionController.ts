@@ -139,32 +139,36 @@ export class AssetsDetectionController extends BaseController<
 > {
   private handle?: NodeJS.Timer;
 
-  private getOwnerCollectiblesApi(address: string) {
-    return `https://api.opensea.io/api/v1/assets?owner=${address}&limit=300`;
+  private getOwnerCollectiblesApi(address: string, offset: number) {
+    return `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`;
   }
 
   private async getOwnerCollectibles() {
     const { selectedAddress } = this.config;
-    const api = this.getOwnerCollectiblesApi(selectedAddress);
     let response: Response;
+    let collectibles: any = [];
+    const openSeaApiKey = this.getOpenSeaApiKey();
     try {
-      const openSeaApiKey = this.getOpenSeaApiKey();
+      let offset = 0;
+      let pagingFinish = false;
       /* istanbul ignore if */
-      if (openSeaApiKey) {
+      do {
+        const api = this.getOwnerCollectiblesApi(selectedAddress, offset);
         response = await timeoutFetch(
           api,
-          { headers: { 'X-API-KEY': openSeaApiKey } },
+          openSeaApiKey ? { headers: { 'X-API-KEY': openSeaApiKey } } : {},
           15000,
         );
-      } else {
-        response = await timeoutFetch(api, {}, 15000);
-      }
+        const collectiblesArray = await response.json();
+        collectiblesArray.assets?.length !== 0
+          ? (collectibles = [...collectibles, ...collectiblesArray.assets])
+          : (pagingFinish = true);
+        offset += 50;
+      } while (!pagingFinish);
     } catch (e) {
       /* istanbul ignore next */
       return [];
     }
-    const collectiblesArray = await response.json();
-    const collectibles = collectiblesArray.assets;
     return collectibles;
   }
 

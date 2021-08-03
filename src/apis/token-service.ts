@@ -9,44 +9,18 @@ function getTokensURL(chainId: string) {
   return `${END_POINT}/tokens/${chainId}`;
 }
 function getTokenMetadataURL(chainId: string, tokenAddress: string) {
-  return `${END_POINT}/tokens/${chainId}?address=${tokenAddress}`;
+  return `${END_POINT}/token/${chainId}?address=${tokenAddress}`;
 }
 
 /**
  * Fetches the list of token metadata for a given network chainId
  *
- * @returns - Promise resolving token  List
+ * @returns - Promise resolving token List
  */
-export async function fetchTokenList(chainId: string): Promise<Response> {
+export async function fetchTokenList(chainId: string): Promise<unknown> {
   const tokenURL = getTokensURL(chainId);
-  const fetchOptions: RequestInit = {
-    referrer: tokenURL,
-    referrerPolicy: 'no-referrer-when-downgrade',
-    method: 'GET',
-    mode: 'cors',
-  };
-  fetchOptions.headers = new window.Headers();
-  fetchOptions.headers.set('Content-Type', 'application/json');
-  const tokenResponse = await timeoutFetch(tokenURL, fetchOptions);
-  return await tokenResponse.json();
-}
-
-/**
- * Forces a sync of token metadata for a given network chainId.
- * Syncing happens every 1 hour in the background, this api can
- * be used to force a sync from our side
- */
-export async function syncTokens(chainId: string): Promise<void> {
-  const syncURL = syncTokensURL(chainId);
-  const fetchOptions: RequestInit = {
-    referrer: syncURL,
-    referrerPolicy: 'no-referrer-when-downgrade',
-    method: 'GET',
-    mode: 'cors',
-  };
-  fetchOptions.headers = new window.Headers();
-  fetchOptions.headers.set('Content-Type', 'application/json');
-  await timeoutFetch(syncURL, fetchOptions);
+  const response = await queryApi(tokenURL);
+  return parseJsonResponse(response);
 }
 
 /**
@@ -57,16 +31,49 @@ export async function syncTokens(chainId: string): Promise<void> {
 export async function fetchTokenMetadata(
   chainId: string,
   tokenAddress: string,
-): Promise<Response> {
+): Promise<unknown> {
   const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
+  const response = await queryApi(tokenMetadataURL);
+  return parseJsonResponse(response);
+}
+
+/**
+ * Forces a sync of token metadata for a given network chainId.
+ * Syncing happens every 1 hour in the background, this api can
+ * be used to force a sync from our side
+ */
+export async function syncTokens(chainId: string): Promise<void> {
+  const syncURL = syncTokensURL(chainId);
+  queryApi(syncURL);
+}
+
+/**
+ * Perform fetch request against the api
+ *
+ * @return Promise resolving request response
+ */
+async function queryApi(apiURL: string): Promise<Response> {
   const fetchOptions: RequestInit = {
-    referrer: tokenMetadataURL,
+    referrer: apiURL,
     referrerPolicy: 'no-referrer-when-downgrade',
     method: 'GET',
     mode: 'cors',
   };
   fetchOptions.headers = new window.Headers();
   fetchOptions.headers.set('Content-Type', 'application/json');
-  const tokenResponse = await timeoutFetch(tokenMetadataURL, fetchOptions);
-  return await tokenResponse.json();
+  return await timeoutFetch(apiURL, fetchOptions);
+}
+
+/**
+ * Parse response
+ *
+ * @return Promise resolving request response json value
+ */
+async function parseJsonResponse(apiResponse: Response): Promise<unknown> {
+  const responseObj = await apiResponse.json();
+  // api may return errors as json without setting an error http status code
+  if (responseObj?.error) {
+    throw new Error(`TokenService Error: ${responseObj.error}`);
+  }
+  return responseObj;
 }
