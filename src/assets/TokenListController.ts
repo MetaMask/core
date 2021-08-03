@@ -45,15 +45,9 @@ export enum MediaExtType {
   JPG = 'JPG',
 }
 
-export type IconPath = {
-  filePath: string;
-  type: MediaExtType;
-};
-
 export type TokenListToken = {
   address: string;
-  iconUrl: string | null;
-  iconPath: IconPath | null;
+  iconUrl: string;
   occurrences: number | null;
   aggregators: string[] | null;
 } & BaseToken;
@@ -93,9 +87,6 @@ const defaultState: TokenListState = {
   tokenList: {},
   tokensChainsCache: {},
 };
-
-export const getFileExt = (filePath: string): MediaExtType =>
-  filePath.substr(filePath.lastIndexOf('.') + 1).toUpperCase() as MediaExtType;
 
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
@@ -233,12 +224,10 @@ export class TokenListController extends BaseController<
       const { erc20, logo: filePath, ...token } = (contractMap as ContractMap)[
         tokenAddress
       ];
-      const iconPath: IconPath = { filePath, type: getFileExt(filePath) };
       if (erc20) {
         // Specify iconUrl here as filePath for backwards compatibility for extension
         tokenList[tokenAddress] = {
           ...token,
-          iconPath,
           address: tokenAddress,
           iconUrl: filePath,
           occurrences: null,
@@ -290,7 +279,7 @@ export class TokenListController extends BaseController<
           (token) => !duplicateSymbols.includes(token.symbol),
         );
         for (const token of uniqueTokenList) {
-          tokenList[token.address] = { ...token, iconPath: null };
+          tokenList[token.address] = token;
         }
       }
       const updatedTokensChainsCache: TokensChainsCache = {
