@@ -4,11 +4,21 @@ import nock from 'nock';
 import HttpProvider from 'ethjs-provider-http';
 import EthQuery from 'eth-query';
 import * as util from './util';
-import { Transaction, GasValues } from './transaction/TransactionController';
+import {
+  Transaction,
+  GasPriceValue,
+  FeeMarketEIP1559Values,
+} from './transaction/TransactionController';
 
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
+
+const MAX_FEE_PER_GAS = 'maxFeePerGas';
+const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
+const GAS_PRICE = 'gasPrice';
+const FAIL = 'lol';
+const PASS = '0x1';
 
 const mockFlags: { [key: string]: any } = {
   estimateGas: null,
@@ -962,23 +972,19 @@ describe('util', () => {
   });
 
   describe('validateGasValues', () => {
-    const MAX_FEE_PER_GAS = 'maxFeePerGas';
-    const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
-    const GAS_PRICE = 'gasPrice';
-    const FAIL = 'lol';
-    const PASS = '0x1';
     it('should throw when provided invalid gas values', () => {
-      const gasValues: GasValues = { [MAX_FEE_PER_GAS]: FAIL };
+      const gasValues: GasPriceValue = {
+        [GAS_PRICE]: FAIL,
+      };
       expect(() => util.validateGasValues(gasValues)).toThrow(TypeError);
       expect(() => util.validateGasValues(gasValues)).toThrow(
-        `expected hex string for ${MAX_FEE_PER_GAS} but received: ${FAIL}`,
+        `expected hex string for ${GAS_PRICE} but received: ${FAIL}`,
       );
     });
     it('should throw when any provided gas values are invalid', () => {
-      const gasValues: GasValues = {
+      const gasValues: FeeMarketEIP1559Values = {
         [MAX_PRIORITY_FEE_PER_GAS]: PASS,
         [MAX_FEE_PER_GAS]: FAIL,
-        [GAS_PRICE]: PASS,
       };
       expect(() => util.validateGasValues(gasValues)).toThrow(TypeError);
       expect(() => util.validateGasValues(gasValues)).toThrow(
@@ -986,8 +992,32 @@ describe('util', () => {
       );
     });
     it('should return true when provided valid gas values', () => {
-      const gasValues: GasValues = { [MAX_FEE_PER_GAS]: PASS };
+      const gasValues: FeeMarketEIP1559Values = {
+        [MAX_FEE_PER_GAS]: PASS,
+        [MAX_PRIORITY_FEE_PER_GAS]: PASS,
+      };
       expect(() => util.validateGasValues(gasValues)).not.toThrow(TypeError);
+    });
+  });
+
+  describe('isFeeMarketEIP1559Values', () => {
+    it('should detect if isFeeMarketEIP1559Values', () => {
+      const gasValues = {
+        [MAX_PRIORITY_FEE_PER_GAS]: PASS,
+        [MAX_FEE_PER_GAS]: FAIL,
+      };
+      expect(util.isFeeMarketEIP1559Values(gasValues)).toBe(true);
+      expect(util.isGasPriceValue(gasValues)).toBe(false);
+    });
+  });
+
+  describe('isGasPriceValue', () => {
+    it('should detect if isGasPriceValue', () => {
+      const gasValues: GasPriceValue = {
+        [GAS_PRICE]: PASS,
+      };
+      expect(util.isGasPriceValue(gasValues)).toBe(true);
+      expect(util.isFeeMarketEIP1559Values(gasValues)).toBe(false);
     });
   });
 });

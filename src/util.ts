@@ -728,7 +728,7 @@ export const validateGasValues = (
 export const isFeeMarketEIP1559Values = (
   gasValues?: GasPriceValue | FeeMarketEIP1559Values,
 ): gasValues is FeeMarketEIP1559Values =>
-  (gasValues as FeeMarketEIP1559Values)?.maxFeePerGas !== undefined &&
+  (gasValues as FeeMarketEIP1559Values)?.maxFeePerGas !== undefined ||
   (gasValues as FeeMarketEIP1559Values)?.maxPriorityFeePerGas !== undefined;
 
 export const isGasPriceValue = (
