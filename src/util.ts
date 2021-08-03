@@ -698,7 +698,6 @@ export const validateGasValues = (gasValues: GasValues) => {
       );
     }
   });
-  return true;
 };
 
 export default {

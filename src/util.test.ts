@@ -950,7 +950,7 @@ describe('util', () => {
     });
     it('should return true when provided valid gas values', () => {
       const gasValues: GasValues = { [MAX_FEE_PER_GAS]: PASS };
-      expect(util.validateGasValues(gasValues)).toBe(true);
+      expect(() => util.validateGasValues(gasValues)).not.toThrow(TypeError);
     });
   });
 });
