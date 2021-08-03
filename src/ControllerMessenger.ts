@@ -317,12 +317,10 @@ export class ControllerMessenger<
 
   private events = new Map<Event['type'], EventSubscriptionMap>();
 
-  private selectorCache = new Map<
-    SelectorFunction<any, unknown>,
-    unknown | undefined
-  >();
-
-  private selectorUseCounts = new Map<SelectorFunction<any, unknown>, number>();
+  /**
+   * A cache of selector return values for their respective handlers.
+   */
+  private eventPayloadCache = new Map<EventHandler, unknown | undefined>();
 
   /**
    * Register an action handler.
@@ -410,16 +408,15 @@ export class ControllerMessenger<
     if (subscribers) {
       for (const [handler, selector] of subscribers.entries()) {
         if (selector) {
-          const lastKnownValue = this.selectorCache.get(selector);
           const newValue = selector(...payload);
 
           // Only call the event handler if the value changed.
-          if (newValue !== lastKnownValue) {
-            this.selectorCache.set(selector, newValue);
+          if (newValue !== this.eventPayloadCache.get(handler)) {
+            this.eventPayloadCache.set(handler, newValue);
             handler(newValue);
           }
         } else {
-          (handler as EventHandler)(...payload);
+          handler(...payload);
         }
       }
     }
@@ -454,6 +451,7 @@ export class ControllerMessenger<
    * @param selector - The selector function used to select the relevant data
    * from the event payload.
    * @template E - A type union of Event type strings.
+   * @template V - The selector return value.
    */
   subscribe<E extends Event['type'], V>(
     eventType: E,
@@ -461,6 +459,15 @@ export class ControllerMessenger<
     selector: SelectorFunction<ExtractEventPayload<Event, E>, V>,
   ): void;
 
+  /**
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @param handler - The event handler. The type of the parameters for this event
+   * handler must match the type of the payload for this event type.
+   * @param selector - The selector function used to select the relevant data
+   * from the event payload.
+   * @template E - A type union of Event type strings.
+   * @template V - The selector return value.
+   */
   subscribe<E extends Event['type'], V>(
     eventType: E,
     handler: ExtractEventHandler<Event, E>,
@@ -473,10 +480,6 @@ export class ControllerMessenger<
     }
 
     subscribers.set(handler, selector);
-    if (selector) {
-      const selectorUses = this.selectorUseCounts.get(selector) ?? 0;
-      this.selectorUseCounts.set(selector, selectorUses + 1);
-    }
   }
 
   /**
@@ -501,11 +504,7 @@ export class ControllerMessenger<
 
     const selector = subscribers.get(handler);
     if (selector) {
-      const selectorUses = this.selectorUseCounts.get(selector) as number;
-      if (selectorUses === 1) {
-        this.selectorCache.set(selector, undefined);
-      }
-      this.selectorUseCounts.set(selector, selectorUses - 1);
+      this.eventPayloadCache.delete(handler);
     }
 
     subscribers.delete(handler);
