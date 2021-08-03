@@ -315,8 +315,8 @@ export class TokenListController extends BaseController<
   /**
    * Checks if the Cache timestamp is valid,
    *  if yes data in cache will be returned
-   *  otherwise a call to the API service will be made.
-   * @returns Promise that resolves into a TokenList
+   *  otherwise null will be returned.
+   * @returns Promise that resolves into TokenListToken[] or null
    */
   async fetchFromCache(): Promise<TokenListToken[] | null> {
     const { tokensChainsCache }: TokenListState = this.state;
