@@ -1,5 +1,3 @@
-import type { Json } from './BaseControllerV2';
-
 type ActionHandler<Action, ActionType> = (
   ...args: ExtractActionParameters<Action, ActionType>
 ) => ExtractActionResponse<Action, ActionType>;
@@ -17,7 +15,7 @@ type ExtractActionResponse<Action, T> = Action extends {
   : never;
 
 type ExtractEventHandler<Event, T> = Event extends { type: T; payload: infer P }
-  ? P extends any[]
+  ? P extends unknown[]
     ? (...payload: P) => void
     : never
   : never;
@@ -25,27 +23,20 @@ type ExtractEventPayload<Event, T> = Event extends { type: T; payload: infer P }
   ? P
   : never;
 
-/**
- * The suffix of controller state change event names.
- */
-const STATE_CHANGE_SUFFIX = `:stateChange`;
+type EventHandler = (...args: unknown[]) => void;
+type SelectorFunction<Args extends unknown[], ReturnValue> = (
+  ...args: Args
+) => ReturnValue;
 
-type ActionConstraint = { type: string; handler: (...args: any) => unknown };
+type ActionConstraint = {
+  type: string;
+  handler: (...args: any) => unknown;
+};
 type EventConstraint = { type: string; payload: unknown[] };
-// TODO: Should we use this?
-// type StateEventConstraint<Namespace extends string> = {
-//   type: `${Namespace}${typeof STATE_CHANGE_SUFFIX}`;
-//   payload: unknown[];
-// };
 
-type StateSelector<S extends Record<string, Json>> = (state: S) => S[keyof S];
-type StateEventHandler<S extends Record<string, Json>> = (
-  subState: S[keyof S],
-) => void;
-
-type StateEventSubscriptionMap<S extends Record<string, Json>> = Map<
-  StateEventHandler<S>,
-  StateSelector<S>
+type EventSubscriptionMap = Map<
+  EventHandler,
+  SelectorFunction<any, unknown> | undefined
 >;
 
 /**
@@ -90,14 +81,12 @@ export class RestrictedControllerMessenger<
   N extends string,
   Action extends ActionConstraint,
   Event extends EventConstraint,
-  StateEvent extends Event,
   AllowedAction extends string,
   AllowedEvent extends string
 > {
   private controllerMessenger: ControllerMessenger<
     ActionConstraint,
-    EventConstraint,
-    StateEvent
+    EventConstraint
   >;
 
   private controllerName: N;
@@ -130,11 +119,7 @@ export class RestrictedControllerMessenger<
     allowedActions,
     allowedEvents,
   }: {
-    controllerMessenger: ControllerMessenger<
-      ActionConstraint,
-      EventConstraint,
-      StateEvent
-    >;
+    controllerMessenger: ControllerMessenger<ActionConstraint, EventConstraint>;
     name: N;
     allowedActions?: AllowedAction[];
     allowedEvents?: AllowedEvent[];
@@ -326,20 +311,18 @@ export class RestrictedControllerMessenger<
  */
 export class ControllerMessenger<
   Action extends ActionConstraint,
-  Event extends EventConstraint,
-  StateEvent extends Event
+  Event extends EventConstraint
 > {
   private actions = new Map<Action['type'], unknown>();
 
-  private events = new Map<Event['type'], Set<unknown>>();
+  private events = new Map<Event['type'], EventSubscriptionMap>();
 
-  // TODO: Why can't the first generic be StateEvent['type']?
-  private stateSubscriptions = new Map<
-    Event['type'],
-    StateEventSubscriptionMap<Record<string, Json>>
+  private selectorCache = new Map<
+    SelectorFunction<any, unknown>,
+    unknown | undefined
   >();
 
-  private cachedStates = new Map<StateSelector<Record<string, Json>>, Json>();
+  private selectorUseCounts = new Map<SelectorFunction<any, unknown>, number>();
 
   /**
    * Register an action handler.
@@ -422,38 +405,22 @@ export class ControllerMessenger<
     eventType: E,
     ...payload: ExtractEventPayload<Event, E>
   ) {
-    const subscribers = this.events.get(eventType) as Set<
-      ExtractEventHandler<Event, E>
-    >;
+    const subscribers = this.events.get(eventType);
 
     if (subscribers) {
-      for (const eventHandler of subscribers) {
-        eventHandler(...payload);
-      }
-    }
+      for (const [handler, selector] of subscribers.entries()) {
+        if (selector) {
+          const lastKnownValue = this.selectorCache.get(selector);
+          const newValue = selector(...payload);
 
-    if (eventType.endsWith(STATE_CHANGE_SUFFIX)) {
-      const stateSubscriptions = this.stateSubscriptions.get(eventType);
-      if (stateSubscriptions) {
-        this._publishStateEvents(
-          stateSubscriptions,
-          ...(payload as [Record<string, Json>, unknown[]]),
-        );
-      }
-    }
-  }
-
-  private _publishStateEvents(
-    stateSubscriptions: StateEventSubscriptionMap<Record<string, Json>>,
-    newState: Record<string, Json>,
-    _patches: unknown[],
-  ) {
-    for (const [handler, selector] of stateSubscriptions.entries()) {
-      const lastKnownValue = this.cachedStates.get(selector);
-      const newValue = selector(newState);
-      if (newValue !== lastKnownValue) {
-        this.cachedStates.set(selector, newValue);
-        handler(newValue);
+          // Only call the event handler if the value changed.
+          if (newValue !== lastKnownValue) {
+            this.selectorCache.set(selector, newValue);
+            handler(newValue);
+          }
+        } else {
+          (handler as EventHandler)(...payload);
+        }
       }
     }
   }
@@ -471,35 +438,45 @@ export class ControllerMessenger<
   subscribe<E extends Event['type']>(
     eventType: E,
     handler: ExtractEventHandler<Event, E>,
-  ) {
-    let subscribers = this.events.get(eventType);
-    if (!subscribers) {
-      subscribers = new Set();
-      this.events.set(eventType, subscribers);
-    }
-    subscribers.add(handler);
-  }
+  ): void;
 
   /**
+   * Subscribe to an event, with a selector.
    *
-   * @param namespace The name of the thing whose state to subscribe to.
-   * @param subStateListeners
-   * @returns
+   * Registers the given handler function as an event handler for the given
+   * event type. When an event is published, its payload is first passed to the
+   * selector. The event handler is only called if the selector's return value
+   * differs from its last known return value.
+   *
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @param handler - The event handler. The type of the parameters for this event
+   * handler must match the type of the payload for this event type.
+   * @param selector - The selector function used to select the relevant data
+   * from the event payload.
+   * @template E - A type union of Event type strings.
    */
-  subscribeToStateChanges<E extends Event['type']>(
-    namespace: string,
-    selector: (state: Record<string, Json>) => Json,
+  subscribe<E extends Event['type'], V>(
+    eventType: E,
     handler: ExtractEventHandler<Event, E>,
-  ) {
-    const eventType = this._getStateEventType(namespace);
+    selector: SelectorFunction<ExtractEventPayload<Event, E>, V>,
+  ): void;
 
-    let subscriptions = this.stateSubscriptions.get(eventType);
-    if (!subscriptions) {
-      subscriptions = new Map();
-      this.stateSubscriptions.set(eventType, subscriptions);
+  subscribe<E extends Event['type'], V>(
+    eventType: E,
+    handler: ExtractEventHandler<Event, E>,
+    selector?: SelectorFunction<ExtractEventPayload<Event, E>, V>,
+  ): void {
+    let subscribers = this.events.get(eventType);
+    if (!subscribers) {
+      subscribers = new Map();
+      this.events.set(eventType, subscribers);
     }
 
-    subscriptions.set(handler, selector);
+    subscribers.set(handler, selector);
+    if (selector) {
+      const selectorUses = this.selectorUseCounts.get(selector) ?? 0;
+      this.selectorUseCounts.set(selector, selectorUses + 1);
+    }
   }
 
   /**
@@ -522,42 +499,16 @@ export class ControllerMessenger<
       throw new Error(`Subscription not found for event: ${eventType}`);
     }
 
-    subscribers.delete(handler);
-  }
-
-  unsubscribeFromStateChanges<E extends Event['type']>(
-    namespace: string,
-    handler: ExtractEventHandler<Event, E>,
-  ) {
-    const eventType = this._getStateEventType(namespace);
-
-    const subscribers = this.stateSubscriptions.get(eventType);
-    if (!subscribers || !subscribers.has(handler)) {
-      throw new Error(
-        `State change subscription not found for namespace: ${namespace}`,
-      );
+    const selector = subscribers.get(handler);
+    if (selector) {
+      const selectorUses = this.selectorUseCounts.get(selector) as number;
+      if (selectorUses === 1) {
+        this.selectorCache.set(selector, undefined);
+      }
+      this.selectorUseCounts.set(selector, selectorUses - 1);
     }
-
-    const selector = subscribers.get(handler) as StateSelector<
-      Record<string, Json>
-    >;
-    // This will delete cached states for handlers that share selectors, but
-    // that's fine so long as it's a rare occurrence.
-    this.cachedStates.delete(selector);
 
     subscribers.delete(handler);
-    if (subscribers.size === 0) {
-      this.stateSubscriptions.delete(eventType);
-    }
-  }
-
-  private _getStateEventType(namespace: string): string {
-    const eventType = `${namespace}${STATE_CHANGE_SUFFIX}`;
-    if (!this.events.has(eventType)) {
-      throw new Error(`The namespace "${namespace}" does not exist.`);
-    }
-
-    return eventType;
   }
 
   /**
@@ -620,8 +571,6 @@ export class ControllerMessenger<
     N,
     NarrowToNamespace<Action, N> | NarrowToAllowed<Action, AllowedAction>,
     NarrowToNamespace<Event, N> | NarrowToAllowed<Event, AllowedEvent>,
-    | NarrowToNamespace<StateEvent, N>
-    | NarrowToAllowed<StateEvent, AllowedEvent>,
     AllowedAction,
     AllowedEvent
   > {
@@ -629,8 +578,6 @@ export class ControllerMessenger<
       N,
       NarrowToNamespace<Action, N> | NarrowToAllowed<Action, AllowedAction>,
       NarrowToNamespace<Event, N> | NarrowToAllowed<Event, AllowedEvent>,
-      | NarrowToNamespace<StateEvent, N>
-      | NarrowToAllowed<StateEvent, AllowedEvent>,
       AllowedAction,
       AllowedEvent
     >({

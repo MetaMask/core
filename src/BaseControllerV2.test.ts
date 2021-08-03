@@ -297,9 +297,7 @@ describe('BaseController', () => {
 
     expect(() => {
       controllerMessenger.unsubscribe('CountController:stateChange', listener1);
-    }).toThrow(
-      "Subscription not found for event: 'CountController:stateChange'",
-    );
+    }).toThrow('Subscription not found for event: CountController:stateChange');
   });
 
   it('should no longer update subscribers after being destroyed', () => {

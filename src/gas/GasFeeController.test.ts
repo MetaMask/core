@@ -16,7 +16,6 @@ const name = 'GasFeeController';
 function getRestrictedMessenger() {
   const controllerMessenger = new ControllerMessenger<
     GetGasFeeState,
-    GasFeeStateChange,
     GasFeeStateChange
   >();
   const messenger = controllerMessenger.getRestricted<

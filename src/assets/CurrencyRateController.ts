@@ -101,7 +101,6 @@ export class CurrencyRateController extends BaseController<
       typeof name,
       GetCurrencyRateState,
       CurrencyRateStateChange,
-      CurrencyRateStateChange,
       never,
       never
     >;

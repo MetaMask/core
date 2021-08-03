@@ -252,7 +252,7 @@ describe('ControllerMessenger', () => {
 
     const handler = sinon.stub();
     expect(() => controllerMessenger.unsubscribe('message', handler)).toThrow(
-      "Subscription not found for event: 'message'",
+      'Subscription not found for event: message',
     );
   });
 
@@ -265,7 +265,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.subscribe('message', handler1);
 
     expect(() => controllerMessenger.unsubscribe('message', handler2)).toThrow(
-      "Subscription not found for event: 'message'",
+      'Subscription not found for event: message',
     );
   });
 
@@ -694,7 +694,7 @@ describe('RestrictedControllerMessenger', () => {
         'MessageController:message',
         handler,
       ),
-    ).toThrow(`Subscription not found for event: 'MessageController:message'`);
+    ).toThrow(`Subscription not found for event: MessageController:message`);
   });
 
   it('should throw when unsubscribing a handler that is not subscribed', () => {
@@ -720,7 +720,7 @@ describe('RestrictedControllerMessenger', () => {
         'MessageController:message',
         handler2,
       ),
-    ).toThrow(`Subscription not found for event: 'MessageController:message'`);
+    ).toThrow(`Subscription not found for event: MessageController:message`);
   });
 
   it('should not call subscriber after clearing event subscriptions', () => {

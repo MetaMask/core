@@ -252,7 +252,6 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
       typeof name,
       GetGasFeeState,
       GasFeeStateChange,
-      GasFeeStateChange,
       never,
       never
     >;

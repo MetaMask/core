@@ -118,7 +118,6 @@ export class BaseController<
     N,
     any,
     any,
-    any,
     string,
     string
   >;
@@ -156,7 +155,7 @@ export class BaseController<
     name,
     state,
   }: {
-    messenger: RestrictedControllerMessenger<N, any, any, any, string, string>;
+    messenger: RestrictedControllerMessenger<N, any, any, string, string>;
     metadata: StateMetadata<S>;
     name: N;
     state: IsJsonable<S>;
