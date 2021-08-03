@@ -1116,7 +1116,7 @@ describe('TokenListController', () => {
 
   it('should return the metadata for a tokenAddress provided', async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .get(`/token/${NetworksChainId.mainnet}`)
       .query({ address: '0x514910771af9ca656af840dff83e8264ecf986ca' })
       .reply(200, sampleTokenMetaData)
       .persist();
