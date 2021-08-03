@@ -410,7 +410,6 @@ export class ControllerMessenger<
         if (selector) {
           const newValue = selector(...payload);
 
-          // Only call the event handler if the value changed.
           if (newValue !== this.eventPayloadCache.get(handler)) {
             this.eventPayloadCache.set(handler, newValue);
             handler(newValue);
