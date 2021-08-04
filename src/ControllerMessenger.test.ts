@@ -647,6 +647,37 @@ describe('RestrictedControllerMessenger', () => {
     expect(handler.callCount).toStrictEqual(1);
   });
 
+  it('should publish event with selector to subscriber', () => {
+    type MessageEvent = {
+      type: 'MessageController:complexMessage';
+      payload: [Record<string, unknown>];
+    };
+    const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
+    const restrictedControllerMessenger = controllerMessenger.getRestricted({
+      name: 'MessageController',
+      allowedEvents: ['MessageController:complexMessage'],
+    });
+
+    const handler = sinon.stub();
+    const selector = sinon.fake((obj: Record<string, unknown>) => obj.prop1);
+    restrictedControllerMessenger.subscribe(
+      'MessageController:complexMessage',
+      handler,
+      selector,
+    );
+    restrictedControllerMessenger.publish('MessageController:complexMessage', {
+      prop1: 'a',
+      prop2: 'b',
+    });
+
+    expect(handler.calledWithExactly('a', undefined)).toStrictEqual(true);
+    expect(handler.callCount).toStrictEqual(1);
+    expect(
+      selector.calledWithExactly({ prop1: 'a', prop2: 'b' }),
+    ).toStrictEqual(true);
+    expect(selector.callCount).toStrictEqual(1);
+  });
+
   it('should allow publishing multiple different events to subscriber', () => {
     type MessageEvent =
       | { type: 'MessageController:message'; payload: [string] }

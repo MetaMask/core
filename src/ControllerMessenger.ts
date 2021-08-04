@@ -243,17 +243,52 @@ export class RestrictedControllerMessenger<
    * @param eventType - The event type. This is a unique identifier for this event.
    * @param handler - The event handler. The type of the parameters for this event handler must
    *   match the type of the payload for this event type.
-   * @template T - A type union of allowed Event type strings.
+   * @template E - A type union of Event type strings.
    */
   subscribe<E extends AllowedEvent & string>(
+    eventType: E,
+    handler: ExtractEventHandler<Event, E>,
+  ): void;
+
+  /**
+   * Subscribe to an event, with a selector.
+   *
+   * Registers the given handler function as an event handler for the given
+   * event type. When an event is published, its payload is first passed to the
+   * selector. The event handler is only called if the selector's return value
+   * differs from its last known return value.
+   *
+   * The event type being subscribed to must be on the event allowlist.
+   *
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @param handler - The event handler. The type of the parameters for this event
+   * handler must match the return type of the selector.
+   * @param selector - The selector function used to select relevant data from
+   * the event payload. The type of the parameters for this selector must match
+   * the type of the payload for this event type.
+   * @template E - A type union of Event type strings.
+   * @template V - The selector return value.
+   */
+  subscribe<E extends AllowedEvent & string, V>(
+    eventType: E,
+    handler: SelectorEventHandler<V>,
+    selector: SelectorFunction<ExtractEventPayload<Event, E>, V>,
+  ): void;
+
+  subscribe<E extends AllowedEvent & string, V>(
     event: E,
     handler: ExtractEventHandler<Event, E>,
+    selector?: SelectorFunction<ExtractEventPayload<Event, E>, V>,
   ) {
     /* istanbul ignore next */ // Branches unreachable with valid types
     if (this.allowedEvents === null) {
       throw new Error('No events allowed');
     } else if (!this.allowedEvents.includes(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
+    }
+
+    if (selector) {
+      return this.controllerMessenger.subscribe(event, handler, selector);
     }
     return this.controllerMessenger.subscribe(event, handler);
   }
@@ -455,9 +490,10 @@ export class ControllerMessenger<
    *
    * @param eventType - The event type. This is a unique identifier for this event.
    * @param handler - The event handler. The type of the parameters for this event
-   * handler must match the type of the payload for this event type.
-   * @param selector - The selector function used to select the relevant data
-   * from the event payload.
+   * handler must match the return type of the selector.
+   * @param selector - The selector function used to select relevant data from
+   * the event payload. The type of the parameters for this selector must match
+   * the type of the payload for this event type.
    * @template E - A type union of Event type strings.
    * @template V - The selector return value.
    */
@@ -467,15 +503,6 @@ export class ControllerMessenger<
     selector: SelectorFunction<ExtractEventPayload<Event, E>, V>,
   ): void;
 
-  /**
-   * @param eventType - The event type. This is a unique identifier for this event.
-   * @param handler - The event handler. The type of the parameters for this event
-   * handler must match the type of the payload for this event type.
-   * @param selector - The selector function used to select the relevant data
-   * from the event payload.
-   * @template E - A type union of Event type strings.
-   * @template V - The selector return value.
-   */
   subscribe<E extends Event['type'], V>(
     eventType: E,
     handler: ExtractEventHandler<Event, E>,
