@@ -736,6 +736,17 @@ export const isGasPriceValue = (
 ): gasValues is GasPriceValue =>
   (gasValues as GasPriceValue)?.gasPrice !== undefined;
 
+export function validateMinimumIncrease(proposed: string, min: string) {
+  const proposedDecimal = convertPriceToDecimal(proposed);
+  const minDecimal = convertPriceToDecimal(min);
+  if (proposedDecimal >= minDecimal) {
+    return proposed;
+  }
+  throw new Error(
+    `The proposed value: ${proposedDecimal} should meet or exceed the minimum value: ${minDecimal}`
+  );
+}
+
 export default {
   BNToHex,
   fractionBN,
