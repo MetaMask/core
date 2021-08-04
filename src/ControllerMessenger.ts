@@ -325,7 +325,10 @@ export class ControllerMessenger<
   /**
    * A cache of selector return values for their respective handlers.
    */
-  private eventPayloadCache = new Map<GenericEventHandler, unknown | undefined>();
+  private eventPayloadCache = new Map<
+    GenericEventHandler,
+    unknown | undefined
+  >();
 
   /**
    * Register an action handler.
