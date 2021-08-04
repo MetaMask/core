@@ -246,12 +246,39 @@ describe('ControllerMessenger', () => {
     controllerMessenger.subscribe('complexMessage', handler, selector);
     controllerMessenger.publish('complexMessage', { prop1: 'a', prop2: 'b' });
 
-    expect(handler.calledWithExactly('a')).toStrictEqual(true);
+    expect(handler.calledWithExactly('a', undefined)).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
     expect(
       selector.calledWithExactly({ prop1: 'a', prop2: 'b' }),
     ).toStrictEqual(true);
     expect(selector.callCount).toStrictEqual(1);
+  });
+
+  it('should call selector event handler with previous selector return value', () => {
+    type MessageEvent = {
+      type: 'complexMessage';
+      payload: [Record<string, unknown>];
+    };
+    const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
+
+    const handler = sinon.stub();
+    const selector = sinon.fake((obj: Record<string, unknown>) => obj.prop1);
+    controllerMessenger.subscribe('complexMessage', handler, selector);
+    controllerMessenger.publish('complexMessage', { prop1: 'a', prop2: 'b' });
+    controllerMessenger.publish('complexMessage', { prop1: 'z', prop2: 'b' });
+
+    expect(handler.getCall(0).calledWithExactly('a', undefined)).toStrictEqual(
+      true,
+    );
+    expect(handler.getCall(1).calledWithExactly('z', 'a')).toStrictEqual(true);
+    expect(handler.callCount).toStrictEqual(2);
+    expect(
+      selector.getCall(0).calledWithExactly({ prop1: 'a', prop2: 'b' }),
+    ).toStrictEqual(true);
+    expect(
+      selector.getCall(1).calledWithExactly({ prop1: 'z', prop2: 'b' }),
+    ).toStrictEqual(true);
+    expect(selector.callCount).toStrictEqual(2);
   });
 
   it('should not publish event with selector if selector return value is unchanged', () => {
@@ -267,7 +294,7 @@ describe('ControllerMessenger', () => {
     controllerMessenger.publish('complexMessage', { prop1: 'a', prop2: 'b' });
     controllerMessenger.publish('complexMessage', { prop1: 'a', prop3: 'c' });
 
-    expect(handler.calledWithExactly('a')).toStrictEqual(true);
+    expect(handler.calledWithExactly('a', undefined)).toStrictEqual(true);
     expect(handler.callCount).toStrictEqual(1);
     expect(
       selector.getCall(0).calledWithExactly({ prop1: 'a', prop2: 'b' }),
@@ -293,9 +320,9 @@ describe('ControllerMessenger', () => {
     controllerMessenger.publish('complexMessage', { prop1: 'a', prop2: 'b' });
     controllerMessenger.publish('complexMessage', { prop1: 'a', prop3: 'c' });
 
-    expect(handler1.calledWithExactly('a')).toStrictEqual(true);
+    expect(handler1.calledWithExactly('a', undefined)).toStrictEqual(true);
     expect(handler1.callCount).toStrictEqual(1);
-    expect(handler2.calledWithExactly('a')).toStrictEqual(true);
+    expect(handler2.calledWithExactly('a', undefined)).toStrictEqual(true);
     expect(handler2.callCount).toStrictEqual(1);
     expect(
       selector.getCall(0).calledWithExactly({ prop1: 'a', prop2: 'b' }),

@@ -23,10 +23,15 @@ type ExtractEventPayload<Event, T> = Event extends { type: T; payload: infer P }
   ? P
   : never;
 
-type EventHandler = (...args: unknown[]) => void;
+type GenericEventHandler = (...args: unknown[]) => void;
+
 type SelectorFunction<Args extends unknown[], ReturnValue> = (
   ...args: Args
 ) => ReturnValue;
+type SelectorEventHandler<SelectorReturnValue> = (
+  newValue: SelectorReturnValue,
+  previousValue: SelectorReturnValue | undefined,
+) => void;
 
 type ActionConstraint = {
   type: string;
@@ -35,7 +40,7 @@ type ActionConstraint = {
 type EventConstraint = { type: string; payload: unknown[] };
 
 type EventSubscriptionMap = Map<
-  EventHandler,
+  GenericEventHandler | SelectorEventHandler<unknown>,
   SelectorFunction<any, unknown> | undefined
 >;
 
@@ -320,7 +325,7 @@ export class ControllerMessenger<
   /**
    * A cache of selector return values for their respective handlers.
    */
-  private eventPayloadCache = new Map<EventHandler, unknown | undefined>();
+  private eventPayloadCache = new Map<GenericEventHandler, unknown | undefined>();
 
   /**
    * Register an action handler.
@@ -408,14 +413,15 @@ export class ControllerMessenger<
     if (subscribers) {
       for (const [handler, selector] of subscribers.entries()) {
         if (selector) {
+          const previousValue = this.eventPayloadCache.get(handler);
           const newValue = selector(...payload);
 
-          if (newValue !== this.eventPayloadCache.get(handler)) {
+          if (newValue !== previousValue) {
             this.eventPayloadCache.set(handler, newValue);
-            handler(newValue);
+            handler(newValue, previousValue);
           }
         } else {
-          handler(...payload);
+          (handler as GenericEventHandler)(...payload);
         }
       }
     }
@@ -454,7 +460,7 @@ export class ControllerMessenger<
    */
   subscribe<E extends Event['type'], V>(
     eventType: E,
-    handler: ExtractEventHandler<Event, E>,
+    handler: SelectorEventHandler<V>,
     selector: SelectorFunction<ExtractEventPayload<Event, E>, V>,
   ): void;
 
