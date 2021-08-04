@@ -1020,4 +1020,27 @@ describe('util', () => {
       expect(util.isFeeMarketEIP1559Values(gasValues)).toBe(false);
     });
   });
+
+  describe('validateMinimumIncrease', () => {
+    it('should throw if increase does not meet minimum requirement', () => {
+      expect(() =>
+        util.validateMinimumIncrease('0x50fd51da', '0x5916a6d6'),
+      ).toThrow(Error);
+      expect(() =>
+        util.validateMinimumIncrease('0x50fd51da', '0x5916a6d6'),
+      ).toThrow(
+        'The proposed value: 1358778842 should meet or exceed the minimum value: 1494656726',
+      );
+    });
+    it('should not throw if increase meets minimum requirement', () => {
+      expect(() =>
+        util.validateMinimumIncrease('0x5916a6d6', '0x5916a6d6'),
+      ).not.toThrow(Error);
+    });
+    it('should not throw if increase exceeds minimum requirement', () => {
+      expect(() =>
+        util.validateMinimumIncrease('0x7162a5ca', '0x5916a6d6'),
+      ).not.toThrow(Error);
+    });
+  });
 });
