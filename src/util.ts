@@ -742,9 +742,8 @@ export function validateMinimumIncrease(proposed: string, min: string) {
   if (proposedDecimal >= minDecimal) {
     return proposed;
   }
-  throw new Error(
-    `The proposed value: ${proposedDecimal} should meet or exceed the minimum value: ${minDecimal}`
-  );
+  const errorMsg = `The proposed value: ${proposedDecimal} should meet or exceed the minimum value: ${minDecimal}`;
+  throw new Error(errorMsg);
 }
 
 export default {
