@@ -7,11 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [14.1.0]
-### Uncategorized
-- Feature: Add selector subscriptions ([#551](https://github.com/MetaMask/controllers/pull/551))
-- Bump tar from 6.1.0 to 6.1.4 ([#552](https://github.com/MetaMask/controllers/pull/552))
-- Bump @metamask/auto-changelog from 2.4.0 to 2.5.0 ([#549](https://github.com/MetaMask/controllers/pull/549))
-- Update Changelog ([#548](https://github.com/MetaMask/controllers/pull/548))
+### Added
+- Controller messenger selector subscriptions ([#551](https://github.com/MetaMask/controllers/pull/551))
 
 ## [14.0.2] - 2021-07-28
 ### Changed
