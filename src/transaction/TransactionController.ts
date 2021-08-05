@@ -543,7 +543,7 @@ export class TransactionController extends BaseController<
     });
 
     transactions.push(transactionMeta);
-    this.trimTransactionsForState(transactions);
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
     this.hub.emit(`unapprovedTransaction`, transactionMeta);
     return { result, transactionMeta };
   }
@@ -694,7 +694,7 @@ export class TransactionController extends BaseController<
     const transactions = this.state.transactions.filter(
       ({ id }) => id !== transactionID,
     );
-    this.trimTransactionsForState(transactions);
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 
   /**
@@ -852,7 +852,7 @@ export class TransactionController extends BaseController<
             },
           };
     transactions.push(newTransactionMeta);
-    this.trimTransactionsForState(transactions);
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
   }
 
@@ -1127,7 +1127,7 @@ export class TransactionController extends BaseController<
       return false;
     });
     txsToKeep.reverse();
-    this.update({ transactions: [...txsToKeep] });
+    return txsToKeep;
   }
 
   /**
