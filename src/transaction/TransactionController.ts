@@ -961,7 +961,9 @@ export class TransactionController extends BaseController<
     );
     /* istanbul ignore else */
     if (gotUpdates) {
-      this.trimTransactionsForState(transactions);
+      this.update({
+        transactions: this.trimTransactionsForState(transactions),
+      });
     }
   }
 
@@ -978,7 +980,7 @@ export class TransactionController extends BaseController<
     validateTransaction(transactionMeta.transaction);
     const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
     transactions[index] = transactionMeta;
-    this.trimTransactionsForState(transactions);
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 
   /**
@@ -989,7 +991,7 @@ export class TransactionController extends BaseController<
   wipeTransactions(ignoreNetwork?: boolean) {
     /* istanbul ignore next */
     if (ignoreNetwork) {
-      this.trimTransactionsForState([]);
+      this.update({ transactions: [] });
       return;
     }
     const { provider, network: currentNetworkID } = this.getNetworkState();
@@ -1004,7 +1006,9 @@ export class TransactionController extends BaseController<
       },
     );
 
-    this.trimTransactionsForState(newTransactions);
+    this.update({
+      transactions: this.trimTransactionsForState(newTransactions),
+    });
   }
 
   /**
@@ -1089,7 +1093,7 @@ export class TransactionController extends BaseController<
     });
     // Update state only if new transactions were fetched
     if (allTxs.length > this.state.transactions.length) {
-      this.trimTransactionsForState(allTxs);
+      this.update({ transactions: this.trimTransactionsForState(allTxs) });
     }
     return latestIncomingTxBlockNumber;
   }
