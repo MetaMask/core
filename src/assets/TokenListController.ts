@@ -39,12 +39,6 @@ export type DynamicToken = {
   iconUrl: string;
 } & BaseToken;
 
-export enum MediaExtType {
-  SVG = 'SVG',
-  PNG = 'PNG',
-  JPG = 'JPG',
-}
-
 export type TokenListToken = {
   address: string;
   iconUrl: string;
@@ -225,7 +219,6 @@ export class TokenListController extends BaseController<
         tokenAddress
       ];
       if (erc20) {
-        // Specify iconUrl here as filePath for backwards compatibility for extension
         tokenList[tokenAddress] = {
           ...token,
           address: tokenAddress,
