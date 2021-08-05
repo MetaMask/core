@@ -1047,10 +1047,10 @@
   resolved "https://registry.yarnpkg.com/@lavamoat/preinstall-always-fail/-/preinstall-always-fail-1.0.0.tgz#e78a6e3d9e212a4fef869ec37d4f5fb498dea373"
   integrity sha512-vD2DcC0ffJj1w2y1Lu0OU39wHmlPEd2tCDW04Bm6Kf4LyRnCHCezTsS8yzeSJ+4so7XP+TITuR5FGJRWxPb+GA==
 
-"@metamask/auto-changelog@^2.4.0":
-  version "2.4.0"
-  resolved "https://registry.yarnpkg.com/@metamask/auto-changelog/-/auto-changelog-2.4.0.tgz#d249034a5010060e4db2addfc27863787fe4546c"
-  integrity sha512-6kIeKT4vy18dKUQEIsfIwVGBHDcLO3jBZB0klRDD+CayAqjh3Rcpi/AXr6NPI+c0rF802vAbqMX+/KFaU3scVg==
+"@metamask/auto-changelog@^2.5.0":
+  version "2.5.0"
+  resolved "https://registry.yarnpkg.com/@metamask/auto-changelog/-/auto-changelog-2.5.0.tgz#078f38142a3086fdb5556c758969a015c71dfdc9"
+  integrity sha512-39FeU98Poll3eTqv/bggqo3Yisza0WQJ8l9IiYloMVa2LV8XqTNqVkS4cNEU/5yq62n47JSAv6lZBtWCqeAjZQ==
   dependencies:
     diff "^5.0.0"
     execa "^5.1.1"
@@ -7302,9 +7302,9 @@ table@^6.0.4:
     string-width "^4.2.0"
 
 tar@^6.0.2:
-  version "6.1.0"
-  resolved "https://registry.yarnpkg.com/tar/-/tar-6.1.0.tgz#d1724e9bcc04b977b18d5c573b333a2207229a83"
-  integrity sha512-DUCttfhsnLCjwoDoFcI+B2iJgYa93vBnDUATYEeRx6sntCTdN01VnqsIuTlALXla/LWooNg0yEGeB+Y8WdFxGA==
+  version "6.1.4"
+  resolved "https://registry.yarnpkg.com/tar/-/tar-6.1.4.tgz#9f0722b772a5e00dba7d52e1923b37a7ec3799b3"
+  integrity sha512-kcPWrO8S5ABjuZ/v1xQHP8xCEvj1dQ1d9iAb6Qs4jLYzaAIYWwST2IQpz7Ud8VNYRI+fGhFjrnzRKmRggKWg3g==
   dependencies:
     chownr "^2.0.0"
     fs-minipass "^2.0.0"
