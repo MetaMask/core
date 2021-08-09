@@ -567,6 +567,7 @@ export class ApprovalController extends BaseController<
   /**
    * Deletes the approval with the given id. The approval promise must be
    * resolved or reject before this method is called.
+   *
    * Deletion is an internal operation because approval state is solely
    * managed by this controller.
    *

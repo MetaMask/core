@@ -262,7 +262,9 @@ function deriveStateFromMetadata<S extends Record<string, unknown>>(
 ): IsJsonable<Record<string, Json>> {
   return Object.keys(state).reduce((persistedState, key) => {
     const propertyMetadata = metadata[key as keyof S][metadataProperty];
-    const stateProperty = state[key];
+    // We're enumerating the state object's own keys.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const stateProperty = state[key]!;
     if (typeof propertyMetadata === 'function') {
       persistedState[key as string] = propertyMetadata(stateProperty);
     } else if (propertyMetadata) {

@@ -129,10 +129,12 @@ export class PreferencesController extends BaseController<
    * @param label - New label to assign
    */
   setAccountLabel(address: string, label: string) {
-    address = toChecksumHexAddress(address);
+    const checksummedAddress = toChecksumHexAddress(address);
     const { identities } = this.state;
-    identities[address] = identities[address] || {};
-    identities[address].name = label;
+    identities[checksummedAddress] = identities[checksummedAddress] || {
+      address: checksummedAddress,
+      name: label,
+    };
     this.update({ identities: { ...identities } });
   }
 
@@ -163,14 +165,14 @@ export class PreferencesController extends BaseController<
 
     for (const identity in identities) {
       if (addresses.indexOf(identity) === -1) {
-        newlyLost[identity] = identities[identity];
+        newlyLost[identity] = identities[identity] as ContactEntry;
         delete identities[identity];
       }
     }
 
     if (Object.keys(newlyLost).length > 0) {
       for (const key in newlyLost) {
-        lostIdentities[key] = newlyLost[key];
+        lostIdentities[key] = newlyLost[key] as ContactEntry;
       }
     }
 
@@ -212,7 +214,7 @@ export class PreferencesController extends BaseController<
     );
     let { selectedAddress } = this.state;
     if (!Object.keys(identities).includes(selectedAddress)) {
-      selectedAddress = Object.keys(identities)[0];
+      selectedAddress = Object.keys(identities)[0] as string;
     }
     this.update({ identities: { ...identities }, selectedAddress });
   }

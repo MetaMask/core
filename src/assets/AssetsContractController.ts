@@ -317,7 +317,11 @@ export class AssetsContractController extends BaseController<
           /* istanbul ignore else */
           if (result.length > 0) {
             tokensToDetect.forEach((tokenAddress, index) => {
-              const balance: BN = result[index];
+              // If the contract call returns successfully, it returns one
+              // result for each requested token, in the order they were
+              // requested.
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              const balance: BN = result[index]!;
               /* istanbul ignore else */
               if (!balance.isZero()) {
                 nonZeroBalances[tokenAddress] = balance;
