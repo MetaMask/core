@@ -12,6 +12,8 @@ const STORE_KEY = 'pendingApprovals';
 
 const TYPE = 'TYPE';
 
+const controllerName = 'ApprovalController';
+
 function getRestrictedMessenger() {
   // The 'Other' types are included to demonstrate that this all works with a
   // controller messenger that includes types from other controllers.
@@ -20,7 +22,7 @@ function getRestrictedMessenger() {
     ApprovalControllerEvents
   >();
   const messenger = controllerMessenger.getRestricted<
-    'ApprovalController',
+    typeof controllerName,
     never,
     never
   >({
@@ -35,14 +37,12 @@ describe('approval controller', () => {
 
   describe('add', () => {
     let approvalController: ApprovalController;
-    let messenger: ApprovalControllerMessenger;
     let showApprovalRequest: sinon.SinonSpy;
 
     beforeEach(() => {
-      messenger = getRestrictedMessenger();
       showApprovalRequest = sinon.spy();
       approvalController = new ApprovalController({
-        messenger,
+        messenger: getRestrictedMessenger(),
         showApprovalRequest,
       });
     });
@@ -593,6 +593,54 @@ describe('approval controller', () => {
 
       expect(approvalController.state[STORE_KEY]).toStrictEqual({});
       expect(rejectSpy.callCount).toStrictEqual(2);
+    });
+  });
+
+  describe('actions', () => {
+    it('addApprovalRequest: shouldShowRequest = true', async () => {
+      const messenger = new ControllerMessenger<
+        ApprovalControllerActions,
+        ApprovalControllerEvents
+      >();
+      const showApprovalSpy = sinon.spy();
+
+      const approvalController = new ApprovalController({
+        messenger: messenger.getRestricted({
+          name: controllerName,
+        }) as ApprovalControllerMessenger,
+        showApprovalRequest: showApprovalSpy,
+      });
+
+      messenger.call(
+        'ApprovalController:addApprovalRequest',
+        { id: 'foo', origin: 'bar.baz', type: TYPE },
+        true,
+      );
+      expect(showApprovalSpy.calledOnce).toStrictEqual(true);
+      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
+    });
+
+    it('addApprovalRequest: shouldShowRequest = false', async () => {
+      const messenger = new ControllerMessenger<
+        ApprovalControllerActions,
+        ApprovalControllerEvents
+      >();
+      const showApprovalSpy = sinon.spy();
+
+      const approvalController = new ApprovalController({
+        messenger: messenger.getRestricted({
+          name: controllerName,
+        }) as ApprovalControllerMessenger,
+        showApprovalRequest: showApprovalSpy,
+      });
+
+      messenger.call(
+        'ApprovalController:addApprovalRequest',
+        { id: 'foo', origin: 'bar.baz', type: TYPE },
+        false,
+      );
+      expect(showApprovalSpy.notCalled).toStrictEqual(true);
+      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
     });
   });
 });
