@@ -1,27 +1,26 @@
 const { errorCodes } = require('eth-rpc-errors');
+const { ControllerMessenger } = require('../ControllerMessenger');
 const { ApprovalController } = require('./ApprovalController');
 
-const defaultConfig = {
-  showApprovalRequest: () => undefined,
-};
+function getRestrictedMessenger() {
+  // The 'Other' types are included to demonstrate that this all works with a
+  // controller messenger that includes types from other controllers.
+  const controllerMessenger = new ControllerMessenger();
+  const messenger = controllerMessenger.getRestricted({
+    name: 'ApprovalController',
+  });
+  return messenger;
+}
 
 const getApprovalController = () =>
-  new ApprovalController({ ...defaultConfig });
+  new ApprovalController({
+    messenger: getRestrictedMessenger(),
+    showApprovalRequest: () => undefined,
+  });
 
 const STORE_KEY = 'pendingApprovals';
 
 describe('ApprovalController: Input Validation', () => {
-  describe('constructor', () => {
-    it('throws on invalid input', () => {
-      expect(() => new ApprovalController({})).toThrow(
-        getInvalidShowApprovalRequestError(),
-      );
-      expect(
-        () => new ApprovalController({ showApprovalRequest: 'bar' }),
-      ).toThrow(getInvalidShowApprovalRequestError());
-    });
-  });
-
   describe('add', () => {
     it('validates input', () => {
       const approvalController = getApprovalController();
@@ -118,7 +117,7 @@ describe('ApprovalController: Input Validation', () => {
     let approvalController;
 
     beforeEach(() => {
-      approvalController = new ApprovalController({ ...defaultConfig });
+      approvalController = getApprovalController();
     });
 
     it('deletes entry', () => {
@@ -161,10 +160,6 @@ describe('ApprovalController: Input Validation', () => {
 });
 
 // helpers
-
-function getInvalidShowApprovalRequestError() {
-  return getError('Must specify function showApprovalRequest.');
-}
 
 function getInvalidIdError() {
   return getError('Must specify non-empty string id.', errorCodes.rpc.internal);

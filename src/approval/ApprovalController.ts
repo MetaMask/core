@@ -17,7 +17,10 @@ interface ApprovalCallbacks {
   reject: ApprovalPromiseReject;
 }
 
-export type Approval<RequestData extends ApprovalRequestData> = {
+export type ApprovalRequest<
+  Type extends string,
+  RequestData extends ApprovalRequestData
+> = {
   /**
    * The ID of the approval request.
    */
@@ -36,7 +39,7 @@ export type Approval<RequestData extends ApprovalRequestData> = {
   /**
    * The type of the approval request.
    */
-  type: string;
+  type: Type;
 
   /**
    * Additional data associated with the request.
@@ -48,7 +51,10 @@ export type Approval<RequestData extends ApprovalRequestData> = {
 type ShowApprovalRequest = () => void | Promise<void>;
 
 export type ApprovalControllerState = {
-  pendingApprovals: Record<string, Approval<Record<string, Json>>>;
+  pendingApprovals: Record<
+    string,
+    ApprovalRequest<string, Record<string, Json>>
+  >;
   pendingApprovalCount: number;
 };
 
@@ -60,9 +66,11 @@ const stateMetadata = {
 const getAlreadyPendingMessage = (origin: string, type: string) =>
   `Request of type '${type}' already pending for origin ${origin}. Please wait.`;
 
-const defaultState: ApprovalControllerState = {
-  pendingApprovals: {},
-  pendingApprovalCount: 0,
+const getDefaultState = (): ApprovalControllerState => {
+  return {
+    pendingApprovals: {},
+    pendingApprovalCount: 0,
+  };
 };
 
 export type GetApprovalsState = {
@@ -70,12 +78,48 @@ export type GetApprovalsState = {
   handler: () => ApprovalControllerState;
 };
 
-export type ClearApprovals = {
-  type: `${typeof controllerName}:clearApprovals`;
+export type ClearApprovalRequests = {
+  type: `${typeof controllerName}:clearApprovalRequests`;
   handler: () => void;
 };
 
-export type ApprovalControllerActions = GetApprovalsState | ClearApprovals;
+type AddApprovalOptions<RequestData extends Record<string, Json>> = {
+  id?: string;
+  origin: string;
+  type: string;
+  requestData?: RequestData;
+};
+
+export type AddApprovalRequest = {
+  type: `${typeof controllerName}:addApprovalRequest`;
+  handler: (
+    opts: AddApprovalOptions<Record<string, Json>>,
+    shouldShowRequest: boolean,
+  ) => ReturnType<ApprovalController['add']>;
+};
+
+export type HasApprovalRequest = {
+  type: `${typeof controllerName}:hasRequest`;
+  handler: ApprovalController['has'];
+};
+
+export type AcceptRequest = {
+  type: `${typeof controllerName}:acceptRequest`;
+  handler: ApprovalController['accept'];
+};
+
+export type RejectRequest = {
+  type: `${typeof controllerName}:rejectRequest`;
+  handler: ApprovalController['reject'];
+};
+
+export type ApprovalControllerActions =
+  | GetApprovalsState
+  | ClearApprovalRequests
+  | AddApprovalRequest
+  | HasApprovalRequest
+  | AcceptRequest
+  | RejectRequest;
 
 export type ApprovalsStateChange = {
   type: `${typeof controllerName}:stateChange`;
@@ -84,7 +128,7 @@ export type ApprovalsStateChange = {
 
 export type ApprovalControllerEvents = ApprovalsStateChange;
 
-type ApprovalControllerMessenger = RestrictedControllerMessenger<
+export type ApprovalControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   ApprovalControllerActions,
   ApprovalControllerEvents,
@@ -126,14 +170,14 @@ export class ApprovalController extends BaseController<
    */
   constructor({
     messenger,
-    state = {},
     showApprovalRequest,
+    state = {},
   }: ApprovalControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
       messenger,
-      state: { ...defaultState, ...state },
+      state: { ...getDefaultState(), ...state },
     });
 
     // This assignment is redundant, but TypeScript doesn't know that it becomes
@@ -152,8 +196,36 @@ export class ApprovalController extends BaseController<
    */
   protected registerMessageHandlers(): void {
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:clearApprovals` as const,
-      () => this.clear(),
+      `${controllerName}:clearApprovalRequests` as const,
+      this.clear.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:addApprovalRequest` as const,
+      (
+        opts: AddApprovalOptions<Record<string, Json>>,
+        shouldShowRequest: boolean,
+      ) => {
+        if (shouldShowRequest) {
+          return this.addAndShowApprovalRequest(opts);
+        }
+        return this.add(opts);
+      },
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:hasRequest` as const,
+      this.has.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:acceptRequest` as const,
+      this.accept.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:rejectRequest` as const,
+      this.reject.bind(this),
     );
   }
 
@@ -173,12 +245,9 @@ export class ApprovalController extends BaseController<
    * if any.
    * @returns The approval promise.
    */
-  addAndShowApprovalRequest<RequestData extends Record<string, Json>>(opts: {
-    id?: string;
-    origin: string;
-    type: string;
-    requestData?: RequestData;
-  }): Promise<unknown> {
+  addAndShowApprovalRequest<RequestData extends Record<string, Json>>(
+    opts: AddApprovalOptions<RequestData>,
+  ): Promise<unknown> {
     const promise = this._add(
       opts.origin,
       opts.type,
@@ -205,12 +274,9 @@ export class ApprovalController extends BaseController<
    * if any.
    * @returns The approval promise.
    */
-  add<RequestData extends Record<string, Json>>(opts: {
-    id?: string;
-    origin: string;
-    type: string;
-    requestData?: RequestData;
-  }): Promise<unknown> {
+  add<RequestData extends Record<string, Json>>(
+    opts: AddApprovalOptions<RequestData>,
+  ): Promise<unknown> {
     return this._add(opts.origin, opts.type, opts.id, opts.requestData);
   }
 
@@ -220,12 +286,12 @@ export class ApprovalController extends BaseController<
    * @param id - The id of the approval request.
    * @returns The approval request data associated with the id.
    */
-  get<ApprovalData extends ApprovalRequestData>(
+  get<ApprovalType extends string, ApprovalData extends ApprovalRequestData>(
     id: string,
-  ): Approval<ApprovalData> | undefined {
+  ): ApprovalRequest<ApprovalType, ApprovalData> | undefined {
     const info = this.state.pendingApprovals[id];
     // Typecast: Your guess is as good as mine.
-    return info as Approval<ApprovalData> | undefined;
+    return info as ApprovalRequest<ApprovalType, ApprovalData> | undefined;
   }
 
   /**
@@ -333,7 +399,7 @@ export class ApprovalController extends BaseController<
    * @param id - The id of the approval request.
    * @param value - The value to resolve the approval promise with.
    */
-  resolve(id: string, value?: unknown): void {
+  accept(id: string, value?: unknown): void {
     this._deleteApprovalAndGetCallbacks(id).resolve(value);
   }
 
@@ -361,8 +427,7 @@ export class ApprovalController extends BaseController<
     }
     this._origins.clear();
     this.update((draftState) => {
-      draftState.pendingApprovals = {};
-      draftState.pendingApprovalCount = 0;
+      Object.assign(draftState, getDefaultState());
     });
   }
 
@@ -415,7 +480,7 @@ export class ApprovalController extends BaseController<
     if (!id || typeof id !== 'string') {
       errorMessage = 'Must specify non-empty string id.';
     } else if (this._approvals.has(id)) {
-      errorMessage = `Approval with id '${id}' already exists.`;
+      errorMessage = `Approval request with id '${id}' already exists.`;
     } else if (!origin || typeof origin !== 'string') {
       errorMessage = 'Must specify non-empty string origin.';
     } else if (!type || typeof type !== 'string') {
@@ -457,13 +522,16 @@ export class ApprovalController extends BaseController<
    * @param type - The type associated with the approval request.
    * @param requestData - The request data associated with the approval request.
    */
-  private _addToStore<RequestData extends Record<string, Json>>(
+  private _addToStore<
+    ApprovalType extends string,
+    RequestData extends Record<string, Json>
+  >(
     id: string,
     origin: string,
-    type: string,
+    type: ApprovalType,
     requestData?: RequestData,
   ): void {
-    const approval: Approval<ApprovalRequestData> = {
+    const approval: ApprovalRequest<ApprovalType, ApprovalRequestData> = {
       id,
       origin,
       type,
@@ -519,7 +587,7 @@ export class ApprovalController extends BaseController<
   private _deleteApprovalAndGetCallbacks(id: string): ApprovalCallbacks {
     const callbacks = this._approvals.get(id);
     if (!callbacks) {
-      throw new Error(`Approval with id '${id}' not found.`);
+      throw new Error(`Approval request with id '${id}' not found.`);
     }
 
     this._delete(id);
