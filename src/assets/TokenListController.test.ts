@@ -1,6 +1,6 @@
 import { stub } from 'sinon';
 import nock from 'nock';
-import contractmap from '@metamask/contract-metadata';
+import contractMap from '@metamask/contract-metadata';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
   NetworkController,
@@ -11,17 +11,27 @@ import {
   TokenListController,
   TokenListStateChange,
   GetTokenListState,
+  TokenListMap,
+  ContractMap,
 } from './TokenListController';
 
 const name = 'TokenListController';
 const TOKEN_END_POINT_API = 'https://token-api.airswap-prod.codefi.network';
 const timestamp = Date.now();
 
-const staticTokenList: any = {};
-for (const tokenAddress in contractmap) {
-  const { erc20, logo, ...token } = contractmap[tokenAddress];
+const staticTokenList: TokenListMap = {};
+for (const tokenAddress in contractMap) {
+  const { erc20, logo: filePath, ...token } = (contractMap as ContractMap)[
+    tokenAddress
+  ];
   if (erc20) {
-    staticTokenList[tokenAddress] = { ...token, iconUrl: logo };
+    staticTokenList[tokenAddress] = {
+      ...token,
+      address: tokenAddress,
+      iconUrl: filePath,
+      occurrences: null,
+      aggregators: null,
+    };
   }
 }
 const sampleMainnetTokenList = [
@@ -91,48 +101,6 @@ const sampleMainnetTokenList = [
 ];
 const sampleWithDuplicateSymbols = [
   {
-    address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
-    symbol: 'SNX',
-    decimals: 18,
-    occurrences: 11,
-    aggregators: [
-      'paraswap',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
-    name: 'Synthetix',
-    iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
-  },
-  {
-    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-    symbol: 'SNX',
-    decimals: 18,
-    occurrences: 11,
-    aggregators: [
-      'paraswap',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
-    name: 'Chainlink',
-    iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
-  },
-  {
     address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
     symbol: 'BNT',
     decimals: 18,
@@ -184,15 +152,6 @@ const sampleWithLessThan2Occurences = [
     ],
     name: 'Chainlink',
     iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
-  },
-  {
-    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
-    symbol: 'BNT',
-    decimals: 18,
-    occurrences: 1,
-    aggregators: ['paraswap'],
-    name: 'Bancor',
-    iconUrl: 'https://s3.amazonaws.com/airswap-token-images/BNT.png',
   },
 ];
 const sampleBinanceTokenList = [
@@ -716,7 +675,14 @@ describe('TokenListController', () => {
     });
     expect(controller.state).toStrictEqual(existingState);
     await controller.start();
-    expect(controller.state).toStrictEqual(sampleSingleChainState);
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleSingleChainState.tokenList,
+    );
+    expect(
+      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+    ).toStrictEqual(
+      sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet].data,
+    );
     controller.destroy();
   });
 
@@ -831,7 +797,14 @@ describe('TokenListController', () => {
     });
     expect(controller.state).toStrictEqual(outdatedExistingState);
     await controller.start();
-    expect(controller.state).toStrictEqual(sampleSingleChainState);
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleSingleChainState.tokenList,
+    );
+    expect(
+      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+    ).toStrictEqual(
+      sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet].data,
+    );
     controller.destroy();
   });
 
@@ -884,7 +857,14 @@ describe('TokenListController', () => {
     });
     expect(controller.state).toStrictEqual(existingState);
     await controller.start();
-    expect(controller.state).toStrictEqual(sampleSingleChainState);
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleSingleChainState.tokenList,
+    );
+    expect(
+      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+    ).toStrictEqual(
+      sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
+    );
     network.update({
       provider: {
         type: 'rpc',

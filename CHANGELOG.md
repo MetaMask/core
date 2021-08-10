@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.1.0]
+### Added
+- Controller messenger selector subscriptions ([#551](https://github.com/MetaMask/controllers/pull/551))
+
 ## [14.0.2] - 2021-07-28
 ### Changed
 - Fix `resetPolling` functionality ([#546](https://github.com/MetaMask/controllers/pull/546))
@@ -321,7 +325,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v14.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v14.1.0...HEAD
+[14.1.0]: https://github.com/MetaMask/controllers/compare/v14.0.2...v14.1.0
 [14.0.2]: https://github.com/MetaMask/controllers/compare/v14.0.1...v14.0.2
 [14.0.1]: https://github.com/MetaMask/controllers/compare/v14.0.0...v14.0.1
 [14.0.0]: https://github.com/MetaMask/controllers/compare/v13.2.0...v14.0.0
