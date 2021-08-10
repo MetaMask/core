@@ -732,29 +732,49 @@ export class TransactionController extends BaseController<
       throw new Error('No sign method defined.');
     }
 
-    const gasPrice =
-      (isGasPriceValue(gasValues) && gasValues?.gasPrice) ||
-      getIncreasedPriceFromExisting(
-        transactionMeta.transaction.gasPrice,
-        CANCEL_RATE,
-      );
+    // gasPrice (legacy non EIP1559)
+    const minGasPrice = getIncreasedPriceFromExisting(
+      transactionMeta.transaction.gasPrice,
+      CANCEL_RATE,
+    );
 
+    const gasPirceFromValues =
+      isGasPriceValue(gasValues) && gasValues?.gasPrice;
+
+    const newGasPrice =
+      (gasPirceFromValues &&
+        validateMinimumIncrease(gasPirceFromValues, minGasPrice)) ||
+      minGasPrice;
+
+    // maxFeePerGas (EIP1559)
     const existingMaxFeePerGas = transactionMeta.transaction?.maxFeePerGas;
+    const minMaxFeePerGas = getIncreasedPriceFromExisting(
+      existingMaxFeePerGas,
+      CANCEL_RATE,
+    );
+    const maxFeePerGasValues =
+      isFeeMarketEIP1559Values(gasValues) && gasValues?.maxFeePerGas;
+    const newMaxFeePerGas =
+      (maxFeePerGasValues &&
+        validateMinimumIncrease(maxFeePerGasValues, minMaxFeePerGas)) ||
+      (existingMaxFeePerGas && minMaxFeePerGas);
+
+    // maxPriorityFeePerGas (EIP1559)
     const existingMaxPriorityFeePerGas =
       transactionMeta.transaction?.maxPriorityFeePerGas;
-
-    const newMaxFeePerGas =
-      (isFeeMarketEIP1559Values(gasValues) && gasValues?.maxFeePerGas) ||
-      (existingMaxFeePerGas &&
-        getIncreasedPriceFromExisting(existingMaxFeePerGas, CANCEL_RATE));
+    const minMaxPriorityFeePerGas = getIncreasedPriceFromExisting(
+      existingMaxPriorityFeePerGas,
+      CANCEL_RATE,
+    );
+    const maxPriorityFeePerGasValues =
+      isFeeMarketEIP1559Values(gasValues) && gasValues?.maxPriorityFeePerGas;
     const newMaxPriorityFeePerGas =
-      (isFeeMarketEIP1559Values(gasValues) &&
-        gasValues?.maxPriorityFeePerGas) ||
-      (existingMaxPriorityFeePerGas &&
-        getIncreasedPriceFromExisting(
-          existingMaxPriorityFeePerGas,
-          CANCEL_RATE,
-        ));
+      (maxPriorityFeePerGasValues &&
+        validateMinimumIncrease(
+          maxPriorityFeePerGasValues,
+          minMaxPriorityFeePerGas,
+        )) ||
+      (existingMaxPriorityFeePerGas && minMaxPriorityFeePerGas);
 
     const txParams =
       newMaxFeePerGas && newMaxPriorityFeePerGas
@@ -771,7 +791,7 @@ export class TransactionController extends BaseController<
         : {
             from: transactionMeta.transaction.from,
             gasLimit: transactionMeta.transaction.gas,
-            gasPrice,
+            gasPrice: newGasPrice,
             nonce: transactionMeta.transaction.nonce,
             to: transactionMeta.transaction.from,
             value: '0x0',
