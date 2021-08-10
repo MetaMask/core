@@ -738,8 +738,7 @@ export class TransactionController extends BaseController<
       CANCEL_RATE,
     );
 
-    const gasPriceFromValues =
-      isGasPriceValue(gasValues) && gasValues?.gasPrice;
+    const gasPriceFromValues = isGasPriceValue(gasValues) && gasValues.gasPrice;
 
     const newGasPrice =
       (gasPriceFromValues &&
@@ -753,7 +752,7 @@ export class TransactionController extends BaseController<
       CANCEL_RATE,
     );
     const maxFeePerGasValues =
-      isFeeMarketEIP1559Values(gasValues) && gasValues?.maxFeePerGas;
+      isFeeMarketEIP1559Values(gasValues) && gasValues.maxFeePerGas;
     const newMaxFeePerGas =
       (maxFeePerGasValues &&
         validateMinimumIncrease(maxFeePerGasValues, minMaxFeePerGas)) ||
@@ -767,7 +766,7 @@ export class TransactionController extends BaseController<
       CANCEL_RATE,
     );
     const maxPriorityFeePerGasValues =
-      isFeeMarketEIP1559Values(gasValues) && gasValues?.maxPriorityFeePerGas;
+      isFeeMarketEIP1559Values(gasValues) && gasValues.maxPriorityFeePerGas;
     const newMaxPriorityFeePerGas =
       (maxPriorityFeePerGasValues &&
         validateMinimumIncrease(
@@ -842,8 +841,7 @@ export class TransactionController extends BaseController<
       SPEED_UP_RATE,
     );
 
-    const gasPriceFromValues =
-      isGasPriceValue(gasValues) && gasValues?.gasPrice;
+    const gasPriceFromValues = isGasPriceValue(gasValues) && gasValues.gasPrice;
 
     const newGasPrice =
       (gasPriceFromValues &&
@@ -857,7 +855,7 @@ export class TransactionController extends BaseController<
       SPEED_UP_RATE,
     );
     const maxFeePerGasValues =
-      isFeeMarketEIP1559Values(gasValues) && gasValues?.maxFeePerGas;
+      isFeeMarketEIP1559Values(gasValues) && gasValues.maxFeePerGas;
     const newMaxFeePerGas =
       (maxFeePerGasValues &&
         validateMinimumIncrease(maxFeePerGasValues, minMaxFeePerGas)) ||
@@ -871,7 +869,7 @@ export class TransactionController extends BaseController<
       SPEED_UP_RATE,
     );
     const maxPriorityFeePerGasValues =
-      isFeeMarketEIP1559Values(gasValues) && gasValues?.maxPriorityFeePerGas;
+      isFeeMarketEIP1559Values(gasValues) && gasValues.maxPriorityFeePerGas;
     const newMaxPriorityFeePerGas =
       (maxPriorityFeePerGasValues &&
         validateMinimumIncrease(
