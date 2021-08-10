@@ -738,12 +738,12 @@ export class TransactionController extends BaseController<
       CANCEL_RATE,
     );
 
-    const gasPirceFromValues =
+    const gasPriceFromValues =
       isGasPriceValue(gasValues) && gasValues?.gasPrice;
 
     const newGasPrice =
-      (gasPirceFromValues &&
-        validateMinimumIncrease(gasPirceFromValues, minGasPrice)) ||
+      (gasPriceFromValues &&
+        validateMinimumIncrease(gasPriceFromValues, minGasPrice)) ||
       minGasPrice;
 
     // maxFeePerGas (EIP1559)
@@ -842,12 +842,12 @@ export class TransactionController extends BaseController<
       SPEED_UP_RATE,
     );
 
-    const gasPirceFromValues =
+    const gasPriceFromValues =
       isGasPriceValue(gasValues) && gasValues?.gasPrice;
 
     const newGasPrice =
-      (gasPirceFromValues &&
-        validateMinimumIncrease(gasPirceFromValues, minGasPrice)) ||
+      (gasPriceFromValues &&
+        validateMinimumIncrease(gasPriceFromValues, minGasPrice)) ||
       minGasPrice;
 
     // maxFeePerGas (EIP1559)
