@@ -79,7 +79,7 @@ export type GetApprovalsState = {
 };
 
 export type ClearApprovalRequests = {
-  type: `${typeof controllerName}:clearApprovalRequests`;
+  type: `${typeof controllerName}:clearRequests`;
   handler: () => void;
 };
 
@@ -91,7 +91,7 @@ type AddApprovalOptions<RequestData extends Record<string, Json>> = {
 };
 
 export type AddApprovalRequest = {
-  type: `${typeof controllerName}:addApprovalRequest`;
+  type: `${typeof controllerName}:addRequest`;
   handler: (
     opts: AddApprovalOptions<Record<string, Json>>,
     shouldShowRequest: boolean,
@@ -196,12 +196,12 @@ export class ApprovalController extends BaseController<
    */
   protected registerMessageHandlers(): void {
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:clearApprovalRequests` as const,
+      `${controllerName}:clearRequests` as const,
       this.clear.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:addApprovalRequest` as const,
+      `${controllerName}:addRequest` as const,
       (
         opts: AddApprovalOptions<Record<string, Json>>,
         shouldShowRequest: boolean,

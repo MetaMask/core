@@ -612,7 +612,7 @@ describe('approval controller', () => {
       });
 
       messenger.call(
-        'ApprovalController:addApprovalRequest',
+        'ApprovalController:addRequest',
         { id: 'foo', origin: 'bar.baz', type: TYPE },
         true,
       );
@@ -635,7 +635,7 @@ describe('approval controller', () => {
       });
 
       messenger.call(
-        'ApprovalController:addApprovalRequest',
+        'ApprovalController:addRequest',
         { id: 'foo', origin: 'bar.baz', type: TYPE },
         false,
       );
