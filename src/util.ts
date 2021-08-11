@@ -15,6 +15,8 @@ import { validate } from 'jsonschema';
 import {
   Transaction,
   FetchAllOptions,
+  GasPriceValue,
+  FeeMarketEIP1559Values,
 } from './transaction/TransactionController';
 import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
@@ -709,6 +711,40 @@ export const getIncreasedPriceFromExisting = (
 ): string => {
   return getIncreasedPriceHex(convertPriceToDecimal(value), rate);
 };
+
+export const validateGasValues = (
+  gasValues: GasPriceValue | FeeMarketEIP1559Values,
+) => {
+  Object.keys(gasValues).forEach((key) => {
+    const value = (gasValues as any)[key];
+    if (typeof value !== 'string' || !isHexString(value)) {
+      throw new TypeError(
+        `expected hex string for ${key} but received: ${value}`,
+      );
+    }
+  });
+};
+
+export const isFeeMarketEIP1559Values = (
+  gasValues?: GasPriceValue | FeeMarketEIP1559Values,
+): gasValues is FeeMarketEIP1559Values =>
+  (gasValues as FeeMarketEIP1559Values)?.maxFeePerGas !== undefined ||
+  (gasValues as FeeMarketEIP1559Values)?.maxPriorityFeePerGas !== undefined;
+
+export const isGasPriceValue = (
+  gasValues?: GasPriceValue | FeeMarketEIP1559Values,
+): gasValues is GasPriceValue =>
+  (gasValues as GasPriceValue)?.gasPrice !== undefined;
+
+export function validateMinimumIncrease(proposed: string, min: string) {
+  const proposedDecimal = convertPriceToDecimal(proposed);
+  const minDecimal = convertPriceToDecimal(min);
+  if (proposedDecimal >= minDecimal) {
+    return proposed;
+  }
+  const errorMsg = `The proposed value: ${proposedDecimal} should meet or exceed the minimum value: ${minDecimal}`;
+  throw new Error(errorMsg);
+}
 
 export default {
   BNToHex,
