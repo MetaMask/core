@@ -218,6 +218,7 @@ export interface EtherscanTransactionMeta {
 export interface TransactionConfig extends BaseConfig {
   interval: number;
   sign?: (transaction: Transaction, from: string) => Promise<any>;
+  txHistoryLimit: number;
 }
 
 /**
@@ -423,6 +424,7 @@ export class TransactionController extends BaseController<
     super(config, state);
     this.defaultConfig = {
       interval: 5000,
+      txHistoryLimit: 40,
     };
     this.defaultState = {
       methodData: {},
@@ -554,7 +556,7 @@ export class TransactionController extends BaseController<
     });
 
     transactions.push(transactionMeta);
-    this.update({ transactions: [...transactions] });
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
     this.hub.emit(`unapprovedTransaction`, transactionMeta);
     return { result, transactionMeta };
   }
@@ -705,7 +707,7 @@ export class TransactionController extends BaseController<
     const transactions = this.state.transactions.filter(
       ({ id }) => id !== transactionID,
     );
-    this.update({ transactions: [...transactions] });
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 
   /**
@@ -927,7 +929,7 @@ export class TransactionController extends BaseController<
             },
           };
     transactions.push(newTransactionMeta);
-    this.update({ transactions: [...transactions] });
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
   }
 
@@ -1036,7 +1038,9 @@ export class TransactionController extends BaseController<
     );
     /* istanbul ignore else */
     if (gotUpdates) {
-      this.update({ transactions: [...transactions] });
+      this.update({
+        transactions: this.trimTransactionsForState(transactions),
+      });
     }
   }
 
@@ -1053,7 +1057,7 @@ export class TransactionController extends BaseController<
     validateTransaction(transactionMeta.transaction);
     const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
     transactions[index] = transactionMeta;
-    this.update({ transactions: [...transactions] });
+    this.update({ transactions: this.trimTransactionsForState(transactions) });
   }
 
   /**
@@ -1079,7 +1083,9 @@ export class TransactionController extends BaseController<
       },
     );
 
-    this.update({ transactions: newTransactions });
+    this.update({
+      transactions: this.trimTransactionsForState(newTransactions),
+    });
   }
 
   /**
@@ -1164,9 +1170,59 @@ export class TransactionController extends BaseController<
     });
     // Update state only if new transactions were fetched
     if (allTxs.length > this.state.transactions.length) {
-      this.update({ transactions: allTxs });
+      this.update({ transactions: this.trimTransactionsForState(allTxs) });
     }
     return latestIncomingTxBlockNumber;
+  }
+
+  /**
+   * Trim the amount of transactions that are set on the state. Checks
+   * if the length of the tx history is longer then desired persistence
+   * limit and then if it is removes the oldest confirmed or rejected tx.
+   * Pending or unapproved transactions will not be removed by this
+   * operation. For safety of presenting a fully functional transaction UI
+   * representation, this function will not break apart transactions with the
+   * same nonce, created on the same day, per network. Not accounting for transactions of the same
+   * nonce, same day and network combo can result in confusing or broken experiences
+   * in the UI. The transactions are then updated using the BaseController update.
+   * @param transactions - arrray of transactions to be applied to the state
+   */
+  private trimTransactionsForState(transactions: TransactionMeta[]) {
+    const nonceNetworkSet = new Set();
+    const txsToKeep = transactions.reverse().filter((tx) => {
+      const { chainId, networkID, status, transaction, time } = tx;
+      if (transaction) {
+        const key = `${transaction.nonce}-${chainId ?? networkID}-${new Date(
+          time,
+        ).toDateString()}`;
+        if (nonceNetworkSet.has(key)) {
+          return true;
+        } else if (
+          nonceNetworkSet.size < this.config.txHistoryLimit ||
+          !this.isFinalState(status)
+        ) {
+          nonceNetworkSet.add(key);
+          return true;
+        }
+      }
+      return false;
+    });
+    txsToKeep.reverse();
+    return txsToKeep;
+  }
+
+  /**
+   * Fucntion to determine if the transaction is in a final state
+   * @param status - Transaction status
+   * @returns boolean if the transaction is in a final state
+   */
+  private isFinalState(status: TransactionStatus) {
+    return (
+      status === TransactionStatus.rejected ||
+      status === TransactionStatus.confirmed ||
+      status === TransactionStatus.failed ||
+      status === TransactionStatus.cancelled
+    );
   }
 }
 
