@@ -4,11 +4,21 @@ import nock from 'nock';
 import HttpProvider from 'ethjs-provider-http';
 import EthQuery from 'eth-query';
 import * as util from './util';
-import { Transaction } from './transaction/TransactionController';
+import {
+  Transaction,
+  GasPriceValue,
+  FeeMarketEIP1559Values,
+} from './transaction/TransactionController';
 
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
+
+const MAX_FEE_PER_GAS = 'maxFeePerGas';
+const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
+const GAS_PRICE = 'gasPrice';
+const FAIL = 'lol';
+const PASS = '0x1';
 
 const mockFlags: { [key: string]: any } = {
   estimateGas: null,
@@ -958,6 +968,79 @@ describe('util', () => {
       };
       expect(util.isEIP1559Transaction(eip1559tx)).toBe(true);
       expect(util.isEIP1559Transaction(tx)).toBe(false);
+    });
+  });
+
+  describe('validateGasValues', () => {
+    it('should throw when provided invalid gas values', () => {
+      const gasValues: GasPriceValue = {
+        [GAS_PRICE]: FAIL,
+      };
+      expect(() => util.validateGasValues(gasValues)).toThrow(TypeError);
+      expect(() => util.validateGasValues(gasValues)).toThrow(
+        `expected hex string for ${GAS_PRICE} but received: ${FAIL}`,
+      );
+    });
+    it('should throw when any provided gas values are invalid', () => {
+      const gasValues: FeeMarketEIP1559Values = {
+        [MAX_PRIORITY_FEE_PER_GAS]: PASS,
+        [MAX_FEE_PER_GAS]: FAIL,
+      };
+      expect(() => util.validateGasValues(gasValues)).toThrow(TypeError);
+      expect(() => util.validateGasValues(gasValues)).toThrow(
+        `expected hex string for ${MAX_FEE_PER_GAS} but received: ${FAIL}`,
+      );
+    });
+    it('should return true when provided valid gas values', () => {
+      const gasValues: FeeMarketEIP1559Values = {
+        [MAX_FEE_PER_GAS]: PASS,
+        [MAX_PRIORITY_FEE_PER_GAS]: PASS,
+      };
+      expect(() => util.validateGasValues(gasValues)).not.toThrow(TypeError);
+    });
+  });
+
+  describe('isFeeMarketEIP1559Values', () => {
+    it('should detect if isFeeMarketEIP1559Values', () => {
+      const gasValues = {
+        [MAX_PRIORITY_FEE_PER_GAS]: PASS,
+        [MAX_FEE_PER_GAS]: FAIL,
+      };
+      expect(util.isFeeMarketEIP1559Values(gasValues)).toBe(true);
+      expect(util.isGasPriceValue(gasValues)).toBe(false);
+    });
+  });
+
+  describe('isGasPriceValue', () => {
+    it('should detect if isGasPriceValue', () => {
+      const gasValues: GasPriceValue = {
+        [GAS_PRICE]: PASS,
+      };
+      expect(util.isGasPriceValue(gasValues)).toBe(true);
+      expect(util.isFeeMarketEIP1559Values(gasValues)).toBe(false);
+    });
+  });
+
+  describe('validateMinimumIncrease', () => {
+    it('should throw if increase does not meet minimum requirement', () => {
+      expect(() =>
+        util.validateMinimumIncrease('0x50fd51da', '0x5916a6d6'),
+      ).toThrow(Error);
+      expect(() =>
+        util.validateMinimumIncrease('0x50fd51da', '0x5916a6d6'),
+      ).toThrow(
+        'The proposed value: 1358778842 should meet or exceed the minimum value: 1494656726',
+      );
+    });
+    it('should not throw if increase meets minimum requirement', () => {
+      expect(() =>
+        util.validateMinimumIncrease('0x5916a6d6', '0x5916a6d6'),
+      ).not.toThrow(Error);
+    });
+    it('should not throw if increase exceeds minimum requirement', () => {
+      expect(() =>
+        util.validateMinimumIncrease('0x7162a5ca', '0x5916a6d6'),
+      ).not.toThrow(Error);
     });
   });
 });
