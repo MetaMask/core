@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.2.0]
+### Uncategorized
+- Feature/reduce tx persist ([#550](https://github.com/MetaMask/controllers/pull/550))
+- Allow for speedUp and stop based on provided gasValues from consumer ([#535](https://github.com/MetaMask/controllers/pull/535))
+- Consolidate token list controller data ([#527](https://github.com/MetaMask/controllers/pull/527))
+
 ## [14.1.0]
 ### Added
 - Controller messenger selector subscriptions ([#551](https://github.com/MetaMask/controllers/pull/551))
@@ -325,7 +331,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v14.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v14.2.0...HEAD
+[14.2.0]: https://github.com/MetaMask/controllers/compare/v14.1.0...v14.2.0
 [14.1.0]: https://github.com/MetaMask/controllers/compare/v14.0.2...v14.1.0
 [14.0.2]: https://github.com/MetaMask/controllers/compare/v14.0.1...v14.0.2
 [14.0.1]: https://github.com/MetaMask/controllers/compare/v14.0.0...v14.0.1
