@@ -110,17 +110,12 @@ export type Json =
  */
 export class BaseController<
   N extends string,
-  S extends Record<string, unknown>
+  S extends Record<string, unknown>,
+  messenger extends RestrictedControllerMessenger<N, any, any, string, string>
 > {
   private internalState: IsJsonable<S>;
 
-  protected messagingSystem: RestrictedControllerMessenger<
-    N,
-    any,
-    any,
-    string,
-    string
-  >;
+  protected messagingSystem: messenger;
 
   /**
    * The name of the controller.
@@ -155,7 +150,7 @@ export class BaseController<
     name,
     state,
   }: {
-    messenger: RestrictedControllerMessenger<N, any, any, string, string>;
+    messenger: messenger;
     metadata: StateMetadata<S>;
     name: N;
     state: IsJsonable<S>;

@@ -60,7 +60,8 @@ function getCountMessenger(
 
 class CountController extends BaseController<
   typeof countControllerName,
-  CountControllerState
+  CountControllerState,
+  CountMessenger
 > {
   update(
     callback: (
@@ -653,7 +654,8 @@ describe('getPersistentState', () => {
     >;
     class VisitorController extends BaseController<
       typeof visitorName,
-      VisitorControllerState
+      VisitorControllerState,
+      VisitorMessenger
     > {
       constructor(messagingSystem: VisitorMessenger) {
         super({
@@ -716,7 +718,8 @@ describe('getPersistentState', () => {
 
     class VisitorOverflowController extends BaseController<
       typeof visitorOverflowName,
-      VisitorOverflowControllerState
+      VisitorOverflowControllerState,
+      VisitorOverflowMessenger
     > {
       constructor(messagingSystem: VisitorOverflowMessenger) {
         super({

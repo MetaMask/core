@@ -28,6 +28,14 @@ type FooControllerEvent = {
   payload: [FooControllerState, Patch[]];
 };
 
+type FooMessenger = RestrictedControllerMessenger<
+  'FooController',
+  never,
+  FooControllerEvent,
+  string,
+  never
+>;
+
 const fooControllerStateMetadata = {
   foo: {
     persist: true,
@@ -37,17 +45,10 @@ const fooControllerStateMetadata = {
 
 class FooController extends BaseControllerV2<
   'FooController',
-  FooControllerState
+  FooControllerState,
+  FooMessenger
 > {
-  constructor(
-    messagingSystem: RestrictedControllerMessenger<
-      'FooController',
-      never,
-      FooControllerEvent,
-      string,
-      never
-    >,
-  ) {
+  constructor(messagingSystem: FooMessenger) {
     super({
       messenger: messagingSystem,
       metadata: fooControllerStateMetadata,
