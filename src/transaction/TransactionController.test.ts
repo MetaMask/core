@@ -211,7 +211,7 @@ const ETH_TRANSACTIONS = [
     hash: '0x342e9d73e10004af41d04973139fc7219dbadcbb5629730cfe65e9f9cb15ff91',
     input: '0x11',
     isError: '0',
-    nonce: '1',
+    nonce: '3',
     timeStamp: '1543596356',
     to: '0xb2d191b6fe03c5b8a1ab249cfe88c37553357a23',
     transactionIndex: '13',
@@ -618,6 +618,7 @@ describe('TransactionController', () => {
     });
     expect(controller.config).toStrictEqual({
       interval: 5000,
+      txHistoryLimit: 40,
     });
   });
 
@@ -1262,11 +1263,72 @@ describe('TransactionController', () => {
         value: '0x0',
       });
       await controller.speedUpTransaction(controller.state.transactions[0].id);
-
       expect(controller.state.transactions).toHaveLength(2);
       expect(controller.state.transactions[1].transaction.gasPrice).toBe(
         '0x5916a6d6',
       );
+      resolve('');
+    });
+  });
+  it('should limit tx state to a length of 2', async () => {
+    await new Promise(async (resolve) => {
+      globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+      const controller = new TransactionController(
+        {
+          getNetworkState: () => MOCK_NETWORK.state,
+          onNetworkStateChange: MOCK_NETWORK.subscribe,
+          getProvider: MOCK_NETWORK.getProvider,
+        },
+        {
+          interval: 5000,
+          sign: async (transaction: any) => transaction,
+          txHistoryLimit: 2,
+        },
+      );
+      const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+      await controller.fetchAll(from);
+      await controller.addTransaction({
+        from,
+        nonce: '55555',
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: from,
+        value: '0x0',
+      });
+      expect(controller.state.transactions).toHaveLength(2);
+      expect(controller.state.transactions[0].transaction.gasPrice).toBe(
+        '0x4a817c800',
+      );
+      console.log(controller.state.transactions);
+      resolve('');
+    });
+  });
+
+  it('should allow tx state to be greater than txHistorylimit due to speed up same nonce', async () => {
+    await new Promise(async (resolve) => {
+      const controller = new TransactionController(
+        {
+          getNetworkState: () => MOCK_NETWORK.state,
+          onNetworkStateChange: MOCK_NETWORK.subscribe,
+          getProvider: MOCK_NETWORK.getProvider,
+        },
+        {
+          interval: 5000,
+          sign: async (transaction: any) => transaction,
+          txHistoryLimit: 1,
+        },
+      );
+      const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+      await controller.addTransaction({
+        from,
+        nonce: '1111111',
+        gas: '0x0',
+        gasPrice: '0x50fd51da',
+        to: from,
+        value: '0x0',
+      });
+      await controller.speedUpTransaction(controller.state.transactions[0].id);
+      expect(controller.state.transactions).toHaveLength(2);
       resolve('');
     });
   });
