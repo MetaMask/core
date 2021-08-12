@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added the ability to limit the number of transactions stored (default is 40) ([#550](https://github.com/MetaMask/controllers/pull/550))
 - Added the ability to speedUp and stop based on provided gasValues from consumer ([#535](https://github.com/MetaMask/controllers/pull/535))
-- Consolidate token list controller data ([#527](https://github.com/MetaMask/controllers/pull/527))
+- Consolidate token list controller data. Adds an `address` field to static tokens. ([#527](https://github.com/MetaMask/controllers/pull/527))
 
 ## [14.1.0]
 ### Added
