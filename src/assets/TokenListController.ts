@@ -99,7 +99,7 @@ export class TokenListController extends BaseController<
 
   private chainId: string;
 
-  private useStaticTokenList: boolean;
+  private useTokenDetection: boolean;
 
   /**
    * Creates a TokenListController instance
@@ -111,7 +111,7 @@ export class TokenListController extends BaseController<
    */
   constructor({
     chainId,
-    useStaticTokenList,
+    useTokenDetection,
     onNetworkStateChange,
     onPreferencesStateChange,
     interval = DEFAULT_INTERVAL,
@@ -120,7 +120,7 @@ export class TokenListController extends BaseController<
     state,
   }: {
     chainId: string;
-    useStaticTokenList: boolean;
+    useTokenDetection: boolean;
     onNetworkStateChange: (
       listener: (networkState: NetworkState) => void,
     ) => void;
@@ -147,13 +147,13 @@ export class TokenListController extends BaseController<
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
-    this.useStaticTokenList = useStaticTokenList;
+    this.useTokenDetection = useTokenDetection;
     onNetworkStateChange(async (networkState) => {
       this.chainId = networkState.provider.chainId;
       await safelyExecute(() => this.fetchTokenList());
     });
     onPreferencesStateChange(async (preferencesState) => {
-      this.useStaticTokenList = preferencesState.useStaticTokenList;
+      this.useTokenDetection = preferencesState.useTokenDetection;
       await safelyExecute(() => this.fetchTokenList());
     });
   }
@@ -202,10 +202,10 @@ export class TokenListController extends BaseController<
    * Fetching token list
    */
   async fetchTokenList(): Promise<void> {
-    if (this.useStaticTokenList) {
-      await this.fetchFromStaticTokenList();
-    } else {
+    if (this.useTokenDetection) {
       await this.fetchFromDynamicTokenList();
+    } else {
+      await this.fetchFromStaticTokenList();
     }
   }
 
