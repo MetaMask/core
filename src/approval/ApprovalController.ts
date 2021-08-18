@@ -153,15 +153,14 @@ type ApprovalControllerOptions = {
  */
 export class ApprovalController extends BaseController<
   typeof controllerName,
-  ApprovalControllerState
+  ApprovalControllerState,
+  ApprovalControllerMessenger
 > {
   private _approvals: Map<string, ApprovalCallbacks>;
 
   private _origins: Map<string, Set<string>>;
 
   private _showApprovalRequest: () => void;
-
-  protected messagingSystem: ApprovalControllerMessenger;
 
   /**
    * @param opts - Options bag
@@ -179,10 +178,6 @@ export class ApprovalController extends BaseController<
       messenger,
       state: { ...getDefaultState(), ...state },
     });
-
-    // This assignment is redundant, but TypeScript doesn't know that it becomes
-    // assigned if we don't do it.
-    this.messagingSystem = messenger;
 
     this._approvals = new Map();
     this._origins = new Map();
