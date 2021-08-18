@@ -40,6 +40,14 @@ export type GetCurrencyRateState = {
   handler: () => CurrencyRateState;
 };
 
+type CurrencyRateMessenger = RestrictedControllerMessenger<
+  typeof name,
+  GetCurrencyRateState,
+  CurrencyRateStateChange,
+  never,
+  never
+>;
+
 const metadata = {
   conversionDate: { persist: true, anonymous: true },
   conversionRate: { persist: true, anonymous: true },
@@ -66,7 +74,8 @@ const defaultState = {
  */
 export class CurrencyRateController extends BaseController<
   typeof name,
-  CurrencyRateState
+  CurrencyRateState,
+  CurrencyRateMessenger
 > {
   private mutex = new Mutex();
 
@@ -97,13 +106,7 @@ export class CurrencyRateController extends BaseController<
   }: {
     includeUsdRate?: boolean;
     interval?: number;
-    messenger: RestrictedControllerMessenger<
-      typeof name,
-      GetCurrencyRateState,
-      CurrencyRateStateChange,
-      never,
-      never
-    >;
+    messenger: CurrencyRateMessenger;
     state?: Partial<CurrencyRateState>;
     fetchExchangeRate?: typeof defaultFetchExchangeRate;
   }) {

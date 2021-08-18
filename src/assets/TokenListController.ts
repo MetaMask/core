@@ -72,6 +72,14 @@ interface TokensChainsCache {
   [chainSlug: string]: DataCache;
 }
 
+type TokenListMessenger = RestrictedControllerMessenger<
+  typeof name,
+  GetTokenListState,
+  TokenListStateChange,
+  never,
+  never
+>;
+
 const metadata = {
   tokenList: { persist: true, anonymous: true },
   tokensChainsCache: { persist: true, anonymous: true },
@@ -87,7 +95,8 @@ const defaultState: TokenListState = {
  */
 export class TokenListController extends BaseController<
   typeof name,
-  TokenListState
+  TokenListState,
+  TokenListMessenger
 > {
   private mutex = new Mutex();
 
@@ -129,13 +138,7 @@ export class TokenListController extends BaseController<
     ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
-    messenger: RestrictedControllerMessenger<
-      typeof name,
-      GetTokenListState,
-      TokenListStateChange,
-      never,
-      never
-    >;
+    messenger: TokenListMessenger;
     state?: Partial<TokenListState>;
   }) {
     super({

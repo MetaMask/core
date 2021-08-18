@@ -33,11 +33,11 @@ type SelectorEventHandler<SelectorReturnValue> = (
   previousValue: SelectorReturnValue | undefined,
 ) => void;
 
-type ActionConstraint = {
+export type ActionConstraint = {
   type: string;
   handler: (...args: any) => unknown;
 };
-type EventConstraint = { type: string; payload: unknown[] };
+export type EventConstraint = { type: string; payload: unknown[] };
 
 type EventSubscriptionMap = Map<
   GenericEventHandler | SelectorEventHandler<unknown>,

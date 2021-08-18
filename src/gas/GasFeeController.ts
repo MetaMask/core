@@ -189,6 +189,14 @@ export type GetGasFeeState = {
   handler: () => GasFeeState;
 };
 
+type GasFeeMessenger = RestrictedControllerMessenger<
+  typeof name,
+  GetGasFeeState,
+  GasFeeStateChange,
+  never,
+  never
+>;
+
 const defaultState: GasFeeState = {
   gasFeeEstimates: {},
   estimatedGasFeeTimeBounds: {},
@@ -198,7 +206,11 @@ const defaultState: GasFeeState = {
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
  */
-export class GasFeeController extends BaseController<typeof name, GasFeeState> {
+export class GasFeeController extends BaseController<
+  typeof name,
+  GasFeeState,
+  GasFeeMessenger
+> {
   private intervalId?: NodeJS.Timeout;
 
   private intervalDelay;
@@ -248,13 +260,7 @@ export class GasFeeController extends BaseController<typeof name, GasFeeState> {
     EIP1559APIEndpoint = GAS_FEE_API,
   }: {
     interval?: number;
-    messenger: RestrictedControllerMessenger<
-      typeof name,
-      GetGasFeeState,
-      GasFeeStateChange,
-      never,
-      never
-    >;
+    messenger: GasFeeMessenger;
     state?: GasFeeState;
     fetchGasEstimates?: typeof defaultFetchGasEstimates;
     fetchEthGasPriceEstimate?: typeof defaultFetchEthGasPriceEstimate;
