@@ -121,12 +121,12 @@ export type ApprovalControllerActions =
   | AcceptRequest
   | RejectRequest;
 
-export type ApprovalsStateChange = {
+export type ApprovalStateChange = {
   type: `${typeof controllerName}:stateChange`;
   payload: [ApprovalControllerState, Patch[]];
 };
 
-export type ApprovalControllerEvents = ApprovalsStateChange;
+export type ApprovalControllerEvents = ApprovalStateChange;
 
 export type ApprovalControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -189,7 +189,7 @@ export class ApprovalController extends BaseController<
    * Constructor helper for registering this controller's messaging system
    * actions.
    */
-  protected registerMessageHandlers(): void {
+  private registerMessageHandlers(): void {
     this.messagingSystem.registerActionHandler(
       `${controllerName}:clearRequests` as const,
       this.clear.bind(this),
@@ -281,12 +281,10 @@ export class ApprovalController extends BaseController<
    * @param id - The id of the approval request.
    * @returns The approval request data associated with the id.
    */
-  get<ApprovalType extends string, ApprovalData extends ApprovalRequestData>(
+  get(
     id: string,
-  ): ApprovalRequest<ApprovalType, ApprovalData> | undefined {
-    const info = this.state.pendingApprovals[id];
-    // Typecast: Your guess is as good as mine.
-    return info as ApprovalRequest<ApprovalType, ApprovalData> | undefined;
+  ): ApprovalRequest<string, ApprovalRequestData> | undefined {
+    return this.state.pendingApprovals[id];
   }
 
   /**
@@ -421,9 +419,7 @@ export class ApprovalController extends BaseController<
       this.reject(id, rejectionError);
     }
     this._origins.clear();
-    this.update((draftState) => {
-      Object.assign(draftState, getDefaultState());
-    });
+    this.update(() => getDefaultState());
   }
 
   /**
@@ -553,8 +549,8 @@ export class ApprovalController extends BaseController<
   private _delete(id: string): void {
     this._approvals.delete(id);
 
-    // The approval with the specified id is guaranteed to exist by the
-    // construction of this controller.
+    // This method is only called after verifying that the approval with the
+    // specified id exists.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const { origin, type } = this.state.pendingApprovals[id]!;
 
