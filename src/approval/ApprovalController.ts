@@ -240,8 +240,8 @@ export class ApprovalController extends BaseController<
    * if any.
    * @returns The approval promise.
    */
-  addAndShowApprovalRequest<RequestData extends Record<string, Json>>(
-    opts: AddApprovalOptions<RequestData>,
+  addAndShowApprovalRequest(
+    opts: AddApprovalOptions<Record<string, Json>>,
   ): Promise<unknown> {
     const promise = this._add(
       opts.origin,
@@ -269,9 +269,7 @@ export class ApprovalController extends BaseController<
    * if any.
    * @returns The approval promise.
    */
-  add<RequestData extends Record<string, Json>>(
-    opts: AddApprovalOptions<RequestData>,
-  ): Promise<unknown> {
+  add(opts: AddApprovalOptions<Record<string, Json>>): Promise<unknown> {
     return this._add(opts.origin, opts.type, opts.id, opts.requestData);
   }
 
