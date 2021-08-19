@@ -152,12 +152,16 @@ export class TokenListController extends BaseController<
     this.chainId = chainId;
     this.useStaticTokenList = useStaticTokenList;
     onNetworkStateChange(async (networkState) => {
-      this.chainId = networkState.provider.chainId;
-      await safelyExecute(() => this.fetchTokenList());
+      if (this.chainId !== networkState.provider.chainId) {
+        this.chainId = networkState.provider.chainId;
+        await this.restart();
+      }
     });
     onPreferencesStateChange(async (preferencesState) => {
-      this.useStaticTokenList = preferencesState.useStaticTokenList;
-      await safelyExecute(() => this.fetchTokenList());
+      if (this.useStaticTokenList !== preferencesState.useStaticTokenList) {
+        this.useStaticTokenList = preferencesState.useStaticTokenList;
+        await this.restart();
+      }
     });
   }
 
@@ -165,6 +169,14 @@ export class TokenListController extends BaseController<
    * Start polling for the token list
    */
   async start() {
+    await this.startPolling();
+  }
+
+  /**
+   * Restart polling for the token list
+   */
+  async restart() {
+    this.stopPolling();
     await this.startPolling();
   }
 

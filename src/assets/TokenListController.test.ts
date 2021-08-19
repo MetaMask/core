@@ -945,6 +945,46 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
+  it('should switch between static and dynamic list only if useStaticTokenList change', async () => {
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .reply(200, sampleMainnetTokenList)
+      .persist();
+    const messenger = getRestrictedMessenger();
+    const controller = new TokenListController({
+      chainId: NetworksChainId.mainnet,
+      useStaticTokenList: false,
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      messenger,
+      interval: 100,
+    });
+    await controller.start();
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleSingleChainState.tokenList,
+    );
+
+    preferences.update({
+      ipfsGateway: 'https://ipfs.infura.io/ipfs/',
+    });
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 50));
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleSingleChainState.tokenList,
+    );
+    expect(
+      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+    ).toStrictEqual(sampleMainnetTokenList);
+
+    preferences.update({
+      useStaticTokenList: true,
+    });
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 50));
+    expect(controller.state.tokenList).toStrictEqual(staticTokenList);
+    expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+    controller.destroy();
+  });
+
   it('should switch between static and dynamic list when the preference change after network change', async () => {
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${NetworksChainId.mainnet}`)
