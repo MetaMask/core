@@ -83,17 +83,17 @@ export type ClearApprovalRequests = {
   handler: () => void;
 };
 
-type AddApprovalOptions<RequestData extends Record<string, Json>> = {
+type AddApprovalOptions = {
   id?: string;
   origin: string;
   type: string;
-  requestData?: RequestData;
+  requestData?: Record<string, Json>;
 };
 
 export type AddApprovalRequest = {
   type: `${typeof controllerName}:addRequest`;
   handler: (
-    opts: AddApprovalOptions<Record<string, Json>>,
+    opts: AddApprovalOptions,
     shouldShowRequest: boolean,
   ) => ReturnType<ApprovalController['add']>;
 };
@@ -197,10 +197,7 @@ export class ApprovalController extends BaseController<
 
     this.messagingSystem.registerActionHandler(
       `${controllerName}:addRequest` as const,
-      (
-        opts: AddApprovalOptions<Record<string, Json>>,
-        shouldShowRequest: boolean,
-      ) => {
+      (opts: AddApprovalOptions, shouldShowRequest: boolean) => {
         if (shouldShowRequest) {
           return this.addAndShowApprovalRequest(opts);
         }
@@ -240,9 +237,7 @@ export class ApprovalController extends BaseController<
    * if any.
    * @returns The approval promise.
    */
-  addAndShowApprovalRequest(
-    opts: AddApprovalOptions<Record<string, Json>>,
-  ): Promise<unknown> {
+  addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown> {
     const promise = this._add(
       opts.origin,
       opts.type,
@@ -269,7 +264,7 @@ export class ApprovalController extends BaseController<
    * if any.
    * @returns The approval promise.
    */
-  add(opts: AddApprovalOptions<Record<string, Json>>): Promise<unknown> {
+  add(opts: AddApprovalOptions): Promise<unknown> {
     return this._add(opts.origin, opts.type, opts.id, opts.requestData);
   }
 
@@ -470,11 +465,11 @@ export class ApprovalController extends BaseController<
    * @param requestData - The request data associated with the approval request.
    * @returns The approval promise.
    */
-  private _add<RequestData extends Record<string, Json>>(
+  private _add(
     origin: string,
     type: string,
     id: string = nanoid(),
-    requestData?: RequestData,
+    requestData?: Record<string, Json>,
   ): Promise<unknown> {
     this._validateAddParams(id, origin, type, requestData);
 
@@ -500,11 +495,11 @@ export class ApprovalController extends BaseController<
    * @param type - The type associated with the approval request.
    * @param requestData - The request data associated with the approval request.
    */
-  private _validateAddParams<RequestData extends Record<string, Json>>(
+  private _validateAddParams(
     id: string,
     origin: string,
     type: string,
-    requestData?: RequestData,
+    requestData?: Record<string, Json>,
   ): void {
     let errorMessage = null;
     if (!id || typeof id !== 'string') {
@@ -552,16 +547,13 @@ export class ApprovalController extends BaseController<
    * @param type - The type associated with the approval request.
    * @param requestData - The request data associated with the approval request.
    */
-  private _addToStore<
-    ApprovalType extends string,
-    RequestData extends Record<string, Json>
-  >(
+  private _addToStore(
     id: string,
     origin: string,
-    type: ApprovalType,
-    requestData?: RequestData,
+    type: string,
+    requestData?: Record<string, Json>,
   ): void {
-    const approval: ApprovalRequest<ApprovalType, ApprovalRequestData> = {
+    const approval: ApprovalRequest<string, Record<string, Json> | null> = {
       id,
       origin,
       type,
