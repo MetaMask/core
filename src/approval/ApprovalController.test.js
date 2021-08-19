@@ -108,6 +108,9 @@ describe('ApprovalController: Input Validation', () => {
       expect(() => approvalController.has({ type: true })).toThrow(
         getInvalidHasTypeError(),
       );
+      expect(() =>
+        approvalController.has({ origin: 'foo', type: true }),
+      ).toThrow(getInvalidHasTypeError());
     });
   });
 
@@ -196,7 +199,7 @@ function getInvalidTypeError(code) {
 }
 
 function getInvalidHasParamsError() {
-  return getError('Must specify non-empty string id, origin, or type.');
+  return getError('Must specify a valid combination of id, origin, and type.');
 }
 
 function getApprovalCountParamsError() {

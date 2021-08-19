@@ -281,9 +281,7 @@ export class ApprovalController extends BaseController<
    * @param id - The id of the approval request.
    * @returns The approval request data associated with the id.
    */
-  get(
-    id: string,
-  ): ApprovalRequest<string, ApprovalRequestData> | undefined {
+  get(id: string): ApprovalRequest<string, ApprovalRequestData> | undefined {
     return this.state.pendingApprovals[id];
   }
 
@@ -333,6 +331,47 @@ export class ApprovalController extends BaseController<
     return this.state.pendingApprovalCount;
   }
 
+  // These signatures create a meaningful difference when this method is called.
+  /* eslint-disable @typescript-eslint/unified-signatures */
+  /**
+   * Checks if there's a pending approval request with the given ID.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The ID to check for.
+   * @returns `true` if a matching approval is found, and `false` otherwise.
+   */
+  has(opts: { id: string }): boolean;
+
+  /**
+   * Checks if there's any pending approval request with the given origin.
+   *
+   * @param opts - Options bag.
+   * @param opts.origin - The origin to check for.
+   * @returns `true` if a matching approval is found, and `false` otherwise.
+   */
+  has(opts: { origin: string }): boolean;
+
+  /**
+   * Checks if there's any pending approval request with the given type.
+   *
+   * @param opts - Options bag.
+   * @param opts.type - The type to check for.
+   * @returns `true` if a matching approval is found, and `false` otherwise.
+   */
+  has(opts: { type: string }): boolean;
+
+  /**
+   * Checks if there's any pending approval request with the given origin and
+   * type.
+   *
+   * @param opts - Options bag.
+   * @param opts.origin - The origin to check for.
+   * @param opts.type - The type to check for.
+   * @returns `true` if a matching approval is found, and `false` otherwise.
+   */
+  has(opts: { origin: string; type: string }): boolean;
+  /* eslint-enable @typescript-eslint/unified-signatures */
+
   /**
    * Checks if there's a pending approval request per the given parameters.
    * At least one parameter must be specified. An error will be thrown if the
@@ -358,23 +397,23 @@ export class ApprovalController extends BaseController<
       return this._approvals.has(id);
     }
 
+    if (_type && typeof _type !== 'string') {
+      throw new Error('May not specify non-string type.');
+    }
+
     if (origin) {
       if (typeof origin !== 'string') {
         throw new Error('May not specify non-string origin.');
       }
 
       // Check origin and type pair if type also specified
-      if (_type && typeof _type === 'string') {
+      if (_type) {
         return Boolean(this._origins.get(origin)?.has(_type));
       }
       return this._origins.has(origin);
     }
 
     if (_type) {
-      if (typeof _type !== 'string') {
-        throw new Error('May not specify non-string type.');
-      }
-
       for (const approval of Object.values(this.state.pendingApprovals)) {
         if (approval.type === _type) {
           return true;
@@ -382,7 +421,9 @@ export class ApprovalController extends BaseController<
       }
       return false;
     }
-    throw new Error('Must specify non-empty string id, origin, or type.');
+    throw new Error(
+      'Must specify a valid combination of id, origin, and type.',
+    );
   }
 
   /**
