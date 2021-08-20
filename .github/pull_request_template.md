@@ -21,8 +21,8 @@ _What type of change have you made?_
 * ADDED: 
    * _Append ADDED: to your PR title_
    * _Describe the change you have made_
-* DEPRICATED: 
-   * _Append DEPRICATED: to your PR title_
+* DEPRECATED: 
+   * _Append DEPRECATED: to your PR title_
    * _Describe the change you have made_
 * SECURITY: 
    * _Append SECURITY: to your PR title_
