@@ -8,31 +8,31 @@ Please ensure that any applicable requirements below are satisfied before submit
 
 _What type of change have you made?_
 
-* BREAKING:
-   * _Append BREAKING: to your PR title_
-   * _Describe the how to patch your code for the breaking changes._
-   * _Create PRs for other projects with patches to breaking changes._
-* FIXED:
-   * _Append FIXED: to your PR title_
-   * _Describe the change you have made_
-* CHANGED:
-   * _Append CHANGED: to your PR title_
-   * _Describe the change you have made_
-* ADDED: 
-   * _Append ADDED: to your PR title_
-   * _Describe the change you have made_
-* DEPRECATED: 
-   * _Append DEPRECATED: to your PR title_
-   * _Describe the change you have made_
-* SECURITY: 
-   * _Append SECURITY: to your PR title_
-   * _Describe the change you have made_
+- BREAKING:
+  - _Append BREAKING: to your PR title_
+  - _Describe the how to patch your code for the breaking changes._
+  - _Create PRs for other projects with patches to breaking changes._
+- FIXED:
+  - _Append FIXED: to your PR title_
+  - _Describe the change you have made_
+- CHANGED:
+  - _Append CHANGED: to your PR title_
+  - _Describe the change you have made_
+- ADDED:
+  - _Append ADDED: to your PR title_
+  - _Describe the change you have made_
+- DEPRECATED:
+  - _Append DEPRECATED: to your PR title_
+  - _Describe the change you have made_
+- SECURITY:
+  - _Append SECURITY: to your PR title_
+  - _Describe the change you have made_
 
 **Checklist**
 
-* [ ] There is a related GitHub issue
-* [ ] Tests are included if applicable
-* [ ] Any added code is fully documented
+- [ ] There is a related GitHub issue
+- [ ] Tests are included if applicable
+- [ ] Any added code is fully documented
 
 **Issue**
 
