@@ -15,8 +15,6 @@ const TYPE = 'TYPE';
 const controllerName = 'ApprovalController';
 
 function getRestrictedMessenger() {
-  // The 'Other' types are included to demonstrate that this all works with a
-  // controller messenger that includes types from other controllers.
   const controllerMessenger = new ControllerMessenger<
     ApprovalControllerActions,
     ApprovalControllerEvents

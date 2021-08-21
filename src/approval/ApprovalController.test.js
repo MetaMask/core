@@ -3,8 +3,6 @@ const { ControllerMessenger } = require('../ControllerMessenger');
 const { ApprovalController } = require('./ApprovalController');
 
 function getRestrictedMessenger() {
-  // The 'Other' types are included to demonstrate that this all works with a
-  // controller messenger that includes types from other controllers.
   const controllerMessenger = new ControllerMessenger();
   const messenger = controllerMessenger.getRestricted({
     name: 'ApprovalController',
