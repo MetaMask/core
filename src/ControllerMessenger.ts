@@ -1,6 +1,4 @@
-import utils from './util';
-
-const { safeApply } = utils;
+import { safeApply } from './util';
 
 type ActionHandler<Action, ActionType> = (
   ...args: ExtractActionParameters<Action, ActionType>
