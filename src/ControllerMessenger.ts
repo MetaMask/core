@@ -1,3 +1,7 @@
+import utils from './util';
+
+const { safeApply } = utils;
+
 type ActionHandler<Action, ActionType> = (
   ...args: ExtractActionParameters<Action, ActionType>
 ) => ExtractActionResponse<Action, ActionType>;
@@ -452,14 +456,17 @@ export class ControllerMessenger<
       for (const [handler, selector] of subscribers.entries()) {
         if (selector) {
           const previousValue = this.eventPayloadCache.get(handler);
-          const newValue = selector(...payload);
+          const [newValue, selectorError] = safeApply(selector, payload);
+          if (selectorError) {
+            continue;
+          }
 
           if (newValue !== previousValue) {
             this.eventPayloadCache.set(handler, newValue);
-            handler(newValue, previousValue);
+            safeApply(handler, [newValue, previousValue]);
           }
         } else {
-          (handler as GenericEventHandler)(...payload);
+          safeApply(handler as GenericEventHandler, payload);
         }
       }
     }

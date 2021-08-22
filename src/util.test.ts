@@ -276,12 +276,33 @@ describe('util', () => {
   });
 
   describe('safelyExecute', () => {
+    let consoleSpy: jest.SpyInstance;
+    beforeAll(() => {
+      consoleSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+    });
+
+    afterAll(() => {
+      consoleSpy.mockRestore();
+    });
+
     it('should swallow errors', async () => {
       expect(
         await util.safelyExecute(() => {
           throw new Error('ahh');
         }),
       ).toBeUndefined();
+    });
+
+    it('should log swallowed errors', async () => {
+      expect(
+        await util.safelyExecute(() => {
+          throw new Error('ahh');
+        }, true),
+      ).toBeUndefined();
+      expect(consoleSpy).toHaveBeenCalledTimes(1);
+      expect(consoleSpy).toHaveBeenCalledWith(new Error('ahh'));
     });
 
     it('should call retry function', async () => {
@@ -300,12 +321,33 @@ describe('util', () => {
   });
 
   describe('safelyExecuteWithTimeout', () => {
+    let consoleSpy: jest.SpyInstance;
+    beforeAll(() => {
+      consoleSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+    });
+
+    afterAll(() => {
+      consoleSpy.mockRestore();
+    });
+
     it('should swallow errors', async () => {
       expect(
         await util.safelyExecuteWithTimeout(() => {
           throw new Error('ahh');
         }),
       ).toBeUndefined();
+    });
+
+    it('should log swallowed errors', async () => {
+      expect(
+        await util.safelyExecuteWithTimeout(() => {
+          throw new Error('ahh');
+        }, true),
+      ).toBeUndefined();
+      expect(consoleSpy).toHaveBeenCalledTimes(1);
+      expect(consoleSpy).toHaveBeenCalledWith(new Error('ahh'));
     });
 
     it('should resolve', async () => {
@@ -321,6 +363,58 @@ describe('util', () => {
           return new Promise((res) => setTimeout(res, 800));
         }),
       ).toBeUndefined();
+    });
+  });
+
+  describe('safeApply', () => {
+    let setTimeoutSpy: jest.SpyInstance;
+    let setTimeoutCallback: ((...args: any[]) => void) | undefined;
+    beforeAll(() => {
+      setTimeoutSpy = jest
+        .spyOn(globalThis, 'setTimeout')
+        .mockImplementation((callback: (...args: any[]) => void) => {
+          setTimeoutCallback = jest.fn(callback);
+          return 1 as any;
+        });
+    });
+
+    afterEach(() => {
+      setTimeoutCallback = undefined;
+    });
+
+    afterAll(() => {
+      setTimeoutSpy.mockRestore();
+    });
+
+    it('should return expected value in tuple if no error is thrown', () => {
+      const func = jest.fn((arg: number) => {
+        return arg * 2;
+      });
+
+      expect(util.safeApply(func, [7])).toStrictEqual([14, undefined]);
+
+      expect(func).toHaveBeenCalledTimes(1);
+      expect(func).toHaveBeenCalledWith(7);
+
+      expect(setTimeoutSpy).not.toHaveBeenCalled();
+      expect(setTimeoutCallback).toBeUndefined();
+    });
+
+    it('should swallow errors by passing them to setTimeout', () => {
+      const func = jest.fn((arg: string) => {
+        throw new Error(arg);
+      });
+
+      expect(util.safeApply(func, ['foo'])).toStrictEqual([
+        undefined,
+        new Error('foo'),
+      ]);
+
+      expect(func).toHaveBeenCalledTimes(1);
+      expect(func).toHaveBeenCalledWith('foo');
+
+      expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
+      expect(setTimeoutCallback).toThrow(new Error('foo'));
     });
   });
 

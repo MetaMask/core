@@ -234,6 +234,24 @@ describe('ControllerMessenger', () => {
     expect(handler2.callCount).toStrictEqual(1);
   });
 
+  it('should publish event to many subscribers, even if one throws', () => {
+    type MessageEvent = { type: 'message'; payload: [string] };
+    const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
+
+    const handler1 = sinon.fake(() => {
+      throw new Error('errorInHandler');
+    });
+    const handler2 = sinon.stub();
+    controllerMessenger.subscribe('message', handler1);
+    controllerMessenger.subscribe('message', handler2);
+    controllerMessenger.publish('message', 'hello');
+
+    expect(handler1.calledWithExactly('hello')).toStrictEqual(true);
+    expect(handler1.callCount).toStrictEqual(1);
+    expect(handler2.calledWithExactly('hello')).toStrictEqual(true);
+    expect(handler2.callCount).toStrictEqual(1);
+  });
+
   it('should publish event with selector to subscriber', () => {
     type MessageEvent = {
       type: 'complexMessage';
@@ -337,6 +355,38 @@ describe('ControllerMessenger', () => {
       selector.getCall(3).calledWithExactly({ prop1: 'a', prop3: 'c' }),
     ).toStrictEqual(true);
     expect(selector.callCount).toStrictEqual(4);
+  });
+
+  it('should publish event to many subscribers with different selectors, even if one throws', () => {
+    type MessageEvent = {
+      type: 'complexMessage';
+      payload: [Record<string, unknown>];
+    };
+    const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
+
+    const handler1 = sinon.stub();
+    const selector1 = sinon.fake((_obj: Record<string, unknown>) => {
+      throw new Error('selectorError');
+    });
+
+    const handler2 = sinon.stub();
+    const selector2 = sinon.fake((obj: Record<string, unknown>) => obj.prop1);
+
+    controllerMessenger.subscribe('complexMessage', handler1, selector1);
+    controllerMessenger.subscribe('complexMessage', handler2, selector2);
+    controllerMessenger.publish('complexMessage', { prop1: 'a', prop2: 'b' });
+
+    expect(handler1.callCount).toStrictEqual(0);
+    expect(handler2.calledWithExactly('a', undefined)).toStrictEqual(true);
+    expect(handler2.callCount).toStrictEqual(1);
+    expect(
+      selector1.getCall(0).calledWithExactly({ prop1: 'a', prop2: 'b' }),
+    ).toStrictEqual(true);
+    expect(selector1.callCount).toStrictEqual(1);
+    expect(
+      selector2.getCall(0).calledWithExactly({ prop1: 'a', prop2: 'b' }),
+    ).toStrictEqual(true);
+    expect(selector2.callCount).toStrictEqual(1);
   });
 
   it('should not call subscriber after unsubscribing', () => {

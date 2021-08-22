@@ -291,7 +291,6 @@ export async function safelyExecute(
   try {
     return await operation();
   } catch (error) {
-    /* istanbul ignore next */
     if (logError) {
       console.error(error);
     }
@@ -324,11 +323,41 @@ export async function safelyExecuteWithTimeout(
       ),
     ]);
   } catch (error) {
-    /* istanbul ignore next */
     if (logError) {
       console.error(error);
     }
     return undefined;
+  }
+}
+
+/**
+ * Uses Reflect.apply to call the given function such that it will not
+ * interrupt the current call stack if it throws an exception.
+ *
+ * Errors from the call to Reflect.apply are caught and re-thrown in a
+ * setTimeout callback.
+ *
+ * @param func - The function to call.
+ * @param thisArgument - The object to use as the "this" object of the function.
+ * @param funcArgs - The arguments to call the function with.
+ */
+export function safeApply<
+  ThisArgument,
+  FunctionArguments extends unknown[],
+  ReturnValue
+>(
+  func: (this: ThisArgument, ...args: FunctionArguments) => ReturnValue,
+  funcArgs: FunctionArguments,
+  thisArgument: ThisArgument = null as any,
+): [ReturnValue, undefined] | [undefined, Error] {
+  try {
+    return [Reflect.apply(func, thisArgument, funcArgs), undefined];
+  } catch (error) {
+    // Throw error after timeout so as not to interrupt the stack
+    setTimeout(() => {
+      throw error;
+    });
+    return [undefined, error];
   }
 }
 
@@ -756,6 +785,7 @@ export default {
   hexToText,
   isSmartContractCode,
   normalizeTransaction,
+  safeApply,
   safelyExecute,
   safelyExecuteWithTimeout,
   successfulFetch,
