@@ -10,17 +10,14 @@ const controllerName = 'ApprovalController';
 type ApprovalPromiseResolve = (value?: unknown) => void;
 type ApprovalPromiseReject = (error?: Error) => void;
 
-type ApprovalRequestData = Record<string, unknown> | null;
+type ApprovalRequestData = Record<string, Json> | null;
 
-interface ApprovalCallbacks {
+type ApprovalCallbacks = {
   resolve: ApprovalPromiseResolve;
   reject: ApprovalPromiseReject;
-}
+};
 
-export type ApprovalRequest<
-  Type extends string,
-  RequestData extends ApprovalRequestData
-> = {
+export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
   /**
    * The ID of the approval request.
    */
@@ -39,7 +36,7 @@ export type ApprovalRequest<
   /**
    * The type of the approval request.
    */
-  type: Type;
+  type: string;
 
   /**
    * Additional data associated with the request.
@@ -51,10 +48,7 @@ export type ApprovalRequest<
 type ShowApprovalRequest = () => void | Promise<void>;
 
 export type ApprovalControllerState = {
-  pendingApprovals: Record<
-    string,
-    ApprovalRequest<string, Record<string, Json>>
-  >;
+  pendingApprovals: Record<string, ApprovalRequest<Record<string, Json>>>;
   pendingApprovalCount: number;
 };
 
@@ -274,7 +268,7 @@ export class ApprovalController extends BaseController<
    * @param id - The id of the approval request.
    * @returns The approval request data associated with the id.
    */
-  get(id: string): ApprovalRequest<string, ApprovalRequestData> | undefined {
+  get(id: string): ApprovalRequest<ApprovalRequestData> | undefined {
     return this.state.pendingApprovals[id];
   }
 
@@ -553,7 +547,7 @@ export class ApprovalController extends BaseController<
     type: string,
     requestData?: Record<string, Json>,
   ): void {
-    const approval: ApprovalRequest<string, Record<string, Json> | null> = {
+    const approval: ApprovalRequest<Record<string, Json> | null> = {
       id,
       origin,
       type,
@@ -562,6 +556,7 @@ export class ApprovalController extends BaseController<
     };
 
     this.update((draftState) => {
+      // Typecast: ts(2589)
       draftState.pendingApprovals[id] = approval as any;
       draftState.pendingApprovalCount = Object.keys(
         draftState.pendingApprovals,
