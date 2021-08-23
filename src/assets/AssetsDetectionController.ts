@@ -332,6 +332,9 @@ export class AssetsDetectionController extends BaseController<
         tokensToDetect.push(address);
       }
     }
+    const sliceOfTokensToDetect = [];
+    sliceOfTokensToDetect[0] = tokensToDetect.slice(0,1000);
+    sliceOfTokensToDetect[1] = tokensToDetect.slice(1000,tokensToDetect.length - 1);
 
     const { selectedAddress } = this.config;
     /* istanbul ignore else */
@@ -339,40 +342,42 @@ export class AssetsDetectionController extends BaseController<
       return;
     }
 
-    await safelyExecute(async () => {
-      const balances = await this.getBalancesInSingleCall(
-        selectedAddress,
-        tokensToDetect,
-      );
-      const tokensToAdd = [];
-      for (const tokenAddress in balances) {
-        let ignored;
-        /* istanbul ignore else */
-        const { ignoredTokens } = this.getTokensState();
-        if (ignoredTokens.length) {
-          ignored = ignoredTokens.find(
-            (ignoredTokenAddress) =>
-              ignoredTokenAddress === toChecksumHexAddress(tokenAddress),
-          );
+    for (const tokensSlice of sliceOfTokensToDetect) {
+      await safelyExecute(async () => {
+        const balances = await this.getBalancesInSingleCall(
+          selectedAddress,
+          tokensSlice,
+        );
+        const tokensToAdd = [];
+        for (const tokenAddress in balances) {
+          let ignored;
+          /* istanbul ignore else */
+          const { ignoredTokens } = this.getTokensState();
+          if (ignoredTokens.length) {
+            ignored = ignoredTokens.find(
+              (ignoredTokenAddress) =>
+                ignoredTokenAddress === toChecksumHexAddress(tokenAddress),
+            );
+          }
+          const caseInsensitiveTokenKey =
+            Object.keys(tokenList).find(
+              (i) => i.toLowerCase() === tokenAddress.toLowerCase(),
+            ) || '';
+  
+          if (ignored === undefined) {
+            tokensToAdd.push({
+              address: tokenAddress,
+              decimals: tokenList[caseInsensitiveTokenKey].decimals,
+              symbol: tokenList[caseInsensitiveTokenKey].symbol,
+            });
+          }
         }
-        const caseInsensitiveTokenKey =
-          Object.keys(tokenList).find(
-            (i) => i.toLowerCase() === tokenAddress.toLowerCase(),
-          ) || '';
-
-        if (ignored === undefined) {
-          tokensToAdd.push({
-            address: tokenAddress,
-            decimals: tokenList[caseInsensitiveTokenKey].decimals,
-            symbol: tokenList[caseInsensitiveTokenKey].symbol,
-          });
+  
+        if (tokensToAdd.length) {
+          await this.addTokens(tokensToAdd);
         }
-      }
-
-      if (tokensToAdd.length) {
-        await this.addTokens(tokensToAdd);
-      }
-    });
+      });
+    }
   }
 
   /**
