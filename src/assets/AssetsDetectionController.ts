@@ -128,6 +128,7 @@ export interface AssetsDetectionConfig extends BaseConfig {
   networkType: NetworkType;
   selectedAddress: string;
   tokens: Token[];
+  chainId: string;
 }
 
 /**
@@ -268,7 +269,7 @@ export class AssetsDetectionController extends BaseController<
       }
     });
     onNetworkStateChange(({ provider }) => {
-      this.configure({ networkType: provider.type });
+      this.configure({ networkType: provider.type, chainId: provider.chainId });
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;
     this.getBalancesInSingleCall = getBalancesInSingleCall;
@@ -351,7 +352,7 @@ export class AssetsDetectionController extends BaseController<
         const { ignoredTokens } = this.getTokensState();
         if (ignoredTokens.length) {
           ignored = ignoredTokens.find(
-            (token) => token.address === toChecksumHexAddress(tokenAddress),
+            (ignoredTokenAddress) => ignoredTokenAddress === toChecksumHexAddress(tokenAddress),
           );
         }
         if (!ignored) {

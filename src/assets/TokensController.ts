@@ -84,11 +84,12 @@ export type SuggestedAssetMeta =
  * @property allTokens - Object containing tokens per network and account
  * @property suggestedAssets - List of suggested assets associated with the active vault
  * @property tokens - List of tokens associated with the active vault
- * @property ignoredTokens - List of tokens that should be ignored
+ * @property ignoredTokens - Object containing hidden/ignored tokens per account and network
  */
 export interface TokensState extends BaseState {
   allTokens: { [key: string]: { [key: string]: Token[] } };
-  ignoredTokens: Token[];
+  allIgnoredTokens: { [key: string]: { [key: string]: string[] } };
+  ignoredTokens: string[];
   suggestedAssets: SuggestedAssetMeta[];
   tokens: Token[];
 }
@@ -165,6 +166,7 @@ export class TokensController extends BaseController<
 
     this.defaultState = {
       allTokens: {},
+      allIgnoredTokens: {},
       ignoredTokens: [],
       suggestedAssets: [],
       tokens: [],
@@ -476,33 +478,30 @@ export class TokensController extends BaseController<
    */
   removeAndIgnoreToken(address: string) {
     address = toChecksumHexAddress(address);
-    const { tokens, ignoredTokens } = this.state;
-    const newIgnoredTokens = [...ignoredTokens];
+    const { tokens, allIgnoredTokens } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    
+    const ignoredTokens = allIgnoredTokens[selectedAddress][chainId];
+    
+    const alreadyIgnored = ignoredTokens.find(
+      (tokenAddress) => tokenAddress.toLowerCase() === address.toLowerCase(),
+    );
+
     const newTokens = tokens.filter((token) => {
       if (token.address.toLowerCase() === address.toLowerCase()) {
-        const alreadyIgnored = newIgnoredTokens.find(
-          (t) => t.address.toLowerCase() === address.toLowerCase(),
-        );
-        !alreadyIgnored && newIgnoredTokens.push(token);
+        !alreadyIgnored && ignoredTokens.push(address);
         return false;
       }
       return true;
     });
-
-    if (
-      !newIgnoredTokens.find(
-        (token: Token) => token.address.toLowerCase() === address.toLowerCase(),
-      )
-    ) {
-      newIgnoredTokens.push({ address, decimals: 0, symbol: '' });
-    }
 
     const { newAllTokens } = this._getNewAllTokensState(newTokens);
 
     this.update({
       allTokens: newAllTokens,
       tokens: newTokens,
-      ignoredTokens: newIgnoredTokens,
+      allIgnoredTokens,
+      ignoredTokens,
     });
   }
 
