@@ -35,7 +35,6 @@ export type ContractMap = {
 export type DynamicToken = {
   address: string;
   occurrences: number;
-  aggregators: string[];
   iconUrl: string;
 } & BaseToken;
 
@@ -43,7 +42,6 @@ export type TokenListToken = {
   address: string;
   iconUrl: string;
   occurrences: number | null;
-  aggregators: string[] | null;
 } & BaseToken;
 
 export type TokenListMap = {
@@ -239,7 +237,6 @@ export class TokenListController extends BaseController<
           address: tokenAddress,
           iconUrl: filePath,
           occurrences: null,
-          aggregators: null,
         };
       }
     }
