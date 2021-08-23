@@ -740,9 +740,7 @@ describe('AssetsDetectionController', () => {
         .calledWithExactly('0x1', tokensToDetect),
     ).toBe(true);
     expect(
-      getBalancesInSingleCall
-        .getCall(1)
-        .calledWithExactly('0x1', []),
+      getBalancesInSingleCall.getCall(1).calledWithExactly('0x1', []),
     ).toBe(true);
     getBalancesInSingleCall.resolves({
       '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),

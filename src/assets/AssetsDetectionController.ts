@@ -333,8 +333,11 @@ export class AssetsDetectionController extends BaseController<
       }
     }
     const sliceOfTokensToDetect = [];
-    sliceOfTokensToDetect[0] = tokensToDetect.slice(0,1000);
-    sliceOfTokensToDetect[1] = tokensToDetect.slice(1000,tokensToDetect.length - 1);
+    sliceOfTokensToDetect[0] = tokensToDetect.slice(0, 1000);
+    sliceOfTokensToDetect[1] = tokensToDetect.slice(
+      1000,
+      tokensToDetect.length - 1,
+    );
 
     const { selectedAddress } = this.config;
     /* istanbul ignore else */
