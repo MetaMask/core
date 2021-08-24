@@ -1057,10 +1057,10 @@
     semver "^7.3.5"
     yargs "^17.0.1"
 
-"@metamask/contract-metadata@^1.28.0":
-  version "1.28.0"
-  resolved "https://registry.yarnpkg.com/@metamask/contract-metadata/-/contract-metadata-1.28.0.tgz#76796f5010aa4aa6d28bf6fe36392017cea687cb"
-  integrity sha512-QZj6Y1nmSs9BHufBS1GSuPX5TVFa5gbtMhEo/KRuSdKyY43OdlbBKuyT36/l5p30krlzfMX8bN0MAWqw3g0Bog==
+"@metamask/contract-metadata@^1.29.0":
+  version "1.29.0"
+  resolved "https://registry.yarnpkg.com/@metamask/contract-metadata/-/contract-metadata-1.29.0.tgz#4ca86a2f03d4dad4350d09216a7fe92f9dd21c8e"
+  integrity sha512-wxsC0ZCyhPKqThvmsL8+2zVWGWPqofSo8HNtOuOnQM9oGbXX9294imJ3T+A/Lov8fkX4jAWZOeNV0uR80zkNtA==
 
 "@metamask/eslint-config-jest@^7.0.0":
   version "7.0.0"
