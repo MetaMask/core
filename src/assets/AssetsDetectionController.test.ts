@@ -668,11 +668,6 @@ describe('AssetsDetectionController', () => {
       '0x59Ec8e68D9cAa87f6B5BC4013172c20E85ccdaD0',
     );
 
-    assetsDetection.configure({
-      networkType: 'rinkeby',
-      selectedAddress: '0x0001',
-    });
-
     getBalancesInSingleCall.resolves({
       '0x59Ec8e68D9cAa87f6B5BC4013172c20E85ccdaD0': new BN(1),
     });
@@ -696,13 +691,9 @@ describe('AssetsDetectionController', () => {
     preferences.setSelectedAddress('0x0001');
     network.update({
       provider: {
-        type: 'rinkeby',
-        chainId: NetworksChainId.rinkeby,
+        type: 'mainnet',
+        chainId: NetworksChainId.mainnet,
       },
-    });
-    assetsDetection.configure({
-      networkType: MAINNET,
-      selectedAddress: '0x0001',
     });
 
     await tokensController.addToken(
@@ -720,11 +711,6 @@ describe('AssetsDetectionController', () => {
     );
 
     await preferences.setSelectedAddress('0x0002');
-
-    assetsDetection.configure({
-      networkType: MAINNET,
-      selectedAddress: '0x0002',
-    });
 
     getBalancesInSingleCall.resolves({
       '0x514910771AF9Ca656af840dff83E8264EcF986CA': new BN(1),

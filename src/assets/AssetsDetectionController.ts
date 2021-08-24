@@ -359,12 +359,12 @@ export class AssetsDetectionController extends BaseController<
           Object.keys(tokenList).find(
             (i) => i.toLowerCase() === tokenAddress.toLowerCase(),
           ) || '';
-        const matchingToken = tokenList[caseInsensitiveTokenKey];
+
         if (ignored === undefined) {
           tokensToAdd.push({
             address: tokenAddress,
-            decimals: matchingToken.decimals,
-            symbol: matchingToken.symbol,
+            decimals: tokenList[caseInsensitiveTokenKey].decimals,
+            symbol: tokenList[caseInsensitiveTokenKey].symbol,
           });
         }
       }
