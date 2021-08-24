@@ -346,6 +346,9 @@ export class AssetsDetectionController extends BaseController<
     }
 
     for (const tokensSlice of sliceOfTokensToDetect) {
+      if (tokensSlice.length === 0) {
+        break;
+      }
       await safelyExecute(async () => {
         const balances = await this.getBalancesInSingleCall(
           selectedAddress,
