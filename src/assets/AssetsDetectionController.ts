@@ -128,7 +128,6 @@ export interface AssetsDetectionConfig extends BaseConfig {
   networkType: NetworkType;
   selectedAddress: string;
   tokens: Token[];
-  chainId: string;
 }
 
 /**
@@ -269,7 +268,7 @@ export class AssetsDetectionController extends BaseController<
       }
     });
     onNetworkStateChange(({ provider }) => {
-      this.configure({ networkType: provider.type, chainId: provider.chainId });
+      this.configure({ networkType: provider.type });
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;
     this.getBalancesInSingleCall = getBalancesInSingleCall;
@@ -352,17 +351,24 @@ export class AssetsDetectionController extends BaseController<
         const { ignoredTokens } = this.getTokensState();
         if (ignoredTokens.length) {
           ignored = ignoredTokens.find(
-            (ignoredTokenAddress) => ignoredTokenAddress === toChecksumHexAddress(tokenAddress),
+            (ignoredTokenAddress) =>
+              ignoredTokenAddress === toChecksumHexAddress(tokenAddress),
           );
         }
-        if (!ignored) {
+        const caseInsensitiveTokenKey =
+          Object.keys(tokenList).find(
+            (i) => i.toLowerCase() === tokenAddress.toLowerCase(),
+          ) || '';
+        const matchingToken = tokenList[caseInsensitiveTokenKey];
+        if (ignored === undefined) {
           tokensToAdd.push({
             address: tokenAddress,
-            decimals: tokenList[tokenAddress].decimals,
-            symbol: tokenList[tokenAddress].symbol,
+            decimals: matchingToken.decimals,
+            symbol: matchingToken.symbol,
           });
         }
       }
+
       if (tokensToAdd.length) {
         await this.addTokens(tokensToAdd);
       }

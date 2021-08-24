@@ -4,6 +4,7 @@ import { PreferencesController } from '../user/PreferencesController';
 import {
   NetworkController,
   NetworksChainId,
+  NetworkType,
 } from '../network/NetworkController';
 import { TokensController } from './TokensController';
 
@@ -31,6 +32,7 @@ describe('TokensController', () => {
   it('should set default state', () => {
     expect(tokensController.state).toStrictEqual({
       allTokens: {},
+      allIgnoredTokens: {},
       ignoredTokens: [],
       suggestedAssets: [],
       tokens: [],
@@ -258,40 +260,125 @@ describe('TokensController', () => {
     expect(network.state.provider.type).toStrictEqual(networkType);
   });
 
-  it('should not add duplicate tokens to the ignoredToken list', async () => {
-    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    sinon
-      .stub(tokensController, '_createEthersContract')
-      .callsFake(() =>
-        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-      );
-    await tokensController.addToken('0x01', 'bar', 2);
-    await tokensController.addToken('0xfAA', 'bar', 3);
-    expect(tokensController.state.ignoredTokens).toHaveLength(0);
-    expect(tokensController.state.tokens).toHaveLength(2);
-    tokensController.removeAndIgnoreToken('0x01');
-    expect(tokensController.state.tokens).toHaveLength(1);
-    expect(tokensController.state.ignoredTokens).toHaveLength(1);
-    await tokensController.addToken('0x01', 'bar', 2);
-    expect(tokensController.state.ignoredTokens).toHaveLength(1);
-    tokensController.removeAndIgnoreToken('0x01');
-    expect(tokensController.state.ignoredTokens).toHaveLength(1);
-  });
+  describe('ignoredTokens', () => {
+    const defaultSelectedNetwork: NetworkType = 'rinkeby';
+    const defaultSelectedChainID = NetworksChainId.rinkeby;
+    const defaultSelectedAddress = '0x0001';
 
-  it('should be able to clear the ignoredToken list', async () => {
-    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    sinon
-      .stub(tokensController, '_createEthersContract')
-      .callsFake(() =>
-        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+    beforeEach(function () {
+      preferences.setSelectedAddress(defaultSelectedAddress);
+      network.update({
+        provider: {
+          type: defaultSelectedNetwork,
+          chainId: defaultSelectedChainID,
+        },
+      });
+
+      const supportsInterfaceStub = sinon
+        .stub()
+        .returns(Promise.resolve(false));
+      sinon
+        .stub(tokensController, '_createEthersContract')
+        .callsFake(() =>
+          Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+        );
+    });
+
+    it('should remove token from ignoredTokens/allIgnoredTokens lists if added back via addToken', async () => {
+      await tokensController.addToken('0x01', 'bar', 2);
+      await tokensController.addToken('0xfAA', 'bar', 3);
+      expect(tokensController.state.ignoredTokens).toHaveLength(0);
+      expect(tokensController.state.tokens).toHaveLength(2);
+      tokensController.removeAndIgnoreToken('0x01');
+      expect(tokensController.state.tokens).toHaveLength(1);
+      expect(tokensController.state.ignoredTokens).toHaveLength(1);
+      await tokensController.addToken('0x01', 'bar', 2);
+      expect(tokensController.state.tokens).toHaveLength(2);
+      expect(tokensController.state.ignoredTokens).toHaveLength(0);
+    });
+
+    it('should remove a token from the ignoredTokens/allIgnoredTokens lists if re-added as part of a bulk addTokens add', async () => {
+      await tokensController.addToken('0x01', 'bar', 2);
+      await tokensController.addToken('0xfAA', 'bar', 3);
+      expect(tokensController.state.ignoredTokens).toHaveLength(0);
+      expect(tokensController.state.tokens).toHaveLength(2);
+      tokensController.removeAndIgnoreToken('0x01');
+      tokensController.removeAndIgnoreToken('0xfAA');
+      expect(tokensController.state.tokens).toHaveLength(0);
+      expect(tokensController.state.ignoredTokens).toHaveLength(2);
+      await tokensController.addTokens([
+        { address: '0x01', decimals: 3, symbol: 'bar' },
+        { address: '0x02', decimals: 4, symbol: 'baz' },
+        { address: '0x04', decimals: 4, symbol: 'foo' },
+      ]);
+      expect(tokensController.state.tokens).toHaveLength(3);
+      expect(tokensController.state.ignoredTokens).toHaveLength(1);
+    });
+
+    it('should be able to clear the ignoredToken list', async () => {
+      await tokensController.addToken('0x01', 'bar', 2);
+      expect(tokensController.state.ignoredTokens).toHaveLength(0);
+      tokensController.removeAndIgnoreToken('0x01');
+      expect(tokensController.state.tokens).toHaveLength(0);
+      expect(tokensController.state.allIgnoredTokens).toStrictEqual({
+        [defaultSelectedAddress]: {
+          [NetworksChainId[defaultSelectedNetwork]]: ['0x01'],
+        },
+      });
+      tokensController.clearIgnoredTokens();
+      expect(tokensController.state.ignoredTokens).toHaveLength(0);
+      expect(Object.keys(tokensController.state.allIgnoredTokens)).toHaveLength(
+        0,
       );
-    await tokensController.addToken('0x01', 'bar', 2);
-    expect(tokensController.state.ignoredTokens).toHaveLength(0);
-    tokensController.removeAndIgnoreToken('0x01');
-    expect(tokensController.state.tokens).toHaveLength(0);
-    expect(tokensController.state.ignoredTokens).toHaveLength(1);
-    tokensController.clearIgnoredTokens();
-    expect(tokensController.state.ignoredTokens).toHaveLength(0);
+    });
+
+    it('should ignore tokens by address and chainId', async () => {
+      const selectedAddress1 = '0x0001';
+      const selectedAddress2 = '0x0002';
+      const chain1 = 'rinkeby';
+      const chain2 = 'ropsten';
+
+      preferences.setSelectedAddress(selectedAddress1);
+      network.update({
+        provider: {
+          type: chain1,
+          chainId: NetworksChainId[chain1],
+        },
+      });
+
+      await tokensController.addToken('0x01', 'bar', 2);
+      expect(tokensController.state.ignoredTokens).toHaveLength(0);
+      tokensController.removeAndIgnoreToken('0x01');
+      expect(tokensController.state.tokens).toHaveLength(0);
+
+      expect(tokensController.state.ignoredTokens).toStrictEqual(['0x01']);
+
+      network.update({
+        provider: {
+          type: chain2,
+          chainId: NetworksChainId[chain2],
+        },
+      });
+
+      expect(tokensController.state.ignoredTokens).toHaveLength(0);
+      await tokensController.addToken('0x02', 'bazz', 3);
+      tokensController.removeAndIgnoreToken('0x02');
+      expect(tokensController.state.ignoredTokens).toStrictEqual(['0x02']);
+
+      preferences.setSelectedAddress(selectedAddress2);
+      expect(tokensController.state.ignoredTokens).toHaveLength(0);
+      await tokensController.addToken('0x03', 'foo', 4);
+      tokensController.removeAndIgnoreToken('0x03');
+      expect(tokensController.state.ignoredTokens).toStrictEqual(['0x03']);
+
+      expect(tokensController.state.allIgnoredTokens).toStrictEqual({
+        [selectedAddress1]: {
+          [NetworksChainId[chain1]]: ['0x01'],
+          [NetworksChainId[chain2]]: ['0x02'],
+        },
+        [selectedAddress2]: { [NetworksChainId[chain2]]: ['0x03'] },
+      });
+    });
   });
 
   describe('isERC721 flag', function () {

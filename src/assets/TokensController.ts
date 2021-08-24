@@ -176,21 +176,23 @@ export class TokensController extends BaseController<
     this.initialize();
 
     onPreferencesStateChange(({ selectedAddress }) => {
-      const { allTokens } = this.state;
+      const { allTokens, allIgnoredTokens } = this.state;
       const { chainId } = this.config;
       this.configure({ selectedAddress });
       this.update({
         tokens: allTokens[chainId]?.[selectedAddress] || [],
+        ignoredTokens: allIgnoredTokens?.[selectedAddress]?.[chainId] || [],
       });
     });
     onNetworkStateChange(({ provider }) => {
-      const { allTokens } = this.state;
+      const { allTokens, allIgnoredTokens } = this.state;
       const { selectedAddress } = this.config;
       const { chainId } = provider;
       this.configure({ chainId });
       this.ethersProvider = this._instantiateNewEthersProvider();
       this.update({
         tokens: allTokens[chainId]?.[selectedAddress] || [],
+        ignoredTokens: allIgnoredTokens?.[selectedAddress]?.[chainId] || [],
       });
     });
   }
@@ -217,7 +219,8 @@ export class TokensController extends BaseController<
     const releaseLock = await this.mutex.acquire();
     try {
       address = toChecksumHexAddress(address);
-      const { tokens } = this.state;
+      const { tokens, ignoredTokens, allIgnoredTokens } = this.state;
+      const { chainId, selectedAddress } = this.config;
       const isERC721 = await this._detectIsERC721(address);
       const newEntry: Token = { address, symbol, decimals, image, isERC721 };
       const previousEntry = tokens.find(
@@ -230,8 +233,28 @@ export class TokensController extends BaseController<
         tokens.push(newEntry);
       }
       const { newAllTokens } = this._getNewAllTokensState(tokens);
-      this.update({ allTokens: newAllTokens, tokens });
+     
+      const newIgnoredTokens = ignoredTokens.filter(
+        (tokenAddress) => tokenAddress.toLowerCase() !== address.toLowerCase(),
+      );
+      const newAllIgnoredTokens = {
+        ...allIgnoredTokens,
+        ...{
+          [selectedAddress]: {
+            ...allIgnoredTokens[selectedAddress],
+            [chainId]: newIgnoredTokens,
+          },
+        },
+      };
+
+      this.update({
+        allTokens: newAllTokens,
+        tokens: tokens,
+        allIgnoredTokens: newAllIgnoredTokens,
+        ignoredTokens: newIgnoredTokens,
+      });
       return tokens;
+
     } finally {
       releaseLock();
     }
@@ -245,7 +268,9 @@ export class TokensController extends BaseController<
    */
   async addTokens(tokensToAdd: Token[]): Promise<Token[]> {
     const releaseLock = await this.mutex.acquire();
-    const { tokens } = this.state;
+    const { tokens, ignoredTokens, allIgnoredTokens } = this.state;
+    const { chainId, selectedAddress } = this.config;
+
     try {
       tokensToAdd = await Promise.all(
         tokensToAdd.map(async (token) => {
@@ -253,6 +278,9 @@ export class TokensController extends BaseController<
           return token;
         }),
       );
+
+      let newIgnoredTokens = ignoredTokens;
+      let newAllIgnoredTokens = allIgnoredTokens;
 
       tokensToAdd.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image, isERC721 } = tokenToAdd;
@@ -274,10 +302,31 @@ export class TokensController extends BaseController<
         } else {
           tokens.push(newEntry);
         }
+
+        newIgnoredTokens = newIgnoredTokens.filter(
+          (tokenAddress) =>
+            tokenAddress.toLowerCase() !== address.toLowerCase(),
+        );
+
+        newAllIgnoredTokens = {
+          ...newAllIgnoredTokens,
+          ...{
+            [selectedAddress]: {
+              ...newAllIgnoredTokens[selectedAddress],
+              [chainId]: newIgnoredTokens,
+            },
+          },
+        };
       });
 
       const { newAllTokens } = this._getNewAllTokensState(tokens);
-      this.update({ allTokens: newAllTokens, tokens });
+
+      this.update({
+        allTokens: newAllTokens,
+        tokens: tokens,
+        allIgnoredTokens: newAllIgnoredTokens,
+        ignoredTokens: newIgnoredTokens,
+      });
 
       return tokens;
     } finally {
@@ -480,9 +529,9 @@ export class TokensController extends BaseController<
     address = toChecksumHexAddress(address);
     const { tokens, allIgnoredTokens } = this.state;
     const { chainId, selectedAddress } = this.config;
-    
-    const ignoredTokens = allIgnoredTokens[selectedAddress][chainId];
-    
+
+    const ignoredTokens = allIgnoredTokens[selectedAddress]?.[chainId] || [];
+
     const alreadyIgnored = ignoredTokens.find(
       (tokenAddress) => tokenAddress.toLowerCase() === address.toLowerCase(),
     );
@@ -497,10 +546,21 @@ export class TokensController extends BaseController<
 
     const { newAllTokens } = this._getNewAllTokensState(newTokens);
 
+    const selectedAddressIgnoredTokens = allIgnoredTokens[selectedAddress];
+    const newAllIgnoredTokens = {
+      ...allIgnoredTokens,
+      ...{
+        [selectedAddress]: {
+          ...selectedAddressIgnoredTokens,
+          [chainId]: ignoredTokens,
+        },
+      },
+    };
+    
     this.update({
       allTokens: newAllTokens,
       tokens: newTokens,
-      allIgnoredTokens,
+      allIgnoredTokens: newAllIgnoredTokens,
       ignoredTokens,
     });
   }
@@ -544,7 +604,7 @@ export class TokensController extends BaseController<
    * Removes all tokens from the ignored list
    */
   clearIgnoredTokens() {
-    this.update({ ignoredTokens: [] });
+    this.update({ ignoredTokens: [], allIgnoredTokens: {} });
   }
 }
 
