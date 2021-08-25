@@ -4,33 +4,38 @@ Thanks for your contribution!
 Please ensure that any applicable requirements below are satisfied before submitting this pull request. This will help ensure a quick and efficient review cycle.
 -->
 
+**PR Title**
+- A brief description of changes. If the PR has breaking changes add `BREAKING:` 
+to the start of the PR title.
+
 **Description**
 
-_What type of change have you made?_
+_Itemize the changes you have made into the categories below_
 
 - BREAKING:
-  - _Append BREAKING: to your PR title_
   - _Describe the how to patch your code for the breaking changes._
   - _Create PRs for other projects with patches to breaking changes._
+
 - FIXED:
-  - _Append FIXED: to your PR title_
-  - _Describe the change you have made_
+  - _Describe the fix/bug addressed_
+
 - CHANGED:
-  - _Append CHANGED: to your PR title_
-  - _Describe the change you have made_
+  - _Describe the change you have made to existing functionality_
+
+- REMOVED:
+  - _Describe functionaltiy removed and why_
+
 - ADDED:
-  - _Append ADDED: to your PR title_
-  - _Describe the change you have made_
+  - _Describe functionaltiy added and why_
+
 - DEPRECATED:
-  - _Append DEPRECATED: to your PR title_
-  - _Describe the change you have made_
+  - _Describe what was depreicated and why_
+
 - SECURITY:
-  - _Append SECURITY: to your PR title_
-  - _Describe the change you have made_
+  - _These should not be in a standard PR and addressed using the Security Advisory process_
 
 **Checklist**
 
-- [ ] There is a related GitHub issue
 - [ ] Tests are included if applicable
 - [ ] Any added code is fully documented
 
