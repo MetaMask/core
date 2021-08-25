@@ -108,6 +108,10 @@ export class TokenListController extends BaseController<
 
   private useStaticTokenList: boolean;
 
+  private abortController: AbortController;
+
+  private abortSignal: AbortSignal;
+
   /**
    * Creates a TokenListController instance
    *
@@ -149,14 +153,18 @@ export class TokenListController extends BaseController<
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
     this.useStaticTokenList = useStaticTokenList;
+    this.abortController = new AbortController();
+    this.abortSignal = this.abortController.signal;
     onNetworkStateChange(async (networkState) => {
       if (this.chainId !== networkState.provider.chainId) {
+        setTimeout(() => this.abortController.abort(), 500);
         this.chainId = networkState.provider.chainId;
         await this.restart();
       }
     });
     onPreferencesStateChange(async (preferencesState) => {
       if (this.useStaticTokenList !== preferencesState.useStaticTokenList) {
+        setTimeout(() => this.abortController.abort(), 500);
         this.useStaticTokenList = preferencesState.useStaticTokenList;
         await this.restart();
       }
@@ -265,8 +273,11 @@ export class TokenListController extends BaseController<
         }
       } else {
         const tokensFromAPI: DynamicToken[] = await safelyExecute(() =>
-          fetchTokenList(this.chainId),
+          fetchTokenList(this.chainId, this.abortSignal),
         );
+        if (!tokensFromAPI) {
+          return;
+        }
         // filtering out tokens with less than 2 occurrences
         const filteredTokenList = tokensFromAPI.filter(
           (token) => token.occurrences && token.occurrences >= 2,
@@ -331,7 +342,7 @@ export class TokenListController extends BaseController<
   async syncTokens(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
     try {
-      await safelyExecute(() => syncTokens(this.chainId));
+      await safelyExecute(() => syncTokens(this.chainId, this.abortSignal));
       const { tokenList, tokensChainsCache } = this.state;
       const updatedTokensChainsCache = {
         ...tokensChainsCache,
@@ -362,6 +373,7 @@ export class TokenListController extends BaseController<
       const token = (await fetchTokenMetadata(
         this.chainId,
         tokenAddress,
+        this.abortSignal,
       )) as DynamicToken;
       return token;
     } finally {
