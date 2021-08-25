@@ -1,6 +1,6 @@
 import { timeoutFetch } from '../util';
 
-const END_POINT = 'https://token-api.airswap-prod.codefi.network';
+const END_POINT = 'https://token-api.metaswap.codefi.network';
 
 function syncTokensURL(chainId: string) {
   return `${END_POINT}/sync/${chainId}`;
