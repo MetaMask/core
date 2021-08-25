@@ -13,8 +13,8 @@ to the start of the PR title.
 _Itemize the changes you have made into the categories below_
 
 - BREAKING:
-  - _Describe the how to patch your code for the breaking changes._
-  - _Create PRs for other projects with patches to breaking changes._
+  - _Describe the how to patch your code for the breaking changes_
+  - _Create PRs for other projects with patches to breaking changes_
 
 - FIXED:
   - _Describe the fix/bug addressed_
