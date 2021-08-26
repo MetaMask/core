@@ -28,15 +28,15 @@ _Itemize the changes you have made into the categories below_
 
 - REMOVED:
 
-  - _Describe functionaltiy removed and why_
+  - _Describe functionality removed and why_
 
 - ADDED:
 
-  - _Describe functionaltiy added and why_
+  - _Describe functionality added and why_
 
 - DEPRECATED:
 
-  - _Describe what was deprecated and why_
+  - _Describe what was depreciated and why_
 
 - SECURITY:
   - _These should not be in a standard PR and addressed using the Security Advisory process_
