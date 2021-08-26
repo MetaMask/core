@@ -36,7 +36,7 @@ _Itemize the changes you have made into the categories below_
 
 - DEPRECATED:
 
-  - _Describe what was depreicated and why_
+  - _Describe what was deprecated and why_
 
 - SECURITY:
   - _These should not be in a standard PR and addressed using the Security Advisory process_
