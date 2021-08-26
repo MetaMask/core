@@ -23,7 +23,7 @@ const ROPSTEN = 'ropsten';
 const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
 const OPEN_SEA_HOST = 'https://api.opensea.io';
 const OPEN_SEA_PATH = '/api/v1';
-const TOKEN_END_POINT_API = 'https://token-api.airswap-prod.codefi.network';
+const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 const sampleTokenList = [
   {
     address: '0x514910771af9ca656af840dff83e8264ecf986ca',

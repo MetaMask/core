@@ -6,7 +6,7 @@ import {
   fetchTokenMetadata,
 } from './token-service';
 
-const TOKEN_END_POINT_API = 'https://token-api.airswap-prod.codefi.network';
+const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 
 const sampleTokenList = [
   {
