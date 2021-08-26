@@ -36,7 +36,7 @@ _Itemize the changes you have made into the categories below_
 
 - DEPRECATED:
 
-  - _Describe what was depreciated and why_
+  - _Describe what was deprecated and why_
 
 - SECURITY:
 
