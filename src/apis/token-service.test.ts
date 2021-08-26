@@ -144,24 +144,27 @@ describe('FetchtokenList', () => {
   });
 
   it('should call the tokens api and return the list of tokens', async () => {
+    const { signal } = new AbortController();
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${NetworksChainId.mainnet}`)
       .reply(200, sampleTokenList)
       .persist();
 
-    const tokens = await fetchTokenList(NetworksChainId.mainnet);
+    const tokens = await fetchTokenList(NetworksChainId.mainnet, signal);
 
     expect(tokens).toStrictEqual(sampleTokenList);
   });
   it('should call the api to sync tokens and returns nothing', async () => {
+    const { signal } = new AbortController();
     nock(TOKEN_END_POINT_API)
       .get(`/sync/${NetworksChainId.mainnet}`)
       .reply(200)
       .persist();
 
-    expect(await syncTokens(NetworksChainId.mainnet)).toBeUndefined();
+    expect(await syncTokens(NetworksChainId.mainnet, signal)).toBeUndefined();
   });
   it('should call the api to return the token metadata for eth address provided', async () => {
+    const { signal } = new AbortController();
     nock(TOKEN_END_POINT_API)
       .get(
         `/token/${NetworksChainId.mainnet}?address=0x514910771af9ca656af840dff83e8264ecf986ca`,
@@ -172,6 +175,7 @@ describe('FetchtokenList', () => {
     const token = await fetchTokenMetadata(
       NetworksChainId.mainnet,
       '0x514910771af9ca656af840dff83e8264ecf986ca',
+      signal,
     );
 
     expect(token).toStrictEqual(sampleToken);
