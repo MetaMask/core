@@ -39,6 +39,7 @@ _Itemize the changes you have made into the categories below_
   - _Describe what was depreciated and why_
 
 - SECURITY:
+
   - _These should not be in a standard PR and addressed using the Security Advisory process_
 
 **Checklist**
