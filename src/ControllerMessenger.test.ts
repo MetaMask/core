@@ -1,3 +1,4 @@
+import type { Patch } from 'immer';
 import sinon from 'sinon';
 
 import { ControllerMessenger } from './ControllerMessenger';
@@ -21,10 +22,26 @@ describe('ControllerMessenger', () => {
   });
 
   it('should allow registering and calling multiple different action handlers', () => {
+    // These 'Other' types are included to demonstrate that controller messenger
+    // generics can indeed be unions of actions and events from different
+    // controllers.
+    type GetOtherState = {
+      type: `OtherController:getState`;
+      handler: () => { stuff: string };
+    };
+
+    type OtherStateChange = {
+      type: `OtherController:stateChange`;
+      payload: [{ stuff: string }, Patch[]];
+    };
+
     type MessageAction =
       | { type: 'concat'; handler: (message: string) => void }
       | { type: 'reset'; handler: (initialMessage: string) => void };
-    const controllerMessenger = new ControllerMessenger<MessageAction, never>();
+    const controllerMessenger = new ControllerMessenger<
+      MessageAction | GetOtherState,
+      OtherStateChange
+    >();
 
     let message = '';
     controllerMessenger.registerActionHandler(
