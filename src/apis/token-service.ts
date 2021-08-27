@@ -1,6 +1,6 @@
 import { timeoutFetch } from '../util';
 
-const END_POINT = 'https://token-api.airswap-prod.codefi.network';
+const END_POINT = 'https://token-api.metaswap.codefi.network';
 
 function syncTokensURL(chainId: string) {
   return `${END_POINT}/sync/${chainId}`;
@@ -21,10 +21,16 @@ const timeout = 10000;
  *
  * @returns - Promise resolving token List
  */
-export async function fetchTokenList(chainId: string): Promise<unknown> {
+export async function fetchTokenList(
+  chainId: string,
+  abortSignal: AbortSignal,
+): Promise<unknown> {
   const tokenURL = getTokensURL(chainId);
-  const response = await queryApi(tokenURL);
-  return parseJsonResponse(response);
+  const response = await queryApi(tokenURL, abortSignal);
+  if (response) {
+    return parseJsonResponse(response);
+  }
+  return undefined;
 }
 
 /**
@@ -35,10 +41,14 @@ export async function fetchTokenList(chainId: string): Promise<unknown> {
 export async function fetchTokenMetadata(
   chainId: string,
   tokenAddress: string,
+  abortSignal: AbortSignal,
 ): Promise<unknown> {
   const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
-  const response = await queryApi(tokenMetadataURL);
-  return parseJsonResponse(response);
+  const response = await queryApi(tokenMetadataURL, abortSignal);
+  if (response) {
+    return parseJsonResponse(response);
+  }
+  return undefined;
 }
 
 /**
@@ -46,9 +56,12 @@ export async function fetchTokenMetadata(
  * Syncing happens every 1 hour in the background, this api can
  * be used to force a sync from our side
  */
-export async function syncTokens(chainId: string): Promise<void> {
+export async function syncTokens(
+  chainId: string,
+  abortSignal: AbortSignal,
+): Promise<void> {
   const syncURL = syncTokensURL(chainId);
-  queryApi(syncURL);
+  await queryApi(syncURL, abortSignal);
 }
 
 /**
@@ -56,16 +69,27 @@ export async function syncTokens(chainId: string): Promise<void> {
  *
  * @return Promise resolving request response
  */
-async function queryApi(apiURL: string): Promise<Response> {
+async function queryApi(
+  apiURL: string,
+  abortSignal: AbortSignal,
+): Promise<Response | undefined> {
   const fetchOptions: RequestInit = {
     referrer: apiURL,
     referrerPolicy: 'no-referrer-when-downgrade',
     method: 'GET',
     mode: 'cors',
+    signal: abortSignal,
   };
   fetchOptions.headers = new window.Headers();
   fetchOptions.headers.set('Content-Type', 'application/json');
-  return await timeoutFetch(apiURL, fetchOptions, timeout);
+  try {
+    return await timeoutFetch(apiURL, fetchOptions, timeout);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.log('Request is aborted');
+    }
+  }
+  return undefined;
 }
 
 /**

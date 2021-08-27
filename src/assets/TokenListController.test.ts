@@ -16,7 +16,7 @@ import {
 } from './TokenListController';
 
 const name = 'TokenListController';
-const TOKEN_END_POINT_API = 'https://token-api.airswap-prod.codefi.network';
+const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 const timestamp = Date.now();
 
 const staticTokenList: TokenListMap = {};
