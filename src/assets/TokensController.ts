@@ -82,9 +82,9 @@ export type SuggestedAssetMeta =
  * Assets controller state
  *
  * @property allTokens - Object containing tokens by network and account
- * @property suggestedAssets - List of suggested assets associated with the active vault
- * @property tokens - List of tokens associated with the active vault
- * @property ignoredTokens - List of ignoredTokens associated with the active vault
+ * @property suggestedAssets - List of pending suggested assets to be added or canceled
+ * @property tokens - List of tokens associated with the active network and address pair
+ * @property ignoredTokens - List of ignoredTokens associated with the active network and address pair
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  */
 export interface TokensState extends BaseState {
@@ -536,22 +536,6 @@ export class TokensController extends BaseController<
       allIgnoredTokens: newAllIgnoredTokens,
       ignoredTokens,
     });
-  }
-
-  /**
-   * Removes a token from the stored token list
-   *
-   * @param address - Hex address of the token contract
-   */
-  removeToken(address: string) {
-    address = toChecksumHexAddress(address);
-    const { tokens, ignoredTokens } = this.state;
-    const newTokens = tokens.filter((token) => token.address !== address);
-    const { newAllTokens } = this._getNewAllTokensState(
-      newTokens,
-      ignoredTokens,
-    );
-    this.update({ allTokens: newAllTokens, tokens: newTokens });
   }
 
   /**

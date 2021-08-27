@@ -180,7 +180,7 @@ describe('TokensController', () => {
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
       );
     await tokensController.addToken('0x01', 'bar', 2);
-    tokensController.removeToken('0x01');
+    tokensController.removeAndIgnoreToken('0x01');
     expect(tokensController.state.tokens).toHaveLength(0);
   });
 
@@ -197,7 +197,7 @@ describe('TokensController', () => {
     await tokensController.addToken('0x02', 'baz', 2);
     preferences.update({ selectedAddress: secondAddress });
     await tokensController.addToken('0x01', 'bar', 2);
-    tokensController.removeToken('0x01');
+    tokensController.removeAndIgnoreToken('0x01');
     expect(tokensController.state.tokens).toHaveLength(0);
     preferences.update({ selectedAddress: firstAddress });
     expect(tokensController.state.tokens[0]).toStrictEqual({
@@ -232,7 +232,7 @@ describe('TokensController', () => {
       },
     });
     await tokensController.addToken('0x01', 'bar', 2);
-    tokensController.removeToken('0x01');
+    tokensController.removeAndIgnoreToken('0x01');
     expect(tokensController.state.tokens).toHaveLength(0);
     network.update({
       provider: {
