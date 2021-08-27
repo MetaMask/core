@@ -135,6 +135,7 @@ describe('ComposableController', () => {
         TokensController: {
           allTokens: {},
           ignoredTokens: [],
+          allIgnoredTokens: {},
           suggestedAssets: [],
           tokens: [],
         },
@@ -206,6 +207,7 @@ describe('ComposableController', () => {
         identities: {},
         ignoredCollectibles: [],
         ignoredTokens: [],
+        allIgnoredTokens: {},
         ipfsGateway: 'https://ipfs.io/ipfs/',
         lostIdentities: {},
         network: 'loading',

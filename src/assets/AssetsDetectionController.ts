@@ -351,17 +351,24 @@ export class AssetsDetectionController extends BaseController<
         const { ignoredTokens } = this.getTokensState();
         if (ignoredTokens.length) {
           ignored = ignoredTokens.find(
-            (token) => token.address === toChecksumHexAddress(tokenAddress),
+            (ignoredTokenAddress) =>
+              ignoredTokenAddress === toChecksumHexAddress(tokenAddress),
           );
         }
-        if (!ignored) {
+        const caseInsensitiveTokenKey =
+          Object.keys(tokenList).find(
+            (i) => i.toLowerCase() === tokenAddress.toLowerCase(),
+          ) || '';
+
+        if (ignored === undefined) {
           tokensToAdd.push({
             address: tokenAddress,
-            decimals: tokenList[tokenAddress].decimals,
-            symbol: tokenList[tokenAddress].symbol,
+            decimals: tokenList[caseInsensitiveTokenKey].decimals,
+            symbol: tokenList[caseInsensitiveTokenKey].symbol,
           });
         }
       }
+
       if (tokensToAdd.length) {
         await this.addTokens(tokensToAdd);
       }

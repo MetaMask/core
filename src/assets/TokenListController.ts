@@ -35,7 +35,6 @@ export type ContractMap = {
 export type DynamicToken = {
   address: string;
   occurrences: number;
-  aggregators: string[];
   iconUrl: string;
 } & BaseToken;
 
@@ -43,7 +42,6 @@ export type TokenListToken = {
   address: string;
   iconUrl: string;
   occurrences: number | null;
-  aggregators: string[] | null;
 } & BaseToken;
 
 export type TokenListMap = {
@@ -110,6 +108,10 @@ export class TokenListController extends BaseController<
 
   private useStaticTokenList: boolean;
 
+  private abortController: AbortController;
+
+  // private abortSignal: AbortSignal;
+
   /**
    * Creates a TokenListController instance
    *
@@ -151,14 +153,19 @@ export class TokenListController extends BaseController<
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
     this.useStaticTokenList = useStaticTokenList;
+    this.abortController = new AbortController();
     onNetworkStateChange(async (networkState) => {
       if (this.chainId !== networkState.provider.chainId) {
+        this.abortController.abort();
+        this.abortController = new AbortController();
         this.chainId = networkState.provider.chainId;
         await this.restart();
       }
     });
     onPreferencesStateChange(async (preferencesState) => {
       if (this.useStaticTokenList !== preferencesState.useStaticTokenList) {
+        this.abortController.abort();
+        this.abortController = new AbortController();
         this.useStaticTokenList = preferencesState.useStaticTokenList;
         await this.restart();
       }
@@ -239,7 +246,6 @@ export class TokenListController extends BaseController<
           address: tokenAddress,
           iconUrl: filePath,
           occurrences: null,
-          aggregators: null,
         };
       }
     }
@@ -268,8 +274,11 @@ export class TokenListController extends BaseController<
         }
       } else {
         const tokensFromAPI: DynamicToken[] = await safelyExecute(() =>
-          fetchTokenList(this.chainId),
+          fetchTokenList(this.chainId, this.abortController.signal),
         );
+        if (!tokensFromAPI) {
+          return;
+        }
         // filtering out tokens with less than 2 occurrences
         const filteredTokenList = tokensFromAPI.filter(
           (token) => token.occurrences && token.occurrences >= 2,
@@ -334,7 +343,9 @@ export class TokenListController extends BaseController<
   async syncTokens(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
     try {
-      await safelyExecute(() => syncTokens(this.chainId));
+      await safelyExecute(() =>
+        syncTokens(this.chainId, this.abortController.signal),
+      );
       const { tokenList, tokensChainsCache } = this.state;
       const updatedTokensChainsCache = {
         ...tokensChainsCache,
@@ -365,6 +376,7 @@ export class TokenListController extends BaseController<
       const token = (await fetchTokenMetadata(
         this.chainId,
         tokenAddress,
+        this.abortController.signal,
       )) as DynamicToken;
       return token;
     } finally {

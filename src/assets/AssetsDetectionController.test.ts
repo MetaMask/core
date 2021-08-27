@@ -23,7 +23,7 @@ const ROPSTEN = 'ropsten';
 const TOKENS = [{ address: '0xfoO', symbol: 'bar', decimals: 2 }];
 const OPEN_SEA_HOST = 'https://api.opensea.io';
 const OPEN_SEA_PATH = '/api/v1';
-const TOKEN_END_POINT_API = 'https://token-api.airswap-prod.codefi.network';
+const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 const sampleTokenList = [
   {
     address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -603,6 +603,7 @@ describe('AssetsDetectionController', () => {
       },
     ]);
   });
+
   it('should update the tokens list when new tokens are detected', async () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     getBalancesInSingleCall.resolves({
@@ -635,6 +636,92 @@ describe('AssetsDetectionController', () => {
         symbol: 'LINK',
         decimals: 18,
         image: undefined,
+        isERC721: false,
+      },
+    ]);
+  });
+
+  it('should not add ignoredTokens to the tokens list if detected with balance', async () => {
+    stub(tokensController, '_instantiateNewEthersProvider').callsFake(
+      () => null,
+    );
+
+    preferences.setSelectedAddress('0x0001');
+    network.update({
+      provider: {
+        type: 'mainnet',
+        chainId: NetworksChainId.mainnet,
+      },
+    });
+
+    await tokensController.addToken(
+      '0x59Ec8e68D9cAa87f6B5BC4013172c20E85ccdaD0',
+      'BAR',
+      5,
+    );
+    await tokensController.addToken(
+      '0x588047365df5ba589f923604aac23d673555c623',
+      'FOO',
+      6,
+    );
+    await tokensController.removeAndIgnoreToken(
+      '0x59Ec8e68D9cAa87f6B5BC4013172c20E85ccdaD0',
+    );
+
+    getBalancesInSingleCall.resolves({
+      '0x59Ec8e68D9cAa87f6B5BC4013172c20E85ccdaD0': new BN(1),
+    });
+    await assetsDetection.detectTokens();
+    expect(tokensController.state.tokens).toStrictEqual([
+      {
+        address: '0x588047365dF5BA589F923604AAC23d673555c623',
+        decimals: 6,
+        image: undefined,
+        symbol: 'FOO',
+        isERC721: false,
+      },
+    ]);
+  });
+
+  it('should add a token when detected with a balance even if it is ignored on another account', async () => {
+    stub(tokensController, '_instantiateNewEthersProvider').callsFake(
+      () => null,
+    );
+
+    preferences.setSelectedAddress('0x0001');
+    network.update({
+      provider: {
+        type: 'mainnet',
+        chainId: NetworksChainId.mainnet,
+      },
+    });
+
+    await tokensController.addToken(
+      '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+      'LINK',
+      18,
+    );
+    await tokensController.addToken(
+      '0x588047365df5ba589f923604aac23d673555c623',
+      'FOO',
+      6,
+    );
+    await tokensController.removeAndIgnoreToken(
+      '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+    );
+
+    await preferences.setSelectedAddress('0x0002');
+
+    getBalancesInSingleCall.resolves({
+      '0x514910771AF9Ca656af840dff83E8264EcF986CA': new BN(1),
+    });
+    await assetsDetection.detectTokens();
+    expect(tokensController.state.tokens).toStrictEqual([
+      {
+        address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        decimals: 18,
+        image: undefined,
+        symbol: 'LINK',
         isERC721: false,
       },
     ]);
