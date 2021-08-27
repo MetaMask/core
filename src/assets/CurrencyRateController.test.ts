@@ -1,5 +1,4 @@
 import { stub } from 'sinon';
-import type { Patch } from 'immer';
 import nock from 'nock';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
@@ -10,22 +9,10 @@ import {
 
 const name = 'CurrencyRateController';
 
-type OtherStateChange = {
-  type: `OtherController:stateChange`;
-  payload: [{ stuff: string }, Patch[]];
-};
-
-type GetOtherState = {
-  type: `OtherController:getState`;
-  handler: () => { stuff: string };
-};
-
 function getRestrictedMessenger() {
-  // The 'Other' types are included to demonstrate that this all works with a
-  // controller messenger that includes types from other controllers.
   const controllerMessenger = new ControllerMessenger<
-    GetCurrencyRateState | GetOtherState,
-    CurrencyRateStateChange | OtherStateChange
+    GetCurrencyRateState,
+    CurrencyRateStateChange
   >();
   const messenger = controllerMessenger.getRestricted<
     'CurrencyRateController',
