@@ -369,7 +369,7 @@ export class AssetsDetectionController extends BaseController<
             Object.keys(tokenList).find(
               (i) => i.toLowerCase() === tokenAddress.toLowerCase(),
             ) || '';
-  
+
           if (ignored === undefined) {
             tokensToAdd.push({
               address: tokenAddress,
@@ -378,7 +378,7 @@ export class AssetsDetectionController extends BaseController<
             });
           }
         }
-  
+
         if (tokensToAdd.length) {
           await this.addTokens(tokensToAdd);
         }
