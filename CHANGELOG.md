@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+### Uncategorized
+- Slicing tokensToDetect list to check for balance ([#568](https://github.com/MetaMask/controllers/pull/568))
+- Migrate ApprovalController to BaseControllerV2 ([#555](https://github.com/MetaMask/controllers/pull/555))
+- Move controller messenger type demonstration to its own test suite ([#565](https://github.com/MetaMask/controllers/pull/565))
+- Update ignored tokens shape ([#570](https://github.com/MetaMask/controllers/pull/570))
+- BREAKING: update tokens controller allTokens state structure to make network/chainID parent of account ([#572](https://github.com/MetaMask/controllers/pull/572))
+- ADDED: pull request template ([#562](https://github.com/MetaMask/controllers/pull/562))
+- Cancelling inflight request during chainId change and useStaticTokenList flag change ([#571](https://github.com/MetaMask/controllers/pull/571))
+- Updating the token list api ([#563](https://github.com/MetaMask/controllers/pull/563))
+- Bump @metamask/contract-metadata from 1.28.0 to 1.29.0 ([#569](https://github.com/MetaMask/controllers/pull/569))
+- Removing aggregator from TokenListToken ([#564](https://github.com/MetaMask/controllers/pull/564))
+- Adding polling restart for TokenList Fetch ([#561](https://github.com/MetaMask/controllers/pull/561))
+- Improve BaseControllerV2 messenger type ([#556](https://github.com/MetaMask/controllers/pull/556))
+
 ## [14.2.0]
 ### Added
 - Added the ability to limit the number of transactions stored (default is 40) ([#550](https://github.com/MetaMask/controllers/pull/550))
@@ -332,7 +347,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v14.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/controllers/compare/v14.2.0...v15.0.0
 [14.2.0]: https://github.com/MetaMask/controllers/compare/v14.1.0...v14.2.0
 [14.1.0]: https://github.com/MetaMask/controllers/compare/v14.0.2...v14.1.0
 [14.0.2]: https://github.com/MetaMask/controllers/compare/v14.0.1...v14.0.2
