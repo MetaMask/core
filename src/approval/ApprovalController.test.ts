@@ -1,14 +1,33 @@
 import { errorCodes } from 'eth-rpc-errors';
 import sinon from 'sinon';
-import { ApprovalController } from './ApprovalController';
+import { ControllerMessenger } from '../ControllerMessenger';
+import {
+  ApprovalController,
+  ApprovalControllerActions,
+  ApprovalControllerEvents,
+  ApprovalControllerMessenger,
+} from './ApprovalController';
 
 const STORE_KEY = 'pendingApprovals';
 
 const TYPE = 'TYPE';
 
-const defaultConfig = {
-  showApprovalRequest: () => undefined,
-};
+const controllerName = 'ApprovalController';
+
+function getRestrictedMessenger() {
+  const controllerMessenger = new ControllerMessenger<
+    ApprovalControllerActions,
+    ApprovalControllerEvents
+  >();
+  const messenger = controllerMessenger.getRestricted<
+    typeof controllerName,
+    never,
+    never
+  >({
+    name: 'ApprovalController',
+  });
+  return messenger;
+}
 
 describe('approval controller', () => {
   const clock = sinon.useFakeTimers(1);
@@ -16,9 +35,14 @@ describe('approval controller', () => {
 
   describe('add', () => {
     let approvalController: ApprovalController;
+    let showApprovalRequest: sinon.SinonSpy;
 
     beforeEach(() => {
-      approvalController = new ApprovalController({ ...defaultConfig });
+      showApprovalRequest = sinon.spy();
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest,
+      });
     });
 
     it('adds correctly specified entry', () => {
@@ -31,7 +55,13 @@ describe('approval controller', () => {
         approvalController.has({ origin: 'bar.baz', type: TYPE }),
       ).toStrictEqual(true);
       expect(approvalController.state[STORE_KEY]).toStrictEqual({
-        foo: { id: 'foo', origin: 'bar.baz', time: 1, type: TYPE },
+        foo: {
+          id: 'foo',
+          origin: 'bar.baz',
+          requestData: null,
+          time: 1,
+          type: TYPE,
+        },
       });
     });
 
@@ -121,7 +151,7 @@ describe('approval controller', () => {
     it('addAndShowApprovalRequest', () => {
       const showApprovalSpy = sinon.spy();
       const approvalController = new ApprovalController({
-        ...defaultConfig,
+        messenger: getRestrictedMessenger(),
         showApprovalRequest: showApprovalSpy,
       });
 
@@ -138,11 +168,15 @@ describe('approval controller', () => {
 
   describe('get', () => {
     it('gets entry', () => {
-      const approvalController = new ApprovalController({ ...defaultConfig });
+      const approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
       expect(approvalController.get('foo')).toStrictEqual({
         id: 'foo',
         origin: 'bar.baz',
+        requestData: null,
         type: 'myType',
         time: 1,
       });
@@ -154,7 +188,10 @@ describe('approval controller', () => {
     let addWithCatch: (args: any) => void;
 
     beforeEach(() => {
-      approvalController = new ApprovalController({ ...defaultConfig });
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
       addWithCatch = (args: any) =>
         approvalController.add(args).catch(() => undefined);
     });
@@ -252,7 +289,10 @@ describe('approval controller', () => {
 
   describe('getTotalApprovalCount', () => {
     it('gets the total approval count', () => {
-      const approvalController = new ApprovalController({ ...defaultConfig });
+      const approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
       expect(approvalController.getTotalApprovalCount()).toStrictEqual(0);
 
       const addWithCatch = (args: any) =>
@@ -279,7 +319,10 @@ describe('approval controller', () => {
     let approvalController: ApprovalController;
 
     beforeEach(() => {
-      approvalController = new ApprovalController({ ...defaultConfig });
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
     });
 
     it('returns true for existing entry by id', () => {
@@ -351,7 +394,10 @@ describe('approval controller', () => {
     let deleteSpy: sinon.SinonSpy;
 
     beforeEach(() => {
-      approvalController = new ApprovalController({ ...defaultConfig });
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
       // TODO: Stop using private methods in tests
       deleteSpy = sinon.spy(approvalController as any, '_delete');
       numDeletions = 0;
@@ -365,7 +411,7 @@ describe('approval controller', () => {
         origin: 'bar.baz',
         type: 'myType',
       });
-      approvalController.resolve('foo', 'success');
+      approvalController.accept('foo', 'success');
 
       const result = await approvalPromise;
       expect(result).toStrictEqual('success');
@@ -386,12 +432,12 @@ describe('approval controller', () => {
         type: 'myType2',
       });
 
-      approvalController.resolve('foo2', 'success2');
+      approvalController.accept('foo2', 'success2');
 
       let result = await approvalPromise2;
       expect(result).toStrictEqual('success2');
 
-      approvalController.resolve('foo1', 'success1');
+      approvalController.accept('foo1', 'success1');
 
       result = await approvalPromise1;
       expect(result).toStrictEqual('success1');
@@ -399,7 +445,7 @@ describe('approval controller', () => {
     });
 
     it('throws on unknown id', () => {
-      expect(() => approvalController.resolve('foo')).toThrow(
+      expect(() => approvalController.accept('foo')).toThrow(
         getIdNotFoundError('foo'),
       );
       expect(deleteSpy.callCount).toStrictEqual(numDeletions);
@@ -412,7 +458,10 @@ describe('approval controller', () => {
     let deleteSpy: sinon.SinonSpy;
 
     beforeEach(() => {
-      approvalController = new ApprovalController({ ...defaultConfig });
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
       // TODO: Stop using private methods in tests
       deleteSpy = sinon.spy(approvalController as any, '_delete');
       numDeletions = 0;
@@ -459,9 +508,12 @@ describe('approval controller', () => {
     });
   });
 
-  describe('resolve and reject', () => {
-    it('resolves and rejects multiple approval promises out of order', async () => {
-      const approvalController = new ApprovalController({ ...defaultConfig });
+  describe('accept and reject', () => {
+    it('accepts and rejects multiple approval promises out of order', async () => {
+      const approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
 
       const promise1 = approvalController.add({
         id: 'foo1',
@@ -484,7 +536,7 @@ describe('approval controller', () => {
         type: 'myType4',
       });
 
-      approvalController.resolve('foo2', 'success2');
+      approvalController.accept('foo2', 'success2');
 
       let result = await promise2;
       expect(result).toStrictEqual('success2');
@@ -500,7 +552,7 @@ describe('approval controller', () => {
       );
       expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
 
-      approvalController.resolve('foo1', 'success1');
+      approvalController.accept('foo1', 'success1');
 
       result = await promise1;
       expect(result).toStrictEqual('success1');
@@ -515,7 +567,10 @@ describe('approval controller', () => {
     let approvalController: ApprovalController;
 
     beforeEach(() => {
-      approvalController = new ApprovalController({ ...defaultConfig });
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
     });
 
     it('does nothing if state is already empty', () => {
@@ -538,13 +593,61 @@ describe('approval controller', () => {
       expect(rejectSpy.callCount).toStrictEqual(2);
     });
   });
+
+  describe('actions', () => {
+    it('addApprovalRequest: shouldShowRequest = true', async () => {
+      const messenger = new ControllerMessenger<
+        ApprovalControllerActions,
+        ApprovalControllerEvents
+      >();
+      const showApprovalSpy = sinon.spy();
+
+      const approvalController = new ApprovalController({
+        messenger: messenger.getRestricted({
+          name: controllerName,
+        }) as ApprovalControllerMessenger,
+        showApprovalRequest: showApprovalSpy,
+      });
+
+      messenger.call(
+        'ApprovalController:addRequest',
+        { id: 'foo', origin: 'bar.baz', type: TYPE },
+        true,
+      );
+      expect(showApprovalSpy.calledOnce).toStrictEqual(true);
+      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
+    });
+
+    it('addApprovalRequest: shouldShowRequest = false', async () => {
+      const messenger = new ControllerMessenger<
+        ApprovalControllerActions,
+        ApprovalControllerEvents
+      >();
+      const showApprovalSpy = sinon.spy();
+
+      const approvalController = new ApprovalController({
+        messenger: messenger.getRestricted({
+          name: controllerName,
+        }) as ApprovalControllerMessenger,
+        showApprovalRequest: showApprovalSpy,
+      });
+
+      messenger.call(
+        'ApprovalController:addRequest',
+        { id: 'foo', origin: 'bar.baz', type: TYPE },
+        false,
+      );
+      expect(showApprovalSpy.notCalled).toStrictEqual(true);
+      expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
+    });
+  });
 });
 
 // helpers
 
 function getIdCollisionError(id: string) {
   return getError(
-    `Approval with id '${id}' already exists.`,
+    `Approval request with id '${id}' already exists.`,
     errorCodes.rpc.internal,
   );
 }
@@ -555,7 +658,7 @@ function getOriginTypeCollisionError(origin: string, type = TYPE) {
 }
 
 function getIdNotFoundError(id: string) {
-  return getError(`Approval with id '${id}' not found.`);
+  return getError(`Approval request with id '${id}' not found.`);
 }
 
 function getError(message: string, code?: number) {

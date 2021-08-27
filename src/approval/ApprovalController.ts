@@ -1,21 +1,23 @@
-import { nanoid } from 'nanoid';
+import type { Patch } from 'immer';
 import { ethErrors } from 'eth-rpc-errors';
-import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import { nanoid } from 'nanoid';
 
-const APPROVALS_STORE_KEY = 'pendingApprovals';
-const APPROVAL_COUNT_STORE_KEY = 'pendingApprovalCount';
+import { BaseController, Json } from '../BaseControllerV2';
+import type { RestrictedControllerMessenger } from '../ControllerMessenger';
+
+const controllerName = 'ApprovalController';
 
 type ApprovalPromiseResolve = (value?: unknown) => void;
 type ApprovalPromiseReject = (error?: Error) => void;
 
-type RequestData = Record<string, unknown>;
+type ApprovalRequestData = Record<string, Json> | null;
 
-interface ApprovalCallbacks {
+type ApprovalCallbacks = {
   resolve: ApprovalPromiseResolve;
   reject: ApprovalPromiseReject;
-}
+};
 
-export interface Approval {
+export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
   /**
    * The ID of the approval request.
    */
@@ -38,25 +40,100 @@ export interface Approval {
 
   /**
    * Additional data associated with the request.
+   * TODO:TS4.4 make optional
    */
-  requestData?: RequestData;
-}
+  requestData: RequestData;
+};
 
-export interface ApprovalConfig extends BaseConfig {
-  showApprovalRequest: () => void;
-}
+type ShowApprovalRequest = () => void | Promise<void>;
 
-export interface ApprovalState extends BaseState {
-  [APPROVALS_STORE_KEY]: { [approvalId: string]: Approval };
-  [APPROVAL_COUNT_STORE_KEY]: number;
-}
+export type ApprovalControllerState = {
+  pendingApprovals: Record<string, ApprovalRequest<Record<string, Json>>>;
+  pendingApprovalCount: number;
+};
+
+const stateMetadata = {
+  pendingApprovals: { persist: false, anonymous: true },
+  pendingApprovalCount: { persist: false, anonymous: false },
+};
 
 const getAlreadyPendingMessage = (origin: string, type: string) =>
   `Request of type '${type}' already pending for origin ${origin}. Please wait.`;
 
-const defaultState: ApprovalState = {
-  [APPROVALS_STORE_KEY]: {},
-  [APPROVAL_COUNT_STORE_KEY]: 0,
+const getDefaultState = (): ApprovalControllerState => {
+  return {
+    pendingApprovals: {},
+    pendingApprovalCount: 0,
+  };
+};
+
+export type GetApprovalsState = {
+  type: `${typeof controllerName}:getState`;
+  handler: () => ApprovalControllerState;
+};
+
+export type ClearApprovalRequests = {
+  type: `${typeof controllerName}:clearRequests`;
+  handler: () => void;
+};
+
+type AddApprovalOptions = {
+  id?: string;
+  origin: string;
+  type: string;
+  requestData?: Record<string, Json>;
+};
+
+export type AddApprovalRequest = {
+  type: `${typeof controllerName}:addRequest`;
+  handler: (
+    opts: AddApprovalOptions,
+    shouldShowRequest: boolean,
+  ) => ReturnType<ApprovalController['add']>;
+};
+
+export type HasApprovalRequest = {
+  type: `${typeof controllerName}:hasRequest`;
+  handler: ApprovalController['has'];
+};
+
+export type AcceptRequest = {
+  type: `${typeof controllerName}:acceptRequest`;
+  handler: ApprovalController['accept'];
+};
+
+export type RejectRequest = {
+  type: `${typeof controllerName}:rejectRequest`;
+  handler: ApprovalController['reject'];
+};
+
+export type ApprovalControllerActions =
+  | GetApprovalsState
+  | ClearApprovalRequests
+  | AddApprovalRequest
+  | HasApprovalRequest
+  | AcceptRequest
+  | RejectRequest;
+
+export type ApprovalStateChange = {
+  type: `${typeof controllerName}:stateChange`;
+  payload: [ApprovalControllerState, Patch[]];
+};
+
+export type ApprovalControllerEvents = ApprovalStateChange;
+
+export type ApprovalControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  ApprovalControllerActions,
+  ApprovalControllerEvents,
+  never,
+  never
+>;
+
+type ApprovalControllerOptions = {
+  messenger: ApprovalControllerMessenger;
+  showApprovalRequest: ShowApprovalRequest;
+  state?: Partial<ApprovalControllerState>;
 };
 
 /**
@@ -69,8 +146,9 @@ const defaultState: ApprovalState = {
  * is approved or denied, respectively.
  */
 export class ApprovalController extends BaseController<
-  ApprovalConfig,
-  ApprovalState
+  typeof controllerName,
+  ApprovalControllerState,
+  ApprovalControllerMessenger
 > {
   private _approvals: Map<string, ApprovalCallbacks>;
 
@@ -83,18 +161,58 @@ export class ApprovalController extends BaseController<
    * @param opts.showApprovalRequest - Function for opening the UI such that
    * the request can be displayed to the user.
    */
-  constructor(config: ApprovalConfig, state?: ApprovalState) {
-    const { showApprovalRequest } = config;
-    if (typeof showApprovalRequest !== 'function') {
-      throw new Error('Must specify function showApprovalRequest.');
-    }
-
-    super(config, state || defaultState);
+  constructor({
+    messenger,
+    showApprovalRequest,
+    state = {},
+  }: ApprovalControllerOptions) {
+    super({
+      name: controllerName,
+      metadata: stateMetadata,
+      messenger,
+      state: { ...getDefaultState(), ...state },
+    });
 
     this._approvals = new Map();
     this._origins = new Map();
     this._showApprovalRequest = showApprovalRequest;
-    this.initialize();
+    this.registerMessageHandlers();
+  }
+
+  /**
+   * Constructor helper for registering this controller's messaging system
+   * actions.
+   */
+  private registerMessageHandlers(): void {
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:clearRequests` as const,
+      this.clear.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:addRequest` as const,
+      (opts: AddApprovalOptions, shouldShowRequest: boolean) => {
+        if (shouldShowRequest) {
+          return this.addAndShowApprovalRequest(opts);
+        }
+        return this.add(opts);
+      },
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:hasRequest` as const,
+      this.has.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:acceptRequest` as const,
+      this.accept.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:rejectRequest` as const,
+      this.reject.bind(this),
+    );
   }
 
   /**
@@ -113,12 +231,7 @@ export class ApprovalController extends BaseController<
    * if any.
    * @returns The approval promise.
    */
-  addAndShowApprovalRequest(opts: {
-    id?: string;
-    origin: string;
-    type: string;
-    requestData?: RequestData;
-  }): Promise<unknown> {
+  addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown> {
     const promise = this._add(
       opts.origin,
       opts.type,
@@ -145,12 +258,7 @@ export class ApprovalController extends BaseController<
    * if any.
    * @returns The approval promise.
    */
-  add(opts: {
-    id?: string;
-    origin: string;
-    type: string;
-    requestData?: RequestData;
-  }): Promise<unknown> {
+  add(opts: AddApprovalOptions): Promise<unknown> {
     return this._add(opts.origin, opts.type, opts.id, opts.requestData);
   }
 
@@ -160,9 +268,8 @@ export class ApprovalController extends BaseController<
    * @param id - The id of the approval request.
    * @returns The approval request data associated with the id.
    */
-  get(id: string): Approval | undefined {
-    const info = this.state[APPROVALS_STORE_KEY][id];
-    return info ? { ...info } : undefined;
+  get(id: string): ApprovalRequest<ApprovalRequestData> | undefined {
+    return this.state.pendingApprovals[id];
   }
 
   /**
@@ -195,7 +302,7 @@ export class ApprovalController extends BaseController<
 
     // Only "type" was specified
     let count = 0;
-    for (const approval of Object.values(this.state[APPROVALS_STORE_KEY])) {
+    for (const approval of Object.values(this.state.pendingApprovals)) {
       if (approval.type === _type) {
         count += 1;
       }
@@ -208,8 +315,49 @@ export class ApprovalController extends BaseController<
    * origins.
    */
   getTotalApprovalCount(): number {
-    return this.state[APPROVAL_COUNT_STORE_KEY];
+    return this.state.pendingApprovalCount;
   }
+
+  // These signatures create a meaningful difference when this method is called.
+  /* eslint-disable @typescript-eslint/unified-signatures */
+  /**
+   * Checks if there's a pending approval request with the given ID.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The ID to check for.
+   * @returns `true` if a matching approval is found, and `false` otherwise.
+   */
+  has(opts: { id: string }): boolean;
+
+  /**
+   * Checks if there's any pending approval request with the given origin.
+   *
+   * @param opts - Options bag.
+   * @param opts.origin - The origin to check for.
+   * @returns `true` if a matching approval is found, and `false` otherwise.
+   */
+  has(opts: { origin: string }): boolean;
+
+  /**
+   * Checks if there's any pending approval request with the given type.
+   *
+   * @param opts - Options bag.
+   * @param opts.type - The type to check for.
+   * @returns `true` if a matching approval is found, and `false` otherwise.
+   */
+  has(opts: { type: string }): boolean;
+
+  /**
+   * Checks if there's any pending approval request with the given origin and
+   * type.
+   *
+   * @param opts - Options bag.
+   * @param opts.origin - The origin to check for.
+   * @param opts.type - The type to check for.
+   * @returns `true` if a matching approval is found, and `false` otherwise.
+   */
+  has(opts: { origin: string; type: string }): boolean;
+  /* eslint-enable @typescript-eslint/unified-signatures */
 
   /**
    * Checks if there's a pending approval request per the given parameters.
@@ -236,31 +384,33 @@ export class ApprovalController extends BaseController<
       return this._approvals.has(id);
     }
 
+    if (_type && typeof _type !== 'string') {
+      throw new Error('May not specify non-string type.');
+    }
+
     if (origin) {
       if (typeof origin !== 'string') {
         throw new Error('May not specify non-string origin.');
       }
 
       // Check origin and type pair if type also specified
-      if (_type && typeof _type === 'string') {
+      if (_type) {
         return Boolean(this._origins.get(origin)?.has(_type));
       }
       return this._origins.has(origin);
     }
 
     if (_type) {
-      if (typeof _type !== 'string') {
-        throw new Error('May not specify non-string type.');
-      }
-
-      for (const approval of Object.values(this.state[APPROVALS_STORE_KEY])) {
+      for (const approval of Object.values(this.state.pendingApprovals)) {
         if (approval.type === _type) {
           return true;
         }
       }
       return false;
     }
-    throw new Error('Must specify non-empty string id, origin, or type.');
+    throw new Error(
+      'Must specify a valid combination of id, origin, and type.',
+    );
   }
 
   /**
@@ -270,7 +420,7 @@ export class ApprovalController extends BaseController<
    * @param id - The id of the approval request.
    * @param value - The value to resolve the approval promise with.
    */
-  resolve(id: string, value?: unknown): void {
+  accept(id: string, value?: unknown): void {
     this._deleteApprovalAndGetCallbacks(id).resolve(value);
   }
 
@@ -297,7 +447,7 @@ export class ApprovalController extends BaseController<
       this.reject(id, rejectionError);
     }
     this._origins.clear();
-    this.update(defaultState, true);
+    this.update(() => getDefaultState());
   }
 
   /**
@@ -313,7 +463,7 @@ export class ApprovalController extends BaseController<
     origin: string,
     type: string,
     id: string = nanoid(),
-    requestData?: RequestData,
+    requestData?: Record<string, Json>,
   ): Promise<unknown> {
     this._validateAddParams(id, origin, type, requestData);
 
@@ -343,13 +493,13 @@ export class ApprovalController extends BaseController<
     id: string,
     origin: string,
     type: string,
-    requestData?: RequestData,
+    requestData?: Record<string, Json>,
   ): void {
     let errorMessage = null;
     if (!id || typeof id !== 'string') {
       errorMessage = 'Must specify non-empty string id.';
     } else if (this._approvals.has(id)) {
-      errorMessage = `Approval with id '${id}' already exists.`;
+      errorMessage = `Approval request with id '${id}' already exists.`;
     } else if (!origin || typeof origin !== 'string') {
       errorMessage = 'Must specify non-empty string origin.';
     } else if (!type || typeof type !== 'string') {
@@ -395,25 +545,23 @@ export class ApprovalController extends BaseController<
     id: string,
     origin: string,
     type: string,
-    requestData?: RequestData,
+    requestData?: Record<string, Json>,
   ): void {
-    const approval: Approval = { id, origin, type, time: Date.now() };
-    if (requestData) {
-      approval.requestData = requestData;
-    }
-
-    const approvals = {
-      ...this.state[APPROVALS_STORE_KEY],
-      [id]: approval,
+    const approval: ApprovalRequest<Record<string, Json> | null> = {
+      id,
+      origin,
+      type,
+      time: Date.now(),
+      requestData: requestData || null,
     };
 
-    this.update(
-      {
-        [APPROVALS_STORE_KEY]: approvals,
-        [APPROVAL_COUNT_STORE_KEY]: Object.keys(approvals).length,
-      },
-      true,
-    );
+    this.update((draftState) => {
+      // Typecast: ts(2589)
+      draftState.pendingApprovals[id] = approval as any;
+      draftState.pendingApprovalCount = Object.keys(
+        draftState.pendingApprovals,
+      ).length;
+    });
   }
 
   /**
@@ -427,23 +575,22 @@ export class ApprovalController extends BaseController<
   private _delete(id: string): void {
     this._approvals.delete(id);
 
-    const approvals = this.state[APPROVALS_STORE_KEY];
-    const { origin, type } = approvals[id];
+    // This method is only called after verifying that the approval with the
+    // specified id exists.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const { origin, type } = this.state.pendingApprovals[id]!;
 
     (this._origins.get(origin) as Set<string>).delete(type);
     if (this._isEmptyOrigin(origin)) {
       this._origins.delete(origin);
     }
 
-    const newApprovals = { ...approvals };
-    delete newApprovals[id];
-    this.update(
-      {
-        [APPROVALS_STORE_KEY]: newApprovals,
-        [APPROVAL_COUNT_STORE_KEY]: Object.keys(newApprovals).length,
-      },
-      true,
-    );
+    this.update((draftState) => {
+      delete draftState.pendingApprovals[id];
+      draftState.pendingApprovalCount = Object.keys(
+        draftState.pendingApprovals,
+      ).length;
+    });
   }
 
   /**
@@ -457,7 +604,7 @@ export class ApprovalController extends BaseController<
   private _deleteApprovalAndGetCallbacks(id: string): ApprovalCallbacks {
     const callbacks = this._approvals.get(id);
     if (!callbacks) {
-      throw new Error(`Approval with id '${id}' not found.`);
+      throw new Error(`Approval request with id '${id}' not found.`);
     }
 
     this._delete(id);

@@ -1,27 +1,24 @@
 const { errorCodes } = require('eth-rpc-errors');
+const { ControllerMessenger } = require('../ControllerMessenger');
 const { ApprovalController } = require('./ApprovalController');
 
-const defaultConfig = {
-  showApprovalRequest: () => undefined,
-};
+function getRestrictedMessenger() {
+  const controllerMessenger = new ControllerMessenger();
+  const messenger = controllerMessenger.getRestricted({
+    name: 'ApprovalController',
+  });
+  return messenger;
+}
 
 const getApprovalController = () =>
-  new ApprovalController({ ...defaultConfig });
+  new ApprovalController({
+    messenger: getRestrictedMessenger(),
+    showApprovalRequest: () => undefined,
+  });
 
 const STORE_KEY = 'pendingApprovals';
 
 describe('ApprovalController: Input Validation', () => {
-  describe('constructor', () => {
-    it('throws on invalid input', () => {
-      expect(() => new ApprovalController({})).toThrow(
-        getInvalidShowApprovalRequestError(),
-      );
-      expect(
-        () => new ApprovalController({ showApprovalRequest: 'bar' }),
-      ).toThrow(getInvalidShowApprovalRequestError());
-    });
-  });
-
   describe('add', () => {
     it('validates input', () => {
       const approvalController = getApprovalController();
@@ -109,6 +106,9 @@ describe('ApprovalController: Input Validation', () => {
       expect(() => approvalController.has({ type: true })).toThrow(
         getInvalidHasTypeError(),
       );
+      expect(() =>
+        approvalController.has({ origin: 'foo', type: true }),
+      ).toThrow(getInvalidHasTypeError());
     });
   });
 
@@ -118,7 +118,7 @@ describe('ApprovalController: Input Validation', () => {
     let approvalController;
 
     beforeEach(() => {
-      approvalController = new ApprovalController({ ...defaultConfig });
+      approvalController = getApprovalController();
     });
 
     it('deletes entry', () => {
@@ -162,10 +162,6 @@ describe('ApprovalController: Input Validation', () => {
 
 // helpers
 
-function getInvalidShowApprovalRequestError() {
-  return getError('Must specify function showApprovalRequest.');
-}
-
 function getInvalidIdError() {
   return getError('Must specify non-empty string id.', errorCodes.rpc.internal);
 }
@@ -201,7 +197,7 @@ function getInvalidTypeError(code) {
 }
 
 function getInvalidHasParamsError() {
-  return getError('Must specify non-empty string id, origin, or type.');
+  return getError('Must specify a valid combination of id, origin, and type.');
 }
 
 function getApprovalCountParamsError() {
