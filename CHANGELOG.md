@@ -7,15 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [15.0.0]
-### Uncategorized
+### Added
+- ADDED: pull request template ([#562](https://github.com/MetaMask/controllers/pull/562))
+
+### Changed
+- **BREAKING** Update TokensController allTokens state structure to make network/chainID parent of account ([#572](https://github.com/MetaMask/controllers/pull/572))
+  - The shape of allTokens state field on TokensController has been reorganized. Consumers of the TokensController will have to migrate existing token state to new shape.
+- **BREAKING** ignoredTokens changed to allIgnoredTokesn ([#570](https://github.com/MetaMask/controllers/pull/570))
+  - a new state field on the TokensController - allIgnoredTokens - now manages ignoredTokens by network and accountAddress, ignoredTokens is now the array for the currently active network and accountAddress pair.
 - Slicing tokensToDetect list to check for balance ([#568](https://github.com/MetaMask/controllers/pull/568))
 - Migrate ApprovalController to BaseControllerV2 ([#555](https://github.com/MetaMask/controllers/pull/555))
-- Move controller messenger type demonstration to its own test suite ([#565](https://github.com/MetaMask/controllers/pull/565))
-- Update ignored tokens shape ([#570](https://github.com/MetaMask/controllers/pull/570))
-- BREAKING: update tokens controller allTokens state structure to make network/chainID parent of account ([#572](https://github.com/MetaMask/controllers/pull/572))
-- ADDED: pull request template ([#562](https://github.com/MetaMask/controllers/pull/562))
 - Cancelling inflight request during chainId change and useStaticTokenList flag change ([#571](https://github.com/MetaMask/controllers/pull/571))
 - Updating the token list api ([#563](https://github.com/MetaMask/controllers/pull/563))
+- Move controller messenger type demonstration to its own test suite ([#565](https://github.com/MetaMask/controllers/pull/565))
 - Bump @metamask/contract-metadata from 1.28.0 to 1.29.0 ([#569](https://github.com/MetaMask/controllers/pull/569))
 - Removing aggregator from TokenListToken ([#564](https://github.com/MetaMask/controllers/pull/564))
 - Adding polling restart for TokenList Fetch ([#561](https://github.com/MetaMask/controllers/pull/561))
