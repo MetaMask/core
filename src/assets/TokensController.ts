@@ -84,7 +84,8 @@ export type SuggestedAssetMeta =
  * @property allTokens - Object containing tokens by network and account
  * @property suggestedAssets - List of suggested assets associated with the active vault
  * @property tokens - List of tokens associated with the active vault
- * @property ignoredTokens - Object containing hidden/ignored tokens by network and account
+ * @property ignoredTokens - List of ignoredTokens associated with the active vault
+ * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  */
 export interface TokensState extends BaseState {
   allTokens: { [key: string]: { [key: string]: Token[] } };
