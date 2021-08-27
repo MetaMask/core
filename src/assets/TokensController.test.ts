@@ -286,7 +286,7 @@ describe('TokensController', () => {
 
     it('should remove token from ignoredTokens/allIgnoredTokens lists if added back via addToken', async () => {
       await tokensController.addToken('0x01', 'bar', 2);
-      await tokensController.addToken('0xfAA', 'bar', 3);
+      await tokensController.addToken('0xFAa', 'bar', 3);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       expect(tokensController.state.tokens).toHaveLength(2);
       tokensController.removeAndIgnoreToken('0x01');
@@ -298,12 +298,22 @@ describe('TokensController', () => {
     });
 
     it('should remove a token from the ignoredTokens/allIgnoredTokens lists if re-added as part of a bulk addTokens add', async () => {
+      const selectedAddress = '0x0001';
+      const chain = 'rinkeby';
+      preferences.setSelectedAddress(selectedAddress);
+      network.update({
+        provider: {
+          type: chain,
+          chainId: NetworksChainId[chain],
+        },
+      });
+
       await tokensController.addToken('0x01', 'bar', 2);
-      await tokensController.addToken('0xfAA', 'bar', 3);
+      await tokensController.addToken('0xFAa', 'bar', 3);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       expect(tokensController.state.tokens).toHaveLength(2);
       tokensController.removeAndIgnoreToken('0x01');
-      tokensController.removeAndIgnoreToken('0xfAA');
+      tokensController.removeAndIgnoreToken('0xFAa');
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.ignoredTokens).toHaveLength(2);
       await tokensController.addTokens([
@@ -313,6 +323,11 @@ describe('TokensController', () => {
       ]);
       expect(tokensController.state.tokens).toHaveLength(3);
       expect(tokensController.state.ignoredTokens).toHaveLength(1);
+      expect(tokensController.state.allIgnoredTokens).toStrictEqual({
+        [NetworksChainId[chain]]: {
+          [selectedAddress]: ['0xFAa'],
+        },
+      });
     });
 
     it('should be able to clear the ignoredToken list', async () => {
@@ -321,8 +336,8 @@ describe('TokensController', () => {
       tokensController.removeAndIgnoreToken('0x01');
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [defaultSelectedAddress]: {
-          [NetworksChainId[defaultSelectedNetwork]]: ['0x01'],
+        [NetworksChainId[defaultSelectedNetwork]]: {
+          [defaultSelectedAddress]: ['0x01'],
         },
       });
       tokensController.clearIgnoredTokens();
@@ -332,7 +347,7 @@ describe('TokensController', () => {
       );
     });
 
-    it('should ignore tokens by address and chainId', async () => {
+    it('should ignore tokens by [chainID][accountAddress]', async () => {
       const selectedAddress1 = '0x0001';
       const selectedAddress2 = '0x0002';
       const chain1 = 'rinkeby';
@@ -372,11 +387,13 @@ describe('TokensController', () => {
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x03']);
 
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [selectedAddress1]: {
-          [NetworksChainId[chain1]]: ['0x01'],
-          [NetworksChainId[chain2]]: ['0x02'],
+        [NetworksChainId[chain1]]: {
+          [selectedAddress1]: ['0x01'],
         },
-        [selectedAddress2]: { [NetworksChainId[chain2]]: ['0x03'] },
+        [NetworksChainId[chain2]]: {
+          [selectedAddress1]: ['0x02'],
+          [selectedAddress2]: ['0x03'],
+        },
       });
     });
   });
