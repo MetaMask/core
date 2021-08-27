@@ -523,7 +523,8 @@ export class TokensController extends BaseController<
    * Takes a new tokens array for the current network/account combination
    * and returns new allTokens state to update to.
    *
-   * @param newTokens - array of token type
+   * @param newTokens - The tokens to set for the current network and selected account.
+   * @returns The updated `allTokens` state.
    */
   _getNewAllTokensState(newTokens: Token[]) {
     const { allTokens } = this.state;
