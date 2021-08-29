@@ -745,23 +745,3 @@ export function validateMinimumIncrease(proposed: string, min: string) {
   const errorMsg = `The proposed value: ${proposedDecimal} should meet or exceed the minimum value: ${minDecimal}`;
   throw new Error(errorMsg);
 }
-
-export default {
-  BNToHex,
-  fractionBN,
-  query,
-  getBuyURL,
-  handleFetch,
-  hexToBN,
-  hexToText,
-  isSmartContractCode,
-  normalizeTransaction,
-  safelyExecute,
-  safelyExecuteWithTimeout,
-  successfulFetch,
-  timeoutFetch,
-  validateTokenToWatch,
-  validateTransaction,
-  validateTypedSignMessageDataV1,
-  validateTypedSignMessageDataV3,
-};
