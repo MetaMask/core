@@ -805,7 +805,7 @@ describe('util', () => {
       let error;
       try {
         await util.successfulFetch(SOME_FAILING_API);
-      } catch (e) {
+      } catch (e: any) {
         error = e;
       }
       expect(error.message).toBe(
@@ -829,7 +829,7 @@ describe('util', () => {
       let error;
       try {
         await util.timeoutFetch(SOME_API, {}, 100);
-      } catch (e) {
+      } catch (e: any) {
         error = e;
       }
       expect(error.message).toBe('timeout');
@@ -1041,6 +1041,37 @@ describe('util', () => {
       expect(() =>
         util.validateMinimumIncrease('0x7162a5ca', '0x5916a6d6'),
       ).not.toThrow(Error);
+    });
+  });
+
+  describe('coerceToError', () => {
+    it('should return Error values directly', () => {
+      const value = new Error();
+      const error = util.coerceToError(value);
+      expect(error === value).toStrictEqual(true);
+    });
+
+    ['', 'foo', { message: 'foo' }, [1, 2, 3], null, true, false].forEach(
+      (value) => {
+        it(`should handle value that JSON.stringifies to truthy string: ${value}`, () => {
+          const error = util.coerceToError(value);
+          const stringified = JSON.stringify(value, null, 2);
+
+          expect(stringified.length).toBeGreaterThan(0);
+          expect(error.message).toStrictEqual(
+            `Caught non-Error value: ${stringified}`,
+          );
+        });
+      },
+    );
+
+    [() => undefined, Symbol('foo'), undefined].forEach((value) => {
+      it(`should handle value that JSON.stringifies to undefined: ${typeof value}`, () => {
+        const error = util.coerceToError(value);
+        expect(error.message).toStrictEqual(
+          `Caught non-Error value: ${typeof value}`,
+        );
+      });
     });
   });
 });

@@ -4,7 +4,7 @@ import EthQuery from 'eth-query';
 import { v1 as random } from 'uuid';
 import { isHexString } from 'ethereumjs-util';
 import { BaseController } from '../BaseControllerV2';
-import { safelyExecute } from '../util';
+import { coerceToError, safelyExecute } from '../util';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import type {
   NetworkController,
@@ -401,9 +401,11 @@ export class GasFeeController extends BaseController<
           estimatedGasFeeTimeBounds: {},
           gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
         };
-      } catch (error) {
+      } catch (thrown) {
         throw new Error(
-          `Gas fee/price estimation failed. Message: ${error.message}`,
+          `Gas fee/price estimation failed. Message: ${
+            coerceToError(thrown).message
+          }`,
         );
       }
     }

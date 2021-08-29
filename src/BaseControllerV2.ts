@@ -132,6 +132,8 @@ export class BaseController<
    * this property is never used for new BaseController-based controllers, to ensure the
    * ComposableController never mistakes them for an older style controller.
    */
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   public readonly subscribe: never;
 
   /**

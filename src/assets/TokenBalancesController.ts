@@ -1,6 +1,6 @@
 import { BN } from 'ethereumjs-util';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
-import { safelyExecute } from '../util';
+import { coerceToError, safelyExecute } from '../util';
 import type { PreferencesState } from '../user/PreferencesController';
 import { Token } from './TokenRatesController';
 import { TokensState } from './TokensController';
@@ -128,7 +128,7 @@ export class TokenBalancesController extends BaseController<
         tokens[i].balanceError = null;
       } catch (error) {
         newContractBalances[address] = new BN(0);
-        tokens[i].balanceError = error;
+        tokens[i].balanceError = coerceToError(error);
       }
     }
     this.update({ contractBalances: newContractBalances });

@@ -1,4 +1,4 @@
-import { timeoutFetch } from '../util';
+import { coerceToError, timeoutFetch } from '../util';
 
 const END_POINT = 'https://token-api.metaswap.codefi.network';
 
@@ -84,9 +84,12 @@ async function queryApi(
   fetchOptions.headers.set('Content-Type', 'application/json');
   try {
     return await timeoutFetch(apiURL, fetchOptions, timeout);
-  } catch (err) {
-    if (err.name === 'AbortError') {
+  } catch (thrown) {
+    const error = coerceToError(thrown);
+    if (error.name === 'AbortError') {
       console.log('Request is aborted');
+    } else {
+      console.error(error);
     }
   }
   return undefined;
