@@ -28,6 +28,7 @@ import {
   isFeeMarketEIP1559Values,
   validateGasValues,
   validateMinimumIncrease,
+  coerceToError,
 } from '../util';
 import { MAINNET, RPC } from '../constants';
 
@@ -517,7 +518,8 @@ export class TransactionController extends BaseController<
     try {
       const { gas } = await this.estimateGas(transaction);
       transaction.gas = gas;
-    } catch (error) {
+    } catch (thrown) {
+      const error = coerceToError(thrown);
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
     }
@@ -682,8 +684,8 @@ export class TransactionController extends BaseController<
       transactionMeta.status = TransactionStatus.submitted;
       this.updateTransaction(transactionMeta);
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
-    } catch (error) {
-      this.failTransaction(transactionMeta, error);
+    } catch (thrown) {
+      this.failTransaction(transactionMeta, coerceToError(thrown));
     } finally {
       releaseLock();
     }

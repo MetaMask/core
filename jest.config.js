@@ -25,6 +25,7 @@ module.exports = {
   // modules.
   // restoreMocks: true,
   setupFiles: ['./tests/setupTests.ts'],
+  silent: true,
   testEnvironment: 'jsdom',
   testRegex: ['\\.test\\.(ts|js)$'],
   testTimeout: 5000,

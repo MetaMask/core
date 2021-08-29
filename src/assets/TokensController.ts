@@ -7,7 +7,11 @@ import { ethers } from 'ethers';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
-import { validateTokenToWatch, toChecksumHexAddress } from '../util';
+import {
+  validateTokenToWatch,
+  toChecksumHexAddress,
+  coerceToError,
+} from '../util';
 import { MAINNET } from '../constants';
 import type { Token } from './TokenRatesController';
 
@@ -411,7 +415,8 @@ export class TokensController extends BaseController<
         default:
           throw new Error(`Asset of type ${type} not supported`);
       }
-    } catch (error) {
+    } catch (thrown) {
+      const error = coerceToError(thrown);
       this.failSuggestedAsset(suggestedAssetMeta, error);
       return Promise.reject(error);
     }
@@ -472,8 +477,8 @@ export class TokensController extends BaseController<
             `Asset of type ${suggestedAssetMeta.type} not supported`,
           );
       }
-    } catch (error) {
-      this.failSuggestedAsset(suggestedAssetMeta, error);
+    } catch (thrown) {
+      this.failSuggestedAsset(suggestedAssetMeta, coerceToError(thrown));
     }
     const newSuggestedAssets = suggestedAssets.filter(
       ({ id }) => id !== suggestedAssetID,

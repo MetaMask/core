@@ -290,7 +290,8 @@ export async function safelyExecute(
 ) {
   try {
     return await operation();
-  } catch (error) {
+  } catch (thrown) {
+    const error = coerceToError(thrown);
     /* istanbul ignore next */
     if (logError) {
       console.error(error);
@@ -746,22 +747,14 @@ export function validateMinimumIncrease(proposed: string, min: string) {
   throw new Error(errorMsg);
 }
 
-export default {
-  BNToHex,
-  fractionBN,
-  query,
-  getBuyURL,
-  handleFetch,
-  hexToBN,
-  hexToText,
-  isSmartContractCode,
-  normalizeTransaction,
-  safelyExecute,
-  safelyExecuteWithTimeout,
-  successfulFetch,
-  timeoutFetch,
-  validateTokenToWatch,
-  validateTransaction,
-  validateTypedSignMessageDataV1,
-  validateTypedSignMessageDataV3,
-};
+export function coerceToError(thrownValue: unknown): Error {
+  if (thrownValue instanceof Error) {
+    return thrownValue;
+  }
+
+  return new Error(
+    `Caught non-Error value: ${
+      JSON.stringify(thrownValue, null, 2) || typeof thrownValue
+    }`,
+  );
+}

@@ -94,15 +94,17 @@ export class AddressBookController extends BaseController<
     if (
       !isValidHexAddress(address) ||
       !this.state.addressBook[chainId] ||
-      !this.state.addressBook[chainId][address]
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      !this.state.addressBook[chainId]![address]
     ) {
       return false;
     }
 
     const addressBook = Object.assign({}, this.state.addressBook);
-    delete addressBook[chainId][address];
+    const entry = addressBook[chainId] as Record<string, AddressBookEntry>;
+    delete entry[address];
 
-    if (Object.keys(addressBook[chainId]).length === 0) {
+    if (Object.keys(entry).length === 0) {
       delete addressBook[chainId];
     }
 

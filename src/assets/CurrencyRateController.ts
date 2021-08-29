@@ -2,7 +2,7 @@ import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 
 import { BaseController } from '../BaseControllerV2';
-import { safelyExecute } from '../util';
+import { coerceToError, safelyExecute } from '../util';
 import { fetchExchangeRate as defaultFetchExchangeRate } from '../apis/crypto-compare';
 
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
@@ -221,7 +221,9 @@ export class CurrencyRateController extends BaseController<
           this.includeUsdRate,
         ));
       }
-    } catch (error) {
+    } catch (thrown) {
+      const error = coerceToError(thrown);
+      console.error(error);
       if (!error.message.includes('market does not exist for this coin pair')) {
         throw error;
       }
