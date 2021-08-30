@@ -7,23 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [15.0.0]
-### Added
-- ADDED: pull request template ([#562](https://github.com/MetaMask/controllers/pull/562))
-
 ### Changed
 - **BREAKING** Update TokensController allTokens state structure to make network/chainID parent of account ([#572](https://github.com/MetaMask/controllers/pull/572))
   - The shape of allTokens state field on TokensController has been reorganized. Consumers of the TokensController will have to migrate existing token state to new shape.
-- **BREAKING** ignoredTokens changed to allIgnoredTokesn ([#570](https://github.com/MetaMask/controllers/pull/570))
-  - a new state field on the TokensController - allIgnoredTokens - now manages ignoredTokens by network and accountAddress, ignoredTokens is now the array for the currently active network and accountAddress pair.
-- Slicing tokensToDetect list to check for balance ([#568](https://github.com/MetaMask/controllers/pull/568))
-- Migrate ApprovalController to BaseControllerV2 ([#555](https://github.com/MetaMask/controllers/pull/555))
-- Cancelling inflight request during chainId change and useStaticTokenList flag change ([#571](https://github.com/MetaMask/controllers/pull/571))
-- Updating the token list api ([#563](https://github.com/MetaMask/controllers/pull/563))
-- Move controller messenger type demonstration to its own test suite ([#565](https://github.com/MetaMask/controllers/pull/565))
+- **BREAKING** ignoredTokens changed to allIgnoredTokens ([#570](https://github.com/MetaMask/controllers/pull/570))
+  - a new state field on the TokensController - allIgnoredTokens - now manages ignoredTokens by network and accountAddress, ignoredTokens is now the array of token address strings (previously an array of full token objects) that have been hidden by the user for the currently active network and accountAddress pair. Consumers of the TokensController will have to migrate existing ignoredTokens array to allIgnoredTokens object.
+- **BREAKING** Improve BaseControllerV2 messenger type ([#556](https://github.com/MetaMask/controllers/pull/556))
+  - This is a breaking change, because anyone extending BaseControllerV2 will now be required to supply an additional generic parameter.
+- **BREAKING** Remove redundant default export from util.ts ([#574](https://github.com/MetaMask/controllers/pull/574))  
+  - This is potentially breaking for consumers who import methods from the utils.ts as default/unnamed imports and will require changing these to named imports.
+- **BREAKING** Removing aggregator from TokenListToken ([#564](https://github.com/MetaMask/controllers/pull/564))
+  - This is breaking because the the DynamicToken and TokenListToken types no longer contain an aggregators field. Consumers will have to remove aggregators for objects using this type.
+- **BREAKING** Migrate ApprovalController to BaseControllerV2 ([#555](https://github.com/MetaMask/controllers/pull/555))
+  - This is a breaking change because the 'resolve' method has been renamed to 'accept'.
+- Speed up token detection for most popular 1000 tokens ([#568](https://github.com/MetaMask/controllers/pull/568))
+- Cancel inflight request during chainId change and useStaticTokenList flag change ([#571](https://github.com/MetaMask/controllers/pull/571))
+- Update the token list API host ([#563](https://github.com/MetaMask/controllers/pull/563))
 - Bump @metamask/contract-metadata from 1.28.0 to 1.29.0 ([#569](https://github.com/MetaMask/controllers/pull/569))
-- Removing aggregator from TokenListToken ([#564](https://github.com/MetaMask/controllers/pull/564))
-- Adding polling restart for TokenList Fetch ([#561](https://github.com/MetaMask/controllers/pull/561))
-- Improve BaseControllerV2 messenger type ([#556](https://github.com/MetaMask/controllers/pull/556))
+- Reduce frequency of token list updates ([#561](https://github.com/MetaMask/controllers/pull/561))
+  - Previously it would update the token list upon _any_ preference or network configuration change. Now it only restarts polling when the network switches or when the `useStaticTokenList` flag changes. 
 
 ## [14.2.0]
 ### Added
