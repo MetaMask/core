@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.0.0]
 ### Changed
-- **BREAKING** Update TokensController allTokens state structure to make network/chainID parent of account ([#572](https://github.com/MetaMask/controllers/pull/572))
+- **BREAKING**: Update TokensController allTokens state structure to make network/chainID parent of account ([#572](https://github.com/MetaMask/controllers/pull/572))
   - The shape of allTokens state field on TokensController has been reorganized. Consumers of the TokensController will have to migrate existing token state to new shape.
 - **BREAKING** ignoredTokens changed to allIgnoredTokens ([#570](https://github.com/MetaMask/controllers/pull/570))
   - a new state field on the TokensController - allIgnoredTokens - now manages ignoredTokens by network and accountAddress, ignoredTokens is now the array of token address strings (previously an array of full token objects) that have been hidden by the user for the currently active network and accountAddress pair. Consumers of the TokensController will have to migrate existing ignoredTokens array to allIgnoredTokens object.
