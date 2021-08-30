@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING** Improve BaseControllerV2 messenger type ([#556](https://github.com/MetaMask/controllers/pull/556))
   - This is a breaking change, because anyone extending BaseControllerV2 will now be required to supply an additional generic parameter.
 - **BREAKING** Remove redundant default export from util.ts ([#574](https://github.com/MetaMask/controllers/pull/574))  
-  - This is potentially breaking for consumers who import methods from the utils.ts as default/unnamed imports and will require changing these to named imports.
+  - This is breaking for consumers who use the default import of the utils module, and will require using named imports instead.
 - **BREAKING** Removing aggregator from TokenListToken ([#564](https://github.com/MetaMask/controllers/pull/564))
   - This is breaking because the the DynamicToken and TokenListToken types no longer contain an aggregators field. Consumers will have to remove aggregators for objects using this type.
 - **BREAKING** Migrate ApprovalController to BaseControllerV2 ([#555](https://github.com/MetaMask/controllers/pull/555))
