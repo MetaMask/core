@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING** Removing aggregator from TokenListToken ([#564](https://github.com/MetaMask/controllers/pull/564))
   - This is breaking because the the DynamicToken and TokenListToken types no longer contain an aggregators field. Consumers will have to remove aggregators for objects using this type.
 - **BREAKING** Migrate ApprovalController to BaseControllerV2 ([#555](https://github.com/MetaMask/controllers/pull/555))
-  - This is a breaking change because the 'resolve' method has been renamed to 'accept'.
+  - This is a breaking change because the BaseControllerV2 migration is breaking, and the 'resolve' method has been renamed to 'accept'.
 - Speed up token detection for most popular 1000 tokens ([#568](https://github.com/MetaMask/controllers/pull/568))
 - Cancel inflight request during chainId change and useStaticTokenList flag change ([#571](https://github.com/MetaMask/controllers/pull/571))
 - Update the token list API host ([#563](https://github.com/MetaMask/controllers/pull/563))
