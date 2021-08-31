@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.1]
+### Uncategorized
+- add abort-controller polyfill ([#575](https://github.com/MetaMask/controllers/pull/575))
+- Bump tar from 6.1.4 to 6.1.11 ([#576](https://github.com/MetaMask/controllers/pull/576))
+
 ## [15.0.0]
 ### Changed
 - **BREAKING**: Update TokensController allTokens state structure to make network/chainID parent of account ([#572](https://github.com/MetaMask/controllers/pull/572))
@@ -353,7 +358,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v15.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v15.0.1...HEAD
+[15.0.1]: https://github.com/MetaMask/controllers/compare/v15.0.0...v15.0.1
 [15.0.0]: https://github.com/MetaMask/controllers/compare/v14.2.0...v15.0.0
 [14.2.0]: https://github.com/MetaMask/controllers/compare/v14.1.0...v14.2.0
 [14.1.0]: https://github.com/MetaMask/controllers/compare/v14.0.2...v14.1.0
