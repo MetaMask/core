@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.1]
+### Fixed
+- Add AbortController polyfill ([#575](https://github.com/MetaMask/controllers/pull/575))
+  - [15.0.0](#1500) introduced the use of the global AbortController to this package. The global AbortController was first introduced in Node 15, so this unintentionally broke support for the minimum Node version this package should support, which is Node 12. By polyfilling the AbortController, we restore Node 12 support.
+
 ## [15.0.0]
 ### Changed
 - **BREAKING**: Update TokensController allTokens state structure to make network/chainID parent of account ([#572](https://github.com/MetaMask/controllers/pull/572))
@@ -353,7 +358,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v15.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v15.0.1...HEAD
+[15.0.1]: https://github.com/MetaMask/controllers/compare/v15.0.0...v15.0.1
 [15.0.0]: https://github.com/MetaMask/controllers/compare/v14.2.0...v15.0.0
 [14.2.0]: https://github.com/MetaMask/controllers/compare/v14.1.0...v14.2.0
 [14.1.0]: https://github.com/MetaMask/controllers/compare/v14.0.2...v14.1.0
