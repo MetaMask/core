@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.2]
+
 ## [15.0.1]
 ### Fixed
 - Add AbortController polyfill ([#575](https://github.com/MetaMask/controllers/pull/575))
@@ -358,7 +360,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v15.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v15.0.2...HEAD
+[15.0.2]: https://github.com/MetaMask/controllers/compare/v15.0.1...v15.0.2
 [15.0.1]: https://github.com/MetaMask/controllers/compare/v15.0.0...v15.0.1
 [15.0.0]: https://github.com/MetaMask/controllers/compare/v14.2.0...v15.0.0
 [14.2.0]: https://github.com/MetaMask/controllers/compare/v14.1.0...v14.2.0
