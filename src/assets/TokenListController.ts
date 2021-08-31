@@ -1,6 +1,7 @@
 import contractMap from '@metamask/contract-metadata';
 import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
+import { AbortController } from 'abort-controller';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { safelyExecute } from '../util';
