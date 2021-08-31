@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [15.0.1]
-### Uncategorized
-- add abort-controller polyfill ([#575](https://github.com/MetaMask/controllers/pull/575))
-- Bump tar from 6.1.4 to 6.1.11 ([#576](https://github.com/MetaMask/controllers/pull/576))
+### Fixed
+- Add abort-controller polyfill ([#575](https://github.com/MetaMask/controllers/pull/575))
+  - This fixes broken contract in release v15.0.0 where we introduced a use of AbortController without updating the node engine requirement in package.json to atleast node v15.0.0 where support for AbortController was added. Here we add the polyfill instead of bumping the required node version.
 
 ## [15.0.0]
 ### Changed
