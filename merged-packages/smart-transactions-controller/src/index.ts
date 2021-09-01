@@ -1,3 +1,3 @@
-export default function greeter(name: string): string {
-  return `Hello, ${name}!`;
-}
+import SmartTransactionsController from './SmartTransactionsController';
+
+export default SmartTransactionsController;

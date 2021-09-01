@@ -1,7 +1,7 @@
 {
-  "name": "@metamask/module-template",
+  "name": "@metamask/smart-transactions-controller",
   "version": "0.0.0",
-  "description": "The MetaMask Node module template.",
+  "description": "MetaMask controller for Smart Transactions.",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/metamask-module-template.git"
@@ -23,6 +23,9 @@
     "build:clean": "rimraf dist && yarn build",
     "build": "tsc --project ."
   },
+  "dependencies": {
+    "@metamask/controllers": "^15.0.0"
+  },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^1.0.5",
     "@metamask/auto-changelog": "^2.3.0",
@@ -31,6 +34,7 @@
     "@metamask/eslint-config-nodejs": "^8.0.0",
     "@metamask/eslint-config-typescript": "^8.0.0",
     "@types/jest": "^26.0.13",
+    "@types/node": "^16.7.8",
     "@typescript-eslint/eslint-plugin": "^4.21.0",
     "@typescript-eslint/parser": "^4.21.0",
     "eslint": "^7.23.0",
@@ -55,7 +59,10 @@
   },
   "lavamoat": {
     "allowScripts": {
-      "@lavamoat/preinstall-always-fail": false
+      "@lavamoat/preinstall-always-fail": false,
+      "keccak": false,
+      "secp256k1": false,
+      "core-js": false
     }
   }
 }

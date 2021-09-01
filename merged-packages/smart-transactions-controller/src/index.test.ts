@@ -1,9 +1,12 @@
-import greeter from '.';
+import SmartTransactionsController from './SmartTransactionsController';
+import DefaultExport from '.';
 
-describe('Test', () => {
-  it('greets', () => {
-    const name = 'Huey';
-    const result = greeter(name);
-    expect(result).toStrictEqual('Hello, Huey!');
+describe('default export', () => {
+  it('exports SmartTransactionsController', () => {
+    expect(
+      new DefaultExport({
+        onNetworkStateChange: jest.fn(),
+      }),
+    ).toBeInstanceOf(SmartTransactionsController);
   });
 });
