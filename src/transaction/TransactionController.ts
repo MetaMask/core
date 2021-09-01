@@ -673,6 +673,11 @@ export class TransactionController extends BaseController<
       this.updateTransaction(transactionMeta);
       const rawTransaction = bufferToHex(signedTx.serialize());
 
+      console.log(
+        'Controller Log @ 635 -> rawTransaction in approveTransaction method',
+        rawTransaction,
+      );
+
       transactionMeta.rawTransaction = rawTransaction;
       this.updateTransaction(transactionMeta);
       const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
@@ -1017,7 +1022,8 @@ export class TransactionController extends BaseController<
     await safelyExecute(() =>
       Promise.all(
         transactions.map(async (meta, index) => {
-          // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
+          // Using fallback to networkID only when there is no chainId present.
+          // Should be removed when networkID is completely removed.
           if (
             meta.status === TransactionStatus.submitted &&
             (meta.chainId === currentChainId ||
@@ -1026,6 +1032,12 @@ export class TransactionController extends BaseController<
             const txObj = await query(this.ethQuery, 'getTransactionByHash', [
               meta.transactionHash,
             ]);
+
+            console.log(
+              'Controller Log @ 1088 queryTransactionStatuses txObj',
+              txObj,
+            );
+
             /* istanbul ignore next */
             if (txObj?.blockNumber) {
               transactions[index].status = TransactionStatus.confirmed;
@@ -1037,6 +1049,10 @@ export class TransactionController extends BaseController<
       ),
     );
     /* istanbul ignore else */
+    console.log(
+      'Controller Log @ 1104 queryTransactionStatuses gotUpdates',
+      gotUpdates,
+    );
     if (gotUpdates) {
       this.update({
         transactions: this.trimTransactionsForState(transactions),
@@ -1114,6 +1130,15 @@ export class TransactionController extends BaseController<
       etherscanTokenResponse,
     ] = await handleTransactionFetch(networkType, address, opt);
 
+    console.log(
+      'Controller Log @ 1238 fetchAll etherscanTxResponse',
+      etherscanTxResponse,
+    );
+    console.log(
+      'Controller Log @ 1238 fetchAll etherscanTokenResponse',
+      etherscanTokenResponse,
+    );
+
     const normalizedTxs = etherscanTxResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
         this.normalizeTx(tx, currentNetworkID, currentChainId),
@@ -1172,6 +1197,10 @@ export class TransactionController extends BaseController<
     if (allTxs.length > this.state.transactions.length) {
       this.update({ transactions: this.trimTransactionsForState(allTxs) });
     }
+    console.log(
+      'Controller Log @ 1250 fetchAll this.state.transactions',
+      this.state.transactions,
+    );
     return latestIncomingTxBlockNumber;
   }
 
@@ -1212,7 +1241,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Fucntion to determine if the transaction is in a final state
+   * Function to determine if the transaction is in a final state
    * @param status - Transaction status
    * @returns boolean if the transaction is in a final state
    */
@@ -1224,6 +1253,10 @@ export class TransactionController extends BaseController<
       status === TransactionStatus.cancelled
     );
   }
+
+  // private async transactionStateReconciler(remoteTxs: any, localTxs: any) {}
+
+  // private groupByNonce(transactions: Transaction[]) {}
 }
 
 export default TransactionController;
