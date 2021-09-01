@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [15.0.2]
-### Uncategorized
+### Fixed
 - Change AbortController to default import ([#579](https://github.com/MetaMask/controllers/pull/579))
+  - Fix error thrown when polyfilled AbortController is instantiated as a named import. 
 
 ## [15.0.1]
 ### Fixed
