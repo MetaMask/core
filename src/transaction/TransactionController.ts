@@ -117,6 +117,15 @@ export enum WalletDevice {
   OTHER = 'other_device',
 }
 
+/**
+ * Source of data used to reconcile local transactions end state
+ */
+export enum StateReconcileMethod {
+  ETHERSCAN = 'etherscan',
+  BLOCKCHAIN = 'blockchain',
+  OTHER = 'other',
+}
+
 type TransactionMetaBase = {
   isTransfer?: boolean;
   transferInformation?: {
