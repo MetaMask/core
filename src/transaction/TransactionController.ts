@@ -1157,12 +1157,11 @@ export class TransactionController extends BaseController<
         this.normalizeTokenTx(tx, currentNetworkID, currentChainId),
     );
 
-    const remoteTxs = [...normalizedTxs, ...normalizedTokenTxs].filter((tx) => {
-      const alreadyInTransactions = this.state.transactions.find(
-        ({ transactionHash }) => transactionHash === tx.transactionHash,
+    const allTxs = this.transactionStateReconciler(
+      [...normalizedTxs, ...normalizedTokenTxs],
+      this.state.transactions,
+      StateReconcileMethod.ETHERSCAN,
       );
-      return !alreadyInTransactions;
-    });
 
     const allTxs = [...remoteTxs, ...this.state.transactions];
     allTxs.sort((a, b) => (a.time < b.time ? -1 : 1));
