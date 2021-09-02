@@ -1263,6 +1263,30 @@ export class TransactionController extends BaseController<
     );
   }
 
+  /**
+   * Resolves the locally stored transactions with the blockchain or etherscan. Then updated TransactionController State
+   * @param remoteTxs - Array of transactions fetched from etherscan, the blockchain or other source
+   * @param localTxs - Array of transactions currently stored in the state of the controller
+   * @param stateReconcileMethod - Strategy used to reconcile the transactions
+   * @returns void
+   */
+  private transactionStateReconciler(
+    remoteTxs: TransactionMeta[],
+    localTxs: TransactionMeta[],
+    stateReconcileMethod: StateReconcileMethod,
+  ): TransactionMeta[] {
+    switch (stateReconcileMethod) {
+      case StateReconcileMethod.ETHERSCAN:
+        return this.etherscanTransactionStateReconciler(remoteTxs, localTxs);
+      case StateReconcileMethod.BLOCKCHAIN:
+        return [];
+      case StateReconcileMethod.OTHER:
+        return [];
+      default:
+        return [];
+    }
+  }
+
   private etherscanTransactionStateReconciler(
     remoteTxs: TransactionMeta[],
     localTxs: TransactionMeta[],
