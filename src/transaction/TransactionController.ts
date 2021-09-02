@@ -1265,7 +1265,22 @@ export class TransactionController extends BaseController<
 
   // private async transactionStateReconciler(remoteTxs: any, localTxs: any) {}
 
-  // private groupByNonce(transactions: Transaction[]) {}
+  /**
+   * Verifies if the status of a local transaction is outdated respect the remote transaction
+   * @param remoteTxHash - Remote transaction hash
+   * @param localTxHash - Local transaction hash
+   * @param remoteTxStatus - Remote transaction status
+   * @param localTxStatus - Local transaction status
+   * @returns boolean
+   */
+  private isTransactionOutdated(
+    remoteTxHash: string | undefined,
+    localTxHash: string | undefined,
+    remoteTxStatus: TransactionStatus,
+    localTxStatus: TransactionStatus,
+  ): boolean {
+    return remoteTxHash === localTxHash && remoteTxStatus !== localTxStatus;
+  }
 }
 
 export default TransactionController;
