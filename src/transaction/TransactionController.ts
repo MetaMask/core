@@ -1263,7 +1263,30 @@ export class TransactionController extends BaseController<
     );
   }
 
-  // private async transactionStateReconciler(remoteTxs: any, localTxs: any) {}
+  /**
+   * Get all the transactions that are locally outdated respect a
+   * remote source (etherscan or blockchain). The returned array
+   * contains the transactions with the updated data.
+   * @param remoteTxs - Array of transactions from remote source
+   * @param localTxs - Array of transactions stored locally
+   * @returns TransactionMeta array
+   */
+  private getOutdatedTransactions(
+    remoteTxs: TransactionMeta[],
+    localTxs: TransactionMeta[],
+  ): TransactionMeta[] {
+    return remoteTxs.filter((tx) => {
+      const isTxOutdated = localTxs.find(({ transactionHash, status }) => {
+        return this.isTransactionOutdated(
+          transactionHash,
+          tx.transactionHash,
+          status,
+          tx.status,
+        );
+      });
+      return isTxOutdated;
+    });
+  }
 
   /**
    * Verifies if the status of a local transaction is outdated respect the remote transaction
