@@ -1264,6 +1264,25 @@ export class TransactionController extends BaseController<
   }
 
   /**
+   * Get all transactions that are in the remote transactions array
+   * but not in the local transactions array
+   * @param remoteTxs - Array of transactions from remote source
+   * @param localTxs - Array of transactions stored locally
+   * @returns TransactionMeta array
+   */
+  private getNewTransactions(
+    remoteTxs: TransactionMeta[],
+    localTxs: TransactionMeta[],
+  ): TransactionMeta[] {
+    return remoteTxs.filter((tx) => {
+      const alreadyInTransactions = localTxs.find(
+        ({ transactionHash }) => transactionHash === tx.transactionHash,
+      );
+      return !alreadyInTransactions;
+    });
+  }
+
+  /**
    * Get all the transactions that are locally outdated respect a
    * remote source (etherscan or blockchain). The returned array
    * contains the transactions with the updated data.
