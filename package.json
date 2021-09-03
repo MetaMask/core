@@ -57,7 +57,7 @@
     "ethjs-util": "^0.1.6",
     "human-standard-collectible-abi": "^1.0.2",
     "human-standard-token-abi": "^2.0.0",
-    "immer": "^8.0.1",
+    "immer": "^9.0.6",
     "isomorphic-fetch": "^3.0.0",
     "jsonschema": "^1.2.4",
     "nanoid": "^3.1.12",
