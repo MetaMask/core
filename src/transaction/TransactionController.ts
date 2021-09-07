@@ -1357,7 +1357,31 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Verifies if the status of a local transaction is outdated respect the remote transaction
+   * Verifies if a local transaction is outdated in respect the remote transaction
+   * @param remoteTx - Remote transaction from Etherscan
+   * @param localTx - Local transaction
+   * @returns boolean
+   */
+  private isTransactionOutdated(
+    remoteTx: TransactionMeta,
+    localTx: TransactionMeta,
+  ): boolean {
+    const statusOutdated = this.isStatusOutdated(
+      remoteTx.transactionHash,
+      localTx.transactionHash,
+      remoteTx.status,
+      localTx.status,
+    );
+    const gasDataOutdated = this.isGasDataOutdated(
+      remoteTx.transaction.gas,
+      remoteTx.transaction.gasPrice,
+      remoteTx.transaction.gasUsed,
+      localTx.transaction.gas,
+      localTx.transaction.gasPrice,
+      localTx.transaction.gasUsed,
+    );
+    return statusOutdated || gasDataOutdated;
+  }
    * @param remoteTxHash - Remote transaction hash
    * @param localTxHash - Local transaction hash
    * @param remoteTxStatus - Remote transaction status
