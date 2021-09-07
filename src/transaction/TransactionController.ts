@@ -1345,13 +1345,11 @@ export class TransactionController extends BaseController<
     remoteTxs: TransactionMeta[],
     localTxs: TransactionMeta[],
   ): TransactionMeta[] {
-    return remoteTxs.filter((tx) => {
-      const isTxOutdated = localTxs.find(({ transactionHash, status }) => {
-        return this.isTransactionOutdated(
-          transactionHash,
-          tx.transactionHash,
-          status,
-          tx.status,
+    return remoteTxs.filter((remoteTx) => {
+      const isTxOutdated = localTxs.find((localTx) => {
+        return (
+          remoteTx.transactionHash === localTx.transactionHash &&
+          this.isTransactionOutdated(remoteTx, localTx)
         );
       });
       return isTxOutdated;
