@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "14.2.0-guto3",
+  "version": "15.0.2",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "keywords": [
     "MetaMask",
@@ -57,7 +57,7 @@
     "ethjs-util": "^0.1.6",
     "human-standard-collectible-abi": "^1.0.2",
     "human-standard-token-abi": "^2.0.0",
-    "immer": "^8.0.1",
+    "immer": "^9.0.6",
     "isomorphic-fetch": "^3.0.0",
     "jsonschema": "^1.2.4",
     "nanoid": "^3.1.12",
