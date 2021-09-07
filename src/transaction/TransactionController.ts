@@ -1291,9 +1291,16 @@ export class TransactionController extends BaseController<
   private etherscanTransactionStateReconciler(
     remoteTxs: TransactionMeta[],
     localTxs: TransactionMeta[],
-  ): TransactionMeta[] {
-    const outdatedTxs = this.getOutdatedTransactions(remoteTxs, localTxs);
-    const newTxs = this.getNewTransactions(remoteTxs, localTxs);
+  ): [boolean, TransactionMeta[]] {
+    const outdatedTxs: TransactionMeta[] = this.getOutdatedTransactions(
+      remoteTxs,
+      localTxs,
+    );
+
+    const newTxs: TransactionMeta[] = this.getNewTransactions(
+      remoteTxs,
+      localTxs,
+    );
 
     const updatedLocalTxs = localTxs.map((tx: TransactionMeta) => {
       const txIdx = outdatedTxs.findIndex(
@@ -1302,8 +1309,11 @@ export class TransactionController extends BaseController<
       return txIdx === -1 ? tx : outdatedTxs[txIdx];
     });
 
-    return [...newTxs, ...updatedLocalTxs];
+    const update = newTxs.length > 0 || updatedLocalTxs.length > 0;
+
+    return [update, [...newTxs, ...updatedLocalTxs]];
   }
+
   /**
    * Get all transactions that are in the remote transactions array
    * but not in the local transactions array
