@@ -1146,6 +1146,7 @@ export class TransactionController extends BaseController<
   ): Promise<string | void> {
     const { provider, network: currentNetworkID } = this.getNetworkState();
     const { chainId: currentChainId, type: networkType } = provider;
+    const { transactions } = this.state;
 
     const supportedNetworkIds = ['1', '3', '4', '42'];
     /* istanbul ignore next */
