@@ -1243,8 +1243,11 @@ export class TransactionController extends BaseController<
    * nonce, same day and network combo can result in confusing or broken experiences
    * in the UI. The transactions are then updated using the BaseController update.
    * @param transactions - arrray of transactions to be applied to the state
+   * @returns Array of TransactionMeta with the desired length.
    */
-  private trimTransactionsForState(transactions: TransactionMeta[]) {
+  private trimTransactionsForState(
+    transactions: TransactionMeta[],
+  ): TransactionMeta[] {
     const nonceNetworkSet = new Set();
     const txsToKeep = transactions.reverse().filter((tx) => {
       const { chainId, networkID, status, transaction, time } = tx;
