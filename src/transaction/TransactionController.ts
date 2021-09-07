@@ -75,6 +75,7 @@ export interface Transaction {
   from: string;
   gas?: string;
   gasPrice?: string;
+  gasUsed?: string;
   nonce?: string;
   to?: string;
   value?: string;
@@ -106,6 +107,20 @@ export enum TransactionStatus {
   signed = 'signed',
   submitted = 'submitted',
   unapproved = 'unapproved',
+}
+
+/**
+ * Status of a transaction according to Etherscan.
+ * According to the documentation: "The status field returns
+ * 0 for failed transactions and 1 for successful transactions"
+ * successful: 1
+ * failed: 0
+ * error: Indicates an error while fetching the data
+ */
+export enum EtherscanTransactionStatus {
+  successful = 'successful',
+  failed = 'failed',
+  error = 'error',
 }
 
 /**
@@ -325,6 +340,7 @@ export class TransactionController extends BaseController<
         from: txMeta.from,
         gas: BNToHex(new BN(txMeta.gas)),
         gasPrice: BNToHex(new BN(txMeta.gasPrice)),
+        gasUsed: BNToHex(new BN(txMeta.gasUsed)),
         nonce: BNToHex(new BN(txMeta.nonce)),
         to: txMeta.to,
         value: BNToHex(new BN(txMeta.value)),
@@ -359,6 +375,7 @@ export class TransactionController extends BaseController<
       from,
       gas,
       gasPrice,
+      gasUsed,
       hash,
       contractAddress,
       tokenDecimal,
@@ -377,6 +394,7 @@ export class TransactionController extends BaseController<
         from,
         gas,
         gasPrice,
+        gasUsed,
         to,
         value,
       },
