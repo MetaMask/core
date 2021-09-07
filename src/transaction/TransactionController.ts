@@ -1291,6 +1291,20 @@ export class TransactionController extends BaseController<
     }
   }
 
+  /**
+   * Function to determine if the transaction is in a final state
+   * @param status - Transaction status
+   * @returns boolean if the transaction is in a final state
+   */
+  private isFinalState(status: TransactionStatus): boolean {
+    return (
+      status === TransactionStatus.rejected ||
+      status === TransactionStatus.confirmed ||
+      status === TransactionStatus.failed ||
+      status === TransactionStatus.cancelled
+    );
+  }
+
   private etherscanTransactionStateReconciler(
     remoteTxs: TransactionMeta[],
     localTxs: TransactionMeta[],
