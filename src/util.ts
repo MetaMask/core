@@ -148,29 +148,26 @@ export function getBuyURL(
  * Return a URL that can be used to fetch ETH transactions
  *
  * @param networkType - Network type of desired network
- * @param address - Address to get the transactions from
- * @param fromBlock? - Block from which transactions are needed
- * @returns - URL to fetch the transactions from
+ * @param urlParams - Parameters used to construct the URL
+ * @returns - URL to fetch the access the endpoint
  */
 export function getEtherscanApiUrl(
   networkType: string,
-  address: string,
-  action: string,
-  fromBlock?: string,
-  etherscanApiKey?: string,
+  urlParams: any,
 ): string {
   let etherscanSubdomain = 'api';
   if (networkType !== MAINNET) {
     etherscanSubdomain = `api-${networkType}`;
   }
   const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
-  let url = `${apiUrl}/api?module=account&action=${action}&address=${address}&tag=latest&page=1`;
-  if (fromBlock) {
-    url += `&startBlock=${fromBlock}`;
+  let url = `${apiUrl}/api?`;
+
+  for (const paramKey in urlParams) {
+    if (urlParams[paramKey]) {
+      url += `${paramKey}=${urlParams[paramKey]}&`;
   }
-  if (etherscanApiKey) {
-    url += `&apikey=${etherscanApiKey}`;
   }
+  url += 'tag=latest&page=1';
   return url;
 }
 
