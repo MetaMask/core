@@ -1382,13 +1382,16 @@ export class TransactionController extends BaseController<
     );
     return statusOutdated || gasDataOutdated;
   }
+
+  /**
+   * Verifies if the status of a local transaction is outdated in respect the remote transaction
    * @param remoteTxHash - Remote transaction hash
    * @param localTxHash - Local transaction hash
    * @param remoteTxStatus - Remote transaction status
    * @param localTxStatus - Local transaction status
    * @returns boolean
    */
-  private isTransactionOutdated(
+  private isStatusOutdated(
     remoteTxHash: string | undefined,
     localTxHash: string | undefined,
     remoteTxStatus: TransactionStatus,
