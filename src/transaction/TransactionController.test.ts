@@ -10,8 +10,7 @@ import {
   TransactionStatus,
   TransactionMeta,
 } from './TransactionController';
-import { mockEthTxs } from './mocks/mockEthTxs';
-import { mockTokenTxs } from './mocks/mockTokenTxs';
+import { ethTxsMock, tokenTxsMock } from './mocks/txsMock';
 
 const globalAny: any = global;
 
@@ -144,9 +143,9 @@ const TOKEN_TRANSACTION_HASH =
 const ETHER_TRANSACTION_HASH =
   '0xa9d17df83756011ea63e1f0ca50a6627df7cac9806809e36680fcf4e88cb9dae';
 
-const ETH_TRANSACTIONS = mockEthTxs(ETHER_TRANSACTION_HASH);
+const ETH_TRANSACTIONS = ethTxsMock(ETHER_TRANSACTION_HASH);
 
-const TOKEN_TRANSACTIONS = mockTokenTxs(TOKEN_TRANSACTION_HASH);
+const TOKEN_TRANSACTIONS = tokenTxsMock(TOKEN_TRANSACTION_HASH);
 
 const TRANSACTIONS_IN_STATE: TransactionMeta[] = [
   // Token tx, hash is in TOKEN_TRANSACTIONS
@@ -158,8 +157,9 @@ const TRANSACTIONS_IN_STATE: TransactionMeta[] = [
     transaction: {
       from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
       data: '0x',
-      gas: '0x6f4d2',
-      gasPrice: '0x2b12dbfa00',
+      gas: '624874',
+      gasPrice: '20000000000',
+      gasUsed: '21000',
       nonce: '0x12',
       to: '0x881d40237659c251811cec9c364ef91dc08d300c',
       value: '0x0',
@@ -176,8 +176,87 @@ const TRANSACTIONS_IN_STATE: TransactionMeta[] = [
     transaction: {
       from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
       data: '0x',
-      gas: '0x6f4d2',
-      gasPrice: '0x2b12dbfa00',
+      gas: '0x51d68',
+      gasPrice: '0x2540be400',
+      gasUsed: '0x5208',
+      nonce: '0x12',
+      to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      value: '100000000000000000',
+    },
+    transactionHash: ETHER_TRANSACTION_HASH,
+    toSmartContract: false,
+  },
+];
+
+const TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS: TransactionMeta[] = [
+  {
+    id: 'token-transaction-id',
+    chainId: '1',
+    status: TransactionStatus.failedBeforeChain,
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '624874',
+      gasPrice: '20000000000',
+      gasUsed: '21000',
+      nonce: '0x12',
+      to: '0x881d40237659c251811cec9c364ef91dc08d300c',
+      value: '0x0',
+    },
+    transactionHash: TOKEN_TRANSACTION_HASH,
+    toSmartContract: true,
+  },
+  {
+    id: 'eth-transaction-id',
+    chainId: '1',
+    status: TransactionStatus.failedBeforeChain,
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '0x51d68',
+      gasPrice: '0x2540be400',
+      gasUsed: '0x5208',
+      nonce: '0x12',
+      to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      value: '100000000000000000',
+    },
+    transactionHash: ETHER_TRANSACTION_HASH,
+    toSmartContract: false,
+  },
+];
+
+const TRANSACTIONS_IN_STATE_WITH_OUTDATED_GAS_DATA: TransactionMeta[] = [
+  {
+    id: 'token-transaction-id',
+    chainId: '1',
+    status: TransactionStatus.failedBeforeChain,
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '624874',
+      gasPrice: '20000000000',
+      gasUsed: undefined,
+      nonce: '0x12',
+      to: '0x881d40237659c251811cec9c364ef91dc08d300c',
+      value: '0x0',
+    },
+    transactionHash: TOKEN_TRANSACTION_HASH,
+    toSmartContract: true,
+  },
+  {
+    id: 'eth-transaction-id',
+    chainId: '1',
+    status: TransactionStatus.failedBeforeChain,
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '0x51d68',
+      gasPrice: '0x2540be400',
+      gasUsed: undefined,
       nonce: '0x12',
       to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
       value: '100000000000000000',
@@ -218,12 +297,12 @@ const ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND = {
 };
 
 const MOCK_FETCH_TX_HISTORY_DATA_OK = {
-  'https://api-ropsten.etherscan.io/api?module=account&action=tokentx&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&tag=latest&page=1': ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND,
-  'https://api.etherscan.io/api?module=account&action=tokentx&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&tag=latest&page=1': TOKEN_TX_HISTORY_DATA,
-  'https://api.etherscan.io/api?module=account&action=tokentx&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&tag=latest&page=1&startBlock=999': TOKEN_TX_HISTORY_DATA_FROM_BLOCK,
-  'https://api.etherscan.io/api?module=account&action=txlist&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&tag=latest&page=1': ETH_TX_HISTORY_DATA,
-  'https://api-ropsten.etherscan.io/api?module=account&action=txlist&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&tag=latest&page=1': ETH_TX_HISTORY_DATA,
-  'https://api.etherscan.io/api?module=account&action=txlist&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&tag=latest&page=1&startBlock=999': ETH_TX_HISTORY_DATA_FROM_BLOCK,
+  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=tokentx&tag=latest&page=1': ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND, // check
+  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=tokentx&tag=latest&page=1': TOKEN_TX_HISTORY_DATA,
+  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&action=tokentx&tag=latest&page=1': TOKEN_TX_HISTORY_DATA_FROM_BLOCK,
+  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA,
+  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA, // check
+  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA_FROM_BLOCK,
 };
 
 const MOCK_FETCH_TX_HISTORY_DATA_ERROR = {
@@ -751,7 +830,7 @@ describe('TransactionController', () => {
     expect(controller.state.transactions[0].transaction.to).toBe(from);
   });
 
-  it('should fetch all the transactions from an address, including incoming token transactions, but not adding the ones already in state', async () => {
+  it('should fetch all the transactions from an address, including incoming token transactions without modifying transaction that have the same data in local and remote', async () => {
     globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
       getNetworkState: () => MOCK_MAINNET_NETWORK.state,
@@ -772,7 +851,6 @@ describe('TransactionController', () => {
     expect(tokenTransaction?.id).toStrictEqual('token-transaction-id');
     expect(ethTransaction?.id).toStrictEqual('eth-transaction-id');
   });
-
   it('should fetch all the transactions from an address, including incoming transactions, in mainnet from block', async () => {
     globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
@@ -789,7 +867,56 @@ describe('TransactionController', () => {
     expect(latestBlock).toBe('4535101');
     expect(controller.state.transactions[0].transaction.to).toBe(from);
   });
+  it('should fetch and updated all transactions with outdated status regarding the data provided by the remote source in mainnet', async () => {
+    globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_MAINNET_NETWORK.state,
+      onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
+      getProvider: MOCK_MAINNET_NETWORK.getProvider,
+    });
+    const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+    controller.wipeTransactions();
+    expect(controller.state.transactions).toHaveLength(0);
 
+    controller.state.transactions = TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS;
+
+    await controller.fetchAll(from);
+    expect(controller.state.transactions).toHaveLength(17);
+
+    const tokenTransaction = controller.state.transactions.find(
+      ({ transactionHash }) => transactionHash === TOKEN_TRANSACTION_HASH,
+    ) || { status: TransactionStatus.failed };
+    const ethTransaction = controller.state.transactions.find(
+      ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
+    ) || { status: TransactionStatus.failed };
+    expect(tokenTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
+    expect(ethTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
+  });
+  it('should fetch and updated all transactions with outdated gas data regarding the data provided by the remote source in mainnet', async () => {
+    globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_MAINNET_NETWORK.state,
+      onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
+      getProvider: MOCK_MAINNET_NETWORK.getProvider,
+    });
+    const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+    controller.wipeTransactions();
+    expect(controller.state.transactions).toHaveLength(0);
+
+    controller.state.transactions = TRANSACTIONS_IN_STATE_WITH_OUTDATED_GAS_DATA;
+
+    await controller.fetchAll(from);
+    expect(controller.state.transactions).toHaveLength(17);
+
+    const tokenTransaction = controller.state.transactions.find(
+      ({ transactionHash }) => transactionHash === TOKEN_TRANSACTION_HASH,
+    ) || { transaction: { gasUsed: '0' } };
+    const ethTransaction = controller.state.transactions.find(
+      ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
+    ) || { transaction: { gasUsed: '0x0' } };
+    expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
+    expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
+  });
   it('should return', async () => {
     globalAny.fetch = mockFetch(MOCK_FETCH_TX_HISTORY_DATA_ERROR);
     const controller = new TransactionController({
@@ -938,7 +1065,6 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].transaction.gasPrice).toBe(
         '0x4a817c800',
       );
-      console.log(controller.state.transactions);
       resolve('');
     });
   });
