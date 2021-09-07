@@ -1177,13 +1177,12 @@ export class TransactionController extends BaseController<
         this.normalizeTokenTx(tx, currentNetworkID, currentChainId),
     );
 
-    const allTxs = this.transactionStateReconciler(
+    const [updateTxs, allTxs] = this.transactionStateReconciler(
       [...normalizedTxs, ...normalizedTokenTxs],
-      this.state.transactions,
+      transactions,
       StateReconcileMethod.ETHERSCAN,
       );
 
-    const allTxs = [...remoteTxs, ...this.state.transactions];
     allTxs.sort((a, b) => (a.time < b.time ? -1 : 1));
 
     let latestIncomingTxBlockNumber: string | undefined;
@@ -1221,8 +1220,9 @@ export class TransactionController extends BaseController<
         }
       }
     });
-    // Update state only if new transactions were fetched
-    if (allTxs.length > this.state.transactions.length) {
+    // Update state only if new transactions were fetched or
+    // the status of a transaction has changed
+    if (updateTxs) {
       this.update({ transactions: this.trimTransactionsForState(allTxs) });
     }
     console.log(
@@ -1269,40 +1269,22 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Function to determine if the transaction is in a final state
-   * @param status - Transaction status
-   * @returns boolean if the transaction is in a final state
-   */
-  private isFinalState(status: TransactionStatus) {
-    return (
-      status === TransactionStatus.rejected ||
-      status === TransactionStatus.confirmed ||
-      status === TransactionStatus.failed ||
-      status === TransactionStatus.cancelled
-    );
-  }
-
-  /**
    * Resolves the locally stored transactions with the blockchain or etherscan. Then updated TransactionController State
    * @param remoteTxs - Array of transactions fetched from etherscan, the blockchain or other source
    * @param localTxs - Array of transactions currently stored in the state of the controller
    * @param stateReconcileMethod - Strategy used to reconcile the transactions
-   * @returns void
+   * @returns [boolean, TransactionMeta[]]
    */
   private transactionStateReconciler(
     remoteTxs: TransactionMeta[],
     localTxs: TransactionMeta[],
     stateReconcileMethod: StateReconcileMethod,
-  ): TransactionMeta[] {
+  ): [boolean, TransactionMeta[]] {
     switch (stateReconcileMethod) {
       case StateReconcileMethod.ETHERSCAN:
         return this.etherscanTransactionStateReconciler(remoteTxs, localTxs);
-      case StateReconcileMethod.BLOCKCHAIN:
-        return [];
-      case StateReconcileMethod.OTHER:
-        return [];
       default:
-        return [];
+        return [false, []];
     }
   }
 
