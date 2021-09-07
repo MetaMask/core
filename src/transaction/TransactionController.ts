@@ -103,6 +103,7 @@ export enum TransactionStatus {
   cancelled = 'cancelled',
   confirmed = 'confirmed',
   failed = 'failed',
+  failedBeforeChain = 'failedBeforeChain',
   rejected = 'rejected',
   signed = 'signed',
   submitted = 'submitted',
