@@ -1399,6 +1399,31 @@ export class TransactionController extends BaseController<
   ): boolean {
     return remoteTxHash === localTxHash && remoteTxStatus !== localTxStatus;
   }
+
+  /**
+   * Verifies if the gas data of a local transaction is outdated in respect the remote transaction
+   * @param remoteGas - Remote gas
+   * @param remoteGasPrice - Remote gas price
+   * @param remoteGasUsed - Remote gas used in the transaction
+   * @param localGas - Local gas
+   * @param localGasPrice - Local gas price
+   * @param localGasUsed - Local gas used in the transaction
+   * @returns boolean
+   */
+  private isGasDataOutdated(
+    remoteGas: string | undefined,
+    remoteGasPrice: string | undefined,
+    remoteGasUsed: string | undefined,
+    localGas: string | undefined,
+    localGasPrice: string | undefined,
+    localGasUsed: string | undefined,
+  ): boolean {
+    return (
+      remoteGas !== localGas ||
+      remoteGasPrice !== localGasPrice ||
+      remoteGasUsed !== localGasUsed
+    );
+  }
 }
 
 export default TransactionController;
