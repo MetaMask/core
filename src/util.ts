@@ -166,7 +166,7 @@ export function getEtherscanApiUrl(
   for (const paramKey in urlParams) {
     if (urlParams[paramKey]) {
       url += `${paramKey}=${urlParams[paramKey]}&`;
-  }
+    }
   }
   url += 'tag=latest&page=1';
   return url;
