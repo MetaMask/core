@@ -1061,10 +1061,10 @@ export class TransactionController extends BaseController<
               meta.transactionHash,
             ]);
 
-            console.log(
-              'Controller Log @ 1088 queryTransactionStatuses txObj',
-              txObj,
-            );
+            if (txObj === null) {
+              transactions[index].status = TransactionStatus.failed;
+              gotUpdates = true;
+            }
 
             /* istanbul ignore next */
             if (txObj?.blockNumber) {
