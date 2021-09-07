@@ -184,25 +184,25 @@ export async function handleTransactionFetch(
   networkType: string,
   address: string,
   opt?: FetchAllOptions,
-): Promise<[{ [result: string]: [] }, { [result: string]: [] }]> {
+): Promise<any[]> {
   // transactions
-  const etherscanTxUrl = getEtherscanApiUrl(
-    networkType,
+  const urlParams = {
+    module: 'account',
     address,
-    'txlist',
-    opt?.fromBlock,
-    opt?.etherscanApiKey,
-  );
+    startBlock: opt?.fromBlock,
+    apikey: opt?.etherscanApiKey,
+  };
+  const etherscanTxUrl = getEtherscanApiUrl(networkType, {
+    ...urlParams,
+    action: 'txlist',
+  });
   const etherscanTxResponsePromise = handleFetch(etherscanTxUrl);
 
   // tokens
-  const etherscanTokenUrl = getEtherscanApiUrl(
-    networkType,
-    address,
-    'tokentx',
-    opt?.fromBlock,
-    opt?.etherscanApiKey,
-  );
+  const etherscanTokenUrl = getEtherscanApiUrl(networkType, {
+    ...urlParams,
+    action: 'tokentx',
+  });
   const etherscanTokenResponsePromise = handleFetch(etherscanTokenUrl);
 
   let [etherscanTxResponse, etherscanTokenResponse] = await Promise.all([
@@ -214,14 +214,17 @@ export async function handleTransactionFetch(
     etherscanTxResponse.status === '0' ||
     etherscanTxResponse.result.length <= 0
   ) {
-    etherscanTxResponse = { result: [] };
+    etherscanTxResponse = { status: etherscanTxResponse.status, result: [] };
   }
 
   if (
     etherscanTokenResponse.status === '0' ||
     etherscanTokenResponse.result.length <= 0
   ) {
-    etherscanTokenResponse = { result: [] };
+    etherscanTokenResponse = {
+      status: etherscanTokenResponse.status,
+      result: [],
+    };
   }
 
   return [etherscanTxResponse, etherscanTokenResponse];
