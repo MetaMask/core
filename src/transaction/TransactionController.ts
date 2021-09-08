@@ -111,20 +111,6 @@ export enum TransactionStatus {
 }
 
 /**
- * Status of a transaction according to Etherscan.
- * According to the documentation: "The status field returns
- * 0 for failed transactions and 1 for successful transactions"
- * successful: 1
- * failed: 0
- * error: Indicates an error while fetching the data
- */
-export enum EtherscanTransactionStatus {
-  successful = 'successful',
-  failed = 'failed',
-  error = 'error',
-}
-
-/**
  * Options for wallet device.
  */
 export enum WalletDevice {

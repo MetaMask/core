@@ -17,7 +17,6 @@ import {
   FetchAllOptions,
   GasPriceValue,
   FeeMarketEIP1559Values,
-  EtherscanTransactionStatus,
 } from './transaction/TransactionController';
 import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
@@ -228,44 +227,6 @@ export async function handleTransactionFetch(
   }
 
   return [etherscanTxResponse, etherscanTokenResponse];
-}
-
-/**
- * Method to fetch tHe status of a single transaction in  Etherscan,
- * from the Etherscan docs: "The status field returns 0 for failed transactions
- * and 1 for successful transactions."
- * @param networkType - Network type of desired network
- * @param transactionHash - Hash of the required transaction
- * @param opt? - Object that can contain fromBlock and Etherscan service API key
- * @returns Promise with the status of the transaction
- */
-export async function handletransationStatusFetch(
-  networkType: string,
-  transactionHash: string,
-  opt?: FetchAllOptions,
-): Promise<EtherscanTransactionStatus> {
-  const urlParams = {
-    module: 'transaction',
-    action: 'gettxreceiptstatus',
-    txhash: transactionHash,
-    apikey: opt?.etherscanApiKey,
-  };
-  const etherscanTxUrl = getEtherscanApiUrl(networkType, urlParams);
-
-  try {
-    const response = await handleFetch(etherscanTxUrl);
-    const { status, result } = response;
-
-    if (status === '0') {
-      return EtherscanTransactionStatus.error;
-    }
-
-    return result.status === '1'
-      ? EtherscanTransactionStatus.successful
-      : EtherscanTransactionStatus.failed;
-  } catch (e) {
-    return EtherscanTransactionStatus.error;
-  }
 }
 
 /**
