@@ -125,7 +125,6 @@ export enum WalletDevice {
 export enum StateReconcileMethod {
   ETHERSCAN = 'etherscan',
   BLOCKCHAIN = 'blockchain',
-  OTHER = 'other',
 }
 
 type TransactionMetaBase = {
