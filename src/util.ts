@@ -183,7 +183,7 @@ export async function handleTransactionFetch(
   networkType: string,
   address: string,
   opt?: FetchAllOptions,
-): Promise<any[]> {
+): Promise<[{ [result: string]: [] }, { [result: string]: [] }]> {
   // transactions
   const urlParams = {
     module: 'account',

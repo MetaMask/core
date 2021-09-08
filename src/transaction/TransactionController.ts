@@ -1148,7 +1148,7 @@ export class TransactionController extends BaseController<
     normalizedTxs = this.trimTransactionsForState(normalizedTxs);
     normalizedTokenTxs = this.trimTransactionsForState(normalizedTokenTxs);
 
-    const [updateTxs, allTxs] = this.transactionStateReconciler(
+    const [updateRequired, allTxs] = this.transactionStateReconciler(
       [...normalizedTxs, ...normalizedTokenTxs],
       transactions,
       StateReconcileMethod.ETHERSCAN,
@@ -1193,7 +1193,7 @@ export class TransactionController extends BaseController<
     });
     // Update state only if new transactions were fetched or
     // the status or gas data of a transaction has changed
-    if (updateTxs) {
+    if (updateRequired) {
       this.update({ transactions: allTxs });
     }
     return latestIncomingTxBlockNumber;
@@ -1293,9 +1293,9 @@ export class TransactionController extends BaseController<
       return txIdx === -1 ? tx : outdatedTxs[txIdx];
     });
 
-    const update = newTxs.length > 0 || updatedLocalTxs.length > 0;
+    const updateRequired = newTxs.length > 0 || updatedLocalTxs.length > 0;
 
-    return [update, [...newTxs, ...updatedLocalTxs]];
+    return [updateRequired, [...newTxs, ...updatedLocalTxs]];
   }
 
   /**
@@ -1318,8 +1318,8 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Get all the transactions that are locally outdated respect a
-   * remote source (etherscan or blockchain). The returned array
+   * Get all the transactions that are locally outdated with respect
+   * to a remote source (etherscan or blockchain). The returned array
    * contains the transactions with the updated data.
    * @param remoteTxs - Array of transactions from remote source
    * @param localTxs - Array of transactions stored locally
