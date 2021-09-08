@@ -190,6 +190,7 @@ export async function handleTransactionFetch(
     address,
     startBlock: opt?.fromBlock,
     apikey: opt?.etherscanApiKey,
+    limit: '50',
   };
   const etherscanTxUrl = getEtherscanApiUrl(networkType, {
     ...urlParams,

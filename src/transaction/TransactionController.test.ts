@@ -205,12 +205,12 @@ const ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND = {
 };
 
 const MOCK_FETCH_TX_HISTORY_DATA_OK = {
-  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=tokentx&tag=latest&page=1': ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND,
-  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=tokentx&tag=latest&page=1': TOKEN_TX_HISTORY_DATA,
-  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&action=tokentx&tag=latest&page=1': TOKEN_TX_HISTORY_DATA_FROM_BLOCK,
-  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA,
-  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA,
-  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA_FROM_BLOCK,
+  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&limit=50&action=tokentx&tag=latest&page=1': ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND,
+  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&limit=50&action=tokentx&tag=latest&page=1': TOKEN_TX_HISTORY_DATA,
+  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&limit=50&action=tokentx&tag=latest&page=1': TOKEN_TX_HISTORY_DATA_FROM_BLOCK,
+  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&limit=50&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA,
+  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&limit=50&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA,
+  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&limit=50&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA_FROM_BLOCK,
 };
 
 const MOCK_FETCH_TX_HISTORY_DATA_ERROR = {

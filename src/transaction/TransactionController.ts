@@ -1135,17 +1135,14 @@ export class TransactionController extends BaseController<
       etherscanTokenResponse,
     ] = await handleTransactionFetch(networkType, address, opt);
 
-    let normalizedTxs = etherscanTxResponse.result.map(
+    const normalizedTxs = etherscanTxResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
         this.normalizeTx(tx, currentNetworkID, currentChainId),
     );
-    let normalizedTokenTxs = etherscanTokenResponse.result.map(
+    const normalizedTokenTxs = etherscanTokenResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
         this.normalizeTokenTx(tx, currentNetworkID, currentChainId),
     );
-
-    normalizedTxs = this.trimTransactionsForState(normalizedTxs);
-    normalizedTokenTxs = this.trimTransactionsForState(normalizedTokenTxs);
 
     const [updateRequired, allTxs] = this.transactionStateReconciler(
       [...normalizedTxs, ...normalizedTokenTxs],
@@ -1193,7 +1190,7 @@ export class TransactionController extends BaseController<
     // Update state only if new transactions were fetched or
     // the status or gas data of a transaction has changed
     if (updateRequired) {
-      this.update({ transactions: allTxs });
+      this.update({ transactions: this.trimTransactionsForState(allTxs) });
     }
     return latestIncomingTxBlockNumber;
   }
@@ -1275,7 +1272,7 @@ export class TransactionController extends BaseController<
     remoteTxs: TransactionMeta[],
     localTxs: TransactionMeta[],
   ): [boolean, TransactionMeta[]] {
-    const outdatedTxs: TransactionMeta[] = this.getOutdatedTransactions(
+    const updatedTxs: TransactionMeta[] = this.getUpdatedTransactions(
       remoteTxs,
       localTxs,
     );
@@ -1286,10 +1283,10 @@ export class TransactionController extends BaseController<
     );
 
     const updatedLocalTxs = localTxs.map((tx: TransactionMeta) => {
-      const txIdx = outdatedTxs.findIndex(
+      const txIdx = updatedTxs.findIndex(
         ({ transactionHash }) => transactionHash === tx.transactionHash,
       );
-      return txIdx === -1 ? tx : outdatedTxs[txIdx];
+      return txIdx === -1 ? tx : updatedTxs[txIdx];
     });
 
     const updateRequired = newTxs.length > 0 || updatedLocalTxs.length > 0;
@@ -1324,7 +1321,7 @@ export class TransactionController extends BaseController<
    * @param localTxs - Array of transactions stored locally
    * @returns TransactionMeta array
    */
-  private getOutdatedTransactions(
+  private getUpdatedTransactions(
     remoteTxs: TransactionMeta[],
     localTxs: TransactionMeta[],
   ): TransactionMeta[] {
@@ -1356,11 +1353,7 @@ export class TransactionController extends BaseController<
       localTx.status,
     );
     const gasDataOutdated = this.isGasDataOutdated(
-      remoteTx.transaction.gas,
-      remoteTx.transaction.gasPrice,
       remoteTx.transaction.gasUsed,
-      localTx.transaction.gas,
-      localTx.transaction.gasPrice,
       localTx.transaction.gasUsed,
     );
     return statusOutdated || gasDataOutdated;
@@ -1385,27 +1378,15 @@ export class TransactionController extends BaseController<
 
   /**
    * Verifies if the gas data of a local transaction is outdated in respect the remote transaction
-   * @param remoteGas - Remote gas
-   * @param remoteGasPrice - Remote gas price
    * @param remoteGasUsed - Remote gas used in the transaction
-   * @param localGas - Local gas
-   * @param localGasPrice - Local gas price
    * @param localGasUsed - Local gas used in the transaction
    * @returns boolean
    */
   private isGasDataOutdated(
-    remoteGas: string | undefined,
-    remoteGasPrice: string | undefined,
     remoteGasUsed: string | undefined,
-    localGas: string | undefined,
-    localGasPrice: string | undefined,
     localGasUsed: string | undefined,
   ): boolean {
-    return (
-      remoteGas !== localGas ||
-      remoteGasPrice !== localGasPrice ||
-      remoteGasUsed !== localGasUsed
-    );
+    return remoteGasUsed !== localGasUsed;
   }
 }
 
