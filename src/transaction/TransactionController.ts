@@ -1181,7 +1181,7 @@ export class TransactionController extends BaseController<
       [...normalizedTxs, ...normalizedTokenTxs],
       transactions,
       StateReconcileMethod.ETHERSCAN,
-      );
+    );
 
     allTxs.sort((a, b) => (a.time < b.time ? -1 : 1));
 
