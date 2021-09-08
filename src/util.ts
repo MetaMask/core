@@ -182,6 +182,7 @@ export function getEtherscanApiUrl(
 export async function handleTransactionFetch(
   networkType: string,
   address: string,
+  txHistoryLimit: number,
   opt?: FetchAllOptions,
 ): Promise<[{ [result: string]: [] }, { [result: string]: [] }]> {
   // transactions
@@ -190,7 +191,8 @@ export async function handleTransactionFetch(
     address,
     startBlock: opt?.fromBlock,
     apikey: opt?.etherscanApiKey,
-    limit: '50',
+    offset: txHistoryLimit.toString(),
+    order: 'desc',
   };
   const etherscanTxUrl = getEtherscanApiUrl(networkType, {
     ...urlParams,

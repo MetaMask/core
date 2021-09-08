@@ -1133,7 +1133,12 @@ export class TransactionController extends BaseController<
     const [
       etherscanTxResponse,
       etherscanTokenResponse,
-    ] = await handleTransactionFetch(networkType, address, opt);
+    ] = await handleTransactionFetch(
+      networkType,
+      address,
+      this.config.txHistoryLimit,
+      opt,
+    );
 
     const normalizedTxs = etherscanTxResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
