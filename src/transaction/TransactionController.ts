@@ -701,11 +701,6 @@ export class TransactionController extends BaseController<
       this.updateTransaction(transactionMeta);
       const rawTransaction = bufferToHex(signedTx.serialize());
 
-      console.log(
-        'Controller Log @ 635 -> rawTransaction in approveTransaction method',
-        rawTransaction,
-      );
-
       transactionMeta.rawTransaction = rawTransaction;
       this.updateTransaction(transactionMeta);
       const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
@@ -1077,10 +1072,6 @@ export class TransactionController extends BaseController<
       ),
     );
     /* istanbul ignore else */
-    console.log(
-      'Controller Log @ 1104 queryTransactionStatuses gotUpdates',
-      gotUpdates,
-    );
     if (gotUpdates) {
       this.update({
         transactions: this.trimTransactionsForState(transactions),
@@ -1159,15 +1150,6 @@ export class TransactionController extends BaseController<
       etherscanTokenResponse,
     ] = await handleTransactionFetch(networkType, address, opt);
 
-    console.log(
-      'Controller Log @ 1238 fetchAll etherscanTxResponse',
-      etherscanTxResponse,
-    );
-    console.log(
-      'Controller Log @ 1238 fetchAll etherscanTokenResponse',
-      etherscanTokenResponse,
-    );
-
     const normalizedTxs = etherscanTxResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
         this.normalizeTx(tx, currentNetworkID, currentChainId),
@@ -1221,14 +1203,10 @@ export class TransactionController extends BaseController<
       }
     });
     // Update state only if new transactions were fetched or
-    // the status of a transaction has changed
+    // the status or gas data of a transaction has changed
     if (updateTxs) {
       this.update({ transactions: this.trimTransactionsForState(allTxs) });
     }
-    console.log(
-      'Controller Log @ 1250 fetchAll this.state.transactions',
-      this.state.transactions,
-    );
     return latestIncomingTxBlockNumber;
   }
 
