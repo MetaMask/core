@@ -65,6 +65,7 @@ export interface FetchAllOptions {
  * @property from - Address to send this transaction from
  * @property gas - Gas to send with this transaction
  * @property gasPrice - Price of gas with this transaction
+ * @property gasUsed -  Gas used in the transaction
  * @property nonce - Unique number to prevent replay attacks
  * @property to - Address to send this transaction to
  * @property value - Value associated with this transaction
