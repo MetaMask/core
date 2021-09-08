@@ -104,7 +104,6 @@ export enum TransactionStatus {
   cancelled = 'cancelled',
   confirmed = 'confirmed',
   failed = 'failed',
-  failedBeforeChain = 'failedBeforeChain',
   rejected = 'rejected',
   signed = 'signed',
   submitted = 'submitted',
@@ -546,7 +545,7 @@ export class TransactionController extends BaseController<
     try {
       const { gas } = await this.estimateGas(transaction);
       transaction.gas = gas;
-    } catch (error) {
+    } catch (error: any) {
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
     }
@@ -711,7 +710,7 @@ export class TransactionController extends BaseController<
       transactionMeta.status = TransactionStatus.submitted;
       this.updateTransaction(transactionMeta);
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
-    } catch (error) {
+    } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {
       releaseLock();
@@ -1151,14 +1150,17 @@ export class TransactionController extends BaseController<
       etherscanTokenResponse,
     ] = await handleTransactionFetch(networkType, address, opt);
 
-    const normalizedTxs = etherscanTxResponse.result.map(
+    let normalizedTxs = etherscanTxResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
         this.normalizeTx(tx, currentNetworkID, currentChainId),
     );
-    const normalizedTokenTxs = etherscanTokenResponse.result.map(
+    let normalizedTokenTxs = etherscanTokenResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
         this.normalizeTokenTx(tx, currentNetworkID, currentChainId),
     );
+
+    normalizedTxs = this.trimTransactionsForState(normalizedTxs);
+    normalizedTokenTxs = this.trimTransactionsForState(normalizedTokenTxs);
 
     const [updateTxs, allTxs] = this.transactionStateReconciler(
       [...normalizedTxs, ...normalizedTokenTxs],
@@ -1251,7 +1253,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Resolves the locally stored transactions with the blockchain or etherscan. Then updated TransactionController State
+   * Resolves the locally stored transactions with the blockchain or etherscan to update TransactionController State
    * @param remoteTxs - Array of transactions fetched from etherscan, the blockchain or other source
    * @param localTxs - Array of transactions currently stored in the state of the controller
    * @param stateReconcileMethod - Strategy used to reconcile the transactions
@@ -1271,7 +1273,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Function to determine if the transaction is in a final state
+   * Method to determine if the transaction is in a final state
    * @param status - Transaction status
    * @returns boolean if the transaction is in a final state
    */
