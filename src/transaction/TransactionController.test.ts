@@ -16,6 +16,7 @@ import {
   txsInStateMock,
   txsInStateWithOutdatedStatusMock,
   txsInStateWithOutdatedGasDataMock,
+  txsInStateWithOutdatedStatusAndGasDataMock,
 } from './mocks/txsMock';
 
 const globalAny: any = global;
@@ -164,6 +165,11 @@ const TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS: TransactionMeta[] = txsInState
 );
 
 const TRANSACTIONS_IN_STATE_WITH_OUTDATED_GAS_DATA: TransactionMeta[] = txsInStateWithOutdatedGasDataMock(
+  ETHER_TRANSACTION_HASH,
+  TOKEN_TRANSACTION_HASH,
+);
+
+const TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS_AND_GAS_DATA: TransactionMeta[] = txsInStateWithOutdatedStatusAndGasDataMock(
   ETHER_TRANSACTION_HASH,
   TOKEN_TRANSACTION_HASH,
 );
@@ -732,7 +738,7 @@ describe('TransactionController', () => {
     expect(controller.state.transactions[0].transaction.to).toBe(from);
   });
 
-  it('should fetch all the transactions from an address, including incoming token transactions without modifying transaction that have the same data in local and remote', async () => {
+  it('should fetch all the transactions from an address, including incoming token transactions without modifying transactions that have the same data in local and remote', async () => {
     globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
       getNetworkState: () => MOCK_MAINNET_NETWORK.state,
@@ -816,6 +822,33 @@ describe('TransactionController', () => {
     const ethTransaction = controller.state.transactions.find(
       ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
     ) || { transaction: { gasUsed: '0x0' } };
+    expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
+    expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
+  });
+  it('should fetch and updated all transactions with outdated status and gas data regarding the data provided by the remote source in mainnet', async () => {
+    globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_MAINNET_NETWORK.state,
+      onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
+      getProvider: MOCK_MAINNET_NETWORK.getProvider,
+    });
+    const from = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+    controller.wipeTransactions();
+    expect(controller.state.transactions).toHaveLength(0);
+
+    controller.state.transactions = TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS_AND_GAS_DATA;
+
+    await controller.fetchAll(from);
+    expect(controller.state.transactions).toHaveLength(17);
+
+    const tokenTransaction = controller.state.transactions.find(
+      ({ transactionHash }) => transactionHash === TOKEN_TRANSACTION_HASH,
+    ) || { status: TransactionStatus.failed, transaction: { gasUsed: '0' } };
+    const ethTransaction = controller.state.transactions.find(
+      ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
+    ) || { status: TransactionStatus.failed, transaction: { gasUsed: '0x0' } };
+    expect(tokenTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
+    expect(ethTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
     expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
     expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
   });

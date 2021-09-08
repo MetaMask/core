@@ -458,6 +458,48 @@ export const txsInStateWithOutdatedGasDataMock = (
   {
     id: 'token-transaction-id',
     chainId: '1',
+    status: TransactionStatus.confirmed,
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '624874',
+      gasPrice: '20000000000',
+      gasUsed: undefined,
+      nonce: '0x12',
+      to: '0x881d40237659c251811cec9c364ef91dc08d300c',
+      value: '0x0',
+    },
+    transactionHash: tokenTxHash,
+    toSmartContract: true,
+  },
+  {
+    id: 'eth-transaction-id',
+    chainId: '1',
+    status: TransactionStatus.confirmed,
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '0x51d68',
+      gasPrice: '0x2540be400',
+      gasUsed: undefined,
+      nonce: '0x12',
+      to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      value: '100000000000000000',
+    },
+    transactionHash: ethTxHash,
+    toSmartContract: false,
+  },
+];
+
+export const txsInStateWithOutdatedStatusAndGasDataMock = (
+  ethTxHash: string,
+  tokenTxHash: string,
+): TransactionMeta[] => [
+  {
+    id: 'token-transaction-id',
+    chainId: '1',
     status: TransactionStatus.failedBeforeChain,
     time: 1615497996125,
     transaction: {
