@@ -1,4 +1,6 @@
-export const ethTxsMock = (etherTxHash: string) => [
+import { TransactionMeta, TransactionStatus } from '../TransactionController';
+
+export const ethTxsMock = (ethTxHash: string) => [
   {
     blockNumber: '4535101',
     confirmations: '10',
@@ -8,7 +10,7 @@ export const ethTxsMock = (etherTxHash: string) => [
     gas: '335208',
     gasPrice: '10000000000',
     gasUsed: '21000',
-    hash: etherTxHash,
+    hash: ethTxHash,
     input: '0x',
     isError: '0',
     nonce: '9',
@@ -362,5 +364,131 @@ export const tokenTxsMock = (tokenTxHash: string) => [
     cumulativeGasUsed: '4408393',
     input: 'deprecated',
     confirmations: '1004018',
+  },
+];
+
+export const txsInStateMock = (
+  ethTxHash: string,
+  tokenTxHash: string,
+): TransactionMeta[] => [
+  {
+    id: 'token-transaction-id',
+    chainId: '1',
+    status: TransactionStatus.confirmed,
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '624874',
+      gasPrice: '20000000000',
+      gasUsed: '21000',
+      nonce: '0x12',
+      to: '0x881d40237659c251811cec9c364ef91dc08d300c',
+      value: '0x0',
+    },
+    transactionHash: tokenTxHash,
+    toSmartContract: true,
+  },
+  {
+    id: 'eth-transaction-id',
+    chainId: '1',
+    status: TransactionStatus.confirmed,
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '0x51d68',
+      gasPrice: '0x2540be400',
+      gasUsed: '0x5208',
+      nonce: '0x12',
+      to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      value: '100000000000000000',
+    },
+    transactionHash: ethTxHash,
+    toSmartContract: false,
+  },
+];
+
+export const txsInStateWithOutdatedStatusMock = (
+  ethTxHash: string,
+  tokenTxHash: string,
+): TransactionMeta[] => [
+  {
+    id: 'token-transaction-id',
+    chainId: '1',
+    status: TransactionStatus.failedBeforeChain,
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '624874',
+      gasPrice: '20000000000',
+      gasUsed: '21000',
+      nonce: '0x12',
+      to: '0x881d40237659c251811cec9c364ef91dc08d300c',
+      value: '0x0',
+    },
+    transactionHash: tokenTxHash,
+    toSmartContract: true,
+  },
+  {
+    id: 'eth-transaction-id',
+    chainId: '1',
+    status: TransactionStatus.failedBeforeChain,
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '0x51d68',
+      gasPrice: '0x2540be400',
+      gasUsed: '0x5208',
+      nonce: '0x12',
+      to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      value: '100000000000000000',
+    },
+    transactionHash: ethTxHash,
+    toSmartContract: false,
+  },
+];
+
+export const txsInStateWithOutdatedGasDataMock = (
+  ethTxHash: string,
+  tokenTxHash: string,
+): TransactionMeta[] => [
+  {
+    id: 'token-transaction-id',
+    chainId: '1',
+    status: TransactionStatus.failedBeforeChain,
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '624874',
+      gasPrice: '20000000000',
+      gasUsed: undefined,
+      nonce: '0x12',
+      to: '0x881d40237659c251811cec9c364ef91dc08d300c',
+      value: '0x0',
+    },
+    transactionHash: tokenTxHash,
+    toSmartContract: true,
+  },
+  {
+    id: 'eth-transaction-id',
+    chainId: '1',
+    status: TransactionStatus.failedBeforeChain,
+    time: 1615497996125,
+    transaction: {
+      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      data: '0x',
+      gas: '0x51d68',
+      gasPrice: '0x2540be400',
+      gasUsed: undefined,
+      nonce: '0x12',
+      to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
+      value: '100000000000000000',
+    },
+    transactionHash: ethTxHash,
+    toSmartContract: false,
   },
 ];

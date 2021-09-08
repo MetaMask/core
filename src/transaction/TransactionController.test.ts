@@ -10,7 +10,13 @@ import {
   TransactionStatus,
   TransactionMeta,
 } from './TransactionController';
-import { ethTxsMock, tokenTxsMock } from './mocks/txsMock';
+import {
+  ethTxsMock,
+  tokenTxsMock,
+  txsInStateMock,
+  txsInStateWithOutdatedStatusMock,
+  txsInStateWithOutdatedGasDataMock,
+} from './mocks/txsMock';
 
 const globalAny: any = global;
 
@@ -147,124 +153,20 @@ const ETH_TRANSACTIONS = ethTxsMock(ETHER_TRANSACTION_HASH);
 
 const TOKEN_TRANSACTIONS = tokenTxsMock(TOKEN_TRANSACTION_HASH);
 
-const TRANSACTIONS_IN_STATE: TransactionMeta[] = [
-  // Token tx, hash is in TOKEN_TRANSACTIONS
-  {
-    id: 'token-transaction-id',
-    chainId: '1',
-    status: TransactionStatus.confirmed,
-    time: 1615497996125,
-    transaction: {
-      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-      data: '0x',
-      gas: '624874',
-      gasPrice: '20000000000',
-      gasUsed: '21000',
-      nonce: '0x12',
-      to: '0x881d40237659c251811cec9c364ef91dc08d300c',
-      value: '0x0',
-    },
-    transactionHash: TOKEN_TRANSACTION_HASH,
-    toSmartContract: true,
-  },
-  // ETH tx, hash is in ETH_TRANSACTIONS
-  {
-    id: 'eth-transaction-id',
-    chainId: '1',
-    status: TransactionStatus.confirmed,
-    time: 1615497996125,
-    transaction: {
-      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-      data: '0x',
-      gas: '0x51d68',
-      gasPrice: '0x2540be400',
-      gasUsed: '0x5208',
-      nonce: '0x12',
-      to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-      value: '100000000000000000',
-    },
-    transactionHash: ETHER_TRANSACTION_HASH,
-    toSmartContract: false,
-  },
-];
+const TRANSACTIONS_IN_STATE: TransactionMeta[] = txsInStateMock(
+  ETHER_TRANSACTION_HASH,
+  TOKEN_TRANSACTION_HASH,
+);
 
-const TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS: TransactionMeta[] = [
-  {
-    id: 'token-transaction-id',
-    chainId: '1',
-    status: TransactionStatus.failedBeforeChain,
-    time: 1615497996125,
-    transaction: {
-      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-      data: '0x',
-      gas: '624874',
-      gasPrice: '20000000000',
-      gasUsed: '21000',
-      nonce: '0x12',
-      to: '0x881d40237659c251811cec9c364ef91dc08d300c',
-      value: '0x0',
-    },
-    transactionHash: TOKEN_TRANSACTION_HASH,
-    toSmartContract: true,
-  },
-  {
-    id: 'eth-transaction-id',
-    chainId: '1',
-    status: TransactionStatus.failedBeforeChain,
-    time: 1615497996125,
-    transaction: {
-      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-      data: '0x',
-      gas: '0x51d68',
-      gasPrice: '0x2540be400',
-      gasUsed: '0x5208',
-      nonce: '0x12',
-      to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-      value: '100000000000000000',
-    },
-    transactionHash: ETHER_TRANSACTION_HASH,
-    toSmartContract: false,
-  },
-];
+const TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS: TransactionMeta[] = txsInStateWithOutdatedStatusMock(
+  ETHER_TRANSACTION_HASH,
+  TOKEN_TRANSACTION_HASH,
+);
 
-const TRANSACTIONS_IN_STATE_WITH_OUTDATED_GAS_DATA: TransactionMeta[] = [
-  {
-    id: 'token-transaction-id',
-    chainId: '1',
-    status: TransactionStatus.failedBeforeChain,
-    time: 1615497996125,
-    transaction: {
-      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-      data: '0x',
-      gas: '624874',
-      gasPrice: '20000000000',
-      gasUsed: undefined,
-      nonce: '0x12',
-      to: '0x881d40237659c251811cec9c364ef91dc08d300c',
-      value: '0x0',
-    },
-    transactionHash: TOKEN_TRANSACTION_HASH,
-    toSmartContract: true,
-  },
-  {
-    id: 'eth-transaction-id',
-    chainId: '1',
-    status: TransactionStatus.failedBeforeChain,
-    time: 1615497996125,
-    transaction: {
-      from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-      data: '0x',
-      gas: '0x51d68',
-      gasPrice: '0x2540be400',
-      gasUsed: undefined,
-      nonce: '0x12',
-      to: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-      value: '100000000000000000',
-    },
-    transactionHash: ETHER_TRANSACTION_HASH,
-    toSmartContract: false,
-  },
-];
+const TRANSACTIONS_IN_STATE_WITH_OUTDATED_GAS_DATA: TransactionMeta[] = txsInStateWithOutdatedGasDataMock(
+  ETHER_TRANSACTION_HASH,
+  TOKEN_TRANSACTION_HASH,
+);
 
 const ETH_TX_HISTORY_DATA = {
   message: 'OK',
@@ -297,11 +199,11 @@ const ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND = {
 };
 
 const MOCK_FETCH_TX_HISTORY_DATA_OK = {
-  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=tokentx&tag=latest&page=1': ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND, // check
+  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=tokentx&tag=latest&page=1': ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND,
   'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=tokentx&tag=latest&page=1': TOKEN_TX_HISTORY_DATA,
   'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&action=tokentx&tag=latest&page=1': TOKEN_TX_HISTORY_DATA_FROM_BLOCK,
   'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA,
-  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA, // check
+  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA,
   'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA_FROM_BLOCK,
 };
 
