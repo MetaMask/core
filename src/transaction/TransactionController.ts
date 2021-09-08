@@ -1208,7 +1208,7 @@ export class TransactionController extends BaseController<
     // Update state only if new transactions were fetched or
     // the status or gas data of a transaction has changed
     if (updateTxs) {
-      this.update({ transactions: this.trimTransactionsForState(allTxs) });
+      this.update({ transactions: allTxs });
     }
     return latestIncomingTxBlockNumber;
   }
