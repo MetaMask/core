@@ -6,10 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.1.0]
+### Changed
+- Improve transaction state management ([#582](https://github.com/MetaMask/controllers/pull/582))
+  - TransactionController improvement to reconcile the data between local and remote sources (Etherscan) and avoid misleading display of gas and/or status information.
+- Bump immer from 8.0.1 to 9.0.6 ([#581](https://github.com/MetaMask/controllers/pull/581))
+
 ## [15.0.2]
 ### Fixed
 - Change AbortController to default import ([#579](https://github.com/MetaMask/controllers/pull/579))
-  - Fix error thrown when polyfilled AbortController is instantiated as a named import. 
+  - Fix error thrown when polyfilled AbortController is instantiated as a named import.
 
 ## [15.0.1]
 ### Fixed
@@ -363,7 +369,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v15.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v15.1.0...HEAD
+[15.1.0]: https://github.com/MetaMask/controllers/compare/v15.0.2...v15.1.0
 [15.0.2]: https://github.com/MetaMask/controllers/compare/v15.0.1...v15.0.2
 [15.0.1]: https://github.com/MetaMask/controllers/compare/v15.0.0...v15.0.1
 [15.0.0]: https://github.com/MetaMask/controllers/compare/v14.2.0...v15.0.0
