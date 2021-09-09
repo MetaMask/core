@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.1.0]
 ### Changed
-- Manage transaction state ([#582](https://github.com/MetaMask/controllers/pull/582))
+- [FEATURE] Manage transaction state ([#582](https://github.com/MetaMask/controllers/pull/582))
+- Bump immer from 8.0.1 to 9.0.6 ([#581](https://github.com/MetaMask/controllers/pull/581))
 
 ## [15.0.2]
 ### Fixed
