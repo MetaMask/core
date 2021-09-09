@@ -330,33 +330,31 @@ describe('util', () => {
     const action = 'txlist';
 
     it('should return a correctly structured url', () => {
-      const url = util.getEtherscanApiUrl(networkType, address, action);
+      const url = util.getEtherscanApiUrl(networkType, { address, action });
       expect(url.indexOf(`&action=${action}`)).toBeGreaterThan(0);
     });
     it('should return a correctly structured url with from block', () => {
       const fromBlock = 'xxxxxx';
-      const url = util.getEtherscanApiUrl(
-        networkType,
+      const url = util.getEtherscanApiUrl(networkType, {
         address,
         action,
-        fromBlock,
-      );
+        startBlock: fromBlock,
+      });
       expect(url.indexOf(`&startBlock=${fromBlock}`)).toBeGreaterThan(0);
     });
     it('should return a correctly structured url with testnet subdomain', () => {
       const ropsten = 'ropsten';
-      const url = util.getEtherscanApiUrl(ropsten, address, action);
+      const url = util.getEtherscanApiUrl(ropsten, { address, action });
       expect(url.indexOf(`https://api-${ropsten}`)).toBe(0);
     });
     it('should return a correctly structured url with apiKey', () => {
       const apiKey = 'xxxxxx';
-      const url = util.getEtherscanApiUrl(
-        networkType,
+      const url = util.getEtherscanApiUrl(networkType, {
         address,
         action,
-        'xxxxxx',
-        apiKey,
-      );
+        startBlock: 'xxxxxx',
+        apikey: apiKey,
+      });
       expect(url.indexOf(`&apikey=${apiKey}`)).toBeGreaterThan(0);
     });
   });

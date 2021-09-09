@@ -65,6 +65,7 @@ export interface FetchAllOptions {
  * @property from - Address to send this transaction from
  * @property gas - Gas to send with this transaction
  * @property gasPrice - Price of gas with this transaction
+ * @property gasUsed -  Gas used in the transaction
  * @property nonce - Unique number to prevent replay attacks
  * @property to - Address to send this transaction to
  * @property value - Value associated with this transaction
@@ -75,6 +76,7 @@ export interface Transaction {
   from: string;
   gas?: string;
   gasPrice?: string;
+  gasUsed?: string;
   nonce?: string;
   to?: string;
   value?: string;
@@ -115,6 +117,14 @@ export enum WalletDevice {
   MM_MOBILE = 'metamask_mobile',
   MM_EXTENSION = 'metamask_extension',
   OTHER = 'other_device',
+}
+
+/**
+ * Source of data used to reconcile local transactions end state
+ */
+export enum StateReconcileMethod {
+  ETHERSCAN = 'etherscan',
+  BLOCKCHAIN = 'blockchain',
 }
 
 type TransactionMetaBase = {
@@ -316,6 +326,7 @@ export class TransactionController extends BaseController<
         from: txMeta.from,
         gas: BNToHex(new BN(txMeta.gas)),
         gasPrice: BNToHex(new BN(txMeta.gasPrice)),
+        gasUsed: BNToHex(new BN(txMeta.gasUsed)),
         nonce: BNToHex(new BN(txMeta.nonce)),
         to: txMeta.to,
         value: BNToHex(new BN(txMeta.value)),
@@ -350,6 +361,7 @@ export class TransactionController extends BaseController<
       from,
       gas,
       gasPrice,
+      gasUsed,
       hash,
       contractAddress,
       tokenDecimal,
@@ -368,6 +380,7 @@ export class TransactionController extends BaseController<
         from,
         gas,
         gasPrice,
+        gasUsed,
         to,
         value,
       },
@@ -517,7 +530,7 @@ export class TransactionController extends BaseController<
     try {
       const { gas } = await this.estimateGas(transaction);
       transaction.gas = gas;
-    } catch (error) {
+    } catch (error: any) {
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
     }
@@ -682,7 +695,7 @@ export class TransactionController extends BaseController<
       transactionMeta.status = TransactionStatus.submitted;
       this.updateTransaction(transactionMeta);
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
-    } catch (error) {
+    } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {
       releaseLock();
@@ -1017,7 +1030,8 @@ export class TransactionController extends BaseController<
     await safelyExecute(() =>
       Promise.all(
         transactions.map(async (meta, index) => {
-          // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
+          // Using fallback to networkID only when there is no chainId present.
+          // Should be removed when networkID is completely removed.
           if (
             meta.status === TransactionStatus.submitted &&
             (meta.chainId === currentChainId ||
@@ -1026,6 +1040,12 @@ export class TransactionController extends BaseController<
             const txObj = await query(this.ethQuery, 'getTransactionByHash', [
               meta.transactionHash,
             ]);
+
+            if (txObj === null) {
+              transactions[index].status = TransactionStatus.failed;
+              gotUpdates = true;
+            }
+
             /* istanbul ignore next */
             if (txObj?.blockNumber) {
               transactions[index].status = TransactionStatus.confirmed;
@@ -1102,6 +1122,7 @@ export class TransactionController extends BaseController<
   ): Promise<string | void> {
     const { provider, network: currentNetworkID } = this.getNetworkState();
     const { chainId: currentChainId, type: networkType } = provider;
+    const { transactions } = this.state;
 
     const supportedNetworkIds = ['1', '3', '4', '42'];
     /* istanbul ignore next */
@@ -1112,7 +1133,12 @@ export class TransactionController extends BaseController<
     const [
       etherscanTxResponse,
       etherscanTokenResponse,
-    ] = await handleTransactionFetch(networkType, address, opt);
+    ] = await handleTransactionFetch(
+      networkType,
+      address,
+      this.config.txHistoryLimit,
+      opt,
+    );
 
     const normalizedTxs = etherscanTxResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
@@ -1123,14 +1149,12 @@ export class TransactionController extends BaseController<
         this.normalizeTokenTx(tx, currentNetworkID, currentChainId),
     );
 
-    const remoteTxs = [...normalizedTxs, ...normalizedTokenTxs].filter((tx) => {
-      const alreadyInTransactions = this.state.transactions.find(
-        ({ transactionHash }) => transactionHash === tx.transactionHash,
-      );
-      return !alreadyInTransactions;
-    });
+    const [updateRequired, allTxs] = this.transactionStateReconciler(
+      [...normalizedTxs, ...normalizedTokenTxs],
+      transactions,
+      StateReconcileMethod.ETHERSCAN,
+    );
 
-    const allTxs = [...remoteTxs, ...this.state.transactions];
     allTxs.sort((a, b) => (a.time < b.time ? -1 : 1));
 
     let latestIncomingTxBlockNumber: string | undefined;
@@ -1168,8 +1192,9 @@ export class TransactionController extends BaseController<
         }
       }
     });
-    // Update state only if new transactions were fetched
-    if (allTxs.length > this.state.transactions.length) {
+    // Update state only if new transactions were fetched or
+    // the status or gas data of a transaction has changed
+    if (updateRequired) {
       this.update({ transactions: this.trimTransactionsForState(allTxs) });
     }
     return latestIncomingTxBlockNumber;
@@ -1186,8 +1211,11 @@ export class TransactionController extends BaseController<
    * nonce, same day and network combo can result in confusing or broken experiences
    * in the UI. The transactions are then updated using the BaseController update.
    * @param transactions - arrray of transactions to be applied to the state
+   * @returns Array of TransactionMeta with the desired length.
    */
-  private trimTransactionsForState(transactions: TransactionMeta[]) {
+  private trimTransactionsForState(
+    transactions: TransactionMeta[],
+  ): TransactionMeta[] {
     const nonceNetworkSet = new Set();
     const txsToKeep = transactions.reverse().filter((tx) => {
       const { chainId, networkID, status, transaction, time } = tx;
@@ -1212,17 +1240,158 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Fucntion to determine if the transaction is in a final state
+   * Resolves the locally stored transactions with the blockchain or etherscan to update TransactionController State
+   * @param remoteTxs - Array of transactions fetched from etherscan, the blockchain or other source
+   * @param localTxs - Array of transactions currently stored in the state of the controller
+   * @param stateReconcileMethod - Strategy used to reconcile the transactions
+   * @returns [boolean, TransactionMeta[]]
+   */
+  private transactionStateReconciler(
+    remoteTxs: TransactionMeta[],
+    localTxs: TransactionMeta[],
+    stateReconcileMethod: StateReconcileMethod,
+  ): [boolean, TransactionMeta[]] {
+    switch (stateReconcileMethod) {
+      case StateReconcileMethod.ETHERSCAN:
+        return this.etherscanTransactionStateReconciler(remoteTxs, localTxs);
+      default:
+        return [false, []];
+    }
+  }
+
+  /**
+   * Method to determine if the transaction is in a final state
    * @param status - Transaction status
    * @returns boolean if the transaction is in a final state
    */
-  private isFinalState(status: TransactionStatus) {
+  private isFinalState(status: TransactionStatus): boolean {
     return (
       status === TransactionStatus.rejected ||
       status === TransactionStatus.confirmed ||
       status === TransactionStatus.failed ||
       status === TransactionStatus.cancelled
     );
+  }
+
+  private etherscanTransactionStateReconciler(
+    remoteTxs: TransactionMeta[],
+    localTxs: TransactionMeta[],
+  ): [boolean, TransactionMeta[]] {
+    const updatedTxs: TransactionMeta[] = this.getUpdatedTransactions(
+      remoteTxs,
+      localTxs,
+    );
+
+    const newTxs: TransactionMeta[] = this.getNewTransactions(
+      remoteTxs,
+      localTxs,
+    );
+
+    const updatedLocalTxs = localTxs.map((tx: TransactionMeta) => {
+      const txIdx = updatedTxs.findIndex(
+        ({ transactionHash }) => transactionHash === tx.transactionHash,
+      );
+      return txIdx === -1 ? tx : updatedTxs[txIdx];
+    });
+
+    const updateRequired = newTxs.length > 0 || updatedLocalTxs.length > 0;
+
+    return [updateRequired, [...newTxs, ...updatedLocalTxs]];
+  }
+
+  /**
+   * Get all transactions that are in the remote transactions array
+   * but not in the local transactions array
+   * @param remoteTxs - Array of transactions from remote source
+   * @param localTxs - Array of transactions stored locally
+   * @returns TransactionMeta array
+   */
+  private getNewTransactions(
+    remoteTxs: TransactionMeta[],
+    localTxs: TransactionMeta[],
+  ): TransactionMeta[] {
+    return remoteTxs.filter((tx) => {
+      const alreadyInTransactions = localTxs.find(
+        ({ transactionHash }) => transactionHash === tx.transactionHash,
+      );
+      return !alreadyInTransactions;
+    });
+  }
+
+  /**
+   * Get all the transactions that are locally outdated with respect
+   * to a remote source (etherscan or blockchain). The returned array
+   * contains the transactions with the updated data.
+   * @param remoteTxs - Array of transactions from remote source
+   * @param localTxs - Array of transactions stored locally
+   * @returns TransactionMeta array
+   */
+  private getUpdatedTransactions(
+    remoteTxs: TransactionMeta[],
+    localTxs: TransactionMeta[],
+  ): TransactionMeta[] {
+    return remoteTxs.filter((remoteTx) => {
+      const isTxOutdated = localTxs.find((localTx) => {
+        return (
+          remoteTx.transactionHash === localTx.transactionHash &&
+          this.isTransactionOutdated(remoteTx, localTx)
+        );
+      });
+      return isTxOutdated;
+    });
+  }
+
+  /**
+   * Verifies if a local transaction is outdated with respect to the remote transaction
+   * @param remoteTx - Remote transaction from Etherscan
+   * @param localTx - Local transaction
+   * @returns boolean
+   */
+  private isTransactionOutdated(
+    remoteTx: TransactionMeta,
+    localTx: TransactionMeta,
+  ): boolean {
+    const statusOutdated = this.isStatusOutdated(
+      remoteTx.transactionHash,
+      localTx.transactionHash,
+      remoteTx.status,
+      localTx.status,
+    );
+    const gasDataOutdated = this.isGasDataOutdated(
+      remoteTx.transaction.gasUsed,
+      localTx.transaction.gasUsed,
+    );
+    return statusOutdated || gasDataOutdated;
+  }
+
+  /**
+   * Verifies if the status of a local transaction is outdated with respect to the remote transaction
+   * @param remoteTxHash - Remote transaction hash
+   * @param localTxHash - Local transaction hash
+   * @param remoteTxStatus - Remote transaction status
+   * @param localTxStatus - Local transaction status
+   * @returns boolean
+   */
+  private isStatusOutdated(
+    remoteTxHash: string | undefined,
+    localTxHash: string | undefined,
+    remoteTxStatus: TransactionStatus,
+    localTxStatus: TransactionStatus,
+  ): boolean {
+    return remoteTxHash === localTxHash && remoteTxStatus !== localTxStatus;
+  }
+
+  /**
+   * Verifies if the gas data of a local transaction is outdated with respect to the remote transaction
+   * @param remoteGasUsed - Remote gas used in the transaction
+   * @param localGasUsed - Local gas used in the transaction
+   * @returns boolean
+   */
+  private isGasDataOutdated(
+    remoteGasUsed: string | undefined,
+    localGasUsed: string | undefined,
+  ): boolean {
+    return remoteGasUsed !== localGasUsed;
   }
 }
 
