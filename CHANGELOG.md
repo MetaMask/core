@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [15.1.0]
 ### Changed
 - Improve transaction state management ([#582](https://github.com/MetaMask/controllers/pull/582))
-  - Update on the TransactionController to reconcile the data between local and remote sources (Etherscan) and avoid misleading display of gas or status information.
+  - TransactionController Improvement to reconcile the data between local and remote sources (Etherscan) and avoid misleading display of gas or status information.
 - Bump immer from 8.0.1 to 9.0.6 ([#581](https://github.com/MetaMask/controllers/pull/581))
 
 ## [15.0.2]
