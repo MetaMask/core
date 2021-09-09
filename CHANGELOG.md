@@ -7,14 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [15.1.0]
-### Uncategorized
-- [FEATURE] Manage transaction state ([#582](https://github.com/MetaMask/controllers/pull/582))
-- Bump immer from 8.0.1 to 9.0.6 ([#581](https://github.com/MetaMask/controllers/pull/581))
+### Changed
+- Manage transaction state ([#582](https://github.com/MetaMask/controllers/pull/582))
 
 ## [15.0.2]
 ### Fixed
 - Change AbortController to default import ([#579](https://github.com/MetaMask/controllers/pull/579))
-  - Fix error thrown when polyfilled AbortController is instantiated as a named import. 
+  - Fix error thrown when polyfilled AbortController is instantiated as a named import.
 
 ## [15.0.1]
 ### Fixed
