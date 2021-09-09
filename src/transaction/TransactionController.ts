@@ -1342,7 +1342,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Verifies if a local transaction is outdated in respect the remote transaction
+   * Verifies if a local transaction is outdated with respect to the remote transaction
    * @param remoteTx - Remote transaction from Etherscan
    * @param localTx - Local transaction
    * @returns boolean
@@ -1365,7 +1365,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Verifies if the status of a local transaction is outdated in respect the remote transaction
+   * Verifies if the status of a local transaction is outdated with respect to the remote transaction
    * @param remoteTxHash - Remote transaction hash
    * @param localTxHash - Local transaction hash
    * @param remoteTxStatus - Remote transaction status
@@ -1382,7 +1382,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Verifies if the gas data of a local transaction is outdated in respect the remote transaction
+   * Verifies if the gas data of a local transaction is outdated with respect to the remote transaction
    * @param remoteGasUsed - Remote gas used in the transaction
    * @param localGasUsed - Local gas used in the transaction
    * @returns boolean
