@@ -20,15 +20,16 @@ describe('SmartTransactionsController', () => {
     await smartTransactionsController.stop();
   });
 
-  it('should initialize with default config', () => {
+  it('initializes with default config', () => {
     expect(smartTransactionsController.config).toStrictEqual({
       interval: DEFAULT_INTERVAL,
-      allowedNetworks: ['1'],
+      supportedChainIds: ['1'],
       chainId: '',
+      clientId: 'default',
     });
   });
 
-  it('should initialize with default state', () => {
+  it('initializes with default state', () => {
     expect(smartTransactionsController.state).toStrictEqual({
       smartTransactions: {},
       userOptIn: undefined,
@@ -36,12 +37,12 @@ describe('SmartTransactionsController', () => {
   });
 
   describe('onNetworkChange', () => {
-    it('should be triggered', () => {
+    it('is triggered', () => {
       networkListener({ provider: { chainId: '52' } } as NetworkState);
       expect(smartTransactionsController.config.chainId).toBe('52');
     });
 
-    it('should call poll', () => {
+    it('calls poll', () => {
       const pollSpy = jest.spyOn(smartTransactionsController, 'poll');
       networkListener({ provider: { chainId: '2' } } as NetworkState);
       expect(pollSpy).toHaveBeenCalled();
@@ -49,7 +50,7 @@ describe('SmartTransactionsController', () => {
   });
 
   describe('poll', () => {
-    it('should poll with interval', async () => {
+    it('is called with interval', async () => {
       const interval = 35000;
       const pollSpy = jest.spyOn(smartTransactionsController, 'poll');
       const updateSmartTransactionsSpy = jest.spyOn(
@@ -74,7 +75,7 @@ describe('SmartTransactionsController', () => {
       jest.useRealTimers();
     });
 
-    it('should not updateSmartTransactions on unsupported networks', async () => {
+    it('does not call updateSmartTransactions on unsupported networks', async () => {
       const updateSmartTransactionsSpy = jest.spyOn(
         smartTransactionsController,
         'updateSmartTransactions',
@@ -86,7 +87,7 @@ describe('SmartTransactionsController', () => {
   });
 
   describe('setOptInState', () => {
-    it('should set optIn state', () => {
+    it('sets optIn state', () => {
       smartTransactionsController.setOptInState(true);
       expect(smartTransactionsController.state.userOptIn).toBe(true);
       smartTransactionsController.setOptInState(false);
