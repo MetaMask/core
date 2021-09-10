@@ -116,7 +116,9 @@ function findChainSlug(
   const chain =
     data.find(
       ({ chain_identifier }) =>
-        chain_identifier !== null && String(chain_identifier) === chainId,
+        chain_identifier !== null &&
+        (String(chain_identifier) === chainId ||
+          parseInt(chainId, 16) === chain_identifier),
     ) ?? null;
   return chain?.id || null;
 }
