@@ -113,13 +113,17 @@ function findChainSlug(
   if (!data) {
     return null;
   }
-  const chain =
+  let chain =
     data.find(
       ({ chain_identifier }) =>
-        chain_identifier !== null &&
-        (String(chain_identifier) === chainId ||
-          parseInt(chainId, 16) === chain_identifier),
+        chain_identifier !== null && String(chain_identifier) === chainId,
     ) ?? null;
+  if (chainId.startsWith('0x') || chain === null) {
+    chain =
+      data.find(({ chain_identifier }) => {
+        return parseInt(chainId, 16) === chain_identifier;
+      }) ?? null;
+  }
   return chain?.id || null;
 }
 

@@ -271,4 +271,59 @@ describe('TokenRatesController', () => {
     // FIXME: This is now being called twice
     expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
   });
+
+  it('should find the chainslug when chainId is formatted as hex or decimal', async () => {
+    const chainData = [
+      {
+        id: 'fantom',
+        chain_identifier: 250,
+        name: 'Fantom',
+        shortname: '',
+      },
+      {
+        id: 'binance-smart-chain',
+        chain_identifier: 56,
+        name: 'Binance Smart Chain',
+        shortname: 'BSC',
+      },
+      {
+        id: 'xdai',
+        chain_identifier: 100,
+        name: 'xDAI',
+        shortname: '',
+      },
+      {
+        id: 'polygon-pos',
+        chain_identifier: 137,
+        name: 'Polygon POS',
+        shortname: 'MATIC',
+      },
+      {
+        id: 'ethereum',
+        chain_identifier: 1,
+        name: 'ethereum',
+        shortname: '',
+      },
+    ];
+
+    const controller = new TokenRatesController(
+      {
+        onTokensStateChange: stub(),
+        onCurrencyRateStateChange: stub(),
+        onNetworkStateChange: stub(),
+      },
+      { interval: 10 },
+    );
+    controller.update({
+      supportedChains: { data: chainData, timestamp: Date.now() },
+    });
+    controller.configure({ chainId: '1' });
+    const resultEth = await controller.getChainSlug();
+    expect(resultEth).toStrictEqual('ethereum');
+
+    controller.configure({ chainId: '0x38' });
+    const resultXDai = await controller.getChainSlug();
+
+    expect(resultXDai).toStrictEqual('binance-smart-chain');
+  });
 });
