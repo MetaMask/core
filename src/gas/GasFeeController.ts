@@ -68,7 +68,6 @@ export type EstimatedGasFeeTimeBounds = {
  * A single gas price estimate for networks and accounts that don't support EIP-1559
  * This estimate comes from eth_gasPrice but is converted to dec gwei to match other
  * return values
- *
  * @property gasPrice - A GWEI dec string
  */
 
@@ -82,7 +81,6 @@ export type EthGasPriceEstimate = {
  * A set of gas price estimates for networks and accounts that don't support EIP-1559
  * These estimates include low, medium and high all as strings representing gwei in
  * decimal format.
- *
  * @property high - gasPrice, in decimal gwei string format, suggested for fast inclusion
  * @property medium - gasPrice, in decimal gwei string format, suggested for avg inclusion
  * @property low - gasPrice, in decimal gwei string format, suggested for slow inclusion
@@ -97,7 +95,6 @@ export type LegacyGasPriceEstimate = {
  * @type Eip1559GasFee
  *
  * Data necessary to provide an estimate of a gas fee with a specific tip
- *
  * @property minWaitTimeEstimate - The fastest the transaction will take, in milliseconds
  * @property maxWaitTimeEstimate - The slowest the transaction will take, in milliseconds
  * @property suggestedMaxPriorityFeePerGas - A suggested "tip", a GWEI hex number
@@ -115,7 +112,6 @@ export type Eip1559GasFee = {
  * @type GasFeeEstimates
  *
  * Data necessary to provide multiple GasFee estimates, and supporting information, to the user
- *
  * @property low - A GasFee for a minimum necessary combination of tip and maxFee
  * @property medium - A GasFee for a recommended combination of tip and maxFee
  * @property high - A GasFee for a high combination of tip and maxFee
@@ -167,7 +163,6 @@ export type FetchGasFeeEstimateOptions = {
  * @type GasFeeState
  *
  * Gas Fee controller state
- *
  * @property gasFeeEstimates - Gas fee estimate data based on new EIP-1559 properties
  * @property estimatedGasFeeTimeBounds - Estimates representing the minimum and maximum
  */
@@ -242,8 +237,34 @@ export class GasFeeController extends BaseController<
   private clientId?: string;
 
   /**
-   * Creates a GasFeeController instance
+   * Creates a GasFeeController instance.
    *
+   * @param options - The controller options.
+   * @param options.interval - The time in milliseconds to wait between polls.
+   * @param options.messenger - The controller messenger.
+   * @param options.state - The initial state.
+   * @param options.fetchGasEstimates - The function to use to fetch gas estimates. This option is
+   * primarily for testing purposes.
+   * @param options.fetchEthGasPriceEstimate - The function to use to fetch gas price estimates.
+   * This option is primarily for testing purposes.
+   * @param options.fetchLegacyGasPriceEstimates - The function to use to fetch legacy gas price
+   * estimates. This option is primarily for testing purposes.
+   * @param options.getCurrentNetworkEIP1559Compatibility - Determines whether or not the current
+   * network is EIP-1559 compatible.
+   * @param options.getCurrentNetworkLegacyGasAPICompatibility - Determines whether or not the
+   * current network is compatible with the legacy gas price API.
+   * @param options.getCurrentAccountEIP1559Compatibility - Determines whether or not the current
+   * account is EIP-1559 compatible.
+   * @param options.getChainId - Returns the current chain ID.
+   * @param options.getProvider - Returns a network provider for the current network.
+   * @param options.onNetworkStateChange - A function for registering an event handler for the
+   * network state change event.
+   * @param options.legacyAPIEndpoint - The legacy gas price API URL. This option is primarily for
+   * testing purposes.
+   * @param options.EIP1559APIEndpoint - The EIP-1559 gas price API URL. This option is primarily
+   * for testing purposes.
+   * @param options.clientId - The client ID used to identify to the gas estimation API who is
+   * asking for estimates.
    */
   constructor({
     interval = 15000,
@@ -341,9 +362,12 @@ export class GasFeeController extends BaseController<
   }
 
   /**
-   * Gets and sets gasFeeEstimates in state
+   * Gets and sets gasFeeEstimates in state.
    *
-   * @returns GasFeeEstimates
+   * @param options - The gas fee estimate options.
+   * @param options.shouldUpdateState - Determines whether the state should be updated with the
+   * updated gas estimates.
+   * @returns The gas fee estimates.
    */
   async _fetchGasFeeEstimateData(
     options: FetchGasFeeEstimateOptions = {},
@@ -427,7 +451,9 @@ export class GasFeeController extends BaseController<
   }
 
   /**
-   * Remove the poll token, and stop polling if the set of poll tokens is empty
+   * Remove the poll token, and stop polling if the set of poll tokens is empty.
+   *
+   * @param pollToken - The poll token to disconnect.
    */
   disconnectPoller(pollToken: string) {
     this.pollTokens.delete(pollToken);

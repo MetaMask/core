@@ -7,7 +7,6 @@ export type Listener<T> = (state: T) => void;
  * @type BaseConfig
  *
  * Base controller configuration
- *
  * @property disabled - Determines if this controller is enabled
  */
 export interface BaseConfig {
@@ -18,7 +17,6 @@ export interface BaseConfig {
  * @type BaseState
  *
  * Base state representation
- *
  * @property name - Unique name for this controller
  */
 export interface BaseState {
@@ -63,8 +61,8 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    * Creates a BaseController instance. Both initial state and initial
    * configuration options are merged with defaults upon initialization.
    *
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
    */
   constructor(config: Partial<C> = {} as C, state: Partial<S> = {} as S) {
     // Use assign since generics can't be spread: https://git.io/vpRhY
@@ -77,7 +75,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    * variable on this instance and triggers any defined setters. This
    * also sets initial state and triggers any listeners.
    *
-   * @returns - This controller instance
+   * @returns This controller instance.
    */
   protected initialize() {
     this.internalState = this.defaultState;
@@ -88,29 +86,29 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
   }
 
   /**
-   * Retrieves current controller configuration options
+   * Retrieves current controller configuration options.
    *
-   * @returns - Current configuration
+   * @returns The current configuration.
    */
   get config() {
     return this.internalConfig;
   }
 
   /**
-   * Retrieves current controller state
+   * Retrieves current controller state.
    *
-   * @returns - Current state
+   * @returns The current state.
    */
   get state() {
     return this.internalState;
   }
 
   /**
-   * Updates controller configuration
+   * Updates controller configuration.
    *
-   * @param config - New configuration options
-   * @param overwrite - Overwrite config instead of merging
-   * @param fullUpdate - Boolean that defines if the update is partial or not
+   * @param config - New configuration options.
+   * @param overwrite - Overwrite config instead of merging.
+   * @param fullUpdate - Boolean that defines if the update is partial or not.
    */
   configure(config: Partial<C>, overwrite = false, fullUpdate = true) {
     if (fullUpdate) {
@@ -135,7 +133,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
   }
 
   /**
-   * Notifies all subscribed listeners of current state
+   * Notifies all subscribed listeners of current state.
    */
   notify() {
     if (this.disabled) {
@@ -148,19 +146,19 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
   }
 
   /**
-   * Adds new listener to be notified of state changes
+   * Adds new listener to be notified of state changes.
    *
-   * @param listener - Callback triggered when state changes
+   * @param listener - The callback triggered when state changes.
    */
   subscribe(listener: Listener<S>) {
     this.internalListeners.push(listener);
   }
 
   /**
-   * Removes existing listener from receiving state changes
+   * Removes existing listener from receiving state changes.
    *
-   * @param listener - Callback to remove
-   * @returns - True if a listener is found and unsubscribed
+   * @param listener - The callback to remove.
+   * @returns `true` if a listener is found and unsubscribed.
    */
   unsubscribe(listener: Listener<S>) {
     const index = this.internalListeners.findIndex((cb) => listener === cb);
@@ -169,10 +167,10 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
   }
 
   /**
-   * Updates controller state
+   * Updates controller state.
    *
-   * @param state - New state
-   * @param overwrite - Overwrite state instead of merging
+   * @param state - The new state.
+   * @param overwrite - Overwrite state instead of merging.
    */
   update(state: Partial<S>, overwrite = false) {
     this.internalState = overwrite

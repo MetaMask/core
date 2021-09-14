@@ -35,7 +35,6 @@ const HARDFORK = 'london';
 
 /**
  * @type Result
- *
  * @property result - Promise resolving to a new transaction hash
  * @property transactionMeta - Meta information about this new transaction
  */
@@ -46,7 +45,6 @@ export interface Result {
 
 /**
  * @type Fetch All Options
- *
  * @property fromBlock - String containing a specific block decimal number
  * @property etherscanApiKey - API key to be used to fetch token transactions
  */
@@ -59,7 +57,6 @@ export interface FetchAllOptions {
  * @type Transaction
  *
  * Transaction representation
- *
  * @property chainId - Network ID as per EIP-155
  * @property data - Data to pass with this transaction
  * @property from - Address to send this transaction from
@@ -144,7 +141,6 @@ type TransactionMetaBase = {
  * @type TransactionMeta
  *
  * TransactionMeta representation
- *
  * @property error - Synthesized error information for failed transactions
  * @property id - Generated UUID associated with this transaction
  * @property networkID - Network code as per EIP-155 for this transaction
@@ -184,7 +180,6 @@ export type TransactionMeta =
  * @property contractAddress - Address of the contract
  * @property cumulativeGasUsed - Amount of gas used
  * @property confirmations - Number of confirmations
- *
  */
 export interface EtherscanTransactionMeta {
   blockNumber: string;
@@ -213,7 +208,6 @@ export interface EtherscanTransactionMeta {
  * @type TransactionConfig
  *
  * Transaction controller configuration
- *
  * @property interval - Polling interval used to fetch new currency rate
  * @property provider - Provider used to create a new underlying EthQuery instance
  * @property sign - Method used to sign transactions
@@ -228,7 +222,6 @@ export interface TransactionConfig extends BaseConfig {
  * @type MethodData
  *
  * Method data registry object
- *
  * @property registryMethod - Registry method raw string
  * @property parsedRegistryMethod - Registry method object, containing name and method arguments
  */
@@ -241,7 +234,6 @@ export interface MethodData {
  * @type TransactionState
  *
  * Transaction controller state
- *
  * @property transactions - A list of TransactionMeta objects
  * @property methodData - Object containing all known method data information
  */
@@ -295,12 +287,12 @@ export class TransactionController extends BaseController<
 
   /**
    * Normalizes the transaction information from etherscan
-   * to be compatible with the TransactionMeta interface
+   * to be compatible with the TransactionMeta interface.
    *
-   * @param txMeta - Object containing the transaction information
-   * @param currentNetworkID - string representing the current network id
-   * @param currentChainId - string representing the current chain id
-   * @returns - TransactionMeta
+   * @param txMeta - The transaction.
+   * @param currentNetworkID - The current network ID.
+   * @param currentChainId - The current chain ID.
+   * @returns The normalized transaction.
    */
   private normalizeTx(
     txMeta: EtherscanTransactionMeta,
@@ -407,14 +399,14 @@ export class TransactionController extends BaseController<
   ) => Promise<TypedTransaction>;
 
   /**
-   * Creates a TransactionController instance
+   * Creates a TransactionController instance.
    *
-   * @param options
-   * @param options.getNetworkState - Gets the state of the network controller
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes
-   * @param options.getProvider - Returns a provider for the current network
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
+   * @param options - The controller options.
+   * @param options.getNetworkState - Gets the state of the network controller.
+   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.getProvider - Returns a provider for the current network.
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
    */
   constructor(
     {
@@ -453,9 +445,9 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Starts a new polling interval
+   * Starts a new polling interval.
    *
-   * @param interval - Polling interval used to fetch new transaction statuses
+   * @param interval - The polling interval used to fetch new transaction statuses.
    */
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
@@ -467,10 +459,10 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Handle new method data request
+   * Handle new method data request.
    *
-   * @param fourBytePrefix - String corresponding to method prefix
-   * @returns - Promise resolving to method data object corresponding to signature prefix
+   * @param fourBytePrefix - The method prefix.
+   * @returns The method data object corresponding to the given signature prefix.
    */
   async handleMethodData(fourBytePrefix: string): Promise<MethodData> {
     const releaseLock = await this.mutex.acquire();
@@ -497,10 +489,10 @@ export class TransactionController extends BaseController<
    * unique transaction id will be generated, and gas and gasPrice will be calculated
    * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
    *
-   * @param transaction - Transaction object to add
-   * @param origin - Domain origin to append to the generated TransactionMeta
-   * @param deviceConfirmedOn - enum to indicate what device the transaction was confirmed to append to the generated TransactionMeta
-   * @returns - Object containing a promise resolving to the transaction hash if approved
+   * @param transaction - The transaction object to add.
+   * @param origin - The domain origin to append to the generated TransactionMeta.
+   * @param deviceConfirmedOn - An enum to indicate what device the transaction was confirmed to append to the generated TransactionMeta.
+   * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
     transaction: Transaction,
@@ -579,11 +571,12 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * @ethereumjs/tx uses @ethereumjs/common as a configuration tool for
+   * `@ethereumjs/tx` uses `@ethereumjs/common` as a configuration tool for
    * specifying which chain, network, hardfork and EIPs to support for
    * a transaction. By referencing this configuration, and analyzing the fields
    * specified in txParams, @ethereumjs/tx is able to determine which EIP-2718
    * transaction type to use.
+   *
    * @returns {Common} common configuration object
    */
 
@@ -612,8 +605,7 @@ export class TransactionController extends BaseController<
    * using the sign configuration property, then published to the blockchain.
    * A `<tx.id>:finished` hub event is fired after success or failure.
    *
-   * @param transactionID - ID of the transaction to approve
-   * @returns - Promise resolving when this operation completes
+   * @param transactionID - The ID of the transaction to approve.
    */
   async approveTransaction(transactionID: string) {
     const { transactions } = this.state;
@@ -703,7 +695,7 @@ export class TransactionController extends BaseController<
    * Cancels a transaction based on its ID by setting its status to "rejected"
    * and emitting a `<tx.id>:finished` hub event.
    *
-   * @param transactionID - ID of the transaction to cancel
+   * @param transactionID - The ID of the transaction to cancel.
    */
   cancelTransaction(transactionID: string) {
     const transactionMeta = this.state.transactions.find(
@@ -724,7 +716,8 @@ export class TransactionController extends BaseController<
    * Attempts to cancel a transaction based on its ID by setting its status to "rejected"
    * and emitting a `<tx.id>:finished` hub event.
    *
-   * @param transactionID - ID of the transaction to cancel
+   * @param transactionID - The ID of the transaction to cancel.
+   * @param gasValues - The gas values to use for the cancellation transation.
    */
   async stopTransaction(
     transactionID: string,
@@ -821,9 +814,10 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Attemps to speed up a transaction increasing transaction gasPrice by ten percent
+   * Attemps to speed up a transaction increasing transaction gasPrice by ten percent.
    *
-   * @param transactionID - ID of the transaction to speed up
+   * @param transactionID - The ID of the transaction to speed up.
+   * @param gasValues - The gas values to use for the speed up transation.
    */
   async speedUpTransaction(
     transactionID: string,
@@ -944,10 +938,10 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Estimates required gas for a given transaction
+   * Estimates required gas for a given transaction.
    *
-   * @param transaction - Transaction object to estimate gas for
-   * @returns - Promise resolving to an object containing gas and gasPrice
+   * @param transaction - The transaction to estimate gas for.
+   * @returns The gas and gas price.
    */
   async estimateGas(transaction: Transaction) {
     const estimatedTransaction = { ...transaction };
@@ -1016,11 +1010,8 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Resiliently checks all submitted transactions on the blockchain
-   * and verifies that it has been included in a block
-   * when that happens, the tx status is updated to confirmed
-   *
-   * @returns - Promise resolving when this operation completes
+   * Check the status of submitted transactions on the network to determine whether they have
+   * been included in a block. Any that have been included in a block are marked as confirmed.
    */
   async queryTransactionStatuses() {
     const { transactions } = this.state;
@@ -1059,9 +1050,9 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Updates an existing transaction in state
+   * Updates an existing transaction in state.
    *
-   * @param transactionMeta - New transaction meta to store in state
+   * @param transactionMeta - The new transaction to store in state.
    */
   updateTransaction(transactionMeta: TransactionMeta) {
     const { transactions } = this.state;
@@ -1075,9 +1066,10 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Removes all transactions from state, optionally based on the current network
+   * Removes all transactions from state, optionally based on the current network.
    *
-   * @param ignoreNetwork - Ignores network
+   * @param ignoreNetwork - Determines whether to wipe all transactions, or just those on the
+   * current network. If `true`, all transactions are wiped.
    */
   wipeTransactions(ignoreNetwork?: boolean) {
     /* istanbul ignore next */
@@ -1103,12 +1095,13 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Gets all transactions from etherscan for a specific address
-   * optionally starting from a specific block
+   * Get transactions from Etherscan for the given address. By default all transactions are
+   * returned, but the `fromBlock` option can be given to filter just for transactions from a
+   * specific block onward.
    *
-   * @param address - string representing the address to fetch the transactions from
-   * @param opt - Object containing optional data, fromBlock and Alethio API key
-   * @returns - Promise resolving to an string containing the block number of the latest incoming transaction.
+   * @param address - The address to fetch the transactions for.
+   * @param opt - Object containing optional data, fromBlock and Etherscan API key.
+   * @returns The block number of the latest incoming transaction.
    */
   async fetchAll(
     address: string,
@@ -1205,8 +1198,9 @@ export class TransactionController extends BaseController<
    * same nonce, created on the same day, per network. Not accounting for transactions of the same
    * nonce, same day and network combo can result in confusing or broken experiences
    * in the UI. The transactions are then updated using the BaseController update.
-   * @param transactions - array of transactions to be applied to the state
-   * @returns Array of TransactionMeta with the desired length.
+   *
+   * @param transactions - The transactions to be applied to the state.
+   * @returns The trimmed list of transactions.
    */
   private trimTransactionsForState(
     transactions: TransactionMeta[],
@@ -1235,9 +1229,10 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Method to determine if the transaction is in a final state
-   * @param status - Transaction status
-   * @returns boolean if the transaction is in a final state
+   * Determines if the transaction is in a final state.
+   *
+   * @param status - The transaction status.
+   * @returns Whether the transaction is in a final state.
    */
   private isFinalState(status: TransactionStatus): boolean {
     return (
@@ -1249,9 +1244,10 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Method to verify the state of a transaction using the Blockchain as a source of truth
-   * @param meta Local transaction to verify data in blockchain
-   * @returns Promise with [TransactionMeta, boolean]
+   * Method to verify the state of a transaction using the Blockchain as a source of truth.
+   *
+   * @param meta - The local transaction to verify on the blockchain.
+   * @returns A tuple containing the updated transaction, and whether or not an update was required.
    */
   private async blockchainTransactionStateReconciler(
     meta: TransactionMeta,
@@ -1319,8 +1315,9 @@ export class TransactionController extends BaseController<
    * According to the Web3 docs:
    * TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.
    * The receipt is not available for pending transactions and returns null.
-   * @param txHash Transaction hash
-   * @returns Promise<boolean> indicating if the transaction have failed
+   *
+   * @param txHash - The transaction hash.
+   * @returns Whether the transaction has failed.
    */
   private async checkTxReceiptStatusIsFailed(
     txHash: string | undefined,
@@ -1336,10 +1333,11 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Method to verify the state of transactions using Etherscan as a source of truth
-   * @param remoteTxs Array of transactions from remote source
-   * @param localTxs Array of transactions stored locally
-   * @returns [boolean, TransactionMeta[]]
+   * Method to verify the state of transactions using Etherscan as a source of truth.
+   *
+   * @param remoteTxs - Transactions to reconcile that are from a remote source.
+   * @param localTxs - Transactions to reconcile that are local.
+   * @returns A tuple containing a boolean indicating whether or not an update was required, and the updated transaction.
    */
   private etherscanTransactionStateReconciler(
     remoteTxs: TransactionMeta[],
@@ -1369,10 +1367,11 @@ export class TransactionController extends BaseController<
 
   /**
    * Get all transactions that are in the remote transactions array
-   * but not in the local transactions array
-   * @param remoteTxs - Array of transactions from remote source
-   * @param localTxs - Array of transactions stored locally
-   * @returns TransactionMeta array
+   * but not in the local transactions array.
+   *
+   * @param remoteTxs - Array of transactions from remote source.
+   * @param localTxs - Array of transactions stored locally.
+   * @returns The new transactions.
    */
   private getNewTransactions(
     remoteTxs: TransactionMeta[],
@@ -1390,9 +1389,10 @@ export class TransactionController extends BaseController<
    * Get all the transactions that are locally outdated with respect
    * to a remote source (etherscan or blockchain). The returned array
    * contains the transactions with the updated data.
-   * @param remoteTxs - Array of transactions from remote source
-   * @param localTxs - Array of transactions stored locally
-   * @returns TransactionMeta array
+   *
+   * @param remoteTxs - Array of transactions from remote source.
+   * @param localTxs - Array of transactions stored locally.
+   * @returns The updated transactions.
    */
   private getUpdatedTransactions(
     remoteTxs: TransactionMeta[],
@@ -1410,10 +1410,11 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Verifies if a local transaction is outdated with respect to the remote transaction
-   * @param remoteTx - Remote transaction from Etherscan
-   * @param localTx - Local transaction
-   * @returns boolean
+   * Verifies if a local transaction is outdated with respect to the remote transaction.
+   *
+   * @param remoteTx - The remote transaction from Etherscan.
+   * @param localTx - The local transaction.
+   * @returns Whether the transaction is outdated.
    */
   private isTransactionOutdated(
     remoteTx: TransactionMeta,
@@ -1433,12 +1434,13 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Verifies if the status of a local transaction is outdated with respect to the remote transaction
-   * @param remoteTxHash - Remote transaction hash
-   * @param localTxHash - Local transaction hash
-   * @param remoteTxStatus - Remote transaction status
-   * @param localTxStatus - Local transaction status
-   * @returns boolean
+   * Verifies if the status of a local transaction is outdated with respect to the remote transaction.
+   *
+   * @param remoteTxHash - Remote transaction hash.
+   * @param localTxHash - Local transaction hash.
+   * @param remoteTxStatus - Remote transaction status.
+   * @param localTxStatus - Local transaction status.
+   * @returns Whether the status is outdated.
    */
   private isStatusOutdated(
     remoteTxHash: string | undefined,
@@ -1450,10 +1452,11 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Verifies if the gas data of a local transaction is outdated with respect to the remote transaction
-   * @param remoteGasUsed - Remote gas used in the transaction
-   * @param localGasUsed - Local gas used in the transaction
-   * @returns boolean
+   * Verifies if the gas data of a local transaction is outdated with respect to the remote transaction.
+   *
+   * @param remoteGasUsed - Remote gas used in the transaction.
+   * @param localGasUsed - Local gas used in the transaction.
+   * @returns Whether the gas data is outdated.
    */
   private isGasDataOutdated(
     remoteGasUsed: string | undefined,

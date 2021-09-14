@@ -1,5 +1,16 @@
 import { handleFetch } from '../util';
 
+/**
+ * Get the CryptoCompare API URL for getting the conversion rate from the given native currency to
+ * the given currency. Optionally, the conversion rate from the native currency to USD can also be
+ * included in the response.
+ *
+ * @param currentCurrency - The currency to get a conversion rate for.
+ * @param nativeCurrency - The native currency to convert from.
+ * @param includeUSDRate - Whether or not the native currency to USD conversion rate should be
+ * included in the response as well.
+ * @returns The API URL for getting the conversion rate.
+ */
 function getPricingURL(
   currentCurrency: string,
   nativeCurrency: string,
@@ -13,12 +24,12 @@ function getPricingURL(
 }
 
 /**
- * Fetches the exchange rate for a given currency
+ * Fetches the exchange rate for a given currency.
  *
- * @param currency - ISO 4217 currency code
- * @param nativeCurrency - Symbol for base asset
- * @param includeUSDRate - Whether to add the USD rate to the fetch
- * @returns - Promise resolving to exchange rate for given currency
+ * @param currency - ISO 4217 currency code.
+ * @param nativeCurrency - Symbol for base asset@param currency - ISO 4217 currency code.
+ * @param includeUSDRate - Whether to add the USD rate to the fetch.
+ * @returns Promise resolving to exchange rate for given currency.
  */
 export async function fetchExchangeRate(
   currency: string,
@@ -32,7 +43,7 @@ export async function fetchExchangeRate(
     getPricingURL(currency, nativeCurrency, includeUSDRate),
   );
 
-  /* 
+  /*
   Example expected error response (if pair is not found)
   {
     Response: "Error",

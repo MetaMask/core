@@ -36,12 +36,11 @@ export enum NetworksChainId {
  * @type ProviderConfig
  *
  * Configuration passed to web3-provider-engine
- *
- * @param rpcTarget? - RPC target URL
- * @param type - Human-readable network name
+ * @param rpcTarget? - RPC target URL.
+ * @param type - Human-readable network name@param rpcTarget? - RPC target URL.
  * @param chainId? - Network ID as per EIP-155
  * @param ticker? - Currency ticker
- * @param nickname? - Personalized network name
+ * @param nickname? - Personalized network name.
  */
 export interface ProviderConfig {
   rpcTarget?: string;
@@ -63,7 +62,6 @@ export interface NetworkProperties {
  * @type NetworkConfig
  *
  * Network controller configuration
- *
  * @property infuraProjectId - an Infura project ID
  * @property providerConfig - web3-provider-engine configuration
  */
@@ -76,7 +74,6 @@ export interface NetworkConfig extends BaseConfig {
  * @type NetworkState
  *
  * Network controller state
- *
  * @property network - Network ID as per net_version
  * @property isCustomNetwork - Identifies if the network is a custom network
  * @property provider - RPC URL and network name provider settings
@@ -221,10 +218,10 @@ export class NetworkController extends BaseController<
   provider: any;
 
   /**
-   * Creates a NetworkController instance
+   * Creates a NetworkController instance.
    *
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
    */
   constructor(config?: Partial<NetworkConfig>, state?: Partial<NetworkState>) {
     super(config, state);
@@ -239,11 +236,11 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Sets a new configuration for web3-provider-engine
+   * Sets a new configuration for web3-provider-engine.
    *
-   * TODO: Replace this wth a method
+   * TODO: Replace this wth a method.
    *
-   * @param providerConfig - web3-provider-engine configuration
+   * @param providerConfig - The web3-provider-engine configuration.
    */
   set providerConfig(providerConfig: ProviderConfig) {
     this.internalProviderConfig = providerConfig;
@@ -258,7 +255,7 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Refreshes the current network code
+   * Refreshes the current network code.
    */
   async lookupNetwork() {
     /* istanbul ignore if */
@@ -278,9 +275,9 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Convenience method to update provider network type settings
+   * Convenience method to update provider network type settings.
    *
-   * @param type - Human readable network name
+   * @param type - Human readable network name.
    */
   setProviderType(type: NetworkType) {
     const {
@@ -299,12 +296,12 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Convenience method to update provider RPC settings
+   * Convenience method to update provider RPC settings.
    *
-   * @param rpcTarget - RPC endpoint URL
-   * @param chainId - Network ID as per EIP-155
-   * @param ticker? - Currency ticker
-   * @param nickname? - Personalized network name
+   * @param rpcTarget - The RPC endpoint URL.
+   * @param chainId - The chain ID as per EIP-155.
+   * @param ticker - The currency ticker.
+   * @param nickname - Personalized network name.
    */
   setRpcTarget(
     rpcTarget: string,

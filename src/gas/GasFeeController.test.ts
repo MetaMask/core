@@ -13,6 +13,11 @@ const TEST_LEGACY_FEE_API = 'https://test/<chain_id>';
 
 const name = 'GasFeeController';
 
+/**
+ * Constructs a restricted controller messenger.
+ *
+ * @returns A restricted controller messenger.
+ */
 function getRestrictedMessenger() {
   const controllerMessenger = new ControllerMessenger<
     GetGasFeeState,

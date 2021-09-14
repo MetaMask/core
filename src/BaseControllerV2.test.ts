@@ -41,6 +41,12 @@ type CountMessenger = RestrictedControllerMessenger<
   never
 >;
 
+/**
+ * Constructs a restricted controller messenger for the Count controller.
+ *
+ * @param controllerMessenger - The controller messenger.
+ * @returns A restricted controller messenger for the Count controller.
+ */
 function getCountMessenger(
   controllerMessenger?: ControllerMessenger<
     CountControllerAction,

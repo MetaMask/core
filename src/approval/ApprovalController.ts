@@ -157,9 +157,13 @@ export class ApprovalController extends BaseController<
   private _showApprovalRequest: () => void;
 
   /**
-   * @param opts - Options bag
-   * @param opts.showApprovalRequest - Function for opening the UI such that
+   * Construct an Approval controller.
+   *
+   * @param options - The controller options.
+   * @param options.showApprovalRequest - Function for opening the UI such that
    * the request can be displayed to the user.
+   * @param options.messenger - The restricted controller messenger for the Approval controller.
+   * @param options.state - The initial controller state.
    */
   constructor({
     messenger,
@@ -281,6 +285,7 @@ export class ApprovalController extends BaseController<
    * regardless of origin.
    * If both `origin` and `type` are specified, 0 or 1 will be returned.
    *
+   * @param opts - The approval count options.
    * @param opts.origin - An approval origin.
    * @param opts.type - The type of the approval request.
    * @returns The current approval request count for the given origin and/or
@@ -311,8 +316,9 @@ export class ApprovalController extends BaseController<
   }
 
   /**
-   * @returns The current total approval request count, for all types and
-   * origins.
+   * Get the total count of all pending approval requests for all origins.
+   *
+   * @returns The total pending approval request count.
    */
   getTotalApprovalCount(): number {
     return this.state.pendingApprovalCount;

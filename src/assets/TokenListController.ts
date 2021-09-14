@@ -111,12 +111,17 @@ export class TokenListController extends BaseController<
   // private abortSignal: AbortSignal;
 
   /**
-   * Creates a TokenListController instance
+   * Creates a TokenListController instance.
    *
-   * @param options - Constructor options
-   * @param options.interval - The polling interval, in milliseconds
-   * @param options.messenger - A reference to the messaging system
-   * @param options.state - Initial state to set on this controller
+   * @param options - The controller options.
+   * @param options.chainId - The chain ID of the current network.
+   * @param options.useStaticTokenList - Indicates whether to use the static token list or not.
+   * @param options.onNetworkStateChange - A function for registering an event handler for network state changes.
+   * @param options.onPreferencesStateChange -A function for registering an event handler for preference state changes.
+   * @param options.interval - The polling interval, in milliseconds.
+   * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
+   * @param options.messenger - A restricted controller messenger.
+   * @param options.state - Initial state to set on this controller.
    */
   constructor({
     chainId,
@@ -172,14 +177,14 @@ export class TokenListController extends BaseController<
   }
 
   /**
-   * Start polling for the token list
+   * Start polling for the token list.
    */
   async start() {
     await this.startPolling();
   }
 
   /**
-   * Restart polling for the token list
+   * Restart polling for the token list.
    */
   async restart() {
     this.stopPolling();
@@ -187,7 +192,7 @@ export class TokenListController extends BaseController<
   }
 
   /**
-   * Stop polling for the token list
+   * Stop polling for the token list.
    */
   stop() {
     this.stopPolling();
@@ -210,7 +215,7 @@ export class TokenListController extends BaseController<
   }
 
   /**
-   * Starts a new polling interval
+   * Starts a new polling interval.
    */
   private async startPolling(): Promise<void> {
     await safelyExecute(() => this.fetchTokenList());
@@ -220,7 +225,7 @@ export class TokenListController extends BaseController<
   }
 
   /**
-   * Fetching token list
+   * Fetching token list.
    */
   async fetchTokenList(): Promise<void> {
     if (this.useStaticTokenList) {
@@ -231,7 +236,7 @@ export class TokenListController extends BaseController<
   }
 
   /**
-   * Fetching token list from the contract-metadata as a fallback
+   * Fetching token list from the contract-metadata as a fallback.
    */
   async fetchFromStaticTokenList(): Promise<void> {
     const tokenList: TokenListMap = {};
@@ -258,7 +263,7 @@ export class TokenListController extends BaseController<
   }
 
   /**
-   * Fetching token list from the Token Service API
+   * Fetching token list from the Token Service API.
    */
   async fetchFromDynamicTokenList(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
@@ -334,9 +339,10 @@ export class TokenListController extends BaseController<
 
   /**
    * Checks if the Cache timestamp is valid,
-   *  if yes data in cache will be returned
-   *  otherwise null will be returned.
-   * @returns Promise that resolves into TokenListToken[] or null
+   * if yes data in cache will be returned
+   * otherwise null will be returned.
+   *
+   * @returns The cached data, or `null` if the cache was expired.
    */
   async fetchFromCache(): Promise<TokenListToken[] | null> {
     const { tokensChainsCache }: TokenListState = this.state;
@@ -352,9 +358,10 @@ export class TokenListController extends BaseController<
   }
 
   /**
-   * Fetch metadata for a token whose address is send to the API
-   * @param tokenAddress
-   * @returns Promise that resolves to Token Metadata
+   * Fetch metadata for a token.
+   *
+   * @param tokenAddress - The address of the token.
+   * @returns The token metadata.
    */
   async fetchTokenMetadata(tokenAddress: string): Promise<DynamicToken> {
     const releaseLock = await this.mutex.acquire();

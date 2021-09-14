@@ -39,7 +39,6 @@ export enum KeyringTypes {
  * @type KeyringObject
  *
  * Keyring object
- *
  * @property type - Keyring type
  * @property accounts - Associated accounts
  * @function getAccounts - Get associated accounts
@@ -54,7 +53,6 @@ export interface KeyringObject {
  * @type KeyringState
  *
  * Keyring controller state
- *
  * @property vault - Encrypted string representing keyring data
  * @property keyrings - Group of accounts
  */
@@ -67,7 +65,6 @@ export interface KeyringState extends BaseState {
  * @type KeyringMemState
  *
  * Keyring mem controller state
- *
  * @property isUnlocked - Whether vault is unlocked
  * @property keyringTypes - Account types
  * @property keyrings - Group of accounts
@@ -82,7 +79,6 @@ export interface KeyringMemState extends BaseState {
  * @type KeyringConfig
  *
  * Keyring controller configuration
- *
  * @property encryptor - Keyring encryptor
  */
 export interface KeyringConfig extends BaseConfig {
@@ -93,7 +89,6 @@ export interface KeyringConfig extends BaseConfig {
  * @type Keyring
  *
  * Keyring object to return in fullUpdate
- *
  * @property type - Keyring type
  * @property accounts - Associated accounts
  * @property index - Associated index
@@ -114,6 +109,7 @@ export enum AccountImportStrategy {
 
 /**
  * The `signTypedMessage` version
+ *
  * @see https://docs.metamask.io/guide/signing-data.html
  */
 export enum SignTypedDataVersion {
@@ -145,15 +141,15 @@ export class KeyringController extends BaseController<
   private setSelectedAddress: PreferencesController['setSelectedAddress'];
 
   /**
-   * Creates a KeyringController instance
+   * Creates a KeyringController instance.
    *
-   * @param options
-   * @param options.removeIdentity - Remove the identity with the given address
-   * @param options.syncIdentities - Sync identities with the given list of addresses
-   * @param options.updateIdentities - Generate an identity for each address given that doesn't already have an identity
-   * @param options.setSelectedAddress - Set the selected address
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
+   * @param options - The controller options.
+   * @param options.removeIdentity - Remove the identity with the given address.
+   * @param options.syncIdentities - Sync identities with the given list of addresses.
+   * @param options.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
+   * @param options.setSelectedAddress - Set the selected address.
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
    */
   constructor(
     {
@@ -188,9 +184,9 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Adds a new account to the default (first) HD seed phrase keyring
+   * Adds a new account to the default (first) HD seed phrase keyring.
    *
-   * @returns - Promise resolving to current state when the account is added
+   * @returns Promise resolving to current state when the account is added.
    */
   async addNewAccount(): Promise<KeyringMemState> {
     const primaryKeyring = privates
@@ -216,9 +212,9 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Adds a new account to the default (first) HD seed phrase keyring without updating identities in preferences
+   * Adds a new account to the default (first) HD seed phrase keyring without updating identities in preferences.
    *
-   * @returns - Promise resolving to current state when the account is added
+   * @returns Promise resolving to current state when the account is added.
    */
   async addNewAccountWithoutUpdate(): Promise<KeyringMemState> {
     const primaryKeyring = privates
@@ -235,11 +231,11 @@ export class KeyringController extends BaseController<
 
   /**
    * Effectively the same as creating a new keychain then populating it
-   * using the given seed phrase
+   * using the given seed phrase.
    *
-   * @param password - Password to unlock keychain
-   * @param seed - Seed phrase to restore keychain
-   * @returns - Promise resolving to th restored keychain object
+   * @param password - Password to unlock keychain.
+   * @param seed - Seed phrase to restore keychain.
+   * @returns Promise resolving to th restored keychain object.
    */
   async createNewVaultAndRestore(password: string, seed: string) {
     const releaseLock = await this.mutex.acquire();
@@ -257,10 +253,10 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Create a new primary keychain and wipe any previous keychains
+   * Create a new primary keychain and wipe any previous keychains.
    *
-   * @param password - Password to unlock the new vault
-   * @returns - Newly-created keychain object
+   * @param password - Password to unlock the new vault.
+   * @returns Newly-created keychain object.
    */
   async createNewVaultAndKeychain(password: string) {
     const releaseLock = await this.mutex.acquire();
@@ -277,19 +273,19 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Returns the status of the vault
+   * Returns the status of the vault.
    *
-   * @returns - Boolean returning true if the vault is unlocked
+   * @returns Boolean returning true if the vault is unlocked.
    */
   isUnlocked(): boolean {
     return privates.get(this).keyring.memStore.getState().isUnlocked;
   }
 
   /**
-   * Gets the seed phrase of the HD keyring
+   * Gets the seed phrase of the HD keyring.
    *
-   * @param password - Password of the keyring
-   * @returns - Promise resolving to the seed phrase
+   * @param password - Password of the keyring.
+   * @returns Promise resolving to the seed phrase.
    */
   exportSeedPhrase(password: string) {
     if (privates.get(this).keyring.password === password) {
@@ -299,11 +295,11 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Gets the private key from the keyring controlling an address
+   * Gets the private key from the keyring controlling an address.
    *
-   * @param password - Password of the keyring
-   * @param address - Address to export
-   * @returns - Promise resolving to the private key for an address
+   * @param password - Password of the keyring.
+   * @param address - Address to export.
+   * @returns Promise resolving to the private key for an address.
    */
   exportAccount(password: string, address: string): Promise<string> {
     if (privates.get(this).keyring.password === password) {
@@ -313,21 +309,21 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Returns the public addresses of all accounts for the current keyring
+   * Returns the public addresses of all accounts for the current keyring.
    *
-   * @returns - A promise resolving to an array of addresses
+   * @returns A promise resolving to an array of addresses.
    */
   getAccounts(): Promise<string[]> {
     return privates.get(this).keyring.getAccounts();
   }
 
   /**
-   * Imports an account with the specified import strategy
+   * Imports an account with the specified import strategy.
    *
-   * @param strategy - Import strategy name
-   * @param args - Array of arguments to pass to the underlying stategy
-   * @throws Will throw when passed an unrecognized strategy
-   * @returns - Promise resolving to current state when the import is complete
+   * @param strategy - Import strategy name.
+   * @param args - Array of arguments to pass to the underlying stategy.
+   * @throws Will throw when passed an unrecognized strategy.
+   * @returns Promise resolving to current state when the import is complete.
    */
   async importAccountWithStrategy(
     strategy: AccountImportStrategy,
@@ -371,10 +367,10 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Removes an account from keyring state
+   * Removes an account from keyring state.
    *
-   * @param address - Address of the account to remove
-   * @returns - Promise resolving current state when this account removal completes
+   * @param address - Address of the account to remove.
+   * @returns Promise resolving current state when this account removal completes.
    */
   async removeAccount(address: string): Promise<KeyringMemState> {
     this.removeIdentity(address);
@@ -383,41 +379,41 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Deallocates all secrets and locks the wallet
+   * Deallocates all secrets and locks the wallet.
    *
-   * @returns - Promise resolving to current state
+   * @returns Promise resolving to current state.
    */
   setLocked(): Promise<KeyringMemState> {
     return privates.get(this).keyring.setLocked();
   }
 
   /**
-   * Signs message by calling down into a specific keyring
+   * Signs message by calling down into a specific keyring.
    *
-   * @param messageParams - PersonalMessageParams object to sign
-   * @returns - Promise resolving to a signed message string
+   * @param messageParams - PersonalMessageParams object to sign.
+   * @returns Promise resolving to a signed message string.
    */
   signMessage(messageParams: PersonalMessageParams) {
     return privates.get(this).keyring.signMessage(messageParams);
   }
 
   /**
-   * Signs personal message by calling down into a specific keyring
+   * Signs personal message by calling down into a specific keyring.
    *
-   * @param messageParams - PersonalMessageParams object to sign
-   * @returns - Promise resolving to a signed message string
+   * @param messageParams - PersonalMessageParams object to sign.
+   * @returns Promise resolving to a signed message string.
    */
   signPersonalMessage(messageParams: PersonalMessageParams) {
     return privates.get(this).keyring.signPersonalMessage(messageParams);
   }
 
   /**
-   * Signs typed message by calling down into a specific keyring
+   * Signs typed message by calling down into a specific keyring.
    *
-   * @param messageParams - TypedMessageParams object to sign
-   * @param version - Compatibility version EIP712
-   * @throws Will throw when passed an unrecognized version
-   * @returns - Promise resolving to a signed message string or an error if any
+   * @param messageParams - TypedMessageParams object to sign.
+   * @param version - Compatibility version EIP712.
+   * @throws Will throw when passed an unrecognized version.
+   * @returns Promise resolving to a signed message string or an error if any.
    */
   async signTypedMessage(
     messageParams: TypedMessageParams,
@@ -451,21 +447,21 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Signs a transaction by calling down into a specific keyring
+   * Signs a transaction by calling down into a specific keyring.
    *
    * @param transaction - Transaction object to sign. Must be a `ethereumjs-tx` transaction instance.
-   * @param from - Address to sign from, should be in keychain
-   * @returns - Promise resolving to a signed transaction string
+   * @param from - Address to sign from, should be in keychain.
+   * @returns Promise resolving to a signed transaction string.
    */
   signTransaction(transaction: unknown, from: string) {
     return privates.get(this).keyring.signTransaction(transaction, from);
   }
 
   /**
-   * Attempts to decrypt the current vault and load its keyrings
+   * Attempts to decrypt the current vault and load its keyrings.
    *
-   * @param password - Password to unlock the keychain
-   * @returns - Promise resolving to the current state
+   * @param password - Password to unlock the keychain.
+   * @returns Promise resolving to the current state.
    */
   async submitPassword(password: string): Promise<KeyringMemState> {
     await privates.get(this).keyring.submitPassword(password);
@@ -475,48 +471,48 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Adds new listener to be notified of state changes
+   * Adds new listener to be notified of state changes.
    *
-   * @param listener - Callback triggered when state changes
+   * @param listener - Callback triggered when state changes.
    */
   subscribe(listener: Listener<KeyringState>) {
     privates.get(this).keyring.store.subscribe(listener);
   }
 
   /**
-   * Removes existing listener from receiving state changes
+   * Removes existing listener from receiving state changes.
    *
-   * @param listener - Callback to remove
-   * @returns - True if a listener is found and unsubscribed
+   * @param listener - Callback to remove.
+   * @returns True if a listener is found and unsubscribed.
    */
   unsubscribe(listener: Listener<KeyringState>) {
     return privates.get(this).keyring.store.unsubscribe(listener);
   }
 
   /**
-   * Adds new listener to be notified when the wallet is locked
+   * Adds new listener to be notified when the wallet is locked.
    *
-   * @param listener - Callback triggered when wallet is locked
-   * @returns - EventEmitter if listener added
+   * @param listener - Callback triggered when wallet is locked.
+   * @returns EventEmitter if listener added.
    */
   onLock(listener: () => void) {
     return privates.get(this).keyring.on('lock', listener);
   }
 
   /**
-   * Adds new listener to be notified when the wallet is unlocked
+   * Adds new listener to be notified when the wallet is unlocked.
    *
-   * @param listener - Callback triggered when wallet is unlocked
-   * @returns - EventEmitter if listener added
+   * @param listener - Callback triggered when wallet is unlocked.
+   * @returns EventEmitter if listener added.
    */
   onUnlock(listener: () => void) {
     return privates.get(this).keyring.on('unlock', listener);
   }
 
   /**
-   * Verifies the that the seed phrase restores the current keychain's accounts
+   * Verifies the that the seed phrase restores the current keychain's accounts.
    *
-   * @returns - Promise resolving if the verification succeeds
+   * @returns Whether the verification succeeds.
    */
   async verifySeedPhrase(): Promise<string> {
     const primaryKeyring = privates
@@ -558,9 +554,9 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Update keyrings in state and calls KeyringController fullUpdate method returning current state
+   * Update keyrings in state and calls KeyringController fullUpdate method returning current state.
    *
-   * @returns - Promise resolving to current state
+   * @returns The current state.
    */
   async fullUpdate(): Promise<KeyringMemState> {
     const keyrings: Keyring[] = await Promise.all<Keyring>(
