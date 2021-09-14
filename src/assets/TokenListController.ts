@@ -275,6 +275,13 @@ export class TokenListController extends BaseController<
           fetchTokenList(this.chainId, this.abortController.signal),
         );
         if (!tokensFromAPI) {
+          this.update(() => {
+            return {
+              ...tokensData,
+              tokenList: {},
+              tokensChainsCache,
+            };
+          });
           return;
         }
         // filtering out tokens with less than 2 occurrences
