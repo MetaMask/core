@@ -63,6 +63,8 @@ describe('TokenRatesController', () => {
     nock('https://min-api.cryptocompare.com')
       .get('/data/price?fsym=ETH&tsyms=USD')
       .reply(200, { USD: 179.63 })
+      .get('/data/price?fsym=ETH&tsyms=ETH')
+      .reply(200, { ETH: 1 })
       .persist();
   });
 
