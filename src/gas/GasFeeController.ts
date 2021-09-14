@@ -323,13 +323,14 @@ export class GasFeeController extends BaseController<
   async getGasFeeEstimatesAndStartPolling(
     pollToken: string | undefined,
   ): Promise<string> {
-    if (this.pollTokens.size === 0) {
-      await this._fetchGasFeeEstimateData();
-    }
-
     const _pollToken = pollToken || random();
 
-    this._startPolling(_pollToken);
+    this.pollTokens.add(_pollToken);
+
+    if (this.pollTokens.size === 1) {
+      await this._fetchGasFeeEstimateData();
+      this._poll();
+    }
 
     return _pollToken;
   }
@@ -444,15 +445,7 @@ export class GasFeeController extends BaseController<
     this.stopPolling();
   }
 
-  // should take a token, so we know that we are only counting once for each open transaction
-  private async _startPolling(pollToken: string) {
-    if (this.pollTokens.size === 0) {
-      this._poll();
-    }
-    this.pollTokens.add(pollToken);
-  }
-
-  private async _poll() {
+  private _poll() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
     }
