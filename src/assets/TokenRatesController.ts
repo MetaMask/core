@@ -2,10 +2,10 @@ import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute, handleFetch, toChecksumHexAddress } from '../util';
 
 import type { NetworkState } from '../network/NetworkController';
-import type { TokensState } from './TokensController';
-import type { CurrencyRateState } from './CurrencyRateController';
 import { FALL_BACK_VS_CURRENCY } from '../constants';
 import { fetchExchangeRate as fetchNativeExchangeRate } from '../apis/crypto-compare';
+import type { TokensState } from './TokensController';
+import type { CurrencyRateState } from './CurrencyRateController';
 
 /**
  * @type CoinGeckoResponse
@@ -277,7 +277,13 @@ export class TokenRatesController extends BaseController<
     return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query));
   }
 
-  //TODO ADD DOCS
+  /**
+   * Checks if the current native currency is a supported vs currency to use
+   * to query for token exchange rates
+   *
+   * @param currency - the native currency of the currently active network
+   * @returns - Promise resolving to a boolean indicating whether it's a supported vsCurrency
+   */
   async checkIsSupportedVsCurrency(currency: string) {
     try {
       const supportedVSCurrencies: string[] = await handleFetch(
@@ -341,37 +347,24 @@ export class TokenRatesController extends BaseController<
       });
     } else {
       // check if native currency is supported as a vs_currency by the API
-      const nativeCurrencySupported = await this.checkIsSupportedVsCurrency(nativeCurrency)
-      let vsCurrency = nativeCurrencySupported ? nativeCurrency.toLowerCase() : FALL_BACK_VS_CURRENCY.toLowerCase();
+      const nativeCurrencySupported = await this.checkIsSupportedVsCurrency(
+        nativeCurrency,
+      );
+      const vsCurrency = nativeCurrencySupported
+        ? nativeCurrency.toLowerCase()
+        : FALL_BACK_VS_CURRENCY.toLowerCase();
 
       const pairs = this.tokenList.map((token) => token.address).join(',');
       const query = `contract_addresses=${pairs}&vs_currencies=${vsCurrency}`;
       const prices = await this.fetchExchangeRate(slug, query);
 
-      // TODO BREAKOUT TO SEPARATE METHOD
-      // if the prices were fetched against eth instead of the native currency
-      // we want to convert them into the native currency
       let updatedPrices = prices;
-      if(!nativeCurrencySupported){
-        let nativeCurrencyConversionRate = 0
-
-        try{
-          ({ conversionRate: nativeCurrencyConversionRate } = await fetchNativeExchangeRate(FALL_BACK_VS_CURRENCY, nativeCurrency, false));
-        } catch (error){
-          if (!error.message.includes('market does not exist for this coin pair')) {
-            throw error;
-          }
-        }
-
-        for(let [tokenAddress, conversion] of Object.entries(prices)){
-          let ethConversionRate = conversion[FALL_BACK_VS_CURRENCY.toLowerCase()]
-          // convert from token/eth to token/nativeCurrency
-          updatedPrices[tokenAddress] = {
-            [nativeCurrency.toLowerCase()]: ethConversionRate * (1 / nativeCurrencyConversionRate)
-          }
-        } 
+      if (!nativeCurrencySupported) {
+        updatedPrices = await this._updateConversionRates(
+          prices,
+          nativeCurrency,
+        );
       }
-
       this.tokenList.forEach((token) => {
         const address = toChecksumHexAddress(token.address);
         const price = updatedPrices[token.address.toLowerCase()];
@@ -381,6 +374,45 @@ export class TokenRatesController extends BaseController<
       });
     }
     this.update({ contractExchangeRates: newContractExchangeRates });
+  }
+
+  /**
+   * Updates the conversion rates from from token/eth to token/nativeCurrency
+   * if 'eth' was used as fallback vscurrency for querying because the nativeCurrency isn't supported
+   *
+   * @param prices - the object with conversion rates returned by coingecko with token/eth rates
+   * @param nativeCurrency - the native currency of the currently active network
+   * @returns - Promise resolving to an object with conversion rates for each token
+   * related to the network's native currency
+   */
+  async _updateConversionRates(
+    prices: CoinGeckoResponse,
+    nativeCurrency: string,
+  ): Promise<CoinGeckoResponse> {
+    let nativeCurrencyConversionRate = 0;
+    try {
+      ({
+        conversionRate: nativeCurrencyConversionRate,
+      } = await fetchNativeExchangeRate(
+        FALL_BACK_VS_CURRENCY,
+        nativeCurrency,
+        false,
+      ));
+    } catch (error) {
+      if (!error.message.includes('market does not exist for this coin pair')) {
+        throw error;
+      }
+    }
+
+    for (const [tokenAddress, conversion] of Object.entries(prices)) {
+      const ethConversionRate = conversion[FALL_BACK_VS_CURRENCY.toLowerCase()];
+      // convert from token/eth to token/nativeCurrency
+      prices[tokenAddress] = {
+        [nativeCurrency.toLowerCase()]:
+          ethConversionRate * (1 / nativeCurrencyConversionRate),
+      };
+    }
+    return prices;
   }
 }
 
