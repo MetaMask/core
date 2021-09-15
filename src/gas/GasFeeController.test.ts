@@ -34,7 +34,7 @@ describe('GasFeeController', () => {
   let getIsEIP1559Compatible: jest.Mock<Promise<boolean>>;
   let getChainId: jest.Mock<`0x${string}` | `${number}` | number>;
   let mockGasFeeRequest: any;
-  let nockCounter = 0;
+  const mockRequestHandler = jest.fn();
 
   beforeAll(() => {
     nock.disableNetConnect();
@@ -76,9 +76,7 @@ describe('GasFeeController', () => {
         estimatedBaseFee: '28',
       })
       .persist();
-    mockGasFeeRequest.on('request', () => {
-      nockCounter += 1;
-    });
+    mockGasFeeRequest.on('request', mockRequestHandler);
 
     nock(TEST_LEGACY_FEE_API.replace('<chain_id>', '0x1'))
       .get(/.+/u)
@@ -103,8 +101,8 @@ describe('GasFeeController', () => {
   });
 
   afterEach(() => {
-    nockCounter = 0;
     nock.cleanAll();
+    jest.clearAllMocks();
     gasFeeController.destroy();
   });
 
@@ -140,7 +138,7 @@ describe('GasFeeController', () => {
       const result1 = await firstCallPromise;
       const result2 = await secondCallPromise;
 
-      expect(nockCounter).toBe(1);
+      expect(mockRequestHandler).toHaveBeenCalledTimes(1);
       expect(result1).toHaveLength(36);
       expect(result2).toStrictEqual(pollToken);
     });
@@ -158,7 +156,7 @@ describe('GasFeeController', () => {
       await firstCallPromise;
       await secondCallPromise;
 
-      expect(nockCounter).toBe(1);
+      expect(mockRequestHandler).toHaveBeenCalledTimes(1);
 
       gasFeeController.stopPolling();
 
@@ -166,13 +164,13 @@ describe('GasFeeController', () => {
         undefined,
       );
       expect(result3).toHaveLength(36);
-      expect(nockCounter).toBe(2);
+      expect(mockRequestHandler).toHaveBeenCalledTimes(2);
 
       const result4 = await gasFeeController.getGasFeeEstimatesAndStartPolling(
         undefined,
       );
       expect(result4).toHaveLength(36);
-      expect(nockCounter).toBe(2);
+      expect(mockRequestHandler).toHaveBeenCalledTimes(2);
     });
   });
 
