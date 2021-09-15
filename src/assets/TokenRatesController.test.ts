@@ -8,7 +8,9 @@ import { TokensController } from './TokensController';
 const COINGECKO_HOST = 'https://api.coingecko.com';
 const COINGECKO_ETH_PATH = '/api/v3/simple/token_price/ethereum';
 const COINGECKO_BSC_PATH = '/api/v3/simple/token_price/binance-smart-chain';
+const COINGECKO_MATIC_PATH = '/api/v3/simple/token_price/polygon-pos-network';
 const COINGECKO_ASSETS_PATH = '/api/v3/asset_platforms';
+const COINGECKO_SUPPORTED_CURRENCIES = '/simple/supported_vs_currencies';
 const ADDRESS = '0x01';
 
 describe('TokenRatesController', () => {
@@ -27,6 +29,12 @@ describe('TokenRatesController', () => {
           chain_identifier: 1,
           name: 'Ethereum',
           shortname: '',
+        },
+        {
+          id: 'polygon-pos-network',
+          chain_identifier: 137,
+          name: 'Polygon',
+          shortname: 'MATIC',
         },
       ])
       .get(
@@ -57,7 +65,6 @@ describe('TokenRatesController', () => {
       .reply(200, {})
       .get(`${COINGECKO_BSC_PATH}?contract_addresses=0xfoO&vs_currencies=gno`)
       .reply(200, {})
-
       .persist();
 
     nock('https://min-api.cryptocompare.com')
@@ -272,5 +279,95 @@ describe('TokenRatesController', () => {
     currencyRateStateChangeListener!({ nativeCurrency: 'dai' });
     // FIXME: This is now being called twice
     expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
+  });
+
+  it('should update exchange rates when native currency is not supported by coingecko', async () => {
+    nock(COINGECKO_HOST)
+      .get(COINGECKO_SUPPORTED_CURRENCIES)
+      .reply(200, ['eth', 'usd'])
+      .get(COINGECKO_ASSETS_PATH)
+      .reply(200, [
+        {
+          id: 'binance-smart-chain',
+          chain_identifier: 56,
+          name: 'Binance Smart Chain',
+          shortname: 'BSC',
+        },
+        {
+          id: 'ethereum',
+          chain_identifier: 1,
+          name: 'Ethereum',
+          shortname: '',
+        },
+        {
+          id: 'polygon-pos-network',
+          chain_identifier: 137,
+          name: 'Polygon',
+          shortname: 'MATIC',
+        },
+      ])
+      .get(`${COINGECKO_MATIC_PATH}`)
+      .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
+      .reply(200, {
+        '0x02': {
+          eth: 0.001, // token value in terms of ETH
+        },
+        '0x03': {
+          eth: 0.002,
+        },
+      })
+      .persist();
+
+    nock('https://min-api.cryptocompare.com')
+      .get('/data/price?fsym=MATIC&tsyms=ETH')
+      .reply(200, { ETH: 2 }) // 2 eth to 1 matic
+      .persist();
+
+    const expectedExchangeRates = {
+      '0x02': 0.0005, // token value in terms of matic = (token value in eth) / (matic value in eth) = .001 / 2
+      '0x03': 0.001,
+    };
+
+    let tokenStateChangeListener: (state: any) => void;
+    const onTokensStateChange = stub().callsFake((listener) => {
+      tokenStateChangeListener = listener;
+    });
+
+    const onNetworkStateChange = stub();
+    const controller = new TokenRatesController(
+      {
+        onTokensStateChange,
+        onCurrencyRateStateChange: stub(),
+        onNetworkStateChange,
+      },
+      { interval: 10 },
+    );
+    await controller.configure({ chainId: '137', nativeCurrency: 'MATIC' });
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await tokenStateChangeListener!({
+      tokens: [
+        {
+          address: '0x02',
+          decimals: 18,
+          image: undefined,
+          symbol: 'bar',
+          isERC721: false,
+        },
+        {
+          address: '0x03',
+          decimals: 18,
+          image: undefined,
+          symbol: 'bazz',
+          isERC721: false,
+        },
+      ],
+    });
+
+    await controller.updateExchangeRates();
+
+    expect(controller.state.contractExchangeRates).toStrictEqual(
+      expectedExchangeRates,
+    );
   });
 });
