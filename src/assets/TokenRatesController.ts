@@ -274,7 +274,14 @@ export class TokenRatesController extends BaseController<
     chainSlug: string,
     query: string,
   ): Promise<CoinGeckoResponse> {
-    return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query));
+    try {
+      const coinGeckoResponse: CoinGeckoResponse = await handleFetch(
+        CoinGeckoApi.getTokenPriceURL(chainSlug, query),
+      );
+      return coinGeckoResponse;
+    } catch {
+      return {};
+    }
   }
 
   /**
@@ -338,7 +345,6 @@ export class TokenRatesController extends BaseController<
     const { nativeCurrency } = this.config;
 
     const slug = await this.getChainSlug();
-
     const newContractExchangeRates: ContractExchangeRates = {};
     if (!slug) {
       this.tokenList.forEach((token) => {
@@ -353,11 +359,9 @@ export class TokenRatesController extends BaseController<
       const vsCurrency = nativeCurrencySupported
         ? nativeCurrency.toLowerCase()
         : FALL_BACK_VS_CURRENCY.toLowerCase();
-
       const pairs = this.tokenList.map((token) => token.address).join(',');
       const query = `contract_addresses=${pairs}&vs_currencies=${vsCurrency}`;
       const prices = await this.fetchExchangeRate(slug, query);
-
       let updatedPrices = prices;
       if (!nativeCurrencySupported) {
         updatedPrices = await this._updateConversionRates(
@@ -409,7 +413,7 @@ export class TokenRatesController extends BaseController<
       // convert from token/eth to token/nativeCurrency
       prices[tokenAddress] = {
         [nativeCurrency.toLowerCase()]:
-          ethConversionRate * (1 / nativeCurrencyConversionRate),
+          ethConversionRate / nativeCurrencyConversionRate,
       };
     }
     return prices;
