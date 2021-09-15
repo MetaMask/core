@@ -143,7 +143,7 @@ describe('GasFeeController', () => {
       expect(result2).toStrictEqual(pollToken);
     });
 
-    it('should fetch new estimates if the poll tokens are cleared, and then should not make additional new fetches', async () => {
+    it('should cause the fetching new estimates if called after the poll tokens are cleared, and then should not cause additional new fetches when subsequently called', async () => {
       const pollToken = 'token';
 
       const firstCallPromise = gasFeeController.getGasFeeEstimatesAndStartPolling(
