@@ -274,8 +274,10 @@ export class TokenListController extends BaseController<
         const tokensFromAPI: DynamicToken[] = await safelyExecute(() =>
           fetchTokenList(this.chainId, this.abortController.signal),
         );
-        if (!tokensFromAPI) {     
-          const backupTokenList = tokensChainsCache[this.chainId]? tokensChainsCache[this.chainId].data:[];
+        if (!tokensFromAPI) {
+          const backupTokenList = tokensChainsCache[this.chainId]
+            ? tokensChainsCache[this.chainId].data
+            : [];
           for (const token of backupTokenList) {
             tokenList[token.address] = token;
           }
