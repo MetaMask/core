@@ -6,11 +6,7 @@ import AbortController from 'abort-controller';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { safelyExecute } from '../util';
-import {
-  fetchTokenList,
-  syncTokens,
-  fetchTokenMetadata,
-} from '../apis/token-service';
+import { fetchTokenList, fetchTokenMetadata } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
 import { PreferencesState } from '../user/PreferencesController';
 
@@ -337,34 +333,6 @@ export class TokenListController extends BaseController<
       return dataCache.data;
     }
     return null;
-  }
-
-  /**
-   * Calls the API to sync the tokens in the token service
-   */
-  async syncTokens(): Promise<void> {
-    const releaseLock = await this.mutex.acquire();
-    try {
-      await safelyExecute(() =>
-        syncTokens(this.chainId, this.abortController.signal),
-      );
-      const { tokenList, tokensChainsCache } = this.state;
-      const updatedTokensChainsCache = {
-        ...tokensChainsCache,
-        [this.chainId]: {
-          timestamp: 0,
-          data: [],
-        },
-      };
-      this.update(() => {
-        return {
-          tokenList,
-          tokensChainsCache: updatedTokensChainsCache,
-        };
-      });
-    } finally {
-      releaseLock();
-    }
   }
 
   /**

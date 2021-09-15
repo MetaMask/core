@@ -837,64 +837,6 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
-  it('should call syncTokens to update the token list in the backend and clears the cache for the next fetch', async () => {
-    const tokenListBeforeSync = [
-      {
-        address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
-        symbol: 'SNX',
-        decimals: 18,
-        occurrences: 11,
-        name: 'Synthetix',
-        iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
-      },
-    ];
-    nock(TOKEN_END_POINT_API)
-      .get(`/sync/${NetworksChainId.mainnet}`)
-      .reply(200)
-      .persist();
-
-    nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
-      .once()
-      .reply(200, tokenListBeforeSync);
-
-    nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
-      .reply(200, sampleMainnetTokenList)
-      .persist();
-
-    const messenger = getRestrictedMessenger();
-    const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
-      onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      messenger,
-      interval: 200,
-    });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual({
-      '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f': {
-        address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
-        symbol: 'SNX',
-        decimals: 18,
-        occurrences: 11,
-        name: 'Synthetix',
-        iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
-      },
-    });
-    expect(await controller.syncTokens()).toBeUndefined();
-    expect(controller.state.tokensChainsCache['1']).toStrictEqual({
-      timestamp: 0,
-      data: [],
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 300));
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
-    controller.destroy();
-  });
-
   it('should return the metadata for a tokenAddress provided', async () => {
     nock(TOKEN_END_POINT_API)
       .get(`/token/${NetworksChainId.mainnet}`)
