@@ -1,10 +1,6 @@
 import nock from 'nock';
 import { NetworksChainId } from '../network/NetworkController';
-import {
-  fetchTokenList,
-  syncTokens,
-  fetchTokenMetadata,
-} from './token-service';
+import { fetchTokenList, fetchTokenMetadata } from './token-service';
 
 const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 
@@ -153,15 +149,6 @@ describe('FetchtokenList', () => {
     const tokens = await fetchTokenList(NetworksChainId.mainnet, signal);
 
     expect(tokens).toStrictEqual(sampleTokenList);
-  });
-  it('should call the api to sync tokens and returns nothing', async () => {
-    const { signal } = new AbortController();
-    nock(TOKEN_END_POINT_API)
-      .get(`/sync/${NetworksChainId.mainnet}`)
-      .reply(200)
-      .persist();
-
-    expect(await syncTokens(NetworksChainId.mainnet, signal)).toBeUndefined();
   });
   it('should call the api to return the token metadata for eth address provided', async () => {
     const { signal } = new AbortController();

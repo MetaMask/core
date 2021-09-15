@@ -2,9 +2,6 @@ import { timeoutFetch } from '../util';
 
 const END_POINT = 'https://token-api.metaswap.codefi.network';
 
-function syncTokensURL(chainId: string) {
-  return `${END_POINT}/sync/${chainId}`;
-}
 function getTokensURL(chainId: string) {
   return `${END_POINT}/tokens/${chainId}`;
 }
@@ -49,19 +46,6 @@ export async function fetchTokenMetadata(
     return parseJsonResponse(response);
   }
   return undefined;
-}
-
-/**
- * Forces a sync of token metadata for a given network chainId.
- * Syncing happens every 1 hour in the background, this api can
- * be used to force a sync from our side
- */
-export async function syncTokens(
-  chainId: string,
-  abortSignal: AbortSignal,
-): Promise<void> {
-  const syncURL = syncTokensURL(chainId);
-  await queryApi(syncURL, abortSignal);
 }
 
 /**
