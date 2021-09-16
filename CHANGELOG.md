@@ -8,14 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [16.0.0]
 ### Changed
-- **BREAKING**: Remove `syncTokens` method from the TokenListController ([#590](https://github.com/MetaMask/controllers/pull/590))
-  - This is breaking for any consumers of this method.
 - Enable HTTP caching for the dynamic token list managed by the TokenListController ([#594](https://github.com/MetaMask/controllers/pull/594))
-- Set tokenList to empty object in test networks ([#588](https://github.com/MetaMask/controllers/pull/588))
+
+### Removed
+- **BREAKING**: Remove `syncTokens` method from the TokenListController ([#590](https://github.com/MetaMask/controllers/pull/590))
 
 ### Fixed
 - Fix bug that allowed `getGasFeeEstimatesAndStartPolling` to initiate multiple simultaneous fetch requests ([#586](https://github.com/MetaMask/controllers/pull/586))
-
+- Fix bug that cause an invalid tokenList to be in controller state when active network is not supported by our tokenList API ([#588](https://github.com/MetaMask/controllers/pull/588))
 
 ## [15.1.0]
 ### Changed
