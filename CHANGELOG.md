@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Set tokenList to empty object in test networks ([#588](https://github.com/MetaMask/controllers/pull/588))
 
 ### Fixed
-- Fix bug that allowed for multiple fetch requests instantiate from getGasFeeEstimatesAndStartPolling ([#586](https://github.com/MetaMask/controllers/pull/586))
+- Fix bug that allowed `getGasFeeEstimatesAndStartPolling` to initiate multiple simultaneous fetch requests ([#586](https://github.com/MetaMask/controllers/pull/586))
 
 
 ## [15.1.0]
