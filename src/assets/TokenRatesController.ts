@@ -274,14 +274,7 @@ export class TokenRatesController extends BaseController<
     chainSlug: string,
     query: string,
   ): Promise<CoinGeckoResponse> {
-    try {
-      const coinGeckoResponse: CoinGeckoResponse = await handleFetch(
-        CoinGeckoApi.getTokenPriceURL(chainSlug, query),
-      );
-      return coinGeckoResponse;
-    } catch {
-      return {};
-    }
+    return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query));
   }
 
   /**
@@ -345,6 +338,7 @@ export class TokenRatesController extends BaseController<
     const { nativeCurrency } = this.config;
 
     const slug = await this.getChainSlug();
+
     const newContractExchangeRates: ContractExchangeRates = {};
     if (!slug) {
       this.tokenList.forEach((token) => {
@@ -403,7 +397,9 @@ export class TokenRatesController extends BaseController<
         false,
       ));
     } catch (error) {
-      if (!error.message.includes('market does not exist for this coin pair')) {
+      if (error.message.includes('market does not exist for this coin pair')) {
+        return {};
+      } else {
         throw error;
       }
     }
