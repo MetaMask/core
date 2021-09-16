@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [16.0.0]
 ### Changed
-- **BREAKING**: Remove Synctokens method from the tokens-service ([#590](https://github.com/MetaMask/controllers/pull/590))
+- **BREAKING**: Remove `syncTokens` method from the TokenListController ([#590](https://github.com/MetaMask/controllers/pull/590))
   - This is breaking for any consumers of this method.
 - Enable default caching for token-service ([#594](https://github.com/MetaMask/controllers/pull/594))
 - Set tokenList to empty object in test networks ([#588](https://github.com/MetaMask/controllers/pull/588))
