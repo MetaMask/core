@@ -63,6 +63,7 @@ async function queryApi(
     method: 'GET',
     mode: 'cors',
     signal: abortSignal,
+    cache: 'default',
   };
   fetchOptions.headers = new window.Headers();
   fetchOptions.headers.set('Content-Type', 'application/json');
