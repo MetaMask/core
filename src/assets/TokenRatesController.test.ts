@@ -91,6 +91,10 @@ describe('TokenRatesController', () => {
         data: null,
         timestamp: 0,
       },
+      supportedVsCurrencies: {
+        data: [],
+        timestamp: 0,
+      },
     });
   });
 
@@ -184,6 +188,7 @@ describe('TokenRatesController', () => {
   });
 
   it('should update all rates', async () => {
+    nock(COINGECKO_HOST);
     const network = new NetworkController();
     const preferences = new PreferencesController();
     const tokensController = new TokensController({
@@ -197,6 +202,9 @@ describe('TokenRatesController', () => {
         onNetworkStateChange: (listener) => network.subscribe(listener),
       },
       { interval: 10, chainId: '1' },
+    );
+    stub(controller, 'checkIsSupportedVsCurrency').returns(
+      Promise.resolve(true),
     );
     const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
     expect(controller.state.contractExchangeRates).toStrictEqual({});
