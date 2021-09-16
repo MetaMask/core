@@ -6,11 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [15.2.0]
-### Uncategorized
+## [16.0.0]
+### Changed
+- **BREAKING**: Remove Synctokens method from the tokens-service ([#590](https://github.com/MetaMask/controllers/pull/590))
+  - This is breaking for any consumers of this method.
+- Enable default caching for token-service ([#594](https://github.com/MetaMask/controllers/pull/594))
+
+### Fixed
 - Fix bug that allowed for multiple fetch requests instantiate from getGasFeeEstimatesAndStartPolling ([#586](https://github.com/MetaMask/controllers/pull/586))
-- enabling default cache ([#594](https://github.com/MetaMask/controllers/pull/594))
-- removing synctoken ([#590](https://github.com/MetaMask/controllers/pull/590))
+
 
 ## [15.1.0]
 ### Changed
@@ -375,8 +379,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v15.2.0...HEAD
-[15.2.0]: https://github.com/MetaMask/controllers/compare/v15.1.0...v15.2.0
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v16.0.0...HEAD
+[16.0.0]: https://github.com/MetaMask/controllers/compare/v15.1.0...v16.0.0
 [15.1.0]: https://github.com/MetaMask/controllers/compare/v15.0.2...v15.1.0
 [15.0.2]: https://github.com/MetaMask/controllers/compare/v15.0.1...v15.0.2
 [15.0.1]: https://github.com/MetaMask/controllers/compare/v15.0.0...v15.0.1
