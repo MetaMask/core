@@ -78,6 +78,11 @@ interface SupportedChainsCache {
   data: CoinGeckoPlatform[] | null;
 }
 
+interface SupportedVsCurrenciesCache {
+  timestamp: number;
+  data: string[];
+}
+
 /**
  * @type TokenRatesState
  *
@@ -89,6 +94,7 @@ interface SupportedChainsCache {
 export interface TokenRatesState extends BaseState {
   contractExchangeRates: ContractExchangeRates;
   supportedChains: SupportedChainsCache;
+  supportedVsCurrencies: SupportedVsCurrenciesCache;
 }
 
 const CoinGeckoApi = {
@@ -186,6 +192,10 @@ export class TokenRatesController extends BaseController<
         timestamp: 0,
         data: null,
       },
+      supportedVsCurrencies: {
+        timestamp: 0,
+        data: [],
+      },
     };
     this.initialize();
     this.configure({ disabled: false }, false, false);
@@ -264,6 +274,22 @@ export class TokenRatesController extends BaseController<
   }
 
   /**
+   * Fetches supported vsCurrencies from CoinGecko API
+   *
+   * @returns Array of supported vsCurrencies by CoinGecko API
+   */
+  async fetchSupportedVsCurrencies(): Promise<string[]> {
+    try {
+      const supportedVSCurrencies: string[] = await handleFetch(
+        CoinGeckoApi.getSupportedVsCurrencies(),
+      );
+      return supportedVSCurrencies;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * Fetches a pairs of token address and native currency
    *
    * @param chainSlug - Chain string identifier
@@ -272,16 +298,11 @@ export class TokenRatesController extends BaseController<
    */
   async fetchExchangeRate(
     chainSlug: string,
-    query: string,
+    vsCurrency: string,
   ): Promise<CoinGeckoResponse> {
-    try {
-      const coinGeckoResponse: CoinGeckoResponse = await handleFetch(
-        CoinGeckoApi.getTokenPriceURL(chainSlug, query),
-      );
-      return coinGeckoResponse;
-    } catch {
-      return {};
-    }
+    const tokenPairs = this.tokenList.map((token) => token.address).join(',');
+    const query = `contract_addresses=${tokenPairs}&vs_currencies=${vsCurrency.toLowerCase()}`;
+    return handleFetch(CoinGeckoApi.getTokenPriceURL(chainSlug, query));
   }
 
   /**
@@ -292,14 +313,31 @@ export class TokenRatesController extends BaseController<
    * @returns - Promise resolving to a boolean indicating whether it's a supported vsCurrency
    */
   async checkIsSupportedVsCurrency(currency: string) {
-    try {
-      const supportedVSCurrencies: string[] = await handleFetch(
-        CoinGeckoApi.getSupportedVsCurrencies(),
-      );
-      return supportedVSCurrencies.includes(currency.toLowerCase());
-    } catch {
-      return false;
+    const { threshold } = this.config;
+    const { supportedVsCurrencies } = this.state;
+    const {
+      data: cachedSupportedVsCurrencies,
+      timestamp,
+    } = supportedVsCurrencies;
+
+    const now = Date.now();
+
+    if (now - timestamp > threshold) {
+      try {
+        const currencies = await this.fetchSupportedVsCurrencies();
+        this.update({
+          supportedVsCurrencies: {
+            data: currencies,
+            timestamp: Date.now(),
+          },
+        });
+        return currencies.includes(currency.toLowerCase());
+      } catch {
+        return false;
+      }
     }
+
+    return cachedSupportedVsCurrencies.includes(currency.toLowerCase());
   }
 
   /**
@@ -342,81 +380,90 @@ export class TokenRatesController extends BaseController<
     if (this.tokenList.length === 0 || this.disabled) {
       return;
     }
-    const { nativeCurrency } = this.config;
-
     const slug = await this.getChainSlug();
-    const newContractExchangeRates: ContractExchangeRates = {};
+
+    let newContractExchangeRates: ContractExchangeRates = {};
     if (!slug) {
       this.tokenList.forEach((token) => {
         const address = toChecksumHexAddress(token.address);
         newContractExchangeRates[address] = undefined;
       });
     } else {
-      // check if native currency is supported as a vs_currency by the API
-      const nativeCurrencySupported = await this.checkIsSupportedVsCurrency(
+      const { nativeCurrency } = this.config;
+      newContractExchangeRates = await this.fetchAndMapExchangeRates(
         nativeCurrency,
+        slug,
       );
-      const vsCurrency = nativeCurrencySupported
-        ? nativeCurrency.toLowerCase()
-        : FALL_BACK_VS_CURRENCY.toLowerCase();
-      const pairs = this.tokenList.map((token) => token.address).join(',');
-      const query = `contract_addresses=${pairs}&vs_currencies=${vsCurrency}`;
-      const prices = await this.fetchExchangeRate(slug, query);
-      let updatedPrices = prices;
-      if (!nativeCurrencySupported) {
-        updatedPrices = await this._updateConversionRates(
-          prices,
-          nativeCurrency,
-        );
-      }
-      this.tokenList.forEach((token) => {
-        const address = toChecksumHexAddress(token.address);
-        const price = updatedPrices[token.address.toLowerCase()];
-        newContractExchangeRates[address] = price
-          ? price[nativeCurrency.toLowerCase()]
-          : 0;
-      });
     }
     this.update({ contractExchangeRates: newContractExchangeRates });
   }
 
   /**
-   * Updates the conversion rates from from token/eth to token/nativeCurrency
-   * if 'eth' was used as fallback vscurrency for querying because the nativeCurrency isn't supported
+   * Checks if the active network's native currency is supported by the coingecko API
+   * If supported. fetches and maps contractExchange rates in format to be consumed by UI
+   * If not supported fetches contractExchange rates and maps from from token/fallback-currency to token/nativeCurrency
    *
-   * @param prices - the object with conversion rates returned by coingecko with token/eth rates
    * @param nativeCurrency - the native currency of the currently active network
+   * @param slug - the unique slug used to id the chain by the coingecko api
+   * should be used to query token exchange rates
    * @returns - Promise resolving to an object with conversion rates for each token
    * related to the network's native currency
    */
-  async _updateConversionRates(
-    prices: CoinGeckoResponse,
+  async fetchAndMapExchangeRates(
     nativeCurrency: string,
-  ): Promise<CoinGeckoResponse> {
-    let nativeCurrencyConversionRate = 0;
-    try {
-      ({
-        conversionRate: nativeCurrencyConversionRate,
-      } = await fetchNativeExchangeRate(
-        FALL_BACK_VS_CURRENCY,
-        nativeCurrency,
-        false,
-      ));
-    } catch (error) {
-      if (!error.message.includes('market does not exist for this coin pair')) {
+    slug: string,
+  ): Promise<ContractExchangeRates> {
+    const contractExchangeRates: ContractExchangeRates = {};
+
+    // check if native currency is supported as a vs_currency by the API
+    const nativeCurrencySupported = await this.checkIsSupportedVsCurrency(
+      nativeCurrency,
+    );
+
+    if (nativeCurrencySupported) {
+      // if it is we can do a simple fetch against the coingetck API
+      const prices = await this.fetchExchangeRate(slug, nativeCurrency);
+      this.tokenList.forEach((token) => {
+        const price = prices[token.address.toLowerCase()];
+        contractExchangeRates[toChecksumHexAddress(token.address)] = price
+          ? price[nativeCurrency.toLowerCase()]
+          : 0;
+      });
+    } else {
+      // if native currency is not supported we need to use a fallback vsCurrency, get the exchange rates
+      // in token/fallback-currency format and convert them to expected token/nativeCurrency format.
+      let tokenExchangeRates;
+      let nativeCurrencyConversionRate = 0;
+      try {
+        [
+          tokenExchangeRates,
+          { conversionRate: nativeCurrencyConversionRate },
+        ] = await Promise.all([
+          this.fetchExchangeRate(slug, FALL_BACK_VS_CURRENCY),
+          fetchNativeExchangeRate(FALL_BACK_VS_CURRENCY, nativeCurrency, false),
+        ]);
+      } catch (error) {
+        if (
+          error.message.includes('market does not exist for this coin pair')
+        ) {
+          return {};
+        }
         throw error;
+      }
+
+      for (const [tokenAddress, conversion] of Object.entries(
+        tokenExchangeRates,
+      )) {
+        const fallBackConversionRate =
+          conversion[FALL_BACK_VS_CURRENCY.toLowerCase()];
+        contractExchangeRates[toChecksumHexAddress(tokenAddress)] =
+          nativeCurrencyConversionRate > 0
+            ? fallBackConversionRate / nativeCurrencyConversionRate
+            : 0;
       }
     }
 
-    for (const [tokenAddress, conversion] of Object.entries(prices)) {
-      const ethConversionRate = conversion[FALL_BACK_VS_CURRENCY.toLowerCase()];
-      // convert from token/eth to token/nativeCurrency
-      prices[tokenAddress] = {
-        [nativeCurrency.toLowerCase()]:
-          ethConversionRate / nativeCurrencyConversionRate,
-      };
-    }
-    return prices;
+    return contractExchangeRates;
   }
 }
 
