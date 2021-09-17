@@ -353,19 +353,25 @@ export class TokenRatesController extends BaseController<
       const vsCurrency = nativeCurrencySupported
         ? nativeCurrency.toLowerCase()
         : FALL_BACK_VS_CURRENCY.toLowerCase();
-      const pairs = this.tokenList.map((token) => token.address).join(',');
-      const query = `contract_addresses=${pairs}&vs_currencies=${vsCurrency}`;
-      const prices = await this.fetchExchangeRate(slug, query);
-      let updatedPrices = prices;
-      if (!nativeCurrencySupported) {
-        updatedPrices = await this._updateConversionRates(
-          prices,
+        
+      // const pairs = this.tokenList.map((token) => token.address).join(',');
+      // const query = `contract_addresses=${pairs}&vs_currencies=${vsCurrency}`;
+      // const prices = await this.fetchExchangeRate(slug, query);
+      // let updatedPrices = prices;
+      
+      // if (!nativeCurrencySupported) {
+        const prices: any = await this._updateConversionRates(
+          // prices,
           nativeCurrency,
+          vsCurrency,
+          slug,
+          nativeCurrencySupported,
         );
-      }
+      // }
+
       this.tokenList.forEach((token) => {
         const address = toChecksumHexAddress(token.address);
-        const price = updatedPrices[token.address.toLowerCase()];
+        const price = prices[token.address.toLowerCase()];
         newContractExchangeRates[address] = price
           ? price[nativeCurrency.toLowerCase()]
           : 0;
@@ -384,36 +390,66 @@ export class TokenRatesController extends BaseController<
    * related to the network's native currency
    */
   async _updateConversionRates(
-    prices: CoinGeckoResponse,
+    // prices: CoinGeckoResponse,
     nativeCurrency: string,
-  ): Promise<CoinGeckoResponse> {
-    let nativeCurrencyConversionRate = 0;
-    try {
-      ({
-        conversionRate: nativeCurrencyConversionRate,
-      } = await fetchNativeExchangeRate(
-        FALL_BACK_VS_CURRENCY,
-        nativeCurrency,
-        false,
-      ));
-    } catch (error) {
-      if (error.message.includes('market does not exist for this coin pair')) {
-        return {};
-      } else {
-        throw error;
+    vsCurrency: string,
+    slug: string,
+    nativeCurrencySupported: boolean,
+  ){
+    const pairs = this.tokenList.map((token) => token.address).join(',');
+    const query = `contract_addresses=${pairs}&vs_currencies=${vsCurrency}`;
+    if(nativeCurrencySupported){
+      return this.fetchExchangeRate(slug, query);
+    } else {
+      // let nativeCurrencyConversionRate = 0;
+      let response;
+      try {
+       response = await Promise.all([
+        this.fetchExchangeRate(slug, query),
+        fetchNativeExchangeRate(
+            FALL_BACK_VS_CURRENCY,
+            nativeCurrency,
+            false,
+            ), 
+          ])
+        } catch (error) {
+          if (error.message.includes('market does not exist for this coin pair')) {
+            return {};
+          } else {
+            throw error;
+          }
+        }
+        return response;
+        // for (const [tokenAddress, conversion] of Object.entries(prices)) {
+        //   const ethConversionRate = conversion[FALL_BACK_VS_CURRENCY.toLowerCase()];
+        //   // convert from token/eth to token/nativeCurrency
+        //   prices[tokenAddress] = {
+        //     [nativeCurrency.toLowerCase()]:
+        //     ethConversionRate / nativeCurrencyConversionRate,
+        //   };
+        // }
+        // return prices;
       }
-    }
-
-    for (const [tokenAddress, conversion] of Object.entries(prices)) {
-      const ethConversionRate = conversion[FALL_BACK_VS_CURRENCY.toLowerCase()];
-      // convert from token/eth to token/nativeCurrency
-      prices[tokenAddress] = {
-        [nativeCurrency.toLowerCase()]:
-          ethConversionRate / nativeCurrencyConversionRate,
-      };
-    }
-    return prices;
   }
+
+      /**
+   * Checks if the Cache timestamp is valid,
+   *  if yes data in cache will be returned
+   *  otherwise null will be returned.
+   * @returns Promise that resolves into TokenListToken[] or null
+   */
+    //  async fetchFromCache(): Promise<TokenListToken[] | null> {
+    //   const { tokensChainsCache }: TokenListState = this.state;
+    //   const dataCache = tokensChainsCache[this.chainId];
+    //   const now = Date.now();
+    //   if (
+    //     dataCache?.data &&
+    //     now - dataCache?.timestamp < this.cacheRefreshThreshold
+    //   ) {
+    //     return dataCache.data;
+    //   }
+    //   return null;
+    // }
 }
 
 export default TokenRatesController;
