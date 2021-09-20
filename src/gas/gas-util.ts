@@ -16,8 +16,14 @@ export function normalizeGWEIDecimalNumbers(n: string | number) {
   return numberAsGWEI;
 }
 
-export async function fetchGasEstimates(url: string, clientId?: string): Promise<GasFeeEstimates> {
-  const estimates: GasFeeEstimates = await handleFetch(url, clientId ? { headers: makeClientIdHeader(clientId) } : undefined);
+export async function fetchGasEstimates(
+  url: string,
+  clientId?: string,
+): Promise<GasFeeEstimates> {
+  const estimates: GasFeeEstimates = await handleFetch(
+    url,
+    clientId ? { headers: makeClientIdHeader(clientId) } : undefined,
+  );
   const normalizedEstimates: GasFeeEstimates = {
     estimatedBaseFee: normalizeGWEIDecimalNumbers(estimates.estimatedBaseFee),
     low: {
@@ -66,7 +72,7 @@ export async function fetchLegacyGasPriceEstimates(
     mode: 'cors',
     headers: {
       'Content-Type': 'application/json',
-      ...clientId && makeClientIdHeader(clientId),
+      ...(clientId && makeClientIdHeader(clientId)),
     },
   });
   return {
