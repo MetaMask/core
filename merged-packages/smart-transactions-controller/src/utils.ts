@@ -24,8 +24,8 @@ export function getAPIRequestURL(apiType: APIType, chainId: string): string {
       return `${API_BASE_URL}/networks/${chainId}/cancel`;
     }
 
-    case APIType.STATUS: {
-      return `${API_BASE_URL}/networks/${chainId}/status`;
+    case APIType.BATCH_STATUS: {
+      return `${API_BASE_URL}/networks/${chainId}/batch_status`;
     }
 
     case APIType.LIVENESS: {
@@ -33,7 +33,7 @@ export function getAPIRequestURL(apiType: APIType, chainId: string): string {
     }
 
     default: {
-      throw new Error(`Invalid APIType`);
+      throw new Error(`Invalid APIType`); // It can never get here thanks to TypeScript.
     }
   }
 }

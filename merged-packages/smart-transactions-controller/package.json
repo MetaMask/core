@@ -14,7 +14,7 @@
   "scripts": {
     "setup": "yarn install && yarn allow-scripts",
     "test": "jest",
-    "test:watch": "jest --watch",
+    "test:watch": "jest --watchAll",
     "prepublishOnly": "yarn build:clean && yarn lint && yarn test",
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' --ignore-path .gitignore",

@@ -13,6 +13,7 @@ import {
   UnsignedTransaction,
 } from './types';
 import { getAPIRequestURL, isSmartTransactionPending } from './utils';
+import { CHAIN_IDS } from './constants';
 
 const { handleFetch, safelyExecute } = util;
 
@@ -42,9 +43,10 @@ export default class SmartTransactionsController extends BaseController<
   private updateSmartTransaction(smartTransaction: SmartTransaction): void {
     const { chainId } = this.config;
     const currentIndex = this.state.smartTransactions[chainId]?.findIndex(
-      (st) => st.UUID === smartTransaction.UUID,
+      (st) => st.uuid === smartTransaction.uuid,
     );
-    if (currentIndex === -1) {
+
+    if (currentIndex === -1 || currentIndex === undefined) {
       this.update({
         smartTransactions: {
           ...this.state.smartTransactions,
@@ -98,9 +100,9 @@ export default class SmartTransactionsController extends BaseController<
 
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
-      chainId: '',
+      chainId: CHAIN_IDS.ETHEREUM,
       clientId: 'default',
-      supportedChainIds: ['1'],
+      supportedChainIds: [CHAIN_IDS.ETHEREUM],
     };
 
     this.defaultState = {
@@ -109,22 +111,28 @@ export default class SmartTransactionsController extends BaseController<
     };
 
     this.initialize();
+    this.initializeSmartTransactionsForChainId();
 
     onNetworkStateChange(({ provider }) => {
       const { chainId } = provider;
       this.configure({ chainId });
-      if (this.config.supportedChainIds.includes(chainId)) {
-        this.update({
-          smartTransactions: {
-            ...this.state.smartTransactions,
-            [chainId]: this.state.smartTransactions[chainId] ?? [],
-          },
-        });
-      }
+      this.initializeSmartTransactionsForChainId();
       this.poll();
     });
 
     this.poll();
+  }
+
+  initializeSmartTransactionsForChainId() {
+    if (this.config.supportedChainIds.includes(this.config.chainId)) {
+      this.update({
+        smartTransactions: {
+          ...this.state.smartTransactions,
+          [this.config.chainId]:
+            this.state.smartTransactions[this.config.chainId] ?? [],
+        },
+      });
+    }
   }
 
   async poll(interval?: number): Promise<void> {
@@ -155,7 +163,7 @@ export default class SmartTransactionsController extends BaseController<
     const transactionsToUpdate: string[] = [];
     smartTransactions[chainId]?.forEach((smartTransaction) => {
       if (isSmartTransactionPending(smartTransaction)) {
-        transactionsToUpdate.push(smartTransaction.UUID);
+        transactionsToUpdate.push(smartTransaction.uuid);
       }
     });
 
@@ -166,16 +174,16 @@ export default class SmartTransactionsController extends BaseController<
     }
   }
 
-  // ! Ask backend API to accept list of UUIDs as params
-  async fetchSmartTransactionsStatus(UUIDS: string[]): Promise<void> {
+  // ! Ask backend API to accept list of uuids as params
+  async fetchSmartTransactionsStatus(uuids: string[]): Promise<void> {
     const { chainId } = this.config;
 
     const params = new URLSearchParams({
-      uuids: UUIDS.join(','),
+      uuids: uuids.join(','),
     });
 
     const url = `${getAPIRequestURL(
-      APIType.STATUS,
+      APIType.BATCH_STATUS,
       chainId,
     )}?${params.toString()}`;
 
@@ -230,19 +238,18 @@ export default class SmartTransactionsController extends BaseController<
         }),
       },
     );
-
-    this.updateSmartTransaction({ UUID: data.uuid });
+    this.updateSmartTransaction({ uuid: data.uuid });
   }
 
   // ! This should return if the cancellation was on chain or not (for nonce management)
   // * After this successful call client must update nonce representative
   // * in transaction controller external transactions list
   // ! Ask backend API to make this endpoint a POST
-  async cancelSmartTransaction(UUID: string): Promise<void> {
+  async cancelSmartTransaction(uuid: string): Promise<void> {
     const { chainId } = this.config;
     await this.fetch(getAPIRequestURL(APIType.CANCEL, chainId), {
       method: 'POST',
-      body: JSON.stringify({ uuid: UUID }),
+      body: JSON.stringify({ uuid }),
     });
   }
 }

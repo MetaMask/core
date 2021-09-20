@@ -4,7 +4,7 @@ export enum APIType {
   'GET_TRANSACTIONS',
   'SUBMIT_TRANSACTIONS',
   'CANCEL',
-  'STATUS',
+  'BATCH_STATUS',
   'LIVENESS',
 }
 
@@ -25,14 +25,14 @@ export enum SmartTransactionCancellationReason {
 export interface SmartTransactionsStatus {
   error?: string;
   cancellationFeeWei: number;
-  cancellationReason: SmartTransactionCancellationReason;
+  cancellationReason?: SmartTransactionCancellationReason;
   deadlineRatio: number;
   minedHash: string | undefined;
   minedTx: SmartTransactionMinedTx;
 }
 
 export interface SmartTransaction {
-  UUID: string;
+  uuid: string;
   status?: SmartTransactionsStatus;
 }
 
