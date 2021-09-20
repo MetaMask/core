@@ -8,14 +8,16 @@ import {
   LegacyGasPriceEstimate,
 } from './GasFeeController';
 
+const makeClientIdHeader = (clientId: string) => ({ 'X-Client-Id': clientId });
+
 export function normalizeGWEIDecimalNumbers(n: string | number) {
   const numberAsWEIHex = gweiDecToWEIBN(n).toString(16);
   const numberAsGWEI = weiHexToGweiDec(numberAsWEIHex).toString(10);
   return numberAsGWEI;
 }
 
-export async function fetchGasEstimates(url: string): Promise<GasFeeEstimates> {
-  const estimates: GasFeeEstimates = await handleFetch(url);
+export async function fetchGasEstimates(url: string, clientId?: string): Promise<GasFeeEstimates> {
+  const estimates: GasFeeEstimates = await handleFetch(url, clientId ? { headers: makeClientIdHeader(clientId) } : undefined);
   const normalizedEstimates: GasFeeEstimates = {
     estimatedBaseFee: normalizeGWEIDecimalNumbers(estimates.estimatedBaseFee),
     low: {
@@ -55,6 +57,7 @@ export async function fetchGasEstimates(url: string): Promise<GasFeeEstimates> {
  */
 export async function fetchLegacyGasPriceEstimates(
   url: string,
+  clientId?: string,
 ): Promise<LegacyGasPriceEstimate> {
   const result = await handleFetch(url, {
     referrer: url,
@@ -63,6 +66,7 @@ export async function fetchLegacyGasPriceEstimates(
     mode: 'cors',
     headers: {
       'Content-Type': 'application/json',
+      ...clientId && makeClientIdHeader(clientId),
     },
   });
   return {
