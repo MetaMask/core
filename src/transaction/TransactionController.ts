@@ -1261,7 +1261,7 @@ export class TransactionController extends BaseController<
         }
 
         meta.verifiedOnBlockchain = true;
-        meta.transaction.gasUsed = txReceipt?.gasUsed;
+        meta.transaction.gasUsed = txReceipt.gasUsed;
         const txReceiptStatus = Boolean(Number(txReceipt.status));
         if (!txReceiptStatus) {
           const error: Error = new Error(
