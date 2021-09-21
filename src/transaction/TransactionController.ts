@@ -1256,13 +1256,22 @@ export class TransactionController extends BaseController<
           transactionHash,
         ]);
 
-        if (txReceipt?.gasUsed) {
-          meta.verifiedOnBlockchain = true;
-          meta.transaction.gasUsed = txReceipt?.gasUsed;
-          return [meta, true];
+        if (!txReceipt) {
+          return [meta, false];
         }
 
-        return [meta, false];
+        meta.verifiedOnBlockchain = true;
+        meta.transaction.gasUsed = txReceipt?.gasUsed;
+        const txReceiptStatus = Boolean(Number(txReceipt.status));
+        if (!txReceiptStatus) {
+          const error: Error = new Error(
+            'Transaction failed. The transaction was reversed',
+          );
+          this.failTransaction(meta, error);
+          return [meta, false];
+        }
+
+        return [meta, true];
       case TransactionStatus.submitted:
         const txObj = await query(this.ethQuery, 'getTransactionByHash', [
           meta.transactionHash,

@@ -65,7 +65,7 @@ jest.mock('eth-query', () =>
         callback(undefined, '1337');
       },
       getTransactionReceipt: (_hash: any, callback: any) => {
-        callback(undefined, { gasUsed: '0x5208' });
+        callback(undefined, { gasUsed: '0x5208', status: '0x1' });
       },
     };
   }),
