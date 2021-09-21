@@ -33,6 +33,8 @@ describe('GasFeeController', () => {
   let getCurrentNetworkLegacyGasAPICompatibility: jest.Mock<boolean>;
   let getIsEIP1559Compatible: jest.Mock<Promise<boolean>>;
   let getChainId: jest.Mock<`0x${string}` | `${number}` | number>;
+  let mockGasFeeRequest: any;
+  const mockRequestHandler = jest.fn();
 
   beforeAll(() => {
     nock.disableNetConnect();
@@ -50,7 +52,7 @@ describe('GasFeeController', () => {
     getIsEIP1559Compatible = jest
       .fn()
       .mockImplementation(() => Promise.resolve(true));
-    nock(TEST_GAS_FEE_API.replace('<chain_id>', '1'))
+    mockGasFeeRequest = nock(TEST_GAS_FEE_API.replace('<chain_id>', '1'))
       .get(/.+/u)
       .reply(200, {
         low: {
@@ -74,6 +76,7 @@ describe('GasFeeController', () => {
         estimatedBaseFee: '28',
       })
       .persist();
+    mockGasFeeRequest.on('request', mockRequestHandler);
 
     nock(TEST_LEGACY_FEE_API.replace('<chain_id>', '0x1'))
       .get(/.+/u)
@@ -99,6 +102,7 @@ describe('GasFeeController', () => {
 
   afterEach(() => {
     nock.cleanAll();
+    jest.clearAllMocks();
     gasFeeController.destroy();
   });
 
@@ -106,18 +110,68 @@ describe('GasFeeController', () => {
     expect(gasFeeController.name).toBe(name);
   });
 
-  it('should getGasFeeEstimatesAndStartPolling', async () => {
-    expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
-    const result = await gasFeeController.getGasFeeEstimatesAndStartPolling(
-      undefined,
-    );
-    expect(result).toHaveLength(36);
-    expect(gasFeeController.state.gasFeeEstimates).toHaveProperty('low');
-    expect(gasFeeController.state.gasFeeEstimates).toHaveProperty('medium');
-    expect(gasFeeController.state.gasFeeEstimates).toHaveProperty('high');
-    expect(gasFeeController.state.gasFeeEstimates).toHaveProperty(
-      'estimatedBaseFee',
-    );
+  describe('getGasFeeEstimatesAndStartPolling', () => {
+    it('should fetch estimates and start polling', async () => {
+      expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
+      const result = await gasFeeController.getGasFeeEstimatesAndStartPolling(
+        undefined,
+      );
+      expect(result).toHaveLength(36);
+      expect(gasFeeController.state.gasFeeEstimates).toHaveProperty('low');
+      expect(gasFeeController.state.gasFeeEstimates).toHaveProperty('medium');
+      expect(gasFeeController.state.gasFeeEstimates).toHaveProperty('high');
+      expect(gasFeeController.state.gasFeeEstimates).toHaveProperty(
+        'estimatedBaseFee',
+      );
+    });
+
+    it('should not fetch estimates if the controller is already polling, and should still return the passed token', async () => {
+      const pollToken = 'token';
+
+      const firstCallPromise = gasFeeController.getGasFeeEstimatesAndStartPolling(
+        undefined,
+      );
+      const secondCallPromise = gasFeeController.getGasFeeEstimatesAndStartPolling(
+        pollToken,
+      );
+
+      const result1 = await firstCallPromise;
+      const result2 = await secondCallPromise;
+
+      expect(mockRequestHandler).toHaveBeenCalledTimes(1);
+      expect(result1).toHaveLength(36);
+      expect(result2).toStrictEqual(pollToken);
+    });
+
+    it('should cause the fetching new estimates if called after the poll tokens are cleared, and then should not cause additional new fetches when subsequently called', async () => {
+      const pollToken = 'token';
+
+      const firstCallPromise = gasFeeController.getGasFeeEstimatesAndStartPolling(
+        undefined,
+      );
+      const secondCallPromise = gasFeeController.getGasFeeEstimatesAndStartPolling(
+        pollToken,
+      );
+
+      await firstCallPromise;
+      await secondCallPromise;
+
+      expect(mockRequestHandler).toHaveBeenCalledTimes(1);
+
+      gasFeeController.stopPolling();
+
+      const result3 = await gasFeeController.getGasFeeEstimatesAndStartPolling(
+        undefined,
+      );
+      expect(result3).toHaveLength(36);
+      expect(mockRequestHandler).toHaveBeenCalledTimes(2);
+
+      const result4 = await gasFeeController.getGasFeeEstimatesAndStartPolling(
+        undefined,
+      );
+      expect(result4).toHaveLength(36);
+      expect(mockRequestHandler).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('when on any network supporting legacy gas estimation api', () => {
