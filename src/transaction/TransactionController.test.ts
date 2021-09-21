@@ -48,14 +48,21 @@ jest.mock('eth-query', () =>
       getCode: (_to: any, callback: any) => {
         callback(undefined, '0x0');
       },
-      getTransactionByHash: (_hash: any, callback: any) => {
-        callback(undefined, { blockNumber: '0x1' });
+      getTransactionByHash: (_hash: string, callback: any) => {
+        const txs: any = [{ transactionHash: '1337', blockNumber: '0x1' }];
+        const tx: any = txs.find(
+          (element: any) => element.transactionHash === _hash,
+        );
+        callback(undefined, tx);
       },
       getTransactionCount: (_from: any, _to: any, callback: any) => {
         callback(undefined, '0x0');
       },
       sendRawTransaction: (_transaction: any, callback: any) => {
         callback(undefined, '1337');
+      },
+      getTransactionReceipt: (_hash: any, callback: any) => {
+        callback(undefined, { gasUsed: '0x5208' });
       },
     };
   }),
