@@ -431,7 +431,7 @@ export class TransactionController extends BaseController<
   ) {
     super(config, state);
     this.defaultConfig = {
-      interval: 5000,
+      interval: 15000,
       txHistoryLimit: 40,
     };
     this.defaultState = {
