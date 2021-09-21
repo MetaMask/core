@@ -629,6 +629,8 @@ describe('TokenListController', () => {
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${NetworksChainId.mainnet}`)
       .reply(200, sampleMainnetTokenList)
+      .get(`/tokens/${NetworksChainId.ropsten}`)
+      .reply(200, { error: 'ChainId 3 is not supported' })
       .get(`/tokens/56`)
       .reply(200, sampleBinanceTokenList)
       .persist();
@@ -647,6 +649,19 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
+    expect(
+      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+    ).toStrictEqual(
+      sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
+    );
+    network.update({
+      provider: {
+        type: 'ropsten',
+        chainId: NetworksChainId.ropsten,
+      },
+    });
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 10));
+    expect(controller.state.tokenList).toStrictEqual({});
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(
