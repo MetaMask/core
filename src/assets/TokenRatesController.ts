@@ -339,7 +339,7 @@ export class TokenRatesController extends BaseController<
 
     const slug = await this.getChainSlug();
 
-    const newContractExchangeRates: ContractExchangeRates = {};
+    let newContractExchangeRates: ContractExchangeRates = {};
     if (!slug) {
       this.tokenList.forEach((token) => {
         const address = toChecksumHexAddress(token.address);
@@ -354,28 +354,20 @@ export class TokenRatesController extends BaseController<
         ? nativeCurrency.toLowerCase()
         : FALL_BACK_VS_CURRENCY.toLowerCase();
 
-      // const pairs = this.tokenList.map((token) => token.address).join(',');
-      // const query = `contract_addresses=${pairs}&vs_currencies=${vsCurrency}`;
-      // const prices = await this.fetchExchangeRate(slug, query);
-      // let updatedPrices = prices;
-
-      // if (!nativeCurrencySupported) {
-      const prices: any = await this._updateConversionRates(
-        // prices,
+      newContractExchangeRates = await this._updateConversionRates(
         nativeCurrency,
         vsCurrency,
         slug,
         nativeCurrencySupported,
       );
-      // }
 
-      this.tokenList.forEach((token) => {
-        const address = toChecksumHexAddress(token.address);
-        const price = prices[token.address.toLowerCase()];
-        newContractExchangeRates[address] = price
-          ? price[nativeCurrency.toLowerCase()]
-          : 0;
-      });
+      // this.tokenList.forEach((token) => {
+      //   const address = toChecksumHexAddress(token.address);
+      //   const price = prices[token.address.toLowerCase()];
+      //   newContractExchangeRates[address] = price
+      //     ? price[nativeCurrency.toLowerCase()]
+      //     : 0;
+      // });
     }
     this.update({ contractExchangeRates: newContractExchangeRates });
   }
@@ -384,24 +376,34 @@ export class TokenRatesController extends BaseController<
    * Updates the conversion rates from from token/eth to token/nativeCurrency
    * if 'eth' was used as fallback vscurrency for querying because the nativeCurrency isn't supported
    *
-   * @param prices - the object with conversion rates returned by coingecko with token/eth rates
    * @param nativeCurrency - the native currency of the currently active network
+   * @param vsCurrency - the currency symbol used to query the token exchange rates
+   * @param slug - the unique slug used to id the chain by the coingecko api
+   * @param nativeCurrencySupported - boolean indicating whether or not the networks' native currency
+   * should be used to query token exchange rates
    * @returns - Promise resolving to an object with conversion rates for each token
    * related to the network's native currency
    */
   async _updateConversionRates(
-    // prices: CoinGeckoResponse,
     nativeCurrency: string,
     vsCurrency: string,
     slug: string,
     nativeCurrencySupported: boolean,
-  ) {
+  ): Promise<ContractExchangeRates> {
+    let contractExchangeRates: ContractExchangeRates = {};
     const pairs = this.tokenList.map((token) => token.address).join(',');
     const query = `contract_addresses=${pairs}&vs_currencies=${vsCurrency}`;
+
     if (nativeCurrencySupported) {
-      return this.fetchExchangeRate(slug, query);
+      let prices = await this.fetchExchangeRate(slug, query);
+      this.tokenList.forEach((token) => {
+        const price = prices[token.address.toLowerCase()];
+        contractExchangeRates[toChecksumHexAddress(token.address)] = price
+          ? price[nativeCurrency.toLowerCase()]
+          : 0;
+      });
+      return contractExchangeRates;
     } else {
-      // let nativeCurrencyConversionRate = 0;
       let prices,
         nativeCurrencyConversionRate = 0;
       try {
@@ -421,19 +423,19 @@ export class TokenRatesController extends BaseController<
           throw error;
         }
       }
-      // return response;
       for (const [tokenAddress, conversion] of Object.entries(prices)) {
         const ethConversionRate =
           conversion[FALL_BACK_VS_CURRENCY.toLowerCase()];
         // convert from token/eth to token/nativeCurrency
-        prices[tokenAddress] = {
-          [nativeCurrency.toLowerCase()]:
-            nativeCurrencyConversionRate > 0
-              ? ethConversionRate / nativeCurrencyConversionRate
-              : 0,
-        };
+        contractExchangeRates[toChecksumHexAddress(tokenAddress)] =
+          // {
+          //   [nativeCurrency.toLowerCase()]:
+          nativeCurrencyConversionRate > 0
+            ? ethConversionRate / nativeCurrencyConversionRate
+            : 0;
+        // };
       }
-      return prices;
+      return contractExchangeRates;
     }
   }
 
