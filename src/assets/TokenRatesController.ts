@@ -78,6 +78,11 @@ interface SupportedChainsCache {
   data: CoinGeckoPlatform[] | null;
 }
 
+interface SupportedVsCurrenciesCache {
+  timestamp: number;
+  data: string[];
+}
+
 /**
  * @type TokenRatesState
  *
@@ -89,6 +94,7 @@ interface SupportedChainsCache {
 export interface TokenRatesState extends BaseState {
   contractExchangeRates: ContractExchangeRates;
   supportedChains: SupportedChainsCache;
+  supportedVsCurrencies: SupportedVsCurrenciesCache;
 }
 
 const CoinGeckoApi = {
@@ -186,6 +192,10 @@ export class TokenRatesController extends BaseController<
         timestamp: 0,
         data: null,
       },
+      supportedVsCurrencies: {
+        timestamp: 0,
+        data: [],
+      },
     };
     this.initialize();
     this.configure({ disabled: false }, false, false);
@@ -264,6 +274,22 @@ export class TokenRatesController extends BaseController<
   }
 
   /**
+   * Fetches supported vsCurrencies from CoinGecko API
+   *
+   * @returns Array of supported vsCurrencies by CoinGecko API
+   */
+  async fetchSupportedVsCurrencies(): Promise<string[]> {
+    try {
+      const supportedVSCurrencies: string[] = await handleFetch(
+        CoinGeckoApi.getSupportedVsCurrencies(),
+      );
+      return supportedVSCurrencies;
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * Fetches a pairs of token address and native currency
    *
    * @param chainSlug - Chain string identifier
@@ -285,14 +311,28 @@ export class TokenRatesController extends BaseController<
    * @returns - Promise resolving to a boolean indicating whether it's a supported vsCurrency
    */
   async checkIsSupportedVsCurrency(currency: string) {
-    try {
-      const supportedVSCurrencies: string[] = await handleFetch(
-        CoinGeckoApi.getSupportedVsCurrencies(),
-      );
-      return supportedVSCurrencies.includes(currency.toLowerCase());
-    } catch {
-      return false;
+    const { threshold } = this.config;
+    const { supportedVsCurrencies } = this.state;
+    const { data, timestamp } = supportedVsCurrencies;
+
+    const now = Date.now();
+
+    if (now - timestamp > threshold) {
+      try {
+        const currencies = await this.fetchSupportedVsCurrencies();
+        this.update({
+          supportedVsCurrencies: {
+            data: currencies,
+            timestamp: Date.now(),
+          },
+        });
+        return currencies.includes(currency.toLowerCase());
+      } catch {
+        return false
+      }
     }
+
+    return data.includes(currency.toLowerCase())
   }
 
   /**
@@ -354,20 +394,12 @@ export class TokenRatesController extends BaseController<
         ? nativeCurrency.toLowerCase()
         : FALL_BACK_VS_CURRENCY.toLowerCase();
 
-      newContractExchangeRates = await this._updateConversionRates(
+      newContractExchangeRates = await this._fetchExchangeRates(
         nativeCurrency,
         vsCurrency,
         slug,
         nativeCurrencySupported,
       );
-
-      // this.tokenList.forEach((token) => {
-      //   const address = toChecksumHexAddress(token.address);
-      //   const price = prices[token.address.toLowerCase()];
-      //   newContractExchangeRates[address] = price
-      //     ? price[nativeCurrency.toLowerCase()]
-      //     : 0;
-      // });
     }
     this.update({ contractExchangeRates: newContractExchangeRates });
   }
@@ -384,7 +416,7 @@ export class TokenRatesController extends BaseController<
    * @returns - Promise resolving to an object with conversion rates for each token
    * related to the network's native currency
    */
-  async _updateConversionRates(
+  async _fetchExchangeRates(
     nativeCurrency: string,
     vsCurrency: string,
     slug: string,
@@ -395,7 +427,7 @@ export class TokenRatesController extends BaseController<
     const query = `contract_addresses=${pairs}&vs_currencies=${vsCurrency}`;
 
     if (nativeCurrencySupported) {
-      let prices = await this.fetchExchangeRate(slug, query);
+      const prices = await this.fetchExchangeRate(slug, query);
       this.tokenList.forEach((token) => {
         const price = prices[token.address.toLowerCase()];
         contractExchangeRates[toChecksumHexAddress(token.address)] = price
@@ -428,12 +460,9 @@ export class TokenRatesController extends BaseController<
           conversion[FALL_BACK_VS_CURRENCY.toLowerCase()];
         // convert from token/eth to token/nativeCurrency
         contractExchangeRates[toChecksumHexAddress(tokenAddress)] =
-          // {
-          //   [nativeCurrency.toLowerCase()]:
           nativeCurrencyConversionRate > 0
             ? ethConversionRate / nativeCurrencyConversionRate
             : 0;
-        // };
       }
       return contractExchangeRates;
     }
