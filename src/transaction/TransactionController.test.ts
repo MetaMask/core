@@ -255,7 +255,7 @@ describe('TransactionController', () => {
       getProvider: MOCK_NETWORK.getProvider,
     });
     expect(controller.config).toStrictEqual({
-      interval: 5000,
+      interval: 15000,
       txHistoryLimit: 40,
     });
   });
