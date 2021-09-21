@@ -49,7 +49,10 @@ jest.mock('eth-query', () =>
         callback(undefined, '0x0');
       },
       getTransactionByHash: (_hash: string, callback: any) => {
-        const txs: any = [{ transactionHash: '1337', blockNumber: '0x1' }];
+        const txs: any = [
+          { transactionHash: '1337', blockNumber: '0x1' },
+          { transactionHash: '1338', blockNumber: null },
+        ];
         const tx: any = txs.find(
           (element: any) => element.transactionHash === _hash,
         );
@@ -677,7 +680,7 @@ describe('TransactionController', () => {
       controller.queryTransactionStatuses();
     });
   });
-  it('should transaction status be equal to failed if the query result is null or undefined', async () => {
+  it('should set the transaction status to failed if the query result is null or undefined', async () => {
     const controller = new TransactionController(
       {
         getNetworkState: () => MOCK_NETWORK.state,
@@ -740,6 +743,29 @@ describe('TransactionController', () => {
       );
       controller.queryTransactionStatuses();
     });
+  });
+  it('should keep the transaction status as submitted if the transaction was not added to a block', async () => {
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+    controller.state.transactions.push({
+      from: MOCK_PRFERENCES.state.selectedAddress,
+      id: 'foo',
+      networkID: '3',
+      status: TransactionStatus.submitted,
+      transactionHash: '1338',
+    } as any);
+    await controller.queryTransactionStatuses();
+    expect(controller.state.transactions[0].status).toBe(
+      TransactionStatus.submitted,
+    );
   });
   it('should verify the transaction using the correct blockchain', async () => {
     const controller = new TransactionController(
