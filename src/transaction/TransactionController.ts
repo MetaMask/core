@@ -1269,7 +1269,9 @@ export class TransactionController extends BaseController<
         ]);
 
         if (!txObj) {
-          const error: Error = new Error('Transaction failed');
+          const error: Error = new Error(
+            'Transaction failed. The transaction was dropped or replaced by a new one',
+          );
           this.failTransaction(meta, error);
         }
 
