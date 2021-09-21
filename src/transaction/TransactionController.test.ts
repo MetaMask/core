@@ -677,7 +677,36 @@ describe('TransactionController', () => {
       controller.queryTransactionStatuses();
     });
   });
+  it('should transaction status be equal to failed if the query result is null or undefined', async () => {
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+    controller.state.transactions.push({
+      from: MOCK_PRFERENCES.state.selectedAddress,
+      id: 'foo',
+      networkID: '3',
+      chainId: '3',
+      status: TransactionStatus.submitted,
+      transactionHash: '1111',
+    } as any);
 
+    controller.hub.once(
+      `${controller.state.transactions[0].id}:finished`,
+      () => {
+        expect(controller.state.transactions[0].status).toBe(
+          TransactionStatus.failed,
+        );
+      },
+    );
+    await controller.queryTransactionStatuses();
+  });
   // This tests the fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
   it('should query transaction statuses with networkID only when there is no chainId', async () => {
     await new Promise((resolve) => {
@@ -711,6 +740,33 @@ describe('TransactionController', () => {
       );
       controller.queryTransactionStatuses();
     });
+  });
+  it('should verify the transaction using the correct blockchain', async () => {
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+    controller.state.transactions.push({
+      from: MOCK_PRFERENCES.state.selectedAddress,
+      id: 'foo',
+      networkID: '3',
+      chainId: '3',
+      status: TransactionStatus.confirmed,
+      transactionHash: '1337',
+      verifiedOnBlockchain: false,
+      transaction: {
+        gasUsed: undefined,
+      },
+    } as any);
+    await controller.queryTransactionStatuses();
+    expect(controller.state.transactions[0].verifiedOnBlockchain).toBe(true);
+    expect(controller.state.transactions[0].transaction.gasUsed).toBe('0x5208');
   });
 
   it('should fetch all the transactions from an address, including incoming transactions, in ropsten', async () => {
