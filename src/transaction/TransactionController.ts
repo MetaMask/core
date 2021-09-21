@@ -119,14 +119,6 @@ export enum WalletDevice {
   OTHER = 'other_device',
 }
 
-/**
- * Source of data used to reconcile local transactions end state
- */
-export enum StateReconcileMethod {
-  ETHERSCAN = 'etherscan',
-  BLOCKCHAIN = 'blockchain',
-}
-
 type TransactionMetaBase = {
   isTransfer?: boolean;
   transferInformation?: {
@@ -145,6 +137,7 @@ type TransactionMetaBase = {
   transactionHash?: string;
   blockNumber?: string;
   deviceConfirmedOn?: WalletDevice;
+  verifiedOnBlockchain?: boolean;
 };
 
 /**
@@ -205,12 +198,12 @@ export interface EtherscanTransactionMeta {
   value: string;
   gas: string;
   gasPrice: string;
+  cumulativeGasUsed: string;
+  gasUsed: string;
   isError: string;
   txreceipt_status: string;
   input: string;
   contractAddress: string;
-  cumulativeGasUsed: string;
-  gasUsed: string;
   confirmations: string;
   tokenDecimal: string;
   tokenSymbol: string;
@@ -332,6 +325,7 @@ export class TransactionController extends BaseController<
         value: BNToHex(new BN(txMeta.value)),
       },
       transactionHash: txMeta.hash,
+      verifiedOnBlockchain: false,
     };
 
     /* istanbul ignore else */
@@ -390,6 +384,7 @@ export class TransactionController extends BaseController<
         decimals: Number(tokenDecimal),
         symbol: tokenSymbol,
       },
+      verifiedOnBlockchain: false,
     };
   };
 
@@ -516,7 +511,7 @@ export class TransactionController extends BaseController<
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
 
-    const transactionMeta = {
+    const transactionMeta: TransactionMeta = {
       id: random(),
       networkID: network,
       chainId: provider.chainId,
@@ -525,6 +520,7 @@ export class TransactionController extends BaseController<
       time: Date.now(),
       transaction,
       deviceConfirmedOn,
+      verifiedOnBlockchain: false,
     };
 
     try {
@@ -1032,25 +1028,18 @@ export class TransactionController extends BaseController<
         transactions.map(async (meta, index) => {
           // Using fallback to networkID only when there is no chainId present.
           // Should be removed when networkID is completely removed.
-          if (
-            meta.status === TransactionStatus.submitted &&
-            (meta.chainId === currentChainId ||
-              (!meta.chainId && meta.networkID === currentNetworkID))
-          ) {
-            const txObj = await query(this.ethQuery, 'getTransactionByHash', [
-              meta.transactionHash,
-            ]);
+          const txBelongsToCurrentChain =
+            meta.chainId === currentChainId ||
+            (!meta.chainId && meta.networkID === currentNetworkID);
 
-            if (txObj === null) {
-              transactions[index].status = TransactionStatus.failed;
-              gotUpdates = true;
-            }
-
-            /* istanbul ignore next */
-            if (txObj?.blockNumber) {
-              transactions[index].status = TransactionStatus.confirmed;
-              this.hub.emit(`${meta.id}:confirmed`, meta);
-              gotUpdates = true;
+          if (!meta.verifiedOnBlockchain && txBelongsToCurrentChain) {
+            const [
+              reconciledTx,
+              updateRequired,
+            ] = await this.blockchainTransactionStateReconciler(meta);
+            if (updateRequired) {
+              transactions[index] = reconciledTx;
+              gotUpdates = updateRequired;
             }
           }
         }),
@@ -1149,10 +1138,9 @@ export class TransactionController extends BaseController<
         this.normalizeTokenTx(tx, currentNetworkID, currentChainId),
     );
 
-    const [updateRequired, allTxs] = this.transactionStateReconciler(
+    const [updateRequired, allTxs] = this.etherscanTransactionStateReconciler(
       [...normalizedTxs, ...normalizedTokenTxs],
       transactions,
-      StateReconcileMethod.ETHERSCAN,
     );
 
     allTxs.sort((a, b) => (a.time < b.time ? -1 : 1));
@@ -1210,7 +1198,7 @@ export class TransactionController extends BaseController<
    * same nonce, created on the same day, per network. Not accounting for transactions of the same
    * nonce, same day and network combo can result in confusing or broken experiences
    * in the UI. The transactions are then updated using the BaseController update.
-   * @param transactions - arrray of transactions to be applied to the state
+   * @param transactions - array of transactions to be applied to the state
    * @returns Array of TransactionMeta with the desired length.
    */
   private trimTransactionsForState(
@@ -1240,26 +1228,6 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Resolves the locally stored transactions with the blockchain or etherscan to update TransactionController State
-   * @param remoteTxs - Array of transactions fetched from etherscan, the blockchain or other source
-   * @param localTxs - Array of transactions currently stored in the state of the controller
-   * @param stateReconcileMethod - Strategy used to reconcile the transactions
-   * @returns [boolean, TransactionMeta[]]
-   */
-  private transactionStateReconciler(
-    remoteTxs: TransactionMeta[],
-    localTxs: TransactionMeta[],
-    stateReconcileMethod: StateReconcileMethod,
-  ): [boolean, TransactionMeta[]] {
-    switch (stateReconcileMethod) {
-      case StateReconcileMethod.ETHERSCAN:
-        return this.etherscanTransactionStateReconciler(remoteTxs, localTxs);
-      default:
-        return [false, []];
-    }
-  }
-
-  /**
    * Method to determine if the transaction is in a final state
    * @param status - Transaction status
    * @returns boolean if the transaction is in a final state
@@ -1273,6 +1241,57 @@ export class TransactionController extends BaseController<
     );
   }
 
+  /**
+   * Method to verify the state of a transaction using the Blockchain as a source of truth
+   * @param meta Local transaction to verify data in blockchain
+   * @returns Promise with [TransactionMeta, boolean]
+   */
+  private async blockchainTransactionStateReconciler(
+    meta: TransactionMeta,
+  ): Promise<[TransactionMeta, boolean]> {
+    const { status, transactionHash } = meta;
+    switch (status) {
+      case TransactionStatus.confirmed:
+        const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
+          transactionHash,
+        ]);
+
+        if (txReceipt?.gasUsed) {
+          meta.verifiedOnBlockchain = true;
+          meta.transaction.gasUsed = txReceipt?.gasUsed;
+          return [meta, true];
+        }
+
+        return [meta, false];
+      case TransactionStatus.submitted:
+        const txObj = await query(this.ethQuery, 'getTransactionByHash', [
+          meta.transactionHash,
+        ]);
+
+        if (!txObj) {
+          const error: Error = new Error('Transaction failed');
+          this.failTransaction(meta, error);
+        }
+
+        /* istanbul ignore next */
+        if (txObj?.blockNumber) {
+          meta.status = TransactionStatus.confirmed;
+          this.hub.emit(`${meta.id}:confirmed`, meta);
+          return [meta, true];
+        }
+
+        return [meta, false];
+      default:
+        return [meta, false];
+    }
+  }
+
+  /**
+   * Method to verify the state of transactions using Etherscan as a source of truth
+   * @param remoteTxs Array of transactions from remote source
+   * @param localTxs Array of transactions stored locally
+   * @returns [boolean, TransactionMeta[]]
+   */
   private etherscanTransactionStateReconciler(
     remoteTxs: TransactionMeta[],
     localTxs: TransactionMeta[],
