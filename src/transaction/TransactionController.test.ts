@@ -65,7 +65,14 @@ jest.mock('eth-query', () =>
         callback(undefined, '1337');
       },
       getTransactionReceipt: (_hash: any, callback: any) => {
-        callback(undefined, { gasUsed: '0x5208', status: '0x1' });
+        const txs: any = [
+          { transactionHash: '1337', gasUsed: '0x5208', status: '0x1' },
+          { transactionHash: '1111', gasUsed: '0x1108', status: '0x0' },
+        ];
+        const tx: any = txs.find(
+          (element: any) => element.transactionHash === _hash,
+        );
+        callback(undefined, tx);
       },
     };
   }),
@@ -680,35 +687,6 @@ describe('TransactionController', () => {
       controller.queryTransactionStatuses();
     });
   });
-  it('should set the transaction status to failed if the query result is null or undefined', async () => {
-    const controller = new TransactionController(
-      {
-        getNetworkState: () => MOCK_NETWORK.state,
-        onNetworkStateChange: MOCK_NETWORK.subscribe,
-        getProvider: MOCK_NETWORK.getProvider,
-      },
-      {
-        sign: async (transaction: any) => transaction,
-      },
-    );
-    controller.state.transactions.push({
-      from: MOCK_PRFERENCES.state.selectedAddress,
-      id: 'foo',
-      networkID: '3',
-      chainId: '3',
-      status: TransactionStatus.submitted,
-      transactionHash: '1111',
-    } as any);
-
-    controller.hub.once(
-      `${controller.state.transactions[0].id}:finished`,
-      () => {
-        expect(controller.state.transactions[0].status).toBe(
-          TransactionStatus.failed,
-        );
-      },
-    );
-    await controller.queryTransactionStatuses();
   });
   // This tests the fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
   it('should query transaction statuses with networkID only when there is no chainId', async () => {

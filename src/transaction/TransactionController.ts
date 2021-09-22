@@ -1276,14 +1276,20 @@ export class TransactionController extends BaseController<
         return [meta, true];
       case TransactionStatus.submitted:
         const txObj = await query(this.ethQuery, 'getTransactionByHash', [
-          meta.transactionHash,
+          transactionHash,
         ]);
 
         if (!txObj) {
-          const error: Error = new Error(
-            'Transaction failed. The transaction was dropped or replaced by a new one',
+          const receiptShowsFailedStatus = await this.checkTxReceiptStatusIsFailed(
+            transactionHash,
           );
-          this.failTransaction(meta, error);
+
+          if (receiptShowsFailedStatus) {
+            const error: Error = new Error(
+              'Transaction failed. The transaction was dropped or replaced by a new one',
+            );
+            this.failTransaction(meta, error);
+          }
         }
 
         /* istanbul ignore next */
@@ -1297,6 +1303,27 @@ export class TransactionController extends BaseController<
       default:
         return [meta, false];
     }
+  }
+
+  /**
+   * Method to check if a tx has failed according to their receipt
+   * According to the Web3 docs:
+   * TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.
+   * The receipt is not available for pending transactions and returns null.
+   * @param txHash Transaction hash
+   * @returns Promise<boolean> indicating if the transaction have failed
+   */
+  private async checkTxReceiptStatusIsFailed(
+    txHash: string | undefined,
+  ): Promise<boolean> {
+    const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
+      txHash,
+    ]);
+    if (!txReceipt) {
+      // Transaction is pending
+      return false;
+    }
+    return Number(txReceipt.status) === 0;
   }
 
   /**
