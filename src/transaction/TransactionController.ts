@@ -1262,8 +1262,10 @@ export class TransactionController extends BaseController<
 
         meta.verifiedOnBlockchain = true;
         meta.transaction.gasUsed = txReceipt.gasUsed;
-        const txReceiptStatus = Boolean(Number(txReceipt.status));
-        if (!txReceiptStatus) {
+
+        // According to the Web3 docs:
+        // TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.
+        if (Number(txReceipt.status) === 0) {
           const error: Error = new Error(
             'Transaction failed. The transaction was reversed',
           );
