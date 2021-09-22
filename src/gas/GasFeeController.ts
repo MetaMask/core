@@ -239,6 +239,8 @@ export class GasFeeController extends BaseController<
 
   private ethQuery: any;
 
+  private clientId?: string;
+
   /**
    * Creates a GasFeeController instance
    *
@@ -258,6 +260,7 @@ export class GasFeeController extends BaseController<
     onNetworkStateChange,
     legacyAPIEndpoint = LEGACY_GAS_PRICES_API_URL,
     EIP1559APIEndpoint = GAS_FEE_API,
+    clientId,
   }: {
     interval?: number;
     messenger: GasFeeMessenger;
@@ -273,6 +276,7 @@ export class GasFeeController extends BaseController<
     onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
     EIP1559APIEndpoint?: string;
+    clientId?: string;
   }) {
     super({
       name,
@@ -294,6 +298,7 @@ export class GasFeeController extends BaseController<
     this.currentChainId = this.getChainId();
     const provider = getProvider();
     this.ethQuery = new EthQuery(provider);
+    this.clientId = clientId;
     onNetworkStateChange(async () => {
       const newProvider = getProvider();
       const newChainId = this.getChainId();
@@ -368,6 +373,7 @@ export class GasFeeController extends BaseController<
       if (isEIP1559Compatible) {
         const estimates = await this.fetchGasEstimates(
           this.EIP1559APIEndpoint.replace('<chain_id>', `${chainId}`),
+          this.clientId,
         );
         const {
           suggestedMaxPriorityFeePerGas,
@@ -385,6 +391,7 @@ export class GasFeeController extends BaseController<
       } else if (isLegacyGasAPICompatible) {
         const estimates = await this.fetchLegacyGasPriceEstimates(
           this.legacyAPIEndpoint.replace('<chain_id>', `${chainId}`),
+          this.clientId,
         );
         newState = {
           gasFeeEstimates: estimates,
