@@ -157,6 +157,7 @@ export class BaseController<
   protected update(callback: (state: Draft<S>) => void | S) {
     // We run into ts2589, "infinite type depth", if we don't cast
     // produceWithPatches here.
+    // The final, omitted member of the returned tuple are the inverse patches.
     const [nextState, patches] = ((produceWithPatches as unknown) as (
       state: S,
       cb: typeof callback,
