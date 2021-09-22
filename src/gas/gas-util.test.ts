@@ -63,6 +63,18 @@ describe('gas utils', () => {
       nock.cleanAll();
     });
 
+    it('should fetch external gasFeeEstimates with client id header when clientId arg is added', async () => {
+      const scope = nock('https://not-a-real-url/')
+        .matchHeader('x-client-id', 'test')
+        .get(/.+/u)
+        .reply(200, mockEIP1559ApiResponses[0])
+        .persist();
+      const result = await fetchGasEstimates('https://not-a-real-url/', 'test');
+      expect(result).toMatchObject(mockEIP1559ApiResponses[0]);
+      scope.done();
+      nock.cleanAll();
+    });
+
     it('should fetch and normalize external gasFeeEstimates when data is has an invalid number of decimals', async () => {
       const expectedResult = {
         low: {
@@ -109,6 +121,29 @@ describe('gas utils', () => {
         .persist();
       const result = await fetchLegacyGasPriceEstimates(
         'https://not-a-real-url/',
+      );
+      expect(result).toMatchObject({
+        high: '30',
+        medium: '25',
+        low: '22',
+      });
+      scope.done();
+      nock.cleanAll();
+    });
+
+    it('should fetch external gasPrices with client id header when clientId arg is passed', async () => {
+      const scope = nock('https://not-a-real-url/')
+        .matchHeader('x-client-id', 'test')
+        .get(/.+/u)
+        .reply(200, {
+          SafeGasPrice: '22',
+          ProposeGasPrice: '25',
+          FastGasPrice: '30',
+        })
+        .persist();
+      const result = await fetchLegacyGasPriceEstimates(
+        'https://not-a-real-url/',
+        'test',
       );
       expect(result).toMatchObject({
         high: '30',
