@@ -207,6 +207,7 @@ export class TokenRatesController extends BaseController<
     });
     onNetworkStateChange(({ provider }) => {
       const { chainId } = provider;
+      this.update({ contractExchangeRates: {} });
       this.configure({ chainId });
     });
     this.poll();
@@ -280,12 +281,9 @@ export class TokenRatesController extends BaseController<
    * @param nativeCurrency - the native currency of the currently active network
    * @returns - Promise resolving to a boolean indicating whether it's a supported vsCurrency
    */
-  async checkIsSupportedVsCurrency(nativeCurrency: string) {
+  private async checkIsSupportedVsCurrency(nativeCurrency: string) {
     const { threshold } = this.config;
-    const {
-      data: cachedSupportedVsCurrencies,
-      timestamp,
-    } = this.supportedVsCurrencies;
+    const { timestamp, data } = this.supportedVsCurrencies;
 
     const now = Date.now();
 
@@ -300,7 +298,7 @@ export class TokenRatesController extends BaseController<
       return currencies.includes(nativeCurrency.toLowerCase());
     }
 
-    return cachedSupportedVsCurrencies.includes(nativeCurrency.toLowerCase());
+    return data.includes(nativeCurrency.toLowerCase());
   }
 
   /**
@@ -377,7 +375,7 @@ export class TokenRatesController extends BaseController<
     );
 
     if (nativeCurrencySupported) {
-      // if it is we can do a simple fetch against the coingetck API
+      // If it is we can do a simple fetch against the CoinGecko API
       const prices = await this.fetchExchangeRate(slug, nativeCurrency);
       this.tokenList.forEach((token) => {
         const price = prices[token.address.toLowerCase()];
@@ -389,14 +387,14 @@ export class TokenRatesController extends BaseController<
       // if native currency is not supported we need to use a fallback vsCurrency, get the exchange rates
       // in token/fallback-currency format and convert them to expected token/nativeCurrency format.
       let tokenExchangeRates;
-      let nativeCurrencyConversionRate = 0;
+      let vsCurrencyToNativeCurrencyConversionRate = 0;
       try {
         [
           tokenExchangeRates,
-          { conversionRate: nativeCurrencyConversionRate },
+          { conversionRate: vsCurrencyToNativeCurrencyConversionRate },
         ] = await Promise.all([
           this.fetchExchangeRate(slug, FALL_BACK_VS_CURRENCY),
-          fetchNativeExchangeRate(FALL_BACK_VS_CURRENCY, nativeCurrency, false),
+          fetchNativeExchangeRate(nativeCurrency, FALL_BACK_VS_CURRENCY, false),
         ]);
       } catch (error) {
         if (
@@ -406,16 +404,14 @@ export class TokenRatesController extends BaseController<
         }
         throw error;
       }
-
       for (const [tokenAddress, conversion] of Object.entries(
         tokenExchangeRates,
       )) {
-        const fallBackConversionRate =
+        const tokenToVsCurrencyConversionRate =
           conversion[FALL_BACK_VS_CURRENCY.toLowerCase()];
         contractExchangeRates[toChecksumHexAddress(tokenAddress)] =
-          nativeCurrencyConversionRate > 0
-            ? fallBackConversionRate / nativeCurrencyConversionRate
-            : 0;
+          tokenToVsCurrencyConversionRate *
+          vsCurrencyToNativeCurrencyConversionRate;
       }
     }
 
