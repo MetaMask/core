@@ -11,7 +11,6 @@ export {
   BaseController as BaseControllerV2,
   getPersistentState,
   getAnonymizedState,
-  IsJsonable,
   Json,
   StateDeriver,
   StateMetadata,

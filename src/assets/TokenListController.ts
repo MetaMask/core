@@ -60,13 +60,13 @@ export type GetTokenListState = {
   type: `${typeof name}:getState`;
   handler: () => TokenListState;
 };
-interface DataCache {
+type DataCache = {
   timestamp: number;
   data: TokenListToken[];
-}
-interface TokensChainsCache {
+};
+type TokensChainsCache = {
   [chainSlug: string]: DataCache;
-}
+};
 
 type TokenListMessenger = RestrictedControllerMessenger<
   typeof name,
