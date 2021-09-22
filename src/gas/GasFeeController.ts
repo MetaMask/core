@@ -57,10 +57,10 @@ export type GasEstimateType =
   | LegacyEstimateType
   | NoEstimateType;
 
-export interface EstimatedGasFeeTimeBounds {
+export type EstimatedGasFeeTimeBounds = {
   lowerTimeBound: number | null;
   upperTimeBound: number | unknownString;
-}
+};
 
 /**
  * @type EthGasPriceEstimate
@@ -72,9 +72,9 @@ export interface EstimatedGasFeeTimeBounds {
  * @property gasPrice - A GWEI dec string
  */
 
-export interface EthGasPriceEstimate {
+export type EthGasPriceEstimate = {
   gasPrice: string;
-}
+};
 
 /**
  * @type LegacyGasPriceEstimate
@@ -87,11 +87,11 @@ export interface EthGasPriceEstimate {
  * @property medium - gasPrice, in decimal gwei string format, suggested for avg inclusion
  * @property low - gasPrice, in decimal gwei string format, suggested for slow inclusion
  */
-export interface LegacyGasPriceEstimate {
+export type LegacyGasPriceEstimate = {
   high: string;
   medium: string;
   low: string;
-}
+};
 
 /**
  * @type Eip1559GasFee
@@ -104,12 +104,12 @@ export interface LegacyGasPriceEstimate {
  * @property suggestedMaxFeePerGas - A suggested max fee, the most a user will pay. a GWEI hex number
  */
 
-export interface Eip1559GasFee {
+export type Eip1559GasFee = {
   minWaitTimeEstimate: number; // a time duration in milliseconds
   maxWaitTimeEstimate: number; // a time duration in milliseconds
   suggestedMaxPriorityFeePerGas: string; // a GWEI decimal number
   suggestedMaxFeePerGas: string; // a GWEI decimal number
-}
+};
 
 /**
  * @type GasFeeEstimates
@@ -122,12 +122,12 @@ export interface Eip1559GasFee {
  * @property estimatedBaseFee - An estimate of what the base fee will be for the pending/next block. A GWEI dec number
  */
 
-export interface GasFeeEstimates {
+export type GasFeeEstimates = {
   low: Eip1559GasFee;
   medium: Eip1559GasFee;
   high: Eip1559GasFee;
   estimatedBaseFee: string;
-}
+};
 
 const metadata = {
   gasFeeEstimates: { persist: true, anonymous: false },
@@ -159,9 +159,9 @@ export type GasFeeStateNoEstimates = {
   gasEstimateType: NoEstimateType;
 };
 
-export interface FetchGasFeeEstimateOptions {
+export type FetchGasFeeEstimateOptions = {
   shouldUpdateState?: boolean;
-}
+};
 
 /**
  * @type GasFeeState
