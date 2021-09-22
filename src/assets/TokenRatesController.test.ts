@@ -65,6 +65,8 @@ describe('TokenRatesController', () => {
       .reply(200, {})
       .get(`${COINGECKO_BSC_PATH}?contract_addresses=0xfoO&vs_currencies=gno`)
       .reply(200, {})
+      .get(COINGECKO_SUPPORTED_CURRENCIES)
+      .reply(200, ['eth', 'usd'])
       .persist();
 
     nock('https://min-api.cryptocompare.com')
@@ -194,9 +196,6 @@ describe('TokenRatesController', () => {
       },
       { interval: 10, chainId: '1' },
     );
-    stub(controller, 'checkIsSupportedVsCurrency').returns(
-      Promise.resolve(true),
-    );
     const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
     expect(controller.state.contractExchangeRates).toStrictEqual({});
     controller.tokens = [
@@ -282,8 +281,6 @@ describe('TokenRatesController', () => {
 
   it('should update exchange rates when native currency is not supported by coingecko', async () => {
     nock(COINGECKO_HOST)
-      .get(COINGECKO_SUPPORTED_CURRENCIES)
-      .reply(200, ['eth', 'usd'])
       .get(COINGECKO_ASSETS_PATH)
       .reply(200, [
         {
@@ -318,8 +315,8 @@ describe('TokenRatesController', () => {
       .persist();
 
     nock('https://min-api.cryptocompare.com')
-      .get('/data/price?fsym=MATIC&tsyms=ETH')
-      .reply(200, { ETH: 2 }) // 2 eth to 1 matic
+      .get('/data/price?fsym=ETH&tsyms=MATIC')
+      .reply(200, { MATIC: 0.5 }) // .5 eth to 1 matic
       .persist();
 
     const expectedExchangeRates = {
