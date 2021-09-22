@@ -687,7 +687,6 @@ describe('TransactionController', () => {
       controller.queryTransactionStatuses();
     });
   });
-  });
   // This tests the fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
   it('should query transaction statuses with networkID only when there is no chainId', async () => {
     await new Promise((resolve) => {
