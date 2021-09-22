@@ -277,10 +277,10 @@ export class TokenRatesController extends BaseController<
    * Checks if the current native currency is a supported vs currency to use
    * to query for token exchange rates
    *
-   * @param currency - the native currency of the currently active network
+   * @param nativeCurrency - the native currency of the currently active network
    * @returns - Promise resolving to a boolean indicating whether it's a supported vsCurrency
    */
-  async checkIsSupportedVsCurrency(currency: string) {
+  async checkIsSupportedVsCurrency(nativeCurrency: string) {
     const { threshold } = this.config;
     const {
       data: cachedSupportedVsCurrencies,
@@ -297,10 +297,10 @@ export class TokenRatesController extends BaseController<
         data: currencies,
         timestamp: Date.now(),
       };
-      return currencies.includes(currency.toLowerCase());
+      return currencies.includes(nativeCurrency.toLowerCase());
     }
 
-    return cachedSupportedVsCurrencies.includes(currency.toLowerCase());
+    return cachedSupportedVsCurrencies.includes(nativeCurrency.toLowerCase());
   }
 
   /**

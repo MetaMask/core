@@ -5,11 +5,11 @@ import { NetworkController } from '../network/NetworkController';
 import { TokenRatesController } from './TokenRatesController';
 import { TokensController } from './TokensController';
 
-const COINGECKO_HOST = 'https://api.coingecko.com';
-const COINGECKO_ETH_PATH = '/api/v3/simple/token_price/ethereum';
-const COINGECKO_BSC_PATH = '/api/v3/simple/token_price/binance-smart-chain';
-const COINGECKO_MATIC_PATH = '/api/v3/simple/token_price/polygon-pos-network';
-const COINGECKO_ASSETS_PATH = '/api/v3/asset_platforms';
+const COINGECKO_HOST = 'https://api.coingecko.com/api/v3';
+const COINGECKO_ETH_PATH = '/simple/token_price/ethereum';
+const COINGECKO_BSC_PATH = '/simple/token_price/binance-smart-chain';
+const COINGECKO_MATIC_PATH = '/simple/token_price/polygon-pos-network';
+const COINGECKO_ASSETS_PATH = '/asset_platforms';
 const COINGECKO_SUPPORTED_CURRENCIES = '/simple/supported_vs_currencies';
 const ADDRESS = '0x01';
 
@@ -87,14 +87,6 @@ describe('TokenRatesController', () => {
     });
     expect(controller.state).toStrictEqual({
       contractExchangeRates: {},
-      supportedChains: {
-        data: null,
-        timestamp: 0,
-      },
-      supportedVsCurrencies: {
-        data: [],
-        timestamp: 0,
-      },
     });
   });
 
@@ -188,7 +180,6 @@ describe('TokenRatesController', () => {
   });
 
   it('should update all rates', async () => {
-    nock(COINGECKO_HOST);
     const network = new NetworkController();
     const preferences = new PreferencesController();
     const tokensController = new TokensController({
