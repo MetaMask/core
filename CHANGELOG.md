@@ -15,8 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make TokenRatesController support fiat conversion for more networks ([#585](https://github.com/MetaMask/controllers/pull/585))
 
 ### Removed
-- **BREAKING:** Remove IsJsonable ([#496](https://github.com/MetaMask/controllers/pull/496))
-
+- **BREAKING:** Simplify type of BaseControllerV2 state ([#496](https://github.com/MetaMask/controllers/pull/496))
+  - Controllers based upon BaseControllerV2 might need to update their types.
+  - Custom interfaces/classes will no longer be allowed in the controller state. Simple objects only.
+  
 ## [16.0.0]
 ### Changed
 - Enable HTTP caching for the dynamic token list managed by the TokenListController ([#594](https://github.com/MetaMask/controllers/pull/594))
