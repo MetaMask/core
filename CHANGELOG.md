@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+### Uncategorized
+- Improve transaction state management for custom networks ([#598](https://github.com/MetaMask/controllers/pull/598))
+- Make TokenRatesController support fiat conversion for more networks ([#585](https://github.com/MetaMask/controllers/pull/585))
+- Remove IsJsonable ([#496](https://github.com/MetaMask/controllers/pull/496))
+- Add client id header to GasFeeController ([#597](https://github.com/MetaMask/controllers/pull/597))
+- Bump tmpl from 1.0.4 to 1.0.5 ([#599](https://github.com/MetaMask/controllers/pull/599))
+
 ## [16.0.0]
 ### Changed
 - Enable HTTP caching for the dynamic token list managed by the TokenListController ([#594](https://github.com/MetaMask/controllers/pull/594))
@@ -380,7 +388,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/controllers/compare/v16.0.0...v17.0.0
 [16.0.0]: https://github.com/MetaMask/controllers/compare/v15.1.0...v16.0.0
 [15.1.0]: https://github.com/MetaMask/controllers/compare/v15.0.2...v15.1.0
 [15.0.2]: https://github.com/MetaMask/controllers/compare/v15.0.1...v15.0.2
