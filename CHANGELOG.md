@@ -6,12 +6,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+### Added
+- Add client id header to GasFeeController ([#597](https://github.com/MetaMask/controllers/pull/597))
+
+### Changed
+- Improve transaction state management for custom networks ([#598](https://github.com/MetaMask/controllers/pull/598))
+- Make TokenRatesController support fiat conversion for more networks ([#585](https://github.com/MetaMask/controllers/pull/585))
+
+### Removed
+- **BREAKING:** Simplify type of BaseControllerV2 state ([#496](https://github.com/MetaMask/controllers/pull/496))
+  - Controllers based upon BaseControllerV2 might need to update their types.
+  - Custom interfaces/classes will no longer be allowed in the controller state. Simple objects only.
+
 ## [16.0.0]
 ### Changed
 - Enable HTTP caching for the dynamic token list managed by the TokenListController ([#594](https://github.com/MetaMask/controllers/pull/594))
 
 ### Removed
-- **BREAKING**: Remove `syncTokens` method from the TokenListController ([#590](https://github.com/MetaMask/controllers/pull/590))
+- **BREAKING:** Remove `syncTokens` method from the TokenListController ([#590](https://github.com/MetaMask/controllers/pull/590))
 
 ### Fixed
 - Fix bug that allowed `getGasFeeEstimatesAndStartPolling` to initiate multiple simultaneous fetch requests ([#586](https://github.com/MetaMask/controllers/pull/586))
@@ -35,17 +48,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.0.0]
 ### Changed
-- **BREAKING**: Update TokensController allTokens state structure to make network/chainID parent of account ([#572](https://github.com/MetaMask/controllers/pull/572))
+- **BREAKING:** Update TokensController allTokens state structure to make network/chainID parent of account ([#572](https://github.com/MetaMask/controllers/pull/572))
   - The shape of allTokens state field on TokensController has been reorganized. Consumers of the TokensController will have to migrate existing token state to new shape.
-- **BREAKING**: ignoredTokens changed to allIgnoredTokens ([#570](https://github.com/MetaMask/controllers/pull/570))
+- **BREAKING:** ignoredTokens changed to allIgnoredTokens ([#570](https://github.com/MetaMask/controllers/pull/570))
   - a new state field on the TokensController - allIgnoredTokens - now manages ignoredTokens by network and accountAddress, ignoredTokens is now the array of token address strings (previously an array of full token objects) that have been hidden by the user for the currently active network and accountAddress pair. Consumers of the TokensController will have to migrate existing ignoredTokens array to allIgnoredTokens object.
-- **BREAKING**: Improve BaseControllerV2 messenger type ([#556](https://github.com/MetaMask/controllers/pull/556))
+- **BREAKING:** Improve BaseControllerV2 messenger type ([#556](https://github.com/MetaMask/controllers/pull/556))
   - This is a breaking change, because anyone extending BaseControllerV2 will now be required to supply an additional generic parameter.
-- **BREAKING**: Remove redundant default export from util.ts ([#574](https://github.com/MetaMask/controllers/pull/574))  
+- **BREAKING:** Remove redundant default export from util.ts ([#574](https://github.com/MetaMask/controllers/pull/574))  
   - This is breaking for consumers who use the default import of the utils module, and will require using named imports instead.
-- **BREAKING**: Removing aggregator from TokenListToken ([#564](https://github.com/MetaMask/controllers/pull/564))
+- **BREAKING:** Removing aggregator from TokenListToken ([#564](https://github.com/MetaMask/controllers/pull/564))
   - This is breaking because the the DynamicToken and TokenListToken types no longer contain an aggregators field. Consumers will have to remove aggregators for objects using this type.
-- **BREAKING**: Migrate ApprovalController to BaseControllerV2 ([#555](https://github.com/MetaMask/controllers/pull/555))
+- **BREAKING:** Migrate ApprovalController to BaseControllerV2 ([#555](https://github.com/MetaMask/controllers/pull/555))
   - This is a breaking change because the BaseControllerV2 migration is breaking, and the 'resolve' method has been renamed to 'accept'.
 - Speed up token detection for most popular 1000 tokens ([#568](https://github.com/MetaMask/controllers/pull/568))
 - Cancel inflight request during chainId change and useStaticTokenList flag change ([#571](https://github.com/MetaMask/controllers/pull/571))
@@ -98,7 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [13.0.0] - 2021-07-12
 ### Changed
-- **BREAKING**: Remove AssetsController and add CollectiblesController and TokensController in its place ([#518](https://github.com/MetaMask/controllers/pull/518))
+- **BREAKING:** Remove AssetsController and add CollectiblesController and TokensController in its place ([#518](https://github.com/MetaMask/controllers/pull/518))
 
 ## [12.1.0] - 2021-07-09
 ### Added
@@ -110,7 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add GasFeeController to provide gas fee estimates [#494](https://github.com/MetaMask/controllers/pull/494)
 
 ### Changed
-- **BREAKING**: Add chainId support to TokenRatesControllers [#476](https://github.com/MetaMask/controllers/pull/476)
+- **BREAKING:** Add chainId support to TokenRatesControllers [#476](https://github.com/MetaMask/controllers/pull/476)
   - The breaking change here is that TokenRatesController constructor now requires a onNetworkStateChange listener
 - Add iconUrl to Token type in TokenListController [#512](https://github.com/MetaMask/controllers/pull/512)
 
@@ -120,7 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.2.0] - 2021-06-30 [DEPRECATED]
 ### Added
-- **BREAKING**: Add TokenListController to fetch the token list from token services API ([#478](https://github.com/MetaMask/controllers/pull/478))
+- **BREAKING:** Add TokenListController to fetch the token list from token services API ([#478](https://github.com/MetaMask/controllers/pull/478))
   - The breaking change here is that `AssetsDetectionController` now requires `getTokenListState` as a constructor parameter.
 - Update `@ethereumjs-tx` to `@ethereumjs/tx` and add `@ethereumjs/common` to support EIP1559 compliant transactions ([#489](https://github.com/MetaMask/controllers/pull/489))
 
@@ -140,7 +153,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.0.0]
 ### Fixed
-- **BREAKING**: Fix stale conversionRate after switching network ([#465](https://github.com/MetaMask/controllers/pull/465))
+- **BREAKING:** Fix stale conversionRate after switching network ([#465](https://github.com/MetaMask/controllers/pull/465))
   - The breaking change is the change in type of the `conversionRate` state of the `CurrencyRateController` - it's now nullable.
 
 ## [9.1.0] - 2021-05-20
@@ -380,7 +393,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/controllers/compare/v16.0.0...v17.0.0
 [16.0.0]: https://github.com/MetaMask/controllers/compare/v15.1.0...v16.0.0
 [15.1.0]: https://github.com/MetaMask/controllers/compare/v15.0.2...v15.1.0
 [15.0.2]: https://github.com/MetaMask/controllers/compare/v15.0.1...v15.0.2
