@@ -1284,6 +1284,8 @@ export class TransactionController extends BaseController<
             transactionHash,
           );
 
+          // Case the txObj is evaluated as false, a second check will
+          // determine if the tx failed or it is pending or confirmed
           if (receiptShowsFailedStatus) {
             const error: Error = new Error(
               'Transaction failed. The transaction was dropped or replaced by a new one',
