@@ -48,14 +48,31 @@ jest.mock('eth-query', () =>
       getCode: (_to: any, callback: any) => {
         callback(undefined, '0x0');
       },
-      getTransactionByHash: (_hash: any, callback: any) => {
-        callback(undefined, { blockNumber: '0x1' });
+      getTransactionByHash: (_hash: string, callback: any) => {
+        const txs: any = [
+          { transactionHash: '1337', blockNumber: '0x1' },
+          { transactionHash: '1338', blockNumber: null },
+        ];
+        const tx: any = txs.find(
+          (element: any) => element.transactionHash === _hash,
+        );
+        callback(undefined, tx);
       },
       getTransactionCount: (_from: any, _to: any, callback: any) => {
         callback(undefined, '0x0');
       },
       sendRawTransaction: (_transaction: any, callback: any) => {
         callback(undefined, '1337');
+      },
+      getTransactionReceipt: (_hash: any, callback: any) => {
+        const txs: any = [
+          { transactionHash: '1337', gasUsed: '0x5208', status: '0x1' },
+          { transactionHash: '1111', gasUsed: '0x1108', status: '0x0' },
+        ];
+        const tx: any = txs.find(
+          (element: any) => element.transactionHash === _hash,
+        );
+        callback(undefined, tx);
       },
     };
   }),
@@ -245,7 +262,7 @@ describe('TransactionController', () => {
       getProvider: MOCK_NETWORK.getProvider,
     });
     expect(controller.config).toStrictEqual({
-      interval: 5000,
+      interval: 15000,
       txHistoryLimit: 40,
     });
   });
@@ -670,7 +687,6 @@ describe('TransactionController', () => {
       controller.queryTransactionStatuses();
     });
   });
-
   // This tests the fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
   it('should query transaction statuses with networkID only when there is no chainId', async () => {
     await new Promise((resolve) => {
@@ -704,6 +720,56 @@ describe('TransactionController', () => {
       );
       controller.queryTransactionStatuses();
     });
+  });
+  it('should keep the transaction status as submitted if the transaction was not added to a block', async () => {
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+    controller.state.transactions.push({
+      from: MOCK_PRFERENCES.state.selectedAddress,
+      id: 'foo',
+      networkID: '3',
+      status: TransactionStatus.submitted,
+      transactionHash: '1338',
+    } as any);
+    await controller.queryTransactionStatuses();
+    expect(controller.state.transactions[0].status).toBe(
+      TransactionStatus.submitted,
+    );
+  });
+  it('should verify the transaction using the correct blockchain', async () => {
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+    controller.state.transactions.push({
+      from: MOCK_PRFERENCES.state.selectedAddress,
+      id: 'foo',
+      networkID: '3',
+      chainId: '3',
+      status: TransactionStatus.confirmed,
+      transactionHash: '1337',
+      verifiedOnBlockchain: false,
+      transaction: {
+        gasUsed: undefined,
+      },
+    } as any);
+    await controller.queryTransactionStatuses();
+    expect(controller.state.transactions[0].verifiedOnBlockchain).toBe(true);
+    expect(controller.state.transactions[0].transaction.gasUsed).toBe('0x5208');
   });
 
   it('should fetch all the transactions from an address, including incoming transactions, in ropsten', async () => {
