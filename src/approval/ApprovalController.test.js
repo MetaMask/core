@@ -75,12 +75,15 @@ describe('ApprovalController: Input Validation', () => {
       expect(() => approvalController.getApprovalCount()).toThrow(
         getApprovalCountParamsError(),
       );
+
       expect(() => approvalController.getApprovalCount({})).toThrow(
         getApprovalCountParamsError(),
       );
+
       expect(() =>
         approvalController.getApprovalCount({ origin: null }),
       ).toThrow(getApprovalCountParamsError());
+
       expect(() =>
         approvalController.getApprovalCount({ type: false }),
       ).toThrow(getApprovalCountParamsError());
@@ -94,18 +97,23 @@ describe('ApprovalController: Input Validation', () => {
       expect(() => approvalController.has()).toThrow(
         getInvalidHasParamsError(),
       );
+
       expect(() => approvalController.has({})).toThrow(
         getInvalidHasParamsError(),
       );
+
       expect(() => approvalController.has({ id: true })).toThrow(
         getInvalidHasIdError(),
       );
+
       expect(() => approvalController.has({ origin: true })).toThrow(
         getInvalidHasOriginError(),
       );
+
       expect(() => approvalController.has({ type: true })).toThrow(
         getInvalidHasTypeError(),
       );
+
       expect(() =>
         approvalController.has({ origin: 'foo', type: true }),
       ).toThrow(getInvalidHasTypeError());

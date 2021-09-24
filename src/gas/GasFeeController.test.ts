@@ -49,9 +49,11 @@ describe('GasFeeController', () => {
     getCurrentNetworkLegacyGasAPICompatibility = jest
       .fn()
       .mockImplementation(() => false);
+
     getIsEIP1559Compatible = jest
       .fn()
       .mockImplementation(() => Promise.resolve(true));
+
     mockGasFeeRequest = nock(TEST_GAS_FEE_API.replace('<chain_id>', '1'))
       .get(/.+/u)
       .reply(200, {

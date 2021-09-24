@@ -356,6 +356,7 @@ export class GasFeeController extends BaseController<
     if (typeof chainId === 'string' && isHexString(chainId)) {
       chainId = parseInt(chainId, 16);
     }
+
     try {
       isEIP1559Compatible = await this.getEIP1559Compatibility();
     } catch (e) {
@@ -415,6 +416,7 @@ export class GasFeeController extends BaseController<
         );
       }
     }
+
     if (shouldUpdateState) {
       this.update(() => {
         return newState;
@@ -456,6 +458,7 @@ export class GasFeeController extends BaseController<
     if (this.intervalId) {
       clearInterval(this.intervalId);
     }
+
     this.intervalId = setInterval(async () => {
       await safelyExecute(() => this._fetchGasFeeEstimateData());
     }, this.intervalDelay);

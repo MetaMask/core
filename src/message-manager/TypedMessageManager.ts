@@ -101,6 +101,7 @@ export class TypedMessageManager extends AbstractMessageManager<
       if (version === 'V1') {
         validateTypedSignMessageDataV1(messageParams);
       }
+
       if (version === 'V3') {
         validateTypedSignMessageDataV3(messageParams);
       }

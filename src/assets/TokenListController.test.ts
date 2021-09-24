@@ -264,6 +264,7 @@ describe('TokenListController', () => {
     network = new NetworkController();
     preferences = new PreferencesController();
   });
+
   afterEach(() => {
     nock.cleanAll();
   });
@@ -431,11 +432,13 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(
       sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].timestamp,
     ).toBeGreaterThanOrEqual(
@@ -471,6 +474,7 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
+
     expect(controller.state.tokensChainsCache['1'].data).toStrictEqual(
       sampleSingleChainState.tokensChainsCache['1'].data,
     );
@@ -492,6 +496,7 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(
@@ -524,6 +529,7 @@ describe('TokenListController', () => {
         iconUrl: 'https://s3.amazonaws.com/airswap-token-images/BNT.png',
       },
     });
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(sampleWithDuplicateSymbols);
@@ -562,6 +568,7 @@ describe('TokenListController', () => {
         iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
       },
     });
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(sampleWithLessThan2Occurences);
@@ -587,6 +594,7 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(
@@ -617,6 +625,7 @@ describe('TokenListController', () => {
       sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet]
         .timestamp,
     );
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(
@@ -649,11 +658,13 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(
       sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
+
     network.update({
       provider: {
         type: 'ropsten',
@@ -667,6 +678,7 @@ describe('TokenListController', () => {
     ).toStrictEqual(
       sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
+
     network.update({
       provider: {
         type: 'rpc',
@@ -677,11 +689,13 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleTwoChainState.tokenList,
     );
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(
       sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
+
     expect(controller.state.tokensChainsCache['56'].data).toStrictEqual(
       sampleTwoChainState.tokensChainsCache['56'].data,
     );
@@ -740,6 +754,7 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(sampleMainnetTokenList);
@@ -773,6 +788,7 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(sampleMainnetTokenList);
@@ -807,6 +823,7 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(sampleMainnetTokenList);
@@ -821,9 +838,11 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleTwoChainState.tokenList,
     );
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(sampleMainnetTokenList);
+
     expect(controller.state.tokensChainsCache['56'].data).toStrictEqual(
       sampleBinanceTokenList,
     );
@@ -842,9 +861,11 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleTwoChainState.tokenList,
     );
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet],
     ).toBeUndefined();
+
     expect(controller.state.tokensChainsCache['56'].data).toStrictEqual(
       sampleBinanceTokenList,
     );

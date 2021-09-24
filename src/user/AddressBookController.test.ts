@@ -32,6 +32,7 @@ describe('AddressBookController', () => {
       '1',
       'account 1',
     );
+
     expect(controller.state).toStrictEqual({
       addressBook: {
         1: {
@@ -55,6 +56,7 @@ describe('AddressBookController', () => {
       '1',
       'account 2',
     );
+
     controller.set(
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'foo',
@@ -173,6 +175,7 @@ describe('AddressBookController', () => {
       '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
       'metamask.eth',
     );
+
     expect(controller.state).toStrictEqual({
       addressBook: {
         1: {

@@ -434,6 +434,7 @@ export class TransactionController extends BaseController<
       interval: 15000,
       txHistoryLimit: 40,
     };
+
     this.defaultState = {
       methodData: {},
       transactions: [],
@@ -982,10 +983,12 @@ export class TransactionController extends BaseController<
     ) {
       return { gas: '0x5208', gasPrice };
     }
+
     // if data, should be hex string format
     estimatedTransaction.data = !data
       ? data
       : /* istanbul ignore next */ addHexPrefix(data);
+
     // 3. If this is a contract address, safely estimate gas using RPC
     estimatedTransaction.value =
       typeof value === 'undefined' ? '0x0' : /* istanbul ignore next */ value;
@@ -1004,6 +1007,7 @@ export class TransactionController extends BaseController<
     if (gasBN.gt(maxGasBN) || isCustomNetwork) {
       return { gas: addHexPrefix(gasHex), gasPrice };
     }
+
     /* istanbul ignore next */
     if (paddedGasBN.lt(maxGasBN)) {
       return { gas: addHexPrefix(BNToHex(paddedGasBN)), gasPrice };
@@ -1045,6 +1049,7 @@ export class TransactionController extends BaseController<
         }),
       ),
     );
+
     /* istanbul ignore else */
     if (gotUpdates) {
       this.update({
@@ -1164,6 +1169,7 @@ export class TransactionController extends BaseController<
           latestIncomingTxBlockNumber = tx.blockNumber;
         }
       }
+
       /* istanbul ignore else */
       if (tx.toSmartContract === undefined) {
         // If not `to` is a contract deploy, if not `data` is send eth
@@ -1180,6 +1186,7 @@ export class TransactionController extends BaseController<
         }
       }
     });
+
     // Update state only if new transactions were fetched or
     // the status or gas data of a transaction has changed
     if (updateRequired) {

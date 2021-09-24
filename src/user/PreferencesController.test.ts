@@ -167,6 +167,7 @@ describe('PreferencesController', () => {
       undefined,
       'LOCAL',
     );
+
     expect(controller.state.frequentRpcList).toStrictEqual([
       rpcUrlNetwork,
       localhostNetwork,

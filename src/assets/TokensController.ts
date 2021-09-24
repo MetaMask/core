@@ -185,6 +185,7 @@ export class TokensController extends BaseController<
         ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] || [],
       });
     });
+
     onNetworkStateChange(({ provider }) => {
       const { allTokens, allIgnoredTokens } = this.state;
       const { selectedAddress } = this.config;

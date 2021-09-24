@@ -356,9 +356,11 @@ describe('TransactionController', () => {
     expect(controller.state.transactions[0].networkID).toBe(
       MOCK_NETWORK.state.network,
     );
+
     expect(controller.state.transactions[0].chainId).toBe(
       MOCK_NETWORK.state.provider.chainId,
     );
+
     expect(controller.state.transactions[0].status).toBe(
       TransactionStatus.unapproved,
     );
@@ -394,9 +396,11 @@ describe('TransactionController', () => {
     expect(controller.state.transactions[0].networkID).toBe(
       MOCK_MAINNET_NETWORK.state.network,
     );
+
     expect(controller.state.transactions[0].chainId).toBe(
       MOCK_MAINNET_NETWORK.state.provider.chainId,
     );
+
     expect(controller.state.transactions[0].status).toBe(
       TransactionStatus.unapproved,
     );
@@ -432,9 +436,11 @@ describe('TransactionController', () => {
     expect(controller.state.transactions[0].networkID).toBe(
       MOCK_NETWORK_CUSTOM.state.network,
     );
+
     expect(controller.state.transactions[0].chainId).toBe(
       MOCK_NETWORK_CUSTOM.state.provider.chainId,
     );
+
     expect(controller.state.transactions[0].status).toBe(
       TransactionStatus.unapproved,
     );
@@ -524,6 +530,7 @@ describe('TransactionController', () => {
         to: from,
         value: '0x0',
       });
+
       controller.hub.once(
         `${controller.state.transactions[0].id}:finished`,
         () => {
@@ -640,6 +647,7 @@ describe('TransactionController', () => {
         to: from,
         value: '0x0',
       });
+
       controller.hub.once(
         `${controller.state.transactions[0].id}:finished`,
         () => {
@@ -687,6 +695,7 @@ describe('TransactionController', () => {
       controller.queryTransactionStatuses();
     });
   });
+
   // This tests the fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
   it('should query transaction statuses with networkID only when there is no chainId', async () => {
     await new Promise((resolve) => {
@@ -721,6 +730,7 @@ describe('TransactionController', () => {
       controller.queryTransactionStatuses();
     });
   });
+
   it('should keep the transaction status as submitted if the transaction was not added to a block', async () => {
     const controller = new TransactionController(
       {
@@ -744,6 +754,7 @@ describe('TransactionController', () => {
       TransactionStatus.submitted,
     );
   });
+
   it('should verify the transaction using the correct blockchain', async () => {
     const controller = new TransactionController(
       {
@@ -827,6 +838,7 @@ describe('TransactionController', () => {
     expect(tokenTransaction?.id).toStrictEqual('token-transaction-id');
     expect(ethTransaction?.id).toStrictEqual('eth-transaction-id');
   });
+
   it('should fetch all the transactions from an address, including incoming transactions, in mainnet from block', async () => {
     globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
@@ -843,6 +855,7 @@ describe('TransactionController', () => {
     expect(latestBlock).toBe('4535101');
     expect(controller.state.transactions[0].transaction.to).toBe(from);
   });
+
   it('should fetch and updated all transactions with outdated status regarding the data provided by the remote source in mainnet', async () => {
     globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
@@ -868,6 +881,7 @@ describe('TransactionController', () => {
     expect(tokenTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
     expect(ethTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
   });
+
   it('should fetch and updated all transactions with outdated gas data regarding the data provided by the remote source in mainnet', async () => {
     globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
@@ -893,6 +907,7 @@ describe('TransactionController', () => {
     expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
     expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
   });
+
   it('should fetch and updated all transactions with outdated status and gas data regarding the data provided by the remote source in mainnet', async () => {
     globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
@@ -920,6 +935,7 @@ describe('TransactionController', () => {
     expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
     expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
   });
+
   it('should return', async () => {
     globalAny.fetch = mockFetch(MOCK_FETCH_TX_HISTORY_DATA_ERROR);
     const controller = new TransactionController({
@@ -949,6 +965,7 @@ describe('TransactionController', () => {
       args: [{ type: 'uint256' }, { type: 'uint256' }],
       name: 'Eth To Token Swap Input',
     });
+
     expect(registry.registryMethod).toStrictEqual(
       'ethToTokenSwapInput(uint256,uint256)',
     );
@@ -1039,6 +1056,7 @@ describe('TransactionController', () => {
       resolve('');
     });
   });
+
   it('should limit tx state to a length of 2', async () => {
     await new Promise(async (resolve) => {
       globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);

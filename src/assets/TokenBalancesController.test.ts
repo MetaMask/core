@@ -132,6 +132,7 @@ describe('TokenBalancesController', () => {
     expect(Object.keys(tokenBalances.state.contractBalances)).toContain(
       address,
     );
+
     expect(
       tokenBalances.state.contractBalances[address].toNumber(),
     ).toBeGreaterThan(0);
@@ -173,6 +174,7 @@ describe('TokenBalancesController', () => {
     expect(Object.keys(tokenBalances.state.contractBalances)).toContain(
       address,
     );
+
     expect(
       tokenBalances.state.contractBalances[address].toNumber(),
     ).toBeGreaterThan(0);

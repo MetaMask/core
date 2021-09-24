@@ -83,6 +83,7 @@ describe('AssetsContractController', () => {
     const name = await assetsContract.getAssetName(GODSADDRESS);
     expect(name).toStrictEqual('Gods Unchained');
   });
+
   it('should get collectible symbol', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const symbol = await assetsContract.getAssetSymbol(GODSADDRESS);

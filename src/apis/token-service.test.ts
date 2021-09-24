@@ -150,6 +150,7 @@ describe('FetchtokenList', () => {
 
     expect(tokens).toStrictEqual(sampleTokenList);
   });
+
   it('should call the api to return the token metadata for eth address provided', async () => {
     const { signal } = new AbortController();
     nock(TOKEN_END_POINT_API)
