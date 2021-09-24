@@ -64,6 +64,7 @@ export class AccountTrackerController extends BaseController<
     newAddresses.forEach((address) => {
       accounts[address] = { balance: '0x0' };
     });
+
     oldAddresses.forEach((address) => {
       delete accounts[address];
     });

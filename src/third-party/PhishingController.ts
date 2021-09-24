@@ -160,6 +160,7 @@ export class PhishingController extends BaseController<
       case 403: {
         return null;
       }
+
       default: {
         throw new Error(
           `Fetch failed with status '${response.status}' for request '${input}'`,

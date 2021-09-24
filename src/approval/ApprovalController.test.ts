@@ -54,6 +54,7 @@ describe('approval controller', () => {
       expect(
         approvalController.has({ origin: 'bar.baz', type: TYPE }),
       ).toStrictEqual(true);
+
       expect(approvalController.state[STORE_KEY]).toStrictEqual({
         foo: {
           id: 'foo',
@@ -102,6 +103,7 @@ describe('approval controller', () => {
       expect(() =>
         approvalController.add({ id: 'foo1', origin: ORIGIN, type: 'myType1' }),
       ).not.toThrow();
+
       expect(() =>
         approvalController.add({ id: 'foo2', origin: ORIGIN, type: 'myType2' }),
       ).not.toThrow();
@@ -110,6 +112,7 @@ describe('approval controller', () => {
         approvalController.has({ id: 'foo1' }) &&
           approvalController.has({ id: 'foo2' }),
       ).toStrictEqual(true);
+
       expect(
         approvalController.has({ origin: ORIGIN }) &&
           approvalController.has({ origin: ORIGIN, type: 'myType1' }) &&
@@ -192,6 +195,7 @@ describe('approval controller', () => {
         messenger: getRestrictedMessenger(),
         showApprovalRequest: sinon.spy(),
       });
+
       addWithCatch = (args: any) =>
         approvalController.add(args).catch(() => undefined);
     });
@@ -204,12 +208,14 @@ describe('approval controller', () => {
       expect(
         approvalController.getApprovalCount({ origin: 'origin1', type: TYPE }),
       ).toStrictEqual(1);
+
       expect(
         approvalController.getApprovalCount({
           origin: 'origin1',
           type: 'type1',
         }),
       ).toStrictEqual(1);
+
       expect(
         approvalController.getApprovalCount({
           origin: 'origin1',
@@ -220,12 +226,14 @@ describe('approval controller', () => {
       expect(
         approvalController.getApprovalCount({ origin: 'origin2', type: TYPE }),
       ).toStrictEqual(0);
+
       expect(
         approvalController.getApprovalCount({
           origin: 'origin2',
           type: 'type1',
         }),
       ).toStrictEqual(1);
+
       expect(
         approvalController.getApprovalCount({
           origin: 'origin2',
@@ -236,12 +244,14 @@ describe('approval controller', () => {
       expect(
         approvalController.getApprovalCount({ origin: 'origin3', type: TYPE }),
       ).toStrictEqual(0);
+
       expect(
         approvalController.getApprovalCount({
           origin: 'origin3',
           type: 'type1',
         }),
       ).toStrictEqual(0);
+
       expect(
         approvalController.getApprovalCount({
           origin: 'origin3',
@@ -583,6 +593,7 @@ describe('approval controller', () => {
       approvalController
         .add({ id: 'foo2', origin: 'bar.baz', type: 'myType' })
         .catch((_error) => undefined);
+
       approvalController
         .add({ id: 'foo3', origin: 'fizz.buzz', type: 'myType' })
         .catch((_error) => undefined);

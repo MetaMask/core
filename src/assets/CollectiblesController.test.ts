@@ -116,6 +116,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
     });
+
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x01',
       description: 'description',
@@ -123,6 +124,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       tokenId: 1,
     });
+
     expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
       address: '0x01',
       description: 'Description',
@@ -139,6 +141,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
     });
+
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x01',
       description: 'description',
@@ -146,11 +149,13 @@ describe('CollectiblesController', () => {
       name: 'name',
       tokenId: 1,
     });
+
     await collectiblesController.addCollectible('0x01', 1, {
       name: 'name',
       image: 'image-updated',
       description: 'description',
     });
+
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x01',
       description: 'description',
@@ -166,6 +171,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
     });
+
     await collectiblesController.addCollectible('0x01', 1, {
       name: 'name',
       image: 'image',
@@ -181,6 +187,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
     });
+
     await collectiblesController.addCollectible('0x01', 2, {
       name: 'name',
       image: 'image',
@@ -209,6 +216,7 @@ describe('CollectiblesController', () => {
         'getCollectibleContractInformationFromApi' as any,
       )
       .returns(undefined);
+
     sandbox
       .stub(collectiblesController, 'getCollectibleInformationFromApi' as any)
       .returns(undefined);
@@ -219,6 +227,7 @@ describe('CollectiblesController', () => {
       name: 'Kudos Name',
       tokenId: 1203,
     });
+
     expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
       address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
       name: 'KudosToken',
@@ -252,6 +261,7 @@ describe('CollectiblesController', () => {
     sandbox
       .stub(collectiblesController, 'getCollectibleInformation' as any)
       .returns({ name: 'name', image: 'url', description: 'description' });
+
     network.update({
       provider: {
         type: firstNetworkType,
@@ -272,6 +282,7 @@ describe('CollectiblesController', () => {
         chainId: NetworksChainId[firstNetworkType],
       },
     });
+
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x01',
       description: 'description',
@@ -296,6 +307,7 @@ describe('CollectiblesController', () => {
       undefined,
       true,
     );
+
     expect(collectiblesController.state.collectibles).toStrictEqual([
       {
         address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
@@ -305,6 +317,7 @@ describe('CollectiblesController', () => {
         tokenId: 1203,
       },
     ]);
+
     expect(collectiblesController.state.collectibleContracts).toStrictEqual([
       {
         address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
@@ -334,6 +347,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
     });
+
     await collectiblesController.addCollectible('0x01', 2, {
       name: 'name',
       image: 'image',
@@ -395,6 +409,7 @@ describe('CollectiblesController', () => {
         chainId: NetworksChainId[firstNetworkType],
       },
     });
+
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x02',
       description: 'description',
@@ -421,6 +436,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
     });
+
     await collectiblesController.addCollectible('0x01', 2, {
       name: 'name',
       image: 'image',

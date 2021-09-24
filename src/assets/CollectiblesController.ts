@@ -255,9 +255,11 @@ export class CollectiblesController extends BaseController<
         tokenId,
       );
     });
+
     if (information) {
       return information;
     }
+
     // Then following ERC721 standard
     information = await safelyExecute(async () => {
       return await this.getCollectibleInformationFromTokenURI(
@@ -265,6 +267,7 @@ export class CollectiblesController extends BaseController<
         tokenId,
       );
     });
+
     /* istanbul ignore next */
     if (information) {
       return information;
@@ -336,15 +339,18 @@ export class CollectiblesController extends BaseController<
         contractAddress,
       );
     });
+
     if (information) {
       return information;
     }
+
     // Then following ERC721 standard
     information = await safelyExecute(async () => {
       return await this.getCollectibleContractInformationFromContract(
         contractAddress,
       );
     });
+
     if (information) {
       return information;
     }
@@ -683,6 +689,7 @@ export class CollectiblesController extends BaseController<
       selectedAddress: '',
       chainId: '',
     };
+
     this.defaultState = {
       allCollectibleContracts: {},
       allCollectibles: {},
@@ -704,6 +711,7 @@ export class CollectiblesController extends BaseController<
         collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
       });
     });
+
     onNetworkStateChange(({ provider }) => {
       const { allCollectibleContracts, allCollectibles } = this.state;
       const { selectedAddress } = this.config;

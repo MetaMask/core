@@ -20,6 +20,7 @@ describe('TokensController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
     });
+
     sinon
       .stub(tokensController, '_instantiateNewEthersProvider')
       .callsFake(() => null);
@@ -71,10 +72,12 @@ describe('TokensController', () => {
       .callsFake(() =>
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
       );
+
     await tokensController.addTokens([
       { address: '0x01', symbol: 'barA', decimals: 2 },
       { address: '0x02', symbol: 'barB', decimals: 2 },
     ]);
+
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
       decimals: 2,
@@ -82,6 +85,7 @@ describe('TokensController', () => {
       symbol: 'barA',
       isERC721: false,
     });
+
     expect(tokensController.state.tokens[1]).toStrictEqual({
       address: '0x02',
       decimals: 2,
@@ -89,10 +93,12 @@ describe('TokensController', () => {
       symbol: 'barB',
       isERC721: false,
     });
+
     await tokensController.addTokens([
       { address: '0x01', symbol: 'bazA', decimals: 2 },
       { address: '0x02', symbol: 'bazB', decimals: 2 },
     ]);
+
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
       decimals: 2,
@@ -100,6 +106,7 @@ describe('TokensController', () => {
       symbol: 'bazA',
       isERC721: false,
     });
+
     expect(tokensController.state.tokens[1]).toStrictEqual({
       address: '0x02',
       decimals: 2,
@@ -163,6 +170,7 @@ describe('TokensController', () => {
         chainId: NetworksChainId[firstNetworkType],
       },
     });
+
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
       decimals: 2,
@@ -240,6 +248,7 @@ describe('TokensController', () => {
         chainId: NetworksChainId[firstNetworkType],
       },
     });
+
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x02',
       decimals: 2,

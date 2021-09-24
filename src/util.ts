@@ -88,6 +88,7 @@ export function gweiDecToWEIBN(n: number | string) {
   if (!decimalPart) {
     return toWei(wholePart, 'gwei');
   }
+
   if (decimalPart.length <= 9) {
     return toWei(`${wholePart}.${decimalPart}`, 'gwei');
   }
@@ -391,6 +392,7 @@ export function validateTransaction(transaction: Transaction) {
       `Invalid "from" address: ${transaction.from} must be a valid string.`,
     );
   }
+
   if (transaction.to === '0x' || transaction.to === undefined) {
     if (transaction.data) {
       delete transaction.to;
@@ -407,11 +409,13 @@ export function validateTransaction(transaction: Transaction) {
       `Invalid "to" address: ${transaction.to} must be a valid string.`,
     );
   }
+
   if (transaction.value !== undefined) {
     const value = transaction.value.toString();
     if (value.includes('-')) {
       throw new Error(`Invalid "value": ${value} is not a positive number.`);
     }
+
     if (value.includes('.')) {
       throw new Error(
         `Invalid "value": ${value} number must be denominated in wei.`,
@@ -464,6 +468,7 @@ export function validateSignMessageData(
   if (!from || typeof from !== 'string' || !isValidHexAddress(from)) {
     throw new Error(`Invalid "from" address: ${from} must be a valid string.`);
   }
+
   if (!data || typeof data !== 'string') {
     throw new Error(`Invalid message "data": ${data} must be a valid string.`);
   }
@@ -488,11 +493,13 @@ export function validateTypedSignMessageDataV1(
       `Invalid "from" address: ${messageData.from} must be a valid string.`,
     );
   }
+
   if (!messageData.data || !Array.isArray(messageData.data)) {
     throw new Error(
       `Invalid message "data": ${messageData.data} must be a valid array.`,
     );
   }
+
   try {
     // typedSignatureHash will throw if the data is invalid.
     typedSignatureHash(messageData.data as any);
@@ -519,6 +526,7 @@ export function validateTypedSignMessageDataV3(
       `Invalid "from" address: ${messageData.from} must be a valid string.`,
     );
   }
+
   if (!messageData.data || typeof messageData.data !== 'string') {
     throw new Error(
       `Invalid message "data": ${messageData.data} must be a valid array.`,
@@ -550,9 +558,11 @@ export function validateTokenToWatch(token: Token) {
       `Must specify address, symbol, and decimals.`,
     );
   }
+
   if (typeof symbol !== 'string') {
     throw ethErrors.rpc.invalidParams(`Invalid symbol: not a string.`);
   }
+
   if (symbol.length > 11) {
     throw ethErrors.rpc.invalidParams(
       `Invalid symbol "${symbol}": longer than 11 characters.`,
@@ -564,6 +574,7 @@ export function validateTokenToWatch(token: Token) {
       `Invalid decimals "${decimals}": must be 0 <= 36.`,
     );
   }
+
   if (!isValidHexAddress(address)) {
     throw ethErrors.rpc.invalidParams(`Invalid address "${address}".`);
   }

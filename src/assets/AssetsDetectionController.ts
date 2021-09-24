@@ -260,6 +260,7 @@ export class AssetsDetectionController extends BaseController<
     onTokensStateChange(({ tokens }) => {
       this.configure({ tokens });
     });
+
     onPreferencesStateChange(({ selectedAddress }) => {
       const actualSelectedAddress = this.config.selectedAddress;
       if (selectedAddress !== actualSelectedAddress) {
@@ -267,6 +268,7 @@ export class AssetsDetectionController extends BaseController<
         this.detectAssets();
       }
     });
+
     onNetworkStateChange(({ provider }) => {
       this.configure({ networkType: provider.type });
     });
@@ -349,6 +351,7 @@ export class AssetsDetectionController extends BaseController<
       if (tokensSlice.length === 0) {
         break;
       }
+
       await safelyExecute(async () => {
         const balances = await this.getBalancesInSingleCall(
           selectedAddress,
@@ -401,6 +404,7 @@ export class AssetsDetectionController extends BaseController<
     if (!requestedSelectedAddress) {
       return;
     }
+
     await safelyExecute(async () => {
       const apiCollectibles = await this.getOwnerCollectibles();
       const addCollectiblesPromises = apiCollectibles.map(
@@ -435,6 +439,7 @@ export class AssetsDetectionController extends BaseController<
               );
             });
           }
+
           /* istanbul ignore else */
           if (
             !ignored &&

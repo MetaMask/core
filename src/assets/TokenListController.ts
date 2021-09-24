@@ -160,6 +160,7 @@ export class TokenListController extends BaseController<
         await this.restart();
       }
     });
+
     onPreferencesStateChange(async (preferencesState) => {
       if (this.useStaticTokenList !== preferencesState.useStaticTokenList) {
         this.abortController.abort();
@@ -247,6 +248,7 @@ export class TokenListController extends BaseController<
         };
       }
     }
+
     this.update(() => {
       return {
         tokenList,
@@ -281,6 +283,7 @@ export class TokenListController extends BaseController<
           for (const token of backupTokenList) {
             tokenList[token.address] = token;
           }
+
           this.update(() => {
             return {
               ...tokensData,

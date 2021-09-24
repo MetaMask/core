@@ -81,6 +81,7 @@ describe('util', () => {
     expect(util.getBuyURL(undefined, 'foo', 1337)).toBe(
       'https://buy.coinbase.com/?code=9ec56d01-7e81-5017-930c-513daa27bb6a&amount=1337&address=foo&crypto_currency=ETH',
     );
+
     expect(util.getBuyURL('1', 'foo', 1337)).toBe(
       'https://buy.coinbase.com/?code=9ec56d01-7e81-5017-930c-513daa27bb6a&amount=1337&address=foo&crypto_currency=ETH',
     );
@@ -333,6 +334,7 @@ describe('util', () => {
       const url = util.getEtherscanApiUrl(networkType, { address, action });
       expect(url.indexOf(`&action=${action}`)).toBeGreaterThan(0);
     });
+
     it('should return a correctly structured url with from block', () => {
       const fromBlock = 'xxxxxx';
       const url = util.getEtherscanApiUrl(networkType, {
@@ -342,11 +344,13 @@ describe('util', () => {
       });
       expect(url.indexOf(`&startBlock=${fromBlock}`)).toBeGreaterThan(0);
     });
+
     it('should return a correctly structured url with testnet subdomain', () => {
       const ropsten = 'ropsten';
       const url = util.getEtherscanApiUrl(ropsten, { address, action });
       expect(url.indexOf(`https://api-${ropsten}`)).toBe(0);
     });
+
     it('should return a correctly structured url with apiKey', () => {
       const apiKey = 'xxxxxx';
       const url = util.getEtherscanApiUrl(networkType, {
@@ -364,6 +368,7 @@ describe('util', () => {
     it('should return address for valid address', () => {
       expect(util.toChecksumHexAddress(fullAddress)).toBe(fullAddress);
     });
+
     it('should return address for non prefix address', () => {
       expect(util.toChecksumHexAddress(VALID)).toBe(fullAddress);
     });
@@ -373,9 +378,11 @@ describe('util', () => {
     it('should return true for valid address', () => {
       expect(util.isValidHexAddress(VALID)).toBe(true);
     });
+
     it('should return false for invalid address', () => {
       expect(util.isValidHexAddress('0x00')).toBe(false);
     });
+
     it('should allow allowNonPrefixed to be false', () => {
       expect(util.isValidHexAddress('0x00', { allowNonPrefixed: false })).toBe(
         false,
@@ -409,6 +416,7 @@ describe('util', () => {
           to: '0x',
         } as any),
       ).toThrow('Invalid "to" address: 0x must be a valid string.');
+
       expect(() =>
         util.validateTransaction({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
@@ -443,6 +451,7 @@ describe('util', () => {
           value: '133-7',
         } as any),
       ).toThrow('Invalid "value": 133-7 is not a positive number.');
+
       expect(() =>
         util.validateTransaction({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
@@ -450,6 +459,7 @@ describe('util', () => {
           value: '133.7',
         } as any),
       ).toThrow('Invalid "value": 133.7 number must be denominated in wei.');
+
       expect(() =>
         util.validateTransaction({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
@@ -457,6 +467,7 @@ describe('util', () => {
           value: 'hello',
         } as any),
       ).toThrow('Invalid "value": hello number must be a valid number.');
+
       expect(() =>
         util.validateTransaction({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
@@ -466,6 +477,7 @@ describe('util', () => {
       ).toThrow(
         'Invalid "value": one million dollar$ number must be a valid number.',
       );
+
       expect(() =>
         util.validateTransaction({
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
@@ -686,6 +698,7 @@ describe('util', () => {
           symbol: 'TKN',
         } as any),
       ).toThrow('Must specify address, symbol, and decimals.');
+
       expect(() =>
         util.validateTokenToWatch({
           address: '0x1',
@@ -693,6 +706,7 @@ describe('util', () => {
           symbol: undefined,
         } as any),
       ).toThrow('Must specify address, symbol, and decimals.');
+
       expect(() =>
         util.validateTokenToWatch({
           address: '0x1',
@@ -760,6 +774,7 @@ describe('util', () => {
           symbol: 'TKN',
         } as any),
       ).not.toThrow();
+
       expect(() =>
         util.validateTokenToWatch({
           address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
@@ -767,6 +782,7 @@ describe('util', () => {
           symbol: 'TKN',
         } as any),
       ).toThrow('Invalid decimals "38": must be 0 <= 36.');
+
       expect(() =>
         util.validateTokenToWatch({
           address: '0xe9f786dfdd9be4d57e830acb52296837765f0e5b',
@@ -806,6 +822,7 @@ describe('util', () => {
       } catch (e) {
         error = e;
       }
+
       expect(error.message).toBe(
         `Fetch failed with status '500' for request '${SOME_FAILING_API}'`,
       );
@@ -935,6 +952,7 @@ describe('util', () => {
         1358778842,
       );
     });
+
     it('should return zero when undefined', () => {
       expect(util.convertPriceToDecimal(undefined)).toStrictEqual(0);
     });
@@ -979,6 +997,7 @@ describe('util', () => {
         `expected hex string for ${GAS_PRICE} but received: ${FAIL}`,
       );
     });
+
     it('should throw when any provided gas values are invalid', () => {
       const gasValues: FeeMarketEIP1559Values = {
         [MAX_PRIORITY_FEE_PER_GAS]: PASS,
@@ -989,6 +1008,7 @@ describe('util', () => {
         `expected hex string for ${MAX_FEE_PER_GAS} but received: ${FAIL}`,
       );
     });
+
     it('should return true when provided valid gas values', () => {
       const gasValues: FeeMarketEIP1559Values = {
         [MAX_FEE_PER_GAS]: PASS,
@@ -1024,17 +1044,20 @@ describe('util', () => {
       expect(() =>
         util.validateMinimumIncrease('0x50fd51da', '0x5916a6d6'),
       ).toThrow(Error);
+
       expect(() =>
         util.validateMinimumIncrease('0x50fd51da', '0x5916a6d6'),
       ).toThrow(
         'The proposed value: 1358778842 should meet or exceed the minimum value: 1494656726',
       );
     });
+
     it('should not throw if increase meets minimum requirement', () => {
       expect(() =>
         util.validateMinimumIncrease('0x5916a6d6', '0x5916a6d6'),
       ).not.toThrow(Error);
     });
+
     it('should not throw if increase exceeds minimum requirement', () => {
       expect(() =>
         util.validateMinimumIncrease('0x7162a5ca', '0x5916a6d6'),

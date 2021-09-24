@@ -364,6 +364,7 @@ describe('TokenRatesController', () => {
       expectedExchangeRates,
     );
   });
+
   it('should clear contractExchangeRates state when network is changed', async () => {
     nock(COINGECKO_API)
       .get(`${COINGECKO_ETH_PATH}`)

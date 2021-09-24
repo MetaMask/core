@@ -50,6 +50,7 @@ describe('ControllerMessenger', () => {
         message = initialMessage;
       },
     );
+
     controllerMessenger.registerActionHandler('concat', (s: string) => {
       message += s;
     });
@@ -292,6 +293,7 @@ describe('ControllerMessenger', () => {
     expect(
       selector.getCall(0).calledWithExactly({ prop1: 'a', prop2: 'b' }),
     ).toStrictEqual(true);
+
     expect(
       selector.getCall(1).calledWithExactly({ prop1: 'z', prop2: 'b' }),
     ).toStrictEqual(true);
@@ -316,6 +318,7 @@ describe('ControllerMessenger', () => {
     expect(
       selector.getCall(0).calledWithExactly({ prop1: 'a', prop2: 'b' }),
     ).toStrictEqual(true);
+
     expect(
       selector.getCall(1).calledWithExactly({ prop1: 'a', prop3: 'c' }),
     ).toStrictEqual(true);
@@ -344,12 +347,15 @@ describe('ControllerMessenger', () => {
     expect(
       selector.getCall(0).calledWithExactly({ prop1: 'a', prop2: 'b' }),
     ).toStrictEqual(true);
+
     expect(
       selector.getCall(1).calledWithExactly({ prop1: 'a', prop2: 'b' }),
     ).toStrictEqual(true);
+
     expect(
       selector.getCall(2).calledWithExactly({ prop1: 'a', prop3: 'c' }),
     ).toStrictEqual(true);
+
     expect(
       selector.getCall(3).calledWithExactly({ prop1: 'a', prop3: 'c' }),
     ).toStrictEqual(true);
@@ -486,6 +492,7 @@ describe('RestrictedControllerMessenger', () => {
         message = initialMessage;
       },
     );
+
     restrictedControllerMessenger.registerActionHandler(
       'MessageController:concat',
       (s: string) => {
@@ -543,6 +550,7 @@ describe('RestrictedControllerMessenger', () => {
         messages[to] = message;
       },
     );
+
     restrictedControllerMessenger.call(
       'MessageController:message',
       '0x123',
@@ -682,6 +690,7 @@ describe('RestrictedControllerMessenger', () => {
       handler,
       selector,
     );
+
     restrictedControllerMessenger.publish('MessageController:complexMessage', {
       prop1: 'a',
       prop2: 'b',
@@ -711,6 +720,7 @@ describe('RestrictedControllerMessenger', () => {
       'MessageController:message',
       messageHandler,
     );
+
     restrictedControllerMessenger.subscribe(
       'MessageController:ping',
       pingHandler,
@@ -757,6 +767,7 @@ describe('RestrictedControllerMessenger', () => {
       'MessageController:message',
       handler,
     );
+
     restrictedControllerMessenger.publish(
       'MessageController:message',
       'hello',
@@ -783,6 +794,7 @@ describe('RestrictedControllerMessenger', () => {
       'MessageController:message',
       handler,
     );
+
     restrictedControllerMessenger.subscribe(
       'MessageController:message',
       handler,
@@ -810,6 +822,7 @@ describe('RestrictedControllerMessenger', () => {
       'MessageController:message',
       handler1,
     );
+
     restrictedControllerMessenger.subscribe(
       'MessageController:message',
       handler2,
@@ -838,6 +851,7 @@ describe('RestrictedControllerMessenger', () => {
       'MessageController:message',
       handler,
     );
+
     restrictedControllerMessenger.unsubscribe(
       'MessageController:message',
       handler,
@@ -909,6 +923,7 @@ describe('RestrictedControllerMessenger', () => {
       'MessageController:message',
       handler,
     );
+
     restrictedControllerMessenger.clearEventSubscriptions(
       'MessageController:message',
     );
@@ -984,6 +999,7 @@ describe('RestrictedControllerMessenger', () => {
       'MessageController:message',
       handler,
     );
+
     externalRestrictedControllerMessenger.publish(
       'MessageController:message',
       'hello',
@@ -1032,6 +1048,7 @@ describe('RestrictedControllerMessenger', () => {
         fullMessage += message;
       },
     );
+
     messageControllerMessenger.registerActionHandler(
       'MessageController:reset',
       (message: string) => {
