@@ -347,7 +347,7 @@ export class GasFeeController extends BaseController<
    */
   async _fetchGasFeeEstimateData(
     options: FetchGasFeeEstimateOptions = {},
-  ): Promise<GasFeeState | undefined> {
+  ): Promise<GasFeeState> {
     const { shouldUpdateState = true } = options;
     let isEIP1559Compatible;
     const isLegacyGasAPICompatible = this.getCurrentNetworkLegacyGasAPICompatibility();
