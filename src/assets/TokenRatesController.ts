@@ -194,6 +194,7 @@ export class TokenRatesController extends BaseController<
       tokens: [],
       threshold: 6 * 60 * 60 * 1000,
     };
+
     this.defaultState = {
       contractExchangeRates: {},
     };
@@ -202,9 +203,11 @@ export class TokenRatesController extends BaseController<
     onTokensStateChange((tokensState) => {
       this.configure({ tokens: tokensState.tokens });
     });
+
     onCurrencyRateStateChange((currencyRateState) => {
       this.configure({ nativeCurrency: currencyRateState.nativeCurrency });
     });
+
     onNetworkStateChange(({ provider }) => {
       const { chainId } = provider;
       this.update({ contractExchangeRates: {} });
@@ -404,6 +407,7 @@ export class TokenRatesController extends BaseController<
         }
         throw error;
       }
+
       for (const [tokenAddress, conversion] of Object.entries(
         tokenExchangeRates,
       )) {

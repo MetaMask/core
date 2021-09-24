@@ -174,6 +174,7 @@ export class KeyringController extends BaseController<
     privates.set(this, {
       keyring: new Keyring(Object.assign({ initState: state }, config)),
     });
+
     this.defaultState = {
       ...privates.get(this).keyring.store.getState(),
       keyrings: [],

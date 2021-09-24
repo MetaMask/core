@@ -208,6 +208,7 @@ describe('KeyringController', () => {
     } catch (e) {
       error = e;
     }
+
     expect(error.message).toBe(
       'Key derivation failed - possibly wrong passphrase',
     );

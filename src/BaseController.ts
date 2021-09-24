@@ -141,6 +141,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
     if (this.disabled) {
       return;
     }
+
     this.internalListeners.forEach((listener) => {
       listener(this.internalState);
     });

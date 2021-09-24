@@ -54,6 +54,7 @@ export async function fetchExchangeRate(
       }`,
     );
   }
+
   if (includeUSDRate && !Number.isFinite(usdConversionRate)) {
     throw new Error(`Invalid response for usdConversionRate: ${json.USD}`);
   }

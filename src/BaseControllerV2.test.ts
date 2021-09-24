@@ -664,6 +664,7 @@ describe('getPersistentState', () => {
           name: visitorName,
           state: { visitors: [] },
         });
+
         messagingSystem.registerActionHandler(
           'VisitorController:clear',
           this.clear,
@@ -728,10 +729,12 @@ describe('getPersistentState', () => {
           name: visitorOverflowName,
           state: { maxVisitors: 5 },
         });
+
         messagingSystem.registerActionHandler(
           'VisitorOverflowController:updateMax',
           this.updateMax,
         );
+
         messagingSystem.subscribe(
           'VisitorController:stateChange',
           this.onVisit,

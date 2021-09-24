@@ -122,6 +122,7 @@ describe('AssetsDetectionController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
     });
+
     collectiblesController = new CollectiblesController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
@@ -131,6 +132,7 @@ describe('AssetsDetectionController', () => {
         assetsContract,
       ),
     });
+
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${NetworksChainId.mainnet}`)
       .reply(200, sampleTokenList)
@@ -267,6 +269,7 @@ describe('AssetsDetectionController', () => {
       .reply(200, {
         assets: [],
       });
+
     stub(tokensController, '_detectIsERC721').callsFake(() =>
       Promise.resolve(false),
     );
@@ -510,6 +513,7 @@ describe('AssetsDetectionController', () => {
     expect(collectiblesController.state.collectibles).toStrictEqual([
       collectibleHH2574,
     ]);
+
     expect(collectiblesController.state.collectibleContracts).toStrictEqual([
       collectibleContractHH,
     ]);
@@ -580,6 +584,7 @@ describe('AssetsDetectionController', () => {
       collectibleContractII,
       collectibleContractGG,
     ]);
+
     expect(collectiblesController.state.collectibles).toStrictEqual([
       collectibleHH2574,
       collectibleII2577,
@@ -619,6 +624,7 @@ describe('AssetsDetectionController', () => {
         isERC721: false,
       },
     ]);
+
     getBalancesInSingleCall.resolves({
       '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
@@ -659,11 +665,13 @@ describe('AssetsDetectionController', () => {
       'BAR',
       5,
     );
+
     await tokensController.addToken(
       '0x588047365df5ba589f923604aac23d673555c623',
       'FOO',
       6,
     );
+
     await tokensController.removeAndIgnoreToken(
       '0x59Ec8e68D9cAa87f6B5BC4013172c20E85ccdaD0',
     );
@@ -701,11 +709,13 @@ describe('AssetsDetectionController', () => {
       'LINK',
       18,
     );
+
     await tokensController.addToken(
       '0x588047365df5ba589f923604aac23d673555c623',
       'FOO',
       6,
     );
+
     await tokensController.removeAndIgnoreToken(
       '0x514910771AF9Ca656af840dff83E8264EcF986CA',
     );
@@ -739,6 +749,7 @@ describe('AssetsDetectionController', () => {
         .getCall(0)
         .calledWithExactly('0x1', tokensToDetect),
     ).toBe(true);
+
     getBalancesInSingleCall.resolves({
       '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
