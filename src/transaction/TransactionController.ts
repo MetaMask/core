@@ -139,8 +139,8 @@ export enum WalletDevice {
  *
  * TransactionMetaBase representation
  *
- * @property isTransfer -
- * @property transferInformation
+ * @property isTransfer - Value indicating if the transaction is a transfer
+ * @property transferInformation - Transfer information
  * @property id - Transaction ID
  * @property networkID - Current network ID
  * @property chainId - Current chain ID
@@ -173,8 +173,8 @@ type TransactionMetaBase = {
   transactionHash?: string;
   blockNumber?: string;
   deviceConfirmedOn?: WalletDevice;
-  verifiedOnBlockchain: boolean;
-  pollingAttempts: number;
+  verifiedOnBlockchain?: boolean;
+  pollingAttempts?: number;
 };
 
 /**
@@ -1335,7 +1335,7 @@ export class TransactionController extends BaseController<
           transactionHash,
         ]);
 
-        if (!txObj) {
+        if (!txObj && meta.pollingAttempts) {
           meta.pollingAttempts += 1;
           return [meta, true];
         }
