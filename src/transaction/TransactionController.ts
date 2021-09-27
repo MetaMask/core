@@ -173,7 +173,8 @@ type TransactionMetaBase = {
   transactionHash?: string;
   blockNumber?: string;
   deviceConfirmedOn?: WalletDevice;
-  verifiedOnBlockchain?: boolean;
+  verifiedOnBlockchain: boolean;
+  pollingAttempts: number;
 };
 
 /**
@@ -362,6 +363,7 @@ export class TransactionController extends BaseController<
       },
       transactionHash: txMeta.hash,
       verifiedOnBlockchain: false,
+      pollingAttempts: 0,
     };
 
     /* istanbul ignore else */
@@ -421,6 +423,7 @@ export class TransactionController extends BaseController<
         symbol: tokenSymbol,
       },
       verifiedOnBlockchain: false,
+      pollingAttempts: 0,
     };
   };
 
@@ -558,6 +561,7 @@ export class TransactionController extends BaseController<
       transaction,
       deviceConfirmedOn,
       verifiedOnBlockchain: false,
+      pollingAttempts: 0,
     };
 
     try {
@@ -1292,7 +1296,8 @@ export class TransactionController extends BaseController<
   private async blockchainTransactionStateReconciler(
     meta: TransactionMeta,
   ): Promise<[TransactionMeta, boolean]> {
-    const { status, transactionHash } = meta;
+    const { status, transactionHash, pollingAttempts } = meta;
+    const maxPollingAttempts = 3;
     switch (status) {
       case TransactionStatus.confirmed:
         const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
@@ -1318,23 +1323,21 @@ export class TransactionController extends BaseController<
 
         return [meta, true];
       case TransactionStatus.submitted:
+        if (pollingAttempts === maxPollingAttempts) {
+          const error: Error = new Error(
+            'Transaction failed. The transaction was dropped or replaced by a new one',
+          );
+          this.failTransaction(meta, error);
+          return [meta, false];
+        }
+
         const txObj = await query(this.ethQuery, 'getTransactionByHash', [
           transactionHash,
         ]);
 
         if (!txObj) {
-          const receiptShowsFailedStatus = await this.checkTxReceiptStatusIsFailed(
-            transactionHash,
-          );
-
-          // Case the txObj is evaluated as false, a second check will
-          // determine if the tx failed or it is pending or confirmed
-          if (receiptShowsFailedStatus) {
-            const error: Error = new Error(
-              'Transaction failed. The transaction was dropped or replaced by a new one',
-            );
-            this.failTransaction(meta, error);
-          }
+          meta.pollingAttempts += 1;
+          return [meta, true];
         }
 
         /* istanbul ignore next */
@@ -1348,27 +1351,6 @@ export class TransactionController extends BaseController<
       default:
         return [meta, false];
     }
-  }
-
-  /**
-   * Method to check if a tx has failed according to their receipt
-   * According to the Web3 docs:
-   * TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.
-   * The receipt is not available for pending transactions and returns null.
-   * @param txHash Transaction hash
-   * @returns Promise<boolean> indicating if the transaction have failed
-   */
-  private async checkTxReceiptStatusIsFailed(
-    txHash: string | undefined,
-  ): Promise<boolean> {
-    const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
-      txHash,
-    ]);
-    if (!txReceipt) {
-      // Transaction is pending
-      return false;
-    }
-    return Number(txReceipt.status) === 0;
   }
 
   /**
