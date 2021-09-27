@@ -158,7 +158,7 @@ export class RestrictedControllerMessenger<
         `Only allowed registering action handlers prefixed by '${this.controllerName}:'`,
       );
     }
-    return this.controllerMessenger.registerActionHandler(action, handler);
+    this.controllerMessenger.registerActionHandler(action, handler);
   }
 
   /**
@@ -178,7 +178,7 @@ export class RestrictedControllerMessenger<
         `Only allowed unregistering action handlers prefixed by '${this.controllerName}:'`,
       );
     }
-    return this.controllerMessenger.unregisterActionHandler(action);
+    this.controllerMessenger.unregisterActionHandler(action);
   }
 
   /**
@@ -230,7 +230,7 @@ export class RestrictedControllerMessenger<
         `Only allowed publishing events prefixed by '${this.controllerName}:'`,
       );
     }
-    return this.controllerMessenger.publish(event, ...payload);
+    this.controllerMessenger.publish(event, ...payload);
   }
 
   /**
@@ -315,7 +315,7 @@ export class RestrictedControllerMessenger<
     } else if (!this.allowedEvents.includes(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
-    return this.controllerMessenger.unsubscribe(event, handler);
+    this.controllerMessenger.unsubscribe(event, handler);
   }
 
   /**
@@ -335,7 +335,7 @@ export class RestrictedControllerMessenger<
         `Only allowed clearing events prefixed by '${this.controllerName}:'`,
       );
     }
-    return this.controllerMessenger.clearEventSubscriptions(event);
+    this.controllerMessenger.clearEventSubscriptions(event);
   }
 }
 
