@@ -85,10 +85,25 @@ export interface Transaction {
   estimatedBaseFee?: string;
 }
 
+/**
+ * @type GasPriceValue
+ *
+ * GasPriceValue representation
+ *
+ * @property gasPrice - Value of the gas price
+ */
 export interface GasPriceValue {
   gasPrice: string;
 }
 
+/**
+ * @type FeeMarketEIP1559Values
+ *
+ * FeeMarketEIP1559Values representation
+ *
+ * @property maxFeePerGas - Value of the gas price
+ * @property maxPriorityFeePerGas - Part of the fee that goes to the miner
+ */
 export interface FeeMarketEIP1559Values {
   maxFeePerGas: string;
   maxPriorityFeePerGas: string;
@@ -119,6 +134,27 @@ export enum WalletDevice {
   OTHER = 'other_device',
 }
 
+/**
+ * @type TransactionMetaBase
+ *
+ * TransactionMetaBase representation
+ *
+ * @property isTransfer -
+ * @property transferInformation
+ * @property id - Transaction ID
+ * @property networkID - Current network ID
+ * @property chainId - Current chain ID
+ * @property origin - Transaction origin
+ * @property rawTransaction - Transaction encoded data
+ * @property time - Transaction timestamp
+ * @property toSmartContract - Value indicating if the transaction is directed to a smart contract
+ * @property transaction - Transaction data
+ * @property transactionHash - Transaction hash
+ * @property blockNumber - Transaction block number
+ * @property deviceConfirmedOn - Device in which the confirmed transaction was detected
+ * @property verifiedOnBlockchain - Value indicating if the transaction data was verified against th blockchain
+ * @property pollingAttempts - Value indicating the number of polling attempts to Infura
+ */
 type TransactionMetaBase = {
   isTransfer?: boolean;
   transferInformation?: {
