@@ -782,7 +782,72 @@ describe('TransactionController', () => {
     expect(controller.state.transactions[0].verifiedOnBlockchain).toBe(true);
     expect(controller.state.transactions[0].transaction.gasUsed).toBe('0x5208');
   });
-
+  it('should increase the polling attempt if the query result is null', async () => {
+    const controller = new TransactionController(
+      {
+        getNetworkState: () => MOCK_NETWORK.state,
+        onNetworkStateChange: MOCK_NETWORK.subscribe,
+        getProvider: MOCK_NETWORK.getProvider,
+      },
+      {
+        sign: async (transaction: any) => transaction,
+      },
+    );
+    controller.state.transactions.push({
+      from: MOCK_PRFERENCES.state.selectedAddress,
+      id: 'foo',
+      networkID: '3',
+      chainId: '3',
+      status: TransactionStatus.submitted,
+      transactionHash: '1330',
+      verifiedOnBlockchain: false,
+      transaction: {
+        gasUsed: undefined,
+      },
+      pollingAttempts: 0,
+    } as any);
+    await controller.queryTransactionStatuses();
+    expect(controller.state.transactions[0].pollingAttempts).toBe(1);
+  });
+  it('should set the tranasction status to failed if the polling attempt limit is reached', async () => {
+    await new Promise((resolve) => {
+      const controller = new TransactionController(
+        {
+          getNetworkState: () => MOCK_NETWORK.state,
+          onNetworkStateChange: MOCK_NETWORK.subscribe,
+          getProvider: MOCK_NETWORK.getProvider,
+        },
+        {
+          sign: async (transaction: any) => transaction,
+        },
+      );
+      controller.state.transactions.push({
+        from: MOCK_PRFERENCES.state.selectedAddress,
+        id: 'foo',
+        networkID: '3',
+        chainId: '3',
+        status: TransactionStatus.submitted,
+        transactionHash: '1330',
+        verifiedOnBlockchain: false,
+        transaction: {
+          gasUsed: undefined,
+          from: '0x0000000000000000000000000000000000000000',
+          to: '0x0000000000000000000000000000000000000001',
+        },
+        pollingAttempts: 3,
+      } as any);
+      controller.hub.once(
+        `${controller.state.transactions[0].id}:finished`,
+        () => {
+          expect(controller.state.transactions[0].status).toBe(
+            TransactionStatus.failed,
+          );
+          resolve('');
+        },
+      );
+      controller.queryTransactionStatuses();
+    });
+  });
   it('should fetch all the transactions from an address, including incoming transactions, in ropsten', async () => {
     globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
