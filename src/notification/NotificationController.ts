@@ -54,10 +54,10 @@ export class NotificationController extends BaseController<
   NotificationState
 > {
   /**
-   * Creates a NotificationController instance
+   * Creates a NotificationController instance.
    *
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
    */
   constructor(config: NotificationConfig, state?: NotificationState) {
     super(config, state || defaultState);
@@ -70,8 +70,6 @@ export class NotificationController extends BaseController<
    * to check if there are any new notifications/announcements
    * if yes, the new notification will be added to the state with a flag indicating
    * that the notification is not seen by the user.
-   *
-   *  @param allNotifications
    */
   private _addNotifications(): void {
     const newNotifications: StateNotificationMap = {};
@@ -95,7 +93,7 @@ export class NotificationController extends BaseController<
    * Updates the status of the status of the specified notifications
    * once it is read by the user.
    *
-   * @param viewedIds
+   * @param viewedIds - The notification IDs to mark as viewed.
    */
   updateViewed(viewedIds: viewedNotification): void {
     const stateNotifications = this.state.notifications;

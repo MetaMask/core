@@ -14,7 +14,6 @@ const SINGLE_CALL_BALANCES_ADDRESS =
  * @type AssetsContractConfig
  *
  * Assets Contract controller configuration
- *
  * @property provider - Provider used to create a new web3 instance
  */
 export interface AssetsContractConfig extends BaseConfig {
@@ -25,7 +24,6 @@ export interface AssetsContractConfig extends BaseConfig {
  * @type BalanceMap
  *
  * Key value object containing the balance for each tokenAddress
- *
  * @property [tokenAddress] - Address of the token
  */
 export interface BalanceMap {
@@ -42,12 +40,11 @@ export class AssetsContractController extends BaseController<
   private web3: any;
 
   /**
+   * Query if a contract implements an interface.
    *
-   * Query if a contract implements an interface
-   *
-   * @param address - Asset contract address
-   * @param interfaceId - Interface identifier
-   * @returns - Promise resolving to whether the contract implements `interfaceID`
+   * @param address - Asset contract address.
+   * @param interfaceId - Interface identifier.
+   * @returns Promise resolving to whether the contract implements `interfaceID`.
    */
   private async contractSupportsInterface(
     address: string,
@@ -75,10 +72,10 @@ export class AssetsContractController extends BaseController<
   name = 'AssetsContractController';
 
   /**
-   * Creates a AssetsContractController instance
+   * Creates a AssetsContractController instance.
    *
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
    */
   constructor(
     config?: Partial<AssetsContractConfig>,
@@ -92,9 +89,9 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Sets a new provider
+   * Sets a new provider.
    *
-   * TODO: Replace this wth a method
+   * TODO: Replace this wth a method.
    *
    * @property provider - Provider used to create a new underlying Web3 instance
    */
@@ -107,20 +104,20 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Query if contract implements ERC721Metadata interface
+   * Query if contract implements ERC721Metadata interface.
    *
-   * @param address - ERC721 asset contract address
-   * @returns - Promise resolving to whether the contract implements ERC721Metadata interface
+   * @param address - ERC721 asset contract address.
+   * @returns Promise resolving to whether the contract implements ERC721Metadata interface.
    */
   async contractSupportsMetadataInterface(address: string): Promise<boolean> {
     return this.contractSupportsInterface(address, ERC721METADATA_INTERFACE_ID);
   }
 
   /**
-   * Query if contract implements ERC721Enumerable interface
+   * Query if contract implements ERC721Enumerable interface.
    *
-   * @param address - ERC721 asset contract address
-   * @returns - Promise resolving to whether the contract implements ERC721Enumerable interface
+   * @param address - ERC721 asset contract address.
+   * @returns Promise resolving to whether the contract implements ERC721Enumerable interface.
    */
   async contractSupportsEnumerableInterface(address: string): Promise<boolean> {
     return this.contractSupportsInterface(
@@ -130,11 +127,11 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Get balance or count for current account on specific asset contract
+   * Get balance or count for current account on specific asset contract.
    *
-   * @param address - Asset contract address
-   * @param selectedAddress - Current account public address
-   * @returns - Promise resolving to BN object containing balance for current account on specific asset contract
+   * @param address - Asset contract address.
+   * @param selectedAddress - Current account public address.
+   * @returns Promise resolving to BN object containing balance for current account on specific asset contract.
    */
   async getBalanceOf(address: string, selectedAddress: string): Promise<BN> {
     const contract = this.web3.eth.contract(abiERC20).at(address);
@@ -151,12 +148,12 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Enumerate assets assigned to an owner
+   * Enumerate assets assigned to an owner.
    *
-   * @param address - ERC721 asset contract address
-   * @param selectedAddress - Current account public address
-   * @param index - A collectible counter less than `balanceOf(selectedAddress)`
-   * @returns - Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'
+   * @param address - ERC721 asset contract address.
+   * @param selectedAddress - Current account public address.
+   * @param index - A collectible counter less than `balanceOf(selectedAddress)`.
+   * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
    */
   getCollectibleTokenId(
     address: string,
@@ -181,11 +178,11 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Query for tokenURI for a given asset
+   * Query for tokenURI for a given asset.
    *
-   * @param address - ERC721 asset contract address
-   * @param tokenId - ERC721 asset identifier
-   * @returns - Promise resolving to the 'tokenURI'
+   * @param address - ERC721 asset contract address.
+   * @param tokenId - ERC721 asset identifier.
+   * @returns Promise resolving to the 'tokenURI'.
    */
   async getCollectibleTokenURI(
     address: string,
@@ -211,10 +208,10 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Query for name for a given ERC20 asset
+   * Query for name for a given ERC20 asset.
    *
-   * @param address - ERC20 asset contract address
-   * @returns - Promise resolving to the 'decimals'
+   * @param address - ERC20 asset contract address.
+   * @returns Promise resolving to the 'decimals'.
    */
   async getTokenDecimals(address: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC20).at(address);
@@ -231,10 +228,10 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Query for name for a given asset
+   * Query for name for a given asset.
    *
-   * @param address - ERC721 or ERC20 asset contract address
-   * @returns - Promise resolving to the 'name'
+   * @param address - ERC721 or ERC20 asset contract address.
+   * @returns Promise resolving to the 'name'.
    */
   async getAssetName(address: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
@@ -251,10 +248,10 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Query for symbol for a given asset
+   * Query for symbol for a given asset.
    *
-   * @param address - ERC721 or ERC20 asset contract address
-   * @returns - Promise resolving to the 'symbol'
+   * @param address - ERC721 or ERC20 asset contract address.
+   * @returns Promise resolving to the 'symbol'.
    */
   async getAssetSymbol(address: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
@@ -271,11 +268,11 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Query for owner for a given ERC721 asset
+   * Query for owner for a given ERC721 asset.
    *
-   * @param address - ERC721 asset contract address
-   * @param tokenId - ERC721 asset identifier
-   * @returns - Promise resolving to the owner address
+   * @param address - ERC721 asset contract address.
+   * @param tokenId - ERC721 asset identifier.
+   * @returns Promise resolving to the owner address.
    */
   async getOwnerOf(address: string, tokenId: number): Promise<string> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
@@ -292,9 +289,12 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Returns contract instance of
+   * Get the token balance for a list of token addresses in a single call. Only non-zero balances
+   * are returned.
    *
-   * @returns - Promise resolving to the 'tokenURI'
+   * @param selectedAddress - The address to check token balances for.
+   * @param tokensToDetect - The token addresses to detect balances for.
+   * @returns The list of non-zero token balances.
    */
   async getBalancesInSingleCall(
     selectedAddress: string,

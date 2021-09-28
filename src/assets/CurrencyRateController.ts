@@ -9,7 +9,6 @@ import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 
 /**
  * @type CurrencyRateState
- *
  * @property conversionDate - Timestamp of conversion rate expressed in ms since UNIX epoch
  * @property conversionRate - Conversion rate from current base asset to the current currency
  * @property currentCurrency - Currently-active ISO 4217 currency code
@@ -88,13 +87,13 @@ export class CurrencyRateController extends BaseController<
   private includeUsdRate;
 
   /**
-   * Creates a CurrencyRateController instance
+   * Creates a CurrencyRateController instance.
    *
-   * @param options - Constructor options
-   * @param options.includeUsdRate - Keep track of the USD rate in addition to the current currency rate
-   * @param options.interval - The polling interval, in milliseconds
-   * @param options.messenger - A reference to the messaging system
-   * @param options.state - Initial state to set on this controller
+   * @param options - Constructor options.
+   * @param options.includeUsdRate - Keep track of the USD rate in addition to the current currency rate.
+   * @param options.interval - The polling interval, in milliseconds.
+   * @param options.messenger - A reference to the messaging system.
+   * @param options.state - Initial state to set on this controller.
    * @param options.fetchExchangeRate - Fetches the exchange rate from an external API. This option is primarily meant for use in unit tests.
    */
   constructor({
@@ -122,14 +121,14 @@ export class CurrencyRateController extends BaseController<
   }
 
   /**
-   * Start polling for the currency rate
+   * Start polling for the currency rate.
    */
   async start() {
     await this.startPolling();
   }
 
   /**
-   * Stop polling for the currency rate
+   * Stop polling for the currency rate.
    */
   stop() {
     this.stopPolling();
@@ -146,9 +145,9 @@ export class CurrencyRateController extends BaseController<
   }
 
   /**
-   * Sets a currency to track
+   * Sets a currency to track.
    *
-   * @param currentCurrency - ISO 4217 currency code
+   * @param currentCurrency - ISO 4217 currency code.
    */
   async setCurrentCurrency(currentCurrency: string) {
     this.update((state) => {
@@ -158,9 +157,9 @@ export class CurrencyRateController extends BaseController<
   }
 
   /**
-   * Sets a new native currency
+   * Sets a new native currency.
    *
-   * @param symbol - Symbol for the base asset
+   * @param symbol - Symbol for the base asset.
    */
   async setNativeCurrency(symbol: string) {
     this.update((state) => {
@@ -176,7 +175,7 @@ export class CurrencyRateController extends BaseController<
   }
 
   /**
-   * Starts a new polling interval
+   * Starts a new polling interval.
    */
   private async startPolling(): Promise<void> {
     this.stopPolling();
@@ -188,7 +187,9 @@ export class CurrencyRateController extends BaseController<
   }
 
   /**
-   * Updates exchange rate for the current currency
+   * Updates exchange rate for the current currency.
+   *
+   * @returns The controller state.
    */
   async updateExchangeRate(): Promise<CurrencyRateState | void> {
     const releaseLock = await this.mutex.acquire();

@@ -5,11 +5,11 @@ import { ContactEntry } from './AddressBookController';
 /**
  * Custom RPC network information
  *
- * @param rpcUrl - RPC target URL
- * @param chainId? - Network ID as per EIP-155
- * @param ticker? - Currency ticker
- * @param nickname? - Personalized network name
- * @param rpcPrefs? - Personalized preferences
+ * @property rpcUrl - RPC target URL.
+ * @property chainId - Network ID as per EIP-155
+ * @property nickname - Personalized network name.
+ * @property ticker - Currency ticker.
+ * @property rpcPrefs - Personalized preferences.
  */
 export interface FrequentRpc {
   rpcUrl: string;
@@ -22,7 +22,7 @@ export interface FrequentRpc {
 /**
  * Custom RPC network preferences
  *
- * @param blockExplorerUrl - Block explorer URL
+ * @param blockExplorerUrl - Block explorer URL.
  */
 export interface RpcPreferences {
   blockExplorerUrl: string;
@@ -32,7 +32,6 @@ export interface RpcPreferences {
  * @type PreferencesState
  *
  * Preferences controller state
- *
  * @property featureFlags - Map of specific features to enable or disable
  * @property frequentRpcList - A list of custom RPCs to provide the user
  * @property identities - Map of addresses to ContactEntry objects
@@ -62,10 +61,10 @@ export class PreferencesController extends BaseController<
   name = 'PreferencesController';
 
   /**
-   * Creates a PreferencesController instance
+   * Creates a PreferencesController instance.
    *
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
    */
   constructor(config?: Partial<BaseConfig>, state?: Partial<PreferencesState>) {
     super(config, state);
@@ -82,9 +81,9 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * Adds identities to state
+   * Adds identities to state.
    *
-   * @param addresses - List of addresses to use to generate new identities
+   * @param addresses - List of addresses to use to generate new identities.
    */
   addIdentities(addresses: string[]) {
     const { identities } = this.state;
@@ -105,9 +104,9 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * Removes an identity from state
+   * Removes an identity from state.
    *
-   * @param address - Address of the identity to remove
+   * @param address - Address of the identity to remove.
    */
   removeIdentity(address: string) {
     address = toChecksumHexAddress(address);
@@ -123,10 +122,10 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * Associates a new label with an identity
+   * Associates a new label with an identity.
    *
-   * @param address - Address of the identity to associate
-   * @param label - New label to assign
+   * @param address - Address of the identity to associate.
+   * @param label - New label to assign.
    */
   setAccountLabel(address: string, label: string) {
     address = toChecksumHexAddress(address);
@@ -137,10 +136,10 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * Enable or disable a specific feature flag
+   * Enable or disable a specific feature flag.
    *
-   * @param feature - Feature to toggle
-   * @param activated - Value to assign
+   * @param feature - Feature to toggle.
+   * @param activated - Value to assign.
    */
   setFeatureFlag(feature: string, activated: boolean) {
     const oldFeatureFlags = this.state.featureFlags;
@@ -149,10 +148,10 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * Synchronizes the current identity list with new identities
+   * Synchronizes the current identity list with new identities.
    *
-   * @param addresses - List of addresses corresponding to identities to sync
-   * @returns - Newly-selected address after syncing
+   * @param addresses - List of addresses corresponding to identities to sync.
+   * @returns Newly-selected address after syncing.
    */
   syncIdentities(addresses: string[]) {
     addresses = addresses.map((address: string) =>
@@ -192,7 +191,7 @@ export class PreferencesController extends BaseController<
    * is unset, or if it refers to an identity that was removed, it will be set to the first
    * identity.
    *
-   * @param addresses - List of addresses to use as a basis for each identity
+   * @param addresses - List of addresses to use as a basis for each identity.
    */
   updateIdentities(addresses: string[]) {
     addresses = addresses.map((address: string) =>
@@ -218,14 +217,13 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * Adds custom RPC URL to state
+   * Adds custom RPC URL to state.
    *
-   * @param url - Custom RPC URL
-   * @param chainId? - Network ID as per EIP-155
-   * @param ticker? - Currency ticker
-   * @param nickname? - Personalized network name
-   * @param rpcPrefs? - Personalized preferences
-   *
+   * @param url - The custom RPC URL.
+   * @param chainId - The chain ID of the network, as per EIP-155.
+   * @param ticker - Currency ticker.
+   * @param nickname - Personalized network name.
+   * @param rpcPrefs - Personalized preferences.
    */
   addToFrequentRpcList(
     url: string,
@@ -253,9 +251,9 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * Removes custom RPC URL from state
+   * Removes custom RPC URL from state.
    *
-   * @param url - Custom RPC URL
+   * @param url - Custom RPC URL.
    */
   removeFromFrequentRpcList(url: string) {
     const { frequentRpcList } = this.state;
@@ -269,27 +267,27 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * Sets selected address
+   * Sets selected address.
    *
-   * @param selectedAddress - Ethereum address
+   * @param selectedAddress - Ethereum address.
    */
   setSelectedAddress(selectedAddress: string) {
     this.update({ selectedAddress: toChecksumHexAddress(selectedAddress) });
   }
 
   /**
-   * Sets new IPFS gateway
+   * Sets new IPFS gateway.
    *
-   * @param ipfsGateway - IPFS gateway string
+   * @param ipfsGateway - IPFS gateway string.
    */
   setIpfsGateway(ipfsGateway: string) {
     this.update({ ipfsGateway });
   }
 
   /**
-   * Toggle the token detection setting to use dynamic token list
+   * Toggle the token detection setting to use dynamic token list.
    *
-   * @param useStaticTokenList - IPFS gateway string
+   * @param useStaticTokenList - IPFS gateway string.
    */
   setUseStaticTokenList(useStaticTokenList: boolean) {
     this.update({ useStaticTokenList });

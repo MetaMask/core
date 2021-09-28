@@ -16,7 +16,6 @@ const ERC721_INTERFACE_ID = '0x80ac58cd';
  * @type TokensConfig
  *
  * Tokens controller configuration
- *
  * @property networkType - Network ID as per net_version
  * @property selectedAddress - Vault selected address
  */
@@ -29,7 +28,6 @@ export interface TokensConfig extends BaseConfig {
 
 /**
  * @type AssetSuggestionResult
- *
  * @property result - Promise resolving to a new suggested asset address
  * @property suggestedAssetMeta - Meta information about this new suggested asset
  */
@@ -56,7 +54,6 @@ export type SuggestedAssetMetaBase = {
  * @type SuggestedAssetMeta
  *
  * Suggested asset by EIP747 meta data
- *
  * @property error - Synthesized error information for failed asset suggestions
  * @property id - Generated UUID associated with this suggested asset
  * @property status - String status of this this suggested asset
@@ -80,7 +77,6 @@ export type SuggestedAssetMeta =
  * @type TokensState
  *
  * Assets controller state
- *
  * @property allTokens - Object containing tokens by network and account
  * @property suggestedAssets - List of pending suggested assets to be added or canceled
  * @property tokens - List of tokens associated with the active network and address pair
@@ -132,13 +128,13 @@ export class TokensController extends BaseController<
   name = 'TokensController';
 
   /**
-   * Creates a TokensController instance
+   * Creates a TokensController instance.
    *
-   * @param options
-   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
+   * @param options - The controller options.
+   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
+   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.config - Initial options used to configure this controller.
+   * @param options.state - Initial state to set on this controller.
    */
   constructor({
     onPreferencesStateChange,
@@ -204,13 +200,13 @@ export class TokensController extends BaseController<
   }
 
   /**
-   * Adds a token to the stored token list
+   * Adds a token to the stored token list.
    *
-   * @param address - Hex address of the token contract
-   * @param symbol - Symbol of the token
-   * @param decimals - Number of decimals the token uses
-   * @param image - Image of the token
-   * @returns - Current token list
+   * @param address - Hex address of the token contract.
+   * @param symbol - Symbol of the token.
+   * @param decimals - Number of decimals the token uses.
+   * @param image - Image of the token.
+   * @returns Current token list.
    */
   async addToken(
     address: string,
@@ -255,10 +251,10 @@ export class TokensController extends BaseController<
   }
 
   /**
-   * Adds a batch of tokens to the stored token list
+   * Adds a batch of tokens to the stored token list.
    *
-   * @param tokens - Array of Tokens to be added or updated
-   * @returns - Current token list
+   * @param tokensToAdd - Array of Tokens to be added or updated.
+   * @returns Current token list.
    */
   async addTokens(tokensToAdd: Token[]): Promise<Token[]> {
     const releaseLock = await this.mutex.acquire();
@@ -320,12 +316,11 @@ export class TokensController extends BaseController<
   }
 
   /**
-   * Adds isERC721 field to token object
-   * (Called when a user attempts to add tokens that were previously added which do not yet had isERC721 field)
+   * Adds isERC721 field to token object. This is called when a user attempts to add tokens that
+   * were previously added which do not yet had isERC721 field.
    *
-   * @param {string} tokenAddress - The contract address of the token requiring the isERC721 field added.
+   * @param tokenAddress - The contract address of the token requiring the isERC721 field added.
    * @returns The new token object with the added isERC721 field.
-   *
    */
   async updateTokenType(tokenAddress: string) {
     const isERC721 = await this._detectIsERC721(tokenAddress);
@@ -341,9 +336,9 @@ export class TokensController extends BaseController<
   /**
    * Detects whether or not a token is ERC-721 compatible.
    *
-   * @param {string} tokensAddress - the token contract address.
-   * @returns boolean indicating whether the token address passed in supports the EIP-721 interface.
-   *
+   * @param tokenAddress - The token contract address.
+   * @returns A boolean indicating whether the token address passed in supports the EIP-721
+   * interface.
    */
   async _detectIsERC721(tokenAddress: string) {
     const checksumAddress = toChecksumHexAddress(tokenAddress);
@@ -392,9 +387,9 @@ export class TokensController extends BaseController<
    * Adds a new suggestedAsset to state. Parameters will be validated according to
    * asset type being watched. A `<suggestedAssetMeta.id>:pending` hub event will be emitted once added.
    *
-   * @param asset - Asset to be watched. For now only ERC20 tokens are accepted.
-   * @param type - Asset type
-   * @returns - Object containing a promise resolving to the suggestedAsset address if accepted
+   * @param asset - The asset to be watched. For now only ERC20 tokens are accepted.
+   * @param type - The asset type.
+   * @returns Object containing a Promise resolving to the suggestedAsset address if accepted.
    */
   async watchAsset(asset: Token, type: string): Promise<AssetSuggestionResult> {
     const suggestedAssetMeta = {
@@ -448,8 +443,7 @@ export class TokensController extends BaseController<
    * adding the asset to corresponding asset state. In this case ERC20 tokens.
    * A `<suggestedAssetMeta.id>:finished` hub event is fired after accepted or failure.
    *
-   * @param suggestedAssetID - ID of the suggestedAsset to accept
-   * @returns - Promise resolving when this operation completes
+   * @param suggestedAssetID - The ID of the suggestedAsset to accept.
    */
   async acceptWatchAsset(suggestedAssetID: string): Promise<void> {
     const { suggestedAssets } = this.state;
@@ -486,7 +480,7 @@ export class TokensController extends BaseController<
    * Rejects a watchAsset request based on its ID by setting its status to "rejected"
    * and emitting a `<suggestedAssetMeta.id>:finished` hub event.
    *
-   * @param suggestedAssetID - ID of the suggestedAsset to accept
+   * @param suggestedAssetID - The ID of the suggestedAsset to accept.
    */
   rejectWatchAsset(suggestedAssetID: string) {
     const { suggestedAssets } = this.state;
@@ -506,9 +500,9 @@ export class TokensController extends BaseController<
   }
 
   /**
-   * Removes a token from the stored token list and saves it in ignored tokens list
+   * Removes a token from the stored token list and saves it in ignored tokens list.
    *
-   * @param address - Hex address of the token contract
+   * @param address - The hex address of the token contract.
    */
   removeAndIgnoreToken(address: string) {
     address = toChecksumHexAddress(address);
@@ -575,7 +569,7 @@ export class TokensController extends BaseController<
   }
 
   /**
-   * Removes all tokens from the ignored list
+   * Removes all tokens from the ignored list.
    */
   clearIgnoredTokens() {
     this.update({ ignoredTokens: [], allIgnoredTokens: {} });

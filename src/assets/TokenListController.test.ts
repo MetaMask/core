@@ -242,6 +242,11 @@ const expiredCacheExistingState = {
   },
 };
 
+/**
+ * Get a TokenListController restricted controller messenger.
+ *
+ * @returns A restricted controller messenger for the TokenListController.
+ */
 function getRestrictedMessenger() {
   const controllerMessenger = new ControllerMessenger<
     GetTokenListState,

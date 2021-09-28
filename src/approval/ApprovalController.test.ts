@@ -14,6 +14,11 @@ const TYPE = 'TYPE';
 
 const controllerName = 'ApprovalController';
 
+/**
+ * Constructs a restricted controller messenger.
+ *
+ * @returns A restricted controller messenger.
+ */
 function getRestrictedMessenger() {
   const controllerMessenger = new ControllerMessenger<
     ApprovalControllerActions,
@@ -656,6 +661,12 @@ describe('approval controller', () => {
 
 // helpers
 
+/**
+ * Get an ID collision error.
+ *
+ * @param id - The ID with a collision.
+ * @returns The ID collision error.
+ */
 function getIdCollisionError(id: string) {
   return getError(
     `Approval request with id '${id}' already exists.`,
@@ -663,15 +674,35 @@ function getIdCollisionError(id: string) {
   );
 }
 
+/**
+ * Get an origin type collision error.
+ *
+ * @param origin - The origin.
+ * @param type - The type.
+ * @returns An origin type collision error.
+ */
 function getOriginTypeCollisionError(origin: string, type = TYPE) {
   const message = `Request of type '${type}' already pending for origin ${origin}. Please wait.`;
   return getError(message, errorCodes.rpc.resourceUnavailable);
 }
 
+/**
+ * Get an "ID not found" error.
+ *
+ * @param id - The ID that was not found.
+ * @returns An "ID not found" error.
+ */
 function getIdNotFoundError(id: string) {
   return getError(`Approval request with id '${id}' not found.`);
 }
 
+/**
+ * Get an error.
+ *
+ * @param message - The error message.
+ * @param code - The error code.
+ * @returns An Error.
+ */
 function getError(message: string, code?: number) {
   const err: any = {
     name: 'Error',

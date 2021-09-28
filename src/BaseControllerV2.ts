@@ -18,9 +18,9 @@ enablePatches();
  * the new state along with a set of patches describing the changes since the
  * last update.
  *
- * @param state - The new controller state
+ * @param state - The new controller state.
  * @param patches - A list of patches describing any changes (see here for more
- *   information: https://immerjs.github.io/immer/docs/patches)
+ * information: https://immerjs.github.io/immer/docs/patches)
  */
 export type Listener<T> = (state: T, patches: Patch[]) => void;
 
@@ -30,8 +30,8 @@ export type Listener<T> = (state: T, patches: Patch[]) => void;
  * This function will accept one piece of the controller state (one property),
  * and will return some derivation of that state.
  *
- * @param value - A piece of controller state
- * @returns Something derived from controller state
+ * @param value - A piece of controller state.
+ * @returns Something derived from controller state.
  */
 export type StateDeriver<T extends Json> = (value: T) => Json;
 
@@ -49,12 +49,12 @@ export type StateMetadata<T extends Record<string, Json>> = {
  * Metadata for a single state property
  *
  * @property persist - Indicates whether this property should be persisted
- *   (`true` for persistent, `false` for transient), or is set to a function
- *   that derives the persistent state from the state.
+ * (`true` for persistent, `false` for transient), or is set to a function
+ * that derives the persistent state from the state.
  * @property anonymous - Indicates whether this property is already anonymous,
- *   (`true` for anonymous, `false` if it has potential to be personally
- *   identifiable), or is set to a function that returns an anonymized
- *   representation of this state.
+ * (`true` for anonymous, `false` if it has potential to be personally
+ * identifiable), or is set to a function that returns an anonymized
+ * representation of this state.
  */
 export interface StatePropertyMetadata<T extends Json> {
   persist: boolean | StateDeriver<T>;
@@ -101,12 +101,12 @@ export class BaseController<
   /**
    * Creates a BaseController instance.
    *
-   * @param options
-   * @param options.messenger - Controller messaging system
+   * @param options - Controller options.
+   * @param options.messenger - Controller messaging system.
    * @param options.metadata - State metadata, describing how to "anonymize" the state, and which
-   *   parts should be persisted.
-   * @param options.name - The name of the controller, used as a namespace for events and actions
-   * @param options.state - Initial controller state
+   * parts should be persisted.
+   * @param options.name - The name of the controller, used as a namespace for events and actions.
+   * @param options.state - Initial controller state.
    */
   constructor({
     messenger,
@@ -131,9 +131,9 @@ export class BaseController<
   }
 
   /**
-   * Retrieves current controller state
+   * Retrieves current controller state.
    *
-   * @returns - Current state
+   * @returns The current state.
    */
   get state() {
     return this.internalState;
@@ -152,7 +152,7 @@ export class BaseController<
    * applied to the controller state.
    *
    * @param callback - Callback for updating state, passed a draft state
-   *   object. Return a new state object or mutate the draft to update state.
+   * object. Return a new state object or mutate the draft to update state.
    */
   protected update(callback: (state: Draft<S>) => void | S) {
     // We run into ts2589, "infinite type depth", if we don't cast
@@ -193,10 +193,10 @@ export class BaseController<
  * By "anonymized" we mean that it should not contain any information that could be personally
  * identifiable.
  *
- * @param state - The controller state
+ * @param state - The controller state.
  * @param metadata - The controller state metadata, which describes how to derive the
- *   anonymized state
- * @returns The anonymized controller state
+ * anonymized state.
+ * @returns The anonymized controller state.
  */
 export function getAnonymizedState<S extends Record<string, Json>>(
   state: S,
@@ -206,11 +206,11 @@ export function getAnonymizedState<S extends Record<string, Json>>(
 }
 
 /**
- * Returns the subset of state that should be persisted
+ * Returns the subset of state that should be persisted.
  *
- * @param state - The controller state
- * @param metadata - The controller state metadata, which describes which pieces of state should be persisted
- * @returns The subset of controller state that should be persisted
+ * @param state - The controller state.
+ * @param metadata - The controller state metadata, which describes which pieces of state should be persisted.
+ * @returns The subset of controller state that should be persisted.
  */
 export function getPersistentState<S extends Record<string, Json>>(
   state: S,
@@ -219,6 +219,14 @@ export function getPersistentState<S extends Record<string, Json>>(
   return deriveStateFromMetadata(state, metadata, 'persist');
 }
 
+/**
+ * Use the metadata to derive state according to the given metadata property.
+ *
+ * @param state - The full controller state.
+ * @param metadata - The controller metadata.
+ * @param metadataProperty - The metadata property to use to derive state.
+ * @returns The metadata-derived controller state.
+ */
 function deriveStateFromMetadata<S extends Record<string, Json>>(
   state: S,
   metadata: StateMetadata<S>,
