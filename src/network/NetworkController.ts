@@ -36,11 +36,11 @@ export enum NetworksChainId {
  * @type ProviderConfig
  *
  * Configuration passed to web3-provider-engine
- * @param rpcTarget? - RPC target URL.
- * @param type - Human-readable network name
- * @param chainId? - Network ID as per EIP-155
- * @param ticker? - Currency ticker
- * @param nickname? - Personalized network name.
+ * @property rpcTarget - RPC target URL.
+ * @property type - Human-readable network name.
+ * @property chainId - Network ID as per EIP-155.
+ * @property ticker - Currency ticker.
+ * @property nickname - Personalized network name.
  */
 export interface ProviderConfig {
   rpcTarget?: string;

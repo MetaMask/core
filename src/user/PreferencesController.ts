@@ -5,11 +5,11 @@ import { ContactEntry } from './AddressBookController';
 /**
  * Custom RPC network information
  *
- * @param rpcUrl - RPC target URL.
- * @param chainId? - Network ID as per EIP-155
- * @param ticker? - Currency ticker
- * @param nickname? - Personalized network name
- * @param rpcPrefs? - Personalized preferences.
+ * @property rpcUrl - RPC target URL.
+ * @property chainId - Network ID as per EIP-155
+ * @property nickname - Personalized network name.
+ * @property ticker - Currency ticker.
+ * @property rpcPrefs - Personalized preferences.
  */
 export interface FrequentRpc {
   rpcUrl: string;
