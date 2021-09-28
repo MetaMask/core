@@ -680,6 +680,7 @@ describe('TransactionController', () => {
         chainId: '3',
         status: TransactionStatus.submitted,
         transactionHash: '1337',
+        pollingAttempts: 0,
       } as any);
       controller.state.transactions.push({} as any);
 
@@ -715,6 +716,7 @@ describe('TransactionController', () => {
         networkID: '3',
         status: TransactionStatus.submitted,
         transactionHash: '1337',
+        pollingAttempts: 0,
       } as any);
       controller.state.transactions.push({} as any);
 
@@ -748,6 +750,7 @@ describe('TransactionController', () => {
       networkID: '3',
       status: TransactionStatus.submitted,
       transactionHash: '1338',
+      pollingAttempts: 0,
     } as any);
     await controller.queryTransactionStatuses();
     expect(controller.state.transactions[0].status).toBe(
@@ -777,6 +780,7 @@ describe('TransactionController', () => {
       transaction: {
         gasUsed: undefined,
       },
+      pollingAttempts: 0,
     } as any);
     await controller.queryTransactionStatuses();
     expect(controller.state.transactions[0].verifiedOnBlockchain).toBe(true);
@@ -809,7 +813,7 @@ describe('TransactionController', () => {
     await controller.queryTransactionStatuses();
     expect(controller.state.transactions[0].pollingAttempts).toBe(1);
   });
-  it('should set the tranasction status to failed if the polling attempt limit is reached', async () => {
+  it('should set the transaction status to failed if the polling attempt limit is reached', async () => {
     await new Promise((resolve) => {
       const controller = new TransactionController(
         {
