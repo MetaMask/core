@@ -9,6 +9,11 @@ import {
 
 const name = 'CurrencyRateController';
 
+/**
+ * Constructs a restricted controller messenger.
+ *
+ * @returns A restricted controller messenger.
+ */
 function getRestrictedMessenger() {
   const controllerMessenger = new ControllerMessenger<
     GetCurrencyRateState,

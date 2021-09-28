@@ -16,7 +16,6 @@ import {
  *
  * Represents and contains data about an 'eth_signTypedData' type signature request.
  * These are created when a signature for an eth_signTypedData call is requested.
- *
  * @property id - An id to track and identify the message object
  * @property error - Error corresponding to eth_signTypedData error in failure case
  * @property messageParams - The parameters to pass to the eth_signTypedData method once
@@ -38,7 +37,6 @@ export interface TypedMessage extends AbstractMessage {
  * @type TypedMessageParams
  *
  * Represents the parameters to pass to the eth_signTypedData method once the signature request is approved.
- *
  * @property data - A hex string conversion of the raw buffer or an object containing data of the signature
  * request depending on version
  * @property from - Address to sign this message from
@@ -53,7 +51,6 @@ export interface TypedMessageParams extends AbstractMessageParams {
  *
  * Represents the parameters to pass to the eth_signTypedData method once the signature request is approved
  * plus data added by MetaMask.
- *
  * @property metamaskId - Added for tracking and identification within MetaMask
  * @property data - A hex string conversion of the raw buffer or an object containing data of the signature
  * request depending on version
@@ -87,10 +84,10 @@ export class TypedMessageManager extends AbstractMessageManager<
    * Creates a new TypedMessage with an 'unapproved' status using the passed messageParams.
    * this.addMessage is called to add the new TypedMessage to this.messages, and to save the unapproved TypedMessages.
    *
-   * @param messageParams - The params for the eth_signTypedData call to be made after the message is approved
-   * @param version - Compatibility version EIP712
-   * @param req? - The original request object possibly containing the origin
-   * @returns - Promise resolving to the raw data of the signature request
+   * @param messageParams - The params for the eth_signTypedData call to be made after the message is approved.
+   * @param version - Compatibility version EIP712.
+   * @param req - The original request object possibly containing the origin.
+   * @returns Promise resolving to the raw data of the signature request.
    */
   addUnapprovedMessageAsync(
     messageParams: TypedMessageParams,
@@ -139,10 +136,10 @@ export class TypedMessageManager extends AbstractMessageManager<
    * unapproved TypedMessages.
    *
    * @param messageParams - The params for the 'eth_signTypedData' call to be made after the message
-   * is approved
-   * @param version - Compatibility version EIP712
-   * @param req? - The original request object possibly containing the origin
-   * @returns - The id of the newly created TypedMessage
+   * is approved.
+   * @param version - Compatibility version EIP712.
+   * @param req - The original request object possibly containing the origin.
+   * @returns The id of the newly created TypedMessage.
    */
   addUnapprovedMessage(
     messageParams: TypedMessageParams,
@@ -173,8 +170,8 @@ export class TypedMessageManager extends AbstractMessageManager<
   /**
    * Sets a TypedMessage status to 'errored' via a call to this.setMessageStatus.
    *
-   * @param messageId - The id of the TypedMessage to error
-   * @param error - The error to be included in TypedMessage
+   * @param messageId - The id of the TypedMessage to error.
+   * @param error - The error to be included in TypedMessage.
    */
   setMessageStatusErrored(messageId: string, error: string) {
     const message = this.getMessage(messageId);
@@ -189,10 +186,10 @@ export class TypedMessageManager extends AbstractMessageManager<
 
   /**
    * Removes the metamaskId and version properties from passed messageParams and returns a promise which
-   * resolves the updated messageParams
+   * resolves the updated messageParams.
    *
-   * @param messageParams - The messageParams to modify
-   * @returns - Promise resolving to the messageParams with the metamaskId and version properties removed
+   * @param messageParams - The messageParams to modify.
+   * @returns Promise resolving to the messageParams with the metamaskId and version properties removed.
    */
   prepMessageForSigning(
     messageParams: TypedMessageParamsMetamask,

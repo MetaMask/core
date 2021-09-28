@@ -78,6 +78,12 @@ jest.mock('eth-query', () =>
   }),
 );
 
+/**
+ * Create a mock implementation of `fetch` that always returns the same data.
+ *
+ * @param data - The mock data to return.
+ * @returns The mock `fetch` implementation.
+ */
 function mockFetch(data: any) {
   return jest.fn().mockImplementation(() =>
     Promise.resolve({
@@ -87,6 +93,12 @@ function mockFetch(data: any) {
   );
 }
 
+/**
+ * Create a mock implementation of `fetch` that returns different mock data for each URL.
+ *
+ * @param data - A map of mock data, keyed by URL.
+ * @returns The mock `fetch` implementation.
+ */
 function mockFetchs(data: any) {
   return jest.fn().mockImplementation((key) =>
     Promise.resolve({

@@ -85,6 +85,12 @@ const sampleTokenList = [
     ],
   },
 ];
+
+/**
+ * Constructs a restricted controller messenger.
+ *
+ * @returns A restricted controller messenger.
+ */
 function getTokenListMessenger() {
   const controllerMessenger = new ControllerMessenger<
     GetTokenListState,

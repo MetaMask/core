@@ -19,7 +19,6 @@ const DEFAULT_INTERVAL = 180000;
  * @type ApiCollectible
  *
  * Collectible object coming from OpenSea api
- *
  * @property token_id - The collectible identifier
  * @property num_sales - Number of sales
  * @property background_color - The background color to be displayed with the item
@@ -58,7 +57,6 @@ export interface ApiCollectible {
  * @type ApiCollectibleContract
  *
  * Collectible contract object coming from OpenSea api
- *
  * @property address - Address of the collectible contract
  * @property asset_contract_type - The collectible type, it could be `semi-fungible` or `non-fungible`
  * @property created_date - Creation date
@@ -87,7 +85,6 @@ export interface ApiCollectibleContract {
  * @type ApiCollectibleLastSale
  *
  * Collectible sale object coming from OpenSea api
- *
  * @property event_timestamp - Object containing a `username`
  * @property total_price - URI of collectible image associated with this owner
  * @property transaction - Object containing transaction_hash and block_hash
@@ -102,7 +99,6 @@ export interface ApiCollectibleLastSale {
  * @type ApiCollectibleCreator
  *
  * Collectible creator object coming from OpenSea api
- *
  * @property user - Object containing a `username`
  * @property profile_img_url - URI of collectible image associated with this owner
  * @property address - The owner address
@@ -117,7 +113,6 @@ export interface ApiCollectibleCreator {
  * @type AssetsConfig
  *
  * Assets controller configuration
- *
  * @property interval - Polling interval used to fetch new token rates
  * @property networkType - Network type ID as per net_version
  * @property selectedAddress - Vault selected address
@@ -192,22 +187,22 @@ export class AssetsDetectionController extends BaseController<
   private getTokenListState: () => TokenListState;
 
   /**
-   * Creates a AssetsDetectionController instance
+   * Creates a AssetsDetectionController instance.
    *
-   * @param options
-   * @param options.onCollectiblesStateChange - Allows subscribing to assets controller state changes
-   * @param options.onTokensStateChange - Allows subscribing to tokens controller state changes
-   * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes
-   * @param options.getOpenSeaApiKey - Gets the OpenSea API key, if one is set
-   * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address
-   * @param options.addTokens - Add a list of tokens
-   * @param options.addCollectible - Add a collectible
-   * @param options.getCollectiblesState - Gets the current state of the Assets controller
-   * @param options.getTokenListState - Gets the current state of the TokenList controller
-   * @param options.getTokensState - Gets the current state of the Tokens controller
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
+   * @param options - The controller options.
+   * @param options.onCollectiblesStateChange - Allows subscribing to assets controller state changes.
+   * @param options.onTokensStateChange - Allows subscribing to tokens controller state changes.
+   * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
+   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.getOpenSeaApiKey - Gets the OpenSea API key, if one is set.
+   * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
+   * @param options.addTokens - Add a list of tokens.
+   * @param options.addCollectible - Add a collectible.
+   * @param options.getCollectiblesState - Gets the current state of the Assets controller.
+   * @param options.getTokenListState - Gets the current state of the TokenList controller.
+   * @param options.getTokensState - Gets the current state of the Tokens controller.
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
    */
   constructor(
     {
@@ -279,9 +274,9 @@ export class AssetsDetectionController extends BaseController<
   }
 
   /**
-   * Starts a new polling interval
+   * Starts a new polling interval.
    *
-   * @param interval - Polling interval used to auto detect assets
+   * @param interval - Polling interval used to auto detect assets.
    */
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
@@ -293,9 +288,9 @@ export class AssetsDetectionController extends BaseController<
   }
 
   /**
-   * Checks whether network is mainnet or not
+   * Checks whether network is mainnet or not.
    *
-   * @returns - Whether current network is mainnet
+   * @returns Whether current network is mainnet.
    */
   isMainnet() {
     if (this.config.networkType !== MAINNET || this.disabled) {
@@ -305,7 +300,7 @@ export class AssetsDetectionController extends BaseController<
   }
 
   /**
-   * Detect assets owned by current account on mainnet
+   * Detect assets owned by current account on mainnet.
    */
   async detectAssets() {
     /* istanbul ignore if */
@@ -317,7 +312,7 @@ export class AssetsDetectionController extends BaseController<
   }
 
   /**
-   * Triggers asset ERC20 token auto detection for each contract address in contract metadata on mainnet
+   * Triggers asset ERC20 token auto detection for each contract address in contract metadata on mainnet.
    */
   async detectTokens() {
     /* istanbul ignore if */
@@ -390,8 +385,8 @@ export class AssetsDetectionController extends BaseController<
   }
 
   /**
-   * Triggers asset ERC721 token auto detection on mainnet
-   * adding new collectibles and removing not owned collectibles
+   * Triggers asset ERC721 token auto detection on mainnet. Any newly detected collectibles are
+   * added.
    */
   async detectCollectibles() {
     /* istanbul ignore if */

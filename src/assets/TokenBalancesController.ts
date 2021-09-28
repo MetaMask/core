@@ -13,7 +13,6 @@ export { BN };
  * @type TokenBalancesConfig
  *
  * Token balances controller configuration
- *
  * @property interval - Polling interval used to fetch new token balances
  * @property tokens - List of tokens to track balances for
  */
@@ -26,7 +25,6 @@ export interface TokenBalancesConfig extends BaseConfig {
  * @type TokenBalancesState
  *
  * Token balances controller state
- *
  * @property contractBalances - Hash of token contract addresses to balances
  */
 export interface TokenBalancesState extends BaseState {
@@ -53,14 +51,14 @@ export class TokenBalancesController extends BaseController<
   private getBalanceOf: AssetsContractController['getBalanceOf'];
 
   /**
-   * Creates a TokenBalancesController instance
+   * Creates a TokenBalancesController instance.
    *
-   * @param options
-   * @param options.onTokensStateChange - Allows subscribing to assets controller state changes
-   * @param options.getSelectedAddress - Gets the current selected address
-   * @param options.getBalanceOf - Gets the balance of the given account at the given contract address
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
+   * @param options - The controller options.
+   * @param options.onTokensStateChange - Allows subscribing to assets controller state changes.
+   * @param options.getSelectedAddress - Gets the current selected address.
+   * @param options.getBalanceOf - Gets the balance of the given account at the given contract address.
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
    */
   constructor(
     {
@@ -94,9 +92,9 @@ export class TokenBalancesController extends BaseController<
   }
 
   /**
-   * Starts a new polling interval
+   * Starts a new polling interval.
    *
-   * @param interval - Polling interval used to fetch new token balances
+   * @param interval - Polling interval used to fetch new token balances.
    */
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
@@ -108,9 +106,7 @@ export class TokenBalancesController extends BaseController<
   }
 
   /**
-   * Updates balances for all tokens
-   *
-   * @returns Promise resolving when this operation completes
+   * Updates balances for all tokens.
    */
   async updateBalances() {
     if (this.disabled) {

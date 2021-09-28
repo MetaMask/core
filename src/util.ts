@@ -42,23 +42,22 @@ const NORMALIZERS: { [param in keyof Transaction]: any } = {
 };
 
 /**
- * Converts a BN object to a hex string with a '0x' prefix
+ * Converts a BN object to a hex string with a '0x' prefix.
  *
- * @param inputBn - BN instance to convert to a hex string
- * @returns - '0x'-prefixed hex string
- *
+ * @param inputBn - BN instance to convert to a hex string.
+ * @returns A '0x'-prefixed hex string.
  */
 export function BNToHex(inputBn: any) {
   return addHexPrefix(inputBn.toString(16));
 }
 
 /**
- * Used to multiply a BN by a fraction
+ * Used to multiply a BN by a fraction.
  *
- * @param targetBN - Number to multiply by a fraction
- * @param numerator - Numerator of the fraction multiplier
- * @param denominator - Denominator of the fraction multiplier
- * @returns - Product of the multiplication
+ * @param targetBN - Number to multiply by a fraction.
+ * @param numerator - Numerator of the fraction multiplier.
+ * @param denominator - Denominator of the fraction multiplier.
+ * @returns Product of the multiplication.
  */
 export function fractionBN(
   targetBN: any,
@@ -71,10 +70,10 @@ export function fractionBN(
 }
 
 /**
- * Used to convert a base-10 number from GWEI to WEI. Can handle numbers with decimal parts
+ * Used to convert a base-10 number from GWEI to WEI. Can handle numbers with decimal parts.
  *
- * @param n - The base 10 number to convert to WEI
- * @returns - The number in WEI, as a BN
+ * @param n - The base 10 number to convert to WEI.
+ * @returns The number in WEI, as a BN.
  */
 export function gweiDecToWEIBN(n: number | string) {
   if (Number.isNaN(n)) {
@@ -107,9 +106,10 @@ export function gweiDecToWEIBN(n: number | string) {
 }
 
 /**
- * Used to convert values from wei hex format to dec gwei format
- * @param hex - value in hex wei
- * @returns - value in dec gwei as string
+ * Used to convert values from wei hex format to dec gwei format.
+ *
+ * @param hex - The value in hex wei.
+ * @returns The value in dec gwei as string.
  */
 export function weiHexToGweiDec(hex: string) {
   const hexWei = new BN(stripHexPrefix(hex), 16);
@@ -117,12 +117,12 @@ export function weiHexToGweiDec(hex: string) {
 }
 
 /**
- * Return a URL that can be used to obtain ETH for a given network
+ * Return a URL that can be used to obtain ETH for a given network.
  *
- * @param networkCode - Network code of desired network
- * @param address - Address to deposit obtained ETH
- * @param amount - How much ETH is desired
- * @returns - URL to buy ETH based on network
+ * @param networkCode - Network code of desired network.
+ * @param address - Address to deposit obtained ETH.
+ * @param amount - How much ETH is desired.
+ * @returns URL to buy ETH based on network.
  */
 export function getBuyURL(
   networkCode = '1',
@@ -146,11 +146,11 @@ export function getBuyURL(
 }
 
 /**
- * Return a URL that can be used to fetch ETH transactions
+ * Return a URL that can be used to fetch ETH transactions.
  *
- * @param networkType - Network type of desired network
- * @param urlParams - Parameters used to construct the URL
- * @returns - URL to fetch the access the endpoint
+ * @param networkType - Network type of desired network.
+ * @param urlParams - The parameters used to construct the URL.
+ * @returns URL to fetch the access the endpoint.
  */
 export function getEtherscanApiUrl(
   networkType: string,
@@ -173,12 +173,13 @@ export function getEtherscanApiUrl(
 }
 
 /**
- * Handles the fetch of incoming transactions
+ * Handles the fetch of incoming transactions.
  *
- * @param networkType - Network type of desired network
- * @param address - Address to get the transactions from
- * @param opt? - Object that can contain fromBlock and Etherscan service API key
- * @returns - Responses for both ETH and ERC20 token transactions
+ * @param networkType - Network type of desired network.
+ * @param address - Address to get the transactions from.
+ * @param txHistoryLimit - The maximum number of transactions to fetch.
+ * @param opt - Object that can contain fromBlock and Etherscan service API key.
+ * @returns Responses for both ETH and ERC20 token transactions.
  */
 export async function handleTransactionFetch(
   networkType: string,
@@ -234,22 +235,20 @@ export async function handleTransactionFetch(
 }
 
 /**
- * Converts a hex string to a BN object
+ * Converts a hex string to a BN object.
  *
- * @param inputHex - Number represented as a hex string
- * @returns - A BN instance
- *
+ * @param inputHex - Number represented as a hex string.
+ * @returns A BN instance.
  */
 export function hexToBN(inputHex: string) {
   return new BN(stripHexPrefix(inputHex), 16);
 }
 
 /**
- * A helper function that converts hex data to human readable string
+ * A helper function that converts hex data to human readable string.
  *
- * @param hex - The hex string to convert to string
- * @returns - A human readable string conversion
- *
+ * @param hex - The hex string to convert to string.
+ * @returns A human readable string conversion.
  */
 export function hexToText(hex: string) {
   try {
@@ -263,10 +262,10 @@ export function hexToText(hex: string) {
 }
 
 /**
- * Normalizes properties on a Transaction object
+ * Normalizes properties on a Transaction object.
  *
- * @param transaction - Transaction object to normalize
- * @returns - Normalized Transaction object
+ * @param transaction - Transaction object to normalize.
+ * @returns Normalized Transaction object.
  */
 export function normalizeTransaction(transaction: Transaction) {
   const normalizedTransaction: Transaction = { from: '' };
@@ -280,12 +279,12 @@ export function normalizeTransaction(transaction: Transaction) {
 }
 
 /**
- * Execute and return an asynchronous operation without throwing errors
+ * Execute and return an asynchronous operation without throwing errors.
  *
- * @param operation - Function returning a Promise
- * @param logError - Determines if the error should be logged
- * @param retry - Function called if an error is caught
- * @returns - Promise resolving to the result of the async operation
+ * @param operation - Function returning a Promise.
+ * @param logError - Determines if the error should be logged.
+ * @param retry - Function called if an error is caught.
+ * @returns Promise resolving to the result of the async operation.
  */
 export async function safelyExecute(
   operation: () => Promise<any>,
@@ -305,13 +304,12 @@ export async function safelyExecute(
 }
 
 /**
- * Execute and return an asynchronous operation with a timeout
+ * Execute and return an asynchronous operation with a timeout.
  *
- * @param operation - Function returning a Promise
- * @param logError - Determines if the error should be logged
- * @param retry - Function called if an error is caught
- * @param timeout - Timeout to fail the operation
- * @returns - Promise resolving to the result of the async operation
+ * @param operation - Function returning a Promise.
+ * @param logError - Determines if the error should be logged.
+ * @param timeout - Timeout to fail the operation.
+ * @returns Promise resolving to the result of the async operation.
  */
 export async function safelyExecuteWithTimeout(
   operation: () => Promise<any>,
@@ -336,6 +334,12 @@ export async function safelyExecuteWithTimeout(
   }
 }
 
+/**
+ * Convert an address to a checksummed hexidecimal address.
+ *
+ * @param address - The address to convert.
+ * @returns A 0x-prefixed hexidecimal checksummed address.
+ */
 export function toChecksumHexAddress(address: string) {
   const hexPrefixed = addHexPrefix(address);
   if (!isHexString(hexPrefixed)) {
@@ -356,11 +360,11 @@ export function toChecksumHexAddress(address: string) {
  * meet the length requirement of a hex address, but are not prefixed with `0x`
  * Finally, if the mixedCaseUseChecksum flag is true and a mixed case string is
  * provided this method will validate it has the proper checksum formatting.
- * @param {string} possibleAddress - Input parameter to check against
- * @param {Object} [options] - options bag
- * @param {boolean} [options.allowNonPrefixed] - If true will first ensure '0x'
- *  is prepended to the string
- * @returns {boolean} whether or not the input is a valid hex address
+ *
+ * @param possibleAddress - Input parameter to check against.
+ * @param options - The validation options.
+ * @param options.allowNonPrefixed - If true will first ensure '0x' is prepended to the string.
+ * @returns Whether or not the input is a valid hex address.
  */
 export function isValidHexAddress(
   possibleAddress: string,
@@ -380,7 +384,7 @@ export function isValidHexAddress(
  * Validates a Transaction object for required properties and throws in
  * the event of any validation error.
  *
- * @param transaction - Transaction object to validate
+ * @param transaction - Transaction object to validate.
  */
 export function validateTransaction(transaction: Transaction) {
   if (
@@ -439,9 +443,8 @@ export function validateTransaction(transaction: Transaction) {
  * A helper function that converts rawmessageData buffer data to a hex, or just returns the data if
  * it is already formatted as a hex.
  *
- * @param data - The buffer data to convert to a hex
- * @returns - A hex string conversion of the buffer data
- *
+ * @param data - The buffer data to convert to a hex.
+ * @returns A hex string conversion of the buffer data.
  */
 export function normalizeMessageData(data: string) {
   try {
@@ -459,7 +462,7 @@ export function normalizeMessageData(data: string) {
  * Validates a PersonalMessageParams and MessageParams objects for required properties and throws in
  * the event of any validation error.
  *
- * @param messageData - PersonalMessageParams object to validate
+ * @param messageData - PersonalMessageParams object to validate.
  */
 export function validateSignMessageData(
   messageData: PersonalMessageParams | MessageParams,
@@ -478,8 +481,7 @@ export function validateSignMessageData(
  * Validates a TypedMessageParams object for required properties and throws in
  * the event of any validation error for eth_signTypedMessage_V1.
  *
- * @param messageData - TypedMessageParams object to validate
- * @param activeChainId - Active chain id
+ * @param messageData - TypedMessageParams object to validate.
  */
 export function validateTypedSignMessageDataV1(
   messageData: TypedMessageParams,
@@ -512,7 +514,7 @@ export function validateTypedSignMessageDataV1(
  * Validates a TypedMessageParams object for required properties and throws in
  * the event of any validation error for eth_signTypedMessage_V3.
  *
- * @param messageData - TypedMessageParams object to validate
+ * @param messageData - TypedMessageParams object to validate.
  */
 export function validateTypedSignMessageDataV3(
   messageData: TypedMessageParams,
@@ -549,7 +551,7 @@ export function validateTypedSignMessageDataV3(
 /**
  * Validates a ERC20 token to be added with EIP747.
  *
- * @param token - Token object to validate
+ * @param token - Token object to validate.
  */
 export function validateTokenToWatch(token: Token) {
   const { address, symbol, decimals } = token;
@@ -581,9 +583,10 @@ export function validateTokenToWatch(token: Token) {
 }
 
 /**
- * Returns wether the given code corresponds to a smart contract
+ * Returns whether the given code corresponds to a smart contract.
  *
- * @returns {string} - Corresponding code to review
+ * @param code - The potential smart contract code.
+ * @returns Whether the code was smart contract code or not.
  */
 export function isSmartContractCode(code: string) {
   /* istanbul ignore if */
@@ -596,11 +599,11 @@ export function isSmartContractCode(code: string) {
 }
 
 /**
- * Execute fetch and verify that the response was successful
+ * Execute fetch and verify that the response was successful.
  *
- * @param request - Request information
- * @param options - Options
- * @returns - Promise resolving to the fetch response
+ * @param request - Request information.
+ * @param options - Fetch options.
+ * @returns The fetch response.
  */
 export async function successfulFetch(request: string, options?: RequestInit) {
   const response = await fetch(request, options);
@@ -613,11 +616,11 @@ export async function successfulFetch(request: string, options?: RequestInit) {
 }
 
 /**
- * Execute fetch and return object response
+ * Execute fetch and return object response.
  *
- * @param request - Request information
- * @param options - Options
- * @returns - Promise resolving to the result object of fetch
+ * @param request - The request information.
+ * @param options - The fetch options.
+ * @returns The fetch response JSON data.
  */
 export async function handleFetch(request: string, options?: RequestInit) {
   const response = await successfulFetch(request, options);
@@ -626,13 +629,12 @@ export async function handleFetch(request: string, options?: RequestInit) {
 }
 
 /**
- * Fetch that fails after timeout
+ * Fetch that fails after timeout.
  *
- * @param url - Url to fetch
- * @param options - Options to send with the request
- * @param timeout - Timeout to fail request
- *
- * @returns - Promise resolving the request
+ * @param url - Url to fetch.
+ * @param options - Options to send with the request.
+ * @param timeout - Timeout to fail request.
+ * @returns Promise resolving the request.
  */
 export async function timeoutFetch(
   url: string,
@@ -652,9 +654,8 @@ export async function timeoutFetch(
 /**
  * Normalizes the given ENS name.
  *
- * @param {string} ensName - The ENS name
- *
- * @returns - the normalized ENS name string
+ * @param ensName - The ENS name.
+ * @returns The normalized ENS name string.
  */
 export function normalizeEnsName(ensName: string): string | null {
   if (ensName && typeof ensName === 'string') {
@@ -673,13 +674,12 @@ export function normalizeEnsName(ensName: string): string | null {
 }
 
 /**
- * Wrapper method to handle EthQuery requests
+ * Wrapper method to handle EthQuery requests.
  *
- * @param ethQuery - EthQuery object initialized with a provider
- * @param method - Method to request
- * @param args - Arguments to send
- *
- * @returns - Promise resolving the request
+ * @param ethQuery - EthQuery object initialized with a provider.
+ * @param method - Method to request.
+ * @param args - Arguments to send.
+ * @returns Promise resolving the request.
  */
 export function query(
   ethQuery: any,
@@ -699,10 +699,10 @@ export function query(
 
 /**
  * Checks if a transaction is EIP-1559 by checking for the existence of
- * maxFeePerGas and maxPriorityFeePerGas within its parameters
+ * maxFeePerGas and maxPriorityFeePerGas within its parameters.
  *
- * @param transaction - Transaction object to add
- * @returns - Boolean that is true if the transaction is EIP-1559 (has maxFeePerGas and maxPriorityFeePerGas), otherwise returns false
+ * @param transaction - Transaction object to add.
+ * @returns Boolean that is true if the transaction is EIP-1559 (has maxFeePerGas and maxPriorityFeePerGas), otherwise returns false.
  */
 export const isEIP1559Transaction = (transaction: Transaction): boolean => {
   const hasOwnProp = (obj: Transaction, key: string) =>
@@ -750,6 +750,14 @@ export const isGasPriceValue = (
 ): gasValues is GasPriceValue =>
   (gasValues as GasPriceValue)?.gasPrice !== undefined;
 
+/**
+ * Validates that the proposed value is greater than or equal to the minimum value.
+ *
+ * @param proposed - The proposed value.
+ * @param min - The minimum value.
+ * @returns The proposed value.
+ * @throws Will throw if the proposed value is too low.
+ */
 export function validateMinimumIncrease(proposed: string, min: string) {
   const proposedDecimal = convertPriceToDecimal(proposed);
   const minDecimal = convertPriceToDecimal(min);

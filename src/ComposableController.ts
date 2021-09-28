@@ -35,10 +35,10 @@ export class ComposableController extends BaseController<never, any> {
   name = 'ComposableController';
 
   /**
-   * Creates a ComposableController instance
+   * Creates a ComposableController instance.
    *
-   * @param controllers - Map of names to controller instances
-   * @param messenger - The controller messaging system, used for communicating with BaseControllerV2 controllers
+   * @param controllers - Map of names to controller instances.
+   * @param messenger - The controller messaging system, used for communicating with BaseControllerV2 controllers.
    */
   constructor(
     controllers: ControllerList,
@@ -86,7 +86,7 @@ export class ComposableController extends BaseController<never, any> {
    * of controller name. Instead, all child controller state is merged
    * together into a single, flat object.
    *
-   * @returns - Merged state representation of all child controllers
+   * @returns Merged state representation of all child controllers.
    */
   get flatState() {
     let flatState = {};

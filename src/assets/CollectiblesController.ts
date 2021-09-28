@@ -18,7 +18,6 @@ import { compareCollectiblesMetadata } from './assetsUtil';
  * @type Collectible
  *
  * Collectible representation
- *
  * @property address - Hex address of a ERC721 contract
  * @property description - The collectible description
  * @property image - URI of custom collectible image associated with this tokenId
@@ -43,7 +42,6 @@ export interface Collectible extends CollectibleMetadata {
  * @type CollectibleContract
  *
  * Collectible contract information representation
- *
  * @property name - Contract name
  * @property logo - Contract logo
  * @property address - Contract address
@@ -72,7 +70,6 @@ export interface CollectibleContract {
  * @type CollectibleMetadata
  *
  * Collectible custom information
- *
  * @property name - Collectible custom name
  * @property description - The collectible description
  * @property numberOfSales - Number of sales
@@ -106,7 +103,6 @@ export interface CollectibleMetadata {
  * @type CollectiblesConfig
  *
  * Collectibles controller configuration
- *
  * @property networkType - Network ID as per net_version
  * @property selectedAddress - Vault selected address
  */
@@ -120,7 +116,6 @@ export interface CollectiblesConfig extends BaseConfig {
  * @type CollectiblesState
  *
  * Assets controller state
- *
  * @property allCollectibleContracts - Object containing collectibles contract information
  * @property allCollectibles - Object containing collectibles per account and network
  * @property collectibleContracts - List of collectibles contracts associated with the active vault
@@ -155,11 +150,11 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Request individual collectible information from OpenSea api
+   * Request individual collectible information from OpenSea API.
    *
-   * @param contractAddress - Hex address of the collectible contract
-   * @param tokenId - The collectible identifier
-   * @returns - Promise resolving to the current collectible name and image
+   * @param contractAddress - Hex address of the collectible contract.
+   * @param tokenId - The collectible identifier.
+   * @returns Promise resolving to the current collectible name and image.
    */
   private async getCollectibleInformationFromApi(
     contractAddress: string,
@@ -215,11 +210,11 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Request individual collectible information from contracts that follows Metadata Interface
+   * Request individual collectible information from contracts that follows Metadata Interface.
    *
-   * @param contractAddress - Hex address of the collectible contract
-   * @param tokenId - The collectible identifier
-   * @returns - Promise resolving to the current collectible name and image
+   * @param contractAddress - Hex address of the collectible contract.
+   * @param tokenId - The collectible identifier.
+   * @returns Promise resolving to the current collectible name and image.
    */
   private async getCollectibleInformationFromTokenURI(
     contractAddress: string,
@@ -237,11 +232,11 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Request individual collectible information (name, image url and description)
+   * Request individual collectible information (name, image url and description).
    *
-   * @param contractAddress - Hex address of the collectible contract
-   * @param tokenId - The collectible identifier
-   * @returns - Promise resolving to the current collectible name and image
+   * @param contractAddress - Hex address of the collectible contract.
+   * @param tokenId - The collectible identifier.
+   * @returns Promise resolving to the current collectible name and image.
    */
   private async getCollectibleInformation(
     contractAddress: string,
@@ -277,10 +272,10 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Request collectible contract information from OpenSea api
+   * Request collectible contract information from OpenSea API.
    *
-   * @param contractAddress - Hex address of the collectible contract
-   * @returns - Promise resolving to the current collectible name and image
+   * @param contractAddress - Hex address of the collectible contract.
+   * @returns Promise resolving to the current collectible name and image.
    */
   private async getCollectibleContractInformationFromApi(
     contractAddress: string,
@@ -299,10 +294,10 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Request collectible contract information from the contract itself
+   * Request collectible contract information from the contract itself.
    *
-   * @param contractAddress - Hex address of the collectible contract
-   * @returns - Promise resolving to the current collectible name and image
+   * @param contractAddress - Hex address of the collectible contract.
+   * @returns Promise resolving to the current collectible name and image.
    */
   private async getCollectibleContractInformationFromContract(
     contractAddress: string,
@@ -324,10 +319,10 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Request collectible contract information from OpenSea api
+   * Request collectible contract information from OpenSea API.
    *
-   * @param contractAddress - Hex address of the collectible contract
-   * @returns - Promise resolving to the collectible contract name, image and description
+   * @param contractAddress - Hex address of the collectible contract.
+   * @returns Promise resolving to the collectible contract name, image and description.
    */
   private async getCollectibleContractInformation(
     contractAddress: string,
@@ -370,12 +365,12 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Adds an individual collectible to the stored collectible list
+   * Adds an individual collectible to the stored collectible list.
    *
-   * @param address - Hex address of the collectible contract
-   * @param tokenId - The collectible identifier
-   * @param opts - Collectible optional information (name, image and description)
-   * @returns - Promise resolving to the current collectible list
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - The collectible identifier.
+   * @param collectibleMetadata - Collectible optional information (name, image and description).
+   * @returns Promise resolving to the current collectible list.
    */
   private async addIndividualCollectible(
     address: string,
@@ -443,11 +438,11 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Adds a collectible contract to the stored collectible contracts list
+   * Adds a collectible contract to the stored collectible contracts list.
    *
-   * @param address - Hex address of the collectible contract
-   * @param detection? - Whether the collectible is manually added or auto-detected
-   * @returns - Promise resolving to the current collectible contracts list
+   * @param address - Hex address of the collectible contract.
+   * @param detection - Whether the collectible is manually added or auto-detected.
+   * @returns Promise resolving to the current collectible contracts list.
    */
   private async addCollectibleContract(
     address: string,
@@ -524,10 +519,10 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Removes an individual collectible from the stored token list and saves it in ignored collectibles list
+   * Removes an individual collectible from the stored token list and saves it in ignored collectibles list.
    *
-   * @param address - Hex address of the collectible contract
-   * @param tokenId - Token identifier of the collectible
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - Token identifier of the collectible.
    */
   private removeAndIgnoreIndividualCollectible(
     address: string,
@@ -567,10 +562,10 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Removes an individual collectible from the stored token list
+   * Removes an individual collectible from the stored token list.
    *
-   * @param address - Hex address of the collectible contract
-   * @param tokenId - Token identifier of the collectible
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - Token identifier of the collectible.
    */
   private removeIndividualCollectible(address: string, tokenId: number) {
     address = toChecksumHexAddress(address);
@@ -599,10 +594,10 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Removes a collectible contract to the stored collectible contracts list
+   * Removes a collectible contract to the stored collectible contracts list.
    *
-   * @param address - Hex address of the collectible contract
-   * @returns - Promise resolving to the current collectible contracts list
+   * @param address - Hex address of the collectible contract.
+   * @returns Promise resolving to the current collectible contracts list.
    */
   private removeCollectibleContract(address: string): CollectibleContract[] {
     address = toChecksumHexAddress(address);
@@ -651,16 +646,16 @@ export class CollectiblesController extends BaseController<
   private getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
 
   /**
-   * Creates a CollectiblesController instance
+   * Creates a CollectiblesController instance.
    *
-   * @param options
-   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes
-   * @param options.getAssetName - Gets the name of the asset at the given address
-   * @param options.getAssetSymbol - Gets the symbol of the asset at the given address
-   * @param options.getCollectibleTokenURI - Gets the URI of the NFT at the given address, with the given ID
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
+   * @param options - The controller options.
+   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
+   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.getAssetName - Gets the name of the asset at the given address.
+   * @param options.getAssetSymbol - Gets the symbol of the asset at the given address.
+   * @param options.getCollectibleTokenURI - Gets the URI of the NFT at the given address, with the given ID.
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
    */
   constructor(
     {
@@ -726,22 +721,22 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Sets an OpenSea API key to retrieve collectible information
+   * Sets an OpenSea API key to retrieve collectible information.
    *
-   * @param openSeaApiKey - OpenSea API key
+   * @param openSeaApiKey - OpenSea API key.
    */
   setApiKey(openSeaApiKey: string) {
     this.openSeaApiKey = openSeaApiKey;
   }
 
   /**
-   * Adds a collectible and respective collectible contract to the stored collectible and collectible contracts lists
+   * Adds a collectible and respective collectible contract to the stored collectible and collectible contracts lists.
    *
-   * @param address - Hex address of the collectible contract
-   * @param tokenId - The collectible identifier
-   * @param collectibleMetadata - Collectible optional metadata
-   * @param detection? - Whether the collectible is manually added or autodetected
-   * @returns - Promise resolving to the current collectible list
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - The collectible identifier.
+   * @param collectibleMetadata - Collectible optional metadata.
+   * @param detection - Whether the collectible is manually added or autodetected.
+   * @returns Promise resolving to the current collectible list.
    */
   async addCollectible(
     address: string,
@@ -774,10 +769,10 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Removes a collectible from the stored token list
+   * Removes a collectible from the stored token list.
    *
-   * @param address - Hex address of the collectible contract
-   * @param tokenId - Token identifier of the collectible
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - Token identifier of the collectible.
    */
   removeCollectible(address: string, tokenId: number) {
     address = toChecksumHexAddress(address);
@@ -793,10 +788,10 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Removes a collectible from the stored token list and saves it in ignored collectibles list
+   * Removes a collectible from the stored token list and saves it in ignored collectibles list.
    *
-   * @param address - Hex address of the collectible contract
-   * @param tokenId - Token identifier of the collectible
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - Token identifier of the collectible.
    */
   removeAndIgnoreCollectible(address: string, tokenId: number) {
     address = toChecksumHexAddress(address);
@@ -812,7 +807,7 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Removes all collectibles from the ignored list
+   * Removes all collectibles from the ignored list.
    */
   clearIgnoredCollectibles() {
     this.update({ ignoredCollectibles: [] });

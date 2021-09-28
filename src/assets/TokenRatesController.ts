@@ -11,7 +11,6 @@ import type { CurrencyRateState } from './CurrencyRateController';
  * @type CoinGeckoResponse
  *
  * CoinGecko API response representation
- *
  */
 export interface CoinGeckoResponse {
   [address: string]: {
@@ -22,7 +21,6 @@ export interface CoinGeckoResponse {
  * @type CoinGeckoPlatform
  *
  * CoinGecko supported platform API representation
- *
  */
 export interface CoinGeckoPlatform {
   id: string;
@@ -35,7 +33,6 @@ export interface CoinGeckoPlatform {
  * @type Token
  *
  * Token representation
- *
  * @property address - Hex address of the token contract
  * @property decimals - Number of decimals the token uses
  * @property symbol - Symbol of the token
@@ -54,7 +51,6 @@ export interface Token {
  * @type TokenRatesConfig
  *
  * Token rates controller configuration
- *
  * @property interval - Polling interval used to fetch new token rates
  * @property nativeCurrency - Current native currency selected to use base of rates
  * @property chainId - Current network chainId
@@ -87,7 +83,6 @@ interface SupportedVsCurrenciesCache {
  * @type TokenRatesState
  *
  * Token rates controller state
- *
  * @property contractExchangeRates - Hash of token contract addresses to exchange rates
  * @property supportedChains - Cached chain data
  */
@@ -109,11 +104,11 @@ const CoinGeckoApi = {
 };
 
 /**
- * Finds the chain slug in the data array given a chainId
+ * Finds the chain slug in the data array given a chainId.
  *
- * @param chainId current chainId
- * @param data Array of supported platforms from CoinGecko API
- * @returns Slug of chainId
+ * @param chainId - The current chain ID.
+ * @param data - A list platforms supported by the CoinGecko API.
+ * @returns The CoinGecko slug for the given chain ID, or `null` if the slug was not found.
  */
 function findChainSlug(
   chainId: string,
@@ -158,13 +153,14 @@ export class TokenRatesController extends BaseController<
   name = 'TokenRatesController';
 
   /**
-   * Creates a TokenRatesController instance
+   * Creates a TokenRatesController instance.
    *
-   * @param options
-   * @param options.onAssetsStateChange - Allows subscribing to assets controller state changes
-   * @param options.onCurrencyRateStateChange - Allows subscribing to currency rate controller state changes
-   * @param config - Initial options used to configure this controller
-   * @param state - Initial state to set on this controller
+   * @param options - The controller options.
+   * @param options.onTokensStateChange - Allows subscribing to token controller state changes.
+   * @param options.onCurrencyRateStateChange - Allows subscribing to currency rate controller state changes.
+   * @param options.onNetworkStateChange - Allows subscribing to network state changes.
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
    */
   constructor(
     {
@@ -217,9 +213,9 @@ export class TokenRatesController extends BaseController<
   }
 
   /**
-   * Sets a new polling interval
+   * Sets a new polling interval.
    *
-   * @param interval - Polling interval used to fetch new token rates
+   * @param interval - Polling interval used to fetch new token rates.
    */
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
@@ -231,11 +227,11 @@ export class TokenRatesController extends BaseController<
   }
 
   /**
-   * Sets a new chainId
+   * Sets a new chainId.
    *
-   * TODO: Replace this with a method
+   * TODO: Replace this with a method.
    *
-   * @param chainId current chainId
+   * @param _chainId - The current chain ID.
    */
   set chainId(_chainId: string) {
     !this.disabled && safelyExecute(() => this.updateExchangeRates());
@@ -246,11 +242,11 @@ export class TokenRatesController extends BaseController<
   }
 
   /**
-   * Sets a new token list to track prices
+   * Sets a new token list to track prices.
    *
-   * TODO: Replace this with a method
+   * TODO: Replace this with a method.
    *
-   * @param tokens - List of tokens to track exchange rates for
+   * @param tokens - List of tokens to track exchange rates for.
    */
   set tokens(tokens: Token[]) {
     this.tokenList = tokens;
@@ -262,11 +258,11 @@ export class TokenRatesController extends BaseController<
   }
 
   /**
-   * Fetches a pairs of token address and native currency
+   * Fetches a pairs of token address and native currency.
    *
-   * @param chainSlug - Chain string identifier
-   * @param vsCurrency - the vsCurrency used to query token exchange rates against.
-   * @returns - Promise resolving to exchange rates for given pairs
+   * @param chainSlug - Chain string identifier.
+   * @param vsCurrency - Query according to tokens in tokenList and native currency.
+   * @returns The exchange rates for the given pairs.
    */
   async fetchExchangeRate(
     chainSlug: string,
@@ -279,10 +275,10 @@ export class TokenRatesController extends BaseController<
 
   /**
    * Checks if the current native currency is a supported vs currency to use
-   * to query for token exchange rates
+   * to query for token exchange rates.
    *
-   * @param nativeCurrency - the native currency of the currently active network
-   * @returns - Promise resolving to a boolean indicating whether it's a supported vsCurrency
+   * @param nativeCurrency - The native currency of the currently active network.
+   * @returns A boolean indicating whether it's a supported vsCurrency.
    */
   private async checkIsSupportedVsCurrency(nativeCurrency: string) {
     const { threshold } = this.config;
@@ -305,10 +301,10 @@ export class TokenRatesController extends BaseController<
   }
 
   /**
-   * Gets current chainId slug from cached supported platforms CoinGecko API response.
+   * Gets current chain ID slug from cached supported platforms CoinGecko API response.
    * If cached supported platforms response is stale, fetches and updates it.
    *
-   * @returns current chainId
+   * @returns The CoinGecko slug for the current chain ID.
    */
   async getChainSlug(): Promise<string | null> {
     const { threshold, chainId } = this.config;
@@ -329,9 +325,7 @@ export class TokenRatesController extends BaseController<
   }
 
   /**
-   * Updates exchange rates for all tokens
-   *
-   * @returns Promise resolving when this operation completes
+   * Updates exchange rates for all tokens.
    */
   async updateExchangeRates() {
     if (this.tokenList.length === 0 || this.disabled) {
@@ -356,15 +350,16 @@ export class TokenRatesController extends BaseController<
   }
 
   /**
-   * Checks if the active network's native currency is supported by the coingecko API
-   * If supported. fetches and maps contractExchange rates in format to be consumed by UI
-   * If not supported fetches contractExchange rates and maps from from token/fallback-currency to token/nativeCurrency
+   * Checks if the active network's native currency is supported by the coingecko API.
+   * If supported, it fetches and maps contractExchange rates to a format to be consumed by the UI.
+   * If not supported, it fetches contractExchange rates and maps them from token/fallback-currency
+   * to token/nativeCurrency.
    *
-   * @param nativeCurrency - the native currency of the currently active network
-   * @param slug - the unique slug used to id the chain by the coingecko api
-   * should be used to query token exchange rates
+   * @param nativeCurrency - The native currency of the currently active network.
+   * @param slug - The unique slug used to id the chain by the coingecko api
+   * should be used to query token exchange rates.
    * @returns An object with conversion rates for each token
-   * related to the network's native currency
+   * related to the network's native currency.
    */
   async fetchAndMapExchangeRates(
     nativeCurrency: string,
