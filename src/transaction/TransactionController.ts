@@ -1350,10 +1350,11 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Method to verify the state of transactions using Etherscan as a source of truth
-   * @param remoteTxs Array of transactions from remote source
-   * @param localTxs Array of transactions stored locally
-   * @returns [boolean, TransactionMeta[]]
+   * Method to verify the state of transactions using Etherscan as a source of truth.
+   *
+   * @param remoteTxs - Transactions to reconcile that are from a remote source.
+   * @param localTxs - Transactions to reconcile that are local.
+   * @returns A tuple containing a boolean indicating whether or not an update was required, and the updated transaction.
    */
   private etherscanTransactionStateReconciler(
     remoteTxs: TransactionMeta[],
