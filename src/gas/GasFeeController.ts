@@ -374,6 +374,7 @@ export class GasFeeController extends BaseController<
    * @param options - The gas fee estimate options.
    * @param options.shouldUpdateState - Determines whether the state should be updated with the
    * updated gas estimates.
+   * @param options.transactionType - Determines type of the transaction for which estimate data is required.
    * @returns The gas fee estimates.
    */
   async _fetchGasFeeEstimateData(
