@@ -243,4 +243,22 @@ describe('GasFeeController', () => {
       );
     });
   });
+
+  describe('when checking for type-0 transaction on any network supporting EIP-1559', () => {
+    it('should _fetchGasFeeEstimateData', async () => {
+      getCurrentNetworkLegacyGasAPICompatibility.mockImplementation(() => true);
+      expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
+      const estimates = await gasFeeController._fetchGasFeeEstimateData({
+        transactionType: '0x0',
+      });
+      expect(estimates).toHaveProperty('gasFeeEstimates');
+      expect(
+        (gasFeeController.state.gasFeeEstimates as LegacyGasPriceEstimate).high,
+      ).toBe('30');
+
+      expect(gasFeeController.state.gasFeeEstimates).not.toHaveProperty(
+        'estimatedBaseFee',
+      );
+    });
+  });
 });

@@ -157,6 +157,7 @@ export type GasFeeStateNoEstimates = {
 
 export type FetchGasFeeEstimateOptions = {
   shouldUpdateState?: boolean;
+  transactionType?: string;
 };
 
 /**
@@ -191,6 +192,12 @@ type GasFeeMessenger = RestrictedControllerMessenger<
   never,
   never
 >;
+
+const TRANSACTION_ENVELOPE_TYPES = {
+  LEGACY: '0x0',
+  ACCESS_LIST: '0x1',
+  FEE_MARKET: '0x2',
+};
 
 const defaultState: GasFeeState = {
   gasFeeEstimates: {},
@@ -372,9 +379,12 @@ export class GasFeeController extends BaseController<
   async _fetchGasFeeEstimateData(
     options: FetchGasFeeEstimateOptions = {},
   ): Promise<GasFeeState> {
-    const { shouldUpdateState = true } = options;
+    const { shouldUpdateState = true, transactionType } = options;
     let isEIP1559Compatible;
-    const isLegacyGasAPICompatible = this.getCurrentNetworkLegacyGasAPICompatibility();
+    const isLegacyTransaction =
+      transactionType === TRANSACTION_ENVELOPE_TYPES.LEGACY;
+    const isLegacyGasAPICompatible =
+      isLegacyTransaction || this.getCurrentNetworkLegacyGasAPICompatibility();
 
     let chainId = this.getChainId();
     if (typeof chainId === 'string' && isHexString(chainId)) {
@@ -382,7 +392,8 @@ export class GasFeeController extends BaseController<
     }
 
     try {
-      isEIP1559Compatible = await this.getEIP1559Compatibility();
+      isEIP1559Compatible =
+        !isLegacyTransaction && (await this.getEIP1559Compatibility());
     } catch (e) {
       console.error(e);
       isEIP1559Compatible = false;
