@@ -6,6 +6,7 @@ import {
   GetGasFeeState,
   GasFeeStateChange,
   LegacyGasPriceEstimate,
+  GAS_ESTIMATE_TYPES,
 } from './GasFeeController';
 
 const TEST_GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/<chain_id>';
@@ -255,6 +256,10 @@ describe('GasFeeController', () => {
       expect(
         (gasFeeController.state.gasFeeEstimates as LegacyGasPriceEstimate).high,
       ).toBe('30');
+
+      expect(gasFeeController.state.gasEstimateType).toStrictEqual(
+        GAS_ESTIMATE_TYPES.LEGACY,
+      );
 
       expect(gasFeeController.state.gasFeeEstimates).not.toHaveProperty(
         'estimatedBaseFee',
