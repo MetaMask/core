@@ -155,7 +155,7 @@ describe('ComposableController', () => {
           ipfsGateway: 'https://ipfs.io/ipfs/',
           lostIdentities: {},
           selectedAddress: '',
-          useStaticTokenList: false,
+          useStaticTokenList: true,
         },
       });
     });
@@ -215,7 +215,7 @@ describe('ComposableController', () => {
         properties: { isEIP1559Compatible: false },
         provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
         selectedAddress: '',
-        useStaticTokenList: false,
+        useStaticTokenList: true,
         suggestedAssets: [],
         tokens: [],
       });

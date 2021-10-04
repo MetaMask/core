@@ -10,7 +10,7 @@ describe('PreferencesController', () => {
       ipfsGateway: 'https://ipfs.io/ipfs/',
       lostIdentities: {},
       selectedAddress: '',
-      useStaticTokenList: false,
+      useStaticTokenList: true,
     });
   });
 
