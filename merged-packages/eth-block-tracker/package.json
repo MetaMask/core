@@ -18,8 +18,8 @@
     "lint": "eslint . --ext ts,js,json",
     "lint:fix": "yarn lint --fix",
     "build": "tsc --project .",
-    "test": "yarn build && node test/index.js",
-    "prepublishOnly": "yarn lint && yarn test"
+    "test": "node test/index.js",
+    "prepublishOnly": "yarn lint && yarn build && yarn test"
   },
   "license": "MIT",
   "resolutions": {
