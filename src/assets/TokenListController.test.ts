@@ -267,7 +267,7 @@ describe('TokenListController', () => {
   let preferences: PreferencesController;
   beforeEach(() => {
     network = new NetworkController();
-    preferences = new PreferencesController();
+    preferences = new PreferencesController({}, { useStaticTokenList: false });
   });
 
   afterEach(() => {
