@@ -798,6 +798,7 @@ describe('TransactionController', () => {
     expect(controller.state.transactions[0].verifiedOnBlockchain).toBe(true);
     expect(controller.state.transactions[0].transaction.gasUsed).toBe('0x5208');
   });
+
   it('should increase the polling attempt if the query result is null', async () => {
     const controller = new TransactionController(
       {
@@ -825,6 +826,7 @@ describe('TransactionController', () => {
     await controller.queryTransactionStatuses();
     expect(controller.state.transactions[0].pollingAttempts).toBe(1);
   });
+
   it('should set the transaction status to failed if the polling attempt limit is reached', async () => {
     await new Promise((resolve) => {
       const controller = new TransactionController(
@@ -852,6 +854,7 @@ describe('TransactionController', () => {
         },
         pollingAttempts: 3,
       } as any);
+
       controller.hub.once(
         `${controller.state.transactions[0].id}:finished`,
         () => {
@@ -864,6 +867,7 @@ describe('TransactionController', () => {
       controller.queryTransactionStatuses();
     });
   });
+
   it('should fetch all the transactions from an address, including incoming transactions, in ropsten', async () => {
     globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({

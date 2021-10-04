@@ -86,7 +86,6 @@ export interface Transaction {
  * @type GasPriceValue
  *
  * GasPriceValue representation
- *
  * @property gasPrice - Value of the gas price
  */
 export interface GasPriceValue {
@@ -97,7 +96,6 @@ export interface GasPriceValue {
  * @type FeeMarketEIP1559Values
  *
  * FeeMarketEIP1559Values representation
- *
  * @property maxFeePerGas - Value of the gas price
  * @property maxPriorityFeePerGas - Part of the fee that goes to the miner
  */
@@ -135,7 +133,6 @@ export enum WalletDevice {
  * @type TransactionMetaBase
  *
  * TransactionMetaBase representation
- *
  * @property isTransfer - Value indicating if the transaction is a transfer
  * @property transferInformation - Transfer information
  * @property id - Transaction ID
