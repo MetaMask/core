@@ -34,7 +34,8 @@ import { MAINNET, RPC } from '../constants';
 const HARDFORK = 'london';
 
 /**
- * @type Result
+ * Result representation
+ *
  * @property result - Promise resolving to a new transaction hash
  * @property transactionMeta - Meta information about this new transaction
  */
@@ -44,7 +45,8 @@ export interface Result {
 }
 
 /**
- * @type Fetch All Options
+ * Options to fetch transactions from the blockchain or Etherscan
+ *
  * @property fromBlock - String containing a specific block decimal number
  * @property etherscanApiKey - API key to be used to fetch token transactions
  */
@@ -54,9 +56,8 @@ export interface FetchAllOptions {
 }
 
 /**
- * @type Transaction
- *
  * Transaction representation
+ *
  * @property chainId - Network ID as per EIP-155
  * @property data - Data to pass with this transaction
  * @property from - Address to send this transaction from
@@ -83,9 +84,8 @@ export interface Transaction {
 }
 
 /**
- * @type GasPriceValue
+ * Value for the current gas price
  *
- * GasPriceValue representation
  * @property gasPrice - Value of the gas price
  */
 export interface GasPriceValue {
@@ -93,9 +93,8 @@ export interface GasPriceValue {
 }
 
 /**
- * @type FeeMarketEIP1559Values
+ * Current fee values for EIP1559 market
  *
- * FeeMarketEIP1559Values representation
  * @property maxFeePerGas - Value of the gas price
  * @property maxPriorityFeePerGas - Part of the fee that goes to the miner
  */
@@ -130,9 +129,8 @@ export enum WalletDevice {
 }
 
 /**
- * @type TransactionMetaBase
+ * Base transaction metadata representation
  *
- * TransactionMetaBase representation
  * @property isTransfer - Value indicating if the transaction is a transfer
  * @property transferInformation - Transfer information
  * @property id - Transaction ID
@@ -172,9 +170,8 @@ type TransactionMetaBase = {
 };
 
 /**
- * @type TransactionMeta
+ * Transaction metadata representation
  *
- * TransactionMeta representation
  * @property error - Synthesized error information for failed transactions
  * @property id - Generated UUID associated with this transaction
  * @property networkID - Network code as per EIP-155 for this transaction
@@ -195,9 +192,8 @@ export type TransactionMeta =
   | ({ status: TransactionStatus.failed; error: Error } & TransactionMetaBase);
 
 /**
- * @type EtherscanTransactionMeta
+ * Transaction metadata from Etherscan
  *
- * EtherscanTransactionMeta representation
  * @property blockNumber - Number of the block where the transaction has been included
  * @property timeStamp - Timestamp associated with this transaction
  * @property hash - Hash of a successful transaction
@@ -239,9 +235,8 @@ export interface EtherscanTransactionMeta {
 }
 
 /**
- * @type TransactionConfig
- *
  * Transaction controller configuration
+ *
  * @property interval - Polling interval used to fetch new currency rate
  * @property provider - Provider used to create a new underlying EthQuery instance
  * @property sign - Method used to sign transactions
@@ -253,9 +248,8 @@ export interface TransactionConfig extends BaseConfig {
 }
 
 /**
- * @type MethodData
- *
  * Method data registry object
+ *
  * @property registryMethod - Registry method raw string
  * @property parsedRegistryMethod - Registry method object, containing name and method arguments
  */
@@ -265,9 +259,8 @@ export interface MethodData {
 }
 
 /**
- * @type TransactionState
- *
  * Transaction controller state
+ *
  * @property transactions - A list of TransactionMeta objects
  * @property methodData - Object containing all known method data information
  */
@@ -1316,20 +1309,21 @@ export class TransactionController extends BaseController<
 
         return [meta, true];
       case TransactionStatus.submitted:
-        if (pollingAttempts === maxPollingAttempts) {
-          const error: Error = new Error(
-            'Transaction failed. The transaction was dropped or replaced by a new one',
-          );
-          this.failTransaction(meta, error);
-          return [meta, false];
-        }
-
         const txObj = await query(this.ethQuery, 'getTransactionByHash', [
           transactionHash,
         ]);
 
-        if (!txObj && meta.pollingAttempts) {
+        if (!txObj && meta.pollingAttempts !== undefined) {
           meta.pollingAttempts += 1;
+
+          if (pollingAttempts === maxPollingAttempts) {
+            const error: Error = new Error(
+              'Transaction failed. The transaction was dropped or replaced by a new one',
+            );
+            this.failTransaction(meta, error);
+            return [meta, false];
+          }
+
           return [meta, true];
         }
 
