@@ -86,7 +86,7 @@ export interface Transaction {
 /**
  * Value for the current gas price
  *
- * @property gasPrice - Value of the gas price
+ * @property gasPrice - Value of the gas price as a hex string
  */
 export interface GasPriceValue {
   gasPrice: string;
@@ -95,8 +95,8 @@ export interface GasPriceValue {
 /**
  * Current fee values for EIP1559 market
  *
- * @property maxFeePerGas - Value of the gas price
- * @property maxPriorityFeePerGas - Part of the fee that goes to the miner
+ * @property maxFeePerGas - Value of the gas price as a hex string
+ * @property maxPriorityFeePerGas - Part of the fee that goes to the miner as a hex string
  */
 export interface FeeMarketEIP1559Values {
   maxFeePerGas: string;
