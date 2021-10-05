@@ -1313,7 +1313,11 @@ export class TransactionController extends BaseController<
           transactionHash,
         ]);
 
-        if (!txObj && meta.pollingAttempts !== undefined) {
+        if (meta.pollingAttempts === undefined) {
+          meta.pollingAttempts = 0;
+        }
+
+        if (!txObj) {
           meta.pollingAttempts += 1;
 
           if (pollingAttempts === maxPollingAttempts) {
