@@ -1328,7 +1328,7 @@ export class TransactionController extends BaseController<
           transactionHash,
         ]);
 
-        if (!txObj && typeof meta.pollingAttempts === 'number') {
+        if (!txObj && meta.pollingAttempts) {
           meta.pollingAttempts += 1;
           return [meta, true];
         }
