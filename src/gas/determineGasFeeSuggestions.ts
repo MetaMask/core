@@ -1,3 +1,4 @@
+import { sequenceStrategies } from '../util';
 import {
   GAS_ESTIMATE_TYPES,
   EstimatedGasFeeTimeBounds,
@@ -64,8 +65,10 @@ export default async function determineGasFeeSuggestions({
   clientId: string | undefined;
   ethQuery: any;
 }): Promise<GasFeeSuggestions> {
-  try {
-    if (isEIP1559Compatible) {
+  const strategies = [];
+
+  if (isEIP1559Compatible) {
+    strategies.push(async () => {
       const estimates = await fetchGasEstimates(fetchGasEstimatesUrl, clientId);
       const {
         suggestedMaxPriorityFeePerGas,
@@ -81,7 +84,9 @@ export default async function determineGasFeeSuggestions({
         estimatedGasFeeTimeBounds,
         gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
       };
-    } else if (isLegacyGasAPICompatible) {
+    });
+  } else if (isLegacyGasAPICompatible) {
+    strategies.push(async () => {
       const estimates = await fetchLegacyGasPriceEstimates(
         fetchLegacyGasPriceEstimatesUrl,
         clientId,
@@ -91,20 +96,22 @@ export default async function determineGasFeeSuggestions({
         estimatedGasFeeTimeBounds: {},
         gasEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
       };
-    }
-    throw new Error('Main gas fee/price estimation failed. Use fallback');
-  } catch {
-    try {
-      const estimates = await fetchEthGasPriceEstimate(ethQuery);
-      return {
-        gasFeeEstimates: estimates,
-        estimatedGasFeeTimeBounds: {},
-        gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
-      };
-    } catch (error) {
-      throw new Error(
-        `Gas fee/price estimation failed. Message: ${error.message}`,
-      );
-    }
+    });
   }
+
+  strategies.push(async () => {
+    const estimates = await fetchEthGasPriceEstimate(ethQuery);
+    return {
+      gasFeeEstimates: estimates,
+      estimatedGasFeeTimeBounds: {},
+      gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
+    };
+  });
+
+  const runStrategies = sequenceStrategies(
+    strategies,
+    'Could not generate gas fee suggestions',
+  );
+
+  return runStrategies();
 }

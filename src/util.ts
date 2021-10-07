@@ -767,3 +767,54 @@ export function validateMinimumIncrease(proposed: string, min: string) {
   const errorMsg = `The proposed value: ${proposedDecimal} should meet or exceed the minimum value: ${minDecimal}`;
   throw new Error(errorMsg);
 }
+
+/**
+ * Provides a way to try out a set of asynchronous strategies one by one, returning the the resolved
+ * value of the first strategy that succeeds OR the rejection error in the last strategy assuming
+ * none of the actions resolve.
+ *
+ * @param strategies - A set of functions that return promises.
+ * @param errorMessage - The custom error message that will be used to wrap the final action
+ * assuming that none of the other actions succeed.
+ * @returns A function that will kick off the sequence.
+ */
+export function sequenceStrategies(
+  strategies: (() => Promise<any>)[],
+  errorMessage: string,
+): () => Promise<any> {
+  // Given the following set of strategies:
+  //
+  //   sequenceStrategies(
+  //     [
+  //       async () => fn1ThatMayOrMayNotThrow(),
+  //       async () => fn2ThatMayOrMayNotThrow(),
+  //       async () => fn3ThatMayOrMayNotThrow(),
+  //     ],
+  //     'Oops'
+  //   )
+  //
+  // the following function will be equivalent to:
+  //
+  //   () => {
+  //     return fn1ThatMayOrMayNotThrow()
+  //       .catch(() => fn2ThatMayOrMayNotThrow())
+  //       .catch(() => fn3ThatMayOrMayNotThrow())
+  //       .catch((error) => {
+  //         return Promise.reject(new Error(`Oops: ${error.message}`));
+  //       })
+  //   }
+  //
+  return () => {
+    if (strategies.length > 0) {
+      return strategies
+        .slice(1)
+        .reduce((finalPromise, fn) => {
+          return finalPromise.catch(fn);
+        }, strategies[0]())
+        .catch((error: Error) => {
+          return Promise.reject(new Error(`${errorMessage}: ${error.message}`));
+        });
+    }
+    return Promise.resolve(null);
+  };
+}

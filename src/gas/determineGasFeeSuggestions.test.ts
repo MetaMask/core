@@ -169,7 +169,44 @@ describe('determineGasFeeSuggestions', () => {
           const promise = determineGasFeeSuggestions(options);
 
           await expect(promise).rejects.toThrow(
-            'Gas fee/price estimation failed. Message: fetchEthGasPriceEstimate failed',
+            'Could not generate gas fee suggestions: fetchEthGasPriceEstimate failed',
+          );
+        });
+      });
+    });
+
+    describe('when fetchGasEstimates does not throw an error, but calculateTimeEstimate throws an error', () => {
+      beforeEach(() => {
+        calculateTimeEstimate.mockImplementation(() => {
+          throw new Error('Some API failure');
+        });
+      });
+
+      describe('assuming fetchEthGasPriceEstimate does not throw an error', () => {
+        it('returns the fetched fee estimates and an empty set of time estimates', async () => {
+          const gasFeeEstimates = buildMockDataForFetchEthGasPriceEstimate();
+          fetchEthGasPriceEstimate.mockResolvedValue(gasFeeEstimates);
+
+          const gasFeeSuggestions = await determineGasFeeSuggestions(options);
+
+          expect(gasFeeSuggestions).toStrictEqual({
+            gasFeeEstimates,
+            estimatedGasFeeTimeBounds: {},
+            gasEstimateType: 'eth_gasPrice',
+          });
+        });
+      });
+
+      describe('when fetchEthGasPriceEstimate throws an error', () => {
+        it('throws an error that wraps that error', async () => {
+          fetchEthGasPriceEstimate.mockImplementation(() => {
+            throw new Error('fetchEthGasPriceEstimate failed');
+          });
+
+          const promise = determineGasFeeSuggestions(options);
+
+          await expect(promise).rejects.toThrow(
+            'Could not generate gas fee suggestions: fetchEthGasPriceEstimate failed',
           );
         });
       });
@@ -239,7 +276,7 @@ describe('determineGasFeeSuggestions', () => {
           const promise = determineGasFeeSuggestions(options);
 
           await expect(promise).rejects.toThrow(
-            'Gas fee/price estimation failed. Message: fetchEthGasPriceEstimate failed',
+            'Could not generate gas fee suggestions: fetchEthGasPriceEstimate failed',
           );
         });
       });
@@ -286,7 +323,7 @@ describe('determineGasFeeSuggestions', () => {
         const promise = determineGasFeeSuggestions(options);
 
         await expect(promise).rejects.toThrow(
-          'Gas fee/price estimation failed. Message: fetchEthGasPriceEstimate failed',
+          'Could not generate gas fee suggestions: fetchEthGasPriceEstimate failed',
         );
       });
     });

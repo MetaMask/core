@@ -1064,4 +1064,54 @@ describe('util', () => {
       ).not.toThrow(Error);
     });
   });
+
+  describe('sequenceStrategies', () => {
+    it('should return a function that, when run, returns the resolved value of the first promise that resolves', async () => {
+      const startSequence = util.sequenceStrategies(
+        [
+          async () => {
+            throw new Error('first one failed');
+          },
+          async () => {
+            return 'second one succeeded';
+          },
+          async () => {
+            throw new Error('third one failed');
+          },
+        ],
+        'Oops',
+      );
+
+      const result = await startSequence();
+
+      expect(result).toStrictEqual('second one succeeded');
+    });
+
+    it("should return a function that, when run, returns an error wrapping the last promise's rejection error, in the event all other promises failed", async () => {
+      const startSequence = util.sequenceStrategies(
+        [
+          async () => {
+            throw new Error('first one failed');
+          },
+          async () => {
+            throw new Error('second one failed');
+          },
+          async () => {
+            throw new Error('third one failed');
+          },
+        ],
+        'Oops',
+      );
+
+      await expect(startSequence()).rejects.toThrow('Oops: third one failed');
+    });
+
+    it('should return a function that returns a promise that resolves to null if no strategies are given', async () => {
+      const startSequence = util.sequenceStrategies([], 'Oops');
+
+      const result = await startSequence();
+
+      expect(result).toBeNull();
+    });
+  });
 });
