@@ -1,6 +1,6 @@
 import * as utils from './utils';
 import { SmartTransactionMinedTx, APIType } from './types';
-import { API_BASE_URL, CHAIN_IDS } from './constants';
+import { API_BASE_URL, CHAIN_IDS, CHAIN_IDS_HEX_TO_DEC } from './constants';
 
 describe('src/utils.js', () => {
   describe('isSmartTransactionPending', () => {
@@ -36,41 +36,44 @@ describe('src/utils.js', () => {
   });
 
   describe('getAPIRequestURL', () => {
+    const ethereumChainIdDec = CHAIN_IDS_HEX_TO_DEC[CHAIN_IDS.ETHEREUM];
+
     it('returns a URL for getting transactions', () => {
       expect(
         utils.getAPIRequestURL(APIType.GET_TRANSACTIONS, CHAIN_IDS.ETHEREUM),
-      ).toBe(`${API_BASE_URL}/networks/${CHAIN_IDS.ETHEREUM}/getTransactions`);
+      ).toBe(`${API_BASE_URL}/networks/${ethereumChainIdDec}/getTransactions`);
     });
 
     it('returns a URL for submitting transactions', () => {
       expect(
         utils.getAPIRequestURL(APIType.SUBMIT_TRANSACTIONS, CHAIN_IDS.ETHEREUM),
       ).toBe(
-        `${API_BASE_URL}/networks/${CHAIN_IDS.ETHEREUM}/submitTransactions`,
+        `${API_BASE_URL}/networks/${ethereumChainIdDec}/submitTransactions`,
       );
     });
 
     it('returns a URL for transaction cancelation', () => {
       expect(utils.getAPIRequestURL(APIType.CANCEL, CHAIN_IDS.ETHEREUM)).toBe(
-        `${API_BASE_URL}/networks/${CHAIN_IDS.ETHEREUM}/cancel`,
+        `${API_BASE_URL}/networks/${ethereumChainIdDec}/cancel`,
       );
     });
 
     it('returns a URL for checking a smart transactions status', () => {
       expect(
         utils.getAPIRequestURL(APIType.BATCH_STATUS, CHAIN_IDS.ETHEREUM),
-      ).toBe(`${API_BASE_URL}/networks/${CHAIN_IDS.ETHEREUM}/batch_status`);
+      ).toBe(`${API_BASE_URL}/networks/${ethereumChainIdDec}/batchStatus`);
     });
 
     it('returns a URL for smart transactions API liveness', () => {
       expect(utils.getAPIRequestURL(APIType.LIVENESS, CHAIN_IDS.ETHEREUM)).toBe(
-        `${API_BASE_URL}/networks/${CHAIN_IDS.ETHEREUM}/liveness`,
+        `${API_BASE_URL}/networks/${ethereumChainIdDec}/liveness`,
       );
     });
 
     it('returns a URL for smart transactions API liveness for the BSC chainId', () => {
+      const bscChainIdDec = CHAIN_IDS_HEX_TO_DEC[CHAIN_IDS.BSC];
       expect(utils.getAPIRequestURL(APIType.LIVENESS, CHAIN_IDS.BSC)).toBe(
-        `${API_BASE_URL}/networks/${CHAIN_IDS.BSC}/liveness`,
+        `${API_BASE_URL}/networks/${bscChainIdDec}/liveness`,
       );
     });
   });

@@ -1,5 +1,5 @@
 import { APIType, SmartTransaction, SmartTransactionMinedTx } from './types';
-import { API_BASE_URL } from './constants';
+import { API_BASE_URL, CHAIN_IDS_HEX_TO_DEC } from './constants';
 
 export function isSmartTransactionPending(smartTransaction: SmartTransaction) {
   return (
@@ -11,25 +11,26 @@ export function isSmartTransactionPending(smartTransaction: SmartTransaction) {
 
 // TODO use actual url once API is defined
 export function getAPIRequestURL(apiType: APIType, chainId: string): string {
+  const chainIdDec = CHAIN_IDS_HEX_TO_DEC[chainId];
   switch (apiType) {
     case APIType.GET_TRANSACTIONS: {
-      return `${API_BASE_URL}/networks/${chainId}/getTransactions`;
+      return `${API_BASE_URL}/networks/${chainIdDec}/getTransactions`;
     }
 
     case APIType.SUBMIT_TRANSACTIONS: {
-      return `${API_BASE_URL}/networks/${chainId}/submitTransactions`;
+      return `${API_BASE_URL}/networks/${chainIdDec}/submitTransactions`;
     }
 
     case APIType.CANCEL: {
-      return `${API_BASE_URL}/networks/${chainId}/cancel`;
+      return `${API_BASE_URL}/networks/${chainIdDec}/cancel`;
     }
 
     case APIType.BATCH_STATUS: {
-      return `${API_BASE_URL}/networks/${chainId}/batch_status`;
+      return `${API_BASE_URL}/networks/${chainIdDec}/batchStatus`;
     }
 
     case APIType.LIVENESS: {
-      return `${API_BASE_URL}/networks/${chainId}/liveness`;
+      return `${API_BASE_URL}/networks/${chainIdDec}/liveness`;
     }
 
     default: {

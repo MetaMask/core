@@ -34,6 +34,10 @@ Run `yarn test` to run the tests once. To run tests on file changes, run `yarn t
 
 Run `yarn lint` to run the linter, or run `yarn lint:fix` to run the linter and fix any automatically fixable issues.
 
+### Linking
+
+First, `yarn build:link` in this repository, then link it by running `yarn link` in the consumer repository.
+
 ### Release & Publishing
 
 The project follows the same release process as the other libraries in the MetaMask organization. The GitHub Actions [`action-create-release-pr`](https://github.com/MetaMask/action-create-release-pr) and [`action-publish-release`](https://github.com/MetaMask/action-publish-release) are used to automate the release process; see those repositories for more information about how they work.

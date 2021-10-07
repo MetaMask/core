@@ -1,6 +1,6 @@
 {
   "name": "@metamask/smart-transactions-controller",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "MetaMask controller for Smart Transactions.",
   "repository": {
     "type": "git",
@@ -21,7 +21,8 @@
     "lint": "yarn lint:eslint && yarn lint:misc --check",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
     "build:clean": "rimraf dist && yarn build",
-    "build": "tsc --project ."
+    "build": "tsc --project .",
+    "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd .."
   },
   "dependencies": {
     "@metamask/controllers": "^16.0.0"
