@@ -17,6 +17,7 @@ import {
   calculateTimeEstimate,
 } from './gas-util';
 import determineGasFeeSuggestions from './determineGasFeeSuggestions';
+import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 
 const GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/';
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
@@ -376,6 +377,7 @@ export class GasFeeController extends BaseController<
         '<chain_id>',
         `${chainId}`,
       ),
+      fetchGasEstimatesViaEthFeeHistory,
       fetchLegacyGasPriceEstimates,
       fetchLegacyGasPriceEstimatesUrl: this.legacyAPIEndpoint.replace(
         '<chain_id>',
