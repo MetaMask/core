@@ -82,6 +82,7 @@ export interface CollectibleContract {
  * @property animationOriginal - URI of the original animation associated with this collectible
  * @property externalLink - External link containing additional information
  * @property creator - The collectible owner information object
+ * @property standard - NFT standard name for the collectible, e.g., ERC-721 or ERC-1155
  */
 export interface CollectibleMetadata {
   name?: string;
@@ -97,6 +98,7 @@ export interface CollectibleMetadata {
   externalLink?: string;
   creator?: ApiCollectibleCreator;
   lastSale?: ApiCollectibleLastSale;
+  standard?: string;
 }
 
 /**
@@ -184,6 +186,7 @@ export class CollectiblesController extends BaseController<
       external_link,
       creator,
       last_sale,
+      asset_contract,
     } = collectibleInformation;
 
     /* istanbul ignore next */
@@ -204,6 +207,7 @@ export class CollectiblesController extends BaseController<
       },
       external_link && { externalLink: external_link },
       last_sale && { lastSale: last_sale },
+      asset_contract.schema_name && { standard: asset_contract.schema_name },
     );
 
     return collectibleMetadata;

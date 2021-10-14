@@ -45,6 +45,9 @@ describe('CollectiblesController', () => {
         name: 'Name',
         symbol: 'FOO',
         total_supply: 0,
+        asset_contract: {
+          schema_name: 'ERC1155',
+        },
       })
       .get(`${OPEN_SEA_PATH}/asset_contract/0x02`)
       .reply(200, {
@@ -59,6 +62,9 @@ describe('CollectiblesController', () => {
         description: 'Description',
         image_original_url: 'url',
         name: 'Name',
+        asset_contract: {
+          schema_name: 'ERC1155',
+        },
       })
       .get(
         `${OPEN_SEA_PATH}/asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203`,
@@ -67,6 +73,9 @@ describe('CollectiblesController', () => {
         description: 'Kudos Description',
         image_original_url: 'Kudos url',
         name: 'Kudos Name',
+        asset_contract: {
+          schema_name: 'ERC721',
+        },
       })
       .get(
         `${OPEN_SEA_PATH}/asset/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/798958393`,
@@ -204,6 +213,7 @@ describe('CollectiblesController', () => {
       description: 'Description',
       imageOriginal: 'url',
       name: 'Name',
+      standard: 'ERC1155',
       tokenId: 1,
     });
   });
@@ -308,12 +318,14 @@ describe('CollectiblesController', () => {
       true,
     );
 
+    console.log(collectiblesController.state.collectibles);
     expect(collectiblesController.state.collectibles).toStrictEqual([
       {
         address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
         description: 'Kudos Description',
         imageOriginal: 'Kudos url',
         name: 'Kudos Name',
+        standard: 'ERC721',
         tokenId: 1203,
       },
     ]);
