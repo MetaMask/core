@@ -27,18 +27,6 @@ describe('AssetsContractController', () => {
     );
   });
 
-  it('should determine if contract supports interface correctly', async () => {
-    assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const CKSupportsEnumerable = await assetsContract.contractSupportsEnumerableInterface(
-      CKADDRESS,
-    );
-    const GODSSupportsEnumerable = await assetsContract.contractSupportsEnumerableInterface(
-      GODSADDRESS,
-    );
-    expect(CKSupportsEnumerable).toBe(false);
-    expect(GODSSupportsEnumerable).toBe(true);
-  });
-
   it('should get balance of contract correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const CKBalance = await assetsContract.getBalanceOf(

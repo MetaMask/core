@@ -2,11 +2,12 @@ import { BN } from 'ethereumjs-util';
 import Web3 from 'web3';
 import abiERC20 from 'human-standard-token-abi';
 import abiERC721 from 'human-standard-collectible-abi';
+import abiERC1155 from 'human-standard-multi-collectible-abi';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import { ERC721Standard } from './CollectibleStandards/ERC721/ERC721Standard';
+import { ERC1155Standard } from './CollectibleStandards/ERC1155/ERC1155Standard';
 
-const ERC721METADATA_INTERFACE_ID = '0x5b5e139f';
-const ERC721ENUMERABLE_INTERFACE_ID = '0x780e9d63';
 const SINGLE_CALL_BALANCES_ADDRESS =
   '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39';
 
@@ -39,32 +40,9 @@ export class AssetsContractController extends BaseController<
 > {
   private web3: any;
 
-  /**
-   * Query if a contract implements an interface.
-   *
-   * @param address - Asset contract address.
-   * @param interfaceId - Interface identifier.
-   * @returns Promise resolving to whether the contract implements `interfaceID`.
-   */
-  private async contractSupportsInterface(
-    address: string,
-    interfaceId: string,
-  ): Promise<boolean> {
-    const contract = this.web3.eth.contract(abiERC721).at(address);
-    return new Promise<boolean>((resolve, reject) => {
-      contract.supportsInterface(
-        interfaceId,
-        (error: Error, result: boolean) => {
-          /* istanbul ignore if */
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve(result);
-        },
-      );
-    });
-  }
+  private erc721Standard: ERC721Standard = new ERC721Standard();
+
+  private erc1155Standard: ERC1155Standard = new ERC1155Standard();
 
   /**
    * Name of this controller used during composition
@@ -104,32 +82,9 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Query if contract implements ERC721Metadata interface.
-   *
-   * @param address - ERC721 asset contract address.
-   * @returns Promise resolving to whether the contract implements ERC721Metadata interface.
-   */
-  async contractSupportsMetadataInterface(address: string): Promise<boolean> {
-    return this.contractSupportsInterface(address, ERC721METADATA_INTERFACE_ID);
-  }
-
-  /**
-   * Query if contract implements ERC721Enumerable interface.
-   *
-   * @param address - ERC721 asset contract address.
-   * @returns Promise resolving to whether the contract implements ERC721Enumerable interface.
-   */
-  async contractSupportsEnumerableInterface(address: string): Promise<boolean> {
-    return this.contractSupportsInterface(
-      address,
-      ERC721ENUMERABLE_INTERFACE_ID,
-    );
-  }
-
-  /**
    * Get balance or count for current account on specific asset contract.
    *
-   * @param address - Asset contract address.
+   * @param address - Asset ERC20 contract address.
    * @param selectedAddress - Current account public address.
    * @returns Promise resolving to BN object containing balance for current account on specific asset contract.
    */
@@ -137,66 +92,6 @@ export class AssetsContractController extends BaseController<
     const contract = this.web3.eth.contract(abiERC20).at(address);
     return new Promise<BN>((resolve, reject) => {
       contract.balanceOf(selectedAddress, (error: Error, result: BN) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
-  }
-
-  /**
-   * Enumerate assets assigned to an owner.
-   *
-   * @param address - ERC721 asset contract address.
-   * @param selectedAddress - Current account public address.
-   * @param index - A collectible counter less than `balanceOf(selectedAddress)`.
-   * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
-   */
-  getCollectibleTokenId(
-    address: string,
-    selectedAddress: string,
-    index: number,
-  ): Promise<number> {
-    const contract = this.web3.eth.contract(abiERC721).at(address);
-    return new Promise<number>((resolve, reject) => {
-      contract.tokenOfOwnerByIndex(
-        selectedAddress,
-        index,
-        (error: Error, result: BN) => {
-          /* istanbul ignore if */
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve(result.toNumber());
-        },
-      );
-    });
-  }
-
-  /**
-   * Query for tokenURI for a given asset.
-   *
-   * @param address - ERC721 asset contract address.
-   * @param tokenId - ERC721 asset identifier.
-   * @returns Promise resolving to the 'tokenURI'.
-   */
-  async getCollectibleTokenURI(
-    address: string,
-    tokenId: number,
-  ): Promise<string> {
-    const supportsMetadata = await this.contractSupportsMetadataInterface(
-      address,
-    );
-    if (!supportsMetadata) {
-      return '';
-    }
-    const contract = this.web3.eth.contract(abiERC721).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.tokenURI(tokenId, (error: Error, result: string) => {
         /* istanbul ignore if */
         if (error) {
           reject(error);
@@ -228,6 +123,42 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
+   * Enumerate assets assigned to an owner.
+   *
+   * @param address - ERC721 asset contract address.
+   * @param selectedAddress - Current account public address.
+   * @param index - A collectible counter less than `balanceOf(selectedAddress)`.
+   * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
+   */
+  getCollectibleTokenId(
+    address: string,
+    selectedAddress: string,
+    index: number,
+  ): Promise<number> {
+    const contract = this.web3.eth.contract(abiERC721).at(address);
+    return this.erc721Standard.getCollectibleTokenId(
+      contract,
+      selectedAddress,
+      index,
+    );
+  }
+
+  /**
+   * Query for tokenURI for a given asset.
+   *
+   * @param address - ERC721 asset contract address.
+   * @param tokenId - ERC721 asset identifier.
+   * @returns Promise resolving to the 'tokenURI'.
+   */
+  async getCollectibleTokenURI(
+    address: string,
+    tokenId: number,
+  ): Promise<string> {
+    const contract = this.web3.eth.contract(abiERC721).at(address);
+    return this.erc721Standard.getCollectibleTokenURI(contract, tokenId);
+  }
+
+  /**
    * Query for name for a given asset.
    *
    * @param address - ERC721 or ERC20 asset contract address.
@@ -235,16 +166,7 @@ export class AssetsContractController extends BaseController<
    */
   async getAssetName(address: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.name((error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    return this.erc721Standard.getAssetName(contract);
   }
 
   /**
@@ -255,16 +177,7 @@ export class AssetsContractController extends BaseController<
    */
   async getAssetSymbol(address: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.symbol((error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    return this.erc721Standard.getAssetSymbol(contract);
   }
 
   /**
@@ -276,17 +189,40 @@ export class AssetsContractController extends BaseController<
    */
   async getOwnerOf(address: string, tokenId: number): Promise<string> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.ownerOf(tokenId, (error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    return this.erc721Standard.getOwnerOf(contract, tokenId);
   }
+
+  /**
+   * Query for tokenURI for a given asset.
+   *
+   * @param address - ERC1155 asset contract address.
+   * @param tokenId - ERC1155 asset identifier.
+   * @returns Promise resolving to the 'tokenURI'.
+   */
+  getCollectibleURI = async (
+    address: string,
+    tokenId: number,
+  ): Promise<string> => {
+    const contract = this.web3.eth.contract(abiERC1155).at(address);
+    return this.erc1155Standard.getCollectibleURI(contract, tokenId);
+  };
+
+  /**
+   * Query for balance of a given ERC 1155 token.
+   *
+   * @param userAddress - Wallet public address.
+   * @param address - ERC1155 asset contract address.
+   * @param tokenId - ERC1155 asset identifier.
+   * @returns Promise resolving to the 'balanceOf'.
+   */
+  balanceOf = async (
+    userAddress: string,
+    address: string,
+    tokenId: string,
+  ): Promise<number> => {
+    const contract = this.web3.eth.contract(abiERC1155).at(address);
+    return this.erc1155Standard.getBalanceOf(contract, userAddress, tokenId);
+  };
 
   /**
    * Get the token balance for a list of token addresses in a single call. Only non-zero balances
