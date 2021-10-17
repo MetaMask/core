@@ -8,10 +8,11 @@ const GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
 const CKADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
 const SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
 
-const ERC1155_ADDRESS = '0x495f947276749ce646f68ac8c248420045cb7b5e';
-const COLLECTIBLE_ID =
+const ERC1155_COLLECTIBLE_ADDRESS =
+  '0x495f947276749ce646f68ac8c248420045cb7b5e';
+const ERC1155_COLLECTIBLE_ID =
   '40815311521795738946686668571398122012172359753720345430028676522525371400193';
-const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
+const ERC1155_OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 
 describe('AssetsContractController', () => {
   let assetsContract: AssetsContractController;
@@ -106,9 +107,9 @@ describe('AssetsContractController', () => {
   it('should get the balance of a ERC-1155 collectible for a given address', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const balance = await assetsContract.balanceOfERC1155Collectible(
-      OWNER_ADDRESS,
-      ERC1155_ADDRESS,
-      COLLECTIBLE_ID,
+      ERC1155_OWNER_ADDRESS,
+      ERC1155_COLLECTIBLE_ADDRESS,
+      ERC1155_COLLECTIBLE_ID,
     );
     expect(Number(balance)).toBeGreaterThan(0);
   });
@@ -117,8 +118,8 @@ describe('AssetsContractController', () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const expectedUri = `https://api.opensea.io/api/v1/metadata/${ERC1155_ADDRESS}/0x{id}`;
     const uri = await assetsContract.uriERC1155Collectible(
-      ERC1155_ADDRESS,
-      COLLECTIBLE_ID,
+      ERC1155_COLLECTIBLE_ADDRESS,
+      ERC1155_COLLECTIBLE_ID,
     );
     expect(uri.toLowerCase()).toStrictEqual(expectedUri);
   });
