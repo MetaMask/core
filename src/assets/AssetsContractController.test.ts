@@ -8,6 +8,11 @@ const GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
 const CKADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
 const SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
 
+const COLLECTIBLE_ADDRESS = '0x495f947276749ce646f68ac8c248420045cb7b5e';
+const COLLECTIBLE_ID =
+  '40815311521795738946686668571398122012172359753720345430028676522525371400193';
+const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
+
 describe('AssetsContractController', () => {
   let assetsContract: AssetsContractController;
 
@@ -27,7 +32,7 @@ describe('AssetsContractController', () => {
     );
   });
 
-  it('should get balance of contract correctly', async () => {
+  it('should get balance of ERC-20 token contract correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const CKBalance = await assetsContract.getBalanceOf(
       CKADDRESS,
@@ -41,7 +46,7 @@ describe('AssetsContractController', () => {
     expect(CKNoBalance.toNumber()).toStrictEqual(0);
   });
 
-  it('should get collectible tokenId correctly', async () => {
+  it('should get ERC-721 collectible tokenId correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const tokenId = await assetsContract.getCollectibleTokenId(
       GODSADDRESS,
@@ -51,13 +56,13 @@ describe('AssetsContractController', () => {
     expect(tokenId).not.toStrictEqual(0);
   });
 
-  it('should get collectible tokenURI correctly', async () => {
+  it('should get ERC-721 collectible tokenURI correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const tokenId = await assetsContract.getCollectibleTokenURI(GODSADDRESS, 0);
     expect(tokenId).toStrictEqual('https://api.godsunchained.com/card/0');
   });
 
-  it('should return empty string as URI when address given is not an NFT', async () => {
+  it('should return empty string as URI when address given is not an ERC-721 NFT', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const tokenId = await assetsContract.getCollectibleTokenURI(
       '0x0000000000000000000000000000000000000000',
@@ -66,25 +71,25 @@ describe('AssetsContractController', () => {
     expect(tokenId).toStrictEqual('');
   });
 
-  it('should get collectible name', async () => {
+  it('should get ERC-721 collectible name', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const name = await assetsContract.getAssetName(GODSADDRESS);
     expect(name).toStrictEqual('Gods Unchained');
   });
 
-  it('should get collectible symbol', async () => {
+  it('should get ERC-721 collectible symbol', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const symbol = await assetsContract.getAssetSymbol(GODSADDRESS);
     expect(symbol).toStrictEqual('GODS');
   });
 
-  it('should get token decimals', async () => {
+  it('should get ERC-20 token decimals', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const symbol = await assetsContract.getTokenDecimals(SAI_ADDRESS);
     expect(Number(symbol)).toStrictEqual(18);
   });
 
-  it('should get collectible ownership', async () => {
+  it('should get ERC-721 collectible ownership', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const tokenId = await assetsContract.getOwnerOf(GODSADDRESS, 148332);
     expect(tokenId).not.toStrictEqual('');
@@ -96,5 +101,25 @@ describe('AssetsContractController', () => {
       SAI_ADDRESS,
     ]);
     expect(balances[SAI_ADDRESS]).not.toStrictEqual(0);
+  });
+
+  it('should get the balance of a ERC-1155 collectible for a given address', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+    const balance = await assetsContract.balanceOfERC1155(
+      OWNER_ADDRESS,
+      COLLECTIBLE_ADDRESS,
+      COLLECTIBLE_ID,
+    );
+    expect(Number(balance)).toBeGreaterThan(0);
+  });
+
+  it('should get the URI of a ERC-1155 collectible', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+    const expectedUri = `https://api.opensea.io/api/v1/metadata/${COLLECTIBLE_ADDRESS}/0x{id}`;
+    const uri = await assetsContract.uriERC1155(
+      COLLECTIBLE_ADDRESS,
+      COLLECTIBLE_ID,
+    );
+    expect(uri.toLowerCase()).toStrictEqual(expectedUri);
   });
 });
