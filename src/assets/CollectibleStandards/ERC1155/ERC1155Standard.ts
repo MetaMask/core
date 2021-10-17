@@ -5,14 +5,14 @@ export class ERC1155Standard {
   /**
    * Query if contract implements ERC721Metadata interface.
    *
-   * @param address - ERC721 asset contract address.
+   * @param contract - ERC721 asset contract.
    * @returns Promise resolving to whether the contract implements ERC721Metadata interface.
    */
   contractSupportsURIMetadataInterface = async (
-    address: string,
+    contract: any,
   ): Promise<boolean> => {
     return this.contractSupportsInterface(
-      address,
+      contract,
       ERC1155_METADATA_URI_INTERFACE_ID,
     );
   };
@@ -20,14 +20,14 @@ export class ERC1155Standard {
   /**
    * Query if contract implements ERC721Enumerable interface.
    *
-   * @param address - ERC721 asset contract address.
+   * @param contract - ERC721 asset contract.
    * @returns Promise resolving to whether the contract implements ERC721Enumerable interface.
    */
   contractSupportsTokenReceiverInterface = async (
-    address: string,
+    contract: any,
   ): Promise<boolean> => {
     return this.contractSupportsInterface(
-      address,
+      contract,
       ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
     );
   };
@@ -41,7 +41,7 @@ export class ERC1155Standard {
    */
   getCollectibleURI = async (
     contract: any,
-    tokenId: number,
+    tokenId: string,
   ): Promise<string> => {
     return new Promise<string>((resolve, reject) => {
       contract.uri(tokenId, (error: Error, result: string) => {
@@ -92,7 +92,7 @@ export class ERC1155Standard {
     interfaceId: string,
   ): Promise<boolean> => {
     return new Promise<boolean>((resolve, reject) => {
-      contract.methods.supportsInterface(
+      contract.supportsInterface(
         interfaceId,
         (error: Error, result: boolean) => {
           /* istanbul ignore if */
