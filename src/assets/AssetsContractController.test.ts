@@ -105,7 +105,7 @@ describe('AssetsContractController', () => {
 
   it('should get the balance of a ERC-1155 collectible for a given address', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const balance = await assetsContract.balanceOfERC1155(
+    const balance = await assetsContract.balanceOfERC1155Collectible(
       OWNER_ADDRESS,
       COLLECTIBLE_ADDRESS,
       COLLECTIBLE_ID,
@@ -116,7 +116,7 @@ describe('AssetsContractController', () => {
   it('should get the URI of a ERC-1155 collectible', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const expectedUri = `https://api.opensea.io/api/v1/metadata/${COLLECTIBLE_ADDRESS}/0x{id}`;
-    const uri = await assetsContract.uriERC1155(
+    const uri = await assetsContract.uriERC1155Collectible(
       COLLECTIBLE_ADDRESS,
       COLLECTIBLE_ID,
     );

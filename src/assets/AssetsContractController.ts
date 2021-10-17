@@ -199,7 +199,10 @@ export class AssetsContractController extends BaseController<
    * @param tokenId - ERC1155 asset identifier.
    * @returns Promise resolving to the 'tokenURI'.
    */
-  uriERC1155 = async (address: string, tokenId: string): Promise<string> => {
+  uriERC1155Collectible = async (
+    address: string,
+    tokenId: string,
+  ): Promise<string> => {
     const contract = this.web3.eth.contract(abiERC1155).at(address);
     return this.erc1155Standard.getCollectibleURI(contract, tokenId);
   };
@@ -212,7 +215,7 @@ export class AssetsContractController extends BaseController<
    * @param tokenId - ERC1155 asset identifier.
    * @returns Promise resolving to the 'balanceOf'.
    */
-  balanceOfERC1155 = async (
+  balanceOfERC1155Collectible = async (
     userAddress: string,
     address: string,
     tokenId: string,
