@@ -11,7 +11,7 @@ const CKADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
 
 describe('ERC721Standard', () => {
   let erc721Standard: ERC721Standard;
-  let web3: Web3;
+  let web3: any;
 
   beforeEach(() => {
     erc721Standard = new ERC721Standard();
