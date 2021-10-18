@@ -552,7 +552,7 @@ describe('CollectiblesController', () => {
   it('should throw an error for an unsupported standard', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const error =
-      'Unable to determine ownership. Probably because the standard is not supported or the chain is incorrect';
+      'Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect';
     const result = async () => {
       await collectiblesController.checkCollectibleOwnership(
         '0x0000000000000000000000000000000000000000',
