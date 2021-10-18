@@ -649,6 +649,10 @@ export class CollectiblesController extends BaseController<
 
   private getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
 
+  private getOwnerOf: AssetsContractController['getOwnerOf'];
+
+  private balanceOfERC1155Collectible: AssetsContractController['balanceOfERC1155Collectible'];
+
   /**
    * Creates a CollectiblesController instance.
    *
@@ -658,6 +662,8 @@ export class CollectiblesController extends BaseController<
    * @param options.getAssetName - Gets the name of the asset at the given address.
    * @param options.getAssetSymbol - Gets the symbol of the asset at the given address.
    * @param options.getCollectibleTokenURI - Gets the URI of the NFT at the given address, with the given ID.
+   * @param options.getOwnerOf - Get the owner of a ERC-721 collectible.
+   * @param options.balanceOfERC1155Collectible - Gets balance of a ERC-1155 collectible.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -668,6 +674,8 @@ export class CollectiblesController extends BaseController<
       getAssetName,
       getAssetSymbol,
       getCollectibleTokenURI,
+      getOwnerOf,
+      balanceOfERC1155Collectible,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -678,6 +686,8 @@ export class CollectiblesController extends BaseController<
       getAssetName: AssetsContractController['getAssetName'];
       getAssetSymbol: AssetsContractController['getAssetSymbol'];
       getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
+      getOwnerOf: AssetsContractController['getOwnerOf'];
+      balanceOfERC1155Collectible: AssetsContractController['balanceOfERC1155Collectible'];
     },
     config?: Partial<BaseConfig>,
     state?: Partial<CollectiblesState>,
@@ -700,6 +710,8 @@ export class CollectiblesController extends BaseController<
     this.getAssetName = getAssetName;
     this.getAssetSymbol = getAssetSymbol;
     this.getCollectibleTokenURI = getCollectibleTokenURI;
+    this.getOwnerOf = getOwnerOf;
+    this.balanceOfERC1155Collectible = balanceOfERC1155Collectible;
     onPreferencesStateChange(({ selectedAddress }) => {
       const { allCollectibleContracts, allCollectibles } = this.state;
       const { chainId } = this.config;
@@ -731,6 +743,45 @@ export class CollectiblesController extends BaseController<
    */
   setApiKey(openSeaApiKey: string) {
     this.openSeaApiKey = openSeaApiKey;
+  }
+
+  /**
+   * Checks the ownership of a ERC-721 or ERC-1155 collectible for a given address.
+   *
+   * @param ownerAddress - User public address.
+   * @param collectibleAddress - Collectible contract address.
+   * @param collectibleId - Collectible token ID.
+   * @returns Promise resolving the collectible ownership.
+   */
+  async checkCollectibleOwnership(
+    ownerAddress: string,
+    collectibleAddress: string,
+    collectibleId: string,
+  ): Promise<boolean> {
+    // Checks the ownership of a ERC-721.
+    try {
+      const owner = await this.getOwnerOf(
+        collectibleAddress,
+        Number(collectibleId),
+      );
+      return ownerAddress.toLowerCase() === owner.toLowerCase();
+      // eslint-disable-next-line no-empty
+    } catch {}
+
+    // Checks the ownership of a ERC-1155.
+    try {
+      const balance = await this.balanceOfERC1155Collectible(
+        ownerAddress,
+        collectibleAddress,
+        collectibleId,
+      );
+      return balance > 0;
+      // eslint-disable-next-line no-empty
+    } catch {}
+
+    throw new Error(
+      'Error: Unable to determine ownership. Probably because the standard is not supported or the chain is incorrect',
+    );
   }
 
   /**
