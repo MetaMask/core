@@ -199,30 +199,34 @@ export class AssetsContractController extends BaseController<
    * @param tokenId - ERC1155 asset identifier.
    * @returns Promise resolving to the 'tokenURI'.
    */
-  uriERC1155Collectible = async (
+  async uriERC1155Collectible(
     address: string,
     tokenId: string,
-  ): Promise<string> => {
+  ): Promise<string> {
     const contract = this.web3.eth.contract(abiERC1155).at(address);
     return this.erc1155Standard.getCollectibleURI(contract, tokenId);
-  };
+  }
 
   /**
    * Query for balance of a given ERC 1155 token.
    *
    * @param userAddress - Wallet public address.
-   * @param address - ERC1155 asset contract address.
-   * @param tokenId - ERC1155 asset identifier.
+   * @param collectibleaddress - ERC1155 asset contract address.
+   * @param collectibleId - ERC1155 asset identifier.
    * @returns Promise resolving to the 'balanceOf'.
    */
-  balanceOfERC1155Collectible = async (
+  async balanceOfERC1155Collectible(
     userAddress: string,
-    address: string,
-    tokenId: string,
-  ): Promise<number> => {
-    const contract = this.web3.eth.contract(abiERC1155).at(address);
-    return this.erc1155Standard.getBalanceOf(contract, userAddress, tokenId);
-  };
+    collectibleaddress: string,
+    collectibleId: string,
+  ): Promise<number> {
+    const contract = this.web3.eth.contract(abiERC1155).at(collectibleaddress);
+    return await this.erc1155Standard.getBalanceOf(
+      contract,
+      userAddress,
+      collectibleId,
+    );
+  }
 
   /**
    * Get the token balance for a list of token addresses in a single call. Only non-zero balances
