@@ -137,6 +137,10 @@ describe('AssetsDetectionController', () => {
       getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
         assetsContract,
       ),
+      getOwnerOf: assetsContract.getOwnerOf.bind(assetsContract),
+      balanceOfERC1155Collectible: assetsContract.balanceOfERC1155Collectible.bind(
+        assetsContract,
+      ),
     });
 
     nock(TOKEN_END_POINT_API)
