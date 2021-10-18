@@ -766,7 +766,9 @@ export class CollectiblesController extends BaseController<
       );
       return ownerAddress.toLowerCase() === owner.toLowerCase();
       // eslint-disable-next-line no-empty
-    } catch {}
+    } catch {
+      // Ignore ERC-721 contract error
+    }
 
     // Checks the ownership of a ERC-1155.
     try {
@@ -777,10 +779,12 @@ export class CollectiblesController extends BaseController<
       );
       return balance > 0;
       // eslint-disable-next-line no-empty
-    } catch {}
+    } catch {
+      // Ignore ERC-1155 contract error
+    }
 
     throw new Error(
-      'Error: Unable to determine ownership. Probably because the standard is not supported or the chain is incorrect',
+      'Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect.',
     );
   }
 
