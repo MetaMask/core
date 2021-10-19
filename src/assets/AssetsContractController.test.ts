@@ -92,7 +92,7 @@ describe('AssetsContractController', () => {
 
   it('should get ERC-721 collectible ownership', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const tokenId = await assetsContract.getOwnerOf(GODSADDRESS, 148332);
+    const tokenId = await assetsContract.getOwnerOf(GODSADDRESS, '148332');
     expect(tokenId).not.toStrictEqual('');
   });
 
