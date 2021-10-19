@@ -59,7 +59,10 @@ describe('AssetsContractController', () => {
 
   it('should get ERC-721 collectible tokenURI correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const tokenId = await assetsContract.getCollectibleTokenURI(GODSADDRESS, 0);
+    const tokenId = await assetsContract.getCollectibleTokenURI(
+      GODSADDRESS,
+      '0',
+    );
     expect(tokenId).toStrictEqual('https://api.godsunchained.com/card/0');
   });
 
@@ -67,7 +70,7 @@ describe('AssetsContractController', () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const tokenId = await assetsContract.getCollectibleTokenURI(
       '0x0000000000000000000000000000000000000000',
-      0,
+      '0',
     );
     expect(tokenId).toStrictEqual('');
   });
