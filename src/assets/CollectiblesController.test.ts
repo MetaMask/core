@@ -511,7 +511,7 @@ describe('CollectiblesController', () => {
 
   it('should verify the ownership of an ERC-721 collectible with the correct owner address', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const isOwner = await collectiblesController.checkCollectibleOwnership(
+    const isOwner = await collectiblesController.isCollectibleOwner(
       OWNER_ADDRESS,
       ERC721_COLLECTIBLE_ADDRESS,
       String(ERC721_COLLECTIBLE_ID),
@@ -521,7 +521,7 @@ describe('CollectiblesController', () => {
 
   it('should not verify the ownership of an ERC-721 collectible with the wrong owner address', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const isOwner = await collectiblesController.checkCollectibleOwnership(
+    const isOwner = await collectiblesController.isCollectibleOwner(
       '0x0000000000000000000000000000000000000000',
       ERC721_COLLECTIBLE_ADDRESS,
       String(ERC721_COLLECTIBLE_ID),
@@ -531,7 +531,7 @@ describe('CollectiblesController', () => {
 
   it('should verify the ownership of an ERC-1155 collectible with the correct owner address', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const isOwner = await collectiblesController.checkCollectibleOwnership(
+    const isOwner = await collectiblesController.isCollectibleOwner(
       OWNER_ADDRESS,
       ERC1155_COLLECTIBLE_ADDRESS,
       ERC1155_COLLECTIBLE_ID,
@@ -541,7 +541,7 @@ describe('CollectiblesController', () => {
 
   it('should not verify the ownership of an ERC-1155 collectible with the wrong owner address', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const isOwner = await collectiblesController.checkCollectibleOwnership(
+    const isOwner = await collectiblesController.isCollectibleOwner(
       '0x0000000000000000000000000000000000000000',
       ERC1155_COLLECTIBLE_ADDRESS,
       ERC1155_COLLECTIBLE_ID,
@@ -554,7 +554,7 @@ describe('CollectiblesController', () => {
     const error =
       'Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect';
     const result = async () => {
-      await collectiblesController.checkCollectibleOwnership(
+      await collectiblesController.isCollectibleOwner(
         '0x0000000000000000000000000000000000000000',
         CRYPTOPUNK_ADDRESS,
         '0',

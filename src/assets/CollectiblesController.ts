@@ -753,7 +753,7 @@ export class CollectiblesController extends BaseController<
    * @param collectibleId - Collectible token ID.
    * @returns Promise resolving the collectible ownership.
    */
-  async checkCollectibleOwnership(
+  async isCollectibleOwner(
     ownerAddress: string,
     collectibleAddress: string,
     collectibleId: string,
