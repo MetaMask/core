@@ -3,10 +3,10 @@ const ERC1155_TOKEN_RECEIVER_INTERFACE_ID = '0x4e2312e0';
 
 export class ERC1155Standard {
   /**
-   * Query if contract implements ERC721Metadata interface.
+   * Query if contract implements ERC1155 URI Metadata interface.
    *
-   * @param contract - ERC721 asset contract.
-   * @returns Promise resolving to whether the contract implements ERC721Metadata interface.
+   * @param contract - ERC1155 asset contract.
+   * @returns Promise resolving to whether the contract implements ERC1155 URI Metadata interface.
    */
   contractSupportsURIMetadataInterface = async (
     contract: any,
@@ -18,10 +18,10 @@ export class ERC1155Standard {
   };
 
   /**
-   * Query if contract implements ERC721Enumerable interface.
+   * Query if contract implements ERC1155 Token Receiver interface.
    *
-   * @param contract - ERC721 asset contract.
-   * @returns Promise resolving to whether the contract implements ERC721Enumerable interface.
+   * @param contract - ERC1155 asset contract.
+   * @returns Promise resolving to whether the contract implements ERC1155 Token Receiver interface.
    */
   contractSupportsTokenReceiverInterface = async (
     contract: any,
@@ -56,7 +56,7 @@ export class ERC1155Standard {
   };
 
   /**
-   * Query for balance of a given ERC 1155 token.
+   * Query for balance of a given ERC1155 token.
    *
    * @param contract - ERC1155 asset contract.
    * @param address - Wallet public address.
