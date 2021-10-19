@@ -34,7 +34,7 @@ import { compareCollectiblesMetadata } from './assetsUtil';
  * @property creator - The collectible owner information object
  */
 export interface Collectible extends CollectibleMetadata {
-  tokenId: number;
+  tokenId: string;
   address: string;
 }
 
@@ -143,7 +143,7 @@ export class CollectiblesController extends BaseController<
 > {
   private mutex = new Mutex();
 
-  private getCollectibleApi(contractAddress: string, tokenId: number) {
+  private getCollectibleApi(contractAddress: string, tokenId: string) {
     return `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
   }
 
@@ -160,7 +160,7 @@ export class CollectiblesController extends BaseController<
    */
   private async getCollectibleInformationFromApi(
     contractAddress: string,
-    tokenId: number,
+    tokenId: string,
   ): Promise<CollectibleMetadata> {
     const tokenURI = this.getCollectibleApi(contractAddress, tokenId);
     let collectibleInformation: ApiCollectible;
@@ -222,7 +222,7 @@ export class CollectiblesController extends BaseController<
    */
   private async getCollectibleInformationFromTokenURI(
     contractAddress: string,
-    tokenId: number,
+    tokenId: string,
   ): Promise<CollectibleMetadata> {
     const tokenURI = await this.getCollectibleTokenURI(
       contractAddress,
@@ -244,7 +244,7 @@ export class CollectiblesController extends BaseController<
    */
   private async getCollectibleInformation(
     contractAddress: string,
-    tokenId: number,
+    tokenId: string,
   ): Promise<CollectibleMetadata> {
     let information;
     // First try with OpenSea
@@ -378,7 +378,7 @@ export class CollectiblesController extends BaseController<
    */
   private async addIndividualCollectible(
     address: string,
-    tokenId: number,
+    tokenId: string,
     collectibleMetadata?: CollectibleMetadata,
   ): Promise<Collectible[]> {
     const releaseLock = await this.mutex.acquire();
@@ -530,7 +530,7 @@ export class CollectiblesController extends BaseController<
    */
   private removeAndIgnoreIndividualCollectible(
     address: string,
-    tokenId: number,
+    tokenId: string,
   ) {
     address = toChecksumHexAddress(address);
     const { allCollectibles, collectibles, ignoredCollectibles } = this.state;
@@ -571,7 +571,7 @@ export class CollectiblesController extends BaseController<
    * @param address - Hex address of the collectible contract.
    * @param tokenId - Token identifier of the collectible.
    */
-  private removeIndividualCollectible(address: string, tokenId: number) {
+  private removeIndividualCollectible(address: string, tokenId: string) {
     address = toChecksumHexAddress(address);
     const { allCollectibles, collectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
@@ -760,10 +760,7 @@ export class CollectiblesController extends BaseController<
   ): Promise<boolean> {
     // Checks the ownership of a ERC-721.
     try {
-      const owner = await this.getOwnerOf(
-        collectibleAddress,
-        Number(collectibleId),
-      );
+      const owner = await this.getOwnerOf(collectibleAddress, collectibleId);
       return ownerAddress.toLowerCase() === owner.toLowerCase();
       // eslint-disable-next-line no-empty
     } catch {
@@ -799,7 +796,7 @@ export class CollectiblesController extends BaseController<
    */
   async addCollectible(
     address: string,
-    tokenId: number,
+    tokenId: string,
     collectibleMetadata?: CollectibleMetadata,
     detection?: boolean,
   ) {
@@ -833,7 +830,7 @@ export class CollectiblesController extends BaseController<
    * @param address - Hex address of the collectible contract.
    * @param tokenId - Token identifier of the collectible.
    */
-  removeCollectible(address: string, tokenId: number) {
+  removeCollectible(address: string, tokenId: string) {
     address = toChecksumHexAddress(address);
     this.removeIndividualCollectible(address, tokenId);
     const { collectibles } = this.state;
@@ -852,7 +849,7 @@ export class CollectiblesController extends BaseController<
    * @param address - Hex address of the collectible contract.
    * @param tokenId - Token identifier of the collectible.
    */
-  removeAndIgnoreCollectible(address: string, tokenId: number) {
+  removeAndIgnoreCollectible(address: string, tokenId: string) {
     address = toChecksumHexAddress(address);
     this.removeAndIgnoreIndividualCollectible(address, tokenId);
     const { collectibles } = this.state;

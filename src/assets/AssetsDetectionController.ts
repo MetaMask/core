@@ -430,7 +430,7 @@ export class AssetsDetectionController extends BaseController<
               /* istanbul ignore next */
               return (
                 c.address === toChecksumHexAddress(address) &&
-                c.tokenId === Number(token_id)
+                c.tokenId === token_id
               );
             });
           }
@@ -461,7 +461,7 @@ export class AssetsDetectionController extends BaseController<
             );
             await this.addCollectible(
               address,
-              Number(token_id),
+              token_id,
               collectibleMetadata,
               true,
             );

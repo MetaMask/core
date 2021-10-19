@@ -1,5 +1,3 @@
-import { BN } from 'ethereumjs-util';
-
 const ERC721_METADATA_INTERFACE_ID = '0x5b5e139f';
 const ERC721_ENUMERABLE_INTERFACE_ID = '0x780e9d63';
 
@@ -46,18 +44,18 @@ export class ERC721Standard {
     contract: any,
     selectedAddress: string,
     index: number,
-  ): Promise<number> => {
-    return new Promise<number>((resolve, reject) => {
+  ): Promise<string> => {
+    return new Promise<string>((resolve, reject) => {
       contract.tokenOfOwnerByIndex(
         selectedAddress,
         index,
-        (error: Error, result: BN) => {
+        (error: Error, result: string) => {
           /* istanbul ignore if */
           if (error) {
             reject(error);
             return;
           }
-          resolve(result.toNumber());
+          resolve(result);
         },
       );
     });
@@ -72,7 +70,7 @@ export class ERC721Standard {
    */
   getCollectibleTokenURI = async (
     contract: any,
-    tokenId: number,
+    tokenId: string,
   ): Promise<string> => {
     const supportsMetadata = await this.contractSupportsMetadataInterface(
       contract,
@@ -137,7 +135,7 @@ export class ERC721Standard {
    * @param tokenId - ERC721 asset identifier.
    * @returns Promise resolving to the owner address.
    */
-  async getOwnerOf(contract: any, tokenId: number): Promise<string> {
+  async getOwnerOf(contract: any, tokenId: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       contract.ownerOf(tokenId, (error: Error, result: string) => {
         /* istanbul ignore if */

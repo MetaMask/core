@@ -12,7 +12,7 @@ import { CollectiblesController } from './CollectiblesController';
 const KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_COLLECTIBLE_ADDRESS = '0x60f80121c31a0d46b5279700f9df786054aa5ee5';
-const ERC721_COLLECTIBLE_ID = 1144858;
+const ERC721_COLLECTIBLE_ID = '1144858';
 const ERC1155_COLLECTIBLE_ADDRESS =
   '0x495f947276749ce646f68ac8c248420045cb7b5e';
 const ERC1155_COLLECTIBLE_ID =
@@ -132,7 +132,7 @@ describe('CollectiblesController', () => {
   });
 
   it('should add collectible and collectible contract', async () => {
-    await collectiblesController.addCollectible('0x01', 1, {
+    await collectiblesController.addCollectible('0x01', '1', {
       name: 'name',
       image: 'image',
       description: 'description',
@@ -143,7 +143,7 @@ describe('CollectiblesController', () => {
       description: 'description',
       image: 'image',
       name: 'name',
-      tokenId: 1,
+      tokenId: '1',
     });
 
     expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
@@ -157,7 +157,7 @@ describe('CollectiblesController', () => {
   });
 
   it('should update collectible if image is different', async () => {
-    await collectiblesController.addCollectible('0x01', 1, {
+    await collectiblesController.addCollectible('0x01', '1', {
       name: 'name',
       image: 'image',
       description: 'description',
@@ -168,10 +168,10 @@ describe('CollectiblesController', () => {
       description: 'description',
       image: 'image',
       name: 'name',
-      tokenId: 1,
+      tokenId: '1',
     });
 
-    await collectiblesController.addCollectible('0x01', 1, {
+    await collectiblesController.addCollectible('0x01', '1', {
       name: 'name',
       image: 'image-updated',
       description: 'description',
@@ -182,18 +182,18 @@ describe('CollectiblesController', () => {
       description: 'description',
       image: 'image-updated',
       name: 'name',
-      tokenId: 1,
+      tokenId: '1',
     });
   });
 
   it('should not duplicate collectible nor collectible contract if already added', async () => {
-    await collectiblesController.addCollectible('0x01', 1, {
+    await collectiblesController.addCollectible('0x01', '1', {
       name: 'name',
       image: 'image',
       description: 'description',
     });
 
-    await collectiblesController.addCollectible('0x01', 1, {
+    await collectiblesController.addCollectible('0x01', '1', {
       name: 'name',
       image: 'image',
       description: 'description',
@@ -203,13 +203,13 @@ describe('CollectiblesController', () => {
   });
 
   it('should not add collectible contract if collectible contract already exists', async () => {
-    await collectiblesController.addCollectible('0x01', 1, {
+    await collectiblesController.addCollectible('0x01', '1', {
       name: 'name',
       image: 'image',
       description: 'description',
     });
 
-    await collectiblesController.addCollectible('0x01', 2, {
+    await collectiblesController.addCollectible('0x01', '2', {
       name: 'name',
       image: 'image',
       description: 'description',
@@ -219,14 +219,14 @@ describe('CollectiblesController', () => {
   });
 
   it('should add collectible and get information from OpenSea', async () => {
-    await collectiblesController.addCollectible('0x01', 1);
+    await collectiblesController.addCollectible('0x01', '1');
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x01',
       description: 'Description',
       imageOriginal: 'url',
       name: 'Name',
       standard: 'ERC1155',
-      tokenId: 1,
+      tokenId: '1',
     });
   });
 
@@ -242,12 +242,12 @@ describe('CollectiblesController', () => {
     sandbox
       .stub(collectiblesController, 'getCollectibleInformationFromApi' as any)
       .returns(undefined);
-    await collectiblesController.addCollectible(KUDOSADDRESS, 1203);
+    await collectiblesController.addCollectible(KUDOSADDRESS, '1203');
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
       image: 'Kudos Image',
       name: 'Kudos Name',
-      tokenId: 1203,
+      tokenId: '1203',
     });
 
     expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
@@ -264,16 +264,16 @@ describe('CollectiblesController', () => {
       .stub(collectiblesController, 'getCollectibleInformation' as any)
       .returns({ name: 'name', image: 'url', description: 'description' });
     preferences.update({ selectedAddress: firstAddress });
-    await collectiblesController.addCollectible('0x01', 1234);
+    await collectiblesController.addCollectible('0x01', '1234');
     preferences.update({ selectedAddress: secondAddress });
-    await collectiblesController.addCollectible('0x02', 4321);
+    await collectiblesController.addCollectible('0x02', '4321');
     preferences.update({ selectedAddress: firstAddress });
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x01',
       description: 'description',
       image: 'url',
       name: 'name',
-      tokenId: 1234,
+      tokenId: '1234',
     });
   });
 
@@ -290,7 +290,7 @@ describe('CollectiblesController', () => {
         chainId: NetworksChainId[firstNetworkType],
       },
     });
-    await collectiblesController.addCollectible('0x01', 1234);
+    await collectiblesController.addCollectible('0x01', '1234');
     network.update({
       provider: {
         type: secondNetworkType,
@@ -310,14 +310,14 @@ describe('CollectiblesController', () => {
       description: 'description',
       image: 'url',
       name: 'name',
-      tokenId: 1234,
+      tokenId: '1234',
     });
   });
 
   it('should not add collectibles with no contract information when auto detecting', async () => {
     await collectiblesController.addCollectible(
       '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-      123,
+      '123',
       undefined,
       true,
     );
@@ -325,7 +325,7 @@ describe('CollectiblesController', () => {
     expect(collectiblesController.state.collectibleContracts).toStrictEqual([]);
     await collectiblesController.addCollectible(
       '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
-      1203,
+      '1203',
       undefined,
       true,
     );
@@ -337,7 +337,7 @@ describe('CollectiblesController', () => {
         imageOriginal: 'Kudos url',
         name: 'Kudos Name',
         standard: 'ERC721',
-        tokenId: 1203,
+        tokenId: '1203',
       },
     ]);
 
@@ -354,29 +354,29 @@ describe('CollectiblesController', () => {
   });
 
   it('should remove collectible and collectible contract', async () => {
-    await collectiblesController.addCollectible('0x01', 1, {
+    await collectiblesController.addCollectible('0x01', '1', {
       name: 'name',
       image: 'image',
       description: 'description',
     });
-    collectiblesController.removeCollectible('0x01', 1);
+    collectiblesController.removeCollectible('0x01', '1');
     expect(collectiblesController.state.collectibles).toHaveLength(0);
     expect(collectiblesController.state.collectibleContracts).toHaveLength(0);
   });
 
   it('should not remove collectible contract if collectible still exists', async () => {
-    await collectiblesController.addCollectible('0x01', 1, {
+    await collectiblesController.addCollectible('0x01', '1', {
       name: 'name',
       image: 'image',
       description: 'description',
     });
 
-    await collectiblesController.addCollectible('0x01', 2, {
+    await collectiblesController.addCollectible('0x01', '2', {
       name: 'name',
       image: 'image',
       description: 'description',
     });
-    collectiblesController.removeCollectible('0x01', 1);
+    collectiblesController.removeCollectible('0x01', '1');
     expect(collectiblesController.state.collectibles).toHaveLength(1);
     expect(collectiblesController.state.collectibleContracts).toHaveLength(1);
   });
@@ -388,10 +388,10 @@ describe('CollectiblesController', () => {
     const firstAddress = '0x123';
     const secondAddress = '0x321';
     preferences.update({ selectedAddress: firstAddress });
-    await collectiblesController.addCollectible('0x02', 4321);
+    await collectiblesController.addCollectible('0x02', '4321');
     preferences.update({ selectedAddress: secondAddress });
-    await collectiblesController.addCollectible('0x01', 1234);
-    collectiblesController.removeCollectible('0x01', 1234);
+    await collectiblesController.addCollectible('0x01', '1234');
+    collectiblesController.removeCollectible('0x01', '1234');
     expect(collectiblesController.state.collectibles).toHaveLength(0);
     preferences.update({ selectedAddress: firstAddress });
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
@@ -399,7 +399,7 @@ describe('CollectiblesController', () => {
       description: 'description',
       image: 'url',
       name: 'name',
-      tokenId: 4321,
+      tokenId: '4321',
     });
   });
 
@@ -415,16 +415,16 @@ describe('CollectiblesController', () => {
         chainId: NetworksChainId[firstNetworkType],
       },
     });
-    await collectiblesController.addCollectible('0x02', 4321);
+    await collectiblesController.addCollectible('0x02', '4321');
     network.update({
       provider: {
         type: secondNetworkType,
         chainId: NetworksChainId[secondNetworkType],
       },
     });
-    await collectiblesController.addCollectible('0x01', 1234);
+    await collectiblesController.addCollectible('0x01', '1234');
     // collectiblesController.removeToken('0x01');
-    collectiblesController.removeCollectible('0x01', 1234);
+    collectiblesController.removeCollectible('0x01', '1234');
     expect(collectiblesController.state.collectibles).toHaveLength(0);
     network.update({
       provider: {
@@ -438,7 +438,7 @@ describe('CollectiblesController', () => {
       description: 'description',
       image: 'url',
       name: 'name',
-      tokenId: 4321,
+      tokenId: '4321',
     });
   });
 
@@ -454,13 +454,13 @@ describe('CollectiblesController', () => {
   });
 
   it('should not add duplicate collectibles to the ignoredCollectibles list', async () => {
-    await collectiblesController.addCollectible('0x01', 1, {
+    await collectiblesController.addCollectible('0x01', '1', {
       name: 'name',
       image: 'image',
       description: 'description',
     });
 
-    await collectiblesController.addCollectible('0x01', 2, {
+    await collectiblesController.addCollectible('0x01', '2', {
       name: 'name',
       image: 'image',
       description: 'description',
@@ -469,11 +469,11 @@ describe('CollectiblesController', () => {
     expect(collectiblesController.state.collectibles).toHaveLength(2);
     expect(collectiblesController.state.ignoredCollectibles).toHaveLength(0);
 
-    collectiblesController.removeAndIgnoreCollectible('0x01', 1);
+    collectiblesController.removeAndIgnoreCollectible('0x01', '1');
     expect(collectiblesController.state.collectibles).toHaveLength(1);
     expect(collectiblesController.state.ignoredCollectibles).toHaveLength(1);
 
-    await collectiblesController.addCollectible('0x01', 1, {
+    await collectiblesController.addCollectible('0x01', '1', {
       name: 'name',
       image: 'image',
       description: 'description',
@@ -481,13 +481,13 @@ describe('CollectiblesController', () => {
     expect(collectiblesController.state.collectibles).toHaveLength(2);
     expect(collectiblesController.state.ignoredCollectibles).toHaveLength(1);
 
-    collectiblesController.removeAndIgnoreCollectible('0x01', 1);
+    collectiblesController.removeAndIgnoreCollectible('0x01', '1');
     expect(collectiblesController.state.collectibles).toHaveLength(1);
     expect(collectiblesController.state.ignoredCollectibles).toHaveLength(1);
   });
 
   it('should be able to clear the ignoredCollectibles list', async () => {
-    await collectiblesController.addCollectible('0x02', 1, {
+    await collectiblesController.addCollectible('0x02', '1', {
       name: 'name',
       image: 'image',
       description: 'description',
@@ -496,7 +496,7 @@ describe('CollectiblesController', () => {
     expect(collectiblesController.state.collectibles).toHaveLength(1);
     expect(collectiblesController.state.ignoredCollectibles).toHaveLength(0);
 
-    collectiblesController.removeAndIgnoreCollectible('0x02', 1);
+    collectiblesController.removeAndIgnoreCollectible('0x02', '1');
     expect(collectiblesController.state.collectibles).toHaveLength(0);
     expect(collectiblesController.state.ignoredCollectibles).toHaveLength(1);
 

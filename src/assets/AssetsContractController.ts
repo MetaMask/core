@@ -134,7 +134,7 @@ export class AssetsContractController extends BaseController<
     address: string,
     selectedAddress: string,
     index: number,
-  ): Promise<number> {
+  ): Promise<string> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
     return this.erc721Standard.getCollectibleTokenId(
       contract,
@@ -152,7 +152,7 @@ export class AssetsContractController extends BaseController<
    */
   async getCollectibleTokenURI(
     address: string,
-    tokenId: number,
+    tokenId: string,
   ): Promise<string> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
     return this.erc721Standard.getCollectibleTokenURI(contract, tokenId);
@@ -187,7 +187,7 @@ export class AssetsContractController extends BaseController<
    * @param tokenId - ERC721 asset identifier.
    * @returns Promise resolving to the owner address.
    */
-  async getOwnerOf(address: string, tokenId: number): Promise<string> {
+  async getOwnerOf(address: string, tokenId: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
     return this.erc721Standard.getOwnerOf(contract, tokenId);
   }
