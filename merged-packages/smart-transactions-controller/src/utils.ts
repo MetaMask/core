@@ -30,7 +30,7 @@ export function getAPIRequestURL(apiType: APIType, chainId: string): string {
     }
 
     case APIType.LIVENESS: {
-      return `${API_BASE_URL}/networks/${chainIdDec}/liveness`;
+      return `${API_BASE_URL}/networks/${chainIdDec}/health`;
     }
 
     default: {

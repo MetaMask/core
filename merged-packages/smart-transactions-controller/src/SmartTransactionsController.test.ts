@@ -132,6 +132,10 @@ const createSuccessBatchStatusApiResponse = () => {
   ];
 };
 
+const createSuccessLivenessApiResponse = () => ({
+  lastBlock: 123456,
+});
+
 const ethereumChainIdDec = CHAIN_IDS_HEX_TO_DEC[CHAIN_IDS.ETHEREUM];
 
 describe('SmartTransactionsController', () => {
@@ -318,6 +322,17 @@ describe('SmartTransactionsController', () => {
         },
         userOptIn: undefined,
       });
+    });
+  });
+
+  describe('fetchLiveness', () => {
+    it('fetches a liveness for Smart Transactions API', async () => {
+      const successLivenessApiResponse = createSuccessLivenessApiResponse();
+      nock(API_BASE_URL)
+        .get(`/networks/${ethereumChainIdDec}/health`)
+        .reply(200, successLivenessApiResponse);
+      const liveness = await smartTransactionsController.fetchLiveness();
+      expect(liveness).toBe(true);
     });
   });
 });

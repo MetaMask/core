@@ -66,14 +66,14 @@ describe('src/utils.js', () => {
 
     it('returns a URL for smart transactions API liveness', () => {
       expect(utils.getAPIRequestURL(APIType.LIVENESS, CHAIN_IDS.ETHEREUM)).toBe(
-        `${API_BASE_URL}/networks/${ethereumChainIdDec}/liveness`,
+        `${API_BASE_URL}/networks/${ethereumChainIdDec}/health`,
       );
     });
 
     it('returns a URL for smart transactions API liveness for the BSC chainId', () => {
       const bscChainIdDec = CHAIN_IDS_HEX_TO_DEC[CHAIN_IDS.BSC];
       expect(utils.getAPIRequestURL(APIType.LIVENESS, CHAIN_IDS.BSC)).toBe(
-        `${API_BASE_URL}/networks/${bscChainIdDec}/liveness`,
+        `${API_BASE_URL}/networks/${bscChainIdDec}/health`,
       );
     });
   });
