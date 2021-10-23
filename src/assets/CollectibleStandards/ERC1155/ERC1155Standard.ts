@@ -78,6 +78,46 @@ export class ERC1155Standard {
   };
 
   /**
+   * Transfer single ERC1155 token.
+   * When minting/creating tokens, the from arg MUST be set to 0x0 (i.e. zero address).
+   * When burning/destroying tokens, the to arg MUST be set to 0x0 (i.e. zero address).
+   *
+   * @param contract - ERC1155 asset contract.
+   * @param operator - ERC1155 token address.
+   * @param from - ERC1155 token holder.
+   * @param to - ERC1155 token recipient.
+   * @param id - ERC1155 token id.
+   * @param value - Number of tokens to be sent.
+   * @returns Promise resolving to the 'transferSingle'.
+   */
+  transferSingle = async (
+    contract: any,
+    operator: string,
+    from: string,
+    to: string,
+    id: string,
+    value: string,
+  ): Promise<void> => {
+    return new Promise<void>((resolve, reject) => {
+      contract.transferSingle(
+        operator,
+        from,
+        to,
+        id,
+        value,
+        (error: Error, result: void) => {
+          /* istanbul ignore if */
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve(result);
+        },
+      );
+    });
+  };
+
+  /**
    * Query if a contract implements an interface.
    *
    * @param contract - ERC1155 asset contract.
