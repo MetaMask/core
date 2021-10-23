@@ -563,3 +563,29 @@ describe('CollectiblesController', () => {
     await expect(result).rejects.toThrow(error);
   });
 });
+
+// {
+//   description: 'Description',
+//   image_url: 'url',
+//   image_preview_url: 'preview_url',
+//   image_thumbnail_url: 'thumbnail_url',
+//   image_original_url: 'original_url',
+//   name: 'Collectible Name',
+//   symbol: 'FOO',
+//   total_supply: 0,
+//   background_color: null,
+//   num_sales: 3,
+//   external_link: 'external_link',
+//   asset_contract: {
+//     name: 'Collection Name',
+//     image_url: 'image_url',
+//     address: '0x01',
+//     schema_name: 'ERC1155',
+//     symbol: 'ABC',
+//     description: 'Collection description',
+//     asset_contract_type: 'non-fungible',
+//     created_date: 'date',
+//     total_supply: null,
+//     external_link: 'external_link',
+//   },
+// }

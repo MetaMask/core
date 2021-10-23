@@ -39,10 +39,7 @@ export class ERC1155Standard {
    * @param tokenId - ERC1155 asset identifier.
    * @returns Promise resolving to the 'tokenURI'.
    */
-  getCollectibleURI = async (
-    contract: any,
-    tokenId: string,
-  ): Promise<string> => {
+  uri = async (contract: any, tokenId: string): Promise<string> => {
     return new Promise<string>((resolve, reject) => {
       contract.uri(tokenId, (error: Error, result: string) => {
         /* istanbul ignore if */

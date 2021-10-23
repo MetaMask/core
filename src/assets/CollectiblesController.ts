@@ -144,11 +144,23 @@ export class CollectiblesController extends BaseController<
   private mutex = new Mutex();
 
   private getCollectibleApi(contractAddress: string, tokenId: string) {
-    return `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
+    const { chainId } = this.config;
+    switch (chainId) {
+      case '4':
+        return `https://testnets-api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
+      default:
+        return `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
+    }
   }
 
   private getCollectibleContractInformationApi(contractAddress: string) {
-    return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
+    const { chainId } = this.config;
+    switch (chainId) {
+      case '4':
+        return `https://testnets-api.opensea.io/api/v1/asset_contract/${contractAddress}`;
+      default:
+        return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
+    }
   }
 
   /**
@@ -235,6 +247,7 @@ export class CollectiblesController extends BaseController<
     return { image: object[image], name: object.name };
   }
 
+  // LOOK HERE
   /**
    * Request individual collectible information (name, image url and description).
    *
@@ -247,6 +260,7 @@ export class CollectiblesController extends BaseController<
     tokenId: string,
   ): Promise<CollectibleMetadata> {
     let information;
+
     // First try with OpenSea
     information = await safelyExecute(async () => {
       return await this.getCollectibleInformationFromApi(
@@ -322,6 +336,7 @@ export class CollectiblesController extends BaseController<
     };
   }
 
+  // LOOK HERE
   /**
    * Request collectible contract information from OpenSea API.
    *
@@ -379,7 +394,7 @@ export class CollectiblesController extends BaseController<
   private async addIndividualCollectible(
     address: string,
     tokenId: string,
-    collectibleMetadata?: CollectibleMetadata,
+    collectibleMetadata: CollectibleMetadata,
   ): Promise<Collectible[]> {
     const releaseLock = await this.mutex.acquire();
     try {
@@ -391,10 +406,6 @@ export class CollectiblesController extends BaseController<
           collectible.address.toLowerCase() === address.toLowerCase() &&
           collectible.tokenId === tokenId,
       );
-      /* istanbul ignore next */
-      collectibleMetadata =
-        collectibleMetadata ||
-        (await this.getCollectibleInformation(address, tokenId));
 
       if (existingEntry) {
         const differentMetadata = compareCollectiblesMetadata(
@@ -479,7 +490,7 @@ export class CollectiblesController extends BaseController<
         image_url,
       } = contractInformation;
       // If being auto-detected opensea information is expected
-      // Oherwise at least name and symbol from contract is needed
+      // Otherwise at least name and symbol from contract is needed
       if (
         (detection && !image_url) ||
         Object.keys(contractInformation).length === 0
@@ -758,7 +769,7 @@ export class CollectiblesController extends BaseController<
     collectibleAddress: string,
     collectibleId: string,
   ): Promise<boolean> {
-    // Checks the ownership of a ERC-721.
+    // Checks the ownership for ERC-721.
     try {
       const owner = await this.getOwnerOf(collectibleAddress, collectibleId);
       return ownerAddress.toLowerCase() === owner.toLowerCase();
@@ -767,7 +778,7 @@ export class CollectiblesController extends BaseController<
       // Ignore ERC-721 contract error
     }
 
-    // Checks the ownership of a ERC-1155.
+    // Checks the ownership for ERC-1155.
     try {
       const balance = await this.balanceOfERC1155Collectible(
         ownerAddress,
@@ -800,6 +811,7 @@ export class CollectiblesController extends BaseController<
     collectibleMetadata?: CollectibleMetadata,
     detection?: boolean,
   ) {
+    console.log('ADD:', address, tokenId, detection);
     address = toChecksumHexAddress(address);
     const newCollectibleContracts = await this.addCollectibleContract(
       address,
@@ -809,6 +821,8 @@ export class CollectiblesController extends BaseController<
     collectibleMetadata =
       collectibleMetadata ||
       (await this.getCollectibleInformation(address, tokenId));
+
+    console.log(address, '->', collectibleMetadata);
 
     // If collectible contract was not added, do not add individual collectible
     const collectibleContract = newCollectibleContracts.find(

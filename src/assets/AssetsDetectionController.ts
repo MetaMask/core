@@ -402,6 +402,7 @@ export class AssetsDetectionController extends BaseController<
 
     await safelyExecute(async () => {
       const apiCollectibles = await this.getOwnerCollectibles();
+      console.log(apiCollectibles);
       const addCollectiblesPromises = apiCollectibles.map(
         async (collectible: ApiCollectible) => {
           const {
