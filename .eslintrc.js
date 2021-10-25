@@ -65,6 +65,10 @@ module.exports = {
     'no-param-reassign': 'off',
     radix: 'off',
     'require-atomic-updates': 'off',
+    'jsdoc/match-description': [
+      'error',
+      { matchDescription: '^([A-Z]|[`\\d_])[\\s\\S]*[.?!`>]$' },
+    ],
   },
   settings: {
     'import/resolver': {
