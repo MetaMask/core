@@ -296,7 +296,6 @@ export class CollectiblesController extends BaseController<
     return undefined;
   }
 
-  // LOOK HERE
   /**
    * Request individual collectible information (name, image url and description).
    *
@@ -379,7 +378,6 @@ export class CollectiblesController extends BaseController<
     };
   }
 
-  // LOOK HERE
   /**
    * Request collectible contract information from OpenSea API.
    *
