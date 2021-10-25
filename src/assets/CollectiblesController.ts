@@ -83,6 +83,8 @@ export interface CollectibleContract {
  * @property externalLink - External link containing additional information
  * @property creator - The collectible owner information object
  * @property standard - NFT standard name for the collectible, e.g., ERC-721 or ERC-1155
+ * @property collectionName - The name of the collectible collection.
+ * @property collectionImage - The image URI of the collectible collection.
  */
 export interface CollectibleMetadata {
   name?: string;
@@ -99,6 +101,8 @@ export interface CollectibleMetadata {
   creator?: ApiCollectibleCreator;
   lastSale?: ApiCollectibleLastSale;
   standard?: string;
+  collectionName?: string;
+  collectionImage?: string;
 }
 
 /**
@@ -198,7 +202,8 @@ export class CollectiblesController extends BaseController<
       external_link,
       creator,
       last_sale,
-      asset_contract,
+      asset_contract: { schema_name },
+      collection,
     } = collectibleInformation;
 
     /* istanbul ignore next */
@@ -219,7 +224,9 @@ export class CollectiblesController extends BaseController<
       },
       external_link && { externalLink: external_link },
       last_sale && { lastSale: last_sale },
-      asset_contract.schema_name && { standard: asset_contract.schema_name },
+      schema_name && { standard: schema_name },
+      collection.name && { collectionName: collection.name },
+      collection.image_url && { collectionImage: collection.image_url },
     );
 
     return collectibleMetadata;
@@ -811,7 +818,6 @@ export class CollectiblesController extends BaseController<
     collectibleMetadata?: CollectibleMetadata,
     detection?: boolean,
   ) {
-    console.log('ADD:', address, tokenId, detection);
     address = toChecksumHexAddress(address);
     const newCollectibleContracts = await this.addCollectibleContract(
       address,
@@ -821,8 +827,6 @@ export class CollectiblesController extends BaseController<
     collectibleMetadata =
       collectibleMetadata ||
       (await this.getCollectibleInformation(address, tokenId));
-
-    console.log(address, '->', collectibleMetadata);
 
     // If collectible contract was not added, do not add individual collectible
     const collectibleContract = newCollectibleContracts.find(

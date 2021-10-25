@@ -57,9 +57,6 @@ describe('CollectiblesController', () => {
         name: 'Name',
         symbol: 'FOO',
         total_supply: 0,
-        asset_contract: {
-          schema_name: 'ERC1155',
-        },
       })
       .get(`${OPEN_SEA_PATH}/asset_contract/0x02`)
       .reply(200, {
@@ -77,6 +74,10 @@ describe('CollectiblesController', () => {
         asset_contract: {
           schema_name: 'ERC1155',
         },
+        collection: {
+          name: 'Collection Name',
+          image_url: 'collection.url',
+        },
       })
       .get(
         `${OPEN_SEA_PATH}/asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203`,
@@ -87,6 +88,10 @@ describe('CollectiblesController', () => {
         name: 'Kudos Name',
         asset_contract: {
           schema_name: 'ERC721',
+        },
+        collection: {
+          name: 'Collection Name',
+          image_url: 'collection.url',
         },
       })
       .get(
@@ -220,6 +225,7 @@ describe('CollectiblesController', () => {
 
   it('should add collectible and get information from OpenSea', async () => {
     await collectiblesController.addCollectible('0x01', '1');
+    console.log(collectiblesController.state.collectibles[0]);
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x01',
       description: 'Description',
@@ -227,6 +233,8 @@ describe('CollectiblesController', () => {
       name: 'Name',
       standard: 'ERC1155',
       tokenId: '1',
+      collectionName: 'Collection Name',
+      collectionImage: 'collection.url',
     });
   });
 
@@ -338,6 +346,8 @@ describe('CollectiblesController', () => {
         name: 'Kudos Name',
         standard: 'ERC721',
         tokenId: '1203',
+        collectionImage: 'collection.url',
+        collectionName: 'Collection Name',
       },
     ]);
 
@@ -563,29 +573,3 @@ describe('CollectiblesController', () => {
     await expect(result).rejects.toThrow(error);
   });
 });
-
-// {
-//   description: 'Description',
-//   image_url: 'url',
-//   image_preview_url: 'preview_url',
-//   image_thumbnail_url: 'thumbnail_url',
-//   image_original_url: 'original_url',
-//   name: 'Collectible Name',
-//   symbol: 'FOO',
-//   total_supply: 0,
-//   background_color: null,
-//   num_sales: 3,
-//   external_link: 'external_link',
-//   asset_contract: {
-//     name: 'Collection Name',
-//     image_url: 'image_url',
-//     address: '0x01',
-//     schema_name: 'ERC1155',
-//     symbol: 'ABC',
-//     description: 'Collection description',
-//     asset_contract_type: 'non-fungible',
-//     created_date: 'date',
-//     total_supply: null,
-//     external_link: 'external_link',
-//   },
-// }
