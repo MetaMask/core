@@ -254,7 +254,6 @@ export class CollectiblesController extends BaseController<
     return { image: object[image], name: object.name };
   }
 
-  // LOOK HERE
   /**
    * Request individual collectible information (name, image url and description).
    *
@@ -343,7 +342,6 @@ export class CollectiblesController extends BaseController<
     };
   }
 
-  // LOOK HERE
   /**
    * Request collectible contract information from OpenSea API.
    *
