@@ -83,6 +83,8 @@ export interface CollectibleContract {
  * @property externalLink - External link containing additional information
  * @property creator - The collectible owner information object
  * @property standard - NFT standard name for the collectible, e.g., ERC-721 or ERC-1155
+ * @property collectionName - The name of the collectible collection.
+ * @property collectionImage - The image URI of the collectible collection.
  */
 export interface CollectibleMetadata {
   name?: string;
@@ -99,6 +101,8 @@ export interface CollectibleMetadata {
   creator?: ApiCollectibleCreator;
   lastSale?: ApiCollectibleLastSale;
   standard?: string;
+  collectionName?: string;
+  collectionImage?: string;
 }
 
 /**
@@ -144,11 +148,23 @@ export class CollectiblesController extends BaseController<
   private mutex = new Mutex();
 
   private getCollectibleApi(contractAddress: string, tokenId: string) {
-    return `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
+    const { chainId } = this.config;
+    switch (chainId) {
+      case '4':
+        return `https://testnets-api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
+      default:
+        return `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
+    }
   }
 
   private getCollectibleContractInformationApi(contractAddress: string) {
-    return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
+    const { chainId } = this.config;
+    switch (chainId) {
+      case '4':
+        return `https://testnets-api.opensea.io/api/v1/asset_contract/${contractAddress}`;
+      default:
+        return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
+    }
   }
 
   /**
@@ -186,7 +202,8 @@ export class CollectiblesController extends BaseController<
       external_link,
       creator,
       last_sale,
-      asset_contract,
+      asset_contract: { schema_name },
+      collection,
     } = collectibleInformation;
 
     /* istanbul ignore next */
@@ -207,7 +224,9 @@ export class CollectiblesController extends BaseController<
       },
       external_link && { externalLink: external_link },
       last_sale && { lastSale: last_sale },
-      asset_contract.schema_name && { standard: asset_contract.schema_name },
+      schema_name && { standard: schema_name },
+      collection.name && { collectionName: collection.name },
+      collection.image_url && { collectionImage: collection.image_url },
     );
 
     return collectibleMetadata;
@@ -235,6 +254,7 @@ export class CollectiblesController extends BaseController<
     return { image: object[image], name: object.name };
   }
 
+  // LOOK HERE
   /**
    * Request individual collectible information (name, image url and description).
    *
@@ -247,6 +267,7 @@ export class CollectiblesController extends BaseController<
     tokenId: string,
   ): Promise<CollectibleMetadata> {
     let information;
+
     // First try with OpenSea
     information = await safelyExecute(async () => {
       return await this.getCollectibleInformationFromApi(
@@ -322,6 +343,7 @@ export class CollectiblesController extends BaseController<
     };
   }
 
+  // LOOK HERE
   /**
    * Request collectible contract information from OpenSea API.
    *
@@ -379,7 +401,7 @@ export class CollectiblesController extends BaseController<
   private async addIndividualCollectible(
     address: string,
     tokenId: string,
-    collectibleMetadata?: CollectibleMetadata,
+    collectibleMetadata: CollectibleMetadata,
   ): Promise<Collectible[]> {
     const releaseLock = await this.mutex.acquire();
     try {
@@ -391,10 +413,6 @@ export class CollectiblesController extends BaseController<
           collectible.address.toLowerCase() === address.toLowerCase() &&
           collectible.tokenId === tokenId,
       );
-      /* istanbul ignore next */
-      collectibleMetadata =
-        collectibleMetadata ||
-        (await this.getCollectibleInformation(address, tokenId));
 
       if (existingEntry) {
         const differentMetadata = compareCollectiblesMetadata(
@@ -479,7 +497,7 @@ export class CollectiblesController extends BaseController<
         image_url,
       } = contractInformation;
       // If being auto-detected opensea information is expected
-      // Oherwise at least name and symbol from contract is needed
+      // Otherwise at least name and symbol from contract is needed
       if (
         (detection && !image_url) ||
         Object.keys(contractInformation).length === 0
@@ -758,7 +776,7 @@ export class CollectiblesController extends BaseController<
     collectibleAddress: string,
     collectibleId: string,
   ): Promise<boolean> {
-    // Checks the ownership of a ERC-721.
+    // Checks the ownership for ERC-721.
     try {
       const owner = await this.getOwnerOf(collectibleAddress, collectibleId);
       return ownerAddress.toLowerCase() === owner.toLowerCase();
@@ -767,7 +785,7 @@ export class CollectiblesController extends BaseController<
       // Ignore ERC-721 contract error
     }
 
-    // Checks the ownership of a ERC-1155.
+    // Checks the ownership for ERC-1155.
     try {
       const balance = await this.balanceOfERC1155Collectible(
         ownerAddress,

@@ -57,9 +57,6 @@ describe('CollectiblesController', () => {
         name: 'Name',
         symbol: 'FOO',
         total_supply: 0,
-        asset_contract: {
-          schema_name: 'ERC1155',
-        },
       })
       .get(`${OPEN_SEA_PATH}/asset_contract/0x02`)
       .reply(200, {
@@ -77,6 +74,10 @@ describe('CollectiblesController', () => {
         asset_contract: {
           schema_name: 'ERC1155',
         },
+        collection: {
+          name: 'Collection Name',
+          image_url: 'collection.url',
+        },
       })
       .get(
         `${OPEN_SEA_PATH}/asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203`,
@@ -87,6 +88,10 @@ describe('CollectiblesController', () => {
         name: 'Kudos Name',
         asset_contract: {
           schema_name: 'ERC721',
+        },
+        collection: {
+          name: 'Collection Name',
+          image_url: 'collection.url',
         },
       })
       .get(
@@ -220,6 +225,7 @@ describe('CollectiblesController', () => {
 
   it('should add collectible and get information from OpenSea', async () => {
     await collectiblesController.addCollectible('0x01', '1');
+    console.log(collectiblesController.state.collectibles[0]);
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x01',
       description: 'Description',
@@ -227,6 +233,8 @@ describe('CollectiblesController', () => {
       name: 'Name',
       standard: 'ERC1155',
       tokenId: '1',
+      collectionName: 'Collection Name',
+      collectionImage: 'collection.url',
     });
   });
 
@@ -338,6 +346,8 @@ describe('CollectiblesController', () => {
         name: 'Kudos Name',
         standard: 'ERC721',
         tokenId: '1203',
+        collectionImage: 'collection.url',
+        collectionName: 'Collection Name',
       },
     ]);
 

@@ -204,27 +204,55 @@ export class AssetsContractController extends BaseController<
     tokenId: string,
   ): Promise<string> {
     const contract = this.web3.eth.contract(abiERC1155).at(address);
-    return this.erc1155Standard.getCollectibleURI(contract, tokenId);
+    return this.erc1155Standard.uri(contract, tokenId);
   }
 
   /**
    * Query for balance of a given ERC 1155 token.
    *
    * @param userAddress - Wallet public address.
-   * @param collectibleaddress - ERC1155 asset contract address.
+   * @param collectibleAddress - ERC1155 asset contract address.
    * @param collectibleId - ERC1155 asset identifier.
    * @returns Promise resolving to the 'balanceOf'.
    */
   async balanceOfERC1155Collectible(
     userAddress: string,
-    collectibleaddress: string,
+    collectibleAddress: string,
     collectibleId: string,
   ): Promise<number> {
-    const contract = this.web3.eth.contract(abiERC1155).at(collectibleaddress);
+    const contract = this.web3.eth.contract(abiERC1155).at(collectibleAddress);
     return await this.erc1155Standard.getBalanceOf(
       contract,
       userAddress,
       collectibleId,
+    );
+  }
+
+  /**
+   * Transfer single ERC1155 token.
+   *
+   * @param collectibleAddress - ERC1155 token address.
+   * @param senderAddress - ERC1155 token sender.
+   * @param recipientAddress - ERC1155 token recipient.
+   * @param collectibleId - ERC1155 token id.
+   * @param qty - Quantity of tokens to be sent.
+   * @returns Promise resolving to the 'transferSingle' ERC1155 token.
+   */
+  async transferSingleERC1155Collectible(
+    collectibleAddress: string,
+    senderAddress: string,
+    recipientAddress: string,
+    collectibleId: string,
+    qty: string,
+  ): Promise<void> {
+    const contract = this.web3.eth.contract(abiERC1155).at(collectibleAddress);
+    return await this.erc1155Standard.transferSingle(
+      contract,
+      collectibleAddress,
+      senderAddress,
+      recipientAddress,
+      collectibleId,
+      qty,
     );
   }
 
