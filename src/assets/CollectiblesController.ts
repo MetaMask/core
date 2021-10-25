@@ -243,15 +243,49 @@ export class CollectiblesController extends BaseController<
     contractAddress: string,
     tokenId: string,
   ): Promise<CollectibleMetadata> {
-    const tokenURI = await this.getCollectibleTokenURI(
-      contractAddress,
-      tokenId,
-    );
-    const object = await handleFetch(tokenURI);
-    const image = Object.prototype.hasOwnProperty.call(object, 'image')
-      ? 'image'
-      : /* istanbul ignore next */ 'image_url';
-    return { image: object[image], name: object.name };
+    const tokenURI = await this.getCollectibleURI(contractAddress, tokenId);
+
+    if (tokenURI) {
+      const object = await handleFetch(tokenURI);
+      const image = Object.prototype.hasOwnProperty.call(object, 'image')
+        ? 'image'
+        : /* istanbul ignore next */ 'image_url';
+
+      return { image: object[image], name: object.name };
+    }
+
+    return {};
+  }
+
+  /**
+   * Retrieve collectible uri with  metadata.
+   *
+   * @param contractAddress - Collectible contract address.
+   * @param tokenId - Collectible token id.
+   * @returns Promise resolving collectible uri.
+   */
+  private async getCollectibleURI(
+    contractAddress: string,
+    tokenId: string,
+  ): Promise<string | undefined> {
+    // ERC-721 uri
+    try {
+      return await this.getCollectibleTokenURI(contractAddress, tokenId);
+    } catch {
+      // Ignore error
+    }
+
+    try {
+      const tokenURI = await this.uriERC1155Collectible(
+        contractAddress,
+        tokenId,
+      );
+      return tokenURI;
+    } catch {
+      // Ignore error
+    }
+
+    return undefined;
   }
 
   // LOOK HERE
@@ -268,18 +302,6 @@ export class CollectiblesController extends BaseController<
   ): Promise<CollectibleMetadata> {
     let information;
 
-    // First try with OpenSea
-    information = await safelyExecute(async () => {
-      return await this.getCollectibleInformationFromApi(
-        contractAddress,
-        tokenId,
-      );
-    });
-
-    if (information) {
-      return information;
-    }
-
     // Then following ERC721 standard
     information = await safelyExecute(async () => {
       return await this.getCollectibleInformationFromTokenURI(
@@ -292,6 +314,19 @@ export class CollectiblesController extends BaseController<
     if (information) {
       return information;
     }
+
+    // First try with OpenSea
+    information = await safelyExecute(async () => {
+      return await this.getCollectibleInformationFromApi(
+        contractAddress,
+        tokenId,
+      );
+    });
+
+    if (information) {
+      return information;
+    }
+
     /* istanbul ignore next */
     return {};
   }
@@ -671,6 +706,8 @@ export class CollectiblesController extends BaseController<
 
   private balanceOfERC1155Collectible: AssetsContractController['balanceOfERC1155Collectible'];
 
+  private uriERC1155Collectible: AssetsContractController['uriERC1155Collectible'];
+
   /**
    * Creates a CollectiblesController instance.
    *
@@ -679,9 +716,10 @@ export class CollectiblesController extends BaseController<
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.getAssetName - Gets the name of the asset at the given address.
    * @param options.getAssetSymbol - Gets the symbol of the asset at the given address.
-   * @param options.getCollectibleTokenURI - Gets the URI of the NFT at the given address, with the given ID.
+   * @param options.getCollectibleTokenURI - Gets the URI of the ERC721 token at the given address, with the given ID.
    * @param options.getOwnerOf - Get the owner of a ERC-721 collectible.
    * @param options.balanceOfERC1155Collectible - Gets balance of a ERC-1155 collectible.
+   * @param options.uriERC1155Collectible - Gets the URI of the ERC1155 token at the given address, with the given ID.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -694,6 +732,7 @@ export class CollectiblesController extends BaseController<
       getCollectibleTokenURI,
       getOwnerOf,
       balanceOfERC1155Collectible,
+      uriERC1155Collectible,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -706,6 +745,7 @@ export class CollectiblesController extends BaseController<
       getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
       getOwnerOf: AssetsContractController['getOwnerOf'];
       balanceOfERC1155Collectible: AssetsContractController['balanceOfERC1155Collectible'];
+      uriERC1155Collectible: AssetsContractController['uriERC1155Collectible'];
     },
     config?: Partial<BaseConfig>,
     state?: Partial<CollectiblesState>,
@@ -730,6 +770,7 @@ export class CollectiblesController extends BaseController<
     this.getCollectibleTokenURI = getCollectibleTokenURI;
     this.getOwnerOf = getOwnerOf;
     this.balanceOfERC1155Collectible = balanceOfERC1155Collectible;
+    this.uriERC1155Collectible = uriERC1155Collectible;
     onPreferencesStateChange(({ selectedAddress }) => {
       const { allCollectibleContracts, allCollectibles } = this.state;
       const { chainId } = this.config;

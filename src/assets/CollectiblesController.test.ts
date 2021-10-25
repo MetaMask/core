@@ -47,6 +47,9 @@ describe('CollectiblesController', () => {
       balanceOfERC1155Collectible: assetsContract.balanceOfERC1155Collectible.bind(
         assetsContract,
       ),
+      uriERC1155Collectible: assetsContract.uriERC1155Collectible.bind(
+        assetsContract,
+      ),
     });
 
     nock(OPEN_SEA_HOST)
@@ -225,7 +228,6 @@ describe('CollectiblesController', () => {
 
   it('should add collectible and get information from OpenSea', async () => {
     await collectiblesController.addCollectible('0x01', '1');
-    console.log(collectiblesController.state.collectibles[0]);
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x01',
       description: 'Description',
