@@ -93,11 +93,11 @@ export interface CollectibleContract {
  * @property collectionImage - The image URI of the collectible collection.
  */
 export interface CollectibleMetadata {
-  name?: string;
-  description?: string;
+  name: string | null;
+  description: string | null;
   numberOfSales?: number;
   backgroundColor?: string;
-  image?: string;
+  image: string | null;
   imagePreview?: string;
   imageThumbnail?: string;
   imageOriginal?: string;
@@ -253,14 +253,19 @@ export class CollectiblesController extends BaseController<
 
     if (tokenURI) {
       const object = await handleFetch(tokenURI);
+      // TODO: Check image_url existence. This is not part of EIP721 nor EIP1155
       const image = Object.prototype.hasOwnProperty.call(object, 'image')
         ? 'image'
         : /* istanbul ignore next */ 'image_url';
 
-      return { image: object[image], name: object.name };
+      return {
+        image: object[image],
+        name: object.name,
+        description: object.description,
+      };
     }
 
-    return {};
+    return { image: null, name: null, description: null };
   }
 
   /**
@@ -321,14 +326,12 @@ export class CollectiblesController extends BaseController<
       );
     });
 
-    const information = { ...openSeaMetadata, ...blockchainMetadata };
-
-    if (information) {
-      return information;
+    if (openSeaMetadata || blockchainMetadata) {
+      return { ...openSeaMetadata, ...blockchainMetadata };
     }
 
     /* istanbul ignore next */
-    return {};
+    return { image: null, name: null, description: null };
   }
 
   /**
@@ -431,6 +434,7 @@ export class CollectiblesController extends BaseController<
     tokenId: string,
     collectibleMetadata: CollectibleMetadata,
   ): Promise<Collectible[]> {
+    // TODO: Remove unused return
     const releaseLock = await this.mutex.acquire();
     try {
       address = toChecksumHexAddress(address);
@@ -448,6 +452,7 @@ export class CollectiblesController extends BaseController<
           existingEntry,
         );
         if (differentMetadata) {
+          // TODO: Switch to indexToUpdate
           const indexToRemove = collectibles.findIndex(
             (collectible) =>
               collectible.address.toLowerCase() === address.toLowerCase() &&
@@ -868,6 +873,7 @@ export class CollectiblesController extends BaseController<
     );
     // If collectible contract information, add individual collectible
     if (collectibleContract) {
+      // TODO: Check duplicates logic.
       await this.addIndividualCollectible(
         address,
         tokenId,
