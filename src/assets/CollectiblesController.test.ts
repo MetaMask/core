@@ -119,8 +119,33 @@ describe('CollectiblesController', () => {
     nock('https://ipfs.gitcoin.co:443')
       .get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov')
       .reply(200, {
-        image: 'Kudos Image',
-        name: 'Kudos Name',
+        image: 'Kudos Image (from uri)',
+        name: 'Kudos Name (from uri)',
+      });
+
+    nock(OPEN_SEA_HOST)
+      .get(
+        '/api/v1/metadata/0x495f947276749Ce646f68AC8c248420045cb7b5e/0x5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+      )
+      .reply(200, {
+        name: 'name (from uri)',
+        description: null,
+        external_link: null,
+        image: 'image (from uri)',
+        animation_url: null,
+      });
+
+    nock(OPEN_SEA_HOST)
+      .get(
+        '/api/v1/asset/0x495f947276749Ce646f68AC8c248420045cb7b5e/40815311521795738946686668571398122012172359753720345430028676522525371400193',
+      )
+      .reply(200, {
+        num_sales: 1,
+        image_original_url: 'image.uri',
+        name: 'name',
+        image: 'image',
+        asset_contract: { schema_name: 'ERC1155' },
+        collection: { name: 'collection', image_uri: 'collection.uri' },
       });
   });
 
@@ -240,8 +265,59 @@ describe('CollectiblesController', () => {
     });
   });
 
-  it('should add collectible and get collectible contract information from contract', async () => {
+  it('should add collectible erc1155 and get collectible contract information from contract', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
+    await collectiblesController.addCollectible(
+      ERC1155_COLLECTIBLE_ADDRESS,
+      ERC1155_COLLECTIBLE_ID,
+    );
+
+    expect(collectiblesController.state.collectibles[0]).toStrictEqual({
+      address: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
+      image: 'image (from uri)',
+      name: 'name (from uri)',
+      tokenId:
+        '40815311521795738946686668571398122012172359753720345430028676522525371400193',
+      collectionName: 'collection',
+      imageOriginal: 'image.uri',
+      numberOfSales: 1,
+      standard: 'ERC1155',
+    });
+  });
+
+  it('should add collectible erc721 and get collectible contract information from contract and OpenSea', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+
+    sandbox
+      .stub(
+        collectiblesController,
+        'getCollectibleContractInformationFromApi' as any,
+      )
+      .returns(undefined);
+
+    await collectiblesController.addCollectible(KUDOSADDRESS, '1203');
+    expect(collectiblesController.state.collectibles[0]).toStrictEqual({
+      address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+      image: 'Kudos Image (from uri)',
+      name: 'Kudos Name (from uri)',
+      tokenId: '1203',
+      collectionImage: 'collection.url',
+      collectionName: 'Collection Name',
+      description: 'Kudos Description',
+      imageOriginal: 'Kudos url',
+      standard: 'ERC721',
+    });
+
+    expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
+      address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+      name: 'KudosToken',
+      symbol: 'KDO',
+    });
+  });
+
+  it('should add collectible erc721 and get collectible contract information only from contract', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+
     sandbox
       .stub(
         collectiblesController,
@@ -252,11 +328,12 @@ describe('CollectiblesController', () => {
     sandbox
       .stub(collectiblesController, 'getCollectibleInformationFromApi' as any)
       .returns(undefined);
+
     await collectiblesController.addCollectible(KUDOSADDRESS, '1203');
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
-      image: 'Kudos Image',
-      name: 'Kudos Name',
+      image: 'Kudos Image (from uri)',
+      name: 'Kudos Name (from uri)',
       tokenId: '1203',
     });
 
