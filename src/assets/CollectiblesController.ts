@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { BN } from 'ethereumjs-util';
+import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { Mutex } from 'async-mutex';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
@@ -287,13 +287,20 @@ export class CollectiblesController extends BaseController<
     }
 
     // try ERC1155 uri
-    const hexTokenId = BNToHex(new BN(tokenId));
     try {
       const tokenURI = await this.uriERC1155Collectible(
         contractAddress,
         tokenId,
       );
-      return tokenURI.replace('0x{id}', hexTokenId);
+
+      if (!tokenURI.includes('{id}')) {
+        return tokenURI;
+      }
+
+      const hexTokenId = stripHexPrefix(BNToHex(new BN(tokenId)))
+        .padStart(64, '0')
+        .toLowerCase();
+      return tokenURI.replace('{id}', hexTokenId);
     } catch {
       // Ignore error
     }
