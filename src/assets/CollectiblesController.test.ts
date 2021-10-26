@@ -11,6 +11,8 @@ import { CollectiblesController } from './CollectiblesController';
 
 const KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
+const DEPRESSIONIST_ADDRESS = '0x18e8e76aeb9e2d9fa2a2b88dd9cf3c8ed45c3660';
+const DEPRESSIONIST_ID = '36';
 const ERC721_COLLECTIBLE_ADDRESS = '0x60f80121c31a0d46b5279700f9df786054aa5ee5';
 const ERC721_COLLECTIBLE_ID = '1144858';
 const ERC1155_COLLECTIBLE_ADDRESS =
@@ -21,8 +23,11 @@ const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
+
 const OPEN_SEA_HOST = 'https://api.opensea.io';
 const OPEN_SEA_PATH = '/api/v1';
+
+const CLOUDFARE_PATH = 'https://cloudflare-ipfs.com/ipfs';
 
 describe('CollectiblesController', () => {
   let collectiblesController: CollectiblesController;
@@ -149,6 +154,14 @@ describe('CollectiblesController', () => {
         description: 'description',
         asset_contract: { schema_name: 'ERC1155' },
         collection: { name: 'collection', image_uri: 'collection.uri' },
+      });
+
+    nock(CLOUDFARE_PATH)
+      .get('/QmVChNtStZfPyV8JfKpube3eigQh5rUXqYchPgLc91tWLJ')
+      .reply(200, {
+        name: 'name',
+        image: 'image',
+        description: 'description',
       });
   });
 
@@ -657,5 +670,27 @@ describe('CollectiblesController', () => {
       );
     };
     await expect(result).rejects.toThrow(error);
+  });
+
+  it('should add collectible with metadata hosted in IPFS', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+    await collectiblesController.addCollectible(
+      DEPRESSIONIST_ADDRESS,
+      DEPRESSIONIST_ID,
+    );
+
+    expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
+      address: '0x18E8E76aeB9E2d9FA2A2b88DD9CF3C8ED45c3660',
+      name: "Maltjik.jpg's Depressionists",
+      symbol: 'DPNS',
+    });
+
+    expect(collectiblesController.state.collectibles[0]).toStrictEqual({
+      address: '0x18E8E76aeB9E2d9FA2A2b88DD9CF3C8ED45c3660',
+      tokenId: '36',
+      image: 'image',
+      name: 'name',
+      description: 'description',
+    });
   });
 });
