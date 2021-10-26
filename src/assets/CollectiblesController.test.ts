@@ -73,6 +73,7 @@ describe('CollectiblesController', () => {
       .reply(200, {
         description: 'Description',
         image_original_url: 'url',
+        image_url: 'url',
         name: 'Name',
         asset_contract: {
           schema_name: 'ERC1155',
@@ -86,9 +87,9 @@ describe('CollectiblesController', () => {
         `${OPEN_SEA_PATH}/asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203`,
       )
       .reply(200, {
-        description: 'Kudos Description',
         image_original_url: 'Kudos url',
         name: 'Kudos Name',
+        description: 'Kudos Description',
         asset_contract: {
           schema_name: 'ERC721',
         },
@@ -121,6 +122,7 @@ describe('CollectiblesController', () => {
       .reply(200, {
         image: 'Kudos Image (from uri)',
         name: 'Kudos Name (from uri)',
+        description: 'Kudos Description (from uri)',
       });
 
     nock(OPEN_SEA_HOST)
@@ -144,6 +146,7 @@ describe('CollectiblesController', () => {
         image_original_url: 'image.uri',
         name: 'name',
         image: 'image',
+        description: 'description',
         asset_contract: { schema_name: 'ERC1155' },
         collection: { name: 'collection', image_uri: 'collection.uri' },
       });
@@ -257,6 +260,7 @@ describe('CollectiblesController', () => {
       address: '0x01',
       description: 'Description',
       imageOriginal: 'url',
+      image: 'url',
       name: 'Name',
       standard: 'ERC1155',
       tokenId: '1',
@@ -276,6 +280,7 @@ describe('CollectiblesController', () => {
       address: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
       image: 'image (from uri)',
       name: 'name (from uri)',
+      description: 'description',
       tokenId:
         '40815311521795738946686668571398122012172359753720345430028676522525371400193',
       collectionName: 'collection',
@@ -300,10 +305,10 @@ describe('CollectiblesController', () => {
       address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
       image: 'Kudos Image (from uri)',
       name: 'Kudos Name (from uri)',
+      description: 'Kudos Description (from uri)',
       tokenId: '1203',
       collectionImage: 'collection.url',
       collectionName: 'Collection Name',
-      description: 'Kudos Description',
       imageOriginal: 'Kudos url',
       standard: 'ERC721',
     });
@@ -334,6 +339,7 @@ describe('CollectiblesController', () => {
       address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
       image: 'Kudos Image (from uri)',
       name: 'Kudos Name (from uri)',
+      description: 'Kudos Description (from uri)',
       tokenId: '1203',
     });
 
@@ -423,6 +429,7 @@ describe('CollectiblesController', () => {
         description: 'Kudos Description',
         imageOriginal: 'Kudos url',
         name: 'Kudos Name',
+        image: null,
         standard: 'ERC721',
         tokenId: '1203',
         collectionImage: 'collection.url',

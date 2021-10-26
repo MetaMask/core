@@ -112,6 +112,9 @@ describe('ComposableController', () => {
         balanceOfERC1155Collectible: assetContractController.balanceOfERC1155Collectible.bind(
           assetContractController,
         ),
+        uriERC1155Collectible: assetContractController.uriERC1155Collectible.bind(
+          assetContractController,
+        ),
       });
       const tokensController = new TokensController({
         onPreferencesStateChange: (listener) =>
@@ -188,6 +191,9 @@ describe('ComposableController', () => {
           assetContractController,
         ),
         balanceOfERC1155Collectible: assetContractController.balanceOfERC1155Collectible.bind(
+          assetContractController,
+        ),
+        uriERC1155Collectible: assetContractController.uriERC1155Collectible.bind(
           assetContractController,
         ),
       });
