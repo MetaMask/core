@@ -412,11 +412,6 @@ export class CollectiblesController extends BaseController<
     });
 
     if (blockchainContractData || openSeaContractData) {
-      contractAddress === '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163' &&
-        console.log('[CONTROLLERS] return', {
-          ...openSeaContractData,
-          ...blockchainContractData,
-        });
       return { ...openSeaContractData, ...blockchainContractData };
     }
 
@@ -561,7 +556,8 @@ export class CollectiblesController extends BaseController<
         name && { name },
         image_url && { logo: image_url },
         symbol && { symbol },
-        total_supply !== null && { totalSupply: total_supply },
+        total_supply !== null &&
+          typeof total_supply !== 'undefined' && { totalSupply: total_supply },
         asset_contract_type && { assetContractType: asset_contract_type },
         created_date && { createdDate: created_date },
         schema_name && { schemaName: schema_name },
