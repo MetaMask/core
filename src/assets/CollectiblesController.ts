@@ -215,10 +215,10 @@ export class CollectiblesController extends BaseController<
     /* istanbul ignore next */
     const collectibleMetadata: CollectibleMetadata = Object.assign(
       {},
-      { name },
+      { name: name || null },
+      { description: description || null },
+      { image: image_url || null },
       creator && { creator },
-      description && { description },
-      image_url && { image: image_url },
       num_sales && { numberOfSales: num_sales },
       background_color && { backgroundColor: background_color },
       image_preview_url && { imagePreview: image_preview_url },
@@ -251,7 +251,7 @@ export class CollectiblesController extends BaseController<
   ): Promise<CollectibleMetadata> {
     const tokenURI = await this.getCollectibleURI(contractAddress, tokenId);
 
-    if (tokenURI) {
+    try {
       const object = await handleFetch(tokenURI);
       // TODO: Check image_url existence. This is not part of EIP721 nor EIP1155
       const image = Object.prototype.hasOwnProperty.call(object, 'image')
@@ -263,9 +263,9 @@ export class CollectiblesController extends BaseController<
         name: object.name,
         description: object.description,
       };
+    } catch {
+      return { image: null, name: null, description: null };
     }
-
-    return { image: null, name: null, description: null };
   }
 
   /**
@@ -278,7 +278,7 @@ export class CollectiblesController extends BaseController<
   private async getCollectibleURI(
     contractAddress: string,
     tokenId: string,
-  ): Promise<string | undefined> {
+  ): Promise<string> {
     // try ERC721 uri
     try {
       return await this.getCollectibleTokenURI(contractAddress, tokenId);
@@ -305,7 +305,7 @@ export class CollectiblesController extends BaseController<
       // Ignore error
     }
 
-    return undefined;
+    return '';
   }
 
   /**
@@ -333,12 +333,13 @@ export class CollectiblesController extends BaseController<
       );
     });
 
-    if (openSeaMetadata || blockchainMetadata) {
-      return { ...openSeaMetadata, ...blockchainMetadata };
-    }
-
-    /* istanbul ignore next */
-    return { image: null, name: null, description: null };
+    return {
+      ...openSeaMetadata,
+      name: blockchainMetadata.name ?? openSeaMetadata?.name ?? null,
+      description:
+        blockchainMetadata.description ?? openSeaMetadata?.description ?? null,
+      image: blockchainMetadata.image ?? openSeaMetadata?.image ?? null,
+    };
   }
 
   /**
@@ -371,20 +372,13 @@ export class CollectiblesController extends BaseController<
    */
   private async getCollectibleContractInformationFromContract(
     contractAddress: string,
-  ): Promise<ApiCollectibleContract> {
+  ): Promise<Partial<ApiCollectibleContract>> {
     const name = await this.getAssetName(contractAddress);
     const symbol = await this.getAssetSymbol(contractAddress);
     return {
       name,
       symbol,
       address: contractAddress,
-      asset_contract_type: null,
-      created_date: null,
-      schema_name: null,
-      total_supply: null,
-      description: null,
-      external_link: null,
-      image_url: null,
     };
   }
 
