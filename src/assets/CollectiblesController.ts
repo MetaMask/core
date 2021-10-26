@@ -9,8 +9,9 @@ import {
   handleFetch,
   toChecksumHexAddress,
   BNToHex,
+  getIpfsUrlContentIdentifier,
 } from '../util';
-import { MAINNET } from '../constants';
+import { MAINNET, IPFS_DEFAULT_GATEWAY_URL } from '../constants';
 import type {
   ApiCollectible,
   ApiCollectibleCreator,
@@ -186,6 +187,7 @@ export class CollectiblesController extends BaseController<
   ): Promise<CollectibleMetadata> {
     const tokenURI = this.getCollectibleApi(contractAddress, tokenId);
     let collectibleInformation: ApiCollectible;
+
     /* istanbul ignore if */
     if (this.openSeaApiKey) {
       collectibleInformation = await handleFetch(tokenURI, {
@@ -194,6 +196,7 @@ export class CollectiblesController extends BaseController<
     } else {
       collectibleInformation = await handleFetch(tokenURI);
     }
+
     const {
       num_sales,
       background_color,
@@ -249,7 +252,13 @@ export class CollectiblesController extends BaseController<
     contractAddress: string,
     tokenId: string,
   ): Promise<CollectibleMetadata> {
-    const tokenURI = await this.getCollectibleURI(contractAddress, tokenId);
+    let tokenURI = await this.getCollectibleURI(contractAddress, tokenId);
+
+    if (tokenURI.startsWith('ipfs://')) {
+      const contentId = getIpfsUrlContentIdentifier(tokenURI);
+      tokenURI = IPFS_DEFAULT_GATEWAY_URL + contentId;
+      console.log(tokenURI);
+    }
 
     try {
       const object = await handleFetch(tokenURI);
@@ -397,13 +406,29 @@ export class CollectiblesController extends BaseController<
       );
     });
 
+    contractAddress === '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163' &&
+      console.log(
+        '[CONTROLLERS] getCollectibleContractInformation -> blockchainContractData',
+        blockchainContractData,
+      );
     const openSeaContractData = await safelyExecute(async () => {
       return await this.getCollectibleContractInformationFromApi(
         contractAddress,
       );
     });
 
+    contractAddress === '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163' &&
+      console.log(
+        '[CONTROLLERS] getCollectibleContractInformation -> openSeaContractData',
+        openSeaContractData,
+      );
+
     if (blockchainContractData || openSeaContractData) {
+      contractAddress === '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163' &&
+        console.log('[CONTROLLERS] return', {
+          ...openSeaContractData,
+          ...blockchainContractData,
+        });
       return { ...openSeaContractData, ...blockchainContractData };
     }
 
@@ -519,6 +544,13 @@ export class CollectiblesController extends BaseController<
       const contractInformation = await this.getCollectibleContractInformation(
         address,
       );
+
+      address === '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163' &&
+        console.log(
+          '[CONTROLLERS] addCollectibleContract -> contractInformation',
+          contractInformation,
+        );
+
       const {
         asset_contract_type,
         created_date,
@@ -538,6 +570,12 @@ export class CollectiblesController extends BaseController<
       ) {
         return collectibleContracts;
       }
+
+      address === '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163' &&
+        console.log(
+          '[CONTROLLERS] addCollectibleContract -> total_supply',
+          total_supply,
+        );
       /* istanbul ignore next */
       const newEntry: CollectibleContract = Object.assign(
         {},
