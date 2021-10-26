@@ -124,6 +124,9 @@ export class TokenDetectionController extends BaseController<
    * Start polling for the currency rate.
    */
   async start() {
+    if (!this.isMainnet()) {
+      return;
+    }
     await this.startPolling();
   }
 
@@ -172,6 +175,7 @@ export class TokenDetectionController extends BaseController<
     if (!this.isMainnet()) {
       return;
     }
+
     const tokensAddresses = this.config.tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );

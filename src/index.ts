@@ -5,7 +5,6 @@ export * from './assets/AccountTrackerController';
 export * from './user/AddressBookController';
 export * from './approval/ApprovalController';
 export * from './assets/AssetsContractController';
-export * from './assets/AssetsDetectionController';
 export * from './BaseController';
 export {
   BaseController as BaseControllerV2,
