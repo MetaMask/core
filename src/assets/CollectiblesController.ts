@@ -257,7 +257,6 @@ export class CollectiblesController extends BaseController<
     if (tokenURI.startsWith('ipfs://')) {
       const contentId = getIpfsUrlContentIdentifier(tokenURI);
       tokenURI = IPFS_DEFAULT_GATEWAY_URL + contentId;
-      console.log(tokenURI);
     }
 
     try {
@@ -406,22 +405,11 @@ export class CollectiblesController extends BaseController<
       );
     });
 
-    contractAddress === '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163' &&
-      console.log(
-        '[CONTROLLERS] getCollectibleContractInformation -> blockchainContractData',
-        blockchainContractData,
-      );
     const openSeaContractData = await safelyExecute(async () => {
       return await this.getCollectibleContractInformationFromApi(
         contractAddress,
       );
     });
-
-    contractAddress === '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163' &&
-      console.log(
-        '[CONTROLLERS] getCollectibleContractInformation -> openSeaContractData',
-        openSeaContractData,
-      );
 
     if (blockchainContractData || openSeaContractData) {
       contractAddress === '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163' &&
@@ -545,12 +533,6 @@ export class CollectiblesController extends BaseController<
         address,
       );
 
-      address === '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163' &&
-        console.log(
-          '[CONTROLLERS] addCollectibleContract -> contractInformation',
-          contractInformation,
-        );
-
       const {
         asset_contract_type,
         created_date,
@@ -571,11 +553,6 @@ export class CollectiblesController extends BaseController<
         return collectibleContracts;
       }
 
-      address === '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163' &&
-        console.log(
-          '[CONTROLLERS] addCollectibleContract -> total_supply',
-          total_supply,
-        );
       /* istanbul ignore next */
       const newEntry: CollectibleContract = Object.assign(
         {},
