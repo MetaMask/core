@@ -8,10 +8,6 @@ import type {
   CollectiblesState,
   CollectibleMetadata,
 } from './CollectiblesController';
-import type { TokensController, TokensState } from './TokensController';
-import type { AssetsContractController } from './AssetsContractController';
-import { Token } from './TokenRatesController';
-import { TokenListState } from './TokenListController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -34,9 +30,8 @@ const DEFAULT_INTERVAL = 180000;
  * @property assetContract - The collectible contract information object
  * @property creator - The collectible owner information object
  * @property lastSale - When this item was last sold
- * @property collection - Collectible collection data object.
  */
-interface ApiCollectible {
+export interface ApiCollectible {
   token_id: string;
   num_sales: number | null;
   background_color: string | null;
@@ -52,7 +47,6 @@ interface ApiCollectible {
   asset_contract: ApiCollectibleContract;
   creator: ApiCollectibleCreator;
   last_sale: ApiCollectibleLastSale | null;
-  collection: ApiCollectibleCollection;
 }
 
 /**
@@ -70,7 +64,7 @@ interface ApiCollectible {
  * @property external_link - External link containing additional information
  * @property image_url - URI of an image associated with this collectible contract
  */
-interface ApiCollectibleContract {
+export interface ApiCollectibleContract {
   address: string;
   asset_contract_type: string | null;
   created_date: string | null;
@@ -91,7 +85,7 @@ interface ApiCollectibleContract {
  * @property total_price - URI of collectible image associated with this owner
  * @property transaction - Object containing transaction_hash and block_hash
  */
-interface ApiCollectibleLastSale {
+export interface ApiCollectibleLastSale {
   event_timestamp: string;
   total_price: string;
   transaction: { transaction_hash: string; block_hash: string };
@@ -105,48 +99,35 @@ interface ApiCollectibleLastSale {
  * @property profile_img_url - URI of collectible image associated with this owner
  * @property address - The owner address
  */
-interface ApiCollectibleCreator {
+export interface ApiCollectibleCreator {
   user: { username: string };
   profile_img_url: string;
   address: string;
 }
 
 /**
- * @type ApiCollectibleCollection
+ * @type CollectibleDetectionConfig
  *
- * Collectible collection object from OpenSea api.
- * @property name - Collection name.
- * @property image_url - URI collection image.
- */
-export interface ApiCollectibleCollection {
-  name: string;
-  image_url: string;
-}
-
-/**
- * @type AssetsConfig
- *
- * Assets controller configuration
+ * CollectibleDetection configuration
  * @property interval - Polling interval used to fetch new token rates
  * @property networkType - Network type ID as per net_version
  * @property selectedAddress - Vault selected address
  * @property tokens - List of tokens associated with the active vault
  */
-export interface AssetsDetectionConfig extends BaseConfig {
+export interface CollectibleDetectionConfig extends BaseConfig {
   interval: number;
   networkType: NetworkType;
   selectedAddress: string;
-  tokens: Token[];
 }
 
 /**
- * Controller that passively polls on a set interval for assets auto detection
+ * Controller that passively polls on a set interval for Collectibles auto detection
  */
-export class AssetsDetectionController extends BaseController<
-  AssetsDetectionConfig,
+export class CollectibleDetectionController extends BaseController<
+  CollectibleDetectionConfig,
   BaseState
 > {
-  private handle?: NodeJS.Timer;
+  private intervalId?: NodeJS.Timeout;
 
   private getOwnerCollectiblesApi(address: string, offset: number) {
     return `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`;
@@ -184,58 +165,37 @@ export class AssetsDetectionController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'AssetsDetectionController';
+  name = 'CollectibleDetectionController';
 
   private getOpenSeaApiKey: () => string | undefined;
-
-  private getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
-
-  private addTokens: TokensController['addTokens'];
 
   private addCollectible: CollectiblesController['addCollectible'];
 
   private getCollectiblesState: () => CollectiblesState;
 
-  private getTokensState: () => TokensState;
-
-  private getTokenListState: () => TokenListState;
-
   /**
-   * Creates a AssetsDetectionController instance.
+   * Creates a CollectibleDetectionController instance.
    *
    * @param options - The controller options.
    * @param options.onCollectiblesStateChange - Allows subscribing to assets controller state changes.
-   * @param options.onTokensStateChange - Allows subscribing to tokens controller state changes.
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.getOpenSeaApiKey - Gets the OpenSea API key, if one is set.
-   * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
-   * @param options.addTokens - Add a list of tokens.
    * @param options.addCollectible - Add a collectible.
    * @param options.getCollectiblesState - Gets the current state of the Assets controller.
-   * @param options.getTokenListState - Gets the current state of the TokenList controller.
-   * @param options.getTokensState - Gets the current state of the Tokens controller.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
   constructor(
     {
-      onTokensStateChange,
       onPreferencesStateChange,
       onNetworkStateChange,
       getOpenSeaApiKey,
-      getBalancesInSingleCall,
-      addTokens,
       addCollectible,
       getCollectiblesState,
-      getTokenListState,
-      getTokensState,
     }: {
       onCollectiblesStateChange: (
         listener: (collectiblesState: CollectiblesState) => void,
-      ) => void;
-      onTokensStateChange: (
-        listener: (tokensState: TokensState) => void,
       ) => void;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -244,14 +204,10 @@ export class AssetsDetectionController extends BaseController<
         listener: (networkState: NetworkState) => void,
       ) => void;
       getOpenSeaApiKey: () => string | undefined;
-      getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
-      addTokens: TokensController['addTokens'];
       addCollectible: CollectiblesController['addCollectible'];
       getCollectiblesState: () => CollectiblesState;
-      getTokenListState: () => TokenListState;
-      getTokensState: () => TokensState;
     },
-    config?: Partial<AssetsDetectionConfig>,
+    config?: Partial<CollectibleDetectionConfig>,
     state?: Partial<BaseState>,
   ) {
     super(config, state);
@@ -259,22 +215,14 @@ export class AssetsDetectionController extends BaseController<
       interval: DEFAULT_INTERVAL,
       networkType: MAINNET,
       selectedAddress: '',
-      tokens: [],
     };
     this.initialize();
     this.getCollectiblesState = getCollectiblesState;
-    this.getTokensState = getTokensState;
-    this.getTokenListState = getTokenListState;
-    this.addTokens = addTokens;
-    onTokensStateChange(({ tokens }) => {
-      this.configure({ tokens });
-    });
-
     onPreferencesStateChange(({ selectedAddress }) => {
       const actualSelectedAddress = this.config.selectedAddress;
       if (selectedAddress !== actualSelectedAddress) {
         this.configure({ selectedAddress });
-        this.detectAssets();
+        this.detectCollectibles();
       }
     });
 
@@ -282,22 +230,39 @@ export class AssetsDetectionController extends BaseController<
       this.configure({ networkType: provider.type });
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;
-    this.getBalancesInSingleCall = getBalancesInSingleCall;
     this.addCollectible = addCollectible;
-    this.poll();
+    this.start();
+  }
+
+  /**
+   * Start polling for the currency rate.
+   */
+  async start() {
+    await this.startPolling();
+  }
+
+  /**
+   * Stop polling for the currency rate.
+   */
+  stop() {
+    this.stopPolling();
+  }
+
+  private stopPolling() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+    }
   }
 
   /**
    * Starts a new polling interval.
-   *
-   * @param interval - Polling interval used to auto detect assets.
    */
-  async poll(interval?: number): Promise<void> {
+  private async startPolling(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
-    await this.detectAssets();
-    this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
+    this.stopPolling();
+    await this.detectCollectibles();
+    this.intervalId = setInterval(async () => {
+      await this.detectCollectibles();
     }, this.config.interval);
   }
 
@@ -311,91 +276,6 @@ export class AssetsDetectionController extends BaseController<
       return false;
     }
     return true;
-  }
-
-  /**
-   * Detect assets owned by current account on mainnet.
-   */
-  async detectAssets() {
-    /* istanbul ignore if */
-    if (!this.isMainnet()) {
-      return;
-    }
-    this.detectTokens();
-    this.detectCollectibles();
-  }
-
-  /**
-   * Triggers asset ERC20 token auto detection for each contract address in contract metadata on mainnet.
-   */
-  async detectTokens() {
-    /* istanbul ignore if */
-    if (!this.isMainnet()) {
-      return;
-    }
-    const tokensAddresses = this.config.tokens.map(
-      /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
-    );
-    const { tokenList } = this.getTokenListState();
-    const tokensToDetect: string[] = [];
-    for (const address in tokenList) {
-      if (!tokensAddresses.includes(address)) {
-        tokensToDetect.push(address);
-      }
-    }
-    const sliceOfTokensToDetect = [];
-    sliceOfTokensToDetect[0] = tokensToDetect.slice(0, 1000);
-    sliceOfTokensToDetect[1] = tokensToDetect.slice(
-      1000,
-      tokensToDetect.length - 1,
-    );
-
-    const { selectedAddress } = this.config;
-    /* istanbul ignore else */
-    if (!selectedAddress) {
-      return;
-    }
-
-    for (const tokensSlice of sliceOfTokensToDetect) {
-      if (tokensSlice.length === 0) {
-        break;
-      }
-
-      await safelyExecute(async () => {
-        const balances = await this.getBalancesInSingleCall(
-          selectedAddress,
-          tokensSlice,
-        );
-        const tokensToAdd = [];
-        for (const tokenAddress in balances) {
-          let ignored;
-          /* istanbul ignore else */
-          const { ignoredTokens } = this.getTokensState();
-          if (ignoredTokens.length) {
-            ignored = ignoredTokens.find(
-              (ignoredTokenAddress) =>
-                ignoredTokenAddress === toChecksumHexAddress(tokenAddress),
-            );
-          }
-          const caseInsensitiveTokenKey =
-            Object.keys(tokenList).find(
-              (i) => i.toLowerCase() === tokenAddress.toLowerCase(),
-            ) || '';
-
-          if (ignored === undefined) {
-            tokensToAdd.push({
-              address: tokenAddress,
-              decimals: tokenList[caseInsensitiveTokenKey].decimals,
-              symbol: tokenList[caseInsensitiveTokenKey].symbol,
-            });
-          }
-        }
-
-        if (tokensToAdd.length) {
-          await this.addTokens(tokensToAdd);
-        }
-      });
-    }
   }
 
   /**
@@ -432,8 +312,7 @@ export class AssetsDetectionController extends BaseController<
             description,
             external_link,
             creator,
-            asset_contract: { address, schema_name },
-            collection,
+            asset_contract: { address },
             last_sale,
           } = collectible;
 
@@ -445,7 +324,7 @@ export class AssetsDetectionController extends BaseController<
               /* istanbul ignore next */
               return (
                 c.address === toChecksumHexAddress(address) &&
-                c.tokenId === token_id
+                c.tokenId === Number(token_id)
               );
             });
           }
@@ -471,17 +350,12 @@ export class AssetsDetectionController extends BaseController<
               animation_original_url && {
                 animationOriginal: animation_original_url,
               },
-              schema_name && { standard: schema_name },
               external_link && { externalLink: external_link },
               last_sale && { lastSale: last_sale },
-              collection.name && { collectionName: collection.name },
-              collection.image_url && {
-                collectionImage: collection.image_url,
-              },
             );
             await this.addCollectible(
               address,
-              token_id,
+              Number(token_id),
               collectibleMetadata,
               true,
             );
@@ -493,4 +367,4 @@ export class AssetsDetectionController extends BaseController<
   }
 }
 
-export default AssetsDetectionController;
+export default CollectibleDetectionController;

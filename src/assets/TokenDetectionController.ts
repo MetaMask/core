@@ -12,9 +12,9 @@ import { TokenListState } from './TokenListController';
 const DEFAULT_INTERVAL = 180000;
 
 /**
- * @type AssetsConfig
+ * @type TokenDetectionConfig
  *
- * Assets controller configuration
+ * TokenDetection configuration
  * @property interval - Polling interval used to fetch new token rates
  * @property networkType - Network type ID as per net_version
  * @property selectedAddress - Vault selected address
@@ -28,7 +28,7 @@ export interface TokenDetectionConfig extends BaseConfig {
 }
 
 /**
- * Controller that passively polls on a set interval for assets auto detection
+ * Controller that passively polls on a set interval for Tokens auto detection
  */
 export class TokenDetectionController extends BaseController<
   TokenDetectionConfig,
@@ -117,7 +117,7 @@ export class TokenDetectionController extends BaseController<
       this.configure({ networkType: provider.type });
     });
     this.getBalancesInSingleCall = getBalancesInSingleCall;
-    this.startPolling();
+    this.start();
   }
 
   /**

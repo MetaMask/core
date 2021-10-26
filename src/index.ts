@@ -34,4 +34,6 @@ export * from './assets/TokenListController';
 export * from './gas/GasFeeController';
 export * from './assets/TokensController';
 export * from './assets/CollectiblesController';
+export * from './assets/TokenDetectionController';
+export * from './assets/CollectibleDetectionController';
 export { util };
