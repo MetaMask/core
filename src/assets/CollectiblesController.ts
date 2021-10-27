@@ -11,7 +11,12 @@ import {
   BNToHex,
   getIpfsUrlContentIdentifier,
 } from '../util';
-import { MAINNET, IPFS_DEFAULT_GATEWAY_URL } from '../constants';
+import {
+  MAINNET,
+  IPFS_DEFAULT_GATEWAY_URL,
+  ERC721,
+  ERC1155,
+} from '../constants';
 import type {
   ApiCollectible,
   ApiCollectibleCreator,
@@ -252,7 +257,12 @@ export class CollectiblesController extends BaseController<
     contractAddress: string,
     tokenId: string,
   ): Promise<CollectibleMetadata> {
-    let tokenURI = await this.getCollectibleURI(contractAddress, tokenId);
+    const result = await this.getCollectibleURIAndStandard(
+      contractAddress,
+      tokenId,
+    );
+    let tokenURI = result[0];
+    const standard = result[1];
 
     if (tokenURI.startsWith('ipfs://')) {
       const contentId = getIpfsUrlContentIdentifier(tokenURI);
@@ -270,6 +280,7 @@ export class CollectiblesController extends BaseController<
         image: object[image],
         name: object.name,
         description: object.description,
+        standard,
       };
     } catch {
       return { image: null, name: null, description: null };
@@ -281,15 +292,16 @@ export class CollectiblesController extends BaseController<
    *
    * @param contractAddress - Collectible contract address.
    * @param tokenId - Collectible token id.
-   * @returns Promise resolving collectible uri.
+   * @returns Promise resolving collectible uri and token standard.
    */
-  private async getCollectibleURI(
+  private async getCollectibleURIAndStandard(
     contractAddress: string,
     tokenId: string,
-  ): Promise<string> {
+  ): Promise<[string, string]> {
     // try ERC721 uri
     try {
-      return await this.getCollectibleTokenURI(contractAddress, tokenId);
+      const uri = await this.getCollectibleTokenURI(contractAddress, tokenId);
+      return [uri, ERC721];
     } catch {
       // Ignore error
     }
@@ -302,18 +314,18 @@ export class CollectiblesController extends BaseController<
       );
 
       if (!tokenURI.includes('{id}')) {
-        return tokenURI;
+        return [tokenURI, ERC1155];
       }
 
       const hexTokenId = stripHexPrefix(BNToHex(new BN(tokenId)))
         .padStart(64, '0')
         .toLowerCase();
-      return tokenURI.replace('{id}', hexTokenId);
+      return [tokenURI.replace('{id}', hexTokenId), ERC1155];
     } catch {
       // Ignore error
     }
 
-    return '';
+    return ['', ''];
   }
 
   /**
@@ -347,6 +359,8 @@ export class CollectiblesController extends BaseController<
       description:
         blockchainMetadata.description ?? openSeaMetadata?.description ?? null,
       image: blockchainMetadata.image ?? openSeaMetadata?.image ?? null,
+      standard:
+        blockchainMetadata.standard ?? openSeaMetadata?.standard ?? null,
     };
   }
 

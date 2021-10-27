@@ -354,6 +354,7 @@ describe('CollectiblesController', () => {
       name: 'Kudos Name (from uri)',
       description: 'Kudos Description (from uri)',
       tokenId: '1203',
+      standard: 'ERC721',
     });
 
     expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
@@ -691,6 +692,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       name: 'name',
       description: 'description',
+      standard: 'ERC721',
     });
   });
 });
