@@ -30,6 +30,7 @@ const DEFAULT_INTERVAL = 180000;
  * @property assetContract - The collectible contract information object
  * @property creator - The collectible owner information object
  * @property lastSale - When this item was last sold
+ * @property collection - Collectible collection data object.
  */
 export interface ApiCollectible {
   token_id: string;
@@ -47,6 +48,7 @@ export interface ApiCollectible {
   asset_contract: ApiCollectibleContract;
   creator: ApiCollectibleCreator;
   last_sale: ApiCollectibleLastSale | null;
+  collection: ApiCollectibleCollection;
 }
 
 /**
@@ -104,6 +106,18 @@ export interface ApiCollectibleCreator {
   profile_img_url: string;
   address: string;
 }
+
+/**
+ * @type ApiCollectibleCollection
+ *
+ * Collectible collection object from OpenSea api.
+ * @property name - Collection name.
+ * @property image_url - URI collection image.
+ */
+ export interface ApiCollectibleCollection {
+    name: string;
+    image_url: string;
+  }
 
 /**
  * @type CollectibleDetectionConfig
@@ -315,7 +329,8 @@ export class CollectibleDetectionController extends BaseController<
             description,
             external_link,
             creator,
-            asset_contract: { address },
+            asset_contract: { address, schema_name },
+            collection,
             last_sale,
           } = collectible;
 
@@ -327,7 +342,7 @@ export class CollectibleDetectionController extends BaseController<
               /* istanbul ignore next */
               return (
                 c.address === toChecksumHexAddress(address) &&
-                c.tokenId === Number(token_id)
+                c.tokenId === token_id
               );
             });
           }
@@ -353,12 +368,17 @@ export class CollectibleDetectionController extends BaseController<
               animation_original_url && {
                 animationOriginal: animation_original_url,
               },
+              schema_name && { standard: schema_name },
               external_link && { externalLink: external_link },
               last_sale && { lastSale: last_sale },
+              collection.name && { collectionName: collection.name },
+              collection.image_url && {
+                collectionImage: collection.image_url,
+              },
             );
             await this.addCollectible(
               address,
-              Number(token_id),
+              token_id,
               collectibleMetadata,
               true,
             );
