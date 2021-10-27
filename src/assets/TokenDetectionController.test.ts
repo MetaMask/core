@@ -430,7 +430,7 @@ describe('TokenDetectionController', () => {
     expect(tokensController.state.tokens).toStrictEqual([]);
   });
 
-  it('should subscribe to new sibling detecting assets when account changes', async () => {
+  it('should subscribe to new sibling detecting tokens when account changes', async () => {
     stub(tokensController, '_instantiateNewEthersProvider').callsFake(
       () => null,
     );
@@ -438,11 +438,11 @@ describe('TokenDetectionController', () => {
     const secondNetworkType = 'mainnet';
     const firstAddress = '0x123';
     const secondAddress = '0x321';
-    const detectAssets = sandbox.stub(tokenDetection, 'detectTokens');
+    const detectTokens = sandbox.stub(tokenDetection, 'detectTokens');
     preferences.update({ selectedAddress: secondAddress });
     preferences.update({ selectedAddress: secondAddress });
     expect(preferences.state.selectedAddress).toStrictEqual(secondAddress);
-    expect(detectAssets.calledTwice).toBe(false);
+    expect(detectTokens.calledTwice).toBe(false);
     preferences.update({ selectedAddress: firstAddress });
     expect(preferences.state.selectedAddress).toStrictEqual(firstAddress);
     network.update({

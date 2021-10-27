@@ -238,6 +238,9 @@ export class CollectibleDetectionController extends BaseController<
    * Start polling for the currency rate.
    */
   async start() {
+    if (!this.isMainnet()) {
+      return;
+    }
     await this.startPolling();
   }
 
