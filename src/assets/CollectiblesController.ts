@@ -4,7 +4,7 @@ import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import { safelyExecute, handleFetch, toChecksumHexAddress } from '../util';
-import { MAINNET } from '../constants';
+import { MAINNET, ERC721, ERC1155 } from '../constants';
 import type {
   ApiCollectible,
   ApiCollectibleCreator,
@@ -247,10 +247,19 @@ export class CollectiblesController extends BaseController<
       contractAddress,
       tokenId,
     );
+    const standard = await this.getCollectibleStandard(
+      contractAddress,
+      tokenId,
+    );
     const object = await handleFetch(tokenURI);
     const image = Object.prototype.hasOwnProperty.call(object, 'image')
       ? 'image'
       : /* istanbul ignore next */ 'image_url';
+
+    if (standard) {
+      return { image: object[image], name: object.name, standard };
+    }
+
     return { image: object[image], name: object.name };
   }
 
@@ -645,6 +654,36 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
+   * Method to verify the token standard by querying the metadata uri form the contract.
+   *
+   * @param address - Collectible asset contract address.
+   * @param tokenId - Collectible asset identifier.
+   * @returns Promise resolving the token standard.
+   */
+  private async getCollectibleStandard(
+    address: string,
+    tokenId: string,
+  ): Promise<string> {
+    try {
+      await this.getCollectibleTokenURI(address, tokenId);
+      return ERC721;
+    } catch {
+      console.log('failed for erc721');
+      // Ignore error
+    }
+
+    try {
+      await this.uriERC1155Collectible(address, tokenId);
+      return ERC1155;
+    } catch {
+      console.log('failed for erc1155');
+      // Ignore error
+    }
+
+    return '';
+  }
+
+  /**
    * EventEmitter instance used to listen to specific EIP747 events
    */
   hub = new EventEmitter();
@@ -669,6 +708,8 @@ export class CollectiblesController extends BaseController<
 
   private balanceOfERC1155Collectible: AssetsContractController['balanceOfERC1155Collectible'];
 
+  private uriERC1155Collectible: AssetsContractController['uriERC1155Collectible'];
+
   /**
    * Creates a CollectiblesController instance.
    *
@@ -680,6 +721,7 @@ export class CollectiblesController extends BaseController<
    * @param options.getCollectibleTokenURI - Gets the URI of the NFT at the given address, with the given ID.
    * @param options.getOwnerOf - Get the owner of a ERC-721 collectible.
    * @param options.balanceOfERC1155Collectible - Gets balance of a ERC-1155 collectible.
+   * @param options.uriERC1155Collectible - Gets uri for ERC-1155 metadata.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -692,6 +734,7 @@ export class CollectiblesController extends BaseController<
       getCollectibleTokenURI,
       getOwnerOf,
       balanceOfERC1155Collectible,
+      uriERC1155Collectible,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -704,6 +747,7 @@ export class CollectiblesController extends BaseController<
       getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
       getOwnerOf: AssetsContractController['getOwnerOf'];
       balanceOfERC1155Collectible: AssetsContractController['balanceOfERC1155Collectible'];
+      uriERC1155Collectible: AssetsContractController['uriERC1155Collectible'];
     },
     config?: Partial<BaseConfig>,
     state?: Partial<CollectiblesState>,
@@ -728,6 +772,7 @@ export class CollectiblesController extends BaseController<
     this.getCollectibleTokenURI = getCollectibleTokenURI;
     this.getOwnerOf = getOwnerOf;
     this.balanceOfERC1155Collectible = balanceOfERC1155Collectible;
+    this.uriERC1155Collectible = uriERC1155Collectible;
     onPreferencesStateChange(({ selectedAddress }) => {
       const { allCollectibleContracts, allCollectibles } = this.state;
       const { chainId } = this.config;
