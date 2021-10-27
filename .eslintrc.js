@@ -67,7 +67,7 @@ module.exports = {
     'require-atomic-updates': 'off',
     'jsdoc/match-description': [
       'error',
-      { matchDescription: '^[A-Z[`\\d_][\\s\\S]*[.?!`>]$' },
+      { matchDescription: '^[A-Z`\\d_][\\s\\S]*[.?!`>)}]$' },
     ],
   },
   settings: {
