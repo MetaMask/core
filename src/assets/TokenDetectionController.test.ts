@@ -125,6 +125,7 @@ describe('TokenDetectionController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
     });
+
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${NetworksChainId.mainnet}`)
       .reply(200, sampleTokenList)

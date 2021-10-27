@@ -287,6 +287,7 @@ describe('CollectibleDetectionController', () => {
       networkType: MAINNET,
       selectedAddress: '0x1',
     });
+
     await collectiblesController.addCollectible(
       '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       '2573',

@@ -127,6 +127,7 @@ export class TokenDetectionController extends BaseController<
     if (!this.isMainnet()) {
       return;
     }
+
     await this.startPolling();
   }
 
@@ -145,6 +146,8 @@ export class TokenDetectionController extends BaseController<
 
   /**
    * Starts a new polling interval.
+   *
+   * @param interval - An interval on which to poll.
    */
   private async startPolling(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);

@@ -114,10 +114,10 @@ export interface ApiCollectibleCreator {
  * @property name - Collection name.
  * @property image_url - URI collection image.
  */
- export interface ApiCollectibleCollection {
-    name: string;
-    image_url: string;
-  }
+export interface ApiCollectibleCollection {
+  name: string;
+  image_url: string;
+}
 
 /**
  * @type CollectibleDetectionConfig
@@ -255,6 +255,7 @@ export class CollectibleDetectionController extends BaseController<
     if (!this.isMainnet()) {
       return;
     }
+
     await this.startPolling();
   }
 
@@ -273,6 +274,8 @@ export class CollectibleDetectionController extends BaseController<
 
   /**
    * Starts a new polling interval.
+   *
+   * @param interval - An interval on which to poll.
    */
   private async startPolling(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
@@ -292,6 +295,7 @@ export class CollectibleDetectionController extends BaseController<
     if (this.config.networkType !== MAINNET || this.disabled) {
       return false;
     }
+
     return true;
   }
 
