@@ -9,7 +9,7 @@ import {
 import { AssetsContractController } from './AssetsContractController';
 import { CollectiblesController } from './CollectiblesController';
 
-const KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
+const ERC721_KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_COLLECTIBLE_ADDRESS = '0x60f80121c31a0d46b5279700f9df786054aa5ee5';
 const ERC721_COLLECTIBLE_ID = '1144858';
@@ -252,7 +252,7 @@ describe('CollectiblesController', () => {
     sandbox
       .stub(collectiblesController, 'getCollectibleInformationFromApi' as any)
       .returns(undefined);
-    await collectiblesController.addCollectible(KUDOSADDRESS, '1203');
+    await collectiblesController.addCollectible(ERC721_KUDOSADDRESS, '1203');
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
       image: 'Kudos Image',
