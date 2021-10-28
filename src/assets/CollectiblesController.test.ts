@@ -195,6 +195,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       name: 'name',
       tokenId: '1',
+      standard: 'standard',
     });
 
     expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
@@ -220,6 +221,7 @@ describe('CollectiblesController', () => {
       description: 'description',
       image: 'image',
       name: 'name',
+      standard: 'standard',
       tokenId: '1',
     });
 
@@ -236,6 +238,7 @@ describe('CollectiblesController', () => {
       image: 'image-updated',
       name: 'name',
       tokenId: '1',
+      standard: 'standard',
     });
   });
 
