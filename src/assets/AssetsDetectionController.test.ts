@@ -137,6 +137,13 @@ describe('AssetsDetectionController', () => {
       getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
         assetsContract,
       ),
+      getOwnerOf: assetsContract.getOwnerOf.bind(assetsContract),
+      balanceOfERC1155Collectible: assetsContract.balanceOfERC1155Collectible.bind(
+        assetsContract,
+      ),
+      uriERC1155Collectible: assetsContract.uriERC1155Collectible.bind(
+        assetsContract,
+      ),
     });
 
     nock(TOKEN_END_POINT_API)
@@ -177,6 +184,11 @@ describe('AssetsDetectionController', () => {
           {
             asset_contract: {
               address: '0x1d963688fe2209a98db35c67a041524822cf04ff',
+              schema_name: 'ERC721',
+            },
+            collection: {
+              name: 'Collection 2577',
+              image_url: 'url',
             },
             description: 'Description 2577',
             image_original_url: 'image/2577.png',
@@ -226,6 +238,11 @@ describe('AssetsDetectionController', () => {
           {
             asset_contract: {
               address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
+              schema_name: 'ERC721',
+            },
+            collection: {
+              name: 'Collection 2577',
+              image_url: 'url',
             },
             description: 'Description 2577',
             image_url: 'image/2577.png',
@@ -235,6 +252,11 @@ describe('AssetsDetectionController', () => {
           {
             asset_contract: {
               address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
+              schema_name: 'ERC721',
+            },
+            collection: {
+              name: 'Collection 2577',
+              image_url: 'url',
             },
             description: 'Description 2578',
             image_url: 'image/2578.png',
@@ -244,6 +266,11 @@ describe('AssetsDetectionController', () => {
           {
             asset_contract: {
               address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+              schema_name: 'ERC721',
+            },
+            collection: {
+              name: 'Collection 2574',
+              image_url: 'url',
             },
             description: 'Description 2574',
             image_url: 'image/2574.png',
@@ -263,6 +290,11 @@ describe('AssetsDetectionController', () => {
           {
             asset_contract: {
               address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+              schema_name: 'ERC721',
+            },
+            collection: {
+              name: 'Collection 2574',
+              image_url: 'url',
             },
             description: 'Description 2574',
             image_url: 'image/2574.png',
@@ -398,7 +430,10 @@ describe('AssetsDetectionController', () => {
         description: 'Description 2574',
         image: 'image/2574.png',
         name: 'ID 2574',
-        tokenId: 2574,
+        tokenId: '2574',
+        standard: 'ERC721',
+        collectionImage: 'url',
+        collectionName: 'Collection 2574',
       },
     ]);
   });
@@ -407,7 +442,7 @@ describe('AssetsDetectionController', () => {
     assetsDetection.configure({ networkType: MAINNET, selectedAddress: '0x1' });
     await collectiblesController.addCollectible(
       '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
-      2573,
+      '2573',
       {
         description: 'Description 2573',
         image: 'image/2573.png',
@@ -421,14 +456,17 @@ describe('AssetsDetectionController', () => {
         description: 'Description 2573',
         image: 'image/2573.png',
         name: 'ID 2573',
-        tokenId: 2573,
+        tokenId: '2573',
       },
       {
         address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
         description: 'Description 2574',
         image: 'image/2574.png',
         name: 'ID 2574',
-        tokenId: 2574,
+        tokenId: '2574',
+        standard: 'ERC721',
+        collectionImage: 'url',
+        collectionName: 'Collection 2574',
       },
     ]);
   });
@@ -440,7 +478,7 @@ describe('AssetsDetectionController', () => {
     expect(collectiblesController.state.ignoredCollectibles).toHaveLength(0);
     collectiblesController.removeAndIgnoreCollectible(
       '0x1d963688fe2209a98db35c67a041524822cf04ff',
-      2577,
+      '2577',
     );
     await assetsDetection.detectCollectibles();
     expect(collectiblesController.state.collectibles).toHaveLength(0);
@@ -473,21 +511,30 @@ describe('AssetsDetectionController', () => {
       description: 'Description 2574',
       image: 'image/2574.png',
       name: 'ID 2574',
-      tokenId: 2574,
+      tokenId: '2574',
+      standard: 'ERC721',
+      collectionImage: 'url',
+      collectionName: 'Collection 2574',
     };
     const collectibleGG2574 = {
       address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
       description: 'Description 2574',
       image: 'image/2574.png',
       name: 'ID 2574',
-      tokenId: 2574,
+      tokenId: '2574',
+      standard: 'ERC721',
+      collectionImage: 'url',
+      collectionName: 'Collection 2574',
     };
     const collectibleII2577 = {
       address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
       description: 'Description 2577',
       image: 'image/2577.png',
       name: 'ID 2577',
-      tokenId: 2577,
+      tokenId: '2577',
+      standard: 'ERC721',
+      collectionImage: 'url',
+      collectionName: 'Collection 2577',
     };
     const collectibleContractHH = {
       address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -552,6 +599,11 @@ describe('AssetsDetectionController', () => {
           {
             asset_contract: {
               address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
+              schema_name: 'ERC721',
+            },
+            collection: {
+              name: 'Collection 2577',
+              image_url: 'url',
             },
             description: 'Description 2577',
             image_url: 'image/2577.png',
@@ -561,6 +613,11 @@ describe('AssetsDetectionController', () => {
           {
             asset_contract: {
               address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
+              schema_name: 'ERC721',
+            },
+            collection: {
+              name: 'Collection 2574',
+              image_url: 'url',
             },
             description: 'Description 2574',
             image_url: 'image/2574.png',
@@ -570,6 +627,11 @@ describe('AssetsDetectionController', () => {
           {
             asset_contract: {
               address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+              schema_name: 'ERC721',
+            },
+            collection: {
+              name: 'Collection 2574',
+              image_url: 'url',
             },
             description: 'Description 2574',
             image_url: 'image/2574.png',

@@ -106,6 +106,15 @@ describe('ComposableController', () => {
         getCollectibleTokenURI: assetContractController.getCollectibleTokenURI.bind(
           assetContractController,
         ),
+        getOwnerOf: assetContractController.getOwnerOf.bind(
+          assetContractController,
+        ),
+        balanceOfERC1155Collectible: assetContractController.balanceOfERC1155Collectible.bind(
+          assetContractController,
+        ),
+        uriERC1155Collectible: assetContractController.uriERC1155Collectible.bind(
+          assetContractController,
+        ),
       });
       const tokensController = new TokensController({
         onPreferencesStateChange: (listener) =>
@@ -176,6 +185,15 @@ describe('ComposableController', () => {
           assetContractController,
         ),
         getCollectibleTokenURI: assetContractController.getCollectibleTokenURI.bind(
+          assetContractController,
+        ),
+        getOwnerOf: assetContractController.getOwnerOf.bind(
+          assetContractController,
+        ),
+        balanceOfERC1155Collectible: assetContractController.balanceOfERC1155Collectible.bind(
+          assetContractController,
+        ),
+        uriERC1155Collectible: assetContractController.uriERC1155Collectible.bind(
           assetContractController,
         ),
       });

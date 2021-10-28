@@ -16,7 +16,7 @@ describe('assetsUtil', () => {
       };
       const collectible: Collectible = {
         address: 'address',
-        tokenId: 123,
+        tokenId: '123',
         name: 'name',
         image: 'image',
         backgroundColor: 'backgroundColor',
@@ -41,7 +41,7 @@ describe('assetsUtil', () => {
       };
       const collectible: Collectible = {
         address: 'address',
-        tokenId: 123,
+        tokenId: '123',
         name: 'name',
         image: 'image',
         backgroundColor: 'backgroundColor',
@@ -67,7 +67,7 @@ describe('assetsUtil', () => {
       };
       const collectible: Collectible = {
         address: 'address',
-        tokenId: 123,
+        tokenId: '123',
         name: 'name',
         image: 'image',
         backgroundColor: 'backgroundColor',
