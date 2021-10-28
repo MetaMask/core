@@ -76,7 +76,7 @@ describe('AssetsContractController', () => {
       );
     };
 
-    const error = 'Contract does not support ERC721Metadata extension.';
+    const error = 'Contract does not support ERC721 metadata interface.';
     await expect(result).rejects.toThrow(error);
   });
 
