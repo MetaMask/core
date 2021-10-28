@@ -911,7 +911,6 @@ export class CollectiblesController extends BaseController<
     );
     // If collectible contract information, add individual collectible
     if (collectibleContract) {
-      // TODO: Check duplicates logic.
       await this.addIndividualCollectible(
         address,
         tokenId,
