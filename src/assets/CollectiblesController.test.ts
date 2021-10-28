@@ -136,10 +136,10 @@ describe('CollectiblesController', () => {
         '/api/v1/metadata/0x495f947276749Ce646f68AC8c248420045cb7b5e/0x5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
       )
       .reply(200, {
-        name: 'name (from uri)',
+        name: 'name (from contract uri)',
         description: null,
         external_link: null,
-        image: 'image (from uri)',
+        image: 'image (from contract uri)',
         animation_url: null,
       });
 
@@ -302,8 +302,8 @@ describe('CollectiblesController', () => {
 
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
-      image: 'image (from uri)',
-      name: 'name (from uri)',
+      image: 'image (from contract uri)',
+      name: 'name (from contract uri)',
       description: 'description',
       tokenId:
         '40815311521795738946686668571398122012172359753720345430028676522525371400193',
