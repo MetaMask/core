@@ -4,15 +4,16 @@ import { AssetsContractController } from './AssetsContractController';
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
-const ERC721_GODS_ADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
-const ERC20_CK_ADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
-const ERC20_DAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
 
+const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
+const ERC20_DAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
+const ERC721_GODS_ADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
 const ERC1155_ADDRESS = '0x495f947276749ce646f68ac8c248420045cb7b5e';
 const ERC1155_ID =
   '40815311521795738946686668571398122012172359753720345430028676522525371400193';
 
-const ERC1155_OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
+const TEST_ACCOUNT_PUBLIC_ADDRESS =
+  '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 
 describe('AssetsContractController', () => {
   let assetsContract: AssetsContractController;
@@ -36,12 +37,12 @@ describe('AssetsContractController', () => {
   it('should get balance of ERC-20 token contract correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const CKBalance = await assetsContract.getBalanceOf(
-      ERC20_CK_ADDRESS,
-      '0xb1690c08e213a35ed9bab7b318de14420fb57d8c',
+      ERC20_UNI_ADDRESS,
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
     const CKNoBalance = await assetsContract.getBalanceOf(
-      ERC20_CK_ADDRESS,
-      '0xb1690c08e213a35ed9bab7b318de14420fb57d81',
+      ERC20_UNI_ADDRESS,
+      '0x202637dAAEfbd7f131f90338a4A6c69F6Cd5CE91',
     );
     expect(CKBalance.toNumber()).not.toStrictEqual(0);
     expect(CKNoBalance.toNumber()).toStrictEqual(0);
@@ -114,7 +115,7 @@ describe('AssetsContractController', () => {
   it('should get the balance of a ERC-1155 collectible for a given address', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const balance = await assetsContract.balanceOfERC1155Collectible(
-      ERC1155_OWNER_ADDRESS,
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
       ERC1155_ADDRESS,
       ERC1155_ID,
     );
