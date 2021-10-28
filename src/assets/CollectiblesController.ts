@@ -4,7 +4,7 @@ import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import { safelyExecute, handleFetch, toChecksumHexAddress } from '../util';
-import { MAINNET, RINKEBY_ID, ERC721, ERC1155 } from '../constants';
+import { MAINNET, RINKEBY_CHAIN_ID, ERC721, ERC1155 } from '../constants';
 import type {
   ApiCollectible,
   ApiCollectibleCreator,
@@ -150,7 +150,7 @@ export class CollectiblesController extends BaseController<
   private getCollectibleApi(contractAddress: string, tokenId: string) {
     const { chainId } = this.config;
     switch (chainId) {
-      case RINKEBY_ID:
+      case RINKEBY_CHAIN_ID:
         return `https://testnets-api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
       default:
         return `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
@@ -160,7 +160,7 @@ export class CollectiblesController extends BaseController<
   private getCollectibleContractInformationApi(contractAddress: string) {
     const { chainId } = this.config;
     switch (chainId) {
-      case RINKEBY_ID:
+      case RINKEBY_CHAIN_ID:
         return `https://testnets-api.opensea.io/api/v1/asset_contract/${contractAddress}`;
       default:
         return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
