@@ -668,7 +668,6 @@ export class CollectiblesController extends BaseController<
       await this.getCollectibleTokenURI(address, tokenId);
       return ERC721;
     } catch {
-      console.log('failed for erc721');
       // Ignore error
     }
 
@@ -676,7 +675,6 @@ export class CollectiblesController extends BaseController<
       await this.uriERC1155Collectible(address, tokenId);
       return ERC1155;
     } catch {
-      console.log('failed for erc1155');
       // Ignore error
     }
 
