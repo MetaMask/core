@@ -451,12 +451,11 @@ describe('GasFeeController', () => {
 
         gasFeeController.stopPolling();
 
-        expect(gasFeeController.state.gasFeeEstimates).toStrictEqual({});
-        expect(gasFeeController.state.estimatedGasFeeTimeBounds).toStrictEqual(
-          {},
-        );
-
-        expect(gasFeeController.state.gasEstimateType).toStrictEqual('none');
+        expect(gasFeeController.state).toMatchObject({
+          gasFeeEstimates: {},
+          estimatedGasFeeTimeBounds: {},
+          gasEstimateType: 'none',
+        });
       });
     });
 
