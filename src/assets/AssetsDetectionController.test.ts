@@ -447,6 +447,7 @@ describe('AssetsDetectionController', () => {
         description: 'Description 2573',
         image: 'image/2573.png',
         name: 'ID 2573',
+        standard: 'ERC721',
       },
     );
     await assetsDetection.detectCollectibles();
@@ -456,6 +457,7 @@ describe('AssetsDetectionController', () => {
         description: 'Description 2573',
         image: 'image/2573.png',
         name: 'ID 2573',
+        standard: 'ERC721',
         tokenId: '2573',
       },
       {
