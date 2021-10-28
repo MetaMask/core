@@ -13,6 +13,7 @@ import {
 } from '../util';
 import {
   MAINNET,
+  RINKEBY_CHAIN_ID,
   IPFS_DEFAULT_GATEWAY_URL,
   ERC721,
   ERC1155,
@@ -162,7 +163,7 @@ export class CollectiblesController extends BaseController<
   private getCollectibleApi(contractAddress: string, tokenId: string) {
     const { chainId } = this.config;
     switch (chainId) {
-      case '4':
+      case RINKEBY_CHAIN_ID:
         return `https://testnets-api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
       default:
         return `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
@@ -172,7 +173,7 @@ export class CollectiblesController extends BaseController<
   private getCollectibleContractInformationApi(contractAddress: string) {
     const { chainId } = this.config;
     switch (chainId) {
-      case '4':
+      case RINKEBY_CHAIN_ID:
         return `https://testnets-api.opensea.io/api/v1/asset_contract/${contractAddress}`;
       default:
         return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;

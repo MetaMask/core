@@ -9,16 +9,17 @@ import {
 import { AssetsContractController } from './AssetsContractController';
 import { CollectiblesController } from './CollectiblesController';
 
-const KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
-const DEPRESSIONIST_ADDRESS = '0x18e8e76aeb9e2d9fa2a2b88dd9cf3c8ed45c3660';
-const DEPRESSIONIST_ID = '36';
+const ERC721_KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
 const ERC721_COLLECTIBLE_ADDRESS = '0x60f80121c31a0d46b5279700f9df786054aa5ee5';
 const ERC721_COLLECTIBLE_ID = '1144858';
 const ERC1155_COLLECTIBLE_ADDRESS =
   '0x495f947276749ce646f68ac8c248420045cb7b5e';
 const ERC1155_COLLECTIBLE_ID =
   '40815311521795738946686668571398122012172359753720345430028676522525371400193';
+const ERC1155_DEPRESSIONIST_ADDRESS =
+  '0x18e8e76aeb9e2d9fa2a2b88dd9cf3c8ed45c3660';
+const ERC1155_DEPRESSIONIST_ID = '36';
 const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
@@ -185,6 +186,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
@@ -210,6 +212,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
@@ -224,6 +227,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image-updated',
       description: 'description',
+      standard: 'standard',
     });
 
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
@@ -240,12 +244,14 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     await collectiblesController.addCollectible('0x01', '1', {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
     expect(collectiblesController.state.collectibles).toHaveLength(1);
     expect(collectiblesController.state.collectibleContracts).toHaveLength(1);
@@ -256,12 +262,14 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     await collectiblesController.addCollectible('0x01', '2', {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
     expect(collectiblesController.state.collectibles).toHaveLength(2);
     expect(collectiblesController.state.collectibleContracts).toHaveLength(1);
@@ -313,7 +321,7 @@ describe('CollectiblesController', () => {
       )
       .returns(undefined);
 
-    await collectiblesController.addCollectible(KUDOSADDRESS, '1203');
+    await collectiblesController.addCollectible(ERC721_KUDOSADDRESS, '1203');
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
       image: 'Kudos Image (from uri)',
@@ -346,8 +354,7 @@ describe('CollectiblesController', () => {
     sandbox
       .stub(collectiblesController, 'getCollectibleInformationFromApi' as any)
       .returns(undefined);
-
-    await collectiblesController.addCollectible(KUDOSADDRESS, '1203');
+    await collectiblesController.addCollectible(ERC721_KUDOSADDRESS, '1203');
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
       image: 'Kudos Image (from uri)',
@@ -468,6 +475,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
     collectiblesController.removeCollectible('0x01', '1');
     expect(collectiblesController.state.collectibles).toHaveLength(0);
@@ -479,12 +487,14 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     await collectiblesController.addCollectible('0x01', '2', {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
     collectiblesController.removeCollectible('0x01', '1');
     expect(collectiblesController.state.collectibles).toHaveLength(1);
@@ -568,12 +578,14 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     await collectiblesController.addCollectible('0x01', '2', {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     expect(collectiblesController.state.collectibles).toHaveLength(2);
@@ -587,6 +599,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
     expect(collectiblesController.state.collectibles).toHaveLength(2);
     expect(collectiblesController.state.ignoredCollectibles).toHaveLength(1);
@@ -601,6 +614,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     expect(collectiblesController.state.collectibles).toHaveLength(1);
@@ -676,8 +690,8 @@ describe('CollectiblesController', () => {
   it('should add collectible with metadata hosted in IPFS', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     await collectiblesController.addCollectible(
-      DEPRESSIONIST_ADDRESS,
-      DEPRESSIONIST_ID,
+      ERC1155_DEPRESSIONIST_ADDRESS,
+      ERC1155_DEPRESSIONIST_ID,
     );
 
     expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
