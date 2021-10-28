@@ -36,16 +36,16 @@ describe('AssetsContractController', () => {
 
   it('should get balance of ERC-20 token contract correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const CKBalance = await assetsContract.getBalanceOf(
+    const UNIBalance = await assetsContract.getBalanceOf(
       ERC20_UNI_ADDRESS,
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
-    const CKNoBalance = await assetsContract.getBalanceOf(
+    const UNINoBalance = await assetsContract.getBalanceOf(
       ERC20_UNI_ADDRESS,
       '0x202637dAAEfbd7f131f90338a4A6c69F6Cd5CE91',
     );
-    expect(CKBalance.toNumber()).not.toStrictEqual(0);
-    expect(CKNoBalance.toNumber()).toStrictEqual(0);
+    expect(UNIBalance.toNumber()).not.toStrictEqual(0);
+    expect(UNINoBalance.toNumber()).toStrictEqual(0);
   });
 
   it('should get ERC-721 collectible tokenId correctly', async () => {
