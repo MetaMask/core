@@ -68,6 +68,7 @@ describe('AssetsContractController', () => {
   });
 
   it('should throw an error when address given is not an ERC-721 collectible', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
     const result = async () => {
       await assetsContract.getCollectibleTokenURI(
         '0x0000000000000000000000000000000000000000',
