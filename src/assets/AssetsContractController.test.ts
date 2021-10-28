@@ -4,9 +4,9 @@ import { AssetsContractController } from './AssetsContractController';
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
-const ERC721_GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
-const ERC721_CKADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
-const ERC20_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
+const ERC721_GODS_ADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
+const ERC20_CK_ADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
+const ERC20_DAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
 
 const ERC1155_ADDRESS = '0x495f947276749ce646f68ac8c248420045cb7b5e';
 const ERC1155_ID =
@@ -36,11 +36,11 @@ describe('AssetsContractController', () => {
   it('should get balance of ERC-20 token contract correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const CKBalance = await assetsContract.getBalanceOf(
-      ERC721_CKADDRESS,
+      ERC20_CK_ADDRESS,
       '0xb1690c08e213a35ed9bab7b318de14420fb57d8c',
     );
     const CKNoBalance = await assetsContract.getBalanceOf(
-      ERC721_CKADDRESS,
+      ERC20_CK_ADDRESS,
       '0xb1690c08e213a35ed9bab7b318de14420fb57d81',
     );
     expect(CKBalance.toNumber()).not.toStrictEqual(0);
@@ -50,7 +50,7 @@ describe('AssetsContractController', () => {
   it('should get ERC-721 collectible tokenId correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const tokenId = await assetsContract.getCollectibleTokenId(
-      ERC721_GODSADDRESS,
+      ERC721_GODS_ADDRESS,
       '0x9a90bd8d1149a88b42a99cf62215ad955d6f498a',
       0,
     );
@@ -60,7 +60,7 @@ describe('AssetsContractController', () => {
   it('should get ERC-721 collectible tokenURI correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const tokenId = await assetsContract.getCollectibleTokenURI(
-      ERC721_GODSADDRESS,
+      ERC721_GODS_ADDRESS,
       '0',
     );
     expect(tokenId).toStrictEqual('https://api.godsunchained.com/card/0');
@@ -77,26 +77,26 @@ describe('AssetsContractController', () => {
 
   it('should get ERC-721 collectible name', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const name = await assetsContract.getAssetName(ERC721_GODSADDRESS);
+    const name = await assetsContract.getAssetName(ERC721_GODS_ADDRESS);
     expect(name).toStrictEqual('Gods Unchained');
   });
 
   it('should get ERC-721 collectible symbol', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const symbol = await assetsContract.getAssetSymbol(ERC721_GODSADDRESS);
+    const symbol = await assetsContract.getAssetSymbol(ERC721_GODS_ADDRESS);
     expect(symbol).toStrictEqual('GODS');
   });
 
   it('should get ERC-20 token decimals', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const symbol = await assetsContract.getTokenDecimals(ERC20_ADDRESS);
+    const symbol = await assetsContract.getTokenDecimals(ERC20_DAI_ADDRESS);
     expect(Number(symbol)).toStrictEqual(18);
   });
 
   it('should get ERC-721 collectible ownership', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const tokenId = await assetsContract.getOwnerOf(
-      ERC721_GODSADDRESS,
+      ERC721_GODS_ADDRESS,
       '148332',
     );
     expect(tokenId).not.toStrictEqual('');
@@ -105,10 +105,10 @@ describe('AssetsContractController', () => {
   it('should get balance of ERC-20 token in a single call', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const balances = await assetsContract.getBalancesInSingleCall(
-      ERC20_ADDRESS,
-      [ERC20_ADDRESS],
+      ERC20_DAI_ADDRESS,
+      [ERC20_DAI_ADDRESS],
     );
-    expect(balances[ERC20_ADDRESS]).not.toStrictEqual(0);
+    expect(balances[ERC20_DAI_ADDRESS]).not.toStrictEqual(0);
   });
 
   it('should get the balance of a ERC-1155 collectible for a given address', async () => {
