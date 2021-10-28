@@ -260,7 +260,7 @@ export class CollectiblesController extends BaseController<
       return { image: object[image], name: object.name, standard };
     }
 
-    return { image: object[image], name: object.name };
+    return { image: object[image], name: object.name, standard };
   }
 
   /**
