@@ -319,6 +319,12 @@ export class CollectiblesController extends BaseController<
         tokenId,
       );
 
+      /**
+       * According to EIP1155 the URI value allows for ID substitution
+       * in case the string `{id}` exists.
+       * https://eips.ethereum.org/EIPS/eip-1155#metadata
+       */
+
       if (!tokenURI.includes('{id}')) {
         return [tokenURI, ERC1155];
       }
