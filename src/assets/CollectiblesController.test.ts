@@ -14,7 +14,7 @@ const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
 const ERC721_COLLECTIBLE_ADDRESS = '0x60f80121c31a0d46b5279700f9df786054aa5ee5';
 const ERC721_COLLECTIBLE_ID = '1144858';
 const ERC1155_COLLECTIBLE_ADDRESS =
-  '0x495f947276749ce646f68ac8c248420045cb7b5e';
+  '0x495f947276749Ce646f68AC8c248420045cb7b5e';
 const ERC1155_COLLECTIBLE_ID =
   '40815311521795738946686668571398122012172359753720345430028676522525371400193';
 const ERC1155_DEPRESSIONIST_ADDRESS =
@@ -29,6 +29,8 @@ const OPEN_SEA_HOST = 'https://api.opensea.io';
 const OPEN_SEA_PATH = '/api/v1';
 
 const CLOUDFARE_PATH = 'https://cloudflare-ipfs.com/ipfs';
+const DEPRESSIONIST_IPFS_PATH =
+  '/QmVChNtStZfPyV8JfKpube3eigQh5rUXqYchPgLc91tWLJ';
 
 describe('CollectiblesController', () => {
   let collectiblesController: CollectiblesController;
@@ -157,13 +159,11 @@ describe('CollectiblesController', () => {
         collection: { name: 'collection', image_uri: 'collection.uri' },
       });
 
-    nock(CLOUDFARE_PATH)
-      .get('/QmVChNtStZfPyV8JfKpube3eigQh5rUXqYchPgLc91tWLJ')
-      .reply(200, {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-      });
+    nock(CLOUDFARE_PATH).get(DEPRESSIONIST_IPFS_PATH).reply(200, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
   });
 
   afterEach(() => {
@@ -301,7 +301,7 @@ describe('CollectiblesController', () => {
     );
 
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
-      address: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
+      address: ERC1155_COLLECTIBLE_ADDRESS,
       image: 'image (from contract uri)',
       name: 'name (from contract uri)',
       description: 'description',
