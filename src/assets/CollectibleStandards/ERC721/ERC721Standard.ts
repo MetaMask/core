@@ -76,7 +76,7 @@ export class ERC721Standard {
       contract,
     );
     if (!supportsMetadata) {
-      throw new Error('Contract does not support ERC721Metadata extension.');
+      return '';
     }
     return new Promise<string>((resolve, reject) => {
       contract.tokenURI(tokenId, (error: Error, result: string) => {
