@@ -101,9 +101,10 @@ export interface CollectibleContract {
 export interface CollectibleMetadata {
   name: string | null;
   description: string | null;
+  image: string | null;
+  standard: string | null;
   numberOfSales?: number;
   backgroundColor?: string;
-  image: string | null;
   imagePreview?: string;
   imageThumbnail?: string;
   imageOriginal?: string;
@@ -112,7 +113,6 @@ export interface CollectibleMetadata {
   externalLink?: string;
   creator?: ApiCollectibleCreator;
   lastSale?: ApiCollectibleLastSale;
-  standard?: string;
   collectionName?: string;
   collectionImage?: string;
 }
@@ -283,7 +283,12 @@ export class CollectiblesController extends BaseController<
         standard,
       };
     } catch {
-      return { image: null, name: null, description: null };
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: standard || null,
+      };
     }
   }
 
