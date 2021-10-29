@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **BREAKING**: ERC1155 support ([#615](https://github.com/MetaMask/controllers/pull/615))
   -  `CollectiblesController` requires `getOwnerOf`, `balanceOfERC1155Collectible` and `uriERC1155Collectible` properties in the constructor which are methods from `AssetsContractController`.
-- Custom network + IPFS support ([#616](https://github.com/MetaMask/controllers/pull/616))
+- Add support for custom networks by querying the blockchain as default and add support for IPFS metadata URIs ([#616](https://github.com/MetaMask/controllers/pull/616))
 
 ### Changed
 - Bump @metamask/contract-metadata from 1.29.0 to 1.30.0 ([#607](https://github.com/MetaMask/controllers/pull/607))
