@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [18.0.0]
-### Uncategorized
+### Added
+- **BREAKING**: ERC1155 support ([#615](https://github.com/MetaMask/controllers/pull/615))
 - Custom network + IPFS support ([#616](https://github.com/MetaMask/controllers/pull/616))
+
+### Changed
 - Allow JSDoc descriptions to end with list of links ([#617](https://github.com/MetaMask/controllers/pull/617))
-- BREAKING: ERC1155 support ([#615](https://github.com/MetaMask/controllers/pull/615))
 - Update ESLint config to v9 (JSDoc linting) ([#591](https://github.com/MetaMask/controllers/pull/591))
 - Remove unnecessary return statements ([#606](https://github.com/MetaMask/controllers/pull/606))
 - Bump @metamask/contract-metadata from 1.29.0 to 1.30.0 ([#607](https://github.com/MetaMask/controllers/pull/607))
