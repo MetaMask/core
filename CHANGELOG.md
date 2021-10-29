@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove unnecessary return statements ([#606](https://github.com/MetaMask/controllers/pull/606))
 - Bump @metamask/contract-metadata from 1.29.0 to 1.30.0 ([#607](https://github.com/MetaMask/controllers/pull/607))
 - Remove redundant ESLint rule ([#604](https://github.com/MetaMask/controllers/pull/604))
-- Update ESLint config from v7 to v8 ([#603](https://github.com/MetaMask/controllers/pull/603))
 - Fix return type of `fetchGasFeeEstimates` ([#602](https://github.com/MetaMask/controllers/pull/602))
 
 ## [17.0.0]
