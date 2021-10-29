@@ -347,7 +347,7 @@ export class CollectiblesController extends BaseController<
    * @param tokenId - The collectible identifier.
    * @returns Promise resolving to the current collectible name and image.
    */
-  async getCollectibleInformation(
+  private async getCollectibleInformation(
     contractAddress: string,
     tokenId: string,
   ): Promise<CollectibleMetadata> {
