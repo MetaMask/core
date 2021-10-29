@@ -9,11 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [18.0.0]
 ### Added
 - **BREAKING**: ERC1155 support ([#615](https://github.com/MetaMask/controllers/pull/615))
+  -  `CollectiblesController` requires `getOwnerOf`, `balanceOfERC1155Collectible` and `uriERC1155Collectible` properties in the constructor which are methods from `AssetsContractController`.
 - Custom network + IPFS support ([#616](https://github.com/MetaMask/controllers/pull/616))
 
 ### Changed
-- Allow JSDoc descriptions to end with list of links ([#617](https://github.com/MetaMask/controllers/pull/617))
-- Update ESLint config to v9 (JSDoc linting) ([#591](https://github.com/MetaMask/controllers/pull/591))
 - Remove unnecessary return statements ([#606](https://github.com/MetaMask/controllers/pull/606))
 - Bump @metamask/contract-metadata from 1.29.0 to 1.30.0 ([#607](https://github.com/MetaMask/controllers/pull/607))
 - Remove redundant ESLint rule ([#604](https://github.com/MetaMask/controllers/pull/604))
