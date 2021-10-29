@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.0]
+### Added
+- **BREAKING**: ERC1155 support ([#615](https://github.com/MetaMask/controllers/pull/615))
+  -  `CollectiblesController` requires `getOwnerOf`, `balanceOfERC1155Collectible` and `uriERC1155Collectible` properties in the constructor which are methods from `AssetsContractController`.
+- Add support for custom networks by querying the blockchain as default and add support for IPFS metadata URIs ([#616](https://github.com/MetaMask/controllers/pull/616))
+
+### Changed
+- Bump @metamask/contract-metadata from 1.29.0 to 1.30.0 ([#607](https://github.com/MetaMask/controllers/pull/607))
+
 ## [17.0.0]
 ### Added
 - Add client id header to GasFeeController ([#597](https://github.com/MetaMask/controllers/pull/597))
@@ -393,7 +402,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/controllers/compare/v17.0.0...v18.0.0
 [17.0.0]: https://github.com/MetaMask/controllers/compare/v16.0.0...v17.0.0
 [16.0.0]: https://github.com/MetaMask/controllers/compare/v15.1.0...v16.0.0
 [15.1.0]: https://github.com/MetaMask/controllers/compare/v15.0.2...v15.1.0
