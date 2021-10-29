@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.0]
+### Uncategorized
+- Custom network + IPFS support ([#616](https://github.com/MetaMask/controllers/pull/616))
+- Allow JSDoc descriptions to end with list of links ([#617](https://github.com/MetaMask/controllers/pull/617))
+- BREAKING: ERC1155 support ([#615](https://github.com/MetaMask/controllers/pull/615))
+- Update ESLint config to v9 (JSDoc linting) ([#591](https://github.com/MetaMask/controllers/pull/591))
+- Remove unnecessary return statements ([#606](https://github.com/MetaMask/controllers/pull/606))
+- Bump @metamask/contract-metadata from 1.29.0 to 1.30.0 ([#607](https://github.com/MetaMask/controllers/pull/607))
+- Remove redundant ESLint rule ([#604](https://github.com/MetaMask/controllers/pull/604))
+- Update ESLint config from v7 to v8 ([#603](https://github.com/MetaMask/controllers/pull/603))
+- Fix return type of `fetchGasFeeEstimates` ([#602](https://github.com/MetaMask/controllers/pull/602))
+
 ## [17.0.0]
 ### Added
 - Add client id header to GasFeeController ([#597](https://github.com/MetaMask/controllers/pull/597))
@@ -393,7 +405,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/controllers/compare/v17.0.0...v18.0.0
 [17.0.0]: https://github.com/MetaMask/controllers/compare/v16.0.0...v17.0.0
 [16.0.0]: https://github.com/MetaMask/controllers/compare/v15.1.0...v16.0.0
 [15.1.0]: https://github.com/MetaMask/controllers/compare/v15.0.2...v15.1.0
