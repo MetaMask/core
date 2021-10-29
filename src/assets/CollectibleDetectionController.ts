@@ -252,7 +252,7 @@ export class CollectibleDetectionController extends BaseController<
    * Start polling for the currency rate.
    */
   async start() {
-    if (!this.isMainnet()) {
+    if (!this.isMainnet() || this.disabled) {
       return;
     }
 
@@ -291,13 +291,7 @@ export class CollectibleDetectionController extends BaseController<
    *
    * @returns Whether current network is mainnet.
    */
-  isMainnet() {
-    if (this.config.networkType !== MAINNET || this.disabled) {
-      return false;
-    }
-
-    return true;
-  }
+  isMainnet = (): boolean => this.config.networkType === MAINNET;
 
   /**
    * Triggers asset ERC721 token auto detection on mainnet. Any newly detected collectibles are
@@ -305,7 +299,7 @@ export class CollectibleDetectionController extends BaseController<
    */
   async detectCollectibles() {
     /* istanbul ignore if */
-    if (!this.isMainnet()) {
+    if (!this.isMainnet() || this.disabled) {
       return;
     }
     const requestedSelectedAddress = this.config.selectedAddress;
