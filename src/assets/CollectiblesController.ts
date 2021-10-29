@@ -1,10 +1,23 @@
 import { EventEmitter } from 'events';
+import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { Mutex } from 'async-mutex';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
-import { safelyExecute, handleFetch, toChecksumHexAddress } from '../util';
-import { MAINNET, RINKEBY_CHAIN_ID, ERC721, ERC1155 } from '../constants';
+import {
+  safelyExecute,
+  handleFetch,
+  toChecksumHexAddress,
+  BNToHex,
+  getIpfsUrlContentIdentifier,
+} from '../util';
+import {
+  MAINNET,
+  RINKEBY_CHAIN_ID,
+  IPFS_DEFAULT_GATEWAY_URL,
+  ERC721,
+  ERC1155,
+} from '../constants';
 import type {
   ApiCollectible,
   ApiCollectibleCreator,
@@ -87,11 +100,12 @@ export interface CollectibleContract {
  * @property collectionImage - The image URI of the collectible collection.
  */
 export interface CollectibleMetadata {
-  name?: string;
-  description?: string;
+  name: string | null;
+  description: string | null;
+  image: string | null;
+  standard: string | null;
   numberOfSales?: number;
   backgroundColor?: string;
-  image?: string;
   imagePreview?: string;
   imageThumbnail?: string;
   imageOriginal?: string;
@@ -100,7 +114,6 @@ export interface CollectibleMetadata {
   externalLink?: string;
   creator?: ApiCollectibleCreator;
   lastSale?: ApiCollectibleLastSale;
-  standard?: string;
   collectionName?: string;
   collectionImage?: string;
 }
@@ -180,6 +193,7 @@ export class CollectiblesController extends BaseController<
   ): Promise<CollectibleMetadata> {
     const tokenURI = this.getCollectibleApi(contractAddress, tokenId);
     let collectibleInformation: ApiCollectible;
+
     /* istanbul ignore if */
     if (this.openSeaApiKey) {
       collectibleInformation = await handleFetch(tokenURI, {
@@ -188,6 +202,7 @@ export class CollectiblesController extends BaseController<
     } else {
       collectibleInformation = await handleFetch(tokenURI);
     }
+
     const {
       num_sales,
       background_color,
@@ -209,10 +224,10 @@ export class CollectiblesController extends BaseController<
     /* istanbul ignore next */
     const collectibleMetadata: CollectibleMetadata = Object.assign(
       {},
-      { name },
+      { name: name || null },
+      { description: description || null },
+      { image: image_url || null },
       creator && { creator },
-      description && { description },
-      image_url && { image: image_url },
       num_sales && { numberOfSales: num_sales },
       background_color && { backgroundColor: background_color },
       image_preview_url && { imagePreview: image_preview_url },
@@ -243,24 +258,86 @@ export class CollectiblesController extends BaseController<
     contractAddress: string,
     tokenId: string,
   ): Promise<CollectibleMetadata> {
-    const tokenURI = await this.getCollectibleTokenURI(
+    const result = await this.getCollectibleURIAndStandard(
       contractAddress,
       tokenId,
     );
-    const standard = await this.getCollectibleStandard(
-      contractAddress,
-      tokenId,
-    );
-    const object = await handleFetch(tokenURI);
-    const image = Object.prototype.hasOwnProperty.call(object, 'image')
-      ? 'image'
-      : /* istanbul ignore next */ 'image_url';
+    let tokenURI = result[0];
+    const standard = result[1];
 
-    if (standard) {
-      return { image: object[image], name: object.name, standard };
+    if (tokenURI.startsWith('ipfs://')) {
+      const contentId = getIpfsUrlContentIdentifier(tokenURI);
+      tokenURI = IPFS_DEFAULT_GATEWAY_URL + contentId;
     }
 
-    return { image: object[image], name: object.name };
+    try {
+      const object = await handleFetch(tokenURI);
+      // TODO: Check image_url existence. This is not part of EIP721 nor EIP1155
+      const image = Object.prototype.hasOwnProperty.call(object, 'image')
+        ? 'image'
+        : /* istanbul ignore next */ 'image_url';
+
+      return {
+        image: object[image],
+        name: object.name,
+        description: object.description,
+        standard,
+      };
+    } catch {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: standard || null,
+      };
+    }
+  }
+
+  /**
+   * Retrieve collectible uri with  metadata. TODO Update method to use IPFS.
+   *
+   * @param contractAddress - Collectible contract address.
+   * @param tokenId - Collectible token id.
+   * @returns Promise resolving collectible uri and token standard.
+   */
+  private async getCollectibleURIAndStandard(
+    contractAddress: string,
+    tokenId: string,
+  ): Promise<[string, string]> {
+    // try ERC721 uri
+    try {
+      const uri = await this.getCollectibleTokenURI(contractAddress, tokenId);
+      return [uri, ERC721];
+    } catch {
+      // Ignore error
+    }
+
+    // try ERC1155 uri
+    try {
+      const tokenURI = await this.uriERC1155Collectible(
+        contractAddress,
+        tokenId,
+      );
+
+      /**
+       * According to EIP1155 the URI value allows for ID substitution
+       * in case the string `{id}` exists.
+       * https://eips.ethereum.org/EIPS/eip-1155#metadata
+       */
+
+      if (!tokenURI.includes('{id}')) {
+        return [tokenURI, ERC1155];
+      }
+
+      const hexTokenId = stripHexPrefix(BNToHex(new BN(tokenId)))
+        .padStart(64, '0')
+        .toLowerCase();
+      return [tokenURI.replace('{id}', hexTokenId), ERC1155];
+    } catch {
+      // Ignore error
+    }
+
+    return ['', ''];
   }
 
   /**
@@ -274,34 +351,29 @@ export class CollectiblesController extends BaseController<
     contractAddress: string,
     tokenId: string,
   ): Promise<CollectibleMetadata> {
-    let information;
-
-    // First try with OpenSea
-    information = await safelyExecute(async () => {
-      return await this.getCollectibleInformationFromApi(
-        contractAddress,
-        tokenId,
-      );
-    });
-
-    if (information) {
-      return information;
-    }
-
-    // Then following ERC721 standard
-    information = await safelyExecute(async () => {
+    const blockchainMetadata = await safelyExecute(async () => {
       return await this.getCollectibleInformationFromTokenURI(
         contractAddress,
         tokenId,
       );
     });
 
-    /* istanbul ignore next */
-    if (information) {
-      return information;
-    }
-    /* istanbul ignore next */
-    return {};
+    const openSeaMetadata = await safelyExecute(async () => {
+      return await this.getCollectibleInformationFromApi(
+        contractAddress,
+        tokenId,
+      );
+    });
+
+    return {
+      ...openSeaMetadata,
+      name: blockchainMetadata.name ?? openSeaMetadata?.name ?? null,
+      description:
+        blockchainMetadata.description ?? openSeaMetadata?.description ?? null,
+      image: blockchainMetadata.image ?? openSeaMetadata?.image ?? null,
+      standard:
+        blockchainMetadata.standard ?? openSeaMetadata?.standard ?? null,
+    };
   }
 
   /**
@@ -334,20 +406,13 @@ export class CollectiblesController extends BaseController<
    */
   private async getCollectibleContractInformationFromContract(
     contractAddress: string,
-  ): Promise<ApiCollectibleContract> {
+  ): Promise<Partial<ApiCollectibleContract>> {
     const name = await this.getAssetName(contractAddress);
     const symbol = await this.getAssetSymbol(contractAddress);
     return {
       name,
       symbol,
       address: contractAddress,
-      asset_contract_type: null,
-      created_date: null,
-      schema_name: null,
-      total_supply: null,
-      description: null,
-      external_link: null,
-      image_url: null,
     };
   }
 
@@ -360,28 +425,22 @@ export class CollectiblesController extends BaseController<
   private async getCollectibleContractInformation(
     contractAddress: string,
   ): Promise<ApiCollectibleContract> {
-    let information;
-    // First try with OpenSea
-    information = await safelyExecute(async () => {
-      return await this.getCollectibleContractInformationFromApi(
-        contractAddress,
-      );
-    });
-
-    if (information) {
-      return information;
-    }
-
-    // Then following ERC721 standard
-    information = await safelyExecute(async () => {
+    const blockchainContractData = await safelyExecute(async () => {
       return await this.getCollectibleContractInformationFromContract(
         contractAddress,
       );
     });
 
-    if (information) {
-      return information;
+    const openSeaContractData = await safelyExecute(async () => {
+      return await this.getCollectibleContractInformationFromApi(
+        contractAddress,
+      );
+    });
+
+    if (blockchainContractData || openSeaContractData) {
+      return { ...openSeaContractData, ...blockchainContractData };
     }
+
     /* istanbul ignore next */
     return {
       address: contractAddress,
@@ -410,6 +469,7 @@ export class CollectiblesController extends BaseController<
     tokenId: string,
     collectibleMetadata: CollectibleMetadata,
   ): Promise<Collectible[]> {
+    // TODO: Remove unused return
     const releaseLock = await this.mutex.acquire();
     try {
       address = toChecksumHexAddress(address);
@@ -427,6 +487,7 @@ export class CollectiblesController extends BaseController<
           existingEntry,
         );
         if (differentMetadata) {
+          // TODO: Switch to indexToUpdate
           const indexToRemove = collectibles.findIndex(
             (collectible) =>
               collectible.address.toLowerCase() === address.toLowerCase() &&
@@ -492,6 +553,7 @@ export class CollectiblesController extends BaseController<
       const contractInformation = await this.getCollectibleContractInformation(
         address,
       );
+
       const {
         asset_contract_type,
         created_date,
@@ -511,6 +573,7 @@ export class CollectiblesController extends BaseController<
       ) {
         return collectibleContracts;
       }
+
       /* istanbul ignore next */
       const newEntry: CollectibleContract = Object.assign(
         {},
@@ -519,7 +582,8 @@ export class CollectiblesController extends BaseController<
         name && { name },
         image_url && { logo: image_url },
         symbol && { symbol },
-        total_supply !== null && { totalSupply: total_supply },
+        total_supply !== null &&
+          typeof total_supply !== 'undefined' && { totalSupply: total_supply },
         asset_contract_type && { assetContractType: asset_contract_type },
         created_date && { createdDate: created_date },
         schema_name && { schemaName: schema_name },
@@ -654,34 +718,6 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Method to verify the token standard by querying the metadata uri form the contract.
-   *
-   * @param address - Collectible asset contract address.
-   * @param tokenId - Collectible asset identifier.
-   * @returns Promise resolving the token standard.
-   */
-  private async getCollectibleStandard(
-    address: string,
-    tokenId: string,
-  ): Promise<string> {
-    try {
-      await this.getCollectibleTokenURI(address, tokenId);
-      return ERC721;
-    } catch {
-      // Ignore error
-    }
-
-    try {
-      await this.uriERC1155Collectible(address, tokenId);
-      return ERC1155;
-    } catch {
-      // Ignore error
-    }
-
-    return '';
-  }
-
-  /**
    * EventEmitter instance used to listen to specific EIP747 events
    */
   hub = new EventEmitter();
@@ -716,10 +752,10 @@ export class CollectiblesController extends BaseController<
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.getAssetName - Gets the name of the asset at the given address.
    * @param options.getAssetSymbol - Gets the symbol of the asset at the given address.
-   * @param options.getCollectibleTokenURI - Gets the URI of the NFT at the given address, with the given ID.
+   * @param options.getCollectibleTokenURI - Gets the URI of the ERC721 token at the given address, with the given ID.
    * @param options.getOwnerOf - Get the owner of a ERC-721 collectible.
    * @param options.balanceOfERC1155Collectible - Gets balance of a ERC-1155 collectible.
-   * @param options.uriERC1155Collectible - Gets uri for ERC-1155 metadata.
+   * @param options.uriERC1155Collectible - Gets the URI of the ERC1155 token at the given address, with the given ID.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
