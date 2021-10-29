@@ -417,7 +417,7 @@ describe('GasFeeController', () => {
   });
 
   describe('stopPolling', () => {
-    describe('assuming that updateWithAndStartPollingFor was already called once', () => {
+    describe('assuming that updateWithAndStartPollingFor was already called exactly once', () => {
       it('should prevent calls to determineGasFeeSuggestions from being made periodically', async () => {
         setupGasFeeController();
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
