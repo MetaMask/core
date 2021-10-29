@@ -3,7 +3,7 @@ import {
   EstimatedGasFeeTimeBounds,
   EthGasPriceEstimate,
   GasFeeEstimates,
-  GasFeeState as GasFeeSuggestions,
+  GasFeeSuggestions,
   LegacyGasPriceEstimate,
 } from './GasFeeController';
 

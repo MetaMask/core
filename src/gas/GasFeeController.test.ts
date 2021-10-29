@@ -2,22 +2,30 @@ import { useFakeTimers, SinonFakeTimers } from 'sinon';
 import { mocked } from 'ts-jest/utils';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
+  ChainId,
   GAS_ESTIMATE_TYPES,
   GasFeeController,
-  GasFeeState,
+  GasFeeSuggestions,
   GasFeeStateChange,
-  GasFeeStateEthGasPrice,
   GasFeeStateFeeMarket,
   GasFeeStateLegacy,
   GetGasFeeState,
 } from './GasFeeController';
 import determineGasFeeSuggestions from './determineGasFeeSuggestions';
+import determineNetworkStatusInfo, {
+  NetworkStatusInfo,
+} from './determineNetworkStatusInfo';
 
 jest.mock('./gas-util');
 jest.mock('./determineGasFeeSuggestions');
+jest.mock('./determineNetworkStatusInfo');
 
 const mockedDetermineGasFeeSuggestions = mocked(
   determineGasFeeSuggestions,
+  true,
+);
+const mockedDetermineNetworkStatusInfo = mocked(
+  determineNetworkStatusInfo,
   true,
 );
 
@@ -109,24 +117,17 @@ function buildMockGasFeeStateLegacy({ modifier = 1 } = {}): GasFeeStateLegacy {
 }
 
 /**
- * Builds mock gas fee state that would typically be generated for the case in which eth_gasPrice is
- * used to fetch estimates. This data is merely intended to fit the GasFeeStateEthGasPrice type and
- * does not represent any real-world scenario.
+ * Builds mock network status info. This data is merely intended to fit the NetworkStatusInfo type
+ * and does not represent any real-world scenario.
  *
  * @param args - The arguments.
  * @param args.modifier - A number you can use to build a unique return value in the event that you
  * need to build multiple return values. All data points will be multiplied by this number.
  * @returns The mock data.
  */
-function buildMockGasFeeStateEthGasPrice({
-  modifier = 1,
-} = {}): GasFeeStateEthGasPrice {
+function buildMockNetworkStatusInfo({ modifier = 1 } = {}): NetworkStatusInfo {
   return {
-    gasFeeEstimates: {
-      gasPrice: (100 * modifier).toString(),
-    },
-    estimatedGasFeeTimeBounds: {},
-    gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
+    isNetworkBusy: modifier % 2 === 0,
   };
 }
 
@@ -146,6 +147,8 @@ describe('GasFeeController', () => {
    * getCurrentNetworkLegacyGasAPICompatibility on the GasFeeController.
    * @param options.legacyAPIEndpoint - Sets legacyAPIEndpoint on the GasFeeController.
    * @param options.EIP1559APIEndpoint - Sets EIP1559APIEndpoint on the GasFeeController.
+   * @param options.determineNetworkStatusInfoUrlTemplate - Sets
+   * determineNetworkStatusInfoUrlTemplate on the GasFeeController.
    * @param options.clientId - Sets clientId on the GasFeeController.
    */
   function setupGasFeeController({
@@ -156,6 +159,8 @@ describe('GasFeeController', () => {
       .mockReturnValue(false),
     legacyAPIEndpoint = 'http://legacy.endpoint/<chain_id>',
     EIP1559APIEndpoint = 'http://eip-1559.endpoint/<chain_id>',
+    determineNetworkStatusInfoUrlTemplate = ({ chainId }) =>
+      `http://network-status-info.endpoint/${chainId}`,
     clientId,
   }: {
     getChainId?: jest.Mock<`0x${string}` | `${number}` | number>;
@@ -163,6 +168,11 @@ describe('GasFeeController', () => {
     getCurrentNetworkLegacyGasAPICompatibility?: jest.Mock<boolean>;
     legacyAPIEndpoint?: string;
     EIP1559APIEndpoint?: string;
+    determineNetworkStatusInfoUrlTemplate?: ({
+      chainId,
+    }: {
+      chainId: ChainId;
+    }) => string;
     clientId?: string;
   } = {}) {
     gasFeeController = new GasFeeController({
@@ -174,6 +184,7 @@ describe('GasFeeController', () => {
       getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkController.state.properties.isEIP1559Compatible ???
       legacyAPIEndpoint,
       EIP1559APIEndpoint,
+      determineNetworkStatusInfoUrlTemplate,
       clientId,
     });
   }
@@ -182,6 +193,10 @@ describe('GasFeeController', () => {
     clock = useFakeTimers();
     mockedDetermineGasFeeSuggestions.mockResolvedValue(
       buildMockGasFeeStateFeeMarket(),
+    );
+
+    mockedDetermineNetworkStatusInfo.mockResolvedValue(
+      buildMockNetworkStatusInfo(),
     );
   });
 
@@ -204,41 +219,54 @@ describe('GasFeeController', () => {
   describe('getGasFeeEstimatesAndStartPolling', () => {
     describe('if never called before', () => {
       describe('and called with undefined', () => {
-        const mockDetermineGasFeeSuggestionsReturnValues: GasFeeState[] = [
-          buildMockGasFeeStateFeeMarket(),
-          buildMockGasFeeStateEthGasPrice(),
+        const mockDetermineGasFeeSuggestionsReturnValues: GasFeeSuggestions[] = [
+          buildMockGasFeeStateFeeMarket({ modifier: 1 }),
+          buildMockGasFeeStateFeeMarket({ modifier: 2 }),
+        ];
+        const mockDetermineNetworkStatusInfoReturnValues: NetworkStatusInfo[] = [
+          buildMockNetworkStatusInfo({ modifier: 1 }),
+          buildMockNetworkStatusInfo({ modifier: 2 }),
         ];
 
         beforeEach(() => {
           mockedDetermineGasFeeSuggestions.mockReset();
+          mockedDetermineNetworkStatusInfo.mockReset();
 
           mockDetermineGasFeeSuggestionsReturnValues.forEach((returnValue) => {
             mockedDetermineGasFeeSuggestions.mockImplementationOnce(() => {
               return Promise.resolve(returnValue);
             });
           });
+
+          mockDetermineNetworkStatusInfoReturnValues.forEach((returnValue) => {
+            mockedDetermineNetworkStatusInfo.mockImplementationOnce(() => {
+              return Promise.resolve(returnValue);
+            });
+          });
         });
 
-        it('should update the state with a fetched set of estimates', async () => {
+        it('should update the state with fetched gas fee estimates and network status info', async () => {
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
 
-          expect(gasFeeController.state).toMatchObject(
-            mockDetermineGasFeeSuggestionsReturnValues[0],
-          );
+          expect(gasFeeController.state).toMatchObject({
+            ...mockDetermineGasFeeSuggestionsReturnValues[0],
+            ...mockDetermineNetworkStatusInfoReturnValues[0],
+          });
         });
 
-        it('should continue updating the state with all estimate data (including new time estimates because of a subsequent call to determineGasFeeSuggestions) on a set interval', async () => {
+        it('should continue updating the state with newly fetched data on a set interval', async () => {
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
           await clock.nextAsync();
 
-          expect(gasFeeController.state).toMatchObject(
-            mockDetermineGasFeeSuggestionsReturnValues[1],
-          );
+          expect(gasFeeController.state).toMatchObject({
+            ...mockDetermineGasFeeSuggestionsReturnValues[1],
+            ...mockDetermineNetworkStatusInfoReturnValues[1],
+          });
         });
       });
 
       describe('and called with a previously unseen token', () => {
-        it('should call determineGasFeeSuggestions', async () => {
+        it('should call determineGasFeeSuggestions and determineNetworkStatusInfo', async () => {
           setupGasFeeController();
 
           await gasFeeController.getGasFeeEstimatesAndStartPolling(
@@ -246,9 +274,10 @@ describe('GasFeeController', () => {
           );
 
           expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(1);
+          expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(1);
         });
 
-        it('should make further calls to determineGasFeeSuggestions on a set interval', async () => {
+        it('should make further calls to determineGasFeeSuggestions and determineNetworkStatusInfo on a set interval', async () => {
           setupGasFeeController();
 
           await gasFeeController.getGasFeeEstimatesAndStartPolling(
@@ -257,21 +286,23 @@ describe('GasFeeController', () => {
           await clock.nextAsync();
 
           expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(2);
+          expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(2);
         });
       });
     });
 
     describe('if called twice with undefined', () => {
-      it('should not call determineGasFeeSuggestions again', async () => {
+      it('should not call determineGasFeeSuggestions or determineNetworkStatusInfo again', async () => {
         setupGasFeeController();
 
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
 
         expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(1);
+        expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(1);
       });
 
-      it('should not make more than one call to determineGasFeeSuggestions per set interval', async () => {
+      it('should not make more than one call to determineGasFeeSuggestions and determineNetworkStatusInfo per set interval', async () => {
         setupGasFeeController();
 
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
@@ -280,11 +311,12 @@ describe('GasFeeController', () => {
         await clock.nextAsync();
 
         expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(3);
+        expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(3);
       });
     });
 
     describe('if called once with undefined and again with the same token', () => {
-      it('should call determineGasFeeSuggestions again', async () => {
+      it('should call determineGasFeeSuggestions and determineNetworkStatusInfo again', async () => {
         setupGasFeeController();
 
         const pollToken = await gasFeeController.getGasFeeEstimatesAndStartPolling(
@@ -293,9 +325,10 @@ describe('GasFeeController', () => {
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
 
         expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(2);
+        expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(2);
       });
 
-      it('should not make more than one call to determineGasFeeSuggestions per set interval', async () => {
+      it('should not make more than one call to determineGasFeeSuggestions and determineNetworkStatusInfo per set interval', async () => {
         setupGasFeeController();
 
         const pollToken = await gasFeeController.getGasFeeEstimatesAndStartPolling(
@@ -306,11 +339,12 @@ describe('GasFeeController', () => {
         await clock.nextAsync();
 
         expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(4);
+        expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(4);
       });
     });
 
     describe('if called twice, both with previously unseen tokens', () => {
-      it('should not call determineGasFeeSuggestions again', async () => {
+      it('should not call determineGasFeeSuggestions or determineNetworkStatusInfo again', async () => {
         setupGasFeeController();
 
         await gasFeeController.getGasFeeEstimatesAndStartPolling(
@@ -322,9 +356,10 @@ describe('GasFeeController', () => {
         );
 
         expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(1);
+        expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(1);
       });
 
-      it('should not make more than one call to determineGasFeeSuggestions per set interval', async () => {
+      it('should not make more than one call to determineGasFeeSuggestions and determineNetworkStatusInfo per set interval', async () => {
         setupGasFeeController();
 
         await gasFeeController.getGasFeeEstimatesAndStartPolling(
@@ -338,6 +373,7 @@ describe('GasFeeController', () => {
         await clock.nextAsync();
 
         expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(3);
+        expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(3);
       });
     });
   });
@@ -419,7 +455,7 @@ describe('GasFeeController', () => {
 
   describe('stopPolling', () => {
     describe('assuming that getGasFeeEstimatesAndStartPolling was already called exactly once', () => {
-      it('should prevent calls to determineGasFeeSuggestions from being made periodically', async () => {
+      it('should prevent calls to determineGasFeeSuggestions and determineNetworkStatusInfo from being made periodically', async () => {
         setupGasFeeController();
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
         await clock.nextAsync();
@@ -429,6 +465,7 @@ describe('GasFeeController', () => {
 
         await clock.nextAsync();
         expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(2);
+        expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(2);
       });
 
       it('should make it so that a second call to getGasFeeEstimatesAndStartPolling with the same token has the same effect as the inaugural call', async () => {
@@ -438,12 +475,14 @@ describe('GasFeeController', () => {
         );
         await clock.nextAsync();
         expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(2);
+        expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(2);
 
         gasFeeController.stopPolling();
 
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
         await clock.nextAsync();
         expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(4);
+        expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(4);
       });
 
       it('should revert the state back to its original form', async () => {
@@ -456,12 +495,13 @@ describe('GasFeeController', () => {
           gasFeeEstimates: {},
           estimatedGasFeeTimeBounds: {},
           gasEstimateType: 'none',
+          isNetworkBusy: false,
         });
       });
     });
 
     describe('if getGasFeeEstimatesAndStartPolling was called multiple times with the same token (thereby restarting the polling once)', () => {
-      it('should prevent calls to determineGasFeeSuggestions from being made periodically', async () => {
+      it('should prevent calls to determineGasFeeSuggestions or determineNetworkStatusInfo from being made periodically', async () => {
         setupGasFeeController();
         const pollToken = await gasFeeController.getGasFeeEstimatesAndStartPolling(
           undefined,
@@ -469,11 +509,13 @@ describe('GasFeeController', () => {
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
         await clock.nextAsync();
         expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(3);
+        expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(3);
 
         gasFeeController.stopPolling();
 
         await clock.nextAsync();
         expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(3);
+        expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(3);
       });
 
       it('should make it so that another call to getGasFeeEstimatesAndStartPolling with a previously generated token has the same effect as the inaugural call', async () => {
@@ -484,12 +526,14 @@ describe('GasFeeController', () => {
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
         await clock.nextAsync();
         expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(3);
+        expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(3);
 
         gasFeeController.stopPolling();
 
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
         await clock.nextAsync();
         expect(mockedDetermineGasFeeSuggestions).toHaveBeenCalledTimes(5);
+        expect(mockedDetermineNetworkStatusInfo).toHaveBeenCalledTimes(5);
       });
     });
 

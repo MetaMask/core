@@ -8,7 +8,9 @@ import {
   LegacyGasPriceEstimate,
 } from './GasFeeController';
 
-const makeClientIdHeader = (clientId: string) => ({ 'X-Client-Id': clientId });
+export const makeClientIdHeader = (clientId: string) => ({
+  'X-Client-Id': clientId,
+});
 
 /**
  * Convert a decimal GWEI value to a decimal string rounded to the nearest WEI.

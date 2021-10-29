@@ -1,8 +1,9 @@
 import type { Patch } from 'immer';
 
+import { BN, isHexString } from 'ethereumjs-util';
 import EthQuery from 'eth-query';
 import { v1 as random } from 'uuid';
-import { isHexString } from 'ethereumjs-util';
+
 import { BaseController } from '../BaseControllerV2';
 import { safelyExecute } from '../util';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
@@ -17,6 +18,9 @@ import {
   calculateTimeEstimate,
 } from './gas-util';
 import determineGasFeeSuggestions from './determineGasFeeSuggestions';
+import determineNetworkStatusInfo, {
+  NetworkStatusInfo,
+} from './determineNetworkStatusInfo';
 import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 
 const GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/';
@@ -131,6 +135,7 @@ const metadata = {
   gasFeeEstimates: { persist: true, anonymous: false },
   estimatedGasFeeTimeBounds: { persist: true, anonymous: false },
   gasEstimateType: { persist: true, anonymous: false },
+  isNetworkBusy: { persist: true, anonymous: false },
 };
 
 export type GasFeeStateEthGasPrice = {
@@ -167,8 +172,13 @@ export type FetchGasFeeEstimateOptions = {
  * Gas Fee controller state
  * @property gasFeeEstimates - Gas fee estimate data based on new EIP-1559 properties
  * @property estimatedGasFeeTimeBounds - Estimates representing the minimum and maximum
+ * @property gasEstimateType - Source of estimate data, if any
+ * @property isNetworkBusy - Whether or not there are a lot of transactions taking place within the
+ * network, causing high gas fees
  */
-export type GasFeeState =
+export type GasFeeState = GasFeeSuggestions & NetworkStatusInfo;
+
+export type GasFeeSuggestions =
   | GasFeeStateEthGasPrice
   | GasFeeStateFeeMarket
   | GasFeeStateLegacy
@@ -198,7 +208,33 @@ const defaultState: GasFeeState = {
   gasFeeEstimates: {},
   estimatedGasFeeTimeBounds: {},
   gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
+  isNetworkBusy: false,
 };
+
+export type ChainId = `0x${string}` | `${number}` | number;
+
+/**
+ * Wraps the given function that is used to get the current chain id such that we guarantee that the
+ * chain id is a decimal number.
+ *
+ * @param getChainId - A function that returns the chain id of the currently selected network as
+ * a number expressed as a hex string, a decimal string, or a numeric value.
+ * @returns A function that returns the chain id as a numeric value.
+ */
+function withNormalizedChainId(getChainId: () => ChainId): () => number {
+  return () => {
+    const chainId = getChainId();
+    if (typeof chainId === 'string') {
+      if (isHexString(chainId)) {
+        return parseInt(chainId, 16);
+      }
+      return parseInt(chainId, 10);
+    } else if (typeof chainId === 'number') {
+      return chainId;
+    }
+    throw new Error(`Could not normalize chain id ${chainId}`);
+  };
+}
 
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
@@ -218,6 +254,12 @@ export class GasFeeController extends BaseController<
 
   private EIP1559APIEndpoint: string;
 
+  private determineNetworkStatusInfoUrlTemplate: ({
+    chainId,
+  }: {
+    chainId: ChainId;
+  }) => string;
+
   private getCurrentNetworkEIP1559Compatibility;
 
   private getCurrentNetworkLegacyGasAPICompatibility;
@@ -226,7 +268,7 @@ export class GasFeeController extends BaseController<
 
   private getChainId;
 
-  private currentChainId;
+  private currentChainId: ChainId;
 
   private ethQuery: any;
 
@@ -253,6 +295,8 @@ export class GasFeeController extends BaseController<
    * testing purposes.
    * @param options.EIP1559APIEndpoint - The EIP-1559 gas price API URL. This option is primarily
    * for testing purposes.
+   * @param options.determineNetworkStatusInfoUrlTemplate - A function that returns a URL that will
+   * be used to retrieve information about the status of the network.
    * @param options.clientId - The client ID used to identify to the gas estimation API who is
    * asking for estimates.
    */
@@ -268,6 +312,7 @@ export class GasFeeController extends BaseController<
     onNetworkStateChange,
     legacyAPIEndpoint = LEGACY_GAS_PRICES_API_URL,
     EIP1559APIEndpoint = GAS_FEE_API,
+    determineNetworkStatusInfoUrlTemplate,
     clientId,
   }: {
     interval?: number;
@@ -276,11 +321,16 @@ export class GasFeeController extends BaseController<
     getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
     getCurrentNetworkLegacyGasAPICompatibility: () => boolean;
     getCurrentAccountEIP1559Compatibility?: () => boolean;
-    getChainId: () => `0x${string}` | `${number}` | number;
+    getChainId: () => ChainId;
     getProvider: () => NetworkController['provider'];
     onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
     EIP1559APIEndpoint?: string;
+    determineNetworkStatusInfoUrlTemplate: ({
+      chainId,
+    }: {
+      chainId: ChainId;
+    }) => string;
     clientId?: string;
   }) {
     super({
@@ -296,7 +346,8 @@ export class GasFeeController extends BaseController<
     this.getCurrentAccountEIP1559Compatibility = getCurrentAccountEIP1559Compatibility;
     this.EIP1559APIEndpoint = EIP1559APIEndpoint;
     this.legacyAPIEndpoint = legacyAPIEndpoint;
-    this.getChainId = getChainId;
+    this.determineNetworkStatusInfoUrlTemplate = determineNetworkStatusInfoUrlTemplate;
+    this.getChainId = withNormalizedChainId(getChainId);
     this.currentChainId = this.getChainId();
     const provider = getProvider();
     this.ethQuery = new EthQuery(provider);
@@ -327,32 +378,45 @@ export class GasFeeController extends BaseController<
     return await this._fetchGasFeeEstimateData(options);
   }
 
+  /**
+   * Ensures that state is being continuously updated with gas fee estimate and network status data.
+   * More specifically, if this method has not been called before, it makes a request and uses the
+   * resulting data to update state appropriately, then creates a token that will represent that
+   * request and adds it to a "hat". As long as the hat is not empty, then the request will be
+   * re-run and state will be updated on a cadence.
+   *
+   * @param givenPollToken - Either a token that was obtained from a previous call to
+   * ensurePollingFor, or undefined (to represent no token).
+   * @returns A token to represent this particular request that can be used to decrease the size of
+   * the polling "hat" later.
+   */
   async getGasFeeEstimatesAndStartPolling(
-    pollToken: string | undefined,
+    givenPollToken: string | undefined,
   ): Promise<string> {
-    const _pollToken = pollToken || random();
+    const pollToken = givenPollToken || random();
 
-    this.pollTokens.add(_pollToken);
+    this.pollTokens.add(pollToken);
 
     if (this.pollTokens.size === 1) {
-      await this._fetchGasFeeEstimateData();
-      this._poll();
+      await this.poll();
+      this.restartPolling();
     }
 
-    return _pollToken;
+    return pollToken;
   }
 
   /**
-   * Gets and sets gasFeeEstimates in state.
+   * Fetches gas fee estimates using a variety of strategies and (optionally) updates state with the
+   * resulting data.
    *
-   * @param options - The gas fee estimate options.
+   * @param options - Options for this method.
    * @param options.shouldUpdateState - Determines whether the state should be updated with the
-   * updated gas estimates.
+   * fetched estimate data.
    * @returns The gas fee estimates.
    */
   async _fetchGasFeeEstimateData(
     options: FetchGasFeeEstimateOptions = {},
-  ): Promise<GasFeeState> {
+  ): Promise<GasFeeSuggestions> {
     const { shouldUpdateState = true } = options;
     let isEIP1559Compatible;
     const isLegacyGasAPICompatible = this.getCurrentNetworkLegacyGasAPICompatibility();
@@ -402,18 +466,23 @@ export class GasFeeController extends BaseController<
   }
 
   /**
-   * Remove the poll token, and stop polling if the set of poll tokens is empty.
+   * Removes the given token from a "hat" representing polling requests. If, before calling this
+   * method, there is only one token in the hat, then this effectively stops polling.
    *
-   * @param pollToken - The poll token to disconnect.
+   * @param pollToken - A token returned from a previous call to getGasFeeEstimatesAndStartPolling.
    */
-  disconnectPoller(pollToken: string) {
+  disconnectPoller(pollToken: string): void {
     this.pollTokens.delete(pollToken);
     if (this.pollTokens.size === 0) {
       this.stopPolling();
     }
   }
 
-  stopPolling() {
+  /**
+   * Removes all tokens representing polling requests such that state updates will no occur on a
+   * cadence.
+   */
+  stopPolling(): void {
     if (this.intervalId) {
       clearInterval(this.intervalId);
     }
@@ -431,14 +500,28 @@ export class GasFeeController extends BaseController<
     this.stopPolling();
   }
 
-  private _poll() {
+  private restartPolling() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
     }
 
-    this.intervalId = setInterval(async () => {
-      await safelyExecute(() => this._fetchGasFeeEstimateData());
+    this.intervalId = setInterval(() => {
+      safelyExecute(() => this.poll());
     }, this.intervalDelay);
+  }
+
+  private async poll() {
+    const isEIP1559Compatible = await this.getEIP1559Compatibility();
+
+    const gasFeeSuggestions = await this._fetchGasFeeEstimateData();
+
+    if (isEIP1559Compatible) {
+      // TODO: Any way we can avoid doing this?
+      const gasFeeEstimates = gasFeeSuggestions.gasFeeEstimates as GasFeeEstimates;
+      await this.fetchAndUpdateWithNetworkStatus(
+        new BN(gasFeeEstimates.estimatedBaseFee, 10),
+      );
+    }
   }
 
   private resetState() {
@@ -447,14 +530,18 @@ export class GasFeeController extends BaseController<
     });
   }
 
-  private async getEIP1559Compatibility() {
-    const currentNetworkIsEIP1559Compatible = await this.getCurrentNetworkEIP1559Compatibility();
-    const currentAccountIsEIP1559Compatible =
-      this.getCurrentAccountEIP1559Compatibility?.() ?? true;
+  private async getEIP1559Compatibility(): Promise<boolean> {
+    try {
+      const currentNetworkIsEIP1559Compatible = await this.getCurrentNetworkEIP1559Compatibility();
+      const currentAccountIsEIP1559Compatible =
+        this.getCurrentAccountEIP1559Compatibility?.() ?? true;
 
-    return (
-      currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
-    );
+      return (
+        currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible
+      );
+    } catch (e) {
+      return false;
+    }
   }
 
   getTimeEstimate(
@@ -472,6 +559,25 @@ export class GasFeeController extends BaseController<
       maxFeePerGas,
       this.state.gasFeeEstimates,
     );
+  }
+
+  private async fetchAndUpdateWithNetworkStatus(
+    latestBaseFee: BN,
+  ): Promise<NetworkStatusInfo> {
+    const chainId = this.getChainId();
+    const url = this.determineNetworkStatusInfoUrlTemplate({ chainId });
+    const networkStatusInfo = await determineNetworkStatusInfo({
+      latestBaseFee,
+      url,
+      ethQuery: this.ethQuery,
+      clientId: this.clientId,
+    });
+
+    this.update((state) => {
+      state.isNetworkBusy = networkStatusInfo.isNetworkBusy;
+    });
+
+    return networkStatusInfo;
   }
 }
 
