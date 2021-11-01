@@ -343,7 +343,7 @@ describe('GasFeeController', () => {
   });
 
   describe('disconnectPoller', () => {
-    describe('assuming that updateWithAndStartPollingFor was already called exactly once', () => {
+    describe('assuming that getGasFeeEstimatesAndStartPolling was already called exactly once', () => {
       describe('given the same token as the result of the first call', () => {
         it('should prevent calls to determineGasFeeSuggestions from being made periodically', async () => {
           setupGasFeeController();
@@ -390,7 +390,7 @@ describe('GasFeeController', () => {
       });
     });
 
-    describe('if updateWithAndStartPollingFor was called twice with different tokens', () => {
+    describe('if getGasFeeEstimatesAndStartPolling was called twice with different tokens', () => {
       it('should not prevent calls to determineGasFeeSuggestions from being made periodically', async () => {
         setupGasFeeController();
         const pollToken1 = await gasFeeController.getGasFeeEstimatesAndStartPolling(
@@ -407,7 +407,7 @@ describe('GasFeeController', () => {
       });
     });
 
-    describe('if updateWithAndStartPollingFor was never called', () => {
+    describe('if getGasFeeEstimatesAndStartPolling was never called', () => {
       it('should not throw an error', () => {
         setupGasFeeController();
         expect(() =>
@@ -418,7 +418,7 @@ describe('GasFeeController', () => {
   });
 
   describe('stopPolling', () => {
-    describe('assuming that updateWithAndStartPollingFor was already called exactly once', () => {
+    describe('assuming that getGasFeeEstimatesAndStartPolling was already called exactly once', () => {
       it('should prevent calls to determineGasFeeSuggestions from being made periodically', async () => {
         setupGasFeeController();
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
@@ -460,7 +460,7 @@ describe('GasFeeController', () => {
       });
     });
 
-    describe('if updateWithAndStartPollingFor was called multiple times with the same token (thereby restarting the polling once)', () => {
+    describe('if getGasFeeEstimatesAndStartPolling was called multiple times with the same token (thereby restarting the polling once)', () => {
       it('should prevent calls to determineGasFeeSuggestions from being made periodically', async () => {
         setupGasFeeController();
         const pollToken = await gasFeeController.getGasFeeEstimatesAndStartPolling(
@@ -493,7 +493,7 @@ describe('GasFeeController', () => {
       });
     });
 
-    describe('if updateWithAndStartPollingFor was never called', () => {
+    describe('if getGasFeeEstimatesAndStartPolling was never called', () => {
       it('should not throw an error', () => {
         setupGasFeeController();
         expect(() => gasFeeController.stopPolling()).not.toThrow();
