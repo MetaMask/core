@@ -767,3 +767,21 @@ export function validateMinimumIncrease(proposed: string, min: string) {
   const errorMsg = `The proposed value: ${proposedDecimal} should meet or exceed the minimum value: ${minDecimal}`;
   throw new Error(errorMsg);
 }
+
+/**
+ * Extracts content identifier from ipfs url.
+ *
+ * @param url - Ipfs url.
+ * @returns Ipfs content identifier as string.
+ */
+export function getIpfsUrlContentIdentifier(url: string): string {
+  if (url.startsWith('ipfs://ipfs/')) {
+    return url.replace('ipfs://ipfs/', '');
+  }
+
+  if (url.startsWith('ipfs://')) {
+    return url.replace('ipfs://', '');
+  }
+
+  return url;
+}

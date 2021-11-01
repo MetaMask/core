@@ -14,6 +14,9 @@ const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
 
+const DEFAULT_IPFS_URL = 'ipfs://0001';
+const ALTERNATIVE_IPFS_URL = 'ipfs://ipfs/0001';
+
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
 const GAS_PRICE = 'gasPrice';
@@ -1062,6 +1065,26 @@ describe('util', () => {
       expect(() =>
         util.validateMinimumIncrease('0x7162a5ca', '0x5916a6d6'),
       ).not.toThrow(Error);
+    });
+  });
+
+  describe('getIpfsUrlContentIdentifier', () => {
+    it('should return content identifier from default ipfs url', () => {
+      expect(util.getIpfsUrlContentIdentifier(DEFAULT_IPFS_URL)).toStrictEqual(
+        '0001',
+      );
+    });
+
+    it('should return content identifier from alternative ipfs url', () => {
+      expect(
+        util.getIpfsUrlContentIdentifier(ALTERNATIVE_IPFS_URL),
+      ).toStrictEqual('0001');
+    });
+
+    it('should return url if its not a ipfs standard url', () => {
+      expect(util.getIpfsUrlContentIdentifier(SOME_API)).toStrictEqual(
+        SOME_API,
+      );
     });
   });
 });

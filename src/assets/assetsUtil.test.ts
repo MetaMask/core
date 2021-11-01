@@ -5,7 +5,10 @@ describe('assetsUtil', () => {
   describe('compareCollectiblesMetadata', () => {
     it('should resolve true if any key is different', () => {
       const collectibleMetadata: CollectibleMetadata = {
+        name: 'name',
         image: 'image',
+        description: 'description',
+        standard: 'standard',
         backgroundColor: 'backgroundColor',
         imagePreview: 'imagePreview',
         imageThumbnail: 'imageThumbnail',
@@ -16,9 +19,11 @@ describe('assetsUtil', () => {
       };
       const collectible: Collectible = {
         address: 'address',
-        tokenId: 123,
+        tokenId: '123',
         name: 'name',
         image: 'image',
+        description: 'description',
+        standard: 'standard',
         backgroundColor: 'backgroundColor',
         imagePreview: 'imagePreview',
         imageThumbnail: 'imageThumbnail',
@@ -36,14 +41,19 @@ describe('assetsUtil', () => {
 
     it('should resolve true if any key is different as always as metadata is not undefined', () => {
       const collectibleMetadata: CollectibleMetadata = {
+        name: 'name',
         image: 'image',
+        description: 'description',
+        standard: 'standard',
         externalLink: 'externalLink',
       };
       const collectible: Collectible = {
         address: 'address',
-        tokenId: 123,
+        tokenId: '123',
         name: 'name',
         image: 'image',
+        standard: 'standard',
+        description: 'description',
         backgroundColor: 'backgroundColor',
         externalLink: 'externalLink',
       };
@@ -56,7 +66,10 @@ describe('assetsUtil', () => {
 
     it('should resolve false if no key is different', () => {
       const collectibleMetadata: CollectibleMetadata = {
+        name: 'name',
         image: 'image',
+        description: 'description',
+        standard: 'standard',
         backgroundColor: 'backgroundColor',
         imagePreview: 'imagePreview',
         imageThumbnail: 'imageThumbnail',
@@ -67,9 +80,11 @@ describe('assetsUtil', () => {
       };
       const collectible: Collectible = {
         address: 'address',
-        tokenId: 123,
+        tokenId: '123',
         name: 'name',
         image: 'image',
+        standard: 'standard',
+        description: 'description',
         backgroundColor: 'backgroundColor',
         imagePreview: 'imagePreview',
         imageThumbnail: 'imageThumbnail',

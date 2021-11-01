@@ -13,6 +13,7 @@ import {
 } from './GasFeeController';
 import determineGasFeeSuggestions from './determineGasFeeSuggestions';
 
+jest.mock('./gas-util');
 jest.mock('./determineGasFeeSuggestions');
 
 const mockedDetermineGasFeeSuggestions = mocked(

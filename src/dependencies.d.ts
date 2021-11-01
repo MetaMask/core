@@ -22,6 +22,8 @@ declare module 'ethjs-unit';
 
 declare module 'human-standard-collectible-abi';
 
+declare module 'human-standard-multi-collectible-abi'
+
 declare module 'human-standard-token-abi';
 
 declare module 'isomorphic-fetch';
