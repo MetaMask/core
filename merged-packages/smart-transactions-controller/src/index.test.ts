@@ -7,6 +7,9 @@ describe('default export', () => {
     const controller = new DefaultExport({
       onNetworkStateChange: jest.fn(),
       nonceTracker: null,
+      provider: jest.fn(),
+      getNetwork: jest.fn(() => '1'),
+      txController: {},
     });
     expect(controller).toBeInstanceOf(SmartTransactionsController);
     jest.clearAllTimers();

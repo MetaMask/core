@@ -1,5 +1,10 @@
 import * as utils from './utils';
-import { SmartTransactionMinedTx, APIType } from './types';
+import {
+  SmartTransactionMinedTx,
+  APIType,
+  SmartTransactionStatuses,
+  SmartTransactionCancellationReason,
+} from './types';
 import { API_BASE_URL, CHAIN_IDS, CHAIN_IDS_HEX_TO_DEC } from './constants';
 
 describe('src/utils.js', () => {
@@ -7,7 +12,8 @@ describe('src/utils.js', () => {
     const createSmartTransaction = () => {
       return {
         uuid: 'sdfasfj345345dfgag45353',
-        status: {
+        status: 'pending',
+        statusMetadata: {
           error: undefined,
           minedTx: SmartTransactionMinedTx.NOT_MINED,
           cancellationFeeWei: 10000,
@@ -19,18 +25,6 @@ describe('src/utils.js', () => {
 
     it('returns true is a smart transaction is not yet mined and there is no error', () => {
       const smartTransaction = createSmartTransaction();
-      expect(utils.isSmartTransactionPending(smartTransaction)).toBe(true);
-    });
-
-    it('returns false is a smart transaction is not yet mined and there is an error', () => {
-      const smartTransaction: any = createSmartTransaction();
-      smartTransaction.status.error = 'serverError';
-      expect(utils.isSmartTransactionPending(smartTransaction)).toBe(false);
-    });
-
-    it('returns true is a smart transaction does not have any status yet', () => {
-      const smartTransaction: any = createSmartTransaction();
-      smartTransaction.status = undefined;
       expect(utils.isSmartTransactionPending(smartTransaction)).toBe(true);
     });
   });
@@ -74,6 +68,83 @@ describe('src/utils.js', () => {
       const bscChainIdDec = CHAIN_IDS_HEX_TO_DEC[CHAIN_IDS.BSC];
       expect(utils.getAPIRequestURL(APIType.LIVENESS, CHAIN_IDS.BSC)).toBe(
         `${API_BASE_URL}/networks/${bscChainIdDec}/health`,
+      );
+    });
+  });
+
+  describe('isSmartTransactionStatusResolved', () => {
+    it('returns true if status response is "uuid_not_found"', () => {
+      const statusResponse = 'uuid_not_found';
+      expect(utils.isSmartTransactionStatusResolved(statusResponse)).toBe(true);
+    });
+
+    it('returns false if status response is not', () => {
+      const statusResponse = {
+        minedTx: SmartTransactionMinedTx.NOT_MINED,
+        cancellationReason: SmartTransactionCancellationReason.NOT_CANCELLED,
+        minedHash: '',
+        cancellationFeeWei: 0.1,
+        deadlineRatio: 0.1,
+      };
+      expect(utils.isSmartTransactionStatusResolved(statusResponse)).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('calculateStatus', () => {
+    const createStatusResponse = () => ({
+      minedTx: SmartTransactionMinedTx.NOT_MINED,
+      cancellationReason: SmartTransactionCancellationReason.NOT_CANCELLED,
+      minedHash: '',
+      cancellationFeeWei: 0.1,
+      deadlineRatio: 0.1,
+    });
+
+    it('returns pending if transaction is not mined and has no cancellationReason', () => {
+      const statusResponse = createStatusResponse();
+      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
+        SmartTransactionStatuses.PENDING,
+      );
+    });
+
+    it('returns success if minedTx is success', () => {
+      const statusResponse = {
+        ...createStatusResponse(),
+        minedTx: SmartTransactionMinedTx.SUCCESS,
+      };
+      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
+        SmartTransactionStatuses.SUCCESS,
+      );
+    });
+
+    it('returns reverted if minedTx is reverted', () => {
+      const statusResponse = {
+        ...createStatusResponse(),
+        minedTx: SmartTransactionMinedTx.REVERTED,
+      };
+      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
+        SmartTransactionStatuses.REVERTED,
+      );
+    });
+
+    it('returns unknown if minedTx is unknown', () => {
+      const statusResponse = {
+        ...createStatusResponse(),
+        minedTx: SmartTransactionMinedTx.UNKNOWN,
+      };
+      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
+        SmartTransactionStatuses.UNKNOWN,
+      );
+    });
+
+    it('returns cancellation state if cancellationReason provided', () => {
+      const statusResponse = {
+        ...createStatusResponse(),
+        cancellationReason: SmartTransactionCancellationReason.USER_CANCELLED,
+      };
+      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
+        SmartTransactionStatuses.CANCELLED_USER_CANCELLED,
       );
     });
   });

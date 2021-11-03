@@ -6,6 +6,26 @@ import SmartTransactionsController, {
 import { API_BASE_URL, CHAIN_IDS, CHAIN_IDS_HEX_TO_DEC } from './constants';
 import { SmartTransaction } from './types';
 
+const confirmExternalMock = jest.fn();
+
+jest.mock('ethers', () => ({
+  ethers: {
+    providers: {
+      Web3Provider: class Web3Provider {
+        getBalance = () => ({ toHexString: () => '0x1000' });
+
+        getTransactionReceipt = jest.fn(() => ({ blockNumber: '123' }));
+
+        getBlock = jest.fn();
+      },
+    },
+    utils: {
+      hexlify: (str: string) => `0x${str}`,
+    },
+    BigNumber: class BigNumber {},
+  },
+}));
+
 const createUnsignedTransaction = () => {
   return {
     from: '0x268392a24B6b093127E8581eAfbD1DA228bAdAe3',
@@ -102,25 +122,49 @@ const createSignedCanceledTransaction = () => {
   };
 };
 
-const createPendingBatchStatusApiResponse = () => {
+const createPendingBatchStatusApiResponse = () => ({
+  uuid1: {
+    cancellationFeeWei: 0,
+    cancellationReason: 'not_cancelled',
+    deadlineRatio: 0.0006295545895894369,
+    minedTx: 'not_mined',
+    minedHash: '',
+  },
+});
+
+const createStateAfterPending = () => {
   return [
     {
       uuid: 'uuid1',
-      status: {
+      status: 'pending',
+      statusMetadata: {
         cancellationFeeWei: 0,
         cancellationReason: 'not_cancelled',
         deadlineRatio: 0.0006295545895894369,
         minedTx: 'not_mined',
+        minedHash: '',
       },
     },
   ];
 };
 
-const createSuccessBatchStatusApiResponse = () => {
+const createSuccessBatchStatusApiResponse = () => ({
+  uuid2: {
+    cancellationFeeWei: 36777567771000,
+    cancellationReason: 'not_cancelled',
+    deadlineRatio: 0.6400288486480713,
+    minedHash:
+      '0x55ad39634ee10d417b6e190cfd3736098957e958879cffe78f1f00f4fd2654d6',
+    minedTx: 'success',
+  },
+});
+
+const createStateAfterSuccess = () => {
   return [
     {
-      uuid: 'uuid1',
-      status: {
+      uuid: 'uuid2',
+      status: 'success',
+      statusMetadata: {
         cancellationFeeWei: 36777567771000,
         cancellationReason: 'not_cancelled',
         deadlineRatio: 0.6400288486480713,
@@ -154,6 +198,11 @@ describe('SmartTransactionsController', () => {
             releaseLock: jest.fn(),
           };
         }),
+      },
+      getNetwork: jest.fn(() => '1'),
+      provider: jest.fn(),
+      txController: {
+        confirmExternalTransaction: confirmExternalMock,
       },
     });
   });
@@ -273,14 +322,14 @@ describe('SmartTransactionsController', () => {
       await smartTransactionsController.submitSignedTransactions({
         signedTransactions: [signedTransaction],
         signedCanceledTransactions: [signedCanceledTransaction],
+        txParams: signedTransaction,
       });
 
-      expect(smartTransactionsController.state).toStrictEqual({
-        smartTransactions: {
-          [CHAIN_IDS.ETHEREUM]: [submitTransactionsApiResponse],
-        },
-        userOptIn: undefined,
-      });
+      expect(
+        smartTransactionsController.state.smartTransactions[
+          CHAIN_IDS.ETHEREUM
+        ][0].uuid,
+      ).toStrictEqual('dP23W7c2kt4FK9TmXOkz1UM2F20');
     });
   });
 
@@ -294,31 +343,31 @@ describe('SmartTransactionsController', () => {
       await smartTransactionsController.fetchSmartTransactionsStatus(uuids);
       expect(smartTransactionsController.state).toStrictEqual({
         smartTransactions: {
-          [CHAIN_IDS.ETHEREUM]: pendingBatchStatusApiResponse,
+          [CHAIN_IDS.ETHEREUM]: createStateAfterPending(),
         },
         userOptIn: undefined,
       });
     });
 
     it('fetches a success status for a single smart transaction via batchStatus API', async () => {
-      const uuids = ['uuid1'];
-      const pendingBatchStatusApiResponse = createPendingBatchStatusApiResponse();
+      const uuids = ['uuid2'];
       const successBatchStatusApiResponse = createSuccessBatchStatusApiResponse();
       smartTransactionsController.update({
         smartTransactions: {
-          [CHAIN_IDS.ETHEREUM]: [
-            pendingBatchStatusApiResponse[0],
-          ] as SmartTransaction[],
+          [CHAIN_IDS.ETHEREUM]: createStateAfterPending() as SmartTransaction[],
         },
       });
 
       nock(API_BASE_URL)
-        .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid1`)
+        .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid2`)
         .reply(200, successBatchStatusApiResponse);
       await smartTransactionsController.fetchSmartTransactionsStatus(uuids);
       expect(smartTransactionsController.state).toStrictEqual({
         smartTransactions: {
-          [CHAIN_IDS.ETHEREUM]: successBatchStatusApiResponse,
+          [CHAIN_IDS.ETHEREUM]: [
+            ...createStateAfterPending(),
+            ...createStateAfterSuccess(),
+          ],
         },
         userOptIn: undefined,
       });
@@ -333,6 +382,84 @@ describe('SmartTransactionsController', () => {
         .reply(200, successLivenessApiResponse);
       const liveness = await smartTransactionsController.fetchLiveness();
       expect(liveness).toBe(true);
+    });
+  });
+
+  describe('updateSmartTransaction', () => {
+    it('updates smart transaction based on uuid', () => {
+      const pendingStx = createStateAfterPending()[0];
+      smartTransactionsController.update({
+        smartTransactions: {
+          [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+        },
+      });
+      const updateTransaction = {
+        ...pendingStx,
+        status: 'test',
+      };
+      smartTransactionsController.updateSmartTransaction(
+        updateTransaction as SmartTransaction,
+      );
+
+      expect(
+        smartTransactionsController.state.smartTransactions[
+          CHAIN_IDS.ETHEREUM
+        ][0].status,
+      ).toStrictEqual('test');
+    });
+
+    it('confirms a smart transaction that has status success', async () => {
+      const confirmSpy = jest.spyOn(
+        smartTransactionsController,
+        'confirmSmartTransaction',
+      );
+      const pendingStx = createStateAfterPending()[0];
+      smartTransactionsController.update({
+        smartTransactions: {
+          [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+        },
+      });
+      const updateTransaction = {
+        ...pendingStx,
+        status: 'success',
+      };
+      smartTransactionsController.updateSmartTransaction(
+        updateTransaction as SmartTransaction,
+      );
+      expect(confirmSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('confirmSmartTransaction', () => {
+    it('calls confirm external transaction', async () => {
+      const successfulStx = createStateAfterSuccess()[0];
+      await smartTransactionsController.confirmSmartTransaction(
+        successfulStx as SmartTransaction,
+      );
+      expect(confirmExternalMock).toHaveBeenCalled();
+    });
+  });
+
+  describe('cancelSmartTransaction', () => {
+    it('sends POST call to Transactions API', async () => {
+      const apiCall = nock(API_BASE_URL)
+        .post(`/networks/${ethereumChainIdDec}/cancel`)
+        .reply(200, { message: 'successful' });
+      await smartTransactionsController.cancelSmartTransaction('uuid1');
+      expect(apiCall.isDone()).toBe(true);
+    });
+  });
+
+  describe('setStatusRefreshInterval', () => {
+    it('sets refresh interval if different', () => {
+      smartTransactionsController.setStatusRefreshInterval(100);
+      expect(smartTransactionsController.config.interval).toStrictEqual(100);
+    });
+
+    it('does not set refresh interval if they are the same', () => {
+      const configureSpy = jest.spyOn(smartTransactionsController, 'configure');
+      smartTransactionsController.setStatusRefreshInterval(DEFAULT_INTERVAL);
+      expect(configureSpy).toHaveBeenCalledTimes(0);
     });
   });
 });
