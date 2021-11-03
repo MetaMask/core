@@ -104,6 +104,7 @@ export interface CollectibleMetadata {
   description: string | null;
   image: string | null;
   standard: string | null;
+  favorite?: boolean;
   numberOfSales?: number;
   backgroundColor?: string;
   imagePreview?: string;
@@ -282,6 +283,7 @@ export class CollectiblesController extends BaseController<
         name: object.name,
         description: object.description,
         standard,
+        favorite: false,
       };
     } catch {
       return {
@@ -289,6 +291,7 @@ export class CollectiblesController extends BaseController<
         name: null,
         description: null,
         standard: standard || null,
+        favorite: false,
       };
     }
   }
@@ -506,6 +509,7 @@ export class CollectiblesController extends BaseController<
         address,
         tokenId,
         ...collectibleMetadata,
+        favorite: existingEntry?.favorite || false,
       };
       const newCollectibles = [...collectibles, newEntry];
       const addressCollectibles = allCollectibles[selectedAddress];
@@ -962,6 +966,72 @@ export class CollectiblesController extends BaseController<
    */
   clearIgnoredCollectibles() {
     this.update({ ignoredCollectibles: [] });
+  }
+
+  /**
+   * Update collectible favorite status.
+   *
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - Token identifier of the collectible.
+   * @param favorite - Collectible new favorite status.
+   */
+  updateCollectibleFavoriteStatus(
+    address: string,
+    tokenId: string,
+    favorite: boolean,
+  ) {
+    address = toChecksumHexAddress(address);
+    const { allCollectibles, collectibles } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    const collectibleToUpdate: Collectible | undefined = collectibles.find(
+      (collectible) =>
+        collectible.address.toLowerCase() === address.toLowerCase() &&
+        collectible.tokenId === tokenId,
+    );
+
+    console.log('[1] collectibleToUpdate ->', collectibleToUpdate);
+    if (!collectibleToUpdate) {
+      console.log('EARLY EXIT');
+      return;
+    }
+
+    const updatedCollectible: Collectible = {
+      ...collectibleToUpdate,
+      favorite,
+    };
+
+    console.log('[2] updatedCollectible ->', updatedCollectible);
+
+    // Update Collectibles array
+    const newCollectiblesState = collectibles.map((collectible) => {
+      if (
+        collectible.address.toLowerCase() === address.toLowerCase() &&
+        collectible.tokenId === tokenId
+      ) {
+        return updatedCollectible;
+      }
+      return collectible;
+    });
+
+    const addressCollectibles = allCollectibles[selectedAddress];
+    const newAddressCollectibles = {
+      ...addressCollectibles,
+      ...{ [chainId]: newCollectiblesState },
+    };
+    const newAllCollectiblesState = {
+      ...allCollectibles,
+      ...{ [selectedAddress]: newAddressCollectibles },
+    };
+
+    console.log('[3] newCollectiblesState ->', newCollectiblesState);
+    console.log('[4] newAllCollectiblesState ->', newAllCollectiblesState);
+
+    this.update({
+      allCollectibles: newAllCollectiblesState,
+      collectibles: newCollectiblesState,
+    });
+
+    console.log('UPDATE');
   }
 }
 

@@ -17,9 +17,9 @@ const ERC1155_COLLECTIBLE_ADDRESS =
   '0x495f947276749Ce646f68AC8c248420045cb7b5e';
 const ERC1155_COLLECTIBLE_ID =
   '40815311521795738946686668571398122012172359753720345430028676522525371400193';
-const ERC1155_DEPRESSIONIST_ADDRESS =
-  '0x18e8e76aeb9e2d9fa2a2b88dd9cf3c8ed45c3660';
-const ERC1155_DEPRESSIONIST_ID = '36';
+const ERC721_DEPRESSIONIST_ADDRESS =
+  '0x18E8E76aeB9E2d9FA2A2b88DD9CF3C8ED45c3660';
+const ERC721_DEPRESSIONIST_ID = '36';
 const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
@@ -187,6 +187,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
 
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
@@ -196,6 +197,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       tokenId: '1',
       standard: 'standard',
+      favorite: false,
     });
 
     expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
@@ -214,6 +216,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
 
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
@@ -223,6 +226,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       standard: 'standard',
       tokenId: '1',
+      favorite: false,
     });
 
     await collectiblesController.addCollectible('0x01', '1', {
@@ -230,6 +234,7 @@ describe('CollectiblesController', () => {
       image: 'image-updated',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
 
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
@@ -239,6 +244,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       tokenId: '1',
       standard: 'standard',
+      favorite: false,
     });
   });
 
@@ -248,6 +254,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
 
     await collectiblesController.addCollectible('0x01', '1', {
@@ -255,6 +262,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
     expect(collectiblesController.state.collectibles).toHaveLength(1);
     expect(collectiblesController.state.collectibleContracts).toHaveLength(1);
@@ -266,6 +274,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
 
     await collectiblesController.addCollectible('0x01', '2', {
@@ -273,6 +282,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
     expect(collectiblesController.state.collectibles).toHaveLength(2);
     expect(collectiblesController.state.collectibleContracts).toHaveLength(1);
@@ -290,6 +300,7 @@ describe('CollectiblesController', () => {
       tokenId: '1',
       collectionName: 'Collection Name',
       collectionImage: 'collection.url',
+      favorite: false,
     });
   });
 
@@ -311,6 +322,7 @@ describe('CollectiblesController', () => {
       imageOriginal: 'image.uri',
       numberOfSales: 1,
       standard: 'ERC1155',
+      favorite: false,
     });
   });
 
@@ -335,6 +347,7 @@ describe('CollectiblesController', () => {
       collectionName: 'Collection Name',
       imageOriginal: 'Kudos url',
       standard: 'ERC721',
+      favorite: false,
     });
 
     expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
@@ -365,6 +378,7 @@ describe('CollectiblesController', () => {
       description: 'Kudos Description (from uri)',
       tokenId: '1203',
       standard: 'ERC721',
+      favorite: false,
     });
 
     expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
@@ -391,6 +405,7 @@ describe('CollectiblesController', () => {
       image: 'url',
       name: 'name',
       tokenId: '1234',
+      favorite: false,
     });
   });
 
@@ -428,6 +443,7 @@ describe('CollectiblesController', () => {
       image: 'url',
       name: 'name',
       tokenId: '1234',
+      favorite: false,
     });
   });
 
@@ -458,6 +474,7 @@ describe('CollectiblesController', () => {
         tokenId: '1203',
         collectionImage: 'collection.url',
         collectionName: 'Collection Name',
+        favorite: false,
       },
     ]);
 
@@ -479,6 +496,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
     collectiblesController.removeCollectible('0x01', '1');
     expect(collectiblesController.state.collectibles).toHaveLength(0);
@@ -491,6 +509,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
 
     await collectiblesController.addCollectible('0x01', '2', {
@@ -498,6 +517,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
     collectiblesController.removeCollectible('0x01', '1');
     expect(collectiblesController.state.collectibles).toHaveLength(1);
@@ -523,6 +543,7 @@ describe('CollectiblesController', () => {
       image: 'url',
       name: 'name',
       tokenId: '4321',
+      favorite: false,
     });
   });
 
@@ -562,6 +583,7 @@ describe('CollectiblesController', () => {
       image: 'url',
       name: 'name',
       tokenId: '4321',
+      favorite: false,
     });
   });
 
@@ -582,6 +604,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
 
     await collectiblesController.addCollectible('0x01', '2', {
@@ -589,6 +612,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
 
     expect(collectiblesController.state.collectibles).toHaveLength(2);
@@ -603,6 +627,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
     expect(collectiblesController.state.collectibles).toHaveLength(2);
     expect(collectiblesController.state.ignoredCollectibles).toHaveLength(1);
@@ -618,6 +643,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       description: 'description',
       standard: 'standard',
+      favorite: false,
     });
 
     expect(collectiblesController.state.collectibles).toHaveLength(1);
@@ -693,8 +719,8 @@ describe('CollectiblesController', () => {
   it('should add collectible with metadata hosted in IPFS', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     await collectiblesController.addCollectible(
-      ERC1155_DEPRESSIONIST_ADDRESS,
-      ERC1155_DEPRESSIONIST_ID,
+      ERC721_DEPRESSIONIST_ADDRESS,
+      ERC721_DEPRESSIONIST_ID,
     );
 
     expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
@@ -710,6 +736,117 @@ describe('CollectiblesController', () => {
       name: 'name',
       description: 'description',
       standard: 'ERC721',
+      favorite: false,
     });
+  });
+
+  it('should set collectible as favorite', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+    await collectiblesController.addCollectible(
+      ERC721_DEPRESSIONIST_ADDRESS,
+      ERC721_DEPRESSIONIST_ID,
+    );
+
+    collectiblesController.updateCollectibleFavoriteStatus(
+      ERC721_DEPRESSIONIST_ADDRESS,
+      ERC721_DEPRESSIONIST_ID,
+      true,
+    );
+
+    expect(collectiblesController.state.collectibles[0]).toStrictEqual({
+      address: ERC721_DEPRESSIONIST_ADDRESS,
+      tokenId: ERC721_DEPRESSIONIST_ID,
+      image: 'image',
+      name: 'name',
+      description: 'description',
+      standard: 'ERC721',
+      favorite: true,
+    });
+  });
+
+  it('should set collectible as favorite and then unset it', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+    await collectiblesController.addCollectible(
+      ERC721_DEPRESSIONIST_ADDRESS,
+      ERC721_DEPRESSIONIST_ID,
+    );
+
+    collectiblesController.updateCollectibleFavoriteStatus(
+      ERC721_DEPRESSIONIST_ADDRESS,
+      ERC721_DEPRESSIONIST_ID,
+      true,
+    );
+
+    expect(collectiblesController.state.collectibles[0]).toStrictEqual({
+      address: ERC721_DEPRESSIONIST_ADDRESS,
+      tokenId: ERC721_DEPRESSIONIST_ID,
+      image: 'image',
+      name: 'name',
+      description: 'description',
+      standard: 'ERC721',
+      favorite: true,
+    });
+
+    collectiblesController.updateCollectibleFavoriteStatus(
+      ERC721_DEPRESSIONIST_ADDRESS,
+      ERC721_DEPRESSIONIST_ID,
+      false,
+    );
+
+    expect(collectiblesController.state.collectibles[0]).toStrictEqual({
+      address: ERC721_DEPRESSIONIST_ADDRESS,
+      tokenId: ERC721_DEPRESSIONIST_ID,
+      image: 'image',
+      name: 'name',
+      description: 'description',
+      standard: 'ERC721',
+      favorite: false,
+    });
+  });
+
+  it('should keep the favorite status after updating metadata', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+    await collectiblesController.addCollectible(
+      ERC721_DEPRESSIONIST_ADDRESS,
+      ERC721_DEPRESSIONIST_ID,
+    );
+
+    collectiblesController.updateCollectibleFavoriteStatus(
+      ERC721_DEPRESSIONIST_ADDRESS,
+      ERC721_DEPRESSIONIST_ID,
+      true,
+    );
+
+    expect(collectiblesController.state.collectibles[0]).toStrictEqual({
+      address: ERC721_DEPRESSIONIST_ADDRESS,
+      tokenId: ERC721_DEPRESSIONIST_ID,
+      image: 'image',
+      name: 'name',
+      description: 'description',
+      standard: 'ERC721',
+      favorite: true,
+    });
+
+    await collectiblesController.addCollectible(
+      ERC721_DEPRESSIONIST_ADDRESS,
+      ERC721_DEPRESSIONIST_ID,
+      {
+        image: 'new_image',
+        name: 'new_name',
+        description: 'new_description',
+        standard: 'ERC721',
+      },
+    );
+
+    expect(collectiblesController.state.collectibles[0]).toStrictEqual({
+      address: ERC721_DEPRESSIONIST_ADDRESS,
+      tokenId: ERC721_DEPRESSIONIST_ID,
+      image: 'new_image',
+      name: 'new_name',
+      description: 'new_description',
+      standard: 'ERC721',
+      favorite: true,
+    });
+    expect(collectiblesController.state.collectibles).toHaveLength(1);
   });
 });
