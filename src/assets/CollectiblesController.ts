@@ -989,9 +989,7 @@ export class CollectiblesController extends BaseController<
         collectible.tokenId === tokenId,
     );
 
-    console.log('[1] collectibleToUpdate ->', collectibleToUpdate);
     if (!collectibleToUpdate) {
-      console.log('EARLY EXIT');
       return;
     }
 
@@ -999,8 +997,6 @@ export class CollectiblesController extends BaseController<
       ...collectibleToUpdate,
       favorite,
     };
-
-    console.log('[2] updatedCollectible ->', updatedCollectible);
 
     // Update Collectibles array
     const newCollectiblesState = collectibles.map((collectible) => {
@@ -1023,15 +1019,10 @@ export class CollectiblesController extends BaseController<
       ...{ [selectedAddress]: newAddressCollectibles },
     };
 
-    console.log('[3] newCollectiblesState ->', newCollectiblesState);
-    console.log('[4] newAllCollectiblesState ->', newAllCollectiblesState);
-
     this.update({
       allCollectibles: newAllCollectiblesState,
       collectibles: newCollectiblesState,
     });
-
-    console.log('UPDATE');
   }
 }
 
