@@ -42,6 +42,7 @@ export function createRetryOnEmptyMiddleware({
       'RetryOnEmptyMiddleware - mandatory "provider" option is missing.',
     );
   }
+
   if (!blockTracker) {
     throw Error(
       'RetryOnEmptyMiddleware - mandatory "blockTracker" option is missing.',
@@ -60,6 +61,7 @@ export function createRetryOnEmptyMiddleware({
     if (blockRef === undefined) {
       blockRef = 'latest';
     }
+
     // skip if non-number block reference
     if (['latest', 'pending'].includes(blockRef)) {
       return next();

@@ -102,6 +102,7 @@ class BlockCacheStrategy {
     if (emptyValues.includes(result as any)) {
       return false;
     }
+
     // check if transactions have block reference before caching
     if (
       payload.method &&
@@ -163,6 +164,7 @@ export function createBlockCacheMiddleware({
     if (!strategy) {
       return next();
     }
+
     // If the strategy can't cache this request, ignore it.
     if (!strategy.canCacheRequest(req)) {
       return next();

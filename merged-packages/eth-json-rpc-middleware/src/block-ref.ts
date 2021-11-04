@@ -24,6 +24,7 @@ export function createBlockRefMiddleware({
   if (!provider) {
     throw Error('BlockRefMiddleware - mandatory "provider" option is missing.');
   }
+
   if (!blockTracker) {
     throw Error(
       'BlockRefMiddleware - mandatory "blockTracker" option is missing.',
@@ -42,6 +43,7 @@ export function createBlockRefMiddleware({
     if (blockRef === undefined) {
       blockRef = 'latest';
     }
+
     if (blockRef !== 'latest') {
       return next();
     }

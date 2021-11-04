@@ -1,27 +1,24 @@
 # Changelog
-
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Uncategorized
+- Add support for send call with callback so that Web3 Providers can be used ([#97](https://github.com/MetaMask/eth-json-rpc-middleware/pull/97))
+- Add support for `eth_signTransaction` so that external key stores can be used for signing ([#96](https://github.com/MetaMask/eth-json-rpc-middleware/pull/96))
 
 ## [7.0.1] - 2021-03-26
-
 ### Fixed
-
 - `blockTrackerInspectorMiddleware` ([#88](https://github.com/MetaMask/eth-json-rpc-middleware/pull/88))
   - Due to an error introduced in [#68](https://github.com/MetaMask/eth-json-rpc-middleware/pull/68), this middleware would sometimes hang indefinitely.
 
 ## [7.0.0] - 2021-03-25
-
 ### Added
-
 - TypeScript types ([#68](https://github.com/MetaMask/eth-json-rpc-middleware/pull/68))
 
 ### Changed
-
 - **(BREAKING)** Move middleware files to `/src` folder ([#60](https://github.com/MetaMask/eth-json-rpc-middleware/pull/60))
 - **(BREAKING)** Convert all exports to named ([#81](https://github.com/MetaMask/eth-json-rpc-middleware/pull/81))
 - Migrate to TypeScript ([#68](https://github.com/MetaMask/eth-json-rpc-middleware/pull/68))
@@ -29,8 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ask bundlers to ignore Node-specific depedencies in browser environments ([#78](https://github.com/MetaMask/eth-json-rpc-middleware/pull/78), [#84](https://github.com/MetaMask/eth-json-rpc-middleware/pull/84))
 - Removed various unused production dependencies ([#10](https://github.com/MetaMask/eth-json-rpc-middleware/pull/10), [#80](https://github.com/MetaMask/eth-json-rpc-middleware/pull/80))
 
-### Fixed
+### Removed
+- **(BREAKING)** Parity middleware ([#63](https://github.com/MetaMask/eth-json-rpc-middleware/pull/63))
+  - Previously imported as `eth-json-rpc-middleware/wallet-parity.js`
+- **(BREAKING)** Scaffold middleware ([#60](https://github.com/MetaMask/eth-json-rpc-middleware/pull/60))
+  - This was just a re-export from `json-rpc-engine`.
 
+### Fixed
 - `retryOnEmpty` middleware error messages ([#58](https://github.com/MetaMask/eth-json-rpc-middleware/pull/58))
   - They were referencing a different middleware.
 - Default unrecognized methods to never be cached ([#66](https://github.com/MetaMask/eth-json-rpc-middleware/pull/66))
@@ -41,29 +43,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevent caching unrecognized requests ([#75](https://github.com/MetaMask/eth-json-rpc-middleware/pull/75))
   - Previously, nonsense values were sometimes cached, resulting in an ugly state and possibly a minor performance penalty.
 
-### Removed
-
-- **(BREAKING)** Parity middleware ([#63](https://github.com/MetaMask/eth-json-rpc-middleware/pull/63))
-  - Previously imported as `eth-json-rpc-middleware/wallet-parity.js`
-- **(BREAKING)** Scaffold middleware ([#60](https://github.com/MetaMask/eth-json-rpc-middleware/pull/60))
-  - This was just a re-export from `json-rpc-engine`.
-
 ## [6.0.0] - 2020-09-22
-
 ### Changed
-
 - **(BREAKING)** Delete VM middleware ([#56](https://github.com/MetaMask/eth-json-rpc-middleware/pull/56))
   - Previously imported as `eth-json-rpc-middleware/vm.js`
 
 ## [5.1.0] - 2020-09-22
-
 ### Changed
-
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]:https://github.com/MetaMask/eth-json-rpc-middleware/compare/v7.0.1...HEAD
-[7.0.1]:https://github.com/MetaMask/eth-json-rpc-middleware/compare/v7.0.0...v7.0.1
-[7.0.0]:https://github.com/MetaMask/eth-json-rpc-middleware/compare/v6.0.0...v7.0.0
-[6.0.0]:https://github.com/MetaMask/eth-json-rpc-middleware/compare/v5.1.0...v6.0.0
-[5.1.0]:https://github.com/MetaMask/eth-json-rpc-middleware/compare/v5.0.3...v5.1.0
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v7.0.1...HEAD
+[7.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v7.0.0...v7.0.1
+[7.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v6.0.0...v7.0.0
+[6.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v5.1.0...v6.0.0
+[5.1.0]: https://github.com/MetaMask/eth-json-rpc-middleware/releases/tag/v5.1.0

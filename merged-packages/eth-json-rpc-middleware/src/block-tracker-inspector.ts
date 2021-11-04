@@ -26,6 +26,7 @@ export function createBlockTrackerInspectorMiddleware({
     if (!res.result?.blockNumber) {
       return undefined;
     }
+
     if (typeof res.result.blockNumber === 'string') {
       // if number is higher, suggest block-tracker check for a new block
       const blockNumber: number = Number.parseInt(res.result.blockNumber, 16);

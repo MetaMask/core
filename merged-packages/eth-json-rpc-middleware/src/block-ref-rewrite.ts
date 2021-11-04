@@ -27,6 +27,7 @@ export function createBlockRefRewriteMiddleware({
     if (blockRef === undefined) {
       blockRef = 'latest';
     }
+
     if (blockRef !== 'latest') {
       return next();
     }

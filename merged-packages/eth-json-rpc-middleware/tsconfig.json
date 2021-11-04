@@ -3,15 +3,15 @@
     "declaration": true,
     "esModuleInterop": true,
     "inlineSources": true,
-    "lib": ["DOM", "ES2017"],
+    "lib": ["DOM", "ES2020"],
     "module": "CommonJS",
     "moduleResolution": "Node",
     "outDir": "dist",
     "rootDir": "src",
     "sourceMap": true,
     "strict": true,
-    "target": "ES2017",
-    "typeRoots": ["./node_modules/@types"]
+    "target": "ES2017"
   },
-  "include": ["./src/*.ts"]
+  "exclude": ["./test"],
+  "include": ["./src/**/*.ts"]
 }

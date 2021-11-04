@@ -72,9 +72,11 @@ export function createFetchMiddleware({
         // set result and exit retry loop
         res.result = result;
         return;
-      } catch (err) {
+      } catch (err: any) {
         const errMsg: string = err.toString();
-        const isRetriable: boolean = RETRIABLE_ERRORS.some((phrase) => errMsg.includes(phrase));
+        const isRetriable: boolean = RETRIABLE_ERRORS.some((phrase) =>
+          errMsg.includes(phrase),
+        );
         // re-throw error if not retriable
         if (!isRetriable) {
           throw err;
@@ -112,6 +114,7 @@ function parseResponse(fetchRes: Response, body: Record<string, Block>): Block {
       data: body,
     });
   }
+
   // check for rpc error
   if (body.error) {
     throw ethErrors.rpc.internal({

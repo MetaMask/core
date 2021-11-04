@@ -25,42 +25,42 @@ interface WalletMiddlewareOptions {
   getAccounts: (req: JsonRpcRequest<unknown>) => Promise<string[]>;
   processDecryptMessage?: (
     msgParams: MessageParams,
-    req: JsonRpcRequest<unknown>
+    req: JsonRpcRequest<unknown>,
   ) => Promise<Record<string, unknown>>;
   processEncryptionPublicKey?: (
     address: string,
-    req: JsonRpcRequest<unknown>
+    req: JsonRpcRequest<unknown>,
   ) => Promise<Record<string, unknown>>;
   processEthSignMessage?: (
     msgParams: MessageParams,
-    req: JsonRpcRequest<unknown>
+    req: JsonRpcRequest<unknown>,
   ) => Promise<Record<string, unknown>>;
   processPersonalMessage?: (
     msgParams: MessageParams,
-    req: JsonRpcRequest<unknown>
+    req: JsonRpcRequest<unknown>,
   ) => Promise<Record<string, unknown>>;
   processTransaction?: (
     txParams: TransactionParams,
-    req: JsonRpcRequest<unknown>
+    req: JsonRpcRequest<unknown>,
   ) => Promise<Record<string, unknown>>;
   processSignTransaction?: (
     txParams: TransactionParams,
-    req: JsonRpcRequest<unknown>
+    req: JsonRpcRequest<unknown>,
   ) => Promise<Record<string, unknown>>;
   processTypedMessage?: (
     msgParams: MessageParams,
     req: JsonRpcRequest<unknown>,
-    version: string
+    version: string,
   ) => Promise<Record<string, unknown>>;
   processTypedMessageV3?: (
     msgParams: TypedMessageParams,
     req: JsonRpcRequest<unknown>,
-    version: string
+    version: string,
   ) => Promise<Record<string, unknown>>;
   processTypedMessageV4?: (
     msgParams: TypedMessageParams,
     req: JsonRpcRequest<unknown>,
-    version: string
+    version: string,
   ) => Promise<Record<string, unknown>>;
 }
 
@@ -147,7 +147,7 @@ export function createWalletMiddleware({
     }
 
     const txParams: TransactionParams =
-    (req.params as TransactionParams[])[0] || {};
+      (req.params as TransactionParams[])[0] || {};
     txParams.from = await validateAndNormalizeKeyholder(
       txParams.from as string,
       req,
@@ -380,7 +380,9 @@ export function createWalletMiddleware({
     if (typeof address === 'string' && address.length > 0) {
       // ensure address is included in provided accounts
       const accounts: string[] = await getAccounts(req);
-      const normalizedAccounts: string[] = accounts.map((_address) => _address.toLowerCase());
+      const normalizedAccounts: string[] = accounts.map((_address) =>
+        _address.toLowerCase(),
+      );
       const normalizedAddress: string = address.toLowerCase();
 
       if (normalizedAccounts.includes(normalizedAddress)) {
@@ -395,5 +397,5 @@ export function createWalletMiddleware({
 
 function resemblesAddress(str: string): boolean {
   // hex prefix 2 + 20 bytes
-  return str.length === (2 + (20 * 2));
+  return str.length === 2 + 20 * 2;
 }

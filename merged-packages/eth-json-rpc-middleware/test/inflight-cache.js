@@ -30,6 +30,7 @@ test('inflight-cache - basic', (t) => {
     { id: 1, method: 'test_blockCache', params: [] },
     firstReqResponse,
   );
+
   // fire second request (inflight cached)
   engine.handle(
     { id: 2, method: 'test_blockCache', params: [] },

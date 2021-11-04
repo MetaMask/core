@@ -15,7 +15,10 @@ interface InflightRequest {
   [cacheId: string]: RequestHandlers[];
 }
 
-export function createInflightCacheMiddleware(): JsonRpcMiddleware<string[], Block> {
+export function createInflightCacheMiddleware(): JsonRpcMiddleware<
+  string[],
+  Block
+> {
   const inflightRequests: InflightRequest = {};
 
   return createAsyncMiddleware(async (req, res, next) => {
