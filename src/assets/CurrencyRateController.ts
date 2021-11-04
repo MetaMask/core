@@ -18,7 +18,7 @@ import type { RestrictedControllerMessenger } from '../ControllerMessenger';
  * @property usdConversionRate - Conversion rate from usd to the current currency
  */
 export type CurrencyRateState = {
-  conversionDate: number;
+  conversionDate: number | null;
   conversionRate: number | null;
   currentCurrency: string;
   nativeCurrency: string;
@@ -200,7 +200,7 @@ export class CurrencyRateController extends BaseController<
       pendingNativeCurrency,
     } = this.state;
 
-    const conversionDate: number = Date.now() / 1000;
+    let conversionDate: number | null = null;
     let conversionRate: number | null = null;
     let usdConversionRate: number | null = null;
     const currentCurrency = pendingCurrentCurrency ?? stateCurrentCurrency;
@@ -221,6 +221,7 @@ export class CurrencyRateController extends BaseController<
           nativeCurrency,
           this.includeUsdRate,
         ));
+        conversionDate = Date.now() / 1000;
       }
     } catch (error) {
       if (!error.message.includes('market does not exist for this coin pair')) {
