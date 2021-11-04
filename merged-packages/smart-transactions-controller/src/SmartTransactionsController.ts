@@ -45,8 +45,10 @@ export interface SmartTransactionsControllerConfig extends BaseConfig {
 }
 
 export interface SmartTransactionsControllerState extends BaseState {
-  smartTransactions: Record<string, SmartTransaction[]>;
-  userOptIn: boolean | undefined;
+  smartTransactionsState: {
+    smartTransactions: Record<string, SmartTransaction[]>;
+    userOptIn: boolean | undefined;
+  };
 }
 
 export default class SmartTransactionsController extends BaseController<
@@ -106,8 +108,10 @@ export default class SmartTransactionsController extends BaseController<
     };
 
     this.defaultState = {
-      smartTransactions: {},
-      userOptIn: undefined,
+      smartTransactionsState: {
+        smartTransactions: {},
+        userOptIn: undefined,
+      },
     };
 
     this.nonceTracker = nonceTracker;
@@ -131,11 +135,16 @@ export default class SmartTransactionsController extends BaseController<
 
   initializeSmartTransactionsForChainId() {
     if (this.config.supportedChainIds.includes(this.config.chainId)) {
+      const { smartTransactionsState } = this.state;
       this.update({
-        smartTransactions: {
-          ...this.state.smartTransactions,
-          [this.config.chainId]:
-            this.state.smartTransactions[this.config.chainId] ?? [],
+        smartTransactionsState: {
+          ...smartTransactionsState,
+          smartTransactions: {
+            ...smartTransactionsState.smartTransactions,
+            [this.config.chainId]:
+              smartTransactionsState.smartTransactions[this.config.chainId] ??
+              [],
+          },
         },
       });
     }
@@ -159,12 +168,18 @@ export default class SmartTransactionsController extends BaseController<
   }
 
   setOptInState(state: boolean | undefined): void {
-    this.update({ userOptIn: state });
+    this.update({
+      smartTransactionsState: {
+        ...this.state.smartTransactionsState,
+        userOptIn: state,
+      },
+    });
   }
 
   updateSmartTransaction(smartTransaction: SmartTransaction): void {
     const { chainId } = this.config;
-    const { smartTransactions } = this.state;
+    const { smartTransactionsState } = this.state;
+    const { smartTransactions } = smartTransactionsState;
     const currentSmartTransactions = smartTransactions[chainId];
     const currentIndex = currentSmartTransactions?.findIndex(
       (st) => st.uuid === smartTransaction.uuid,
@@ -176,12 +191,15 @@ export default class SmartTransactionsController extends BaseController<
       const history = [snapshot];
       const historifiedSmartTransaction = { ...smartTransaction, history };
       this.update({
-        smartTransactions: {
-          ...this.state.smartTransactions,
-          [chainId]: [
-            ...this.state.smartTransactions?.[chainId],
-            historifiedSmartTransaction,
-          ],
+        smartTransactionsState: {
+          ...smartTransactionsState,
+          smartTransactions: {
+            ...smartTransactionsState.smartTransactions,
+            [chainId]: [
+              ...smartTransactionsState.smartTransactions?.[chainId],
+              historifiedSmartTransaction,
+            ],
+          },
         },
       });
       return;
@@ -202,19 +220,24 @@ export default class SmartTransactionsController extends BaseController<
     }
 
     this.update({
-      smartTransactions: {
-        ...this.state.smartTransactions,
-        [chainId]: this.state.smartTransactions[chainId].map((item, index) => {
-          return index === currentIndex
-            ? { ...item, ...smartTransaction }
-            : item;
-        }),
+      smartTransactionsState: {
+        ...smartTransactionsState,
+        smartTransactions: {
+          ...smartTransactionsState.smartTransactions,
+          [chainId]: smartTransactionsState.smartTransactions[chainId].map(
+            (item, index) => {
+              return index === currentIndex
+                ? { ...item, ...smartTransaction }
+                : item;
+            },
+          ),
+        },
       },
     });
   }
 
   async updateSmartTransactions() {
-    const { smartTransactions } = this.state;
+    const { smartTransactions } = this.state.smartTransactionsState;
     const { chainId } = this.config;
 
     const currentSmartTransactions = smartTransactions?.[chainId];
@@ -333,7 +356,7 @@ export default class SmartTransactionsController extends BaseController<
     nonceLock.releaseLock();
     return {
       ...transaction,
-      nonce,
+      nonce: `0x${nonce.toString(16)}`,
     };
   }
 
@@ -445,5 +468,24 @@ export default class SmartTransactionsController extends BaseController<
     if (interval !== this.config.interval) {
       this.configure({ interval }, false, false);
     }
+  }
+
+  getTransactions({
+    addressFrom,
+    status,
+  }: {
+    addressFrom: string;
+    status: SmartTransactionStatuses;
+  }): SmartTransaction[] {
+    const { smartTransactions } = this.state.smartTransactionsState;
+    const { chainId } = this.config;
+    const currentSmartTransactions = smartTransactions?.[chainId];
+    if (!currentSmartTransactions || currentSmartTransactions.length === 0) {
+      return [];
+    }
+
+    return currentSmartTransactions.filter((stx) => {
+      return stx.status === status && stx.txParams?.from === addressFrom;
+    });
   }
 }

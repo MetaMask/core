@@ -16,6 +16,8 @@ jest.mock('ethers', () => ({
 
         getTransactionReceipt = jest.fn(() => ({ blockNumber: '123' }));
 
+        getTransaction = jest.fn();
+
         getBlock = jest.fn();
       },
     },
@@ -224,10 +226,12 @@ describe('SmartTransactionsController', () => {
 
   it('initializes with default state', () => {
     expect(smartTransactionsController.state).toStrictEqual({
-      smartTransactions: {
-        [CHAIN_IDS.ETHEREUM]: [],
+      smartTransactionsState: {
+        smartTransactions: {
+          [CHAIN_IDS.ETHEREUM]: [],
+        },
+        userOptIn: undefined,
       },
-      userOptIn: undefined,
     });
   });
 
@@ -286,11 +290,17 @@ describe('SmartTransactionsController', () => {
   describe('setOptInState', () => {
     it('sets optIn state', () => {
       smartTransactionsController.setOptInState(true);
-      expect(smartTransactionsController.state.userOptIn).toBe(true);
+      expect(
+        smartTransactionsController.state.smartTransactionsState.userOptIn,
+      ).toBe(true);
       smartTransactionsController.setOptInState(false);
-      expect(smartTransactionsController.state.userOptIn).toBe(false);
+      expect(
+        smartTransactionsController.state.smartTransactionsState.userOptIn,
+      ).toBe(false);
       smartTransactionsController.setOptInState(undefined);
-      expect(smartTransactionsController.state.userOptIn).toBeUndefined();
+      expect(
+        smartTransactionsController.state.smartTransactionsState.userOptIn,
+      ).toBeUndefined();
     });
   });
 
@@ -326,9 +336,8 @@ describe('SmartTransactionsController', () => {
       });
 
       expect(
-        smartTransactionsController.state.smartTransactions[
-          CHAIN_IDS.ETHEREUM
-        ][0].uuid,
+        smartTransactionsController.state.smartTransactionsState
+          .smartTransactions[CHAIN_IDS.ETHEREUM][0].uuid,
       ).toStrictEqual('dP23W7c2kt4FK9TmXOkz1UM2F20');
     });
   });
@@ -342,10 +351,12 @@ describe('SmartTransactionsController', () => {
         .reply(200, pendingBatchStatusApiResponse);
       await smartTransactionsController.fetchSmartTransactionsStatus(uuids);
       expect(smartTransactionsController.state).toStrictEqual({
-        smartTransactions: {
-          [CHAIN_IDS.ETHEREUM]: createStateAfterPending(),
+        smartTransactionsState: {
+          smartTransactions: {
+            [CHAIN_IDS.ETHEREUM]: createStateAfterPending(),
+          },
+          userOptIn: undefined,
         },
-        userOptIn: undefined,
       });
     });
 
@@ -353,8 +364,11 @@ describe('SmartTransactionsController', () => {
       const uuids = ['uuid2'];
       const successBatchStatusApiResponse = createSuccessBatchStatusApiResponse();
       smartTransactionsController.update({
-        smartTransactions: {
-          [CHAIN_IDS.ETHEREUM]: createStateAfterPending() as SmartTransaction[],
+        smartTransactionsState: {
+          ...smartTransactionsController.state.smartTransactionsState,
+          smartTransactions: {
+            [CHAIN_IDS.ETHEREUM]: createStateAfterPending() as SmartTransaction[],
+          },
         },
       });
 
@@ -362,14 +376,18 @@ describe('SmartTransactionsController', () => {
         .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid2`)
         .reply(200, successBatchStatusApiResponse);
       await smartTransactionsController.fetchSmartTransactionsStatus(uuids);
-      expect(smartTransactionsController.state).toStrictEqual({
-        smartTransactions: {
-          [CHAIN_IDS.ETHEREUM]: [
-            ...createStateAfterPending(),
-            ...createStateAfterSuccess(),
-          ],
+      expect(
+        smartTransactionsController.state.smartTransactionsState,
+      ).toStrictEqual({
+        smartTransactionsState: {
+          smartTransactions: {
+            [CHAIN_IDS.ETHEREUM]: [
+              ...createStateAfterPending(),
+              ...createStateAfterSuccess(),
+            ],
+          },
+          userOptIn: undefined,
         },
-        userOptIn: undefined,
       });
     });
   });
@@ -388,9 +406,13 @@ describe('SmartTransactionsController', () => {
   describe('updateSmartTransaction', () => {
     it('updates smart transaction based on uuid', () => {
       const pendingStx = createStateAfterPending()[0];
+      const { smartTransactionsState } = smartTransactionsController.state;
       smartTransactionsController.update({
-        smartTransactions: {
-          [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+        smartTransactionsState: {
+          ...smartTransactionsState,
+          smartTransactions: {
+            [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+          },
         },
       });
       const updateTransaction = {
@@ -402,21 +424,24 @@ describe('SmartTransactionsController', () => {
       );
 
       expect(
-        smartTransactionsController.state.smartTransactions[
-          CHAIN_IDS.ETHEREUM
-        ][0].status,
+        smartTransactionsController.state.smartTransactionsState
+          .smartTransactions[CHAIN_IDS.ETHEREUM][0].status,
       ).toStrictEqual('test');
     });
 
     it('confirms a smart transaction that has status success', async () => {
+      const { smartTransactionsState } = smartTransactionsController.state;
       const confirmSpy = jest.spyOn(
         smartTransactionsController,
         'confirmSmartTransaction',
       );
       const pendingStx = createStateAfterPending()[0];
       smartTransactionsController.update({
-        smartTransactions: {
-          [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+        smartTransactionsState: {
+          ...smartTransactionsState,
+          smartTransactions: {
+            [CHAIN_IDS.ETHEREUM]: [pendingStx] as SmartTransaction[],
+          },
         },
       });
       const updateTransaction = {
