@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.0]
+### Uncategorized
+- BREAKING: Split AssetsDetectionController ([#619](https://github.com/MetaMask/controllers/pull/619))
+
 ## [18.0.0]
 ### Added
 - **BREAKING**: ERC1155 support ([#615](https://github.com/MetaMask/controllers/pull/615))
@@ -402,7 +406,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/controllers/compare/v18.0.0...v19.0.0
 [18.0.0]: https://github.com/MetaMask/controllers/compare/v17.0.0...v18.0.0
 [17.0.0]: https://github.com/MetaMask/controllers/compare/v16.0.0...v17.0.0
 [16.0.0]: https://github.com/MetaMask/controllers/compare/v15.1.0...v16.0.0
