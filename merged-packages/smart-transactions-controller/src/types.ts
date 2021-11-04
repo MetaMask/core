@@ -68,6 +68,7 @@ export interface SmartTransaction {
   destinationTokenAddress?: string;
   destinationTokenDecimals?: string;
   destinationTokenSymbol?: string;
+  history?: any;
   metamaskNetworkId?: string;
   nonceDetails?: any;
   origin?: string;
@@ -81,6 +82,7 @@ export interface SmartTransaction {
   txParams?: any;
   type?: string;
   confirmed?: boolean;
+  cancellable?: boolean;
 }
 
 // TODO: maybe grab the type from transactions controller?

@@ -22,6 +22,9 @@ import {
   getAPIRequestURL,
   isSmartTransactionPending,
   calculateStatus,
+  snapshotFromTxMeta,
+  replayHistory,
+  generateHistoryEntry,
 } from './utils';
 import { CHAIN_IDS } from './constants';
 
@@ -29,8 +32,10 @@ const { handleFetch, safelyExecute } = util;
 
 // TODO: JSDoc all methods
 // TODO: Remove all comments (* ! ?)
+const SECOND = 1000;
 
-export const DEFAULT_INTERVAL = 10 * 1000;
+export const DEFAULT_INTERVAL = SECOND * 10;
+export const CANCELLABLE_INTERVAL = SECOND * 10.5;
 
 export interface SmartTransactionsControllerConfig extends BaseConfig {
   interval: number;
@@ -167,12 +172,15 @@ export default class SmartTransactionsController extends BaseController<
 
     if (currentIndex === -1 || currentIndex === undefined) {
       // add smart transaction
+      const snapshot = cloneDeep(smartTransaction);
+      const history = [snapshot];
+      const historifiedSmartTransaction = { ...smartTransaction, history };
       this.update({
         smartTransactions: {
           ...this.state.smartTransactions,
           [chainId]: [
             ...this.state.smartTransactions?.[chainId],
-            smartTransaction,
+            historifiedSmartTransaction,
           ],
         },
       });
@@ -228,6 +236,9 @@ export default class SmartTransactionsController extends BaseController<
       const transactionReceipt = await this.ethersProvider.getTransactionReceipt(
         txHash,
       );
+      const transaction = await this.ethersProvider.getTransaction(txHash);
+      const maxFeePerGas = transaction.maxFeePerGas.toHexString();
+      const maxPriorityFeePerGas = transaction.maxPriorityFeePerGas.toHexString();
       if (transactionReceipt?.blockNumber) {
         const blockData = await this.ethersProvider.getBlock(
           transactionReceipt?.blockNumber,
@@ -240,16 +251,36 @@ export default class SmartTransactionsController extends BaseController<
           }
           return value;
         });
+        const updatedTxParams = {
+          ...smartTransaction.txParams,
+          maxFeePerGas,
+          maxPriorityFeePerGas,
+        };
         // call confirmExternalTransaction
         const originalTxMeta = {
           ...smartTransaction,
           id: smartTransaction.uuid,
           status: 'confirmed',
           hash: txHash,
+          txParams: updatedTxParams,
         };
-        const snapshot = cloneDeep(originalTxMeta);
-        const history = [snapshot];
-        const txMeta = { ...originalTxMeta, history };
+        // create txMeta snapshot for history
+        const snapshot = snapshotFromTxMeta(originalTxMeta);
+        // recover previous tx state obj
+        const previousState = replayHistory(originalTxMeta.history);
+        // generate history entry and add to history
+        const entry = generateHistoryEntry(
+          previousState,
+          snapshot,
+          'txStateManager: setting status to confirmed',
+        );
+        const txMeta =
+          entry.length > 0
+            ? {
+                ...originalTxMeta,
+                history: originalTxMeta.history.concat(entry),
+              }
+            : originalTxMeta;
         this.txController.confirmExternalTransaction(
           txMeta,
           txReceipt,
@@ -376,7 +407,16 @@ export default class SmartTransactionsController extends BaseController<
       time,
       txParams,
       uuid: data.uuid,
+      cancellable: true,
     });
+
+    setTimeout(() => {
+      console.log('reset cancellable');
+      this.updateSmartTransaction({
+        uuid: data.uuid,
+        cancellable: false,
+      });
+    }, CANCELLABLE_INTERVAL);
     nonceLock.releaseLock();
     return data;
   }
