@@ -9,20 +9,28 @@ import {
 import { AssetsContractController } from './AssetsContractController';
 import { CollectiblesController } from './CollectiblesController';
 
-const ERC721_KUDOSADDRESS = '0x2aea4add166ebf38b63d09a75de1a7b94aa24163';
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
+const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
 const ERC721_COLLECTIBLE_ADDRESS = '0x60f80121c31a0d46b5279700f9df786054aa5ee5';
 const ERC721_COLLECTIBLE_ID = '1144858';
 const ERC1155_COLLECTIBLE_ADDRESS =
-  '0x495f947276749ce646f68ac8c248420045cb7b5e';
+  '0x495f947276749Ce646f68AC8c248420045cb7b5e';
 const ERC1155_COLLECTIBLE_ID =
   '40815311521795738946686668571398122012172359753720345430028676522525371400193';
+const ERC1155_DEPRESSIONIST_ADDRESS =
+  '0x18e8e76aeb9e2d9fa2a2b88dd9cf3c8ed45c3660';
+const ERC1155_DEPRESSIONIST_ID = '36';
 const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
+
 const OPEN_SEA_HOST = 'https://api.opensea.io';
 const OPEN_SEA_PATH = '/api/v1';
+
+const CLOUDFARE_PATH = 'https://cloudflare-ipfs.com/ipfs';
+const DEPRESSIONIST_IPFS_PATH =
+  '/QmVChNtStZfPyV8JfKpube3eigQh5rUXqYchPgLc91tWLJ';
 
 describe('CollectiblesController', () => {
   let collectiblesController: CollectiblesController;
@@ -73,6 +81,7 @@ describe('CollectiblesController', () => {
       .reply(200, {
         description: 'Description',
         image_original_url: 'url',
+        image_url: 'url',
         name: 'Name',
         asset_contract: {
           schema_name: 'ERC1155',
@@ -86,9 +95,9 @@ describe('CollectiblesController', () => {
         `${OPEN_SEA_PATH}/asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203`,
       )
       .reply(200, {
-        description: 'Kudos Description',
         image_original_url: 'Kudos url',
         name: 'Kudos Name',
+        description: 'Kudos Description',
         asset_contract: {
           schema_name: 'ERC721',
         },
@@ -119,9 +128,42 @@ describe('CollectiblesController', () => {
     nock('https://ipfs.gitcoin.co:443')
       .get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov')
       .reply(200, {
-        image: 'Kudos Image',
-        name: 'Kudos Name',
+        image: 'Kudos Image (from uri)',
+        name: 'Kudos Name (from uri)',
+        description: 'Kudos Description (from uri)',
       });
+
+    nock(OPEN_SEA_HOST)
+      .get(
+        '/api/v1/metadata/0x495f947276749Ce646f68AC8c248420045cb7b5e/0x5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+      )
+      .reply(200, {
+        name: 'name (from contract uri)',
+        description: null,
+        external_link: null,
+        image: 'image (from contract uri)',
+        animation_url: null,
+      });
+
+    nock(OPEN_SEA_HOST)
+      .get(
+        '/api/v1/asset/0x495f947276749Ce646f68AC8c248420045cb7b5e/40815311521795738946686668571398122012172359753720345430028676522525371400193',
+      )
+      .reply(200, {
+        num_sales: 1,
+        image_original_url: 'image.uri',
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        asset_contract: { schema_name: 'ERC1155' },
+        collection: { name: 'collection', image_uri: 'collection.uri' },
+      });
+
+    nock(CLOUDFARE_PATH).get(DEPRESSIONIST_IPFS_PATH).reply(200, {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+    });
   });
 
   afterEach(() => {
@@ -144,6 +186,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
@@ -152,6 +195,7 @@ describe('CollectiblesController', () => {
       image: 'image',
       name: 'name',
       tokenId: '1',
+      standard: 'standard',
     });
 
     expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
@@ -169,6 +213,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
@@ -176,6 +221,7 @@ describe('CollectiblesController', () => {
       description: 'description',
       image: 'image',
       name: 'name',
+      standard: 'standard',
       tokenId: '1',
     });
 
@@ -183,6 +229,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image-updated',
       description: 'description',
+      standard: 'standard',
     });
 
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
@@ -191,6 +238,7 @@ describe('CollectiblesController', () => {
       image: 'image-updated',
       name: 'name',
       tokenId: '1',
+      standard: 'standard',
     });
   });
 
@@ -199,12 +247,14 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     await collectiblesController.addCollectible('0x01', '1', {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
     expect(collectiblesController.state.collectibles).toHaveLength(1);
     expect(collectiblesController.state.collectibleContracts).toHaveLength(1);
@@ -215,12 +265,14 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     await collectiblesController.addCollectible('0x01', '2', {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
     expect(collectiblesController.state.collectibles).toHaveLength(2);
     expect(collectiblesController.state.collectibleContracts).toHaveLength(1);
@@ -232,6 +284,7 @@ describe('CollectiblesController', () => {
       address: '0x01',
       description: 'Description',
       imageOriginal: 'url',
+      image: 'url',
       name: 'Name',
       standard: 'ERC1155',
       tokenId: '1',
@@ -240,8 +293,60 @@ describe('CollectiblesController', () => {
     });
   });
 
-  it('should add collectible and get collectible contract information from contract', async () => {
+  it('should add collectible erc1155 and get collectible contract information from contract', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
+    await collectiblesController.addCollectible(
+      ERC1155_COLLECTIBLE_ADDRESS,
+      ERC1155_COLLECTIBLE_ID,
+    );
+
+    expect(collectiblesController.state.collectibles[0]).toStrictEqual({
+      address: ERC1155_COLLECTIBLE_ADDRESS,
+      image: 'image (from contract uri)',
+      name: 'name (from contract uri)',
+      description: 'description',
+      tokenId:
+        '40815311521795738946686668571398122012172359753720345430028676522525371400193',
+      collectionName: 'collection',
+      imageOriginal: 'image.uri',
+      numberOfSales: 1,
+      standard: 'ERC1155',
+    });
+  });
+
+  it('should add collectible erc721 and get collectible contract information from contract and OpenSea', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+
+    sandbox
+      .stub(
+        collectiblesController,
+        'getCollectibleContractInformationFromApi' as any,
+      )
+      .returns(undefined);
+
+    await collectiblesController.addCollectible(ERC721_KUDOSADDRESS, '1203');
+    expect(collectiblesController.state.collectibles[0]).toStrictEqual({
+      address: ERC721_KUDOSADDRESS,
+      image: 'Kudos Image (from uri)',
+      name: 'Kudos Name (from uri)',
+      description: 'Kudos Description (from uri)',
+      tokenId: '1203',
+      collectionImage: 'collection.url',
+      collectionName: 'Collection Name',
+      imageOriginal: 'Kudos url',
+      standard: 'ERC721',
+    });
+
+    expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
+      address: ERC721_KUDOSADDRESS,
+      name: 'KudosToken',
+      symbol: 'KDO',
+    });
+  });
+
+  it('should add collectible erc721 and get collectible contract information only from contract', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+
     sandbox
       .stub(
         collectiblesController,
@@ -254,15 +359,16 @@ describe('CollectiblesController', () => {
       .returns(undefined);
     await collectiblesController.addCollectible(ERC721_KUDOSADDRESS, '1203');
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
-      address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
-      image: 'Kudos Image',
-      name: 'Kudos Name',
+      address: ERC721_KUDOSADDRESS,
+      image: 'Kudos Image (from uri)',
+      name: 'Kudos Name (from uri)',
+      description: 'Kudos Description (from uri)',
       tokenId: '1203',
       standard: 'ERC721',
     });
 
     expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
-      address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+      address: ERC721_KUDOSADDRESS,
       name: 'KudosToken',
       symbol: 'KDO',
     });
@@ -335,7 +441,7 @@ describe('CollectiblesController', () => {
     expect(collectiblesController.state.collectibles).toStrictEqual([]);
     expect(collectiblesController.state.collectibleContracts).toStrictEqual([]);
     await collectiblesController.addCollectible(
-      '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+      ERC721_KUDOSADDRESS,
       '1203',
       undefined,
       true,
@@ -343,10 +449,11 @@ describe('CollectiblesController', () => {
 
     expect(collectiblesController.state.collectibles).toStrictEqual([
       {
-        address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+        address: ERC721_KUDOSADDRESS,
         description: 'Kudos Description',
         imageOriginal: 'Kudos url',
         name: 'Kudos Name',
+        image: null,
         standard: 'ERC721',
         tokenId: '1203',
         collectionImage: 'collection.url',
@@ -356,7 +463,7 @@ describe('CollectiblesController', () => {
 
     expect(collectiblesController.state.collectibleContracts).toStrictEqual([
       {
-        address: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+        address: ERC721_KUDOSADDRESS,
         description: 'Kudos Description',
         logo: 'Kudos url',
         name: 'Kudos',
@@ -371,6 +478,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
     collectiblesController.removeCollectible('0x01', '1');
     expect(collectiblesController.state.collectibles).toHaveLength(0);
@@ -382,12 +490,14 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     await collectiblesController.addCollectible('0x01', '2', {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
     collectiblesController.removeCollectible('0x01', '1');
     expect(collectiblesController.state.collectibles).toHaveLength(1);
@@ -471,12 +581,14 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     await collectiblesController.addCollectible('0x01', '2', {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     expect(collectiblesController.state.collectibles).toHaveLength(2);
@@ -490,6 +602,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
     expect(collectiblesController.state.collectibles).toHaveLength(2);
     expect(collectiblesController.state.ignoredCollectibles).toHaveLength(1);
@@ -504,6 +617,7 @@ describe('CollectiblesController', () => {
       name: 'name',
       image: 'image',
       description: 'description',
+      standard: 'standard',
     });
 
     expect(collectiblesController.state.collectibles).toHaveLength(1);
@@ -574,5 +688,28 @@ describe('CollectiblesController', () => {
       );
     };
     await expect(result).rejects.toThrow(error);
+  });
+
+  it('should add collectible with metadata hosted in IPFS', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+    await collectiblesController.addCollectible(
+      ERC1155_DEPRESSIONIST_ADDRESS,
+      ERC1155_DEPRESSIONIST_ID,
+    );
+
+    expect(collectiblesController.state.collectibleContracts[0]).toStrictEqual({
+      address: '0x18E8E76aeB9E2d9FA2A2b88DD9CF3C8ED45c3660',
+      name: "Maltjik.jpg's Depressionists",
+      symbol: 'DPNS',
+    });
+
+    expect(collectiblesController.state.collectibles[0]).toStrictEqual({
+      address: '0x18E8E76aeB9E2d9FA2A2b88DD9CF3C8ED45c3660',
+      tokenId: '36',
+      image: 'image',
+      name: 'name',
+      description: 'description',
+      standard: 'ERC721',
+    });
   });
 });
