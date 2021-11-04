@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.0]
+### Changed
+- **BREAKING**: Split AssetsDetectionController into CollectiblesDetectionController and TokenDetectionController ([#619](https://github.com/MetaMask/controllers/pull/619))
+  - Consumers of the AssetsDetectionController will have to now import both TokenDetectionController and CollectibleDetectionController and split up the calling of any methods accordingly.
+- **BREAKING**: Set the `CurrencyRateController` property `conversionDate` to `null` if fetching the data fails. (#621)
+  - Consumers of the `CurrencyRateController` will need to ensure their code anticipates that `conversionDate` will sometimes be set to `null`.
+
 ## [18.0.0]
 ### Added
 - **BREAKING**: ERC1155 support ([#615](https://github.com/MetaMask/controllers/pull/615))
@@ -402,7 +409,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/controllers/compare/v18.0.0...v19.0.0
 [18.0.0]: https://github.com/MetaMask/controllers/compare/v17.0.0...v18.0.0
 [17.0.0]: https://github.com/MetaMask/controllers/compare/v16.0.0...v17.0.0
 [16.0.0]: https://github.com/MetaMask/controllers/compare/v15.1.0...v16.0.0
