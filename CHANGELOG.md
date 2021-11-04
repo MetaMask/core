@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [19.0.0]
-### Uncategorized
-- BREAKING: Split AssetsDetectionController ([#619](https://github.com/MetaMask/controllers/pull/619))
+### Changed
+- **BREAKING**: Split AssetsDetectionController into CollectiblesDetectionController and TokenDetectionController ([#619](https://github.com/MetaMask/controllers/pull/619))
+ - Consumers of the AssetsDetectionController will have to now import both TokenDetectionController and CollectibleDetectionController and split up the calling of any methods accordingly.
 
 ## [18.0.0]
 ### Added
