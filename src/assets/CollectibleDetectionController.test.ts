@@ -276,6 +276,7 @@ describe('CollectibleDetectionController', () => {
         name: 'ID 2574',
         tokenId: '2574',
         standard: 'ERC721',
+        favorite: false,
         collectionImage: 'url',
         collectionName: 'Collection 2574',
       },
@@ -307,6 +308,7 @@ describe('CollectibleDetectionController', () => {
         name: 'ID 2573',
         standard: 'ERC721',
         tokenId: '2573',
+        favorite: false,
       },
       {
         address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -317,6 +319,7 @@ describe('CollectibleDetectionController', () => {
         standard: 'ERC721',
         collectionImage: 'url',
         collectionName: 'Collection 2574',
+        favorite: false,
       },
     ]);
   });
@@ -366,6 +369,7 @@ describe('CollectibleDetectionController', () => {
       name: 'ID 2574',
       tokenId: '2574',
       standard: 'ERC721',
+      favorite: false,
       collectionImage: 'url',
       collectionName: 'Collection 2574',
     };
@@ -376,6 +380,7 @@ describe('CollectibleDetectionController', () => {
       name: 'ID 2574',
       tokenId: '2574',
       standard: 'ERC721',
+      favorite: false,
       collectionImage: 'url',
       collectionName: 'Collection 2574',
     };
@@ -386,6 +391,7 @@ describe('CollectibleDetectionController', () => {
       name: 'ID 2577',
       tokenId: '2577',
       standard: 'ERC721',
+      favorite: false,
       collectionImage: 'url',
       collectionName: 'Collection 2577',
     };
