@@ -1,6 +1,6 @@
 {
   "name": "eth-json-rpc-middleware",
-  "version": "7.0.1",
+  "version": "8.0.0",
   "description": "Ethereum-related json-rpc-engine middleware.",
   "homepage": "https://github.com/MetaMask/eth-json-rpc-middleware#readme",
   "bugs": {

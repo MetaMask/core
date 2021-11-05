@@ -5,9 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Uncategorized
-- Add support for send call with callback so that Web3 Providers can be used ([#97](https://github.com/MetaMask/eth-json-rpc-middleware/pull/97))
-- Add support for `eth_signTransaction` so that external key stores can be used for signing ([#96](https://github.com/MetaMask/eth-json-rpc-middleware/pull/96))
+
+## [8.0.0] - 2021-11-04
+### Added
+- **BREAKING:** Add `eth_signTransaction` support ([#96](https://github.com/MetaMask/eth-json-rpc-middleware/pull/96))
+  - We consider this breaking because a wallet application may not support this method, and would have to explicitly block it until its implications can be adequately represented to the user.
+- Add `send` method to provider and `ethersProviderAsMiddleware` ([#97](https://github.com/MetaMask/eth-json-rpc-middleware/pull/97))
 
 ## [7.0.1] - 2021-03-26
 ### Fixed
@@ -53,7 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v7.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v7.0.1...v8.0.0
 [7.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v7.0.0...v7.0.1
 [7.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v6.0.0...v7.0.0
 [6.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v5.1.0...v6.0.0
