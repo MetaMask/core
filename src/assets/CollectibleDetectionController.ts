@@ -51,6 +51,7 @@ export interface ApiCollectible {
   collection: ApiCollectibleCollection;
 }
 
+// TO DO: Update
 /**
  * @type ApiCollectibleContract
  *
@@ -70,13 +71,15 @@ export interface ApiCollectibleContract {
   address: string;
   asset_contract_type: string | null;
   created_date: string | null;
-  name: string | null;
   schema_name: string | null;
   symbol: string | null;
   total_supply: string | null;
   description: string | null;
   external_link: string | null;
-  image_url: string | null;
+  collection: {
+    name: string | null;
+    image_url: string | null;
+  };
 }
 
 /**

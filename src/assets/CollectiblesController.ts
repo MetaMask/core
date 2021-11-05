@@ -410,7 +410,7 @@ export class CollectiblesController extends BaseController<
     const name = await this.getAssetName(contractAddress);
     const symbol = await this.getAssetSymbol(contractAddress);
     return {
-      name,
+      collection: { name, image_url: null },
       symbol,
       address: contractAddress,
     };
@@ -446,13 +446,12 @@ export class CollectiblesController extends BaseController<
       address: contractAddress,
       asset_contract_type: null,
       created_date: null,
-      name: null,
       schema_name: null,
       symbol: null,
       total_supply: null,
       description: null,
       external_link: null,
-      image_url: null,
+      collection: { name: null, image_url: null },
     };
   }
 
@@ -557,13 +556,12 @@ export class CollectiblesController extends BaseController<
       const {
         asset_contract_type,
         created_date,
-        name,
         schema_name,
         symbol,
         total_supply,
         description,
         external_link,
-        image_url,
+        collection: { name, image_url },
       } = contractInformation;
       // If being auto-detected opensea information is expected
       // Otherwise at least name and symbol from contract is needed
