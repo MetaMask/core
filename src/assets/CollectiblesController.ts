@@ -96,8 +96,6 @@ export interface CollectibleContract {
  * @property externalLink - External link containing additional information
  * @property creator - The collectible owner information object
  * @property standard - NFT standard name for the collectible, e.g., ERC-721 or ERC-1155
- * @property collectionName - The name of the collectible collection.
- * @property collectionImage - The image URI of the collectible collection.
  */
 export interface CollectibleMetadata {
   name: string | null;
@@ -114,8 +112,6 @@ export interface CollectibleMetadata {
   externalLink?: string;
   creator?: ApiCollectibleCreator;
   lastSale?: ApiCollectibleLastSale;
-  collectionName?: string;
-  collectionImage?: string;
 }
 
 /**
@@ -218,7 +214,6 @@ export class CollectiblesController extends BaseController<
       creator,
       last_sale,
       asset_contract: { schema_name },
-      collection,
     } = collectibleInformation;
 
     /* istanbul ignore next */
@@ -240,8 +235,6 @@ export class CollectiblesController extends BaseController<
       external_link && { externalLink: external_link },
       last_sale && { lastSale: last_sale },
       schema_name && { standard: schema_name },
-      collection.name && { collectionName: collection.name },
-      collection.image_url && { collectionImage: collection.image_url },
     );
 
     return collectibleMetadata;
