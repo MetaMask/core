@@ -126,11 +126,24 @@ export default class SmartTransactionsController extends BaseController<
       const { chainId } = newProvider;
       this.configure({ chainId });
       this.initializeSmartTransactionsForChainId();
-      this.poll();
+      this.checkPoll(this.state);
       this.ethersProvider = new ethers.providers.Web3Provider(provider);
     });
 
-    this.poll();
+    this.subscribe((currentState: any) => this.checkPoll(currentState));
+  }
+
+  checkPoll(state: any) {
+    const { smartTransactions } = state.smartTransactionsState;
+    const currentSmartTransactions = smartTransactions[this.config.chainId];
+    const pendingTransactions = currentSmartTransactions?.filter(
+      isSmartTransactionPending,
+    );
+    if (!this.timeoutHandle && pendingTransactions?.length > 0) {
+      this.poll();
+    } else if (this.timeoutHandle && pendingTransactions?.length === 0) {
+      this.stop();
+    }
   }
 
   initializeSmartTransactionsForChainId() {
@@ -158,8 +171,8 @@ export default class SmartTransactionsController extends BaseController<
       return;
     }
     await safelyExecute(() => this.updateSmartTransactions());
-    this.timeoutHandle = setTimeout(() => {
-      this.poll(this.config.interval);
+    this.timeoutHandle = setInterval(() => {
+      safelyExecute(() => this.updateSmartTransactions());
     }, this.config.interval);
   }
 
@@ -243,13 +256,11 @@ export default class SmartTransactionsController extends BaseController<
     const currentSmartTransactions = smartTransactions?.[chainId];
 
     const transactionsToUpdate: string[] = currentSmartTransactions
-      .filter((smartTransaction) => isSmartTransactionPending(smartTransaction))
+      .filter(isSmartTransactionPending)
       .map((smartTransaction) => smartTransaction.uuid);
 
     if (transactionsToUpdate.length > 0) {
       this.fetchSmartTransactionsStatus(transactionsToUpdate);
-    } else {
-      this.stop();
     }
   }
 
@@ -260,8 +271,8 @@ export default class SmartTransactionsController extends BaseController<
         txHash,
       );
       const transaction = await this.ethersProvider.getTransaction(txHash);
-      const maxFeePerGas = transaction.maxFeePerGas.toHexString();
-      const maxPriorityFeePerGas = transaction.maxPriorityFeePerGas.toHexString();
+      const maxFeePerGas = transaction.maxFeePerGas?.toHexString();
+      const maxPriorityFeePerGas = transaction.maxPriorityFeePerGas?.toHexString();
       if (transactionReceipt?.blockNumber) {
         const blockData = await this.ethersProvider.getBlock(
           transactionReceipt?.blockNumber,
@@ -434,7 +445,6 @@ export default class SmartTransactionsController extends BaseController<
     });
 
     setTimeout(() => {
-      console.log('reset cancellable');
       this.updateSmartTransaction({
         uuid: data.uuid,
         cancellable: false,

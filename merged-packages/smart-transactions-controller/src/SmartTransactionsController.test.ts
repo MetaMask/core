@@ -16,7 +16,10 @@ jest.mock('ethers', () => ({
 
         getTransactionReceipt = jest.fn(() => ({ blockNumber: '123' }));
 
-        getTransaction = jest.fn();
+        getTransaction = jest.fn(() => ({
+          maxFeePerGas: { toHexString: () => '0x123' },
+          maxPriorityFeePerGas: { toHexString: () => '0x123' },
+        }));
 
         getBlock = jest.fn();
       },
@@ -182,6 +185,14 @@ const createSuccessLivenessApiResponse = () => ({
   lastBlock: 123456,
 });
 
+const testHistory = [
+  {
+    op: 'add',
+    path: '/swapTokenValue',
+    value: '0.001',
+  },
+];
+
 const ethereumChainIdDec = CHAIN_IDS_HEX_TO_DEC[CHAIN_IDS.ETHEREUM];
 
 describe('SmartTransactionsController', () => {
@@ -207,6 +218,10 @@ describe('SmartTransactionsController', () => {
         confirmExternalTransaction: confirmExternalMock,
       },
     });
+
+    jest
+      .spyOn(smartTransactionsController, 'checkPoll')
+      .mockImplementation(() => ({}));
   });
 
   afterEach(async () => {
@@ -242,40 +257,13 @@ describe('SmartTransactionsController', () => {
     });
 
     it('calls poll', () => {
-      const pollSpy = jest.spyOn(smartTransactionsController, 'poll');
+      const checkPollSpy = jest.spyOn(smartTransactionsController, 'checkPoll');
       networkListener({ provider: { chainId: '2' } } as NetworkState);
-      expect(pollSpy).toHaveBeenCalled();
+      expect(checkPollSpy).toHaveBeenCalled();
     });
   });
 
   describe('poll', () => {
-    it('is called with interval', async () => {
-      const interval = 35000;
-      const pollSpy = jest.spyOn(smartTransactionsController, 'poll');
-      const updateSmartTransactionsSpy = jest.spyOn(
-        smartTransactionsController,
-        'updateSmartTransactions',
-      );
-      expect(pollSpy).toHaveBeenCalledTimes(0);
-      expect(updateSmartTransactionsSpy).toHaveBeenCalledTimes(0);
-      networkListener({
-        provider: { chainId: CHAIN_IDS.ETHEREUM },
-      } as NetworkState);
-      expect(pollSpy).toHaveBeenCalledTimes(1);
-      expect(updateSmartTransactionsSpy).toHaveBeenCalledTimes(1);
-      await smartTransactionsController.stop();
-      jest.useFakeTimers();
-      await smartTransactionsController.poll(interval);
-      expect(pollSpy).toHaveBeenCalledTimes(2);
-      expect(updateSmartTransactionsSpy).toHaveBeenCalledTimes(2);
-      jest.advanceTimersByTime(interval);
-      expect(pollSpy).toHaveBeenCalledTimes(3);
-      expect(updateSmartTransactionsSpy).toHaveBeenCalledTimes(3);
-      await smartTransactionsController.stop();
-      jest.clearAllTimers();
-      jest.useRealTimers();
-    });
-
     it('does not call updateSmartTransactions on unsupported networks', async () => {
       const updateSmartTransactionsSpy = jest.spyOn(
         smartTransactionsController,
@@ -350,10 +338,12 @@ describe('SmartTransactionsController', () => {
         .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid1`)
         .reply(200, pendingBatchStatusApiResponse);
       await smartTransactionsController.fetchSmartTransactionsStatus(uuids);
+      const pendingState = createStateAfterPending()[0];
+      const pendingTransaction = { ...pendingState, history: [pendingState] };
       expect(smartTransactionsController.state).toStrictEqual({
         smartTransactionsState: {
           smartTransactions: {
-            [CHAIN_IDS.ETHEREUM]: createStateAfterPending(),
+            [CHAIN_IDS.ETHEREUM]: [pendingTransaction],
           },
           userOptIn: undefined,
         },
@@ -376,14 +366,14 @@ describe('SmartTransactionsController', () => {
         .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid2`)
         .reply(200, successBatchStatusApiResponse);
       await smartTransactionsController.fetchSmartTransactionsStatus(uuids);
-      expect(
-        smartTransactionsController.state.smartTransactionsState,
-      ).toStrictEqual({
+      const successState = createStateAfterSuccess()[0];
+      const successTransaction = { ...successState, history: [successState] };
+      expect(smartTransactionsController.state).toStrictEqual({
         smartTransactionsState: {
           smartTransactions: {
             [CHAIN_IDS.ETHEREUM]: [
               ...createStateAfterPending(),
-              ...createStateAfterSuccess(),
+              ...[successTransaction],
             ],
           },
           userOptIn: undefined,
@@ -405,7 +395,10 @@ describe('SmartTransactionsController', () => {
 
   describe('updateSmartTransaction', () => {
     it('updates smart transaction based on uuid', () => {
-      const pendingStx = createStateAfterPending()[0];
+      const pendingStx = {
+        ...createStateAfterPending()[0],
+        history: testHistory,
+      };
       const { smartTransactionsState } = smartTransactionsController.state;
       smartTransactionsController.update({
         smartTransactionsState: {
@@ -435,7 +428,10 @@ describe('SmartTransactionsController', () => {
         smartTransactionsController,
         'confirmSmartTransaction',
       );
-      const pendingStx = createStateAfterPending()[0];
+      const pendingStx = {
+        ...createStateAfterPending()[0],
+        history: testHistory,
+      };
       smartTransactionsController.update({
         smartTransactionsState: {
           ...smartTransactionsState,
@@ -457,7 +453,10 @@ describe('SmartTransactionsController', () => {
 
   describe('confirmSmartTransaction', () => {
     it('calls confirm external transaction', async () => {
-      const successfulStx = createStateAfterSuccess()[0];
+      const successfulStx = {
+        ...createStateAfterSuccess()[0],
+        history: testHistory,
+      };
       await smartTransactionsController.confirmSmartTransaction(
         successfulStx as SmartTransaction,
       );
