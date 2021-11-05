@@ -305,7 +305,7 @@ describe('CurrencyRateController', () => {
     await controller.updateExchangeRate();
 
     expect(controller.state).toStrictEqual({
-      conversionDate: getStubbedDate() / 1000,
+      conversionDate: null,
       conversionRate: null,
       currentCurrency: '',
       nativeCurrency: 'BNB',
