@@ -49,7 +49,6 @@ export interface ApiCollectible {
   last_sale: ApiCollectibleLastSale | null;
 }
 
-// TO DO: Update
 /**
  * @type ApiCollectibleContract
  *
@@ -57,13 +56,12 @@ export interface ApiCollectible {
  * @property address - Address of the collectible contract
  * @property asset_contract_type - The collectible type, it could be `semi-fungible` or `non-fungible`
  * @property created_date - Creation date
- * @property name - The collectible contract name
+ * @property collection - Object containing the contract name and URI of an image associated
  * @property schema_name - The schema followed by the contract, it could be `ERC721` or `ERC1155`
  * @property symbol - The collectible contract symbol
  * @property total_supply - Total supply of collectibles
  * @property description - The collectible contract description
  * @property external_link - External link containing additional information
- * @property image_url - URI of an image associated with this collectible contract
  */
 export interface ApiCollectibleContract {
   address: string;
