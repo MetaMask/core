@@ -25,7 +25,7 @@ import type {
   ApiCollectibleLastSale,
 } from './CollectibleDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
-import { compareCollectiblesMetadata } from './assetsUtil';
+import { compareCollectibles, compareCollectiblesMetadata } from './assetsUtil';
 
 /**
  * @type Collectible
@@ -475,10 +475,10 @@ export class CollectiblesController extends BaseController<
       address = toChecksumHexAddress(address);
       const { allCollectibles, collectibles } = this.state;
       const { chainId, selectedAddress } = this.config;
-      const existingEntry: Collectible | undefined = collectibles.find(
-        (collectible) =>
-          collectible.address.toLowerCase() === address.toLowerCase() &&
-          collectible.tokenId === tokenId,
+      const existingEntry:
+        | Collectible
+        | undefined = collectibles.find((collectible) =>
+        compareCollectibles(collectible, address, tokenId),
       );
 
       if (existingEntry) {
@@ -486,12 +486,10 @@ export class CollectiblesController extends BaseController<
           collectibleMetadata,
           existingEntry,
         );
-        if (differentMetadata) {
+        if (differentMetadata || typeof existingEntry.tokenId === 'number') {
           // TODO: Switch to indexToUpdate
-          const indexToRemove = collectibles.findIndex(
-            (collectible) =>
-              collectible.address.toLowerCase() === address.toLowerCase() &&
-              collectible.tokenId === tokenId,
+          const indexToRemove = collectibles.findIndex((collectible) =>
+            compareCollectibles(collectible, address, tokenId),
           );
           /* istanbul ignore next */
           if (indexToRemove !== -1) {
