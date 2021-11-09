@@ -177,7 +177,8 @@ export default class SmartTransactionsController extends BaseController<
   }
 
   async stop() {
-    this.timeoutHandle && clearTimeout(this.timeoutHandle);
+    this.timeoutHandle && clearInterval(this.timeoutHandle);
+    this.timeoutHandle = undefined;
   }
 
   setOptInState(state: boolean | undefined): void {
@@ -200,18 +201,27 @@ export default class SmartTransactionsController extends BaseController<
 
     if (currentIndex === -1 || currentIndex === undefined) {
       // add smart transaction
+      const cancelledNonceIndex = currentSmartTransactions.findIndex(
+        (stx: SmartTransaction) =>
+          stx.txParams?.nonce === smartTransaction.txParams?.nonce &&
+          stx.status?.startsWith('cancelled'),
+      );
       const snapshot = cloneDeep(smartTransaction);
       const history = [snapshot];
       const historifiedSmartTransaction = { ...smartTransaction, history };
+      const nextSmartTransactions =
+        cancelledNonceIndex > -1
+          ? currentSmartTransactions
+              .slice(0, cancelledNonceIndex)
+              .concat(currentSmartTransactions.slice(cancelledNonceIndex + 1))
+              .concat(historifiedSmartTransaction)
+          : currentSmartTransactions.concat(historifiedSmartTransaction);
       this.update({
         smartTransactionsState: {
           ...smartTransactionsState,
           smartTransactions: {
             ...smartTransactionsState.smartTransactions,
-            [chainId]: [
-              ...smartTransactionsState.smartTransactions?.[chainId],
-              historifiedSmartTransaction,
-            ],
+            [chainId]: nextSmartTransactions,
           },
         },
       });
