@@ -324,47 +324,6 @@ export class ApprovalController extends BaseController<
     return this.state.pendingApprovalCount;
   }
 
-  // These signatures create a meaningful difference when this method is called.
-  /* eslint-disable @typescript-eslint/unified-signatures */
-  /**
-   * Checks if there's a pending approval request with the given ID.
-   *
-   * @param opts - Options bag.
-   * @param opts.id - The ID to check for.
-   * @returns `true` if a matching approval is found, and `false` otherwise.
-   */
-  has(opts: { id: string }): boolean;
-
-  /**
-   * Checks if there's any pending approval request with the given origin.
-   *
-   * @param opts - Options bag.
-   * @param opts.origin - The origin to check for.
-   * @returns `true` if a matching approval is found, and `false` otherwise.
-   */
-  has(opts: { origin: string }): boolean;
-
-  /**
-   * Checks if there's any pending approval request with the given type.
-   *
-   * @param opts - Options bag.
-   * @param opts.type - The type to check for.
-   * @returns `true` if a matching approval is found, and `false` otherwise.
-   */
-  has(opts: { type: string }): boolean;
-
-  /**
-   * Checks if there's any pending approval request with the given origin and
-   * type.
-   *
-   * @param opts - Options bag.
-   * @param opts.origin - The origin to check for.
-   * @param opts.type - The type to check for.
-   * @returns `true` if a matching approval is found, and `false` otherwise.
-   */
-  has(opts: { origin: string; type: string }): boolean;
-  /* eslint-enable @typescript-eslint/unified-signatures */
-
   /**
    * Checks if there's a pending approval request per the given parameters.
    * At least one parameter must be specified. An error will be thrown if the
