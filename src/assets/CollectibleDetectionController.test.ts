@@ -204,7 +204,7 @@ describe('CollectibleDetectionController', () => {
         CollectibleDetectionController.prototype,
         'detectCollectibles',
       );
-      new CollectibleDetectionController(
+      const collectiblesDetectionController = new CollectibleDetectionController(
         {
           onCollectiblesStateChange: (listener) =>
             collectiblesController.subscribe(listener),
@@ -219,6 +219,8 @@ describe('CollectibleDetectionController', () => {
         },
         { interval: 10 },
       );
+      collectiblesDetectionController.start();
+
       expect(mockCollectibles.calledOnce).toBe(true);
       setTimeout(() => {
         expect(mockCollectibles.calledTwice).toBe(true);
