@@ -25,6 +25,7 @@ import {
   snapshotFromTxMeta,
   replayHistory,
   generateHistoryEntry,
+  getStxProcessingTime,
 } from './utils';
 import { CHAIN_IDS } from './constants';
 
@@ -65,6 +66,8 @@ export default class SmartTransactionsController extends BaseController<
 
   public txController: any;
 
+  private trackMetaMetricsEvent: any;
+
   /* istanbul ignore next */
   private async fetch(request: string, options?: RequestInit) {
     const { clientId } = this.config;
@@ -86,6 +89,7 @@ export default class SmartTransactionsController extends BaseController<
       getNetwork,
       provider,
       txController,
+      trackMetaMetricsEvent,
     }: {
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
@@ -94,6 +98,7 @@ export default class SmartTransactionsController extends BaseController<
       getNetwork: any;
       provider: any;
       txController: any;
+      trackMetaMetricsEvent: any;
     },
     config?: Partial<SmartTransactionsControllerConfig>,
     state?: Partial<SmartTransactionsControllerState>,
@@ -118,6 +123,7 @@ export default class SmartTransactionsController extends BaseController<
     this.getNetwork = getNetwork;
     this.ethersProvider = new ethers.providers.Web3Provider(provider);
     this.txController = txController;
+    this.trackMetaMetricsEvent = trackMetaMetricsEvent;
 
     this.initialize();
     this.initializeSmartTransactionsForChainId();
@@ -190,6 +196,46 @@ export default class SmartTransactionsController extends BaseController<
     });
   }
 
+  trackStxStatusChange(
+    smartTransaction: SmartTransaction,
+    prevSmartTransaction?: SmartTransaction,
+  ) {
+    if (!prevSmartTransaction) {
+      return; // Don't track the first STX, because it doesn't have all necessary params.
+    }
+
+    let updatedSmartTransaction = cloneDeep(smartTransaction);
+    updatedSmartTransaction = {
+      ...cloneDeep(prevSmartTransaction),
+      ...updatedSmartTransaction,
+    };
+
+    if (
+      !updatedSmartTransaction.swapMetaData ||
+      (updatedSmartTransaction.status === prevSmartTransaction.status &&
+        prevSmartTransaction.swapMetaData)
+    ) {
+      return; // If status hasn't changed, don't track it again.
+    }
+
+    const sensitiveProperties = {
+      stx_status: updatedSmartTransaction.status,
+      token_from_address: updatedSmartTransaction.txParams?.from,
+      token_from_symbol: updatedSmartTransaction.sourceTokenSymbol,
+      token_to_address: updatedSmartTransaction.txParams?.to,
+      token_to_symbol: updatedSmartTransaction.destinationTokenSymbol,
+      processing_time: getStxProcessingTime(updatedSmartTransaction.time),
+      stx_enabled: true,
+      stx_user_opt_in: true,
+    };
+
+    this.trackMetaMetricsEvent({
+      event: 'STX Status Updated',
+      category: 'swaps',
+      sensitiveProperties,
+    });
+  }
+
   updateSmartTransaction(smartTransaction: SmartTransaction): void {
     const { chainId } = this.config;
     const { smartTransactionsState } = this.state;
@@ -198,8 +244,16 @@ export default class SmartTransactionsController extends BaseController<
     const currentIndex = currentSmartTransactions?.findIndex(
       (st) => st.uuid === smartTransaction.uuid,
     );
+    const isNewSmartTransaction =
+      currentIndex === -1 || currentIndex === undefined;
+    this.trackStxStatusChange(
+      smartTransaction,
+      isNewSmartTransaction
+        ? undefined
+        : currentSmartTransactions[currentIndex],
+    );
 
-    if (currentIndex === -1 || currentIndex === undefined) {
+    if (isNewSmartTransaction) {
       // add smart transaction
       const cancelledNonceIndex = currentSmartTransactions.findIndex(
         (stx: SmartTransaction) =>
@@ -331,12 +385,21 @@ export default class SmartTransactionsController extends BaseController<
           baseFeePerGas,
         );
 
+        this.trackMetaMetricsEvent({
+          event: 'STX Confirmed',
+          category: 'swaps',
+        });
+
         this.updateSmartTransaction({
           ...smartTransaction,
           confirmed: true,
         });
       }
     } catch (e) {
+      this.trackMetaMetricsEvent({
+        event: 'STX Confirmation Failed',
+        category: 'swaps',
+      });
       console.error('confirm error', e);
     }
   }

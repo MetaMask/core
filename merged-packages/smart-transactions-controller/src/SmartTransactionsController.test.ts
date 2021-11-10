@@ -217,6 +217,7 @@ describe('SmartTransactionsController', () => {
       txController: {
         confirmExternalTransaction: confirmExternalMock,
       },
+      trackMetaMetricsEvent: jest.fn(),
     });
 
     jest

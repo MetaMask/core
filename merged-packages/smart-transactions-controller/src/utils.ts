@@ -135,3 +135,17 @@ export function snapshotFromTxMeta(txMeta: any) {
   delete shallow.history;
   return cloneDeep(shallow);
 }
+
+/**
+ * Returns processing time for an STX in seconds.
+ * @param {number} smartTransactionSubmittedtime
+ * @returns {number} Processing time in seconds.
+ */
+export const getStxProcessingTime = (
+  smartTransactionSubmittedtime: number | undefined,
+): number | undefined => {
+  if (!smartTransactionSubmittedtime) {
+    return undefined;
+  }
+  return Math.round((Date.now() - smartTransactionSubmittedtime) / 1000);
+};
