@@ -7,10 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [20.0.0]
-### Uncategorized
-- Remove polling start call in detection controllers' constructors ([#629](https://github.com/MetaMask/controllers/pull/629))
-- Stop overloading ApprovalController.has signature ([#624](https://github.com/MetaMask/controllers/pull/624))
-- update Changelog.md ([#627](https://github.com/MetaMask/controllers/pull/627))
+### Removed
+- **BREAKING**: Remove polling start call in detection controllers' constructors ([#629](https://github.com/MetaMask/controllers/pull/629))
+  - Consumers of either of the TokenDetection and CollectibleDetection controllers who wish to immediately start polling upon instantiation will need to call the start method on the controller immediately after instantiation.
+- Remove ApprovalController.has signature overloads ([#624](https://github.com/MetaMask/controllers/pull/624))
 
 ## [19.0.0]
 ### Changed
