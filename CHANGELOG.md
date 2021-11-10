@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.0]
+### Uncategorized
+- Remove polling start call in detection controllers' constructors ([#629](https://github.com/MetaMask/controllers/pull/629))
+- Stop overloading ApprovalController.has signature ([#624](https://github.com/MetaMask/controllers/pull/624))
+- update Changelog.md ([#627](https://github.com/MetaMask/controllers/pull/627))
+
 ## [19.0.0]
 ### Changed
 - **BREAKING**: Split AssetsDetectionController into CollectiblesDetectionController and TokenDetectionController ([#619](https://github.com/MetaMask/controllers/pull/619))
@@ -409,7 +415,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/controllers/compare/v19.0.0...v20.0.0
 [19.0.0]: https://github.com/MetaMask/controllers/compare/v18.0.0...v19.0.0
 [18.0.0]: https://github.com/MetaMask/controllers/compare/v17.0.0...v18.0.0
 [17.0.0]: https://github.com/MetaMask/controllers/compare/v16.0.0...v17.0.0
