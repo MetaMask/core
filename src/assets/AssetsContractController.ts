@@ -1,8 +1,6 @@
 import { BN } from 'ethereumjs-util';
 import Web3 from 'web3';
-import abiERC20 from 'human-standard-token-abi';
-import abiERC721 from 'human-standard-collectible-abi';
-import abiERC1155 from 'human-standard-multi-collectible-abi';
+import { abiERC1155, abiERC721, abiERC20 } from 'metamask-eth-abis';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { ERC721Standard } from './CollectibleStandards/ERC721/ERC721Standard';

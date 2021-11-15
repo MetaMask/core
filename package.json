@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "19.0.0",
+  "version": "19.0.0-f3b7c19",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "keywords": [
     "MetaMask",
@@ -55,9 +55,7 @@
     "ethers": "^5.4.1",
     "ethjs-unit": "^0.1.6",
     "ethjs-util": "^0.1.6",
-    "human-standard-collectible-abi": "^1.0.2",
-    "human-standard-multi-collectible-abi": "^1.0.2",
-    "human-standard-token-abi": "^2.0.0",
+    "metamask-eth-abis": "file:./metamask-metamask-eth-abis-v1.0.3.tgz",
     "immer": "^9.0.6",
     "isomorphic-fetch": "^3.0.0",
     "jsonschema": "^1.2.4",

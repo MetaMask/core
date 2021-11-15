@@ -4216,21 +4216,6 @@ human-signals@^2.1.0:
   resolved "https://registry.yarnpkg.com/human-signals/-/human-signals-2.1.0.tgz#dc91fcba42e4d06e4abaed33b3e7a3c02f514ea0"
   integrity sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw==
 
-human-standard-collectible-abi@^1.0.2:
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/human-standard-collectible-abi/-/human-standard-collectible-abi-1.0.2.tgz#077bae9ed1b0b0b82bc46932104b4b499c941aa0"
-  integrity sha512-nD3ITUuSAIBgkaCm9J2BGwlHL8iEzFjJfTleDAC5Wi8RBJEXXhxV0JeJjd95o+rTwf98uTE5MW+VoBKOIYQh0g==
-
-human-standard-multi-collectible-abi@^1.0.2:
-  version "1.0.3"
-  resolved "https://registry.yarnpkg.com/human-standard-multi-collectible-abi/-/human-standard-multi-collectible-abi-1.0.3.tgz#be5896b13f8622289cff70040e478366931bf3d7"
-  integrity sha512-1VXqats7JQqDZozLKhpmFG0S33hVePrkLNRJNKfJTxewR0heYKjSoz72kqs+6O/Tywi0zW4fWe7dfTaPX4j7gQ==
-
-human-standard-token-abi@^2.0.0:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/human-standard-token-abi/-/human-standard-token-abi-2.0.0.tgz#e0c2057596d0a1d4a110f91f974a37f4b904f008"
-  integrity sha512-m1f5DiIvqaNmpgphNqx2OziyTCj4Lvmmk28uMSxGWrOc9/lMpAKH8UcMPhvb13DMNZPzxn07WYFhxOGKuPLryg==
-
 iconv-lite@0.4.24:
   version "0.4.24"
   resolved "https://registry.yarnpkg.com/iconv-lite/-/iconv-lite-0.4.24.tgz#2022b4b25fbddc21d2f524974a474aafe733908b"
@@ -5610,6 +5595,10 @@ merkle-patricia-tree@^2.1.2, merkle-patricia-tree@^2.3.2:
     readable-stream "^2.0.0"
     rlp "^2.0.0"
     semaphore ">=1.0.1"
+
+"metamask-eth-abis@file:./metamask-metamask-eth-abis-v1.0.3.tgz":
+  version "1.0.3"
+  resolved "file:./metamask-metamask-eth-abis-v1.0.3.tgz#6a403c94fa41dfe569bc64d443efed7e12ba7ec7"
 
 micromatch@^3.1.4:
   version "3.1.10"

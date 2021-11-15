@@ -20,11 +20,7 @@ declare module 'ethjs-util';
 
 declare module 'ethjs-unit';
 
-declare module 'human-standard-collectible-abi';
-
-declare module 'human-standard-multi-collectible-abi'
-
-declare module 'human-standard-token-abi';
+declare module 'metamask-eth-abis';
 
 declare module 'isomorphic-fetch';
 
