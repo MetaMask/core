@@ -23,7 +23,7 @@ import type {
   ApiCollectibleCreator,
   ApiCollectibleContract,
   ApiCollectibleLastSale,
-} from './AssetsDetectionController';
+} from './CollectibleDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
 import { compareCollectiblesMetadata } from './assetsUtil';
 
