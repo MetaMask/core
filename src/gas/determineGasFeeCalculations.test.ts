@@ -58,6 +58,7 @@ function buildMockDataForFetchGasEstimates(): GasFeeEstimates {
       suggestedMaxFeePerGas: '30',
     },
     estimatedBaseFee: '100',
+    networkCongestion: 0.5,
   };
 }
 
