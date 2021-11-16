@@ -537,6 +537,11 @@ export default class SmartTransactionsController extends BaseController<
       method: 'POST',
       body: JSON.stringify({ uuid }),
     });
+
+    this.updateSmartTransaction({
+      uuid,
+      status: SmartTransactionStatuses.CANCELLED_USER_CANCELLED,
+    });
   }
 
   async fetchLiveness(): Promise<boolean> {
