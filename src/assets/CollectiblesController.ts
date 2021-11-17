@@ -17,6 +17,7 @@ import {
   IPFS_DEFAULT_GATEWAY_URL,
   ERC721,
   ERC1155,
+  COLLECTION_DEFAULT_NAME,
 } from '../constants';
 import type {
   ApiCollectible,
@@ -444,7 +445,7 @@ export class CollectiblesController extends BaseController<
       total_supply: null,
       description: null,
       external_link: null,
-      collection: { name: null, image_url: null },
+      collection: { name: COLLECTION_DEFAULT_NAME, image_url: null },
     };
   }
 

@@ -9,3 +9,6 @@ export const RINKEBY_CHAIN_ID = '4';
 // TOKEN STANDARDS
 export const ERC721 = 'ERC721';
 export const ERC1155 = 'ERC1155';
+
+// DEFAULT VALUES
+export const COLLECTION_DEFAULT_NAME = 'Untitled Collection';
