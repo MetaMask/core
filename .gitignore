@@ -11,7 +11,7 @@ package-lock.json
 
 # eslint cache
 .eslintcache
-
+dist
 .DS_STORE
 coverage
 docs
