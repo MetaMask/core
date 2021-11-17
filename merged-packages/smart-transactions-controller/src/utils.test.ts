@@ -148,4 +148,18 @@ describe('src/utils.js', () => {
       );
     });
   });
+
+  describe('getStxProcessingTime', () => {
+    it('returns undefined if no smartTransactionTimeSubmitted', () => {
+      expect(utils.getStxProcessingTime(undefined)).toBeUndefined();
+    });
+
+    it('returns 2m and 57s if processing time is 3s ago', () => {
+      const THREE_SECONDS_AGO = 3 * 1000;
+      const processingTime = utils.getStxProcessingTime(
+        Date.now() - THREE_SECONDS_AGO,
+      );
+      expect(processingTime).toStrictEqual(3);
+    });
+  });
 });

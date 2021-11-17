@@ -56,13 +56,13 @@ export default class SmartTransactionsController extends BaseController<
   SmartTransactionsControllerConfig,
   SmartTransactionsControllerState
 > {
-  private timeoutHandle?: NodeJS.Timeout;
+  public timeoutHandle?: NodeJS.Timeout;
 
   private nonceTracker: any;
 
   private getNetwork: any;
 
-  private ethersProvider: any;
+  public ethersProvider: any;
 
   public txController: any;
 
@@ -172,7 +172,7 @@ export default class SmartTransactionsController extends BaseController<
   async poll(interval?: number): Promise<void> {
     const { chainId, supportedChainIds } = this.config;
     interval && this.configure({ interval }, false, false);
-    this.timeoutHandle && clearTimeout(this.timeoutHandle);
+    this.timeoutHandle && clearInterval(this.timeoutHandle);
     if (!supportedChainIds.includes(chainId)) {
       return;
     }
