@@ -117,7 +117,6 @@ export class TokenDetectionController extends BaseController<
       this.configure({ networkType: provider.type });
     });
     this.getBalancesInSingleCall = getBalancesInSingleCall;
-    this.start();
   }
 
   /**

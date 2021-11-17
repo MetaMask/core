@@ -232,7 +232,6 @@ export class CollectibleDetectionController extends BaseController<
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;
     this.addCollectible = addCollectible;
-    this.start();
   }
 
   /**

@@ -176,7 +176,7 @@ describe('TokenDetectionController', () => {
         TokenDetectionController.prototype,
         'detectTokens',
       );
-      new TokenDetectionController(
+      const tokenDetectionController = new TokenDetectionController(
         {
           onTokensStateChange: (listener) =>
             tokensController.subscribe(listener),
@@ -192,6 +192,8 @@ describe('TokenDetectionController', () => {
         },
         { interval: 10 },
       );
+      tokenDetectionController.start();
+
       expect(mockTokens.calledOnce).toBe(true);
       setTimeout(() => {
         expect(mockTokens.calledTwice).toBe(true);
