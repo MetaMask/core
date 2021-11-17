@@ -62,7 +62,6 @@ class CollectibleDetectionController extends BaseController_1.BaseController {
         });
         this.getOpenSeaApiKey = getOpenSeaApiKey;
         this.addCollectible = addCollectible;
-        this.start();
     }
     getOwnerCollectiblesApi(address, offset) {
         return `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`;

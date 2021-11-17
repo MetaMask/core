@@ -297,7 +297,7 @@ class CollectiblesController extends BaseController_1.BaseController {
                 total_supply: null,
                 description: null,
                 external_link: null,
-                collection: { name: null, image_url: null },
+                collection: { name: constants_1.COLLECTION_DEFAULT_NAME, image_url: null },
             };
         });
     }

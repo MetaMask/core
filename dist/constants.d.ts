@@ -5,3 +5,4 @@ export declare const IPFS_DEFAULT_GATEWAY_URL = "https://cloudflare-ipfs.com/ipf
 export declare const RINKEBY_CHAIN_ID = "4";
 export declare const ERC721 = "ERC721";
 export declare const ERC1155 = "ERC1155";
+export declare const COLLECTION_DEFAULT_NAME = "Untitled Collection";

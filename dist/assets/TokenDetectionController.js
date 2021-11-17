@@ -68,7 +68,6 @@ class TokenDetectionController extends BaseController_1.BaseController {
             this.configure({ networkType: provider.type });
         });
         this.getBalancesInSingleCall = getBalancesInSingleCall;
-        this.start();
     }
     /**
      * Start polling for the currency rate.

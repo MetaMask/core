@@ -156,7 +156,6 @@ class ApprovalController extends BaseControllerV2_1.BaseController {
     getTotalApprovalCount() {
         return this.state.pendingApprovalCount;
     }
-    /* eslint-enable @typescript-eslint/unified-signatures */
     /**
      * Checks if there's a pending approval request per the given parameters.
      * At least one parameter must be specified. An error will be thrown if the

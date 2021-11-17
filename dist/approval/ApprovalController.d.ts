@@ -168,47 +168,24 @@ export declare class ApprovalController extends BaseController<typeof controller
      */
     getTotalApprovalCount(): number;
     /**
-     * Checks if there's a pending approval request with the given ID.
+     * Checks if there's a pending approval request per the given parameters.
+     * At least one parameter must be specified. An error will be thrown if the
+     * parameters are invalid.
+     *
+     * If `id` is specified, all other parameters will be ignored.
+     * If `id` is not specified, the method will check for requests that match
+     * all of the specified parameters.
      *
      * @param opts - Options bag.
      * @param opts.id - The ID to check for.
-     * @returns `true` if a matching approval is found, and `false` otherwise.
-     */
-    has(opts: {
-        id: string;
-    }): boolean;
-    /**
-     * Checks if there's any pending approval request with the given origin.
-     *
-     * @param opts - Options bag.
-     * @param opts.origin - The origin to check for.
-     * @returns `true` if a matching approval is found, and `false` otherwise.
-     */
-    has(opts: {
-        origin: string;
-    }): boolean;
-    /**
-     * Checks if there's any pending approval request with the given type.
-     *
-     * @param opts - Options bag.
-     * @param opts.type - The type to check for.
-     * @returns `true` if a matching approval is found, and `false` otherwise.
-     */
-    has(opts: {
-        type: string;
-    }): boolean;
-    /**
-     * Checks if there's any pending approval request with the given origin and
-     * type.
-     *
-     * @param opts - Options bag.
      * @param opts.origin - The origin to check for.
      * @param opts.type - The type to check for.
      * @returns `true` if a matching approval is found, and `false` otherwise.
      */
-    has(opts: {
-        origin: string;
-        type: string;
+    has(opts?: {
+        id?: string;
+        origin?: string;
+        type?: string;
     }): boolean;
     /**
      * Resolves the promise of the approval with the given id, and deletes the
