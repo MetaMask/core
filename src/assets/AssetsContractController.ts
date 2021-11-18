@@ -1,6 +1,6 @@
 import { BN } from 'ethereumjs-util';
 import Web3 from 'web3';
-import { abiERC1155, abiERC721, abiERC20 } from 'metamask-eth-abis';
+import { abiERC1155, abiERC721, abiERC20 } from '@metamask/metamask-eth-abis';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { ERC721Standard } from './CollectibleStandards/ERC721/ERC721Standard';

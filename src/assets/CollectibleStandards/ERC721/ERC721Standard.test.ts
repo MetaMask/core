@@ -1,6 +1,6 @@
 import Web3 from 'web3';
 import HttpProvider from 'ethjs-provider-http';
-import { abiERC721 } from 'metamask-eth-abis';
+import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { ERC721Standard } from './ERC721Standard';
 
 const MAINNET_PROVIDER = new HttpProvider(

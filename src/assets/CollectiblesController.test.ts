@@ -22,7 +22,7 @@ const ERC1155_DEPRESSIONIST_ADDRESS =
 const ERC1155_DEPRESSIONIST_ID = '36';
 const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 const MAINNET_PROVIDER = new HttpProvider(
-  'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+  'https://mainnet.infura.io/v3/ad3a368836ff4596becc3be8e2f137ac',
 );
 
 const OPEN_SEA_HOST = 'https://api.opensea.io';
