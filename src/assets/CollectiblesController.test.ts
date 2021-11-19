@@ -60,6 +60,12 @@ describe('CollectiblesController', () => {
       ),
     });
 
+    preferences.update({ selectedAddress: OWNER_ADDRESS });
+
+    sandbox
+      .stub(collectiblesController, 'isCollectibleOwner' as any)
+      .returns(true);
+
     nock(OPEN_SEA_HOST)
       .get(`${OPEN_SEA_PATH}/asset_contract/0x01`)
       .reply(200, {
@@ -381,9 +387,9 @@ describe('CollectiblesController', () => {
       .stub(collectiblesController, 'getCollectibleInformation' as any)
       .returns({ name: 'name', image: 'url', description: 'description' });
     preferences.update({ selectedAddress: firstAddress });
-    await collectiblesController.addCollectible('0x01', '1234');
+    await collectiblesController.addCollectibleVerifyOwnership('0x01', '1234');
     preferences.update({ selectedAddress: secondAddress });
-    await collectiblesController.addCollectible('0x02', '4321');
+    await collectiblesController.addCollectibleVerifyOwnership('0x02', '4321');
     preferences.update({ selectedAddress: firstAddress });
     expect(collectiblesController.state.collectibles[0]).toStrictEqual({
       address: '0x01',
@@ -392,6 +398,22 @@ describe('CollectiblesController', () => {
       name: 'name',
       tokenId: '1234',
     });
+  });
+
+  it('should throw an error if selected address is not owner of input collectible', async () => {
+    sandbox.restore();
+    sandbox
+      .stub(collectiblesController, 'isCollectibleOwner' as any)
+      .returns(false);
+    const firstAddress = '0x123';
+    preferences.update({ selectedAddress: firstAddress });
+    const result = async () =>
+      await collectiblesController.addCollectibleVerifyOwnership(
+        '0x01',
+        '1234',
+      );
+    const error = 'This collectible is not owned by the user';
+    expect(result).rejects.toThrow(error);
   });
 
   it('should add collectible by provider type', async () => {
@@ -511,9 +533,9 @@ describe('CollectiblesController', () => {
     const firstAddress = '0x123';
     const secondAddress = '0x321';
     preferences.update({ selectedAddress: firstAddress });
-    await collectiblesController.addCollectible('0x02', '4321');
+    await collectiblesController.addCollectibleVerifyOwnership('0x02', '4321');
     preferences.update({ selectedAddress: secondAddress });
-    await collectiblesController.addCollectible('0x01', '1234');
+    await collectiblesController.addCollectibleVerifyOwnership('0x01', '1234');
     collectiblesController.removeCollectible('0x01', '1234');
     expect(collectiblesController.state.collectibles).toHaveLength(0);
     preferences.update({ selectedAddress: firstAddress });
@@ -647,6 +669,7 @@ describe('CollectiblesController', () => {
   });
 
   it('should not verify the ownership of an ERC-721 collectible with the wrong owner address', async () => {
+    sandbox.restore();
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const isOwner = await collectiblesController.isCollectibleOwner(
       '0x0000000000000000000000000000000000000000',
@@ -667,6 +690,7 @@ describe('CollectiblesController', () => {
   });
 
   it('should not verify the ownership of an ERC-1155 collectible with the wrong owner address', async () => {
+    sandbox.restore();
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const isOwner = await collectiblesController.isCollectibleOwner(
       '0x0000000000000000000000000000000000000000',
@@ -677,6 +701,7 @@ describe('CollectiblesController', () => {
   });
 
   it('should throw an error for an unsupported standard', async () => {
+    sandbox.restore();
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const error =
       'Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect';

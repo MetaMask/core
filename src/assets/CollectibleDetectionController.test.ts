@@ -53,6 +53,10 @@ describe('CollectibleDetectionController', () => {
       getCollectiblesState: () => collectiblesController.state,
     });
 
+    sandbox
+      .stub(collectiblesController, 'isCollectibleOwner' as any)
+      .returns(true);
+
     nock(OPEN_SEA_HOST)
       .get(`${OPEN_SEA_PATH}/assets?owner=0x2&offset=0&limit=50`)
       .reply(200, {

@@ -881,6 +881,21 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
+   * Verifies currently selected address owns entered collectible address/tokenId combo and
+   * adds the collectible and respective collectible contract to the stored collectible and collectible contracts lists.
+   *
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - The collectible identifier.
+   */
+  async addCollectibleVerifyOwnership(address: string, tokenId: string) {
+    const { selectedAddress } = this.config;
+    if (!(await this.isCollectibleOwner(selectedAddress, address, tokenId))) {
+      throw new Error('This collectible is not owned by the user');
+    }
+    await this.addCollectible(address, tokenId);
+  }
+
+  /**
    * Adds a collectible and respective collectible contract to the stored collectible and collectible contracts lists.
    *
    * @param address - Hex address of the collectible contract.
