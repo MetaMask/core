@@ -436,7 +436,11 @@ describe('CollectiblesController', () => {
       '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
       '123',
       undefined,
-      true,
+      {
+        autodetected: true,
+        address: OWNER_ADDRESS,
+        chainId: NetworksChainId.mainnet,
+      },
     );
     expect(collectiblesController.state.collectibles).toStrictEqual([]);
     expect(collectiblesController.state.collectibleContracts).toStrictEqual([]);
@@ -444,7 +448,11 @@ describe('CollectiblesController', () => {
       ERC721_KUDOSADDRESS,
       '1203',
       undefined,
-      true,
+      {
+        autodetected: true,
+        address: OWNER_ADDRESS,
+        chainId: NetworksChainId.mainnet,
+      },
     );
 
     expect(collectiblesController.state.collectibles).toStrictEqual([

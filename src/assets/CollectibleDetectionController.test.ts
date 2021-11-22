@@ -194,6 +194,7 @@ describe('CollectibleDetectionController', () => {
     expect(collectibleDetection.config).toStrictEqual({
       interval: DEFAULT_INTERVAL,
       networkType: 'mainnet',
+      chainId: '1',
       selectedAddress: '',
     });
   });

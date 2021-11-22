@@ -118,6 +118,12 @@ export interface CollectibleMetadata {
   collectionImage?: string;
 }
 
+interface DetectionParams {
+  autodetected: boolean;
+  address: string;
+  chainId: string;
+}
+
 /**
  * @type CollectiblesConfig
  *
@@ -462,19 +468,30 @@ export class CollectiblesController extends BaseController<
    * @param address - Hex address of the collectible contract.
    * @param tokenId - The collectible identifier.
    * @param collectibleMetadata - Collectible optional information (name, image and description).
+   * @param detection - Wether the collectible is manually added or auto-detected for address and chainId.
    * @returns Promise resolving to the current collectible list.
    */
   private async addIndividualCollectible(
     address: string,
     tokenId: string,
     collectibleMetadata: CollectibleMetadata,
+    detection?: DetectionParams,
   ): Promise<Collectible[]> {
     // TODO: Remove unused return
     const releaseLock = await this.mutex.acquire();
     try {
       address = toChecksumHexAddress(address);
       const { allCollectibles, collectibles } = this.state;
-      const { chainId, selectedAddress } = this.config;
+      let chainId, selectedAddress;
+
+      if (detection?.autodetected) {
+        chainId = detection.chainId;
+        selectedAddress = detection.address;
+      } else {
+        chainId = this.config.chainId;
+        selectedAddress = this.config.selectedAddress;
+      }
+
       const existingEntry: Collectible | undefined = collectibles.find(
         (collectible) =>
           collectible.address.toLowerCase() === address.toLowerCase() &&
@@ -531,18 +548,28 @@ export class CollectiblesController extends BaseController<
    * Adds a collectible contract to the stored collectible contracts list.
    *
    * @param address - Hex address of the collectible contract.
-   * @param detection - Whether the collectible is manually added or auto-detected.
+   * @param detection - Whether the collectible is manually added or auto-detected for address and chainId.
    * @returns Promise resolving to the current collectible contracts list.
    */
   private async addCollectibleContract(
     address: string,
-    detection?: boolean,
+    detection?: DetectionParams,
   ): Promise<CollectibleContract[]> {
     const releaseLock = await this.mutex.acquire();
     try {
       address = toChecksumHexAddress(address);
       const { allCollectibleContracts, collectibleContracts } = this.state;
-      const { chainId, selectedAddress } = this.config;
+
+      let chainId, selectedAddress;
+
+      if (detection?.autodetected) {
+        chainId = detection.chainId;
+        selectedAddress = detection.address;
+      } else {
+        chainId = this.config.chainId;
+        selectedAddress = this.config.selectedAddress;
+      }
+
       const existingEntry = collectibleContracts.find(
         (collectibleContract) =>
           collectibleContract.address.toLowerCase() === address.toLowerCase(),
@@ -886,14 +913,14 @@ export class CollectiblesController extends BaseController<
    * @param address - Hex address of the collectible contract.
    * @param tokenId - The collectible identifier.
    * @param collectibleMetadata - Collectible optional metadata.
-   * @param detection - Whether the collectible is manually added or autodetected.
+   * @param detection - Whether the collectible is manually added or auto-detected for address and chainId.
    * @returns Promise resolving to the current collectible list.
    */
   async addCollectible(
     address: string,
     tokenId: string,
     collectibleMetadata?: CollectibleMetadata,
-    detection?: boolean,
+    detection?: DetectionParams,
   ) {
     address = toChecksumHexAddress(address);
     const newCollectibleContracts = await this.addCollectibleContract(
@@ -915,6 +942,7 @@ export class CollectiblesController extends BaseController<
         address,
         tokenId,
         collectibleMetadata,
+        detection,
       );
     }
   }
