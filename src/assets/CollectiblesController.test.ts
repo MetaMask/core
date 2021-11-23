@@ -217,6 +217,26 @@ describe('CollectiblesController', () => {
       });
     });
 
+    it('should add collectible by selected address', async () => {
+      const firstAddress = '0x123';
+      const secondAddress = '0x321';
+      sandbox
+        .stub(collectiblesController, 'getCollectibleInformation' as any)
+        .returns({ name: 'name', image: 'url', description: 'description' });
+      preferences.update({ selectedAddress: firstAddress });
+      await collectiblesController.addCollectible('0x01', '1234');
+      preferences.update({ selectedAddress: secondAddress });
+      await collectiblesController.addCollectible('0x02', '4321');
+      preferences.update({ selectedAddress: firstAddress });
+      expect(collectiblesController.state.collectibles[0]).toStrictEqual({
+        address: '0x01',
+        description: 'description',
+        image: 'url',
+        name: 'name',
+        tokenId: '1234',
+      });
+    });
+
     it('should update collectible if image is different', async () => {
       await collectiblesController.addCollectible('0x01', '1', {
         name: 'name',
@@ -532,7 +552,7 @@ describe('CollectiblesController', () => {
   });
 
   describe('addCollectibleVerifyOwnership', () => {
-    it('should add collectible by selected address', async () => {
+    it('should verify ownership by selected address and add collectible', async () => {
       const firstAddress = '0x123';
       const secondAddress = '0x321';
       sandbox
