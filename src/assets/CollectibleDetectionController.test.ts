@@ -53,6 +53,8 @@ describe('CollectibleDetectionController', () => {
       getCollectiblesState: () => collectiblesController.state,
     });
 
+    preferences.setUseCollectibleDetection(true);
+
     nock(OPEN_SEA_HOST)
       .get(`${OPEN_SEA_PATH}/assets?owner=0x2&offset=0&limit=50`)
       .reply(200, {
@@ -191,10 +193,12 @@ describe('CollectibleDetectionController', () => {
   });
 
   it('should set default config', () => {
+    preferences.setUseCollectibleDetection(false);
     expect(collectibleDetection.config).toStrictEqual({
       interval: DEFAULT_INTERVAL,
       networkType: 'mainnet',
       selectedAddress: '',
+      disabled: true,
     });
   });
 
@@ -219,8 +223,8 @@ describe('CollectibleDetectionController', () => {
         },
         { interval: 10 },
       );
+      collectiblesDetectionController.configure({ disabled: false });
       collectiblesDetectionController.start();
-
       expect(mockCollectibles.calledOnce).toBe(true);
       setTimeout(() => {
         expect(mockCollectibles.calledTwice).toBe(true);
@@ -357,6 +361,16 @@ describe('CollectibleDetectionController', () => {
     collectiblesController.configure({ selectedAddress: '0x12' });
     await new Promise((res) => setTimeout(() => res(true), 1000));
     expect(collectibleDetection.config.selectedAddress).toStrictEqual('0x12');
+    expect(collectiblesController.state.collectibles).toStrictEqual([]);
+  });
+
+  it('should not detect and add collectibles if preferences controller useCollectibleDetection is set to false', async () => {
+    preferences.setUseCollectibleDetection(false);
+    collectibleDetection.configure({
+      networkType: MAINNET,
+      selectedAddress: '0x9',
+    });
+    collectibleDetection.detectCollectibles();
     expect(collectiblesController.state.collectibles).toStrictEqual([]);
   });
 

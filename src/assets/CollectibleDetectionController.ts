@@ -132,7 +132,6 @@ export interface CollectibleDetectionConfig extends BaseConfig {
   interval: number;
   networkType: NetworkType;
   selectedAddress: string;
-  enabled: boolean;
 }
 
 /**
@@ -230,7 +229,7 @@ export class CollectibleDetectionController extends BaseController<
       interval: DEFAULT_INTERVAL,
       networkType: MAINNET,
       selectedAddress: '',
-      enabled: false,
+      disabled: true,
     };
     this.initialize();
     this.getCollectiblesState = getCollectiblesState;
@@ -260,7 +259,7 @@ export class CollectibleDetectionController extends BaseController<
    * Start polling for the currency rate.
    */
   async start() {
-    if (!this.isMainnet() || !this.config.enabled) {
+    if (!this.isMainnet() || this.disabled) {
       return;
     }
 
@@ -307,7 +306,7 @@ export class CollectibleDetectionController extends BaseController<
    */
   async detectCollectibles() {
     /* istanbul ignore if */
-    if (!this.isMainnet() || !this.config.enabled) {
+    if (!this.isMainnet() || this.disabled) {
       return;
     }
     const requestedSelectedAddress = this.config.selectedAddress;

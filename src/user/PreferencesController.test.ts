@@ -11,6 +11,7 @@ describe('PreferencesController', () => {
       lostIdentities: {},
       selectedAddress: '',
       useStaticTokenList: false,
+      useCollectibleDetection: false,
     });
   });
 
