@@ -36,7 +36,7 @@ export type EthFeeHistoryResponse = {
 };
 
 /**
- * @type Block
+ * @type FeeHistoryBlock
  *
  * Historical data for a particular block.
  * @property number - The number of the block, as a BN.
@@ -48,7 +48,7 @@ export type EthFeeHistoryResponse = {
  * used for the block, indexed by those percentiles. (See docs for {@link fetchBlockFeeHistory} for more
  * on how this works.)
  */
-export type Block<Percentile extends number> = {
+export type FeeHistoryBlock<Percentile extends number> = {
   number: BN;
   baseFeePerGas: BN;
   gasUsedRatio: number;
@@ -95,9 +95,9 @@ export default async function fetchBlockFeeHistory<Percentile extends number>({
 }: {
   ethQuery: EthQuery;
   numberOfBlocks: number;
-  endBlock?: 'latest' | BN;
+  endBlock?: 'latest' | 'pending' | BN;
   percentiles?: readonly Percentile[];
-}): Promise<Block<Percentile>[]> {
+}): Promise<FeeHistoryBlock<Percentile>[]> {
   const percentiles =
     givenPercentiles.length > 0
       ? Array.from(new Set(givenPercentiles)).sort((a, b) => a - b)
@@ -126,7 +126,7 @@ export default async function fetchBlockFeeHistory<Percentile extends number>({
 
   return blockChunks.reduce(
     (array, blocks) => [...array, ...blocks],
-    [] as Block<Percentile>[],
+    [] as FeeHistoryBlock<Percentile>[],
   );
 }
 
@@ -152,7 +152,7 @@ async function makeRequestForChunk<Percentile extends number>({
   numberOfBlocks: number;
   endBlockNumber: BN;
   percentiles: readonly Percentile[];
-}): Promise<Block<Percentile>[]> {
+}): Promise<FeeHistoryBlock<Percentile>[]> {
   const response: EthFeeHistoryResponse = await query(
     ethQuery,
     'eth_feeHistory',
