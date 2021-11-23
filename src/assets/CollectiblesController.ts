@@ -269,7 +269,9 @@ export class CollectiblesController extends BaseController<
 
     if (tokenURI.startsWith('ipfs://')) {
       const contentId = getIpfsUrlContentIdentifier(tokenURI);
-      tokenURI = ipfsGateway + contentId;
+      tokenURI = ipfsGateway.endsWith('/')
+        ? ipfsGateway + contentId
+        : `${ipfsGateway}/${contentId}`;
     }
 
     try {
