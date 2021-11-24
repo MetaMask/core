@@ -760,42 +760,43 @@ export class CollectiblesController extends BaseController<
    * @param options.getOwnerOf - Get the owner of a ERC-721 collectible.
    * @param options.balanceOfERC1155Collectible - Gets balance of a ERC-1155 collectible.
    * @param options.uriERC1155Collectible - Gets the URI of the ERC1155 token at the given address, with the given ID.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param options.config - Initial options used to configure this controller.
+   * @param options.state - Initial state to set on this controller.
    */
-  constructor(
-    {
-      onPreferencesStateChange,
-      onNetworkStateChange,
-      getAssetName,
-      getAssetSymbol,
-      getCollectibleTokenURI,
-      getOwnerOf,
-      balanceOfERC1155Collectible,
-      uriERC1155Collectible,
-    }: {
-      onPreferencesStateChange: (
-        listener: (preferencesState: PreferencesState) => void,
-      ) => void;
-      onNetworkStateChange: (
-        listener: (networkState: NetworkState) => void,
-      ) => void;
-      getAssetName: AssetsContractController['getAssetName'];
-      getAssetSymbol: AssetsContractController['getAssetSymbol'];
-      getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
-      getOwnerOf: AssetsContractController['getOwnerOf'];
-      balanceOfERC1155Collectible: AssetsContractController['balanceOfERC1155Collectible'];
-      uriERC1155Collectible: AssetsContractController['uriERC1155Collectible'];
-    },
-    config?: Partial<BaseConfig>,
-    state?: Partial<CollectiblesState>,
-  ) {
+  constructor({
+    onPreferencesStateChange,
+    onNetworkStateChange,
+    getAssetName,
+    getAssetSymbol,
+    getCollectibleTokenURI,
+    getOwnerOf,
+    balanceOfERC1155Collectible,
+    uriERC1155Collectible,
+    state,
+    config,
+  }: {
+    onPreferencesStateChange: (
+      listener: (preferencesState: PreferencesState) => void,
+    ) => void;
+    onNetworkStateChange: (
+      listener: (networkState: NetworkState) => void,
+    ) => void;
+    getAssetName: AssetsContractController['getAssetName'];
+    getAssetSymbol: AssetsContractController['getAssetSymbol'];
+    getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
+    getOwnerOf: AssetsContractController['getOwnerOf'];
+    balanceOfERC1155Collectible: AssetsContractController['balanceOfERC1155Collectible'];
+    uriERC1155Collectible: AssetsContractController['uriERC1155Collectible'];
+    config?: Partial<BaseConfig>;
+    state?: Partial<CollectiblesState>;
+  }) {
     super(config, state);
     this.defaultConfig = {
       networkType: MAINNET,
       selectedAddress: '',
       chainId: '',
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
+      ...config,
     };
 
     this.defaultState = {
@@ -804,6 +805,7 @@ export class CollectiblesController extends BaseController<
       collectibleContracts: [],
       collectibles: [],
       ignoredCollectibles: [],
+      ...state,
     };
     this.initialize();
     this.getAssetName = getAssetName;
