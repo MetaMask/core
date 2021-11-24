@@ -28,7 +28,7 @@ const MAINNET_PROVIDER = new HttpProvider(
 const OPEN_SEA_HOST = 'https://api.opensea.io';
 const OPEN_SEA_PATH = '/api/v1';
 
-const CLOUDFARE_PATH = 'https://cloudflare-ipfs.com/ipfs';
+const CLOUDFARE_PATH = 'https://cloudflare-ipfs.com/ipfs/';
 const DEPRESSIONIST_IPFS_PATH =
   '/QmVChNtStZfPyV8JfKpube3eigQh5rUXqYchPgLc91tWLJ';
 
@@ -519,6 +519,7 @@ describe('CollectiblesController', () => {
 
     it('should add collectible with metadata hosted in IPFS', async () => {
       assetsContract.configure({ provider: MAINNET_PROVIDER });
+      collectiblesController.configure({ ipfsGateway: CLOUDFARE_PATH });
       await collectiblesController.addCollectible(
         ERC1155_DEPRESSIONIST_ADDRESS,
         ERC1155_DEPRESSIONIST_ID,
