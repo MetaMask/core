@@ -1,7 +1,7 @@
 /** API */
 
 export enum APIType {
-  'GET_TRANSACTIONS',
+  'GET_FEES',
   'SUBMIT_TRANSACTIONS',
   'CANCEL',
   'BATCH_STATUS',
@@ -83,6 +83,11 @@ export interface SmartTransaction {
   type?: string;
   confirmed?: boolean;
   cancellable?: boolean;
+}
+
+export interface Fee {
+  maxFeePerGas: number;
+  maxPriorityFeePerGas: number;
 }
 
 // TODO: maybe grab the type from transactions controller?

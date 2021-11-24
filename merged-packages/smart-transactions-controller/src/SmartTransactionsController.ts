@@ -17,6 +17,7 @@ import {
   UnsignedTransaction,
   SmartTransactionsStatus,
   SmartTransactionStatuses,
+  Fee,
 } from './types';
 import {
   getAPIRequestURL,
@@ -444,28 +445,24 @@ export default class SmartTransactionsController extends BaseController<
     };
   }
 
-  async getUnsignedTransactionsAndEstimates(
+  async getFees(
     unsignedTransaction: UnsignedTransaction,
   ): Promise<{
-    transactions: UnsignedTransaction[];
-    cancelTransactions: UnsignedTransaction[];
-    estimates: {
-      maxFee: number; // GWEI number
-      estimatedFee: number; // GWEI number
-    };
+    fees: Fee[];
+    cancelFees: Fee[];
+    feeEstimate: number;
+    gasLimit: number;
+    gasUsed: number;
   }> {
     const { chainId } = this.config;
 
     const unsignedTransactionWithNonce = await this.addNonceToTransaction(
       unsignedTransaction,
     );
-    const data = await this.fetch(
-      getAPIRequestURL(APIType.GET_TRANSACTIONS, chainId),
-      {
-        method: 'POST',
-        body: JSON.stringify({ tx: unsignedTransactionWithNonce }),
-      },
-    );
+    const data = await this.fetch(getAPIRequestURL(APIType.GET_FEES, chainId), {
+      method: 'POST',
+      body: JSON.stringify({ tx: unsignedTransactionWithNonce }),
+    });
 
     return data;
   }

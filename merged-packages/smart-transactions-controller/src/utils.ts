@@ -23,8 +23,8 @@ export const isSmartTransactionStatusResolved = (
 export function getAPIRequestURL(apiType: APIType, chainId: string): string {
   const chainIdDec = CHAIN_IDS_HEX_TO_DEC[chainId];
   switch (apiType) {
-    case APIType.GET_TRANSACTIONS: {
-      return `${API_BASE_URL}/networks/${chainIdDec}/getTransactions`;
+    case APIType.GET_FEES: {
+      return `${API_BASE_URL}/networks/${chainIdDec}/getFees`;
     }
 
     case APIType.SUBMIT_TRANSACTIONS: {

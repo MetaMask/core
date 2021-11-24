@@ -45,7 +45,7 @@ const createUnsignedTransaction = () => {
   };
 };
 
-const createGetTransactionsApiResponse = () => {
+const createGetFeesApiResponse = () => {
   return {
     cancelFees: [
       { maxFeePerGas: 2100001000, maxPriorityFeePerGas: 466503987 },
@@ -377,19 +377,17 @@ describe('SmartTransactionsController', () => {
     });
   });
 
-  describe('getUnsignedTransactionsAndEstimates', () => {
+  describe('getFees', () => {
     it('gets unsigned transactions and estimates based on an unsigned transaction', async () => {
       const unsignedTransaction = createUnsignedTransaction();
-      const getTransactionsApiResponse = createGetTransactionsApiResponse();
+      const getFeesApiResponse = createGetFeesApiResponse();
       nock(API_BASE_URL)
-        .post(`/networks/${ethereumChainIdDec}/getTransactions`)
-        .reply(200, getTransactionsApiResponse);
-      const unsignedTransactionsAndEstimates = await smartTransactionsController.getUnsignedTransactionsAndEstimates(
+        .post(`/networks/${ethereumChainIdDec}/getFees`)
+        .reply(200, getFeesApiResponse);
+      const fees = await smartTransactionsController.getFees(
         unsignedTransaction,
       );
-      expect(unsignedTransactionsAndEstimates).toStrictEqual(
-        getTransactionsApiResponse,
-      );
+      expect(fees).toStrictEqual(getFeesApiResponse);
     });
   });
 

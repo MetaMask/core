@@ -33,9 +33,9 @@ describe('src/utils.js', () => {
     const ethereumChainIdDec = CHAIN_IDS_HEX_TO_DEC[CHAIN_IDS.ETHEREUM];
 
     it('returns a URL for getting transactions', () => {
-      expect(
-        utils.getAPIRequestURL(APIType.GET_TRANSACTIONS, CHAIN_IDS.ETHEREUM),
-      ).toBe(`${API_BASE_URL}/networks/${ethereumChainIdDec}/getTransactions`);
+      expect(utils.getAPIRequestURL(APIType.GET_FEES, CHAIN_IDS.ETHEREUM)).toBe(
+        `${API_BASE_URL}/networks/${ethereumChainIdDec}/getFees`,
+      );
     });
 
     it('returns a URL for submitting transactions', () => {
