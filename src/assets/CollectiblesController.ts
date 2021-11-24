@@ -152,8 +152,6 @@ export interface CollectiblesState extends BaseState {
     [key: string]: { [key: string]: CollectibleContract[] };
   };
   allCollectibles: { [key: string]: { [key: string]: Collectible[] } };
-  collectibleContracts: CollectibleContract[];
-  collectibles: Collectible[];
   ignoredCollectibles: Collectible[];
 }
 
@@ -481,7 +479,7 @@ export class CollectiblesController extends BaseController<
     const releaseLock = await this.mutex.acquire();
     try {
       address = toChecksumHexAddress(address);
-      const { allCollectibles, collectibles } = this.state;
+      const { allCollectibles } = this.state;
       let chainId, selectedAddress;
 
       if (detection?.autodetected) {
@@ -491,6 +489,8 @@ export class CollectiblesController extends BaseController<
         chainId = this.config.chainId;
         selectedAddress = this.config.selectedAddress;
       }
+
+      const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
 
       const existingEntry: Collectible | undefined = collectibles.find(
         (collectible) =>
@@ -536,7 +536,6 @@ export class CollectiblesController extends BaseController<
       };
       this.update({
         allCollectibles: newAllCollectibles,
-        collectibles: newCollectibles,
       });
       return newCollectibles;
     } finally {
@@ -558,7 +557,7 @@ export class CollectiblesController extends BaseController<
     const releaseLock = await this.mutex.acquire();
     try {
       address = toChecksumHexAddress(address);
-      const { allCollectibleContracts, collectibleContracts } = this.state;
+      const { allCollectibleContracts } = this.state;
 
       let chainId, selectedAddress;
 
@@ -569,6 +568,9 @@ export class CollectiblesController extends BaseController<
         chainId = this.config.chainId;
         selectedAddress = this.config.selectedAddress;
       }
+
+      const collectibleContracts =
+        allCollectibleContracts[selectedAddress]?.[chainId] || [];
 
       const existingEntry = collectibleContracts.find(
         (collectibleContract) =>
@@ -630,7 +632,6 @@ export class CollectiblesController extends BaseController<
       };
       this.update({
         allCollectibleContracts: newAllCollectibleContracts,
-        collectibleContracts: newCollectibleContracts,
       });
       return newCollectibleContracts;
     } finally {
@@ -649,9 +650,10 @@ export class CollectiblesController extends BaseController<
     tokenId: string,
   ) {
     address = toChecksumHexAddress(address);
-    const { allCollectibles, collectibles, ignoredCollectibles } = this.state;
+    const { allCollectibles, ignoredCollectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
     const newIgnoredCollectibles = [...ignoredCollectibles];
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const newCollectibles = collectibles.filter((collectible) => {
       if (
         collectible.address.toLowerCase() === address.toLowerCase() &&
@@ -676,7 +678,6 @@ export class CollectiblesController extends BaseController<
     };
     this.update({
       allCollectibles: newAllCollectibles,
-      collectibles: newCollectibles,
       ignoredCollectibles: newIgnoredCollectibles,
     });
   }
@@ -689,8 +690,9 @@ export class CollectiblesController extends BaseController<
    */
   private removeIndividualCollectible(address: string, tokenId: string) {
     address = toChecksumHexAddress(address);
-    const { allCollectibles, collectibles } = this.state;
+    const { allCollectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const newCollectibles = collectibles.filter(
       (collectible) =>
         !(
@@ -709,7 +711,6 @@ export class CollectiblesController extends BaseController<
     };
     this.update({
       allCollectibles: newAllCollectibles,
-      collectibles: newCollectibles,
     });
   }
 
@@ -721,8 +722,11 @@ export class CollectiblesController extends BaseController<
    */
   private removeCollectibleContract(address: string): CollectibleContract[] {
     address = toChecksumHexAddress(address);
-    const { allCollectibleContracts, collectibleContracts } = this.state;
+    const { allCollectibleContracts } = this.state;
     const { chainId, selectedAddress } = this.config;
+    const collectibleContracts =
+      allCollectibleContracts[selectedAddress]?.[chainId] || [];
+
     const newCollectibleContracts = collectibleContracts.filter(
       (collectibleContract) =>
         !(collectibleContract.address.toLowerCase() === address.toLowerCase()),
@@ -739,7 +743,6 @@ export class CollectiblesController extends BaseController<
     };
     this.update({
       allCollectibleContracts: newAllCollectibleContracts,
-      collectibleContracts: newCollectibleContracts,
     });
     return newCollectibleContracts;
   }
@@ -823,8 +826,6 @@ export class CollectiblesController extends BaseController<
     this.defaultState = {
       allCollectibleContracts: {},
       allCollectibles: {},
-      collectibleContracts: [],
-      collectibles: [],
       ignoredCollectibles: [],
     };
     this.initialize();
@@ -835,26 +836,12 @@ export class CollectiblesController extends BaseController<
     this.balanceOfERC1155Collectible = balanceOfERC1155Collectible;
     this.uriERC1155Collectible = uriERC1155Collectible;
     onPreferencesStateChange(({ selectedAddress }) => {
-      const { allCollectibleContracts, allCollectibles } = this.state;
-      const { chainId } = this.config;
       this.configure({ selectedAddress });
-      this.update({
-        collectibleContracts:
-          allCollectibleContracts[selectedAddress]?.[chainId] || [],
-        collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
-      });
     });
 
     onNetworkStateChange(({ provider }) => {
-      const { allCollectibleContracts, allCollectibles } = this.state;
-      const { selectedAddress } = this.config;
       const { chainId } = provider;
       this.configure({ chainId });
-      this.update({
-        collectibleContracts:
-          allCollectibleContracts[selectedAddress]?.[chainId] || [],
-        collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
-      });
     });
   }
 
@@ -956,7 +943,9 @@ export class CollectiblesController extends BaseController<
   removeCollectible(address: string, tokenId: string) {
     address = toChecksumHexAddress(address);
     this.removeIndividualCollectible(address, tokenId);
-    const { collectibles } = this.state;
+    const { allCollectibles } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const remainingCollectible = collectibles.find(
       (collectible) =>
         collectible.address.toLowerCase() === address.toLowerCase(),
@@ -975,7 +964,9 @@ export class CollectiblesController extends BaseController<
   removeAndIgnoreCollectible(address: string, tokenId: string) {
     address = toChecksumHexAddress(address);
     this.removeAndIgnoreIndividualCollectible(address, tokenId);
-    const { collectibles } = this.state;
+    const { allCollectibles } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const remainingCollectible = collectibles.find(
       (collectible) =>
         collectible.address.toLowerCase() === address.toLowerCase(),
