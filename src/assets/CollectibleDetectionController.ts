@@ -216,13 +216,21 @@ export class CollectibleDetectionController extends BaseController<
       interval: DEFAULT_INTERVAL,
       networkType: MAINNET,
       selectedAddress: '',
+      disabled: true,
     };
     this.initialize();
     this.getCollectiblesState = getCollectiblesState;
-    onPreferencesStateChange(({ selectedAddress }) => {
-      const actualSelectedAddress = this.config.selectedAddress;
-      if (selectedAddress !== actualSelectedAddress) {
-        this.configure({ selectedAddress });
+    onPreferencesStateChange(({ selectedAddress, useCollectibleDetection }) => {
+      const {
+        selectedAddress: previouslySelectedAddress,
+        disabled,
+      } = this.config;
+
+      if (
+        selectedAddress !== previouslySelectedAddress ||
+        !useCollectibleDetection !== disabled
+      ) {
+        this.configure({ selectedAddress, disabled: !useCollectibleDetection });
         this.detectCollectibles();
       }
     });
