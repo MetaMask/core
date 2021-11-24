@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.1.0]
+### Uncategorized
+- Use user preferred ipfs gateway ([#637](https://github.com/MetaMask/controllers/pull/637))
+- Add new method `addCollectibleVerifyOwnership` ([#635](https://github.com/MetaMask/controllers/pull/635))
+- Add preference to enable/disable collectible detection ([#638](https://github.com/MetaMask/controllers/pull/638))
+
 ## [20.0.0]
 ### Removed
 - **BREAKING**: Remove polling start call in detection controllers' constructors ([#629](https://github.com/MetaMask/controllers/pull/629))
@@ -415,7 +421,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v20.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v20.1.0...HEAD
+[20.1.0]: https://github.com/MetaMask/controllers/compare/v20.0.0...v20.1.0
 [20.0.0]: https://github.com/MetaMask/controllers/compare/v19.0.0...v20.0.0
 [19.0.0]: https://github.com/MetaMask/controllers/compare/v18.0.0...v19.0.0
 [18.0.0]: https://github.com/MetaMask/controllers/compare/v17.0.0...v18.0.0
