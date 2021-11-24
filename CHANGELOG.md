@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [20.1.0]
-### Uncategorized
-- Use user preferred ipfs gateway ([#637](https://github.com/MetaMask/controllers/pull/637))
-- Add new method `addCollectibleVerifyOwnership` ([#635](https://github.com/MetaMask/controllers/pull/635))
-- Add preference to enable/disable collectible detection ([#638](https://github.com/MetaMask/controllers/pull/638))
+### Added
+- Add new method `addCollectibleVerifyOwnership` to CollectiblesController ([#635](https://github.com/MetaMask/controllers/pull/635))
+- Add setting in PreferencesController to enable/disable collectible autoDetection and check against it in CollectibleDetectionController ([#638](https://github.com/MetaMask/controllers/pull/638))
+
+### Changed
+- Use user preferred ipfs gateway, as set in PreferencesController, to resolve ipfs based assets in CollectiblesController ([#637](https://github.com/MetaMask/controllers/pull/637))
 
 ## [20.0.0]
 ### Removed
