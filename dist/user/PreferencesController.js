@@ -27,6 +27,7 @@ class PreferencesController extends BaseController_1.BaseController {
             lostIdentities: {},
             selectedAddress: '',
             useStaticTokenList: false,
+            useCollectibleDetection: false,
         };
         this.initialize();
     }
@@ -208,10 +209,18 @@ class PreferencesController extends BaseController_1.BaseController {
     /**
      * Toggle the token detection setting to use dynamic token list.
      *
-     * @param useStaticTokenList - IPFS gateway string.
+     * @param useStaticTokenList - Boolean indicating user preference on token detection.
      */
     setUseStaticTokenList(useStaticTokenList) {
         this.update({ useStaticTokenList });
+    }
+    /**
+     * Toggle the collectible detection setting.
+     *
+     * @param useCollectibleDetection - Boolean indicating user preference on collectible detection.
+     */
+    setUseCollectibleDetection(useCollectibleDetection) {
+        this.update({ useCollectibleDetection });
     }
 }
 exports.PreferencesController = PreferencesController;

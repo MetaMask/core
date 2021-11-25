@@ -109,6 +109,7 @@ export interface CollectiblesConfig extends BaseConfig {
     networkType: NetworkType;
     selectedAddress: string;
     chainId: string;
+    ipfsGateway: string;
 }
 /**
  * @type CollectiblesState
@@ -131,8 +132,6 @@ export interface CollectiblesState extends BaseState {
             [key: string]: Collectible[];
         };
     };
-    collectibleContracts: CollectibleContract[];
-    collectibles: Collectible[];
     ignoredCollectibles: Collectible[];
 }
 /**
@@ -292,6 +291,14 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * @returns Promise resolving the collectible ownership.
      */
     isCollectibleOwner(ownerAddress: string, collectibleAddress: string, collectibleId: string): Promise<boolean>;
+    /**
+     * Verifies currently selected address owns entered collectible address/tokenId combo and
+     * adds the collectible and respective collectible contract to the stored collectible and collectible contracts lists.
+     *
+     * @param address - Hex address of the collectible contract.
+     * @param tokenId - The collectible identifier.
+     */
+    addCollectibleVerifyOwnership(address: string, tokenId: string): Promise<void>;
     /**
      * Adds a collectible and respective collectible contract to the stored collectible and collectible contracts lists.
      *
