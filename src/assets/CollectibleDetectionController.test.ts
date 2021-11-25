@@ -54,6 +54,7 @@ describe('CollectibleDetectionController', () => {
     });
 
     collectiblesController.configure({ chainId: '1', selectedAddress: '0x1' });
+    preferences.setUseCollectibleDetection(true);
 
     nock(OPEN_SEA_HOST)
       .get(`${OPEN_SEA_PATH}/assets?owner=0x2&offset=0&limit=50`)
@@ -193,11 +194,13 @@ describe('CollectibleDetectionController', () => {
   });
 
   it('should set default config', () => {
+    preferences.setUseCollectibleDetection(false);
     expect(collectibleDetection.config).toStrictEqual({
       interval: DEFAULT_INTERVAL,
       networkType: 'mainnet',
       chainId: '1',
       selectedAddress: '',
+      disabled: true,
     });
   });
 
@@ -222,8 +225,8 @@ describe('CollectibleDetectionController', () => {
         },
         { interval: 10 },
       );
+      collectiblesDetectionController.configure({ disabled: false });
       collectiblesDetectionController.start();
-
       expect(mockCollectibles.calledOnce).toBe(true);
       setTimeout(() => {
         expect(mockCollectibles.calledTwice).toBe(true);
@@ -300,6 +303,8 @@ describe('CollectibleDetectionController', () => {
       networkType: MAINNET,
       selectedAddress,
     });
+    collectiblesController.configure({ selectedAddress });
+
     const { chainId } = collectibleDetection.config;
 
     await collectiblesController.addCollectible(
@@ -397,6 +402,22 @@ describe('CollectibleDetectionController', () => {
       collectiblesController.state.allCollectibles[
         collectibleDetection.config.selectedAddress
       ]?.[chainId] || [],
+    ).toStrictEqual([]);
+  });
+
+  it('should not detect and add collectibles if preferences controller useCollectibleDetection is set to false', async () => {
+    preferences.setUseCollectibleDetection(false);
+    const selectedAddress = '0x9';
+    collectibleDetection.configure({
+      networkType: MAINNET,
+      selectedAddress,
+    });
+    const { chainId } = collectiblesController.config;
+    collectibleDetection.detectCollectibles();
+    expect(
+      collectiblesController.state.allCollectibles[selectedAddress]?.[
+        chainId
+      ] || [],
     ).toStrictEqual([]);
   });
 

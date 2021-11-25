@@ -135,6 +135,7 @@ export interface CollectiblesConfig extends BaseConfig {
   networkType: NetworkType;
   selectedAddress: string;
   chainId: string;
+  ipfsGateway: string;
 }
 
 /**
@@ -262,6 +263,7 @@ export class CollectiblesController extends BaseController<
     contractAddress: string,
     tokenId: string,
   ): Promise<CollectibleMetadata> {
+    const { ipfsGateway } = this.config;
     const result = await this.getCollectibleURIAndStandard(
       contractAddress,
       tokenId,
@@ -271,7 +273,9 @@ export class CollectiblesController extends BaseController<
 
     if (tokenURI.startsWith('ipfs://')) {
       const contentId = getIpfsUrlContentIdentifier(tokenURI);
-      tokenURI = IPFS_DEFAULT_GATEWAY_URL + contentId;
+      tokenURI = ipfsGateway.endsWith('/')
+        ? ipfsGateway + contentId
+        : `${ipfsGateway}/${contentId}`;
     }
 
     try {
@@ -821,6 +825,7 @@ export class CollectiblesController extends BaseController<
       networkType: MAINNET,
       selectedAddress: '',
       chainId: '',
+      ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
     };
 
     this.defaultState = {
@@ -835,8 +840,8 @@ export class CollectiblesController extends BaseController<
     this.getOwnerOf = getOwnerOf;
     this.balanceOfERC1155Collectible = balanceOfERC1155Collectible;
     this.uriERC1155Collectible = uriERC1155Collectible;
-    onPreferencesStateChange(({ selectedAddress }) => {
-      this.configure({ selectedAddress });
+    onPreferencesStateChange(({ selectedAddress, ipfsGateway }) => {
+      this.configure({ selectedAddress, ipfsGateway });
     });
 
     onNetworkStateChange(({ provider }) => {
@@ -892,6 +897,21 @@ export class CollectiblesController extends BaseController<
     throw new Error(
       'Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect.',
     );
+  }
+
+  /**
+   * Verifies currently selected address owns entered collectible address/tokenId combo and
+   * adds the collectible and respective collectible contract to the stored collectible and collectible contracts lists.
+   *
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - The collectible identifier.
+   */
+  async addCollectibleVerifyOwnership(address: string, tokenId: string) {
+    const { selectedAddress } = this.config;
+    if (!(await this.isCollectibleOwner(selectedAddress, address, tokenId))) {
+      throw new Error('This collectible is not owned by the user');
+    }
+    await this.addCollectible(address, tokenId);
   }
 
   /**

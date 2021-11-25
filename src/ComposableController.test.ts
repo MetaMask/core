@@ -163,6 +163,7 @@ describe('ComposableController', () => {
           lostIdentities: {},
           selectedAddress: '',
           useStaticTokenList: false,
+          useCollectibleDetection: false,
         },
       });
     });
@@ -230,6 +231,7 @@ describe('ComposableController', () => {
         provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
         selectedAddress: '',
         useStaticTokenList: false,
+        useCollectibleDetection: false,
         suggestedAssets: [],
         tokens: [],
       });
