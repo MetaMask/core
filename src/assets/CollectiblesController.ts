@@ -96,8 +96,6 @@ export interface CollectibleContract {
  * @property externalLink - External link containing additional information
  * @property creator - The collectible owner information object
  * @property standard - NFT standard name for the collectible, e.g., ERC-721 or ERC-1155
- * @property collectionName - The name of the collectible collection.
- * @property collectionImage - The image URI of the collectible collection.
  */
 export interface CollectibleMetadata {
   name: string | null;
@@ -114,8 +112,6 @@ export interface CollectibleMetadata {
   externalLink?: string;
   creator?: ApiCollectibleCreator;
   lastSale?: ApiCollectibleLastSale;
-  collectionName?: string;
-  collectionImage?: string;
 }
 
 /**
@@ -129,6 +125,7 @@ export interface CollectiblesConfig extends BaseConfig {
   networkType: NetworkType;
   selectedAddress: string;
   chainId: string;
+  ipfsGateway: string;
 }
 
 /**
@@ -218,7 +215,6 @@ export class CollectiblesController extends BaseController<
       creator,
       last_sale,
       asset_contract: { schema_name },
-      collection,
     } = collectibleInformation;
 
     /* istanbul ignore next */
@@ -240,8 +236,6 @@ export class CollectiblesController extends BaseController<
       external_link && { externalLink: external_link },
       last_sale && { lastSale: last_sale },
       schema_name && { standard: schema_name },
-      collection.name && { collectionName: collection.name },
-      collection.image_url && { collectionImage: collection.image_url },
     );
 
     return collectibleMetadata;
@@ -258,6 +252,7 @@ export class CollectiblesController extends BaseController<
     contractAddress: string,
     tokenId: string,
   ): Promise<CollectibleMetadata> {
+    const { ipfsGateway } = this.config;
     const result = await this.getCollectibleURIAndStandard(
       contractAddress,
       tokenId,
@@ -267,7 +262,9 @@ export class CollectiblesController extends BaseController<
 
     if (tokenURI.startsWith('ipfs://')) {
       const contentId = getIpfsUrlContentIdentifier(tokenURI);
-      tokenURI = IPFS_DEFAULT_GATEWAY_URL + contentId;
+      tokenURI = ipfsGateway.endsWith('/')
+        ? ipfsGateway + contentId
+        : `${ipfsGateway}/${contentId}`;
     }
 
     try {
@@ -410,7 +407,7 @@ export class CollectiblesController extends BaseController<
     const name = await this.getAssetName(contractAddress);
     const symbol = await this.getAssetSymbol(contractAddress);
     return {
-      name,
+      collection: { name, image_url: null },
       symbol,
       address: contractAddress,
     };
@@ -446,13 +443,12 @@ export class CollectiblesController extends BaseController<
       address: contractAddress,
       asset_contract_type: null,
       created_date: null,
-      name: null,
       schema_name: null,
       symbol: null,
       total_supply: null,
       description: null,
       external_link: null,
-      image_url: null,
+      collection: { name: null, image_url: null },
     };
   }
 
@@ -557,13 +553,12 @@ export class CollectiblesController extends BaseController<
       const {
         asset_contract_type,
         created_date,
-        name,
         schema_name,
         symbol,
         total_supply,
         description,
         external_link,
-        image_url,
+        collection: { name, image_url },
       } = contractInformation;
       // If being auto-detected opensea information is expected
       // Otherwise at least name and symbol from contract is needed
@@ -791,6 +786,7 @@ export class CollectiblesController extends BaseController<
       networkType: MAINNET,
       selectedAddress: '',
       chainId: '',
+      ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
     };
 
     this.defaultState = {
@@ -807,10 +803,10 @@ export class CollectiblesController extends BaseController<
     this.getOwnerOf = getOwnerOf;
     this.balanceOfERC1155Collectible = balanceOfERC1155Collectible;
     this.uriERC1155Collectible = uriERC1155Collectible;
-    onPreferencesStateChange(({ selectedAddress }) => {
+    onPreferencesStateChange(({ selectedAddress, ipfsGateway }) => {
       const { allCollectibleContracts, allCollectibles } = this.state;
       const { chainId } = this.config;
-      this.configure({ selectedAddress });
+      this.configure({ selectedAddress, ipfsGateway });
       this.update({
         collectibleContracts:
           allCollectibleContracts[selectedAddress]?.[chainId] || [],
