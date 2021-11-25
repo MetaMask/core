@@ -137,8 +137,6 @@ describe('ComposableController', () => {
         CollectiblesController: {
           allCollectibleContracts: {},
           allCollectibles: {},
-          collectibleContracts: [],
-          collectibles: [],
           ignoredCollectibles: [],
         },
         TokensController: {
@@ -165,6 +163,7 @@ describe('ComposableController', () => {
           lostIdentities: {},
           selectedAddress: '',
           useStaticTokenList: false,
+          useCollectibleDetection: false,
         },
       });
     });
@@ -217,8 +216,6 @@ describe('ComposableController', () => {
         allCollectibleContracts: {},
         allCollectibles: {},
         allTokens: {},
-        collectibleContracts: [],
-        collectibles: [],
         ensEntries: {},
         featureFlags: {},
         frequentRpcList: [],
@@ -234,6 +231,7 @@ describe('ComposableController', () => {
         provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
         selectedAddress: '',
         useStaticTokenList: false,
+        useCollectibleDetection: false,
         suggestedAssets: [],
         tokens: [],
       });

@@ -53,6 +53,9 @@ describe('CollectibleDetectionController', () => {
       getCollectiblesState: () => collectiblesController.state,
     });
 
+    collectiblesController.configure({ chainId: '1', selectedAddress: '0x1' });
+    preferences.setUseCollectibleDetection(true);
+
     nock(OPEN_SEA_HOST)
       .get(`${OPEN_SEA_PATH}/assets?owner=0x2&offset=0&limit=50`)
       .reply(200, {
@@ -191,11 +194,13 @@ describe('CollectibleDetectionController', () => {
   });
 
   it('should set default config', () => {
+    preferences.setUseCollectibleDetection(false);
     expect(collectibleDetection.config).toStrictEqual({
       interval: DEFAULT_INTERVAL,
       networkType: 'mainnet',
       chainId: '1',
       selectedAddress: '',
+      disabled: true,
     });
   });
 
@@ -220,8 +225,8 @@ describe('CollectibleDetectionController', () => {
         },
         { interval: 10 },
       );
+      collectiblesDetectionController.configure({ disabled: false });
       collectiblesDetectionController.start();
-
       expect(mockCollectibles.calledOnce).toBe(true);
       setTimeout(() => {
         expect(mockCollectibles.calledTwice).toBe(true);
@@ -266,12 +271,19 @@ describe('CollectibleDetectionController', () => {
   });
 
   it('should detect and add collectibles correctly', async () => {
+    const selectedAddress = '0x1';
+
     collectibleDetection.configure({
       networkType: MAINNET,
-      selectedAddress: '0x1',
+      selectedAddress,
     });
+    const { chainId } = collectibleDetection.config;
+
     await collectibleDetection.detectCollectibles();
-    expect(collectiblesController.state.collectibles).toStrictEqual([
+
+    const collectibles =
+      collectiblesController.state.allCollectibles[selectedAddress][chainId];
+    expect(collectibles).toStrictEqual([
       {
         address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
         description: 'Description 2574',
@@ -286,10 +298,14 @@ describe('CollectibleDetectionController', () => {
   });
 
   it('should detect, add collectibles and do nor remove not detected collectibles correctly', async () => {
+    const selectedAddress = '0x1';
     collectibleDetection.configure({
       networkType: MAINNET,
-      selectedAddress: '0x1',
+      selectedAddress,
     });
+    collectiblesController.configure({ selectedAddress });
+
+    const { chainId } = collectibleDetection.config;
 
     await collectiblesController.addCollectible(
       '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -301,8 +317,13 @@ describe('CollectibleDetectionController', () => {
         standard: 'ERC721',
       },
     );
+
     await collectibleDetection.detectCollectibles();
-    expect(collectiblesController.state.collectibles).toStrictEqual([
+
+    const collectibles =
+      collectiblesController.state.allCollectibles[selectedAddress][chainId];
+
+    expect(collectibles).toStrictEqual([
       {
         address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
         description: 'Description 2573',
@@ -325,26 +346,42 @@ describe('CollectibleDetectionController', () => {
   });
 
   it('should not autodetect collectibles that exist in the ignoreList', async () => {
+    const selectedAddress = '0x2';
     collectibleDetection.configure({
       networkType: MAINNET,
       selectedAddress: '0x2',
     });
+    collectiblesController.configure({ selectedAddress });
+
+    const { chainId } = collectibleDetection.config;
+
     await collectibleDetection.detectCollectibles();
-    expect(collectiblesController.state.collectibles).toHaveLength(1);
+    expect(
+      collectiblesController.state.allCollectibles[selectedAddress][chainId],
+    ).toHaveLength(1);
     expect(collectiblesController.state.ignoredCollectibles).toHaveLength(0);
     collectiblesController.removeAndIgnoreCollectible(
-      '0x1d963688fe2209a98db35c67a041524822cf04ff',
+      '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
       '2577',
     );
-    await collectibleDetection.detectCollectibles();
-    expect(collectiblesController.state.collectibles).toHaveLength(0);
+
     expect(collectiblesController.state.ignoredCollectibles).toHaveLength(1);
+    await collectibleDetection.detectCollectibles();
+    expect(
+      collectiblesController.state.allCollectibles[selectedAddress][chainId],
+    ).toHaveLength(0);
   });
 
   it('should not detect and add collectibles if there is no selectedAddress', async () => {
-    collectibleDetection.configure({ networkType: MAINNET });
+    const selectedAddress = '';
+    collectibleDetection.configure({
+      networkType: MAINNET,
+      selectedAddress,
+    });
+    const { chainId } = collectibleDetection.config;
     await collectibleDetection.detectCollectibles();
-    expect(collectiblesController.state.collectibles).toStrictEqual([]);
+    const { allCollectibles } = collectiblesController.state;
+    expect(allCollectibles[selectedAddress]?.[chainId] || []).toStrictEqual([]);
   });
 
   it('should not detect and add collectibles to the wrong selectedAddress', async () => {
@@ -352,13 +389,36 @@ describe('CollectibleDetectionController', () => {
       networkType: MAINNET,
       selectedAddress: '0x9',
     });
+    const { chainId } = collectibleDetection.config;
+
     collectiblesController.configure({ selectedAddress: '0x9' });
     collectibleDetection.detectCollectibles();
     collectibleDetection.configure({ selectedAddress: '0x12' });
     collectiblesController.configure({ selectedAddress: '0x12' });
     await new Promise((res) => setTimeout(() => res(true), 1000));
     expect(collectibleDetection.config.selectedAddress).toStrictEqual('0x12');
-    expect(collectiblesController.state.collectibles).toStrictEqual([]);
+
+    expect(
+      collectiblesController.state.allCollectibles[
+        collectibleDetection.config.selectedAddress
+      ]?.[chainId] || [],
+    ).toStrictEqual([]);
+  });
+
+  it('should not detect and add collectibles if preferences controller useCollectibleDetection is set to false', async () => {
+    preferences.setUseCollectibleDetection(false);
+    const selectedAddress = '0x9';
+    collectibleDetection.configure({
+      networkType: MAINNET,
+      selectedAddress,
+    });
+    const { chainId } = collectiblesController.config;
+    collectibleDetection.detectCollectibles();
+    expect(
+      collectiblesController.state.allCollectibles[selectedAddress]?.[
+        chainId
+      ] || [],
+    ).toStrictEqual([]);
   });
 
   it('should not add collectible if collectible or collectible contract has no information to display', async () => {
@@ -416,19 +476,26 @@ describe('CollectibleDetectionController', () => {
       symbol: 'II',
       totalSupply: 10,
     };
+
+    const selectedAddress = '0x1';
     collectibleDetection.configure({
-      selectedAddress: '0x1',
+      selectedAddress,
       networkType: MAINNET,
     });
+    const { chainId } = collectibleDetection.config;
     await collectibleDetection.detectCollectibles();
     // First fetch to API, only gets information from contract ending in HH
-    expect(collectiblesController.state.collectibles).toStrictEqual([
-      collectibleHH2574,
-    ]);
+    expect(
+      collectiblesController.state.allCollectibles[selectedAddress]?.[
+        chainId
+      ] || [],
+    ).toStrictEqual([collectibleHH2574]);
 
-    expect(collectiblesController.state.collectibleContracts).toStrictEqual([
-      collectibleContractHH,
-    ]);
+    expect(
+      collectiblesController.state.allCollectibleContracts[selectedAddress]?.[
+        chainId
+      ] || [],
+    ).toStrictEqual([collectibleContractHH]);
     // During next call of assets detection, API succeds returning contract ending in gg information
 
     nock(OPEN_SEA_HOST)
@@ -506,16 +573,20 @@ describe('CollectibleDetectionController', () => {
 
     // Now user should have respective collectibles
     await collectibleDetection.detectCollectibles();
-    expect(collectiblesController.state.collectibleContracts).toStrictEqual([
+    expect(
+      collectiblesController.state.allCollectibleContracts[selectedAddress]?.[
+        chainId
+      ] || [],
+    ).toStrictEqual([
       collectibleContractHH,
       collectibleContractII,
       collectibleContractGG,
     ]);
 
-    expect(collectiblesController.state.collectibles).toStrictEqual([
-      collectibleHH2574,
-      collectibleII2577,
-      collectibleGG2574,
-    ]);
+    expect(
+      collectiblesController.state.allCollectibles[selectedAddress]?.[
+        chainId
+      ] || [],
+    ).toStrictEqual([collectibleHH2574, collectibleII2577, collectibleGG2574]);
   });
 });
