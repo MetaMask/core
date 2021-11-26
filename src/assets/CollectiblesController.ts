@@ -119,7 +119,6 @@ export interface CollectibleMetadata {
 }
 
 interface DetectionParams {
-  autodetected: boolean;
   address: string;
   chainId: string;
 }
@@ -486,7 +485,7 @@ export class CollectiblesController extends BaseController<
       const { allCollectibles } = this.state;
       let chainId, selectedAddress;
 
-      if (detection?.autodetected) {
+      if (detection) {
         chainId = detection.chainId;
         selectedAddress = detection.address;
       } else {
@@ -565,7 +564,7 @@ export class CollectiblesController extends BaseController<
 
       let chainId, selectedAddress;
 
-      if (detection?.autodetected) {
+      if (detection) {
         chainId = detection.chainId;
         selectedAddress = detection.address;
       } else {

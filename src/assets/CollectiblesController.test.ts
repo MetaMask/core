@@ -495,7 +495,6 @@ describe('CollectiblesController', () => {
         '123',
         undefined,
         {
-          autodetected: true,
           address: selectedAddress,
           chainId,
         },
@@ -518,7 +517,6 @@ describe('CollectiblesController', () => {
         '1203',
         undefined,
         {
-          autodetected: true,
           address: selectedAddress,
           chainId,
         },
