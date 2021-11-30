@@ -318,9 +318,9 @@ export class CollectibleDetectionController extends BaseController<
 
     let { chainId } = this.config;
     if (typeof chainId === 'string' && isHexString(chainId)) {
-      chainId = `${parseInt(chainId, 16)}` as `${number}`;
+      chainId = `${parseInt(chainId, 16)}` as const;
     } else if (typeof chainId === 'number') {
-      chainId = `${chainId}` as `${number}`;
+      chainId = `${chainId}` as const;
     }
 
     /* istanbul ignore else */
