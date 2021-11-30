@@ -469,7 +469,7 @@ export class CollectiblesController extends BaseController<
    * @param address - Hex address of the collectible contract.
    * @param tokenId - The collectible identifier.
    * @param collectibleMetadata - Collectible optional information (name, image and description).
-   * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
+   * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
    * @returns Promise resolving to the current collectible list.
    */
   private async addIndividualCollectible(
@@ -550,7 +550,7 @@ export class CollectiblesController extends BaseController<
    * Adds a collectible contract to the stored collectible contracts list.
    *
    * @param address - Hex address of the collectible contract.
-   * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
+   * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
    * @returns Promise resolving to the current collectible contracts list.
    */
   private async addCollectibleContract(
@@ -919,7 +919,7 @@ export class CollectiblesController extends BaseController<
    * @param address - Hex address of the collectible contract.
    * @param tokenId - The collectible identifier.
    * @param collectibleMetadata - Collectible optional metadata.
-   * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
+   * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
    * @returns Promise resolving to the current collectible list.
    */
   async addCollectible(
