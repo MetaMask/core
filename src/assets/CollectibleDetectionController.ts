@@ -233,6 +233,10 @@ export class CollectibleDetectionController extends BaseController<
         this.configure({ selectedAddress, disabled: !useCollectibleDetection });
         this.detectCollectibles();
       }
+
+      if (!useCollectibleDetection) {
+        this.stop();
+      }
     });
 
     onNetworkStateChange(({ provider }) => {

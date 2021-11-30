@@ -12,6 +12,7 @@ describe('PreferencesController', () => {
       selectedAddress: '',
       useStaticTokenList: false,
       useCollectibleDetection: false,
+      openSeaEnabled: false,
     });
   });
 
@@ -220,6 +221,7 @@ describe('PreferencesController', () => {
 
   it('should set useCollectibleDetection', () => {
     const controller = new PreferencesController();
+    controller.setOpenSeaEnabled(true);
     controller.setUseCollectibleDetection(true);
     expect(controller.state.useCollectibleDetection).toStrictEqual(true);
   });
