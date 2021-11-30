@@ -919,7 +919,7 @@ export class CollectiblesController extends BaseController<
    * @param address - Hex address of the collectible contract.
    * @param tokenId - The collectible identifier.
    * @param collectibleMetadata - Collectible optional metadata.
-   * @param detection - Whether the collectible is manually added or auto-detected for address and chainId.
+   * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
    * @returns Promise resolving to the current collectible list.
    */
   async addCollectible(
