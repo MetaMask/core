@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.0]
+### Uncategorized
+- Add detection params (userAddress, chainId) and remove duplicate source of truth ([#636](https://github.com/MetaMask/controllers/pull/636))
+- add openSeaEnabled preference ([#645](https://github.com/MetaMask/controllers/pull/645))
+- modify requirements for adding opensea detected contract ([#644](https://github.com/MetaMask/controllers/pull/644))
+- [FIX] OpenSea Collection Name ([#628](https://github.com/MetaMask/controllers/pull/628))
+- Bump @metamask/contract-metadata from 1.30.0 to 1.31.0 ([#634](https://github.com/MetaMask/controllers/pull/634))
+
 ## [20.1.0]
 ### Added
 - Add new method `addCollectibleVerifyOwnership` to CollectiblesController ([#635](https://github.com/MetaMask/controllers/pull/635))
@@ -423,7 +431,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v20.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/controllers/compare/v20.1.0...v21.0.0
 [20.1.0]: https://github.com/MetaMask/controllers/compare/v20.0.0...v20.1.0
 [20.0.0]: https://github.com/MetaMask/controllers/compare/v19.0.0...v20.0.0
 [19.0.0]: https://github.com/MetaMask/controllers/compare/v18.0.0...v19.0.0
