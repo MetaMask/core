@@ -303,6 +303,11 @@ export class PreferencesController extends BaseController<
    * @param useCollectibleDetection - Boolean indicating user preference on collectible detection.
    */
   setUseCollectibleDetection(useCollectibleDetection: boolean) {
+    if (useCollectibleDetection && !this.state.openSeaEnabled) {
+      throw new Error(
+        'useCollectibleDetection cannot be enabled if openSeaEnabled is false',
+      );
+    }
     this.update({ useCollectibleDetection });
   }
 

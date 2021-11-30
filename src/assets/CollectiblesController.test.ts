@@ -60,7 +60,10 @@ describe('CollectiblesController', () => {
       ),
     });
 
-    preferences.update({ selectedAddress: OWNER_ADDRESS });
+    preferences.update({
+      selectedAddress: OWNER_ADDRESS,
+      openSeaEnabled: true,
+    });
 
     sandbox
       .stub(collectiblesController, 'isCollectibleOwner' as any)

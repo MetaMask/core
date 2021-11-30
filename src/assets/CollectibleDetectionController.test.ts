@@ -53,6 +53,7 @@ describe('CollectibleDetectionController', () => {
       getCollectiblesState: () => collectiblesController.state,
     });
 
+    preferences.setOpenSeaEnabled(true);
     preferences.setUseCollectibleDetection(true);
 
     nock(OPEN_SEA_HOST)
@@ -368,6 +369,16 @@ describe('CollectibleDetectionController', () => {
 
   it('should not detect and add collectibles if preferences controller useCollectibleDetection is set to false', async () => {
     preferences.setUseCollectibleDetection(false);
+    collectibleDetection.configure({
+      networkType: MAINNET,
+      selectedAddress: '0x9',
+    });
+    collectibleDetection.detectCollectibles();
+    expect(collectiblesController.state.collectibles).toStrictEqual([]);
+  });
+
+  it('should not detect and add collectibles if preferences controller openSeaEnabled is set to false', async () => {
+    preferences.setOpenSeaEnabled(false);
     collectibleDetection.configure({
       networkType: MAINNET,
       selectedAddress: '0x9',
