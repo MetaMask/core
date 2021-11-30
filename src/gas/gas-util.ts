@@ -66,6 +66,11 @@ export async function fetchGasEstimates(
       ),
     },
     estimatedBaseFee: normalizeGWEIDecimalNumbers(estimates.estimatedBaseFee),
+    historicalBaseFeeRange: estimates.historicalBaseFeeRange,
+    baseFeeTrend: estimates.baseFeeTrend,
+    latestPriorityFeeRange: estimates.latestPriorityFeeRange,
+    historicalPriorityFeeRange: estimates.historicalPriorityFeeRange,
+    priorityFeeTrend: estimates.priorityFeeTrend,
     networkCongestion: estimates.networkCongestion,
   };
 }
