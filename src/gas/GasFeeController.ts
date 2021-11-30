@@ -127,6 +127,11 @@ export type GasFeeEstimates = {
   medium: Eip1559GasFee;
   high: Eip1559GasFee;
   estimatedBaseFee: string;
+  historicalBaseFeeRange: [string, string];
+  baseFeeTrend: 'up' | 'down' | 'level';
+  latestPriorityFeeRange: [string, string];
+  historicalPriorityFeeRange: [string, string];
+  priorityFeeTrend: 'up' | 'down' | 'level';
   networkCongestion: number;
 };
 
