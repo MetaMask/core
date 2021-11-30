@@ -28,6 +28,7 @@ class PreferencesController extends BaseController_1.BaseController {
             selectedAddress: '',
             useStaticTokenList: false,
             useCollectibleDetection: false,
+            openSeaEnabled: false,
         };
         this.initialize();
     }
@@ -220,7 +221,21 @@ class PreferencesController extends BaseController_1.BaseController {
      * @param useCollectibleDetection - Boolean indicating user preference on collectible detection.
      */
     setUseCollectibleDetection(useCollectibleDetection) {
+        if (useCollectibleDetection && !this.state.openSeaEnabled) {
+            throw new Error('useCollectibleDetection cannot be enabled if openSeaEnabled is false');
+        }
         this.update({ useCollectibleDetection });
+    }
+    /**
+     * Toggle the opensea enabled setting.
+     *
+     * @param openSeaEnabled - Boolean indicating user preference on using OpenSea's API.
+     */
+    setOpenSeaEnabled(openSeaEnabled) {
+        this.update({ openSeaEnabled });
+        if (!openSeaEnabled) {
+            this.update({ useCollectibleDetection: false });
+        }
     }
 }
 exports.PreferencesController = PreferencesController;

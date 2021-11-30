@@ -60,6 +60,9 @@ class CollectibleDetectionController extends BaseController_1.BaseController {
                 this.configure({ selectedAddress, disabled: !useCollectibleDetection });
                 this.detectCollectibles();
             }
+            if (!useCollectibleDetection) {
+                this.stop();
+            }
         });
         onNetworkStateChange(({ provider }) => {
             this.configure({
@@ -162,7 +165,7 @@ class CollectibleDetectionController extends BaseController_1.BaseController {
             yield util_1.safelyExecute(() => __awaiter(this, void 0, void 0, function* () {
                 const apiCollectibles = yield this.getOwnerCollectibles(selectedAddress);
                 const addCollectiblesPromises = apiCollectibles.map((collectible) => __awaiter(this, void 0, void 0, function* () {
-                    const { token_id, num_sales, background_color, image_url, image_preview_url, image_thumbnail_url, image_original_url, animation_url, animation_original_url, name, description, external_link, creator, asset_contract: { address, schema_name }, collection, last_sale, } = collectible;
+                    const { token_id, num_sales, background_color, image_url, image_preview_url, image_thumbnail_url, image_original_url, animation_url, animation_original_url, name, description, external_link, creator, asset_contract: { address, schema_name }, last_sale, } = collectible;
                     let ignored;
                     /* istanbul ignore else */
                     const { ignoredCollectibles } = this.getCollectiblesState();
@@ -178,9 +181,7 @@ class CollectibleDetectionController extends BaseController_1.BaseController {
                         /* istanbul ignore next */
                         const collectibleMetadata = Object.assign({}, { name }, creator && { creator }, description && { description }, image_url && { image: image_url }, num_sales && { numberOfSales: num_sales }, background_color && { backgroundColor: background_color }, image_preview_url && { imagePreview: image_preview_url }, image_thumbnail_url && { imageThumbnail: image_thumbnail_url }, image_original_url && { imageOriginal: image_original_url }, animation_url && { animation: animation_url }, animation_original_url && {
                             animationOriginal: animation_original_url,
-                        }, schema_name && { standard: schema_name }, external_link && { externalLink: external_link }, last_sale && { lastSale: last_sale }, collection.name && { collectionName: collection.name }, collection.image_url && {
-                            collectionImage: collection.image_url,
-                        });
+                        }, schema_name && { standard: schema_name }, external_link && { externalLink: external_link }, last_sale && { lastSale: last_sale });
                         yield this.addCollectible(address, token_id, collectibleMetadata, {
                             userAddress: selectedAddress,
                             chainId: chainId,

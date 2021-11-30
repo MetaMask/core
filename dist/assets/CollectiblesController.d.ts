@@ -72,8 +72,6 @@ export interface CollectibleContract {
  * @property externalLink - External link containing additional information
  * @property creator - The collectible owner information object
  * @property standard - NFT standard name for the collectible, e.g., ERC-721 or ERC-1155
- * @property collectionName - The name of the collectible collection.
- * @property collectionImage - The image URI of the collectible collection.
  */
 export interface CollectibleMetadata {
     name: string | null;
@@ -90,8 +88,6 @@ export interface CollectibleMetadata {
     externalLink?: string;
     creator?: ApiCollectibleCreator;
     lastSale?: ApiCollectibleLastSale;
-    collectionName?: string;
-    collectionImage?: string;
 }
 interface DetectionParams {
     userAddress: string;
@@ -109,6 +105,7 @@ export interface CollectiblesConfig extends BaseConfig {
     selectedAddress: string;
     chainId: string;
     ipfsGateway: string;
+    openSeaEnabled: boolean;
 }
 /**
  * @type CollectiblesState
@@ -199,7 +196,7 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * @param address - Hex address of the collectible contract.
      * @param tokenId - The collectible identifier.
      * @param collectibleMetadata - Collectible optional information (name, image and description).
-     * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
+     * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
      * @returns Promise resolving to the current collectible list.
      */
     private addIndividualCollectible;
@@ -207,7 +204,7 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * Adds a collectible contract to the stored collectible contracts list.
      *
      * @param address - Hex address of the collectible contract.
-     * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
+     * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
      * @returns Promise resolving to the current collectible contracts list.
      */
     private addCollectibleContract;
@@ -304,7 +301,7 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * @param address - Hex address of the collectible contract.
      * @param tokenId - The collectible identifier.
      * @param collectibleMetadata - Collectible optional metadata.
-     * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
+     * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
      * @returns Promise resolving to the current collectible list.
      */
     addCollectible(address: string, tokenId: string, collectibleMetadata?: CollectibleMetadata, detection?: DetectionParams): Promise<void>;

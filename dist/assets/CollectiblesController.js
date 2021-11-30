@@ -52,6 +52,7 @@ class CollectiblesController extends BaseController_1.BaseController {
             selectedAddress: '',
             chainId: '',
             ipfsGateway: constants_1.IPFS_DEFAULT_GATEWAY_URL,
+            openSeaEnabled: false,
         };
         this.defaultState = {
             allCollectibleContracts: {},
@@ -65,8 +66,8 @@ class CollectiblesController extends BaseController_1.BaseController {
         this.getOwnerOf = getOwnerOf;
         this.balanceOfERC1155Collectible = balanceOfERC1155Collectible;
         this.uriERC1155Collectible = uriERC1155Collectible;
-        onPreferencesStateChange(({ selectedAddress, ipfsGateway }) => {
-            this.configure({ selectedAddress, ipfsGateway });
+        onPreferencesStateChange(({ selectedAddress, ipfsGateway, openSeaEnabled }) => {
+            this.configure({ selectedAddress, ipfsGateway, openSeaEnabled });
         });
         onNetworkStateChange(({ provider }) => {
             const { chainId } = provider;
@@ -111,11 +112,11 @@ class CollectiblesController extends BaseController_1.BaseController {
             else {
                 collectibleInformation = yield util_1.handleFetch(tokenURI);
             }
-            const { num_sales, background_color, image_url, image_preview_url, image_thumbnail_url, image_original_url, animation_url, animation_original_url, name, description, external_link, creator, last_sale, asset_contract: { schema_name }, collection, } = collectibleInformation;
+            const { num_sales, background_color, image_url, image_preview_url, image_thumbnail_url, image_original_url, animation_url, animation_original_url, name, description, external_link, creator, last_sale, asset_contract: { schema_name }, } = collectibleInformation;
             /* istanbul ignore next */
             const collectibleMetadata = Object.assign({}, { name: name || null }, { description: description || null }, { image: image_url || null }, creator && { creator }, num_sales && { numberOfSales: num_sales }, background_color && { backgroundColor: background_color }, image_preview_url && { imagePreview: image_preview_url }, image_thumbnail_url && { imageThumbnail: image_thumbnail_url }, image_original_url && { imageOriginal: image_original_url }, animation_url && { animation: animation_url }, animation_original_url && {
                 animationOriginal: animation_original_url,
-            }, external_link && { externalLink: external_link }, last_sale && { lastSale: last_sale }, schema_name && { standard: schema_name }, collection.name && { collectionName: collection.name }, collection.image_url && { collectionImage: collection.image_url });
+            }, external_link && { externalLink: external_link }, last_sale && { lastSale: last_sale }, schema_name && { standard: schema_name });
             return collectibleMetadata;
         });
     }
@@ -213,9 +214,12 @@ class CollectiblesController extends BaseController_1.BaseController {
             const blockchainMetadata = yield util_1.safelyExecute(() => __awaiter(this, void 0, void 0, function* () {
                 return yield this.getCollectibleInformationFromTokenURI(contractAddress, tokenId);
             }));
-            const openSeaMetadata = yield util_1.safelyExecute(() => __awaiter(this, void 0, void 0, function* () {
-                return yield this.getCollectibleInformationFromApi(contractAddress, tokenId);
-            }));
+            let openSeaMetadata;
+            if (this.config.openSeaEnabled) {
+                openSeaMetadata = yield util_1.safelyExecute(() => __awaiter(this, void 0, void 0, function* () {
+                    return yield this.getCollectibleInformationFromApi(contractAddress, tokenId);
+                }));
+            }
             return Object.assign(Object.assign({}, openSeaMetadata), { name: (_b = (_a = blockchainMetadata.name) !== null && _a !== void 0 ? _a : openSeaMetadata === null || openSeaMetadata === void 0 ? void 0 : openSeaMetadata.name) !== null && _b !== void 0 ? _b : null, description: (_d = (_c = blockchainMetadata.description) !== null && _c !== void 0 ? _c : openSeaMetadata === null || openSeaMetadata === void 0 ? void 0 : openSeaMetadata.description) !== null && _d !== void 0 ? _d : null, image: (_f = (_e = blockchainMetadata.image) !== null && _e !== void 0 ? _e : openSeaMetadata === null || openSeaMetadata === void 0 ? void 0 : openSeaMetadata.image) !== null && _f !== void 0 ? _f : null, standard: (_h = (_g = blockchainMetadata.standard) !== null && _g !== void 0 ? _g : openSeaMetadata === null || openSeaMetadata === void 0 ? void 0 : openSeaMetadata.standard) !== null && _h !== void 0 ? _h : null });
         });
     }
@@ -252,7 +256,7 @@ class CollectiblesController extends BaseController_1.BaseController {
             const name = yield this.getAssetName(contractAddress);
             const symbol = yield this.getAssetSymbol(contractAddress);
             return {
-                name,
+                collection: { name, image_url: null },
                 symbol,
                 address: contractAddress,
             };
@@ -269,9 +273,12 @@ class CollectiblesController extends BaseController_1.BaseController {
             const blockchainContractData = yield util_1.safelyExecute(() => __awaiter(this, void 0, void 0, function* () {
                 return yield this.getCollectibleContractInformationFromContract(contractAddress);
             }));
-            const openSeaContractData = yield util_1.safelyExecute(() => __awaiter(this, void 0, void 0, function* () {
-                return yield this.getCollectibleContractInformationFromApi(contractAddress);
-            }));
+            let openSeaContractData;
+            if (this.config.openSeaEnabled) {
+                openSeaContractData = yield util_1.safelyExecute(() => __awaiter(this, void 0, void 0, function* () {
+                    return yield this.getCollectibleContractInformationFromApi(contractAddress);
+                }));
+            }
             if (blockchainContractData || openSeaContractData) {
                 return Object.assign(Object.assign({}, openSeaContractData), blockchainContractData);
             }
@@ -280,13 +287,12 @@ class CollectiblesController extends BaseController_1.BaseController {
                 address: contractAddress,
                 asset_contract_type: null,
                 created_date: null,
-                name: null,
                 schema_name: null,
                 symbol: null,
                 total_supply: null,
                 description: null,
                 external_link: null,
-                image_url: null,
+                collection: { name: null, image_url: null },
             };
         });
     }
@@ -296,7 +302,7 @@ class CollectiblesController extends BaseController_1.BaseController {
      * @param address - Hex address of the collectible contract.
      * @param tokenId - The collectible identifier.
      * @param collectibleMetadata - Collectible optional information (name, image and description).
-     * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
+     * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
      * @returns Promise resolving to the current collectible list.
      */
     addIndividualCollectible(address, tokenId, collectibleMetadata, detection) {
@@ -354,7 +360,7 @@ class CollectiblesController extends BaseController_1.BaseController {
      * Adds a collectible contract to the stored collectible contracts list.
      *
      * @param address - Hex address of the collectible contract.
-     * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
+     * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
      * @returns Promise resolving to the current collectible contracts list.
      */
     addCollectibleContract(address, detection) {
@@ -379,10 +385,10 @@ class CollectiblesController extends BaseController_1.BaseController {
                     return collectibleContracts;
                 }
                 const contractInformation = yield this.getCollectibleContractInformation(address);
-                const { asset_contract_type, created_date, name, schema_name, symbol, total_supply, description, external_link, image_url, } = contractInformation;
+                const { asset_contract_type, created_date, schema_name, symbol, total_supply, description, external_link, collection: { name, image_url }, } = contractInformation;
                 // If being auto-detected opensea information is expected
                 // Otherwise at least name and symbol from contract is needed
-                if ((detection && !image_url) ||
+                if ((detection && !name) ||
                     Object.keys(contractInformation).length === 0) {
                     return collectibleContracts;
                 }
@@ -536,7 +542,7 @@ class CollectiblesController extends BaseController_1.BaseController {
      * @param address - Hex address of the collectible contract.
      * @param tokenId - The collectible identifier.
      * @param collectibleMetadata - Collectible optional metadata.
-     * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
+     * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
      * @returns Promise resolving to the current collectible list.
      */
     addCollectible(address, tokenId, collectibleMetadata, detection) {
