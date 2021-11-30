@@ -94,8 +94,7 @@ export interface CollectibleMetadata {
     collectionImage?: string;
 }
 interface DetectionParams {
-    autodetected: boolean;
-    address: string;
+    userAddress: string;
     chainId: string;
 }
 /**
@@ -200,7 +199,7 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * @param address - Hex address of the collectible contract.
      * @param tokenId - The collectible identifier.
      * @param collectibleMetadata - Collectible optional information (name, image and description).
-     * @param detection - Wether the collectible is manually added or auto-detected for address and chainId.
+     * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
      * @returns Promise resolving to the current collectible list.
      */
     private addIndividualCollectible;
@@ -208,7 +207,7 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * Adds a collectible contract to the stored collectible contracts list.
      *
      * @param address - Hex address of the collectible contract.
-     * @param detection - Whether the collectible is manually added or auto-detected for address and chainId.
+     * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
      * @returns Promise resolving to the current collectible contracts list.
      */
     private addCollectibleContract;
@@ -305,7 +304,7 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * @param address - Hex address of the collectible contract.
      * @param tokenId - The collectible identifier.
      * @param collectibleMetadata - Collectible optional metadata.
-     * @param detection - Whether the collectible is manually added or auto-detected for address and chainId.
+     * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
      * @returns Promise resolving to the current collectible list.
      */
     addCollectible(address: string, tokenId: string, collectibleMetadata?: CollectibleMetadata, detection?: DetectionParams): Promise<void>;

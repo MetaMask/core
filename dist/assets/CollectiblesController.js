@@ -296,7 +296,7 @@ class CollectiblesController extends BaseController_1.BaseController {
      * @param address - Hex address of the collectible contract.
      * @param tokenId - The collectible identifier.
      * @param collectibleMetadata - Collectible optional information (name, image and description).
-     * @param detection - Wether the collectible is manually added or auto-detected for address and chainId.
+     * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
      * @returns Promise resolving to the current collectible list.
      */
     addIndividualCollectible(address, tokenId, collectibleMetadata, detection) {
@@ -308,9 +308,9 @@ class CollectiblesController extends BaseController_1.BaseController {
                 address = util_1.toChecksumHexAddress(address);
                 const { allCollectibles } = this.state;
                 let chainId, selectedAddress;
-                if (detection === null || detection === void 0 ? void 0 : detection.autodetected) {
+                if (detection) {
                     chainId = detection.chainId;
-                    selectedAddress = detection.address;
+                    selectedAddress = detection.userAddress;
                 }
                 else {
                     chainId = this.config.chainId;
@@ -354,7 +354,7 @@ class CollectiblesController extends BaseController_1.BaseController {
      * Adds a collectible contract to the stored collectible contracts list.
      *
      * @param address - Hex address of the collectible contract.
-     * @param detection - Whether the collectible is manually added or auto-detected for address and chainId.
+     * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
      * @returns Promise resolving to the current collectible contracts list.
      */
     addCollectibleContract(address, detection) {
@@ -365,9 +365,9 @@ class CollectiblesController extends BaseController_1.BaseController {
                 address = util_1.toChecksumHexAddress(address);
                 const { allCollectibleContracts } = this.state;
                 let chainId, selectedAddress;
-                if (detection === null || detection === void 0 ? void 0 : detection.autodetected) {
+                if (detection) {
                     chainId = detection.chainId;
-                    selectedAddress = detection.address;
+                    selectedAddress = detection.userAddress;
                 }
                 else {
                     chainId = this.config.chainId;
@@ -536,7 +536,7 @@ class CollectiblesController extends BaseController_1.BaseController {
      * @param address - Hex address of the collectible contract.
      * @param tokenId - The collectible identifier.
      * @param collectibleMetadata - Collectible optional metadata.
-     * @param detection - Whether the collectible is manually added or auto-detected for address and chainId.
+     * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
      * @returns Promise resolving to the current collectible list.
      */
     addCollectible(address, tokenId, collectibleMetadata, detection) {

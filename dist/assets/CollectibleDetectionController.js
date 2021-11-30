@@ -182,8 +182,7 @@ class CollectibleDetectionController extends BaseController_1.BaseController {
                             collectionImage: collection.image_url,
                         });
                         yield this.addCollectible(address, token_id, collectibleMetadata, {
-                            autodetected: true,
-                            address: selectedAddress,
+                            userAddress: selectedAddress,
                             chainId: chainId,
                         });
                     }
