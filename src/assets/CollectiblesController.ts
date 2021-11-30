@@ -126,6 +126,7 @@ export interface CollectiblesConfig extends BaseConfig {
   selectedAddress: string;
   chainId: string;
   ipfsGateway: string;
+  openSeaEnabled: boolean;
 }
 
 /**
@@ -355,12 +356,15 @@ export class CollectiblesController extends BaseController<
       );
     });
 
-    const openSeaMetadata = await safelyExecute(async () => {
-      return await this.getCollectibleInformationFromApi(
-        contractAddress,
-        tokenId,
-      );
-    });
+    let openSeaMetadata;
+    if (this.config.openSeaEnabled) {
+      openSeaMetadata = await safelyExecute(async () => {
+        return await this.getCollectibleInformationFromApi(
+          contractAddress,
+          tokenId,
+        );
+      });
+    }
 
     return {
       ...openSeaMetadata,
@@ -428,11 +432,14 @@ export class CollectiblesController extends BaseController<
       );
     });
 
-    const openSeaContractData = await safelyExecute(async () => {
-      return await this.getCollectibleContractInformationFromApi(
-        contractAddress,
-      );
-    });
+    let openSeaContractData;
+    if (this.config.openSeaEnabled) {
+      openSeaContractData = await safelyExecute(async () => {
+        return await this.getCollectibleContractInformationFromApi(
+          contractAddress,
+        );
+      });
+    }
 
     if (blockchainContractData || openSeaContractData) {
       return { ...openSeaContractData, ...blockchainContractData };
@@ -787,6 +794,7 @@ export class CollectiblesController extends BaseController<
       selectedAddress: '',
       chainId: '',
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
+      openSeaEnabled: false,
     };
 
     this.defaultState = {
@@ -803,16 +811,18 @@ export class CollectiblesController extends BaseController<
     this.getOwnerOf = getOwnerOf;
     this.balanceOfERC1155Collectible = balanceOfERC1155Collectible;
     this.uriERC1155Collectible = uriERC1155Collectible;
-    onPreferencesStateChange(({ selectedAddress, ipfsGateway }) => {
-      const { allCollectibleContracts, allCollectibles } = this.state;
-      const { chainId } = this.config;
-      this.configure({ selectedAddress, ipfsGateway });
-      this.update({
-        collectibleContracts:
-          allCollectibleContracts[selectedAddress]?.[chainId] || [],
-        collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
-      });
-    });
+    onPreferencesStateChange(
+      ({ selectedAddress, ipfsGateway, openSeaEnabled }) => {
+        const { allCollectibleContracts, allCollectibles } = this.state;
+        const { chainId } = this.config;
+        this.configure({ selectedAddress, ipfsGateway, openSeaEnabled });
+        this.update({
+          collectibleContracts:
+            allCollectibleContracts[selectedAddress]?.[chainId] || [],
+          collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
+        });
+      },
+    );
 
     onNetworkStateChange(({ provider }) => {
       const { allCollectibleContracts, allCollectibles } = this.state;

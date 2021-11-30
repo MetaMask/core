@@ -47,6 +47,7 @@ export interface PreferencesState extends BaseState {
   selectedAddress: string;
   useStaticTokenList: boolean;
   useCollectibleDetection: boolean;
+  openSeaEnabled: boolean;
 }
 
 /**
@@ -78,6 +79,7 @@ export class PreferencesController extends BaseController<
       selectedAddress: '',
       useStaticTokenList: false,
       useCollectibleDetection: false,
+      openSeaEnabled: false,
     };
     this.initialize();
   }
@@ -302,6 +304,15 @@ export class PreferencesController extends BaseController<
    */
   setUseCollectibleDetection(useCollectibleDetection: boolean) {
     this.update({ useCollectibleDetection });
+  }
+
+  /**
+   * Toggle the opensea enabled setting.
+   *
+   * @param useCollectibleDetection - Boolean indicating user preference on using OpenSea's API.
+   */
+  setOpenSeaEnabled(openSeaEnabled: boolean) {
+    this.update({ openSeaEnabled });
   }
 }
 
