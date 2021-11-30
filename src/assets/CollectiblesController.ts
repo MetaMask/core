@@ -96,8 +96,6 @@ export interface CollectibleContract {
  * @property externalLink - External link containing additional information
  * @property creator - The collectible owner information object
  * @property standard - NFT standard name for the collectible, e.g., ERC-721 or ERC-1155
- * @property collectionName - The name of the collectible collection.
- * @property collectionImage - The image URI of the collectible collection.
  */
 export interface CollectibleMetadata {
   name: string | null;
@@ -114,8 +112,6 @@ export interface CollectibleMetadata {
   externalLink?: string;
   creator?: ApiCollectibleCreator;
   lastSale?: ApiCollectibleLastSale;
-  collectionName?: string;
-  collectionImage?: string;
 }
 
 interface DetectionParams {
@@ -135,6 +131,7 @@ export interface CollectiblesConfig extends BaseConfig {
   selectedAddress: string;
   chainId: string;
   ipfsGateway: string;
+  openSeaEnabled: boolean;
 }
 
 /**
@@ -222,7 +219,6 @@ export class CollectiblesController extends BaseController<
       creator,
       last_sale,
       asset_contract: { schema_name },
-      collection,
     } = collectibleInformation;
 
     /* istanbul ignore next */
@@ -244,8 +240,6 @@ export class CollectiblesController extends BaseController<
       external_link && { externalLink: external_link },
       last_sale && { lastSale: last_sale },
       schema_name && { standard: schema_name },
-      collection.name && { collectionName: collection.name },
-      collection.image_url && { collectionImage: collection.image_url },
     );
 
     return collectibleMetadata;
@@ -365,12 +359,15 @@ export class CollectiblesController extends BaseController<
       );
     });
 
-    const openSeaMetadata = await safelyExecute(async () => {
-      return await this.getCollectibleInformationFromApi(
-        contractAddress,
-        tokenId,
-      );
-    });
+    let openSeaMetadata;
+    if (this.config.openSeaEnabled) {
+      openSeaMetadata = await safelyExecute(async () => {
+        return await this.getCollectibleInformationFromApi(
+          contractAddress,
+          tokenId,
+        );
+      });
+    }
 
     return {
       ...openSeaMetadata,
@@ -417,7 +414,7 @@ export class CollectiblesController extends BaseController<
     const name = await this.getAssetName(contractAddress);
     const symbol = await this.getAssetSymbol(contractAddress);
     return {
-      name,
+      collection: { name, image_url: null },
       symbol,
       address: contractAddress,
     };
@@ -438,11 +435,14 @@ export class CollectiblesController extends BaseController<
       );
     });
 
-    const openSeaContractData = await safelyExecute(async () => {
-      return await this.getCollectibleContractInformationFromApi(
-        contractAddress,
-      );
-    });
+    let openSeaContractData;
+    if (this.config.openSeaEnabled) {
+      openSeaContractData = await safelyExecute(async () => {
+        return await this.getCollectibleContractInformationFromApi(
+          contractAddress,
+        );
+      });
+    }
 
     if (blockchainContractData || openSeaContractData) {
       return { ...openSeaContractData, ...blockchainContractData };
@@ -453,13 +453,12 @@ export class CollectiblesController extends BaseController<
       address: contractAddress,
       asset_contract_type: null,
       created_date: null,
-      name: null,
       schema_name: null,
       symbol: null,
       total_supply: null,
       description: null,
       external_link: null,
-      image_url: null,
+      collection: { name: null, image_url: null },
     };
   }
 
@@ -469,7 +468,7 @@ export class CollectiblesController extends BaseController<
    * @param address - Hex address of the collectible contract.
    * @param tokenId - The collectible identifier.
    * @param collectibleMetadata - Collectible optional information (name, image and description).
-   * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
+   * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
    * @returns Promise resolving to the current collectible list.
    */
   private async addIndividualCollectible(
@@ -550,7 +549,7 @@ export class CollectiblesController extends BaseController<
    * Adds a collectible contract to the stored collectible contracts list.
    *
    * @param address - Hex address of the collectible contract.
-   * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
+   * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
    * @returns Promise resolving to the current collectible contracts list.
    */
   private async addCollectibleContract(
@@ -589,18 +588,17 @@ export class CollectiblesController extends BaseController<
       const {
         asset_contract_type,
         created_date,
-        name,
         schema_name,
         symbol,
         total_supply,
         description,
         external_link,
-        image_url,
+        collection: { name, image_url },
       } = contractInformation;
       // If being auto-detected opensea information is expected
       // Otherwise at least name and symbol from contract is needed
       if (
-        (detection && !image_url) ||
+        (detection && !name) ||
         Object.keys(contractInformation).length === 0
       ) {
         return collectibleContracts;
@@ -825,6 +823,7 @@ export class CollectiblesController extends BaseController<
       selectedAddress: '',
       chainId: '',
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
+      openSeaEnabled: false,
     };
 
     this.defaultState = {
@@ -839,9 +838,11 @@ export class CollectiblesController extends BaseController<
     this.getOwnerOf = getOwnerOf;
     this.balanceOfERC1155Collectible = balanceOfERC1155Collectible;
     this.uriERC1155Collectible = uriERC1155Collectible;
-    onPreferencesStateChange(({ selectedAddress, ipfsGateway }) => {
-      this.configure({ selectedAddress, ipfsGateway });
-    });
+    onPreferencesStateChange(
+      ({ selectedAddress, ipfsGateway, openSeaEnabled }) => {
+        this.configure({ selectedAddress, ipfsGateway, openSeaEnabled });
+      },
+    );
 
     onNetworkStateChange(({ provider }) => {
       const { chainId } = provider;
@@ -919,7 +920,7 @@ export class CollectiblesController extends BaseController<
    * @param address - Hex address of the collectible contract.
    * @param tokenId - The collectible identifier.
    * @param collectibleMetadata - Collectible optional metadata.
-   * @param detection - An object containing the users currently selected address and the chainId used to ensure detected collectibles are added to the correct account.
+   * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
    * @returns Promise resolving to the current collectible list.
    */
   async addCollectible(

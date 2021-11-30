@@ -54,6 +54,7 @@ describe('CollectibleDetectionController', () => {
     });
 
     collectiblesController.configure({ chainId: '1', selectedAddress: '0x1' });
+    preferences.setOpenSeaEnabled(true);
     preferences.setUseCollectibleDetection(true);
 
     nock(OPEN_SEA_HOST)
@@ -92,16 +93,22 @@ describe('CollectibleDetectionController', () => {
         name: 'Name',
         symbol: 'FOO',
         total_supply: 0,
+        collection: {
+          image_url: 'url',
+          name: 'Name',
+        },
       })
       .get(
         `${OPEN_SEA_PATH}/asset_contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`,
       )
       .reply(200, {
         description: 'Description HH',
-        image_url: 'url HH',
-        name: 'Name HH',
         symbol: 'HH',
         total_supply: 10,
+        collection: {
+          image_url: 'url HH',
+          name: 'Name HH',
+        },
       })
       .get(
         `${OPEN_SEA_PATH}/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`,
@@ -291,8 +298,6 @@ describe('CollectibleDetectionController', () => {
         name: 'ID 2574',
         tokenId: '2574',
         standard: 'ERC721',
-        collectionImage: 'url',
-        collectionName: 'Collection 2574',
       },
     ]);
   });
@@ -339,8 +344,6 @@ describe('CollectibleDetectionController', () => {
         name: 'ID 2574',
         tokenId: '2574',
         standard: 'ERC721',
-        collectionImage: 'url',
-        collectionName: 'Collection 2574',
       },
     ]);
   });
@@ -419,6 +422,20 @@ describe('CollectibleDetectionController', () => {
     ).toBeUndefined();
   });
 
+  it('should not detect and add collectibles if preferences controller openSeaEnabled is set to false', async () => {
+    preferences.setOpenSeaEnabled(false);
+    const selectedAddress = '0x9';
+    collectibleDetection.configure({
+      networkType: MAINNET,
+      selectedAddress,
+    });
+    const { chainId } = collectiblesController.config;
+    collectibleDetection.detectCollectibles();
+    expect(
+      collectiblesController.state.allCollectibles[selectedAddress]?.[chainId],
+    ).toBeUndefined();
+  });
+
   it('should not add collectible if collectible or collectible contract has no information to display', async () => {
     const collectibleHH2574 = {
       address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -427,8 +444,6 @@ describe('CollectibleDetectionController', () => {
       name: 'ID 2574',
       tokenId: '2574',
       standard: 'ERC721',
-      collectionImage: 'url',
-      collectionName: 'Collection 2574',
     };
     const collectibleGG2574 = {
       address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
@@ -437,8 +452,6 @@ describe('CollectibleDetectionController', () => {
       name: 'ID 2574',
       tokenId: '2574',
       standard: 'ERC721',
-      collectionImage: 'url',
-      collectionName: 'Collection 2574',
     };
     const collectibleII2577 = {
       address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
@@ -447,8 +460,6 @@ describe('CollectibleDetectionController', () => {
       name: 'ID 2577',
       tokenId: '2577',
       standard: 'ERC721',
-      collectionImage: 'url',
-      collectionName: 'Collection 2577',
     };
     const collectibleContractHH = {
       address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -500,20 +511,24 @@ describe('CollectibleDetectionController', () => {
       )
       .reply(200, {
         description: 'Description GG',
-        image_url: 'url GG',
-        name: 'Name GG',
         symbol: 'GG',
         total_supply: 10,
+        collection: {
+          image_url: 'url GG',
+          name: 'Name GG',
+        },
       })
       .get(
         `${OPEN_SEA_PATH}/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
       )
       .reply(200, {
         description: 'Description II',
-        image_url: 'url II',
-        name: 'Name II',
         symbol: 'II',
         total_supply: 10,
+        collection: {
+          image_url: 'url II',
+          name: 'Name II',
+        },
       })
       .get(`${OPEN_SEA_PATH}/assets?owner=0x1&offset=0&limit=50`)
       .reply(200, {
