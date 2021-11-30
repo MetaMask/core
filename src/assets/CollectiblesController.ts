@@ -563,7 +563,7 @@ export class CollectiblesController extends BaseController<
       // If being auto-detected opensea information is expected
       // Otherwise at least name and symbol from contract is needed
       if (
-        (detection && !image_url) ||
+        (detection && !name) ||
         Object.keys(contractInformation).length === 0
       ) {
         return collectibleContracts;
