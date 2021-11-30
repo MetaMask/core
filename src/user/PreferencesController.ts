@@ -309,7 +309,7 @@ export class PreferencesController extends BaseController<
   /**
    * Toggle the opensea enabled setting.
    *
-   * @param useCollectibleDetection - Boolean indicating user preference on using OpenSea's API.
+   * @param openSeaEnabled - Boolean indicating user preference on using OpenSea's API.
    */
   setOpenSeaEnabled(openSeaEnabled: boolean) {
     this.update({ openSeaEnabled });
