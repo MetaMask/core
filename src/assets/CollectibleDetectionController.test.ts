@@ -381,7 +381,7 @@ describe('CollectibleDetectionController', () => {
     const { chainId } = collectibleDetection.config;
     await collectibleDetection.detectCollectibles();
     const { allCollectibles } = collectiblesController.state;
-    expect(allCollectibles[selectedAddress]?.[chainId] || []).toStrictEqual([]);
+    expect(allCollectibles[selectedAddress]?.[chainId]).toBeUndefined();
   });
 
   it('should not detect and add collectibles to the wrong selectedAddress', async () => {
@@ -401,8 +401,8 @@ describe('CollectibleDetectionController', () => {
     expect(
       collectiblesController.state.allCollectibles[
         collectibleDetection.config.selectedAddress
-      ]?.[chainId] || [],
-    ).toStrictEqual([]);
+      ]?.[chainId],
+    ).toBeUndefined();
   });
 
   it('should not detect and add collectibles if preferences controller useCollectibleDetection is set to false', async () => {
@@ -415,10 +415,8 @@ describe('CollectibleDetectionController', () => {
     const { chainId } = collectiblesController.config;
     collectibleDetection.detectCollectibles();
     expect(
-      collectiblesController.state.allCollectibles[selectedAddress]?.[
-        chainId
-      ] || [],
-    ).toStrictEqual([]);
+      collectiblesController.state.allCollectibles[selectedAddress]?.[chainId],
+    ).toBeUndefined();
   });
 
   it('should not add collectible if collectible or collectible contract has no information to display', async () => {
@@ -486,15 +484,13 @@ describe('CollectibleDetectionController', () => {
     await collectibleDetection.detectCollectibles();
     // First fetch to API, only gets information from contract ending in HH
     expect(
-      collectiblesController.state.allCollectibles[selectedAddress]?.[
-        chainId
-      ] || [],
+      collectiblesController.state.allCollectibles[selectedAddress][chainId],
     ).toStrictEqual([collectibleHH2574]);
 
     expect(
-      collectiblesController.state.allCollectibleContracts[selectedAddress]?.[
+      collectiblesController.state.allCollectibleContracts[selectedAddress][
         chainId
-      ] || [],
+      ],
     ).toStrictEqual([collectibleContractHH]);
     // During next call of assets detection, API succeds returning contract ending in gg information
 
@@ -574,9 +570,9 @@ describe('CollectibleDetectionController', () => {
     // Now user should have respective collectibles
     await collectibleDetection.detectCollectibles();
     expect(
-      collectiblesController.state.allCollectibleContracts[selectedAddress]?.[
+      collectiblesController.state.allCollectibleContracts[selectedAddress][
         chainId
-      ] || [],
+      ],
     ).toStrictEqual([
       collectibleContractHH,
       collectibleContractII,
@@ -584,9 +580,7 @@ describe('CollectibleDetectionController', () => {
     ]);
 
     expect(
-      collectiblesController.state.allCollectibles[selectedAddress]?.[
-        chainId
-      ] || [],
+      collectiblesController.state.allCollectibles[selectedAddress][chainId],
     ).toStrictEqual([collectibleHH2574, collectibleII2577, collectibleGG2574]);
   });
 });
