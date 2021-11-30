@@ -313,6 +313,9 @@ export class PreferencesController extends BaseController<
    */
   setOpenSeaEnabled(openSeaEnabled: boolean) {
     this.update({ openSeaEnabled });
+    if (!openSeaEnabled) {
+      this.update({ useCollectibleDetection: false });
+    }
   }
 }
 
