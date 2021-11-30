@@ -472,8 +472,8 @@ describe('CollectiblesController', () => {
       expect(
         collectiblesController.state.allCollectibles[selectedAddress]?.[
           NetworksChainId[secondNetworkType]
-        ] || [],
-      ).toHaveLength(0);
+        ],
+      ).toBeUndefined();
 
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][
@@ -503,14 +503,14 @@ describe('CollectiblesController', () => {
       expect(
         collectiblesController.state.allCollectibles[selectedAddress]?.[
           chainId
-        ] || [],
-      ).toStrictEqual([]);
+        ],
+      ).toBeUndefined();
 
       expect(
         collectiblesController.state.allCollectibleContracts[selectedAddress]?.[
           chainId
-        ] || [],
-      ).toStrictEqual([]);
+        ],
+      ).toBeUndefined();
 
       await collectiblesController.addCollectible(
         ERC721_KUDOSADDRESS,
@@ -539,9 +539,9 @@ describe('CollectiblesController', () => {
       ]);
 
       expect(
-        collectiblesController.state.allCollectibleContracts[selectedAddress]?.[
+        collectiblesController.state.allCollectibleContracts[selectedAddress][
           chainId
-        ] || [],
+        ],
       ).toStrictEqual([
         {
           address: ERC721_KUDOSADDRESS,
