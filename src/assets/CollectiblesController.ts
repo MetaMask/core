@@ -114,6 +114,11 @@ export interface CollectibleMetadata {
   lastSale?: ApiCollectibleLastSale;
 }
 
+interface DetectionParams {
+  userAddress: string;
+  chainId: string;
+}
+
 /**
  * @type CollectiblesConfig
  *
@@ -144,8 +149,6 @@ export interface CollectiblesState extends BaseState {
     [key: string]: { [key: string]: CollectibleContract[] };
   };
   allCollectibles: { [key: string]: { [key: string]: Collectible[] } };
-  collectibleContracts: CollectibleContract[];
-  collectibles: Collectible[];
   ignoredCollectibles: Collectible[];
 }
 
@@ -465,19 +468,32 @@ export class CollectiblesController extends BaseController<
    * @param address - Hex address of the collectible contract.
    * @param tokenId - The collectible identifier.
    * @param collectibleMetadata - Collectible optional information (name, image and description).
+   * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
    * @returns Promise resolving to the current collectible list.
    */
   private async addIndividualCollectible(
     address: string,
     tokenId: string,
     collectibleMetadata: CollectibleMetadata,
+    detection?: DetectionParams,
   ): Promise<Collectible[]> {
     // TODO: Remove unused return
     const releaseLock = await this.mutex.acquire();
     try {
       address = toChecksumHexAddress(address);
-      const { allCollectibles, collectibles } = this.state;
-      const { chainId, selectedAddress } = this.config;
+      const { allCollectibles } = this.state;
+      let chainId, selectedAddress;
+
+      if (detection) {
+        chainId = detection.chainId;
+        selectedAddress = detection.userAddress;
+      } else {
+        chainId = this.config.chainId;
+        selectedAddress = this.config.selectedAddress;
+      }
+
+      const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+
       const existingEntry: Collectible | undefined = collectibles.find(
         (collectible) =>
           collectible.address.toLowerCase() === address.toLowerCase() &&
@@ -522,7 +538,6 @@ export class CollectiblesController extends BaseController<
       };
       this.update({
         allCollectibles: newAllCollectibles,
-        collectibles: newCollectibles,
       });
       return newCollectibles;
     } finally {
@@ -534,18 +549,31 @@ export class CollectiblesController extends BaseController<
    * Adds a collectible contract to the stored collectible contracts list.
    *
    * @param address - Hex address of the collectible contract.
-   * @param detection - Whether the collectible is manually added or auto-detected.
+   * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
    * @returns Promise resolving to the current collectible contracts list.
    */
   private async addCollectibleContract(
     address: string,
-    detection?: boolean,
+    detection?: DetectionParams,
   ): Promise<CollectibleContract[]> {
     const releaseLock = await this.mutex.acquire();
     try {
       address = toChecksumHexAddress(address);
-      const { allCollectibleContracts, collectibleContracts } = this.state;
-      const { chainId, selectedAddress } = this.config;
+      const { allCollectibleContracts } = this.state;
+
+      let chainId, selectedAddress;
+
+      if (detection) {
+        chainId = detection.chainId;
+        selectedAddress = detection.userAddress;
+      } else {
+        chainId = this.config.chainId;
+        selectedAddress = this.config.selectedAddress;
+      }
+
+      const collectibleContracts =
+        allCollectibleContracts[selectedAddress]?.[chainId] || [];
+
       const existingEntry = collectibleContracts.find(
         (collectibleContract) =>
           collectibleContract.address.toLowerCase() === address.toLowerCase(),
@@ -605,7 +633,6 @@ export class CollectiblesController extends BaseController<
       };
       this.update({
         allCollectibleContracts: newAllCollectibleContracts,
-        collectibleContracts: newCollectibleContracts,
       });
       return newCollectibleContracts;
     } finally {
@@ -624,9 +651,10 @@ export class CollectiblesController extends BaseController<
     tokenId: string,
   ) {
     address = toChecksumHexAddress(address);
-    const { allCollectibles, collectibles, ignoredCollectibles } = this.state;
+    const { allCollectibles, ignoredCollectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
     const newIgnoredCollectibles = [...ignoredCollectibles];
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const newCollectibles = collectibles.filter((collectible) => {
       if (
         collectible.address.toLowerCase() === address.toLowerCase() &&
@@ -651,7 +679,6 @@ export class CollectiblesController extends BaseController<
     };
     this.update({
       allCollectibles: newAllCollectibles,
-      collectibles: newCollectibles,
       ignoredCollectibles: newIgnoredCollectibles,
     });
   }
@@ -664,8 +691,9 @@ export class CollectiblesController extends BaseController<
    */
   private removeIndividualCollectible(address: string, tokenId: string) {
     address = toChecksumHexAddress(address);
-    const { allCollectibles, collectibles } = this.state;
+    const { allCollectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const newCollectibles = collectibles.filter(
       (collectible) =>
         !(
@@ -684,7 +712,6 @@ export class CollectiblesController extends BaseController<
     };
     this.update({
       allCollectibles: newAllCollectibles,
-      collectibles: newCollectibles,
     });
   }
 
@@ -696,8 +723,11 @@ export class CollectiblesController extends BaseController<
    */
   private removeCollectibleContract(address: string): CollectibleContract[] {
     address = toChecksumHexAddress(address);
-    const { allCollectibleContracts, collectibleContracts } = this.state;
+    const { allCollectibleContracts } = this.state;
     const { chainId, selectedAddress } = this.config;
+    const collectibleContracts =
+      allCollectibleContracts[selectedAddress]?.[chainId] || [];
+
     const newCollectibleContracts = collectibleContracts.filter(
       (collectibleContract) =>
         !(collectibleContract.address.toLowerCase() === address.toLowerCase()),
@@ -714,7 +744,6 @@ export class CollectiblesController extends BaseController<
     };
     this.update({
       allCollectibleContracts: newAllCollectibleContracts,
-      collectibleContracts: newCollectibleContracts,
     });
     return newCollectibleContracts;
   }
@@ -800,8 +829,6 @@ export class CollectiblesController extends BaseController<
     this.defaultState = {
       allCollectibleContracts: {},
       allCollectibles: {},
-      collectibleContracts: [],
-      collectibles: [],
       ignoredCollectibles: [],
     };
     this.initialize();
@@ -813,27 +840,13 @@ export class CollectiblesController extends BaseController<
     this.uriERC1155Collectible = uriERC1155Collectible;
     onPreferencesStateChange(
       ({ selectedAddress, ipfsGateway, openSeaEnabled }) => {
-        const { allCollectibleContracts, allCollectibles } = this.state;
-        const { chainId } = this.config;
         this.configure({ selectedAddress, ipfsGateway, openSeaEnabled });
-        this.update({
-          collectibleContracts:
-            allCollectibleContracts[selectedAddress]?.[chainId] || [],
-          collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
-        });
       },
     );
 
     onNetworkStateChange(({ provider }) => {
-      const { allCollectibleContracts, allCollectibles } = this.state;
-      const { selectedAddress } = this.config;
       const { chainId } = provider;
       this.configure({ chainId });
-      this.update({
-        collectibleContracts:
-          allCollectibleContracts[selectedAddress]?.[chainId] || [],
-        collectibles: allCollectibles[selectedAddress]?.[chainId] || [],
-      });
     });
   }
 
@@ -907,14 +920,14 @@ export class CollectiblesController extends BaseController<
    * @param address - Hex address of the collectible contract.
    * @param tokenId - The collectible identifier.
    * @param collectibleMetadata - Collectible optional metadata.
-   * @param detection - Whether the collectible is manually added or autodetected.
+   * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
    * @returns Promise resolving to the current collectible list.
    */
   async addCollectible(
     address: string,
     tokenId: string,
     collectibleMetadata?: CollectibleMetadata,
-    detection?: boolean,
+    detection?: DetectionParams,
   ) {
     address = toChecksumHexAddress(address);
     const newCollectibleContracts = await this.addCollectibleContract(
@@ -936,6 +949,7 @@ export class CollectiblesController extends BaseController<
         address,
         tokenId,
         collectibleMetadata,
+        detection,
       );
     }
   }
@@ -949,7 +963,9 @@ export class CollectiblesController extends BaseController<
   removeCollectible(address: string, tokenId: string) {
     address = toChecksumHexAddress(address);
     this.removeIndividualCollectible(address, tokenId);
-    const { collectibles } = this.state;
+    const { allCollectibles } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const remainingCollectible = collectibles.find(
       (collectible) =>
         collectible.address.toLowerCase() === address.toLowerCase(),
@@ -968,7 +984,9 @@ export class CollectiblesController extends BaseController<
   removeAndIgnoreCollectible(address: string, tokenId: string) {
     address = toChecksumHexAddress(address);
     this.removeAndIgnoreIndividualCollectible(address, tokenId);
-    const { collectibles } = this.state;
+    const { allCollectibles } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const remainingCollectible = collectibles.find(
       (collectible) =>
         collectible.address.toLowerCase() === address.toLowerCase(),

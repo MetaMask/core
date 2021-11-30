@@ -137,8 +137,6 @@ describe('ComposableController', () => {
         CollectiblesController: {
           allCollectibleContracts: {},
           allCollectibles: {},
-          collectibleContracts: [],
-          collectibles: [],
           ignoredCollectibles: [],
         },
         TokensController: {
@@ -219,8 +217,6 @@ describe('ComposableController', () => {
         allCollectibleContracts: {},
         allCollectibles: {},
         allTokens: {},
-        collectibleContracts: [],
-        collectibles: [],
         ensEntries: {},
         featureFlags: {},
         frequentRpcList: [],
