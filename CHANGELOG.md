@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.1.0]
+### Added
+- Add new method `addCollectibleVerifyOwnership` to CollectiblesController ([#635](https://github.com/MetaMask/controllers/pull/635))
+- Add setting in PreferencesController to enable/disable collectible autoDetection and check against it in CollectibleDetectionController ([#638](https://github.com/MetaMask/controllers/pull/638))
+
+### Changed
+- Use user preferred ipfs gateway, as set in PreferencesController, to resolve ipfs based assets in CollectiblesController ([#637](https://github.com/MetaMask/controllers/pull/637))
+
+## [20.0.0]
+### Removed
+- **BREAKING**: Remove polling start call in detection controllers' constructors ([#629](https://github.com/MetaMask/controllers/pull/629))
+  - Consumers of either of the TokenDetection and CollectibleDetection controllers who wish to immediately start polling upon instantiation will need to call the start method on the controller immediately after instantiation.
+- Remove ApprovalController.has signature overloads ([#624](https://github.com/MetaMask/controllers/pull/624))
+
 ## [19.0.0]
 ### Changed
 - **BREAKING**: Split AssetsDetectionController into CollectiblesDetectionController and TokenDetectionController ([#619](https://github.com/MetaMask/controllers/pull/619))
@@ -409,7 +423,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v20.1.0...HEAD
+[20.1.0]: https://github.com/MetaMask/controllers/compare/v20.0.0...v20.1.0
+[20.0.0]: https://github.com/MetaMask/controllers/compare/v19.0.0...v20.0.0
 [19.0.0]: https://github.com/MetaMask/controllers/compare/v18.0.0...v19.0.0
 [18.0.0]: https://github.com/MetaMask/controllers/compare/v17.0.0...v18.0.0
 [17.0.0]: https://github.com/MetaMask/controllers/compare/v16.0.0...v17.0.0

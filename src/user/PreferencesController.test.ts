@@ -11,6 +11,7 @@ describe('PreferencesController', () => {
       lostIdentities: {},
       selectedAddress: '',
       useStaticTokenList: false,
+      useCollectibleDetection: false,
     });
   });
 
@@ -215,5 +216,11 @@ describe('PreferencesController', () => {
     const controller = new PreferencesController();
     controller.setUseStaticTokenList(true);
     expect(controller.state.useStaticTokenList).toStrictEqual(true);
+  });
+
+  it('should set useCollectibleDetection', () => {
+    const controller = new PreferencesController();
+    controller.setUseCollectibleDetection(true);
+    expect(controller.state.useCollectibleDetection).toStrictEqual(true);
   });
 });
