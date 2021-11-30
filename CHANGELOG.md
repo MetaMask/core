@@ -7,12 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [21.0.0]
-### Uncategorized
-- Add detection params (userAddress, chainId) and remove duplicate source of truth ([#636](https://github.com/MetaMask/controllers/pull/636))
-- add openSeaEnabled preference ([#645](https://github.com/MetaMask/controllers/pull/645))
-- modify requirements for adding opensea detected contract ([#644](https://github.com/MetaMask/controllers/pull/644))
-- [FIX] OpenSea Collection Name ([#628](https://github.com/MetaMask/controllers/pull/628))
-- Bump @metamask/contract-metadata from 1.30.0 to 1.31.0 ([#634](https://github.com/MetaMask/controllers/pull/634))
+### Added
+- **BREAKING**: Add openSeaEnabled preference ([#645](https://github.com/MetaMask/controllers/pull/645))
+ - Consumers of the collectibleDetectionController and collectibleController who wish to continue use of OpenSea's API and AutoDetection will either need to configure openSeaEnabled to true after instantiating the controller now or expose a toggle for users to change the openSeaEnabled state in the preferences controller.
+
+### Changed
+- Change expected shape of OpenSea contract API to use collections ([#628](https://github.com/MetaMask/controllers/pull/628))
+- Modify requirements for adding OpenSea detected contract ([#644](https://github.com/MetaMask/controllers/pull/644))
+
+### Removed
+- **BREAKING**: Add detection params (userAddress, chainId) and remove duplicate source of truth ([#636](https://github.com/MetaMask/controllers/pull/636))
+ - Both collectibles and collectibleContracts are removed from CollectiblesController state.
+  - Consumers who use these pieces of state will need to migrate to use the AllCollectibles and AllCollectiblesContracts state instead.
 
 ## [20.1.0]
 ### Added
