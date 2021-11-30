@@ -60,7 +60,10 @@ describe('CollectiblesController', () => {
       ),
     });
 
-    preferences.update({ selectedAddress: OWNER_ADDRESS });
+    preferences.update({
+      selectedAddress: OWNER_ADDRESS,
+      openSeaEnabled: true,
+    });
 
     sandbox
       .stub(collectiblesController, 'isCollectibleOwner' as any)
@@ -70,10 +73,12 @@ describe('CollectiblesController', () => {
       .get(`${OPEN_SEA_PATH}/asset_contract/0x01`)
       .reply(200, {
         description: 'Description',
-        image_url: 'url',
-        name: 'Name',
         symbol: 'FOO',
         total_supply: 0,
+        collection: {
+          name: 'Name',
+          image_url: 'url',
+        },
       })
       .get(`${OPEN_SEA_PATH}/asset_contract/0x02`)
       .reply(200, {
@@ -82,6 +87,10 @@ describe('CollectiblesController', () => {
         name: 'Name',
         symbol: 'FOU',
         total_supply: 10,
+        collection: {
+          name: 'Name',
+          image_url: 'url',
+        },
       })
       .get(`${OPEN_SEA_PATH}/asset/0x01/1`)
       .reply(200, {
@@ -91,10 +100,6 @@ describe('CollectiblesController', () => {
         name: 'Name',
         asset_contract: {
           schema_name: 'ERC1155',
-        },
-        collection: {
-          name: 'Collection Name',
-          image_url: 'collection.url',
         },
       })
       .get(
@@ -106,10 +111,6 @@ describe('CollectiblesController', () => {
         description: 'Kudos Description',
         asset_contract: {
           schema_name: 'ERC721',
-        },
-        collection: {
-          name: 'Collection Name',
-          image_url: 'collection.url',
         },
       })
       .get(
@@ -125,10 +126,12 @@ describe('CollectiblesController', () => {
       )
       .reply(200, {
         description: 'Kudos Description',
-        image_url: 'Kudos url',
-        name: 'Kudos',
         symbol: 'KDO',
         total_supply: 10,
+        collection: {
+          name: 'Kudos',
+          image_url: 'Kudos url',
+        },
       });
 
     nock('https://ipfs.gitcoin.co:443')
@@ -162,7 +165,6 @@ describe('CollectiblesController', () => {
         image: 'image',
         description: 'description',
         asset_contract: { schema_name: 'ERC1155' },
-        collection: { name: 'collection', image_uri: 'collection.uri' },
       });
 
     nock(CLOUDFARE_PATH).get(DEPRESSIONIST_IPFS_PATH).reply(200, {
@@ -332,8 +334,6 @@ describe('CollectiblesController', () => {
         name: 'Name',
         standard: 'ERC1155',
         tokenId: '1',
-        collectionName: 'Collection Name',
-        collectionImage: 'collection.url',
       });
     });
 
@@ -357,7 +357,6 @@ describe('CollectiblesController', () => {
         description: 'description',
         tokenId:
           '40815311521795738946686668571398122012172359753720345430028676522525371400193',
-        collectionName: 'collection',
         imageOriginal: 'image.uri',
         numberOfSales: 1,
         standard: 'ERC1155',
@@ -385,8 +384,6 @@ describe('CollectiblesController', () => {
         name: 'Kudos Name (from uri)',
         description: 'Kudos Description (from uri)',
         tokenId: '1203',
-        collectionImage: 'collection.url',
-        collectionName: 'Collection Name',
         imageOriginal: 'Kudos url',
         standard: 'ERC721',
       });
@@ -533,8 +530,6 @@ describe('CollectiblesController', () => {
           image: null,
           standard: 'ERC721',
           tokenId: '1203',
-          collectionImage: 'collection.url',
-          collectionName: 'Collection Name',
         },
       ]);
 

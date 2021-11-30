@@ -164,6 +164,7 @@ describe('ComposableController', () => {
           selectedAddress: '',
           useStaticTokenList: false,
           useCollectibleDetection: false,
+          openSeaEnabled: false,
         },
       });
     });
@@ -232,6 +233,7 @@ describe('ComposableController', () => {
         selectedAddress: '',
         useStaticTokenList: false,
         useCollectibleDetection: false,
+        openSeaEnabled: false,
         suggestedAssets: [],
         tokens: [],
       });

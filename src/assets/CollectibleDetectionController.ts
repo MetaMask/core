@@ -31,7 +31,6 @@ const DEFAULT_INTERVAL = 180000;
  * @property assetContract - The collectible contract information object
  * @property creator - The collectible owner information object
  * @property lastSale - When this item was last sold
- * @property collection - Collectible collection data object.
  */
 export interface ApiCollectible {
   token_id: string;
@@ -49,7 +48,6 @@ export interface ApiCollectible {
   asset_contract: ApiCollectibleContract;
   creator: ApiCollectibleCreator;
   last_sale: ApiCollectibleLastSale | null;
-  collection: ApiCollectibleCollection;
 }
 
 /**
@@ -59,25 +57,26 @@ export interface ApiCollectible {
  * @property address - Address of the collectible contract
  * @property asset_contract_type - The collectible type, it could be `semi-fungible` or `non-fungible`
  * @property created_date - Creation date
- * @property name - The collectible contract name
+ * @property collection - Object containing the contract name and URI of an image associated
  * @property schema_name - The schema followed by the contract, it could be `ERC721` or `ERC1155`
  * @property symbol - The collectible contract symbol
  * @property total_supply - Total supply of collectibles
  * @property description - The collectible contract description
  * @property external_link - External link containing additional information
- * @property image_url - URI of an image associated with this collectible contract
  */
 export interface ApiCollectibleContract {
   address: string;
   asset_contract_type: string | null;
   created_date: string | null;
-  name: string | null;
   schema_name: string | null;
   symbol: string | null;
   total_supply: string | null;
   description: string | null;
   external_link: string | null;
-  image_url: string | null;
+  collection: {
+    name: string | null;
+    image_url: string | null;
+  };
 }
 
 /**
@@ -106,18 +105,6 @@ export interface ApiCollectibleCreator {
   user: { username: string };
   profile_img_url: string;
   address: string;
-}
-
-/**
- * @type ApiCollectibleCollection
- *
- * Collectible collection object from OpenSea api.
- * @property name - Collection name.
- * @property image_url - URI collection image.
- */
-export interface ApiCollectibleCollection {
-  name: string;
-  image_url: string;
 }
 
 /**
@@ -248,6 +235,10 @@ export class CollectibleDetectionController extends BaseController<
         this.configure({ selectedAddress, disabled: !useCollectibleDetection });
         this.detectCollectibles();
       }
+
+      if (!useCollectibleDetection) {
+        this.stop();
+      }
     });
 
     onNetworkStateChange(({ provider }) => {
@@ -347,7 +338,6 @@ export class CollectibleDetectionController extends BaseController<
             external_link,
             creator,
             asset_contract: { address, schema_name },
-            collection,
             last_sale,
           } = collectible;
 
@@ -385,10 +375,6 @@ export class CollectibleDetectionController extends BaseController<
               schema_name && { standard: schema_name },
               external_link && { externalLink: external_link },
               last_sale && { lastSale: last_sale },
-              collection.name && { collectionName: collection.name },
-              collection.image_url && {
-                collectionImage: collection.image_url,
-              },
             );
             await this.addCollectible(address, token_id, collectibleMetadata, {
               userAddress: selectedAddress,
