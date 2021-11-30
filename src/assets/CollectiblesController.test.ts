@@ -495,7 +495,7 @@ describe('CollectiblesController', () => {
         '123',
         undefined,
         {
-          address: selectedAddress,
+          userAddress: selectedAddress,
           chainId,
         },
       );
@@ -517,7 +517,7 @@ describe('CollectiblesController', () => {
         '1203',
         undefined,
         {
-          address: selectedAddress,
+          userAddress: selectedAddress,
           chainId,
         },
       );

@@ -391,7 +391,7 @@ export class CollectibleDetectionController extends BaseController<
               },
             );
             await this.addCollectible(address, token_id, collectibleMetadata, {
-              address: selectedAddress,
+              userAddress: selectedAddress,
               chainId: chainId as string,
             });
           }

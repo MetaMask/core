@@ -119,7 +119,7 @@ export interface CollectibleMetadata {
 }
 
 interface DetectionParams {
-  address: string;
+  userAddress: string;
   chainId: string;
 }
 
@@ -487,7 +487,7 @@ export class CollectiblesController extends BaseController<
 
       if (detection) {
         chainId = detection.chainId;
-        selectedAddress = detection.address;
+        selectedAddress = detection.userAddress;
       } else {
         chainId = this.config.chainId;
         selectedAddress = this.config.selectedAddress;
@@ -566,7 +566,7 @@ export class CollectiblesController extends BaseController<
 
       if (detection) {
         chainId = detection.chainId;
-        selectedAddress = detection.address;
+        selectedAddress = detection.userAddress;
       } else {
         chainId = this.config.chainId;
         selectedAddress = this.config.selectedAddress;
