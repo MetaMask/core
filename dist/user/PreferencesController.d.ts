@@ -49,6 +49,7 @@ export interface PreferencesState extends BaseState {
     selectedAddress: string;
     useStaticTokenList: boolean;
     useCollectibleDetection: boolean;
+    openSeaEnabled: boolean;
 }
 /**
  * Controller that stores shared settings and exposes convenience methods
@@ -146,5 +147,11 @@ export declare class PreferencesController extends BaseController<BaseConfig, Pr
      * @param useCollectibleDetection - Boolean indicating user preference on collectible detection.
      */
     setUseCollectibleDetection(useCollectibleDetection: boolean): void;
+    /**
+     * Toggle the opensea enabled setting.
+     *
+     * @param openSeaEnabled - Boolean indicating user preference on using OpenSea's API.
+     */
+    setOpenSeaEnabled(openSeaEnabled: boolean): void;
 }
 export default PreferencesController;
