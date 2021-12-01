@@ -110,6 +110,7 @@ export interface ApiCollectibleCreator {
 export interface CollectibleDetectionConfig extends BaseConfig {
     interval: number;
     networkType: NetworkType;
+    chainId: `0x${string}` | `${number}` | number;
     selectedAddress: string;
 }
 /**

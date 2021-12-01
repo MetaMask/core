@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CollectibleDetectionController = void 0;
+const ethereumjs_util_1 = require("ethereumjs-util");
 const BaseController_1 = require("../BaseController");
 const util_1 = require("../util");
 const constants_1 = require("../constants");
@@ -46,6 +47,7 @@ class CollectibleDetectionController extends BaseController_1.BaseController {
         this.defaultConfig = {
             interval: DEFAULT_INTERVAL,
             networkType: constants_1.MAINNET,
+            chainId: '1',
             selectedAddress: '',
             disabled: true,
         };
@@ -63,7 +65,10 @@ class CollectibleDetectionController extends BaseController_1.BaseController {
             }
         });
         onNetworkStateChange(({ provider }) => {
-            this.configure({ networkType: provider.type });
+            this.configure({
+                networkType: provider.type,
+                chainId: provider.chainId,
+            });
         });
         this.getOpenSeaApiKey = getOpenSeaApiKey;
         this.addCollectible = addCollectible;
@@ -71,10 +76,9 @@ class CollectibleDetectionController extends BaseController_1.BaseController {
     getOwnerCollectiblesApi(address, offset) {
         return `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`;
     }
-    getOwnerCollectibles() {
+    getOwnerCollectibles(address) {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            const { selectedAddress } = this.config;
             let response;
             let collectibles = [];
             const openSeaApiKey = this.getOpenSeaApiKey();
@@ -83,7 +87,7 @@ class CollectibleDetectionController extends BaseController_1.BaseController {
                 let pagingFinish = false;
                 /* istanbul ignore if */
                 do {
-                    const api = this.getOwnerCollectiblesApi(selectedAddress, offset);
+                    const api = this.getOwnerCollectiblesApi(address, offset);
                     response = yield util_1.timeoutFetch(api, openSeaApiKey ? { headers: { 'X-API-KEY': openSeaApiKey } } : {}, 15000);
                     const collectiblesArray = yield response.json();
                     ((_a = collectiblesArray.assets) === null || _a === void 0 ? void 0 : _a.length) !== 0
@@ -146,13 +150,20 @@ class CollectibleDetectionController extends BaseController_1.BaseController {
             if (!this.isMainnet() || this.disabled) {
                 return;
             }
-            const requestedSelectedAddress = this.config.selectedAddress;
+            const { selectedAddress } = this.config;
+            let { chainId } = this.config;
+            if (typeof chainId === 'string' && ethereumjs_util_1.isHexString(chainId)) {
+                chainId = `${parseInt(chainId, 16)}`;
+            }
+            else if (typeof chainId === 'number') {
+                chainId = `${chainId}`;
+            }
             /* istanbul ignore else */
-            if (!requestedSelectedAddress) {
+            if (!selectedAddress) {
                 return;
             }
             yield util_1.safelyExecute(() => __awaiter(this, void 0, void 0, function* () {
-                const apiCollectibles = yield this.getOwnerCollectibles();
+                const apiCollectibles = yield this.getOwnerCollectibles(selectedAddress);
                 const addCollectiblesPromises = apiCollectibles.map((collectible) => __awaiter(this, void 0, void 0, function* () {
                     const { token_id, num_sales, background_color, image_url, image_preview_url, image_thumbnail_url, image_original_url, animation_url, animation_original_url, name, description, external_link, creator, asset_contract: { address, schema_name }, last_sale, } = collectible;
                     let ignored;
@@ -166,13 +177,15 @@ class CollectibleDetectionController extends BaseController_1.BaseController {
                         });
                     }
                     /* istanbul ignore else */
-                    if (!ignored &&
-                        requestedSelectedAddress === this.config.selectedAddress) {
+                    if (!ignored) {
                         /* istanbul ignore next */
                         const collectibleMetadata = Object.assign({}, { name }, creator && { creator }, description && { description }, image_url && { image: image_url }, num_sales && { numberOfSales: num_sales }, background_color && { backgroundColor: background_color }, image_preview_url && { imagePreview: image_preview_url }, image_thumbnail_url && { imageThumbnail: image_thumbnail_url }, image_original_url && { imageOriginal: image_original_url }, animation_url && { animation: animation_url }, animation_original_url && {
                             animationOriginal: animation_original_url,
                         }, schema_name && { standard: schema_name }, external_link && { externalLink: external_link }, last_sale && { lastSale: last_sale });
-                        yield this.addCollectible(address, token_id, collectibleMetadata, true);
+                        yield this.addCollectible(address, token_id, collectibleMetadata, {
+                            userAddress: selectedAddress,
+                            chainId: chainId,
+                        });
                     }
                 }));
                 yield Promise.all(addCollectiblesPromises);

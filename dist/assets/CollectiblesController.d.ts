@@ -89,6 +89,10 @@ export interface CollectibleMetadata {
     creator?: ApiCollectibleCreator;
     lastSale?: ApiCollectibleLastSale;
 }
+interface DetectionParams {
+    userAddress: string;
+    chainId: string;
+}
 /**
  * @type CollectiblesConfig
  *
@@ -124,8 +128,6 @@ export interface CollectiblesState extends BaseState {
             [key: string]: Collectible[];
         };
     };
-    collectibleContracts: CollectibleContract[];
-    collectibles: Collectible[];
     ignoredCollectibles: Collectible[];
 }
 /**
@@ -194,6 +196,7 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * @param address - Hex address of the collectible contract.
      * @param tokenId - The collectible identifier.
      * @param collectibleMetadata - Collectible optional information (name, image and description).
+     * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
      * @returns Promise resolving to the current collectible list.
      */
     private addIndividualCollectible;
@@ -201,7 +204,7 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * Adds a collectible contract to the stored collectible contracts list.
      *
      * @param address - Hex address of the collectible contract.
-     * @param detection - Whether the collectible is manually added or auto-detected.
+     * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
      * @returns Promise resolving to the current collectible contracts list.
      */
     private addCollectibleContract;
@@ -298,10 +301,10 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * @param address - Hex address of the collectible contract.
      * @param tokenId - The collectible identifier.
      * @param collectibleMetadata - Collectible optional metadata.
-     * @param detection - Whether the collectible is manually added or autodetected.
+     * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
      * @returns Promise resolving to the current collectible list.
      */
-    addCollectible(address: string, tokenId: string, collectibleMetadata?: CollectibleMetadata, detection?: boolean): Promise<void>;
+    addCollectible(address: string, tokenId: string, collectibleMetadata?: CollectibleMetadata, detection?: DetectionParams): Promise<void>;
     /**
      * Removes a collectible from the stored token list.
      *
