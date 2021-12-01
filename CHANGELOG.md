@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [22.0.0]
-### Uncategorized
+### Added
 - ensure valid ipfsGateWay format for retrieiving ipfs assets ([#652](https://github.com/MetaMask/controllers/pull/652))
+
+### Removed
+- **BREAKING**: remove chainid normalization ([#651](https://github.com/MetaMask/controllers/pull/651))
+   - This is breaking for anyone who adapted consumption of CollectiblesController to make use of v21.0.0. The chainId in the collectibles state shape is no longer normalized to decimal. 
+
+### Fixed
 - Fix collectibles collection images ([#650](https://github.com/MetaMask/controllers/pull/650))
-- remove chainid normalization ([#651](https://github.com/MetaMask/controllers/pull/651))
+
 
 ## [21.0.1]
 ### Fixed
