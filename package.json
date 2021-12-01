@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "21.0.1",
+  "version": "21.1.0",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "keywords": [
     "MetaMask",

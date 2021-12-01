@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.1.0]
+### Uncategorized
+- ensure valid ipfsGateWay format for retrieiving ipfs assets ([#652](https://github.com/MetaMask/controllers/pull/652))
+- Fix collectibles collection images ([#650](https://github.com/MetaMask/controllers/pull/650))
+- remove chainid normalization ([#651](https://github.com/MetaMask/controllers/pull/651))
+
 ## [21.0.1]
 ### Fixed
 - Fix issue where chainId key in AllCollectibles & AllCollectibleContracts is formatted differently in manual collectible add and detection add flows. ([#648](https://github.com/MetaMask/controllers/pull/648))
@@ -441,7 +447,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v21.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v21.1.0...HEAD
+[21.1.0]: https://github.com/MetaMask/controllers/compare/v21.0.1...v21.1.0
 [21.0.1]: https://github.com/MetaMask/controllers/compare/v21.0.0...v21.0.1
 [21.0.0]: https://github.com/MetaMask/controllers/compare/v20.1.0...v21.0.0
 [20.1.0]: https://github.com/MetaMask/controllers/compare/v20.0.0...v20.1.0
