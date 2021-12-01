@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
-import { BN, stripHexPrefix } from 'ethereumjs-util';
+import { BN, stripHexPrefix, isHexString } from 'ethereumjs-util';
 import { Mutex } from 'async-mutex';
+
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
@@ -489,6 +490,13 @@ export class CollectiblesController extends BaseController<
         selectedAddress = detection.userAddress;
       } else {
         chainId = this.config.chainId;
+
+        // ensure that chainid matches dec format of detection object
+        if (typeof chainId === 'string' && isHexString(chainId)) {
+          chainId = `${parseInt(chainId, 16)}` as const;
+        } else if (typeof chainId === 'number') {
+          chainId = `${chainId}` as const;
+        }
         selectedAddress = this.config.selectedAddress;
       }
 
@@ -568,6 +576,12 @@ export class CollectiblesController extends BaseController<
         selectedAddress = detection.userAddress;
       } else {
         chainId = this.config.chainId;
+        // ensure that chainid matches dec format of detection object
+        if (typeof chainId === 'string' && isHexString(chainId)) {
+          chainId = `${parseInt(chainId, 16)}` as const;
+        } else if (typeof chainId === 'number') {
+          chainId = `${chainId}` as const;
+        }
         selectedAddress = this.config.selectedAddress;
       }
 
