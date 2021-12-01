@@ -1038,7 +1038,7 @@ export class CollectiblesController extends BaseController<
   /**
    * Update collectible favorite status.
    *
-   * @param collectible - Hex address of the collectible contract.
+   * @param collectible - Collectible to update.
    * @param favorite - Collectible new favorite status.
    */
   updateCollectibleFavoriteStatus(collectible: Collectible, favorite: boolean) {
