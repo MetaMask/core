@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { BN, stripHexPrefix, isHexString } from 'ethereumjs-util';
+import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { Mutex } from 'async-mutex';
 
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
@@ -493,13 +493,6 @@ export class CollectiblesController extends BaseController<
         selectedAddress = this.config.selectedAddress;
       }
 
-      // ensure that chainid matches dec format for both detection and manual flows
-      if (typeof chainId === 'string' && isHexString(chainId)) {
-        chainId = `${parseInt(chainId, 16)}` as const;
-      } else if (typeof chainId === 'number') {
-        chainId = `${chainId}` as const;
-      }
-
       const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
 
       const existingEntry: Collectible | undefined = collectibles.find(
@@ -577,13 +570,6 @@ export class CollectiblesController extends BaseController<
       } else {
         chainId = this.config.chainId;
         selectedAddress = this.config.selectedAddress;
-      }
-
-      // ensure that chainid matches dec format for both detection and manual flows
-      if (typeof chainId === 'string' && isHexString(chainId)) {
-        chainId = `${parseInt(chainId, 16)}` as const;
-      } else if (typeof chainId === 'number') {
-        chainId = `${chainId}` as const;
       }
 
       const collectibleContracts =
