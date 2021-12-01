@@ -12,6 +12,7 @@ import { ethErrors } from 'eth-rpc-errors';
 import ensNamehash from 'eth-ens-namehash';
 import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
 import { validate } from 'jsonschema';
+import { CID } from 'multiformats/cid';
 import {
   Transaction,
   FetchAllOptions,
@@ -776,12 +777,42 @@ export function validateMinimumIncrease(proposed: string, min: string) {
  */
 export function getIpfsUrlContentIdentifier(url: string): string {
   if (url.startsWith('ipfs://ipfs/')) {
-    return url.replace('ipfs://ipfs/', '');
+    url = url.replace('ipfs://ipfs/', '');
+  } else if (url.startsWith('ipfs://')) {
+    url = url.replace('ipfs://', '');
+  } else {
+    // this method should not be used with non-ipfs urls (i.e. startsWith('ipfs://') === true)
+    // but this case is added for safety.
+    return url;
   }
+  // we want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
+  return CID.parse(url).toV1().toString();
+}
 
-  if (url.startsWith('ipfs://')) {
-    return url.replace('ipfs://', '');
+/**
+ * Adds URL protocol prefix to url string if missing.
+ *
+ * @param urlString - Ipfs url.
+ * @returns string.
+ */
+export function addUrlProtocolPrefix(urlString: string): string {
+  if (!urlString.match(/(^http:\/\/)|(^https:\/\/)/u)) {
+    return `https://${urlString}`;
   }
+  return urlString;
+}
 
-  return url;
+/**
+ * Formats url correctly for use retrieving assets hosted on IPFS.
+ *
+ * @param ipfsGateway - the user preferred ipfsGateway.
+ * @param contentIdentifier - the asset's cid.
+ * @returns string.
+ */
+export function getFormattedIpfsURL(
+  ipfsGateway: string,
+  contentIdentifier: string,
+) {
+  const gatewayHost = new URL(addUrlProtocolPrefix(ipfsGateway));
+  return `https://${contentIdentifier}.ipfs.${gatewayHost.host}`;
 }

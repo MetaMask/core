@@ -14,8 +14,11 @@ const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
 
-const DEFAULT_IPFS_URL = 'ipfs://0001';
-const ALTERNATIVE_IPFS_URL = 'ipfs://ipfs/0001';
+const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
+const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';
+const IPFS_CID_V0 = 'QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n';
+const IPFS_CID_V1 =
+  'bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -1069,16 +1072,28 @@ describe('util', () => {
   });
 
   describe('getIpfsUrlContentIdentifier', () => {
-    it('should return content identifier from default ipfs url', () => {
-      expect(util.getIpfsUrlContentIdentifier(DEFAULT_IPFS_URL)).toStrictEqual(
-        '0001',
-      );
+    it('should return content identifier from default ipfs url format', () => {
+      expect(
+        util.getIpfsUrlContentIdentifier(
+          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
+        ),
+      ).toStrictEqual(IPFS_CID_V1);
     });
 
-    it('should return content identifier from alternative ipfs url', () => {
+    it('should return content identifier from alternative ipfs url format', () => {
       expect(
-        util.getIpfsUrlContentIdentifier(ALTERNATIVE_IPFS_URL),
-      ).toStrictEqual('0001');
+        util.getIpfsUrlContentIdentifier(
+          `${ALTERNATIVE_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
+        ),
+      ).toStrictEqual(IPFS_CID_V1);
+    });
+
+    it('should return unchanged content identifier if already v1', () => {
+      expect(
+        util.getIpfsUrlContentIdentifier(
+          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`,
+        ),
+      ).toStrictEqual(IPFS_CID_V1);
     });
 
     it('should return url if its not a ipfs standard url', () => {

@@ -6,6 +6,7 @@ import {
   NetworkController,
   NetworksChainId,
 } from '../network/NetworkController';
+import { getFormattedIpfsURL } from '../util';
 import { AssetsContractController } from './AssetsContractController';
 import { CollectiblesController } from './CollectiblesController';
 
@@ -29,8 +30,14 @@ const OPEN_SEA_HOST = 'https://api.opensea.io';
 const OPEN_SEA_PATH = '/api/v1';
 
 const CLOUDFARE_PATH = 'https://cloudflare-ipfs.com/ipfs/';
-const DEPRESSIONIST_IPFS_PATH =
-  '/QmVChNtStZfPyV8JfKpube3eigQh5rUXqYchPgLc91tWLJ';
+
+const DEPRESSIONIST_CID_V1 =
+  'bafybeidf7aw7bmnmewwj4ayq3she2jfk5jrdpp24aaucf6fddzb3cfhrvm';
+
+const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsURL(
+  CLOUDFARE_PATH,
+  DEPRESSIONIST_CID_V1,
+);
 
 describe('CollectiblesController', () => {
   let collectiblesController: CollectiblesController;
@@ -167,7 +174,7 @@ describe('CollectiblesController', () => {
         asset_contract: { schema_name: 'ERC1155' },
       });
 
-    nock(CLOUDFARE_PATH).get(DEPRESSIONIST_IPFS_PATH).reply(200, {
+    nock(DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH).get('/').reply(200, {
       name: 'name',
       image: 'image',
       description: 'description',
