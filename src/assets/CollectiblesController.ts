@@ -1025,49 +1025,31 @@ export class CollectiblesController extends BaseController<
   /**
    * Update collectible favorite status.
    *
-   * @param address - Hex address of the collectible contract.
-   * @param tokenId - Token identifier of the collectible.
+   * @param collectible - Hex address of the collectible contract.
    * @param favorite - Collectible new favorite status.
    */
-  updateCollectibleFavoriteStatus(
-    address: string,
-    tokenId: string,
-    favorite: boolean,
-  ) {
-    address = toChecksumHexAddress(address);
+  updateCollectibleFavoriteStatus(collectible: Collectible, favorite: boolean) {
     const { allCollectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
-    const collectibleToUpdate: Collectible | undefined = collectibles.find(
-      (collectible) =>
-        collectible.address.toLowerCase() === address.toLowerCase() &&
-        collectible.tokenId === tokenId,
-    );
+    const index: number = collectibles.indexOf(collectible);
 
-    if (!collectibleToUpdate) {
+    if (index === -1) {
       return;
     }
 
     const updatedCollectible: Collectible = {
-      ...collectibleToUpdate,
+      ...collectibles[index],
       favorite,
     };
 
     // Update Collectibles array
-    const newCollectiblesState = collectibles.map((collectible) => {
-      if (
-        collectible.address.toLowerCase() === address.toLowerCase() &&
-        collectible.tokenId === tokenId
-      ) {
-        return updatedCollectible;
-      }
-      return collectible;
-    });
+    collectibles[index] = updatedCollectible;
 
     const addressCollectibles = allCollectibles[selectedAddress];
     const newAddressCollectibles = {
       ...addressCollectibles,
-      ...{ [chainId]: newCollectiblesState },
+      ...{ [chainId]: collectibles },
     };
     const newAllCollectiblesState = {
       ...allCollectibles,

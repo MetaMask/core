@@ -936,8 +936,9 @@ describe('CollectiblesController', () => {
       );
 
       collectiblesController.updateCollectibleFavoriteStatus(
-        ERC721_DEPRESSIONIST_ADDRESS,
-        ERC721_DEPRESSIONIST_ID,
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0],
         true,
       );
 
@@ -968,8 +969,9 @@ describe('CollectiblesController', () => {
       );
 
       collectiblesController.updateCollectibleFavoriteStatus(
-        ERC721_DEPRESSIONIST_ADDRESS,
-        ERC721_DEPRESSIONIST_ID,
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0],
         true,
       );
 
@@ -991,8 +993,9 @@ describe('CollectiblesController', () => {
       });
 
       collectiblesController.updateCollectibleFavoriteStatus(
-        ERC721_DEPRESSIONIST_ADDRESS,
-        ERC721_DEPRESSIONIST_ID,
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0],
         false,
       );
 
@@ -1020,8 +1023,9 @@ describe('CollectiblesController', () => {
       );
 
       collectiblesController.updateCollectibleFavoriteStatus(
-        ERC721_DEPRESSIONIST_ADDRESS,
-        ERC721_DEPRESSIONIST_ID,
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0],
         true,
       );
 
