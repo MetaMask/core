@@ -1,3 +1,4 @@
+import { isHexString } from 'ethereumjs-util';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
@@ -118,6 +119,7 @@ export interface ApiCollectibleCreator {
 export interface CollectibleDetectionConfig extends BaseConfig {
   interval: number;
   networkType: NetworkType;
+  chainId: `0x${string}` | `${number}` | number;
   selectedAddress: string;
 }
 
@@ -134,8 +136,7 @@ export class CollectibleDetectionController extends BaseController<
     return `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`;
   }
 
-  private async getOwnerCollectibles() {
-    const { selectedAddress } = this.config;
+  private async getOwnerCollectibles(address: string) {
     let response: Response;
     let collectibles: any = [];
     const openSeaApiKey = this.getOpenSeaApiKey();
@@ -144,7 +145,7 @@ export class CollectibleDetectionController extends BaseController<
       let pagingFinish = false;
       /* istanbul ignore if */
       do {
-        const api = this.getOwnerCollectiblesApi(selectedAddress, offset);
+        const api = this.getOwnerCollectiblesApi(address, offset);
         response = await timeoutFetch(
           api,
           openSeaApiKey ? { headers: { 'X-API-KEY': openSeaApiKey } } : {},
@@ -215,6 +216,7 @@ export class CollectibleDetectionController extends BaseController<
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
       networkType: MAINNET,
+      chainId: '1',
       selectedAddress: '',
       disabled: true,
     };
@@ -240,7 +242,10 @@ export class CollectibleDetectionController extends BaseController<
     });
 
     onNetworkStateChange(({ provider }) => {
-      this.configure({ networkType: provider.type });
+      this.configure({
+        networkType: provider.type,
+        chainId: provider.chainId as CollectibleDetectionConfig['chainId'],
+      });
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;
     this.addCollectible = addCollectible;
@@ -300,15 +305,22 @@ export class CollectibleDetectionController extends BaseController<
     if (!this.isMainnet() || this.disabled) {
       return;
     }
-    const requestedSelectedAddress = this.config.selectedAddress;
+    const { selectedAddress } = this.config;
+
+    let { chainId } = this.config;
+    if (typeof chainId === 'string' && isHexString(chainId)) {
+      chainId = `${parseInt(chainId, 16)}` as const;
+    } else if (typeof chainId === 'number') {
+      chainId = `${chainId}` as const;
+    }
 
     /* istanbul ignore else */
-    if (!requestedSelectedAddress) {
+    if (!selectedAddress) {
       return;
     }
 
     await safelyExecute(async () => {
-      const apiCollectibles = await this.getOwnerCollectibles();
+      const apiCollectibles = await this.getOwnerCollectibles(selectedAddress);
       const addCollectiblesPromises = apiCollectibles.map(
         async (collectible: ApiCollectible) => {
           const {
@@ -343,10 +355,7 @@ export class CollectibleDetectionController extends BaseController<
           }
 
           /* istanbul ignore else */
-          if (
-            !ignored &&
-            requestedSelectedAddress === this.config.selectedAddress
-          ) {
+          if (!ignored) {
             /* istanbul ignore next */
             const collectibleMetadata: CollectibleMetadata = Object.assign(
               {},
@@ -367,12 +376,10 @@ export class CollectibleDetectionController extends BaseController<
               external_link && { externalLink: external_link },
               last_sale && { lastSale: last_sale },
             );
-            await this.addCollectible(
-              address,
-              token_id,
-              collectibleMetadata,
-              true,
-            );
+            await this.addCollectible(address, token_id, collectibleMetadata, {
+              userAddress: selectedAddress,
+              chainId: chainId as string,
+            });
           }
         },
       );

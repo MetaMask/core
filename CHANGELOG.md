@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.1]
+### Fixed
+- Fix issue where chainId key in AllCollectibles & AllCollectibleContracts is formatted differently in manual collectible add and detection add flows. ([#648](https://github.com/MetaMask/controllers/pull/648))
+
+## [21.0.0]
+### Added
+- **BREAKING**: Add openSeaEnabled preference ([#645](https://github.com/MetaMask/controllers/pull/645))
+ - Consumers of the collectibleDetectionController and collectibleController who wish to continue use of OpenSea's API and AutoDetection will either need to configure openSeaEnabled to true after instantiating the controller now or expose a toggle for users to change the openSeaEnabled state in the preferences controller.
+
+### Changed
+- Change expected shape of OpenSea contract API to use collections ([#628](https://github.com/MetaMask/controllers/pull/628))
+- Modify requirements for adding OpenSea detected contract ([#644](https://github.com/MetaMask/controllers/pull/644))
+
+### Removed
+- **BREAKING**: Add detection params (userAddress, chainId) and remove duplicate source of truth ([#636](https://github.com/MetaMask/controllers/pull/636))
+ - Both collectibles and collectibleContracts are removed from CollectiblesController state.
+  - Consumers who use these pieces of state will need to migrate to use the AllCollectibles and AllCollectiblesContracts state instead.
+
 ## [20.1.0]
 ### Added
 - Add new method `addCollectibleVerifyOwnership` to CollectiblesController ([#635](https://github.com/MetaMask/controllers/pull/635))
@@ -423,7 +441,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v20.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v21.0.1...HEAD
+[21.0.1]: https://github.com/MetaMask/controllers/compare/v21.0.0...v21.0.1
+[21.0.0]: https://github.com/MetaMask/controllers/compare/v20.1.0...v21.0.0
 [20.1.0]: https://github.com/MetaMask/controllers/compare/v20.0.0...v20.1.0
 [20.0.0]: https://github.com/MetaMask/controllers/compare/v19.0.0...v20.0.0
 [19.0.0]: https://github.com/MetaMask/controllers/compare/v18.0.0...v19.0.0
