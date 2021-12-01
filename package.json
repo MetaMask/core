@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "20.0.0",
+  "version": "21.0.1",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "keywords": [
     "MetaMask",
@@ -37,7 +37,7 @@
   "dependencies": {
     "@ethereumjs/common": "^2.3.1",
     "@ethereumjs/tx": "^3.2.1",
-    "@metamask/contract-metadata": "^1.30.0",
+    "@metamask/contract-metadata": "^1.31.0",
     "@types/uuid": "^8.3.0",
     "abort-controller": "^3.0.0",
     "async-mutex": "^0.2.6",
@@ -56,7 +56,7 @@
     "ethjs-unit": "^0.1.6",
     "ethjs-util": "^0.1.6",
     "human-standard-collectible-abi": "^1.0.2",
-    "human-standard-multi-collectible-abi": "^1.0.2",
+    "human-standard-multi-collectible-abi": "^1.0.4",
     "human-standard-token-abi": "^2.0.0",
     "immer": "^9.0.6",
     "isomorphic-fetch": "^3.0.0",
