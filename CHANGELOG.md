@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [21.0.1]
-### Uncategorized
-- adapting new collectiblesController shape ([#648](https://github.com/MetaMask/controllers/pull/648))
+### Fixed
+- Fix issue where chainId key in AllCollectibles & AllCollectibleContracts is formatted differently in manual collectible add and detection add flows. ([#648](https://github.com/MetaMask/controllers/pull/648))
 
 ## [21.0.0]
 ### Added
