@@ -490,14 +490,14 @@ export class CollectiblesController extends BaseController<
         selectedAddress = detection.userAddress;
       } else {
         chainId = this.config.chainId;
-
-        // ensure that chainid matches dec format of detection object
-        if (typeof chainId === 'string' && isHexString(chainId)) {
-          chainId = `${parseInt(chainId, 16)}` as const;
-        } else if (typeof chainId === 'number') {
-          chainId = `${chainId}` as const;
-        }
         selectedAddress = this.config.selectedAddress;
+      }
+
+      // ensure that chainid matches dec format for both detection and manual flows
+      if (typeof chainId === 'string' && isHexString(chainId)) {
+        chainId = `${parseInt(chainId, 16)}` as const;
+      } else if (typeof chainId === 'number') {
+        chainId = `${chainId}` as const;
       }
 
       const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
@@ -576,13 +576,14 @@ export class CollectiblesController extends BaseController<
         selectedAddress = detection.userAddress;
       } else {
         chainId = this.config.chainId;
-        // ensure that chainid matches dec format of detection object
-        if (typeof chainId === 'string' && isHexString(chainId)) {
-          chainId = `${parseInt(chainId, 16)}` as const;
-        } else if (typeof chainId === 'number') {
-          chainId = `${chainId}` as const;
-        }
         selectedAddress = this.config.selectedAddress;
+      }
+
+      // ensure that chainid matches dec format for both detection and manual flows
+      if (typeof chainId === 'string' && isHexString(chainId)) {
+        chainId = `${parseInt(chainId, 16)}` as const;
+      } else if (typeof chainId === 'number') {
+        chainId = `${chainId}` as const;
       }
 
       const collectibleContracts =
