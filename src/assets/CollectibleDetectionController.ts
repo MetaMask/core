@@ -1,4 +1,3 @@
-import { isHexString } from 'ethereumjs-util';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
@@ -305,14 +304,7 @@ export class CollectibleDetectionController extends BaseController<
     if (!this.isMainnet() || this.disabled) {
       return;
     }
-    const { selectedAddress } = this.config;
-
-    let { chainId } = this.config;
-    if (typeof chainId === 'string' && isHexString(chainId)) {
-      chainId = `${parseInt(chainId, 16)}` as const;
-    } else if (typeof chainId === 'number') {
-      chainId = `${chainId}` as const;
-    }
+    const { selectedAddress, chainId } = this.config;
 
     /* istanbul ignore else */
     if (!selectedAddress) {
