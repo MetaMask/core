@@ -246,6 +246,16 @@ export class CollectiblesController extends BaseController<
     return collectibleMetadata;
   }
 
+  private getValidIpfsGatewayFormat() {
+    const { ipfsGateway } = this.config;
+    if (ipfsGateway.endsWith('/ipfs/')) {
+      return ipfsGateway;
+    } else if (ipfsGateway.endsWith('/')) {
+      return `${ipfsGateway}ipfs/`;
+    }
+    return `${ipfsGateway}/ipfs/`;
+  }
+
   /**
    * Request individual collectible information from contracts that follows Metadata Interface.
    *
@@ -257,7 +267,6 @@ export class CollectiblesController extends BaseController<
     contractAddress: string,
     tokenId: string,
   ): Promise<CollectibleMetadata> {
-    const { ipfsGateway } = this.config;
     const result = await this.getCollectibleURIAndStandard(
       contractAddress,
       tokenId,
@@ -267,9 +276,7 @@ export class CollectiblesController extends BaseController<
 
     if (tokenURI.startsWith('ipfs://')) {
       const contentId = getIpfsUrlContentIdentifier(tokenURI);
-      tokenURI = ipfsGateway.endsWith('/')
-        ? ipfsGateway + contentId
-        : `${ipfsGateway}/${contentId}`;
+      tokenURI = `${this.getValidIpfsGatewayFormat()}${contentId}`;
     }
 
     try {
