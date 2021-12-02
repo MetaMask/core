@@ -6,7 +6,7 @@ import {
   NetworkController,
   NetworksChainId,
 } from '../network/NetworkController';
-import { getFormattedIpfsURL } from '../util';
+import { getFormattedIpfsUrl } from '../util';
 import { AssetsContractController } from './AssetsContractController';
 import { CollectiblesController } from './CollectiblesController';
 
@@ -34,9 +34,10 @@ const CLOUDFARE_PATH = 'https://cloudflare-ipfs.com/ipfs/';
 const DEPRESSIONIST_CID_V1 =
   'bafybeidf7aw7bmnmewwj4ayq3she2jfk5jrdpp24aaucf6fddzb3cfhrvm';
 
-const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsURL(
+const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
   CLOUDFARE_PATH,
-  DEPRESSIONIST_CID_V1,
+  `ipfs://${DEPRESSIONIST_CID_V1}`,
+  true
 );
 
 describe('CollectiblesController', () => {

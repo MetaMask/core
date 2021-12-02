@@ -769,6 +769,13 @@ export function validateMinimumIncrease(proposed: string, min: string) {
   throw new Error(errorMsg);
 }
 
+/**
+ * removes ipfs protocol prefix from ipfs-url
+ *
+ * @param ipfsUrl - ipfs url
+ * @returns Ipfs content identifier and (possibly) path in a string
+ * @throws Will throw if the url passed is not ipfs.
+ */
 export function removeIpfsProtocolPrefix(ipfsUrl: string) {
   if (ipfsUrl.startsWith('ipfs://ipfs/')) {
     return ipfsUrl.replace('ipfs://ipfs/', '');
@@ -781,7 +788,7 @@ export function removeIpfsProtocolPrefix(ipfsUrl: string) {
 }
 
 /**
- * Extracts content identifier from ipfs url.
+ * Extracts content identifier and path from ipfs url.
  *
  * @param ipfsUrl - ipfs url
  * @returns Ipfs content identifier as string and path as string.
@@ -817,23 +824,6 @@ export function addUrlProtocolPrefix(urlString: string): string {
   }
   return urlString;
 }
-
-/**
- * Formats url correctly for use retrieving assets hosted on IPFS.
- *
- * @param ipfsGateway - the user preferred ipfsGateway.
- * @param contentIdentifier - the asset's cid.
- * @param path - optional sub path
- * @returns string.
- */
-// export function getFormattedIpfsURL(
-//   ipfsGateway: string,
-//   contentIdentifier: string,
-//   path?: string,
-// ) {
-//   const gatewayHost = new URL(addUrlProtocolPrefix(ipfsGateway));
-//   return `https://${contentIdentifier}.ipfs.${gatewayHost.host}${path ?? ''}`;
-// }
 
 /**
  * Formats url correctly for use retrieving assets hosted on IPFS.
