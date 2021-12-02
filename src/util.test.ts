@@ -1127,7 +1127,7 @@ describe('util', () => {
         util.getIpfsUrlContentIdentifierAndPath(
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test/test/test`,
         ),
-      ).toStrictEqual({ cid: IPFS_CID_V1, path: 'test/test/test' });
+      ).toStrictEqual({ cid: IPFS_CID_V1, path: '/test/test/test' });
     });
 
     it('should throw error if passed a non ipfs url', () => {

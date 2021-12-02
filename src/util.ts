@@ -790,10 +790,9 @@ export function getIpfsUrlContentIdentifierAndPath(
 
   // check if there is a path
   // (CID is everything preceding first forward slash, path is everything after)
-  const splitURL = ipfsUrl.split('/');
-  const cid = splitURL[0];
-  splitURL.shift();
-  const path = splitURL.join('/');
+  const index = ipfsUrl.indexOf('/');
+  const cid = index !== -1 ? ipfsUrl.substring(0, index) : ipfsUrl;
+  const path = index !== -1 ? ipfsUrl.substring(index) : '';
 
   // we want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
   return {
