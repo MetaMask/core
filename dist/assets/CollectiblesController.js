@@ -120,16 +120,6 @@ class CollectiblesController extends BaseController_1.BaseController {
             return collectibleMetadata;
         });
     }
-    getValidIpfsGatewayFormat() {
-        const { ipfsGateway } = this.config;
-        if (ipfsGateway.endsWith('/ipfs/')) {
-            return ipfsGateway;
-        }
-        else if (ipfsGateway.endsWith('/')) {
-            return `${ipfsGateway}ipfs/`;
-        }
-        return `${ipfsGateway}/ipfs/`;
-    }
     /**
      * Request individual collectible information from contracts that follows Metadata Interface.
      *
@@ -139,12 +129,15 @@ class CollectiblesController extends BaseController_1.BaseController {
      */
     getCollectibleInformationFromTokenURI(contractAddress, tokenId) {
         return __awaiter(this, void 0, void 0, function* () {
+            const { ipfsGateway } = this.config;
             const result = yield this.getCollectibleURIAndStandard(contractAddress, tokenId);
             let tokenURI = result[0];
             const standard = result[1];
             if (tokenURI.startsWith('ipfs://')) {
                 const contentId = util_1.getIpfsUrlContentIdentifier(tokenURI);
-                tokenURI = `${this.getValidIpfsGatewayFormat()}${contentId}`;
+                tokenURI = ipfsGateway.endsWith('/')
+                    ? ipfsGateway + contentId
+                    : `${ipfsGateway}/${contentId}`;
             }
             try {
                 const object = yield util_1.handleFetch(tokenURI);
@@ -265,7 +258,7 @@ class CollectiblesController extends BaseController_1.BaseController {
             const name = yield this.getAssetName(contractAddress);
             const symbol = yield this.getAssetSymbol(contractAddress);
             return {
-                collection: { name },
+                collection: { name, image_url: null },
                 symbol,
                 address: contractAddress,
             };
@@ -289,7 +282,7 @@ class CollectiblesController extends BaseController_1.BaseController {
                 }));
             }
             if (blockchainContractData || openSeaContractData) {
-                return Object.assign(Object.assign(Object.assign({}, openSeaContractData), blockchainContractData), { collection: Object.assign(Object.assign({ image_url: null }, openSeaContractData === null || openSeaContractData === void 0 ? void 0 : openSeaContractData.collection), blockchainContractData === null || blockchainContractData === void 0 ? void 0 : blockchainContractData.collection) });
+                return Object.assign(Object.assign({}, openSeaContractData), blockchainContractData);
             }
             /* istanbul ignore next */
             return {
@@ -330,6 +323,13 @@ class CollectiblesController extends BaseController_1.BaseController {
                 else {
                     chainId = this.config.chainId;
                     selectedAddress = this.config.selectedAddress;
+                }
+                // ensure that chainid matches dec format for both detection and manual flows
+                if (typeof chainId === 'string' && ethereumjs_util_1.isHexString(chainId)) {
+                    chainId = `${parseInt(chainId, 16)}`;
+                }
+                else if (typeof chainId === 'number') {
+                    chainId = `${chainId}`;
                 }
                 const collectibles = ((_a = allCollectibles[selectedAddress]) === null || _a === void 0 ? void 0 : _a[chainId]) || [];
                 const existingEntry = collectibles.find((collectible) => collectible.address.toLowerCase() === address.toLowerCase() &&
@@ -387,6 +387,13 @@ class CollectiblesController extends BaseController_1.BaseController {
                 else {
                     chainId = this.config.chainId;
                     selectedAddress = this.config.selectedAddress;
+                }
+                // ensure that chainid matches dec format for both detection and manual flows
+                if (typeof chainId === 'string' && ethereumjs_util_1.isHexString(chainId)) {
+                    chainId = `${parseInt(chainId, 16)}`;
+                }
+                else if (typeof chainId === 'number') {
+                    chainId = `${chainId}`;
                 }
                 const collectibleContracts = ((_a = allCollectibleContracts[selectedAddress]) === null || _a === void 0 ? void 0 : _a[chainId]) || [];
                 const existingEntry = collectibleContracts.find((collectibleContract) => collectibleContract.address.toLowerCase() === address.toLowerCase());
@@ -614,15 +621,16 @@ class CollectiblesController extends BaseController_1.BaseController {
     /**
      * Update collectible favorite status.
      *
-     * @param collectible - Collectible to update.
+     * @param address - Hex address of the collectible contract.
+     * @param tokenId - Hex address of the collectible contract.
      * @param favorite - Collectible new favorite status.
      */
-    updateCollectibleFavoriteStatus(collectible, favorite) {
+    updateCollectibleFavoriteStatus(address, tokenId, favorite) {
         var _a;
         const { allCollectibles } = this.state;
         const { chainId, selectedAddress } = this.config;
         const collectibles = ((_a = allCollectibles[selectedAddress]) === null || _a === void 0 ? void 0 : _a[chainId]) || [];
-        const index = collectibles.indexOf(collectible);
+        const index = collectibles.findIndex((collectible) => collectible.address === address && collectible.tokenId === tokenId);
         if (index === -1) {
             return;
         }

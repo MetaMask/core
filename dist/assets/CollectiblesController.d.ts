@@ -146,7 +146,6 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * @returns Promise resolving to the current collectible name and image.
      */
     private getCollectibleInformationFromApi;
-    private getValidIpfsGatewayFormat;
     /**
      * Request individual collectible information from contracts that follows Metadata Interface.
      *
@@ -328,9 +327,10 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
     /**
      * Update collectible favorite status.
      *
-     * @param collectible - Collectible to update.
+     * @param address - Hex address of the collectible contract.
+     * @param tokenId - Hex address of the collectible contract.
      * @param favorite - Collectible new favorite status.
      */
-    updateCollectibleFavoriteStatus(collectible: Collectible, favorite: boolean): void;
+    updateCollectibleFavoriteStatus(address: string, tokenId: string, favorite: boolean): void;
 }
 export default CollectiblesController;
