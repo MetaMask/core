@@ -10,8 +10,7 @@ import {
   handleFetch,
   toChecksumHexAddress,
   BNToHex,
-  getIpfsUrlContentIdentifierAndPath,
-  getFormattedIpfsURL,
+  getFormattedIpfsUrl,
 } from '../util';
 import {
   MAINNET,
@@ -134,6 +133,7 @@ export interface CollectiblesConfig extends BaseConfig {
   chainId: string;
   ipfsGateway: string;
   openSeaEnabled: boolean;
+  useIPFSSubdomains: boolean;
 }
 
 /**
@@ -258,7 +258,7 @@ export class CollectiblesController extends BaseController<
     contractAddress: string,
     tokenId: string,
   ): Promise<CollectibleMetadata> {
-    const { ipfsGateway } = this.config;
+    const { ipfsGateway, useIPFSSubdomains } = this.config;
     const result = await this.getCollectibleURIAndStandard(
       contractAddress,
       tokenId,
@@ -267,8 +267,7 @@ export class CollectiblesController extends BaseController<
     const standard = result[1];
 
     if (tokenURI.startsWith('ipfs://')) {
-      const { cid, path } = getIpfsUrlContentIdentifierAndPath(tokenURI);
-      tokenURI = getFormattedIpfsURL(ipfsGateway, cid, path);
+      tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIPFSSubdomains);
     }
 
     try {
@@ -844,6 +843,7 @@ export class CollectiblesController extends BaseController<
       chainId: '',
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       openSeaEnabled: false,
+      useIPFSSubdomains: true,
     };
 
     this.defaultState = {

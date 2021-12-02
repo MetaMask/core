@@ -1073,22 +1073,46 @@ describe('util', () => {
     });
   });
 
-  describe('getFormattedIpfsURL', () => {
+  // describe('getFormattedIpfsURL', () => {
+  //   it('should return a correctly formatted ipfs url when passed ipfsGateway without protocol prefix and no path', () => {
+  //     expect(util.getFormattedIpfsURL(IFPS_GATEWAY, IPFS_CID_V1)).toStrictEqual(
+  //       `https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`,
+  //     );
+  //   });
+
+  //   it('should return a correctly formatted ipfs url when passed ipfsGateway with protocol prefix and no path', () => {
+  //     expect(
+  //       util.getFormattedIpfsURL(`https://${IFPS_GATEWAY}`, IPFS_CID_V1),
+  //     ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
+  //   });
+
+  //   it('should return correctly formatted url when passed a path', () => {
+  //     expect(
+  //       util.getFormattedIpfsURL(
+  //         `https://${IFPS_GATEWAY}`,
+  //         IPFS_CID_V1,
+  //         '/test',
+  //       ),
+  //     ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}/test`);
+  //   });
+  // });
+
+  describe('getFormattedIpfsUrl', () => {
     it('should return a correctly formatted ipfs url when passed ipfsGateway without protocol prefix and no path', () => {
-      expect(util.getFormattedIpfsURL(IFPS_GATEWAY, IPFS_CID_V1)).toStrictEqual(
+      expect(util.getFormattedIpfsUrl(IFPS_GATEWAY, IPFS_CID_V1)).toStrictEqual(
         `https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`,
       );
     });
 
     it('should return a correctly formatted ipfs url when passed ipfsGateway with protocol prefix and no path', () => {
       expect(
-        util.getFormattedIpfsURL(`https://${IFPS_GATEWAY}`, IPFS_CID_V1),
+        util.getFormattedIpfsUrl(`https://${IFPS_GATEWAY}`, IPFS_CID_V1),
       ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
     });
 
     it('should return correctly formatted url when passed a path', () => {
       expect(
-        util.getFormattedIpfsURL(
+        util.getFormattedIpfsUrl(
           `https://${IFPS_GATEWAY}`,
           IPFS_CID_V1,
           '/test',

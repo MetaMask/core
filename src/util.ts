@@ -769,6 +769,17 @@ export function validateMinimumIncrease(proposed: string, min: string) {
   throw new Error(errorMsg);
 }
 
+export function removeIpfsProtocolPrefix(ipfsUrl: string) {
+  if (ipfsUrl.startsWith('ipfs://ipfs/')) {
+    return ipfsUrl.replace('ipfs://ipfs/', '');
+  } else if (ipfsUrl.startsWith('ipfs://')) {
+    return ipfsUrl.replace('ipfs://', '');
+  } else {
+    // this method should not be used with non-ipfs urls (i.e. startsWith('ipfs://') === true)
+    throw new Error('this method should not be used with non ipfs urls');
+  }
+}
+
 /**
  * Extracts content identifier from ipfs url.
  *
@@ -776,23 +787,16 @@ export function validateMinimumIncrease(proposed: string, min: string) {
  * @returns Ipfs content identifier as string and path as string.
  * @throws Will throw if the url passed is not ipfs.
  */
-export function getIpfsUrlContentIdentifierAndPath(
+export function getIpfsCIDv1AndPath(
   ipfsUrl: string,
 ): { cid: string; path?: string } {
-  if (ipfsUrl.startsWith('ipfs://ipfs/')) {
-    ipfsUrl = ipfsUrl.replace('ipfs://ipfs/', '');
-  } else if (ipfsUrl.startsWith('ipfs://')) {
-    ipfsUrl = ipfsUrl.replace('ipfs://', '');
-  } else {
-    // this method should not be used with non-ipfs urls (i.e. startsWith('ipfs://') === true)
-    throw new Error('this method should not be used with non ipfs urls');
-  }
+  const url = removeIpfsProtocolPrefix(ipfsUrl);
 
   // check if there is a path
   // (CID is everything preceding first forward slash, path is everything after)
-  const index = ipfsUrl.indexOf('/');
-  const cid = index !== -1 ? ipfsUrl.substring(0, index) : ipfsUrl;
-  const path = index !== -1 ? ipfsUrl.substring(index) : '';
+  const index = url.indexOf('/');
+  const cid = index !== -1 ? url.substring(0, index) : url;
+  const path = index !== -1 ? url.substring(index) : '';
 
   // we want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
   return {
@@ -822,11 +826,37 @@ export function addUrlProtocolPrefix(urlString: string): string {
  * @param path - optional sub path
  * @returns string.
  */
-export function getFormattedIpfsURL(
+// export function getFormattedIpfsURL(
+//   ipfsGateway: string,
+//   contentIdentifier: string,
+//   path?: string,
+// ) {
+//   const gatewayHost = new URL(addUrlProtocolPrefix(ipfsGateway));
+//   return `https://${contentIdentifier}.ipfs.${gatewayHost.host}${path ?? ''}`;
+// }
+
+/**
+ * Formats url correctly for use retrieving assets hosted on IPFS.
+ *
+ * @param ipfsGateway - the user preferred ipfsGateway.
+ * @param ipfsUrl - the ipfs url pointed at the asset.
+ * @param subdomainSupported - boolean indicating whether the url should be formatted with subdomains or not
+ * @returns string.
+ */
+export function getFormattedIpfsUrl(
   ipfsGateway: string,
-  contentIdentifier: string,
-  path?: string,
-) {
-  const gatewayHost = new URL(addUrlProtocolPrefix(ipfsGateway));
-  return `https://${contentIdentifier}.ipfs.${gatewayHost.host}${path ?? ''}`;
+  ipfsUrl: string,
+  subdomainSupported: boolean,
+): string {
+  if (subdomainSupported) {
+    const gatewayHost = new URL(addUrlProtocolPrefix(ipfsGateway))?.host;
+    const { cid, path } = getIpfsCIDv1AndPath(ipfsUrl);
+    return `https://${cid}.ipfs.${gatewayHost}${path ?? ''}`;
+  } else {
+    const cidAndPath = removeIpfsProtocolPrefix(ipfsUrl);
+    const gateway = ipfsGateway.endsWith('/ipfs/')
+      ? ipfsGateway
+      : `${ipfsGateway}/ipfs/`;
+    return `${gateway}${cidAndPath}`;
+  }
 }
