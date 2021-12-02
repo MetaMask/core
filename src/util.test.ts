@@ -1,8 +1,6 @@
 import 'isomorphic-fetch';
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
-import HttpProvider from 'ethjs-provider-http';
-import EthQuery from 'eth-query';
 import * as util from './util';
 import {
   Transaction,
@@ -22,50 +20,6 @@ const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
 const GAS_PRICE = 'gasPrice';
 const FAIL = 'lol';
 const PASS = '0x1';
-
-const mockFlags: { [key: string]: any } = {
-  estimateGas: null,
-  gasPrice: null,
-};
-const PROVIDER = new HttpProvider(
-  'https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
-);
-
-jest.mock('eth-query', () =>
-  jest.fn().mockImplementation(() => {
-    return {
-      estimateGas: (_transaction: any, callback: any) => {
-        callback(undefined, '0x0');
-      },
-      gasPrice: (callback: any) => {
-        if (mockFlags.gasPrice) {
-          callback(new Error(mockFlags.gasPrice));
-          return;
-        }
-        callback(undefined, '0x0');
-      },
-      getBlockByNumber: (
-        _blocknumber: any,
-        _fetchTxs: boolean,
-        callback: any,
-      ) => {
-        callback(undefined, { gasLimit: '0x0' });
-      },
-      getCode: (_to: any, callback: any) => {
-        callback(undefined, '0x0');
-      },
-      getTransactionByHash: (_hash: any, callback: any) => {
-        callback(undefined, { blockNumber: '0x1' });
-      },
-      getTransactionCount: (_from: any, _to: any, callback: any) => {
-        callback(undefined, '0x0');
-      },
-      sendRawTransaction: (_transaction: any, callback: any) => {
-        callback(undefined, '1337');
-      },
-    };
-  }),
-);
 
 describe('util', () => {
   beforeEach(() => {
@@ -99,6 +53,51 @@ describe('util', () => {
 
   it('hexToBN', () => {
     expect(util.hexToBN('0x1337').toNumber()).toBe(4919);
+  });
+
+  describe('fromHex', () => {
+    it('converts a string that represents a number in hexadecimal format with leading "0x" into a BN', () => {
+      expect(util.fromHex('0x1337')).toStrictEqual(new BN(4919));
+    });
+
+    it('converts a string that represents a number in hexadecimal format without leading "0x" into a BN', () => {
+      expect(util.fromHex('1337')).toStrictEqual(new BN(4919));
+    });
+
+    it('does nothing to a BN', () => {
+      const bn = new BN(4919);
+      expect(util.fromHex(bn)).toBe(bn);
+    });
+  });
+
+  describe('toHex', () => {
+    it('converts a BN to a hex string prepended with "0x"', () => {
+      expect(util.toHex(new BN(4919))).toStrictEqual('0x1337');
+    });
+
+    it('parses a string as a number in decimal format and converts it to a hex string prepended with "0x"', () => {
+      expect(util.toHex('4919')).toStrictEqual('0x1337');
+    });
+
+    it('throws an error if given a string with decimals', () => {
+      expect(() => util.toHex('4919.3')).toThrow('Invalid character');
+    });
+
+    it('converts a number to a hex string prepended with "0x"', () => {
+      expect(util.toHex(4919)).toStrictEqual('0x1337');
+    });
+
+    it('throws an error if given a float', () => {
+      expect(() => util.toHex(4919.3)).toThrow('Invalid character');
+    });
+
+    it('does nothing to a string that is already a "0x"-prepended hex value', () => {
+      expect(util.toHex('0x1337')).toStrictEqual('0x1337');
+    });
+
+    it('throws an error if given a non-"0x"-prepended string that is not a valid hex value', () => {
+      expect(() => util.toHex('zzzz')).toThrow('Invalid character');
+    });
   });
 
   it('normalizeTransaction', () => {
@@ -934,18 +933,52 @@ describe('util', () => {
   });
 
   describe('query', () => {
-    it('should query and resolve', async () => {
-      const ethQuery = new EthQuery(PROVIDER);
-      const gasPrice = await util.query(ethQuery, 'gasPrice', []);
-      expect(gasPrice).toStrictEqual('0x0');
+    describe('when the given method exists directly on the EthQuery', () => {
+      it('should call the method on the EthQuery and, if it is successful, return a promise that resolves to the result', async () => {
+        const ethQuery = {
+          getBlockByHash: (blockId: any, cb: any) => cb(null, { id: blockId }),
+        };
+        const result = await util.query(ethQuery, 'getBlockByHash', ['0x1234']);
+        expect(result).toStrictEqual({ id: '0x1234' });
+      });
+
+      it('should call the method on the EthQuery and, if it errors, return a promise that is rejected with the error', async () => {
+        const ethQuery = {
+          getBlockByHash: (_blockId: any, cb: any) =>
+            cb(new Error('uh oh'), null),
+        };
+        await expect(
+          util.query(ethQuery, 'getBlockByHash', ['0x1234']),
+        ).rejects.toThrow('uh oh');
+      });
     });
 
-    it('should query and reject if error', async () => {
-      const ethQuery = new EthQuery(PROVIDER);
-      mockFlags.gasPrice = 'Uh oh';
-      await expect(util.query(ethQuery, 'gasPrice', [])).rejects.toThrow(
-        'Uh oh',
-      );
+    describe('when the given method does not exist directly on the EthQuery', () => {
+      it('should use sendAsync to call the RPC endpoint and, if it is successful, return a promise that resolves to the result', async () => {
+        const ethQuery = {
+          sendAsync: ({ method, params }: any, cb: any) => {
+            if (method === 'eth_getBlockByHash') {
+              return cb(null, { id: params[0] });
+            }
+            throw new Error(`Unsupported method ${method}`);
+          },
+        };
+        const result = await util.query(ethQuery, 'eth_getBlockByHash', [
+          '0x1234',
+        ]);
+        expect(result).toStrictEqual({ id: '0x1234' });
+      });
+
+      it('should use sendAsync to call the RPC endpoint and, if it errors, return a promise that is rejected with the error', async () => {
+        const ethQuery = {
+          sendAsync: (_args: any, cb: any) => {
+            cb(new Error('uh oh'), null);
+          },
+        };
+        await expect(
+          util.query(ethQuery, 'eth_getBlockByHash', ['0x1234']),
+        ).rejects.toThrow('uh oh');
+      });
     });
   });
 
