@@ -770,21 +770,20 @@ export function validateMinimumIncrease(proposed: string, min: string) {
 }
 
 /**
- * removes ipfs protocol prefix from ipfs-url
+ * Removes ipfs protocol prefix from ipfs-url.
  *
  * @param ipfsUrl - ipfs url
  * @returns Ipfs content identifier and (possibly) path in a string
- * @throws Will throw if the url passed is not ipfs.
+ * @throws will throw if the url passed is not ipfs.
  */
 export function removeIpfsProtocolPrefix(ipfsUrl: string) {
   if (ipfsUrl.startsWith('ipfs://ipfs/')) {
     return ipfsUrl.replace('ipfs://ipfs/', '');
   } else if (ipfsUrl.startsWith('ipfs://')) {
     return ipfsUrl.replace('ipfs://', '');
-  } else {
-    // this method should not be used with non-ipfs urls (i.e. startsWith('ipfs://') === true)
-    throw new Error('this method should not be used with non ipfs urls');
   }
+  // this method should not be used with non-ipfs urls (i.e. startsWith('ipfs://') === true)
+  throw new Error('this method should not be used with non ipfs urls');
 }
 
 /**
@@ -839,14 +838,13 @@ export function getFormattedIpfsUrl(
   subdomainSupported: boolean,
 ): string {
   if (subdomainSupported) {
-    const gatewayHost = new URL(addUrlProtocolPrefix(ipfsGateway))?.host;
+    const gatewayHost = new URL(addUrlProtocolPrefix(ipfsGateway)).host;
     const { cid, path } = getIpfsCIDv1AndPath(ipfsUrl);
-    return `https://${cid}.ipfs.${gatewayHost}${path ?? ''}`;
-  } else {
-    const cidAndPath = removeIpfsProtocolPrefix(ipfsUrl);
-    const gateway = ipfsGateway.endsWith('/ipfs/')
-      ? ipfsGateway
-      : `${ipfsGateway}/ipfs/`;
-    return `${gateway}${cidAndPath}`;
+    return `https://${cid}.ipfs.${gatewayHost}${path}`;
   }
+  const cidAndPath = removeIpfsProtocolPrefix(ipfsUrl);
+  const gateway = ipfsGateway.endsWith('/ipfs/')
+    ? ipfsGateway
+    : `${ipfsGateway}/ipfs/`;
+  return `${gateway}${cidAndPath}`;
 }

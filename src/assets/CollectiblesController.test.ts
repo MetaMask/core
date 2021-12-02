@@ -37,7 +37,7 @@ const DEPRESSIONIST_CID_V1 =
 const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
   CLOUDFARE_PATH,
   `ipfs://${DEPRESSIONIST_CID_V1}`,
-  true
+  true,
 );
 
 describe('CollectiblesController', () => {

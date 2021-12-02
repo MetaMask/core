@@ -1075,14 +1075,22 @@ describe('util', () => {
 
   describe('getFormattedIpfsUrl', () => {
     it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway without protocol prefix, no path and subdomainSupported argument set to true', () => {
-      expect(util.getFormattedIpfsUrl(IFPS_GATEWAY, `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`, true)).toStrictEqual(
-        `https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`,
-      );
+      expect(
+        util.getFormattedIpfsUrl(
+          IFPS_GATEWAY,
+          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`,
+          true,
+        ),
+      ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
     });
 
-     it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a cidv0 no path and subdomainSupported argument set to true', () => {
+    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a cidv0 and no path and subdomainSupported argument set to true', () => {
       expect(
-        util.getFormattedIpfsUrl(`https://${IFPS_GATEWAY}`, `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`, true),
+        util.getFormattedIpfsUrl(
+          `https://${IFPS_GATEWAY}`,
+          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
+          true,
+        ),
       ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
     });
 
@@ -1124,7 +1132,7 @@ describe('util', () => {
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}/test`,
         ),
       ).toStrictEqual(`${IPFS_CID_V0}/test`);
-    })
+    });
 
     it('should return content identifier string from default ipfs url format if no path preset', () => {
       expect(
@@ -1132,7 +1140,7 @@ describe('util', () => {
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
         ),
       ).toStrictEqual(IPFS_CID_V0);
-    })
+    });
 
     it('should return content identifier string from alternate ipfs url format', () => {
       expect(
@@ -1140,21 +1148,19 @@ describe('util', () => {
           `${ALTERNATIVE_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
         ),
       ).toStrictEqual(IPFS_CID_V0);
-    })
+    });
 
     it('should throw error if passed a non ipfs url', () => {
       expect(() => util.removeIpfsProtocolPrefix(SOME_API)).toThrow(
         'this method should not be used with non ipfs urls',
       );
     });
-  })
+  });
 
   describe('getIpfsCIDv1AndPath', () => {
     it('should return content identifier from default ipfs url format', () => {
       expect(
-        util.getIpfsCIDv1AndPath(
-          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
-        ),
+        util.getIpfsCIDv1AndPath(`${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: '' });
     });
 
@@ -1168,9 +1174,7 @@ describe('util', () => {
 
     it('should return unchanged content identifier if already v1', () => {
       expect(
-        util.getIpfsCIDv1AndPath(
-          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`,
-        ),
+        util.getIpfsCIDv1AndPath(`${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: '' });
     });
 
