@@ -20,6 +20,8 @@ const IPFS_CID_V0 = 'QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n';
 const IPFS_CID_V1 =
   'bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku';
 
+const IFPS_GATEWAY = 'dweb.link'
+
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
 const GAS_PRICE = 'gasPrice';
@@ -1068,6 +1070,20 @@ describe('util', () => {
       expect(() =>
         util.validateMinimumIncrease('0x7162a5ca', '0x5916a6d6'),
       ).not.toThrow(Error);
+    });
+  });
+
+  describe('getFormattedIpfsURL', () => {
+    it('should return ipfs url when passed ipfsGateway without protocol prefix', () => {
+      expect(util.getFormattedIpfsURL(IFPS_GATEWAY, IPFS_CID_V1)).toStrictEqual(
+        `https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`,
+      );
+    });
+
+    it('should return ipfs url when passed ipfsGateway with protocol prefix', () => {
+      expect(util.getFormattedIpfsURL(`https://${IFPS_GATEWAY}`, IPFS_CID_V1)).toStrictEqual(
+        `https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`,
+      );
     });
   });
 
