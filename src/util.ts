@@ -772,21 +772,34 @@ export function validateMinimumIncrease(proposed: string, min: string) {
 /**
  * Extracts content identifier from ipfs url.
  *
- * @param url - Ipfs url.
- * @returns Ipfs content identifier as string.
+ * @param ipfsUrl - ipfs url
+ * @returns Ipfs content identifier as string and path as string.
+ * @throws Will throw if the url passed is not ipfs.
  */
-export function getIpfsUrlContentIdentifier(url: string): string {
-  if (url.startsWith('ipfs://ipfs/')) {
-    url = url.replace('ipfs://ipfs/', '');
-  } else if (url.startsWith('ipfs://')) {
-    url = url.replace('ipfs://', '');
+export function getIpfsUrlContentIdentifierAndPath(
+  ipfsUrl: string,
+): { cid: string; path?: string } {
+  if (ipfsUrl.startsWith('ipfs://ipfs/')) {
+    ipfsUrl = ipfsUrl.replace('ipfs://ipfs/', '');
+  } else if (ipfsUrl.startsWith('ipfs://')) {
+    ipfsUrl = ipfsUrl.replace('ipfs://', '');
   } else {
     // this method should not be used with non-ipfs urls (i.e. startsWith('ipfs://') === true)
-    // but this case is added for safety.
-    return url;
+    throw new Error('this method should not be used with non ipfs urls');
   }
+
+  // check if there is a path
+  // (CID is everything preceding first forward slash, path is everything after)
+  const splitURL = ipfsUrl.split('/');
+  const cid = splitURL[0];
+  splitURL.shift();
+  const path = splitURL.join('/');
+
   // we want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
-  return CID.parse(url).toV1().toString();
+  return {
+    cid: CID.parse(cid).toV1().toString(),
+    path,
+  };
 }
 
 /**
@@ -807,12 +820,14 @@ export function addUrlProtocolPrefix(urlString: string): string {
  *
  * @param ipfsGateway - the user preferred ipfsGateway.
  * @param contentIdentifier - the asset's cid.
+ * @param path - optional sub path
  * @returns string.
  */
 export function getFormattedIpfsURL(
   ipfsGateway: string,
   contentIdentifier: string,
+  path?: string,
 ) {
   const gatewayHost = new URL(addUrlProtocolPrefix(ipfsGateway));
-  return `https://${contentIdentifier}.ipfs.${gatewayHost.host}`;
+  return `https://${contentIdentifier}.ipfs.${gatewayHost.host}${path ?? ''}`;
 }

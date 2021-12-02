@@ -10,7 +10,7 @@ import {
   handleFetch,
   toChecksumHexAddress,
   BNToHex,
-  getIpfsUrlContentIdentifier,
+  getIpfsUrlContentIdentifierAndPath,
   getFormattedIpfsURL,
 } from '../util';
 import {
@@ -267,8 +267,8 @@ export class CollectiblesController extends BaseController<
     const standard = result[1];
 
     if (tokenURI.startsWith('ipfs://')) {
-      const contentId = getIpfsUrlContentIdentifier(tokenURI);
-      tokenURI = getFormattedIpfsURL(ipfsGateway, contentId);
+      const { cid, path } = getIpfsUrlContentIdentifierAndPath(tokenURI);
+      tokenURI = getFormattedIpfsURL(ipfsGateway, cid, path);
     }
 
     try {

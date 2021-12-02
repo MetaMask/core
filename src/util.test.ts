@@ -20,7 +20,7 @@ const IPFS_CID_V0 = 'QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n';
 const IPFS_CID_V1 =
   'bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku';
 
-const IFPS_GATEWAY = 'dweb.link'
+const IFPS_GATEWAY = 'dweb.link';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -1074,47 +1074,65 @@ describe('util', () => {
   });
 
   describe('getFormattedIpfsURL', () => {
-    it('should return ipfs url when passed ipfsGateway without protocol prefix', () => {
+    it('should return a correctly formatted ipfs url when passed ipfsGateway without protocol prefix and no path', () => {
       expect(util.getFormattedIpfsURL(IFPS_GATEWAY, IPFS_CID_V1)).toStrictEqual(
         `https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`,
       );
     });
 
-    it('should return ipfs url when passed ipfsGateway with protocol prefix', () => {
-      expect(util.getFormattedIpfsURL(`https://${IFPS_GATEWAY}`, IPFS_CID_V1)).toStrictEqual(
-        `https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`,
-      );
+    it('should return a correctly formatted ipfs url when passed ipfsGateway with protocol prefix and no path', () => {
+      expect(
+        util.getFormattedIpfsURL(`https://${IFPS_GATEWAY}`, IPFS_CID_V1),
+      ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
+    });
+
+    it('should return correctly formatted url when passed a path', () => {
+      expect(
+        util.getFormattedIpfsURL(
+          `https://${IFPS_GATEWAY}`,
+          IPFS_CID_V1,
+          '/test',
+        ),
+      ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}/test`);
     });
   });
 
-  describe('getIpfsUrlContentIdentifier', () => {
+  describe('getIpfsUrlContentIdentifierAndPath', () => {
     it('should return content identifier from default ipfs url format', () => {
       expect(
-        util.getIpfsUrlContentIdentifier(
+        util.getIpfsUrlContentIdentifierAndPath(
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
         ),
-      ).toStrictEqual(IPFS_CID_V1);
+      ).toStrictEqual({ cid: IPFS_CID_V1, path: '' });
     });
 
     it('should return content identifier from alternative ipfs url format', () => {
       expect(
-        util.getIpfsUrlContentIdentifier(
+        util.getIpfsUrlContentIdentifierAndPath(
           `${ALTERNATIVE_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
         ),
-      ).toStrictEqual(IPFS_CID_V1);
+      ).toStrictEqual({ cid: IPFS_CID_V1, path: '' });
     });
 
     it('should return unchanged content identifier if already v1', () => {
       expect(
-        util.getIpfsUrlContentIdentifier(
+        util.getIpfsUrlContentIdentifierAndPath(
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`,
         ),
-      ).toStrictEqual(IPFS_CID_V1);
+      ).toStrictEqual({ cid: IPFS_CID_V1, path: '' });
     });
 
-    it('should return url if its not a ipfs standard url', () => {
-      expect(util.getIpfsUrlContentIdentifier(SOME_API)).toStrictEqual(
-        SOME_API,
+    it('should return a path when url contains one', () => {
+      expect(
+        util.getIpfsUrlContentIdentifierAndPath(
+          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test/test/test`,
+        ),
+      ).toStrictEqual({ cid: IPFS_CID_V1, path: 'test/test/test' });
+    });
+
+    it('should throw error if passed a non ipfs url', () => {
+      expect(() => util.getIpfsUrlContentIdentifierAndPath(SOME_API)).toThrow(
+        'this method should not be used with non ipfs urls',
       );
     });
   });
