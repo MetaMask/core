@@ -1,4 +1,4 @@
-import { errorCodes } from 'eth-rpc-errors';
+import { errorCodes, EthereumRpcError } from 'eth-rpc-errors';
 import sinon from 'sinon';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
@@ -607,6 +607,19 @@ describe('approval controller', () => {
 
       expect(approvalController.state[STORE_KEY]).toStrictEqual({});
       expect(rejectSpy.callCount).toStrictEqual(2);
+    });
+
+    it('rejects existing entries with a caller-specified error', async () => {
+      const rejectPromise = approvalController.add({
+        id: 'foo2',
+        origin: 'bar.baz',
+        type: 'myType',
+      });
+
+      approvalController.clear(new EthereumRpcError(1000, 'foo'));
+      await expect(rejectPromise).rejects.toThrow(
+        new EthereumRpcError(1000, 'foo'),
+      );
     });
   });
 
