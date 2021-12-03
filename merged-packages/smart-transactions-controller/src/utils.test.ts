@@ -5,7 +5,7 @@ import {
   SmartTransactionStatuses,
   SmartTransactionCancellationReason,
 } from './types';
-import { API_BASE_URL, CHAIN_IDS, CHAIN_IDS_HEX_TO_DEC } from './constants';
+import { API_BASE_URL, CHAIN_IDS } from './constants';
 
 describe('src/utils.js', () => {
   describe('isSmartTransactionPending', () => {
@@ -30,7 +30,7 @@ describe('src/utils.js', () => {
   });
 
   describe('getAPIRequestURL', () => {
-    const ethereumChainIdDec = CHAIN_IDS_HEX_TO_DEC[CHAIN_IDS.ETHEREUM];
+    const ethereumChainIdDec = parseInt(CHAIN_IDS.ETHEREUM, 16);
 
     it('returns a URL for getting transactions', () => {
       expect(utils.getAPIRequestURL(APIType.GET_FEES, CHAIN_IDS.ETHEREUM)).toBe(
@@ -65,7 +65,7 @@ describe('src/utils.js', () => {
     });
 
     it('returns a URL for smart transactions API liveness for the BSC chainId', () => {
-      const bscChainIdDec = CHAIN_IDS_HEX_TO_DEC[CHAIN_IDS.BSC];
+      const bscChainIdDec = parseInt(CHAIN_IDS.BSC, 16);
       expect(utils.getAPIRequestURL(APIType.LIVENESS, CHAIN_IDS.BSC)).toBe(
         `${API_BASE_URL}/networks/${bscChainIdDec}/health`,
       );

@@ -9,7 +9,7 @@ import {
   SmartTransactionMinedTx,
   cancellationReasonToStatusMap,
 } from './types';
-import { API_BASE_URL, CHAIN_IDS_HEX_TO_DEC } from './constants';
+import { API_BASE_URL } from './constants';
 
 export function isSmartTransactionPending(smartTransaction: SmartTransaction) {
   return smartTransaction.status === SmartTransactionStatuses.PENDING;
@@ -21,7 +21,7 @@ export const isSmartTransactionStatusResolved = (
 
 // TODO use actual url once API is defined
 export function getAPIRequestURL(apiType: APIType, chainId: string): string {
-  const chainIdDec = CHAIN_IDS_HEX_TO_DEC[chainId];
+  const chainIdDec = parseInt(chainId, 16);
   switch (apiType) {
     case APIType.GET_FEES: {
       return `${API_BASE_URL}/networks/${chainIdDec}/getFees`;

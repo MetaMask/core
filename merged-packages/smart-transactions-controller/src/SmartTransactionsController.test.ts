@@ -3,7 +3,7 @@ import { NetworkState } from '@metamask/controllers';
 import SmartTransactionsController, {
   DEFAULT_INTERVAL,
 } from './SmartTransactionsController';
-import { API_BASE_URL, CHAIN_IDS, CHAIN_IDS_HEX_TO_DEC } from './constants';
+import { API_BASE_URL, CHAIN_IDS } from './constants';
 import { SmartTransaction, SmartTransactionStatuses } from './types';
 
 const confirmExternalMock = jest.fn();
@@ -195,7 +195,7 @@ const testHistory = [
   },
 ];
 
-const ethereumChainIdDec = CHAIN_IDS_HEX_TO_DEC[CHAIN_IDS.ETHEREUM];
+const ethereumChainIdDec = parseInt(CHAIN_IDS.ETHEREUM, 16);
 
 const trackMetaMetricsEventSpy = jest.fn();
 
