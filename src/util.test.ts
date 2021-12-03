@@ -1157,11 +1157,23 @@ describe('util', () => {
     });
   });
 
+  describe('addUrlProtocolPrefix', () => {
+    it('should return a URL with https:// prepended if input URL does not already have it', () => {
+      expect(util.addUrlProtocolPrefix(IFPS_GATEWAY)).toStrictEqual(
+        `https://${IFPS_GATEWAY}`,
+      );
+    });
+
+    it('should return a URL as is if https:// is already prepended', () => {
+      expect(util.addUrlProtocolPrefix(SOME_API)).toStrictEqual(SOME_API);
+    });
+  });
+
   describe('getIpfsCIDv1AndPath', () => {
     it('should return content identifier from default ipfs url format', () => {
       expect(
         util.getIpfsCIDv1AndPath(`${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`),
-      ).toStrictEqual({ cid: IPFS_CID_V1, path: '' });
+      ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
     });
 
     it('should return content identifier from alternative ipfs url format', () => {
@@ -1169,13 +1181,13 @@ describe('util', () => {
         util.getIpfsCIDv1AndPath(
           `${ALTERNATIVE_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
         ),
-      ).toStrictEqual({ cid: IPFS_CID_V1, path: '' });
+      ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
     });
 
     it('should return unchanged content identifier if already v1', () => {
       expect(
         util.getIpfsCIDv1AndPath(`${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`),
-      ).toStrictEqual({ cid: IPFS_CID_V1, path: '' });
+      ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
     });
 
     it('should return a path when url contains one', () => {
