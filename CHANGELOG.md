@@ -7,13 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [22.0.0]
-### Uncategorized
-- Decrease version
-- Fix ipfs address generation ([#655](https://github.com/MetaMask/controllers/pull/655))
-- 22.0.0 ([#654](https://github.com/MetaMask/controllers/pull/654))
-
 ### Added
-- ensure valid ipfsGateWay format for retrieiving ipfs assets ([#652](https://github.com/MetaMask/controllers/pull/652))
+- **BREAKING**: Change IPFS URL generation to use subdomains and cidV1s over cidV0s, in order to enhance origin based security in our use of IPFS assets ([#655](https://github.com/MetaMask/controllers/pull/655))
+ - Consumers using an IPFS gateway(s) which does not support IPFS subdomain formats will need to set the new config value 'useIPFSSubdomains' on CollectiblesController to false in order to have continued IPFS resolution support.
 
 ### Removed
 - **BREAKING**: remove chainid normalization ([#651](https://github.com/MetaMask/controllers/pull/651))
