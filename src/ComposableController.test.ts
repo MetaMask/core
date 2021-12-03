@@ -137,8 +137,6 @@ describe('ComposableController', () => {
         CollectiblesController: {
           allCollectibleContracts: {},
           allCollectibles: {},
-          collectibleContracts: [],
-          collectibles: [],
           ignoredCollectibles: [],
         },
         TokensController: {
@@ -166,6 +164,7 @@ describe('ComposableController', () => {
           selectedAddress: '',
           useStaticTokenList: false,
           useCollectibleDetection: false,
+          openSeaEnabled: false,
         },
       });
     });
@@ -218,8 +217,6 @@ describe('ComposableController', () => {
         allCollectibleContracts: {},
         allCollectibles: {},
         allTokens: {},
-        collectibleContracts: [],
-        collectibles: [],
         ensEntries: {},
         featureFlags: {},
         frequentRpcList: [],
@@ -236,6 +233,7 @@ describe('ComposableController', () => {
         selectedAddress: '',
         useStaticTokenList: false,
         useCollectibleDetection: false,
+        openSeaEnabled: false,
         suggestedAssets: [],
         tokens: [],
       });
