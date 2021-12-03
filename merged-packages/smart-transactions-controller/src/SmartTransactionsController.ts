@@ -491,10 +491,15 @@ export default class SmartTransactionsController extends BaseController<
     );
     const time = Date.now();
     const metamaskNetworkId = this.getNetwork();
-    const preTxBalanceBN = await this.ethersProvider.getBalance(txParams?.from);
-    const preTxBalance = new BigNumber(preTxBalanceBN.toHexString()).toString(
-      16,
-    );
+    let preTxBalance;
+    try {
+      const preTxBalanceBN = await this.ethersProvider.getBalance(
+        txParams?.from,
+      );
+      preTxBalance = new BigNumber(preTxBalanceBN.toHexString()).toString(16);
+    } catch (e) {
+      console.error('ethers error', e);
+    }
     const nonceLock = await this.nonceTracker.getNonceLock(txParams?.from);
     const nonce = ethers.utils.hexlify(nonceLock.nextNonce);
     if (txParams && !txParams?.nonce) {
