@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [22.0.0]
+### Uncategorized
+- Decrease version
+- Fix ipfs address generation ([#655](https://github.com/MetaMask/controllers/pull/655))
+- 22.0.0 ([#654](https://github.com/MetaMask/controllers/pull/654))
+
 ### Added
 - ensure valid ipfsGateWay format for retrieiving ipfs assets ([#652](https://github.com/MetaMask/controllers/pull/652))
 
