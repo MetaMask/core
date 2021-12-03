@@ -805,7 +805,7 @@ export function getIpfsCIDv1AndPath(
   const path = index !== -1 ? url.substring(index) : undefined;
 
   // We want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
-  // for security and use with IPFS subdomains
+  // because most cid v0s appear to be incompatible with IPFS subdomains
   return {
     cid: CID.parse(cid).toV1().toString(),
     path,
