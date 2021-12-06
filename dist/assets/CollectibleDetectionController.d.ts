@@ -64,7 +64,7 @@ export interface ApiCollectibleContract {
     external_link: string | null;
     collection: {
         name: string | null;
-        image_url: string | null;
+        image_url?: string | null;
     };
 }
 /**

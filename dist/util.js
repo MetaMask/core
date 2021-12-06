@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getIpfsUrlContentIdentifier = exports.validateMinimumIncrease = exports.isGasPriceValue = exports.isFeeMarketEIP1559Values = exports.validateGasValues = exports.getIncreasedPriceFromExisting = exports.getIncreasedPriceHex = exports.convertPriceToDecimal = exports.isEIP1559Transaction = exports.query = exports.normalizeEnsName = exports.timeoutFetch = exports.handleFetch = exports.successfulFetch = exports.isSmartContractCode = exports.validateTokenToWatch = exports.validateTypedSignMessageDataV3 = exports.validateTypedSignMessageDataV1 = exports.validateSignMessageData = exports.normalizeMessageData = exports.validateTransaction = exports.isValidHexAddress = exports.toChecksumHexAddress = exports.safelyExecuteWithTimeout = exports.safelyExecute = exports.normalizeTransaction = exports.hexToText = exports.hexToBN = exports.handleTransactionFetch = exports.getEtherscanApiUrl = exports.getBuyURL = exports.weiHexToGweiDec = exports.gweiDecToWEIBN = exports.fractionBN = exports.BNToHex = void 0;
+exports.getFormattedIpfsUrl = exports.addUrlProtocolPrefix = exports.getIpfsCIDv1AndPath = exports.removeIpfsProtocolPrefix = exports.validateMinimumIncrease = exports.isGasPriceValue = exports.isFeeMarketEIP1559Values = exports.validateGasValues = exports.getIncreasedPriceFromExisting = exports.getIncreasedPriceHex = exports.convertPriceToDecimal = exports.isEIP1559Transaction = exports.query = exports.normalizeEnsName = exports.timeoutFetch = exports.handleFetch = exports.successfulFetch = exports.isSmartContractCode = exports.validateTokenToWatch = exports.validateTypedSignMessageDataV3 = exports.validateTypedSignMessageDataV1 = exports.validateSignMessageData = exports.normalizeMessageData = exports.validateTransaction = exports.isValidHexAddress = exports.toChecksumHexAddress = exports.safelyExecuteWithTimeout = exports.safelyExecute = exports.normalizeTransaction = exports.hexToText = exports.hexToBN = exports.handleTransactionFetch = exports.getEtherscanApiUrl = exports.getBuyURL = exports.weiHexToGweiDec = exports.gweiDecToWEIBN = exports.fractionBN = exports.BNToHex = void 0;
 const ethereumjs_util_1 = require("ethereumjs-util");
 const ethjs_util_1 = require("ethjs-util");
 const ethjs_unit_1 = require("ethjs-unit");
@@ -20,6 +20,7 @@ const eth_rpc_errors_1 = require("eth-rpc-errors");
 const eth_ens_namehash_1 = __importDefault(require("eth-ens-namehash"));
 const eth_sig_util_1 = require("eth-sig-util");
 const jsonschema_1 = require("jsonschema");
+const cid_1 = require("multiformats/cid");
 const constants_1 = require("./constants");
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 const NORMALIZERS = {
@@ -652,19 +653,74 @@ function validateMinimumIncrease(proposed, min) {
 }
 exports.validateMinimumIncrease = validateMinimumIncrease;
 /**
- * Extracts content identifier from ipfs url.
+ * Removes IPFS protocol prefix from input string.
  *
- * @param url - Ipfs url.
- * @returns Ipfs content identifier as string.
+ * @param ipfsUrl - An IPFS url (e.g. ipfs://{content id})
+ * @returns IPFS content identifier and (possibly) path in a string
+ * @throws Will throw if the url passed is not IPFS.
  */
-function getIpfsUrlContentIdentifier(url) {
-    if (url.startsWith('ipfs://ipfs/')) {
-        return url.replace('ipfs://ipfs/', '');
+function removeIpfsProtocolPrefix(ipfsUrl) {
+    if (ipfsUrl.startsWith('ipfs://ipfs/')) {
+        return ipfsUrl.replace('ipfs://ipfs/', '');
     }
-    if (url.startsWith('ipfs://')) {
-        return url.replace('ipfs://', '');
+    else if (ipfsUrl.startsWith('ipfs://')) {
+        return ipfsUrl.replace('ipfs://', '');
     }
-    return url;
+    // this method should not be used with non-ipfs urls (i.e. startsWith('ipfs://') === true)
+    throw new Error('this method should not be used with non ipfs urls');
 }
-exports.getIpfsUrlContentIdentifier = getIpfsUrlContentIdentifier;
+exports.removeIpfsProtocolPrefix = removeIpfsProtocolPrefix;
+/**
+ * Extracts content identifier and path from an input string.
+ *
+ * @param ipfsUrl - An IPFS URL minus the IPFS protocol prefix
+ * @returns IFPS content identifier (cid) and sub path as string.
+ * @throws Will throw if the url passed is not ipfs.
+ */
+function getIpfsCIDv1AndPath(ipfsUrl) {
+    const url = removeIpfsProtocolPrefix(ipfsUrl);
+    // check if there is a path
+    // (CID is everything preceding first forward slash, path is everything after)
+    const index = url.indexOf('/');
+    const cid = index !== -1 ? url.substring(0, index) : url;
+    const path = index !== -1 ? url.substring(index) : undefined;
+    // We want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
+    // because most cid v0s appear to be incompatible with IPFS subdomains
+    return {
+        cid: cid_1.CID.parse(cid).toV1().toString(),
+        path,
+    };
+}
+exports.getIpfsCIDv1AndPath = getIpfsCIDv1AndPath;
+/**
+ * Adds URL protocol prefix to input URL string if missing.
+ *
+ * @param urlString - An IPFS URL.
+ * @returns A URL with a https:// prepended.
+ */
+function addUrlProtocolPrefix(urlString) {
+    if (!urlString.match(/(^http:\/\/)|(^https:\/\/)/u)) {
+        return `https://${urlString}`;
+    }
+    return urlString;
+}
+exports.addUrlProtocolPrefix = addUrlProtocolPrefix;
+/**
+ * Formats URL correctly for use retrieving assets hosted on IPFS.
+ *
+ * @param ipfsGateway - The users preferred IPFS gateway (full URL or just host).
+ * @param ipfsUrl - The IFPS URL pointed at the asset.
+ * @param subdomainSupported - Boolean indicating whether the URL should be formatted with subdomains or not.
+ * @returns A formatted URL, with the user's preferred IPFS gateway and format (subdomain or not), pointing to an asset hosted on IPFS.
+ */
+function getFormattedIpfsUrl(ipfsGateway, ipfsUrl, subdomainSupported) {
+    const { host, protocol, origin } = new URL(addUrlProtocolPrefix(ipfsGateway));
+    if (subdomainSupported) {
+        const { cid, path } = getIpfsCIDv1AndPath(ipfsUrl);
+        return `${protocol}//${cid}.ipfs.${host}${path !== null && path !== void 0 ? path : ''}`;
+    }
+    const cidAndPath = removeIpfsProtocolPrefix(ipfsUrl);
+    return `${origin}/ipfs/${cidAndPath}`;
+}
+exports.getFormattedIpfsUrl = getFormattedIpfsUrl;
 //# sourceMappingURL=util.js.map

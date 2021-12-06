@@ -78,6 +78,7 @@ export interface CollectibleMetadata {
     description: string | null;
     image: string | null;
     standard: string | null;
+    favorite?: boolean;
     numberOfSales?: number;
     backgroundColor?: string;
     imagePreview?: string;
@@ -106,6 +107,7 @@ export interface CollectiblesConfig extends BaseConfig {
     chainId: string;
     ipfsGateway: string;
     openSeaEnabled: boolean;
+    useIPFSSubdomains: boolean;
 }
 /**
  * @type CollectiblesState
@@ -323,5 +325,13 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * Removes all collectibles from the ignored list.
      */
     clearIgnoredCollectibles(): void;
+    /**
+     * Update collectible favorite status.
+     *
+     * @param address - Hex address of the collectible contract.
+     * @param tokenId - Hex address of the collectible contract.
+     * @param favorite - Collectible new favorite status.
+     */
+    updateCollectibleFavoriteStatus(address: string, tokenId: string, favorite: boolean): void;
 }
 export default CollectiblesController;

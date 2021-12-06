@@ -10,7 +10,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CollectibleDetectionController = void 0;
-const ethereumjs_util_1 = require("ethereumjs-util");
 const BaseController_1 = require("../BaseController");
 const util_1 = require("../util");
 const constants_1 = require("../constants");
@@ -150,14 +149,7 @@ class CollectibleDetectionController extends BaseController_1.BaseController {
             if (!this.isMainnet() || this.disabled) {
                 return;
             }
-            const { selectedAddress } = this.config;
-            let { chainId } = this.config;
-            if (typeof chainId === 'string' && ethereumjs_util_1.isHexString(chainId)) {
-                chainId = `${parseInt(chainId, 16)}`;
-            }
-            else if (typeof chainId === 'number') {
-                chainId = `${chainId}`;
-            }
+            const { selectedAddress, chainId } = this.config;
             /* istanbul ignore else */
             if (!selectedAddress) {
                 return;
