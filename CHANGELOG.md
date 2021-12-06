@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.0]
+### Added
+- **BREAKING**: Change IPFS URL generation to use subdomains and cidV1s over cidV0s, in order to enhance origin based security in our use of IPFS assets ([#655](https://github.com/MetaMask/controllers/pull/655))
+ - Consumers using an IPFS gateway(s) which does not support IPFS subdomain formats will need to set the new config value 'useIPFSSubdomains' on CollectiblesController to false in order to have continued IPFS resolution support.
+
+### Removed
+- **BREAKING**: remove chainid normalization ([#651](https://github.com/MetaMask/controllers/pull/651))
+   - This is breaking for anyone who adapted consumption of CollectiblesController to make use of v21.0.0. The chainId in the collectibles state shape is no longer normalized to decimal. 
+
+### Fixed
+- Fix collectibles collection images ([#650](https://github.com/MetaMask/controllers/pull/650))
+
+
 ## [21.0.1]
 ### Fixed
 - Fix issue where chainId key in AllCollectibles & AllCollectibleContracts is formatted differently in manual collectible add and detection add flows. ([#648](https://github.com/MetaMask/controllers/pull/648))
@@ -441,7 +454,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v21.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v22.0.0...HEAD
+[22.0.0]: https://github.com/MetaMask/controllers/compare/v21.0.1...v22.0.0
 [21.0.1]: https://github.com/MetaMask/controllers/compare/v21.0.0...v21.0.1
 [21.0.0]: https://github.com/MetaMask/controllers/compare/v20.1.0...v21.0.0
 [20.1.0]: https://github.com/MetaMask/controllers/compare/v20.0.0...v20.1.0

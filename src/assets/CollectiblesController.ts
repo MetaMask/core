@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { BN, stripHexPrefix, isHexString } from 'ethereumjs-util';
+import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { Mutex } from 'async-mutex';
 
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
@@ -10,7 +10,7 @@ import {
   handleFetch,
   toChecksumHexAddress,
   BNToHex,
-  getIpfsUrlContentIdentifier,
+  getFormattedIpfsUrl,
 } from '../util';
 import {
   MAINNET,
@@ -103,6 +103,7 @@ export interface CollectibleMetadata {
   description: string | null;
   image: string | null;
   standard: string | null;
+  favorite?: boolean;
   numberOfSales?: number;
   backgroundColor?: string;
   imagePreview?: string;
@@ -133,6 +134,7 @@ export interface CollectiblesConfig extends BaseConfig {
   chainId: string;
   ipfsGateway: string;
   openSeaEnabled: boolean;
+  useIPFSSubdomains: boolean;
 }
 
 /**
@@ -257,7 +259,7 @@ export class CollectiblesController extends BaseController<
     contractAddress: string,
     tokenId: string,
   ): Promise<CollectibleMetadata> {
-    const { ipfsGateway } = this.config;
+    const { ipfsGateway, useIPFSSubdomains } = this.config;
     const result = await this.getCollectibleURIAndStandard(
       contractAddress,
       tokenId,
@@ -266,10 +268,7 @@ export class CollectiblesController extends BaseController<
     const standard = result[1];
 
     if (tokenURI.startsWith('ipfs://')) {
-      const contentId = getIpfsUrlContentIdentifier(tokenURI);
-      tokenURI = ipfsGateway.endsWith('/')
-        ? ipfsGateway + contentId
-        : `${ipfsGateway}/${contentId}`;
+      tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIPFSSubdomains);
     }
 
     try {
@@ -284,6 +283,7 @@ export class CollectiblesController extends BaseController<
         name: object.name,
         description: object.description,
         standard,
+        favorite: false,
       };
     } catch {
       return {
@@ -291,6 +291,7 @@ export class CollectiblesController extends BaseController<
         name: null,
         description: null,
         standard: standard || null,
+        favorite: false,
       };
     }
   }
@@ -411,11 +412,15 @@ export class CollectiblesController extends BaseController<
    */
   private async getCollectibleContractInformationFromContract(
     contractAddress: string,
-  ): Promise<Partial<ApiCollectibleContract>> {
+  ): Promise<
+    Partial<ApiCollectibleContract> &
+      Pick<ApiCollectibleContract, 'address'> &
+      Pick<ApiCollectibleContract, 'collection'>
+  > {
     const name = await this.getAssetName(contractAddress);
     const symbol = await this.getAssetSymbol(contractAddress);
     return {
-      collection: { name, image_url: null },
+      collection: { name },
       symbol,
       address: contractAddress,
     };
@@ -429,14 +434,22 @@ export class CollectiblesController extends BaseController<
    */
   private async getCollectibleContractInformation(
     contractAddress: string,
-  ): Promise<ApiCollectibleContract> {
-    const blockchainContractData = await safelyExecute(async () => {
-      return await this.getCollectibleContractInformationFromContract(
-        contractAddress,
-      );
-    });
+  ): Promise<
+    Partial<ApiCollectibleContract> &
+      Pick<ApiCollectibleContract, 'address'> &
+      Pick<ApiCollectibleContract, 'collection'>
+  > {
+    const blockchainContractData: Partial<ApiCollectibleContract> &
+      Pick<ApiCollectibleContract, 'address'> &
+      Pick<ApiCollectibleContract, 'collection'> = await safelyExecute(
+      async () => {
+        return await this.getCollectibleContractInformationFromContract(
+          contractAddress,
+        );
+      },
+    );
 
-    let openSeaContractData;
+    let openSeaContractData: Partial<ApiCollectibleContract> | undefined;
     if (this.config.openSeaEnabled) {
       openSeaContractData = await safelyExecute(async () => {
         return await this.getCollectibleContractInformationFromApi(
@@ -446,7 +459,15 @@ export class CollectiblesController extends BaseController<
     }
 
     if (blockchainContractData || openSeaContractData) {
-      return { ...openSeaContractData, ...blockchainContractData };
+      return {
+        ...openSeaContractData,
+        ...blockchainContractData,
+        collection: {
+          image_url: null,
+          ...openSeaContractData?.collection,
+          ...blockchainContractData?.collection,
+        },
+      };
     }
 
     /* istanbul ignore next */
@@ -493,13 +514,6 @@ export class CollectiblesController extends BaseController<
         selectedAddress = this.config.selectedAddress;
       }
 
-      // ensure that chainid matches dec format for both detection and manual flows
-      if (typeof chainId === 'string' && isHexString(chainId)) {
-        chainId = `${parseInt(chainId, 16)}` as const;
-      } else if (typeof chainId === 'number') {
-        chainId = `${chainId}` as const;
-      }
-
       const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
 
       const existingEntry: Collectible | undefined = collectibles.find(
@@ -533,6 +547,7 @@ export class CollectiblesController extends BaseController<
         address,
         tokenId,
         ...collectibleMetadata,
+        favorite: existingEntry?.favorite || false,
       };
       const newCollectibles = [...collectibles, newEntry];
       const addressCollectibles = allCollectibles[selectedAddress];
@@ -577,13 +592,6 @@ export class CollectiblesController extends BaseController<
       } else {
         chainId = this.config.chainId;
         selectedAddress = this.config.selectedAddress;
-      }
-
-      // ensure that chainid matches dec format for both detection and manual flows
-      if (typeof chainId === 'string' && isHexString(chainId)) {
-        chainId = `${parseInt(chainId, 16)}` as const;
-      } else if (typeof chainId === 'number') {
-        chainId = `${chainId}` as const;
       }
 
       const collectibleContracts =
@@ -839,6 +847,7 @@ export class CollectiblesController extends BaseController<
       chainId: '',
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       openSeaEnabled: false,
+      useIPFSSubdomains: true,
     };
 
     this.defaultState = {
@@ -1016,6 +1025,53 @@ export class CollectiblesController extends BaseController<
    */
   clearIgnoredCollectibles() {
     this.update({ ignoredCollectibles: [] });
+  }
+
+  /**
+   * Update collectible favorite status.
+   *
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - Hex address of the collectible contract.
+   * @param favorite - Collectible new favorite status.
+   */
+  updateCollectibleFavoriteStatus(
+    address: string,
+    tokenId: string,
+    favorite: boolean,
+  ) {
+    const { allCollectibles } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+    const index: number = collectibles.findIndex(
+      (collectible) =>
+        collectible.address === address && collectible.tokenId === tokenId,
+    );
+
+    if (index === -1) {
+      return;
+    }
+
+    const updatedCollectible: Collectible = {
+      ...collectibles[index],
+      favorite,
+    };
+
+    // Update Collectibles array
+    collectibles[index] = updatedCollectible;
+
+    const addressCollectibles = allCollectibles[selectedAddress];
+    const newAddressCollectibles = {
+      ...addressCollectibles,
+      ...{ [chainId]: collectibles },
+    };
+    const newAllCollectiblesState = {
+      ...allCollectibles,
+      ...{ [selectedAddress]: newAddressCollectibles },
+    };
+
+    this.update({
+      allCollectibles: newAllCollectiblesState,
+    });
   }
 }
 
