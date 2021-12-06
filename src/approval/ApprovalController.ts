@@ -74,7 +74,7 @@ export type GetApprovalsState = {
 
 export type ClearApprovalRequests = {
   type: `${typeof controllerName}:clearRequests`;
-  handler: () => void;
+  handler: (error: EthereumRpcError<unknown>) => void;
 };
 
 type AddApprovalOptions = {
@@ -406,11 +406,7 @@ export class ApprovalController extends BaseController<
    * @param rejectionError - The EthereumRpcError to reject the approval
    * requests with.
    */
-  clear(
-    rejectionError: EthereumRpcError<any> = ethErrors.rpc.resourceUnavailable(
-      'The request was rejected; please try again.',
-    ),
-  ): void {
+  clear(rejectionError: EthereumRpcError<unknown>): void {
     for (const id of this._approvals.keys()) {
       this.reject(id, rejectionError);
     }
