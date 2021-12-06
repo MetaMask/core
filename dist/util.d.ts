@@ -243,9 +243,37 @@ export declare const isGasPriceValue: (gasValues?: GasPriceValue | FeeMarketEIP1
  */
 export declare function validateMinimumIncrease(proposed: string, min: string): string;
 /**
- * Extracts content identifier from ipfs url.
+ * Removes IPFS protocol prefix from input string.
  *
- * @param url - Ipfs url.
- * @returns Ipfs content identifier as string.
+ * @param ipfsUrl - An IPFS url (e.g. ipfs://{content id})
+ * @returns IPFS content identifier and (possibly) path in a string
+ * @throws Will throw if the url passed is not IPFS.
  */
-export declare function getIpfsUrlContentIdentifier(url: string): string;
+export declare function removeIpfsProtocolPrefix(ipfsUrl: string): string;
+/**
+ * Extracts content identifier and path from an input string.
+ *
+ * @param ipfsUrl - An IPFS URL minus the IPFS protocol prefix
+ * @returns IFPS content identifier (cid) and sub path as string.
+ * @throws Will throw if the url passed is not ipfs.
+ */
+export declare function getIpfsCIDv1AndPath(ipfsUrl: string): {
+    cid: string;
+    path?: string;
+};
+/**
+ * Adds URL protocol prefix to input URL string if missing.
+ *
+ * @param urlString - An IPFS URL.
+ * @returns A URL with a https:// prepended.
+ */
+export declare function addUrlProtocolPrefix(urlString: string): string;
+/**
+ * Formats URL correctly for use retrieving assets hosted on IPFS.
+ *
+ * @param ipfsGateway - The users preferred IPFS gateway (full URL or just host).
+ * @param ipfsUrl - The IFPS URL pointed at the asset.
+ * @param subdomainSupported - Boolean indicating whether the URL should be formatted with subdomains or not.
+ * @returns A formatted URL, with the user's preferred IPFS gateway and format (subdomain or not), pointing to an asset hosted on IPFS.
+ */
+export declare function getFormattedIpfsUrl(ipfsGateway: string, ipfsUrl: string, subdomainSupported: boolean): string;

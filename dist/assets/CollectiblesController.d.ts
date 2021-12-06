@@ -107,6 +107,7 @@ export interface CollectiblesConfig extends BaseConfig {
     chainId: string;
     ipfsGateway: string;
     openSeaEnabled: boolean;
+    useIPFSSubdomains: boolean;
 }
 /**
  * @type CollectiblesState

@@ -53,6 +53,7 @@ class CollectiblesController extends BaseController_1.BaseController {
             chainId: '',
             ipfsGateway: constants_1.IPFS_DEFAULT_GATEWAY_URL,
             openSeaEnabled: false,
+            useIPFSSubdomains: true,
         };
         this.defaultState = {
             allCollectibleContracts: {},
@@ -129,15 +130,12 @@ class CollectiblesController extends BaseController_1.BaseController {
      */
     getCollectibleInformationFromTokenURI(contractAddress, tokenId) {
         return __awaiter(this, void 0, void 0, function* () {
-            const { ipfsGateway } = this.config;
+            const { ipfsGateway, useIPFSSubdomains } = this.config;
             const result = yield this.getCollectibleURIAndStandard(contractAddress, tokenId);
             let tokenURI = result[0];
             const standard = result[1];
             if (tokenURI.startsWith('ipfs://')) {
-                const contentId = util_1.getIpfsUrlContentIdentifier(tokenURI);
-                tokenURI = ipfsGateway.endsWith('/')
-                    ? ipfsGateway + contentId
-                    : `${ipfsGateway}/${contentId}`;
+                tokenURI = util_1.getFormattedIpfsUrl(ipfsGateway, tokenURI, useIPFSSubdomains);
             }
             try {
                 const object = yield util_1.handleFetch(tokenURI);
@@ -258,7 +256,7 @@ class CollectiblesController extends BaseController_1.BaseController {
             const name = yield this.getAssetName(contractAddress);
             const symbol = yield this.getAssetSymbol(contractAddress);
             return {
-                collection: { name, image_url: null },
+                collection: { name },
                 symbol,
                 address: contractAddress,
             };
@@ -282,7 +280,7 @@ class CollectiblesController extends BaseController_1.BaseController {
                 }));
             }
             if (blockchainContractData || openSeaContractData) {
-                return Object.assign(Object.assign({}, openSeaContractData), blockchainContractData);
+                return Object.assign(Object.assign(Object.assign({}, openSeaContractData), blockchainContractData), { collection: Object.assign(Object.assign({ image_url: null }, openSeaContractData === null || openSeaContractData === void 0 ? void 0 : openSeaContractData.collection), blockchainContractData === null || blockchainContractData === void 0 ? void 0 : blockchainContractData.collection) });
             }
             /* istanbul ignore next */
             return {
@@ -323,13 +321,6 @@ class CollectiblesController extends BaseController_1.BaseController {
                 else {
                     chainId = this.config.chainId;
                     selectedAddress = this.config.selectedAddress;
-                }
-                // ensure that chainid matches dec format for both detection and manual flows
-                if (typeof chainId === 'string' && ethereumjs_util_1.isHexString(chainId)) {
-                    chainId = `${parseInt(chainId, 16)}`;
-                }
-                else if (typeof chainId === 'number') {
-                    chainId = `${chainId}`;
                 }
                 const collectibles = ((_a = allCollectibles[selectedAddress]) === null || _a === void 0 ? void 0 : _a[chainId]) || [];
                 const existingEntry = collectibles.find((collectible) => collectible.address.toLowerCase() === address.toLowerCase() &&
@@ -387,13 +378,6 @@ class CollectiblesController extends BaseController_1.BaseController {
                 else {
                     chainId = this.config.chainId;
                     selectedAddress = this.config.selectedAddress;
-                }
-                // ensure that chainid matches dec format for both detection and manual flows
-                if (typeof chainId === 'string' && ethereumjs_util_1.isHexString(chainId)) {
-                    chainId = `${parseInt(chainId, 16)}`;
-                }
-                else if (typeof chainId === 'number') {
-                    chainId = `${chainId}`;
                 }
                 const collectibleContracts = ((_a = allCollectibleContracts[selectedAddress]) === null || _a === void 0 ? void 0 : _a[chainId]) || [];
                 const existingEntry = collectibleContracts.find((collectibleContract) => collectibleContract.address.toLowerCase() === address.toLowerCase());
