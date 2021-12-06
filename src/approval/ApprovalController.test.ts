@@ -1,4 +1,4 @@
-import { errorCodes } from 'eth-rpc-errors';
+import { errorCodes, EthereumRpcError } from 'eth-rpc-errors';
 import sinon from 'sinon';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
@@ -325,7 +325,7 @@ describe('approval controller', () => {
       approvalController.reject('2', new Error('foo'));
       expect(approvalController.getTotalApprovalCount()).toStrictEqual(2);
 
-      approvalController.clear();
+      approvalController.clear(new EthereumRpcError(1, 'clear'));
       expect(approvalController.getTotalApprovalCount()).toStrictEqual(0);
     });
   });
@@ -589,7 +589,9 @@ describe('approval controller', () => {
     });
 
     it('does nothing if state is already empty', () => {
-      expect(() => approvalController.clear()).not.toThrow();
+      expect(() =>
+        approvalController.clear(new EthereumRpcError(1, 'clear')),
+      ).not.toThrow();
     });
 
     it('deletes existing entries', async () => {
@@ -603,10 +605,23 @@ describe('approval controller', () => {
         .add({ id: 'foo3', origin: 'fizz.buzz', type: 'myType' })
         .catch((_error) => undefined);
 
-      approvalController.clear();
+      approvalController.clear(new EthereumRpcError(1, 'clear'));
 
       expect(approvalController.state[STORE_KEY]).toStrictEqual({});
       expect(rejectSpy.callCount).toStrictEqual(2);
+    });
+
+    it('rejects existing entries with a caller-specified error', async () => {
+      const rejectPromise = approvalController.add({
+        id: 'foo2',
+        origin: 'bar.baz',
+        type: 'myType',
+      });
+
+      approvalController.clear(new EthereumRpcError(1000, 'foo'));
+      await expect(rejectPromise).rejects.toThrow(
+        new EthereumRpcError(1000, 'foo'),
+      );
     });
   });
 
