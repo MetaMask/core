@@ -949,22 +949,17 @@ describe('CollectiblesController', () => {
         true,
       );
 
-      const img_uri =
-        'ipfs://ipfs/QmQ41RN24NNec4Jb8usZEk9s5qJCynoYmDwZZrvJYTCXrf/image.jpeg';
-
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][
           chainId
         ][0],
-      ).toStrictEqual({
-        address: ERC721_DEPRESSIONIST_ADDRESS,
-        tokenId: ERC721_DEPRESSIONIST_ID,
-        image: img_uri,
-        name: '#1027 Depressionist - Maltjik.jpg',
-        description: '',
-        standard: 'ERC721',
-        favorite: true,
-      });
+      ).toStrictEqual(
+        expect.objectContaining({
+          address: ERC721_DEPRESSIONIST_ADDRESS,
+          tokenId: ERC721_DEPRESSIONIST_ID,
+          favorite: true,
+        }),
+      );
     });
 
     it('should set collectible as favorite and then unset it', async () => {
@@ -981,22 +976,17 @@ describe('CollectiblesController', () => {
         true,
       );
 
-      const img_uri =
-        'ipfs://ipfs/QmQ41RN24NNec4Jb8usZEk9s5qJCynoYmDwZZrvJYTCXrf/image.jpeg';
-
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][
           chainId
         ][0],
-      ).toStrictEqual({
-        address: ERC721_DEPRESSIONIST_ADDRESS,
-        tokenId: ERC721_DEPRESSIONIST_ID,
-        image: img_uri,
-        name: '#1027 Depressionist - Maltjik.jpg',
-        description: '',
-        standard: 'ERC721',
-        favorite: true,
-      });
+      ).toStrictEqual(
+        expect.objectContaining({
+          address: ERC721_DEPRESSIONIST_ADDRESS,
+          tokenId: ERC721_DEPRESSIONIST_ID,
+          favorite: true,
+        }),
+      );
 
       collectiblesController.updateCollectibleFavoriteStatus(
         ERC721_DEPRESSIONIST_ADDRESS,
@@ -1008,15 +998,13 @@ describe('CollectiblesController', () => {
         collectiblesController.state.allCollectibles[selectedAddress][
           chainId
         ][0],
-      ).toStrictEqual({
-        address: ERC721_DEPRESSIONIST_ADDRESS,
-        tokenId: ERC721_DEPRESSIONIST_ID,
-        image: img_uri,
-        name: '#1027 Depressionist - Maltjik.jpg',
-        description: '',
-        standard: 'ERC721',
-        favorite: false,
-      });
+      ).toStrictEqual(
+        expect.objectContaining({
+          address: ERC721_DEPRESSIONIST_ADDRESS,
+          tokenId: ERC721_DEPRESSIONIST_ID,
+          favorite: false,
+        }),
+      );
     });
 
     it('should keep the favorite status after updating metadata', async () => {
@@ -1033,22 +1021,17 @@ describe('CollectiblesController', () => {
         true,
       );
 
-      const img_uri =
-        'ipfs://ipfs/QmQ41RN24NNec4Jb8usZEk9s5qJCynoYmDwZZrvJYTCXrf/image.jpeg';
-
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][
           chainId
         ][0],
-      ).toStrictEqual({
-        address: ERC721_DEPRESSIONIST_ADDRESS,
-        tokenId: ERC721_DEPRESSIONIST_ID,
-        image: img_uri,
-        name: '#1027 Depressionist - Maltjik.jpg',
-        description: '',
-        standard: 'ERC721',
-        favorite: true,
-      });
+      ).toStrictEqual(
+        expect.objectContaining({
+          address: ERC721_DEPRESSIONIST_ADDRESS,
+          tokenId: ERC721_DEPRESSIONIST_ID,
+          favorite: true,
+        }),
+      );
 
       await collectiblesController.addCollectible(
         ERC721_DEPRESSIONIST_ADDRESS,
@@ -1065,15 +1048,13 @@ describe('CollectiblesController', () => {
         collectiblesController.state.allCollectibles[selectedAddress][
           chainId
         ][0],
-      ).toStrictEqual({
-        address: ERC721_DEPRESSIONIST_ADDRESS,
-        tokenId: ERC721_DEPRESSIONIST_ID,
-        image: 'new_image',
-        name: 'new_name',
-        description: 'new_description',
-        standard: 'ERC721',
-        favorite: true,
-      });
+      ).toStrictEqual(
+        expect.objectContaining({
+          address: ERC721_DEPRESSIONIST_ADDRESS,
+          tokenId: ERC721_DEPRESSIONIST_ID,
+          favorite: true,
+        }),
+      );
 
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][chainId],
