@@ -103,6 +103,7 @@ export interface CollectibleMetadata {
   description: string | null;
   image: string | null;
   standard: string | null;
+  favorite?: boolean;
   numberOfSales?: number;
   backgroundColor?: string;
   imagePreview?: string;
@@ -282,6 +283,7 @@ export class CollectiblesController extends BaseController<
         name: object.name,
         description: object.description,
         standard,
+        favorite: false,
       };
     } catch {
       return {
@@ -289,6 +291,7 @@ export class CollectiblesController extends BaseController<
         name: null,
         description: null,
         standard: standard || null,
+        favorite: false,
       };
     }
   }
@@ -544,6 +547,7 @@ export class CollectiblesController extends BaseController<
         address,
         tokenId,
         ...collectibleMetadata,
+        favorite: existingEntry?.favorite || false,
       };
       const newCollectibles = [...collectibles, newEntry];
       const addressCollectibles = allCollectibles[selectedAddress];
@@ -1021,6 +1025,53 @@ export class CollectiblesController extends BaseController<
    */
   clearIgnoredCollectibles() {
     this.update({ ignoredCollectibles: [] });
+  }
+
+  /**
+   * Update collectible favorite status.
+   *
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - Hex address of the collectible contract.
+   * @param favorite - Collectible new favorite status.
+   */
+  updateCollectibleFavoriteStatus(
+    address: string,
+    tokenId: string,
+    favorite: boolean,
+  ) {
+    const { allCollectibles } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+    const index: number = collectibles.findIndex(
+      (collectible) =>
+        collectible.address === address && collectible.tokenId === tokenId,
+    );
+
+    if (index === -1) {
+      return;
+    }
+
+    const updatedCollectible: Collectible = {
+      ...collectibles[index],
+      favorite,
+    };
+
+    // Update Collectibles array
+    collectibles[index] = updatedCollectible;
+
+    const addressCollectibles = allCollectibles[selectedAddress];
+    const newAddressCollectibles = {
+      ...addressCollectibles,
+      ...{ [chainId]: collectibles },
+    };
+    const newAllCollectiblesState = {
+      ...allCollectibles,
+      ...{ [selectedAddress]: newAddressCollectibles },
+    };
+
+    this.update({
+      allCollectibles: newAllCollectiblesState,
+    });
   }
 }
 
