@@ -1007,7 +1007,7 @@ describe('CollectiblesController', () => {
       );
     });
 
-    it('should keep the favorite status after updating metadata', async () => {
+    it('should keep the favorite status as true after updating metadata', async () => {
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = collectiblesController.config;
       await collectiblesController.addCollectible(
@@ -1050,9 +1050,63 @@ describe('CollectiblesController', () => {
         ][0],
       ).toStrictEqual(
         expect.objectContaining({
+          image: 'new_image',
+          name: 'new_name',
+          description: 'new_description',
           address: ERC721_DEPRESSIONIST_ADDRESS,
           tokenId: ERC721_DEPRESSIONIST_ID,
           favorite: true,
+        }),
+      );
+
+      expect(
+        collectiblesController.state.allCollectibles[selectedAddress][chainId],
+      ).toHaveLength(1);
+    });
+
+    it('should keep the favorite status as false after updating metadata', async () => {
+      assetsContract.configure({ provider: MAINNET_PROVIDER });
+      const { selectedAddress, chainId } = collectiblesController.config;
+      await collectiblesController.addCollectible(
+        ERC721_DEPRESSIONIST_ADDRESS,
+        ERC721_DEPRESSIONIST_ID,
+      );
+
+      expect(
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0],
+      ).toStrictEqual(
+        expect.objectContaining({
+          address: ERC721_DEPRESSIONIST_ADDRESS,
+          tokenId: ERC721_DEPRESSIONIST_ID,
+          favorite: false,
+        }),
+      );
+
+      await collectiblesController.addCollectible(
+        ERC721_DEPRESSIONIST_ADDRESS,
+        ERC721_DEPRESSIONIST_ID,
+        {
+          image: 'new_image',
+          name: 'new_name',
+          description: 'new_description',
+          standard: 'ERC721',
+        },
+      );
+
+      expect(
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0],
+      ).toStrictEqual(
+        expect.objectContaining({
+          image: 'new_image',
+          name: 'new_name',
+          description: 'new_description',
+          address: ERC721_DEPRESSIONIST_ADDRESS,
+          tokenId: ERC721_DEPRESSIONIST_ID,
+          favorite: false,
         }),
       );
 
