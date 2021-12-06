@@ -61,6 +61,7 @@
     "immer": "^9.0.6",
     "isomorphic-fetch": "^3.0.0",
     "jsonschema": "^1.2.4",
+    "multiformats": "^9.5.2",
     "nanoid": "^3.1.12",
     "punycode": "^2.1.1",
     "single-call-balance-checker-abi": "^1.0.0",
