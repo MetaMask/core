@@ -48,7 +48,7 @@ export type EthFeeHistoryResponse = {
  * used for the block, indexed by those percentiles. (See docs for {@link fetchBlockFeeHistory} for more
  * on how this works.)
  */
-type Block<Percentile extends number> = {
+export type Block<Percentile extends number> = {
   number: BN;
   baseFeePerGas: BN;
   gasUsedRatio: number;
