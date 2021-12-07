@@ -181,6 +181,7 @@ function normalizeUrlFromParsed(parsedUrl: URL): string {
     result += `:${parsedUrl.port}`;
   }
   result += `${parsedUrl.pathname}`;
+  result += `${parsedUrl.search}`;
   return result;
 }
 

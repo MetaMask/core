@@ -11,7 +11,7 @@ test('fetch - basic', (t) => {
     method: 'eth_getBlockByNumber',
     params: ['0x482103', true],
   };
-  const rpcUrl = 'http://www.xyz.io/rabbit:3456';
+  const rpcUrl = 'http://www.xyz.io/rabbit:3456?id=100';
   const { fetchUrl, fetchParams } = createFetchConfigFromReq({ req, rpcUrl });
 
   t.equals(fetchUrl, rpcUrl);
