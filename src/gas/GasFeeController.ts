@@ -118,6 +118,8 @@ export type Eip1559GasFee = {
  * @property medium - A GasFee for a recommended combination of tip and maxFee
  * @property high - A GasFee for a high combination of tip and maxFee
  * @property estimatedBaseFee - An estimate of what the base fee will be for the pending/next block. A GWEI dec number
+ * @property networkCongestion - A normalized number that can be used to gauge the congestion
+ * level of the network, with 0 meaning not congested and 1 meaning extremely congested
  */
 
 export type GasFeeEstimates = {
@@ -125,6 +127,7 @@ export type GasFeeEstimates = {
   medium: Eip1559GasFee;
   high: Eip1559GasFee;
   estimatedBaseFee: string;
+  networkCongestion: number;
 };
 
 const metadata = {

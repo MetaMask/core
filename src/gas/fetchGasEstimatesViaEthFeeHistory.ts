@@ -1,15 +1,16 @@
+// This code is translated from the MetaSwap API:
+// <https://gitlab.com/ConsenSys/codefi/products/metaswap/gas-api>
+
 import { BN } from 'ethereumjs-util';
 import { fromWei } from 'ethjs-unit';
-import fetchBlockFeeHistory from './fetchBlockFeeHistory';
+import fetchBlockFeeHistory, { Block } from './fetchBlockFeeHistory';
 import { Eip1559GasFee, GasFeeEstimates } from './GasFeeController';
 
 type EthQuery = any;
 type PriorityLevel = typeof PRIORITY_LEVELS[number];
 type Percentile = typeof PRIORITY_LEVEL_PERCENTILES[number];
 
-// This code is translated from the MetaSwap API:
-// <https://gitlab.com/ConsenSys/codefi/products/metaswap/gas-api/-/blob/017436f628b2d5967f6e8734780a9114f9e58af9/src/eip1559/feeHistory.ts>
-
+const NUMBER_OF_HISTORICAL_BLOCKS_TO_FETCH = 20_000;
 const NUMBER_OF_RECENT_BLOCKS_TO_FETCH = 5;
 const PRIORITY_LEVELS = ['low', 'medium', 'high'] as const;
 const PRIORITY_LEVEL_PERCENTILES = [10, 20, 30] as const;
@@ -66,15 +67,14 @@ function medianOf(numbers: BN[]): BN {
  *
  * @param priorityLevel - The level of fees that dictates how soon a transaction may go through
  * ("low", "medium", or "high").
- * @param latestBaseFeePerGas - The base fee per gas recorded for the latest block in WEI, as a BN.
- * @param blocks - More information about blocks we can use to calculate estimates.
+ * @param blocks - A set of blocks as obtained from {@link fetchBlockFeeHistory}.
  * @returns The estimates.
  */
 function calculateGasEstimatesForPriorityLevel(
   priorityLevel: PriorityLevel,
-  latestBaseFeePerGas: BN,
-  blocks: { priorityFeesByPercentile: Record<Percentile, BN> }[],
+  blocks: Block<Percentile>[],
 ): Eip1559GasFee {
+  const latestBaseFeePerGas = blocks[blocks.length - 1].baseFeePerGas;
   const settings = SETTINGS_BY_PRIORITY_LEVEL[priorityLevel];
 
   const adjustedBaseFee = latestBaseFeePerGas
@@ -109,22 +109,45 @@ function calculateGasEstimatesForPriorityLevel(
  * Calculates a set of estimates suitable for different priority levels based on the data returned
  * by `eth_feeHistory`.
  *
- * @param latestBaseFeePerGas - The base fee per gas recorded for the latest block in WEI, as a BN.
- * @param blocks - More information about blocks we can use to calculate estimates.
+ * @param blocks - A set of blocks as obtained from {@link fetchBlockFeeHistory}.
  * @returns The estimates.
  */
 function calculateGasEstimatesForAllPriorityLevels(
-  latestBaseFeePerGas: BN,
-  blocks: { priorityFeesByPercentile: Record<Percentile, BN> }[],
-) {
+  blocks: Block<Percentile>[],
+): Pick<GasFeeEstimates, PriorityLevel> {
   return PRIORITY_LEVELS.reduce((obj, priorityLevel) => {
     const gasEstimatesForPriorityLevel = calculateGasEstimatesForPriorityLevel(
       priorityLevel,
-      latestBaseFeePerGas,
       blocks,
     );
     return { ...obj, [priorityLevel]: gasEstimatesForPriorityLevel };
   }, {} as Pick<GasFeeEstimates, PriorityLevel>);
+}
+
+/**
+ * Calculates the approximate normalized ranking of the latest base fee in the given blocks among
+ * the entirety of the blocks. That is, sorts all of the base fees, then finds the rank of the first
+ * base fee that meets or exceeds the latest base fee among the base fees. The result is the rank
+ * normalized as a number between 0 and 1, where 0 means that the latest base fee is the least of
+ * all and 1 means that the latest base fee is the greatest of all. This can ultimately be used to
+ * render a visualization of the status of the network for users.
+ *
+ * @param blocks - A set of blocks as obtained from {@link fetchBlockFeeHistory}.
+ * @returns A promise of a number between 0 and 1.
+ */
+async function calculateNetworkCongestionLevelFrom(
+  blocks: Block<Percentile>[],
+): Promise<number> {
+  const latestBaseFeePerGas = blocks[blocks.length - 1].baseFeePerGas;
+  const sortedBaseFeesPerGas = blocks
+    .map((block) => block.baseFeePerGas)
+    .sort((a, b) => a.cmp(b));
+  const indexOfBaseFeeNearestToLatest = sortedBaseFeesPerGas.findIndex(
+    (baseFeePerGas) => baseFeePerGas.gte(latestBaseFeePerGas),
+  );
+  return indexOfBaseFeeNearestToLatest !== -1
+    ? indexOfBaseFeeNearestToLatest / (blocks.length - 1)
+    : 0;
 }
 
 /**
@@ -145,20 +168,28 @@ function calculateGasEstimatesForAllPriorityLevels(
 export default async function fetchGasEstimatesViaEthFeeHistory(
   ethQuery: EthQuery,
 ): Promise<GasFeeEstimates> {
-  const blocks = await fetchBlockFeeHistory<Percentile>({
+  const recentBlocks = await fetchBlockFeeHistory<Percentile>({
     ethQuery,
     numberOfBlocks: NUMBER_OF_RECENT_BLOCKS_TO_FETCH,
     percentiles: PRIORITY_LEVEL_PERCENTILES,
   });
-  const latestBlock = blocks[blocks.length - 1];
+  const latestBlock = recentBlocks[recentBlocks.length - 1];
+  const historicalBlocks = await fetchBlockFeeHistory<Percentile>({
+    ethQuery,
+    numberOfBlocks: NUMBER_OF_HISTORICAL_BLOCKS_TO_FETCH,
+    endBlock: latestBlock.number,
+  });
   const levelSpecificGasEstimates = calculateGasEstimatesForAllPriorityLevels(
-    latestBlock.baseFeePerGas,
-    blocks,
+    recentBlocks,
   );
   const estimatedBaseFee = fromWei(latestBlock.baseFeePerGas, 'gwei');
+  const networkCongestion = await calculateNetworkCongestionLevelFrom(
+    historicalBlocks,
+  );
 
   return {
     ...levelSpecificGasEstimates,
     estimatedBaseFee,
+    networkCongestion,
   };
 }
