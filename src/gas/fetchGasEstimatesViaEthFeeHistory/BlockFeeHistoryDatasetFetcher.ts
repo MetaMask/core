@@ -1,5 +1,9 @@
 import { BN } from 'ethereumjs-util';
-import fetchBlockFeeHistory, { FeeHistoryBlock } from '../fetchBlockFeeHistory';
+import fetchBlockFeeHistory, {
+  ExistingFeeHistoryBlock,
+  ExtractPercentileFrom,
+  FeeHistoryBlock,
+} from '../fetchBlockFeeHistory';
 import { EthQuery } from './types';
 
 export default class BlockFeeHistoryDatasetFetcher {
@@ -18,48 +22,88 @@ export default class BlockFeeHistoryDatasetFetcher {
     this.endBlockNumber = endBlockNumber;
   }
 
+  async forAll() {
+    const [
+      longRange,
+      mediumRange,
+      smallRange,
+      tinyRange,
+      latestWithNextBlock,
+    ] = await Promise.all([
+      this.forLongRange(),
+      this.forMediumRange(),
+      this.forSmallRange(),
+      this.forTinyRange(),
+      this.forLatestWithNextBlock(),
+    ]);
+
+    const latest = latestWithNextBlock.slice(0, -1) as ExistingFeeHistoryBlock<
+      ExtractPercentileFrom<typeof latestWithNextBlock>
+    >[];
+
+    return {
+      longRange,
+      mediumRange,
+      smallRange,
+      tinyRange,
+      latest,
+      latestWithNextBlock,
+    };
+  }
+
   forLongRange() {
-    return this.fetch({ numberOfBlocks: 20_000 });
+    return this.fetchExcludingNextBlock({ numberOfBlocks: 20_000 });
   }
 
   forMediumRange() {
-    return this.fetch({ numberOfBlocks: 200, percentiles: [10, 95] });
+    return this.fetchExcludingNextBlock({
+      numberOfBlocks: 200,
+      percentiles: [10, 95],
+    });
   }
 
   forSmallRange() {
-    return this.fetch({ numberOfBlocks: 5, percentiles: [10, 20, 30] });
+    return this.fetchExcludingNextBlock({
+      numberOfBlocks: 5,
+      percentiles: [10, 20, 30],
+    });
   }
 
   forTinyRange() {
-    return this.fetch({
+    return this.fetchExcludingNextBlock({
       numberOfBlocks: 2,
       percentiles: [50],
     });
   }
 
-  forTinyRangeWithPending() {
-    return this.fetch({
-      numberOfBlocks: 2,
-      endBlock: 'pending',
-      percentiles: [50],
-    });
-  }
-
-  forLatest() {
-    return this.fetch({
+  forLatestWithNextBlock() {
+    return this.fetchIncludingNextBlock({
       numberOfBlocks: 1,
       percentiles: [10, 95],
     });
   }
 
-  private fetch<T extends number = never>(args: {
+  private fetchExcludingNextBlock<T extends number = number>(args: {
     numberOfBlocks: number;
-    endBlock?: BN | 'pending';
+    endBlock?: BN;
+    percentiles?: T[];
+  }): Promise<ExistingFeeHistoryBlock<T>[]> {
+    return fetchBlockFeeHistory({
+      ethQuery: this.ethQuery,
+      endBlock: this.endBlockNumber,
+      ...args,
+    }) as Promise<ExistingFeeHistoryBlock<T>[]>;
+  }
+
+  private fetchIncludingNextBlock<T extends number = number>(args: {
+    numberOfBlocks: number;
+    endBlock?: BN;
     percentiles?: T[];
   }): Promise<FeeHistoryBlock<T>[]> {
     return fetchBlockFeeHistory({
       ethQuery: this.ethQuery,
       endBlock: this.endBlockNumber,
+      includeNextBlock: true,
       ...args,
     });
   }

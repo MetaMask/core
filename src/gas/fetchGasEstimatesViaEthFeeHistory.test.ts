@@ -93,7 +93,7 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
           },
         },
       ],
-      tinyRangeWithPending: [
+      tinyRangeWithNextBlock: [
         {
           number: new BN(5),
           baseFeePerGas: new BN(1),
@@ -112,6 +112,23 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
             10: new BN('0'),
             95: new BN('0'),
           },
+        },
+      ],
+      latestWithNextBlock: [
+        {
+          number: new BN(6),
+          baseFeePerGas: new BN(1),
+          gasUsedRatio: 1,
+          priorityFeesByPercentile: {
+            10: new BN('0'),
+            95: new BN('0'),
+          },
+        },
+        {
+          number: new BN(7),
+          baseFeePerGas: new BN(1),
+          gasUsedRatio: null,
+          priorityFeesByPercentile: null,
         },
       ],
     };
@@ -143,28 +160,8 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
     const networkCongestion = 0.5;
 
     mockedFetchLatestBlock.mockResolvedValue(latestBlock);
-    mockedBlockFeeHistoryDatasetFetcherConstructor.prototype.forLongRange.mockResolvedValue(
-      blocksByDataset.longRange,
-    );
-
-    mockedBlockFeeHistoryDatasetFetcherConstructor.prototype.forMediumRange.mockResolvedValue(
-      blocksByDataset.mediumRange,
-    );
-
-    mockedBlockFeeHistoryDatasetFetcherConstructor.prototype.forSmallRange.mockResolvedValue(
-      blocksByDataset.smallRange,
-    );
-
-    mockedBlockFeeHistoryDatasetFetcherConstructor.prototype.forTinyRange.mockResolvedValue(
-      blocksByDataset.tinyRange,
-    );
-
-    mockedBlockFeeHistoryDatasetFetcherConstructor.prototype.forTinyRangeWithPending.mockResolvedValue(
-      blocksByDataset.tinyRangeWithPending,
-    );
-
-    mockedBlockFeeHistoryDatasetFetcherConstructor.prototype.forLatest.mockResolvedValue(
-      blocksByDataset.latest,
+    mockedBlockFeeHistoryDatasetFetcherConstructor.prototype.forAll.mockResolvedValue(
+      blocksByDataset,
     );
 
     when(mockedCalculateGasFeeEstimatesForPriorityLevels)
@@ -176,7 +173,7 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
       .mockReturnValue(historicalBaseFeeRange);
 
     when(mockedCalculateBaseFeeTrend)
-      .calledWith(blocksByDataset.tinyRangeWithPending)
+      .calledWith(blocksByDataset.latestWithNextBlock)
       .mockReturnValue(baseFeeTrend);
 
     when(mockedCalculatePriorityFeeRange)

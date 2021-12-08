@@ -36,6 +36,38 @@ export type EthFeeHistoryResponse = {
 };
 
 /**
+ * @type ExistingFeeHistoryBlock
+ *
+ * Historical data for a particular block that exists on the blockchain.
+ * @property number - The number of the block, as a BN.
+ * @property baseFeePerGas - The base fee per gas for the block in WEI, as a BN.
+ * @property gasUsedRatio - A number between 0 and 1 that represents the ratio between the gas paid
+ * for the block and its set gas limit.
+ * @property priorityFeesByPercentile - The priority fees paid for the transactions in the block
+ * that occurred at particular levels at which those transactions contributed to the overall gas
+ * used for the block, indexed by those percentiles. (See docs for {@link fetchBlockFeeHistory} for more
+ * on how this works.)
+ */
+export type ExistingFeeHistoryBlock<Percentile extends number> = {
+  number: BN;
+  baseFeePerGas: BN;
+  gasUsedRatio: number;
+  priorityFeesByPercentile: Record<Percentile, BN>;
+};
+
+/**
+ * @type NextFeeHistoryBlock
+ *
+ * Historical data for a theoretical block that could exist in the future.
+ * @property number - The number of the block, as a BN.
+ * @property baseFeePerGas - The estimated base fee per gas for the block in WEI, as a BN.
+ */
+export type NextFeeHistoryBlock = {
+  number: BN;
+  baseFeePerGas: BN;
+};
+
+/**
  * @type FeeHistoryBlock
  *
  * Historical data for a particular block.
@@ -48,12 +80,19 @@ export type EthFeeHistoryResponse = {
  * used for the block, indexed by those percentiles. (See docs for {@link fetchBlockFeeHistory} for more
  * on how this works.)
  */
-export type FeeHistoryBlock<Percentile extends number> = {
-  number: BN;
-  baseFeePerGas: BN;
-  gasUsedRatio: number;
-  priorityFeesByPercentile: Record<Percentile, BN>;
-};
+export type FeeHistoryBlock<Percentile extends number> =
+  | ExistingFeeHistoryBlock<Percentile>
+  | NextFeeHistoryBlock;
+
+/**
+ * @type ExtractPercentileFrom
+ *
+ * Extracts the percentiles that the type assigned to an array of FeeHistoryBlock has been created
+ * with. This makes use of the `infer` keyword to read the type argument.
+ */
+export type ExtractPercentileFrom<T> = T extends FeeHistoryBlock<infer P>[]
+  ? P
+  : never;
 
 const MAX_NUMBER_OF_BLOCKS_PER_ETH_FEE_HISTORY_CALL = 1024;
 
@@ -85,6 +124,9 @@ const MAX_NUMBER_OF_BLOCKS_PER_ETH_FEE_HISTORY_CALL = 1024;
  * recorded. Hence, `priorityFeesByPercentile` represents the priority fees of transactions at key
  * gas used contribution levels, where earlier levels have smaller contributions and later levels
  * have higher contributions.
+ * @param args.includeNextBlock - Whether to include an extra block that represents the next
+ * block after the latest one. Only the `baseFeePerGas` will be filled in for this block (which is
+ * estimated).
  * @returns The list of blocks and their fee data, sorted from oldest to newest.
  */
 export default async function fetchBlockFeeHistory<Percentile extends number>({
@@ -92,11 +134,13 @@ export default async function fetchBlockFeeHistory<Percentile extends number>({
   numberOfBlocks: totalNumberOfBlocks,
   endBlock: givenEndBlock = 'latest',
   percentiles: givenPercentiles = [],
+  includeNextBlock = false,
 }: {
   ethQuery: EthQuery;
   numberOfBlocks: number;
-  endBlock?: 'latest' | 'pending' | BN;
+  endBlock?: 'latest' | BN;
   percentiles?: readonly Percentile[];
+  includeNextBlock?: boolean;
 }): Promise<FeeHistoryBlock<Percentile>[]> {
   const percentiles =
     givenPercentiles.length > 0
@@ -105,7 +149,7 @@ export default async function fetchBlockFeeHistory<Percentile extends number>({
 
   const finalEndBlockNumber =
     givenEndBlock === 'latest'
-      ? await query(ethQuery, 'blockNumber')
+      ? fromHex(await query(ethQuery, 'blockNumber'))
       : givenEndBlock;
 
   const requestChunkSpecifiers = determineRequestChunkSpecifiers(
@@ -114,13 +158,22 @@ export default async function fetchBlockFeeHistory<Percentile extends number>({
   );
 
   const blockChunks = await Promise.all(
-    requestChunkSpecifiers.map(({ numberOfBlocks, endBlockNumber }) => {
-      return makeRequestForChunk({
-        ethQuery,
-        numberOfBlocks,
-        endBlockNumber,
-        percentiles,
-      });
+    requestChunkSpecifiers.map(({ numberOfBlocks, endBlockNumber }, i) => {
+      return i === requestChunkSpecifiers.length - 1
+        ? makeRequestForChunk({
+            ethQuery,
+            numberOfBlocks,
+            endBlockNumber,
+            percentiles,
+            includeNextBlock,
+          })
+        : makeRequestForChunk({
+            ethQuery,
+            numberOfBlocks,
+            endBlockNumber,
+            percentiles,
+            includeNextBlock: false,
+          });
     }),
   );
 
@@ -128,6 +181,74 @@ export default async function fetchBlockFeeHistory<Percentile extends number>({
     (array, blocks) => [...array, ...blocks],
     [] as FeeHistoryBlock<Percentile>[],
   );
+}
+
+/**
+ * Builds an ExistingFeeHistoryBlock.
+ *
+ * @param args - The args to this function.
+ * @param args.number - The number of the block.
+ * @param args.baseFeePerGas - The base fee per gas of the block.
+ * @param args.blockIndex - The index of the block in the source chunk.
+ * @param args.gasUsedRatios - The gas used ratios for the block.
+ * @param args.priorityFeePercentileGroups - The priority fee percentile groups for the block.
+ * @param args.percentiles - The percentiles used to fetch the source chunk.
+ * @returns The ExistingFeeHistoryBlock.
+ */
+function buildExistingFeeHistoryBlock<Percentile extends number>({
+  baseFeePerGas,
+  number,
+  blockIndex,
+  gasUsedRatios,
+  priorityFeePercentileGroups,
+  percentiles,
+}: {
+  baseFeePerGas: BN;
+  number: BN;
+  blockIndex: number;
+  gasUsedRatios: number[];
+  priorityFeePercentileGroups: string[][];
+  percentiles: readonly Percentile[];
+}): ExistingFeeHistoryBlock<Percentile> {
+  const gasUsedRatio = gasUsedRatios[blockIndex];
+  const priorityFeesForEachPercentile = priorityFeePercentileGroups[blockIndex];
+  const priorityFeesByPercentile = percentiles.reduce(
+    (obj, percentile, percentileIndex) => {
+      const priorityFee = priorityFeesForEachPercentile[percentileIndex];
+      return { ...obj, [percentile]: fromHex(priorityFee) };
+    },
+    {} as Record<Percentile, BN>,
+  );
+
+  return {
+    number,
+    baseFeePerGas,
+    gasUsedRatio,
+    priorityFeesByPercentile,
+  };
+}
+
+/**
+ * Builds a NextFeeHistoryBlock.
+ *
+ * @param args - The args to this function.
+ * @param args.baseFeePerGas - The base fee per gas of the block.
+ * @param args.number - The number of the block.
+ * @returns The NextFeeHistoryBlock.
+ */
+function buildNextFeeHistoryBlock({
+  baseFeePerGas,
+  number,
+}: {
+  baseFeePerGas: BN;
+  number: BN;
+}) {
+  return {
+    number,
+    baseFeePerGas,
+    gasUsedRatio: null,
+    priorityFeesByPercentile: null,
+  };
 }
 
 /**
@@ -140,6 +261,9 @@ export default async function fetchBlockFeeHistory<Percentile extends number>({
  * @param args.endBlockNumber - The end of the requested block range.
  * @param args.percentiles - A set of numbers betwen 1 and 100 that will be used to pull priority
  * fees for each block.
+ * @param args.includeNextBlock - Whether to include an extra block that represents the next
+ * block after the latest one. Only the `baseFeePerGas` will be filled in for this block (which is
+ * estimated).
  * @returns A list of block data.
  */
 async function makeRequestForChunk<Percentile extends number>({
@@ -147,11 +271,13 @@ async function makeRequestForChunk<Percentile extends number>({
   numberOfBlocks,
   endBlockNumber,
   percentiles,
+  includeNextBlock,
 }: {
   ethQuery: EthQuery;
   numberOfBlocks: number;
   endBlockNumber: BN;
   percentiles: readonly Percentile[];
+  includeNextBlock: boolean;
 }): Promise<FeeHistoryBlock<Percentile>[]> {
   const response: EthFeeHistoryResponse = await query(
     ethQuery,
@@ -169,33 +295,27 @@ async function makeRequestForChunk<Percentile extends number>({
     // Per
     // <https://github.com/ethereum/go-ethereum/blob/57a3fab8a75eeb9c2f4fab770b73b51b9fe672c5/eth/gasprice/feehistory.go#L191-L192>,
     // baseFeePerGas will always include an extra item which is the calculated base fee for the
-    // next (future) block. We don't care about this, so chop it off.
-    const baseFeesPerGasAsHex = response.baseFeePerGas.slice(0, numberOfBlocks);
+    // next (future) block. We may or may not care about this; if we don't, chop it off.
+    const baseFeesPerGasAsHex = includeNextBlock
+      ? response.baseFeePerGas
+      : response.baseFeePerGas.slice(0, numberOfBlocks);
     const gasUsedRatios = response.gasUsedRatio;
     const priorityFeePercentileGroups = response.reward ?? [];
 
     return baseFeesPerGasAsHex.map((baseFeePerGasAsHex, blockIndex) => {
       const baseFeePerGas = fromHex(baseFeePerGasAsHex);
-      const gasUsedRatio = gasUsedRatios[blockIndex];
       const number = startBlockNumber.addn(blockIndex);
 
-      const priorityFeesForEachPercentile =
-        priorityFeePercentileGroups[blockIndex];
-
-      const priorityFeesByPercentile = percentiles.reduce(
-        (obj, percentile, percentileIndex) => {
-          const priorityFee = priorityFeesForEachPercentile[percentileIndex];
-          return { ...obj, [percentile]: fromHex(priorityFee) };
-        },
-        {} as Record<Percentile, BN>,
-      );
-
-      return {
-        number,
-        baseFeePerGas,
-        gasUsedRatio,
-        priorityFeesByPercentile,
-      };
+      return blockIndex > numberOfBlocks - 1
+        ? buildNextFeeHistoryBlock({ baseFeePerGas, number })
+        : buildExistingFeeHistoryBlock({
+            baseFeePerGas,
+            number,
+            blockIndex,
+            gasUsedRatios,
+            priorityFeePercentileGroups,
+            percentiles,
+          });
     });
   }
 
