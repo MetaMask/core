@@ -1,6 +1,6 @@
 import { BN } from 'ethereumjs-util';
 import { fromWei } from 'ethjs-unit';
-import { FeeHistoryBlock } from '../fetchBlockFeeHistory';
+import { ExistingFeeHistoryBlock } from '../fetchBlockFeeHistory';
 import { FeeRange } from './types';
 
 /**
@@ -13,7 +13,7 @@ import { FeeRange } from './types';
  * @returns The range.
  */
 export default function calculatePriorityFeeRange(
-  blocks: FeeHistoryBlock<10 | 95>[],
+  blocks: ExistingFeeHistoryBlock<10 | 95>[],
 ): FeeRange {
   const sortedLowPriorityFees = blocks
     .map((block) => block.priorityFeesByPercentile[10])

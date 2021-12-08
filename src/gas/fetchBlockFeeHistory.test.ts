@@ -320,4 +320,65 @@ describe('fetchBlockFeeHistory', () => {
       expect(feeHistory).toStrictEqual([]);
     });
   });
+
+  describe('given includeNextBlock = true', () => {
+    const latestBlockNumber = 3;
+    const numberOfRequestedBlocks = 3;
+
+    it('includes an extra block with an estimated baseFeePerGas', async () => {
+      queryMock
+        .calledWith(ethQuery, 'eth_feeHistory', [
+          toHex(numberOfRequestedBlocks),
+          toHex(latestBlockNumber),
+          [],
+        ])
+        .mockResolvedValue({
+          oldestBlock: toHex(1),
+          // Note that this array contains 6 items when we requested 5. Per
+          // <https://github.com/ethereum/go-ethereum/blob/57a3fab8a75eeb9c2f4fab770b73b51b9fe672c5/eth/gasprice/feehistory.go#L191-L192>,
+          // baseFeePerGas will always include an extra item which is the calculated base fee for the
+          // next (future) block.
+          baseFeePerGas: [
+            toHex(10_000_000_000),
+            toHex(20_000_000_000),
+            toHex(30_000_000_000),
+            toHex(40_000_000_000),
+          ],
+          gasUsedRatio: [0.1, 0.2, 0.3],
+        });
+
+      const feeHistory = await fetchBlockFeeHistory({
+        ethQuery,
+        numberOfBlocks: numberOfRequestedBlocks,
+        includeNextBlock: true,
+      });
+
+      expect(feeHistory).toStrictEqual([
+        {
+          number: new BN(1),
+          baseFeePerGas: new BN(10_000_000_000),
+          gasUsedRatio: 0.1,
+          priorityFeesByPercentile: {},
+        },
+        {
+          number: new BN(2),
+          baseFeePerGas: new BN(20_000_000_000),
+          gasUsedRatio: 0.2,
+          priorityFeesByPercentile: {},
+        },
+        {
+          number: new BN(3),
+          baseFeePerGas: new BN(30_000_000_000),
+          gasUsedRatio: 0.3,
+          priorityFeesByPercentile: {},
+        },
+        {
+          number: new BN(4),
+          baseFeePerGas: new BN(40_000_000_000),
+          gasUsedRatio: null,
+          priorityFeesByPercentile: null,
+        },
+      ]);
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import { BN } from 'ethereumjs-util';
-import { FeeHistoryBlock } from '../fetchBlockFeeHistory';
+import { ExistingFeeHistoryBlock } from '../fetchBlockFeeHistory';
 
 /**
  * Given a collection of blocks, returns an indicator of whether the base fee is moving up, down, or
@@ -9,7 +9,7 @@ import { FeeHistoryBlock } from '../fetchBlockFeeHistory';
  * @returns The indicator ("up", "down", or "level").
  */
 export default function calculatePriorityFeeTrend(
-  blocks: FeeHistoryBlock<50>[],
+  blocks: ExistingFeeHistoryBlock<50>[],
 ) {
   const priorityFees = blocks
     .map((block) => block.priorityFeesByPercentile[50])
