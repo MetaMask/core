@@ -1,5 +1,6 @@
 import { BN } from 'ethereumjs-util';
 import { fromWei } from 'ethjs-unit';
+import { GWEI } from '../constants';
 import { GasFeeEstimates } from './GasFeeController';
 import { EthQuery } from './fetchGasEstimatesViaEthFeeHistory/types';
 import BlockFeeHistoryDatasetFetcher from './fetchGasEstimatesViaEthFeeHistory/BlockFeeHistoryDatasetFetcher';
@@ -63,7 +64,7 @@ export default async function fetchGasEstimatesViaEthFeeHistory(
   const levelSpecificEstimates = calculateGasFeeEstimatesForPriorityLevels(
     blocksByDataset.smallRange,
   );
-  const estimatedBaseFee = fromWei(latestBlock.baseFeePerGas, 'gwei');
+  const estimatedBaseFee = fromWei(latestBlock.baseFeePerGas, GWEI);
   const networkCongestion = calculateNetworkCongestion(
     blocksByDataset.longRange,
   );

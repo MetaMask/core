@@ -2,6 +2,7 @@ import { BN } from 'ethereumjs-util';
 import { fromWei } from 'ethjs-unit';
 import { Eip1559GasFee, GasFeeEstimates } from '../GasFeeController';
 import { FeeHistoryBlock } from '../fetchBlockFeeHistory';
+import { GWEI } from '../../constants';
 import medianOf from './medianOf';
 
 export type PriorityLevel = typeof PRIORITY_LEVELS[number];
@@ -80,11 +81,8 @@ function calculateEstimatesForPriorityLevel(
 
   return {
     ...settings.estimatedWaitTimes,
-    suggestedMaxPriorityFeePerGas: fromWei(
-      suggestedMaxPriorityFeePerGas,
-      'gwei',
-    ),
-    suggestedMaxFeePerGas: fromWei(suggestedMaxFeePerGas, 'gwei'),
+    suggestedMaxPriorityFeePerGas: fromWei(suggestedMaxPriorityFeePerGas, GWEI),
+    suggestedMaxFeePerGas: fromWei(suggestedMaxFeePerGas, GWEI),
   };
 }
 
