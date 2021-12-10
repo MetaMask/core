@@ -76,6 +76,17 @@ function buildMockGasFeeStateFeeMarket({
         suggestedMaxFeePerGas: (30 * modifier).toString(),
       },
       estimatedBaseFee: (100 * modifier).toString(),
+      historicalBaseFeeRange: [
+        (100 * modifier).toString(),
+        (200 * modifier).toString(),
+      ],
+      baseFeeTrend: 'up',
+      latestPriorityFeeRange: [modifier.toString(), (2 * modifier).toString()],
+      historicalPriorityFeeRange: [
+        (2 * modifier).toString(),
+        (4 * modifier).toString(),
+      ],
+      priorityFeeTrend: 'down',
       networkCongestion: 0.1 * modifier,
     },
     estimatedGasFeeTimeBounds: {

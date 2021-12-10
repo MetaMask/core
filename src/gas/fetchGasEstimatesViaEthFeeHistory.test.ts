@@ -3,6 +3,10 @@ import { mocked } from 'ts-jest/utils';
 import { when } from 'jest-when';
 import BlockFeeHistoryDatasetFetcher from './fetchGasEstimatesViaEthFeeHistory/BlockFeeHistoryDatasetFetcher';
 import calculateGasFeeEstimatesForPriorityLevels from './fetchGasEstimatesViaEthFeeHistory/calculateGasFeeEstimatesForPriorityLevels';
+import calculateBaseFeeRange from './fetchGasEstimatesViaEthFeeHistory/calculateBaseFeeRange';
+import calculateBaseFeeTrend from './fetchGasEstimatesViaEthFeeHistory/calculateBaseFeeTrend';
+import calculatePriorityFeeRange from './fetchGasEstimatesViaEthFeeHistory/calculatePriorityFeeRange';
+import calculatePriorityFeeTrend from './fetchGasEstimatesViaEthFeeHistory/calculatePriorityFeeTrend';
 import calculateNetworkCongestion from './fetchGasEstimatesViaEthFeeHistory/calculateNetworkCongestion';
 import fetchLatestBlock from './fetchGasEstimatesViaEthFeeHistory/fetchLatestBlock';
 import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
@@ -11,6 +15,10 @@ jest.mock('./fetchGasEstimatesViaEthFeeHistory/BlockFeeHistoryDatasetFetcher');
 jest.mock(
   './fetchGasEstimatesViaEthFeeHistory/calculateGasFeeEstimatesForPriorityLevels',
 );
+jest.mock('./fetchGasEstimatesViaEthFeeHistory/calculateBaseFeeRange');
+jest.mock('./fetchGasEstimatesViaEthFeeHistory/calculateBaseFeeTrend');
+jest.mock('./fetchGasEstimatesViaEthFeeHistory/calculatePriorityFeeRange');
+jest.mock('./fetchGasEstimatesViaEthFeeHistory/calculatePriorityFeeTrend');
 jest.mock('./fetchGasEstimatesViaEthFeeHistory/calculateNetworkCongestion');
 jest.mock('./fetchGasEstimatesViaEthFeeHistory/fetchLatestBlock');
 
@@ -22,6 +30,10 @@ const mockedCalculateGasFeeEstimatesForPriorityLevels = mocked(
   calculateGasFeeEstimatesForPriorityLevels,
   true,
 );
+const mockedCalculateBaseFeeRange = mocked(calculateBaseFeeRange, true);
+const mockedCalculateBaseFeeTrend = mocked(calculateBaseFeeTrend, true);
+const mockedCalculatePriorityFeeRange = mocked(calculatePriorityFeeRange, true);
+const mockedCalculatePriorityFeeTrend = mocked(calculatePriorityFeeTrend, true);
 const mockedCalculateNetworkCongestion = mocked(
   calculateNetworkCongestion,
   true,
@@ -81,9 +93,19 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
           },
         },
       ],
-      latest: [
+      tinyRangeWithPending: [
         {
           number: new BN(5),
+          baseFeePerGas: new BN(1),
+          gasUsedRatio: 1,
+          priorityFeesByPercentile: {
+            50: new BN('0'),
+          },
+        },
+      ],
+      latest: [
+        {
+          number: new BN(6),
           baseFeePerGas: new BN(1),
           gasUsedRatio: 1,
           priorityFeesByPercentile: {
@@ -113,6 +135,11 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
         suggestedMaxFeePerGas: '252.94',
       },
     };
+    const historicalBaseFeeRange: [string, string] = ['100', '200'];
+    const baseFeeTrend = 'up';
+    const latestPriorityFeeRange: [string, string] = ['1', '2'];
+    const historicalPriorityFeeRange: [string, string] = ['2', '4'];
+    const priorityFeeTrend = 'down';
     const networkCongestion = 0.5;
 
     mockedFetchLatestBlock.mockResolvedValue(latestBlock);
@@ -120,13 +147,47 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
       blocksByDataset.longRange,
     );
 
+    mockedBlockFeeHistoryDatasetFetcherConstructor.prototype.forMediumRange.mockResolvedValue(
+      blocksByDataset.mediumRange,
+    );
+
     mockedBlockFeeHistoryDatasetFetcherConstructor.prototype.forSmallRange.mockResolvedValue(
       blocksByDataset.smallRange,
+    );
+
+    mockedBlockFeeHistoryDatasetFetcherConstructor.prototype.forTinyRange.mockResolvedValue(
+      blocksByDataset.tinyRange,
+    );
+
+    mockedBlockFeeHistoryDatasetFetcherConstructor.prototype.forTinyRangeWithPending.mockResolvedValue(
+      blocksByDataset.tinyRangeWithPending,
+    );
+
+    mockedBlockFeeHistoryDatasetFetcherConstructor.prototype.forLatest.mockResolvedValue(
+      blocksByDataset.latest,
     );
 
     when(mockedCalculateGasFeeEstimatesForPriorityLevels)
       .calledWith(blocksByDataset.smallRange)
       .mockReturnValue(levelSpecificEstimates);
+
+    when(mockedCalculateBaseFeeRange)
+      .calledWith(blocksByDataset.mediumRange)
+      .mockReturnValue(historicalBaseFeeRange);
+
+    when(mockedCalculateBaseFeeTrend)
+      .calledWith(blocksByDataset.tinyRangeWithPending)
+      .mockReturnValue(baseFeeTrend);
+
+    when(mockedCalculatePriorityFeeRange)
+      .calledWith(blocksByDataset.latest)
+      .mockReturnValue(latestPriorityFeeRange)
+      .calledWith(blocksByDataset.mediumRange)
+      .mockReturnValue(historicalPriorityFeeRange);
+
+    when(mockedCalculatePriorityFeeTrend)
+      .calledWith(blocksByDataset.tinyRange)
+      .mockReturnValue(priorityFeeTrend);
 
     when(mockedCalculateNetworkCongestion)
       .calledWith(blocksByDataset.longRange)
@@ -137,6 +198,11 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
     expect(gasFeeEstimates).toStrictEqual({
       ...levelSpecificEstimates,
       estimatedBaseFee: '100',
+      historicalBaseFeeRange,
+      baseFeeTrend,
+      latestPriorityFeeRange,
+      historicalPriorityFeeRange,
+      priorityFeeTrend,
       networkCongestion,
     });
   });
