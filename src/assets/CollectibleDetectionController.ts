@@ -232,10 +232,14 @@ export class CollectibleDetectionController extends BaseController<
         !useCollectibleDetection !== disabled
       ) {
         this.configure({ selectedAddress, disabled: !useCollectibleDetection });
-        this.detectCollectibles();
       }
 
-      if (!useCollectibleDetection) {
+      if (useCollectibleDetection) {
+        this.start();
+      } else if (
+        useCollectibleDetection !== undefined &&
+        !useCollectibleDetection
+      ) {
         this.stop();
       }
     });
