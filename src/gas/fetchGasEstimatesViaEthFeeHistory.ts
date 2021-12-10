@@ -5,6 +5,10 @@ import { GasFeeEstimates } from './GasFeeController';
 import { EthQuery } from './fetchGasEstimatesViaEthFeeHistory/types';
 import BlockFeeHistoryDatasetFetcher from './fetchGasEstimatesViaEthFeeHistory/BlockFeeHistoryDatasetFetcher';
 import calculateGasFeeEstimatesForPriorityLevels from './fetchGasEstimatesViaEthFeeHistory/calculateGasFeeEstimatesForPriorityLevels';
+import calculateBaseFeeRange from './fetchGasEstimatesViaEthFeeHistory/calculateBaseFeeRange';
+import calculateBaseFeeTrend from './fetchGasEstimatesViaEthFeeHistory/calculateBaseFeeTrend';
+import calculatePriorityFeeRange from './fetchGasEstimatesViaEthFeeHistory/calculatePriorityFeeRange';
+import calculatePriorityFeeTrend from './fetchGasEstimatesViaEthFeeHistory/calculatePriorityFeeTrend';
 import calculateNetworkCongestion from './fetchGasEstimatesViaEthFeeHistory/calculateNetworkCongestion';
 import fetchLatestBlock from './fetchGasEstimatesViaEthFeeHistory/fetchLatestBlock';
 
@@ -26,14 +30,29 @@ async function fetchBlockFeeHistoryDatasets(
     endBlockNumber,
   });
 
-  const [longRange, smallRange] = await Promise.all([
+  const [
+    longRange,
+    mediumRange,
+    smallRange,
+    tinyRange,
+    tinyRangeWithPending,
+    latest,
+  ] = await Promise.all([
     fetcher.forLongRange(),
+    fetcher.forMediumRange(),
     fetcher.forSmallRange(),
+    fetcher.forTinyRange(),
+    fetcher.forTinyRangeWithPending(),
+    fetcher.forLatest(),
   ]);
 
   return {
     longRange,
+    mediumRange,
     smallRange,
+    tinyRange,
+    tinyRangeWithPending,
+    latest,
   };
 }
 
@@ -65,6 +84,19 @@ export default async function fetchGasEstimatesViaEthFeeHistory(
     blocksByDataset.smallRange,
   );
   const estimatedBaseFee = fromWei(latestBlock.baseFeePerGas, GWEI);
+  const historicalBaseFeeRange = calculateBaseFeeRange(
+    blocksByDataset.mediumRange,
+  );
+  const baseFeeTrend = calculateBaseFeeTrend(
+    blocksByDataset.tinyRangeWithPending,
+  );
+  const latestPriorityFeeRange = calculatePriorityFeeRange(
+    blocksByDataset.latest,
+  );
+  const historicalPriorityFeeRange = calculatePriorityFeeRange(
+    blocksByDataset.mediumRange,
+  );
+  const priorityFeeTrend = calculatePriorityFeeTrend(blocksByDataset.tinyRange);
   const networkCongestion = calculateNetworkCongestion(
     blocksByDataset.longRange,
   );
@@ -72,6 +104,11 @@ export default async function fetchGasEstimatesViaEthFeeHistory(
   return {
     ...levelSpecificEstimates,
     estimatedBaseFee,
+    historicalBaseFeeRange,
+    baseFeeTrend,
+    latestPriorityFeeRange,
+    historicalPriorityFeeRange,
+    priorityFeeTrend,
     networkCongestion,
   };
 }

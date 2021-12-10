@@ -40,24 +40,29 @@ const mockedFetchGasEstimatesViaEthFeeHistory = mocked(
 function buildMockDataForFetchGasEstimates(): GasFeeEstimates {
   return {
     low: {
-      minWaitTimeEstimate: 10000,
-      maxWaitTimeEstimate: 20000,
+      minWaitTimeEstimate: 10_000,
+      maxWaitTimeEstimate: 20_000,
       suggestedMaxPriorityFeePerGas: '1',
       suggestedMaxFeePerGas: '10',
     },
     medium: {
-      minWaitTimeEstimate: 30000,
-      maxWaitTimeEstimate: 40000,
+      minWaitTimeEstimate: 30_000,
+      maxWaitTimeEstimate: 40_000,
       suggestedMaxPriorityFeePerGas: '1.5',
       suggestedMaxFeePerGas: '20',
     },
     high: {
-      minWaitTimeEstimate: 50000,
-      maxWaitTimeEstimate: 60000,
+      minWaitTimeEstimate: 50_000,
+      maxWaitTimeEstimate: 60_000,
       suggestedMaxPriorityFeePerGas: '2',
       suggestedMaxFeePerGas: '30',
     },
     estimatedBaseFee: '100',
+    historicalBaseFeeRange: ['100', '200'],
+    baseFeeTrend: 'up',
+    latestPriorityFeeRange: ['1', '2'],
+    historicalPriorityFeeRange: ['2', '4'],
+    priorityFeeTrend: 'down',
     networkCongestion: 0.5,
   };
 }
