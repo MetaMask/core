@@ -263,6 +263,36 @@ export function hexToText(hex: string) {
 }
 
 /**
+ * Parses a hex string and converts it into a number that can be operated on in a bignum-safe,
+ * base-10 way.
+ *
+ * @param value - A base-16 number encoded as a string.
+ * @returns The number as a BN object in base-16 mode.
+ */
+export function fromHex(value: string | BN): BN {
+  if (BN.isBN(value)) {
+    return value;
+  }
+  return new BN(hexToBN(value).toString(10));
+}
+
+/**
+ * Converts an integer to a hexadecimal representation.
+ *
+ * @param value - An integer, an integer encoded as a base-10 string, or a BN.
+ * @returns The integer encoded as a hex string.
+ */
+export function toHex(value: number | string | BN): string {
+  if (typeof value === 'string' && isHexString(value)) {
+    return value;
+  }
+  const hexString = BN.isBN(value)
+    ? value.toString(16)
+    : new BN(value.toString(), 10).toString(16);
+  return `0x${hexString}`;
+}
+
+/**
  * Normalizes properties on a Transaction object.
  *
  * @param transaction - Transaction object to normalize.
@@ -688,13 +718,19 @@ export function query(
   args: any[] = [],
 ): Promise<any> {
   return new Promise((resolve, reject) => {
-    ethQuery[method](...args, (error: Error, result: any) => {
+    const cb = (error: Error, result: any) => {
       if (error) {
         reject(error);
         return;
       }
       resolve(result);
-    });
+    };
+
+    if (typeof ethQuery[method] === 'function') {
+      ethQuery[method](...args, cb);
+    } else {
+      ethQuery.sendAsync({ method, params: args }, cb);
+    }
   });
 }
 
