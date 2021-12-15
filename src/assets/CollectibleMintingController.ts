@@ -10,6 +10,34 @@ export interface MintingOptions {
   nftType: 'rarible' | 'custom';
 }
 
+/**
+ * @type NftMetaData
+ *
+ * Collectible creator object coming from OpenSea api
+ * @property name - name entered for nft
+ * @property description - description entered for nft
+ * @property image - IPFS hash of image (e.g. ipfs://QmYMuoAgKcqvd34rNU2WpoQunLj3WsAPWn9xUokiyposdC)
+ */
+export interface NftMetaData {
+  name: string;
+  description: string;
+  image: string;
+}
+
+/**
+ * @type NftMediaData
+ *
+ * Collectible creator object coming from OpenSea api
+ * @property name - name of media with extension
+ * @property type - post file type (e.g. image/jpeg)
+ * @property uri - path of image to be uploaded to IPFS
+ */
+export interface NftMediaData {
+  name: string | 'nft';
+  type: string;
+  uri: string;
+}
+
 export interface CollectibleMintingMetaData {
   name: string;
   description: string;
@@ -70,10 +98,15 @@ export class CollectibleMintingController extends BaseController<
     return result;
   }
 
-  async uploadDataToIpfs(data: string): Promise<Response> {
+  /**
+   * Method to add and pin data to IPFS.
+   *
+   * @param data - data objects to be posted on IPFS
+   * @returns IPFS response
+   */
+  async uploadDataToIpfs(data: NftMediaData | NftMetaData): Promise<Response> {
     const formData = new FormData();
-
-    formData.append('file', data);
+    formData.append('file', JSON.stringify(data));
 
     const ipfsAddResponse = await handleFetch(
       'https://ipfs.infura.io:5001/api/v0/add',
