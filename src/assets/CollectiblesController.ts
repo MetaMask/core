@@ -155,6 +155,9 @@ export interface CollectiblesState extends BaseState {
   ignoredCollectibles: Collectible[];
 }
 
+const ALL_COLLECTIBLES_STATE_KEY = 'allCollectibles';
+const ALL_COLLECTIBLES_CONTRACTS_STATE_KEY = 'allCollectibleContracts';
+
 /**
  * Controller that stores assets and exposes convenience methods
  */
@@ -182,6 +185,34 @@ export class CollectiblesController extends BaseController<
       default:
         return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
     }
+  }
+
+  /**
+   * Helper method to update nested state for allCollectibles and allCollectibleContracts.
+   *
+   * @param newCollection - the modified piece of state to update in the controller's store
+   * @param baseStateKey - The root key in the store to update.
+   */
+  private updateNestedCollectibleState(
+    newCollection: Collectible[] | CollectibleContract[],
+    baseStateKey: 'allCollectibles' | 'allCollectibleContracts',
+  ) {
+    const { chainId, selectedAddress } = this.config;
+    const { [baseStateKey]: oldState } = this.state;
+
+    const addressState = oldState[selectedAddress];
+    const newAddressState = {
+      ...addressState,
+      ...{ [chainId]: newCollection },
+    };
+    const newState = {
+      ...oldState,
+      ...{ [selectedAddress]: newAddressState },
+    };
+
+    this.update({
+      [baseStateKey]: newState,
+    });
   }
 
   /**
@@ -549,19 +580,13 @@ export class CollectiblesController extends BaseController<
         ...collectibleMetadata,
         favorite: existingEntry?.favorite || false,
       };
+
       const newCollectibles = [...collectibles, newEntry];
-      const addressCollectibles = allCollectibles[selectedAddress];
-      const newAddressCollectibles = {
-        ...addressCollectibles,
-        ...{ [chainId]: newCollectibles },
-      };
-      const newAllCollectibles = {
-        ...allCollectibles,
-        ...{ [selectedAddress]: newAddressCollectibles },
-      };
-      this.update({
-        allCollectibles: newAllCollectibles,
-      });
+      this.updateNestedCollectibleState(
+        newCollectibles,
+        ALL_COLLECTIBLES_STATE_KEY,
+      );
+
       return newCollectibles;
     } finally {
       releaseLock();
@@ -644,19 +669,11 @@ export class CollectiblesController extends BaseController<
       );
 
       const newCollectibleContracts = [...collectibleContracts, newEntry];
-      const addressCollectibleContracts =
-        allCollectibleContracts[selectedAddress];
-      const newAddressCollectibleContracts = {
-        ...addressCollectibleContracts,
-        ...{ [chainId]: newCollectibleContracts },
-      };
-      const newAllCollectibleContracts = {
-        ...allCollectibleContracts,
-        ...{ [selectedAddress]: newAddressCollectibleContracts },
-      };
-      this.update({
-        allCollectibleContracts: newAllCollectibleContracts,
-      });
+      this.updateNestedCollectibleState(
+        newCollectibleContracts,
+        ALL_COLLECTIBLES_CONTRACTS_STATE_KEY,
+      );
+
       return newCollectibleContracts;
     } finally {
       releaseLock();
@@ -691,17 +708,13 @@ export class CollectiblesController extends BaseController<
       }
       return true;
     });
-    const addressCollectibles = allCollectibles[selectedAddress];
-    const newAddressCollectibles = {
-      ...addressCollectibles,
-      ...{ [chainId]: newCollectibles },
-    };
-    const newAllCollectibles = {
-      ...allCollectibles,
-      ...{ [selectedAddress]: newAddressCollectibles },
-    };
+
+    this.updateNestedCollectibleState(
+      newCollectibles,
+      ALL_COLLECTIBLES_STATE_KEY,
+    );
+
     this.update({
-      allCollectibles: newAllCollectibles,
       ignoredCollectibles: newIgnoredCollectibles,
     });
   }
@@ -724,18 +737,10 @@ export class CollectiblesController extends BaseController<
           collectible.tokenId === tokenId
         ),
     );
-    const addressCollectibles = allCollectibles[selectedAddress];
-    const newAddressCollectibles = {
-      ...addressCollectibles,
-      ...{ [chainId]: newCollectibles },
-    };
-    const newAllCollectibles = {
-      ...allCollectibles,
-      ...{ [selectedAddress]: newAddressCollectibles },
-    };
-    this.update({
-      allCollectibles: newAllCollectibles,
-    });
+    this.updateNestedCollectibleState(
+      newCollectibles,
+      ALL_COLLECTIBLES_STATE_KEY,
+    );
   }
 
   /**
@@ -755,19 +760,11 @@ export class CollectiblesController extends BaseController<
       (collectibleContract) =>
         !(collectibleContract.address.toLowerCase() === address.toLowerCase()),
     );
-    const addressCollectibleContracts =
-      allCollectibleContracts[selectedAddress];
-    const newAddressCollectibleContracts = {
-      ...addressCollectibleContracts,
-      ...{ [chainId]: newCollectibleContracts },
-    };
-    const newAllCollectibleContracts = {
-      ...allCollectibleContracts,
-      ...{ [selectedAddress]: newAddressCollectibleContracts },
-    };
-    this.update({
-      allCollectibleContracts: newAllCollectibleContracts,
-    });
+    this.updateNestedCollectibleState(
+      newCollectibleContracts,
+      ALL_COLLECTIBLES_CONTRACTS_STATE_KEY,
+    );
+
     return newCollectibleContracts;
   }
 
@@ -1059,19 +1056,7 @@ export class CollectiblesController extends BaseController<
     // Update Collectibles array
     collectibles[index] = updatedCollectible;
 
-    const addressCollectibles = allCollectibles[selectedAddress];
-    const newAddressCollectibles = {
-      ...addressCollectibles,
-      ...{ [chainId]: collectibles },
-    };
-    const newAllCollectiblesState = {
-      ...allCollectibles,
-      ...{ [selectedAddress]: newAddressCollectibles },
-    };
-
-    this.update({
-      allCollectibles: newAllCollectiblesState,
-    });
+    this.updateNestedCollectibleState(collectibles, ALL_COLLECTIBLES_STATE_KEY);
   }
 }
 
