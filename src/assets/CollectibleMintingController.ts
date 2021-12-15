@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import { MAINNET, IPFS_DEFAULT_GATEWAY_URL } from '../constants';
+import { handleFetch } from '../util';
 import type { TransactionController } from '../transaction/TransactionController';
 import type { CollectiblesController } from './CollectiblesController';
 
@@ -70,7 +71,61 @@ export class CollectibleMintingController extends BaseController<
   }
 
   /**
-   * 
+   * Fucntion to POST and pin data to infura IPFS
+   *
+   * @param data - file path to be uploaded to IPFS
+   * @returns string of IPFS data location
+   */
+  async uploadDataToIpfs(data: string): Promise<Response> {
+    const formData = new FormData();
+
+    formData.append('file', data);
+
+    const ipfsAddResponse = await handleFetch(
+      'https://ipfs.infura.io:5001/api/v0/add',
+      {
+        method: 'POST',
+        body: formData,
+      },
+    );
+
+    return ipfsAddResponse;
+  }
+
+  /**
+   * Fucntion to POST and pin data to infura IPFS
+   *
+   * @param path - file path to be uploaded to IPFS
+   * @param data
+   * @returns string of IPFS data location
+   */
+  // async uploadNftIpfsClient(): Promise<string> {
+  //   const projectId = '22ILCRH0mMzKZz0ShjvMBHOSHy9';
+  //   const projectSecret = '97dc289e968d8ca2f758a7a67d8efb8e';
+  //   const auth = `Basic ${Buffer.from(`${projectId}:${projectSecret}`).toString(
+  //     'base64',
+  //   )}`;
+
+  //   const client = create({
+  //     host: 'ipfs.infura.io',
+  //     port: 5001,
+  //     protocol: 'https',
+  //     headers: {
+  //       authorization: auth,
+  //     },
+  //   });
+
+  //   console.log(client);
+
+  //   // client.add().then((res) => {
+  //   //   console.log(res);
+  //   // });
+
+  //   return '';
+  // }
+
+  /**
+   *
    * @param collectible - object containing collectibe metadata
    * @param options - options for minting collectible
    */
@@ -81,6 +136,20 @@ export class CollectibleMintingController extends BaseController<
       await this.customMint(collectible);
     }
   }
+
+  /**
+   * Sets an Infura Project ID to POST collectible information.
+   *
+   * @param infuraProjectId - Infura Project ID
+   */
+  setInfuraProjectId(infuraProjectId: string) {
+    this.infuraProjectId = infuraProjectId;
+  }
+
+  /**
+   * Optional Infura Project ID to use with infura
+   */
+  infuraProjectId?: string;
 
   /**
    * EventEmitter instance used to listen to specific transactional events
