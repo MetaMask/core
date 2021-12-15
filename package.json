@@ -38,6 +38,8 @@
     "@ethereumjs/common": "^2.3.1",
     "@ethereumjs/tx": "^3.2.1",
     "@metamask/contract-metadata": "^1.31.0",
+    "@rarible/protocol-ethereum-sdk": "^0.12.20",
+    "@rarible/web3-ethereum": "^0.12.16",
     "@types/uuid": "^8.3.0",
     "abort-controller": "^3.0.0",
     "async-mutex": "^0.2.6",
@@ -66,7 +68,7 @@
     "punycode": "^2.1.1",
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^8.3.2",
-    "web3": "^0.20.7",
+    "web3": "^1.6.1",
     "web3-provider-engine": "^16.0.3"
   },
   "devDependencies": {

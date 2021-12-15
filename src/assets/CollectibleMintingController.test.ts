@@ -1,10 +1,14 @@
+import HttpProvider from 'ethjs-provider-http';
 import { TransactionController } from '../transaction/TransactionController';
 import { NetworkController, NetworkType } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
 import { CollectiblesController } from './CollectiblesController';
 import { CollectibleMintingController } from './CollectibleMintingController';
 import { AssetsContractController } from './AssetsContractController';
-import HttpProvider from 'ethjs-provider-http';
+
+const MAINNET_PROVIDER = new HttpProvider(
+  'https://rinkeby.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+);
 
 const MOCK_NETWORK = {
   getProvider: () =>
@@ -23,7 +27,7 @@ const MOCK_NETWORK = {
   subscribe: () => undefined,
 };
 
-describe('CollectiblesController', () => {
+describe('CollectibleMintingController', () => {
   let collectibleMintingController: CollectibleMintingController;
   let collectiblesController: CollectiblesController;
   let transactionControllerences: TransactionController;
@@ -64,9 +68,8 @@ describe('CollectiblesController', () => {
     });
   });
 
-  it('should initialize', async () => {
-    console.log(collectibleMintingController);
-    expect(collectibleMintingController).toBeDefined();
-    expect(collectibleMintingController.config.chainId).toBe('');
+  it('raribleMint', async () => {
+    collectibleMintingController.configure({ provider: MAINNET_PROVIDER });
+    await collectibleMintingController.raribleMint('ipfs://mock-uri', []);
   });
 });

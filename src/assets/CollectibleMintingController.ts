@@ -1,7 +1,16 @@
 import { EventEmitter } from 'events';
+import Web3 from 'web3';
+import { createRaribleSdk } from '@rarible/protocol-ethereum-sdk';
+import { Web3Ethereum } from '@rarible/web3-ethereum';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
-import { MAINNET, IPFS_DEFAULT_GATEWAY_URL } from '../constants';
+import {
+  MAINNET,
+  RINKEBY,
+  ROPSTEN,
+  IPFS_DEFAULT_GATEWAY_URL,
+  ERC721_RARIBLE_COLLECTIONS,
+} from '../constants';
 import type { TransactionController } from '../transaction/TransactionController';
 import type { CollectiblesController } from './CollectiblesController';
 
@@ -21,6 +30,7 @@ export interface CollectibleMintingControllerConfig extends BaseConfig {
   chainId: string;
   ipfsGateway: string;
   useIPFSSubdomains: boolean;
+  provider: any;
 }
 export interface CollectibleMintingControllerState extends BaseState {
   minting: 'awaiting' | 'started' | 'processing' | 'complete';
@@ -30,56 +40,73 @@ export class CollectibleMintingController extends BaseController<
   CollectibleMintingControllerConfig,
   CollectibleMintingControllerState
 > {
-  private async customMint(collectible: CollectibleMintingMetaData) {
-    console.log(collectible);
-    // // Logic to covert metadat to hex
-    // 0x60806040526040518060400160405280600581526020017f2e6a736f6e000000000000000000000000000000000000000000000000000000815250600c90805190602001906200005192919062000de6565b5066470de4df820000600d55612710600e556001600f556000601060..
-    // const txParams = {};
-    // txParams.from = '0x260416FDEc04AB146464aF833E63835a704C4860';
-    // txParams.value = '0x0';
-    // txParams.gas = '0x3DFB2E';
-    // txParams.data = data;
-    // const { transactionMeta } = await TransactionController.addTransaction(
-    //     txParams,
-    //     'nft',
-    //     WalletDevice.MM_MOBILE
-    // );
-    // await TransactionController.approveTransaction(transactionMeta.id);
+  // private async deployNewERC721(
+  //   smartContractBytecode: any,
+  //   name: string,
+  //   symbol: string,
+  // ): Promise<void> {
+  //   const payload = {
+  //     data: smartContractBytecode,
+  //     arguments: [name, symbol],
+  //   };
+  //   const params = {
+  //     from: 'address',
+  //     gas: '0x0',
+  //     gasPrice: '0x3DFB2E',
+  //   };
+
+  //   this.addTransaction({ ...params, ...payload }, 'Contract Deploy');
+  // }
+
+  private async customMint(tokenUri: string) {
+    console.log(tokenUri);
   }
 
-  private async raribleMint(collectible: CollectibleMintingMetaData) {
-    console.log(collectible);
-    // Prepare data
-
-    // Mint
-    this.addTransaction({
-      from: '',
-    });
-
-    const result: Promise<string> = new Promise((resolve, reject) => {
-      this.hub.once(`tx.id:finished`, () => {
-        // if succesful
-        this.addCollectible('test', 'test');
-        return resolve('success');
-        // else show error
-        return reject(new Error());
-      });
-    });
-
-    return result;
-  }
-
-  /**
-   * 
-   * @param collectible - object containing collectibe metadata
-   * @param options - options for minting collectible
-   */
-  async mint(collectible: CollectibleMintingMetaData, options: MintingOptions) {
-    if (options.nftType === 'rarible') {
-      await this.raribleMint(collectible);
-    } else {
-      await this.customMint(collectible);
+  async raribleMint(tokenUri: string, royalties: any[]) {
+    const { networkType, selectedAddress } = this.config;
+    if (
+      networkType !== MAINNET &&
+      networkType !== RINKEBY &&
+      networkType !== ROPSTEN
+    ) {
+      throw new Error(
+        `Network ${networkType} not support by Rarible. Use mainnet, rinkeby or ropsten`,
+      );
     }
+    const creators: any[] = [{ account: selectedAddress, value: 10000 }];
+    const collectionAddress = ERC721_RARIBLE_COLLECTIONS[networkType];
+    const sdk = createRaribleSdk(
+      new Web3Ethereum({ web3: this.web3 }),
+      'rinkeby',
+    );
+    const nftCollection: any = await sdk.apis.nftCollection.getNftCollectionById(
+      {
+        collection: collectionAddress,
+      },
+    );
+
+    console.log(Object.keys(sdk.apis));
+    console.log(Object.keys(sdk.nft));
+
+    const mintingTx = await sdk.nft.mint({
+      collection: nftCollection,
+      uri: tokenUri,
+      creators,
+      royalties,
+      lazy: true,
+    });
+    console.log('mintingTx -> ', mintingTx);
+    return mintingTx;
+  }
+
+  async mint(tokenUri: string, options: MintingOptions) {
+    if (options.nftType === 'rarible') {
+      await this.raribleMint(tokenUri, []);
+    } else {
+      await this.customMint(tokenUri);
+    }
+    this.addCollectible('', '');
+    this.addTransaction({} as any);
   }
 
   /**
@@ -95,6 +122,8 @@ export class CollectibleMintingController extends BaseController<
   private addCollectible: CollectiblesController['addCollectible'];
 
   private addTransaction: TransactionController['addTransaction'];
+
+  private web3: any;
 
   /**
    * Creates the CollectibleMintingController instance.
@@ -128,6 +157,7 @@ export class CollectibleMintingController extends BaseController<
       chainId: '',
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       useIPFSSubdomains: true,
+      provider: undefined,
     };
 
     this.defaultState = {
@@ -140,6 +170,19 @@ export class CollectibleMintingController extends BaseController<
     });
     this.addCollectible = addCollectible;
     this.addTransaction = addTransaction;
+  }
+
+  /**
+   * Sets a new provider.
+   *
+   * @property provider - Provider used to create a new underlying Web3 instance
+   */
+  set provider(provider: any) {
+    this.web3 = new Web3(provider);
+  }
+
+  get provider() {
+    throw new Error('Property only used for setting');
   }
 }
 
