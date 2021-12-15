@@ -117,7 +117,8 @@
       "@lavamoat/preinstall-always-fail": false,
       "core-js": false,
       "keccak": true,
-      "secp256k1": true
+      "secp256k1": true,
+      "sha3": false
     }
   }
 }

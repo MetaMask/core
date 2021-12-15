@@ -26,25 +26,7 @@ export interface CollectibleMintingControllerState extends BaseState {
 export declare class CollectibleMintingController extends BaseController<CollectibleMintingControllerConfig, CollectibleMintingControllerState> {
     private customMint;
     private raribleMint;
-    /**
-     * Fucntion to POST and pin data to infura IPFS
-     *
-     * @param data - file path to be uploaded to IPFS
-     * @returns string of IPFS data location
-     */
     uploadDataToIpfs(data: string): Promise<Response>;
-    /**
-     * Fucntion to POST and pin data to infura IPFS
-     *
-     * @param path - file path to be uploaded to IPFS
-     * @param data
-     * @returns string of IPFS data location
-     */
-    /**
-     *
-     * @param collectible - object containing collectibe metadata
-     * @param options - options for minting collectible
-     */
     mint(collectible: CollectibleMintingMetaData, options: MintingOptions): Promise<void>;
     /**
      * Sets an Infura Project ID to POST collectible information.

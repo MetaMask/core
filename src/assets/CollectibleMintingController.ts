@@ -70,12 +70,6 @@ export class CollectibleMintingController extends BaseController<
     return result;
   }
 
-  /**
-   * Fucntion to POST and pin data to infura IPFS
-   *
-   * @param data - file path to be uploaded to IPFS
-   * @returns string of IPFS data location
-   */
   async uploadDataToIpfs(data: string): Promise<Response> {
     const formData = new FormData();
 
@@ -92,43 +86,6 @@ export class CollectibleMintingController extends BaseController<
     return ipfsAddResponse;
   }
 
-  /**
-   * Fucntion to POST and pin data to infura IPFS
-   *
-   * @param path - file path to be uploaded to IPFS
-   * @param data
-   * @returns string of IPFS data location
-   */
-  // async uploadNftIpfsClient(): Promise<string> {
-  //   const projectId = '22ILCRH0mMzKZz0ShjvMBHOSHy9';
-  //   const projectSecret = '97dc289e968d8ca2f758a7a67d8efb8e';
-  //   const auth = `Basic ${Buffer.from(`${projectId}:${projectSecret}`).toString(
-  //     'base64',
-  //   )}`;
-
-  //   const client = create({
-  //     host: 'ipfs.infura.io',
-  //     port: 5001,
-  //     protocol: 'https',
-  //     headers: {
-  //       authorization: auth,
-  //     },
-  //   });
-
-  //   console.log(client);
-
-  //   // client.add().then((res) => {
-  //   //   console.log(res);
-  //   // });
-
-  //   return '';
-  // }
-
-  /**
-   *
-   * @param collectible - object containing collectibe metadata
-   * @param options - options for minting collectible
-   */
   async mint(collectible: CollectibleMintingMetaData, options: MintingOptions) {
     if (options.nftType === 'rarible') {
       await this.raribleMint(collectible);
