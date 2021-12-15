@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "22.0.0",
+  "version": "22.0.0-seth-1",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "keywords": [
     "MetaMask",
@@ -117,8 +117,7 @@
       "@lavamoat/preinstall-always-fail": false,
       "core-js": false,
       "keccak": true,
-      "secp256k1": true,
-      "sha3": true
+      "secp256k1": true
     }
   }
 }
