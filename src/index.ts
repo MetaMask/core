@@ -35,4 +35,5 @@ export * from './assets/TokensController';
 export * from './assets/CollectiblesController';
 export * from './assets/TokenDetectionController';
 export * from './assets/CollectibleDetectionController';
+export * from './assets/CollectibleMintingController';
 export { util };
