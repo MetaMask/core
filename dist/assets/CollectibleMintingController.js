@@ -91,10 +91,16 @@ class CollectibleMintingController extends BaseController_1.BaseController {
             return result;
         });
     }
+    /**
+     * Method to add and pin data to IPFS.
+     *
+     * @param data - data objects to be posted on IPFS
+     * @returns IPFS response
+     */
     uploadDataToIpfs(data) {
         return __awaiter(this, void 0, void 0, function* () {
             const formData = new FormData();
-            formData.append('file', data);
+            formData.append('file', JSON.stringify(data));
             const ipfsAddResponse = yield util_1.handleFetch('https://ipfs.infura.io:5001/api/v0/add', {
                 method: 'POST',
                 body: formData,

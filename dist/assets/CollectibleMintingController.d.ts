@@ -7,6 +7,32 @@ import type { CollectiblesController } from './CollectiblesController';
 export interface MintingOptions {
     nftType: 'rarible' | 'custom';
 }
+/**
+ * @type NftMetaData
+ *
+ * Collectible creator object coming from OpenSea api
+ * @property name - name entered for nft
+ * @property description - description entered for nft
+ * @property image - IPFS hash of image (e.g. ipfs://QmYMuoAgKcqvd34rNU2WpoQunLj3WsAPWn9xUokiyposdC)
+ */
+export interface NftMetaData {
+    name: string;
+    description: string;
+    image: string;
+}
+/**
+ * @type NftMediaData
+ *
+ * Collectible creator object coming from OpenSea api
+ * @property name - name of media with extension
+ * @property type - post file type (e.g. image/jpeg)
+ * @property uri - path of image to be uploaded to IPFS
+ */
+export interface NftMediaData {
+    name: string | 'nft';
+    type: string;
+    uri: string;
+}
 export interface CollectibleMintingMetaData {
     name: string;
     description: string;
@@ -26,7 +52,13 @@ export interface CollectibleMintingControllerState extends BaseState {
 export declare class CollectibleMintingController extends BaseController<CollectibleMintingControllerConfig, CollectibleMintingControllerState> {
     private customMint;
     private raribleMint;
-    uploadDataToIpfs(data: string): Promise<Response>;
+    /**
+     * Method to add and pin data to IPFS.
+     *
+     * @param data - data objects to be posted on IPFS
+     * @returns IPFS response
+     */
+    uploadDataToIpfs(data: NftMediaData | NftMetaData): Promise<Response>;
     mint(collectible: CollectibleMintingMetaData, options: MintingOptions): Promise<void>;
     /**
      * Sets an Infura Project ID to POST collectible information.
