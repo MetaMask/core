@@ -5,8 +5,8 @@ import {
   bufferToHex,
   BN,
   toChecksumAddress,
+  stripHexPrefix,
 } from 'ethereumjs-util';
-import { stripHexPrefix } from 'ethjs-util';
 import { fromWei, toWei } from 'ethjs-unit';
 import { ethErrors } from 'eth-rpc-errors';
 import ensNamehash from 'eth-ens-namehash';

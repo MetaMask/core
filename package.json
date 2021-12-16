@@ -54,7 +54,6 @@
     "ethereumjs-wallet": "^1.0.1",
     "ethers": "^5.4.1",
     "ethjs-unit": "^0.1.6",
-    "ethjs-util": "^0.1.6",
     "human-standard-collectible-abi": "^1.0.2",
     "human-standard-multi-collectible-abi": "^1.0.4",
     "human-standard-token-abi": "^2.0.0",
