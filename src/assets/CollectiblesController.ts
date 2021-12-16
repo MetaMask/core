@@ -192,22 +192,32 @@ export class CollectiblesController extends BaseController<
    *
    * @param newCollection - the modified piece of state to update in the controller's store
    * @param baseStateKey - The root key in the store to update.
+   * @param passedConfig - An object containing the selectedAddress and chainId that are passed through the auto-detection flow.
+   * @param passedConfig.selectedAddress - the address passed through the collectible detection flow to ensure detected assets are stored to the correct account
+   * @param passedConfig.chainId - the chainId passed through the collectible detection flow to ensure detected assets are stored to the correct account
    */
   private updateNestedCollectibleState(
     newCollection: Collectible[] | CollectibleContract[],
     baseStateKey: 'allCollectibles' | 'allCollectibleContracts',
+    passedConfig?: { selectedAddress: string; chainId: string },
   ) {
-    const { chainId, selectedAddress } = this.config;
+    // We want to use the passedSelectedAddress and passedChainId when defined and not null
+    // these values are passed through the collectible detection flow, meaning they may not
+    // match as the currently configured values (which may be stale for this update)
+    const address =
+      passedConfig?.selectedAddress ?? this.config.selectedAddress;
+    const chain = passedConfig?.chainId ?? this.config.chainId;
+
     const { [baseStateKey]: oldState } = this.state;
 
-    const addressState = oldState[selectedAddress];
+    const addressState = oldState[address];
     const newAddressState = {
       ...addressState,
-      ...{ [chainId]: newCollection },
+      ...{ [chain]: newCollection },
     };
     const newState = {
       ...oldState,
-      ...{ [selectedAddress]: newAddressState },
+      ...{ [address]: newAddressState },
     };
 
     this.update({
@@ -585,6 +595,7 @@ export class CollectiblesController extends BaseController<
       this.updateNestedCollectibleState(
         newCollectibles,
         ALL_COLLECTIBLES_STATE_KEY,
+        { chainId, selectedAddress },
       );
 
       return newCollectibles;
@@ -672,6 +683,7 @@ export class CollectiblesController extends BaseController<
       this.updateNestedCollectibleState(
         newCollectibleContracts,
         ALL_COLLECTIBLES_CONTRACTS_STATE_KEY,
+        { chainId, selectedAddress },
       );
 
       return newCollectibleContracts;
