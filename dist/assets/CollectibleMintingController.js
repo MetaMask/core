@@ -76,9 +76,10 @@ class CollectibleMintingController extends BaseController_1.BaseController {
     //   };
     //   this.addTransaction({ ...params, ...payload }, 'Contract Deploy');
     // }
-    customMint(collectible) {
+    customMintWithMMCollection(tokenUri) {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log(collectible);
+            // ipfs://QmRUA2oJUceyGLxh6yVYQodL5smkP2Xr1u9eHciTM2xLMd
+            console.log(tokenUri);
             // // Logic to covert metadat to hex
             // 0x60806040526040518060400160405280600581526020017f2e6a736f6e000000000000000000000000000000000000000000000000000000815250600c90805190602001906200005192919062000de6565b5066470de4df820000600d55612710600e556001600f556000601060..
             // const txParams = {};
@@ -94,30 +95,30 @@ class CollectibleMintingController extends BaseController_1.BaseController {
             // await TransactionController.approveTransaction(transactionMeta.id);
         });
     }
-    raribleMint(tokenUri, royalties) {
+    raribleMint(tokenUri, raribleProps) {
         return __awaiter(this, void 0, void 0, function* () {
             const { networkType, selectedAddress } = this.config;
+            const { royalties, creatorProfitPercentage, lazy } = raribleProps;
             if (networkType !== constants_1.MAINNET &&
                 networkType !== constants_1.RINKEBY &&
                 networkType !== constants_1.ROPSTEN) {
                 throw new Error(`Network ${networkType} not support by Rarible. Use mainnet, rinkeby or ropsten`);
             }
-            const creators = [{ account: selectedAddress, value: 10000 }];
-            const collectionAddress = constants_1.ERC721_RARIBLE_COLLECTIONS[networkType];
-            const sdk = protocol_ethereum_sdk_1.createRaribleSdk(new web3_ethereum_1.Web3Ethereum({ web3: this.web3 }), networkType);
+            const creators = [
+                { account: selectedAddress, value: creatorProfitPercentage },
+            ];
+            const collectionAddress = constants_1.ERC721_RARIBLE_COLLECTIONS[networkType].address;
+            const sdk = protocol_ethereum_sdk_1.createRaribleSdk(new web3_ethereum_1.Web3Ethereum({ web3: this.web3 }), constants_1.ERC721_RARIBLE_COLLECTIONS[networkType].env);
             const nftCollection = yield sdk.apis.nftCollection.getNftCollectionById({
                 collection: collectionAddress,
             });
-            console.log(nftCollection);
-            const mintingTx = yield sdk.nft.mint({
+            return yield sdk.nft.mint({
                 collection: nftCollection,
                 uri: tokenUri,
                 creators,
                 royalties,
-                lazy: false,
+                lazy,
             });
-            console.log('mintingTx -> ', mintingTx);
-            return mintingTx;
         });
     }
     /**
@@ -137,13 +138,13 @@ class CollectibleMintingController extends BaseController_1.BaseController {
             return ipfsAddResponse;
         });
     }
-    mint(collectible, options) {
+    mint(tokenUri, options, raribleProps) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (options.nftType === 'rarible') {
-                // await this.raribleMint(collectible);
+            if (options.nftType === 'rarible' && raribleProps) {
+                yield this.raribleMint(tokenUri, raribleProps);
             }
             else {
-                yield this.customMint(collectible);
+                yield this.customMintWithMMCollection(tokenUri);
             }
             // REMOVE
             this.addCollectible('', '');

@@ -33,6 +33,11 @@ export interface NftMediaData {
     type: string;
     uri: string;
 }
+export interface RaribleProps {
+    royalties: any[];
+    creatorProfitPercentage: number;
+    lazy: boolean;
+}
 export interface CollectibleMintingMetaData {
     name: string;
     description: string;
@@ -51,8 +56,8 @@ export interface CollectibleMintingControllerState extends BaseState {
     minting: 'awaiting' | 'started' | 'processing' | 'complete';
 }
 export declare class CollectibleMintingController extends BaseController<CollectibleMintingControllerConfig, CollectibleMintingControllerState> {
-    private customMint;
-    raribleMint(tokenUri: string, royalties: any[]): Promise<import("@rarible/protocol-ethereum-sdk/build/nft/mint").MintOffChainResponse | import("@rarible/protocol-ethereum-sdk/build/nft/mint").MintOnChainResponse>;
+    customMintWithMMCollection(tokenUri: string): Promise<void>;
+    raribleMint(tokenUri: string, raribleProps: RaribleProps): Promise<import("@rarible/protocol-ethereum-sdk/build/nft/mint").MintOffChainResponse | import("@rarible/protocol-ethereum-sdk/build/nft/mint").MintOnChainResponse>;
     /**
      * Method to add and pin data to IPFS.
      *
@@ -60,7 +65,7 @@ export declare class CollectibleMintingController extends BaseController<Collect
      * @returns IPFS response
      */
     uploadDataToIpfs(data: NftMediaData | NftMetaData): Promise<Response>;
-    mint(collectible: CollectibleMintingMetaData, options: MintingOptions): Promise<void>;
+    mint(tokenUri: string, options: MintingOptions, raribleProps?: RaribleProps): Promise<void>;
     /**
      * Sets an Infura Project ID to POST collectible information.
      *

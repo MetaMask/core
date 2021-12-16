@@ -11,7 +11,16 @@ export declare const ERC721 = "ERC721";
 export declare const ERC1155 = "ERC1155";
 export declare const GWEI = "gwei";
 export declare const ERC721_RARIBLE_COLLECTIONS: {
-    mainnet: string;
-    rinkeby: string;
-    ropsten: string;
+    mainnet: {
+        address: string;
+        env: string;
+    };
+    rinkeby: {
+        address: string;
+        env: string;
+    };
+    ropsten: {
+        address: string;
+        env: string;
+    };
 };
