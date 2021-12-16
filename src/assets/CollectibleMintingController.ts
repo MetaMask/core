@@ -277,7 +277,6 @@ export class CollectibleMintingController extends BaseController<
    */
   set provider(provider: any) {
     this.web3 = new Web3(provider);
-    console.log('New provider created for provider: ', provider);
   }
 
   get provider() {

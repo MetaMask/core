@@ -89,7 +89,7 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to BN object containing balance for current account on specific asset contract.
    */
   async getBalanceOf(address: string, selectedAddress: string): Promise<BN> {
-    const contract = this.web3.eth.contract(abiERC20).at(address);
+    const contract = new this.web3.eth.Contract(abiERC20, address);
     return new Promise<BN>((resolve, reject) => {
       contract.balanceOf(selectedAddress, (error: Error, result: BN) => {
         /* istanbul ignore if */
@@ -109,7 +109,7 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the 'decimals'.
    */
   async getTokenDecimals(address: string): Promise<string> {
-    const contract = this.web3.eth.contract(abiERC20).at(address);
+    const contract = new this.web3.eth.Contract(abiERC20, address);
     return new Promise<string>((resolve, reject) => {
       contract.decimals((error: Error, result: string) => {
         /* istanbul ignore if */
@@ -135,7 +135,7 @@ export class AssetsContractController extends BaseController<
     selectedAddress: string,
     index: number,
   ): Promise<string> {
-    const contract = this.web3.eth.contract(abiERC721).at(address);
+    const contract = new this.web3.eth.Contract(abiERC721, address);
     return this.erc721Standard.getCollectibleTokenId(
       contract,
       selectedAddress,
@@ -154,7 +154,7 @@ export class AssetsContractController extends BaseController<
     address: string,
     tokenId: string,
   ): Promise<string> {
-    const contract = this.web3.eth.contract(abiERC721).at(address);
+    const contract = new this.web3.eth.Contract(abiERC721, address);
     return this.erc721Standard.getCollectibleTokenURI(contract, tokenId);
   }
 
@@ -165,7 +165,7 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the 'name'.
    */
   async getAssetName(address: string): Promise<string> {
-    const contract = this.web3.eth.contract(abiERC721).at(address);
+    const contract = new this.web3.eth.Contract(abiERC721, address);
     return this.erc721Standard.getAssetName(contract);
   }
 
@@ -176,7 +176,7 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the 'symbol'.
    */
   async getAssetSymbol(address: string): Promise<string> {
-    const contract = this.web3.eth.contract(abiERC721).at(address);
+    const contract = new this.web3.eth.Contract(abiERC721, address);
     return this.erc721Standard.getAssetSymbol(contract);
   }
 
@@ -188,7 +188,7 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the owner address.
    */
   async getOwnerOf(address: string, tokenId: string): Promise<string> {
-    const contract = this.web3.eth.contract(abiERC721).at(address);
+    const contract = new this.web3.eth.Contract(abiERC721, address);
     return this.erc721Standard.getOwnerOf(contract, tokenId);
   }
 
@@ -203,7 +203,7 @@ export class AssetsContractController extends BaseController<
     address: string,
     tokenId: string,
   ): Promise<string> {
-    const contract = this.web3.eth.contract(abiERC1155).at(address);
+    const contract = new this.web3.eth.Contract(abiERC1155, address);
     return this.erc1155Standard.uri(contract, tokenId);
   }
 
@@ -220,7 +220,7 @@ export class AssetsContractController extends BaseController<
     collectibleAddress: string,
     collectibleId: string,
   ): Promise<number> {
-    const contract = this.web3.eth.contract(abiERC1155).at(collectibleAddress);
+    const contract = new this.web3.eth.Contract(abiERC1155, collectibleAddress);
     return await this.erc1155Standard.getBalanceOf(
       contract,
       userAddress,
@@ -245,7 +245,7 @@ export class AssetsContractController extends BaseController<
     collectibleId: string,
     qty: string,
   ): Promise<void> {
-    const contract = this.web3.eth.contract(abiERC1155).at(collectibleAddress);
+    const contract = new this.web3.eth.Contract(abiERC1155, collectibleAddress);
     return await this.erc1155Standard.transferSingle(
       contract,
       collectibleAddress,
@@ -268,9 +268,10 @@ export class AssetsContractController extends BaseController<
     selectedAddress: string,
     tokensToDetect: string[],
   ) {
-    const contract = this.web3.eth
-      .contract(abiSingleCallBalancesContract)
-      .at(SINGLE_CALL_BALANCES_ADDRESS);
+    const contract = new this.web3.eth.Contract(
+      abiSingleCallBalancesContract,
+      SINGLE_CALL_BALANCES_ADDRESS,
+    );
     return new Promise<BalanceMap>((resolve, reject) => {
       contract.balances(
         [selectedAddress],

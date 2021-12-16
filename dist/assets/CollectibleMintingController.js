@@ -170,7 +170,6 @@ class CollectibleMintingController extends BaseController_1.BaseController {
      */
     set provider(provider) {
         this.web3 = new web3_1.default(provider);
-        console.log('New provider created for provider: ', provider);
     }
     get provider() {
         throw new Error('Property only used for setting');

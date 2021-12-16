@@ -67,7 +67,7 @@ class AssetsContractController extends BaseController_1.BaseController {
      */
     getBalanceOf(address, selectedAddress) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_token_abi_1.default).at(address);
+            const contract = new this.web3.eth.Contract(human_standard_token_abi_1.default, address);
             return new Promise((resolve, reject) => {
                 contract.balanceOf(selectedAddress, (error, result) => {
                     /* istanbul ignore if */
@@ -88,7 +88,7 @@ class AssetsContractController extends BaseController_1.BaseController {
      */
     getTokenDecimals(address) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_token_abi_1.default).at(address);
+            const contract = new this.web3.eth.Contract(human_standard_token_abi_1.default, address);
             return new Promise((resolve, reject) => {
                 contract.decimals((error, result) => {
                     /* istanbul ignore if */
@@ -110,7 +110,7 @@ class AssetsContractController extends BaseController_1.BaseController {
      * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
      */
     getCollectibleTokenId(address, selectedAddress, index) {
-        const contract = this.web3.eth.contract(human_standard_collectible_abi_1.default).at(address);
+        const contract = new this.web3.eth.Contract(human_standard_collectible_abi_1.default, address);
         return this.erc721Standard.getCollectibleTokenId(contract, selectedAddress, index);
     }
     /**
@@ -122,7 +122,7 @@ class AssetsContractController extends BaseController_1.BaseController {
      */
     getCollectibleTokenURI(address, tokenId) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_collectible_abi_1.default).at(address);
+            const contract = new this.web3.eth.Contract(human_standard_collectible_abi_1.default, address);
             return this.erc721Standard.getCollectibleTokenURI(contract, tokenId);
         });
     }
@@ -134,7 +134,7 @@ class AssetsContractController extends BaseController_1.BaseController {
      */
     getAssetName(address) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_collectible_abi_1.default).at(address);
+            const contract = new this.web3.eth.Contract(human_standard_collectible_abi_1.default, address);
             return this.erc721Standard.getAssetName(contract);
         });
     }
@@ -146,7 +146,7 @@ class AssetsContractController extends BaseController_1.BaseController {
      */
     getAssetSymbol(address) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_collectible_abi_1.default).at(address);
+            const contract = new this.web3.eth.Contract(human_standard_collectible_abi_1.default, address);
             return this.erc721Standard.getAssetSymbol(contract);
         });
     }
@@ -159,7 +159,7 @@ class AssetsContractController extends BaseController_1.BaseController {
      */
     getOwnerOf(address, tokenId) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_collectible_abi_1.default).at(address);
+            const contract = new this.web3.eth.Contract(human_standard_collectible_abi_1.default, address);
             return this.erc721Standard.getOwnerOf(contract, tokenId);
         });
     }
@@ -172,7 +172,7 @@ class AssetsContractController extends BaseController_1.BaseController {
      */
     uriERC1155Collectible(address, tokenId) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_multi_collectible_abi_1.default).at(address);
+            const contract = new this.web3.eth.Contract(human_standard_multi_collectible_abi_1.default, address);
             return this.erc1155Standard.uri(contract, tokenId);
         });
     }
@@ -186,7 +186,7 @@ class AssetsContractController extends BaseController_1.BaseController {
      */
     balanceOfERC1155Collectible(userAddress, collectibleAddress, collectibleId) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_multi_collectible_abi_1.default).at(collectibleAddress);
+            const contract = new this.web3.eth.Contract(human_standard_multi_collectible_abi_1.default, collectibleAddress);
             return yield this.erc1155Standard.getBalanceOf(contract, userAddress, collectibleId);
         });
     }
@@ -202,7 +202,7 @@ class AssetsContractController extends BaseController_1.BaseController {
      */
     transferSingleERC1155Collectible(collectibleAddress, senderAddress, recipientAddress, collectibleId, qty) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_multi_collectible_abi_1.default).at(collectibleAddress);
+            const contract = new this.web3.eth.Contract(human_standard_multi_collectible_abi_1.default, collectibleAddress);
             return yield this.erc1155Standard.transferSingle(contract, collectibleAddress, senderAddress, recipientAddress, collectibleId, qty);
         });
     }
@@ -216,9 +216,7 @@ class AssetsContractController extends BaseController_1.BaseController {
      */
     getBalancesInSingleCall(selectedAddress, tokensToDetect) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth
-                .contract(single_call_balance_checker_abi_1.default)
-                .at(SINGLE_CALL_BALANCES_ADDRESS);
+            const contract = new this.web3.eth.Contract(single_call_balance_checker_abi_1.default, SINGLE_CALL_BALANCES_ADDRESS);
             return new Promise((resolve, reject) => {
                 contract.balances([selectedAddress], tokensToDetect, (error, result) => {
                     /* istanbul ignore if */
