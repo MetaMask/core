@@ -1,7 +1,16 @@
 import { EventEmitter } from 'events';
+import Web3 from 'web3';
+import { createRaribleSdk } from '@rarible/protocol-ethereum-sdk';
+import { Web3Ethereum } from '@rarible/web3-ethereum';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
-import { MAINNET, IPFS_DEFAULT_GATEWAY_URL } from '../constants';
+import {
+  MAINNET,
+  RINKEBY,
+  ROPSTEN,
+  IPFS_DEFAULT_GATEWAY_URL,
+  ERC721_RARIBLE_COLLECTIONS,
+} from '../constants';
 import { handleFetch } from '../util';
 import type { TransactionController } from '../transaction/TransactionController';
 import type { CollectiblesController } from './CollectiblesController';
@@ -50,6 +59,7 @@ export interface CollectibleMintingControllerConfig extends BaseConfig {
   chainId: string;
   ipfsGateway: string;
   useIPFSSubdomains: boolean;
+  provider: any;
 }
 export interface CollectibleMintingControllerState extends BaseState {
   minting: 'awaiting' | 'started' | 'processing' | 'complete';
@@ -59,6 +69,24 @@ export class CollectibleMintingController extends BaseController<
   CollectibleMintingControllerConfig,
   CollectibleMintingControllerState
 > {
+  // private async deployNewERC721(
+  //   smartContractBytecode: any,
+  //   name: string,
+  //   symbol: string,
+  // ): Promise<void> {
+  //   const payload = {
+  //     data: smartContractBytecode,
+  //     arguments: [name, symbol],
+  //   };
+  //   const params = {
+  //     from: 'address',
+  //     gas: '0x0',
+  //     gasPrice: '0x3DFB2E',
+  //   };
+
+  //   this.addTransaction({ ...params, ...payload }, 'Contract Deploy');
+  // }
+
   private async customMint(collectible: CollectibleMintingMetaData) {
     console.log(collectible);
     // // Logic to covert metadat to hex
@@ -76,26 +104,40 @@ export class CollectibleMintingController extends BaseController<
     // await TransactionController.approveTransaction(transactionMeta.id);
   }
 
-  private async raribleMint(collectible: CollectibleMintingMetaData) {
-    console.log(collectible);
-    // Prepare data
+  async raribleMint(tokenUri: string, royalties: any[]) {
+    const { networkType, selectedAddress } = this.config;
+    if (
+      networkType !== MAINNET &&
+      networkType !== RINKEBY &&
+      networkType !== ROPSTEN
+    ) {
+      throw new Error(
+        `Network ${networkType} not support by Rarible. Use mainnet, rinkeby or ropsten`,
+      );
+    }
+    const creators: any[] = [{ account: selectedAddress, value: 10000 }];
+    const collectionAddress = ERC721_RARIBLE_COLLECTIONS[networkType];
+    const sdk = createRaribleSdk(
+      new Web3Ethereum({ web3: this.web3 }),
+      networkType,
+    );
+    const nftCollection: any = await sdk.apis.nftCollection.getNftCollectionById(
+      {
+        collection: collectionAddress,
+      },
+    );
 
-    // Mint
-    this.addTransaction({
-      from: '',
+    console.log(nftCollection);
+
+    const mintingTx = await sdk.nft.mint({
+      collection: nftCollection,
+      uri: tokenUri,
+      creators,
+      royalties,
+      lazy: false,
     });
-
-    const result: Promise<string> = new Promise((resolve, reject) => {
-      this.hub.once(`tx.id:finished`, () => {
-        // if succesful
-        this.addCollectible('test', 'test');
-        return resolve('success');
-        // else show error
-        return reject(new Error());
-      });
-    });
-
-    return result;
+    console.log('mintingTx -> ', mintingTx);
+    return mintingTx;
   }
 
   /**
@@ -121,10 +163,14 @@ export class CollectibleMintingController extends BaseController<
 
   async mint(collectible: CollectibleMintingMetaData, options: MintingOptions) {
     if (options.nftType === 'rarible') {
-      await this.raribleMint(collectible);
+      // await this.raribleMint(collectible);
     } else {
       await this.customMint(collectible);
     }
+
+    // REMOVE
+    this.addCollectible('', '');
+    this.addTransaction({} as any);
   }
 
   /**
@@ -154,6 +200,8 @@ export class CollectibleMintingController extends BaseController<
   private addCollectible: CollectiblesController['addCollectible'];
 
   private addTransaction: TransactionController['addTransaction'];
+
+  private web3: any;
 
   /**
    * Creates the CollectibleMintingController instance.
@@ -187,6 +235,7 @@ export class CollectibleMintingController extends BaseController<
       chainId: '',
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       useIPFSSubdomains: true,
+      provider: undefined,
     };
 
     this.defaultState = {
@@ -199,6 +248,20 @@ export class CollectibleMintingController extends BaseController<
     });
     this.addCollectible = addCollectible;
     this.addTransaction = addTransaction;
+  }
+
+  /**
+   * Sets a new provider.
+   *
+   * @property provider - Provider used to create a new underlying Web3 instance
+   */
+  set provider(provider: any) {
+    this.web3 = new Web3(provider);
+    console.log('New provider created for provider: ', provider);
+  }
+
+  get provider() {
+    throw new Error('Property only used for setting');
   }
 }
 

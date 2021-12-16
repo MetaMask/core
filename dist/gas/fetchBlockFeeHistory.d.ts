@@ -1,4 +1,3 @@
-/// <reference types="bn.js" />
 import { BN } from 'ethereumjs-util';
 declare type EthQuery = any;
 /**

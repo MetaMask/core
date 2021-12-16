@@ -45,13 +45,14 @@ export interface CollectibleMintingControllerConfig extends BaseConfig {
     chainId: string;
     ipfsGateway: string;
     useIPFSSubdomains: boolean;
+    provider: any;
 }
 export interface CollectibleMintingControllerState extends BaseState {
     minting: 'awaiting' | 'started' | 'processing' | 'complete';
 }
 export declare class CollectibleMintingController extends BaseController<CollectibleMintingControllerConfig, CollectibleMintingControllerState> {
     private customMint;
-    private raribleMint;
+    raribleMint(tokenUri: string, royalties: any[]): Promise<import("@rarible/protocol-ethereum-sdk/build/nft/mint").MintOffChainResponse | import("@rarible/protocol-ethereum-sdk/build/nft/mint").MintOnChainResponse>;
     /**
      * Method to add and pin data to IPFS.
      *
@@ -80,6 +81,7 @@ export declare class CollectibleMintingController extends BaseController<Collect
     name: string;
     private addCollectible;
     private addTransaction;
+    private web3;
     /**
      * Creates the CollectibleMintingController instance.
      *
@@ -95,5 +97,12 @@ export declare class CollectibleMintingController extends BaseController<Collect
         addCollectible: CollectiblesController['addCollectible'];
         addTransaction: TransactionController['addTransaction'];
     }, config?: Partial<BaseConfig>, state?: Partial<CollectibleMintingController>);
+    /**
+     * Sets a new provider.
+     *
+     * @property provider - Provider used to create a new underlying Web3 instance
+     */
+    set provider(provider: any);
+    get provider(): any;
 }
 export default CollectibleMintingController;

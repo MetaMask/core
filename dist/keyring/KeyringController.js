@@ -33,7 +33,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.KeyringController = exports.SignTypedDataVersion = exports.AccountImportStrategy = exports.KeyringTypes = void 0;
 const ethereumjs_util_1 = require("ethereumjs-util");
-const ethjs_util_1 = require("ethjs-util");
 const eth_sig_util_1 = require("eth-sig-util");
 const ethereumjs_wallet_1 = __importStar(require("ethereumjs-wallet"));
 const eth_keyring_controller_1 = __importDefault(require("eth-keyring-controller"));
@@ -257,7 +256,7 @@ class KeyringController extends BaseController_1.BaseController {
                     if (!ethereumjs_util_1.isValidPrivate(ethereumjs_util_1.toBuffer(prefixed))) {
                         throw new Error('Cannot import invalid private key.');
                     }
-                    privateKey = ethjs_util_1.stripHexPrefix(prefixed);
+                    privateKey = ethereumjs_util_1.stripHexPrefix(prefixed);
                     break;
                 case 'json':
                     let wallet;

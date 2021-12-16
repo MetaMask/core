@@ -1,4 +1,3 @@
-/// <reference types="bn.js" />
 import { BN } from 'ethereumjs-util';
 import { Transaction, FetchAllOptions, GasPriceValue, FeeMarketEIP1559Values } from './transaction/TransactionController';
 import { MessageParams } from './message-manager/MessageManager';

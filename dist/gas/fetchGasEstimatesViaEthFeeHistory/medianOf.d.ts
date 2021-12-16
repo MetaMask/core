@@ -1,4 +1,3 @@
-/// <reference types="bn.js" />
 import { BN } from 'ethereumjs-util';
 /**
  * Finds the median among a list of numbers. Note that this is different from the implementation

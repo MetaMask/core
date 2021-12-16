@@ -1,4 +1,3 @@
-/// <reference types="bn.js" />
 import { BN } from 'ethereumjs-util';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';

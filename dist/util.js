@@ -14,7 +14,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getFormattedIpfsUrl = exports.addUrlProtocolPrefix = exports.getIpfsCIDv1AndPath = exports.removeIpfsProtocolPrefix = exports.validateMinimumIncrease = exports.isGasPriceValue = exports.isFeeMarketEIP1559Values = exports.validateGasValues = exports.getIncreasedPriceFromExisting = exports.getIncreasedPriceHex = exports.convertPriceToDecimal = exports.isEIP1559Transaction = exports.query = exports.normalizeEnsName = exports.timeoutFetch = exports.handleFetch = exports.successfulFetch = exports.isSmartContractCode = exports.validateTokenToWatch = exports.validateTypedSignMessageDataV3 = exports.validateTypedSignMessageDataV1 = exports.validateSignMessageData = exports.normalizeMessageData = exports.validateTransaction = exports.isValidHexAddress = exports.toChecksumHexAddress = exports.safelyExecuteWithTimeout = exports.safelyExecute = exports.normalizeTransaction = exports.toHex = exports.fromHex = exports.hexToText = exports.hexToBN = exports.handleTransactionFetch = exports.getEtherscanApiUrl = exports.getBuyURL = exports.weiHexToGweiDec = exports.gweiDecToWEIBN = exports.fractionBN = exports.BNToHex = void 0;
 const ethereumjs_util_1 = require("ethereumjs-util");
-const ethjs_util_1 = require("ethjs-util");
 const ethjs_unit_1 = require("ethjs-unit");
 const eth_rpc_errors_1 = require("eth-rpc-errors");
 const eth_ens_namehash_1 = __importDefault(require("eth-ens-namehash"));
@@ -95,7 +94,7 @@ exports.gweiDecToWEIBN = gweiDecToWEIBN;
  * @returns The value in dec gwei as string.
  */
 function weiHexToGweiDec(hex) {
-    const hexWei = new ethereumjs_util_1.BN(ethjs_util_1.stripHexPrefix(hex), 16);
+    const hexWei = new ethereumjs_util_1.BN(ethereumjs_util_1.stripHexPrefix(hex), 16);
     return ethjs_unit_1.fromWei(hexWei, 'gwei').toString(10);
 }
 exports.weiHexToGweiDec = weiHexToGweiDec;
@@ -198,7 +197,7 @@ exports.handleTransactionFetch = handleTransactionFetch;
  * @returns A BN instance.
  */
 function hexToBN(inputHex) {
-    return new ethereumjs_util_1.BN(ethjs_util_1.stripHexPrefix(inputHex), 16);
+    return new ethereumjs_util_1.BN(ethereumjs_util_1.stripHexPrefix(inputHex), 16);
 }
 exports.hexToBN = hexToBN;
 /**
@@ -209,7 +208,7 @@ exports.hexToBN = hexToBN;
  */
 function hexToText(hex) {
     try {
-        const stripped = ethjs_util_1.stripHexPrefix(hex);
+        const stripped = ethereumjs_util_1.stripHexPrefix(hex);
         const buff = Buffer.from(stripped, 'hex');
         return buff.toString('utf8');
     }
@@ -412,7 +411,7 @@ exports.validateTransaction = validateTransaction;
  */
 function normalizeMessageData(data) {
     try {
-        const stripped = ethjs_util_1.stripHexPrefix(data);
+        const stripped = ethereumjs_util_1.stripHexPrefix(data);
         if (stripped.match(hexRe)) {
             return ethereumjs_util_1.addHexPrefix(stripped);
         }

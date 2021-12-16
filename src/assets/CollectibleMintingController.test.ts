@@ -1,10 +1,10 @@
+import HttpProvider from 'ethjs-provider-http';
 import { TransactionController } from '../transaction/TransactionController';
 import { NetworkController, NetworkType } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
 import { CollectiblesController } from './CollectiblesController';
 import { CollectibleMintingController } from './CollectibleMintingController';
 import { AssetsContractController } from './AssetsContractController';
-import HttpProvider from 'ethjs-provider-http';
 
 const MOCK_NETWORK = {
   getProvider: () =>

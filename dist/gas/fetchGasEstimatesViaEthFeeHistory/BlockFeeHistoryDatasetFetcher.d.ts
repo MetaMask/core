@@ -1,4 +1,3 @@
-/// <reference types="bn.js" />
 import { BN } from 'ethereumjs-util';
 import { ExistingFeeHistoryBlock, FeeHistoryBlock } from '../fetchBlockFeeHistory';
 import { EthQuery } from './types';
