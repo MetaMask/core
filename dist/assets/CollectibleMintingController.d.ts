@@ -3,6 +3,7 @@ import { EventEmitter } from 'events';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { TransactionController } from '../transaction/TransactionController';
+import type { PreferencesState } from '../user/PreferencesController';
 import type { CollectiblesController } from './CollectiblesController';
 export interface MintingOptions {
     nftType: 'rarible' | 'custom';
@@ -92,13 +93,15 @@ export declare class CollectibleMintingController extends BaseController<Collect
      *
      * @param options - The controller options.
      * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+     * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
      * @param options.addCollectible - Allows the controlelr to add a collectible to collectible controller.
      * @param options.addTransaction - Allows the controler to add a transaction to transaction controller.
      * @param config - Initial options used to configure this controller.
      * @param state - Initial state to set on this controller.
      */
-    constructor({ onNetworkStateChange, addCollectible, addTransaction, }: {
+    constructor({ onPreferencesStateChange, onNetworkStateChange, addCollectible, addTransaction, }: {
         onNetworkStateChange: (listener: (networkState: NetworkState) => void) => void;
+        onPreferencesStateChange: (listener: (preferencesState: PreferencesState) => void) => void;
         addCollectible: CollectiblesController['addCollectible'];
         addTransaction: TransactionController['addTransaction'];
     }, config?: Partial<BaseConfig>, state?: Partial<CollectibleMintingController>);

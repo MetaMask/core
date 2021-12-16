@@ -13,6 +13,7 @@ import {
 } from '../constants';
 import { handleFetch } from '../util';
 import type { TransactionController } from '../transaction/TransactionController';
+import type { PreferencesState } from '../user/PreferencesController';
 import type { CollectiblesController } from './CollectiblesController';
 
 export interface MintingOptions {
@@ -218,6 +219,7 @@ export class CollectibleMintingController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.addCollectible - Allows the controlelr to add a collectible to collectible controller.
    * @param options.addTransaction - Allows the controler to add a transaction to transaction controller.
    * @param config - Initial options used to configure this controller.
@@ -225,12 +227,16 @@ export class CollectibleMintingController extends BaseController<
    */
   constructor(
     {
+      onPreferencesStateChange,
       onNetworkStateChange,
       addCollectible,
       addTransaction,
     }: {
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
+      ) => void;
+      onPreferencesStateChange: (
+        listener: (preferencesState: PreferencesState) => void,
       ) => void;
       addCollectible: CollectiblesController['addCollectible'];
       addTransaction: TransactionController['addTransaction'];
@@ -255,6 +261,10 @@ export class CollectibleMintingController extends BaseController<
     onNetworkStateChange(({ provider }) => {
       const { chainId } = provider;
       this.configure({ chainId });
+    });
+
+    onPreferencesStateChange(({ selectedAddress }) => {
+      this.configure({ selectedAddress });
     });
     this.addCollectible = addCollectible;
     this.addTransaction = addTransaction;
