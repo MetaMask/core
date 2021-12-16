@@ -130,7 +130,7 @@ export class CollectibleMintingController extends BaseController<
     const collectionAddress = ERC721_RARIBLE_COLLECTIONS[networkType].address;
     const sdk = createRaribleSdk(
       new Web3Ethereum({ web3: this.web3 }),
-      ERC721_RARIBLE_COLLECTIONS[networkType].env as any,
+      networkType,
     );
     const nftCollection: any = await sdk.apis.nftCollection.getNftCollectionById(
       {
@@ -259,8 +259,8 @@ export class CollectibleMintingController extends BaseController<
     };
     this.initialize();
     onNetworkStateChange(({ provider }) => {
-      const { chainId } = provider;
-      this.configure({ chainId });
+      const { chainId, type } = provider;
+      this.configure({ chainId, networkType: type });
     });
 
     onPreferencesStateChange(({ selectedAddress }) => {

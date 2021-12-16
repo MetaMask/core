@@ -55,8 +55,8 @@ class CollectibleMintingController extends BaseController_1.BaseController {
         };
         this.initialize();
         onNetworkStateChange(({ provider }) => {
-            const { chainId } = provider;
-            this.configure({ chainId });
+            const { chainId, type } = provider;
+            this.configure({ chainId, networkType: type });
         });
         onPreferencesStateChange(({ selectedAddress }) => {
             this.configure({ selectedAddress });
@@ -112,7 +112,7 @@ class CollectibleMintingController extends BaseController_1.BaseController {
                 { account: selectedAddress, value: creatorProfitPercentage },
             ];
             const collectionAddress = constants_1.ERC721_RARIBLE_COLLECTIONS[networkType].address;
-            const sdk = protocol_ethereum_sdk_1.createRaribleSdk(new web3_ethereum_1.Web3Ethereum({ web3: this.web3 }), constants_1.ERC721_RARIBLE_COLLECTIONS[networkType].env);
+            const sdk = protocol_ethereum_sdk_1.createRaribleSdk(new web3_ethereum_1.Web3Ethereum({ web3: this.web3 }), networkType);
             const nftCollection = yield sdk.apis.nftCollection.getNftCollectionById({
                 collection: collectionAddress,
             });
