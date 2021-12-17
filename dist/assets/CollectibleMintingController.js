@@ -141,11 +141,9 @@ class CollectibleMintingController extends BaseController_1.BaseController {
     mint(tokenUri, options, raribleProps) {
         return __awaiter(this, void 0, void 0, function* () {
             if (options.nftType === 'rarible' && raribleProps) {
-                yield this.raribleMint(tokenUri, raribleProps);
+                return yield this.raribleMint(tokenUri, raribleProps);
             }
-            else {
-                yield this.customMintWithMMCollection(tokenUri);
-            }
+            return yield this.customMintWithMMCollection(tokenUri);
         });
     }
     /**

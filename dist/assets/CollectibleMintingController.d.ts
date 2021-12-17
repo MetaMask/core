@@ -68,7 +68,7 @@ export declare class CollectibleMintingController extends BaseController<Collect
      * @returns IPFS response
      */
     uploadDataToIpfs(data: NftMediaData | NftMetaData): Promise<Response>;
-    mint(tokenUri: string, options: MintingOptions, raribleProps?: RaribleProps): Promise<void>;
+    mint(tokenUri: string, options: MintingOptions, raribleProps?: RaribleProps): Promise<any>;
     /**
      * Sets an Infura Project ID to POST collectible information.
      *

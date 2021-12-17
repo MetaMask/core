@@ -175,12 +175,11 @@ export class CollectibleMintingController extends BaseController<
     tokenUri: string,
     options: MintingOptions,
     raribleProps?: RaribleProps,
-  ) {
+  ): Promise<any> {
     if (options.nftType === 'rarible' && raribleProps) {
-      await this.raribleMint(tokenUri, raribleProps);
-    } else {
-      await this.customMintWithMMCollection(tokenUri);
+      return await this.raribleMint(tokenUri, raribleProps);
     }
+    return await this.customMintWithMMCollection(tokenUri);
   }
 
   /**
