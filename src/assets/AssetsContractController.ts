@@ -90,8 +90,9 @@ export class AssetsContractController extends BaseController<
    */
   async getBalanceOf(address: string, selectedAddress: string): Promise<BN> {
     const contract = new this.web3.eth.Contract(abiERC20, address);
+    const { balanceOf } = contract.methods;
     return new Promise<BN>((resolve, reject) => {
-      contract.balanceOf(selectedAddress, (error: Error, result: BN) => {
+      balanceOf(selectedAddress, (error: Error, result: BN) => {
         /* istanbul ignore if */
         if (error) {
           reject(error);
@@ -110,8 +111,9 @@ export class AssetsContractController extends BaseController<
    */
   async getTokenDecimals(address: string): Promise<string> {
     const contract = new this.web3.eth.Contract(abiERC20, address);
+    const { decimals } = contract.methods;
     return new Promise<string>((resolve, reject) => {
-      contract.decimals((error: Error, result: string) => {
+      decimals((error: Error, result: string) => {
         /* istanbul ignore if */
         if (error) {
           reject(error);

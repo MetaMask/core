@@ -68,8 +68,9 @@ class AssetsContractController extends BaseController_1.BaseController {
     getBalanceOf(address, selectedAddress) {
         return __awaiter(this, void 0, void 0, function* () {
             const contract = new this.web3.eth.Contract(human_standard_token_abi_1.default, address);
+            const { balanceOf } = contract.methods;
             return new Promise((resolve, reject) => {
-                contract.balanceOf(selectedAddress, (error, result) => {
+                balanceOf(selectedAddress, (error, result) => {
                     /* istanbul ignore if */
                     if (error) {
                         reject(error);
@@ -89,8 +90,9 @@ class AssetsContractController extends BaseController_1.BaseController {
     getTokenDecimals(address) {
         return __awaiter(this, void 0, void 0, function* () {
             const contract = new this.web3.eth.Contract(human_standard_token_abi_1.default, address);
+            const { decimals } = contract.methods;
             return new Promise((resolve, reject) => {
-                contract.decimals((error, result) => {
+                decimals((error, result) => {
                     /* istanbul ignore if */
                     if (error) {
                         reject(error);
