@@ -304,6 +304,7 @@ describe('CollectibleDetectionController', () => {
         tokenId: '2574',
         standard: 'ERC721',
         favorite: false,
+        isCurrentlyOwned: true,
       },
     ]);
   });
@@ -343,6 +344,7 @@ describe('CollectibleDetectionController', () => {
         standard: 'ERC721',
         tokenId: '2573',
         favorite: false,
+        isCurrentlyOwned: true,
       },
       {
         address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -352,6 +354,7 @@ describe('CollectibleDetectionController', () => {
         tokenId: '2574',
         standard: 'ERC721',
         favorite: false,
+        isCurrentlyOwned: true,
       },
     ]);
   });
@@ -453,6 +456,7 @@ describe('CollectibleDetectionController', () => {
       tokenId: '2574',
       standard: 'ERC721',
       favorite: false,
+      isCurrentlyOwned: true,
     };
     const collectibleGG2574 = {
       address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
@@ -462,6 +466,7 @@ describe('CollectibleDetectionController', () => {
       tokenId: '2574',
       standard: 'ERC721',
       favorite: false,
+      isCurrentlyOwned: true,
     };
     const collectibleII2577 = {
       address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
@@ -471,6 +476,7 @@ describe('CollectibleDetectionController', () => {
       tokenId: '2577',
       standard: 'ERC721',
       favorite: false,
+      isCurrentlyOwned: true,
     };
     const collectibleContractHH = {
       address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',

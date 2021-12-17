@@ -46,10 +46,12 @@ import { compareCollectiblesMetadata } from './assetsUtil';
  * @property animationOriginal - URI of the original animation associated with this collectible
  * @property externalLink - External link containing additional information
  * @property creator - The collectible owner information object
+ * @property isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this collectible
  */
 export interface Collectible extends CollectibleMetadata {
   tokenId: string;
   address: string;
+  isCurrentlyOwned?: boolean;
 }
 
 /**
@@ -587,8 +589,9 @@ export class CollectiblesController extends BaseController<
       const newEntry: Collectible = {
         address,
         tokenId,
-        ...collectibleMetadata,
         favorite: existingEntry?.favorite || false,
+        isCurrentlyOwned: true,
+        ...collectibleMetadata,
       };
 
       const newCollectibles = [...collectibles, newEntry];
@@ -1034,6 +1037,41 @@ export class CollectiblesController extends BaseController<
    */
   clearIgnoredCollectibles() {
     this.update({ ignoredCollectibles: [] });
+  }
+
+  /**
+   * Checks whether Collectibles associated with current selectedAddress/chainId combination are still owned by the user
+   * And updates the isCurrentlyOwned value on each accordingly.
+   */
+  async checkAndUpdateCollectiblesOwnershipStatus() {
+    const { allCollectibles } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+    const updatedCollectibles = await Promise.all(
+      collectibles.map(async (collectible) => {
+        const { address, tokenId } = collectible;
+        let isOwned = collectible.isCurrentlyOwned;
+        try {
+          isOwned = await this.isCollectibleOwner(
+            selectedAddress,
+            address,
+            tokenId,
+          );
+        } catch (error) {
+          if (!error.message.includes('Unable to verify ownership')) {
+            throw error;
+          }
+        }
+        collectible.isCurrentlyOwned = isOwned;
+
+        return collectible;
+      }),
+    );
+
+    this.updateNestedCollectibleState(
+      updatedCollectibles,
+      ALL_COLLECTIBLES_STATE_KEY,
+    );
   }
 
   /**

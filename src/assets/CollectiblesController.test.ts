@@ -218,6 +218,7 @@ describe('CollectiblesController', () => {
         tokenId: '1',
         standard: 'standard',
         favorite: false,
+        isCurrentlyOwned: true,
       });
 
       expect(
@@ -256,6 +257,7 @@ describe('CollectiblesController', () => {
         name: 'name',
         tokenId: '1234',
         favorite: false,
+        isCurrentlyOwned: true,
       });
     });
 
@@ -282,6 +284,7 @@ describe('CollectiblesController', () => {
         standard: 'standard',
         tokenId: '1',
         favorite: false,
+        isCurrentlyOwned: true,
       });
 
       await collectiblesController.addCollectible('0x01', '1', {
@@ -304,6 +307,7 @@ describe('CollectiblesController', () => {
         tokenId: '1',
         standard: 'standard',
         favorite: false,
+        isCurrentlyOwned: true,
       });
     });
 
@@ -352,6 +356,7 @@ describe('CollectiblesController', () => {
         standard: 'ERC1155',
         tokenId: '1',
         favorite: false,
+        isCurrentlyOwned: true,
       });
     });
 
@@ -379,6 +384,7 @@ describe('CollectiblesController', () => {
         numberOfSales: 1,
         standard: 'ERC1155',
         favorite: false,
+        isCurrentlyOwned: true,
       });
     });
 
@@ -406,6 +412,7 @@ describe('CollectiblesController', () => {
         imageOriginal: 'Kudos url',
         standard: 'ERC721',
         favorite: false,
+        isCurrentlyOwned: true,
       });
 
       expect(
@@ -445,6 +452,7 @@ describe('CollectiblesController', () => {
         tokenId: '1203',
         standard: 'ERC721',
         favorite: false,
+        isCurrentlyOwned: true,
       });
 
       expect(
@@ -504,6 +512,7 @@ describe('CollectiblesController', () => {
         name: 'name',
         tokenId: '1234',
         favorite: false,
+        isCurrentlyOwned: true,
       });
     });
 
@@ -553,6 +562,7 @@ describe('CollectiblesController', () => {
           standard: 'ERC721',
           tokenId: '1203',
           favorite: false,
+          isCurrentlyOwned: true,
         },
       ]);
 
@@ -650,6 +660,7 @@ describe('CollectiblesController', () => {
         description: 'description',
         standard: 'ERC721',
         favorite: false,
+        isCurrentlyOwned: true,
       });
     });
   });
@@ -683,6 +694,7 @@ describe('CollectiblesController', () => {
         name: 'name',
         tokenId: '1234',
         favorite: false,
+        isCurrentlyOwned: true,
       });
     });
 
@@ -778,6 +790,7 @@ describe('CollectiblesController', () => {
         name: 'name',
         tokenId: '4321',
         favorite: false,
+        isCurrentlyOwned: true,
       });
     });
 
@@ -829,6 +842,7 @@ describe('CollectiblesController', () => {
         name: 'name',
         tokenId: '4321',
         favorite: false,
+        isCurrentlyOwned: true,
       });
     });
   });
@@ -1056,6 +1070,7 @@ describe('CollectiblesController', () => {
           address: ERC721_DEPRESSIONIST_ADDRESS,
           tokenId: ERC721_DEPRESSIONIST_ID,
           favorite: true,
+          isCurrentlyOwned: true,
         }),
       );
 
@@ -1107,12 +1122,97 @@ describe('CollectiblesController', () => {
           address: ERC721_DEPRESSIONIST_ADDRESS,
           tokenId: ERC721_DEPRESSIONIST_ID,
           favorite: false,
+          isCurrentlyOwned: true,
         }),
       );
 
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][chainId],
       ).toHaveLength(1);
+    });
+
+    describe('checkAndUpdateCollectiblesOwnershipStatus', () => {
+      it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and update the isCurrentlyOwned value to false when collectible is not still owned', async () => {
+        sandbox.restore();
+        sandbox
+          .stub(collectiblesController, 'isCollectibleOwner' as any)
+          .returns(false);
+
+        const { selectedAddress, chainId } = collectiblesController.config;
+        await collectiblesController.addCollectible('0x02', '1', {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+        });
+
+        expect(
+          collectiblesController.state.allCollectibles[selectedAddress][
+            chainId
+          ][0].isCurrentlyOwned,
+        ).toBe(true);
+
+        await collectiblesController.checkAndUpdateCollectiblesOwnershipStatus();
+        expect(
+          collectiblesController.state.allCollectibles[selectedAddress][
+            chainId
+          ][0].isCurrentlyOwned,
+        ).toBe(false);
+      });
+    });
+
+    it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave/set the isCurrentlyOwned value to true when collectible is still owned', async () => {
+      const { selectedAddress, chainId } = collectiblesController.config;
+      await collectiblesController.addCollectible('0x02', '1', {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
+      });
+
+      expect(
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0].isCurrentlyOwned,
+      ).toBe(true);
+
+      await collectiblesController.checkAndUpdateCollectiblesOwnershipStatus();
+      expect(
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0].isCurrentlyOwned,
+      ).toBe(true);
+    });
+
+    it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave the isCurrentlyOwned value as is when collectible ownership check fails', async () => {
+      sandbox.restore();
+      sandbox
+        .stub(collectiblesController, 'isCollectibleOwner' as any)
+        .throws(new Error('Unable to verify ownership'));
+
+      const { selectedAddress, chainId } = collectiblesController.config;
+      await collectiblesController.addCollectible('0x02', '1', {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
+      });
+
+      expect(
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0].isCurrentlyOwned,
+      ).toBe(true);
+
+      await collectiblesController.checkAndUpdateCollectiblesOwnershipStatus();
+      expect(
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0].isCurrentlyOwned,
+      ).toBe(true);
     });
   });
 });
