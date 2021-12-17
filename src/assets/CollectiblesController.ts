@@ -1068,19 +1068,10 @@ export class CollectiblesController extends BaseController<
       }),
     );
 
-    const addressCollectibles = allCollectibles[selectedAddress];
-    const newAddressCollectibles = {
-      ...addressCollectibles,
-      ...{ [chainId]: updatedCollectibles },
-    };
-    const newAllCollectiblesState = {
-      ...allCollectibles,
-      ...{ [selectedAddress]: newAddressCollectibles },
-    };
-
-    this.update({
-      allCollectibles: newAllCollectiblesState,
-    });
+    this.updateNestedCollectibleState(
+      updatedCollectibles,
+      ALL_COLLECTIBLES_STATE_KEY,
+    );
   }
 
   /**
