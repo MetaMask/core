@@ -284,6 +284,11 @@ describe('CollectibleDetectionController', () => {
       networkType: MAINNET,
       selectedAddress,
     });
+
+    collectiblesController.configure({
+      networkType: MAINNET,
+      selectedAddress,
+    });
     const { chainId } = collectibleDetection.config;
 
     await collectibleDetection.detectCollectibles();
@@ -497,6 +502,12 @@ describe('CollectibleDetectionController', () => {
       selectedAddress,
       networkType: MAINNET,
     });
+
+    collectiblesController.configure({
+      selectedAddress,
+      networkType: MAINNET,
+    });
+
     const { chainId } = collectibleDetection.config;
     await collectibleDetection.detectCollectibles();
     // First fetch to API, only gets information from contract ending in HH
