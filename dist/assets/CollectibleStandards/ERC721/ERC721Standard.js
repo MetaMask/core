@@ -30,7 +30,7 @@ class ERC721Standard {
          * @returns Promise resolving to whether the contract implements ERC721Enumerable interface.
          */
         this.contractSupportsEnumerableInterface = (contract) => __awaiter(this, void 0, void 0, function* () {
-            return this.contractSupportsInterface(contract, ERC721_ENUMERABLE_INTERFACE_ID);
+            return yield this.contractSupportsInterface(contract, ERC721_ENUMERABLE_INTERFACE_ID);
         });
         /**
          * Enumerate assets assigned to an owner.
@@ -42,16 +42,7 @@ class ERC721Standard {
          */
         this.getCollectibleTokenId = (contract, selectedAddress, index) => __awaiter(this, void 0, void 0, function* () {
             const { tokenOfOwnerByIndex } = contract.methods;
-            return new Promise((resolve, reject) => {
-                tokenOfOwnerByIndex(selectedAddress, index, (error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            return yield tokenOfOwnerByIndex(selectedAddress, index).call();
         });
         /**
          * Query for tokenURI for a given asset.
@@ -66,16 +57,7 @@ class ERC721Standard {
                 throw new Error('Contract does not support ERC721 metadata interface.');
             }
             const { tokenURI } = contract.methods;
-            return new Promise((resolve, reject) => {
-                tokenURI(tokenId, (error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            return yield tokenURI(tokenId).call();
         });
         /**
          * Query for name for a given asset.
@@ -85,16 +67,7 @@ class ERC721Standard {
          */
         this.getAssetName = (contract) => __awaiter(this, void 0, void 0, function* () {
             const { name } = contract.methods;
-            return new Promise((resolve, reject) => {
-                name((error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            return yield name().call();
         });
         /**
          * Query for symbol for a given asset.
@@ -104,16 +77,7 @@ class ERC721Standard {
          */
         this.getAssetSymbol = (contract) => __awaiter(this, void 0, void 0, function* () {
             const { symbol } = contract.methods;
-            return new Promise((resolve, reject) => {
-                symbol((error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            return yield symbol().call();
         });
         /**
          * Query if a contract implements an interface.
@@ -124,16 +88,7 @@ class ERC721Standard {
          */
         this.contractSupportsInterface = (contract, interfaceId) => __awaiter(this, void 0, void 0, function* () {
             const { supportsInterface } = contract.methods;
-            return new Promise((resolve, reject) => {
-                supportsInterface(interfaceId, (error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            return yield supportsInterface(interfaceId).call();
         });
     }
     /**
@@ -146,16 +101,7 @@ class ERC721Standard {
     getOwnerOf(contract, tokenId) {
         return __awaiter(this, void 0, void 0, function* () {
             const { ownerOf } = contract.methods;
-            return new Promise((resolve, reject) => {
-                ownerOf(tokenId, (error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            return yield ownerOf(tokenId).call();
         });
     }
 }

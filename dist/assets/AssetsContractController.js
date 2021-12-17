@@ -69,16 +69,8 @@ class AssetsContractController extends BaseController_1.BaseController {
         return __awaiter(this, void 0, void 0, function* () {
             const contract = new this.web3.eth.Contract(human_standard_token_abi_1.default, address);
             const { balanceOf } = contract.methods;
-            return new Promise((resolve, reject) => {
-                balanceOf(selectedAddress, (error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            const result = yield balanceOf(selectedAddress).call();
+            return this.web3.utils.BN(result);
         });
     }
     /**
@@ -91,16 +83,7 @@ class AssetsContractController extends BaseController_1.BaseController {
         return __awaiter(this, void 0, void 0, function* () {
             const contract = new this.web3.eth.Contract(human_standard_token_abi_1.default, address);
             const { decimals } = contract.methods;
-            return new Promise((resolve, reject) => {
-                decimals((error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            return yield decimals().call();
         });
     }
     /**
@@ -219,27 +202,19 @@ class AssetsContractController extends BaseController_1.BaseController {
     getBalancesInSingleCall(selectedAddress, tokensToDetect) {
         return __awaiter(this, void 0, void 0, function* () {
             const contract = new this.web3.eth.Contract(single_call_balance_checker_abi_1.default, SINGLE_CALL_BALANCES_ADDRESS);
-            return new Promise((resolve, reject) => {
-                contract.balances([selectedAddress], tokensToDetect, (error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    const nonZeroBalances = {};
+            const { balances } = contract.methods;
+            const result = yield balances([selectedAddress], tokensToDetect).call();
+            const nonZeroBalances = {};
+            if (result.length > 0) {
+                tokensToDetect.forEach((tokenAddress, index) => {
+                    const balance = result[index];
                     /* istanbul ignore else */
-                    if (result.length > 0) {
-                        tokensToDetect.forEach((tokenAddress, index) => {
-                            const balance = result[index];
-                            /* istanbul ignore else */
-                            if (!balance.isZero()) {
-                                nonZeroBalances[tokenAddress] = balance;
-                            }
-                        });
+                    if (!this.web3.utils.BN(balance).isZero()) {
+                        nonZeroBalances[tokenAddress] = balance;
                     }
-                    resolve(nonZeroBalances);
                 });
-            });
+            }
+            return nonZeroBalances;
         });
     }
 }

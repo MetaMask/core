@@ -44,6 +44,7 @@ describe('AssetsContractController', () => {
       ERC20_UNI_ADDRESS,
       '0x202637dAAEfbd7f131f90338a4A6c69F6Cd5CE91',
     );
+    console.log(typeof UNIBalance);
     expect(UNIBalance.toNumber()).not.toStrictEqual(0);
     expect(UNINoBalance.toNumber()).toStrictEqual(0);
   });

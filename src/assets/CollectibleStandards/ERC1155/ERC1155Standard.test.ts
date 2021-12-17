@@ -19,7 +19,7 @@ describe('ERC1155Standard', () => {
   });
 
   it('should determine if contract supports URI metadata interface correctly', async () => {
-    const contract = web3.eth.contract(abiERC1155).at(ERC1155_ADDRESS);
+    const contract = new web3.eth.Contract(abiERC1155, ERC1155_ADDRESS);
     const contractSupportsUri = await erc1155Standard.contractSupportsURIMetadataInterface(
       contract,
     );

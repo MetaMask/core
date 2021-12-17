@@ -26,7 +26,7 @@ export class ERC721Standard {
   contractSupportsEnumerableInterface = async (
     contract: any,
   ): Promise<boolean> => {
-    return this.contractSupportsInterface(
+    return await this.contractSupportsInterface(
       contract,
       ERC721_ENUMERABLE_INTERFACE_ID,
     );
@@ -46,20 +46,7 @@ export class ERC721Standard {
     index: number,
   ): Promise<string> => {
     const { tokenOfOwnerByIndex } = contract.methods;
-    return new Promise<string>((resolve, reject) => {
-      tokenOfOwnerByIndex(
-        selectedAddress,
-        index,
-        (error: Error, result: string) => {
-          /* istanbul ignore if */
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve(result);
-        },
-      );
-    });
+    return await tokenOfOwnerByIndex(selectedAddress, index).call();
   };
 
   /**
@@ -80,16 +67,7 @@ export class ERC721Standard {
       throw new Error('Contract does not support ERC721 metadata interface.');
     }
     const { tokenURI } = contract.methods;
-    return new Promise<string>((resolve, reject) => {
-      tokenURI(tokenId, (error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    return await tokenURI(tokenId).call();
   };
 
   /**
@@ -100,16 +78,7 @@ export class ERC721Standard {
    */
   getAssetName = async (contract: any): Promise<string> => {
     const { name } = contract.methods;
-    return new Promise<string>((resolve, reject) => {
-      name((error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    return await name().call();
   };
 
   /**
@@ -120,16 +89,7 @@ export class ERC721Standard {
    */
   getAssetSymbol = async (contract: any): Promise<string> => {
     const { symbol } = contract.methods;
-    return new Promise<string>((resolve, reject) => {
-      symbol((error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    return await symbol().call();
   };
 
   /**
@@ -141,16 +101,7 @@ export class ERC721Standard {
    */
   async getOwnerOf(contract: any, tokenId: string): Promise<string> {
     const { ownerOf } = contract.methods;
-    return new Promise<string>((resolve, reject) => {
-      ownerOf(tokenId, (error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    return await ownerOf(tokenId).call();
   }
 
   /**
@@ -165,15 +116,6 @@ export class ERC721Standard {
     interfaceId: string,
   ): Promise<boolean> => {
     const { supportsInterface } = contract.methods;
-    return new Promise<boolean>((resolve, reject) => {
-      supportsInterface(interfaceId, (error: Error, result: boolean) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    return await supportsInterface(interfaceId).call();
   };
 }

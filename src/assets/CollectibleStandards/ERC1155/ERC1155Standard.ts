@@ -40,16 +40,8 @@ export class ERC1155Standard {
    * @returns Promise resolving to the 'tokenURI'.
    */
   uri = async (contract: any, tokenId: string): Promise<string> => {
-    return new Promise<string>((resolve, reject) => {
-      contract.uri(tokenId, (error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    const { uri } = contract.methods;
+    return await uri(tokenId).call();
   };
 
   /**
@@ -65,16 +57,8 @@ export class ERC1155Standard {
     address: string,
     tokenId: string,
   ): Promise<number> => {
-    return new Promise<number>((resolve, reject) => {
-      contract.balanceOf(address, tokenId, (error: Error, result: number) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    const { balanceOf } = contract.methods;
+    return await balanceOf(address, tokenId).call();
   };
 
   /**
@@ -98,23 +82,8 @@ export class ERC1155Standard {
     id: string,
     value: string,
   ): Promise<void> => {
-    return new Promise<void>((resolve, reject) => {
-      contract.transferSingle(
-        operator,
-        from,
-        to,
-        id,
-        value,
-        (error: Error, result: void) => {
-          /* istanbul ignore if */
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve(result);
-        },
-      );
-    });
+    const { transferSingle } = contract.methods;
+    return await transferSingle(operator, from, to, id, value);
   };
 
   /**
@@ -128,18 +97,7 @@ export class ERC1155Standard {
     contract: any,
     interfaceId: string,
   ): Promise<boolean> => {
-    return new Promise<boolean>((resolve, reject) => {
-      contract.supportsInterface(
-        interfaceId,
-        (error: Error, result: boolean) => {
-          /* istanbul ignore if */
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve(result);
-        },
-      );
-    });
+    const { supportsInterface } = contract.methods;
+    return supportsInterface(interfaceId).call();
   };
 }

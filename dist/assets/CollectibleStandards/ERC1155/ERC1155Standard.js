@@ -40,16 +40,8 @@ class ERC1155Standard {
          * @returns Promise resolving to the 'tokenURI'.
          */
         this.uri = (contract, tokenId) => __awaiter(this, void 0, void 0, function* () {
-            return new Promise((resolve, reject) => {
-                contract.uri(tokenId, (error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            const { uri } = contract.methods;
+            return yield uri(tokenId).call();
         });
         /**
          * Query for balance of a given ERC1155 token.
@@ -60,16 +52,8 @@ class ERC1155Standard {
          * @returns Promise resolving to the 'balanceOf'.
          */
         this.getBalanceOf = (contract, address, tokenId) => __awaiter(this, void 0, void 0, function* () {
-            return new Promise((resolve, reject) => {
-                contract.balanceOf(address, tokenId, (error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            const { balanceOf } = contract.methods;
+            return yield balanceOf(address, tokenId).call();
         });
         /**
          * Transfer single ERC1155 token.
@@ -85,16 +69,8 @@ class ERC1155Standard {
          * @returns Promise resolving to the 'transferSingle'.
          */
         this.transferSingle = (contract, operator, from, to, id, value) => __awaiter(this, void 0, void 0, function* () {
-            return new Promise((resolve, reject) => {
-                contract.transferSingle(operator, from, to, id, value, (error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            const { transferSingle } = contract.methods;
+            return yield transferSingle(operator, from, to, id, value);
         });
         /**
          * Query if a contract implements an interface.
@@ -104,16 +80,8 @@ class ERC1155Standard {
          * @returns Promise resolving to whether the contract implements `interfaceID`.
          */
         this.contractSupportsInterface = (contract, interfaceId) => __awaiter(this, void 0, void 0, function* () {
-            return new Promise((resolve, reject) => {
-                contract.supportsInterface(interfaceId, (error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            const { supportsInterface } = contract.methods;
+            return supportsInterface(interfaceId).call();
         });
     }
 }

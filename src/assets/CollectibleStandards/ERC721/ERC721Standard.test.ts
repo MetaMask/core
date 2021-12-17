@@ -19,11 +19,11 @@ describe('ERC721Standard', () => {
   });
 
   it('should determine if contract supports interface correctly', async () => {
-    const ckContract = web3.eth.contract(abiERC721).at(ERC721_CKADDRESS);
+    const ckContract = new web3.eth.Contract(abiERC721, ERC721_CKADDRESS);
     const CKSupportsEnumerable = await erc721Standard.contractSupportsEnumerableInterface(
       ckContract,
     );
-    const godsContract = web3.eth.contract(abiERC721).at(ERC721_GODSADDRESS);
+    const godsContract = new web3.eth.Contract(abiERC721, ERC721_GODSADDRESS);
     const GODSSupportsEnumerable = await erc721Standard.contractSupportsEnumerableInterface(
       godsContract,
     );
