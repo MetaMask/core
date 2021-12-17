@@ -2,9 +2,7 @@
 import { EventEmitter } from 'events';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
-import type { TransactionController } from '../transaction/TransactionController';
 import type { PreferencesState } from '../user/PreferencesController';
-import type { CollectiblesController } from './CollectiblesController';
 export interface MintingOptions {
     nftType: 'rarible' | 'custom';
 }
@@ -39,11 +37,15 @@ export interface RaribleProps {
     creatorProfitPercentage: number;
     lazy: boolean;
 }
+export interface CollectibleAttribute {
+    name: string;
+    value: string;
+}
 export interface CollectibleMintingMetaData {
     name: string;
     description: string;
     image: string;
-    attributes: any;
+    attributes?: CollectibleAttribute[];
 }
 export interface CollectibleMintingControllerConfig extends BaseConfig {
     networkType: NetworkType;
@@ -85,8 +87,6 @@ export declare class CollectibleMintingController extends BaseController<Collect
      * Name of this controller used during composition
      */
     name: string;
-    private addCollectible;
-    private addTransaction;
     private web3;
     /**
      * Creates the CollectibleMintingController instance.
@@ -94,16 +94,12 @@ export declare class CollectibleMintingController extends BaseController<Collect
      * @param options - The controller options.
      * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
      * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-     * @param options.addCollectible - Allows the controlelr to add a collectible to collectible controller.
-     * @param options.addTransaction - Allows the controler to add a transaction to transaction controller.
      * @param config - Initial options used to configure this controller.
      * @param state - Initial state to set on this controller.
      */
-    constructor({ onPreferencesStateChange, onNetworkStateChange, addCollectible, addTransaction, }: {
+    constructor({ onPreferencesStateChange, onNetworkStateChange, }: {
         onNetworkStateChange: (listener: (networkState: NetworkState) => void) => void;
         onPreferencesStateChange: (listener: (preferencesState: PreferencesState) => void) => void;
-        addCollectible: CollectiblesController['addCollectible'];
-        addTransaction: TransactionController['addTransaction'];
     }, config?: Partial<BaseConfig>, state?: Partial<CollectibleMintingController>);
     /**
      * Sets a new provider.

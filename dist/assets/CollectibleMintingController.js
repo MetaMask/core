@@ -27,12 +27,10 @@ class CollectibleMintingController extends BaseController_1.BaseController {
      * @param options - The controller options.
      * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
      * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-     * @param options.addCollectible - Allows the controlelr to add a collectible to collectible controller.
-     * @param options.addTransaction - Allows the controler to add a transaction to transaction controller.
      * @param config - Initial options used to configure this controller.
      * @param state - Initial state to set on this controller.
      */
-    constructor({ onPreferencesStateChange, onNetworkStateChange, addCollectible, addTransaction, }, config, state) {
+    constructor({ onPreferencesStateChange, onNetworkStateChange, }, config, state) {
         super(config, state);
         /**
          * EventEmitter instance used to listen to specific transactional events
@@ -61,8 +59,6 @@ class CollectibleMintingController extends BaseController_1.BaseController {
         onPreferencesStateChange(({ selectedAddress }) => {
             this.configure({ selectedAddress });
         });
-        this.addCollectible = addCollectible;
-        this.addTransaction = addTransaction;
     }
     // private async deployNewERC721(
     //   smartContractBytecode: any,
@@ -150,9 +146,6 @@ class CollectibleMintingController extends BaseController_1.BaseController {
             else {
                 yield this.customMintWithMMCollection(tokenUri);
             }
-            // REMOVE
-            this.addCollectible('', '');
-            this.addTransaction({});
         });
     }
     /**

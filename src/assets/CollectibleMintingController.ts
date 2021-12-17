@@ -12,9 +12,7 @@ import {
   ERC721_RARIBLE_COLLECTIONS,
 } from '../constants';
 import { handleFetch } from '../util';
-import type { TransactionController } from '../transaction/TransactionController';
 import type { PreferencesState } from '../user/PreferencesController';
-import type { CollectiblesController } from './CollectiblesController';
 
 export interface MintingOptions {
   nftType: 'rarible' | 'custom';
@@ -54,11 +52,16 @@ export interface RaribleProps {
   lazy: boolean;
 }
 
+export interface CollectibleAttribute {
+  name: string;
+  value: string;
+}
+
 export interface CollectibleMintingMetaData {
   name: string;
   description: string;
   image: string;
-  attributes: any;
+  attributes?: CollectibleAttribute[];
 }
 export interface CollectibleMintingControllerConfig extends BaseConfig {
   networkType: NetworkType;
@@ -178,10 +181,6 @@ export class CollectibleMintingController extends BaseController<
     } else {
       await this.customMintWithMMCollection(tokenUri);
     }
-
-    // REMOVE
-    this.addCollectible('', '');
-    this.addTransaction({} as any);
   }
 
   /**
@@ -208,10 +207,6 @@ export class CollectibleMintingController extends BaseController<
    */
   name = 'CollectibleMintingController';
 
-  private addCollectible: CollectiblesController['addCollectible'];
-
-  private addTransaction: TransactionController['addTransaction'];
-
   private web3: any;
 
   /**
@@ -220,8 +215,6 @@ export class CollectibleMintingController extends BaseController<
    * @param options - The controller options.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.addCollectible - Allows the controlelr to add a collectible to collectible controller.
-   * @param options.addTransaction - Allows the controler to add a transaction to transaction controller.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -229,8 +222,6 @@ export class CollectibleMintingController extends BaseController<
     {
       onPreferencesStateChange,
       onNetworkStateChange,
-      addCollectible,
-      addTransaction,
     }: {
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
@@ -238,8 +229,6 @@ export class CollectibleMintingController extends BaseController<
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
-      addCollectible: CollectiblesController['addCollectible'];
-      addTransaction: TransactionController['addTransaction'];
     },
     config?: Partial<BaseConfig>,
     state?: Partial<CollectibleMintingController>,
@@ -266,8 +255,6 @@ export class CollectibleMintingController extends BaseController<
     onPreferencesStateChange(({ selectedAddress }) => {
       this.configure({ selectedAddress });
     });
-    this.addCollectible = addCollectible;
-    this.addTransaction = addTransaction;
   }
 
   /**
