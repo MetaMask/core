@@ -7,19 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [22.1.0]
-### Uncategorized
+### Added
 - Add method to check and update collectible ownership state ([#664](https://github.com/MetaMask/controllers/pull/664))
-- add updateNestedCollectibleState to clean up redundant nested state update logic ([#665](https://github.com/MetaMask/controllers/pull/665))
-- Use stripHexPrefix from ethereumjs-util and ditch ethjs-util ([#663](https://github.com/MetaMask/controllers/pull/663))
-- fix polling initialization for collectibles ([#662](https://github.com/MetaMask/controllers/pull/662))
 - Add finish to EIP-1559 v2 gas estimate code ([#660](https://github.com/MetaMask/controllers/pull/660))
-- Pull in remaining EIP-1559 v2 datapoints ([#646](https://github.com/MetaMask/controllers/pull/646))
-- Refactor EIP-1559 v2 fallback code to ease expansion ([#640](https://github.com/MetaMask/controllers/pull/640))
-- Pull in networkCongestion along with gas estimates ([#632](https://github.com/MetaMask/controllers/pull/632))
+- [FEAT] Favorite Collectibles ([#623](https://github.com/MetaMask/controllers/pull/623))
 - Use eth_feeHistory as a fallback for gas estimates ([#614](https://github.com/MetaMask/controllers/pull/614))
+- Pull in remaining EIP-1559 v2 datapoints ([#646](https://github.com/MetaMask/controllers/pull/646))
+- Pull in networkCongestion along with gas estimates ([#632](https://github.com/MetaMask/controllers/pull/632))
 - Extract determineGasFeeCalculations ([#612](https://github.com/MetaMask/controllers/pull/612))
 - Add caller-specified error for ApprovalController.clear ([#656](https://github.com/MetaMask/controllers/pull/656))
-- [FEAT] Favorite Collectibles ([#623](https://github.com/MetaMask/controllers/pull/623))
+
+### Fixed
+- fix polling initialization for collectibles ([#662](https://github.com/MetaMask/controllers/pull/662))
 
 ## [22.0.0]
 ### Added
