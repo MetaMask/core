@@ -1,3 +1,5 @@
+import { ERC1155_INTERFACE_ID } from '../../../constants';
+
 const ERC1155_METADATA_URI_INTERFACE_ID = '0x0e89341c';
 const ERC1155_TOKEN_RECEIVER_INTERFACE_ID = '0x4e2312e0';
 
@@ -30,6 +32,18 @@ export class ERC1155Standard {
       contract,
       ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
     );
+  };
+
+  /**
+   * Query if contract implements ERC1155 interface.
+   *
+   * @param contract - ERC1155 asset contract.
+   * @returns Promise resolving to whether the contract implements the base ERC1155 interface.
+   */
+  contractSupportsBase1155Interface = async (
+    contract: any,
+  ): Promise<boolean> => {
+    return this.contractSupportsInterface(contract, ERC1155_INTERFACE_ID);
   };
 
   /**

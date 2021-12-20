@@ -1,3 +1,5 @@
+import { ERC721_INTERFACE_ID } from '../../../constants';
+
 const ERC721_METADATA_INTERFACE_ID = '0x5b5e139f';
 const ERC721_ENUMERABLE_INTERFACE_ID = '0x780e9d63';
 
@@ -30,6 +32,18 @@ export class ERC721Standard {
       contract,
       ERC721_ENUMERABLE_INTERFACE_ID,
     );
+  };
+
+  /**
+   * Query if contract implements ERC721 interface.
+   *
+   * @param contract - ERC721 asset contract.
+   * @returns Promise resolving to whether the contract implements ERC721 interface.
+   */
+  contractSupportsBase721Interface = async (
+    contract: any,
+  ): Promise<boolean> => {
+    return this.contractSupportsInterface(contract, ERC721_INTERFACE_ID);
   };
 
   /**

@@ -3,6 +3,7 @@ import Web3 from 'web3';
 import { abiERC1155, abiERC721, abiERC20 } from '@metamask/metamask-eth-abis';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import { ERC1155, ERC20, ERC721 } from '../constants';
 import { ERC721Standard } from './CollectibleStandards/ERC721/ERC721Standard';
 import { ERC1155Standard } from './CollectibleStandards/ERC1155/ERC1155Standard';
 
@@ -139,6 +140,42 @@ export class AssetsContractController extends BaseController<
       selectedAddress,
       index,
     );
+  }
+
+  async getTokenStandard(address: string) {
+    // ERC721
+    try {
+      const erc721Contract = this.web3.eth.contract(abiERC721).at(address);
+      const isERC721 = await this.erc721Standard.contractSupportsBase721Interface(
+        erc721Contract,
+      );
+      return isERC721 && ERC721;
+    } catch {
+      // Ignore
+    }
+
+    // ERC1155
+    try {
+      const erc1155Contract = this.web3.eth.contract(abiERC1155).at(address);
+      const isERC1155 = await this.erc1155Standard.contractSupportsBase1155Interface(
+        erc1155Contract,
+      );
+      return isERC1155 && ERC1155;
+    } catch {
+      // Ignore
+    }
+
+    // ERC20
+    try {
+      const erc20Contract = this.web3.eth.contract(abiERC20).at(address);
+      await erc20Contract.decimals();
+      await erc20Contract.totalSupply();
+      return ERC20;
+    } catch {
+      // Ignore
+    }
+
+    return null;
   }
 
   /**
