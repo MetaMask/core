@@ -102,7 +102,7 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Query for name for a given ERC20 asset.
+   * Query for the decimals for a given ERC20 asset.
    *
    * @param address - ERC20 asset contract address.
    * @returns Promise resolving to the 'decimals'.
@@ -111,6 +111,26 @@ export class AssetsContractController extends BaseController<
     const contract = this.web3.eth.contract(abiERC20).at(address);
     return new Promise<string>((resolve, reject) => {
       contract.decimals((error: Error, result: string) => {
+        /* istanbul ignore if */
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(result);
+      });
+    });
+  }
+
+  /**
+   * Query for symbol for a given ERC20 asset.
+   *
+   * @param address - ERC20 asset contract address.
+   * @returns Promise resolving to the 'symbol'.
+   */
+  async getTokenSymbol(address: string): Promise<string> {
+    const contract = this.web3.eth.contract(abiERC20).at(address);
+    return new Promise<string>((resolve, reject) => {
+      contract.symbol((error: Error, result: string) => {
         /* istanbul ignore if */
         if (error) {
           reject(error);
@@ -142,14 +162,34 @@ export class AssetsContractController extends BaseController<
     );
   }
 
-  async getTokenStandard(address: string) {
+  async getTokenStandardAndDetails(address: string, tokenId?: string) {
     // ERC721
     try {
       const erc721Contract = this.web3.eth.contract(abiERC721).at(address);
       const isERC721 = await this.erc721Standard.contractSupportsBase721Interface(
         erc721Contract,
       );
-      return isERC721 && ERC721;
+      const supportsMetadata = await this.erc721Standard.contractSupportsMetadataInterface(
+        erc721Contract,
+      );
+      let tokenURI, symbol, name;
+      if (supportsMetadata && tokenId) {
+        tokenURI = await this.erc721Standard.getCollectibleTokenURI(
+          erc721Contract,
+          tokenId,
+        );
+        symbol = await this.erc721Standard.getAssetSymbol(erc721Contract);
+        name = await this.erc721Standard.getAssetName(erc721Contract);
+      }
+
+      if (isERC721) {
+        return {
+          standard: ERC721,
+          tokenURI,
+          symbol,
+          name,
+        };
+      }
     } catch {
       // Ignore
     }
@@ -160,22 +200,35 @@ export class AssetsContractController extends BaseController<
       const isERC1155 = await this.erc1155Standard.contractSupportsBase1155Interface(
         erc1155Contract,
       );
-      return isERC1155 && ERC1155;
+      let tokenURI;
+      if (tokenId) {
+        tokenURI = await this.erc1155Standard.uri(erc1155Contract, tokenId);
+      }
+
+      if (isERC1155) {
+        return {
+          standard: ERC1155,
+          tokenURI,
+        };
+      }
     } catch {
       // Ignore
     }
 
     // ERC20
     try {
-      const erc20Contract = this.web3.eth.contract(abiERC20).at(address);
-      await erc20Contract.decimals();
-      await erc20Contract.totalSupply();
-      return ERC20;
+      const decimals = await this.getTokenDecimals(address);
+      const symbol = await this.getTokenSymbol(address);
+      return {
+        standard: ERC20,
+        decimals,
+        symbol,
+      };
     } catch {
       // Ignore
     }
 
-    return null;
+    throw new Error('Unable to determine contract standard');
   }
 
   /**
