@@ -7,19 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [23.0.0]
-### Uncategorized
+### Added
+- **Breaking** Add caller-specified error for ApprovalController.clear ([#656](https://github.com/MetaMask/controllers/pull/656))
+ - The new caller-specified error is mandatory. Consumers must add this error when calling the clear method for method to function properly. 
 - Add method to check and update collectible ownership state ([#664](https://github.com/MetaMask/controllers/pull/664))
-- add updateNestedCollectibleState to clean up redundant nested state update logic ([#665](https://github.com/MetaMask/controllers/pull/665))
-- Use stripHexPrefix from ethereumjs-util and ditch ethjs-util ([#663](https://github.com/MetaMask/controllers/pull/663))
-- fix polling initialization for collectibles ([#662](https://github.com/MetaMask/controllers/pull/662))
-- Add finish to EIP-1559 v2 gas estimate code ([#660](https://github.com/MetaMask/controllers/pull/660))
-- Pull in remaining EIP-1559 v2 datapoints ([#646](https://github.com/MetaMask/controllers/pull/646))
-- Refactor EIP-1559 v2 fallback code to ease expansion ([#640](https://github.com/MetaMask/controllers/pull/640))
-- Pull in networkCongestion along with gas estimates ([#632](https://github.com/MetaMask/controllers/pull/632))
-- Use eth_feeHistory as a fallback for gas estimates ([#614](https://github.com/MetaMask/controllers/pull/614))
-- Extract determineGasFeeCalculations ([#612](https://github.com/MetaMask/controllers/pull/612))
-- Add caller-specified error for ApprovalController.clear ([#656](https://github.com/MetaMask/controllers/pull/656))
-- [FEAT] Favorite Collectibles ([#623](https://github.com/MetaMask/controllers/pull/623))
+- Add method to set a collectible as favorite ([#623](https://github.com/MetaMask/controllers/pull/623))
+- Update GasFeeController to use `eth_feeHistory` to compute gas fee recommendations when MetaSwap API is down ([#614](https://github.com/MetaMask/controllers/pull/614))
+- Update GasFeeController to expose additional data sourced from the MetaSwap API in support of design updates to "edit gas fee" functionality in extension ([#632](https://github.com/MetaMask/controllers/pull/632)), ([#646](https://github.com/MetaMask/controllers/pull/646), [#660](https://github.com/MetaMask/controllers/pull/660))
+
+### Fixed
+- Fix polling initialization for collectibles ([#662](https://github.com/MetaMask/controllers/pull/662))
 
 ## [22.0.0]
 ### Added
