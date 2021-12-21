@@ -18,8 +18,6 @@ declare module 'eth-query';
 
 declare module 'ethjs-provider-http';
 
-declare module 'ethjs-util';
-
 declare module 'ethjs-unit';
 
 declare module 'isomorphic-fetch';

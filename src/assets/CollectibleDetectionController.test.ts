@@ -284,6 +284,11 @@ describe('CollectibleDetectionController', () => {
       networkType: MAINNET,
       selectedAddress,
     });
+
+    collectiblesController.configure({
+      networkType: MAINNET,
+      selectedAddress,
+    });
     const { chainId } = collectibleDetection.config;
 
     await collectibleDetection.detectCollectibles();
@@ -298,6 +303,8 @@ describe('CollectibleDetectionController', () => {
         name: 'ID 2574',
         tokenId: '2574',
         standard: 'ERC721',
+        favorite: false,
+        isCurrentlyOwned: true,
       },
     ]);
   });
@@ -336,6 +343,8 @@ describe('CollectibleDetectionController', () => {
         name: 'ID 2573',
         standard: 'ERC721',
         tokenId: '2573',
+        favorite: false,
+        isCurrentlyOwned: true,
       },
       {
         address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -344,6 +353,8 @@ describe('CollectibleDetectionController', () => {
         name: 'ID 2574',
         tokenId: '2574',
         standard: 'ERC721',
+        favorite: false,
+        isCurrentlyOwned: true,
       },
     ]);
   });
@@ -444,6 +455,8 @@ describe('CollectibleDetectionController', () => {
       name: 'ID 2574',
       tokenId: '2574',
       standard: 'ERC721',
+      favorite: false,
+      isCurrentlyOwned: true,
     };
     const collectibleGG2574 = {
       address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
@@ -452,6 +465,8 @@ describe('CollectibleDetectionController', () => {
       name: 'ID 2574',
       tokenId: '2574',
       standard: 'ERC721',
+      favorite: false,
+      isCurrentlyOwned: true,
     };
     const collectibleII2577 = {
       address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
@@ -460,6 +475,8 @@ describe('CollectibleDetectionController', () => {
       name: 'ID 2577',
       tokenId: '2577',
       standard: 'ERC721',
+      favorite: false,
+      isCurrentlyOwned: true,
     };
     const collectibleContractHH = {
       address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -491,6 +508,12 @@ describe('CollectibleDetectionController', () => {
       selectedAddress,
       networkType: MAINNET,
     });
+
+    collectiblesController.configure({
+      selectedAddress,
+      networkType: MAINNET,
+    });
+
     const { chainId } = collectibleDetection.config;
     await collectibleDetection.detectCollectibles();
     // First fetch to API, only gets information from contract ending in HH

@@ -10,7 +10,7 @@ import {
   handleFetch,
   toChecksumHexAddress,
   BNToHex,
-  getIpfsUrlContentIdentifier,
+  getFormattedIpfsUrl,
 } from '../util';
 import {
   MAINNET,
@@ -46,10 +46,12 @@ import { compareCollectiblesMetadata } from './assetsUtil';
  * @property animationOriginal - URI of the original animation associated with this collectible
  * @property externalLink - External link containing additional information
  * @property creator - The collectible owner information object
+ * @property isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this collectible
  */
 export interface Collectible extends CollectibleMetadata {
   tokenId: string;
   address: string;
+  isCurrentlyOwned?: boolean;
 }
 
 /**
@@ -103,6 +105,7 @@ export interface CollectibleMetadata {
   description: string | null;
   image: string | null;
   standard: string | null;
+  favorite?: boolean;
   numberOfSales?: number;
   backgroundColor?: string;
   imagePreview?: string;
@@ -133,6 +136,7 @@ export interface CollectiblesConfig extends BaseConfig {
   chainId: string;
   ipfsGateway: string;
   openSeaEnabled: boolean;
+  useIPFSSubdomains: boolean;
 }
 
 /**
@@ -152,6 +156,9 @@ export interface CollectiblesState extends BaseState {
   allCollectibles: { [key: string]: { [key: string]: Collectible[] } };
   ignoredCollectibles: Collectible[];
 }
+
+const ALL_COLLECTIBLES_STATE_KEY = 'allCollectibles';
+const ALL_COLLECTIBLES_CONTRACTS_STATE_KEY = 'allCollectibleContracts';
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -180,6 +187,44 @@ export class CollectiblesController extends BaseController<
       default:
         return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
     }
+  }
+
+  /**
+   * Helper method to update nested state for allCollectibles and allCollectibleContracts.
+   *
+   * @param newCollection - the modified piece of state to update in the controller's store
+   * @param baseStateKey - The root key in the store to update.
+   * @param passedConfig - An object containing the selectedAddress and chainId that are passed through the auto-detection flow.
+   * @param passedConfig.selectedAddress - the address passed through the collectible detection flow to ensure detected assets are stored to the correct account
+   * @param passedConfig.chainId - the chainId passed through the collectible detection flow to ensure detected assets are stored to the correct account
+   */
+  private updateNestedCollectibleState(
+    newCollection: Collectible[] | CollectibleContract[],
+    baseStateKey: 'allCollectibles' | 'allCollectibleContracts',
+    passedConfig?: { selectedAddress: string; chainId: string },
+  ) {
+    // We want to use the passedSelectedAddress and passedChainId when defined and not null
+    // these values are passed through the collectible detection flow, meaning they may not
+    // match as the currently configured values (which may be stale for this update)
+    const address =
+      passedConfig?.selectedAddress ?? this.config.selectedAddress;
+    const chain = passedConfig?.chainId ?? this.config.chainId;
+
+    const { [baseStateKey]: oldState } = this.state;
+
+    const addressState = oldState[address];
+    const newAddressState = {
+      ...addressState,
+      ...{ [chain]: newCollection },
+    };
+    const newState = {
+      ...oldState,
+      ...{ [address]: newAddressState },
+    };
+
+    this.update({
+      [baseStateKey]: newState,
+    });
   }
 
   /**
@@ -246,16 +291,6 @@ export class CollectiblesController extends BaseController<
     return collectibleMetadata;
   }
 
-  private getValidIpfsGatewayFormat() {
-    const { ipfsGateway } = this.config;
-    if (ipfsGateway.endsWith('/ipfs/')) {
-      return ipfsGateway;
-    } else if (ipfsGateway.endsWith('/')) {
-      return `${ipfsGateway}ipfs/`;
-    }
-    return `${ipfsGateway}/ipfs/`;
-  }
-
   /**
    * Request individual collectible information from contracts that follows Metadata Interface.
    *
@@ -267,6 +302,7 @@ export class CollectiblesController extends BaseController<
     contractAddress: string,
     tokenId: string,
   ): Promise<CollectibleMetadata> {
+    const { ipfsGateway, useIPFSSubdomains } = this.config;
     const result = await this.getCollectibleURIAndStandard(
       contractAddress,
       tokenId,
@@ -275,8 +311,7 @@ export class CollectiblesController extends BaseController<
     const standard = result[1];
 
     if (tokenURI.startsWith('ipfs://')) {
-      const contentId = getIpfsUrlContentIdentifier(tokenURI);
-      tokenURI = `${this.getValidIpfsGatewayFormat()}${contentId}`;
+      tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIPFSSubdomains);
     }
 
     try {
@@ -291,6 +326,7 @@ export class CollectiblesController extends BaseController<
         name: object.name,
         description: object.description,
         standard,
+        favorite: false,
       };
     } catch {
       return {
@@ -298,6 +334,7 @@ export class CollectiblesController extends BaseController<
         name: null,
         description: null,
         standard: standard || null,
+        favorite: false,
       };
     }
   }
@@ -552,21 +589,18 @@ export class CollectiblesController extends BaseController<
       const newEntry: Collectible = {
         address,
         tokenId,
+        favorite: existingEntry?.favorite || false,
+        isCurrentlyOwned: true,
         ...collectibleMetadata,
       };
+
       const newCollectibles = [...collectibles, newEntry];
-      const addressCollectibles = allCollectibles[selectedAddress];
-      const newAddressCollectibles = {
-        ...addressCollectibles,
-        ...{ [chainId]: newCollectibles },
-      };
-      const newAllCollectibles = {
-        ...allCollectibles,
-        ...{ [selectedAddress]: newAddressCollectibles },
-      };
-      this.update({
-        allCollectibles: newAllCollectibles,
-      });
+      this.updateNestedCollectibleState(
+        newCollectibles,
+        ALL_COLLECTIBLES_STATE_KEY,
+        { chainId, selectedAddress },
+      );
+
       return newCollectibles;
     } finally {
       releaseLock();
@@ -649,19 +683,12 @@ export class CollectiblesController extends BaseController<
       );
 
       const newCollectibleContracts = [...collectibleContracts, newEntry];
-      const addressCollectibleContracts =
-        allCollectibleContracts[selectedAddress];
-      const newAddressCollectibleContracts = {
-        ...addressCollectibleContracts,
-        ...{ [chainId]: newCollectibleContracts },
-      };
-      const newAllCollectibleContracts = {
-        ...allCollectibleContracts,
-        ...{ [selectedAddress]: newAddressCollectibleContracts },
-      };
-      this.update({
-        allCollectibleContracts: newAllCollectibleContracts,
-      });
+      this.updateNestedCollectibleState(
+        newCollectibleContracts,
+        ALL_COLLECTIBLES_CONTRACTS_STATE_KEY,
+        { chainId, selectedAddress },
+      );
+
       return newCollectibleContracts;
     } finally {
       releaseLock();
@@ -696,17 +723,13 @@ export class CollectiblesController extends BaseController<
       }
       return true;
     });
-    const addressCollectibles = allCollectibles[selectedAddress];
-    const newAddressCollectibles = {
-      ...addressCollectibles,
-      ...{ [chainId]: newCollectibles },
-    };
-    const newAllCollectibles = {
-      ...allCollectibles,
-      ...{ [selectedAddress]: newAddressCollectibles },
-    };
+
+    this.updateNestedCollectibleState(
+      newCollectibles,
+      ALL_COLLECTIBLES_STATE_KEY,
+    );
+
     this.update({
-      allCollectibles: newAllCollectibles,
       ignoredCollectibles: newIgnoredCollectibles,
     });
   }
@@ -729,18 +752,10 @@ export class CollectiblesController extends BaseController<
           collectible.tokenId === tokenId
         ),
     );
-    const addressCollectibles = allCollectibles[selectedAddress];
-    const newAddressCollectibles = {
-      ...addressCollectibles,
-      ...{ [chainId]: newCollectibles },
-    };
-    const newAllCollectibles = {
-      ...allCollectibles,
-      ...{ [selectedAddress]: newAddressCollectibles },
-    };
-    this.update({
-      allCollectibles: newAllCollectibles,
-    });
+    this.updateNestedCollectibleState(
+      newCollectibles,
+      ALL_COLLECTIBLES_STATE_KEY,
+    );
   }
 
   /**
@@ -760,19 +775,11 @@ export class CollectiblesController extends BaseController<
       (collectibleContract) =>
         !(collectibleContract.address.toLowerCase() === address.toLowerCase()),
     );
-    const addressCollectibleContracts =
-      allCollectibleContracts[selectedAddress];
-    const newAddressCollectibleContracts = {
-      ...addressCollectibleContracts,
-      ...{ [chainId]: newCollectibleContracts },
-    };
-    const newAllCollectibleContracts = {
-      ...allCollectibleContracts,
-      ...{ [selectedAddress]: newAddressCollectibleContracts },
-    };
-    this.update({
-      allCollectibleContracts: newAllCollectibleContracts,
-    });
+    this.updateNestedCollectibleState(
+      newCollectibleContracts,
+      ALL_COLLECTIBLES_CONTRACTS_STATE_KEY,
+    );
+
     return newCollectibleContracts;
   }
 
@@ -852,6 +859,7 @@ export class CollectiblesController extends BaseController<
       chainId: '',
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       openSeaEnabled: false,
+      useIPFSSubdomains: true,
     };
 
     this.defaultState = {
@@ -1029,6 +1037,76 @@ export class CollectiblesController extends BaseController<
    */
   clearIgnoredCollectibles() {
     this.update({ ignoredCollectibles: [] });
+  }
+
+  /**
+   * Checks whether Collectibles associated with current selectedAddress/chainId combination are still owned by the user
+   * And updates the isCurrentlyOwned value on each accordingly.
+   */
+  async checkAndUpdateCollectiblesOwnershipStatus() {
+    const { allCollectibles } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+    const updatedCollectibles = await Promise.all(
+      collectibles.map(async (collectible) => {
+        const { address, tokenId } = collectible;
+        let isOwned = collectible.isCurrentlyOwned;
+        try {
+          isOwned = await this.isCollectibleOwner(
+            selectedAddress,
+            address,
+            tokenId,
+          );
+        } catch (error) {
+          if (!error.message.includes('Unable to verify ownership')) {
+            throw error;
+          }
+        }
+        collectible.isCurrentlyOwned = isOwned;
+
+        return collectible;
+      }),
+    );
+
+    this.updateNestedCollectibleState(
+      updatedCollectibles,
+      ALL_COLLECTIBLES_STATE_KEY,
+    );
+  }
+
+  /**
+   * Update collectible favorite status.
+   *
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - Hex address of the collectible contract.
+   * @param favorite - Collectible new favorite status.
+   */
+  updateCollectibleFavoriteStatus(
+    address: string,
+    tokenId: string,
+    favorite: boolean,
+  ) {
+    const { allCollectibles } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+    const index: number = collectibles.findIndex(
+      (collectible) =>
+        collectible.address === address && collectible.tokenId === tokenId,
+    );
+
+    if (index === -1) {
+      return;
+    }
+
+    const updatedCollectible: Collectible = {
+      ...collectibles[index],
+      favorite,
+    };
+
+    // Update Collectibles array
+    collectibles[index] = updatedCollectible;
+
+    this.updateNestedCollectibleState(collectibles, ALL_COLLECTIBLES_STATE_KEY);
   }
 }
 

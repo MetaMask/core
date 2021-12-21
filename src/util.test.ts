@@ -1,8 +1,6 @@
 import 'isomorphic-fetch';
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
-import HttpProvider from 'ethjs-provider-http';
-import EthQuery from 'eth-query';
 import * as util from './util';
 import {
   Transaction,
@@ -14,58 +12,19 @@ const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
 
-const DEFAULT_IPFS_URL = 'ipfs://0001';
-const ALTERNATIVE_IPFS_URL = 'ipfs://ipfs/0001';
+const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
+const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';
+const IPFS_CID_V0 = 'QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n';
+const IPFS_CID_V1 =
+  'bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku';
+
+const IFPS_GATEWAY = 'dweb.link';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
 const GAS_PRICE = 'gasPrice';
 const FAIL = 'lol';
 const PASS = '0x1';
-
-const mockFlags: { [key: string]: any } = {
-  estimateGas: null,
-  gasPrice: null,
-};
-const PROVIDER = new HttpProvider(
-  'https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
-);
-
-jest.mock('eth-query', () =>
-  jest.fn().mockImplementation(() => {
-    return {
-      estimateGas: (_transaction: any, callback: any) => {
-        callback(undefined, '0x0');
-      },
-      gasPrice: (callback: any) => {
-        if (mockFlags.gasPrice) {
-          callback(new Error(mockFlags.gasPrice));
-          return;
-        }
-        callback(undefined, '0x0');
-      },
-      getBlockByNumber: (
-        _blocknumber: any,
-        _fetchTxs: boolean,
-        callback: any,
-      ) => {
-        callback(undefined, { gasLimit: '0x0' });
-      },
-      getCode: (_to: any, callback: any) => {
-        callback(undefined, '0x0');
-      },
-      getTransactionByHash: (_hash: any, callback: any) => {
-        callback(undefined, { blockNumber: '0x1' });
-      },
-      getTransactionCount: (_from: any, _to: any, callback: any) => {
-        callback(undefined, '0x0');
-      },
-      sendRawTransaction: (_transaction: any, callback: any) => {
-        callback(undefined, '1337');
-      },
-    };
-  }),
-);
 
 describe('util', () => {
   beforeEach(() => {
@@ -99,6 +58,51 @@ describe('util', () => {
 
   it('hexToBN', () => {
     expect(util.hexToBN('0x1337').toNumber()).toBe(4919);
+  });
+
+  describe('fromHex', () => {
+    it('converts a string that represents a number in hexadecimal format with leading "0x" into a BN', () => {
+      expect(util.fromHex('0x1337')).toStrictEqual(new BN(4919));
+    });
+
+    it('converts a string that represents a number in hexadecimal format without leading "0x" into a BN', () => {
+      expect(util.fromHex('1337')).toStrictEqual(new BN(4919));
+    });
+
+    it('does nothing to a BN', () => {
+      const bn = new BN(4919);
+      expect(util.fromHex(bn)).toBe(bn);
+    });
+  });
+
+  describe('toHex', () => {
+    it('converts a BN to a hex string prepended with "0x"', () => {
+      expect(util.toHex(new BN(4919))).toStrictEqual('0x1337');
+    });
+
+    it('parses a string as a number in decimal format and converts it to a hex string prepended with "0x"', () => {
+      expect(util.toHex('4919')).toStrictEqual('0x1337');
+    });
+
+    it('throws an error if given a string with decimals', () => {
+      expect(() => util.toHex('4919.3')).toThrow('Invalid character');
+    });
+
+    it('converts a number to a hex string prepended with "0x"', () => {
+      expect(util.toHex(4919)).toStrictEqual('0x1337');
+    });
+
+    it('throws an error if given a float', () => {
+      expect(() => util.toHex(4919.3)).toThrow('Invalid character');
+    });
+
+    it('does nothing to a string that is already a "0x"-prepended hex value', () => {
+      expect(util.toHex('0x1337')).toStrictEqual('0x1337');
+    });
+
+    it('throws an error if given a non-"0x"-prepended string that is not a valid hex value', () => {
+      expect(() => util.toHex('zzzz')).toThrow('Invalid character');
+    });
   });
 
   it('normalizeTransaction', () => {
@@ -934,18 +938,52 @@ describe('util', () => {
   });
 
   describe('query', () => {
-    it('should query and resolve', async () => {
-      const ethQuery = new EthQuery(PROVIDER);
-      const gasPrice = await util.query(ethQuery, 'gasPrice', []);
-      expect(gasPrice).toStrictEqual('0x0');
+    describe('when the given method exists directly on the EthQuery', () => {
+      it('should call the method on the EthQuery and, if it is successful, return a promise that resolves to the result', async () => {
+        const ethQuery = {
+          getBlockByHash: (blockId: any, cb: any) => cb(null, { id: blockId }),
+        };
+        const result = await util.query(ethQuery, 'getBlockByHash', ['0x1234']);
+        expect(result).toStrictEqual({ id: '0x1234' });
+      });
+
+      it('should call the method on the EthQuery and, if it errors, return a promise that is rejected with the error', async () => {
+        const ethQuery = {
+          getBlockByHash: (_blockId: any, cb: any) =>
+            cb(new Error('uh oh'), null),
+        };
+        await expect(
+          util.query(ethQuery, 'getBlockByHash', ['0x1234']),
+        ).rejects.toThrow('uh oh');
+      });
     });
 
-    it('should query and reject if error', async () => {
-      const ethQuery = new EthQuery(PROVIDER);
-      mockFlags.gasPrice = 'Uh oh';
-      await expect(util.query(ethQuery, 'gasPrice', [])).rejects.toThrow(
-        'Uh oh',
-      );
+    describe('when the given method does not exist directly on the EthQuery', () => {
+      it('should use sendAsync to call the RPC endpoint and, if it is successful, return a promise that resolves to the result', async () => {
+        const ethQuery = {
+          sendAsync: ({ method, params }: any, cb: any) => {
+            if (method === 'eth_getBlockByHash') {
+              return cb(null, { id: params[0] });
+            }
+            throw new Error(`Unsupported method ${method}`);
+          },
+        };
+        const result = await util.query(ethQuery, 'eth_getBlockByHash', [
+          '0x1234',
+        ]);
+        expect(result).toStrictEqual({ id: '0x1234' });
+      });
+
+      it('should use sendAsync to call the RPC endpoint and, if it errors, return a promise that is rejected with the error', async () => {
+        const ethQuery = {
+          sendAsync: (_args: any, cb: any) => {
+            cb(new Error('uh oh'), null);
+          },
+        };
+        await expect(
+          util.query(ethQuery, 'eth_getBlockByHash', ['0x1234']),
+        ).rejects.toThrow('uh oh');
+      });
     });
   });
 
@@ -1068,23 +1106,129 @@ describe('util', () => {
     });
   });
 
-  describe('getIpfsUrlContentIdentifier', () => {
-    it('should return content identifier from default ipfs url', () => {
-      expect(util.getIpfsUrlContentIdentifier(DEFAULT_IPFS_URL)).toStrictEqual(
-        '0001',
-      );
-    });
-
-    it('should return content identifier from alternative ipfs url', () => {
+  describe('getFormattedIpfsUrl', () => {
+    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway without protocol prefix, no path and subdomainSupported argument set to true', () => {
       expect(
-        util.getIpfsUrlContentIdentifier(ALTERNATIVE_IPFS_URL),
-      ).toStrictEqual('0001');
+        util.getFormattedIpfsUrl(
+          IFPS_GATEWAY,
+          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`,
+          true,
+        ),
+      ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
     });
 
-    it('should return url if its not a ipfs standard url', () => {
-      expect(util.getIpfsUrlContentIdentifier(SOME_API)).toStrictEqual(
-        SOME_API,
+    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a cidv0 and no path and subdomainSupported argument set to true', () => {
+      expect(
+        util.getFormattedIpfsUrl(
+          `https://${IFPS_GATEWAY}`,
+          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
+          true,
+        ),
+      ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
+    });
+
+    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a path at the end of the url, and subdomainSupported argument set to true', () => {
+      expect(
+        util.getFormattedIpfsUrl(
+          `https://${IFPS_GATEWAY}`,
+          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
+          true,
+        ),
+      ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}/test`);
+    });
+
+    it('should return a correctly formatted non-subdomained ipfs url when passed ipfsGateway with no "/ipfs/" appended, a path at the end of the url, and subdomainSupported argument set to false', () => {
+      expect(
+        util.getFormattedIpfsUrl(
+          `https://${IFPS_GATEWAY}`,
+          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
+          false,
+        ),
+      ).toStrictEqual(`https://${IFPS_GATEWAY}/ipfs/${IPFS_CID_V1}/test`);
+    });
+
+    it('should return a correctly formatted non-subdomained ipfs url when passed an ipfsGateway with "/ipfs/" appended, a path at the end of the url, subdomainSupported argument set to false', () => {
+      expect(
+        util.getFormattedIpfsUrl(
+          `https://${IFPS_GATEWAY}/ipfs/`,
+          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
+          false,
+        ),
+      ).toStrictEqual(`https://${IFPS_GATEWAY}/ipfs/${IPFS_CID_V1}/test`);
+    });
+  });
+
+  describe('removeIpfsProtocolPrefix', () => {
+    it('should return content identifier and path combined string from default ipfs url format', () => {
+      expect(
+        util.removeIpfsProtocolPrefix(
+          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}/test`,
+        ),
+      ).toStrictEqual(`${IPFS_CID_V0}/test`);
+    });
+
+    it('should return content identifier string from default ipfs url format if no path preset', () => {
+      expect(
+        util.removeIpfsProtocolPrefix(
+          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
+        ),
+      ).toStrictEqual(IPFS_CID_V0);
+    });
+
+    it('should return content identifier string from alternate ipfs url format', () => {
+      expect(
+        util.removeIpfsProtocolPrefix(
+          `${ALTERNATIVE_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
+        ),
+      ).toStrictEqual(IPFS_CID_V0);
+    });
+
+    it('should throw error if passed a non ipfs url', () => {
+      expect(() => util.removeIpfsProtocolPrefix(SOME_API)).toThrow(
+        'this method should not be used with non ipfs urls',
       );
+    });
+  });
+
+  describe('addUrlProtocolPrefix', () => {
+    it('should return a URL with https:// prepended if input URL does not already have it', () => {
+      expect(util.addUrlProtocolPrefix(IFPS_GATEWAY)).toStrictEqual(
+        `https://${IFPS_GATEWAY}`,
+      );
+    });
+
+    it('should return a URL as is if https:// is already prepended', () => {
+      expect(util.addUrlProtocolPrefix(SOME_API)).toStrictEqual(SOME_API);
+    });
+  });
+
+  describe('getIpfsCIDv1AndPath', () => {
+    it('should return content identifier from default ipfs url format', () => {
+      expect(
+        util.getIpfsCIDv1AndPath(`${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`),
+      ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
+    });
+
+    it('should return content identifier from alternative ipfs url format', () => {
+      expect(
+        util.getIpfsCIDv1AndPath(
+          `${ALTERNATIVE_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
+        ),
+      ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
+    });
+
+    it('should return unchanged content identifier if already v1', () => {
+      expect(
+        util.getIpfsCIDv1AndPath(`${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`),
+      ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
+    });
+
+    it('should return a path when url contains one', () => {
+      expect(
+        util.getIpfsCIDv1AndPath(
+          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test/test/test`,
+        ),
+      ).toStrictEqual({ cid: IPFS_CID_V1, path: '/test/test/test' });
     });
   });
 });

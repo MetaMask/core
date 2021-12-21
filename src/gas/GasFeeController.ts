@@ -11,11 +11,13 @@ import type {
   NetworkState,
 } from '../network/NetworkController';
 import {
-  fetchGasEstimates as defaultFetchGasEstimates,
-  fetchEthGasPriceEstimate as defaultFetchEthGasPriceEstimate,
-  fetchLegacyGasPriceEstimates as defaultFetchLegacyGasPriceEstimates,
+  fetchGasEstimates,
+  fetchLegacyGasPriceEstimates,
+  fetchEthGasPriceEstimate,
   calculateTimeEstimate,
 } from './gas-util';
+import determineGasFeeCalculations from './determineGasFeeCalculations';
+import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 
 const GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/';
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
@@ -116,6 +118,8 @@ export type Eip1559GasFee = {
  * @property medium - A GasFee for a recommended combination of tip and maxFee
  * @property high - A GasFee for a high combination of tip and maxFee
  * @property estimatedBaseFee - An estimate of what the base fee will be for the pending/next block. A GWEI dec number
+ * @property networkCongestion - A normalized number that can be used to gauge the congestion
+ * level of the network, with 0 meaning not congested and 1 meaning extremely congested
  */
 
 export type GasFeeEstimates = {
@@ -123,6 +127,12 @@ export type GasFeeEstimates = {
   medium: Eip1559GasFee;
   high: Eip1559GasFee;
   estimatedBaseFee: string;
+  historicalBaseFeeRange: [string, string];
+  baseFeeTrend: 'up' | 'down' | 'level';
+  latestPriorityFeeRange: [string, string];
+  historicalPriorityFeeRange: [string, string];
+  priorityFeeTrend: 'up' | 'down' | 'level';
+  networkCongestion: number;
 };
 
 const metadata = {
@@ -216,12 +226,6 @@ export class GasFeeController extends BaseController<
 
   private EIP1559APIEndpoint: string;
 
-  private fetchGasEstimates;
-
-  private fetchEthGasPriceEstimate;
-
-  private fetchLegacyGasPriceEstimates;
-
   private getCurrentNetworkEIP1559Compatibility;
 
   private getCurrentNetworkLegacyGasAPICompatibility;
@@ -243,12 +247,6 @@ export class GasFeeController extends BaseController<
    * @param options.interval - The time in milliseconds to wait between polls.
    * @param options.messenger - The controller messenger.
    * @param options.state - The initial state.
-   * @param options.fetchGasEstimates - The function to use to fetch gas estimates. This option is
-   * primarily for testing purposes.
-   * @param options.fetchEthGasPriceEstimate - The function to use to fetch gas price estimates.
-   * This option is primarily for testing purposes.
-   * @param options.fetchLegacyGasPriceEstimates - The function to use to fetch legacy gas price
-   * estimates. This option is primarily for testing purposes.
    * @param options.getCurrentNetworkEIP1559Compatibility - Determines whether or not the current
    * network is EIP-1559 compatible.
    * @param options.getCurrentNetworkLegacyGasAPICompatibility - Determines whether or not the
@@ -270,9 +268,6 @@ export class GasFeeController extends BaseController<
     interval = 15000,
     messenger,
     state,
-    fetchGasEstimates = defaultFetchGasEstimates,
-    fetchEthGasPriceEstimate = defaultFetchEthGasPriceEstimate,
-    fetchLegacyGasPriceEstimates = defaultFetchLegacyGasPriceEstimates,
     getCurrentNetworkEIP1559Compatibility,
     getCurrentAccountEIP1559Compatibility,
     getChainId,
@@ -286,9 +281,6 @@ export class GasFeeController extends BaseController<
     interval?: number;
     messenger: GasFeeMessenger;
     state?: GasFeeState;
-    fetchGasEstimates?: typeof defaultFetchGasEstimates;
-    fetchEthGasPriceEstimate?: typeof defaultFetchEthGasPriceEstimate;
-    fetchLegacyGasPriceEstimates?: typeof defaultFetchLegacyGasPriceEstimates;
     getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
     getCurrentNetworkLegacyGasAPICompatibility: () => boolean;
     getCurrentAccountEIP1559Compatibility?: () => boolean;
@@ -306,9 +298,6 @@ export class GasFeeController extends BaseController<
       state: { ...defaultState, ...state },
     });
     this.intervalDelay = interval;
-    this.fetchGasEstimates = fetchGasEstimates;
-    this.fetchEthGasPriceEstimate = fetchEthGasPriceEstimate;
-    this.fetchLegacyGasPriceEstimates = fetchLegacyGasPriceEstimates;
     this.pollTokens = new Set();
     this.getCurrentNetworkEIP1559Compatibility = getCurrentNetworkEIP1559Compatibility;
     this.getCurrentNetworkLegacyGasAPICompatibility = getCurrentNetworkLegacyGasAPICompatibility;
@@ -388,66 +377,36 @@ export class GasFeeController extends BaseController<
       isEIP1559Compatible = false;
     }
 
-    let newState: GasFeeState = {
-      gasFeeEstimates: {},
-      estimatedGasFeeTimeBounds: {},
-      gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
-    };
-
-    try {
-      if (isEIP1559Compatible) {
-        const estimates = await this.fetchGasEstimates(
-          this.EIP1559APIEndpoint.replace('<chain_id>', `${chainId}`),
-          this.clientId,
-        );
-        const {
-          suggestedMaxPriorityFeePerGas,
-          suggestedMaxFeePerGas,
-        } = estimates.medium;
-        const estimatedGasFeeTimeBounds = this.getTimeEstimate(
-          suggestedMaxPriorityFeePerGas,
-          suggestedMaxFeePerGas,
-        );
-        newState = {
-          gasFeeEstimates: estimates,
-          estimatedGasFeeTimeBounds,
-          gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
-        };
-      } else if (isLegacyGasAPICompatible) {
-        const estimates = await this.fetchLegacyGasPriceEstimates(
-          this.legacyAPIEndpoint.replace('<chain_id>', `${chainId}`),
-          this.clientId,
-        );
-        newState = {
-          gasFeeEstimates: estimates,
-          estimatedGasFeeTimeBounds: {},
-          gasEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
-        };
-      } else {
-        throw new Error('Main gas fee/price estimation failed. Use fallback');
-      }
-    } catch {
-      try {
-        const estimates = await this.fetchEthGasPriceEstimate(this.ethQuery);
-        newState = {
-          gasFeeEstimates: estimates,
-          estimatedGasFeeTimeBounds: {},
-          gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
-        };
-      } catch (error) {
-        throw new Error(
-          `Gas fee/price estimation failed. Message: ${error.message}`,
-        );
-      }
-    }
+    const gasFeeCalculations = await determineGasFeeCalculations({
+      isEIP1559Compatible,
+      isLegacyGasAPICompatible,
+      fetchGasEstimates,
+      fetchGasEstimatesUrl: this.EIP1559APIEndpoint.replace(
+        '<chain_id>',
+        `${chainId}`,
+      ),
+      fetchGasEstimatesViaEthFeeHistory,
+      fetchLegacyGasPriceEstimates,
+      fetchLegacyGasPriceEstimatesUrl: this.legacyAPIEndpoint.replace(
+        '<chain_id>',
+        `${chainId}`,
+      ),
+      fetchEthGasPriceEstimate,
+      calculateTimeEstimate,
+      clientId: this.clientId,
+      ethQuery: this.ethQuery,
+    });
 
     if (shouldUpdateState) {
-      this.update(() => {
-        return newState;
+      this.update((state) => {
+        state.gasFeeEstimates = gasFeeCalculations.gasFeeEstimates;
+        state.estimatedGasFeeTimeBounds =
+          gasFeeCalculations.estimatedGasFeeTimeBounds;
+        state.gasEstimateType = gasFeeCalculations.gasEstimateType;
       });
     }
 
-    return newState;
+    return gasFeeCalculations;
   }
 
   /**

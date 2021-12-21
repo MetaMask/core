@@ -3,8 +3,8 @@ import {
   bufferToHex,
   isValidPrivate,
   toBuffer,
+  stripHexPrefix,
 } from 'ethereumjs-util';
-import { stripHexPrefix } from 'ethjs-util';
 import {
   normalize as normalizeAddress,
   signTypedData,

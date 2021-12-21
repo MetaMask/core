@@ -33,12 +33,11 @@ export async function fetchGasEstimates(
   url: string,
   clientId?: string,
 ): Promise<GasFeeEstimates> {
-  const estimates: GasFeeEstimates = await handleFetch(
+  const estimates = await handleFetch(
     url,
     clientId ? { headers: makeClientIdHeader(clientId) } : undefined,
   );
-  const normalizedEstimates: GasFeeEstimates = {
-    estimatedBaseFee: normalizeGWEIDecimalNumbers(estimates.estimatedBaseFee),
+  return {
     low: {
       ...estimates.low,
       suggestedMaxPriorityFeePerGas: normalizeGWEIDecimalNumbers(
@@ -66,8 +65,14 @@ export async function fetchGasEstimates(
         estimates.high.suggestedMaxFeePerGas,
       ),
     },
+    estimatedBaseFee: normalizeGWEIDecimalNumbers(estimates.estimatedBaseFee),
+    historicalBaseFeeRange: estimates.historicalBaseFeeRange,
+    baseFeeTrend: estimates.baseFeeTrend,
+    latestPriorityFeeRange: estimates.latestPriorityFeeRange,
+    historicalPriorityFeeRange: estimates.historicalPriorityFeeRange,
+    priorityFeeTrend: estimates.priorityFeeTrend,
+    networkCongestion: estimates.networkCongestion,
   };
-  return normalizedEstimates;
 }
 
 /**

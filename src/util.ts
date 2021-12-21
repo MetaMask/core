@@ -5,13 +5,14 @@ import {
   bufferToHex,
   BN,
   toChecksumAddress,
+  stripHexPrefix,
 } from 'ethereumjs-util';
-import { stripHexPrefix } from 'ethjs-util';
 import { fromWei, toWei } from 'ethjs-unit';
 import { ethErrors } from 'eth-rpc-errors';
 import ensNamehash from 'eth-ens-namehash';
 import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
 import { validate } from 'jsonschema';
+import { CID } from 'multiformats/cid';
 import {
   Transaction,
   FetchAllOptions,
@@ -259,6 +260,36 @@ export function hexToText(hex: string) {
     /* istanbul ignore next */
     return hex;
   }
+}
+
+/**
+ * Parses a hex string and converts it into a number that can be operated on in a bignum-safe,
+ * base-10 way.
+ *
+ * @param value - A base-16 number encoded as a string.
+ * @returns The number as a BN object in base-16 mode.
+ */
+export function fromHex(value: string | BN): BN {
+  if (BN.isBN(value)) {
+    return value;
+  }
+  return new BN(hexToBN(value).toString(10));
+}
+
+/**
+ * Converts an integer to a hexadecimal representation.
+ *
+ * @param value - An integer, an integer encoded as a base-10 string, or a BN.
+ * @returns The integer encoded as a hex string.
+ */
+export function toHex(value: number | string | BN): string {
+  if (typeof value === 'string' && isHexString(value)) {
+    return value;
+  }
+  const hexString = BN.isBN(value)
+    ? value.toString(16)
+    : new BN(value.toString(), 10).toString(16);
+  return `0x${hexString}`;
 }
 
 /**
@@ -687,13 +718,19 @@ export function query(
   args: any[] = [],
 ): Promise<any> {
   return new Promise((resolve, reject) => {
-    ethQuery[method](...args, (error: Error, result: any) => {
+    const cb = (error: Error, result: any) => {
       if (error) {
         reject(error);
         return;
       }
       resolve(result);
-    });
+    };
+
+    if (typeof ethQuery[method] === 'function') {
+      ethQuery[method](...args, cb);
+    } else {
+      ethQuery.sendAsync({ method, params: args }, cb);
+    }
   });
 }
 
@@ -769,19 +806,79 @@ export function validateMinimumIncrease(proposed: string, min: string) {
 }
 
 /**
- * Extracts content identifier from ipfs url.
+ * Removes IPFS protocol prefix from input string.
  *
- * @param url - Ipfs url.
- * @returns Ipfs content identifier as string.
+ * @param ipfsUrl - An IPFS url (e.g. ipfs://{content id})
+ * @returns IPFS content identifier and (possibly) path in a string
+ * @throws Will throw if the url passed is not IPFS.
  */
-export function getIpfsUrlContentIdentifier(url: string): string {
-  if (url.startsWith('ipfs://ipfs/')) {
-    return url.replace('ipfs://ipfs/', '');
+export function removeIpfsProtocolPrefix(ipfsUrl: string) {
+  if (ipfsUrl.startsWith('ipfs://ipfs/')) {
+    return ipfsUrl.replace('ipfs://ipfs/', '');
+  } else if (ipfsUrl.startsWith('ipfs://')) {
+    return ipfsUrl.replace('ipfs://', '');
   }
+  // this method should not be used with non-ipfs urls (i.e. startsWith('ipfs://') === true)
+  throw new Error('this method should not be used with non ipfs urls');
+}
 
-  if (url.startsWith('ipfs://')) {
-    return url.replace('ipfs://', '');
+/**
+ * Extracts content identifier and path from an input string.
+ *
+ * @param ipfsUrl - An IPFS URL minus the IPFS protocol prefix
+ * @returns IFPS content identifier (cid) and sub path as string.
+ * @throws Will throw if the url passed is not ipfs.
+ */
+export function getIpfsCIDv1AndPath(
+  ipfsUrl: string,
+): { cid: string; path?: string } {
+  const url = removeIpfsProtocolPrefix(ipfsUrl);
+
+  // check if there is a path
+  // (CID is everything preceding first forward slash, path is everything after)
+  const index = url.indexOf('/');
+  const cid = index !== -1 ? url.substring(0, index) : url;
+  const path = index !== -1 ? url.substring(index) : undefined;
+
+  // We want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
+  // because most cid v0s appear to be incompatible with IPFS subdomains
+  return {
+    cid: CID.parse(cid).toV1().toString(),
+    path,
+  };
+}
+
+/**
+ * Adds URL protocol prefix to input URL string if missing.
+ *
+ * @param urlString - An IPFS URL.
+ * @returns A URL with a https:// prepended.
+ */
+export function addUrlProtocolPrefix(urlString: string): string {
+  if (!urlString.match(/(^http:\/\/)|(^https:\/\/)/u)) {
+    return `https://${urlString}`;
   }
+  return urlString;
+}
 
-  return url;
+/**
+ * Formats URL correctly for use retrieving assets hosted on IPFS.
+ *
+ * @param ipfsGateway - The users preferred IPFS gateway (full URL or just host).
+ * @param ipfsUrl - The IFPS URL pointed at the asset.
+ * @param subdomainSupported - Boolean indicating whether the URL should be formatted with subdomains or not.
+ * @returns A formatted URL, with the user's preferred IPFS gateway and format (subdomain or not), pointing to an asset hosted on IPFS.
+ */
+export function getFormattedIpfsUrl(
+  ipfsGateway: string,
+  ipfsUrl: string,
+  subdomainSupported: boolean,
+): string {
+  const { host, protocol, origin } = new URL(addUrlProtocolPrefix(ipfsGateway));
+  if (subdomainSupported) {
+    const { cid, path } = getIpfsCIDv1AndPath(ipfsUrl);
+    return `${protocol}//${cid}.ipfs.${host}${path ?? ''}`;
+  }
+  const cidAndPath = removeIpfsProtocolPrefix(ipfsUrl);
+  return `${origin}/ipfs/${cidAndPath}`;
 }

@@ -1,5 +1,5 @@
 import type { Patch } from 'immer';
-import { ethErrors } from 'eth-rpc-errors';
+import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
 import { nanoid } from 'nanoid';
 
 import { BaseController, Json } from '../BaseControllerV2';
@@ -74,7 +74,7 @@ export type GetApprovalsState = {
 
 export type ClearApprovalRequests = {
   type: `${typeof controllerName}:clearRequests`;
-  handler: () => void;
+  handler: (error: EthereumRpcError<unknown>) => void;
 };
 
 type AddApprovalOptions = {
@@ -402,12 +402,11 @@ export class ApprovalController extends BaseController<
 
   /**
    * Rejects and deletes all approval requests.
+   *
+   * @param rejectionError - The EthereumRpcError to reject the approval
+   * requests with.
    */
-  clear(): void {
-    const rejectionError = ethErrors.rpc.resourceUnavailable(
-      'The request was rejected; please try again.',
-    );
-
+  clear(rejectionError: EthereumRpcError<unknown>): void {
     for (const id of this._approvals.keys()) {
       this.reject(id, rejectionError);
     }
