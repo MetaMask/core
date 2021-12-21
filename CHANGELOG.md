@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.0.0]
+### Added
+- Add method to check and update collectible ownership state ([#664](https://github.com/MetaMask/controllers/pull/664))
+- Add method to set a collectible as favorite ([#623](https://github.com/MetaMask/controllers/pull/623))
+- Update GasFeeController to use `eth_feeHistory` to compute gas fee recommendations when MetaSwap API is down ([#614](https://github.com/MetaMask/controllers/pull/614))
+- Update GasFeeController to expose additional data sourced from the MetaSwap API in support of design updates to "edit gas fee" functionality in extension ([#632](https://github.com/MetaMask/controllers/pull/632)), ([#646](https://github.com/MetaMask/controllers/pull/646), [#660](https://github.com/MetaMask/controllers/pull/660))
+
+### Changed
+- **Breaking** Add caller-specified error for ApprovalController.clear ([#656](https://github.com/MetaMask/controllers/pull/656))
+  - The new caller-specified error is mandatory. Consumers must add this error when calling the clear method for method to function properly. 
+
+### Fixed
+- Fix polling initialization for collectibles ([#662](https://github.com/MetaMask/controllers/pull/662))
+
 ## [22.0.0]
 ### Added
 - **BREAKING**: Change IPFS URL generation to use subdomains and cidV1s over cidV0s, in order to enhance origin based security in our use of IPFS assets ([#655](https://github.com/MetaMask/controllers/pull/655))
@@ -454,7 +468,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/controllers/compare/v22.0.0...v23.0.0
 [22.0.0]: https://github.com/MetaMask/controllers/compare/v21.0.1...v22.0.0
 [21.0.1]: https://github.com/MetaMask/controllers/compare/v21.0.0...v21.0.1
 [21.0.0]: https://github.com/MetaMask/controllers/compare/v20.1.0...v21.0.0
