@@ -55,7 +55,6 @@
     "ethereumjs-wallet": "^1.0.1",
     "ethers": "^5.4.1",
     "ethjs-unit": "^0.1.6",
-    "ethjs-util": "^0.1.6",
     "immer": "^9.0.6",
     "isomorphic-fetch": "^3.0.0",
     "jsonschema": "^1.2.4",
