@@ -22,7 +22,7 @@ const ERC721_DEPRESSIONIST_ADDRESS =
   '0x18E8E76aeB9E2d9FA2A2b88DD9CF3C8ED45c3660';
 const ERC721_DEPRESSIONIST_ID = '36';
 const MAINNET_PROVIDER = new HttpProvider(
-  'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
+  'https://mainnet.infura.io/v3/ad3a368836ff4596becc3be8e2f137ac',
 );
 const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 

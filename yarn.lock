@@ -1102,6 +1102,11 @@
   resolved "https://registry.yarnpkg.com/@metamask/eslint-config/-/eslint-config-9.0.0.tgz#22d4911b705f7e4e566efbdda0e37912da33e30f"
   integrity sha512-mWlLGQKjXXFOj9EtDClKSoTLeQuPW2kM1w3EpUMf4goYAQ+kLXCCa8pEff6h8ApWAnjhYmXydA1znQ2J4XvD+A==
 
+"@metamask/metamask-eth-abis@^2.1.0":
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/@metamask/metamask-eth-abis/-/metamask-eth-abis-2.1.0.tgz#316c2e72373506f1a0120b76e432760a27eb6806"
+  integrity sha512-T8LBEB0PQo0N1tZQKZ2K8BGmv+IDLcXkzt8Pn7x0YnwZD6YpCIvKqYM3iy2fJ6wFXeCvRKqpn4K6EqwnkSJAbQ==
+
 "@metamask/safe-event-emitter@^2.0.0":
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/@metamask/safe-event-emitter/-/safe-event-emitter-2.0.0.tgz#af577b477c683fad17c619a78208cede06f9605c"
@@ -4263,21 +4268,6 @@ human-signals@^2.1.0:
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/human-signals/-/human-signals-2.1.0.tgz#dc91fcba42e4d06e4abaed33b3e7a3c02f514ea0"
   integrity sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw==
-
-human-standard-collectible-abi@^1.0.2:
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/human-standard-collectible-abi/-/human-standard-collectible-abi-1.0.2.tgz#077bae9ed1b0b0b82bc46932104b4b499c941aa0"
-  integrity sha512-nD3ITUuSAIBgkaCm9J2BGwlHL8iEzFjJfTleDAC5Wi8RBJEXXhxV0JeJjd95o+rTwf98uTE5MW+VoBKOIYQh0g==
-
-human-standard-multi-collectible-abi@^1.0.4:
-  version "1.0.4"
-  resolved "https://registry.yarnpkg.com/human-standard-multi-collectible-abi/-/human-standard-multi-collectible-abi-1.0.4.tgz#981625bc1a6bea5fef90567f9e12c11581fac497"
-  integrity sha512-ylR9JDXClDJAxWD/QJxsjXJJdLTUmhipTquMAgrfybXL3qX3x3P/vmKg92A7qFu7SqVOf2hyv5dA8vX0j+0Thg==
-
-human-standard-token-abi@^2.0.0:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/human-standard-token-abi/-/human-standard-token-abi-2.0.0.tgz#e0c2057596d0a1d4a110f91f974a37f4b904f008"
-  integrity sha512-m1f5DiIvqaNmpgphNqx2OziyTCj4Lvmmk28uMSxGWrOc9/lMpAKH8UcMPhvb13DMNZPzxn07WYFhxOGKuPLryg==
 
 iconv-lite@0.4.24:
   version "0.4.24"
