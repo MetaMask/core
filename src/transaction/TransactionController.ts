@@ -1274,7 +1274,7 @@ export class TransactionController extends BaseController<
         'Transaction failed. The transaction was reversed',
       );
       this.failTransaction(metadata, error);
-      return [metadata, false];
+      return [metadata, true];
     }
 
     if (Number(txReceipt.status) === 1) {

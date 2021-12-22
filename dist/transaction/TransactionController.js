@@ -775,7 +775,7 @@ class TransactionController extends BaseController_1.BaseController {
             if (Number(txReceipt.status) === 0) {
                 const error = new Error('Transaction failed. The transaction was reversed');
                 this.failTransaction(metadata, error);
-                return [metadata, false];
+                return [metadata, true];
             }
             if (Number(txReceipt.status) === 1) {
                 metadata.status = TransactionStatus.confirmed;
