@@ -687,7 +687,7 @@ describe('TransactionController', () => {
       );
       controller.state.transactions.push({
         from: MOCK_PRFERENCES.state.selectedAddress,
-        id: 'foo',
+        id: 'foo12',
         networkID: '3',
         chainId: '3',
         status: TransactionStatus.submitted,

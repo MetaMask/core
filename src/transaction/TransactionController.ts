@@ -1246,90 +1246,44 @@ export class TransactionController extends BaseController<
   /**
    * Method to verify the state of a transaction using the Blockchain as a source of truth.
    *
-   * @param meta - The local transaction to verify on the blockchain.
+   * @param metadata - The local transaction to verify on the blockchain.
    * @returns A tuple containing the updated transaction, and whether or not an update was required.
    */
   private async blockchainTransactionStateReconciler(
-    meta: TransactionMeta,
+    metadata: TransactionMeta,
   ): Promise<[TransactionMeta, boolean]> {
-    const { status, transactionHash } = meta;
-    switch (status) {
-      case TransactionStatus.confirmed:
-        const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
-          transactionHash,
-        ]);
-
-        if (!txReceipt) {
-          return [meta, false];
-        }
-
-        meta.verifiedOnBlockchain = true;
-        meta.transaction.gasUsed = txReceipt.gasUsed;
-
-        // According to the Web3 docs:
-        // TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.
-        if (Number(txReceipt.status) === 0) {
-          const error: Error = new Error(
-            'Transaction failed. The transaction was reversed',
-          );
-          this.failTransaction(meta, error);
-          return [meta, false];
-        }
-
-        return [meta, true];
-      case TransactionStatus.submitted:
-        const txObj = await query(this.ethQuery, 'getTransactionByHash', [
-          transactionHash,
-        ]);
-
-        if (!txObj) {
-          const receiptShowsFailedStatus = await this.checkTxReceiptStatusIsFailed(
-            transactionHash,
-          );
-
-          // Case the txObj is evaluated as false, a second check will
-          // determine if the tx failed or it is pending or confirmed
-          if (receiptShowsFailedStatus) {
-            const error: Error = new Error(
-              'Transaction failed. The transaction was dropped or replaced by a new one',
-            );
-            this.failTransaction(meta, error);
-          }
-        }
-
-        /* istanbul ignore next */
-        if (txObj?.blockNumber) {
-          meta.status = TransactionStatus.confirmed;
-          this.hub.emit(`${meta.id}:confirmed`, meta);
-          return [meta, true];
-        }
-
-        return [meta, false];
-      default:
-        return [meta, false];
-    }
-  }
-
-  /**
-   * Method to check if a tx has failed according to their receipt
-   * According to the Web3 docs:
-   * TRUE if the transaction was successful, FALSE if the EVM reverted the transaction.
-   * The receipt is not available for pending transactions and returns null.
-   *
-   * @param txHash - The transaction hash.
-   * @returns Whether the transaction has failed.
-   */
-  private async checkTxReceiptStatusIsFailed(
-    txHash: string | undefined,
-  ): Promise<boolean> {
+    const { transactionHash } = metadata;
+    // According to the Web3 docs:
+    // TRUE if the transaction was successful, FALSE if the EVM reverts the transaction.
     const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
-      txHash,
+      transactionHash,
     ]);
+
     if (!txReceipt) {
-      // Transaction is pending
-      return false;
+      return [metadata, false];
     }
-    return Number(txReceipt.status) === 0;
+
+    metadata.verifiedOnBlockchain = true;
+    metadata.transaction = {
+      ...metadata.transaction,
+      gasUsed: txReceipt.gasUsed,
+    };
+
+    if (Number(txReceipt.status) === 0) {
+      const error: Error = new Error(
+        'Transaction failed. The transaction was reversed',
+      );
+      this.failTransaction(metadata, error);
+      return [metadata, false];
+    }
+
+    if (Number(txReceipt.status) === 1) {
+      metadata.status = TransactionStatus.confirmed;
+      this.hub.emit(`${metadata.id}:confirmed`, metadata);
+      return [metadata, true];
+    }
+
+    return [metadata, false];
   }
 
   /**
