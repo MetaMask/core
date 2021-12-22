@@ -2,6 +2,8 @@
 
 declare module '@metamask/contract-metadata';
 
+declare module '@metamask/metamask-eth-abis';
+
 declare module 'eth-ens-namehash';
 
 declare module 'eth-json-rpc-infura/src/createProvider';
@@ -17,12 +19,6 @@ declare module 'eth-query';
 declare module 'ethjs-provider-http';
 
 declare module 'ethjs-unit';
-
-declare module 'human-standard-collectible-abi';
-
-declare module 'human-standard-multi-collectible-abi'
-
-declare module 'human-standard-token-abi';
 
 declare module 'isomorphic-fetch';
 
