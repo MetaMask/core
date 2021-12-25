@@ -162,7 +162,11 @@ export class AssetsContractController extends BaseController<
     );
   }
 
-  async getTokenStandardAndDetails(address: string, tokenId?: string) {
+  async getTokenStandardAndDetails(
+    address: string,
+    userAddress: string,
+    tokenId?: string,
+  ) {
     // ERC721
     try {
       const erc721Contract = this.web3.eth.contract(abiERC721).at(address);
@@ -188,6 +192,7 @@ export class AssetsContractController extends BaseController<
           tokenURI,
           symbol,
           name,
+          address,
         };
       }
     } catch {
@@ -209,6 +214,7 @@ export class AssetsContractController extends BaseController<
         return {
           standard: ERC1155,
           tokenURI,
+          address,
         };
       }
     } catch {
@@ -219,10 +225,13 @@ export class AssetsContractController extends BaseController<
     try {
       const decimals = await this.getTokenDecimals(address);
       const symbol = await this.getTokenSymbol(address);
+      const balance = await this.getBalanceOf(address, userAddress);
       return {
         standard: ERC20,
         decimals,
         symbol,
+        balance,
+        address,
       };
     } catch {
       // Ignore
