@@ -1040,31 +1040,70 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
+   * Checks whether input collectible is still owned by the user
+   * And updates the isCurrentlyOwned value on the collectible object accordingly.
+   *
+   * @param collectible - The collectible object to check and update.
+   * @param batch - A boolean indicating whether this method is being called as part of a batch or single update.
+   * @returns the collectible with the updated isCurrentlyOwned value
+   */
+  async checkAndUpdateSingleCollectibleOwnershipStatus(
+    collectible: Collectible,
+    batch: boolean,
+  ) {
+    const { allCollectibles } = this.state;
+    const { selectedAddress, chainId } = this.config;
+    const { address, tokenId } = collectible;
+    let isOwned = collectible.isCurrentlyOwned;
+    try {
+      isOwned = await this.isCollectibleOwner(
+        selectedAddress,
+        address,
+        tokenId,
+      );
+    } catch (error) {
+      if (!error.message.includes('Unable to verify ownership')) {
+        throw error;
+      }
+    }
+
+    collectible.isCurrentlyOwned = isOwned;
+
+    if (batch === true) {
+      return collectible;
+    }
+
+    // if this is not part of a batched update we update this one collectible in state
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+    const collectibleToUpdate = collectibles.find(
+      (item) => item.tokenId === tokenId && item.address === address,
+    );
+    if (collectibleToUpdate) {
+      collectibleToUpdate.isCurrentlyOwned = isOwned;
+      this.updateNestedCollectibleState(
+        collectibles,
+        ALL_COLLECTIBLES_STATE_KEY,
+      );
+    }
+    return collectible;
+  }
+
+  /**
    * Checks whether Collectibles associated with current selectedAddress/chainId combination are still owned by the user
    * And updates the isCurrentlyOwned value on each accordingly.
    */
-  async checkAndUpdateCollectiblesOwnershipStatus() {
+  async checkAndUpdateAllCollectiblesOwnershipStatus() {
     const { allCollectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const updatedCollectibles = await Promise.all(
       collectibles.map(async (collectible) => {
-        const { address, tokenId } = collectible;
-        let isOwned = collectible.isCurrentlyOwned;
-        try {
-          isOwned = await this.isCollectibleOwner(
-            selectedAddress,
-            address,
-            tokenId,
-          );
-        } catch (error) {
-          if (!error.message.includes('Unable to verify ownership')) {
-            throw error;
-          }
-        }
-        collectible.isCurrentlyOwned = isOwned;
-
-        return collectible;
+        return (
+          (await this.checkAndUpdateSingleCollectibleOwnershipStatus(
+            collectible,
+            true,
+          )) ?? collectible
+        );
       }),
     );
 

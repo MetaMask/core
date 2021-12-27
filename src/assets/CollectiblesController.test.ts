@@ -1132,11 +1132,66 @@ describe('CollectiblesController', () => {
     });
 
     describe('checkAndUpdateCollectiblesOwnershipStatus', () => {
-      it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and update the isCurrentlyOwned value to false when collectible is not still owned', async () => {
+      describe('checkAndUpdateAllCollectiblesOwnershipStatus', () => {
+        it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and update the isCurrentlyOwned value to false when collectible is not still owned', async () => {
+          sandbox.restore();
+          sandbox
+            .stub(collectiblesController, 'isCollectibleOwner' as any)
+            .returns(false);
+
+          const { selectedAddress, chainId } = collectiblesController.config;
+          await collectiblesController.addCollectible('0x02', '1', {
+            name: 'name',
+            image: 'image',
+            description: 'description',
+            standard: 'standard',
+            favorite: false,
+          });
+
+          expect(
+            collectiblesController.state.allCollectibles[selectedAddress][
+              chainId
+            ][0].isCurrentlyOwned,
+          ).toBe(true);
+
+          await collectiblesController.checkAndUpdateAllCollectiblesOwnershipStatus();
+          expect(
+            collectiblesController.state.allCollectibles[selectedAddress][
+              chainId
+            ][0].isCurrentlyOwned,
+          ).toBe(false);
+        });
+      });
+
+      it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave/set the isCurrentlyOwned value to true when collectible is still owned', async () => {
+        const { selectedAddress, chainId } = collectiblesController.config;
+        await collectiblesController.addCollectible('0x02', '1', {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+        });
+
+        expect(
+          collectiblesController.state.allCollectibles[selectedAddress][
+            chainId
+          ][0].isCurrentlyOwned,
+        ).toBe(true);
+
+        await collectiblesController.checkAndUpdateAllCollectiblesOwnershipStatus();
+        expect(
+          collectiblesController.state.allCollectibles[selectedAddress][
+            chainId
+          ][0].isCurrentlyOwned,
+        ).toBe(true);
+      });
+
+      it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave the isCurrentlyOwned value as is when collectible ownership check fails', async () => {
         sandbox.restore();
         sandbox
           .stub(collectiblesController, 'isCollectibleOwner' as any)
-          .returns(false);
+          .throws(new Error('Unable to verify ownership'));
 
         const { selectedAddress, chainId } = collectiblesController.config;
         await collectiblesController.addCollectible('0x02', '1', {
@@ -1153,66 +1208,99 @@ describe('CollectiblesController', () => {
           ][0].isCurrentlyOwned,
         ).toBe(true);
 
-        await collectiblesController.checkAndUpdateCollectiblesOwnershipStatus();
+        await collectiblesController.checkAndUpdateAllCollectiblesOwnershipStatus();
         expect(
           collectiblesController.state.allCollectibles[selectedAddress][
             chainId
           ][0].isCurrentlyOwned,
-        ).toBe(false);
-      });
-    });
-
-    it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave/set the isCurrentlyOwned value to true when collectible is still owned', async () => {
-      const { selectedAddress, chainId } = collectiblesController.config;
-      await collectiblesController.addCollectible('0x02', '1', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        favorite: false,
+        ).toBe(true);
       });
 
-      expect(
-        collectiblesController.state.allCollectibles[selectedAddress][
-          chainId
-        ][0].isCurrentlyOwned,
-      ).toBe(true);
+      describe('checkAndUpdateSingleCollectibleOwnershipStatus', () => {
+        it('should check whether the passed collectible is still owned by the the current selectedAddress/chainId combination and update its isCurrentlyOwned property in state if batch is false and isCollectibleOwner returns false', async () => {
+          const { selectedAddress, chainId } = collectiblesController.config;
+          const collectible = {
+            address: '0x02',
+            tokenId: '1',
+            name: 'name',
+            image: 'image',
+            description: 'description',
+            standard: 'standard',
+            favorite: false,
+          };
 
-      await collectiblesController.checkAndUpdateCollectiblesOwnershipStatus();
-      expect(
-        collectiblesController.state.allCollectibles[selectedAddress][
-          chainId
-        ][0].isCurrentlyOwned,
-      ).toBe(true);
-    });
+          await collectiblesController.addCollectible(
+            collectible.address,
+            collectible.tokenId,
+            collectible,
+          );
 
-    it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave the isCurrentlyOwned value as is when collectible ownership check fails', async () => {
-      sandbox.restore();
-      sandbox
-        .stub(collectiblesController, 'isCollectibleOwner' as any)
-        .throws(new Error('Unable to verify ownership'));
+          expect(
+            collectiblesController.state.allCollectibles[selectedAddress][
+              chainId
+            ][0].isCurrentlyOwned,
+          ).toBe(true);
 
-      const { selectedAddress, chainId } = collectiblesController.config;
-      await collectiblesController.addCollectible('0x02', '1', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        favorite: false,
+          sandbox.restore();
+          sandbox
+            .stub(collectiblesController, 'isCollectibleOwner' as any)
+            .returns(false);
+
+          await collectiblesController.checkAndUpdateSingleCollectibleOwnershipStatus(
+            collectible,
+            false,
+          );
+
+          expect(
+            collectiblesController.state.allCollectibles[selectedAddress][
+              chainId
+            ][0].isCurrentlyOwned,
+          ).toBe(false);
+        });
       });
 
-      expect(
-        collectiblesController.state.allCollectibles[selectedAddress][
-          chainId
-        ][0].isCurrentlyOwned,
-      ).toBe(true);
+      it('should check whether the passed collectible is still owned by the the current selectedAddress/chainId combination and return the updated collectible object without updating state if batch is true', async () => {
+        const { selectedAddress, chainId } = collectiblesController.config;
+        const collectible = {
+          address: '0x02',
+          tokenId: '1',
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+        };
 
-      await collectiblesController.checkAndUpdateCollectiblesOwnershipStatus();
-      expect(
-        collectiblesController.state.allCollectibles[selectedAddress][
-          chainId
-        ][0].isCurrentlyOwned,
-      ).toBe(true);
+        await collectiblesController.addCollectible(
+          collectible.address,
+          collectible.tokenId,
+          collectible,
+        );
+
+        expect(
+          collectiblesController.state.allCollectibles[selectedAddress][
+            chainId
+          ][0].isCurrentlyOwned,
+        ).toBe(true);
+
+        sandbox.restore();
+        sandbox
+          .stub(collectiblesController, 'isCollectibleOwner' as any)
+          .returns(false);
+
+        const updatedCollectible = await collectiblesController.checkAndUpdateSingleCollectibleOwnershipStatus(
+          collectible,
+          true,
+        );
+
+        expect(
+          collectiblesController.state.allCollectibles[selectedAddress][
+            chainId
+          ][0].isCurrentlyOwned,
+        ).toBe(true);
+
+        expect(updatedCollectible.isCurrentlyOwned).toBe(false);
+      });
     });
   });
 });
