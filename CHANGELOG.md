@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.1.0]
+### Uncategorized
+- add checkAndUpdateSingleCollectibleOwnershipStatus method ([#669](https://github.com/MetaMask/controllers/pull/669))
+- Update ABIs module ([#633](https://github.com/MetaMask/controllers/pull/633))
+
 ## [23.0.0]
 ### Added
 - Add method to check and update collectible ownership state ([#664](https://github.com/MetaMask/controllers/pull/664))
@@ -468,7 +473,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v23.1.0...HEAD
+[23.1.0]: https://github.com/MetaMask/controllers/compare/v23.0.0...v23.1.0
 [23.0.0]: https://github.com/MetaMask/controllers/compare/v22.0.0...v23.0.0
 [22.0.0]: https://github.com/MetaMask/controllers/compare/v21.0.1...v22.0.0
 [21.0.1]: https://github.com/MetaMask/controllers/compare/v21.0.0...v21.0.1
