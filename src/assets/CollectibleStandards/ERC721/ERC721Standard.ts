@@ -1,8 +1,8 @@
-import { ERC721_INTERFACE_ID } from '../../../constants';
-
-const ERC721_METADATA_INTERFACE_ID = '0x5b5e139f';
-const ERC721_ENUMERABLE_INTERFACE_ID = '0x780e9d63';
-
+import {
+  ERC721_INTERFACE_ID,
+  ERC721_METADATA_INTERFACE_ID,
+  ERC721_ENUMERABLE_INTERFACE_ID,
+} from '../../../constants';
 export class ERC721Standard {
   /**
    * Query if contract implements ERC721Metadata interface.

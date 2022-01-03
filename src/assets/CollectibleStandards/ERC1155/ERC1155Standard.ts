@@ -1,7 +1,8 @@
-import { ERC1155_INTERFACE_ID } from '../../../constants';
-
-const ERC1155_METADATA_URI_INTERFACE_ID = '0x0e89341c';
-const ERC1155_TOKEN_RECEIVER_INTERFACE_ID = '0x4e2312e0';
+import {
+  ERC1155_INTERFACE_ID,
+  ERC1155_METADATA_URI_INTERFACE_ID,
+  ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
+} from '../../../constants';
 
 export class ERC1155Standard {
   /**
