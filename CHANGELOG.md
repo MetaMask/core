@@ -7,9 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [23.1.0]
-### Uncategorized
+### Added
 - add checkAndUpdateSingleCollectibleOwnershipStatus method ([#669](https://github.com/MetaMask/controllers/pull/669))
-- Update ABIs module ([#633](https://github.com/MetaMask/controllers/pull/633))
 
 ## [23.0.0]
 ### Added
