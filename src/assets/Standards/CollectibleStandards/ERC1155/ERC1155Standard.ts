@@ -1,8 +1,9 @@
 import {
+  ERC1155,
   ERC1155_INTERFACE_ID,
   ERC1155_METADATA_URI_INTERFACE_ID,
   ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
-} from '../../../constants';
+} from '../../../../constants';
 
 export class ERC1155Standard {
   /**
@@ -156,5 +157,24 @@ export class ERC1155Standard {
         },
       );
     });
+  };
+
+  getDetails = async (erc1155Contract: any, tokenId?: string) => {
+    const isERC1155 = await this.contractSupportsBase1155Interface(
+      erc1155Contract,
+    );
+    let tokenURI;
+    if (tokenId) {
+      tokenURI = await this.uri(erc1155Contract, tokenId);
+    }
+
+    if (isERC1155) {
+      return {
+        standard: ERC1155,
+        tokenURI,
+      };
+    }
+
+    throw new Error("This isn't a valid ERC1155 contract");
   };
 }

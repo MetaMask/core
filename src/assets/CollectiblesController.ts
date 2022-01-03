@@ -352,7 +352,7 @@ export class CollectiblesController extends BaseController<
   ): Promise<[string, string]> {
     // try ERC721 uri
     try {
-      const uri = await this.getCollectibleTokenURI(contractAddress, tokenId);
+      const uri = await this.getERC721TokenURI(contractAddress, tokenId);
       return [uri, ERC721];
     } catch {
       // Ignore error
@@ -360,10 +360,7 @@ export class CollectiblesController extends BaseController<
 
     // try ERC1155 uri
     try {
-      const tokenURI = await this.uriERC1155Collectible(
-        contractAddress,
-        tokenId,
-      );
+      const tokenURI = await this.getERC1155TokenURI(contractAddress, tokenId);
 
       /**
        * According to EIP1155 the URI value allows for ID substitution
@@ -460,8 +457,8 @@ export class CollectiblesController extends BaseController<
       Pick<ApiCollectibleContract, 'address'> &
       Pick<ApiCollectibleContract, 'collection'>
   > {
-    const name = await this.getAssetName(contractAddress);
-    const symbol = await this.getAssetSymbol(contractAddress);
+    const name = await this.getERC721AssetName(contractAddress);
+    const symbol = await this.getERC721AssetSymbol(contractAddress);
     return {
       collection: { name },
       symbol,
@@ -798,17 +795,17 @@ export class CollectiblesController extends BaseController<
    */
   name = 'CollectiblesController';
 
-  private getAssetName: AssetsContractController['getAssetName'];
+  private getERC721AssetName: AssetsContractController['getERC721AssetName'];
 
-  private getAssetSymbol: AssetsContractController['getAssetSymbol'];
+  private getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
 
-  private getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
+  private getERC721TokenURI: AssetsContractController['getERC721TokenURI'];
 
-  private getOwnerOf: AssetsContractController['getOwnerOf'];
+  private getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
 
-  private balanceOfERC1155Collectible: AssetsContractController['balanceOfERC1155Collectible'];
+  private getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
 
-  private uriERC1155Collectible: AssetsContractController['uriERC1155Collectible'];
+  private getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
 
   /**
    * Creates a CollectiblesController instance.
@@ -816,12 +813,12 @@ export class CollectiblesController extends BaseController<
    * @param options - The controller options.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
-   * @param options.getAssetName - Gets the name of the asset at the given address.
-   * @param options.getAssetSymbol - Gets the symbol of the asset at the given address.
-   * @param options.getCollectibleTokenURI - Gets the URI of the ERC721 token at the given address, with the given ID.
-   * @param options.getOwnerOf - Get the owner of a ERC-721 collectible.
-   * @param options.balanceOfERC1155Collectible - Gets balance of a ERC-1155 collectible.
-   * @param options.uriERC1155Collectible - Gets the URI of the ERC1155 token at the given address, with the given ID.
+   * @param options.getERC721AssetName - Gets the name of the asset at the given address.
+   * @param options.getERC721AssetSymbol - Gets the symbol of the asset at the given address.
+   * @param options.getERC721TokenURI - Gets the URI of the ERC721 token at the given address, with the given ID.
+   * @param options.getERC721OwnerOf - Get the owner of a ERC-721 collectible.
+   * @param options.getERC1155BalanceOf - Gets balance of a ERC-1155 collectible.
+   * @param options.getERC1155TokenURI - Gets the URI of the ERC1155 token at the given address, with the given ID.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -829,12 +826,12 @@ export class CollectiblesController extends BaseController<
     {
       onPreferencesStateChange,
       onNetworkStateChange,
-      getAssetName,
-      getAssetSymbol,
-      getCollectibleTokenURI,
-      getOwnerOf,
-      balanceOfERC1155Collectible,
-      uriERC1155Collectible,
+      getERC721AssetName,
+      getERC721AssetSymbol,
+      getERC721TokenURI,
+      getERC721OwnerOf,
+      getERC1155BalanceOf,
+      getERC1155TokenURI,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -842,12 +839,12 @@ export class CollectiblesController extends BaseController<
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
       ) => void;
-      getAssetName: AssetsContractController['getAssetName'];
-      getAssetSymbol: AssetsContractController['getAssetSymbol'];
-      getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
-      getOwnerOf: AssetsContractController['getOwnerOf'];
-      balanceOfERC1155Collectible: AssetsContractController['balanceOfERC1155Collectible'];
-      uriERC1155Collectible: AssetsContractController['uriERC1155Collectible'];
+      getERC721AssetName: AssetsContractController['getERC721AssetName'];
+      getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
+      getERC721TokenURI: AssetsContractController['getERC721TokenURI'];
+      getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
+      getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
+      getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
     },
     config?: Partial<BaseConfig>,
     state?: Partial<CollectiblesState>,
@@ -868,12 +865,12 @@ export class CollectiblesController extends BaseController<
       ignoredCollectibles: [],
     };
     this.initialize();
-    this.getAssetName = getAssetName;
-    this.getAssetSymbol = getAssetSymbol;
-    this.getCollectibleTokenURI = getCollectibleTokenURI;
-    this.getOwnerOf = getOwnerOf;
-    this.balanceOfERC1155Collectible = balanceOfERC1155Collectible;
-    this.uriERC1155Collectible = uriERC1155Collectible;
+    this.getERC721AssetName = getERC721AssetName;
+    this.getERC721AssetSymbol = getERC721AssetSymbol;
+    this.getERC721TokenURI = getERC721TokenURI;
+    this.getERC721OwnerOf = getERC721OwnerOf;
+    this.getERC1155BalanceOf = getERC1155BalanceOf;
+    this.getERC1155TokenURI = getERC1155TokenURI;
     onPreferencesStateChange(
       ({ selectedAddress, ipfsGateway, openSeaEnabled }) => {
         this.configure({ selectedAddress, ipfsGateway, openSeaEnabled });
@@ -910,7 +907,10 @@ export class CollectiblesController extends BaseController<
   ): Promise<boolean> {
     // Checks the ownership for ERC-721.
     try {
-      const owner = await this.getOwnerOf(collectibleAddress, collectibleId);
+      const owner = await this.getERC721OwnerOf(
+        collectibleAddress,
+        collectibleId,
+      );
       return ownerAddress.toLowerCase() === owner.toLowerCase();
       // eslint-disable-next-line no-empty
     } catch {
@@ -919,7 +919,7 @@ export class CollectiblesController extends BaseController<
 
     // Checks the ownership for ERC-1155.
     try {
-      const balance = await this.balanceOfERC1155Collectible(
+      const balance = await this.getERC1155BalanceOf(
         ownerAddress,
         collectibleAddress,
         collectibleId,

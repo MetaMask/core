@@ -3,9 +3,10 @@ import Web3 from 'web3';
 import { abiERC1155, abiERC721, abiERC20 } from '@metamask/metamask-eth-abis';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
-import { ERC1155, ERC20, ERC721 } from '../constants';
-import { ERC721Standard } from './CollectibleStandards/ERC721/ERC721Standard';
-import { ERC1155Standard } from './CollectibleStandards/ERC1155/ERC1155Standard';
+// import { ERC1155, ERC20, ERC721 } from '../constants';
+import { ERC721Standard } from './Standards/CollectibleStandards/ERC721/ERC721Standard';
+import { ERC1155Standard } from './Standards/CollectibleStandards/ERC1155/ERC1155Standard';
+import { ERC20Standard } from './Standards/ERC20Standard';
 
 const SINGLE_CALL_BALANCES_ADDRESS =
   '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39';
@@ -42,6 +43,8 @@ export class AssetsContractController extends BaseController<
   private erc721Standard: ERC721Standard = new ERC721Standard();
 
   private erc1155Standard: ERC1155Standard = new ERC1155Standard();
+
+  private erc20Standard: ERC20Standard = new ERC20Standard();
 
   /**
    * Name of this controller used during composition
@@ -87,18 +90,12 @@ export class AssetsContractController extends BaseController<
    * @param selectedAddress - Current account public address.
    * @returns Promise resolving to BN object containing balance for current account on specific asset contract.
    */
-  async getBalanceOf(address: string, selectedAddress: string): Promise<BN> {
+  async getERC20BalanceOf(
+    address: string,
+    selectedAddress: string,
+  ): Promise<BN> {
     const contract = this.web3.eth.contract(abiERC20).at(address);
-    return new Promise<BN>((resolve, reject) => {
-      contract.balanceOf(selectedAddress, (error: Error, result: BN) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    return this.erc20Standard.getBalanceOf(contract, selectedAddress);
   }
 
   /**
@@ -107,38 +104,9 @@ export class AssetsContractController extends BaseController<
    * @param address - ERC20 asset contract address.
    * @returns Promise resolving to the 'decimals'.
    */
-  async getTokenDecimals(address: string): Promise<string> {
+  async getERC20TokenDecimals(address: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC20).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.decimals((error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
-  }
-
-  /**
-   * Query for symbol for a given ERC20 asset.
-   *
-   * @param address - ERC20 asset contract address.
-   * @returns Promise resolving to the 'symbol'.
-   */
-  async getTokenSymbol(address: string): Promise<string> {
-    const contract = this.web3.eth.contract(abiERC20).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.symbol((error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    return await this.erc20Standard.getTokenDecimals(contract);
   }
 
   /**
@@ -149,7 +117,7 @@ export class AssetsContractController extends BaseController<
    * @param index - A collectible counter less than `balanceOf(selectedAddress)`.
    * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
    */
-  getCollectibleTokenId(
+  getERC721CollectibleTokenId(
     address: string,
     selectedAddress: string,
     index: number,
@@ -170,31 +138,17 @@ export class AssetsContractController extends BaseController<
     // ERC721
     try {
       const erc721Contract = this.web3.eth.contract(abiERC721).at(address);
-      const isERC721 = await this.erc721Standard.contractSupportsBase721Interface(
+      const details = await this.erc721Standard.getDetails(
         erc721Contract,
+        tokenId,
       );
-      const supportsMetadata = await this.erc721Standard.contractSupportsMetadataInterface(
-        erc721Contract,
-      );
-      let tokenURI, symbol, name;
-      if (supportsMetadata && tokenId) {
-        tokenURI = await this.erc721Standard.getCollectibleTokenURI(
-          erc721Contract,
-          tokenId,
-        );
-        symbol = await this.erc721Standard.getAssetSymbol(erc721Contract);
-        name = await this.erc721Standard.getAssetName(erc721Contract);
-      }
-
-      if (isERC721) {
-        return {
-          standard: ERC721,
-          tokenURI,
-          symbol,
-          name,
-          address,
-        };
-      }
+      return {
+        standard: details?.standard,
+        tokenURI: details?.tokenURI,
+        symbol: details?.symbol,
+        name: details?.name,
+        address,
+      };
     } catch {
       // Ignore
     }
@@ -202,35 +156,32 @@ export class AssetsContractController extends BaseController<
     // ERC1155
     try {
       const erc1155Contract = this.web3.eth.contract(abiERC1155).at(address);
-      const isERC1155 = await this.erc1155Standard.contractSupportsBase1155Interface(
+      const details = await this.erc1155Standard.getDetails(
         erc1155Contract,
+        tokenId,
       );
-      let tokenURI;
-      if (tokenId) {
-        tokenURI = await this.erc1155Standard.uri(erc1155Contract, tokenId);
-      }
-
-      if (isERC1155) {
-        return {
-          standard: ERC1155,
-          tokenURI,
-          address,
-        };
-      }
+      return {
+        standard: details?.standard,
+        tokenURI: details?.tokenURI,
+        address,
+      };
     } catch {
       // Ignore
     }
 
     // ERC20
     try {
-      const decimals = await this.getTokenDecimals(address);
-      const symbol = await this.getTokenSymbol(address);
-      const balance = await this.getBalanceOf(address, userAddress);
+      const erc20Contract = this.web3.eth.contract(abiERC20).at(address);
+      const details = await this.erc20Standard.getDetails(
+        erc20Contract,
+        userAddress,
+      );
+
       return {
-        standard: ERC20,
-        decimals,
-        symbol,
-        balance,
+        standard: details?.standard,
+        decimals: details?.decimals,
+        symbol: details?.symbol,
+        balance: details?.balance,
         address,
       };
     } catch {
@@ -241,18 +192,15 @@ export class AssetsContractController extends BaseController<
   }
 
   /**
-   * Query for tokenURI for a given asset.
+   * Query for tokenURI for a given ERC721 asset.
    *
    * @param address - ERC721 asset contract address.
    * @param tokenId - ERC721 asset identifier.
    * @returns Promise resolving to the 'tokenURI'.
    */
-  async getCollectibleTokenURI(
-    address: string,
-    tokenId: string,
-  ): Promise<string> {
+  async getERC721TokenURI(address: string, tokenId: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
-    return this.erc721Standard.getCollectibleTokenURI(contract, tokenId);
+    return this.erc721Standard.getTokenURI(contract, tokenId);
   }
 
   /**
@@ -261,7 +209,7 @@ export class AssetsContractController extends BaseController<
    * @param address - ERC721 or ERC20 asset contract address.
    * @returns Promise resolving to the 'name'.
    */
-  async getAssetName(address: string): Promise<string> {
+  async getERC721AssetName(address: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
     return this.erc721Standard.getAssetName(contract);
   }
@@ -272,7 +220,7 @@ export class AssetsContractController extends BaseController<
    * @param address - ERC721 or ERC20 asset contract address.
    * @returns Promise resolving to the 'symbol'.
    */
-  async getAssetSymbol(address: string): Promise<string> {
+  async getERC721AssetSymbol(address: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
     return this.erc721Standard.getAssetSymbol(contract);
   }
@@ -284,7 +232,7 @@ export class AssetsContractController extends BaseController<
    * @param tokenId - ERC721 asset identifier.
    * @returns Promise resolving to the owner address.
    */
-  async getOwnerOf(address: string, tokenId: string): Promise<string> {
+  async getERC721OwnerOf(address: string, tokenId: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC721).at(address);
     return this.erc721Standard.getOwnerOf(contract, tokenId);
   }
@@ -296,10 +244,7 @@ export class AssetsContractController extends BaseController<
    * @param tokenId - ERC1155 asset identifier.
    * @returns Promise resolving to the 'tokenURI'.
    */
-  async uriERC1155Collectible(
-    address: string,
-    tokenId: string,
-  ): Promise<string> {
+  async getERC1155TokenURI(address: string, tokenId: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC1155).at(address);
     return this.erc1155Standard.uri(contract, tokenId);
   }
@@ -312,7 +257,7 @@ export class AssetsContractController extends BaseController<
    * @param collectibleId - ERC1155 asset identifier.
    * @returns Promise resolving to the 'balanceOf'.
    */
-  async balanceOfERC1155Collectible(
+  async getERC1155BalanceOf(
     userAddress: string,
     collectibleAddress: string,
     collectibleId: string,
@@ -335,7 +280,7 @@ export class AssetsContractController extends BaseController<
    * @param qty - Quantity of tokens to be sent.
    * @returns Promise resolving to the 'transferSingle' ERC1155 token.
    */
-  async transferSingleERC1155Collectible(
+  async transferSingleERC1155(
     collectibleAddress: string,
     senderAddress: string,
     recipientAddress: string,

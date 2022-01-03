@@ -97,22 +97,22 @@ describe('ComposableController', () => {
           preferencesController.subscribe(listener),
         onNetworkStateChange: (listener) =>
           networkController.subscribe(listener),
-        getAssetName: assetContractController.getAssetName.bind(
+        getERC721AssetName: assetContractController.getERC721AssetName.bind(
           assetContractController,
         ),
-        getAssetSymbol: assetContractController.getAssetSymbol.bind(
+        getERC721AssetSymbol: assetContractController.getERC721AssetSymbol.bind(
           assetContractController,
         ),
-        getCollectibleTokenURI: assetContractController.getCollectibleTokenURI.bind(
+        getERC721TokenURI: assetContractController.getERC721TokenURI.bind(
           assetContractController,
         ),
-        getOwnerOf: assetContractController.getOwnerOf.bind(
+        getERC721OwnerOf: assetContractController.getERC721OwnerOf.bind(
           assetContractController,
         ),
-        balanceOfERC1155Collectible: assetContractController.balanceOfERC1155Collectible.bind(
+        getERC1155BalanceOf: assetContractController.getERC1155BalanceOf.bind(
           assetContractController,
         ),
-        uriERC1155Collectible: assetContractController.uriERC1155Collectible.bind(
+        getERC1155TokenURI: assetContractController.getERC1155TokenURI.bind(
           assetContractController,
         ),
       });
@@ -178,22 +178,22 @@ describe('ComposableController', () => {
           preferencesController.subscribe(listener),
         onNetworkStateChange: (listener) =>
           networkController.subscribe(listener),
-        getAssetName: assetContractController.getAssetName.bind(
+        getERC721AssetName: assetContractController.getERC721AssetName.bind(
           assetContractController,
         ),
-        getAssetSymbol: assetContractController.getAssetSymbol.bind(
+        getERC721AssetSymbol: assetContractController.getERC721AssetSymbol.bind(
           assetContractController,
         ),
-        getCollectibleTokenURI: assetContractController.getCollectibleTokenURI.bind(
+        getERC721TokenURI: assetContractController.getERC721TokenURI.bind(
           assetContractController,
         ),
-        getOwnerOf: assetContractController.getOwnerOf.bind(
+        getERC721OwnerOf: assetContractController.getERC721OwnerOf.bind(
           assetContractController,
         ),
-        balanceOfERC1155Collectible: assetContractController.balanceOfERC1155Collectible.bind(
+        getERC1155BalanceOf: assetContractController.getERC1155BalanceOf.bind(
           assetContractController,
         ),
-        uriERC1155Collectible: assetContractController.uriERC1155Collectible.bind(
+        getERC1155TokenURI: assetContractController.getERC1155TokenURI.bind(
           assetContractController,
         ),
       });

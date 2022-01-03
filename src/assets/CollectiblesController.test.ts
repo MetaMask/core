@@ -54,16 +54,18 @@ describe('CollectiblesController', () => {
     collectiblesController = new CollectiblesController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      getAssetName: assetsContract.getAssetName.bind(assetsContract),
-      getAssetSymbol: assetsContract.getAssetSymbol.bind(assetsContract),
-      getCollectibleTokenURI: assetsContract.getCollectibleTokenURI.bind(
+      getERC721AssetName: assetsContract.getERC721AssetName.bind(
         assetsContract,
       ),
-      getOwnerOf: assetsContract.getOwnerOf.bind(assetsContract),
-      balanceOfERC1155Collectible: assetsContract.balanceOfERC1155Collectible.bind(
+      getERC721AssetSymbol: assetsContract.getERC721AssetSymbol.bind(
         assetsContract,
       ),
-      uriERC1155Collectible: assetsContract.uriERC1155Collectible.bind(
+      getERC721TokenURI: assetsContract.getERC721TokenURI.bind(assetsContract),
+      getERC721OwnerOf: assetsContract.getERC721OwnerOf.bind(assetsContract),
+      getERC1155BalanceOf: assetsContract.getERC1155BalanceOf.bind(
+        assetsContract,
+      ),
+      getERC1155TokenURI: assetsContract.getERC1155TokenURI.bind(
         assetsContract,
       ),
     });

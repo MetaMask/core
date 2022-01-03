@@ -2,7 +2,9 @@ import {
   ERC721_INTERFACE_ID,
   ERC721_METADATA_INTERFACE_ID,
   ERC721_ENUMERABLE_INTERFACE_ID,
-} from '../../../constants';
+  ERC721,
+} from '../../../../constants';
+
 export class ERC721Standard {
   /**
    * Query if contract implements ERC721Metadata interface.
@@ -82,10 +84,7 @@ export class ERC721Standard {
    * @param tokenId - ERC721 asset identifier.
    * @returns Promise resolving to the 'tokenURI'.
    */
-  getCollectibleTokenURI = async (
-    contract: any,
-    tokenId: string,
-  ): Promise<string> => {
+  getTokenURI = async (contract: any, tokenId: string): Promise<string> => {
     const supportsMetadata = await this.contractSupportsMetadataInterface(
       contract,
     );
@@ -186,5 +185,30 @@ export class ERC721Standard {
         },
       );
     });
+  };
+
+  getDetails = async (erc721Contract: any, tokenId?: string) => {
+    const [isERC721, supportsMetadata] = await Promise.all([
+      this.contractSupportsBase721Interface(erc721Contract),
+      this.contractSupportsMetadataInterface(erc721Contract),
+    ]);
+    let tokenURI, symbol, name;
+    if (supportsMetadata && tokenId) {
+      [tokenURI, symbol, name] = await Promise.all([
+        this.getTokenURI(erc721Contract, tokenId),
+        this.getAssetSymbol(erc721Contract),
+        this.getAssetName(erc721Contract),
+      ]);
+    }
+
+    if (isERC721) {
+      return {
+        standard: ERC721,
+        tokenURI,
+        symbol,
+        name,
+      };
+    }
+    throw new Error("This isn't a valid ERC721 contract");
   };
 }
