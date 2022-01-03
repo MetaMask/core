@@ -1,6 +1,5 @@
 import Web3 from 'web3';
 import HttpProvider from 'ethjs-provider-http';
-import { abiERC1155 } from '@metamask/metamask-eth-abis';
 
 import { ERC1155Standard } from './ERC1155Standard';
 
@@ -15,14 +14,13 @@ describe('ERC1155Standard', () => {
   let web3: any;
 
   beforeEach(() => {
-    erc1155Standard = new ERC1155Standard();
     web3 = new Web3(MAINNET_PROVIDER);
+    erc1155Standard = new ERC1155Standard(web3);
   });
 
   it('should determine if contract supports URI metadata interface correctly', async () => {
-    const contract = web3.eth.contract(abiERC1155).at(ERC1155_ADDRESS);
     const contractSupportsUri = await erc1155Standard.contractSupportsURIMetadataInterface(
-      contract,
+      ERC1155_ADDRESS,
     );
     expect(contractSupportsUri).toBe(true);
   });

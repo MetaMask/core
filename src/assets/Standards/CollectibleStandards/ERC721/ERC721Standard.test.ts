@@ -1,6 +1,5 @@
 import Web3 from 'web3';
 import HttpProvider from 'ethjs-provider-http';
-import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { ERC721Standard } from './ERC721Standard';
 
 const MAINNET_PROVIDER = new HttpProvider(
@@ -14,18 +13,16 @@ describe('ERC721Standard', () => {
   let web3: any;
 
   beforeEach(() => {
-    erc721Standard = new ERC721Standard();
     web3 = new Web3(MAINNET_PROVIDER);
+    erc721Standard = new ERC721Standard(web3);
   });
 
   it('should determine if contract supports interface correctly', async () => {
-    const ckContract = web3.eth.contract(abiERC721).at(ERC721_CKADDRESS);
     const CKSupportsEnumerable = await erc721Standard.contractSupportsEnumerableInterface(
-      ckContract,
+      ERC721_CKADDRESS,
     );
-    const godsContract = web3.eth.contract(abiERC721).at(ERC721_GODSADDRESS);
     const GODSSupportsEnumerable = await erc721Standard.contractSupportsEnumerableInterface(
-      godsContract,
+      ERC721_GODSADDRESS,
     );
     expect(CKSupportsEnumerable).toBe(false);
     expect(GODSSupportsEnumerable).toBe(true);
