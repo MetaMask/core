@@ -213,12 +213,15 @@ export class ERC721Standard {
       this.contractSupportsMetadataInterface(address),
     ]);
     let tokenURI, symbol, name;
-    if (supportsMetadata && tokenId) {
-      [tokenURI, symbol, name] = await Promise.all([
-        this.getTokenURI(address, tokenId),
+    if (supportsMetadata) {
+      [symbol, name] = await Promise.all([
         this.getAssetSymbol(address),
         this.getAssetName(address),
       ]);
+
+      if (tokenId) {
+        tokenURI = await this.getTokenURI(address, tokenId);
+      }
     }
 
     if (isERC721) {
@@ -229,6 +232,7 @@ export class ERC721Standard {
         name,
       };
     }
+
     throw new Error("This isn't a valid ERC721 contract");
   };
 }
