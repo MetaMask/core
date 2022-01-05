@@ -27,10 +27,11 @@ import {
   replayHistory,
   generateHistoryEntry,
   getStxProcessingTime,
+  handleFetch,
 } from './utils';
 import { CHAIN_IDS } from './constants';
 
-const { handleFetch, safelyExecute } = util;
+const { safelyExecute } = util;
 
 // TODO: JSDoc all methods
 // TODO: Remove all comments (* ! ?)

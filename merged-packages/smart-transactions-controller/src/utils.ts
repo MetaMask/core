@@ -149,3 +149,20 @@ export const getStxProcessingTime = (
   }
   return Math.round((Date.now() - smartTransactionSubmittedtime) / 1000);
 };
+
+export async function handleFetch(request: string, options?: RequestInit) {
+  const response = await fetch(request, options);
+  const json = await response.json();
+  if (!response.ok) {
+    const { error: type, error_details: message } = json;
+    console.log(`response`, response);
+    throw new Error(
+      `Fetch error:${JSON.stringify({
+        status: response.status,
+        type,
+        message,
+      })}`,
+    );
+  }
+  return json;
+}
