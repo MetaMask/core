@@ -14,10 +14,8 @@ const ERC1155_ID =
 
 const TEST_ACCOUNT_PUBLIC_ADDRESS =
   '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
-
 describe('AssetsContractController', () => {
   let assetsContract: AssetsContractController;
-
   beforeEach(() => {
     assetsContract = new AssetsContractController();
   });
