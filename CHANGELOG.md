@@ -6,9 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [23.1.0]
+## [24.0.0]
 ### Added
-- add checkAndUpdateSingleCollectibleOwnershipStatus method ([#669](https://github.com/MetaMask/controllers/pull/669))
+- Add `checkAndUpdateSingleCollectibleOwnershipStatus` method ([#669](https://github.com/MetaMask/controllers/pull/669))
+
+### Changed
+- - **BREAKING**:  Rename `checkAndUpdateCollectibleOwnershipStatus` to `checkAndUpdateAllCollectibleOwnershipStatus`  ([#669](https://github.com/MetaMask/controllers/pull/669))
+  - Previously incorrectly released as minor version bump 23.1.0.
+  - Consumers who used `checkAndUpdateCollectibleOwnershipStatus` must update it's name to `checkAndUpdateAllCollectibleOwnershipStatus`.
+
+## [23.1.0] [DEPRECATED]
+### Added
+- Add checkAndUpdateSingleCollectibleOwnershipStatus method ([#669](https://github.com/MetaMask/controllers/pull/669))
 
 ## [23.0.0]
 ### Added
@@ -472,7 +481,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v23.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/controllers/compare/v23.1.0...v24.0.0
 [23.1.0]: https://github.com/MetaMask/controllers/compare/v23.0.0...v23.1.0
 [23.0.0]: https://github.com/MetaMask/controllers/compare/v22.0.0...v23.0.0
 [22.0.0]: https://github.com/MetaMask/controllers/compare/v21.0.1...v22.0.0
