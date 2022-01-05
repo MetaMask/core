@@ -8,9 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [24.0.0]
 ### Added
-- **Breaking** Adds checkAndUpdateSingleCollectibleOwnershipStatus method and changes method previously named checkAndUpdateCollectibleOwnershipStatus to checkAndUpdateAllCollectibleOwnershipStatus  ([#669](https://github.com/MetaMask/controllers/pull/669))
+- Add `checkAndUpdateSingleCollectibleOwnershipStatus` method ([#669](https://github.com/MetaMask/controllers/pull/669))
+
+### Changed
+- - **BREAKING**:  Rename `checkAndUpdateCollectibleOwnershipStatus` to `checkAndUpdateAllCollectibleOwnershipStatus`  ([#669](https://github.com/MetaMask/controllers/pull/669))
   - Previously incorrectly released as minor version bump 23.1.0.
-  - Consumers who consumed checkAndUpdateCollectibleOwnershipStatus must update it's name to checkAndUpdateAllCollectibleOwnershipStatus.
+  - Consumers who used `checkAndUpdateCollectibleOwnershipStatus` must update it's name to `checkAndUpdateAllCollectibleOwnershipStatus`.
 
 ## [23.1.0] [DEPRECATED]
 ### Added
