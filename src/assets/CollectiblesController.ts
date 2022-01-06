@@ -118,7 +118,7 @@ export interface CollectibleMetadata {
   lastSale?: ApiCollectibleLastSale;
 }
 
-interface DetectionParams {
+interface AccountParams {
   userAddress: string;
   chainId: string;
 }
@@ -201,13 +201,12 @@ export class CollectiblesController extends BaseController<
   private updateNestedCollectibleState(
     newCollection: Collectible[] | CollectibleContract[],
     baseStateKey: 'allCollectibles' | 'allCollectibleContracts',
-    passedConfig?: { selectedAddress: string; chainId: string },
+    passedConfig?: AccountParams,
   ) {
     // We want to use the passedSelectedAddress and passedChainId when defined and not null
     // these values are passed through the collectible detection flow, meaning they may not
     // match as the currently configured values (which may be stale for this update)
-    const address =
-      passedConfig?.selectedAddress ?? this.config.selectedAddress;
+    const address = passedConfig?.userAddress ?? this.config.selectedAddress;
     const chain = passedConfig?.chainId ?? this.config.chainId;
 
     const { [baseStateKey]: oldState } = this.state;
@@ -540,7 +539,7 @@ export class CollectiblesController extends BaseController<
     address: string,
     tokenId: string,
     collectibleMetadata: CollectibleMetadata,
-    detection?: DetectionParams,
+    detection?: AccountParams,
   ): Promise<Collectible[]> {
     // TODO: Remove unused return
     const releaseLock = await this.mutex.acquire();
@@ -598,7 +597,7 @@ export class CollectiblesController extends BaseController<
       this.updateNestedCollectibleState(
         newCollectibles,
         ALL_COLLECTIBLES_STATE_KEY,
-        { chainId, selectedAddress },
+        { chainId, userAddress: selectedAddress },
       );
 
       return newCollectibles;
@@ -616,7 +615,7 @@ export class CollectiblesController extends BaseController<
    */
   private async addCollectibleContract(
     address: string,
-    detection?: DetectionParams,
+    detection?: AccountParams,
   ): Promise<CollectibleContract[]> {
     const releaseLock = await this.mutex.acquire();
     try {
@@ -686,7 +685,7 @@ export class CollectiblesController extends BaseController<
       this.updateNestedCollectibleState(
         newCollectibleContracts,
         ALL_COLLECTIBLES_CONTRACTS_STATE_KEY,
-        { chainId, selectedAddress },
+        { chainId, userAddress: selectedAddress },
       );
 
       return newCollectibleContracts;
@@ -963,7 +962,7 @@ export class CollectiblesController extends BaseController<
     address: string,
     tokenId: string,
     collectibleMetadata?: CollectibleMetadata,
-    detection?: DetectionParams,
+    detection?: AccountParams,
   ) {
     address = toChecksumHexAddress(address);
     const newCollectibleContracts = await this.addCollectibleContract(
@@ -1045,14 +1044,25 @@ export class CollectiblesController extends BaseController<
    *
    * @param collectible - The collectible object to check and update.
    * @param batch - A boolean indicating whether this method is being called as part of a batch or single update.
+   * @param accountParams - (optional) - The userAddress and chainId to check ownership against
    * @returns the collectible with the updated isCurrentlyOwned value
    */
   async checkAndUpdateSingleCollectibleOwnershipStatus(
     collectible: Collectible,
     batch: boolean,
+    accountParams?: AccountParams,
   ) {
     const { allCollectibles } = this.state;
-    const { selectedAddress, chainId } = this.config;
+
+    let selectedAddress, chainId;
+    // if accountParams is defined we use those values for address and chainId
+    // if not we use the currently configured values for address and chainId
+    if (accountParams) {
+      selectedAddress = accountParams.userAddress;
+      chainId = accountParams.chainId;
+    } else {
+      ({ selectedAddress, chainId } = this.config);
+    }
     const { address, tokenId } = collectible;
     let isOwned = collectible.isCurrentlyOwned;
     try {
@@ -1076,13 +1086,16 @@ export class CollectiblesController extends BaseController<
     // if this is not part of a batched update we update this one collectible in state
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const collectibleToUpdate = collectibles.find(
-      (item) => item.tokenId === tokenId && item.address === address,
+      (item) =>
+        item.tokenId === tokenId &&
+        item.address.toLowerCase() === address.toLowerCase(),
     );
     if (collectibleToUpdate) {
       collectibleToUpdate.isCurrentlyOwned = isOwned;
       this.updateNestedCollectibleState(
         collectibles,
         ALL_COLLECTIBLES_STATE_KEY,
+        accountParams,
       );
     }
     return collectible;
