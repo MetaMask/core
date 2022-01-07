@@ -9,6 +9,9 @@ import { ERC20Standard } from './Standards/ERC20Standard';
 const SINGLE_CALL_BALANCES_ADDRESS =
   '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39';
 
+const MISSING_PROVIDER_ERROR =
+  'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';
+
 /**
  * @type AssetsContractConfig
  *
@@ -38,11 +41,11 @@ export class AssetsContractController extends BaseController<
 > {
   private web3: any;
 
-  private erc721Standard: ERC721Standard = new ERC721Standard();
+  private erc721Standard?: ERC721Standard;
 
-  private erc1155Standard: ERC1155Standard = new ERC1155Standard();
+  private erc1155Standard?: ERC1155Standard;
 
-  private erc20Standard: ERC20Standard = new ERC20Standard();
+  private erc20Standard?: ERC20Standard;
 
   /**
    * Name of this controller used during composition
@@ -95,6 +98,9 @@ export class AssetsContractController extends BaseController<
     address: string,
     selectedAddress: string,
   ): Promise<BN> {
+    if (!this.erc20Standard) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
     return this.erc20Standard.getBalanceOf(address, selectedAddress);
   }
 
@@ -105,6 +111,9 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the 'decimals'.
    */
   async getERC20TokenDecimals(address: string): Promise<string> {
+    if (this.erc20Standard === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
     return await this.erc20Standard.getTokenDecimals(address);
   }
 
@@ -121,6 +130,9 @@ export class AssetsContractController extends BaseController<
     selectedAddress: string,
     index: number,
   ): Promise<string> {
+    if (this.erc721Standard === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
     return this.erc721Standard.getCollectibleTokenId(
       address,
       selectedAddress,
@@ -148,6 +160,14 @@ export class AssetsContractController extends BaseController<
     decimals?: string | undefined;
     balance?: BN | undefined;
   }> {
+    if (
+      this.erc721Standard === undefined ||
+      this.erc1155Standard === undefined ||
+      this.erc20Standard === undefined
+    ) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
+
     // ERC721
     try {
       return {
@@ -186,6 +206,9 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the 'tokenURI'.
    */
   async getERC721TokenURI(address: string, tokenId: string): Promise<string> {
+    if (this.erc721Standard === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
     return this.erc721Standard.getTokenURI(address, tokenId);
   }
 
@@ -196,6 +219,9 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the 'name'.
    */
   async getERC721AssetName(address: string): Promise<string> {
+    if (this.erc721Standard === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
     return this.erc721Standard.getAssetName(address);
   }
 
@@ -206,6 +232,9 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the 'symbol'.
    */
   async getERC721AssetSymbol(address: string): Promise<string> {
+    if (this.erc721Standard === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
     return this.erc721Standard.getAssetSymbol(address);
   }
 
@@ -217,6 +246,9 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the owner address.
    */
   async getERC721OwnerOf(address: string, tokenId: string): Promise<string> {
+    if (this.erc721Standard === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
     return this.erc721Standard.getOwnerOf(address, tokenId);
   }
 
@@ -228,6 +260,9 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the 'tokenURI'.
    */
   async getERC1155TokenURI(address: string, tokenId: string): Promise<string> {
+    if (this.erc1155Standard === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
     return this.erc1155Standard.getTokenURI(address, tokenId);
   }
 
@@ -244,6 +279,9 @@ export class AssetsContractController extends BaseController<
     collectibleAddress: string,
     collectibleId: string,
   ): Promise<number> {
+    if (this.erc1155Standard === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
     return await this.erc1155Standard.getBalanceOf(
       collectibleAddress,
       userAddress,
@@ -268,6 +306,9 @@ export class AssetsContractController extends BaseController<
     collectibleId: string,
     qty: string,
   ): Promise<void> {
+    if (this.erc1155Standard === undefined) {
+      throw new Error(MISSING_PROVIDER_ERROR);
+    }
     return await this.erc1155Standard.transferSingle(
       collectibleAddress,
       senderAddress,

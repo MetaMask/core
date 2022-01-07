@@ -1,8 +1,7 @@
 import { abiERC20, abiERC1155, abiERC721 } from '@metamask/metamask-eth-abis';
 
-type Address = `0x${string}`;
 type Contract = {
-  at: Address;
+  at(address: string): any;
 };
 
 export type Web3 = {
