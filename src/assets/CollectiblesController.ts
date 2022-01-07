@@ -118,7 +118,7 @@ export interface CollectibleMetadata {
   lastSale?: ApiCollectibleLastSale;
 }
 
-interface DetectionParams {
+interface AccountParams {
   userAddress: string;
   chainId: string;
 }
@@ -195,31 +195,27 @@ export class CollectiblesController extends BaseController<
    * @param newCollection - the modified piece of state to update in the controller's store
    * @param baseStateKey - The root key in the store to update.
    * @param passedConfig - An object containing the selectedAddress and chainId that are passed through the auto-detection flow.
-   * @param passedConfig.selectedAddress - the address passed through the collectible detection flow to ensure detected assets are stored to the correct account
+   * @param passedConfig.userAddress - the address passed through the collectible detection flow to ensure detected assets are stored to the correct account
    * @param passedConfig.chainId - the chainId passed through the collectible detection flow to ensure detected assets are stored to the correct account
    */
   private updateNestedCollectibleState(
     newCollection: Collectible[] | CollectibleContract[],
     baseStateKey: 'allCollectibles' | 'allCollectibleContracts',
-    passedConfig?: { selectedAddress: string; chainId: string },
+    { userAddress, chainId }: AccountParams | undefined = {
+      userAddress: this.config.selectedAddress,
+      chainId: this.config.chainId,
+    },
   ) {
-    // We want to use the passedSelectedAddress and passedChainId when defined and not null
-    // these values are passed through the collectible detection flow, meaning they may not
-    // match as the currently configured values (which may be stale for this update)
-    const address =
-      passedConfig?.selectedAddress ?? this.config.selectedAddress;
-    const chain = passedConfig?.chainId ?? this.config.chainId;
-
     const { [baseStateKey]: oldState } = this.state;
 
-    const addressState = oldState[address];
+    const addressState = oldState[userAddress];
     const newAddressState = {
       ...addressState,
-      ...{ [chain]: newCollection },
+      ...{ [chainId]: newCollection },
     };
     const newState = {
       ...oldState,
-      ...{ [address]: newAddressState },
+      ...{ [userAddress]: newAddressState },
     };
 
     this.update({
@@ -540,7 +536,7 @@ export class CollectiblesController extends BaseController<
     address: string,
     tokenId: string,
     collectibleMetadata: CollectibleMetadata,
-    detection?: DetectionParams,
+    detection?: AccountParams,
   ): Promise<Collectible[]> {
     // TODO: Remove unused return
     const releaseLock = await this.mutex.acquire();
@@ -598,7 +594,7 @@ export class CollectiblesController extends BaseController<
       this.updateNestedCollectibleState(
         newCollectibles,
         ALL_COLLECTIBLES_STATE_KEY,
-        { chainId, selectedAddress },
+        { chainId, userAddress: selectedAddress },
       );
 
       return newCollectibles;
@@ -616,7 +612,7 @@ export class CollectiblesController extends BaseController<
    */
   private async addCollectibleContract(
     address: string,
-    detection?: DetectionParams,
+    detection?: AccountParams,
   ): Promise<CollectibleContract[]> {
     const releaseLock = await this.mutex.acquire();
     try {
@@ -686,7 +682,7 @@ export class CollectiblesController extends BaseController<
       this.updateNestedCollectibleState(
         newCollectibleContracts,
         ALL_COLLECTIBLES_CONTRACTS_STATE_KEY,
-        { chainId, selectedAddress },
+        { chainId, userAddress: selectedAddress },
       );
 
       return newCollectibleContracts;
@@ -963,7 +959,7 @@ export class CollectiblesController extends BaseController<
     address: string,
     tokenId: string,
     collectibleMetadata?: CollectibleMetadata,
-    detection?: DetectionParams,
+    detection?: AccountParams,
   ) {
     address = toChecksumHexAddress(address);
     const newCollectibleContracts = await this.addCollectibleContract(
@@ -1045,22 +1041,23 @@ export class CollectiblesController extends BaseController<
    *
    * @param collectible - The collectible object to check and update.
    * @param batch - A boolean indicating whether this method is being called as part of a batch or single update.
+   * @param accountParams - The userAddress and chainId to check ownership against
+   * @param accountParams.userAddress - the address passed through the confirmed transaction flow to ensure detected assets are stored to the correct account
+   * @param accountParams.chainId - the chainId passed through the confirmed transaction flow to ensure detected assets are stored to the correct account
    * @returns the collectible with the updated isCurrentlyOwned value
    */
   async checkAndUpdateSingleCollectibleOwnershipStatus(
     collectible: Collectible,
     batch: boolean,
+    { userAddress, chainId }: AccountParams | undefined = {
+      userAddress: this.config.selectedAddress,
+      chainId: this.config.chainId,
+    },
   ) {
-    const { allCollectibles } = this.state;
-    const { selectedAddress, chainId } = this.config;
     const { address, tokenId } = collectible;
     let isOwned = collectible.isCurrentlyOwned;
     try {
-      isOwned = await this.isCollectibleOwner(
-        selectedAddress,
-        address,
-        tokenId,
-      );
+      isOwned = await this.isCollectibleOwner(userAddress, address, tokenId);
     } catch (error) {
       if (!error.message.includes('Unable to verify ownership')) {
         throw error;
@@ -1074,15 +1071,19 @@ export class CollectiblesController extends BaseController<
     }
 
     // if this is not part of a batched update we update this one collectible in state
-    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+    const { allCollectibles } = this.state;
+    const collectibles = allCollectibles[userAddress]?.[chainId] || [];
     const collectibleToUpdate = collectibles.find(
-      (item) => item.tokenId === tokenId && item.address === address,
+      (item) =>
+        item.tokenId === tokenId &&
+        item.address.toLowerCase() === address.toLowerCase(),
     );
     if (collectibleToUpdate) {
       collectibleToUpdate.isCurrentlyOwned = isOwned;
       this.updateNestedCollectibleState(
         collectibles,
         ALL_COLLECTIBLES_STATE_KEY,
+        { userAddress, chainId },
       );
     }
     return collectible;
