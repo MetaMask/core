@@ -128,20 +128,30 @@ export class AssetsContractController extends BaseController<
     );
   }
 
+  /**
+   * Enumerate assets assigned to an owner.
+   *
+   * @param tokenAddress - ERC721 asset contract address.
+   * @param userAddress - Current account public address.
+   * @param tokenId - ERC721 asset identifier.
+   * @returns Promise resolving to an object containing the token standard and a set of details which depend on which standard the token supports.
+   */
   async getTokenStandardAndDetails(
-    address: string,
+    tokenAddress: string,
     userAddress: string,
     tokenId?: string,
-  ) {
+  ): Promise<{
+    standard: string;
+    tokenURI?: string | undefined;
+    symbol?: string | undefined;
+    name?: string | undefined;
+    decimals?: string | undefined;
+    balance?: BN | undefined;
+  }> {
     // ERC721
     try {
-      const details = await this.erc721Standard.getDetails(address, tokenId);
       return {
-        standard: details?.standard,
-        tokenURI: details?.tokenURI,
-        symbol: details?.symbol,
-        name: details?.name,
-        address,
+        ...(await this.erc721Standard.getDetails(tokenAddress, tokenId)),
       };
     } catch {
       // Ignore
@@ -149,11 +159,8 @@ export class AssetsContractController extends BaseController<
 
     // ERC1155
     try {
-      const details = await this.erc1155Standard.getDetails(address, tokenId);
       return {
-        standard: details?.standard,
-        tokenURI: details?.tokenURI,
-        address,
+        ...(await this.erc1155Standard.getDetails(tokenAddress, tokenId)),
       };
     } catch {
       // Ignore
@@ -161,14 +168,8 @@ export class AssetsContractController extends BaseController<
 
     // ERC20
     try {
-      const details = await this.erc20Standard.getDetails(address, userAddress);
-
       return {
-        standard: details?.standard,
-        decimals: details?.decimals,
-        symbol: details?.symbol,
-        balance: details?.balance,
-        address,
+        ...(await this.erc20Standard.getDetails(tokenAddress, userAddress)),
       };
     } catch {
       // Ignore

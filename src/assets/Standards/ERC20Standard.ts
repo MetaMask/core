@@ -1,11 +1,12 @@
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { BN } from 'ethereumjs-util';
 import { ERC20 } from '../../constants';
+import { Web3 } from './standards-types';
 
 export class ERC20Standard {
-  private web3: any;
+  private web3: Web3;
 
-  constructor(web3?: any) {
+  constructor(web3: Web3) {
     this.web3 = web3;
   }
 
@@ -77,7 +78,15 @@ export class ERC20Standard {
    * @param userAddress - The public address for the currently active user's account.
    * @returns Promise resolving an object containing the standard, decimals, symbol and balance of the given contract/userAddress pair.
    */
-  async getDetails(address: string, userAddress: string) {
+  async getDetails(
+    address: string,
+    userAddress: string,
+  ): Promise<{
+    standard: string;
+    symbol: string | undefined;
+    decimals: string | undefined;
+    balance: BN | undefined;
+  }> {
     const [decimals, symbol, balance] = await Promise.all([
       this.getTokenDecimals(address),
       this.getTokenSymbol(address),

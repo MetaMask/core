@@ -5,11 +5,12 @@ import {
   ERC1155_METADATA_URI_INTERFACE_ID,
   ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
 } from '../../../../constants';
+import { Web3 } from '../../standards-types';
 
 export class ERC1155Standard {
-  private web3: any;
+  private web3: Web3;
 
-  constructor(web3?: any) {
+  constructor(web3: Web3) {
     this.web3 = web3;
   }
 
@@ -175,7 +176,13 @@ export class ERC1155Standard {
    * @param tokenId - tokenId of a given token in the contract.
    * @returns Promise resolving an object containing the standard, tokenURI, symbol and name of the given contract/tokenId pair.
    */
-  getDetails = async (address: string, tokenId?: string) => {
+  getDetails = async (
+    address: string,
+    tokenId?: string,
+  ): Promise<{
+    standard: string;
+    tokenURI: string | undefined;
+  }> => {
     const isERC1155 = await this.contractSupportsBase1155Interface(address);
     let tokenURI;
     if (tokenId) {

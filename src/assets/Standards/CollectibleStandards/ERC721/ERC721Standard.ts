@@ -1,4 +1,5 @@
 import { abiERC721 } from '@metamask/metamask-eth-abis';
+import { Web3 } from '../../standards-types';
 import {
   ERC721_INTERFACE_ID,
   ERC721_METADATA_INTERFACE_ID,
@@ -7,9 +8,9 @@ import {
 } from '../../../../constants';
 
 export class ERC721Standard {
-  private web3: any;
+  private web3: Web3;
 
-  constructor(web3?: any) {
+  constructor(web3: Web3) {
     this.web3 = web3;
   }
 
@@ -207,7 +208,15 @@ export class ERC721Standard {
    * @param tokenId - tokenId of a given token in the contract.
    * @returns Promise resolving an object containing the standard, tokenURI, symbol and name of the given contract/tokenId pair.
    */
-  getDetails = async (address: string, tokenId?: string) => {
+  getDetails = async (
+    address: string,
+    tokenId?: string,
+  ): Promise<{
+    standard: string;
+    tokenURI: string | undefined;
+    symbol: string | undefined;
+    name: string | undefined;
+  }> => {
     const [isERC721, supportsMetadata] = await Promise.all([
       this.contractSupportsBase721Interface(address),
       this.contractSupportsMetadataInterface(address),
