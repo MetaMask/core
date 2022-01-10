@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [25.0.0]
 ### Added
 - Add optional third argument to method `checkAndUpdateSingleCollectibleOwnershipStatus` on CollectiblesController, which contains the userAddress and chainId to check asset ownership against. If not included, the method will still check against the currently configured selectedAddress and chainId configured in the CollectiblesController ([#672](https://github.com/MetaMask/controllers/pull/672))
-- Add `getTokenStandardAndDetails` method on AssetsContractController which determines whether the input contract confirms to particular known token standard (`ERC20`, `ERC721` or `ERC1155`) and returns the detected standard along with some key values/details about that the contract and/or specified token within that contract ([#667](https://github.com/MetaMask/controllers/pull/667))
+- Add `getTokenStandardAndDetails` method on AssetsContractController which determines whether the input contract conforms to particular known token standard (`ERC20`, `ERC721` or `ERC1155`) and returns the detected standard along with some key values/details about that the contract and/or specified token within that contract ([#667](https://github.com/MetaMask/controllers/pull/667))
 
 ### Changed
 - - **BREAKING** - Standardize ERC721/1155/20 method names ([#667](https://github.com/MetaMask/controllers/pull/667))
