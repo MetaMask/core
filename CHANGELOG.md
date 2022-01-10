@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.0.0]
+### Uncategorized
+- [BREAKING] - Create get token standard method / Standardize ERC721/1155/20 method names ([#667](https://github.com/MetaMask/controllers/pull/667))
+- Enhance checkAndUpdateSingleCollectibleOwnershipStatus to use use passed accountParams for selectedAddress and chainId ([#672](https://github.com/MetaMask/controllers/pull/672))
+
 ## [24.0.0]
 ### Added
 - Add `checkAndUpdateSingleCollectibleOwnershipStatus` method ([#669](https://github.com/MetaMask/controllers/pull/669))
@@ -481,7 +486,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/controllers/compare/v24.0.0...v25.0.0
 [24.0.0]: https://github.com/MetaMask/controllers/compare/v23.1.0...v24.0.0
 [23.1.0]: https://github.com/MetaMask/controllers/compare/v23.0.0...v23.1.0
 [23.0.0]: https://github.com/MetaMask/controllers/compare/v22.0.0...v23.0.0
