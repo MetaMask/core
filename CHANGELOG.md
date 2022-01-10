@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.0.0]
+### Added
+- Add optional third argument to method `checkAndUpdateSingleCollectibleOwnershipStatus` on CollectiblesController, which contains the userAddress and chainId to check asset ownership against. If not included, the method will still check against the currently configured selectedAddress and chainId configured in the CollectiblesController ([#672](https://github.com/MetaMask/controllers/pull/672))
+- Add `getTokenStandardAndDetails` method on AssetsContractController which determines whether the input contract conforms to particular known token standard (`ERC20`, `ERC721` or `ERC1155`) and returns the detected standard along with some key values/details about that the contract and/or specified token within that contract ([#667](https://github.com/MetaMask/controllers/pull/667))
+
+### Changed
+- - **BREAKING** - Standardize ERC721/1155/20 method names ([#667](https://github.com/MetaMask/controllers/pull/667))
+  - Renames many methods on the AssetsContractController to include the contract type they are used by in the name in a standardized structure (i.e. `getAssetName` -> `getERC721AssetName` and `balanceOfERC1155Collectible` ->  `getERC1155BalanceOf`).
+  - Consumers will need to look at the AssetsContractController for any methods they consume and adapt names accordingly. 
+
 ## [24.0.0]
 ### Added
 - Add `checkAndUpdateSingleCollectibleOwnershipStatus` method ([#669](https://github.com/MetaMask/controllers/pull/669))
@@ -481,7 +491,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/controllers/compare/v24.0.0...v25.0.0
 [24.0.0]: https://github.com/MetaMask/controllers/compare/v23.1.0...v24.0.0
 [23.1.0]: https://github.com/MetaMask/controllers/compare/v23.0.0...v23.1.0
 [23.0.0]: https://github.com/MetaMask/controllers/compare/v22.0.0...v23.0.0
