@@ -48,7 +48,7 @@ export class TokenBalancesController extends BaseController<
 
   private getSelectedAddress: () => PreferencesState['selectedAddress'];
 
-  private getBalanceOf: AssetsContractController['getBalanceOf'];
+  private getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
 
   /**
    * Creates a TokenBalancesController instance.
@@ -56,7 +56,7 @@ export class TokenBalancesController extends BaseController<
    * @param options - The controller options.
    * @param options.onTokensStateChange - Allows subscribing to assets controller state changes.
    * @param options.getSelectedAddress - Gets the current selected address.
-   * @param options.getBalanceOf - Gets the balance of the given account at the given contract address.
+   * @param options.getERC20BalanceOf - Gets the balance of the given account at the given contract address.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -64,13 +64,13 @@ export class TokenBalancesController extends BaseController<
     {
       onTokensStateChange,
       getSelectedAddress,
-      getBalanceOf,
+      getERC20BalanceOf,
     }: {
       onTokensStateChange: (
         listener: (tokenState: TokensState) => void,
       ) => void;
       getSelectedAddress: () => PreferencesState['selectedAddress'];
-      getBalanceOf: AssetsContractController['getBalanceOf'];
+      getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
     },
     config?: Partial<TokenBalancesConfig>,
     state?: Partial<TokenBalancesState>,
@@ -87,7 +87,7 @@ export class TokenBalancesController extends BaseController<
       this.updateBalances();
     });
     this.getSelectedAddress = getSelectedAddress;
-    this.getBalanceOf = getBalanceOf;
+    this.getERC20BalanceOf = getERC20BalanceOf;
     this.poll();
   }
 
@@ -117,7 +117,7 @@ export class TokenBalancesController extends BaseController<
     for (const i in tokens) {
       const { address } = tokens[i];
       try {
-        newContractBalances[address] = await this.getBalanceOf(
+        newContractBalances[address] = await this.getERC20BalanceOf(
           address,
           this.getSelectedAddress(),
         );

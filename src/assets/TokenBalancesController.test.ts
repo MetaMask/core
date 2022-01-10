@@ -33,7 +33,7 @@ describe('TokenBalancesController', () => {
     const tokenBalances = new TokenBalancesController({
       onTokensStateChange: stub(),
       getSelectedAddress: () => '0x1234',
-      getBalanceOf: stub(),
+      getERC20BalanceOf: stub(),
     });
     expect(tokenBalances.state).toStrictEqual({ contractBalances: {} });
   });
@@ -42,7 +42,7 @@ describe('TokenBalancesController', () => {
     const tokenBalances = new TokenBalancesController({
       onTokensStateChange: stub(),
       getSelectedAddress: () => '0x1234',
-      getBalanceOf: stub(),
+      getERC20BalanceOf: stub(),
     });
     expect(tokenBalances.config).toStrictEqual({
       interval: 180000,
@@ -57,7 +57,7 @@ describe('TokenBalancesController', () => {
         {
           onTokensStateChange: stub(),
           getSelectedAddress: () => '0x1234',
-          getBalanceOf: stub(),
+          getERC20BalanceOf: stub(),
         },
         { interval: 10 },
       );
@@ -76,7 +76,7 @@ describe('TokenBalancesController', () => {
       {
         onTokensStateChange: stub(),
         getSelectedAddress: () => '0x1234',
-        getBalanceOf: stub(),
+        getERC20BalanceOf: stub(),
       },
       {
         disabled: true,
@@ -94,7 +94,7 @@ describe('TokenBalancesController', () => {
       {
         onTokensStateChange: stub(),
         getSelectedAddress: () => '0x1234',
-        getBalanceOf: stub(),
+        getERC20BalanceOf: stub(),
       },
       { interval: 1337 },
     );
@@ -120,7 +120,7 @@ describe('TokenBalancesController', () => {
       {
         onTokensStateChange: (listener) => assets.subscribe(listener),
         getSelectedAddress: () => preferences.state.selectedAddress,
-        getBalanceOf: stub().returns(new BN(1)),
+        getERC20BalanceOf: stub().returns(new BN(1)),
       },
       { interval: 1337, tokens: [{ address, decimals: 18, symbol: 'EOS' }] },
     );
@@ -138,7 +138,7 @@ describe('TokenBalancesController', () => {
     ).toBeGreaterThan(0);
   });
 
-  it('should handle `getBalanceOf` error case', async () => {
+  it('should handle `getERC20BalanceOf` error case', async () => {
     const network = new NetworkController();
     const preferences = new PreferencesController();
     const assets = new TokensController({
@@ -147,14 +147,14 @@ describe('TokenBalancesController', () => {
     });
     const errorMsg = 'Failed to get balance';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-    const getBalanceOfStub = stub().returns(
+    const getERC20BalanceOfStub = stub().returns(
       Promise.reject(new Error(errorMsg)),
     );
     const tokenBalances = new TokenBalancesController(
       {
         onTokensStateChange: (listener) => assets.subscribe(listener),
         getSelectedAddress: () => preferences.state.selectedAddress,
-        getBalanceOf: getBalanceOfStub,
+        getERC20BalanceOf: getERC20BalanceOfStub,
       },
       { interval: 1337, tokens: [{ address, decimals: 18, symbol: 'EOS' }] },
     );
@@ -168,7 +168,7 @@ describe('TokenBalancesController', () => {
       tokenBalances.state.contractBalances[address].toNumber(),
     ).toStrictEqual(0);
 
-    getBalanceOfStub.returns(new BN(1));
+    getERC20BalanceOfStub.returns(new BN(1));
     await tokenBalances.updateBalances();
     expect(mytoken?.balanceError).toBeNull();
     expect(Object.keys(tokenBalances.state.contractBalances)).toContain(
@@ -199,7 +199,9 @@ describe('TokenBalancesController', () => {
       {
         onTokensStateChange: (listener) => tokensController.subscribe(listener),
         getSelectedAddress: () => preferences.state.selectedAddress,
-        getBalanceOf: assetsContract.getBalanceOf.bind(assetsContract),
+        getERC20BalanceOf: assetsContract.getERC20BalanceOf.bind(
+          assetsContract,
+        ),
       },
       { interval: 1337 },
     );
