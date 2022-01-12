@@ -80,18 +80,21 @@ export class ERC20Standard {
    */
   async getDetails(
     address: string,
-    userAddress: string,
+    userAddress?: string,
   ): Promise<{
     standard: string;
     symbol: string | undefined;
     decimals: string | undefined;
     balance: BN | undefined;
   }> {
-    const [decimals, symbol, balance] = await Promise.all([
+    const [decimals, symbol] = await Promise.all([
       this.getTokenDecimals(address),
       this.getTokenSymbol(address),
-      this.getBalanceOf(address, userAddress),
     ]);
+    let balance;
+    if (userAddress) {
+      balance = await this.getBalanceOf(address, userAddress);
+    }
     return {
       decimals,
       symbol,
