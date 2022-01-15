@@ -259,7 +259,7 @@ function buildNextFeeHistoryBlock({
  * @param args.numberOfBlocks - The number of blocks in the chunk. Must be at most 1024, as this is
  * the maximum that `eth_feeHistory` can return in one call.
  * @param args.endBlockNumber - The end of the requested block range.
- * @param args.percentiles - A set of numbers betwen 1 and 100 that will be used to pull priority
+ * @param args.percentiles - A set of numbers between 1 and 100 that will be used to pull priority
  * fees for each block.
  * @param args.includeNextBlock - Whether to include an extra block that represents the next
  * block after the latest one. Only the `baseFeePerGas` will be filled in for this block (which is
