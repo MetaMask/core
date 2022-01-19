@@ -17,7 +17,7 @@ import {
   UnsignedTransaction,
   SmartTransactionsStatus,
   SmartTransactionStatuses,
-  Fee,
+  Fees,
 } from './types';
 import {
   getAPIRequestURL,
@@ -51,6 +51,8 @@ export interface SmartTransactionsControllerState extends BaseState {
   smartTransactionsState: {
     smartTransactions: Record<string, SmartTransaction[]>;
     userOptIn: boolean | undefined;
+    liveness: boolean | undefined;
+    fees: Fees | undefined;
   };
 }
 
@@ -118,6 +120,8 @@ export default class SmartTransactionsController extends BaseController<
       smartTransactionsState: {
         smartTransactions: {},
         userOptIn: undefined,
+        fees: undefined,
+        liveness: true,
       },
     };
 
@@ -446,15 +450,7 @@ export default class SmartTransactionsController extends BaseController<
     };
   }
 
-  async getFees(
-    unsignedTransaction: UnsignedTransaction,
-  ): Promise<{
-    fees: Fee[];
-    cancelFees: Fee[];
-    feeEstimate: number;
-    gasLimit: number;
-    gasUsed: number;
-  }> {
+  async getFees(unsignedTransaction: UnsignedTransaction): Promise<Fees> {
     const { chainId } = this.config;
 
     const unsignedTransactionWithNonce = await this.addNonceToTransaction(
@@ -463,6 +459,12 @@ export default class SmartTransactionsController extends BaseController<
     const data = await this.fetch(getAPIRequestURL(APIType.GET_FEES, chainId), {
       method: 'POST',
       body: JSON.stringify({ tx: unsignedTransactionWithNonce }),
+    });
+    this.update({
+      smartTransactionsState: {
+        ...this.state.smartTransactionsState,
+        fees: data,
+      },
     });
 
     return data;
@@ -549,10 +551,23 @@ export default class SmartTransactionsController extends BaseController<
 
   async fetchLiveness(): Promise<boolean> {
     const { chainId } = this.config;
-    const response = await this.fetch(
-      getAPIRequestURL(APIType.LIVENESS, chainId),
-    );
-    return Boolean(response.lastBlock);
+    let liveness = false;
+    try {
+      const response = await this.fetch(
+        getAPIRequestURL(APIType.LIVENESS, chainId),
+      );
+      liveness = Boolean(response.lastBlock);
+    } catch (e) {
+      console.log('"fetchLiveness" API call failed');
+    }
+
+    this.update({
+      smartTransactionsState: {
+        ...this.state.smartTransactionsState,
+        liveness,
+      },
+    });
+    return liveness;
   }
 
   async setStatusRefreshInterval(interval: number): Promise<void> {

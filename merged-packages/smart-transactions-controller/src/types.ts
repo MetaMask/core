@@ -90,6 +90,14 @@ export interface Fee {
   maxPriorityFeePerGas: number;
 }
 
+export interface Fees {
+  fees: Fee[];
+  cancelFees: Fee[];
+  feeEstimate: number;
+  gasLimit: number;
+  gasUsed: number;
+}
+
 // TODO: maybe grab the type from transactions controller?
 export type UnsignedTransaction = any;
 

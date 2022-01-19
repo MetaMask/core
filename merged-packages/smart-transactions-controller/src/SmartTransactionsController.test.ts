@@ -249,6 +249,8 @@ describe('SmartTransactionsController', () => {
           [CHAIN_IDS.ETHEREUM]: [],
         },
         userOptIn: undefined,
+        fees: undefined,
+        liveness: true,
       },
     });
   });
@@ -439,6 +441,8 @@ describe('SmartTransactionsController', () => {
             [CHAIN_IDS.ETHEREUM]: [pendingTransaction],
           },
           userOptIn: undefined,
+          fees: undefined,
+          liveness: true,
         },
       });
     });
@@ -470,6 +474,8 @@ describe('SmartTransactionsController', () => {
             ],
           },
           userOptIn: undefined,
+          fees: undefined,
+          liveness: true,
         },
       });
     });
