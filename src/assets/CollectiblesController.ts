@@ -26,7 +26,10 @@ import type {
   ApiCollectibleLastSale,
 } from './CollectibleDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
-import { compareCollectiblesMetadata } from './assetsUtil';
+import {
+  compareCollectiblesMetadata,
+  compareCollectibleContract,
+} from './assetsUtil';
 
 /**
  * @type Collectible
@@ -629,13 +632,6 @@ export class CollectiblesController extends BaseController<
       const collectibleContracts =
         allCollectibleContracts[selectedAddress]?.[chainId] || [];
 
-      const existingEntry = collectibleContracts.find(
-        (collectibleContract) =>
-          collectibleContract.address.toLowerCase() === address.toLowerCase(),
-      );
-      if (existingEntry) {
-        return collectibleContracts;
-      }
       const contractInformation = await this.getCollectibleContractInformation(
         address,
       );
@@ -674,6 +670,26 @@ export class CollectiblesController extends BaseController<
         schema_name && { schemaName: schema_name },
         external_link && { externalLink: external_link },
       );
+
+      const existingEntry = collectibleContracts.find(
+        (collectibleContract) =>
+          collectibleContract.address.toLowerCase() === address.toLowerCase(),
+      );
+
+      if (existingEntry) {
+        if (compareCollectibleContract(newEntry, existingEntry)) {
+          const indexToRemove = collectibleContracts.findIndex(
+            (collectibleContract) =>
+              collectibleContract.address.toLowerCase() ===
+              address.toLowerCase(),
+          );
+          if (indexToRemove !== -1) {
+            collectibleContracts.splice(indexToRemove, 1);
+          }
+        } else {
+          return collectibleContracts;
+        }
+      }
 
       const newCollectibleContracts = [...collectibleContracts, newEntry];
       this.updateNestedCollectibleState(
