@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [25.1.0]
 ### Changed
-- Made the `userAddress` argument to the `getDetails` method on the ERC20Standard class optional.
+- Make the `userAddress` argument to the `getDetails` method on the ERC20Standard class optional.
 
 ## [25.0.0]
 ### Added
