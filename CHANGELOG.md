@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.1.0]
+### Uncategorized
+- Bump nanoid from 3.1.12 to 3.1.31 ([#677](https://github.com/MetaMask/controllers/pull/677))
+- Bump shelljs from 0.8.4 to 0.8.5 ([#675](https://github.com/MetaMask/controllers/pull/675))
+- Fix typo in fetchBlockFeeHistory.ts ([#676](https://github.com/MetaMask/controllers/pull/676))
+- small improvement to ERC20Standard class ([#674](https://github.com/MetaMask/controllers/pull/674))
+
 ## [25.0.0]
 ### Added
 - Add optional third argument to method `checkAndUpdateSingleCollectibleOwnershipStatus` on CollectiblesController, which contains the userAddress and chainId to check asset ownership against. If not included, the method will still check against the currently configured selectedAddress and chainId configured in the CollectiblesController ([#672](https://github.com/MetaMask/controllers/pull/672))
@@ -491,7 +498,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v25.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v25.1.0...HEAD
+[25.1.0]: https://github.com/MetaMask/controllers/compare/v25.0.0...v25.1.0
 [25.0.0]: https://github.com/MetaMask/controllers/compare/v24.0.0...v25.0.0
 [24.0.0]: https://github.com/MetaMask/controllers/compare/v23.1.0...v24.0.0
 [23.1.0]: https://github.com/MetaMask/controllers/compare/v23.0.0...v23.1.0
