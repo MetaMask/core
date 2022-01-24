@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.1.0]
+### Changed
+- Made the `userAddress` argument to the `getDetails` method on the ERC20Standard class optional.
+
 ## [25.0.0]
 ### Added
 - Add optional third argument to method `checkAndUpdateSingleCollectibleOwnershipStatus` on CollectiblesController, which contains the userAddress and chainId to check asset ownership against. If not included, the method will still check against the currently configured selectedAddress and chainId configured in the CollectiblesController ([#672](https://github.com/MetaMask/controllers/pull/672))
