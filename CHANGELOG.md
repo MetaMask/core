@@ -7,11 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [25.1.0]
-### Uncategorized
-- Bump nanoid from 3.1.12 to 3.1.31 ([#677](https://github.com/MetaMask/controllers/pull/677))
-- Bump shelljs from 0.8.4 to 0.8.5 ([#675](https://github.com/MetaMask/controllers/pull/675))
-- Fix typo in fetchBlockFeeHistory.ts ([#676](https://github.com/MetaMask/controllers/pull/676))
-- small improvement to ERC20Standard class ([#674](https://github.com/MetaMask/controllers/pull/674))
+### Changed
+- Make the userAddress argument to the getDetails method on the ERC20Standard class optional. ([#674](https://github.com/MetaMask/controllers/pull/674))
 
 ## [25.0.0]
 ### Added
