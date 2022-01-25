@@ -343,6 +343,62 @@ describe('CollectiblesController', () => {
       ).toHaveLength(1);
     });
 
+    it('should update collectible contract data if it changes', async () => {
+      const { selectedAddress, chainId } = collectiblesController.config;
+      await collectiblesController.addCollectible('0x01', '1', {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
+      });
+
+      nock(OPEN_SEA_HOST)
+        .get(`${OPEN_SEA_PATH}/asset_contract/0x01`)
+        .reply(200, {
+          description: 'New Description',
+          symbol: 'FOO',
+          total_supply: 0,
+          collection: {
+            name: 'Name',
+            image_url: 'url',
+          },
+        });
+        expect(
+          collectiblesController.state.allCollectibleContracts[selectedAddress][
+            chainId
+          ][0],
+        ).toStrictEqual({
+          address: '0x01',
+          description: 'Description',
+          logo: 'url',
+          name: 'Name',
+          symbol: 'FOO',
+          totalSupply: 0,
+        });
+
+      await collectiblesController.addCollectible('0x01', '1', {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
+      });
+
+      expect(
+        collectiblesController.state.allCollectibleContracts[selectedAddress][
+          chainId
+        ][0],
+      ).toStrictEqual({
+        address: '0x01',
+        description: 'New Description',
+        logo: 'url',
+        name: 'Name',
+        symbol: 'FOO',
+        totalSupply: 0,
+      });
+    });
+
     it('should add collectible and get information from OpenSea', async () => {
       const { selectedAddress, chainId } = collectiblesController.config;
       await collectiblesController.addCollectible('0x01', '1');
