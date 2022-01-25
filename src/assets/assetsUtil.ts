@@ -4,6 +4,30 @@ import {
   CollectibleContract,
 } from './CollectiblesController';
 
+const COLLECTIBLE_CONTRACT_KEYS: (keyof CollectibleContract)[] = [
+  'address',
+  'assetContractType',
+  'createdDate',
+  'description',
+  'externalLink',
+  'logo',
+  'name',
+  'schemaName',
+  'symbol',
+  'totalSupply',
+];
+
+const COLLECTIBLE_METADATA_KEYS: (keyof CollectibleMetadata)[] = [
+  'image',
+  'backgroundColor',
+  'imagePreview',
+  'imageThumbnail',
+  'imageOriginal',
+  'animation',
+  'animationOriginal',
+  'externalLink',
+];
+
 /**
  * Compares collectible metadata entries to any collectible entry.
  * We need this method when comparing a new fetched collectible metadata, in case a entry changed to a defined value,
@@ -13,34 +37,19 @@ import {
  * @param collectible - Collectible object to compare with.
  * @returns Whether there are differences.
  */
-export function compareCollectiblesMetadata(
+export function isCollectibleMetadataEqual(
   newCollectibleMetadata: CollectibleMetadata,
   collectible: Collectible,
 ) {
-  const keys: (keyof CollectibleMetadata)[] = [
-    'image',
-    'backgroundColor',
-    'imagePreview',
-    'imageThumbnail',
-    'imageOriginal',
-    'animation',
-    'animationOriginal',
-    'externalLink',
-  ];
-  const differentValues = keys.reduce((value, key) => {
-    if (
+  return !COLLECTIBLE_METADATA_KEYS.some(
+    (key) =>
       newCollectibleMetadata[key] &&
-      newCollectibleMetadata[key] !== collectible[key]
-    ) {
-      return value + 1;
-    }
-    return value;
-  }, 0);
-  return differentValues > 0;
+      newCollectibleMetadata[key] !== collectible[key],
+  );
 }
 
 /**
- * Compares CollectibleContract entries to any CollectibleContract entry.
+ * Compares one CollectibleContract object to another CollectibleContract object.
  * We need this method when comparing a new fetched CollectibleContract, in case a entry changed to a defined value,
  * there's a need to update the CollectibleContract object in state.
  *
@@ -48,24 +57,13 @@ export function compareCollectiblesMetadata(
  * @param oldCollectibleContract - CollectibleContract object to compare with.
  * @returns Whether there are differences.
  */
-export function compareCollectibleContract(
+export function isCollectibleContractEqual(
   newCollectibleContract: CollectibleContract,
   oldCollectibleContract: CollectibleContract,
 ) {
-  const keys: (keyof CollectibleContract)[] = [
-    'address',
-    'assetContractType',
-    'createdDate',
-    'description',
-    'externalLink',
-    'logo',
-    'name',
-    'schemaName',
-    'symbol',
-    'totalSupply',
-  ];
-
-  return keys.some(
-    (key) => newCollectibleContract[key] !== oldCollectibleContract[key],
+  return !COLLECTIBLE_CONTRACT_KEYS.some(
+    (key) =>
+      newCollectibleContract[key] &&
+      newCollectibleContract[key] !== oldCollectibleContract[key],
   );
 }

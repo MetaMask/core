@@ -364,18 +364,19 @@ describe('CollectiblesController', () => {
             image_url: 'url',
           },
         });
-        expect(
-          collectiblesController.state.allCollectibleContracts[selectedAddress][
-            chainId
-          ][0],
-        ).toStrictEqual({
-          address: '0x01',
-          description: 'Description',
-          logo: 'url',
-          name: 'Name',
-          symbol: 'FOO',
-          totalSupply: 0,
-        });
+
+      expect(
+        collectiblesController.state.allCollectibleContracts[selectedAddress][
+          chainId
+        ][0],
+      ).toStrictEqual({
+        address: '0x01',
+        description: 'Description',
+        logo: 'url',
+        name: 'Name',
+        symbol: 'FOO',
+        totalSupply: 0,
+      });
 
       await collectiblesController.addCollectible('0x01', '1', {
         name: 'name',

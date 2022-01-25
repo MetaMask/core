@@ -27,8 +27,8 @@ import type {
 } from './CollectibleDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
 import {
-  compareCollectiblesMetadata,
-  compareCollectibleContract,
+  isCollectibleMetadataEqual,
+  isCollectibleContractEqual,
 } from './assetsUtil';
 
 /**
@@ -562,23 +562,18 @@ export class CollectiblesController extends BaseController<
       );
 
       if (existingEntry) {
-        const differentMetadata = compareCollectiblesMetadata(
-          collectibleMetadata,
-          existingEntry,
-        );
-        if (differentMetadata) {
-          // TODO: Switch to indexToUpdate
-          const indexToRemove = collectibles.findIndex(
-            (collectible) =>
-              collectible.address.toLowerCase() === address.toLowerCase() &&
-              collectible.tokenId === tokenId,
-          );
-          /* istanbul ignore next */
-          if (indexToRemove !== -1) {
-            collectibles.splice(indexToRemove, 1);
-          }
-        } else {
+        if (isCollectibleMetadataEqual(collectibleMetadata, existingEntry)) {
           return collectibles;
+        }
+        // TODO: Switch to indexToUpdate
+        const indexToRemove = collectibles.findIndex(
+          (collectible) =>
+            collectible.address.toLowerCase() === address.toLowerCase() &&
+            collectible.tokenId === tokenId,
+        );
+        /* istanbul ignore next */
+        if (indexToRemove !== -1) {
+          collectibles.splice(indexToRemove, 1);
         }
       }
 
@@ -676,22 +671,23 @@ export class CollectiblesController extends BaseController<
           collectibleContract.address.toLowerCase() === address.toLowerCase(),
       );
 
+      let newCollectibleContracts;
       if (existingEntry) {
-        if (compareCollectibleContract(newEntry, existingEntry)) {
-          const indexToRemove = collectibleContracts.findIndex(
-            (collectibleContract) =>
-              collectibleContract.address.toLowerCase() ===
-              address.toLowerCase(),
-          );
-          if (indexToRemove !== -1) {
-            collectibleContracts.splice(indexToRemove, 1);
-          }
-        } else {
+        if (isCollectibleContractEqual(newEntry, existingEntry)) {
           return collectibleContracts;
         }
+        newCollectibleContracts = [...collectibleContracts];
+        const indexToUpdate = collectibleContracts.findIndex(
+          (collectibleContract) =>
+            collectibleContract.address.toLowerCase() === address.toLowerCase(),
+        );
+        if (indexToUpdate !== -1) {
+          newCollectibleContracts[indexToUpdate] = newEntry;
+        }
+      } else {
+        newCollectibleContracts = [...collectibleContracts, newEntry];
       }
 
-      const newCollectibleContracts = [...collectibleContracts, newEntry];
       this.updateNestedCollectibleState(
         newCollectibleContracts,
         ALL_COLLECTIBLES_CONTRACTS_STATE_KEY,
