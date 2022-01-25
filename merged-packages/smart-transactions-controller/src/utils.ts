@@ -27,6 +27,10 @@ export function getAPIRequestURL(apiType: APIType, chainId: string): string {
       return `${API_BASE_URL}/networks/${chainIdDec}/getFees`;
     }
 
+    case APIType.ESTIMATE_GAS: {
+      return `${API_BASE_URL}/networks/${chainIdDec}/estimateGas`;
+    }
+
     case APIType.SUBMIT_TRANSACTIONS: {
       return `${API_BASE_URL}/networks/${chainIdDec}/submitTransactions`;
     }

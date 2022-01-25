@@ -18,6 +18,7 @@ import {
   SmartTransactionsStatus,
   SmartTransactionStatuses,
   Fees,
+  EstimatedGas,
 } from './types';
 import {
   getAPIRequestURL,
@@ -53,6 +54,7 @@ export interface SmartTransactionsControllerState extends BaseState {
     userOptIn: boolean | undefined;
     liveness: boolean | undefined;
     fees: Fees | undefined;
+    estimatedGas: EstimatedGas | undefined;
   };
 }
 
@@ -122,6 +124,7 @@ export default class SmartTransactionsController extends BaseController<
         userOptIn: undefined,
         fees: undefined,
         liveness: true,
+        estimatedGas: undefined,
       },
     };
 
@@ -464,6 +467,29 @@ export default class SmartTransactionsController extends BaseController<
       smartTransactionsState: {
         ...this.state.smartTransactionsState,
         fees: data,
+      },
+    });
+
+    return data;
+  }
+
+  async estimateGas(unsignedTransaction: UnsignedTransaction): Promise<Fees> {
+    const { chainId } = this.config;
+
+    const unsignedTransactionWithNonce = await this.addNonceToTransaction(
+      unsignedTransaction,
+    );
+    const data = await this.fetch(
+      getAPIRequestURL(APIType.ESTIMATE_GAS, chainId),
+      {
+        method: 'POST',
+        body: JSON.stringify({ tx: unsignedTransactionWithNonce }),
+      },
+    );
+    this.update({
+      smartTransactionsState: {
+        ...this.state.smartTransactionsState,
+        estimatedGas: data,
       },
     });
 

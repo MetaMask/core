@@ -2,6 +2,7 @@
 
 export enum APIType {
   'GET_FEES',
+  'ESTIMATE_GAS',
   'SUBMIT_TRANSACTIONS',
   'CANCEL',
   'BATCH_STATUS',
@@ -96,6 +97,12 @@ export interface Fees {
   feeEstimate: number;
   gasLimit: number;
   gasUsed: number;
+}
+
+export interface EstimatedGas {
+  gasUsed: number;
+  gasLimit: number;
+  feeEstimate: number;
 }
 
 // TODO: maybe grab the type from transactions controller?
