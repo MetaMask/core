@@ -461,7 +461,9 @@ export default class SmartTransactionsController extends BaseController<
     );
     const data = await this.fetch(getAPIRequestURL(APIType.GET_FEES, chainId), {
       method: 'POST',
-      body: JSON.stringify({ tx: unsignedTransactionWithNonce }),
+      body: JSON.stringify({
+        tx: unsignedTransactionWithNonce,
+      }),
     });
     this.update({
       smartTransactionsState: {
@@ -469,11 +471,13 @@ export default class SmartTransactionsController extends BaseController<
         fees: data,
       },
     });
-
     return data;
   }
 
-  async estimateGas(unsignedTransaction: UnsignedTransaction): Promise<Fees> {
+  async estimateGas(
+    unsignedTransaction: UnsignedTransaction,
+    approveTxParams: UnsignedTransaction,
+  ): Promise<EstimatedGas> {
     const { chainId } = this.config;
 
     const unsignedTransactionWithNonce = await this.addNonceToTransaction(
@@ -483,7 +487,10 @@ export default class SmartTransactionsController extends BaseController<
       getAPIRequestURL(APIType.ESTIMATE_GAS, chainId),
       {
         method: 'POST',
-        body: JSON.stringify({ tx: unsignedTransactionWithNonce }),
+        body: JSON.stringify({
+          tx: unsignedTransactionWithNonce,
+          pending_txs: [approveTxParams],
+        }),
       },
     );
     this.update({
