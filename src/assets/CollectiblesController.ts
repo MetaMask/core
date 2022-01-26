@@ -555,37 +555,40 @@ export class CollectiblesController extends BaseController<
 
       const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
 
-      const existingEntry: Collectible | undefined = collectibles.find(
+      const indexOfExistingEntry = collectibles.findIndex(
         (collectible) =>
           collectible.address.toLowerCase() === address.toLowerCase() &&
           collectible.tokenId === tokenId,
       );
 
-      if (existingEntry) {
-        if (isCollectibleMetadataEqual(collectibleMetadata, existingEntry)) {
-          return collectibles;
-        }
-        // TODO: Switch to indexToUpdate
-        const indexToRemove = collectibles.findIndex(
-          (collectible) =>
-            collectible.address.toLowerCase() === address.toLowerCase() &&
-            collectible.tokenId === tokenId,
-        );
-        /* istanbul ignore next */
-        if (indexToRemove !== -1) {
-          collectibles.splice(indexToRemove, 1);
-        }
-      }
-
       const newEntry: Collectible = {
         address,
         tokenId,
-        favorite: existingEntry?.favorite || false,
+        favorite: collectibles[indexOfExistingEntry]?.favorite || false,
         isCurrentlyOwned: true,
         ...collectibleMetadata,
       };
+      let newCollectibles;
+      if (indexOfExistingEntry !== -1) {
+        // if there is a collectible in state with a matching address
+        // check whether any other data is different from the original entry
+        if (
+          isCollectibleMetadataEqual(
+            collectibleMetadata,
+            collectibles[indexOfExistingEntry],
+          )
+        ) {
+          // if its an exact match we return out and don't add or update anything
+          return collectibles;
+        }
+        // otherwise if the contract data in state is in someway different replace the old entry with the current data
+        newCollectibles = [...collectibles];
+        newCollectibles[indexOfExistingEntry] = newEntry;
+      } else {
+        // if there is no contract entry in state that matches on address, just add the new contract to the list in state
+        newCollectibles = [...collectibles, newEntry];
+      }
 
-      const newCollectibles = [...collectibles, newEntry];
       this.updateNestedCollectibleState(
         newCollectibles,
         ALL_COLLECTIBLES_STATE_KEY,
@@ -666,25 +669,29 @@ export class CollectiblesController extends BaseController<
         external_link && { externalLink: external_link },
       );
 
-      const existingEntry = collectibleContracts.find(
+      const indexOfExistingEntry = collectibleContracts.findIndex(
         (collectibleContract) =>
           collectibleContract.address.toLowerCase() === address.toLowerCase(),
       );
 
       let newCollectibleContracts;
-      if (existingEntry) {
-        if (isCollectibleContractEqual(newEntry, existingEntry)) {
+      if (indexOfExistingEntry !== -1) {
+        // if there is a collectible contract in state with a matching address
+        // check whether any other contract data is different from the original entry
+        if (
+          isCollectibleContractEqual(
+            newEntry,
+            collectibleContracts[indexOfExistingEntry],
+          )
+        ) {
+          // if its an exact match we return out and don't add or update anything
           return collectibleContracts;
         }
+        // otherwise if the contract data in state is in someway different replace the old entry with the current data
         newCollectibleContracts = [...collectibleContracts];
-        const indexToUpdate = collectibleContracts.findIndex(
-          (collectibleContract) =>
-            collectibleContract.address.toLowerCase() === address.toLowerCase(),
-        );
-        if (indexToUpdate !== -1) {
-          newCollectibleContracts[indexToUpdate] = newEntry;
-        }
+        newCollectibleContracts[indexOfExistingEntry] = newEntry;
       } else {
+        // if there is no contract entry in state that matches on address, just add the new contract to the list in state
         newCollectibleContracts = [...collectibleContracts, newEntry];
       }
 

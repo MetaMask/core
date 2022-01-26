@@ -30,7 +30,7 @@ const COLLECTIBLE_METADATA_KEYS: (keyof CollectibleMetadata)[] = [
 
 /**
  * Compares collectible metadata entries to any collectible entry.
- * We need this method when comparing a new fetched collectible metadata, in case a entry changed to a defined value,
+ * We need this method when comparing a new fetched collectible metadata, in case an entry changed to a defined value,
  * there's a need to update the collectible in state.
  *
  * @param newCollectibleMetadata - Collectible metadata object.
@@ -41,16 +41,16 @@ export function isCollectibleMetadataEqual(
   newCollectibleMetadata: CollectibleMetadata,
   collectible: Collectible,
 ) {
-  return !COLLECTIBLE_METADATA_KEYS.some(
+  return COLLECTIBLE_METADATA_KEYS.every(
     (key) =>
       newCollectibleMetadata[key] &&
-      newCollectibleMetadata[key] !== collectible[key],
+      newCollectibleMetadata[key] === collectible[key],
   );
 }
 
 /**
  * Compares one CollectibleContract object to another CollectibleContract object.
- * We need this method when comparing a new fetched CollectibleContract, in case a entry changed to a defined value,
+ * We need this method when comparing a new fetched CollectibleContract, in case an entry changed to a defined value,
  * there's a need to update the CollectibleContract object in state.
  *
  * @param newCollectibleContract - CollectibleContract data object.
@@ -61,9 +61,9 @@ export function isCollectibleContractEqual(
   newCollectibleContract: CollectibleContract,
   oldCollectibleContract: CollectibleContract,
 ) {
-  return !COLLECTIBLE_CONTRACT_KEYS.some(
+  return COLLECTIBLE_CONTRACT_KEYS.every(
     (key) =>
       newCollectibleContract[key] &&
-      newCollectibleContract[key] !== oldCollectibleContract[key],
+      newCollectibleContract[key] === oldCollectibleContract[key],
   );
 }

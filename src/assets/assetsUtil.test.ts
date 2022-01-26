@@ -43,7 +43,7 @@ describe('assetsUtil', () => {
       expect(equal).toStrictEqual(false);
     });
 
-    it('should return true if all keys present in metadata match those the Collectible', () => {
+    it('should return false if all keys present in new metadata match those of the collectible metadata in state, but some fields are missing', () => {
       const collectibleMetadata: CollectibleMetadata = {
         name: 'name',
         image: 'image',
@@ -65,10 +65,10 @@ describe('assetsUtil', () => {
         collectibleMetadata,
         collectible,
       );
-      expect(equal).toStrictEqual(true);
+      expect(equal).toStrictEqual(false);
     });
 
-    it('should return true if no key is different', () => {
+    it('should return true if all fields of the metadata in state are present in the new metadata and no values are different', () => {
       const collectibleMetadata: CollectibleMetadata = {
         name: 'name',
         image: 'image',
@@ -140,7 +140,7 @@ describe('assetsUtil', () => {
       expect(equal).toStrictEqual(false);
     });
 
-    it('should return true if all keys present in old contract match those the new contract', () => {
+    it('should return false if all keys present in new contract data match those of the contract data in state, but some fields are missing', () => {
       const oldContract: CollectibleContract = {
         name: 'name',
         logo: 'logo',
@@ -168,10 +168,10 @@ describe('assetsUtil', () => {
         newContract,
         oldContract,
       );
-      expect(equal).toStrictEqual(true);
+      expect(equal).toStrictEqual(false);
     });
 
-    it('should return true if no key is different', () => {
+    it('should return true if no values are different', () => {
       const oldContract: CollectibleContract = {
         name: 'name',
         logo: 'logo',
