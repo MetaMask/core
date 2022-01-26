@@ -1,9 +1,9 @@
 import * as assetsUtil from './assetsUtil';
-import { Collectible, CollectibleMetadata } from './CollectiblesController';
+import { Collectible, CollectibleMetadata, CollectibleContract } from './CollectiblesController';
 
 describe('assetsUtil', () => {
-  describe('compareCollectiblesMetadata', () => {
-    it('should resolve true if any key is different', () => {
+  describe('isCollectibleMetadataEqual', () => {
+    it('should return false if any key is different', () => {
       const collectibleMetadata: CollectibleMetadata = {
         name: 'name',
         image: 'image',
@@ -32,14 +32,14 @@ describe('assetsUtil', () => {
         animationOriginal: 'animationOriginal',
         externalLink: 'externalLink',
       };
-      const different = assetsUtil.compareCollectiblesMetadata(
+      const equal = assetsUtil.isCollectibleMetadataEqual(
         collectibleMetadata,
         collectible,
       );
-      expect(different).toStrictEqual(true);
+      expect(equal).toStrictEqual(false);
     });
 
-    it('should resolve true if any key is different as always as metadata is not undefined', () => {
+    it('should return true if all keys present in metadata match those the Collectible', () => {
       const collectibleMetadata: CollectibleMetadata = {
         name: 'name',
         image: 'image',
@@ -57,14 +57,14 @@ describe('assetsUtil', () => {
         backgroundColor: 'backgroundColor',
         externalLink: 'externalLink',
       };
-      const different = assetsUtil.compareCollectiblesMetadata(
+      const equal = assetsUtil.isCollectibleMetadataEqual(
         collectibleMetadata,
         collectible,
       );
-      expect(different).toStrictEqual(false);
+      expect(equal).toStrictEqual(true);
     });
 
-    it('should resolve false if no key is different', () => {
+    it('should return true if no key is different', () => {
       const collectibleMetadata: CollectibleMetadata = {
         name: 'name',
         image: 'image',
@@ -93,11 +93,112 @@ describe('assetsUtil', () => {
         animationOriginal: 'animationOriginal',
         externalLink: 'externalLink',
       };
-      const different = assetsUtil.compareCollectiblesMetadata(
+      const equal = assetsUtil.isCollectibleMetadataEqual(
         collectibleMetadata,
         collectible,
       );
-      expect(different).toStrictEqual(false);
+      expect(equal).toStrictEqual(true);
+    });
+  });
+
+  describe('isCollectibleContractEqual', () => {
+    it('should return false if any key is different', () => {
+      const oldContract: CollectibleContract = {
+        name: 'name',
+        logo: 'logo',
+        address: 'address',
+        symbol: 'symbol',
+        description: 'description',
+        totalSupply: 'totalSupply',
+        assetContractType: 'assetContractType',
+        createdDate: 'createdDate',
+        schemaName: 'schemaName',
+        externalLink: 'externalLink',
+      };
+
+      const newContract: CollectibleContract = {
+        name: '[new]name',
+        logo: 'logo',
+        address: 'address',
+        symbol: 'symbol',
+        description: 'description',
+        totalSupply: 'totalSupply',
+        assetContractType: 'assetContractType',
+        createdDate: 'createdDate',
+        schemaName: 'schemaName',
+        externalLink: 'externalLink',
+      };
+
+      const equal = assetsUtil.isCollectibleContractEqual(
+        newContract,
+        oldContract,
+      );
+      expect(equal).toStrictEqual(false);
+    });
+
+    it('should return true if all keys present in old contract match those the new contract', () => {
+      const oldContract: CollectibleContract = {
+        name: 'name',
+        logo: 'logo',
+        address: 'address',
+        symbol: 'symbol',
+        description: 'description',
+        totalSupply: 'totalSupply',
+        assetContractType: 'assetContractType',
+        createdDate: 'createdDate',
+        schemaName: 'schemaName',
+        externalLink: 'externalLink',
+      };
+
+      const newContract: CollectibleContract = {
+        name: 'name',
+        logo: 'logo',
+        address: 'address',
+        symbol: 'symbol',
+        description: 'description',
+        totalSupply: 'totalSupply',
+        assetContractType: 'assetContractType',
+      };
+
+      const equal = assetsUtil.isCollectibleContractEqual(
+        newContract,
+        oldContract,
+      );
+      expect(equal).toStrictEqual(true);
+    });
+
+    it('should return true if no key is different', () => {
+      const oldContract: CollectibleContract = {
+        name: 'name',
+        logo: 'logo',
+        address: 'address',
+        symbol: 'symbol',
+        description: 'description',
+        totalSupply: 'totalSupply',
+        assetContractType: 'assetContractType',
+        createdDate: 'createdDate',
+        schemaName: 'schemaName',
+        externalLink: 'externalLink',
+      };
+
+      const newContract: CollectibleContract = {
+        name: 'name',
+        logo: 'logo',
+        address: 'address',
+        symbol: 'symbol',
+        description: 'description',
+        totalSupply: 'totalSupply',
+        assetContractType: 'assetContractType',
+        createdDate: 'createdDate',
+        schemaName: 'schemaName',
+        externalLink: 'externalLink',
+      };
+
+      const equal = assetsUtil.isCollectibleContractEqual(
+        oldContract,
+        newContract,
+      );
+      expect(equal).toStrictEqual(true);
     });
   });
 });
