@@ -1,5 +1,9 @@
 import * as assetsUtil from './assetsUtil';
-import { Collectible, CollectibleMetadata, CollectibleContract } from './CollectiblesController';
+import {
+  Collectible,
+  CollectibleMetadata,
+  CollectibleContract,
+} from './CollectiblesController';
 
 describe('assetsUtil', () => {
   describe('isCollectibleMetadataEqual', () => {
