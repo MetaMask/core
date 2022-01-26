@@ -54,7 +54,10 @@ export interface SmartTransactionsControllerState extends BaseState {
     userOptIn: boolean | undefined;
     liveness: boolean | undefined;
     fees: Fees | undefined;
-    estimatedGas: EstimatedGas | undefined;
+    estimatedGas: {
+      txData: EstimatedGas | undefined;
+      approvalTxData: EstimatedGas | undefined;
+    };
   };
 }
 
@@ -124,7 +127,10 @@ export default class SmartTransactionsController extends BaseController<
         userOptIn: undefined,
         fees: undefined,
         liveness: true,
-        estimatedGas: undefined,
+        estimatedGas: {
+          txData: undefined,
+          approvalTxData: undefined,
+        },
       },
     };
 
@@ -480,6 +486,21 @@ export default class SmartTransactionsController extends BaseController<
   ): Promise<EstimatedGas> {
     const { chainId } = this.config;
 
+    let approvalTxData;
+    if (approveTxParams) {
+      const unsignedApprovalTransactionWithNonce = await this.addNonceToTransaction(
+        approveTxParams,
+      );
+      approvalTxData = await this.fetch(
+        getAPIRequestURL(APIType.ESTIMATE_GAS, chainId),
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            tx: unsignedApprovalTransactionWithNonce,
+          }),
+        },
+      );
+    }
     const unsignedTransactionWithNonce = await this.addNonceToTransaction(
       unsignedTransaction,
     );
@@ -489,14 +510,17 @@ export default class SmartTransactionsController extends BaseController<
         method: 'POST',
         body: JSON.stringify({
           tx: unsignedTransactionWithNonce,
-          pending_txs: [approveTxParams],
+          ...(approveTxParams && { pending_txs: [approveTxParams] }),
         }),
       },
     );
     this.update({
       smartTransactionsState: {
         ...this.state.smartTransactionsState,
-        estimatedGas: data,
+        estimatedGas: {
+          txData: data,
+          approvalTxData,
+        },
       },
     });
 
