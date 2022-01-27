@@ -37,9 +37,10 @@ const { safelyExecute } = util;
 // TODO: JSDoc all methods
 // TODO: Remove all comments (* ! ?)
 const SECOND = 1000;
+const MINUTE = SECOND * 60;
 
 export const DEFAULT_INTERVAL = SECOND * 10;
-export const CANCELLABLE_INTERVAL = SECOND * 10.5;
+export const CANCELLABLE_INTERVAL = MINUTE;
 
 export interface SmartTransactionsControllerConfig extends BaseConfig {
   interval: number;
