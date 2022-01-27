@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.1.1]
+
 ## [25.1.0]
 ### Changed
 - Make the userAddress argument to the getDetails method on the ERC20Standard class optional. ([#674](https://github.com/MetaMask/controllers/pull/674))
@@ -495,7 +497,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v25.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v25.1.1...HEAD
+[25.1.1]: https://github.com/MetaMask/controllers/compare/v25.1.0...v25.1.1
 [25.1.0]: https://github.com/MetaMask/controllers/compare/v25.0.0...v25.1.0
 [25.0.0]: https://github.com/MetaMask/controllers/compare/v24.0.0...v25.0.0
 [24.0.0]: https://github.com/MetaMask/controllers/compare/v23.1.0...v24.0.0
