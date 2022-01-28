@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0]
+### Added
+- Change cancellable interval to be 1 minute ([#47](https://github.com/MetaMask/smart-transactions-controller/pull/47))
+- Estimate approval transaction along with swaps transaction ([#46](https://github.com/MetaMask/smart-transactions-controller/pull/46))
+- chore(deps): bump @metamask/controllers from 20.1.0 to 25.1.0 ([#44](https://github.com/MetaMask/smart-transactions-controller/pull/44))
+- Add support for approveTxParams ([#45](https://github.com/MetaMask/smart-transactions-controller/pull/45))
+- Add method for estimateGas ([#43](https://github.com/MetaMask/smart-transactions-controller/pull/43))
+
 ## [1.5.0]
 ### Added
 - Add "fees" and "liveness" into the smartTransactionsState, update version ([#41](https://github.com/MetaMask/smart-transactions-controller/pull/41))
@@ -51,7 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.2.0...v1.3.0
