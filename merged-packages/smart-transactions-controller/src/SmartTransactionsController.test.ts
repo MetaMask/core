@@ -251,6 +251,10 @@ describe('SmartTransactionsController', () => {
         userOptIn: undefined,
         fees: undefined,
         liveness: true,
+        estimatedGas: {
+          approvalTxData: undefined,
+          txData: undefined,
+        },
       },
     });
   });
@@ -443,6 +447,10 @@ describe('SmartTransactionsController', () => {
           userOptIn: undefined,
           fees: undefined,
           liveness: true,
+          estimatedGas: {
+            approvalTxData: undefined,
+            txData: undefined,
+          },
         },
       });
     });
@@ -475,6 +483,10 @@ describe('SmartTransactionsController', () => {
           },
           userOptIn: undefined,
           fees: undefined,
+          estimatedGas: {
+            approvalTxData: undefined,
+            txData: undefined,
+          },
           liveness: true,
         },
       });
