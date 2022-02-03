@@ -252,16 +252,28 @@ export default class SmartTransactionsController extends BaseController<
     });
   }
 
+  isNewSmartTransaction(smartTransactionUuid: string): boolean {
+    const { chainId } = this.config;
+    const { smartTransactionsState } = this.state;
+    const { smartTransactions } = smartTransactionsState;
+    const currentSmartTransactions = smartTransactions[chainId];
+    const currentIndex = currentSmartTransactions?.findIndex(
+      (stx) => stx.uuid === smartTransactionUuid,
+    );
+    return currentIndex === -1 || currentIndex === undefined;
+  }
+
   updateSmartTransaction(smartTransaction: SmartTransaction): void {
     const { chainId } = this.config;
     const { smartTransactionsState } = this.state;
     const { smartTransactions } = smartTransactionsState;
     const currentSmartTransactions = smartTransactions[chainId];
     const currentIndex = currentSmartTransactions?.findIndex(
-      (st) => st.uuid === smartTransaction.uuid,
+      (stx) => stx.uuid === smartTransaction.uuid,
     );
-    const isNewSmartTransaction =
-      currentIndex === -1 || currentIndex === undefined;
+    const isNewSmartTransaction = this.isNewSmartTransaction(
+      smartTransaction.uuid,
+    );
     this.trackStxStatusChange(
       smartTransaction,
       isNewSmartTransaction
@@ -581,10 +593,16 @@ export default class SmartTransactionsController extends BaseController<
     });
 
     setTimeout(() => {
-      this.updateSmartTransaction({
-        uuid: data.uuid,
-        cancellable: false,
-      });
+      if (!this.isNewSmartTransaction(data.uuid)) {
+        // Only do this for an existing smart transaction. If an STX is not in the list anymore
+        // (e.g. because it was cancelled and a new one was submitted, which deletes the first one),
+        // do not try to update the old one, because it would create a new one with most
+        // of the required STX params missing. It would only have "uuid" and "cancellable" params.
+        this.updateSmartTransaction({
+          uuid: data.uuid,
+          cancellable: false,
+        });
+      }
     }, CANCELLABLE_INTERVAL);
     nonceLock.releaseLock();
     return data;

@@ -95,6 +95,14 @@ const createGetFeesApiResponse = () => {
   };
 };
 
+const createEstimateGasApiResponse = () => {
+  return {
+    feeEstimate: 42000000000000,
+    gasLimit: 21000,
+    gasUsed: 21000,
+  };
+};
+
 const createSubmitTransactionsApiResponse = () => {
   return { uuid: 'dP23W7c2kt4FK9TmXOkz1UM2F20' };
 };
@@ -658,6 +666,43 @@ describe('SmartTransactionsController', () => {
         status: SmartTransactionStatuses.PENDING,
       });
       expect(transactions).toStrictEqual([]);
+    });
+  });
+
+  describe('isNewSmartTransaction', () => {
+    it('returns true if it is a new STX', () => {
+      const actual = smartTransactionsController.isNewSmartTransaction(
+        'newUuid',
+      );
+      expect(actual).toBe(true);
+    });
+
+    it('returns false if an STX already exist', () => {
+      smartTransactionsController.update({
+        smartTransactionsState: {
+          ...smartTransactionsController.state.smartTransactionsState,
+          smartTransactions: {
+            [CHAIN_IDS.ETHEREUM]: createStateAfterPending() as SmartTransaction[],
+          },
+        },
+      });
+      const actual = smartTransactionsController.isNewSmartTransaction('uuid1');
+      expect(actual).toBe(false);
+    });
+  });
+
+  describe('estimateGas', () => {
+    it('gets estimated gas for a transaction', async () => {
+      const unsignedTransaction = createUnsignedTransaction();
+      const estimateGasApiResponse = createEstimateGasApiResponse();
+      nock(API_BASE_URL)
+        .post(`/networks/${ethereumChainIdDec}/estimateGas`)
+        .reply(200, estimateGasApiResponse);
+      const estimatedGas = await smartTransactionsController.estimateGas(
+        unsignedTransaction,
+        null,
+      );
+      expect(estimatedGas).toStrictEqual(estimateGasApiResponse);
     });
   });
 });
