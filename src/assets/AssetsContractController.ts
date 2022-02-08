@@ -110,7 +110,7 @@ export class AssetsContractController extends BaseController<
    * @param address - ERC20 asset contract address.
    * @returns Promise resolving to the 'decimals'.
    */
-  async getERC20TokenDecimals(address: string): Promise<string> {
+  async getERC20TokenDecimals(address: string): Promise<BN> {
     if (this.erc20Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
@@ -158,7 +158,7 @@ export class AssetsContractController extends BaseController<
     symbol?: string | undefined;
     name?: string | undefined;
     decimals?: string | undefined;
-    balance?: BN | undefined;
+    balance?: string | undefined;
   }> {
     if (
       this.erc721Standard === undefined ||

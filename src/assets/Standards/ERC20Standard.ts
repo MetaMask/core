@@ -37,10 +37,10 @@ export class ERC20Standard {
    * @param address - ERC20 asset contract string.
    * @returns Promise resolving to the 'decimals'.
    */
-  async getTokenDecimals(address: string): Promise<string> {
+  async getTokenDecimals(address: string): Promise<BN> {
     const contract = this.web3.eth.contract(abiERC20).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.decimals((error: Error, result: string) => {
+    return new Promise<BN>((resolve, reject) => {
+      contract.decimals((error: Error, result: BN) => {
         /* istanbul ignore if */
         if (error) {
           reject(error);
@@ -85,20 +85,20 @@ export class ERC20Standard {
     standard: string;
     symbol: string | undefined;
     decimals: string | undefined;
-    balance: BN | undefined;
+    balance: string | undefined;
   }> {
-    const [decimals, symbol] = await Promise.all([
+    const [decimals, symbol]: [BN, string] = await Promise.all([
       this.getTokenDecimals(address),
       this.getTokenSymbol(address),
     ]);
-    let balance;
+    let balance: BN | undefined;
     if (userAddress) {
       balance = await this.getBalanceOf(address, userAddress);
     }
     return {
-      decimals,
+      decimals: decimals?.toString(10),
+      balance: balance?.toString(10),
       symbol,
-      balance,
       standard: ERC20,
     };
   }
