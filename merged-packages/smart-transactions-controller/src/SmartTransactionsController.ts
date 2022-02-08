@@ -68,7 +68,7 @@ export default class SmartTransactionsController extends BaseController<
 > {
   public timeoutHandle?: NodeJS.Timeout;
 
-  private nonceTracker: any;
+  private getNonceLock: any;
 
   private getNetwork: any;
 
@@ -95,7 +95,7 @@ export default class SmartTransactionsController extends BaseController<
   constructor(
     {
       onNetworkStateChange,
-      nonceTracker,
+      getNonceLock,
       getNetwork,
       provider,
       txController,
@@ -104,7 +104,7 @@ export default class SmartTransactionsController extends BaseController<
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
       ) => void;
-      nonceTracker: any;
+      getNonceLock: any;
       getNetwork: any;
       provider: any;
       txController: any;
@@ -135,7 +135,7 @@ export default class SmartTransactionsController extends BaseController<
       },
     };
 
-    this.nonceTracker = nonceTracker;
+    this.getNonceLock = getNonceLock;
     this.getNetwork = getNetwork;
     this.ethersProvider = new ethers.providers.Web3Provider(provider);
     this.txController = txController;
@@ -463,7 +463,7 @@ export default class SmartTransactionsController extends BaseController<
   async addNonceToTransaction(
     transaction: UnsignedTransaction,
   ): Promise<UnsignedTransaction> {
-    const nonceLock = await this.nonceTracker.getNonceLock(transaction.from);
+    const nonceLock = await this.getNonceLock(transaction.from);
     const nonce = nonceLock.nextNonce;
     nonceLock.releaseLock();
     return {
@@ -573,7 +573,7 @@ export default class SmartTransactionsController extends BaseController<
     } catch (e) {
       console.error('ethers error', e);
     }
-    const nonceLock = await this.nonceTracker.getNonceLock(txParams?.from);
+    const nonceLock = await this.getNonceLock(txParams?.from);
     const nonce = ethers.utils.hexlify(nonceLock.nextNonce);
     if (txParams && !txParams?.nonce) {
       txParams.nonce = nonce;

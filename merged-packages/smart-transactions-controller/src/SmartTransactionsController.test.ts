@@ -216,14 +216,12 @@ describe('SmartTransactionsController', () => {
       onNetworkStateChange: (listener) => {
         networkListener = listener;
       },
-      nonceTracker: {
-        getNonceLock: jest.fn(() => {
-          return {
-            nextNonce: 'nextNonce',
-            releaseLock: jest.fn(),
-          };
-        }),
-      },
+      getNonceLock: jest.fn(() => {
+        return {
+          nextNonce: 'nextNonce',
+          releaseLock: jest.fn(),
+        };
+      }),
       getNetwork: jest.fn(() => '1'),
       provider: jest.fn(),
       txController: {

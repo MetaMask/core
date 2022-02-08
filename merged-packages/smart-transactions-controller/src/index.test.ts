@@ -6,7 +6,7 @@ describe('default export', () => {
     jest.useFakeTimers();
     const controller = new DefaultExport({
       onNetworkStateChange: jest.fn(),
-      nonceTracker: null,
+      getNonceLock: null,
       provider: jest.fn(),
       getNetwork: jest.fn(() => '1'),
       txController: {},
