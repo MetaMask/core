@@ -224,9 +224,7 @@ describe('SmartTransactionsController', () => {
       }),
       getNetwork: jest.fn(() => '1'),
       provider: jest.fn(),
-      txController: {
-        confirmExternalTransaction: confirmExternalMock,
-      },
+      confirmExternalTransaction: confirmExternalMock,
       trackMetaMetricsEvent: trackMetaMetricsEventSpy,
     });
     // eslint-disable-next-line jest/prefer-spy-on

@@ -9,7 +9,7 @@ describe('default export', () => {
       getNonceLock: null,
       provider: jest.fn(),
       getNetwork: jest.fn(() => '1'),
-      txController: {},
+      confirmExternalTransaction: jest.fn(),
       trackMetaMetricsEvent: jest.fn(),
     });
     expect(controller).toBeInstanceOf(SmartTransactionsController);

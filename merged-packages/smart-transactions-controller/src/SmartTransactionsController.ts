@@ -74,7 +74,7 @@ export default class SmartTransactionsController extends BaseController<
 
   public ethersProvider: any;
 
-  public txController: any;
+  public confirmExternalTransaction: any;
 
   private trackMetaMetricsEvent: any;
 
@@ -98,7 +98,7 @@ export default class SmartTransactionsController extends BaseController<
       getNonceLock,
       getNetwork,
       provider,
-      txController,
+      confirmExternalTransaction,
       trackMetaMetricsEvent,
     }: {
       onNetworkStateChange: (
@@ -107,7 +107,7 @@ export default class SmartTransactionsController extends BaseController<
       getNonceLock: any;
       getNetwork: any;
       provider: any;
-      txController: any;
+      confirmExternalTransaction: any;
       trackMetaMetricsEvent: any;
     },
     config?: Partial<SmartTransactionsControllerConfig>,
@@ -138,7 +138,7 @@ export default class SmartTransactionsController extends BaseController<
     this.getNonceLock = getNonceLock;
     this.getNetwork = getNetwork;
     this.ethersProvider = new ethers.providers.Web3Provider(provider);
-    this.txController = txController;
+    this.confirmExternalTransaction = confirmExternalTransaction;
     this.trackMetaMetricsEvent = trackMetaMetricsEvent;
 
     this.initialize();
@@ -407,11 +407,7 @@ export default class SmartTransactionsController extends BaseController<
                 history: originalTxMeta.history.concat(entry),
               }
             : originalTxMeta;
-        this.txController.confirmExternalTransaction(
-          txMeta,
-          txReceipt,
-          baseFeePerGas,
-        );
+        this.confirmExternalTransaction(txMeta, txReceipt, baseFeePerGas);
 
         this.trackMetaMetricsEvent({
           event: 'STX Confirmed',
