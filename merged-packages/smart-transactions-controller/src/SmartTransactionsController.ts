@@ -242,6 +242,7 @@ export default class SmartTransactionsController extends BaseController<
       token_to_symbol: updatedSmartTransaction.destinationTokenSymbol,
       processing_time: getStxProcessingTime(updatedSmartTransaction.time),
       stx_enabled: true,
+      current_stx_enabled: true,
       stx_user_opt_in: true,
     };
 
