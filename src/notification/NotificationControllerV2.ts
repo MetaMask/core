@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import type { Patch } from 'immer';
 
 import { BaseController } from '../BaseControllerV2';
@@ -10,13 +9,8 @@ import type { RestrictedControllerMessenger } from '../ControllerMessenger';
  * @property requests - Object containing number of requests in a given interval and a timeout id
  */
 export type NotificationState = {
-  requests: Record<string, NotificationRequests>;
+  requests: Record<string, number>;
 };
-
-interface NotificationRequests {
-  count: number;
-  timeoutId?: NodeJS.Timeout;
-}
 
 export enum NotificationType {
   native = 'native',
@@ -83,8 +77,8 @@ export class NotificationController extends BaseController<
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
    * @param options.platform - The ExtensionPlatform defined in the extension
-   * @param options.rateLimitTimeout The time window in which the rate limit is applied
-   * @param options.rateLimitCount The amount of notifications an origin can show in the rate limit time window
+   * @param options.rateLimitTimeout - The time window in which the rate limit is applied
+   * @param options.rateLimitCount - The amount of notifications an origin can show in the rate limit time window
    */
   constructor({
     rateLimitTimeout = 5000,
@@ -111,10 +105,10 @@ export class NotificationController extends BaseController<
   }
 
   /**
-   * Shows a notification if origin is not rate-limited
+   * Shows a notification if origin is not rate-limited.
    *
-   * @param origin The origin trying to send a notification
-   * @param args Notification arguments, containing the notification message etc.
+   * @param origin - The origin trying to send a notification
+   * @param args - Notification arguments, containing the notification message etc.
    * @returns False if rate-limited, true if not
    */
   show(origin: string, args: NotificationArgs) {
@@ -135,29 +129,19 @@ export class NotificationController extends BaseController<
   }
 
   _isRateLimited(origin: string) {
-    return this.state.requests[origin]?.count >= this.rateLimitCount;
+    return this.state.requests[origin] >= this.rateLimitCount;
   }
 
   _recordRequest(origin: string) {
     this.update((state) => {
-      if (!(origin in state.requests)) {
-        state.requests[origin] = {
-          count: 1,
-          timeoutId: setTimeout(
-            () => this._resetRequestCount(origin),
-            this.rateLimitTimeout,
-          ),
-        };
-      } else {
-        state.requests[origin].count += 1;
-      }
+      state.requests[origin] = (state.requests[origin] ?? 0) + 1;
+      setTimeout(() => this._resetRequestCount(origin), this.rateLimitTimeout);
     });
   }
 
   _resetRequestCount(origin: string) {
     this.update((state) => {
-      state.requests[origin].count = 0;
-      state.requests[origin].timeoutId = undefined;
+      state.requests[origin] = 0;
     });
   }
 }
