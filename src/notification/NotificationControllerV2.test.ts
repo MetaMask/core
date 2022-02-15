@@ -3,6 +3,7 @@ import {
   GetNotificationState,
   NotificationController,
   NotificationStateChange,
+  NotificationType,
 } from './NotificationControllerV2';
 
 const name = 'NotificationControllerV2';
@@ -35,7 +36,10 @@ describe('NotificationControllerV2', () => {
     const controller = new NotificationController({ platform, messenger });
     const origin = 'snap_test';
     const message = 'foo';
-    const result = controller.show(origin, { type: 'native', message });
+    const result = controller.show(origin, {
+      type: NotificationType.Native,
+      message,
+    });
     expect(result).toBe(true);
     expect(platform._showNotifiction).toHaveBeenCalledWith(origin, message);
   });
@@ -50,8 +54,14 @@ describe('NotificationControllerV2', () => {
     });
     const origin = 'snap_test';
     const message = 'foo';
-    const result = controller.show(origin, { type: 'native', message });
-    const result2 = controller.show(origin, { type: 'native', message });
+    const result = controller.show(origin, {
+      type: NotificationType.Native,
+      message,
+    });
+    const result2 = controller.show(origin, {
+      type: NotificationType.Native,
+      message,
+    });
     expect(result).toBe(true);
     expect(result2).toBe(false);
     expect(platform._showNotifiction).toHaveBeenCalledTimes(1);
@@ -68,10 +78,16 @@ describe('NotificationControllerV2', () => {
     });
     const origin = 'snap_test';
     const message = 'foo';
-    const result = controller.show(origin, { type: 'native', message });
+    const result = controller.show(origin, {
+      type: NotificationType.Native,
+      message,
+    });
     expect(result).toBe(true);
     jest.runAllTimers();
-    const result2 = controller.show(origin, { type: 'native', message });
+    const result2 = controller.show(origin, {
+      type: NotificationType.Native,
+      message,
+    });
     expect(result2).toBe(true);
     expect(platform._showNotifiction).toHaveBeenCalledTimes(2);
     expect(platform._showNotifiction).toHaveBeenCalledWith(origin, message);
