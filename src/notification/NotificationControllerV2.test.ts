@@ -6,6 +6,12 @@ import {
 } from './NotificationControllerV2';
 
 const name = 'NotificationControllerV2';
+
+/**
+ * Constructs a restricted controller messenger.
+ *
+ * @returns A restricted controller messenger.
+ */
 function getRestrictedMessenger() {
   const controllerMessenger = new ControllerMessenger<
     GetNotificationState,
