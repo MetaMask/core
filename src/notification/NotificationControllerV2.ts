@@ -13,7 +13,7 @@ export type NotificationState = {
 };
 
 export enum NotificationType {
-  native = 'native',
+  Native = 'native',
 }
 
 export interface NotificationArgs {
@@ -118,7 +118,7 @@ export class NotificationController extends BaseController<
     this._recordRequest(origin);
 
     switch (args.type) {
-      case NotificationType.native:
+      case NotificationType.Native:
         this.platform._showNotifiction(origin, args.message);
         break;
       default:
