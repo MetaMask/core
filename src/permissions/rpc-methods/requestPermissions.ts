@@ -1,10 +1,10 @@
 import { ethErrors } from 'eth-rpc-errors';
-import type { PermittedHandlerExport } from '@metamask/rpc-methods/types';
 import type {
   JsonRpcEngineEndCallback,
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from 'json-rpc-engine';
+import type { PermittedHandlerExport } from '../../util';
 import { MethodNames } from '../utils';
 
 import { invalidParams } from '../errors';

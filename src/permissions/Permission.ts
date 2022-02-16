@@ -2,11 +2,12 @@ import { Json } from 'json-rpc-engine';
 import { nanoid } from 'nanoid';
 import { NonEmptyArray } from '../util';
 import { CaveatConstraint } from './Caveat';
-// This is used in a docstring, but ESLint doesn't notice it.
-/* eslint-disable @typescript-eslint/no-unused-vars */
+// @ts-expect-error This is used in a docstring
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { PermissionController } from './PermissionController';
+// @ts-expect-error This is used in a docstring
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Caveat } from './Caveat';
-/* eslint-enable @typescript-eslint/no-unused-vars */
 
 /**
  * The origin of a subject.

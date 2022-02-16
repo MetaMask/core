@@ -6,10 +6,9 @@ import {
   PermissionConstraint,
   RestrictedMethodParameters,
 } from './Permission';
-// This is used in a docstring, but ESLint doesn't notice it.
-/* eslint-disable @typescript-eslint/no-unused-vars */
+// @ts-expect-error This is used in a docstring
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { PermissionController } from './PermissionController';
-/* eslint-enable @typescript-eslint/no-unused-vars */
 
 export type CaveatConstraint = {
   /**

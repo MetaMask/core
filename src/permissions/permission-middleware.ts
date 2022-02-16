@@ -6,17 +6,18 @@ import {
   JsonRpcMiddleware,
   PendingJsonRpcResponse,
 } from 'json-rpc-engine';
+// @ts-expect-error This is used in a docstring
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { JsonRpcEngine } from 'json-rpc-engine';
 import { internalError } from './errors';
+// @ts-expect-error This is used in a docstring
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { PermissionController } from './PermissionController';
 import {
   GenericPermissionController,
   PermissionSubjectMetadata,
   RestrictedMethodParameters,
 } from '.';
-// This is used in a docstring, but ESLint doesn't notice it.
-/* eslint-disable @typescript-eslint/no-unused-vars, import/order */
-import type { JsonRpcEngine } from 'json-rpc-engine';
-import type { PermissionController } from './PermissionController';
-/* eslint-enable @typescript-eslint/no-unused-vars, import/order */
 
 type PermissionMiddlewareFactoryOptions = {
   executeRestrictedMethod: GenericPermissionController['_executeRestrictedMethod'];

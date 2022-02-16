@@ -1,8 +1,8 @@
-import type { PermittedHandlerExport } from '@metamask/rpc-methods/types';
 import type {
   JsonRpcEngineEndCallback,
   PendingJsonRpcResponse,
 } from 'json-rpc-engine';
+import type { PermittedHandlerExport } from '../../util';
 import { MethodNames } from '../utils';
 
 import type { PermissionConstraint } from '../Permission';
