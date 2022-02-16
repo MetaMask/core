@@ -891,16 +891,6 @@ export function getFormattedIpfsUrl(
   return `${origin}/ipfs/${cidAndPath}`;
 }
 
-/**
- * Calculates the time difference between a timestamp and the current time.
- *
- * @param timestamp - A Unix millisecond timestamp.
- * @returns The number of milliseconds elapsed since the specified timestamp.
- */
-export function timeSince(timestamp: number): number {
-  return Date.now() - timestamp;
-}
-
 type PlainObject = Record<number | string | symbol, unknown>;
 
 /**
