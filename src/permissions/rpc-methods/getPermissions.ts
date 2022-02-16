@@ -25,6 +25,17 @@ export type GetPermissionsHooks = {
   getPermissionsForOrigin: () => SubjectPermissions<PermissionConstraint>;
 };
 
+/**
+ * Get Permissions implementation to be used in JsonRpcEngine middleware.
+ *
+ * @param _req - The JsonRpcEngine request - unused
+ * @param res - The JsonRpcEngine result object
+ * @param _next - JsonRpcEngine next() callback - unused
+ * @param end - JsonRpcEngine end() callback
+ * @param options0 - Method hooks passed to the method implementation
+ * @param options0.getPermissionsForOrigin - The specific method hook needed for this method implementation
+ * @returns A promise that resolves to nothing
+ */
 async function getPermissionsImplementation(
   _req: unknown,
   res: PendingJsonRpcResponse<PermissionConstraint[]>,

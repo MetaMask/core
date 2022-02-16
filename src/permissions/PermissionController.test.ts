@@ -355,9 +355,7 @@ type ApprovalActions =
   | RejectApprovalRequest;
 
 /**
- *
  * Gets a restricted controller messenger.
- *
  * Used as a default in {@link getPermissionControllerOptions}.
  *
  * @returns The restricted messenger.
@@ -391,8 +389,9 @@ function getPermissionControllerMessenger() {
 
 /**
  * Gets the default unrestricted methods array.
- *
  * Used as a default in {@link getPermissionControllerOptions}.
+ *
+ * @returns The unrestricted methods array
  */
 function getDefaultUnrestrictedMethods() {
   return ['wallet_unrestrictedMethod'];
@@ -400,8 +399,9 @@ function getDefaultUnrestrictedMethods() {
 
 /**
  * Gets some existing state to populate the permission controller with.
- * There is one subject, "metamask.io", with one permission,
- * "wallet_getSecretArray", with no caveats.
+ * There is one subject, "metamask.io", with one permission, "wallet_getSecretArray", with no caveats.
+ *
+ * @returns The existing mock state
  */
 function getExistingPermissionState() {
   return {
@@ -451,9 +451,7 @@ function getPermissionControllerOptions(opts?: Record<string, unknown>) {
  * Gets a "default" permission controller. This simply means a controller using
  * the default caveat and permissions created in this test file.
  *
- * For the options used, see {@link getPermissionControllerOptions}.
- *
- * @param opts
+ * @param opts - For the options used, see {@link getPermissionControllerOptions}
  * @returns The default permission controller for testing.
  */
 function getDefaultPermissionController(
@@ -1819,9 +1817,9 @@ describe('PermissionController', () => {
     }
 
     /**
-     * @returns A tuple of a permission controller and an object listing the
-     * origins of its subjects. Each subject has at least one permission
-     * with caveats.
+     * Generates a permission controller instance with some granted permissions for testing.
+     *
+     * @returns The permission controller instance
      */
     const getMultiCaveatController = () => {
       const controller = getDefaultPermissionController();

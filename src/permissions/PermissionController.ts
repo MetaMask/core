@@ -154,6 +154,7 @@ export type PermissionControllerState<
  * Get the state metadata of the {@link PermissionController}.
  *
  * @template Permission - The controller's permission type union.
+ * @returns The state metadata
  */
 function getStateMetadata<Permission extends PermissionConstraint>() {
   return { subjects: { anonymous: true, persist: true } } as StateMetadata<
@@ -165,6 +166,7 @@ function getStateMetadata<Permission extends PermissionConstraint>() {
  * Get the default state of the {@link PermissionController}.
  *
  * @template Permission - The controller's permission type union.
+ * @returns The default state of the controller
  */
 function getDefaultState<Permission extends PermissionConstraint>() {
   return { subjects: {} } as PermissionControllerState<Permission>;
@@ -461,6 +463,8 @@ export class PermissionController<
 
   /**
    * The names of all JSON-RPC methods that will be ignored by the controller.
+   *
+   * @returns The names of all unrestricted JSON-RPC methods
    */
   public get unrestrictedMethods(): ReadonlySet<string> {
     return this._unrestrictedMethods;
@@ -479,6 +483,8 @@ export class PermissionController<
   >;
 
   /**
+   * Constructs the PermissionController.
+   *
    * @param options - Permission controller options.
    * @param options.caveatSpecifications - The specifications of all caveats
    * available to the controller. See {@link CaveatSpecificationMap} and the
@@ -760,6 +766,8 @@ export class PermissionController<
   }
 
   /**
+   * Gets a list of all origins of subjects.
+   *
    * @returns The origins (i.e. IDs) of all subjects.
    */
   getSubjectNames(): OriginString[] {
@@ -1181,12 +1189,8 @@ export class PermissionController<
    *
    * For each caveat, depending on the mutator result, this method will:
    * - Do nothing ({@link CaveatMutatorOperation.noop})
-   * - Update the value of the caveat ({@link CaveatMutatorOperation.updateValue})
-   *   - The caveat specification validator, if any, will be called after
-   *     updating the value.
-   * - Delete the caveat ({@link CaveatMutatorOperation.deleteCaveat})
-   *   - The permission specification validator, if any, will be called after
-   *     deleting the caveat.
+   * - Update the value of the caveat ({@link CaveatMutatorOperation.updateValue}). The caveat specification validator, if any, will be called after updating the value.
+   * - Delete the caveat ({@link CaveatMutatorOperation.deleteCaveat}). The permission specification validator, if any, will be called after deleting the caveat.
    * - Revoke the parent permission ({@link CaveatMutatorOperation.revokePermission})
    *
    * This method throws if the validation of any caveat or permission fails.
@@ -1558,13 +1562,11 @@ export class PermissionController<
 
   /**
    * Validates the specified permission by:
-   * - Ensuring that its `caveats` property is either `null` or a non-empty
-   *   array.
+   * - Ensuring that its `caveats` property is either `null` or a non-empty array.
    * - Ensuring that it only includes caveats allowed by its specification.
    * - Ensuring that it includes no duplicate caveats (by caveat type).
    * - Validating each caveat object, if `performCaveatValidation` is `true`.
-   * - Calling the validator of its specification, if one exists and
-   *   `invokePermissionValidator` is `true`.
+   * - Calling the validator of its specification, if one exists and `invokePermissionValidator` is `true`.
    *
    * An error is thrown if validation fails.
    *
@@ -2030,6 +2032,7 @@ export class PermissionController<
    * {@link PermissionController.rejectPermissionsRequest} for usage.
    * @param id - The id of the request to reject.
    * @param error - The error associated with the rejection.
+   * @returns Nothing
    */
   private _rejectPermissionsRequest(id: string, error: Error): void {
     return this.messagingSystem.call(
@@ -2135,11 +2138,10 @@ export class PermissionController<
    * @see {@link PermissionController.executeRestrictedMethod} and
    * {@link PermissionController.createPermissionMiddleware} for usage.
    * @param methodImplementation - The implementation of the method to call.
-   * @param method
-   * @param params
    * @param subject - Metadata about the subject that made the request.
-   * @param req - The request object associated with the request.
-   * @returns
+   * @param method - The method name
+   * @param params - Params needed for executing the restricted method
+   * @returns The result of the restricted method implementation
    */
   private _executeRestrictedMethod(
     methodImplementation: RestrictedMethod<RestrictedMethodParameters, Json>,

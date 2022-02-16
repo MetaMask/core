@@ -892,15 +892,23 @@ export function getFormattedIpfsUrl(
 }
 
 /**
+ * Calculates the time difference between a timestamp and the current time.
+ *
  * @param timestamp - A Unix millisecond timestamp.
  * @returns The number of milliseconds elapsed since the specified timestamp.
  */
- export function timeSince(timestamp: number): number {
+export function timeSince(timestamp: number): number {
   return Date.now() - timestamp;
 }
 
 type PlainObject = Record<number | string | symbol, unknown>;
 
+/**
+ * Determines whether a value is a "plain" object.
+ *
+ * @param value - A value to check
+ * @returns True if the passed value is a plain object
+ */
 export function isPlainObject(value: unknown): value is PlainObject {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -918,7 +926,7 @@ export const hasProperty = (
 export type NonEmptyArray<T> = [T, ...T[]];
 
 /**
- * {@link NonEmptyArray} type guard.
+ * Type guard for {@link NonEmptyArray}.
  *
  * @template T - The non-empty array member type.
  * @param value - The value to check.
@@ -929,7 +937,7 @@ export function isNonEmptyArray<T>(value: T[]): value is NonEmptyArray<T> {
 }
 
 /**
- * {@link Json} type guard.
+ * Type guard for {@link Json}.
  *
  * @param value - The value to check.
  * @returns Whether the value is valid JSON.
