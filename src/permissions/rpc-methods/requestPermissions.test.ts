@@ -96,7 +96,7 @@ describe('requestPermissions RPC method', () => {
           data: { request: { ...req } },
         })
         .serialize();
-      expectedError.stack = expect.any(String);
+      delete expectedError.stack;
 
       const response: any = await engine.handle(req as any);
       expect(response.error).toStrictEqual(expectedError);
@@ -128,7 +128,7 @@ describe('requestPermissions RPC method', () => {
           data: { request: { ...req } },
         })
         .serialize();
-      expectedError.stack = expect.any(String);
+      delete expectedError.stack;
 
       const response: any = await engine.handle(req as any);
       expect(response.error).toStrictEqual(expectedError);
