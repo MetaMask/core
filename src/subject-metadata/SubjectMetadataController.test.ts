@@ -5,6 +5,7 @@ import {
   SubjectMetadataController,
   SubjectMetadataControllerActions,
   SubjectMetadataControllerEvents,
+  SubjectMetadataControllerMessenger,
 } from './SubjectMetadataController';
 
 const controllerName = 'SubjectMetadataController';
@@ -37,7 +38,7 @@ function getSubjectMetadataControllerMessenger() {
         'PermissionController:hasPermissions',
         'SubjectMetadataController:getState',
       ],
-    }),
+    }) as SubjectMetadataControllerMessenger,
     hasPermissionsSpy,
   ] as const;
 }

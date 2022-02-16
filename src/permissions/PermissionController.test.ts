@@ -23,6 +23,7 @@ import {
   PermissionController,
   PermissionControllerActions,
   PermissionControllerEvents,
+  PermissionControllerMessenger,
   PermissionOptions,
   PermissionType,
   RestrictedMethodOptions,
@@ -384,7 +385,7 @@ function getPermissionControllerMessenger() {
       'ApprovalController:acceptRequest',
       'ApprovalController:rejectRequest',
     ],
-  });
+  }) as PermissionControllerMessenger;
 }
 
 /**
@@ -4179,6 +4180,7 @@ describe('PermissionController', () => {
 
       expect(hasProperty(controller.state.subjects, 'foo')).toStrictEqual(true);
 
+      // @ts-expect-error Not normally allowed to call this, therefore type error
       messenger.call('PermissionController:clearPermissions');
       expect(clearStateSpy).toHaveBeenCalledTimes(1);
       expect(controller.state).toStrictEqual({ subjects: {} });
@@ -4195,6 +4197,7 @@ describe('PermissionController', () => {
 
       await expect(
         messenger.call(
+          // @ts-expect-error Not normally allowed to call this, therefore type error
           'PermissionController:getEndowments',
           'foo',
           PermissionNames.endowmentPermission1,
@@ -4217,6 +4220,7 @@ describe('PermissionController', () => {
 
       expect(
         await messenger.call(
+          // @ts-expect-error Not normally allowed to call this, therefore type error
           'PermissionController:getEndowments',
           'foo',
           PermissionNames.endowmentPermission1,
@@ -4225,6 +4229,7 @@ describe('PermissionController', () => {
 
       expect(
         await messenger.call(
+          // @ts-expect-error Not normally allowed to call this, therefore type error
           'PermissionController:getEndowments',
           'foo',
           PermissionNames.endowmentPermission1,
@@ -4265,6 +4270,7 @@ describe('PermissionController', () => {
       const getSubjectNamesSpy = jest.spyOn(controller, 'getSubjectNames');
 
       expect(
+        // @ts-expect-error Not normally allowed to call this, therefore type error
         messenger.call('PermissionController:getSubjectNames'),
       ).toStrictEqual([]);
 
@@ -4276,6 +4282,7 @@ describe('PermissionController', () => {
       });
 
       expect(
+        // @ts-expect-error Not normally allowed to call this, therefore type error
         messenger.call('PermissionController:getSubjectNames'),
       ).toStrictEqual(['foo']);
       expect(getSubjectNamesSpy).toHaveBeenCalledTimes(2);
@@ -4292,6 +4299,7 @@ describe('PermissionController', () => {
 
       expect(
         messenger.call(
+          // @ts-expect-error Not normally allowed to call this, therefore type error
           'PermissionController:hasPermission',
           'foo',
           PermissionNames.wallet_getSecretArray,
@@ -4307,6 +4315,7 @@ describe('PermissionController', () => {
 
       expect(
         messenger.call(
+          // @ts-expect-error Not normally allowed to call this, therefore type error
           'PermissionController:hasPermission',
           'foo',
           PermissionNames.wallet_getSecretArray,
@@ -4315,6 +4324,7 @@ describe('PermissionController', () => {
 
       expect(
         messenger.call(
+          // @ts-expect-error Not normally allowed to call this, therefore type error
           'PermissionController:hasPermission',
           'foo',
           PermissionNames.wallet_getSecretObject,
@@ -4351,6 +4361,7 @@ describe('PermissionController', () => {
       const hasPermissionsSpy = jest.spyOn(controller, 'hasPermissions');
 
       expect(
+        // @ts-expect-error Not normally allowed to call this, therefore type error
         messenger.call('PermissionController:hasPermissions', 'foo'),
       ).toStrictEqual(false);
 
@@ -4362,6 +4373,7 @@ describe('PermissionController', () => {
       });
 
       expect(
+        // @ts-expect-error Not normally allowed to call this, therefore type error
         messenger.call('PermissionController:hasPermissions', 'foo'),
       ).toStrictEqual(true);
       expect(hasPermissionsSpy).toHaveBeenCalledTimes(2);
@@ -4379,6 +4391,7 @@ describe('PermissionController', () => {
       const getPermissionsSpy = jest.spyOn(controller, 'getPermissions');
 
       expect(
+        // @ts-expect-error Not normally allowed to call this, therefore type error
         messenger.call('PermissionController:getPermissions', 'foo'),
       ).toBeUndefined();
 
@@ -4391,6 +4404,7 @@ describe('PermissionController', () => {
 
       expect(
         Object.keys(
+          // @ts-expect-error Not normally allowed to call this, therefore type error
           messenger.call('PermissionController:getPermissions', 'foo'),
         ),
       ).toStrictEqual(['wallet_getSecretArray']);
@@ -4423,6 +4437,7 @@ describe('PermissionController', () => {
         controller.hasPermission('foo', 'wallet_getSecretArray'),
       ).toStrictEqual(true);
 
+      // @ts-expect-error Not normally allowed to call this, therefore type error
       messenger.call('PermissionController:revokeAllPermissions', 'foo');
 
       expect(
@@ -4447,6 +4462,7 @@ describe('PermissionController', () => {
         .mockImplementation();
 
       await messenger.call(
+        // @ts-expect-error Not normally allowed to call this, therefore type error
         'PermissionController:requestPermissions',
         { origin: 'foo' },
         {
