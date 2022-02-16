@@ -634,44 +634,44 @@ export class PermissionController<
    */
   private registerMessageHandlers(): void {
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:clearPermissions`,
+      `${controllerName}:clearPermissions` as const,
       () => this.clearState(),
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:getEndowments`,
+      `${controllerName}:getEndowments` as const,
       (origin: string, targetName: string, requestData?: unknown) =>
         this.getEndowments(origin, targetName, requestData),
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:getSubjectNames`,
+      `${controllerName}:getSubjectNames` as const,
       () => this.getSubjectNames(),
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:getPermissions`,
+      `${controllerName}:getPermissions` as const,
       (origin: OriginString) => this.getPermissions(origin),
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:hasPermission`,
+      `${controllerName}:hasPermission` as const,
       (origin: OriginString, targetName: string) =>
         this.hasPermission(origin, targetName),
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:hasPermissions`,
+      `${controllerName}:hasPermissions` as const,
       (origin: OriginString) => this.hasPermissions(origin),
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:revokeAllPermissions`,
+      `${controllerName}:revokeAllPermissions` as const,
       (origin: OriginString) => this.revokeAllPermissions(origin),
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:requestPermissions`,
+      `${controllerName}:requestPermissions` as const,
       (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
         this.requestPermissions(subject, permissions),
     );
