@@ -64,7 +64,7 @@ export class NotificationController extends BaseController<
   NotificationState,
   NotificationMessenger
 > {
-  private platform;
+  private showNativeNotification;
 
   private rateLimitTimeout;
 
@@ -76,7 +76,7 @@ export class NotificationController extends BaseController<
    * @param options - Constructor options.
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
-   * @param options.platform - The ExtensionPlatform defined in the extension
+   * @param options.showNativeNotification - Function that shows a native notification in the consumer
    * @param options.rateLimitTimeout - The time window in which the rate limit is applied
    * @param options.rateLimitCount - The amount of notifications an origin can show in the rate limit time window
    */
@@ -85,13 +85,17 @@ export class NotificationController extends BaseController<
     rateLimitCount = 3,
     messenger,
     state,
-    platform,
+    showNativeNotification,
   }: {
     rateLimitTimeout?: number;
     rateLimitCount?: number;
     messenger: NotificationMessenger;
     state?: Partial<NotificationState>;
-    platform: any; // ExtensionPlatform from extension
+    showNativeNotification: (
+      title: string,
+      message: string,
+      url?: string,
+    ) => void;
   }) {
     super({
       name,
@@ -99,7 +103,7 @@ export class NotificationController extends BaseController<
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.platform = platform;
+    this.showNativeNotification = showNativeNotification;
     this.rateLimitTimeout = rateLimitTimeout;
     this.rateLimitCount = rateLimitCount;
   }
@@ -117,9 +121,19 @@ export class NotificationController extends BaseController<
     }
     this._recordRequest(origin);
 
+    // @todo Missing types
+    const subjectMetadata = this.messagingSystem.call(
+      'SubjectMetadataController:getState',
+    );
+
+    const originMetadata = subjectMetadata[origin];
+
     switch (args.type) {
       case NotificationType.Native:
-        this.platform._showNotifiction(origin, args.message);
+        this.showNativeNotification(
+          originMetadata?.name ?? origin,
+          args.message,
+        );
         break;
       default:
         throw new Error('Invalid notification type');

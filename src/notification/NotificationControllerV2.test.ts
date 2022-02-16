@@ -32,8 +32,11 @@ describe('NotificationControllerV2', () => {
   jest.useFakeTimers();
   it('uses platform to show a notification', () => {
     const messenger = getRestrictedMessenger();
-    const platform = { _showNotifiction: jest.fn() };
-    const controller = new NotificationController({ platform, messenger });
+    const showNativeNotification = jest.fn();
+    const controller = new NotificationController({
+      showNativeNotification,
+      messenger,
+    });
     const origin = 'snap_test';
     const message = 'foo';
     const result = controller.show(origin, {
@@ -41,14 +44,14 @@ describe('NotificationControllerV2', () => {
       message,
     });
     expect(result).toBe(true);
-    expect(platform._showNotifiction).toHaveBeenCalledWith(origin, message);
+    expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
   });
 
   it('returns false if rate-limited', () => {
     const messenger = getRestrictedMessenger();
-    const platform = { _showNotifiction: jest.fn() };
+    const showNativeNotification = jest.fn();
     const controller = new NotificationController({
-      platform,
+      showNativeNotification,
       messenger,
       rateLimitCount: 1,
     });
@@ -64,15 +67,15 @@ describe('NotificationControllerV2', () => {
     });
     expect(result).toBe(true);
     expect(result2).toBe(false);
-    expect(platform._showNotifiction).toHaveBeenCalledTimes(1);
-    expect(platform._showNotifiction).toHaveBeenCalledWith(origin, message);
+    expect(showNativeNotification).toHaveBeenCalledTimes(1);
+    expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
   });
 
   it('rate limit is reset after timeout', () => {
     const messenger = getRestrictedMessenger();
-    const platform = { _showNotifiction: jest.fn() };
+    const showNativeNotification = jest.fn();
     const controller = new NotificationController({
-      platform,
+      showNativeNotification,
       messenger,
       rateLimitCount: 1,
     });
@@ -89,7 +92,7 @@ describe('NotificationControllerV2', () => {
       message,
     });
     expect(result2).toBe(true);
-    expect(platform._showNotifiction).toHaveBeenCalledTimes(2);
-    expect(platform._showNotifiction).toHaveBeenCalledWith(origin, message);
+    expect(showNativeNotification).toHaveBeenCalledTimes(2);
+    expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
   });
 });
