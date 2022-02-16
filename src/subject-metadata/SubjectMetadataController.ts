@@ -1,9 +1,7 @@
-import {
-  BaseControllerV2 as BaseController,
-  RestrictedControllerMessenger,
-} from '@metamask/controllers';
 import type { Patch } from 'immer';
 import { Json } from 'json-rpc-engine';
+import { BaseController } from '../BaseControllerV2';
+import { RestrictedControllerMessenger } from '../ControllerMessenger';
 
 import type {
   GenericPermissionController,

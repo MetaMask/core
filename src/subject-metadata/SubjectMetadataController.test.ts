@@ -1,4 +1,5 @@
-import { ControllerMessenger, Json } from '@metamask/controllers';
+import { Json } from '../BaseControllerV2';
+import { ControllerMessenger } from '../ControllerMessenger';
 import { HasPermissions } from '../permissions';
 import {
   SubjectMetadataController,

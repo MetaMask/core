@@ -9,7 +9,7 @@ import { MethodNames } from '../utils';
 
 import { invalidParams } from '../errors';
 import type { PermissionConstraint, RequestedPermissions } from '../Permission';
-import { isPlainObject } from '../../utils';
+import { isPlainObject } from '../../util';
 
 export const requestPermissionsHandler: PermittedHandlerExport<
   RequestPermissionsHooks,

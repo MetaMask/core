@@ -1,17 +1,15 @@
-import {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  BaseControllerV2 as BaseController,
-  HasApprovalRequest,
-  Json,
-  RejectRequest as RejectApprovalRequest,
-  RestrictedControllerMessenger,
-  StateMetadata,
-} from '@metamask/controllers';
 /* eslint-enable @typescript-eslint/no-unused-vars */
 import deepFreeze from 'deep-freeze-strict';
 import { castDraft, Draft, Patch } from 'immer';
 import { nanoid } from 'nanoid';
+import {
+  AcceptRequest as AcceptApprovalRequest,
+  AddApprovalRequest,
+  HasApprovalRequest,
+  RejectRequest as RejectApprovalRequest,
+} from '../approval/ApprovalController';
+import { Json, BaseController, StateMetadata } from '../BaseControllerV2';
+import { RestrictedControllerMessenger } from '../ControllerMessenger';
 import {
   hasProperty,
   isNonEmptyArray,
@@ -19,7 +17,7 @@ import {
   isValidJson,
   Mutable,
   NonEmptyArray,
-} from '../utils';
+} from '../util';
 import {
   CaveatConstraint,
   CaveatSpecificationConstraint,
@@ -111,15 +109,16 @@ const controllerName = 'PermissionController';
 /**
  * Permissions associated with a {@link PermissionController} subject.
  */
-export type SubjectPermissions<Permission extends PermissionConstraint> =
-  Record<Permission['parentCapability'], Permission>;
+export type SubjectPermissions<
+  Permission extends PermissionConstraint
+> = Record<Permission['parentCapability'], Permission>;
 
 /**
  * Permissions and metadata associated with a {@link PermissionController}
  * subject.
  */
 export type PermissionSubjectEntry<
-  SubjectPermission extends PermissionConstraint,
+  SubjectPermission extends PermissionConstraint
 > = {
   origin: SubjectPermission['invoker'];
   permissions: SubjectPermissions<SubjectPermission>;
@@ -131,7 +130,7 @@ export type PermissionSubjectEntry<
  * @template SubjectPermission - The permissions of the subject.
  */
 export type PermissionControllerSubjects<
-  SubjectPermission extends PermissionConstraint,
+  SubjectPermission extends PermissionConstraint
 > = Record<
   SubjectPermission['invoker'],
   PermissionSubjectEntry<SubjectPermission>
@@ -143,12 +142,13 @@ export type PermissionControllerSubjects<
  *
  * @template Permission - The controller's permission type union.
  */
-export type PermissionControllerState<Permission> =
-  Permission extends PermissionConstraint
-    ? {
-        subjects: PermissionControllerSubjects<Permission>;
-      }
-    : never;
+export type PermissionControllerState<
+  Permission
+> = Permission extends PermissionConstraint
+  ? {
+      subjects: PermissionControllerSubjects<Permission>;
+    }
+  : never;
 
 /**
  * Get the state metadata of the {@link PermissionController}.
@@ -350,7 +350,7 @@ type CaveatMutatorResult =
  */
 export type ExtractPermission<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
-  ControllerCaveatSpecification extends CaveatSpecificationConstraint,
+  ControllerCaveatSpecification extends CaveatSpecificationConstraint
 > = ControllerPermissionSpecification extends ValidPermissionSpecification<ControllerPermissionSpecification>
   ? ValidPermission<
       ControllerPermissionSpecification['targetKey'],
@@ -370,7 +370,7 @@ export type ExtractPermission<
  */
 export type ExtractRestrictedMethodPermission<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
-  ControllerCaveatSpecification extends CaveatSpecificationConstraint,
+  ControllerCaveatSpecification extends CaveatSpecificationConstraint
 > = ExtractPermission<
   Extract<
     ControllerPermissionSpecification,
@@ -391,7 +391,7 @@ export type ExtractRestrictedMethodPermission<
  */
 export type ExtractEndowmentPermission<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
-  ControllerCaveatSpecification extends CaveatSpecificationConstraint,
+  ControllerCaveatSpecification extends CaveatSpecificationConstraint
 > = ExtractPermission<
   Extract<ControllerPermissionSpecification, EndowmentSpecificationConstraint>,
   ControllerCaveatSpecification
@@ -408,7 +408,7 @@ export type ExtractEndowmentPermission<
  */
 export type PermissionControllerOptions<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
-  ControllerCaveatSpecification extends CaveatSpecificationConstraint,
+  ControllerCaveatSpecification extends CaveatSpecificationConstraint
 > = {
   messenger: PermissionControllerMessenger;
   caveatSpecifications: CaveatSpecificationMap<ControllerCaveatSpecification>;
@@ -438,7 +438,7 @@ export type PermissionControllerOptions<
  */
 export class PermissionController<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
-  ControllerCaveatSpecification extends CaveatSpecificationConstraint,
+  ControllerCaveatSpecification extends CaveatSpecificationConstraint
 > extends BaseController<
   typeof controllerName,
   PermissionControllerState<
@@ -509,13 +509,12 @@ export class PermissionController<
 
     super({
       name: controllerName,
-      metadata:
-        getStateMetadata<
-          ExtractPermission<
-            ControllerPermissionSpecification,
-            ControllerCaveatSpecification
-          >
-        >(),
+      metadata: getStateMetadata<
+        ExtractPermission<
+          ControllerPermissionSpecification,
+          ControllerCaveatSpecification
+        >
+      >(),
       messenger,
       state: {
         ...getDefaultState<
@@ -557,7 +556,7 @@ export class PermissionController<
    * @returns The permission specification with the specified target key.
    */
   private getPermissionSpecification<
-    TargetKey extends ControllerPermissionSpecification['targetKey'],
+    TargetKey extends ControllerPermissionSpecification['targetKey']
   >(
     targetKey: TargetKey,
   ): ExtractPermissionSpecification<
@@ -574,7 +573,7 @@ export class PermissionController<
    * @returns The caveat specification with the specified type.
    */
   private getCaveatSpecification<
-    CaveatType extends ControllerCaveatSpecification['type'],
+    CaveatType extends ControllerCaveatSpecification['type']
   >(caveatType: CaveatType) {
     return this._caveatSpecifications[caveatType];
   }
@@ -780,7 +779,7 @@ export class PermissionController<
     SubjectPermission extends ExtractPermission<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
-    >,
+    >
   >(
     origin: OriginString,
     targetName: SubjectPermission['parentCapability'],
@@ -974,7 +973,7 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>
   >(origin: OriginString, target: TargetName, caveatType: CaveatType): boolean {
     return Boolean(this.getCaveat(origin, target, caveatType));
   }
@@ -999,7 +998,7 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>
   >(
     origin: OriginString,
     target: TargetName,
@@ -1039,7 +1038,7 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>
   >(
     origin: OriginString,
     target: TargetName,
@@ -1080,7 +1079,7 @@ export class PermissionController<
     CaveatValue extends ExtractCaveatValue<
       ControllerCaveatSpecification,
       CaveatType
-    >,
+    >
   >(
     origin: OriginString,
     target: TargetName,
@@ -1117,7 +1116,7 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>
   >(
     origin: OriginString,
     target: TargetName,
@@ -1173,7 +1172,7 @@ export class PermissionController<
    * Updates all caveats with the specified type for all subjects and
    * permissions by applying the specified mutator function to them.
    *
-   * **ATTN:** Permissions can be revoked entirely by the action of this method,
+   * ATTN:** Permissions can be revoked entirely by the action of this method,
    * read on for details.
    *
    * Caveat mutators are functions that receive a caveat value and return a
@@ -1201,7 +1200,7 @@ export class PermissionController<
     TargetCaveat extends ExtractCaveat<
       ControllerCaveatSpecification,
       CaveatType
-    >,
+    >
   >(targetCaveatType: CaveatType, mutator: CaveatMutator<TargetCaveat>): void {
     if (Object.keys(this.state.subjects).length === 0) {
       return;
@@ -1292,7 +1291,7 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>
   >(origin: OriginString, target: TargetName, caveatType: CaveatType): void {
     this.update((draftState) => {
       const permission = draftState.subjects[origin]?.permissions[target];
@@ -1326,7 +1325,7 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractCaveats<ControllerCaveatSpecification>['type'],
+    CaveatType extends ExtractCaveats<ControllerCaveatSpecification>['type']
   >(
     permission: Draft<PermissionConstraint>,
     caveatType: CaveatType,
@@ -1441,7 +1440,7 @@ export class PermissionController<
    * caveat is stringently validated – including by calling every specification
    * validator – and an error is thrown if any validation fails.
    *
-   * **ATTN:** This method does **not** prompt the user for approval.
+   * ATTN:** This method does **not** prompt the user for approval.
    *
    * @see {@link PermissionController.requestPermissions} For initiating a
    * permissions request requiring user approval.
@@ -1477,13 +1476,11 @@ export class PermissionController<
       throw new InvalidSubjectIdentifierError(origin);
     }
 
-    const permissions = (
-      preserveExistingPermissions
-        ? {
-            ...this.getPermissions(origin),
-          }
-        : {}
-    ) as SubjectPermissions<
+    const permissions = (preserveExistingPermissions
+      ? {
+          ...this.getPermissions(origin),
+        }
+      : {}) as SubjectPermissions<
       ExtractPermission<
         ControllerPermissionSpecification,
         ControllerCaveatSpecification
@@ -1630,7 +1627,7 @@ export class PermissionController<
    * Overwrites all existing permissions, and creates a subject entry if it
    * doesn't already exist.
    *
-   * **ATTN:** Assumes that the new permissions have been validated.
+   * ATTN:** Assumes that the new permissions have been validated.
    *
    * @param origin - The origin of the grantee subject.
    * @param permissions - The new permissions for the grantee subject.
@@ -1787,8 +1784,10 @@ export class PermissionController<
       permissions: requestedPermissions,
     };
 
-    const { permissions: approvedPermissions, ...requestData } =
-      await this.requestUserApproval(permissionsRequest);
+    const {
+      permissions: approvedPermissions,
+      ...requestData
+    } = await this.requestUserApproval(permissionsRequest);
 
     return [
       this.grantPermissions({
@@ -2075,7 +2074,7 @@ export class PermissionController<
    * Executes a restricted method as the subject with the given origin.
    * The specified params, if any, will be passed to the method implementation.
    *
-   * **ATTN:** Great caution should be exercised in the use of this method.
+   * ATTN:** Great caution should be exercised in the use of this method.
    * Methods that cause side effects or affect application state should
    * be avoided.
    *
@@ -2130,12 +2129,14 @@ export class PermissionController<
    * caveats of its permission. Throws if the subject does not have the
    * requisite permission.
    *
-   * **ATTN:** Parameter validation is the responsibility of the caller, or
+   * ATTN:** Parameter validation is the responsibility of the caller, or
    * the restricted method implementation in the case of `params`.
    *
    * @see {@link PermissionController.executeRestrictedMethod} and
    * {@link PermissionController.createPermissionMiddleware} for usage.
    * @param methodImplementation - The implementation of the method to call.
+   * @param method
+   * @param params
    * @param subject - Metadata about the subject that made the request.
    * @param req - The request object associated with the request.
    * @returns

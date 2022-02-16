@@ -1,14 +1,14 @@
 import assert from 'assert';
+import { JsonRpcEngine, PendingJsonRpcResponse } from 'json-rpc-engine';
 import {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
-  ControllerMessenger,
   HasApprovalRequest,
-  Json,
   RejectRequest as RejectApprovalRequest,
-} from '@metamask/controllers';
-import { JsonRpcEngine, PendingJsonRpcResponse } from 'json-rpc-engine';
-import { hasProperty, isPlainObject } from '../utils';
+} from '../approval/ApprovalController';
+import { hasProperty, isPlainObject } from '../util';
+import { Json } from '../BaseControllerV2';
+import { ControllerMessenger } from '../ControllerMessenger';
 import * as errors from './errors';
 import { EndowmentGetterParams } from './Permission';
 import {
@@ -67,21 +67,21 @@ function getDefaultCaveatSpecifications() {
   return {
     [CaveatTypes.filterArrayResponse]: {
       type: CaveatTypes.filterArrayResponse,
-      decorator:
-        (
-          method: AsyncRestrictedMethod<RestrictedMethodParameters, Json>,
-          caveat: FilterArrayCaveat,
-        ) =>
-        async (args: RestrictedMethodOptions<RestrictedMethodParameters>) => {
-          const result: string[] | unknown = await method(args);
-          if (!Array.isArray(result)) {
-            throw Error('not an array');
-          }
+      decorator: (
+        method: AsyncRestrictedMethod<RestrictedMethodParameters, Json>,
+        caveat: FilterArrayCaveat,
+      ) => async (
+        args: RestrictedMethodOptions<RestrictedMethodParameters>,
+      ) => {
+        const result: string[] | unknown = await method(args);
+        if (!Array.isArray(result)) {
+          throw Error('not an array');
+        }
 
-          return result.filter((resultValue) =>
-            caveat.value.includes(resultValue),
-          );
-        },
+        return result.filter((resultValue) =>
+          caveat.value.includes(resultValue),
+        );
+      },
       validator: (caveat: {
         type: typeof CaveatTypes.filterArrayResponse;
         value: unknown;
@@ -95,51 +95,51 @@ function getDefaultCaveatSpecifications() {
     },
     [CaveatTypes.reverseArrayResponse]: {
       type: CaveatTypes.reverseArrayResponse,
-      decorator:
-        (
-          method: AsyncRestrictedMethod<RestrictedMethodParameters, Json>,
-          _caveat: ReverseArrayCaveat,
-        ) =>
-        async (args: RestrictedMethodOptions<RestrictedMethodParameters>) => {
-          const result: unknown[] | unknown = await method(args);
-          if (!Array.isArray(result)) {
-            throw Error('not an array');
-          }
+      decorator: (
+        method: AsyncRestrictedMethod<RestrictedMethodParameters, Json>,
+        _caveat: ReverseArrayCaveat,
+      ) => async (
+        args: RestrictedMethodOptions<RestrictedMethodParameters>,
+      ) => {
+        const result: unknown[] | unknown = await method(args);
+        if (!Array.isArray(result)) {
+          throw Error('not an array');
+        }
 
-          return result.reverse();
-        },
+        return result.reverse();
+      },
     },
     [CaveatTypes.filterObjectResponse]: {
       type: CaveatTypes.filterObjectResponse,
-      decorator:
-        (
-          method: AsyncRestrictedMethod<RestrictedMethodParameters, Json>,
-          caveat: FilterObjectCaveat,
-        ) =>
-        async (args: RestrictedMethodOptions<RestrictedMethodParameters>) => {
-          const result = await method(args);
-          if (!isPlainObject(result)) {
-            throw Error('not a plain object');
-          }
+      decorator: (
+        method: AsyncRestrictedMethod<RestrictedMethodParameters, Json>,
+        caveat: FilterObjectCaveat,
+      ) => async (
+        args: RestrictedMethodOptions<RestrictedMethodParameters>,
+      ) => {
+        const result = await method(args);
+        if (!isPlainObject(result)) {
+          throw Error('not a plain object');
+        }
 
-          Object.keys(result).forEach((key) => {
-            if (!caveat.value.includes(key)) {
-              delete result[key];
-            }
-          });
-          return result;
-        },
+        Object.keys(result).forEach((key) => {
+          if (!caveat.value.includes(key)) {
+            delete result[key];
+          }
+        });
+        return result;
+      },
     },
     [CaveatTypes.noopCaveat]: {
       type: CaveatTypes.noopCaveat,
-      decorator:
-        (
-          method: AsyncRestrictedMethod<RestrictedMethodParameters, Json>,
-          _caveat: NoopCaveat,
-        ) =>
-        async (args: RestrictedMethodOptions<RestrictedMethodParameters>) => {
-          return method(args);
-        },
+      decorator: (
+        method: AsyncRestrictedMethod<RestrictedMethodParameters, Json>,
+        _caveat: NoopCaveat,
+      ) => async (
+        args: RestrictedMethodOptions<RestrictedMethodParameters>,
+      ) => {
+        return method(args);
+      },
       validator: (caveat: {
         type: typeof CaveatTypes.noopCaveat;
         value: unknown;
@@ -354,7 +354,8 @@ type ApprovalActions =
   | AcceptApprovalRequest
   | RejectApprovalRequest;
 
-/** *
+/**
+ *
  * Gets a restricted controller messenger.
  *
  * Used as a default in {@link getPermissionControllerOptions}.
@@ -433,7 +434,7 @@ function getExistingPermissionState() {
  * - `state`: `undefined`
  *
  * @param opts - Permission controller options.
- * @returns - The permission controller constructor options.
+ * @returns The permission controller constructor options.
  */
 function getPermissionControllerOptions(opts?: Record<string, unknown>) {
   return {
@@ -452,6 +453,7 @@ function getPermissionControllerOptions(opts?: Record<string, unknown>) {
  *
  * For the options used, see {@link getPermissionControllerOptions}.
  *
+ * @param opts
  * @returns The default permission controller for testing.
  */
 function getDefaultPermissionController(
@@ -589,9 +591,9 @@ describe('PermissionController', () => {
 
     it('throws if a permission specification lists unrecognized caveats', () => {
       const permissionSpecifications = getDefaultPermissionSpecifications();
-      (
-        permissionSpecifications as any
-      ).wallet_getSecretArray.allowedCaveats.push('foo');
+      (permissionSpecifications as any).wallet_getSecretArray.allowedCaveats.push(
+        'foo',
+      );
 
       expect(
         () =>
@@ -4127,9 +4129,8 @@ describe('PermissionController', () => {
 
     it('throws if the restricted method returns undefined', async () => {
       const permissionSpecifications = getDefaultPermissionSpecifications();
-      (
-        permissionSpecifications as any
-      ).wallet_doubleNumber.methodImplementation = () => undefined;
+      (permissionSpecifications as any).wallet_doubleNumber.methodImplementation = () =>
+        undefined;
 
       const controller = new PermissionController<
         DefaultPermissionSpecifications,
@@ -4619,9 +4620,8 @@ describe('PermissionController', () => {
 
     it('returns an error if the restricted method returns undefined', async () => {
       const permissionSpecifications = getDefaultPermissionSpecifications();
-      (
-        permissionSpecifications as any
-      ).wallet_doubleNumber.methodImplementation = () => undefined;
+      (permissionSpecifications as any).wallet_doubleNumber.methodImplementation = () =>
+        undefined;
 
       const controller = new PermissionController<
         DefaultPermissionSpecifications,

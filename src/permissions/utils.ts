@@ -23,5 +23,5 @@ export enum MethodNames {
 export type ExtractSpecifications<
   SpecificationsMap extends
     | CaveatSpecificationMap<CaveatSpecificationConstraint>
-    | PermissionSpecificationMap<PermissionSpecificationConstraint>,
+    | PermissionSpecificationMap<PermissionSpecificationConstraint>
 > = SpecificationsMap[keyof SpecificationsMap];
