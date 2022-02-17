@@ -239,6 +239,10 @@ export class KeyringController extends BaseController<
    */
   async createNewVaultAndRestore(password: string, seed: string) {
     const releaseLock = await this.mutex.acquire();
+    if (!password || !password.length) {
+      throw new Error('Invalid password');
+    }
+
     try {
       this.updateIdentities([]);
       const vault = await privates
@@ -366,6 +370,11 @@ export class KeyringController extends BaseController<
     return this.fullUpdate();
   }
 
+  /**
+   * TODO:
+   * If there is only HD Key Tree keyring with 1 account and removeAccount is called passing that account
+   * It deletes keyring object also from state - not sure if this is correct behavior.
+   */
   /**
    * Removes an account from keyring state.
    *
