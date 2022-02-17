@@ -25,7 +25,10 @@ function getRestrictedMessenger() {
   >({
     name,
     // @ts-expect-error Missing types for now
-    allowedActions: ['SubjectMetadataController:getState'],
+    allowedActions: [
+      'SubjectMetadataController:getState',
+      'NotificationControllerV2:show',
+    ],
   });
   return messenger;
 }
@@ -40,6 +43,27 @@ const subjectMetadata = {
 
 describe('NotificationControllerV2', () => {
   jest.useFakeTimers();
+
+  it('action: NotificationControllerV2:show', async () => {
+    const messenger = getRestrictedMessenger();
+
+    const showNativeNotification = jest.fn();
+    const controller = new NotificationController({
+      showNativeNotification,
+      messenger,
+    });
+    const showSpy = jest
+      .spyOn(controller, 'show')
+      .mockImplementationOnce(() => true);
+    expect(
+      await messenger.call('NotificationControllerV2:show', origin, {
+        type: NotificationType.Native,
+        message,
+      }),
+    ).toBe(true);
+    expect(showSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('uses showNativeNotification to show a notification', () => {
     const messenger = getRestrictedMessenger();
     const callActionSpy = jest
