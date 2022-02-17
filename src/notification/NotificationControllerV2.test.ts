@@ -30,7 +30,9 @@ function getRestrictedMessenger() {
   return messenger;
 }
 
-const SNAP_NAME = 'Test Snap Name'
+const SNAP_NAME = 'Test Snap Name';
+const origin = 'snap_test';
+const message = 'foo';
 
 const subjectMetadata = {
   snap_test: { origin: 'snap_test', name: SNAP_NAME },
@@ -51,13 +53,12 @@ describe('NotificationControllerV2', () => {
       showNativeNotification,
       messenger,
     });
-    const origin = 'snap_test';
-    const message = 'foo';
-    const result = controller.show(origin, {
-      type: NotificationType.Native,
-      message,
-    });
-    expect(result).toBe(true);
+    expect(
+      controller.show(origin, {
+        type: NotificationType.Native,
+        message,
+      }),
+    ).toBe(true);
     expect(showNativeNotification).toHaveBeenCalledWith(SNAP_NAME, message);
     expect(callActionSpy).toHaveBeenCalledTimes(1);
     expect(callActionSpy).toHaveBeenCalledWith(
@@ -78,13 +79,12 @@ describe('NotificationControllerV2', () => {
       showNativeNotification,
       messenger,
     });
-    const origin = 'snap_test';
-    const message = 'foo';
-    const result = controller.show(origin, {
-      type: NotificationType.Native,
-      message,
-    });
-    expect(result).toBe(true);
+    expect(
+      controller.show(origin, {
+        type: NotificationType.Native,
+        message,
+      }),
+    ).toBe(true);
     expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
     expect(callActionSpy).toHaveBeenCalledTimes(1);
     expect(callActionSpy).toHaveBeenCalledWith(
@@ -105,18 +105,20 @@ describe('NotificationControllerV2', () => {
       messenger,
       rateLimitCount: 1,
     });
-    const origin = 'snap_test';
-    const message = 'foo';
-    const result = controller.show(origin, {
-      type: NotificationType.Native,
-      message,
-    });
-    const result2 = controller.show(origin, {
-      type: NotificationType.Native,
-      message,
-    });
-    expect(result).toBe(true);
-    expect(result2).toBe(false);
+
+    expect(
+      controller.show(origin, {
+        type: NotificationType.Native,
+        message,
+      }),
+    ).toBe(true);
+
+    expect(
+      controller.show(origin, {
+        type: NotificationType.Native,
+        message,
+      }),
+    ).toBe(false);
     expect(showNativeNotification).toHaveBeenCalledTimes(1);
     expect(showNativeNotification).toHaveBeenCalledWith(SNAP_NAME, message);
     expect(callActionSpy).toHaveBeenCalledTimes(1);
@@ -138,19 +140,19 @@ describe('NotificationControllerV2', () => {
       messenger,
       rateLimitCount: 1,
     });
-    const origin = 'snap_test';
-    const message = 'foo';
-    const result = controller.show(origin, {
-      type: NotificationType.Native,
-      message,
-    });
-    expect(result).toBe(true);
+    expect(
+      controller.show(origin, {
+        type: NotificationType.Native,
+        message,
+      }),
+    ).toBe(true);
     jest.runAllTimers();
-    const result2 = controller.show(origin, {
-      type: NotificationType.Native,
-      message,
-    });
-    expect(result2).toBe(true);
+    expect(
+      controller.show(origin, {
+        type: NotificationType.Native,
+        message,
+      }),
+    ).toBe(true);
     expect(showNativeNotification).toHaveBeenCalledTimes(2);
     expect(showNativeNotification).toHaveBeenCalledWith(SNAP_NAME, message);
     expect(callActionSpy).toHaveBeenCalledTimes(2);
