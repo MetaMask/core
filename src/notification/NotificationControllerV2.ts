@@ -40,11 +40,14 @@ export type GetNotificationState = {
   handler: () => NotificationState;
 };
 
+// @ts-expect-error @todo Import when other PR is merged
+type AllowedActions = GetSubjectMetadataState;
+
 type NotificationMessenger = RestrictedControllerMessenger<
   typeof name,
   GetNotificationState,
   NotificationStateChange,
-  never,
+  AllowedActions['type'],
   never
 >;
 
@@ -122,11 +125,12 @@ export class NotificationController extends BaseController<
     this._recordRequest(origin);
 
     // @todo Missing types
-    const subjectMetadata = this.messagingSystem.call(
+    const subjectMetadataState = this.messagingSystem.call(
       'SubjectMetadataController:getState',
     );
 
-    const originMetadata = subjectMetadata[origin];
+    // @ts-expect-error @todo Import when other PR is merged
+    const originMetadata = subjectMetadataState.subjectMetadata[origin];
 
     switch (args.type) {
       case NotificationType.Native:

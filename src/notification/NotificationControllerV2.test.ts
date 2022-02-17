@@ -24,14 +24,55 @@ function getRestrictedMessenger() {
     never
   >({
     name,
+    // @ts-expect-error Missing types for now
+    allowedActions: ['SubjectMetadataController:getState'],
   });
   return messenger;
 }
 
+const SNAP_NAME = 'Test Snap Name'
+
+const subjectMetadata = {
+  snap_test: { origin: 'snap_test', name: SNAP_NAME },
+};
+
 describe('NotificationControllerV2', () => {
   jest.useFakeTimers();
-  it('uses platform to show a notification', () => {
+  it('uses showNativeNotification to show a notification', () => {
     const messenger = getRestrictedMessenger();
+    const callActionSpy = jest
+      .spyOn(messenger, 'call')
+      .mockImplementationOnce((..._args: any) => ({
+        subjectMetadata,
+      }));
+
+    const showNativeNotification = jest.fn();
+    const controller = new NotificationController({
+      showNativeNotification,
+      messenger,
+    });
+    const origin = 'snap_test';
+    const message = 'foo';
+    const result = controller.show(origin, {
+      type: NotificationType.Native,
+      message,
+    });
+    expect(result).toBe(true);
+    expect(showNativeNotification).toHaveBeenCalledWith(SNAP_NAME, message);
+    expect(callActionSpy).toHaveBeenCalledTimes(1);
+    expect(callActionSpy).toHaveBeenCalledWith(
+      'SubjectMetadataController:getState',
+    );
+  });
+
+  it('falls back to origin if no metadata present', () => {
+    const messenger = getRestrictedMessenger();
+    const callActionSpy = jest
+      .spyOn(messenger, 'call')
+      .mockImplementationOnce((..._args: any) => ({
+        subjectMetadata: {},
+      }));
+
     const showNativeNotification = jest.fn();
     const controller = new NotificationController({
       showNativeNotification,
@@ -45,10 +86,19 @@ describe('NotificationControllerV2', () => {
     });
     expect(result).toBe(true);
     expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
+    expect(callActionSpy).toHaveBeenCalledTimes(1);
+    expect(callActionSpy).toHaveBeenCalledWith(
+      'SubjectMetadataController:getState',
+    );
   });
 
   it('returns false if rate-limited', () => {
     const messenger = getRestrictedMessenger();
+    const callActionSpy = jest
+      .spyOn(messenger, 'call')
+      .mockImplementationOnce((..._args: any) => ({
+        subjectMetadata,
+      }));
     const showNativeNotification = jest.fn();
     const controller = new NotificationController({
       showNativeNotification,
@@ -68,11 +118,20 @@ describe('NotificationControllerV2', () => {
     expect(result).toBe(true);
     expect(result2).toBe(false);
     expect(showNativeNotification).toHaveBeenCalledTimes(1);
-    expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
+    expect(showNativeNotification).toHaveBeenCalledWith(SNAP_NAME, message);
+    expect(callActionSpy).toHaveBeenCalledTimes(1);
+    expect(callActionSpy).toHaveBeenCalledWith(
+      'SubjectMetadataController:getState',
+    );
   });
 
   it('rate limit is reset after timeout', () => {
     const messenger = getRestrictedMessenger();
+    const callActionSpy = jest
+      .spyOn(messenger, 'call')
+      .mockImplementation((..._args: any) => ({
+        subjectMetadata,
+      }));
     const showNativeNotification = jest.fn();
     const controller = new NotificationController({
       showNativeNotification,
@@ -93,6 +152,10 @@ describe('NotificationControllerV2', () => {
     });
     expect(result2).toBe(true);
     expect(showNativeNotification).toHaveBeenCalledTimes(2);
-    expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
+    expect(showNativeNotification).toHaveBeenCalledWith(SNAP_NAME, message);
+    expect(callActionSpy).toHaveBeenCalledTimes(2);
+    expect(callActionSpy).toHaveBeenCalledWith(
+      'SubjectMetadataController:getState',
+    );
   });
 });
