@@ -40,12 +40,19 @@ export type GetNotificationState = {
   handler: () => NotificationState;
 };
 
+export type ShowNotification = {
+  type: `${typeof name}:show`;
+  handler: NotificationController['show'];
+};
+
+export type ControllerActions = GetNotificationState | ShowNotification;
+
 // @ts-expect-error @todo Import when other PR is merged
 type AllowedActions = GetSubjectMetadataState;
 
 type NotificationMessenger = RestrictedControllerMessenger<
   typeof name,
-  GetNotificationState,
+  ControllerActions,
   NotificationStateChange,
   AllowedActions['type'],
   never
@@ -109,6 +116,11 @@ export class NotificationController extends BaseController<
     this.showNativeNotification = showNativeNotification;
     this.rateLimitTimeout = rateLimitTimeout;
     this.rateLimitCount = rateLimitCount;
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:show`,
+      (origin: string, args: NotificationArgs) => this.show(origin, args),
+    );
   }
 
   /**
