@@ -445,6 +445,12 @@ export class KeyringController extends BaseController<
             qrAddress.toLowerCase() === address.toLowerCase(),
         )
       ) {
+        if (version !== 'V1') {
+          // But we don't have to require that. We can stop suggesting it now:
+          if (typeof messageParams.data === 'string') {
+            messageParams.data = JSON.parse(messageParams.data);
+          }
+        }
         return privates
           .get(this)
           .keyring.signTypedMessage(messageParams, { version });
