@@ -680,7 +680,7 @@ export class KeyringController extends BaseController<
     newAccounts.forEach((address: string) => {
       if (!oldAccounts.includes(address)) {
         if (this.setAccountLabel) {
-          this.setAccountLabel(address, `QR Hardware ${index}`);
+          this.setAccountLabel(address, `${keyring.getName()} ${index}`);
         }
         this.setSelectedAddress(address);
       }
