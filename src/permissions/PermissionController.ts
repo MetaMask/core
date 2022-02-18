@@ -1180,7 +1180,7 @@ export class PermissionController<
    * Updates all caveats with the specified type for all subjects and
    * permissions by applying the specified mutator function to them.
    *
-   * ATTN:** Permissions can be revoked entirely by the action of this method,
+   * ATTN: Permissions can be revoked entirely by the action of this method,
    * read on for details.
    *
    * Caveat mutators are functions that receive a caveat value and return a
