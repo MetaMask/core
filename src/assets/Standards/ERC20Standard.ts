@@ -1,12 +1,11 @@
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { BN } from 'ethereumjs-util';
 import { ERC20 } from '../../constants';
-import { Web3 } from './standards-types';
 
 export class ERC20Standard {
-  private web3: Web3;
+  private web3: any;
 
-  constructor(web3: Web3) {
+  constructor(web3: any) {
     this.web3 = web3;
   }
 
@@ -18,16 +17,18 @@ export class ERC20Standard {
    * @returns Promise resolving to BN object containing balance for current account on specific asset contract.
    */
   async getBalanceOf(address: string, selectedAddress: string): Promise<BN> {
-    const contract = this.web3.eth.contract(abiERC20).at(address);
+    const contract = new this.web3.eth.Contract(abiERC20, address);
     return new Promise<BN>((resolve, reject) => {
-      contract.balanceOf(selectedAddress, (error: Error, result: BN) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
+      contract.methods
+        .balanceOf(selectedAddress)
+        .call((error: Error, result: BN) => {
+          /* istanbul ignore if */
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve(result);
+        });
     });
   }
 
@@ -38,17 +39,8 @@ export class ERC20Standard {
    * @returns Promise resolving to the 'decimals'.
    */
   async getTokenDecimals(address: string): Promise<string> {
-    const contract = this.web3.eth.contract(abiERC20).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.decimals((error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    const contract = new this.web3.eth.Contract(abiERC20, address);
+    return await contract.methods.decimals().call();
   }
 
   /**
@@ -58,17 +50,8 @@ export class ERC20Standard {
    * @returns Promise resolving to the 'symbol'.
    */
   async getTokenSymbol(address: string): Promise<string> {
-    const contract = this.web3.eth.contract(abiERC20).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.symbol((error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    const contract = new this.web3.eth.Contract(abiERC20, address);
+    return await contract.methods.symbol().call();
   }
 
   /**

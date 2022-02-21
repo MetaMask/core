@@ -5,12 +5,11 @@ import {
   ERC1155_METADATA_URI_INTERFACE_ID,
   ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
 } from '../../../../constants';
-import { Web3 } from '../../standards-types';
 
 export class ERC1155Standard {
-  private web3: Web3;
+  private web3: any;
 
-  constructor(web3: Web3) {
+  constructor(web3: any) {
     this.web3 = web3;
   }
 
@@ -64,17 +63,8 @@ export class ERC1155Standard {
    * @returns Promise resolving to the 'tokenURI'.
    */
   getTokenURI = async (address: string, tokenId: string): Promise<string> => {
-    const contract = this.web3.eth.contract(abiERC1155).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.uri(tokenId, (error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    const contract = new this.web3.eth.Contract(abiERC1155, address);
+    return await contract.methods.uri(tokenId).call();
   };
 
   /**
@@ -90,17 +80,8 @@ export class ERC1155Standard {
     address: string,
     tokenId: string,
   ): Promise<number> => {
-    const contract = this.web3.eth.contract(abiERC1155).at(contractAddress);
-    return new Promise<number>((resolve, reject) => {
-      contract.balanceOf(address, tokenId, (error: Error, result: number) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    const contract = new this.web3.eth.Contract(abiERC1155, contractAddress);
+    return await contract.methods.balanceOf(address, tokenId).call();
   };
 
   /**
@@ -122,24 +103,10 @@ export class ERC1155Standard {
     id: string,
     value: string,
   ): Promise<void> => {
-    const contract = this.web3.eth.contract(abiERC1155).at(operator);
-    return new Promise<void>((resolve, reject) => {
-      contract.transferSingle(
-        operator,
-        from,
-        to,
-        id,
-        value,
-        (error: Error, result: void) => {
-          /* istanbul ignore if */
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve(result);
-        },
-      );
-    });
+    const contract = new this.web3.eth.Contract(abiERC1155, operator);
+    return await contract.methods
+      .transferSingle(operator, from, to, id, value)
+      .call();
   };
 
   /**
@@ -153,19 +120,18 @@ export class ERC1155Standard {
     address: string,
     interfaceId: string,
   ): Promise<boolean> => {
-    const contract = this.web3.eth.contract(abiERC1155).at(address);
+    const contract = new this.web3.eth.Contract(abiERC1155, address);
     return new Promise<boolean>((resolve, reject) => {
-      contract.supportsInterface(
-        interfaceId,
-        (error: Error, result: boolean) => {
+      contract.methods
+        .supportsInterface(interfaceId)
+        .call((error: Error, result: boolean) => {
           /* istanbul ignore if */
           if (error) {
             reject(error);
             return;
           }
           resolve(result);
-        },
-      );
+        });
     });
   };
 

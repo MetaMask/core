@@ -1,5 +1,4 @@
 import { abiERC721 } from '@metamask/metamask-eth-abis';
-import { Web3 } from '../../standards-types';
 import {
   ERC721_INTERFACE_ID,
   ERC721_METADATA_INTERFACE_ID,
@@ -8,9 +7,9 @@ import {
 } from '../../../../constants';
 
 export class ERC721Standard {
-  private web3: Web3;
+  private web3: any;
 
-  constructor(web3: Web3) {
+  constructor(web3: any) {
     this.web3 = web3;
   }
 
@@ -23,7 +22,7 @@ export class ERC721Standard {
   contractSupportsMetadataInterface = async (
     address: string,
   ): Promise<boolean> => {
-    return this.contractSupportsInterface(
+    return await this.contractSupportsInterface(
       address,
       ERC721_METADATA_INTERFACE_ID,
     );
@@ -38,7 +37,7 @@ export class ERC721Standard {
   contractSupportsEnumerableInterface = async (
     address: string,
   ): Promise<boolean> => {
-    return this.contractSupportsInterface(
+    return await this.contractSupportsInterface(
       address,
       ERC721_ENUMERABLE_INTERFACE_ID,
     );
@@ -53,7 +52,7 @@ export class ERC721Standard {
   contractSupportsBase721Interface = async (
     address: string,
   ): Promise<boolean> => {
-    return this.contractSupportsInterface(address, ERC721_INTERFACE_ID);
+    return await this.contractSupportsInterface(address, ERC721_INTERFACE_ID);
   };
 
   /**
@@ -69,21 +68,10 @@ export class ERC721Standard {
     selectedAddress: string,
     index: number,
   ): Promise<string> => {
-    const contract = this.web3.eth.contract(abiERC721).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.tokenOfOwnerByIndex(
-        selectedAddress,
-        index,
-        (error: Error, result: string) => {
-          /* istanbul ignore if */
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve(result);
-        },
-      );
-    });
+    const contract = new this.web3.eth.Contract(abiERC721, address);
+    return await contract.methods
+      .tokenOfOwnerByIndex(selectedAddress, index)
+      .call();
   };
 
   /**
@@ -94,23 +82,14 @@ export class ERC721Standard {
    * @returns Promise resolving to the 'tokenURI'.
    */
   getTokenURI = async (address: string, tokenId: string): Promise<string> => {
-    const contract = this.web3.eth.contract(abiERC721).at(address);
+    const contract = new this.web3.eth.Contract(abiERC721, address);
     const supportsMetadata = await this.contractSupportsMetadataInterface(
       address,
     );
     if (!supportsMetadata) {
       throw new Error('Contract does not support ERC721 metadata interface.');
     }
-    return new Promise<string>((resolve, reject) => {
-      contract.tokenURI(tokenId, (error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    return await contract.methods.tokenURI(tokenId).call();
   };
 
   /**
@@ -120,17 +99,8 @@ export class ERC721Standard {
    * @returns Promise resolving to the 'name'.
    */
   getAssetName = async (address: string): Promise<string> => {
-    const contract = this.web3.eth.contract(abiERC721).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.name((error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    const contract = new this.web3.eth.Contract(abiERC721, address);
+    return await contract.methods.name().call();
   };
 
   /**
@@ -140,17 +110,9 @@ export class ERC721Standard {
    * @returns Promise resolving to the 'symbol'.
    */
   getAssetSymbol = async (address: string): Promise<string> => {
-    const contract = this.web3.eth.contract(abiERC721).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.symbol((error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    const contract = new this.web3.eth.Contract(abiERC721, address);
+    console.log(contract.methods);
+    return await contract.methods.symbol().call();
   };
 
   /**
@@ -161,17 +123,8 @@ export class ERC721Standard {
    * @returns Promise resolving to the owner address.
    */
   async getOwnerOf(address: string, tokenId: string): Promise<string> {
-    const contract = this.web3.eth.contract(abiERC721).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.ownerOf(tokenId, (error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    const contract = new this.web3.eth.Contract(abiERC721, address);
+    return await contract.methods.ownerOf(tokenId).call();
   }
 
   /**
@@ -185,20 +138,11 @@ export class ERC721Standard {
     address: string,
     interfaceId: string,
   ): Promise<boolean> => {
-    const contract = this.web3.eth.contract(abiERC721).at(address);
-    return new Promise<boolean>((resolve, reject) => {
-      contract.supportsInterface(
-        interfaceId,
-        (error: Error, result: boolean) => {
-          /* istanbul ignore if */
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve(result);
-        },
-      );
-    });
+    console.log(address, interfaceId);
+    const contract = new this.web3.eth.Contract(abiERC721, address);
+    const result = await contract.methods.supportsInterface(interfaceId).call();
+    console.log('contractSupportsInterface', result);
+    return result;
   };
 
   /**

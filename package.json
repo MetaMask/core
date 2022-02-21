@@ -53,7 +53,7 @@
     "eth-sig-util": "^3.0.0",
     "ethereumjs-util": "^7.0.10",
     "ethereumjs-wallet": "^1.0.1",
-    "ethers": "^5.4.1",
+    "ethers": "5.5.4",
     "ethjs-unit": "^0.1.6",
     "immer": "^9.0.6",
     "isomorphic-fetch": "^3.0.0",
@@ -63,7 +63,7 @@
     "punycode": "^2.1.1",
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^8.3.2",
-    "web3": "^0.20.7",
+    "web3": "1.7.0",
     "web3-provider-engine": "^16.0.3"
   },
   "devDependencies": {
@@ -115,7 +115,12 @@
       "core-js": false,
       "keccak": true,
       "secp256k1": true,
-      "sha3": true
+      "sha3": true,
+      "web3": false,
+      "web3-bzz": false,
+      "bufferutil": false,
+      "utf-8-validate": false,
+      "web3-shh": false
     }
   }
 }
