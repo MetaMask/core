@@ -705,7 +705,12 @@ export class KeyringController extends BaseController<
   async forgetQRDevice() {
     const keyring = await this.getQRKeyring();
     keyring.forgetDevice();
-    await this.fullUpdate();
+    const accounts = (await privates
+      .get(this)
+      .keyring.getAccounts()) as string[];
+    accounts.forEach((account) => {
+      this.setSelectedAddress(account);
+    });
     return true;
   }
 }
