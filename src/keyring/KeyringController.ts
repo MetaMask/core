@@ -702,6 +702,8 @@ export class KeyringController extends BaseController<
     accounts.forEach((account) => {
       this.setSelectedAddress(account);
     });
+    await privates.get(this).keyring.persistAllKeyrings();
+    await this.fullUpdate();
     return true;
   }
 }
