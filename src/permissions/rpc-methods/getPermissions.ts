@@ -32,8 +32,8 @@ export type GetPermissionsHooks = {
  * @param res - The JsonRpcEngine result object
  * @param _next - JsonRpcEngine next() callback - unused
  * @param end - JsonRpcEngine end() callback
- * @param options0 - Method hooks passed to the method implementation
- * @param options0.getPermissionsForOrigin - The specific method hook needed for this method implementation
+ * @param options - Method hooks passed to the method implementation
+ * @param options.getPermissionsForOrigin - The specific method hook needed for this method implementation
  * @returns A promise that resolves to nothing
  */
 async function getPermissionsImplementation(

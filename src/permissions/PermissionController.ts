@@ -1444,7 +1444,7 @@ export class PermissionController<
    * caveat is stringently validated – including by calling every specification
    * validator – and an error is thrown if any validation fails.
    *
-   * ATTN:** This method does **not** prompt the user for approval.
+   * ATTN: This method does **not** prompt the user for approval.
    *
    * @see {@link PermissionController.requestPermissions} For initiating a
    * permissions request requiring user approval.
@@ -1629,7 +1629,7 @@ export class PermissionController<
    * Overwrites all existing permissions, and creates a subject entry if it
    * doesn't already exist.
    *
-   * ATTN:** Assumes that the new permissions have been validated.
+   * ATTN: Assumes that the new permissions have been validated.
    *
    * @param origin - The origin of the grantee subject.
    * @param permissions - The new permissions for the grantee subject.
@@ -2077,7 +2077,7 @@ export class PermissionController<
    * Executes a restricted method as the subject with the given origin.
    * The specified params, if any, will be passed to the method implementation.
    *
-   * ATTN:** Great caution should be exercised in the use of this method.
+   * ATTN: Great caution should be exercised in the use of this method.
    * Methods that cause side effects or affect application state should
    * be avoided.
    *
@@ -2132,7 +2132,7 @@ export class PermissionController<
    * caveats of its permission. Throws if the subject does not have the
    * requisite permission.
    *
-   * ATTN:** Parameter validation is the responsibility of the caller, or
+   * ATTN: Parameter validation is the responsibility of the caller, or
    * the restricted method implementation in the case of `params`.
    *
    * @see {@link PermissionController.executeRestrictedMethod} and
