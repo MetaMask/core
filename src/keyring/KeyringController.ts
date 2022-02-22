@@ -692,7 +692,7 @@ export class KeyringController extends BaseController<
     newAccounts.forEach((address: string) => {
       if (!oldAccounts.includes(address)) {
         if (this.setAccountLabel) {
-          this.setAccountLabel(address, `${keyring.getName()} ${index}`);
+          this.setAccountLabel(address, `${keyring.getName()} ${index + 1}`);
         }
         this.setSelectedAddress(address);
       }
