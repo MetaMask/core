@@ -648,14 +648,17 @@ export class KeyringController extends BaseController<
   submitQRCryptoHDKey = async (cryptoHDKey: any) =>
     (await this.getQRKeyring()).submitCryptoHDKey(cryptoHDKey);
 
+  submitQRCryptoAccount = async (cryptoAccount: any) =>
+    (await this.getQRKeyring()).submitCryptoAccount(cryptoAccount);
+
   cancelSyncQRCryptoHDKey = async () =>
     // eslint-disable-next-line node/no-sync
     (await this.getQRKeyring()).cancelSync();
 
-  submitQRHardwareSignature = async (requestId: string, ethSignature: any) =>
+  submitQRSignature = async (requestId: string, ethSignature: any) =>
     (await this.getQRKeyring()).submitSignature(requestId, ethSignature);
 
-  cancelQRHardwareSignRequest = async () =>
+  cancelQRSignRequest = async () =>
     (await this.getQRKeyring()).cancelSignRequest();
 
   connectQRHardware = async (page: number) => {
