@@ -1,5 +1,6 @@
 /* eslint-enable @typescript-eslint/no-unused-vars */
 import deepFreeze from 'deep-freeze-strict';
+import { Mutable } from '@metamask/types';
 import { castDraft, Draft, Patch } from 'immer';
 import { nanoid } from 'nanoid';
 import {
@@ -15,7 +16,6 @@ import {
   isNonEmptyArray,
   isPlainObject,
   isValidJson,
-  Mutable,
   NonEmptyArray,
 } from '../util';
 import {
