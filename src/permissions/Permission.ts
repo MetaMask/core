@@ -2,10 +2,8 @@ import { Json } from '@metamask/types';
 import { nanoid } from 'nanoid';
 import { NonEmptyArray } from '../util';
 import { CaveatConstraint } from './Caveat';
-// @ts-expect-error This is used in a docstring
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { PermissionController } from './PermissionController';
-// @ts-expect-error This is used in a docstring
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Caveat } from './Caveat';
 

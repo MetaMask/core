@@ -6,11 +6,9 @@ import {
   PendingJsonRpcResponse,
   JsonRpcRequest,
 } from 'json-rpc-engine';
-// @ts-expect-error This is used in a docstring
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { JsonRpcEngine } from 'json-rpc-engine';
 import { internalError } from './errors';
-// @ts-expect-error This is used in a docstring
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { PermissionController } from './PermissionController';
 import {
