@@ -3,8 +3,8 @@ import type {
   JsonRpcEngineEndCallback,
   JsonRpcRequest,
   PendingJsonRpcResponse,
-} from 'json-rpc-engine';
-import type { PermittedHandlerExport } from '../../util';
+  PermittedHandlerExport,
+} from '@metamask/types';
 import { MethodNames } from '../utils';
 
 import { invalidParams } from '../errors';

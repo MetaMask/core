@@ -1,4 +1,4 @@
-import { Json } from 'json-rpc-engine';
+import { Json } from '@metamask/types';
 import { nanoid } from 'nanoid';
 import { NonEmptyArray } from '../util';
 import { CaveatConstraint } from './Caveat';

@@ -1,4 +1,4 @@
-import { Json } from 'json-rpc-engine';
+import { Json } from '@metamask/types';
 import { UnrecognizedCaveatTypeError } from './errors';
 import {
   AsyncRestrictedMethod,

@@ -1,5 +1,5 @@
 import type { Patch } from 'immer';
-import { Json } from 'json-rpc-engine';
+import { Json } from '@metamask/types';
 import { BaseController } from '../BaseControllerV2';
 import { RestrictedControllerMessenger } from '../ControllerMessenger';
 
