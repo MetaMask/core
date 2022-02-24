@@ -3,6 +3,7 @@ import type { Patch } from 'immer';
 import { BaseController } from '../BaseControllerV2';
 
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
+import type { GetSubjectMetadataState } from '../subject-metadata';
 
 /**
  * @type NotificationState
@@ -47,12 +48,11 @@ export type ShowNotification = {
 
 export type ControllerActions = GetNotificationState | ShowNotification;
 
-// @ts-expect-error @todo Import when other PR is merged
 type AllowedActions = GetSubjectMetadataState;
 
 type NotificationMessenger = RestrictedControllerMessenger<
   typeof name,
-  ControllerActions,
+  ControllerActions | AllowedActions,
   NotificationStateChange,
   AllowedActions['type'],
   never
@@ -118,7 +118,7 @@ export class NotificationController extends BaseController<
     this.rateLimitCount = rateLimitCount;
 
     this.messagingSystem.registerActionHandler(
-      `${name}:show`,
+      `${name}:show` as const,
       (origin: string, args: NotificationArgs) => this.show(origin, args),
     );
   }
@@ -136,12 +136,10 @@ export class NotificationController extends BaseController<
     }
     this._recordRequest(origin);
 
-    // @todo Missing types
     const subjectMetadataState = this.messagingSystem.call(
       'SubjectMetadataController:getState',
     );
 
-    // @ts-expect-error @todo Import when other PR is merged
     const originMetadata = subjectMetadataState.subjectMetadata[origin];
 
     switch (args.type) {
