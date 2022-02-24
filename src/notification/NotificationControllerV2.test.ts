@@ -1,36 +1,49 @@
 import { ControllerMessenger } from '../ControllerMessenger';
+import { GetSubjectMetadataState } from '../subject-metadata';
 import {
+  ControllerActions,
   GetNotificationState,
   NotificationController,
+  NotificationMessenger,
   NotificationStateChange,
   NotificationType,
+  ShowNotification,
 } from './NotificationControllerV2';
 
 const name = 'NotificationControllerV2';
 
 /**
- * Constructs a restricted controller messenger.
+ * Constructs a unrestricted controller messenger.
  *
- * @returns A restricted controller messenger.
+ * @returns A unrestricted controller messenger.
  */
-function getRestrictedMessenger() {
-  const controllerMessenger = new ControllerMessenger<
-    GetNotificationState,
+function getUnrestrictedMessenger() {
+  return new ControllerMessenger<
+    GetNotificationState | ShowNotification | GetSubjectMetadataState,
     NotificationStateChange
   >();
-  const messenger = controllerMessenger.getRestricted<
+}
+
+/**
+ * Constructs a restricted controller messenger.
+ *
+ * @param controllerMessenger - An optional unrestricted messenger
+ * @returns A restricted controller messenger.
+ */
+function getRestrictedMessenger(
+  controllerMessenger = getUnrestrictedMessenger(),
+) {
+  return controllerMessenger.getRestricted<
     typeof name,
-    never,
+    ControllerActions['type'] | GetSubjectMetadataState['type'],
     never
   >({
     name,
-    // @ts-expect-error Missing types for now
     allowedActions: [
       'SubjectMetadataController:getState',
       'NotificationControllerV2:show',
     ],
-  });
-  return messenger;
+  }) as NotificationMessenger;
 }
 
 const SNAP_NAME = 'Test Snap Name';
@@ -45,7 +58,8 @@ describe('NotificationControllerV2', () => {
   jest.useFakeTimers();
 
   it('action: NotificationControllerV2:show', async () => {
-    const messenger = getRestrictedMessenger();
+    const unrestricted = getUnrestrictedMessenger();
+    const messenger = getRestrictedMessenger(unrestricted);
 
     const showNativeNotification = jest.fn();
     const controller = new NotificationController({
@@ -56,7 +70,7 @@ describe('NotificationControllerV2', () => {
       .spyOn(controller, 'show')
       .mockImplementationOnce(() => true);
     expect(
-      await messenger.call('NotificationControllerV2:show', origin, {
+      await unrestricted.call('NotificationControllerV2:show', origin, {
         type: NotificationType.Native,
         message,
       }),
