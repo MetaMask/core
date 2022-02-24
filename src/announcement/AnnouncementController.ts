@@ -47,14 +47,14 @@ const defaultState = {
 };
 
 /**
- * Controller for managing in-app announcement notifications.
+ * Controller for managing in-app announcements.
  */
-export class NotificationController extends BaseController<
+export class AnnouncementController extends BaseController<
   NotificationConfig,
   NotificationState
 > {
   /**
-   * Creates a NotificationController instance.
+   * Creates a AnnouncementController instance.
    *
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.

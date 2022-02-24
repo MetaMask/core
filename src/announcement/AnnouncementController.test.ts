@@ -1,9 +1,9 @@
 import {
   NotificationConfig,
   NotificationState,
-  NotificationController,
+  AnnouncementController,
   StateNotificationMap,
-} from './NotificationController';
+} from './AnnouncementController';
 
 const config1: NotificationConfig = {
   allNotifications: {
@@ -50,9 +50,9 @@ const state1: NotificationState = {
   },
 };
 
-describe('notification controller', () => {
+describe('announcement controller', () => {
   it('should add notifications to state', () => {
-    const controller = new NotificationController(config1);
+    const controller = new AnnouncementController(config1);
     expect(Object.keys(controller.state.notifications)).toHaveLength(2);
     const expectedStateNotifications: StateNotificationMap = {
       1: {
@@ -70,7 +70,7 @@ describe('notification controller', () => {
   });
 
   it('should add new notifcation to state', () => {
-    const controller = new NotificationController(config2, state1);
+    const controller = new AnnouncementController(config2, state1);
     expect(Object.keys(controller.state.notifications)).toHaveLength(3);
     expect(controller.state.notifications[1].isShown).toBe(true);
     expect(controller.state.notifications[2].isShown).toBe(true);
@@ -79,7 +79,7 @@ describe('notification controller', () => {
 
   describe('update viewed notifications', () => {
     it('should update isShown status', () => {
-      const controller = new NotificationController(config2);
+      const controller = new AnnouncementController(config2);
       controller.updateViewed({ 1: true });
       expect(controller.state.notifications[1].isShown).toBe(true);
       expect(controller.state.notifications[2].isShown).toBe(false);
@@ -87,7 +87,7 @@ describe('notification controller', () => {
     });
 
     it('should update isShown of more than one notifications', () => {
-      const controller = new NotificationController(config2);
+      const controller = new AnnouncementController(config2);
       controller.updateViewed({ 2: true, 3: true });
       expect(controller.state.notifications[1].isShown).toBe(false);
       expect(controller.state.notifications[2].isShown).toBe(true);
