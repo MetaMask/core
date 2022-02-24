@@ -37,14 +37,5 @@ export * from './assets/TokenDetectionController';
 export * from './assets/CollectibleDetectionController';
 export * from './permissions';
 export * from './subject-metadata';
-export {
-  NotificationController as NotificationControllerV2,
-  NotificationArgs,
-  NotificationMessenger,
-  NotificationType,
-  ShowNotification,
-  NotificationState as NotificationStateV2,
-  NotificationStateChange,
-  GetNotificationState,
-} from './notification/NotificationControllerV2';
+export * from './ratelimit/RateLimitController';
 export { util };
