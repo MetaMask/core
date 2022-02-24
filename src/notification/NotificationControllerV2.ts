@@ -19,12 +19,12 @@ export enum NotificationType {
 
 export interface NotificationArgs {
   /**
-   * @todo
+   * Enum type to determine notification type. Currently only supports 'native'.
    */
   type: NotificationType;
 
   /**
-   * @todo
+   * A message to show on the notification.
    */
   message: string;
 }
@@ -91,6 +91,7 @@ export class NotificationController extends BaseController<
    * @param options.rateLimitCount - The amount of notifications an origin can show in the rate limit time window
    */
   constructor({
+    // @todo Pick some sane defaults for this
     rateLimitTimeout = 5000,
     rateLimitCount = 3,
     messenger,
@@ -156,10 +157,21 @@ export class NotificationController extends BaseController<
     return true;
   }
 
+  /**
+   * Checks whether a given origin is rate limited.
+   *
+   * @param origin - The origin trying to send a notification
+   * @returns True if rate-limited
+   */
   _isRateLimited(origin: string) {
     return this.state.requests[origin] >= this.rateLimitCount;
   }
 
+  /**
+   * Records that an origin has made a request to show a notification. For rate limiting purposes.
+   *
+   * @param origin - The origin trying to send a notification
+   */
   _recordRequest(origin: string) {
     this.update((state) => {
       state.requests[origin] = (state.requests[origin] ?? 0) + 1;
@@ -167,6 +179,11 @@ export class NotificationController extends BaseController<
     });
   }
 
+  /**
+   * Resets the request for a given origin. For rate limiting purposes.
+   *
+   * @param origin - The origin in question
+   */
   _resetRequestCount(origin: string) {
     this.update((state) => {
       state.requests[origin] = 0;
