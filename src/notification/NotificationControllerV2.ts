@@ -50,7 +50,7 @@ export type ControllerActions = GetNotificationState | ShowNotification;
 
 type AllowedActions = GetSubjectMetadataState;
 
-type NotificationMessenger = RestrictedControllerMessenger<
+export type NotificationMessenger = RestrictedControllerMessenger<
   typeof name,
   ControllerActions | AllowedActions,
   NotificationStateChange,
