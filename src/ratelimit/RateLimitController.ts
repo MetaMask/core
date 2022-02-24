@@ -3,7 +3,6 @@ import type { Patch } from 'immer';
 import { BaseController } from '../BaseControllerV2';
 
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
-import type { GetSubjectMetadataState } from '../subject-metadata';
 
 /**
  * @type RateLimitState
@@ -49,13 +48,11 @@ export type CallAPI = {
 
 export type ControllerActions = GetRateLimitState | CallAPI;
 
-type AllowedActions = GetSubjectMetadataState;
-
 export type RateLimitMessenger = RestrictedControllerMessenger<
   typeof name,
-  ControllerActions | AllowedActions,
+  ControllerActions,
   RateLimitStateChange,
-  AllowedActions['type'],
+  never,
   never
 >;
 

@@ -1,5 +1,4 @@
 import { ControllerMessenger } from '../ControllerMessenger';
-import { GetSubjectMetadataState } from '../subject-metadata';
 import {
   ControllerActions,
   RateLimitStateChange,
@@ -19,7 +18,7 @@ const name = 'RateLimitController';
  */
 function getUnrestrictedMessenger() {
   return new ControllerMessenger<
-    GetRateLimitState | CallAPI | GetSubjectMetadataState,
+    GetRateLimitState | CallAPI,
     RateLimitStateChange
   >();
 }
@@ -35,7 +34,7 @@ function getRestrictedMessenger(
 ) {
   return controllerMessenger.getRestricted<
     typeof name,
-    ControllerActions['type'] | GetSubjectMetadataState['type'],
+    ControllerActions['type'],
     never
   >({
     name,
