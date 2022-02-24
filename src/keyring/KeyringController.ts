@@ -664,7 +664,7 @@ export class KeyringController extends BaseController<
   connectQRHardware = async (page: number) => {
     try {
       const keyring = await this.getQRKeyring();
-      let accounts = [];
+      let accounts: any[];
       switch (page) {
         case -1:
           accounts = await keyring.getPreviousPage();
@@ -675,7 +675,12 @@ export class KeyringController extends BaseController<
         default:
           accounts = await keyring.getFirstPage();
       }
-      return accounts;
+      return accounts.map((account: any) => {
+        return {
+          ...account,
+          balance: '0x0',
+        };
+      });
     } catch (e) {
       throw new Error('Unspecified error when connect QR Hardware');
     }
