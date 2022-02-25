@@ -8,50 +8,50 @@ import type { RestrictedControllerMessenger } from '../ControllerMessenger';
  * @type RateLimitState
  * @property requests - Object containing number of requests in a given interval for each origin and api type combination
  */
-export type RateLimitState = {
-  requests: Record<ApiType, Record<string, number>>;
+export type RateLimitState<T extends string> = {
+  requests: Record<T, Record<string, number>>;
 };
 
-export enum ApiType {
-  showNativeNotification = 'showNativeNotification',
-}
-
-export interface CallArgs {
+export interface CallArgs<T> {
   /**
    * Enum type to determine API type.
    */
-  type: ApiType;
+  type: T;
 
   /**
    * Args passed to the API call
    */
   // @todo Type this?
-  args: any;
+  args: any[];
 }
 
 const name = 'RateLimitController';
 
-export type RateLimitStateChange = {
+export type RateLimitStateChange<T extends string> = {
   type: `${typeof name}:stateChange`;
-  payload: [RateLimitState, Patch[]];
+  payload: [RateLimitState<T>, Patch[]];
 };
 
-export type GetRateLimitState = {
+export type GetRateLimitState<T extends string> = {
   type: `${typeof name}:getState`;
-  handler: () => RateLimitState;
+  handler: () => RateLimitState<T>;
 };
 
-export type CallAPI = {
+export type CallAPI<T extends string> = {
   type: `${typeof name}:call`;
-  handler: RateLimitController['call'];
+  handler: RateLimitController<T>['call'];
 };
 
-export type ControllerActions = GetRateLimitState | CallAPI;
+export type ControllerActions<T extends string> =
+  | GetRateLimitState<T>
+  | CallAPI<T>;
 
-export type RateLimitMessenger = RestrictedControllerMessenger<
+export type RateLimitMessenger<
+  T extends string
+> = RestrictedControllerMessenger<
   typeof name,
-  ControllerActions,
-  RateLimitStateChange,
+  ControllerActions<T>,
+  RateLimitStateChange<T>,
   never,
   never
 >;
@@ -60,19 +60,15 @@ const metadata = {
   requests: { persist: false, anonymous: false },
 };
 
-const defaultState = {
-  requests: { [ApiType.showNativeNotification]: {} },
-};
-
 /**
  * Controller that handles showing notifications to the user and rate limiting origins
  */
-export class RateLimitController extends BaseController<
+export class RateLimitController<T extends string> extends BaseController<
   typeof name,
-  RateLimitState,
-  RateLimitMessenger
+  RateLimitState<T>,
+  RateLimitMessenger<T>
 > {
-  private showNativeNotification;
+  private implementations;
 
   private rateLimitTimeout;
 
@@ -84,7 +80,7 @@ export class RateLimitController extends BaseController<
    * @param options - Constructor options.
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
-   * @param options.showNativeNotification - Function that shows a native notification in the consumer
+   * @param options.implementations - Mapping from API type to API implementation
    * @param options.rateLimitTimeout - The time window in which the rate limit is applied
    * @param options.rateLimitCount - The amount of notifications an origin can show in the rate limit time window
    */
@@ -94,31 +90,33 @@ export class RateLimitController extends BaseController<
     rateLimitCount = 3,
     messenger,
     state,
-    showNativeNotification,
+    implementations,
   }: {
     rateLimitTimeout?: number;
     rateLimitCount?: number;
-    messenger: RateLimitMessenger;
-    state?: Partial<RateLimitState>;
-    showNativeNotification: (
-      title: string,
-      message: string,
-      url?: string,
-    ) => void;
+    messenger: RateLimitMessenger<T>;
+    state?: Partial<RateLimitState<T>>;
+    implementations: Record<T, any>;
   }) {
+    const defaultState = {
+      requests: Object.keys(implementations).reduce(
+        (acc, key) => ({ ...acc, [key]: {} }),
+        {} as Record<T, Record<string, number>>,
+      ),
+    };
     super({
       name,
       metadata,
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.showNativeNotification = showNativeNotification;
+    this.implementations = implementations;
     this.rateLimitTimeout = rateLimitTimeout;
     this.rateLimitCount = rateLimitCount;
 
     this.messagingSystem.registerActionHandler(
       `${name}:call` as const,
-      (origin: string, args: CallArgs) => this.call(origin, args),
+      (origin: string, args: CallArgs<T>) => this.call(origin, args),
     );
   }
 
@@ -129,20 +127,20 @@ export class RateLimitController extends BaseController<
    * @param _args - Notification arguments, containing the notification message etc.
    * @returns False if rate-limited, true if not
    */
-  call(origin: string, _args: CallArgs) {
+  call(origin: string, _args: CallArgs<T>) {
     const { type, args } = _args;
     if (this._isRateLimited(type, origin)) {
       return false;
     }
     this._recordRequest(type, origin);
 
-    switch (type) {
-      case ApiType.showNativeNotification:
-        this.showNativeNotification(args.title, args.message);
-        break;
-      default:
-        throw new Error('Invalid api type');
+    const implementation = this.implementations[type];
+
+    if (!implementation) {
+      throw new Error('Invalid api type');
     }
+
+    implementation(...args);
 
     return true;
   }
@@ -154,7 +152,7 @@ export class RateLimitController extends BaseController<
    * @param origin - The origin trying to access the API
    * @returns True if rate-limited
    */
-  _isRateLimited(api: ApiType, origin: string) {
+  _isRateLimited(api: T, origin: string) {
     return this.state.requests[api][origin] >= this.rateLimitCount;
   }
 
@@ -164,7 +162,7 @@ export class RateLimitController extends BaseController<
    * @param api - The API the origin is trying to access
    * @param origin - The origin trying to access the API
    */
-  _recordRequest(api: ApiType, origin: string) {
+  _recordRequest(api: T, origin: string) {
     this.update((state) => {
       state.requests[api][origin] = (state.requests[api][origin] ?? 0) + 1;
       setTimeout(
@@ -180,7 +178,7 @@ export class RateLimitController extends BaseController<
    * @param api - The API is question
    * @param origin - The origin in question
    */
-  _resetRequestCount(api: ApiType, origin: string) {
+  _resetRequestCount(api: T, origin: string) {
     this.update((state) => {
       state.requests[api][origin] = 0;
     });

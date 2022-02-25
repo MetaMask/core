@@ -5,11 +5,14 @@ import {
   RateLimitController,
   RateLimitMessenger,
   GetRateLimitState,
-  ApiType,
   CallAPI,
 } from './RateLimitController';
 
 const name = 'RateLimitController';
+
+enum ApiType {
+  showNativeNotification = 'showNativeNotification',
+}
 
 /**
  * Constructs a unrestricted controller messenger.
@@ -18,8 +21,8 @@ const name = 'RateLimitController';
  */
 function getUnrestrictedMessenger() {
   return new ControllerMessenger<
-    GetRateLimitState | CallAPI,
-    RateLimitStateChange
+    GetRateLimitState<ApiType> | CallAPI<ApiType>,
+    RateLimitStateChange<ApiType>
   >();
 }
 
@@ -34,12 +37,12 @@ function getRestrictedMessenger(
 ) {
   return controllerMessenger.getRestricted<
     typeof name,
-    ControllerActions['type'],
+    ControllerActions<ApiType>['type'],
     never
   >({
     name,
     allowedActions: ['RateLimitController:call'],
-  }) as RateLimitMessenger;
+  }) as RateLimitMessenger<ApiType>;
 }
 
 const origin = 'snap_test';
@@ -54,7 +57,7 @@ describe('RateLimitController', () => {
 
     const showNativeNotification = jest.fn();
     const controller = new RateLimitController({
-      showNativeNotification,
+      implementations: { showNativeNotification },
       messenger,
     });
     const showSpy = jest
@@ -63,7 +66,7 @@ describe('RateLimitController', () => {
     expect(
       await unrestricted.call('RateLimitController:call', origin, {
         type: ApiType.showNativeNotification,
-        args: { title: origin, message },
+        args: [origin, message],
       }),
     ).toBe(true);
     expect(showSpy).toHaveBeenCalledTimes(1);
@@ -74,13 +77,13 @@ describe('RateLimitController', () => {
 
     const showNativeNotification = jest.fn();
     const controller = new RateLimitController({
-      showNativeNotification,
+      implementations: { showNativeNotification },
       messenger,
     });
     expect(
       controller.call(origin, {
         type: ApiType.showNativeNotification,
-        args: { title: origin, message },
+        args: [origin, message],
       }),
     ).toBe(true);
     expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
@@ -90,7 +93,7 @@ describe('RateLimitController', () => {
     const messenger = getRestrictedMessenger();
     const showNativeNotification = jest.fn();
     const controller = new RateLimitController({
-      showNativeNotification,
+      implementations: { showNativeNotification },
       messenger,
       rateLimitCount: 1,
     });
@@ -98,14 +101,14 @@ describe('RateLimitController', () => {
     expect(
       controller.call(origin, {
         type: ApiType.showNativeNotification,
-        args: { title: origin, message },
+        args: [origin, message],
       }),
     ).toBe(true);
 
     expect(
       controller.call(origin, {
         type: ApiType.showNativeNotification,
-        args: { title: origin, message },
+        args: [origin, message],
       }),
     ).toBe(false);
     expect(showNativeNotification).toHaveBeenCalledTimes(1);
@@ -116,21 +119,21 @@ describe('RateLimitController', () => {
     const messenger = getRestrictedMessenger();
     const showNativeNotification = jest.fn();
     const controller = new RateLimitController({
-      showNativeNotification,
+      implementations: { showNativeNotification },
       messenger,
       rateLimitCount: 1,
     });
     expect(
       controller.call(origin, {
         type: ApiType.showNativeNotification,
-        args: { title: origin, message },
+        args: [origin, message],
       }),
     ).toBe(true);
     jest.runAllTimers();
     expect(
       controller.call(origin, {
         type: ApiType.showNativeNotification,
-        args: { title: origin, message },
+        args: [origin, message],
       }),
     ).toBe(true);
     expect(showNativeNotification).toHaveBeenCalledTimes(2);
