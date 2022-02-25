@@ -702,6 +702,7 @@ export class KeyringController extends BaseController<
         this.setSelectedAddress(address);
       }
     });
+    await privates.get(this).keyring.persistAllKeyrings();
     return this.fullUpdate();
   }
 
