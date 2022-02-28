@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import contractsMap from '@metamask/contract-metadata';
-import abiERC721 from 'human-standard-collectible-abi';
+import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import { ethers } from 'ethers';
@@ -8,10 +8,9 @@ import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import { validateTokenToWatch, toChecksumHexAddress } from '../util';
-import { MAINNET } from '../constants';
+import { MAINNET, ERC721_INTERFACE_ID } from '../constants';
 import type { Token } from './TokenRatesController';
 
-const ERC721_INTERFACE_ID = '0x80ac58cd';
 /**
  * @type TokensConfig
  *

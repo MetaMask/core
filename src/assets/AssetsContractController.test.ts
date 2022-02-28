@@ -14,10 +14,8 @@ const ERC1155_ID =
 
 const TEST_ACCOUNT_PUBLIC_ADDRESS =
   '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
-
 describe('AssetsContractController', () => {
   let assetsContract: AssetsContractController;
-
   beforeEach(() => {
     assetsContract = new AssetsContractController();
   });
@@ -36,11 +34,11 @@ describe('AssetsContractController', () => {
 
   it('should get balance of ERC-20 token contract correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const UNIBalance = await assetsContract.getBalanceOf(
+    const UNIBalance = await assetsContract.getERC20BalanceOf(
       ERC20_UNI_ADDRESS,
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
-    const UNINoBalance = await assetsContract.getBalanceOf(
+    const UNINoBalance = await assetsContract.getERC20BalanceOf(
       ERC20_UNI_ADDRESS,
       '0x202637dAAEfbd7f131f90338a4A6c69F6Cd5CE91',
     );
@@ -50,7 +48,7 @@ describe('AssetsContractController', () => {
 
   it('should get ERC-721 collectible tokenId correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const tokenId = await assetsContract.getCollectibleTokenId(
+    const tokenId = await assetsContract.getERC721CollectibleTokenId(
       ERC721_GODS_ADDRESS,
       '0x9a90bd8d1149a88b42a99cf62215ad955d6f498a',
       0,
@@ -60,7 +58,7 @@ describe('AssetsContractController', () => {
 
   it('should get ERC-721 collectible tokenURI correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const tokenId = await assetsContract.getCollectibleTokenURI(
+    const tokenId = await assetsContract.getERC721TokenURI(
       ERC721_GODS_ADDRESS,
       '0',
     );
@@ -70,7 +68,7 @@ describe('AssetsContractController', () => {
   it('should throw an error when address given is not an ERC-721 collectible', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const result = async () => {
-      await assetsContract.getCollectibleTokenURI(
+      await assetsContract.getERC721TokenURI(
         '0x0000000000000000000000000000000000000000',
         '0',
       );
@@ -82,25 +80,29 @@ describe('AssetsContractController', () => {
 
   it('should get ERC-721 collectible name', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const name = await assetsContract.getAssetName(ERC721_GODS_ADDRESS);
+    const name = await assetsContract.getERC721AssetName(ERC721_GODS_ADDRESS);
     expect(name).toStrictEqual('Gods Unchained');
   });
 
   it('should get ERC-721 collectible symbol', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const symbol = await assetsContract.getAssetSymbol(ERC721_GODS_ADDRESS);
+    const symbol = await assetsContract.getERC721AssetSymbol(
+      ERC721_GODS_ADDRESS,
+    );
     expect(symbol).toStrictEqual('GODS');
   });
 
   it('should get ERC-20 token decimals', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const symbol = await assetsContract.getTokenDecimals(ERC20_DAI_ADDRESS);
+    const symbol = await assetsContract.getERC20TokenDecimals(
+      ERC20_DAI_ADDRESS,
+    );
     expect(Number(symbol)).toStrictEqual(18);
   });
 
   it('should get ERC-721 collectible ownership', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const tokenId = await assetsContract.getOwnerOf(
+    const tokenId = await assetsContract.getERC721OwnerOf(
       ERC721_GODS_ADDRESS,
       '148332',
     );
@@ -118,7 +120,7 @@ describe('AssetsContractController', () => {
 
   it('should get the balance of a ERC-1155 collectible for a given address', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const balance = await assetsContract.balanceOfERC1155Collectible(
+    const balance = await assetsContract.getERC1155BalanceOf(
       TEST_ACCOUNT_PUBLIC_ADDRESS,
       ERC1155_ADDRESS,
       ERC1155_ID,
@@ -129,7 +131,7 @@ describe('AssetsContractController', () => {
   it('should get the URI of a ERC-1155 collectible', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const expectedUri = `https://api.opensea.io/api/v1/metadata/${ERC1155_ADDRESS}/0x{id}`;
-    const uri = await assetsContract.uriERC1155Collectible(
+    const uri = await assetsContract.getERC1155TokenURI(
       ERC1155_ADDRESS,
       ERC1155_ID,
     );

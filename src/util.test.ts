@@ -1232,3 +1232,63 @@ describe('util', () => {
     });
   });
 });
+
+describe('isPlainObject', () => {
+  it('returns false for null values', () => {
+    expect(util.isPlainObject(null)).toBe(false);
+    expect(util.isPlainObject(undefined)).toBe(false);
+  });
+
+  it('returns false for non objects', () => {
+    expect(util.isPlainObject(5)).toBe(false);
+    expect(util.isPlainObject('foo')).toBe(false);
+  });
+
+  it('returns false for arrays', () => {
+    expect(util.isPlainObject(['foo'])).toBe(false);
+    expect(util.isPlainObject([{}])).toBe(false);
+  });
+
+  it('returns true for objects', () => {
+    expect(util.isPlainObject({ foo: 'bar' })).toBe(true);
+    expect(util.isPlainObject({ foo: 'bar', test: { num: 5 } })).toBe(true);
+  });
+});
+
+describe('hasProperty', () => {
+  it('returns false for non existing properties', () => {
+    expect(util.hasProperty({ foo: 'bar' }, 'property')).toBe(false);
+  });
+
+  it('returns true for existing properties', () => {
+    expect(util.hasProperty({ foo: 'bar' }, 'foo')).toBe(true);
+  });
+});
+
+describe('isNonEmptyArray', () => {
+  it('returns false non arrays', () => {
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isNonEmptyArray(null)).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isNonEmptyArray(undefined)).toBe(false);
+  });
+
+  it('returns false for empty array', () => {
+    expect(util.isNonEmptyArray([])).toBe(false);
+  });
+
+  it('returns true arrays with at least one item', () => {
+    expect(util.isNonEmptyArray([1])).toBe(true);
+    expect(util.isNonEmptyArray([1, 2, 3, 4])).toBe(true);
+  });
+});
+
+describe('isValidJson', () => {
+  it('returns false for class instances', () => {
+    expect(util.isValidJson(new Map())).toBe(false);
+  });
+
+  it('returns true for valid JSON', () => {
+    expect(util.isValidJson({ foo: 'bar', test: { num: 5 } })).toBe(true);
+  });
+});
