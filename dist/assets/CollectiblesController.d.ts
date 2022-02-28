@@ -92,7 +92,7 @@ export interface CollectibleMetadata {
     creator?: ApiCollectibleCreator;
     lastSale?: ApiCollectibleLastSale;
 }
-interface DetectionParams {
+interface AccountParams {
     userAddress: string;
     chainId: string;
 }
@@ -147,7 +147,7 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * @param newCollection - the modified piece of state to update in the controller's store
      * @param baseStateKey - The root key in the store to update.
      * @param passedConfig - An object containing the selectedAddress and chainId that are passed through the auto-detection flow.
-     * @param passedConfig.selectedAddress - the address passed through the collectible detection flow to ensure detected assets are stored to the correct account
+     * @param passedConfig.userAddress - the address passed through the collectible detection flow to ensure detected assets are stored to the correct account
      * @param passedConfig.chainId - the chainId passed through the collectible detection flow to ensure detected assets are stored to the correct account
      */
     private updateNestedCollectibleState;
@@ -255,36 +255,36 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * Name of this controller used during composition
      */
     name: string;
-    private getAssetName;
-    private getAssetSymbol;
-    private getCollectibleTokenURI;
-    private getOwnerOf;
-    private balanceOfERC1155Collectible;
-    private uriERC1155Collectible;
+    private getERC721AssetName;
+    private getERC721AssetSymbol;
+    private getERC721TokenURI;
+    private getERC721OwnerOf;
+    private getERC1155BalanceOf;
+    private getERC1155TokenURI;
     /**
      * Creates a CollectiblesController instance.
      *
      * @param options - The controller options.
      * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
      * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
-     * @param options.getAssetName - Gets the name of the asset at the given address.
-     * @param options.getAssetSymbol - Gets the symbol of the asset at the given address.
-     * @param options.getCollectibleTokenURI - Gets the URI of the ERC721 token at the given address, with the given ID.
-     * @param options.getOwnerOf - Get the owner of a ERC-721 collectible.
-     * @param options.balanceOfERC1155Collectible - Gets balance of a ERC-1155 collectible.
-     * @param options.uriERC1155Collectible - Gets the URI of the ERC1155 token at the given address, with the given ID.
+     * @param options.getERC721AssetName - Gets the name of the asset at the given address.
+     * @param options.getERC721AssetSymbol - Gets the symbol of the asset at the given address.
+     * @param options.getERC721TokenURI - Gets the URI of the ERC721 token at the given address, with the given ID.
+     * @param options.getERC721OwnerOf - Get the owner of a ERC-721 collectible.
+     * @param options.getERC1155BalanceOf - Gets balance of a ERC-1155 collectible.
+     * @param options.getERC1155TokenURI - Gets the URI of the ERC1155 token at the given address, with the given ID.
      * @param config - Initial options used to configure this controller.
      * @param state - Initial state to set on this controller.
      */
-    constructor({ onPreferencesStateChange, onNetworkStateChange, getAssetName, getAssetSymbol, getCollectibleTokenURI, getOwnerOf, balanceOfERC1155Collectible, uriERC1155Collectible, }: {
+    constructor({ onPreferencesStateChange, onNetworkStateChange, getERC721AssetName, getERC721AssetSymbol, getERC721TokenURI, getERC721OwnerOf, getERC1155BalanceOf, getERC1155TokenURI, }: {
         onPreferencesStateChange: (listener: (preferencesState: PreferencesState) => void) => void;
         onNetworkStateChange: (listener: (networkState: NetworkState) => void) => void;
-        getAssetName: AssetsContractController['getAssetName'];
-        getAssetSymbol: AssetsContractController['getAssetSymbol'];
-        getCollectibleTokenURI: AssetsContractController['getCollectibleTokenURI'];
-        getOwnerOf: AssetsContractController['getOwnerOf'];
-        balanceOfERC1155Collectible: AssetsContractController['balanceOfERC1155Collectible'];
-        uriERC1155Collectible: AssetsContractController['uriERC1155Collectible'];
+        getERC721AssetName: AssetsContractController['getERC721AssetName'];
+        getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
+        getERC721TokenURI: AssetsContractController['getERC721TokenURI'];
+        getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
+        getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
+        getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
     }, config?: Partial<BaseConfig>, state?: Partial<CollectiblesState>);
     /**
      * Sets an OpenSea API key to retrieve collectible information.
@@ -318,7 +318,7 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
      * @returns Promise resolving to the current collectible list.
      */
-    addCollectible(address: string, tokenId: string, collectibleMetadata?: CollectibleMetadata, detection?: DetectionParams): Promise<void>;
+    addCollectible(address: string, tokenId: string, collectibleMetadata?: CollectibleMetadata, detection?: AccountParams): Promise<void>;
     /**
      * Removes a collectible from the stored token list.
      *
@@ -338,10 +338,22 @@ export declare class CollectiblesController extends BaseController<CollectiblesC
      */
     clearIgnoredCollectibles(): void;
     /**
+     * Checks whether input collectible is still owned by the user
+     * And updates the isCurrentlyOwned value on the collectible object accordingly.
+     *
+     * @param collectible - The collectible object to check and update.
+     * @param batch - A boolean indicating whether this method is being called as part of a batch or single update.
+     * @param accountParams - The userAddress and chainId to check ownership against
+     * @param accountParams.userAddress - the address passed through the confirmed transaction flow to ensure detected assets are stored to the correct account
+     * @param accountParams.chainId - the chainId passed through the confirmed transaction flow to ensure detected assets are stored to the correct account
+     * @returns the collectible with the updated isCurrentlyOwned value
+     */
+    checkAndUpdateSingleCollectibleOwnershipStatus(collectible: Collectible, batch: boolean, { userAddress, chainId }?: AccountParams | undefined): Promise<Collectible>;
+    /**
      * Checks whether Collectibles associated with current selectedAddress/chainId combination are still owned by the user
      * And updates the isCurrentlyOwned value on each accordingly.
      */
-    checkAndUpdateCollectiblesOwnershipStatus(): Promise<void>;
+    checkAndUpdateAllCollectiblesOwnershipStatus(): Promise<void>;
     /**
      * Update collectible favorite status.
      *

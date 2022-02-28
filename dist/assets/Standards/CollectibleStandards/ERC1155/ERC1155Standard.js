@@ -10,36 +10,46 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ERC1155Standard = void 0;
-const ERC1155_METADATA_URI_INTERFACE_ID = '0x0e89341c';
-const ERC1155_TOKEN_RECEIVER_INTERFACE_ID = '0x4e2312e0';
+const metamask_eth_abis_1 = require("@metamask/metamask-eth-abis");
+const constants_1 = require("../../../../constants");
 class ERC1155Standard {
-    constructor() {
+    constructor(web3) {
         /**
          * Query if contract implements ERC1155 URI Metadata interface.
          *
-         * @param contract - ERC1155 asset contract.
+         * @param address - ERC1155 asset contract address.
          * @returns Promise resolving to whether the contract implements ERC1155 URI Metadata interface.
          */
-        this.contractSupportsURIMetadataInterface = (contract) => __awaiter(this, void 0, void 0, function* () {
-            return this.contractSupportsInterface(contract, ERC1155_METADATA_URI_INTERFACE_ID);
+        this.contractSupportsURIMetadataInterface = (address) => __awaiter(this, void 0, void 0, function* () {
+            return this.contractSupportsInterface(address, constants_1.ERC1155_METADATA_URI_INTERFACE_ID);
         });
         /**
          * Query if contract implements ERC1155 Token Receiver interface.
          *
-         * @param contract - ERC1155 asset contract.
+         * @param address - ERC1155 asset contract address.
          * @returns Promise resolving to whether the contract implements ERC1155 Token Receiver interface.
          */
-        this.contractSupportsTokenReceiverInterface = (contract) => __awaiter(this, void 0, void 0, function* () {
-            return this.contractSupportsInterface(contract, ERC1155_TOKEN_RECEIVER_INTERFACE_ID);
+        this.contractSupportsTokenReceiverInterface = (address) => __awaiter(this, void 0, void 0, function* () {
+            return this.contractSupportsInterface(address, constants_1.ERC1155_TOKEN_RECEIVER_INTERFACE_ID);
+        });
+        /**
+         * Query if contract implements ERC1155 interface.
+         *
+         * @param address - ERC1155 asset contract address.
+         * @returns Promise resolving to whether the contract implements the base ERC1155 interface.
+         */
+        this.contractSupportsBase1155Interface = (address) => __awaiter(this, void 0, void 0, function* () {
+            return this.contractSupportsInterface(address, constants_1.ERC1155_INTERFACE_ID);
         });
         /**
          * Query for tokenURI for a given asset.
          *
-         * @param contract - ERC1155 asset contract.
+         * @param address - ERC1155 asset contract address.
          * @param tokenId - ERC1155 asset identifier.
          * @returns Promise resolving to the 'tokenURI'.
          */
-        this.uri = (contract, tokenId) => __awaiter(this, void 0, void 0, function* () {
+        this.getTokenURI = (address, tokenId) => __awaiter(this, void 0, void 0, function* () {
+            const contract = this.web3.eth.contract(metamask_eth_abis_1.abiERC1155).at(address);
             return new Promise((resolve, reject) => {
                 contract.uri(tokenId, (error, result) => {
                     /* istanbul ignore if */
@@ -54,12 +64,13 @@ class ERC1155Standard {
         /**
          * Query for balance of a given ERC1155 token.
          *
-         * @param contract - ERC1155 asset contract.
+         * @param contractAddress - ERC1155 asset contract address.
          * @param address - Wallet public address.
          * @param tokenId - ERC1155 asset identifier.
          * @returns Promise resolving to the 'balanceOf'.
          */
-        this.getBalanceOf = (contract, address, tokenId) => __awaiter(this, void 0, void 0, function* () {
+        this.getBalanceOf = (contractAddress, address, tokenId) => __awaiter(this, void 0, void 0, function* () {
+            const contract = this.web3.eth.contract(metamask_eth_abis_1.abiERC1155).at(contractAddress);
             return new Promise((resolve, reject) => {
                 contract.balanceOf(address, tokenId, (error, result) => {
                     /* istanbul ignore if */
@@ -76,7 +87,6 @@ class ERC1155Standard {
          * When minting/creating tokens, the from arg MUST be set to 0x0 (i.e. zero address).
          * When burning/destroying tokens, the to arg MUST be set to 0x0 (i.e. zero address).
          *
-         * @param contract - ERC1155 asset contract.
          * @param operator - ERC1155 token address.
          * @param from - ERC1155 token holder.
          * @param to - ERC1155 token recipient.
@@ -84,7 +94,8 @@ class ERC1155Standard {
          * @param value - Number of tokens to be sent.
          * @returns Promise resolving to the 'transferSingle'.
          */
-        this.transferSingle = (contract, operator, from, to, id, value) => __awaiter(this, void 0, void 0, function* () {
+        this.transferSingle = (operator, from, to, id, value) => __awaiter(this, void 0, void 0, function* () {
+            const contract = this.web3.eth.contract(metamask_eth_abis_1.abiERC1155).at(operator);
             return new Promise((resolve, reject) => {
                 contract.transferSingle(operator, from, to, id, value, (error, result) => {
                     /* istanbul ignore if */
@@ -99,11 +110,12 @@ class ERC1155Standard {
         /**
          * Query if a contract implements an interface.
          *
-         * @param contract - ERC1155 asset contract.
+         * @param address - ERC1155 asset contract address.
          * @param interfaceId - Interface identifier.
          * @returns Promise resolving to whether the contract implements `interfaceID`.
          */
-        this.contractSupportsInterface = (contract, interfaceId) => __awaiter(this, void 0, void 0, function* () {
+        this.contractSupportsInterface = (address, interfaceId) => __awaiter(this, void 0, void 0, function* () {
+            const contract = this.web3.eth.contract(metamask_eth_abis_1.abiERC1155).at(address);
             return new Promise((resolve, reject) => {
                 contract.supportsInterface(interfaceId, (error, result) => {
                     /* istanbul ignore if */
@@ -115,6 +127,29 @@ class ERC1155Standard {
                 });
             });
         });
+        /**
+         * Query if a contract implements an interface.
+         *
+         * @param address - Asset contract address.
+         * @param tokenId - tokenId of a given token in the contract.
+         * @returns Promise resolving an object containing the standard, tokenURI, symbol and name of the given contract/tokenId pair.
+         */
+        this.getDetails = (address, tokenId) => __awaiter(this, void 0, void 0, function* () {
+            const isERC1155 = yield this.contractSupportsBase1155Interface(address);
+            let tokenURI;
+            if (tokenId) {
+                tokenURI = yield this.getTokenURI(address, tokenId);
+            }
+            // TODO consider querying to the metadata to get name.
+            if (isERC1155) {
+                return {
+                    standard: constants_1.ERC1155,
+                    tokenURI,
+                };
+            }
+            throw new Error("This isn't a valid ERC1155 contract");
+        });
+        this.web3 = web3;
     }
 }
 exports.ERC1155Standard = ERC1155Standard;

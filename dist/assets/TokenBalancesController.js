@@ -25,11 +25,11 @@ class TokenBalancesController extends BaseController_1.BaseController {
      * @param options - The controller options.
      * @param options.onTokensStateChange - Allows subscribing to assets controller state changes.
      * @param options.getSelectedAddress - Gets the current selected address.
-     * @param options.getBalanceOf - Gets the balance of the given account at the given contract address.
+     * @param options.getERC20BalanceOf - Gets the balance of the given account at the given contract address.
      * @param config - Initial options used to configure this controller.
      * @param state - Initial state to set on this controller.
      */
-    constructor({ onTokensStateChange, getSelectedAddress, getBalanceOf, }, config, state) {
+    constructor({ onTokensStateChange, getSelectedAddress, getERC20BalanceOf, }, config, state) {
         super(config, state);
         /**
          * Name of this controller used during composition
@@ -46,7 +46,7 @@ class TokenBalancesController extends BaseController_1.BaseController {
             this.updateBalances();
         });
         this.getSelectedAddress = getSelectedAddress;
-        this.getBalanceOf = getBalanceOf;
+        this.getERC20BalanceOf = getERC20BalanceOf;
         this.poll();
     }
     /**
@@ -77,7 +77,7 @@ class TokenBalancesController extends BaseController_1.BaseController {
             for (const i in tokens) {
                 const { address } = tokens[i];
                 try {
-                    newContractBalances[address] = yield this.getBalanceOf(address, this.getSelectedAddress());
+                    newContractBalances[address] = yield this.getERC20BalanceOf(address, this.getSelectedAddress());
                     tokens[i].balanceError = null;
                 }
                 catch (error) {

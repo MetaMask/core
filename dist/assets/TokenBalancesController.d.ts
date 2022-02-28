@@ -39,21 +39,21 @@ export declare class TokenBalancesController extends BaseController<TokenBalance
      */
     name: string;
     private getSelectedAddress;
-    private getBalanceOf;
+    private getERC20BalanceOf;
     /**
      * Creates a TokenBalancesController instance.
      *
      * @param options - The controller options.
      * @param options.onTokensStateChange - Allows subscribing to assets controller state changes.
      * @param options.getSelectedAddress - Gets the current selected address.
-     * @param options.getBalanceOf - Gets the balance of the given account at the given contract address.
+     * @param options.getERC20BalanceOf - Gets the balance of the given account at the given contract address.
      * @param config - Initial options used to configure this controller.
      * @param state - Initial state to set on this controller.
      */
-    constructor({ onTokensStateChange, getSelectedAddress, getBalanceOf, }: {
+    constructor({ onTokensStateChange, getSelectedAddress, getERC20BalanceOf, }: {
         onTokensStateChange: (listener: (tokenState: TokensState) => void) => void;
         getSelectedAddress: () => PreferencesState['selectedAddress'];
-        getBalanceOf: AssetsContractController['getBalanceOf'];
+        getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
     }, config?: Partial<TokenBalancesConfig>, state?: Partial<TokenBalancesState>);
     /**
      * Starts a new polling interval.

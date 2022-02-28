@@ -10,37 +10,47 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ERC721Standard = void 0;
-const ERC721_METADATA_INTERFACE_ID = '0x5b5e139f';
-const ERC721_ENUMERABLE_INTERFACE_ID = '0x780e9d63';
+const metamask_eth_abis_1 = require("@metamask/metamask-eth-abis");
+const constants_1 = require("../../../../constants");
 class ERC721Standard {
-    constructor() {
+    constructor(web3) {
         /**
          * Query if contract implements ERC721Metadata interface.
          *
-         * @param contract - ERC721 asset contract.
+         * @param address - ERC721 asset contract address.
          * @returns Promise resolving to whether the contract implements ERC721Metadata interface.
          */
-        this.contractSupportsMetadataInterface = (contract) => __awaiter(this, void 0, void 0, function* () {
-            return this.contractSupportsInterface(contract, ERC721_METADATA_INTERFACE_ID);
+        this.contractSupportsMetadataInterface = (address) => __awaiter(this, void 0, void 0, function* () {
+            return this.contractSupportsInterface(address, constants_1.ERC721_METADATA_INTERFACE_ID);
         });
         /**
          * Query if contract implements ERC721Enumerable interface.
          *
-         * @param contract - ERC721 asset contract.
+         * @param address - ERC721 asset contract address.
          * @returns Promise resolving to whether the contract implements ERC721Enumerable interface.
          */
-        this.contractSupportsEnumerableInterface = (contract) => __awaiter(this, void 0, void 0, function* () {
-            return this.contractSupportsInterface(contract, ERC721_ENUMERABLE_INTERFACE_ID);
+        this.contractSupportsEnumerableInterface = (address) => __awaiter(this, void 0, void 0, function* () {
+            return this.contractSupportsInterface(address, constants_1.ERC721_ENUMERABLE_INTERFACE_ID);
+        });
+        /**
+         * Query if contract implements ERC721 interface.
+         *
+         * @param address - ERC721 asset contract address.
+         * @returns Promise resolving to whether the contract implements ERC721 interface.
+         */
+        this.contractSupportsBase721Interface = (address) => __awaiter(this, void 0, void 0, function* () {
+            return this.contractSupportsInterface(address, constants_1.ERC721_INTERFACE_ID);
         });
         /**
          * Enumerate assets assigned to an owner.
          *
-         * @param contract - ERC721 asset contract.
+         * @param address - ERC721 asset contract address.
          * @param selectedAddress - Current account public address.
          * @param index - A collectible counter less than `balanceOf(selectedAddress)`.
          * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
          */
-        this.getCollectibleTokenId = (contract, selectedAddress, index) => __awaiter(this, void 0, void 0, function* () {
+        this.getCollectibleTokenId = (address, selectedAddress, index) => __awaiter(this, void 0, void 0, function* () {
+            const contract = this.web3.eth.contract(metamask_eth_abis_1.abiERC721).at(address);
             return new Promise((resolve, reject) => {
                 contract.tokenOfOwnerByIndex(selectedAddress, index, (error, result) => {
                     /* istanbul ignore if */
@@ -55,12 +65,13 @@ class ERC721Standard {
         /**
          * Query for tokenURI for a given asset.
          *
-         * @param contract - ERC721 asset contract.
+         * @param address - ERC721 asset contract address.
          * @param tokenId - ERC721 asset identifier.
          * @returns Promise resolving to the 'tokenURI'.
          */
-        this.getCollectibleTokenURI = (contract, tokenId) => __awaiter(this, void 0, void 0, function* () {
-            const supportsMetadata = yield this.contractSupportsMetadataInterface(contract);
+        this.getTokenURI = (address, tokenId) => __awaiter(this, void 0, void 0, function* () {
+            const contract = this.web3.eth.contract(metamask_eth_abis_1.abiERC721).at(address);
+            const supportsMetadata = yield this.contractSupportsMetadataInterface(address);
             if (!supportsMetadata) {
                 throw new Error('Contract does not support ERC721 metadata interface.');
             }
@@ -78,10 +89,11 @@ class ERC721Standard {
         /**
          * Query for name for a given asset.
          *
-         * @param contract - ERC721 asset contract.
+         * @param address - ERC721 asset contract address.
          * @returns Promise resolving to the 'name'.
          */
-        this.getAssetName = (contract) => __awaiter(this, void 0, void 0, function* () {
+        this.getAssetName = (address) => __awaiter(this, void 0, void 0, function* () {
+            const contract = this.web3.eth.contract(metamask_eth_abis_1.abiERC721).at(address);
             return new Promise((resolve, reject) => {
                 contract.name((error, result) => {
                     /* istanbul ignore if */
@@ -96,10 +108,11 @@ class ERC721Standard {
         /**
          * Query for symbol for a given asset.
          *
-         * @param contract - ERC721 asset contract address.
+         * @param address - ERC721 asset contract address.
          * @returns Promise resolving to the 'symbol'.
          */
-        this.getAssetSymbol = (contract) => __awaiter(this, void 0, void 0, function* () {
+        this.getAssetSymbol = (address) => __awaiter(this, void 0, void 0, function* () {
+            const contract = this.web3.eth.contract(metamask_eth_abis_1.abiERC721).at(address);
             return new Promise((resolve, reject) => {
                 contract.symbol((error, result) => {
                     /* istanbul ignore if */
@@ -114,11 +127,12 @@ class ERC721Standard {
         /**
          * Query if a contract implements an interface.
          *
-         * @param contract - Asset contract.
+         * @param address - Asset contract address.
          * @param interfaceId - Interface identifier.
          * @returns Promise resolving to whether the contract implements `interfaceID`.
          */
-        this.contractSupportsInterface = (contract, interfaceId) => __awaiter(this, void 0, void 0, function* () {
+        this.contractSupportsInterface = (address, interfaceId) => __awaiter(this, void 0, void 0, function* () {
+            const contract = this.web3.eth.contract(metamask_eth_abis_1.abiERC721).at(address);
             return new Promise((resolve, reject) => {
                 contract.supportsInterface(interfaceId, (error, result) => {
                     /* istanbul ignore if */
@@ -130,16 +144,50 @@ class ERC721Standard {
                 });
             });
         });
+        /**
+         * Query if a contract implements an interface.
+         *
+         * @param address - Asset contract address.
+         * @param tokenId - tokenId of a given token in the contract.
+         * @returns Promise resolving an object containing the standard, tokenURI, symbol and name of the given contract/tokenId pair.
+         */
+        this.getDetails = (address, tokenId) => __awaiter(this, void 0, void 0, function* () {
+            const [isERC721, supportsMetadata] = yield Promise.all([
+                this.contractSupportsBase721Interface(address),
+                this.contractSupportsMetadataInterface(address),
+            ]);
+            let tokenURI, symbol, name;
+            if (supportsMetadata) {
+                [symbol, name] = yield Promise.all([
+                    this.getAssetSymbol(address),
+                    this.getAssetName(address),
+                ]);
+                if (tokenId) {
+                    tokenURI = yield this.getTokenURI(address, tokenId);
+                }
+            }
+            if (isERC721) {
+                return {
+                    standard: constants_1.ERC721,
+                    tokenURI,
+                    symbol,
+                    name,
+                };
+            }
+            throw new Error("This isn't a valid ERC721 contract");
+        });
+        this.web3 = web3;
     }
     /**
      * Query for owner for a given ERC721 asset.
      *
-     * @param contract - ERC721 asset contract.
+     * @param address - ERC721 asset contract address.
      * @param tokenId - ERC721 asset identifier.
      * @returns Promise resolving to the owner address.
      */
-    getOwnerOf(contract, tokenId) {
+    getOwnerOf(address, tokenId) {
         return __awaiter(this, void 0, void 0, function* () {
+            const contract = this.web3.eth.contract(metamask_eth_abis_1.abiERC721).at(address);
             return new Promise((resolve, reject) => {
                 contract.ownerOf(tokenId, (error, result) => {
                     /* istanbul ignore if */

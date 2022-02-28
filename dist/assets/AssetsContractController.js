@@ -14,14 +14,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AssetsContractController = void 0;
 const web3_1 = __importDefault(require("web3"));
-const human_standard_token_abi_1 = __importDefault(require("human-standard-token-abi"));
-const human_standard_collectible_abi_1 = __importDefault(require("human-standard-collectible-abi"));
-const human_standard_multi_collectible_abi_1 = __importDefault(require("human-standard-multi-collectible-abi"));
 const single_call_balance_checker_abi_1 = __importDefault(require("single-call-balance-checker-abi"));
 const BaseController_1 = require("../BaseController");
-const ERC721Standard_1 = require("./CollectibleStandards/ERC721/ERC721Standard");
-const ERC1155Standard_1 = require("./CollectibleStandards/ERC1155/ERC1155Standard");
+const ERC721Standard_1 = require("./Standards/CollectibleStandards/ERC721/ERC721Standard");
+const ERC1155Standard_1 = require("./Standards/CollectibleStandards/ERC1155/ERC1155Standard");
+const ERC20Standard_1 = require("./Standards/ERC20Standard");
 const SINGLE_CALL_BALANCES_ADDRESS = '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39';
+const MISSING_PROVIDER_ERROR = 'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';
 /**
  * Controller that interacts with contracts on mainnet through web3
  */
@@ -34,8 +33,6 @@ class AssetsContractController extends BaseController_1.BaseController {
      */
     constructor(config, state) {
         super(config, state);
-        this.erc721Standard = new ERC721Standard_1.ERC721Standard();
-        this.erc1155Standard = new ERC1155Standard_1.ERC1155Standard();
         /**
          * Name of this controller used during composition
          */
@@ -54,6 +51,9 @@ class AssetsContractController extends BaseController_1.BaseController {
      */
     set provider(provider) {
         this.web3 = new web3_1.default(provider);
+        this.erc721Standard = new ERC721Standard_1.ERC721Standard(this.web3);
+        this.erc1155Standard = new ERC1155Standard_1.ERC1155Standard(this.web3);
+        this.erc20Standard = new ERC20Standard_1.ERC20Standard(this.web3);
     }
     get provider() {
         throw new Error('Property only used for setting');
@@ -65,40 +65,26 @@ class AssetsContractController extends BaseController_1.BaseController {
      * @param selectedAddress - Current account public address.
      * @returns Promise resolving to BN object containing balance for current account on specific asset contract.
      */
-    getBalanceOf(address, selectedAddress) {
+    getERC20BalanceOf(address, selectedAddress) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_token_abi_1.default).at(address);
-            return new Promise((resolve, reject) => {
-                contract.balanceOf(selectedAddress, (error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            if (!this.erc20Standard) {
+                throw new Error(MISSING_PROVIDER_ERROR);
+            }
+            return this.erc20Standard.getBalanceOf(address, selectedAddress);
         });
     }
     /**
-     * Query for name for a given ERC20 asset.
+     * Query for the decimals for a given ERC20 asset.
      *
      * @param address - ERC20 asset contract address.
      * @returns Promise resolving to the 'decimals'.
      */
-    getTokenDecimals(address) {
+    getERC20TokenDecimals(address) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_token_abi_1.default).at(address);
-            return new Promise((resolve, reject) => {
-                contract.decimals((error, result) => {
-                    /* istanbul ignore if */
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            });
+            if (this.erc20Standard === undefined) {
+                throw new Error(MISSING_PROVIDER_ERROR);
+            }
+            return yield this.erc20Standard.getTokenDecimals(address);
         });
     }
     /**
@@ -109,21 +95,64 @@ class AssetsContractController extends BaseController_1.BaseController {
      * @param index - A collectible counter less than `balanceOf(selectedAddress)`.
      * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
      */
-    getCollectibleTokenId(address, selectedAddress, index) {
-        const contract = this.web3.eth.contract(human_standard_collectible_abi_1.default).at(address);
-        return this.erc721Standard.getCollectibleTokenId(contract, selectedAddress, index);
+    getERC721CollectibleTokenId(address, selectedAddress, index) {
+        if (this.erc721Standard === undefined) {
+            throw new Error(MISSING_PROVIDER_ERROR);
+        }
+        return this.erc721Standard.getCollectibleTokenId(address, selectedAddress, index);
     }
     /**
-     * Query for tokenURI for a given asset.
+     * Enumerate assets assigned to an owner.
+     *
+     * @param tokenAddress - ERC721 asset contract address.
+     * @param userAddress - Current account public address.
+     * @param tokenId - ERC721 asset identifier.
+     * @returns Promise resolving to an object containing the token standard and a set of details which depend on which standard the token supports.
+     */
+    getTokenStandardAndDetails(tokenAddress, userAddress, tokenId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.erc721Standard === undefined ||
+                this.erc1155Standard === undefined ||
+                this.erc20Standard === undefined) {
+                throw new Error(MISSING_PROVIDER_ERROR);
+            }
+            // ERC721
+            try {
+                return Object.assign({}, (yield this.erc721Standard.getDetails(tokenAddress, tokenId)));
+            }
+            catch (_a) {
+                // Ignore
+            }
+            // ERC1155
+            try {
+                return Object.assign({}, (yield this.erc1155Standard.getDetails(tokenAddress, tokenId)));
+            }
+            catch (_b) {
+                // Ignore
+            }
+            // ERC20
+            try {
+                return Object.assign({}, (yield this.erc20Standard.getDetails(tokenAddress, userAddress)));
+            }
+            catch (_c) {
+                // Ignore
+            }
+            throw new Error('Unable to determine contract standard');
+        });
+    }
+    /**
+     * Query for tokenURI for a given ERC721 asset.
      *
      * @param address - ERC721 asset contract address.
      * @param tokenId - ERC721 asset identifier.
      * @returns Promise resolving to the 'tokenURI'.
      */
-    getCollectibleTokenURI(address, tokenId) {
+    getERC721TokenURI(address, tokenId) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_collectible_abi_1.default).at(address);
-            return this.erc721Standard.getCollectibleTokenURI(contract, tokenId);
+            if (this.erc721Standard === undefined) {
+                throw new Error(MISSING_PROVIDER_ERROR);
+            }
+            return this.erc721Standard.getTokenURI(address, tokenId);
         });
     }
     /**
@@ -132,10 +161,12 @@ class AssetsContractController extends BaseController_1.BaseController {
      * @param address - ERC721 or ERC20 asset contract address.
      * @returns Promise resolving to the 'name'.
      */
-    getAssetName(address) {
+    getERC721AssetName(address) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_collectible_abi_1.default).at(address);
-            return this.erc721Standard.getAssetName(contract);
+            if (this.erc721Standard === undefined) {
+                throw new Error(MISSING_PROVIDER_ERROR);
+            }
+            return this.erc721Standard.getAssetName(address);
         });
     }
     /**
@@ -144,10 +175,12 @@ class AssetsContractController extends BaseController_1.BaseController {
      * @param address - ERC721 or ERC20 asset contract address.
      * @returns Promise resolving to the 'symbol'.
      */
-    getAssetSymbol(address) {
+    getERC721AssetSymbol(address) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_collectible_abi_1.default).at(address);
-            return this.erc721Standard.getAssetSymbol(contract);
+            if (this.erc721Standard === undefined) {
+                throw new Error(MISSING_PROVIDER_ERROR);
+            }
+            return this.erc721Standard.getAssetSymbol(address);
         });
     }
     /**
@@ -157,10 +190,12 @@ class AssetsContractController extends BaseController_1.BaseController {
      * @param tokenId - ERC721 asset identifier.
      * @returns Promise resolving to the owner address.
      */
-    getOwnerOf(address, tokenId) {
+    getERC721OwnerOf(address, tokenId) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_collectible_abi_1.default).at(address);
-            return this.erc721Standard.getOwnerOf(contract, tokenId);
+            if (this.erc721Standard === undefined) {
+                throw new Error(MISSING_PROVIDER_ERROR);
+            }
+            return this.erc721Standard.getOwnerOf(address, tokenId);
         });
     }
     /**
@@ -170,10 +205,12 @@ class AssetsContractController extends BaseController_1.BaseController {
      * @param tokenId - ERC1155 asset identifier.
      * @returns Promise resolving to the 'tokenURI'.
      */
-    uriERC1155Collectible(address, tokenId) {
+    getERC1155TokenURI(address, tokenId) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_multi_collectible_abi_1.default).at(address);
-            return this.erc1155Standard.uri(contract, tokenId);
+            if (this.erc1155Standard === undefined) {
+                throw new Error(MISSING_PROVIDER_ERROR);
+            }
+            return this.erc1155Standard.getTokenURI(address, tokenId);
         });
     }
     /**
@@ -184,10 +221,12 @@ class AssetsContractController extends BaseController_1.BaseController {
      * @param collectibleId - ERC1155 asset identifier.
      * @returns Promise resolving to the 'balanceOf'.
      */
-    balanceOfERC1155Collectible(userAddress, collectibleAddress, collectibleId) {
+    getERC1155BalanceOf(userAddress, collectibleAddress, collectibleId) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_multi_collectible_abi_1.default).at(collectibleAddress);
-            return yield this.erc1155Standard.getBalanceOf(contract, userAddress, collectibleId);
+            if (this.erc1155Standard === undefined) {
+                throw new Error(MISSING_PROVIDER_ERROR);
+            }
+            return yield this.erc1155Standard.getBalanceOf(collectibleAddress, userAddress, collectibleId);
         });
     }
     /**
@@ -200,10 +239,12 @@ class AssetsContractController extends BaseController_1.BaseController {
      * @param qty - Quantity of tokens to be sent.
      * @returns Promise resolving to the 'transferSingle' ERC1155 token.
      */
-    transferSingleERC1155Collectible(collectibleAddress, senderAddress, recipientAddress, collectibleId, qty) {
+    transferSingleERC1155(collectibleAddress, senderAddress, recipientAddress, collectibleId, qty) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contract = this.web3.eth.contract(human_standard_multi_collectible_abi_1.default).at(collectibleAddress);
-            return yield this.erc1155Standard.transferSingle(contract, collectibleAddress, senderAddress, recipientAddress, collectibleId, qty);
+            if (this.erc1155Standard === undefined) {
+                throw new Error(MISSING_PROVIDER_ERROR);
+            }
+            return yield this.erc1155Standard.transferSingle(collectibleAddress, senderAddress, recipientAddress, collectibleId, qty);
         });
     }
     /**

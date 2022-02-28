@@ -15,14 +15,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TokensController = void 0;
 const events_1 = require("events");
 const contract_metadata_1 = __importDefault(require("@metamask/contract-metadata"));
-const human_standard_collectible_abi_1 = __importDefault(require("human-standard-collectible-abi"));
+const metamask_eth_abis_1 = require("@metamask/metamask-eth-abis");
 const uuid_1 = require("uuid");
 const async_mutex_1 = require("async-mutex");
 const ethers_1 = require("ethers");
 const BaseController_1 = require("../BaseController");
 const util_1 = require("../util");
 const constants_1 = require("../constants");
-const ERC721_INTERFACE_ID = '0x80ac58cd';
 var SuggestedAssetStatus;
 (function (SuggestedAssetStatus) {
     SuggestedAssetStatus["accepted"] = "accepted";
@@ -216,9 +215,9 @@ class TokensController extends BaseController_1.BaseController {
             else if (((_b = contract_metadata_1.default[checksumAddress]) === null || _b === void 0 ? void 0 : _b.erc20) === true) {
                 return Promise.resolve(false);
             }
-            const tokenContract = yield this._createEthersContract(tokenAddress, human_standard_collectible_abi_1.default, this.ethersProvider);
+            const tokenContract = yield this._createEthersContract(tokenAddress, metamask_eth_abis_1.abiERC721, this.ethersProvider);
             try {
-                return yield tokenContract.supportsInterface(ERC721_INTERFACE_ID);
+                return yield tokenContract.supportsInterface(constants_1.ERC721_INTERFACE_ID);
             }
             catch (error) {
                 // currently we see a variety of errors across different networks when
