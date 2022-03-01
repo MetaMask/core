@@ -5,7 +5,7 @@ import {
   RateLimitController,
   RateLimitMessenger,
   GetRateLimitState,
-  CallAPI,
+  CallApi,
 } from './RateLimitController';
 
 const name = 'RateLimitController';
@@ -21,7 +21,7 @@ enum ApiType {
  */
 function getUnrestrictedMessenger() {
   return new ControllerMessenger<
-    GetRateLimitState<ApiType> | CallAPI<ApiType>,
+    GetRateLimitState<ApiType> | CallApi<ApiType>,
     RateLimitStateChange<ApiType>
   >();
 }
