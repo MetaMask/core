@@ -60,7 +60,7 @@ const metadata = {
 };
 
 /**
- * Controller that handles showing notifications to the user and rate limiting origins
+ * Controller with logic for rate-limiting API endpoints per requesting origin.
  */
 export class RateLimitController<ApiType extends string> extends BaseController<
   typeof name,
@@ -79,9 +79,9 @@ export class RateLimitController<ApiType extends string> extends BaseController<
    * @param options - Constructor options.
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
-   * @param options.implementations - Mapping from API type to API implementation
-   * @param options.rateLimitTimeout - The time window in which the rate limit is applied
-   * @param options.rateLimitCount - The amount of notifications an origin can show in the rate limit time window
+   * @param options.implementations - Mapping from API type to API implementation.
+   * @param options.rateLimitTimeout - The time window in which the rate limit is applied.
+   * @param options.rateLimitCount - The amount of notifications an origin can show in the rate limit time window.
    */
   constructor({
     // @todo Pick some sane defaults for this
@@ -120,11 +120,11 @@ export class RateLimitController<ApiType extends string> extends BaseController<
   }
 
   /**
-   * Shows a notification if origin is not rate-limited.
+   * Calls an API if the requesting origin is not rate-limited.
    *
-   * @param origin - The origin trying to send a notification
-   * @param _args - Notification arguments, containing the notification message etc.
-   * @returns False if rate-limited, true if not
+   * @param origin - The requesting origin.
+   * @param _args - Arguments for the API call.
+   * @returns `false` if rate-limited, and `true` otherwise.
    */
   call(origin: string, _args: CallArgs<ApiType>) {
     const { type, args } = _args;
@@ -145,21 +145,21 @@ export class RateLimitController<ApiType extends string> extends BaseController<
   }
 
   /**
-   * Checks whether a given origin is rate limited for a given API.
+   * Checks whether an origin is rate limited for the a specific API.
    *
-   * @param api - The API the origin is trying to access
-   * @param origin - The origin trying to access the API
-   * @returns True if rate-limited
+   * @param api - The API the origin is trying to access.
+   * @param origin - The origin trying to access the API.
+   * @returns `true` if rate-limited, and `false` otherwise.
    */
   _isRateLimited(api: ApiType, origin: string) {
     return this.state.requests[api][origin] >= this.rateLimitCount;
   }
 
   /**
-   * Records that an origin has made a request to call an API. For rate limiting purposes.
+   * Records that an origin has made a request to call an API, for rate-limiting purposes.
    *
-   * @param api - The API the origin is trying to access
-   * @param origin - The origin trying to access the API
+   * @param api - The API the origin is trying to access.
+   * @param origin - The origin trying to access the API.
    */
   _recordRequest(api: ApiType, origin: string) {
     this.update((state) => {
@@ -174,10 +174,10 @@ export class RateLimitController<ApiType extends string> extends BaseController<
   }
 
   /**
-   * Resets the request count for a given origin and api combination. For rate limiting purposes.
+   * Resets the request count for a given origin and API combination, for rate-limiting purposes.
    *
-   * @param api - The API is question
-   * @param origin - The origin in question
+   * @param api - The API in question.
+   * @param origin - The origin in question.
    */
   _resetRequestCount(api: ApiType, origin: string) {
     this.update((state) => {
