@@ -36,14 +36,14 @@ export type GetRateLimitState<ApiType extends string> = {
   handler: () => RateLimitState<ApiType>;
 };
 
-export type CallAPI<ApiType extends string> = {
+export type CallApi<ApiType extends string> = {
   type: `${typeof name}:call`;
   handler: RateLimitController<ApiType>['call'];
 };
 
 export type ControllerActions<ApiType extends string> =
   | GetRateLimitState<ApiType>
-  | CallAPI<ApiType>;
+  | CallApi<ApiType>;
 
 export type RateLimitMessenger<
   ApiType extends string
