@@ -47,6 +47,7 @@ function getRestrictedMessenger(
 
 const origin = 'snap_test';
 const message = 'foo';
+const successResult = { isRateLimited: false, result: undefined };
 
 describe('RateLimitController', () => {
   jest.useFakeTimers();
@@ -62,17 +63,17 @@ describe('RateLimitController', () => {
     });
     const showSpy = jest
       .spyOn(controller, 'call')
-      .mockImplementationOnce(() => true);
+      .mockImplementationOnce(() => Promise.resolve(successResult));
     expect(
       await unrestricted.call('RateLimitController:call', origin, {
         type: ApiType.showNativeNotification,
         args: [origin, message],
       }),
-    ).toBe(true);
+    ).toStrictEqual(successResult);
     expect(showSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('uses showNativeNotification to show a notification', () => {
+  it('uses showNativeNotification to show a notification', async () => {
     const messenger = getRestrictedMessenger();
 
     const showNativeNotification = jest.fn();
@@ -81,15 +82,15 @@ describe('RateLimitController', () => {
       messenger,
     });
     expect(
-      controller.call(origin, {
+      await controller.call(origin, {
         type: ApiType.showNativeNotification,
         args: [origin, message],
       }),
-    ).toBe(true);
+    ).toStrictEqual(successResult);
     expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
   });
 
-  it('returns false if rate-limited', () => {
+  it('returns false if rate-limited', async () => {
     const messenger = getRestrictedMessenger();
     const showNativeNotification = jest.fn();
     const controller = new RateLimitController({
@@ -99,23 +100,23 @@ describe('RateLimitController', () => {
     });
 
     expect(
-      controller.call(origin, {
+      await controller.call(origin, {
         type: ApiType.showNativeNotification,
         args: [origin, message],
       }),
-    ).toBe(true);
+    ).toStrictEqual(successResult);
 
     expect(
-      controller.call(origin, {
+      await controller.call(origin, {
         type: ApiType.showNativeNotification,
         args: [origin, message],
       }),
-    ).toBe(false);
+    ).toStrictEqual({ isRateLimited: true });
     expect(showNativeNotification).toHaveBeenCalledTimes(1);
     expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
   });
 
-  it('rate limit is reset after timeout', () => {
+  it('rate limit is reset after timeout', async () => {
     const messenger = getRestrictedMessenger();
     const showNativeNotification = jest.fn();
     const controller = new RateLimitController({
@@ -124,18 +125,18 @@ describe('RateLimitController', () => {
       rateLimitCount: 1,
     });
     expect(
-      controller.call(origin, {
+      await controller.call(origin, {
         type: ApiType.showNativeNotification,
         args: [origin, message],
       }),
-    ).toBe(true);
+    ).toStrictEqual(successResult);
     jest.runAllTimers();
     expect(
-      controller.call(origin, {
+      await controller.call(origin, {
         type: ApiType.showNativeNotification,
         args: [origin, message],
       }),
-    ).toBe(true);
+    ).toStrictEqual(successResult);
     expect(showNativeNotification).toHaveBeenCalledTimes(2);
     expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
   });

@@ -24,6 +24,10 @@ export interface CallArgs<ApiType> {
   args?: unknown[];
 }
 
+export type RateLimitWrapper =
+  | { isRateLimited: false; result: unknown }
+  | { isRateLimited: true };
+
 const name = 'RateLimitController';
 
 export type RateLimitStateChange<ApiType extends string> = {
@@ -126,10 +130,13 @@ export class RateLimitController<ApiType extends string> extends BaseController<
    * @param _args - Arguments for the API call.
    * @returns `false` if rate-limited, and `true` otherwise.
    */
-  call(origin: string, _args: CallArgs<ApiType>) {
+  async call(
+    origin: string,
+    _args: CallArgs<ApiType>,
+  ): Promise<RateLimitWrapper> {
     const { type, args } = _args;
     if (this._isRateLimited(type, origin)) {
-      return false;
+      return { isRateLimited: true };
     }
     this._recordRequest(type, origin);
 
@@ -139,9 +146,9 @@ export class RateLimitController<ApiType extends string> extends BaseController<
       throw new Error('Invalid api type');
     }
 
-    implementation(...(args ?? []));
+    const result = await implementation(...(args ?? []));
 
-    return true;
+    return { isRateLimited: false, result };
   }
 
   /**
