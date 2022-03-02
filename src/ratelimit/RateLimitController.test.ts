@@ -10,9 +10,9 @@ import {
 
 const name = 'RateLimitController';
 
-enum ApiType {
-  showNativeNotification = 'showNativeNotification',
-}
+const implementations = { showNativeNotification: jest.fn() };
+
+type RateLimitedApis = typeof implementations;
 
 /**
  * Constructs a unrestricted controller messenger.
@@ -21,8 +21,8 @@ enum ApiType {
  */
 function getUnrestrictedMessenger() {
   return new ControllerMessenger<
-    GetRateLimitState<ApiType> | CallApi<ApiType>,
-    RateLimitStateChange<ApiType>
+    GetRateLimitState<RateLimitedApis> | CallApi<RateLimitedApis>,
+    RateLimitStateChange<RateLimitedApis>
   >();
 }
 
@@ -37,12 +37,12 @@ function getRestrictedMessenger(
 ) {
   return controllerMessenger.getRestricted<
     typeof name,
-    ControllerActions<ApiType>['type'],
+    ControllerActions<RateLimitedApis>['type'],
     never
   >({
     name,
     allowedActions: ['RateLimitController:call'],
-  }) as RateLimitMessenger<ApiType>;
+  }) as RateLimitMessenger<RateLimitedApis>;
 }
 
 const origin = 'snap_test';
@@ -56,21 +56,25 @@ describe('RateLimitController', () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
 
-    const showNativeNotification = jest.fn();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const controller = new RateLimitController({
-      implementations: { showNativeNotification },
+      implementations,
       messenger,
     });
-    const showSpy = jest
-      .spyOn(controller, 'call')
-      .mockImplementationOnce(() => Promise.resolve(successResult));
     expect(
-      await unrestricted.call('RateLimitController:call', origin, {
-        type: ApiType.showNativeNotification,
-        args: [origin, message],
-      }),
+      await unrestricted.call(
+        'RateLimitController:call',
+        origin,
+        'showNativeNotification',
+        origin,
+        message,
+      ),
     ).toStrictEqual(successResult);
-    expect(showSpy).toHaveBeenCalledTimes(1);
+
+    expect(implementations.showNativeNotification).toHaveBeenCalledWith(
+      origin,
+      message,
+    );
   });
 
   it('uses showNativeNotification to show a notification', async () => {
@@ -82,10 +86,7 @@ describe('RateLimitController', () => {
       messenger,
     });
     expect(
-      await controller.call(origin, {
-        type: ApiType.showNativeNotification,
-        args: [origin, message],
-      }),
+      await controller.call(origin, 'showNativeNotification', origin, message),
     ).toStrictEqual(successResult);
     expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
   });
@@ -100,17 +101,11 @@ describe('RateLimitController', () => {
     });
 
     expect(
-      await controller.call(origin, {
-        type: ApiType.showNativeNotification,
-        args: [origin, message],
-      }),
+      await controller.call(origin, 'showNativeNotification', origin, message),
     ).toStrictEqual(successResult);
 
     expect(
-      await controller.call(origin, {
-        type: ApiType.showNativeNotification,
-        args: [origin, message],
-      }),
+      await controller.call(origin, 'showNativeNotification', origin, message),
     ).toStrictEqual({ isRateLimited: true });
     expect(showNativeNotification).toHaveBeenCalledTimes(1);
     expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
@@ -125,17 +120,11 @@ describe('RateLimitController', () => {
       rateLimitCount: 1,
     });
     expect(
-      await controller.call(origin, {
-        type: ApiType.showNativeNotification,
-        args: [origin, message],
-      }),
+      await controller.call(origin, 'showNativeNotification', origin, message),
     ).toStrictEqual(successResult);
     jest.runAllTimers();
     expect(
-      await controller.call(origin, {
-        type: ApiType.showNativeNotification,
-        args: [origin, message],
-      }),
+      await controller.call(origin, 'showNativeNotification', origin, message),
     ).toStrictEqual(successResult);
     expect(showNativeNotification).toHaveBeenCalledTimes(2);
     expect(showNativeNotification).toHaveBeenCalledWith(origin, message);
