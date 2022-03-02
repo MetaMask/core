@@ -1,9 +1,6 @@
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { Web3 } from '../../standards-types';
-import {
-  getFormattedIpfsUrl,
-  timeoutFetch,
-} from '../../../../util';
+import { getFormattedIpfsUrl, timeoutFetch } from '../../../../util';
 import {
   ERC721_INTERFACE_ID,
   ERC721_METADATA_INTERFACE_ID,

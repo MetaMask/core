@@ -5,10 +5,7 @@ import {
   ERC1155_METADATA_URI_INTERFACE_ID,
   ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
 } from '../../../../constants';
-import {
-  getFormattedIpfsUrl,
-  timeoutFetch,
-} from '../../../../util';
+import { getFormattedIpfsUrl, timeoutFetch } from '../../../../util';
 import { Web3 } from '../../standards-types';
 
 export class ERC1155Standard {
