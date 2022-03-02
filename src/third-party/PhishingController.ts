@@ -52,8 +52,12 @@ export class PhishingController extends BaseController<
   PhishingConfig,
   PhishingState
 > {
-  private configUrl =
+  private configUrlMetaMask =
     'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
+  private configPhishFort = {
+    whitelistUrl: `https://cdn.jsdelivr.net/gh/phishfort/phishfort-lists@master/whitelists/domains.json`,
+    blacklistUrl: `https://cdn.jsdelivr.net/gh/phishfort/phishfort-lists@master/blacklists/domains.json`,
+  };
 
   private detector: any;
 
@@ -135,8 +139,17 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    const phishingOpts = await this.queryConfig(this.configUrl);
+    const [ phishingOpts, pfWhilelist, pfBlacklist] = await Promise.all([
+      this.queryConfig<EthPhishingResponse>(this.configUrlMetaMask),
+      this.queryConfig<string[]>(this.configPhishFort.whitelistUrl),
+      this.queryConfig<string[]>(this.configPhishFort.blacklistUrl)
+    ]).catch(error => { throw error; });
+
     if (phishingOpts) {
+
+      if (pfWhilelist) phishingOpts.whitelist.push(...pfWhilelist);
+      if (pfBlacklist) phishingOpts.blacklist.push(...pfBlacklist);
+
       this.detector = new PhishingDetector(phishingOpts);
       this.update({
         phishing: phishingOpts,
@@ -144,9 +157,9 @@ export class PhishingController extends BaseController<
     }
   }
 
-  private async queryConfig(
+  private async queryConfig<ResponseType>(
     input: RequestInfo,
-  ): Promise<EthPhishingResponse | null> {
+  ): Promise<ResponseType | null> {
     const response = await fetch(input, { cache: 'no-cache' });
 
     switch (response.status) {
