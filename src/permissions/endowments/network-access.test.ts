@@ -16,7 +16,7 @@ describe('endowment:network-access', () => {
     expect(specification.endowmentGetter()).toStrictEqual([
       'fetch',
       'XMLHttpRequest',
-      'WebSocket'
+      'WebSocket',
     ]);
   });
 });
