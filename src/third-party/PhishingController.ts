@@ -139,7 +139,7 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    const [ phishingOpts, pfWhilelist, pfBlacklist] = await Promise.all([
+    const [ phishingOpts, pfWhitelist, pfBlacklist] = await Promise.all([
       this.queryConfig<EthPhishingResponse>(this.configUrlMetaMask),
       this.queryConfig<string[]>(this.configPhishFort.whitelistUrl),
       this.queryConfig<string[]>(this.configPhishFort.blacklistUrl)
@@ -147,7 +147,7 @@ export class PhishingController extends BaseController<
 
     if (phishingOpts) {
 
-      if (pfWhilelist) phishingOpts.whitelist.push(...pfWhilelist);
+      if (pfWhitelist) phishingOpts.whitelist.push(...pfWhitelist);
       if (pfBlacklist) phishingOpts.blacklist.push(...pfBlacklist);
 
       this.detector = new PhishingDetector(phishingOpts);
