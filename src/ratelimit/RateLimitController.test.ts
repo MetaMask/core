@@ -52,10 +52,13 @@ const message = 'foo';
 const successResult = { isRateLimited: false, result: undefined };
 
 describe('RateLimitController', () => {
-  jest.useFakeTimers();
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
 
   afterEach(() => {
     implementations.showNativeNotification.mockClear();
+    jest.useRealTimers();
   });
 
   it('action: RateLimitController:call', async () => {
