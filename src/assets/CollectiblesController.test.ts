@@ -51,7 +51,10 @@ describe('CollectiblesController', () => {
   beforeEach(() => {
     preferences = new PreferencesController();
     network = new NetworkController();
-    assetsContract = new AssetsContractController();
+    assetsContract = new AssetsContractController({
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+    });
+
     collectiblesController = new CollectiblesController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),

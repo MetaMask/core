@@ -1,4 +1,6 @@
 import HttpProvider from 'ethjs-provider-http';
+import { IPFS_DEFAULT_GATEWAY_URL } from '../constants';
+import { PreferencesController } from '../user/PreferencesController';
 import { AssetsContractController } from './AssetsContractController';
 
 const MAINNET_PROVIDER = new HttpProvider(
@@ -16,12 +18,30 @@ const TEST_ACCOUNT_PUBLIC_ADDRESS =
   '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 describe('AssetsContractController', () => {
   let assetsContract: AssetsContractController;
+  let preferences: PreferencesController;
   beforeEach(() => {
-    assetsContract = new AssetsContractController();
+    preferences = new PreferencesController();
+    assetsContract = new AssetsContractController({
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+    });
   });
 
   it('should set default config', () => {
     expect(assetsContract.config).toStrictEqual({
+      ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
+      provider: undefined,
+    });
+  });
+
+  it('should update the ipfsGateWay config value when this value is changed in the preferences controller', () => {
+    expect(assetsContract.config).toStrictEqual({
+      ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
+      provider: undefined,
+    });
+
+    preferences.setIpfsGateway('newIPFSGateWay');
+    expect(assetsContract.config).toStrictEqual({
+      ipfsGateway: 'newIPFSGateWay',
       provider: undefined,
     });
   });
