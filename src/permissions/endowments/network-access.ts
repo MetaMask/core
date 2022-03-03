@@ -10,7 +10,7 @@ const permissionName = 'endowment:network-access';
 type NetworkAccessEndowmentSpecification = ValidPermissionSpecification<{
   permissionType: PermissionType.Endowment;
   targetKey: typeof permissionName;
-  endowmentGetter: (_options?: any) => ['fetch'];
+  endowmentGetter: (_options?: any) => ['fetch', 'WebSocket'];
   allowedCaveats: null;
 }>;
 
@@ -32,7 +32,7 @@ const specificationBuilder: PermissionSpecificationBuilder<
     targetKey: permissionName,
     allowedCaveats: null,
     endowmentGetter: (_getterOptions?: EndowmentGetterParams) => {
-      return ['fetch'];
+      return ['fetch', 'WebSocket'];
     },
   };
 };
