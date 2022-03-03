@@ -133,15 +133,15 @@ export class RateLimitController<
    * @param args - Arguments for the API call.
    * @returns `false` if rate-limited, and `true` otherwise.
    */
-  async call(
+  async call<ApiType extends keyof RateLimitedApis>(
     origin: string,
-    type: keyof RateLimitedApis,
-    ...args: Parameters<RateLimitedApis[keyof RateLimitedApis]>
+    type: ApiType,
+    ...args: Parameters<RateLimitedApis[ApiType]>
   ): Promise<RateLimitWrapper> {
-    if (this._isRateLimited(type, origin)) {
+    if (this.isRateLimited(type, origin)) {
       return { isRateLimited: true };
     }
-    this._recordRequest(type, origin);
+    this.recordRequest(type, origin);
 
     const implementation = this.implementations[type];
 
@@ -161,7 +161,7 @@ export class RateLimitController<
    * @param origin - The origin trying to access the API.
    * @returns `true` if rate-limited, and `false` otherwise.
    */
-  _isRateLimited(api: keyof RateLimitedApis, origin: string) {
+  private isRateLimited(api: keyof RateLimitedApis, origin: string) {
     return this.state.requests[api][origin] >= this.rateLimitCount;
   }
 
@@ -171,13 +171,13 @@ export class RateLimitController<
    * @param api - The API the origin is trying to access.
    * @param origin - The origin trying to access the API.
    */
-  _recordRequest(api: keyof RateLimitedApis, origin: string) {
+  private recordRequest(api: keyof RateLimitedApis, origin: string) {
     this.update((state) => {
       (state as any).requests[api][origin] =
         ((state as any).requests[api][origin] ?? 0) + 1;
 
       setTimeout(
-        () => this._resetRequestCount(api, origin),
+        () => this.resetRequestCount(api, origin),
         this.rateLimitTimeout,
       );
     });
@@ -189,7 +189,7 @@ export class RateLimitController<
    * @param api - The API in question.
    * @param origin - The origin in question.
    */
-  _resetRequestCount(api: keyof RateLimitedApis, origin: string) {
+  private resetRequestCount(api: keyof RateLimitedApis, origin: string) {
     this.update((state) => {
       (state as any).requests[api][origin] = 0;
     });
