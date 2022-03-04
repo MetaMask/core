@@ -9,6 +9,7 @@ import { PreferencesController } from '../user/PreferencesController';
 import { ControllerMessenger } from '../ControllerMessenger';
 import { TokensController } from './TokensController';
 import { TokenDetectionController } from './TokenDetectionController';
+import { NetworkType } from '..';
 import {
   TokenListController,
   GetTokenListState,
@@ -104,6 +105,15 @@ function getTokenListMessenger() {
   return messenger;
 }
 
+/**
+ * Checks whether network is mainnet or not.
+ *
+ * @returns Whether current network is mainnet.
+ */
+function isMainnet(networkType: NetworkType): boolean {
+  return networkType === MAINNET;
+}
+
 describe('TokenDetectionController', () => {
   let tokenDetection: TokenDetectionController;
   let preferences: PreferencesController;
@@ -135,9 +145,7 @@ describe('TokenDetectionController', () => {
     const messenger = getTokenListMessenger();
     tokenList = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
     await tokenList.start();
@@ -206,9 +214,9 @@ describe('TokenDetectionController', () => {
 
   it('should detect mainnet correctly', () => {
     tokenDetection.configure({ networkType: MAINNET });
-    expect(tokenDetection.isMainnet()).toStrictEqual(true);
+    expect(isMainnet(tokenDetection.config.networkType)).toStrictEqual(true);
     tokenDetection.configure({ networkType: ROPSTEN });
-    expect(tokenDetection.isMainnet()).toStrictEqual(false);
+    expect(isMainnet(tokenDetection.config.networkType)).toStrictEqual(false);
   });
 
   it('should not autodetect while not on mainnet', async () => {

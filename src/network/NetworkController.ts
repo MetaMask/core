@@ -30,6 +30,9 @@ export enum NetworksChainId {
   rpc = '',
   optimism = '10',
   optimismTest = '69',
+  bsc = '56',
+  polygon = '137',
+  avax = '43114',
 }
 
 /**

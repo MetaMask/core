@@ -1,13 +1,18 @@
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
-import { safelyExecute, toChecksumHexAddress } from '../util';
+import {
+  isTokenDetectionEnabledForNetwork,
+  safelyExecute,
+  toChecksumHexAddress,
+} from '../util';
 import { MAINNET } from '../constants';
 
 import type { TokensController, TokensState } from './TokensController';
 import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
 import { TokenListState } from './TokenListController';
+import { NetworksChainId } from '..';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -25,6 +30,7 @@ export interface TokenDetectionConfig extends BaseConfig {
   networkType: NetworkType;
   selectedAddress: string;
   tokens: Token[];
+  chainId: string;
 }
 
 /**
@@ -48,6 +54,8 @@ export class TokenDetectionController extends BaseController<
   private getTokensState: () => TokensState;
 
   private getTokenListState: () => TokenListState;
+
+  private abortController: AbortController;
 
   /**
    * Creates a TokenDetectionController instance.
@@ -96,6 +104,8 @@ export class TokenDetectionController extends BaseController<
       networkType: MAINNET,
       selectedAddress: '',
       tokens: [],
+      disabled: true,
+      chainId: NetworksChainId.mainnet,
     };
     this.initialize();
     this.getTokensState = getTokensState;
@@ -105,16 +115,26 @@ export class TokenDetectionController extends BaseController<
       this.configure({ tokens });
     });
 
-    onPreferencesStateChange(({ selectedAddress }) => {
+    onPreferencesStateChange(({ selectedAddress, useTokenDetection }) => {
       const actualSelectedAddress = this.config.selectedAddress;
       if (selectedAddress !== actualSelectedAddress) {
-        this.configure({ selectedAddress });
-        this.detectTokens();
+        this.configure({ selectedAddress, disabled: !useTokenDetection });
+        useTokenDetection && this.detectTokens();
       }
     });
-
-    onNetworkStateChange(({ provider }) => {
-      this.configure({ networkType: provider.type });
+    this.abortController = new AbortController();
+    onNetworkStateChange(async (networkState) => {
+      if (this.config.chainId !== networkState.provider.chainId) {
+        this.abortController.abort();
+        this.abortController = new AbortController();
+        const incomingChainId = networkState.provider.chainId;
+        this.configure({
+          networkType: networkState.provider.type,
+          chainId: incomingChainId,
+          disabled: !isTokenDetectionEnabledForNetwork(incomingChainId),
+        });
+        await this.restart();
+      }
     });
     this.getBalancesInSingleCall = getBalancesInSingleCall;
   }
@@ -123,7 +143,7 @@ export class TokenDetectionController extends BaseController<
    * Start polling for the currency rate.
    */
   async start() {
-    if (!this.isMainnet() || this.disabled) {
+    if (this.disabled) {
       return;
     }
 
@@ -135,6 +155,14 @@ export class TokenDetectionController extends BaseController<
    */
   stop() {
     this.stopPolling();
+  }
+
+  /**
+   * Restart polling for the token list.
+   */
+  async restart() {
+    this.stopPolling();
+    await this.startPolling();
   }
 
   private stopPolling() {
@@ -158,18 +186,11 @@ export class TokenDetectionController extends BaseController<
   }
 
   /**
-   * Checks whether network is mainnet or not.
-   *
-   * @returns Whether current network is mainnet.
-   */
-  isMainnet = (): boolean => this.config.networkType === MAINNET;
-
-  /**
    * Triggers asset ERC20 token auto detection for each contract address in contract metadata on mainnet.
    */
   async detectTokens() {
     /* istanbul ignore if */
-    if (!this.isMainnet() || this.disabled) {
+    if (this.disabled) {
       return;
     }
 

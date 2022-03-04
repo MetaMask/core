@@ -6,35 +6,16 @@ import {
   NetworkController,
   NetworksChainId,
 } from '../network/NetworkController';
-import { PreferencesController } from '../user/PreferencesController';
 import {
   TokenListController,
   TokenListStateChange,
   GetTokenListState,
-  TokenListMap,
-  ContractMap,
 } from './TokenListController';
 
 const name = 'TokenListController';
 const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 const timestamp = Date.now();
 
-const staticTokenList: TokenListMap = {};
-for (const tokenAddress in contractMap) {
-  const {
-    erc20,
-    logo: filePath,
-    ...token
-  } = (contractMap as ContractMap)[tokenAddress];
-  if (erc20) {
-    staticTokenList[tokenAddress] = {
-      ...token,
-      address: tokenAddress,
-      iconUrl: filePath,
-      occurrences: null,
-    };
-  }
-}
 const sampleMainnetTokenList = [
   {
     address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
@@ -266,10 +247,8 @@ function getRestrictedMessenger() {
 
 describe('TokenListController', () => {
   let network: NetworkController;
-  let preferences: PreferencesController;
   beforeEach(() => {
     network = new NetworkController();
-    preferences = new PreferencesController();
   });
 
   afterEach(() => {
@@ -281,9 +260,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
 
@@ -299,9 +276,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: existingState,
     });
@@ -331,9 +306,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -353,9 +326,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -379,9 +350,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -407,9 +376,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -437,9 +404,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
     await controller.start();
@@ -475,9 +440,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       interval: 100,
     });
@@ -499,9 +462,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: existingState,
     });
@@ -527,9 +488,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
     await controller.start();
@@ -558,9 +517,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
     await controller.start();
@@ -597,9 +554,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: outdatedExistingState,
     });
@@ -625,9 +580,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: expiredCacheExistingState,
     });
@@ -660,9 +613,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: existingState,
       interval: 100,
@@ -717,176 +668,6 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
-  it('should use static token list when useStaticTokenList flag is set to true', async () => {
-    const messenger = getRestrictedMessenger();
-    const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
-      useStaticTokenList: true,
-      onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      messenger,
-      state: existingState,
-      interval: 100,
-    });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(staticTokenList);
-    expect(controller.state.tokensChainsCache).toStrictEqual({});
-
-    controller.destroy();
-  });
-
-  it('should switch between static and dynamic list based on the preference change', async () => {
-    nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
-      .reply(200, sampleMainnetTokenList)
-      .persist();
-    const messenger = getRestrictedMessenger();
-    const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
-      onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      messenger,
-      interval: 100,
-    });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
-
-    preferences.update({
-      useStaticTokenList: true,
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 50));
-    expect(controller.state.tokenList).toStrictEqual(staticTokenList);
-    expect(controller.state.tokensChainsCache).toStrictEqual({});
-
-    preferences.update({
-      useStaticTokenList: false,
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 50));
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
-
-    expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
-    ).toStrictEqual(sampleMainnetTokenList);
-
-    controller.destroy();
-  });
-
-  it('should switch between static and dynamic list only if useStaticTokenList change', async () => {
-    nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
-      .reply(200, sampleMainnetTokenList)
-      .persist();
-    const messenger = getRestrictedMessenger();
-    const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
-      onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      messenger,
-      interval: 100,
-    });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
-
-    preferences.update({
-      ipfsGateway: 'https://ipfs.infura.io/ipfs/',
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 50));
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
-
-    expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
-    ).toStrictEqual(sampleMainnetTokenList);
-
-    preferences.update({
-      useStaticTokenList: true,
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 50));
-    expect(controller.state.tokenList).toStrictEqual(staticTokenList);
-    expect(controller.state.tokensChainsCache).toStrictEqual({});
-
-    controller.destroy();
-  });
-
-  it('should switch between static and dynamic list when the preference change after network change', async () => {
-    nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
-      .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/56`)
-      .reply(200, sampleBinanceTokenList)
-      .persist();
-    const messenger = getRestrictedMessenger();
-    const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
-      onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      messenger,
-      interval: 100,
-    });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
-
-    expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
-    ).toStrictEqual(sampleMainnetTokenList);
-
-    network.update({
-      provider: {
-        type: 'rpc',
-        chainId: '56',
-      },
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 10));
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleTwoChainState.tokenList,
-    );
-
-    expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
-    ).toStrictEqual(sampleMainnetTokenList);
-
-    expect(controller.state.tokensChainsCache['56'].data).toStrictEqual(
-      sampleBinanceTokenList,
-    );
-
-    preferences.update({
-      useStaticTokenList: true,
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 10));
-    expect(controller.state.tokenList).toStrictEqual(staticTokenList);
-    expect(controller.state.tokensChainsCache).toStrictEqual({});
-
-    preferences.update({
-      useStaticTokenList: false,
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 10));
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleTwoChainState.tokenList,
-    );
-
-    expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet],
-    ).toBeUndefined();
-
-    expect(controller.state.tokensChainsCache['56'].data).toStrictEqual(
-      sampleBinanceTokenList,
-    );
-
-    controller.destroy();
-  });
-
   it('should return the metadata for a tokenAddress provided', async () => {
     nock(TOKEN_END_POINT_API)
       .get(`/token/${NetworksChainId.mainnet}`)
@@ -896,9 +677,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
     const tokenMeta = await controller.fetchTokenMetadata(

@@ -1,14 +1,12 @@
-import contractMap from '@metamask/contract-metadata';
 import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
 // eslint-disable-next-line import/no-named-as-default
 import AbortController from 'abort-controller';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
-import { safelyExecute } from '../util';
+import { isTokenDetectionEnabledForNetwork, safelyExecute } from '../util';
 import { fetchTokenList, fetchTokenMetadata } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
-import { PreferencesState } from '../user/PreferencesController';
 
 const DEFAULT_INTERVAL = 60 * 60 * 1000;
 const DEFAULT_THRESHOLD = 60 * 30 * 1000;
@@ -19,15 +17,6 @@ type BaseToken = {
   name: string;
   symbol: string;
   decimals: number;
-};
-
-type StaticToken = {
-  logo: string;
-  erc20: boolean;
-} & BaseToken;
-
-export type ContractMap = {
-  [address: string]: StaticToken;
 };
 
 export type DynamicToken = {
@@ -104,8 +93,6 @@ export class TokenListController extends BaseController<
 
   private chainId: string;
 
-  private useStaticTokenList: boolean;
-
   private abortController: AbortController;
 
   // private abortSignal: AbortSignal;
@@ -115,9 +102,7 @@ export class TokenListController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
-   * @param options.useStaticTokenList - Indicates whether to use the static token list or not.
    * @param options.onNetworkStateChange - A function for registering an event handler for network state changes.
-   * @param options.onPreferencesStateChange -A function for registering an event handler for preference state changes.
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
    * @param options.messenger - A restricted controller messenger.
@@ -125,21 +110,15 @@ export class TokenListController extends BaseController<
    */
   constructor({
     chainId,
-    useStaticTokenList,
     onNetworkStateChange,
-    onPreferencesStateChange,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
     messenger,
     state,
   }: {
     chainId: string;
-    useStaticTokenList: boolean;
     onNetworkStateChange: (
       listener: (networkState: NetworkState) => void,
-    ) => void;
-    onPreferencesStateChange: (
-      listener: (preferencesState: PreferencesState) => void,
     ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
@@ -155,7 +134,6 @@ export class TokenListController extends BaseController<
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
-    this.useStaticTokenList = useStaticTokenList;
     this.abortController = new AbortController();
     onNetworkStateChange(async (networkState) => {
       if (this.chainId !== networkState.provider.chainId) {
@@ -165,21 +143,15 @@ export class TokenListController extends BaseController<
         await this.restart();
       }
     });
-
-    onPreferencesStateChange(async (preferencesState) => {
-      if (this.useStaticTokenList !== preferencesState.useStaticTokenList) {
-        this.abortController.abort();
-        this.abortController = new AbortController();
-        this.useStaticTokenList = preferencesState.useStaticTokenList;
-        await this.restart();
-      }
-    });
   }
 
   /**
    * Start polling for the token list.
    */
   async start() {
+    if (!isTokenDetectionEnabledForNetwork(this.chainId)) {
+      return;
+    }
     await this.startPolling();
   }
 
@@ -228,40 +200,7 @@ export class TokenListController extends BaseController<
    * Fetching token list.
    */
   async fetchTokenList(): Promise<void> {
-    if (this.useStaticTokenList) {
-      await this.fetchFromStaticTokenList();
-    } else {
-      await this.fetchFromDynamicTokenList();
-    }
-  }
-
-  /**
-   * Fetching token list from the contract-metadata as a fallback.
-   */
-  async fetchFromStaticTokenList(): Promise<void> {
-    const tokenList: TokenListMap = {};
-    for (const tokenAddress in contractMap) {
-      const {
-        erc20,
-        logo: filePath,
-        ...token
-      } = (contractMap as ContractMap)[tokenAddress];
-      if (erc20) {
-        tokenList[tokenAddress] = {
-          ...token,
-          address: tokenAddress,
-          iconUrl: filePath,
-          occurrences: null,
-        };
-      }
-    }
-
-    this.update(() => {
-      return {
-        tokenList,
-        tokensChainsCache: {},
-      };
-    });
+    await this.fetchFromDynamicTokenList();
   }
 
   /**

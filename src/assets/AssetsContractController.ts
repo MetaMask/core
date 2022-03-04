@@ -7,9 +7,22 @@ import { IPFS_DEFAULT_GATEWAY_URL } from '../constants';
 import { ERC721Standard } from './Standards/CollectibleStandards/ERC721/ERC721Standard';
 import { ERC1155Standard } from './Standards/CollectibleStandards/ERC1155/ERC1155Standard';
 import { ERC20Standard } from './Standards/ERC20Standard';
+import { NetworksChainId } from '..';
 
-const SINGLE_CALL_BALANCES_ADDRESS =
-  '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39';
+/**
+ * Check if token detection is enabled for certain networks
+ *
+ * @param chainId - ChainID of network
+ * @returns Whether the current network supports token detection
+ */
+export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: {
+  [chainId: string]: string;
+} = {
+  [NetworksChainId.mainnet]: '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
+  [NetworksChainId.bsc]: '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
+  [NetworksChainId.polygon]: '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
+  [NetworksChainId.avax]: 'TODO',
+};
 
 const MISSING_PROVIDER_ERROR =
   'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';
@@ -356,9 +369,11 @@ export class AssetsContractController extends BaseController<
     selectedAddress: string,
     tokensToDetect: string[],
   ) {
+    const contractAddress =
+      SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID[this.config.provider.chainId];
     const contract = this.web3.eth
       .contract(abiSingleCallBalancesContract)
-      .at(SINGLE_CALL_BALANCES_ADDRESS);
+      .at(contractAddress);
     return new Promise<BalanceMap>((resolve, reject) => {
       contract.balances(
         [selectedAddress],
