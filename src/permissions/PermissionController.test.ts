@@ -4408,7 +4408,8 @@ describe('PermissionController', () => {
 
       expect(
         Object.keys(
-          messenger.call('PermissionController:getPermissions', 'foo') ?? {},
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          messenger.call('PermissionController:getPermissions', 'foo')!,
         ),
       ).toStrictEqual(['wallet_getSecretArray']);
 
