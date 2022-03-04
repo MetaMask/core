@@ -25,4 +25,9 @@ describe('calculateNetworkCongestion', () => {
     ]);
     expect(networkCongestion).toStrictEqual(0.5);
   });
+
+  it('returns 0.5 when given an empty array', () => {
+    const networkCongestion = calculateNetworkCongestion([]);
+    expect(networkCongestion).toStrictEqual(0.5);
+  });
 });
