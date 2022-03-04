@@ -639,20 +639,23 @@ export class KeyringController extends BaseController<
   submitQRCryptoHDKey = async (cryptoHDKey: any) =>
     (await this.getQRKeyring()).submitCryptoHDKey(cryptoHDKey);
 
+  submitQRCryptoAccount = async (cryptoAccount: any) =>
+    (await this.getQRKeyring()).submitCryptoAccount(cryptoAccount);
+
   cancelSyncQRCryptoHDKey = async () =>
     // eslint-disable-next-line node/no-sync
     (await this.getQRKeyring()).cancelSync();
 
-  submitQRHardwareSignature = async (requestId: string, ethSignature: any) =>
+  submitQRSignature = async (requestId: string, ethSignature: any) =>
     (await this.getQRKeyring()).submitSignature(requestId, ethSignature);
 
-  cancelQRHardwareSignRequest = async () =>
+  cancelQRSignRequest = async () =>
     (await this.getQRKeyring()).cancelSignRequest();
 
   connectQRHardware = async (page: number) => {
     try {
       const keyring = await this.getQRKeyring();
-      let accounts = [];
+      let accounts: any[];
       switch (page) {
         case -1:
           accounts = await keyring.getPreviousPage();
@@ -663,7 +666,12 @@ export class KeyringController extends BaseController<
         default:
           accounts = await keyring.getFirstPage();
       }
-      return accounts;
+      return accounts.map((account: any) => {
+        return {
+          ...account,
+          balance: '0x0',
+        };
+      });
     } catch (e) {
       throw new Error('Unspecified error when connect QR Hardware');
     }
@@ -680,11 +688,12 @@ export class KeyringController extends BaseController<
     newAccounts.forEach((address: string) => {
       if (!oldAccounts.includes(address)) {
         if (this.setAccountLabel) {
-          this.setAccountLabel(address, `${keyring.getName()} ${index}`);
+          this.setAccountLabel(address, `${keyring.getName()} ${index + 1}`);
         }
         this.setSelectedAddress(address);
       }
     });
+    await privates.get(this).keyring.persistAllKeyrings();
     return this.fullUpdate();
   }
 

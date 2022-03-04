@@ -13,6 +13,7 @@ import ensNamehash from 'eth-ens-namehash';
 import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
 import { validate } from 'jsonschema';
 import { CID } from 'multiformats/cid';
+import deepEqual from 'fast-deep-equal';
 import {
   Transaction,
   FetchAllOptions,
@@ -24,6 +25,7 @@ import { PersonalMessageParams } from './message-manager/PersonalMessageManager'
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
 import { MAINNET } from './constants';
+import { Json } from './BaseControllerV2';
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 
@@ -881,4 +883,53 @@ export function getFormattedIpfsUrl(
   }
   const cidAndPath = removeIpfsProtocolPrefix(ipfsUrl);
   return `${origin}/ipfs/${cidAndPath}`;
+}
+
+type PlainObject = Record<number | string | symbol, unknown>;
+
+/**
+ * Determines whether a value is a "plain" object.
+ *
+ * @param value - A value to check
+ * @returns True if the passed value is a plain object
+ */
+export function isPlainObject(value: unknown): value is PlainObject {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+export const hasProperty = (
+  object: PlainObject,
+  key: string | number | symbol,
+) => Reflect.hasOwnProperty.call(object, key);
+
+/**
+ * Like {@link Array}, but always non-empty.
+ *
+ * @template T - The non-empty array member type.
+ */
+export type NonEmptyArray<T> = [T, ...T[]];
+
+/**
+ * Type guard for {@link NonEmptyArray}.
+ *
+ * @template T - The non-empty array member type.
+ * @param value - The value to check.
+ * @returns Whether the value is a non-empty array.
+ */
+export function isNonEmptyArray<T>(value: T[]): value is NonEmptyArray<T> {
+  return Array.isArray(value) && value.length > 0;
+}
+
+/**
+ * Type guard for {@link Json}.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is valid JSON.
+ */
+export function isValidJson(value: unknown): value is Json {
+  try {
+    return deepEqual(value, JSON.parse(JSON.stringify(value)));
+  } catch (_) {
+    return false;
+  }
 }
