@@ -79,13 +79,12 @@ export class RateLimitController<
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
    * @param options.implementations - Mapping from API type to API implementation.
-   * @param options.rateLimitTimeout - The time window in which the rate limit is applied.
-   * @param options.rateLimitCount - The amount of notifications an origin can show in the rate limit time window.
+   * @param options.rateLimitTimeout - The time window in which the rate limit is applied (in ms).
+   * @param options.rateLimitCount - The amount of calls an origin can make in the rate limit time window.
    */
   constructor({
-    // @todo Pick some sane defaults for this
     rateLimitTimeout = 5000,
-    rateLimitCount = 3,
+    rateLimitCount = 1,
     messenger,
     state,
     implementations,
