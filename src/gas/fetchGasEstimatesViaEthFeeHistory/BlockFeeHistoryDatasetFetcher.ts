@@ -24,13 +24,11 @@ export default class BlockFeeHistoryDatasetFetcher {
 
   async forAll() {
     const [
-      longRange,
       mediumRange,
       smallRange,
       tinyRange,
       latestWithNextBlock,
     ] = await Promise.all([
-      this.forLongRange(),
       this.forMediumRange(),
       this.forSmallRange(),
       this.forTinyRange(),
@@ -42,17 +40,12 @@ export default class BlockFeeHistoryDatasetFetcher {
     >[];
 
     return {
-      longRange,
       mediumRange,
       smallRange,
       tinyRange,
       latest,
       latestWithNextBlock,
     };
-  }
-
-  forLongRange() {
-    return this.fetchExcludingNextBlock({ numberOfBlocks: 20_000 });
   }
 
   forMediumRange() {
