@@ -6,9 +6,9 @@ import {
   HasApprovalRequest,
   RejectRequest as RejectApprovalRequest,
 } from '../approval/ApprovalController';
-import { hasProperty, isPlainObject } from '../util';
 import { Json } from '../BaseControllerV2';
 import { ControllerMessenger } from '../ControllerMessenger';
+import { hasProperty, isPlainObject } from '../util';
 import * as errors from './errors';
 import { EndowmentGetterParams } from './Permission';
 import {
@@ -4408,7 +4408,7 @@ describe('PermissionController', () => {
 
       expect(
         Object.keys(
-          messenger.call('PermissionController:getPermissions', 'foo'),
+          messenger.call('PermissionController:getPermissions', 'foo') ?? {},
         ),
       ).toStrictEqual(['wallet_getSecretArray']);
 
