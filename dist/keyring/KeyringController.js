@@ -96,15 +96,16 @@ class KeyringController extends BaseController_1.BaseController {
         });
         this.submitQRKeyring = (cryptoHDKey) => __awaiter(this, void 0, void 0, function* () { return (yield this.getQRKeyring()).syncKeyring(cryptoHDKey); });
         this.submitQRCryptoHDKey = (cryptoHDKey) => __awaiter(this, void 0, void 0, function* () { return (yield this.getQRKeyring()).submitCryptoHDKey(cryptoHDKey); });
+        this.submitQRCryptoAccount = (cryptoAccount) => __awaiter(this, void 0, void 0, function* () { return (yield this.getQRKeyring()).submitCryptoAccount(cryptoAccount); });
         this.cancelSyncQRCryptoHDKey = () => __awaiter(this, void 0, void 0, function* () { 
         // eslint-disable-next-line node/no-sync
         return (yield this.getQRKeyring()).cancelSync(); });
-        this.submitQRHardwareSignature = (requestId, ethSignature) => __awaiter(this, void 0, void 0, function* () { return (yield this.getQRKeyring()).submitSignature(requestId, ethSignature); });
-        this.cancelQRHardwareSignRequest = () => __awaiter(this, void 0, void 0, function* () { return (yield this.getQRKeyring()).cancelSignRequest(); });
+        this.submitQRSignature = (requestId, ethSignature) => __awaiter(this, void 0, void 0, function* () { return (yield this.getQRKeyring()).submitSignature(requestId, ethSignature); });
+        this.cancelQRSignRequest = () => __awaiter(this, void 0, void 0, function* () { return (yield this.getQRKeyring()).cancelSignRequest(); });
         this.connectQRHardware = (page) => __awaiter(this, void 0, void 0, function* () {
             try {
                 const keyring = yield this.getQRKeyring();
-                let accounts = [];
+                let accounts;
                 switch (page) {
                     case -1:
                         accounts = yield keyring.getPreviousPage();
@@ -115,7 +116,9 @@ class KeyringController extends BaseController_1.BaseController {
                     default:
                         accounts = yield keyring.getFirstPage();
                 }
-                return accounts;
+                return accounts.map((account) => {
+                    return Object.assign(Object.assign({}, account), { balance: '0x0' });
+                });
             }
             catch (e) {
                 throw new Error('Unspecified error when connect QR Hardware');
@@ -565,11 +568,12 @@ class KeyringController extends BaseController_1.BaseController {
             newAccounts.forEach((address) => {
                 if (!oldAccounts.includes(address)) {
                     if (this.setAccountLabel) {
-                        this.setAccountLabel(address, `${keyring.getName()} ${index}`);
+                        this.setAccountLabel(address, `${keyring.getName()} ${index + 1}`);
                     }
                     this.setSelectedAddress(address);
                 }
             });
+            yield privates.get(this).keyring.persistAllKeyrings();
             return this.fullUpdate();
         });
     }

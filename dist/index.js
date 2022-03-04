@@ -55,4 +55,6 @@ __exportStar(require("./assets/TokensController"), exports);
 __exportStar(require("./assets/CollectiblesController"), exports);
 __exportStar(require("./assets/TokenDetectionController"), exports);
 __exportStar(require("./assets/CollectibleDetectionController"), exports);
+__exportStar(require("./permissions"), exports);
+__exportStar(require("./subject-metadata"), exports);
 //# sourceMappingURL=index.js.map

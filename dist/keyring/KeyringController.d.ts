@@ -288,10 +288,11 @@ export declare class KeyringController extends BaseController<KeyringConfig, Key
     getQRKeyringState: () => Promise<any>;
     submitQRKeyring: (cryptoHDKey: any) => Promise<any>;
     submitQRCryptoHDKey: (cryptoHDKey: any) => Promise<any>;
+    submitQRCryptoAccount: (cryptoAccount: any) => Promise<any>;
     cancelSyncQRCryptoHDKey: () => Promise<any>;
-    submitQRHardwareSignature: (requestId: string, ethSignature: any) => Promise<any>;
-    cancelQRHardwareSignRequest: () => Promise<any>;
-    connectQRHardware: (page: number) => Promise<any>;
+    submitQRSignature: (requestId: string, ethSignature: any) => Promise<any>;
+    cancelQRSignRequest: () => Promise<any>;
+    connectQRHardware: (page: number) => Promise<any[]>;
     unlockQRHardwareWalletAccount(index: number): Promise<KeyringMemState>;
     getAccountKeyringType(account: string): Promise<any>;
     forgetQRDevice(): Promise<boolean>;

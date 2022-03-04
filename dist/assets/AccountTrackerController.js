@@ -51,6 +51,27 @@ class AccountTrackerController extends BaseController_1.BaseController {
                 }));
             }
         });
+        /**
+         * Sync accounts balances with some additional addresses.
+         *
+         * @param addresses - the additional addresses, may be hardware wallet addresses.
+         * @returns accounts - current state accounts
+         */
+        this.syncWithAddresses = (addresses) => __awaiter(this, void 0, void 0, function* () {
+            this.syncAccounts();
+            const { accounts } = this.state;
+            addresses.forEach((address) => {
+                accounts[address] = { balance: '0x0' };
+            });
+            for (const address in accounts) {
+                yield util_1.safelyExecuteWithTimeout(() => __awaiter(this, void 0, void 0, function* () {
+                    const balance = yield util_1.query(this.ethQuery, 'getBalance', [address]);
+                    accounts[address] = { balance: util_1.BNToHex(balance) };
+                    this.update({ accounts: Object.assign({}, accounts) });
+                }));
+            }
+            return this.state.accounts;
+        });
         this.defaultConfig = {
             interval: 10000,
         };

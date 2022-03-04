@@ -5,6 +5,7 @@ import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
+import { Json } from './BaseControllerV2';
 /**
  * Converts a BN object to a hex string with a '0x' prefix.
  *
@@ -292,3 +293,34 @@ export declare function addUrlProtocolPrefix(urlString: string): string;
  * @returns A formatted URL, with the user's preferred IPFS gateway and format (subdomain or not), pointing to an asset hosted on IPFS.
  */
 export declare function getFormattedIpfsUrl(ipfsGateway: string, ipfsUrl: string, subdomainSupported: boolean): string;
+declare type PlainObject = Record<number | string | symbol, unknown>;
+/**
+ * Determines whether a value is a "plain" object.
+ *
+ * @param value - A value to check
+ * @returns True if the passed value is a plain object
+ */
+export declare function isPlainObject(value: unknown): value is PlainObject;
+export declare const hasProperty: (object: PlainObject, key: string | number | symbol) => boolean;
+/**
+ * Like {@link Array}, but always non-empty.
+ *
+ * @template T - The non-empty array member type.
+ */
+export declare type NonEmptyArray<T> = [T, ...T[]];
+/**
+ * Type guard for {@link NonEmptyArray}.
+ *
+ * @template T - The non-empty array member type.
+ * @param value - The value to check.
+ * @returns Whether the value is a non-empty array.
+ */
+export declare function isNonEmptyArray<T>(value: T[]): value is NonEmptyArray<T>;
+/**
+ * Type guard for {@link Json}.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is valid JSON.
+ */
+export declare function isValidJson(value: unknown): value is Json;
+export {};

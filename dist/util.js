@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getFormattedIpfsUrl = exports.addUrlProtocolPrefix = exports.getIpfsCIDv1AndPath = exports.removeIpfsProtocolPrefix = exports.validateMinimumIncrease = exports.isGasPriceValue = exports.isFeeMarketEIP1559Values = exports.validateGasValues = exports.getIncreasedPriceFromExisting = exports.getIncreasedPriceHex = exports.convertPriceToDecimal = exports.isEIP1559Transaction = exports.query = exports.normalizeEnsName = exports.timeoutFetch = exports.handleFetch = exports.successfulFetch = exports.isSmartContractCode = exports.validateTokenToWatch = exports.validateTypedSignMessageDataV3 = exports.validateTypedSignMessageDataV1 = exports.validateSignMessageData = exports.normalizeMessageData = exports.validateTransaction = exports.isValidHexAddress = exports.toChecksumHexAddress = exports.safelyExecuteWithTimeout = exports.safelyExecute = exports.normalizeTransaction = exports.toHex = exports.fromHex = exports.hexToText = exports.hexToBN = exports.handleTransactionFetch = exports.getEtherscanApiUrl = exports.getBuyURL = exports.weiHexToGweiDec = exports.gweiDecToWEIBN = exports.fractionBN = exports.BNToHex = void 0;
+exports.isValidJson = exports.isNonEmptyArray = exports.hasProperty = exports.isPlainObject = exports.getFormattedIpfsUrl = exports.addUrlProtocolPrefix = exports.getIpfsCIDv1AndPath = exports.removeIpfsProtocolPrefix = exports.validateMinimumIncrease = exports.isGasPriceValue = exports.isFeeMarketEIP1559Values = exports.validateGasValues = exports.getIncreasedPriceFromExisting = exports.getIncreasedPriceHex = exports.convertPriceToDecimal = exports.isEIP1559Transaction = exports.query = exports.normalizeEnsName = exports.timeoutFetch = exports.handleFetch = exports.successfulFetch = exports.isSmartContractCode = exports.validateTokenToWatch = exports.validateTypedSignMessageDataV3 = exports.validateTypedSignMessageDataV1 = exports.validateSignMessageData = exports.normalizeMessageData = exports.validateTransaction = exports.isValidHexAddress = exports.toChecksumHexAddress = exports.safelyExecuteWithTimeout = exports.safelyExecute = exports.normalizeTransaction = exports.toHex = exports.fromHex = exports.hexToText = exports.hexToBN = exports.handleTransactionFetch = exports.getEtherscanApiUrl = exports.getBuyURL = exports.weiHexToGweiDec = exports.gweiDecToWEIBN = exports.fractionBN = exports.BNToHex = void 0;
 const ethereumjs_util_1 = require("ethereumjs-util");
 const ethjs_unit_1 = require("ethjs-unit");
 const eth_rpc_errors_1 = require("eth-rpc-errors");
@@ -20,6 +20,7 @@ const eth_ens_namehash_1 = __importDefault(require("eth-ens-namehash"));
 const eth_sig_util_1 = require("eth-sig-util");
 const jsonschema_1 = require("jsonschema");
 const cid_1 = require("multiformats/cid");
+const fast_deep_equal_1 = __importDefault(require("fast-deep-equal"));
 const constants_1 = require("./constants");
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 const NORMALIZERS = {
@@ -758,4 +759,42 @@ function getFormattedIpfsUrl(ipfsGateway, ipfsUrl, subdomainSupported) {
     return `${origin}/ipfs/${cidAndPath}`;
 }
 exports.getFormattedIpfsUrl = getFormattedIpfsUrl;
+/**
+ * Determines whether a value is a "plain" object.
+ *
+ * @param value - A value to check
+ * @returns True if the passed value is a plain object
+ */
+function isPlainObject(value) {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+exports.isPlainObject = isPlainObject;
+const hasProperty = (object, key) => Reflect.hasOwnProperty.call(object, key);
+exports.hasProperty = hasProperty;
+/**
+ * Type guard for {@link NonEmptyArray}.
+ *
+ * @template T - The non-empty array member type.
+ * @param value - The value to check.
+ * @returns Whether the value is a non-empty array.
+ */
+function isNonEmptyArray(value) {
+    return Array.isArray(value) && value.length > 0;
+}
+exports.isNonEmptyArray = isNonEmptyArray;
+/**
+ * Type guard for {@link Json}.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is valid JSON.
+ */
+function isValidJson(value) {
+    try {
+        return fast_deep_equal_1.default(value, JSON.parse(JSON.stringify(value)));
+    }
+    catch (_) {
+        return false;
+    }
+}
+exports.isValidJson = isValidJson;
 //# sourceMappingURL=util.js.map

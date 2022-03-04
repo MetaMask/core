@@ -75,5 +75,14 @@ export declare class AccountTrackerController extends BaseController<AccountTrac
      * Refreshes all accounts in the current keychain.
      */
     refresh: () => Promise<void>;
+    /**
+     * Sync accounts balances with some additional addresses.
+     *
+     * @param addresses - the additional addresses, may be hardware wallet addresses.
+     * @returns accounts - current state accounts
+     */
+    syncWithAddresses: (addresses: string[]) => Promise<{
+        [address: string]: AccountInformation;
+    }>;
 }
 export default AccountTrackerController;

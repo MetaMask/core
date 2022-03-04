@@ -26,4 +26,6 @@ export * from './assets/TokensController';
 export * from './assets/CollectiblesController';
 export * from './assets/TokenDetectionController';
 export * from './assets/CollectibleDetectionController';
+export * from './permissions';
+export * from './subject-metadata';
 export { util };
