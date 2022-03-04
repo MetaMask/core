@@ -52,14 +52,6 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
 
   it('calculates target fees for low, medium, and high transaction priority levels, as well as the network congestion level', async () => {
     const blocksByDataset = {
-      longRange: [
-        {
-          number: new BN(1),
-          baseFeePerGas: new BN(1),
-          gasUsedRatio: 1,
-          priorityFeesByPercentile: {},
-        },
-      ],
       mediumRange: [
         {
           number: new BN(2),
@@ -187,7 +179,7 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
       .mockReturnValue(priorityFeeTrend);
 
     when(mockedCalculateNetworkCongestion)
-      .calledWith(blocksByDataset.longRange)
+      .calledWith([])
       .mockReturnValue(networkCongestion);
 
     const gasFeeEstimates = await fetchGasEstimatesViaEthFeeHistory(ethQuery);
