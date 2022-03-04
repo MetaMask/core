@@ -221,7 +221,7 @@ export type RequestPermissions = {
 };
 
 /**
- * Removes given permissions for each origin
+ * Removes the specified permissions for each origin.
  */
 export type RevokePermissions = {
   type: `${typeof controllerName}:revokePermissions`;
