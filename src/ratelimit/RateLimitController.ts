@@ -1,3 +1,4 @@
+import { ethErrors } from 'eth-rpc-errors';
 import type { Patch } from 'immer';
 
 import { BaseController } from '../BaseControllerV2';
@@ -13,10 +14,6 @@ export type RateLimitState<
 > = {
   requests: Record<keyof RateLimitedApis, Record<string, number>>;
 };
-
-export type RateLimitWrapper =
-  | { isRateLimited: false; result: unknown }
-  | { isRateLimited: true };
 
 const name = 'RateLimitController';
 
@@ -137,9 +134,11 @@ export class RateLimitController<
     origin: string,
     type: ApiType,
     ...args: Parameters<RateLimitedApis[ApiType]>
-  ): Promise<RateLimitWrapper> {
+  ): Promise<ReturnType<RateLimitedApis[ApiType]>> {
     if (this.isRateLimited(type, origin)) {
-      return { isRateLimited: true };
+      throw ethErrors.rpc.limitExceeded({
+        message: `"${type}" is currently rate-limited. Please try again later.`,
+      });
     }
     this.recordRequest(type, origin);
 
@@ -149,9 +148,7 @@ export class RateLimitController<
       throw new Error('Invalid api type');
     }
 
-    const result = await implementation(...args);
-
-    return { isRateLimited: false, result };
+    return implementation(...args);
   }
 
   /**

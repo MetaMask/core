@@ -49,7 +49,6 @@ function getRestrictedMessenger(
 
 const origin = 'snap_test';
 const message = 'foo';
-const successResult = { isRateLimited: false, result: undefined };
 
 describe('RateLimitController', () => {
   beforeEach(() => {
@@ -79,7 +78,7 @@ describe('RateLimitController', () => {
         origin,
         message,
       ),
-    ).toStrictEqual(successResult);
+    ).toBeUndefined();
 
     expect(implementations.showNativeNotification).toHaveBeenCalledWith(
       origin,
@@ -96,7 +95,7 @@ describe('RateLimitController', () => {
     });
     expect(
       await controller.call(origin, 'showNativeNotification', origin, message),
-    ).toStrictEqual(successResult);
+    ).toBeUndefined();
 
     expect(implementations.showNativeNotification).toHaveBeenCalledWith(
       origin,
@@ -114,11 +113,13 @@ describe('RateLimitController', () => {
 
     expect(
       await controller.call(origin, 'showNativeNotification', origin, message),
-    ).toStrictEqual(successResult);
+    ).toBeUndefined();
 
-    expect(
-      await controller.call(origin, 'showNativeNotification', origin, message),
-    ).toStrictEqual({ isRateLimited: true });
+    await expect(
+      controller.call(origin, 'showNativeNotification', origin, message),
+    ).rejects.toThrow(
+      `"showNativeNotification" is currently rate-limited. Please try again later`,
+    );
     expect(implementations.showNativeNotification).toHaveBeenCalledTimes(1);
     expect(implementations.showNativeNotification).toHaveBeenCalledWith(
       origin,
@@ -135,11 +136,11 @@ describe('RateLimitController', () => {
     });
     expect(
       await controller.call(origin, 'showNativeNotification', origin, message),
-    ).toStrictEqual(successResult);
+    ).toBeUndefined();
     jest.runAllTimers();
     expect(
       await controller.call(origin, 'showNativeNotification', origin, message),
-    ).toStrictEqual(successResult);
+    ).toBeUndefined();
     expect(implementations.showNativeNotification).toHaveBeenCalledTimes(2);
     expect(implementations.showNativeNotification).toHaveBeenCalledWith(
       origin,
