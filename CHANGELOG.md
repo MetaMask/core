@@ -7,18 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [26.0.0]
-### Uncategorized
-- Added revokePermissions to PermissionController actions ([#708](https://github.com/MetaMask/controllers/pull/708))
-- [FeeHistory] Allow test chains with few blocks ([#699](https://github.com/MetaMask/controllers/pull/699))
-- [GasController] Check for undefined basefeePerGas ([#703](https://github.com/MetaMask/controllers/pull/703))
-- Reduce load on Infura in gas estimate fallback ([#705](https://github.com/MetaMask/controllers/pull/705))
+### Added
+- Add PermissionController and SubjectMetadataController ([#692](https://github.com/MetaMask/controllers/pull/692))
 - Add RateLimitController ([#698](https://github.com/MetaMask/controllers/pull/698))
+- Add `revokePermissions` to PermissionController actions ([#708](https://github.com/MetaMask/controllers/pull/708))
+
+### Changed
+- Bump `@metamask/metamask-eth-abis` from ^2.1.0 to 3.0.0 ([#681](https://github.com/MetaMask/controllers/pull/681))
+- Expose `WebSocket` via endowments for network access ([#696](https://github.com/MetaMask/controllers/pull/696))
 - **BREAKING**: Fetch and return token image as part of `getDetails` calls on ERC721Standard and ERC1155Standard ([#702](https://github.com/MetaMask/controllers/pull/702))
-- Expose WebSocket for network access ([#696](https://github.com/MetaMask/controllers/pull/696))
-- Migrate PermissionController and SubjectMetadataController ([#692](https://github.com/MetaMask/controllers/pull/692))
-- Disable redundant tsconfig rules ([#695](https://github.com/MetaMask/controllers/pull/695))
-- Bump ajv from 6.10.2 to 6.12.6 ([#690](https://github.com/MetaMask/controllers/pull/690))
-- Upgrade eth-abi-module ([#681](https://github.com/MetaMask/controllers/pull/681))
+- **BREAKING**: Reduce load on Infura in gas estimate API fallback ([#705](https://github.com/MetaMask/controllers/pull/705))
+- Update `fetchBlockFeeHistory` to account for nonexistent `baseFeePerGas` ([#703](https://github.com/MetaMask/controllers/pull/703))
+- Update `fetchBlockFeeHistory` to account for test chains with a few number of blocks ([#699](https://github.com/MetaMask/controllers/pull/699))
 
 ## [25.1.0]
 ### Changed
