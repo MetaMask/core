@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/metamask-eth-abis` from ^2.1.0 to 3.0.0 ([#681](https://github.com/MetaMask/controllers/pull/681))
 - Expose `WebSocket` via endowments for network access ([#696](https://github.com/MetaMask/controllers/pull/696))
 - **BREAKING**: Fetch and return token image as part of `getDetails` calls on ERC721Standard and ERC1155Standard ([#702](https://github.com/MetaMask/controllers/pull/702))
-- **BREAKING**: Reduce load on Infura in gas estimate API fallback ([#705](https://github.com/MetaMask/controllers/pull/705))
+- Reduce load on Infura in gas estimate API fallback ([#705](https://github.com/MetaMask/controllers/pull/705))
 - Update `fetchBlockFeeHistory` to account for nonexistent `baseFeePerGas` ([#703](https://github.com/MetaMask/controllers/pull/703))
 - Update `fetchBlockFeeHistory` to account for test chains with a few number of blocks ([#699](https://github.com/MetaMask/controllers/pull/699))
 
