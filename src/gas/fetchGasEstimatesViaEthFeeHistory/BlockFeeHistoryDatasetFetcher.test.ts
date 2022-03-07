@@ -38,7 +38,7 @@ describe('BlockFeeHistoryDatasetFetcher', () => {
           endBlock: fakeEndBlockNumber,
           numberOfBlocks: 200,
           percentiles: [10, 95],
-          includeNextBlock: true
+          includeNextBlock: true,
         })
         .mockResolvedValue(fakeBlocks);
 
