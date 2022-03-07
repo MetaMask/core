@@ -114,12 +114,11 @@ export class TokenDetectionController extends BaseController<
     onTokensStateChange(({ tokens }) => {
       this.configure({ tokens });
     });
-
     onPreferencesStateChange(({ selectedAddress, useTokenDetection }) => {
       const actualSelectedAddress = this.config.selectedAddress;
-      if (selectedAddress !== actualSelectedAddress) {
-        this.configure({ selectedAddress, disabled: !useTokenDetection });
-        useTokenDetection && this.detectTokens();
+      this.configure({ selectedAddress, disabled: !useTokenDetection });
+      if (selectedAddress !== actualSelectedAddress || useTokenDetection) {
+        this.detectTokens();
       }
     });
     this.abortController = new AbortController();
