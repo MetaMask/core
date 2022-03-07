@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+### Uncategorized
+- Added revokePermissions to PermissionController actions ([#708](https://github.com/MetaMask/controllers/pull/708))
+- [FeeHistory] Allow test chains with few blocks ([#699](https://github.com/MetaMask/controllers/pull/699))
+- [GasController] Check for undefined basefeePerGas ([#703](https://github.com/MetaMask/controllers/pull/703))
+- Reduce load on Infura in gas estimate fallback ([#705](https://github.com/MetaMask/controllers/pull/705))
+- Add RateLimitController ([#698](https://github.com/MetaMask/controllers/pull/698))
+- **BREAKING**: Fetch and return token image as part of `getDetails` calls on ERC721Standard and ERC1155Standard ([#702](https://github.com/MetaMask/controllers/pull/702))
+- Expose WebSocket for network access ([#696](https://github.com/MetaMask/controllers/pull/696))
+- Migrate PermissionController and SubjectMetadataController ([#692](https://github.com/MetaMask/controllers/pull/692))
+- Disable redundant tsconfig rules ([#695](https://github.com/MetaMask/controllers/pull/695))
+- Bump ajv from 6.10.2 to 6.12.6 ([#690](https://github.com/MetaMask/controllers/pull/690))
+- Upgrade eth-abi-module ([#681](https://github.com/MetaMask/controllers/pull/681))
+
 ## [25.1.0]
 ### Changed
 - Make the userAddress argument to the getDetails method on the ERC20Standard class optional. ([#674](https://github.com/MetaMask/controllers/pull/674))
@@ -495,7 +509,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v25.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/controllers/compare/v25.1.0...v26.0.0
 [25.1.0]: https://github.com/MetaMask/controllers/compare/v25.0.0...v25.1.0
 [25.0.0]: https://github.com/MetaMask/controllers/compare/v24.0.0...v25.0.0
 [24.0.0]: https://github.com/MetaMask/controllers/compare/v23.1.0...v24.0.0
