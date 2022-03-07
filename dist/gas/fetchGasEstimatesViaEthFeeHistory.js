@@ -52,7 +52,7 @@ function fetchGasEstimatesViaEthFeeHistory(ethQuery) {
         const latestPriorityFeeRange = calculatePriorityFeeRange_1.default(blocksByDataset.latest);
         const historicalPriorityFeeRange = calculatePriorityFeeRange_1.default(blocksByDataset.mediumRange);
         const priorityFeeTrend = calculatePriorityFeeTrend_1.default(blocksByDataset.tinyRange);
-        const networkCongestion = calculateNetworkCongestion_1.default(blocksByDataset.longRange);
+        const networkCongestion = calculateNetworkCongestion_1.default([]);
         return Object.assign(Object.assign({}, levelSpecificEstimates), { estimatedBaseFee,
             historicalBaseFeeRange,
             baseFeeTrend,

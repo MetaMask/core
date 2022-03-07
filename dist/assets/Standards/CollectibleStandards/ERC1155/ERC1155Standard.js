@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ERC1155Standard = void 0;
 const metamask_eth_abis_1 = require("@metamask/metamask-eth-abis");
 const constants_1 = require("../../../../constants");
+const util_1 = require("../../../../util");
 class ERC1155Standard {
     constructor(web3) {
         /**
@@ -131,20 +132,36 @@ class ERC1155Standard {
          * Query if a contract implements an interface.
          *
          * @param address - Asset contract address.
+         * @param ipfsGateway - The user's preferred IPFS gateway.
          * @param tokenId - tokenId of a given token in the contract.
          * @returns Promise resolving an object containing the standard, tokenURI, symbol and name of the given contract/tokenId pair.
          */
-        this.getDetails = (address, tokenId) => __awaiter(this, void 0, void 0, function* () {
+        this.getDetails = (address, ipfsGateway, tokenId) => __awaiter(this, void 0, void 0, function* () {
             const isERC1155 = yield this.contractSupportsBase1155Interface(address);
-            let tokenURI;
+            let tokenURI, image;
             if (tokenId) {
                 tokenURI = yield this.getTokenURI(address, tokenId);
+                if (tokenURI.startsWith('ipfs://')) {
+                    tokenURI = util_1.getFormattedIpfsUrl(ipfsGateway, tokenURI, true);
+                }
+                try {
+                    const response = yield util_1.timeoutFetch(tokenURI);
+                    const object = yield response.json();
+                    image = object === null || object === void 0 ? void 0 : object.image;
+                    if (image === null || image === void 0 ? void 0 : image.startsWith('ipfs://')) {
+                        image = util_1.getFormattedIpfsUrl(ipfsGateway, image, true);
+                    }
+                }
+                catch (_a) {
+                    // ignore
+                }
             }
             // TODO consider querying to the metadata to get name.
             if (isERC1155) {
                 return {
                     standard: constants_1.ERC1155,
                     tokenURI,
+                    image,
                 };
             }
             throw new Error("This isn't a valid ERC1155 contract");

@@ -11,6 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ERC721Standard = void 0;
 const metamask_eth_abis_1 = require("@metamask/metamask-eth-abis");
+const util_1 = require("../../../../util");
 const constants_1 = require("../../../../constants");
 class ERC721Standard {
     constructor(web3) {
@@ -148,15 +149,16 @@ class ERC721Standard {
          * Query if a contract implements an interface.
          *
          * @param address - Asset contract address.
+         * @param ipfsGateway - The user's preferred IPFS gateway.
          * @param tokenId - tokenId of a given token in the contract.
          * @returns Promise resolving an object containing the standard, tokenURI, symbol and name of the given contract/tokenId pair.
          */
-        this.getDetails = (address, tokenId) => __awaiter(this, void 0, void 0, function* () {
+        this.getDetails = (address, ipfsGateway, tokenId) => __awaiter(this, void 0, void 0, function* () {
             const [isERC721, supportsMetadata] = yield Promise.all([
                 this.contractSupportsBase721Interface(address),
                 this.contractSupportsMetadataInterface(address),
             ]);
-            let tokenURI, symbol, name;
+            let tokenURI, symbol, name, image;
             if (supportsMetadata) {
                 [symbol, name] = yield Promise.all([
                     this.getAssetSymbol(address),
@@ -164,6 +166,20 @@ class ERC721Standard {
                 ]);
                 if (tokenId) {
                     tokenURI = yield this.getTokenURI(address, tokenId);
+                    if (tokenURI.startsWith('ipfs://')) {
+                        tokenURI = util_1.getFormattedIpfsUrl(ipfsGateway, tokenURI, true);
+                    }
+                    try {
+                        const response = yield util_1.timeoutFetch(tokenURI);
+                        const object = yield response.json();
+                        image = object === null || object === void 0 ? void 0 : object.image;
+                        if (image === null || image === void 0 ? void 0 : image.startsWith('ipfs://')) {
+                            image = util_1.getFormattedIpfsUrl(ipfsGateway, image, true);
+                        }
+                    }
+                    catch (_a) {
+                        // ignore
+                    }
                 }
             }
             if (isERC721) {
@@ -172,6 +188,7 @@ class ERC721Standard {
                     tokenURI,
                     symbol,
                     name,
+                    image,
                 };
             }
             throw new Error("This isn't a valid ERC721 contract");

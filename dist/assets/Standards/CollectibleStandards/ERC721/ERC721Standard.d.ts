@@ -74,13 +74,15 @@ export declare class ERC721Standard {
      * Query if a contract implements an interface.
      *
      * @param address - Asset contract address.
+     * @param ipfsGateway - The user's preferred IPFS gateway.
      * @param tokenId - tokenId of a given token in the contract.
      * @returns Promise resolving an object containing the standard, tokenURI, symbol and name of the given contract/tokenId pair.
      */
-    getDetails: (address: string, tokenId?: string | undefined) => Promise<{
+    getDetails: (address: string, ipfsGateway: string, tokenId?: string | undefined) => Promise<{
         standard: string;
         tokenURI: string | undefined;
         symbol: string | undefined;
         name: string | undefined;
+        image: string | undefined;
     }>;
 }

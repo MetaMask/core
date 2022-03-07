@@ -57,4 +57,5 @@ __exportStar(require("./assets/TokenDetectionController"), exports);
 __exportStar(require("./assets/CollectibleDetectionController"), exports);
 __exportStar(require("./permissions"), exports);
 __exportStar(require("./subject-metadata"), exports);
+__exportStar(require("./ratelimit/RateLimitController"), exports);
 //# sourceMappingURL=index.js.map

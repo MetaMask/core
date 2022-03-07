@@ -20,8 +20,7 @@ class BlockFeeHistoryDatasetFetcher {
     }
     forAll() {
         return __awaiter(this, void 0, void 0, function* () {
-            const [longRange, mediumRange, smallRange, tinyRange, latestWithNextBlock,] = yield Promise.all([
-                this.forLongRange(),
+            const [mediumRange, smallRange, tinyRange, latestWithNextBlock,] = yield Promise.all([
                 this.forMediumRange(),
                 this.forSmallRange(),
                 this.forTinyRange(),
@@ -29,7 +28,6 @@ class BlockFeeHistoryDatasetFetcher {
             ]);
             const latest = latestWithNextBlock.slice(0, -1);
             return {
-                longRange,
                 mediumRange,
                 smallRange,
                 tinyRange,
@@ -37,9 +35,6 @@ class BlockFeeHistoryDatasetFetcher {
                 latestWithNextBlock,
             };
         });
-    }
-    forLongRange() {
-        return this.fetchExcludingNextBlock({ numberOfBlocks: 20000 });
     }
     forMediumRange() {
         return this.fetchExcludingNextBlock({

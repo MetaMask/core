@@ -17,7 +17,7 @@ const specificationBuilder = (_builderOptions) => {
         targetKey: permissionName,
         allowedCaveats: null,
         endowmentGetter: (_getterOptions) => {
-            return ['fetch'];
+            return ['fetch', 'WebSocket'];
         },
     };
 };

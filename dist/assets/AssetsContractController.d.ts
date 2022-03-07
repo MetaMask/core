@@ -1,6 +1,7 @@
 /// <reference types="bn.js" />
 import { BN } from 'ethereumjs-util';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import type { PreferencesState } from '../user/PreferencesController';
 /**
  * @type AssetsContractConfig
  *
@@ -9,6 +10,7 @@ import { BaseController, BaseConfig, BaseState } from '../BaseController';
  */
 export interface AssetsContractConfig extends BaseConfig {
     provider: any;
+    ipfsGateway: string;
 }
 /**
  * @type BalanceMap
@@ -34,10 +36,14 @@ export declare class AssetsContractController extends BaseController<AssetsContr
     /**
      * Creates a AssetsContractController instance.
      *
+     * @param options - The controller options.
+     * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
      * @param config - Initial options used to configure this controller.
      * @param state - Initial state to set on this controller.
      */
-    constructor(config?: Partial<AssetsContractConfig>, state?: Partial<BaseState>);
+    constructor({ onPreferencesStateChange, }: {
+        onPreferencesStateChange: (listener: (preferencesState: PreferencesState) => void) => void;
+    }, config?: Partial<AssetsContractConfig>, state?: Partial<BaseState>);
     /**
      * Sets a new provider.
      *

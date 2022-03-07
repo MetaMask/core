@@ -8,6 +8,8 @@ declare type EthQuery = any;
  * @property oldestBlock - The id of the oldest block (in hex format) in the range of blocks
  * requested.
  * @property baseFeePerGas - Base fee per gas for each block in the range of blocks requested.
+ * For go-ethereum based chains baseFeePerGas will not returned in case of empty results
+ * <github.com/ethereum/go-ethereum/blob/v1.10.16/internal/ethapi/api.go#L87>
  * @property gasUsedRatio - A number between 0 and 1 that represents the gas used vs. gas limit for
  * each block in the range of blocks requested.
  * @property reward - The priority fee at the percentiles requested for each block in the range of
@@ -15,7 +17,7 @@ declare type EthQuery = any;
  */
 export declare type EthFeeHistoryResponse = {
     oldestBlock: string;
-    baseFeePerGas: string[];
+    baseFeePerGas?: string[];
     gasUsedRatio: number[];
     reward?: string[][];
 };

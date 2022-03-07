@@ -16,6 +16,7 @@ exports.AssetsContractController = void 0;
 const web3_1 = __importDefault(require("web3"));
 const single_call_balance_checker_abi_1 = __importDefault(require("single-call-balance-checker-abi"));
 const BaseController_1 = require("../BaseController");
+const constants_1 = require("../constants");
 const ERC721Standard_1 = require("./Standards/CollectibleStandards/ERC721/ERC721Standard");
 const ERC1155Standard_1 = require("./Standards/CollectibleStandards/ERC1155/ERC1155Standard");
 const ERC20Standard_1 = require("./Standards/ERC20Standard");
@@ -28,10 +29,12 @@ class AssetsContractController extends BaseController_1.BaseController {
     /**
      * Creates a AssetsContractController instance.
      *
+     * @param options - The controller options.
+     * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
      * @param config - Initial options used to configure this controller.
      * @param state - Initial state to set on this controller.
      */
-    constructor(config, state) {
+    constructor({ onPreferencesStateChange, }, config, state) {
         super(config, state);
         /**
          * Name of this controller used during composition
@@ -39,8 +42,12 @@ class AssetsContractController extends BaseController_1.BaseController {
         this.name = 'AssetsContractController';
         this.defaultConfig = {
             provider: undefined,
+            ipfsGateway: constants_1.IPFS_DEFAULT_GATEWAY_URL,
         };
         this.initialize();
+        onPreferencesStateChange(({ ipfsGateway }) => {
+            this.configure({ ipfsGateway });
+        });
     }
     /**
      * Sets a new provider.
@@ -116,16 +123,17 @@ class AssetsContractController extends BaseController_1.BaseController {
                 this.erc20Standard === undefined) {
                 throw new Error(MISSING_PROVIDER_ERROR);
             }
+            const { ipfsGateway } = this.config;
             // ERC721
             try {
-                return Object.assign({}, (yield this.erc721Standard.getDetails(tokenAddress, tokenId)));
+                return Object.assign({}, (yield this.erc721Standard.getDetails(tokenAddress, ipfsGateway, tokenId)));
             }
             catch (_a) {
                 // Ignore
             }
             // ERC1155
             try {
-                return Object.assign({}, (yield this.erc1155Standard.getDetails(tokenAddress, tokenId)));
+                return Object.assign({}, (yield this.erc1155Standard.getDetails(tokenAddress, ipfsGateway, tokenId)));
             }
             catch (_b) {
                 // Ignore

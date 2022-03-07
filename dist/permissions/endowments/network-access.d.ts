@@ -5,7 +5,7 @@ export declare const networkAccessEndowmentBuilder: Readonly<{
     readonly specificationBuilder: PermissionSpecificationBuilder<PermissionType.Endowment, any, {
         permissionType: PermissionType.Endowment;
         targetKey: typeof permissionName;
-        endowmentGetter: (_options?: any) => ['fetch'];
+        endowmentGetter: (_options?: any) => ['fetch', 'WebSocket'];
         allowedCaveats: null;
     }>;
 }>;
