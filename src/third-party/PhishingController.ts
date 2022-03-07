@@ -54,10 +54,8 @@ export class PhishingController extends BaseController<
 > {
   private configUrlMetaMask =
     'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
-  private configPhishFort = {
-    whitelistUrl: `https://cdn.jsdelivr.net/gh/phishfort/phishfort-lists@master/whitelists/domains.json`,
-    blacklistUrl: `https://cdn.jsdelivr.net/gh/phishfort/phishfort-lists@master/blacklists/domains.json`,
-  };
+
+  private configUrlPhishFortBlacklist = `https://cdn.jsdelivr.net/gh/phishfort/phishfort-lists@master/blacklists/domains.json`;
 
   private detector: any;
 
@@ -139,16 +137,17 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    const [ phishingOpts, pfWhitelist, pfBlacklist] = await Promise.all([
-      this.queryConfig<EthPhishingResponse>(this.configUrlMetaMask),
-      this.queryConfig<string[]>(this.configPhishFort.whitelistUrl),
-      this.queryConfig<string[]>(this.configPhishFort.blacklistUrl)
-    ]).catch(error => { throw error; });
+    const phishingOpts = await this.queryConfig<EthPhishingResponse>(
+      this.configUrlMetaMask,
+    );
+    const pfBlacklist = await this.queryConfig<string[]>(
+      this.configUrlPhishFortBlacklist,
+    );
 
     if (phishingOpts) {
-
-      if (pfWhitelist) phishingOpts.whitelist.push(...pfWhitelist);
-      if (pfBlacklist) phishingOpts.blacklist.push(...pfBlacklist);
+      if (pfBlacklist) {
+        phishingOpts.blacklist.push(...pfBlacklist);
+      }
 
       this.detector = new PhishingDetector(phishingOpts);
       this.update({
