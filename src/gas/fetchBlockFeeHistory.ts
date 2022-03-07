@@ -304,12 +304,14 @@ async function makeRequestForChunk<Percentile extends number>({
       : response.baseFeePerGas.slice(0, numberOfBlocks);
     const gasUsedRatios = response.gasUsedRatio;
     const priorityFeePercentileGroups = response.reward ?? [];
+    // Chain is allowed to return fewer number of block results
+    const numberOfExistingResults = gasUsedRatios.length;
 
     return baseFeesPerGasAsHex.map((baseFeePerGasAsHex, blockIndex) => {
       const baseFeePerGas = fromHex(baseFeePerGasAsHex);
       const number = startBlockNumber.addn(blockIndex);
 
-      return blockIndex > numberOfBlocks - 1
+      return blockIndex >= numberOfExistingResults
         ? buildNextFeeHistoryBlock({ baseFeePerGas, number })
         : buildExistingFeeHistoryBlock({
             baseFeePerGas,
@@ -329,6 +331,9 @@ async function makeRequestForChunk<Percentile extends number>({
  * Divides a block range (specified by a range size and the end of the range) into chunks based on
  * the maximum number of blocks that `eth_feeHistory` can return in a single call.
  *
+ * If the requested totalNumberOfBlocks exceed endBlockNumber, totalNumberOfBlocks is
+ * truncated to avoid requesting chunks with negative endBlockNumber.
+ *
  * @param endBlockNumber - The final block in the complete desired block range after all
  * `eth_feeHistory` requests have been made.
  * @param totalNumberOfBlocks - The total number of desired blocks after all `eth_feeHistory`
@@ -340,6 +345,10 @@ function determineRequestChunkSpecifiers(
   endBlockNumber: BN,
   totalNumberOfBlocks: number,
 ): RequestChunkSpecifier[] {
+  if (endBlockNumber.lt(new BN(totalNumberOfBlocks))) {
+    totalNumberOfBlocks = endBlockNumber.toNumber();
+  }
+
   const specifiers = [];
   for (
     let chunkStartBlockNumber = endBlockNumber.subn(totalNumberOfBlocks);

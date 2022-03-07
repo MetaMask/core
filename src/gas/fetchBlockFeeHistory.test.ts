@@ -389,4 +389,37 @@ describe('fetchBlockFeeHistory', () => {
       ]);
     });
   });
+
+  describe('given a range which exceeds existing blocks', () => {
+    beforeEach(() => {
+      jest.resetAllMocks();
+    });
+
+    it('should adjust fetched numberOfBlocks', async () => {
+      const latestBlockNumber = 1024;
+      const numberOfRequestedBlocks = 2048;
+      const endBlock = new BN(latestBlockNumber);
+
+      when(mockedQuery)
+        .calledWith(ethQuery, 'eth_feeHistory', [
+          toHex(latestBlockNumber),
+          toHex(latestBlockNumber),
+          [],
+        ])
+        .mockResolvedValue({
+          oldestBlock: toHex(0),
+          baseFeePerGas: [],
+          gasUsedRatio: [],
+          reward: [],
+        });
+
+      await fetchBlockFeeHistory({
+        ethQuery,
+        numberOfBlocks: numberOfRequestedBlocks,
+        endBlock,
+      });
+
+      expect(mockedQuery).toHaveBeenCalledTimes(1);
+    });
+  });
 });
