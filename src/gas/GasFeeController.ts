@@ -122,7 +122,9 @@ export type Eip1559GasFee = {
  * level of the network, with 0 meaning not congested and 1 meaning extremely congested
  */
 
-export type GasFeeEstimates = {
+export type GasFeeEstimates = SourcedGasFeeEstimates | FallbackGasFeeEstimates;
+
+type SourcedGasFeeEstimates = {
   low: Eip1559GasFee;
   medium: Eip1559GasFee;
   high: Eip1559GasFee;
@@ -133,6 +135,19 @@ export type GasFeeEstimates = {
   historicalPriorityFeeRange: [string, string];
   priorityFeeTrend: 'up' | 'down' | 'level';
   networkCongestion: number;
+};
+
+type FallbackGasFeeEstimates = {
+  low: Eip1559GasFee;
+  medium: Eip1559GasFee;
+  high: Eip1559GasFee;
+  estimatedBaseFee: string;
+  historicalBaseFeeRange: null;
+  baseFeeTrend: null;
+  latestPriorityFeeRange: null;
+  historicalPriorityFeeRange: null;
+  priorityFeeTrend: null;
+  networkCongestion: null;
 };
 
 const metadata = {
