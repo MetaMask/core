@@ -53,9 +53,7 @@ export default async function fetchGasEstimatesViaEthFeeHistory(
     blocksByDataset.mediumRange,
   );
   const priorityFeeTrend = calculatePriorityFeeTrend(blocksByDataset.tinyRange);
-  const networkCongestion = calculateNetworkCongestion(
-    blocksByDataset.longRange,
-  );
+  const networkCongestion = calculateNetworkCongestion([]);
 
   return {
     ...levelSpecificEstimates,
