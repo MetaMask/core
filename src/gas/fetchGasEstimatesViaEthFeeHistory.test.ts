@@ -10,6 +10,7 @@ import calculatePriorityFeeTrend from './fetchGasEstimatesViaEthFeeHistory/calcu
 import calculateNetworkCongestion from './fetchGasEstimatesViaEthFeeHistory/calculateNetworkCongestion';
 import fetchLatestBlock from './fetchGasEstimatesViaEthFeeHistory/fetchLatestBlock';
 import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
+import { ExistingFeeHistoryBlock } from './fetchBlockFeeHistory';
 
 jest.mock('./fetchGasEstimatesViaEthFeeHistory/BlockFeeHistoryDatasetFetcher');
 jest.mock(
@@ -54,13 +55,28 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
     const blocksByDataset = {
       mediumRange: [
         {
-          number: new BN(2),
+          number: new BN(6),
           baseFeePerGas: new BN(1),
           gasUsedRatio: 1,
           priorityFeesByPercentile: {
             10: new BN('0'),
             95: new BN('0'),
           },
+        },
+        {
+          number: new BN(6),
+          baseFeePerGas: new BN(1),
+          gasUsedRatio: 1,
+          priorityFeesByPercentile: {
+            10: new BN('0'),
+            95: new BN('0'),
+          },
+        },
+        {
+          number: new BN(7),
+          baseFeePerGas: new BN(1),
+          gasUsedRatio: null,
+          priorityFeesByPercentile: null,
         },
       ],
       smallRange: [
@@ -106,23 +122,6 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
           },
         },
       ],
-      latestWithNextBlock: [
-        {
-          number: new BN(6),
-          baseFeePerGas: new BN(1),
-          gasUsedRatio: 1,
-          priorityFeesByPercentile: {
-            10: new BN('0'),
-            95: new BN('0'),
-          },
-        },
-        {
-          number: new BN(7),
-          baseFeePerGas: new BN(1),
-          gasUsedRatio: null,
-          priorityFeesByPercentile: null,
-        },
-      ],
     };
     const levelSpecificEstimates = {
       low: {
@@ -165,13 +164,17 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
       .mockReturnValue(historicalBaseFeeRange);
 
     when(mockedCalculateBaseFeeTrend)
-      .calledWith(blocksByDataset.latestWithNextBlock)
+      .calledWith(blocksByDataset.mediumRange.slice(-2))
       .mockReturnValue(baseFeeTrend);
 
     when(mockedCalculatePriorityFeeRange)
       .calledWith(blocksByDataset.latest)
       .mockReturnValue(latestPriorityFeeRange)
-      .calledWith(blocksByDataset.mediumRange)
+      .calledWith(
+        blocksByDataset.mediumRange.slice(0, -1) as ExistingFeeHistoryBlock<
+          10 | 95
+        >[],
+      )
       .mockReturnValue(historicalPriorityFeeRange);
 
     when(mockedCalculatePriorityFeeTrend)

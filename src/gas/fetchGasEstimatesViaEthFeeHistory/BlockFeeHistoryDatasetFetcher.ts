@@ -23,20 +23,14 @@ export default class BlockFeeHistoryDatasetFetcher {
   }
 
   async forAll() {
-    const [
-      mediumRange,
-      smallRange,
-      tinyRange,
-      latestWithNextBlock,
-    ] = await Promise.all([
+    const [mediumRange, smallRange, tinyRange] = await Promise.all([
       this.forMediumRange(),
       this.forSmallRange(),
       this.forTinyRange(),
-      this.forLatestWithNextBlock(),
     ]);
 
-    const latest = latestWithNextBlock.slice(0, -1) as ExistingFeeHistoryBlock<
-      ExtractPercentileFrom<typeof latestWithNextBlock>
+    const latest = mediumRange.slice(-2, -1) as ExistingFeeHistoryBlock<
+      ExtractPercentileFrom<typeof mediumRange>
     >[];
 
     return {
@@ -44,12 +38,11 @@ export default class BlockFeeHistoryDatasetFetcher {
       smallRange,
       tinyRange,
       latest,
-      latestWithNextBlock,
     };
   }
 
   forMediumRange() {
-    return this.fetchExcludingNextBlock({
+    return this.fetchIncludingNextBlock({
       numberOfBlocks: 200,
       percentiles: [10, 95],
     });
@@ -66,13 +59,6 @@ export default class BlockFeeHistoryDatasetFetcher {
     return this.fetchExcludingNextBlock({
       numberOfBlocks: 2,
       percentiles: [50],
-    });
-  }
-
-  forLatestWithNextBlock() {
-    return this.fetchIncludingNextBlock({
-      numberOfBlocks: 1,
-      percentiles: [10, 95],
     });
   }
 

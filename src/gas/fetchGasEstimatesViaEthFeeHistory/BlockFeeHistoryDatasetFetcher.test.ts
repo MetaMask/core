@@ -38,6 +38,7 @@ describe('BlockFeeHistoryDatasetFetcher', () => {
           endBlock: fakeEndBlockNumber,
           numberOfBlocks: 200,
           percentiles: [10, 95],
+          includeNextBlock: true
         })
         .mockResolvedValue(fakeBlocks);
 
@@ -87,27 +88,6 @@ describe('BlockFeeHistoryDatasetFetcher', () => {
       });
 
       expect(await fetcher.forTinyRange()).toStrictEqual(fakeBlocks);
-    });
-  });
-
-  describe('forLatestWithNextBlock', () => {
-    it('returns 1 block along with the 10th and 90th reward percentiles (including the next block)', async () => {
-      when(mockedFetchBlockFeeHistory)
-        .calledWith({
-          ethQuery: fakeEthQuery,
-          endBlock: fakeEndBlockNumber,
-          numberOfBlocks: 1,
-          includeNextBlock: true,
-          percentiles: [10, 95],
-        })
-        .mockResolvedValue(fakeBlocks);
-
-      const fetcher = new BlockFeeHistoryDatasetFetcher({
-        ethQuery: fakeEthQuery,
-        endBlockNumber: fakeEndBlockNumber,
-      });
-
-      expect(await fetcher.forLatestWithNextBlock()).toStrictEqual(fakeBlocks);
     });
   });
 });

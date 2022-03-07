@@ -10,6 +10,7 @@ import calculatePriorityFeeRange from './fetchGasEstimatesViaEthFeeHistory/calcu
 import calculatePriorityFeeTrend from './fetchGasEstimatesViaEthFeeHistory/calculatePriorityFeeTrend';
 import calculateNetworkCongestion from './fetchGasEstimatesViaEthFeeHistory/calculateNetworkCongestion';
 import fetchLatestBlock from './fetchGasEstimatesViaEthFeeHistory/fetchLatestBlock';
+import { ExistingFeeHistoryBlock } from './fetchBlockFeeHistory';
 
 /**
  * Generates gas fee estimates based on gas fees that have been used in the recent past so that
@@ -43,14 +44,15 @@ export default async function fetchGasEstimatesViaEthFeeHistory(
   const historicalBaseFeeRange = calculateBaseFeeRange(
     blocksByDataset.mediumRange,
   );
-  const baseFeeTrend = calculateBaseFeeTrend(
-    blocksByDataset.latestWithNextBlock,
-  );
+  const lastTwoBlocks = blocksByDataset.mediumRange.slice(-2);
+  const baseFeeTrend = calculateBaseFeeTrend(lastTwoBlocks);
   const latestPriorityFeeRange = calculatePriorityFeeRange(
     blocksByDataset.latest,
   );
   const historicalPriorityFeeRange = calculatePriorityFeeRange(
-    blocksByDataset.mediumRange,
+    blocksByDataset.mediumRange.slice(0, -1) as ExistingFeeHistoryBlock<
+      10 | 95
+    >[],
   );
   const priorityFeeTrend = calculatePriorityFeeTrend(blocksByDataset.tinyRange);
   const networkCongestion = calculateNetworkCongestion([]);
