@@ -1,6 +1,6 @@
 /* eslint-enable @typescript-eslint/no-unused-vars */
-import deepFreeze from 'deep-freeze-strict';
 import { Mutable } from '@metamask/types';
+import deepFreeze from 'deep-freeze-strict';
 import { castDraft, Draft, Patch } from 'immer';
 import { nanoid } from 'nanoid';
 import {
@@ -9,7 +9,7 @@ import {
   HasApprovalRequest,
   RejectRequest as RejectApprovalRequest,
 } from '../approval/ApprovalController';
-import { Json, BaseController, StateMetadata } from '../BaseControllerV2';
+import { BaseController, Json, StateMetadata } from '../BaseControllerV2';
 import { RestrictedControllerMessenger } from '../ControllerMessenger';
 import {
   hasProperty,
@@ -221,6 +221,14 @@ export type RequestPermissions = {
 };
 
 /**
+ * Removes the specified permissions for each origin.
+ */
+export type RevokePermissions = {
+  type: `${typeof controllerName}:revokePermissions`;
+  handler: GenericPermissionController['revokePermissions'];
+};
+
+/**
  * Removes all permissions for a given origin
  */
 export type RevokeAllPermissions = {
@@ -255,6 +263,7 @@ export type PermissionControllerActions =
   | GetPermissions
   | HasPermission
   | HasPermissions
+  | RevokePermissions
   | RevokeAllPermissions
   | RequestPermissions;
 
@@ -672,6 +681,11 @@ export class PermissionController<
     );
 
     this.messagingSystem.registerActionHandler(
+      `${controllerName}:revokePermissions` as const,
+      this.revokePermissions.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${controllerName}:revokeAllPermissions` as const,
       (origin: OriginString) => this.revokeAllPermissions(origin),
     );
@@ -803,7 +817,13 @@ export class PermissionController<
    * @param origin - The origin of the subject.
    * @returns The permissions of the subject, if any.
    */
-  getPermissions(origin: OriginString) {
+  getPermissions(
+    origin: OriginString,
+  ):
+    | SubjectPermissions<
+        ValidPermission<string, ExtractCaveats<ControllerCaveatSpecification>>
+      >
+    | undefined {
     return this.state.subjects[origin]?.permissions;
   }
 

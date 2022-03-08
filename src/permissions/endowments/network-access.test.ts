@@ -13,6 +13,9 @@ describe('endowment:network-access', () => {
       allowedCaveats: null,
     });
 
-    expect(specification.endowmentGetter()).toStrictEqual(['fetch']);
+    expect(specification.endowmentGetter()).toStrictEqual([
+      'fetch',
+      'WebSocket',
+    ]);
   });
 });
