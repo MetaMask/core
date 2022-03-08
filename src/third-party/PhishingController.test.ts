@@ -108,6 +108,22 @@ describe('PhishingController', () => {
     expect(controller.test('xn--myetherallet-4k5fwn.com')).toBe(true);
   });
 
+  it('should return positive result for unsafe unicode domain from the PhishFort blacklist', async () => {
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(controller.test('e4d600ab9141b7a9859511c77e63b9b3.com')).toBe(true);
+  });
+
+  it('should return negative result for unsafe unicode domain if the PhishFort blacklist returns 304', async () => {
+    nock('https://cdn.jsdelivr.net', { allowUnmocked: true })
+      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .reply(304)
+      .persist();
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(controller.test('e4d600ab9141b7a9859511c77e63b9b3.com')).toBe(false);
+  });
+
   it('should bypass a given domain', () => {
     const controller = new PhishingController();
     const unsafeDomain = 'electrum.mx';
@@ -158,7 +174,7 @@ describe('PhishingController', () => {
   });
 
   it('should not update phishing lists if fetch returns 304', async () => {
-    nock('https://cdn.jsdelivr.net')
+    nock('https://cdn.jsdelivr.net', { allowUnmocked: true })
       .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
       .reply(304)
       .persist();
@@ -171,7 +187,7 @@ describe('PhishingController', () => {
   });
 
   it('should not update phishing lists if fetch returns error', async () => {
-    nock('https://cdn.jsdelivr.net')
+    nock('https://cdn.jsdelivr.net', { allowUnmocked: true })
       .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
       .reply(500)
       .persist();
