@@ -8,7 +8,7 @@ import type { GetSubjectMetadataState } from '../subject-metadata';
 
 /**
  * @type NotificationState
- * @property notifications -
+ * @property notifications - Stores existing notifications to be shown in the UI
  */
 export type NotificationState = {
   notifications: Record<string, Notification>;
@@ -55,7 +55,27 @@ export type ShowNotification = {
   handler: NotificationController['show'];
 };
 
-export type ControllerActions = GetNotificationState | ShowNotification;
+export type DismissNotification = {
+  type: `${typeof name}:dismiss`;
+  handler: NotificationController['dismiss'];
+};
+
+export type GetCurrentNotification = {
+  type: `${typeof name}:getCurrent`;
+  handler: NotificationController['getCurrent'];
+};
+
+export type GetNotificationCount = {
+  type: `${typeof name}:getCount`;
+  handler: NotificationController['getCount'];
+};
+
+export type ControllerActions =
+  | GetNotificationState
+  | ShowNotification
+  | DismissNotification
+  | GetCurrentNotification
+  | GetNotificationCount;
 
 type AllowedActions = GetSubjectMetadataState;
 
@@ -118,6 +138,21 @@ export class NotificationController extends BaseController<
       `${name}:show` as const,
       (origin: string, args: NotificationArgs) => this.show(origin, args),
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:dismiss` as const,
+      (id: string) => this.dismiss(id),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getCurrent` as const,
+      () => this.getCurrent(),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getCount` as const,
+      () => this.getCount(),
+    );
   }
 
   /**
@@ -132,16 +167,14 @@ export class NotificationController extends BaseController<
     );
 
     const originMetadata = subjectMetadataState.subjectMetadata[origin];
+    const title = originMetadata?.name ?? origin;
 
     switch (args.type) {
       case NotificationType.Native:
-        this.showNativeNotification(
-          originMetadata?.name ?? origin,
-          args.message,
-        );
+        this.showNativeNotification(title, args.message);
         break;
       case NotificationType.InApp:
-        this.add(originMetadata?.name ?? origin, args.message);
+        this.add(title, args.message);
         break;
       default:
         throw new Error('Invalid notification type');
@@ -170,6 +203,20 @@ export class NotificationController extends BaseController<
     this.update((state) => {
       delete state.notifications[id];
     });
+  }
+
+  /**
+   * Gets the current notification to be shown.
+   *
+   * @returns The current notification
+   */
+  getCurrent() {
+    // @todo Do we want a special ordering?
+    const values = Object.values(this.state.notifications);
+    if (values.length === 0) {
+      return null;
+    }
+    return values[0];
   }
 
   /**
