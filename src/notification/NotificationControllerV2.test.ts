@@ -146,6 +146,11 @@ describe('NotificationControllerV2', () => {
       title: SNAP_NAME,
       type: NotificationType.InApp,
     });
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await unrestricted.call('NotificationControllerV2:dismiss', current!.id);
+    expect(
+      await unrestricted.call('NotificationControllerV2:getCurrent'),
+    ).toBeNull();
     expect(callActionSpy).toHaveBeenCalledTimes(1);
   });
 
