@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [26.0.0]
 ### Added
-- Add `PermissionController` and `SubjectMetadataController` ([#692](https://github.com/MetaMask/controllers/pull/692))
-- Add `RateLimitController` ([#698](https://github.com/MetaMask/controllers/pull/698))
+- Add PermissionController and SubjectMetadataController ([#692](https://github.com/MetaMask/controllers/pull/692))
+- Add RateLimitController ([#698](https://github.com/MetaMask/controllers/pull/698))
 - Add `revokePermissions` to PermissionController actions ([#708](https://github.com/MetaMask/controllers/pull/708))
 
 ### Changed
