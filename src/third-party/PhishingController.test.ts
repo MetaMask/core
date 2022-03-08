@@ -111,17 +111,17 @@ describe('PhishingController', () => {
   it('should return positive result for unsafe unicode domain from the PhishFort blacklist', async () => {
     const controller = new PhishingController();
     await controller.updatePhishingLists();
-    expect(controller.test('pancakeswop.net')).toBe(true);
+    expect(controller.test('e4d600ab9141b7a9859511c77e63b9b3.com')).toBe(true);
   });
 
   it('should return negative result for unsafe unicode domain if the PhishFort blacklist returns 304', async () => {
     nock('https://cdn.jsdelivr.net', { allowUnmocked: true })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/domains.json')
+      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
       .reply(304)
       .persist();
     const controller = new PhishingController();
     await controller.updatePhishingLists();
-    expect(controller.test('pancakeswop.net')).toBe(false);
+    expect(controller.test('e4d600ab9141b7a9859511c77e63b9b3.com')).toBe(false);
   });
 
   it('should bypass a given domain', () => {

@@ -55,7 +55,8 @@ export class PhishingController extends BaseController<
   private configUrlMetaMask =
     'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
 
-  private configUrlPhishFortBlacklist = `https://cdn.jsdelivr.net/gh/phishfort/phishfort-lists@master/blacklists/domains.json`;
+  private configUrlPhishFortHotlist =
+    `https://cdn.jsdelivr.net/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json`;
 
   private detector: any;
 
@@ -141,7 +142,7 @@ export class PhishingController extends BaseController<
       this.configUrlMetaMask,
     );
     const pfBlacklist = await this.queryConfig<string[]>(
-      this.configUrlPhishFortBlacklist,
+      this.configUrlPhishFortHotlist,
     );
 
     if (phishingOpts) {
