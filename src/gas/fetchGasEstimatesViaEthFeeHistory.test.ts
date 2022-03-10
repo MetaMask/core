@@ -29,7 +29,7 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
     getBlockByNumber: async () => latestBlock,
   };
 
-  it('calculates target fees for low, medium, and high transaction priority levels, as well as the network congestion level', async () => {
+  it('calculates target fees for low, medium, and high transaction priority levels', async () => {
     const blocks = [
       {
         number: new BN(3),
