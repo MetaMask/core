@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+### Added
+- Add PermissionController and SubjectMetadataController ([#692](https://github.com/MetaMask/controllers/pull/692))
+- Add RateLimitController ([#698](https://github.com/MetaMask/controllers/pull/698))
+- Add `revokePermissions` to PermissionController actions ([#708](https://github.com/MetaMask/controllers/pull/708))
+
+### Changed
+- **BREAKING:** Fetch and return token image as part of `getDetails` calls on ERC721Standard and ERC1155Standard ([#702](https://github.com/MetaMask/controllers/pull/702))
+  - This change is breaking because it requires that the AssetsContractController (on which the ERC721Standard and ERC1155Standard are instantiated) be passed a listener for onPreferencesStateChange from the PreferencesController so that it can use the user's preferred IPFSGateway to fetch any images hosted on IPFS. Consumers will have to pass onPreferencesStateChange in an options object (first arg) to the AssetsContractController constructor when initializing.
+- Reduce load on Infura in gas estimate API fallback ([#705](https://github.com/MetaMask/controllers/pull/705))
+- Update `fetchBlockFeeHistory` to account for nonexistent `baseFeePerGas` ([#703](https://github.com/MetaMask/controllers/pull/703))
+- Update `fetchBlockFeeHistory` to account for test chains with a few number of blocks ([#699](https://github.com/MetaMask/controllers/pull/699))
+- Expose `WebSocket` via endowments for network access ([#696](https://github.com/MetaMask/controllers/pull/696))
+- Bump `@metamask/metamask-eth-abis` from ^2.1.0 to 3.0.0 ([#681](https://github.com/MetaMask/controllers/pull/681))
+
 ## [25.1.0]
 ### Changed
 - Make the userAddress argument to the getDetails method on the ERC20Standard class optional. ([#674](https://github.com/MetaMask/controllers/pull/674))
@@ -495,7 +510,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v25.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/controllers/compare/v25.1.0...v26.0.0
 [25.1.0]: https://github.com/MetaMask/controllers/compare/v25.0.0...v25.1.0
 [25.0.0]: https://github.com/MetaMask/controllers/compare/v24.0.0...v25.0.0
 [24.0.0]: https://github.com/MetaMask/controllers/compare/v23.1.0...v24.0.0
