@@ -169,13 +169,15 @@ export class RateLimitController<
    */
   private recordRequest(api: keyof RateLimitedApis, origin: string) {
     this.update((state) => {
-      (state as any).requests[api][origin] =
-        ((state as any).requests[api][origin] ?? 0) + 1;
+      const previous = (state as any).requests[api][origin] ?? 0;
+      (state as any).requests[api][origin] = previous + 1;
 
-      setTimeout(
-        () => this.resetRequestCount(api, origin),
-        this.rateLimitTimeout,
-      );
+      if (previous === 0) {
+        setTimeout(
+          () => this.resetRequestCount(api, origin),
+          this.rateLimitTimeout,
+        );
+      }
     });
   }
 

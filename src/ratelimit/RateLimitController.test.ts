@@ -147,4 +147,28 @@ describe('RateLimitController', () => {
       message,
     );
   });
+
+  it('timeout is only applied once per window', async () => {
+    const messenger = getRestrictedMessenger();
+    const controller = new RateLimitController({
+      implementations,
+      messenger,
+      rateLimitCount: 2,
+    });
+    expect(
+      await controller.call(origin, 'showNativeNotification', origin, message),
+    ).toBeUndefined();
+    jest.advanceTimersByTime(2500);
+    expect(
+      await controller.call(origin, 'showNativeNotification', origin, message),
+    ).toBeUndefined();
+    expect(controller.state.requests.showNativeNotification[origin]).toBe(2);
+    jest.advanceTimersByTime(2500);
+    expect(controller.state.requests.showNativeNotification[origin]).toBe(0);
+    expect(
+      await controller.call(origin, 'showNativeNotification', origin, message),
+    ).toBeUndefined();
+    jest.advanceTimersByTime(2500);
+    expect(controller.state.requests.showNativeNotification[origin]).toBe(1);
+  });
 });
