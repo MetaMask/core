@@ -14,14 +14,17 @@ import { FeeHistoryBlock } from '../fetchBlockFeeHistory';
 export default function fetchNetworkCongestionLevel(
   blocks: FeeHistoryBlock<never>[],
 ): number {
-  const latestBaseFeePerGas = blocks[blocks.length - 1].baseFeePerGas;
-  const sortedBaseFeesPerGas = blocks
-    .map((block) => block.baseFeePerGas)
-    .sort((a, b) => a.cmp(b));
-  const indexOfBaseFeeNearestToLatest = sortedBaseFeesPerGas.findIndex(
-    (baseFeePerGas) => baseFeePerGas.gte(latestBaseFeePerGas),
-  );
-  return indexOfBaseFeeNearestToLatest !== -1
-    ? indexOfBaseFeeNearestToLatest / (blocks.length - 1)
-    : 0;
+  if (blocks.length > 0) {
+    const latestBaseFeePerGas = blocks[blocks.length - 1].baseFeePerGas;
+    const sortedBaseFeesPerGas = blocks
+      .map((block) => block.baseFeePerGas)
+      .sort((a, b) => a.cmp(b));
+    const indexOfBaseFeeNearestToLatest = sortedBaseFeesPerGas.findIndex(
+      (baseFeePerGas) => baseFeePerGas.gte(latestBaseFeePerGas),
+    );
+    return indexOfBaseFeeNearestToLatest !== -1
+      ? indexOfBaseFeeNearestToLatest / (blocks.length - 1)
+      : 0;
+  }
+  return 0.5;
 }
