@@ -629,6 +629,12 @@ export class KeyringController extends BaseController<
     return await this.addQRKeyring();
   }
 
+  restoreQRKeyring = async (serialized: any) => {
+    (await this.getQRKeyring()).deserialize(serialized);
+    this.updateIdentities(await privates.get(this).keyring.getAccounts());
+    this.fullUpdate();
+  };
+
   getQRKeyringState = async () => {
     return (await this.getQRKeyring()).getMemStore();
   };
