@@ -20,12 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add RateLimitController ([#698](https://github.com/MetaMask/controllers/pull/698))
 - Add `revokePermissions` to PermissionController actions ([#708](https://github.com/MetaMask/controllers/pull/708))
 
-## [26.0.0]
-### Added
-- Add PermissionController and SubjectMetadataController ([#692](https://github.com/MetaMask/controllers/pull/692))
-- Add RateLimitController ([#698](https://github.com/MetaMask/controllers/pull/698))
-- Add `revokePermissions` to PermissionController actions ([#708](https://github.com/MetaMask/controllers/pull/708))
-
 ### Changed
 - **BREAKING:** Fetch and return token image as part of `getDetails` calls on ERC721Standard and ERC1155Standard ([#702](https://github.com/MetaMask/controllers/pull/702))
   - This change is breaking because it requires that the AssetsContractController (on which the ERC721Standard and ERC1155Standard are instantiated) be passed a listener for onPreferencesStateChange from the PreferencesController so that it can use the user's preferred IPFSGateway to fetch any images hosted on IPFS. Consumers will have to pass onPreferencesStateChange in an options object (first arg) to the AssetsContractController constructor when initializing.
