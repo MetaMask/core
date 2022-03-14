@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.0]
+### Uncategorized
+- Remove non-critical gas estimate fallback data  ([#712](https://github.com/MetaMask/controllers/pull/712))
+- make getTokenStandardAndDetails function signature reflect that the second arg is optional ([#717](https://github.com/MetaMask/controllers/pull/717))
+- Fix RateLimitController aggressive timeout issue ([#716](https://github.com/MetaMask/controllers/pull/716))
+
 ## [26.0.0]
 ### Added
 - Add PermissionController and SubjectMetadataController ([#692](https://github.com/MetaMask/controllers/pull/692))
@@ -510,7 +516,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v26.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/controllers/compare/v26.0.0...v27.0.0
 [26.0.0]: https://github.com/MetaMask/controllers/compare/v25.1.0...v26.0.0
 [25.1.0]: https://github.com/MetaMask/controllers/compare/v25.0.0...v25.1.0
 [25.0.0]: https://github.com/MetaMask/controllers/compare/v24.0.0...v25.0.0
