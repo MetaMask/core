@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [26.0.1]
-### Uncategorized
-- Remove non-critical gas estimate fallback data  ([#712](https://github.com/MetaMask/controllers/pull/712))
-- make getTokenStandardAndDetails function signature reflect that the second arg is optional ([#717](https://github.com/MetaMask/controllers/pull/717))
-- Fix RateLimitController aggressive timeout issue ([#716](https://github.com/MetaMask/controllers/pull/716))
+### Changed
+- Further reduce load on Infura by removing non-critical data from the fallback implementation of the Gas API ([#712](https://github.com/MetaMask/controllers/pull/712))
+- Update AssetsContractController to make `userAddress` of `getTokenStandardAndDetails` optional ([#717](https://github.com/MetaMask/controllers/pull/717))
+
+### Fixed
+- Fix RateLimitController so that the rate limit is not reset aggressively ([#716](https://github.com/MetaMask/controllers/pull/716))
 
 ## [26.0.0]
 ### Added
