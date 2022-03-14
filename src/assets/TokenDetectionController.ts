@@ -49,7 +49,7 @@ export class TokenDetectionController extends BaseController<
 
   private getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
-  private addTokens: TokensController['addTokens'];
+  private addDetectedTokens: TokensController['addDetectedTokens'];
 
   private getTokensState: () => TokensState;
 
@@ -65,7 +65,7 @@ export class TokenDetectionController extends BaseController<
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
-   * @param options.addTokens - Add a list of tokens.
+   * @param options.addDetectedTokens - Add a list of detected tokens.
    * @param options.getTokenListState - Gets the current state of the TokenList controller.
    * @param options.getTokensState - Gets the current state of the Tokens controller.
    * @param config - Initial options used to configure this controller.
@@ -77,7 +77,7 @@ export class TokenDetectionController extends BaseController<
       onPreferencesStateChange,
       onNetworkStateChange,
       getBalancesInSingleCall,
-      addTokens,
+      addDetectedTokens,
       getTokenListState,
       getTokensState,
     }: {
@@ -91,7 +91,7 @@ export class TokenDetectionController extends BaseController<
         listener: (networkState: NetworkState) => void,
       ) => void;
       getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
-      addTokens: TokensController['addTokens'];
+      addDetectedTokens: TokensController['addDetectedTokens'];
       getTokenListState: () => TokenListState;
       getTokensState: () => TokensState;
     },
@@ -110,7 +110,7 @@ export class TokenDetectionController extends BaseController<
     this.initialize();
     this.getTokensState = getTokensState;
     this.getTokenListState = getTokenListState;
-    this.addTokens = addTokens;
+    this.addDetectedTokens = addDetectedTokens;
     onTokensStateChange(({ tokens }) => {
       this.configure({ tokens });
     });
@@ -252,7 +252,7 @@ export class TokenDetectionController extends BaseController<
         }
 
         if (tokensToAdd.length) {
-          await this.addTokens(tokensToAdd);
+          await this.addDetectedTokens(tokensToAdd);
         }
       });
     }
