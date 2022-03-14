@@ -37,7 +37,6 @@
   "dependencies": {
     "@ethereumjs/common": "^2.3.1",
     "@ethereumjs/tx": "^3.2.1",
-    "@keystonehq/metamask-airgapped-keyring": "^0.2.2",
     "@metamask/contract-metadata": "^1.31.0",
     "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/types": "^1.1.0",

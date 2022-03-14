@@ -146,14 +146,14 @@ export class AccountTrackerController extends BaseController<
    */
   refresh = async () => {
     this.syncAccounts();
-    const { accounts } = this.state;
+    const accounts = Object.assign({}, this.state.accounts);
     for (const address in accounts) {
       await safelyExecuteWithTimeout(async () => {
         const balance = await query(this.ethQuery, 'getBalance', [address]);
         accounts[address] = { balance: BNToHex(balance) };
-        this.update({ accounts: { ...accounts } });
       });
     }
+    this.update({ accounts: { ...accounts } });
   };
 
   /**
@@ -164,7 +164,7 @@ export class AccountTrackerController extends BaseController<
    */
   syncWithAddresses = async (addresses: string[]) => {
     this.syncAccounts();
-    const { accounts } = this.state;
+    const accounts = Object.assign({}, this.state.accounts);
     addresses.forEach((address) => {
       accounts[address] = { balance: '0x0' };
     });
@@ -173,9 +173,9 @@ export class AccountTrackerController extends BaseController<
       await safelyExecuteWithTimeout(async () => {
         const balance = await query(this.ethQuery, 'getBalance', [address]);
         accounts[address] = { balance: BNToHex(balance) };
-        this.update({ accounts: { ...accounts } });
       });
     }
+    this.update({ accounts });
     return this.state.accounts;
   };
 }
