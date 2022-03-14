@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [27.0.0]
 ### Changed
 - **BREAKING:** Further reduce load on Infura by removing non-critical data from the fallback implementation of the Gas API ([#712](https://github.com/MetaMask/controllers/pull/712))
+  - In GasFeeEstimates – the type of the object returned by `fetchGasEstimatesViaEthFeeHistory` as well as type of `gasFeeEstimates` stored in GasFeeController — `historicalBaseFeeRange`, `baseFeeTrend`, `latestPriorityFeeRange`, `historicalPriorityFeeRange`, `priorityFeeTrend`, and `networkCongestion` can now be null. You should update your code to account for this.
+  - The ExistingFeeHistoryBlock and NextFeeHistoryBlock types were inconvenient to use and are no longer public. You should use FeeHistoryBlock instead.
+  - The BlockFeeHistoryDatasetFetcher class has been removed. There is no replacement.
+  - The `calculateBaseFeeRange`, `calculateBaseFeeTrend`, `calculateNetworkCongestion`, `calculatePriorityFeeRange`, and `calculatePriorityFeeTrend` functions have been removed. There are no replacements.
 - Update AssetsContractController to make `userAddress` of `getTokenStandardAndDetails` optional ([#717](https://github.com/MetaMask/controllers/pull/717))
 
 ### Fixed
