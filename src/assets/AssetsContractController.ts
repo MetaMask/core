@@ -166,7 +166,7 @@ export class AssetsContractController extends BaseController<
    */
   async getTokenStandardAndDetails(
     tokenAddress: string,
-    userAddress: string,
+    userAddress?: string,
     tokenId?: string,
   ): Promise<{
     standard: string;
