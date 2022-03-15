@@ -428,15 +428,15 @@ export class KeyringController extends BaseController<
   ) {
     try {
       const address = normalizeAddress(messageParams.from);
-      const QRKeyring = await this.getOrAddQRKeyring();
-      const qrAccounts = await QRKeyring.getAccounts();
+      const qrKeyring = await this.getOrAddQRKeyring();
+      const qrAccounts = await qrKeyring.getAccounts();
       if (
         qrAccounts.findIndex(
           (qrAddress: string) =>
             qrAddress.toLowerCase() === address.toLowerCase(),
         )
       ) {
-        const messageParamsClone = Object.assign({}, messageParams);
+        const messageParamsClone = { ...messageParams };
         if (
           version !== SignTypedDataVersion.V1 &&
           typeof messageParamsClone.data === 'string'
@@ -624,10 +624,7 @@ export class KeyringController extends BaseController<
     const keyring = privates
       .get(this)
       .keyring.getKeyringsByType(KeyringTypes.qr)[0];
-    if (keyring) {
-      return keyring;
-    }
-    return await this.addQRKeyring();
+    return keyring || (await this.addQRKeyring());
   }
 
   async restoreQRKeyring(serialized: any) {
