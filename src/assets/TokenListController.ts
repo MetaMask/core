@@ -4,35 +4,32 @@ import { Mutex } from 'async-mutex';
 import AbortController from 'abort-controller';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
-import { isTokenDetectionEnabledForNetwork, safelyExecute } from '../util';
-import { fetchTokenList, fetchTokenMetadata } from '../apis/token-service';
+import { safelyExecute } from '../util';
+import { fetchTokenList } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
+import {
+  AggregatorKey,
+  formatAggregatorNames,
+  isTokenDetectionEnabledForNetwork,
+} from './assetsUtil';
 
 const DEFAULT_INTERVAL = 60 * 60 * 1000;
 const DEFAULT_THRESHOLD = 60 * 30 * 1000;
 
 const name = 'TokenListController';
 
-type BaseToken = {
+export type RawToken = {
   name: string;
   symbol: string;
   decimals: number;
-};
-
-export type DynamicToken = {
   address: string;
   occurrences: number;
+  aggregators: AggregatorKey[] | string[];
   iconUrl: string;
-} & BaseToken;
-
-export type TokenListToken = {
-  address: string;
-  iconUrl: string;
-  occurrences: number | null;
-} & BaseToken;
+};
 
 export type TokenListMap = {
-  [address: string]: TokenListToken;
+  [address: string]: RawToken;
 };
 
 export type TokenListState = {
@@ -51,7 +48,7 @@ export type GetTokenListState = {
 };
 type DataCache = {
   timestamp: number;
-  data: TokenListToken[];
+  data: RawToken[];
 };
 type TokensChainsCache = {
   [chainSlug: string]: DataCache;
@@ -94,8 +91,6 @@ export class TokenListController extends BaseController<
   private chainId: string;
 
   private abortController: AbortController;
-
-  // private abortSignal: AbortSignal;
 
   /**
    * Creates a TokenListController instance.
@@ -197,19 +192,12 @@ export class TokenListController extends BaseController<
   }
 
   /**
-   * Fetching token list.
-   */
-  async fetchTokenList(): Promise<void> {
-    await this.fetchFromDynamicTokenList();
-  }
-
-  /**
    * Fetching token list from the Token Service API.
    */
-  async fetchFromDynamicTokenList(): Promise<void> {
+  async fetchTokenList(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
     try {
-      const cachedTokens: TokenListToken[] | null = await safelyExecute(() =>
+      const cachedTokens: RawToken[] | null = await safelyExecute(() =>
         this.fetchFromCache(),
       );
       const { tokensChainsCache, ...tokensData } = this.state;
@@ -219,7 +207,7 @@ export class TokenListController extends BaseController<
           tokenList[token.address] = token;
         }
       } else {
-        const tokensFromAPI: DynamicToken[] = await safelyExecute(() =>
+        const tokensFromAPI: RawToken[] = await safelyExecute(() =>
           fetchTokenList(this.chainId, this.abortController.signal),
         );
         if (!tokensFromAPI) {
@@ -256,7 +244,13 @@ export class TokenListController extends BaseController<
           (token) => !duplicateSymbols.includes(token.symbol),
         );
         for (const token of uniqueTokenList) {
-          tokenList[token.address] = token;
+          const formattedToken: RawToken = {
+            ...token,
+            aggregators: formatAggregatorNames(
+              token.aggregators as AggregatorKey[],
+            ),
+          };
+          tokenList[token.address] = formattedToken;
         }
       }
       const updatedTokensChainsCache: TokensChainsCache = {
@@ -285,7 +279,7 @@ export class TokenListController extends BaseController<
    *
    * @returns The cached data, or `null` if the cache was expired.
    */
-  async fetchFromCache(): Promise<TokenListToken[] | null> {
+  async fetchFromCache(): Promise<RawToken[] | null> {
     const { tokensChainsCache }: TokenListState = this.state;
     const dataCache = tokensChainsCache[this.chainId];
     const now = Date.now();
@@ -296,26 +290,6 @@ export class TokenListController extends BaseController<
       return dataCache.data;
     }
     return null;
-  }
-
-  /**
-   * Fetch metadata for a token.
-   *
-   * @param tokenAddress - The address of the token.
-   * @returns The token metadata.
-   */
-  async fetchTokenMetadata(tokenAddress: string): Promise<DynamicToken> {
-    const releaseLock = await this.mutex.acquire();
-    try {
-      const token = (await fetchTokenMetadata(
-        this.chainId,
-        tokenAddress,
-        this.abortController.signal,
-      )) as DynamicToken;
-      return token;
-    } finally {
-      releaseLock();
-    }
   }
 }
 

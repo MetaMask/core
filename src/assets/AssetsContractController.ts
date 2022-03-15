@@ -22,7 +22,7 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: {
   [NetworksChainId.mainnet]: '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
   [NetworksChainId.bsc]: '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
   [NetworksChainId.polygon]: '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
-  [NetworksChainId.avax]: 'TODO',
+  [NetworksChainId.avax]: '0xD023D153a0DFa485130ECFdE2FAA7e612EF94818',
 };
 
 const MISSING_PROVIDER_ERROR =

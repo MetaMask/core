@@ -122,7 +122,7 @@ export class TokenBalancesController extends BaseController<
           this.getSelectedAddress(),
         );
         tokens[i].balanceError = null;
-      } catch (error) {
+      } catch (error: any) {
         newContractBalances[address] = new BN(0);
         tokens[i].balanceError = error;
       }

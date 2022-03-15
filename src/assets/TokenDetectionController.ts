@@ -1,11 +1,7 @@
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
-import {
-  isTokenDetectionEnabledForNetwork,
-  safelyExecute,
-  toChecksumHexAddress,
-} from '../util';
+import { safelyExecute, toChecksumHexAddress } from '../util';
 import { MAINNET } from '../constants';
 
 import type { TokensController, TokensState } from './TokensController';
@@ -13,6 +9,7 @@ import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
 import { TokenListState } from './TokenListController';
 import { NetworksChainId } from '..';
+import { isTokenDetectionEnabledForNetwork } from './assetsUtil';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -127,12 +124,17 @@ export class TokenDetectionController extends BaseController<
         this.abortController.abort();
         this.abortController = new AbortController();
         const incomingChainId = networkState.provider.chainId;
+        const isDisabled = !isTokenDetectionEnabledForNetwork(incomingChainId);
         this.configure({
           networkType: networkState.provider.type,
           chainId: incomingChainId,
-          disabled: !isTokenDetectionEnabledForNetwork(incomingChainId),
+          disabled: isDisabled,
         });
-        await this.restart();
+        if (isDisabled) {
+          this.stopPolling();
+        } else {
+          await this.restart();
+        }
       }
     });
     this.getBalancesInSingleCall = getBalancesInSingleCall;
@@ -226,7 +228,7 @@ export class TokenDetectionController extends BaseController<
           selectedAddress,
           tokensSlice,
         );
-        const tokensToAdd = [];
+        const tokensToAdd: Token[] = [];
         for (const tokenAddress in balances) {
           let ignored;
           /* istanbul ignore else */
@@ -247,6 +249,7 @@ export class TokenDetectionController extends BaseController<
               address: tokenAddress,
               decimals: tokenList[caseInsensitiveTokenKey].decimals,
               symbol: tokenList[caseInsensitiveTokenKey].symbol,
+              aggregators: tokenList[caseInsensitiveTokenKey].aggregators,
             });
           }
         }

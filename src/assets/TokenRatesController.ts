@@ -42,6 +42,7 @@ export interface Token {
   address: string;
   decimals: number;
   symbol: string;
+  aggregators: string[];
   image?: string;
   balanceError?: unknown;
   isERC721?: boolean;
@@ -394,7 +395,7 @@ export class TokenRatesController extends BaseController<
           this.fetchExchangeRate(slug, FALL_BACK_VS_CURRENCY),
           fetchNativeExchangeRate(nativeCurrency, FALL_BACK_VS_CURRENCY, false),
         ]);
-      } catch (error) {
+      } catch (error: any) {
         if (
           error instanceof Error &&
           error.message.includes('market does not exist for this coin pair')

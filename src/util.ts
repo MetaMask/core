@@ -325,7 +325,7 @@ export async function safelyExecute(
 ) {
   try {
     return await operation();
-  } catch (error) {
+  } catch (error: any) {
     /* istanbul ignore next */
     if (logError) {
       console.error(error);
@@ -930,23 +930,5 @@ export function isValidJson(value: unknown): value is Json {
     return deepEqual(value, JSON.parse(JSON.stringify(value)));
   } catch (_) {
     return false;
-  }
-}
-
-/**
- * Check if token detection is enabled for certain networks
- *
- * @param chainId - ChainID of network
- * @returns Whether the current network supports token detection
- */
-export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
-  switch (chainId) {
-    case NetworksChainId.mainnet:
-    case NetworksChainId.avax:
-    case NetworksChainId.bsc:
-    case NetworksChainId.polygon:
-      return true;
-    default:
-      return false;
   }
 }
