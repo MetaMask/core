@@ -1,17 +1,15 @@
 {
   "compilerOptions": {
-    "declaration": true,
-    "declarationDir": "dist",
+    "baseUrl": ".",
     "esModuleInterop": true,
+    "inlineSources": true,
     "module": "commonjs",
     "moduleResolution": "node",
-    "outDir": "dist",
-    "rootDir": "./src",
+    "paths": {
+      "*": ["./types/*"]
+    },
     "sourceMap": true,
-    "inlineSources": true,
     "strict": true,
     "target": "es6"
-  },
-  "include": ["src/**/*.ts"],
-  "exclude": ["**/*.test.ts"]
+  }
 }

@@ -29,7 +29,7 @@
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
     "test": "jest",
     "test:watch": "jest --watch",
-    "build": "rimraf dist && tsc --project .",
+    "build": "rimraf dist && tsc --project tsconfig.build.json",
     "build:watch": "yarn build --watch",
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
     "doc": "typedoc && touch docs/.nojekyll"
