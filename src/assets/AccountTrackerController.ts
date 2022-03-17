@@ -162,16 +162,23 @@ export class AccountTrackerController extends BaseController<
    * @param addresses - the additional addresses, may be hardware wallet addresses.
    * @returns accounts - addresses with synced balance
    */
-  syncBalanceWithAddresses = async (addresses: string[]) => {
+  async syncBalanceWithAddresses(addresses: string[]) {
     return await Promise.all(
-      addresses.map((address) => {
-        return safelyExecuteWithTimeout(async () => {
-          const balance = await query(this.ethQuery, 'getBalance', [address]);
-          return [address, balance];
-        });
-      }),
+      addresses.map(
+        (address): Promise<[string, string] | undefined> => {
+          return safelyExecuteWithTimeout(async () => {
+            const balance = await query(this.ethQuery, 'getBalance', [address]);
+            return [address, balance];
+          });
+        },
+      ),
     ).then((value) => {
-      return value.reduce((obj, [address, balance]) => {
+      return value.reduce((obj, item) => {
+        if (!item) {
+          return obj;
+        }
+
+        const [address, balance] = item;
         return {
           ...obj,
           [address]: {
@@ -180,7 +187,7 @@ export class AccountTrackerController extends BaseController<
         };
       }, {});
     });
-  };
+  }
 }
 
 export default AccountTrackerController;

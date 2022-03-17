@@ -71,6 +71,7 @@
     "web3-provider-engine": "^16.0.3"
   },
   "devDependencies": {
+    "@keystonehq/metamask-airgapped-keyring": "^0.2.6-alpha.1",
     "@lavamoat/allow-scripts": "^1.0.6",
     "@metamask/auto-changelog": "^2.5.0",
     "@metamask/eslint-config": "^9.0.0",

@@ -15,6 +15,10 @@ import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import Keyring from 'eth-keyring-controller';
 import { Mutex } from 'async-mutex';
 import {
+  MetaMaskKeyring as QRKeyring,
+  IKeyringState as IQRKeyringState,
+} from '@keystonehq/metamask-airgapped-keyring';
+import {
   BaseController,
   BaseConfig,
   BaseState,
@@ -84,6 +88,7 @@ export interface KeyringMemState extends BaseState {
  */
 export interface KeyringConfig extends BaseConfig {
   encryptor?: any;
+  keyringTypes?: any[];
 }
 
 /**
@@ -443,7 +448,7 @@ export class KeyringController extends BaseController<
         qrAccounts.findIndex(
           (qrAddress: string) =>
             qrAddress.toLowerCase() === address.toLowerCase(),
-        )
+        ) !== -1
       ) {
         const messageParamsClone = { ...messageParams };
         if (
@@ -620,7 +625,7 @@ export class KeyringController extends BaseController<
    *
    * @returns The added keyring
    */
-  private async addQRKeyring() {
+  private async addQRKeyring(): Promise<QRKeyring> {
     return await privates.get(this).keyring.addNewKeyring(KeyringTypes.qr);
   }
 
@@ -629,52 +634,58 @@ export class KeyringController extends BaseController<
    *
    * @returns The added keyring
    */
-  private async getOrAddQRKeyring() {
+  private async getOrAddQRKeyring(): Promise<QRKeyring> {
     const keyring = privates
       .get(this)
       .keyring.getKeyringsByType(KeyringTypes.qr)[0];
     return keyring || (await this.addQRKeyring());
   }
 
-  async restoreQRKeyring(serialized: any) {
+  async restoreQRKeyring(serialized: any): Promise<void> {
     (await this.getOrAddQRKeyring()).deserialize(serialized);
     this.updateIdentities(await privates.get(this).keyring.getAccounts());
-    this.fullUpdate();
+    await this.fullUpdate();
   }
 
-  async getQRKeyringState() {
+  async resetQRKeyringState(): Promise<void> {
+    (await this.getOrAddQRKeyring()).resetStore();
+  }
+
+  async getQRKeyringState(): Promise<IQRKeyringState> {
     return (await this.getOrAddQRKeyring()).getMemStore();
   }
 
-  async submitQRKeyring(cryptoHDKey: any) {
+  async submitQRKeyring(cryptoHDKey: any): Promise<void> {
     return (await this.getOrAddQRKeyring()).syncKeyring(cryptoHDKey);
   }
 
-  async submitQRCryptoHDKey(cryptoHDKey: any) {
+  async submitQRCryptoHDKey(cryptoHDKey: any): Promise<void> {
     (await this.getOrAddQRKeyring()).submitCryptoHDKey(cryptoHDKey);
   }
 
-  async submitQRCryptoAccount(cryptoAccount: any) {
+  async submitQRCryptoAccount(cryptoAccount: any): Promise<void> {
     (await this.getOrAddQRKeyring()).submitCryptoAccount(cryptoAccount);
   }
 
-  async cancelSyncQRCryptoHDKey() {
+  async cancelSyncQRCryptoHDKey(): Promise<void> {
     // eslint-disable-next-line node/no-sync
     (await this.getOrAddQRKeyring()).cancelSync();
   }
 
-  async submitQRSignature(requestId: string, ethSignature: any) {
+  async submitQRSignature(requestId: string, ethSignature: any): Promise<void> {
     (await this.getOrAddQRKeyring()).submitSignature(requestId, ethSignature);
   }
 
-  async cancelQRSignRequest() {
+  async cancelQRSignRequest(): Promise<void> {
     (await this.getOrAddQRKeyring()).cancelSignRequest();
   }
 
-  async connectQRHardware(page: number) {
+  async connectQRHardware(
+    page: number,
+  ): Promise<{ balance: string; address: string; index: number }[]> {
     try {
       const keyring = await this.getOrAddQRKeyring();
-      let accounts: any[];
+      let accounts;
       switch (page) {
         case -1:
           accounts = await keyring.getPreviousPage();
@@ -696,7 +707,7 @@ export class KeyringController extends BaseController<
     }
   }
 
-  async unlockQRHardwareWalletAccount(index: number) {
+  async unlockQRHardwareWalletAccount(index: number): Promise<void> {
     const keyring = await this.getOrAddQRKeyring();
 
     keyring.setAccountToUnlock(index);
@@ -711,15 +722,15 @@ export class KeyringController extends BaseController<
       }
     });
     await privates.get(this).keyring.persistAllKeyrings();
-    return this.fullUpdate();
+    await this.fullUpdate();
   }
 
-  async getAccountKeyringType(account: string) {
+  async getAccountKeyringType(account: string): Promise<string> {
     return (await privates.get(this).keyring.getKeyringForAccount(account))
       .type;
   }
 
-  async forgetQRDevice() {
+  async forgetQRDevice(): Promise<void> {
     const keyring = await this.getOrAddQRKeyring();
     keyring.forgetDevice();
     const accounts = (await privates
@@ -730,7 +741,6 @@ export class KeyringController extends BaseController<
     });
     await privates.get(this).keyring.persistAllKeyrings();
     await this.fullUpdate();
-    return true;
   }
 }
 
