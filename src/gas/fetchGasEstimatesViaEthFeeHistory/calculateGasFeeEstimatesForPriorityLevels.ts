@@ -1,7 +1,7 @@
 import { BN } from 'ethereumjs-util';
 import { fromWei } from 'ethjs-unit';
 import { Eip1559GasFee, GasFeeEstimates } from '../GasFeeController';
-import { ExistingFeeHistoryBlock } from '../fetchBlockFeeHistory';
+import { FeeHistoryBlock } from '../fetchBlockFeeHistory';
 import { GWEI } from '../../constants';
 import medianOf from './medianOf';
 
@@ -54,7 +54,7 @@ const SETTINGS_BY_PRIORITY_LEVEL = {
  */
 function calculateEstimatesForPriorityLevel(
   priorityLevel: PriorityLevel,
-  blocks: ExistingFeeHistoryBlock<Percentile>[],
+  blocks: FeeHistoryBlock<Percentile>[],
 ): Eip1559GasFee {
   const settings = SETTINGS_BY_PRIORITY_LEVEL[priorityLevel];
 
@@ -63,9 +63,13 @@ function calculateEstimatesForPriorityLevel(
   const adjustedBaseFee = latestBaseFeePerGas
     .mul(settings.baseFeePercentageMultiplier)
     .divn(100);
-  const priorityFees = blocks.map((block) => {
-    return block.priorityFeesByPercentile[settings.percentile];
-  });
+  const priorityFees = blocks
+    .map((block) => {
+      return 'priorityFeesByPercentile' in block
+        ? block.priorityFeesByPercentile[settings.percentile]
+        : null;
+    })
+    .filter(BN.isBN);
   const medianPriorityFee = medianOf(priorityFees);
   const adjustedPriorityFee = medianPriorityFee
     .mul(settings.priorityFeePercentageMultiplier)
@@ -95,7 +99,7 @@ function calculateEstimatesForPriorityLevel(
  * @returns The estimates.
  */
 export default function calculateGasFeeEstimatesForPriorityLevels(
-  blocks: ExistingFeeHistoryBlock<Percentile>[],
+  blocks: FeeHistoryBlock<Percentile>[],
 ): Pick<GasFeeEstimates, PriorityLevel> {
   return PRIORITY_LEVELS.reduce((obj, priorityLevel) => {
     const gasEstimatesForPriorityLevel = calculateEstimatesForPriorityLevel(
