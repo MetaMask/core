@@ -1,9 +1,8 @@
 import Web3 from 'web3';
-import HttpProvider from 'ethjs-provider-http';
 import nock from 'nock';
 import { ERC20Standard } from './ERC20Standard';
 
-const MAINNET_PROVIDER = new HttpProvider(
+const MAINNET_PROVIDER = new Web3.providers.HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
 const ERC20_MATIC_ADDRESS = '0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0';

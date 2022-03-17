@@ -12,7 +12,6 @@ import {
   TokenListStateChange,
   GetTokenListState,
   TokenListMap,
-  ContractMap,
 } from './TokenListController';
 
 const name = 'TokenListController';
@@ -21,9 +20,7 @@ const timestamp = Date.now();
 
 const staticTokenList: TokenListMap = {};
 for (const tokenAddress in contractMap) {
-  const { erc20, logo: filePath, ...token } = (contractMap as ContractMap)[
-    tokenAddress
-  ];
+  const { erc20, logo: filePath, ...token } = contractMap[tokenAddress];
   if (erc20) {
     staticTokenList[tokenAddress] = {
       ...token,

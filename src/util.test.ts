@@ -1,6 +1,7 @@
 import 'isomorphic-fetch';
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
+import { buildFakeEthQuery } from '../tests/util';
 import * as util from './util';
 import {
   Transaction,
@@ -31,8 +32,18 @@ describe('util', () => {
     nock.cleanAll();
   });
 
-  it('bNToHex', () => {
-    expect(util.BNToHex(new BN('1337'))).toBe('0x539');
+  describe('BNToHex', () => {
+    it('returns a 0x-prefixed hex string if given a decimal string', () => {
+      expect(util.BNToHex(new BN('1337'))).toBe('0x539');
+    });
+
+    it('prefixes the given string with "0x" if it is not prefixed', () => {
+      expect(util.BNToHex('1337')).toBe('0x1337');
+    });
+
+    it('does nothing to a 0x-prefixed hex string', () => {
+      expect(util.BNToHex('0x1337')).toBe('0x1337');
+    });
   });
 
   it('fractionBN', () => {
@@ -940,18 +951,18 @@ describe('util', () => {
   describe('query', () => {
     describe('when the given method exists directly on the EthQuery', () => {
       it('should call the method on the EthQuery and, if it is successful, return a promise that resolves to the result', async () => {
-        const ethQuery = {
+        const ethQuery = buildFakeEthQuery({
           getBlockByHash: (blockId: any, cb: any) => cb(null, { id: blockId }),
-        };
+        });
         const result = await util.query(ethQuery, 'getBlockByHash', ['0x1234']);
         expect(result).toStrictEqual({ id: '0x1234' });
       });
 
       it('should call the method on the EthQuery and, if it errors, return a promise that is rejected with the error', async () => {
-        const ethQuery = {
+        const ethQuery = buildFakeEthQuery({
           getBlockByHash: (_blockId: any, cb: any) =>
             cb(new Error('uh oh'), null),
-        };
+        });
         await expect(
           util.query(ethQuery, 'getBlockByHash', ['0x1234']),
         ).rejects.toThrow('uh oh');
@@ -960,14 +971,14 @@ describe('util', () => {
 
     describe('when the given method does not exist directly on the EthQuery', () => {
       it('should use sendAsync to call the RPC endpoint and, if it is successful, return a promise that resolves to the result', async () => {
-        const ethQuery = {
+        const ethQuery = buildFakeEthQuery({
           sendAsync: ({ method, params }: any, cb: any) => {
             if (method === 'eth_getBlockByHash') {
               return cb(null, { id: params[0] });
             }
             throw new Error(`Unsupported method ${method}`);
           },
-        };
+        });
         const result = await util.query(ethQuery, 'eth_getBlockByHash', [
           '0x1234',
         ]);
@@ -975,11 +986,11 @@ describe('util', () => {
       });
 
       it('should use sendAsync to call the RPC endpoint and, if it errors, return a promise that is rejected with the error', async () => {
-        const ethQuery = {
+        const ethQuery = buildFakeEthQuery({
           sendAsync: (_args: any, cb: any) => {
             cb(new Error('uh oh'), null);
           },
-        };
+        });
         await expect(
           util.query(ethQuery, 'eth_getBlockByHash', ['0x1234']),
         ).rejects.toThrow('uh oh');

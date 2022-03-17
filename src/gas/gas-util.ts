@@ -17,9 +17,7 @@ const makeClientIdHeader = (clientId: string) => ({ 'X-Client-Id': clientId });
  * @returns The decimal string GWEI amount.
  */
 export function normalizeGWEIDecimalNumbers(n: string | number) {
-  const numberAsWEIHex = gweiDecToWEIBN(n).toString(16);
-  const numberAsGWEI = weiHexToGweiDec(numberAsWEIHex).toString(10);
-  return numberAsGWEI;
+  return weiHexToGweiDec(gweiDecToWEIBN(n).toString(16));
 }
 
 /**
@@ -113,9 +111,9 @@ export async function fetchLegacyGasPriceEstimates(
 export async function fetchEthGasPriceEstimate(
   ethQuery: any,
 ): Promise<EthGasPriceEstimate> {
-  const gasPrice = await query(ethQuery, 'gasPrice');
+  const gasPrice = await query<string>(ethQuery, 'gasPrice');
   return {
-    gasPrice: weiHexToGweiDec(gasPrice).toString(),
+    gasPrice: weiHexToGweiDec(gasPrice),
   };
 }
 

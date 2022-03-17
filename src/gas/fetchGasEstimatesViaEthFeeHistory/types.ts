@@ -1,5 +1,10 @@
 import { BN } from 'ethereumjs-util';
 
+export type RawEthBlock = {
+  number: string;
+  baseFeePerGas: string;
+};
+
 export type EthBlock = {
   number: BN;
   baseFeePerGas: BN;

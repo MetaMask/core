@@ -1,7 +1,7 @@
 import { fromWei } from 'ethjs-unit';
 import { GWEI } from '../constants';
+import { EthQueryish } from '../util';
 import { GasFeeEstimates } from './GasFeeController';
-import { EthQuery } from './fetchGasEstimatesViaEthFeeHistory/types';
 import fetchBlockFeeHistory from './fetchBlockFeeHistory';
 import fetchLatestBlock from './fetchGasEstimatesViaEthFeeHistory/fetchLatestBlock';
 import calculateGasFeeEstimatesForPriorityLevels from './fetchGasEstimatesViaEthFeeHistory/calculateGasFeeEstimatesForPriorityLevels';
@@ -25,7 +25,7 @@ import calculateGasFeeEstimatesForPriorityLevels from './fetchGasEstimatesViaEth
  * for the next block's base fee.
  */
 export default async function fetchGasEstimatesViaEthFeeHistory(
-  ethQuery: EthQuery,
+  ethQuery: EthQueryish,
 ): Promise<GasFeeEstimates> {
   const latestBlock = await fetchLatestBlock(ethQuery);
   const blocks = await fetchBlockFeeHistory({

@@ -1,10 +1,9 @@
 import Web3 from 'web3';
-import HttpProvider from 'ethjs-provider-http';
 import nock from 'nock';
 import { IPFS_DEFAULT_GATEWAY_URL } from '../../../../constants';
 import { ERC721Standard } from './ERC721Standard';
 
-const MAINNET_PROVIDER = new HttpProvider(
+const MAINNET_PROVIDER = new Web3.providers.HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
 const ERC721_GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';

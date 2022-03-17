@@ -259,7 +259,7 @@ export class TransactionController extends BaseController<
   TransactionConfig,
   TransactionState
 > {
-  private ethQuery: any;
+  private ethQuery: EthQuery;
 
   private registry: any;
 
@@ -636,7 +636,10 @@ export class TransactionController extends BaseController<
 
       const txNonce =
         nonce ||
-        (await query(this.ethQuery, 'getTransactionCount', [from, 'pending']));
+        (await query<string>(this.ethQuery, 'getTransactionCount', [
+          from,
+          'pending',
+        ]));
 
       transactionMeta.status = status;
       transactionMeta.transaction.nonce = txNonce;
@@ -677,9 +680,11 @@ export class TransactionController extends BaseController<
 
       transactionMeta.rawTransaction = rawTransaction;
       this.updateTransaction(transactionMeta);
-      const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
-        rawTransaction,
-      ]);
+      const transactionHash = await query<string>(
+        this.ethQuery,
+        'sendRawTransaction',
+        [rawTransaction],
+      );
       transactionMeta.transactionHash = transactionHash;
       transactionMeta.status = TransactionStatus.submitted;
       this.updateTransaction(transactionMeta);
@@ -808,7 +813,7 @@ export class TransactionController extends BaseController<
       transactionMeta.transaction.from,
     );
     const rawTransaction = bufferToHex(signedTx.serialize());
-    await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
+    await query<string>(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
     transactionMeta.status = TransactionStatus.cancelled;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
   }
@@ -906,9 +911,11 @@ export class TransactionController extends BaseController<
       transactionMeta.transaction.from,
     );
     const rawTransaction = bufferToHex(signedTx.serialize());
-    const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
-      rawTransaction,
-    ]);
+    const transactionHash = await query<string>(
+      this.ethQuery,
+      'sendRawTransaction',
+      [rawTransaction],
+    );
     const baseTransactionMeta = {
       ...transactionMeta,
       id: random(),
@@ -954,22 +961,25 @@ export class TransactionController extends BaseController<
     } = estimatedTransaction;
     const gasPrice =
       typeof providedGasPrice === 'undefined'
-        ? await query(this.ethQuery, 'gasPrice')
+        ? await query<string>(this.ethQuery, 'gasPrice')
         : providedGasPrice;
     const { isCustomNetwork } = this.getNetworkState();
     // 1. If gas is already defined on the transaction, use it
     if (typeof gas !== 'undefined') {
       return { gas, gasPrice };
     }
-    const { gasLimit } = await query(this.ethQuery, 'getBlockByNumber', [
-      'latest',
-      false,
-    ]);
+    const { gasLimit } = await query<{ gasLimit: string }>(
+      this.ethQuery,
+      'getBlockByNumber',
+      ['latest', false],
+    );
 
     // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000.
     // If the newtwork is a custom network then bypass this check and fetch 'estimateGas'.
     /* istanbul ignore next */
-    const code = to ? await query(this.ethQuery, 'getCode', [to]) : undefined;
+    const code = to
+      ? await query<string>(this.ethQuery, 'getCode', [to])
+      : undefined;
     /* istanbul ignore next */
     if (
       !isCustomNetwork &&
@@ -988,7 +998,7 @@ export class TransactionController extends BaseController<
       typeof value === 'undefined' ? '0x0' : /* istanbul ignore next */ value;
     const gasLimitBN = hexToBN(gasLimit);
     estimatedTransaction.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
-    const gasHex = await query(this.ethQuery, 'estimateGas', [
+    const gasHex = await query<string>(this.ethQuery, 'estimateGas', [
       estimatedTransaction,
     ]);
 
@@ -1170,7 +1180,7 @@ export class TransactionController extends BaseController<
           tx.transaction.to &&
           (!tx.transaction.data || tx.transaction.data !== '0x')
         ) {
-          const code = await query(this.ethQuery, 'getCode', [
+          const code = await query<string>(this.ethQuery, 'getCode', [
             tx.transaction.to,
           ]);
           tx.toSmartContract = isSmartContractCode(code);
@@ -1255,9 +1265,10 @@ export class TransactionController extends BaseController<
     const { status, transactionHash } = meta;
     switch (status) {
       case TransactionStatus.confirmed:
-        const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
-          transactionHash,
-        ]);
+        const txReceipt = await query<{
+          gasUsed: string;
+          status: string;
+        } | null>(this.ethQuery, 'getTransactionReceipt', [transactionHash]);
 
         if (!txReceipt) {
           return [meta, false];
@@ -1278,9 +1289,11 @@ export class TransactionController extends BaseController<
 
         return [meta, true];
       case TransactionStatus.submitted:
-        const txObj = await query(this.ethQuery, 'getTransactionByHash', [
-          transactionHash,
-        ]);
+        const txObj = await query<{ blockNumber: string } | null>(
+          this.ethQuery,
+          'getTransactionByHash',
+          [transactionHash],
+        );
 
         if (!txObj) {
           const receiptShowsFailedStatus = await this.checkTxReceiptStatusIsFailed(
@@ -1322,9 +1335,11 @@ export class TransactionController extends BaseController<
   private async checkTxReceiptStatusIsFailed(
     txHash: string | undefined,
   ): Promise<boolean> {
-    const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
-      txHash,
-    ]);
+    const txReceipt = await query<{ status: string } | null>(
+      this.ethQuery,
+      'getTransactionReceipt',
+      [txHash],
+    );
     if (!txReceipt) {
       // Transaction is pending
       return false;

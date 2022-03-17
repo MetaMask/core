@@ -1,13 +1,13 @@
 import { BN } from 'ethereumjs-util';
 import { mocked } from 'ts-jest/utils';
 import { when } from 'jest-when';
+import { buildFakeEthQuery } from '../../tests/util';
 import { query, fromHex, toHex } from '../util';
 import fetchBlockFeeHistory from './fetchBlockFeeHistory';
 
 jest.mock('../util', () => {
   return {
     ...jest.requireActual('../util'),
-    __esModule: true,
     query: jest.fn(),
   };
 });
@@ -30,7 +30,7 @@ function times<T>(n: number, fn: (n: number) => T): T[] {
 }
 
 describe('fetchBlockFeeHistory', () => {
-  const ethQuery = { eth: 'query' };
+  const ethQuery = buildFakeEthQuery();
 
   describe('with a minimal set of arguments', () => {
     const latestBlockNumber = 3;
@@ -332,6 +332,12 @@ describe('fetchBlockFeeHistory', () => {
   describe('given includeNextBlock = true', () => {
     const latestBlockNumber = 3;
     const numberOfRequestedBlocks = 3;
+
+    beforeEach(() => {
+      when(mockedQuery)
+        .calledWith(ethQuery, 'blockNumber')
+        .mockResolvedValue(new BN(latestBlockNumber));
+    });
 
     it('includes an extra block with an estimated baseFeePerGas', async () => {
       when(mockedQuery)

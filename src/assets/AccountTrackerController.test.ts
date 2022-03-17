@@ -45,23 +45,6 @@ describe('AccountTrackerController', () => {
     expect(controller.state.accounts[address].balance).toBeDefined();
   });
 
-  it('should sync balance with addresses', async () => {
-    const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const queryStub = stub(utils, 'query');
-    const controller = new AccountTrackerController(
-      {
-        onPreferencesStateChange: stub(),
-        getIdentities: () => {
-          return {};
-        },
-      },
-      { provider },
-    );
-    queryStub.returns(Promise.resolve('0x10'));
-    const result = await controller.syncBalanceWithAddresses([address]);
-    expect(result[address].balance).toBe('0x10');
-  });
-
   it('should sync addresses', () => {
     const controller = new AccountTrackerController(
       {
@@ -82,6 +65,63 @@ describe('AccountTrackerController', () => {
     expect(controller.state.accounts).toStrictEqual({
       baz: { balance: '0x0' },
     });
+  });
+
+  it('does not refresh any accounts if no provider has been set', () => {
+    const controller = new AccountTrackerController(
+      {
+        onPreferencesStateChange: stub(),
+        getIdentities: () => {
+          return { baz: {} as ContactEntry };
+        },
+      },
+      {},
+      {
+        accounts: {},
+      },
+    );
+
+    controller.refresh();
+
+    expect(controller.state.accounts).toStrictEqual({});
+  });
+
+  it('should sync balance with addresses', async () => {
+    const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    const queryStub = stub(utils, 'query');
+    const controller = new AccountTrackerController(
+      {
+        onPreferencesStateChange: stub(),
+        getIdentities: () => {
+          return {};
+        },
+      },
+      { provider },
+    );
+    queryStub.returns(Promise.resolve('0x10'));
+    const result = await controller.syncBalanceWithAddresses([address]);
+    expect(result[address].balance).toBe('0x10');
+    queryStub.restore();
+  });
+
+  it('should not sync balance with addresses if no provider has been set', async () => {
+    const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    const queryStub = stub(utils, 'query');
+    const controller = new AccountTrackerController(
+      {
+        onPreferencesStateChange: stub(),
+        getIdentities: () => {
+          return {};
+        },
+      },
+      {},
+    );
+    queryStub.returns(Promise.resolve('0x10'));
+
+    const result = await controller.syncBalanceWithAddresses([address]);
+
+    expect(result).toStrictEqual({});
+    queryStub.restore();
   });
 
   it('should subscribe to new sibling preference controllers', async () => {

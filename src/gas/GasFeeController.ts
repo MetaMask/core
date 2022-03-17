@@ -251,7 +251,7 @@ export class GasFeeController extends BaseController<
 
   private currentChainId;
 
-  private ethQuery: any;
+  private ethQuery: EthQuery;
 
   private clientId?: string;
 

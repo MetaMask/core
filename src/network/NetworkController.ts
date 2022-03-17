@@ -1,5 +1,6 @@
 import EthQuery from 'eth-query';
 import Subprovider from 'web3-provider-engine/subproviders/provider';
+import { SupportedInfuraNetwork } from 'eth-json-rpc-infura';
 import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Mutex } from 'async-mutex';
@@ -18,7 +19,9 @@ export type NetworkType =
   | 'ropsten'
   | 'rpc'
   | 'optimism'
-  | 'optimismTest';
+  | 'optimism-mainnet'
+  | 'optimismTest'
+  | 'optimism-kovan';
 
 export enum NetworksChainId {
   mainnet = '1',
@@ -29,7 +32,9 @@ export enum NetworksChainId {
   localhost = '',
   rpc = '',
   optimism = '10',
+  'optimism-mainnet' = '10',
   optimismTest = '69',
+  'optimism-kovan' = '69',
 }
 
 /**
@@ -94,7 +99,7 @@ export class NetworkController extends BaseController<
   NetworkConfig,
   NetworkState
 > {
-  private ethQuery: any;
+  private ethQuery: EthQuery | null;
 
   private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 
@@ -114,7 +119,9 @@ export class NetworkController extends BaseController<
       case 'rinkeby':
       case 'goerli':
       case 'optimism':
+      case 'optimism-mainnet':
       case 'optimismTest':
+      case 'optimism-kovan':
       case 'ropsten':
         this.setupInfuraProvider(type);
         break;
@@ -142,10 +149,10 @@ export class NetworkController extends BaseController<
     this.ethQuery = new EthQuery(this.provider);
   }
 
-  private setupInfuraProvider(type: NetworkType) {
+  private setupInfuraProvider(type: SupportedInfuraNetwork) {
     const infuraProvider = createInfuraProvider({
       network: type,
-      projectId: this.config.infuraProjectId,
+      projectId: this.config.infuraProjectId ?? '',
     });
     const infuraSubprovider = new Subprovider(infuraProvider);
     const config = {
@@ -231,6 +238,7 @@ export class NetworkController extends BaseController<
       provider: { type: MAINNET, chainId: NetworksChainId.mainnet },
       properties: { isEIP1559Compatible: false },
     };
+    this.ethQuery = null;
     this.initialize();
     this.getEIP1559Compatibility();
   }
@@ -263,8 +271,8 @@ export class NetworkController extends BaseController<
       return;
     }
     const releaseLock = await this.mutex.acquire();
-    this.ethQuery.sendAsync(
-      { method: 'net_version' },
+    this.ethQuery?.sendAsync(
+      { id: 1, jsonrpc: '2.0', method: 'net_version' },
       (error: Error, network: string) => {
         this.update({
           network: error ? /* istanbul ignore next*/ 'loading' : network,
@@ -326,8 +334,13 @@ export class NetworkController extends BaseController<
         return Promise.resolve(true);
       }
       return new Promise((resolve, reject) => {
-        this.ethQuery.sendAsync(
-          { method: 'eth_getBlockByNumber', params: ['latest', false] },
+        this.ethQuery?.sendAsync(
+          {
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_getBlockByNumber',
+            params: ['latest', false],
+          },
           (error: Error, block: Block) => {
             if (error) {
               reject(error);

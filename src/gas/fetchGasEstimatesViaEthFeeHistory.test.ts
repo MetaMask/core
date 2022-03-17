@@ -1,6 +1,7 @@
 import { BN } from 'ethereumjs-util';
 import { mocked } from 'ts-jest/utils';
 import { when } from 'jest-when';
+import { buildFakeEthQuery } from '../../tests/util';
 import fetchBlockFeeHistory from './fetchBlockFeeHistory';
 import calculateGasFeeEstimatesForPriorityLevels from './fetchGasEstimatesViaEthFeeHistory/calculateGasFeeEstimatesForPriorityLevels';
 import fetchLatestBlock from './fetchGasEstimatesViaEthFeeHistory/fetchLatestBlock';
@@ -24,10 +25,10 @@ describe('fetchGasEstimatesViaEthFeeHistory', () => {
     number: new BN(1),
     baseFeePerGas: new BN(100_000_000_000),
   };
-  const ethQuery = {
+  const ethQuery = buildFakeEthQuery({
     blockNumber: async () => latestBlock.number,
     getBlockByNumber: async () => latestBlock,
-  };
+  });
 
   it('calculates target fees for low, medium, and high transaction priority levels', async () => {
     const blocks = [

@@ -11,6 +11,7 @@ import { fromWei, toWei } from 'ethjs-unit';
 import { ethErrors } from 'eth-rpc-errors';
 import ensNamehash from 'eth-ens-namehash';
 import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
+import { EthQuerySendAsyncFunction } from 'eth-query';
 import { validate } from 'jsonschema';
 import { CID } from 'multiformats/cid';
 import deepEqual from 'fast-deep-equal';
@@ -26,6 +27,10 @@ import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
 import { MAINNET } from './constants';
 import { Json } from './BaseControllerV2';
+
+export type EthQueryish = {
+  sendAsync: EthQuerySendAsyncFunction;
+};
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 
@@ -45,12 +50,12 @@ const NORMALIZERS: { [param in keyof Transaction]: any } = {
 };
 
 /**
- * Converts a BN object to a hex string with a '0x' prefix.
+ * Converts a BN object or a string to a hex string with a '0x' prefix.
  *
- * @param inputBn - BN instance to convert to a hex string.
+ * @param inputBn - BN instance or string to convert to a hex string.
  * @returns A '0x'-prefixed hex string.
  */
-export function BNToHex(inputBn: any) {
+export function BNToHex(inputBn: BN | string) {
   return addHexPrefix(inputBn.toString(16));
 }
 
@@ -116,7 +121,7 @@ export function gweiDecToWEIBN(n: number | string) {
  */
 export function weiHexToGweiDec(hex: string) {
   const hexWei = new BN(stripHexPrefix(hex), 16);
-  return fromWei(hexWei, 'gwei').toString(10);
+  return fromWei(hexWei, 'gwei');
 }
 
 /**
@@ -709,18 +714,20 @@ export function normalizeEnsName(ensName: string): string | null {
 /**
  * Wrapper method to handle EthQuery requests.
  *
- * @param ethQuery - EthQuery object initialized with a provider.
- * @param method - Method to request.
+ * @param ethQuery - EthQuery object initialized with a provider, or an object
+ * that has a `sendAsync` method that can be used to make a JSON-RPC request to
+ * a provider.
+ * @param methodName - Method to request.
  * @param args - Arguments to send.
  * @returns Promise resolving the request.
  */
-export function query(
-  ethQuery: any,
-  method: string,
+export function query<R = unknown>(
+  ethQuery: EthQueryish,
+  methodName: string,
   args: any[] = [],
-): Promise<any> {
+): Promise<R> {
   return new Promise((resolve, reject) => {
-    const cb = (error: Error, result: any) => {
+    const cb = (error: Error, result: R) => {
       if (error) {
         reject(error);
         return;
@@ -728,10 +735,18 @@ export function query(
       resolve(result);
     };
 
-    if (typeof ethQuery[method] === 'function') {
-      ethQuery[method](...args, cb);
+    if (methodName in ethQuery) {
+      // Due to the generic nature of this function, there isn't a way to
+      // clarify the type on `ethQuery`. At this point we know that `ethQuery`
+      // has a method with the name of `${methodName}` that takes some arguments
+      // and a callback, but we don't know what `methodName` is, so we don't
+      // know what kind of arguments it takes or the return type of the result.
+      (ethQuery as any)[methodName](...args, cb);
     } else {
-      ethQuery.sendAsync({ method, params: args }, cb);
+      ethQuery.sendAsync(
+        { id: 1, jsonrpc: '2.0', method: methodName, params: args },
+        cb,
+      );
     }
   });
 }

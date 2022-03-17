@@ -1,7 +1,5 @@
 import { BN } from 'ethereumjs-util';
-import { query, fromHex, toHex } from '../util';
-
-type EthQuery = any;
+import { query, fromHex, toHex, EthQueryish } from '../util';
 
 /**
  * @type RequestChunkSpecifier
@@ -111,7 +109,7 @@ const MAX_NUMBER_OF_BLOCKS_PER_ETH_FEE_HISTORY_CALL = 1024;
  * - <https://gas-api.metaswap.codefi.network/testFeeHistory>
  *
  * @param args - The arguments to this function.
- * @param args.ethQuery - An EthQuery instance that wraps a provider for the network in question.
+ * @param args.ethQuery - An object that {@link query} takes which wraps a provider for the network in question.
  * @param args.endBlock - The desired end of the requested block range. Can be "latest" if you want
  * to start from the latest successful block or the number of a known past block.
  * @param args.numberOfBlocks - How many total blocks to fetch. Note that if this is more than 1024,
@@ -138,7 +136,7 @@ export default async function fetchBlockFeeHistory<Percentile extends number>({
   percentiles: givenPercentiles = [],
   includeNextBlock = false,
 }: {
-  ethQuery: EthQuery;
+  ethQuery: EthQueryish;
   numberOfBlocks: number;
   endBlock?: 'latest' | BN;
   percentiles?: readonly Percentile[];
@@ -149,10 +147,13 @@ export default async function fetchBlockFeeHistory<Percentile extends number>({
       ? Array.from(new Set(givenPercentiles)).sort((a, b) => a - b)
       : [];
 
-  const finalEndBlockNumber =
-    givenEndBlock === 'latest'
-      ? fromHex(await query(ethQuery, 'blockNumber'))
-      : givenEndBlock;
+  let finalEndBlockNumber: BN;
+  if (givenEndBlock === 'latest') {
+    const latestBlockNumber = await query<string>(ethQuery, 'blockNumber');
+    finalEndBlockNumber = fromHex(latestBlockNumber);
+  } else {
+    finalEndBlockNumber = givenEndBlock;
+  }
 
   const requestChunkSpecifiers = determineRequestChunkSpecifiers(
     finalEndBlockNumber,
@@ -275,13 +276,13 @@ async function makeRequestForChunk<Percentile extends number>({
   percentiles,
   includeNextBlock,
 }: {
-  ethQuery: EthQuery;
+  ethQuery: EthQueryish;
   numberOfBlocks: number;
   endBlockNumber: BN;
   percentiles: readonly Percentile[];
   includeNextBlock: boolean;
 }): Promise<FeeHistoryBlock<Percentile>[]> {
-  const response: EthFeeHistoryResponse = await query(
+  const response = await query<EthFeeHistoryResponse>(
     ethQuery,
     'eth_feeHistory',
     [toHex(numberOfBlocks), toHex(endBlockNumber), percentiles],

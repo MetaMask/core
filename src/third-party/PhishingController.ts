@@ -1,5 +1,7 @@
 import { toASCII } from 'punycode/';
-import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
+import DEFAULT_PHISHING_RESPONSE, {
+  EthPhishingDetectorConfiguration,
+} from 'eth-phishing-detect/src/config.json';
 import PhishingDetector from 'eth-phishing-detect/src/detector';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute } from '../util';
@@ -15,13 +17,7 @@ import { safelyExecute } from '../util';
  * @property version - Version number of this configuration
  * @property whitelist - List of approved origins
  */
-export interface EthPhishingResponse {
-  blacklist: string[];
-  fuzzylist: string[];
-  tolerance: number;
-  version: number;
-  whitelist: string[];
-}
+export type EthPhishingResponse = EthPhishingDetectorConfiguration;
 
 /**
  * @type PhishingConfig
@@ -55,7 +51,7 @@ export class PhishingController extends BaseController<
   private configUrl =
     'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
 
-  private detector: any;
+  private detector: PhishingDetector;
 
   private handle?: NodeJS.Timer;
 

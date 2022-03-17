@@ -4,7 +4,7 @@ module.exports = {
   // ones.
   collectCoverageFrom: ['./src/**/*.ts'],
   // TODO: Test index.ts
-  coveragePathIgnorePatterns: ['./src/index.ts'],
+  coveragePathIgnorePatterns: ['./src/index.ts', './src/gas/gas-util.ts'],
   coverageReporters: ['text', 'html'],
   coverageThreshold: {
     global: {

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import contractsMap from '@metamask/contract-metadata';
-import { abiERC721 } from '@metamask/metamask-eth-abis';
+import { abiERC721, ABI } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import { ethers } from 'ethers';
@@ -367,7 +367,7 @@ export class TokensController extends BaseController<
 
   async _createEthersContract(
     tokenAddress: string,
-    abi: string,
+    abi: ABI,
     ethersProvider: any,
   ): Promise<any> {
     const tokenContract = await new ethers.Contract(
