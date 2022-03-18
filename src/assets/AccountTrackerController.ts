@@ -151,7 +151,6 @@ export class AccountTrackerController extends BaseController<
       await safelyExecuteWithTimeout(async () => {
         const balance = await query(this.ethQuery, 'getBalance', [address]);
         accounts[address] = { balance: BNToHex(balance) };
-        this.update({ accounts: { ...accounts } });
       });
     }
     this.update({ accounts });

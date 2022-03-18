@@ -8,6 +8,7 @@ import {
 import { stub } from 'sinon';
 import Common from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
+import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import MockEncryptor from '../../tests/mocks/mockEncryptor';
 import { PreferencesController } from '../user/PreferencesController';
 import {
@@ -40,11 +41,16 @@ describe('KeyringController', () => {
     keyringTypes: string[];
     keyrings: Keyring[];
   };
-  const baseConfig: Partial<KeyringConfig> = { encryptor: new MockEncryptor() };
+  const additionalKeyrings = [QRKeyring];
+  const baseConfig: Partial<KeyringConfig> = {
+    encryptor: new MockEncryptor(),
+    keyringTypes: additionalKeyrings,
+  };
   beforeEach(async () => {
     preferences = new PreferencesController();
     keyringController = new KeyringController(
       {
+        setAccountLabel: preferences.setAccountLabel.bind(preferences),
         removeIdentity: preferences.removeIdentity.bind(preferences),
         syncIdentities: preferences.syncIdentities.bind(preferences),
         updateIdentities: preferences.updateIdentities.bind(preferences),
