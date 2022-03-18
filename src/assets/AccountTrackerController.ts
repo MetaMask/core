@@ -162,7 +162,7 @@ export class AccountTrackerController extends BaseController<
    * @param addresses - the additional addresses, may be hardware wallet addresses.
    * @returns accounts - addresses with synced balance
    */
-  async syncBalanceWithAddresses(addresses: string[]) {
+  async syncBalanceWithAddresses(addresses: string[]): Promise<Record<string, {balance: string}>> {
     return await Promise.all(
       addresses.map(
         (address): Promise<[string, string] | undefined> => {

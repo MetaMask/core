@@ -626,7 +626,11 @@ export class KeyringController extends BaseController<
    * @returns The added keyring
    */
   private async addQRKeyring(): Promise<QRKeyring> {
-    return await privates.get(this).keyring.addNewKeyring(KeyringTypes.qr);
+    const keyring = await privates
+      .get(this)
+      .keyring.addNewKeyring(KeyringTypes.qr);
+    await this.fullUpdate();
+    return keyring;
   }
 
   /**
@@ -634,7 +638,7 @@ export class KeyringController extends BaseController<
    *
    * @returns The added keyring
    */
-  private async getOrAddQRKeyring(): Promise<QRKeyring> {
+  async getOrAddQRKeyring(): Promise<QRKeyring> {
     const keyring = privates
       .get(this)
       .keyring.getKeyringsByType(KeyringTypes.qr)[0];
@@ -655,24 +659,18 @@ export class KeyringController extends BaseController<
     return (await this.getOrAddQRKeyring()).getMemStore();
   }
 
-  async submitQRKeyring(cryptoHDKey: any): Promise<void> {
-    return (await this.getOrAddQRKeyring()).syncKeyring(cryptoHDKey);
-  }
-
-  async submitQRCryptoHDKey(cryptoHDKey: any): Promise<void> {
+  async submitQRCryptoHDKey(cryptoHDKey: string): Promise<void> {
     (await this.getOrAddQRKeyring()).submitCryptoHDKey(cryptoHDKey);
   }
 
-  async submitQRCryptoAccount(cryptoAccount: any): Promise<void> {
+  async submitQRCryptoAccount(cryptoAccount: string): Promise<void> {
     (await this.getOrAddQRKeyring()).submitCryptoAccount(cryptoAccount);
   }
 
-  async cancelSyncQRCryptoHDKey(): Promise<void> {
-    // eslint-disable-next-line node/no-sync
-    (await this.getOrAddQRKeyring()).cancelSync();
-  }
-
-  async submitQRSignature(requestId: string, ethSignature: any): Promise<void> {
+  async submitQRSignature(
+    requestId: string,
+    ethSignature: string,
+  ): Promise<void> {
     (await this.getOrAddQRKeyring()).submitSignature(requestId, ethSignature);
   }
 
