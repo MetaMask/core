@@ -56,9 +56,13 @@ function calculateEstimatesForPriorityLevel(priorityLevel, blocks) {
     const adjustedBaseFee = latestBaseFeePerGas
         .mul(settings.baseFeePercentageMultiplier)
         .divn(100);
-    const priorityFees = blocks.map((block) => {
-        return block.priorityFeesByPercentile[settings.percentile];
-    });
+    const priorityFees = blocks
+        .map((block) => {
+        return 'priorityFeesByPercentile' in block
+            ? block.priorityFeesByPercentile[settings.percentile]
+            : null;
+    })
+        .filter(ethereumjs_util_1.BN.isBN);
     const medianPriorityFee = medianOf_1.default(priorityFees);
     const adjustedPriorityFee = medianPriorityFee
         .mul(settings.priorityFeePercentageMultiplier)

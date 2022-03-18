@@ -1,3 +1,4 @@
+import { IKeyringState as IQRKeyringState } from '@keystonehq/metamask-airgapped-keyring';
 import { BaseController, BaseConfig, BaseState, Listener } from '../BaseController';
 import { PreferencesController } from '../user/PreferencesController';
 import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
@@ -55,6 +56,7 @@ export interface KeyringMemState extends BaseState {
  */
 export interface KeyringConfig extends BaseConfig {
     encryptor?: any;
+    keyringTypes?: any[];
 }
 /**
  * @type Keyring
@@ -284,18 +286,23 @@ export declare class KeyringController extends BaseController<KeyringConfig, Key
      *
      * @returns The added keyring
      */
-    private getQRKeyring;
-    restoreQRKeyring: (serialized: any) => Promise<void>;
-    getQRKeyringState: () => Promise<any>;
-    submitQRKeyring: (cryptoHDKey: any) => Promise<any>;
-    submitQRCryptoHDKey: (cryptoHDKey: any) => Promise<any>;
-    submitQRCryptoAccount: (cryptoAccount: any) => Promise<any>;
-    cancelSyncQRCryptoHDKey: () => Promise<any>;
-    submitQRSignature: (requestId: string, ethSignature: any) => Promise<any>;
-    cancelQRSignRequest: () => Promise<any>;
-    connectQRHardware: (page: number) => Promise<any[]>;
-    unlockQRHardwareWalletAccount(index: number): Promise<KeyringMemState>;
-    getAccountKeyringType(account: string): Promise<any>;
-    forgetQRDevice(): Promise<boolean>;
+    private getOrAddQRKeyring;
+    restoreQRKeyring(serialized: any): Promise<void>;
+    resetQRKeyringState(): Promise<void>;
+    getQRKeyringState(): Promise<IQRKeyringState>;
+    submitQRKeyring(cryptoHDKey: any): Promise<void>;
+    submitQRCryptoHDKey(cryptoHDKey: any): Promise<void>;
+    submitQRCryptoAccount(cryptoAccount: any): Promise<void>;
+    cancelSyncQRCryptoHDKey(): Promise<void>;
+    submitQRSignature(requestId: string, ethSignature: any): Promise<void>;
+    cancelQRSignRequest(): Promise<void>;
+    connectQRHardware(page: number): Promise<{
+        balance: string;
+        address: string;
+        index: number;
+    }[]>;
+    unlockQRHardwareWalletAccount(index: number): Promise<void>;
+    getAccountKeyringType(account: string): Promise<string>;
+    forgetQRDevice(): Promise<void>;
 }
 export default KeyringController;

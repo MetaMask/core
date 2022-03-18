@@ -77,7 +77,8 @@ export declare type Eip1559GasFee = {
  * @property networkCongestion - A normalized number that can be used to gauge the congestion
  * level of the network, with 0 meaning not congested and 1 meaning extremely congested
  */
-export declare type GasFeeEstimates = {
+export declare type GasFeeEstimates = SourcedGasFeeEstimates | FallbackGasFeeEstimates;
+declare type SourcedGasFeeEstimates = {
     low: Eip1559GasFee;
     medium: Eip1559GasFee;
     high: Eip1559GasFee;
@@ -88,6 +89,18 @@ export declare type GasFeeEstimates = {
     historicalPriorityFeeRange: [string, string];
     priorityFeeTrend: 'up' | 'down' | 'level';
     networkCongestion: number;
+};
+declare type FallbackGasFeeEstimates = {
+    low: Eip1559GasFee;
+    medium: Eip1559GasFee;
+    high: Eip1559GasFee;
+    estimatedBaseFee: string;
+    historicalBaseFeeRange: null;
+    baseFeeTrend: null;
+    latestPriorityFeeRange: null;
+    historicalPriorityFeeRange: null;
+    priorityFeeTrend: null;
+    networkCongestion: null;
 };
 export declare type GasFeeStateEthGasPrice = {
     gasFeeEstimates: EthGasPriceEstimate;

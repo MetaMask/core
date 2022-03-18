@@ -1,5 +1,5 @@
 import { GasFeeEstimates } from '../GasFeeController';
-import { ExistingFeeHistoryBlock } from '../fetchBlockFeeHistory';
+import { FeeHistoryBlock } from '../fetchBlockFeeHistory';
 export declare type PriorityLevel = typeof PRIORITY_LEVELS[number];
 export declare type Percentile = typeof PRIORITY_LEVEL_PERCENTILES[number];
 declare const PRIORITY_LEVELS: readonly ["low", "medium", "high"];
@@ -12,5 +12,5 @@ declare const PRIORITY_LEVEL_PERCENTILES: readonly [10, 20, 30];
  * obtained via {@link BlockFeeHistoryDatasetFetcher}.
  * @returns The estimates.
  */
-export default function calculateGasFeeEstimatesForPriorityLevels(blocks: ExistingFeeHistoryBlock<Percentile>[]): Pick<GasFeeEstimates, PriorityLevel>;
+export default function calculateGasFeeEstimatesForPriorityLevels(blocks: FeeHistoryBlock<Percentile>[]): Pick<GasFeeEstimates, PriorityLevel>;
 export {};

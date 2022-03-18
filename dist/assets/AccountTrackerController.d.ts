@@ -79,10 +79,8 @@ export declare class AccountTrackerController extends BaseController<AccountTrac
      * Sync accounts balances with some additional addresses.
      *
      * @param addresses - the additional addresses, may be hardware wallet addresses.
-     * @returns accounts - current state accounts
+     * @returns accounts - addresses with synced balance
      */
-    syncWithAddresses: (addresses: string[]) => Promise<{
-        [address: string]: AccountInformation;
-    }>;
+    syncBalanceWithAddresses(addresses: string[]): Promise<{}>;
 }
 export default AccountTrackerController;

@@ -11,6 +11,9 @@ import { EthQuery } from './fetchGasEstimatesViaEthFeeHistory/types';
  * calculate reasonable max priority and max fees for three different priority levels (higher
  * priority = higher fee).
  *
+ * Note that properties are returned for other data that are normally obtained via the API; however,
+ * to prevent extra requests to Infura, these properties are empty.
+ *
  * @param ethQuery - An EthQuery instance.
  * @returns Base and priority fee estimates, categorized by priority level, as well as an estimate
  * for the next block's base fee.

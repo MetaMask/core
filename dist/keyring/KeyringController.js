@@ -91,44 +91,6 @@ class KeyringController extends BaseController_1.BaseController {
          * Name of this controller used during composition
          */
         this.name = 'KeyringController';
-        this.restoreQRKeyring = (serialized) => __awaiter(this, void 0, void 0, function* () {
-            (yield this.getQRKeyring()).deserialize(serialized);
-            this.updateIdentities(yield privates.get(this).keyring.getAccounts());
-            this.fullUpdate();
-        });
-        this.getQRKeyringState = () => __awaiter(this, void 0, void 0, function* () {
-            return (yield this.getQRKeyring()).getMemStore();
-        });
-        this.submitQRKeyring = (cryptoHDKey) => __awaiter(this, void 0, void 0, function* () { return (yield this.getQRKeyring()).syncKeyring(cryptoHDKey); });
-        this.submitQRCryptoHDKey = (cryptoHDKey) => __awaiter(this, void 0, void 0, function* () { return (yield this.getQRKeyring()).submitCryptoHDKey(cryptoHDKey); });
-        this.submitQRCryptoAccount = (cryptoAccount) => __awaiter(this, void 0, void 0, function* () { return (yield this.getQRKeyring()).submitCryptoAccount(cryptoAccount); });
-        this.cancelSyncQRCryptoHDKey = () => __awaiter(this, void 0, void 0, function* () { 
-        // eslint-disable-next-line node/no-sync
-        return (yield this.getQRKeyring()).cancelSync(); });
-        this.submitQRSignature = (requestId, ethSignature) => __awaiter(this, void 0, void 0, function* () { return (yield this.getQRKeyring()).submitSignature(requestId, ethSignature); });
-        this.cancelQRSignRequest = () => __awaiter(this, void 0, void 0, function* () { return (yield this.getQRKeyring()).cancelSignRequest(); });
-        this.connectQRHardware = (page) => __awaiter(this, void 0, void 0, function* () {
-            try {
-                const keyring = yield this.getQRKeyring();
-                let accounts;
-                switch (page) {
-                    case -1:
-                        accounts = yield keyring.getPreviousPage();
-                        break;
-                    case 1:
-                        accounts = yield keyring.getNextPage();
-                        break;
-                    default:
-                        accounts = yield keyring.getFirstPage();
-                }
-                return accounts.map((account) => {
-                    return Object.assign(Object.assign({}, account), { balance: '0x0' });
-                });
-            }
-            catch (e) {
-                throw new Error('Unspecified error when connect QR Hardware');
-            }
-        });
         privates.set(this, {
             keyring: new eth_keyring_controller_1.default(Object.assign({ initState: state }, config)),
         });
@@ -374,18 +336,17 @@ class KeyringController extends BaseController_1.BaseController {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const address = eth_sig_util_1.normalize(messageParams.from);
-                const QRKeyring = yield this.getQRKeyring();
-                const qrAccounts = yield QRKeyring.getAccounts();
-                if (qrAccounts.find((qrAddress) => qrAddress.toLowerCase() === address.toLowerCase())) {
-                    if (version !== 'V1') {
-                        // But we don't have to require that. We can stop suggesting it now:
-                        if (typeof messageParams.data === 'string') {
-                            messageParams.data = JSON.parse(messageParams.data);
-                        }
+                const qrKeyring = yield this.getOrAddQRKeyring();
+                const qrAccounts = yield qrKeyring.getAccounts();
+                if (qrAccounts.findIndex((qrAddress) => qrAddress.toLowerCase() === address.toLowerCase()) !== -1) {
+                    const messageParamsClone = Object.assign({}, messageParams);
+                    if (version !== SignTypedDataVersion.V1 &&
+                        typeof messageParamsClone.data === 'string') {
+                        messageParamsClone.data = JSON.parse(messageParamsClone.data);
                     }
                     return privates
                         .get(this)
-                        .keyring.signTypedMessage(messageParams, { version });
+                        .keyring.signTypedMessage(messageParamsClone, { version });
                 }
                 const { password } = privates.get(this).keyring;
                 const privateKey = yield this.exportAccount(password, address);
@@ -551,20 +512,89 @@ class KeyringController extends BaseController_1.BaseController {
      *
      * @returns The added keyring
      */
-    getQRKeyring() {
+    getOrAddQRKeyring() {
         return __awaiter(this, void 0, void 0, function* () {
             const keyring = privates
                 .get(this)
                 .keyring.getKeyringsByType(KeyringTypes.qr)[0];
-            if (keyring) {
-                return keyring;
+            return keyring || (yield this.addQRKeyring());
+        });
+    }
+    restoreQRKeyring(serialized) {
+        return __awaiter(this, void 0, void 0, function* () {
+            (yield this.getOrAddQRKeyring()).deserialize(serialized);
+            this.updateIdentities(yield privates.get(this).keyring.getAccounts());
+            yield this.fullUpdate();
+        });
+    }
+    resetQRKeyringState() {
+        return __awaiter(this, void 0, void 0, function* () {
+            (yield this.getOrAddQRKeyring()).resetStore();
+        });
+    }
+    getQRKeyringState() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return (yield this.getOrAddQRKeyring()).getMemStore();
+        });
+    }
+    submitQRKeyring(cryptoHDKey) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return (yield this.getOrAddQRKeyring()).syncKeyring(cryptoHDKey);
+        });
+    }
+    submitQRCryptoHDKey(cryptoHDKey) {
+        return __awaiter(this, void 0, void 0, function* () {
+            (yield this.getOrAddQRKeyring()).submitCryptoHDKey(cryptoHDKey);
+        });
+    }
+    submitQRCryptoAccount(cryptoAccount) {
+        return __awaiter(this, void 0, void 0, function* () {
+            (yield this.getOrAddQRKeyring()).submitCryptoAccount(cryptoAccount);
+        });
+    }
+    cancelSyncQRCryptoHDKey() {
+        return __awaiter(this, void 0, void 0, function* () {
+            // eslint-disable-next-line node/no-sync
+            (yield this.getOrAddQRKeyring()).cancelSync();
+        });
+    }
+    submitQRSignature(requestId, ethSignature) {
+        return __awaiter(this, void 0, void 0, function* () {
+            (yield this.getOrAddQRKeyring()).submitSignature(requestId, ethSignature);
+        });
+    }
+    cancelQRSignRequest() {
+        return __awaiter(this, void 0, void 0, function* () {
+            (yield this.getOrAddQRKeyring()).cancelSignRequest();
+        });
+    }
+    connectQRHardware(page) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const keyring = yield this.getOrAddQRKeyring();
+                let accounts;
+                switch (page) {
+                    case -1:
+                        accounts = yield keyring.getPreviousPage();
+                        break;
+                    case 1:
+                        accounts = yield keyring.getNextPage();
+                        break;
+                    default:
+                        accounts = yield keyring.getFirstPage();
+                }
+                return accounts.map((account) => {
+                    return Object.assign(Object.assign({}, account), { balance: '0x0' });
+                });
             }
-            return yield this.addQRKeyring();
+            catch (e) {
+                throw new Error(`Unspecified error when connect QR Hardware, ${e}`);
+            }
         });
     }
     unlockQRHardwareWalletAccount(index) {
         return __awaiter(this, void 0, void 0, function* () {
-            const keyring = yield this.getQRKeyring();
+            const keyring = yield this.getOrAddQRKeyring();
             keyring.setAccountToUnlock(index);
             const oldAccounts = yield privates.get(this).keyring.getAccounts();
             yield privates.get(this).keyring.addNewAccount(keyring);
@@ -572,14 +602,12 @@ class KeyringController extends BaseController_1.BaseController {
             this.updateIdentities(newAccounts);
             newAccounts.forEach((address) => {
                 if (!oldAccounts.includes(address)) {
-                    if (this.setAccountLabel) {
-                        this.setAccountLabel(address, `${keyring.getName()} ${index + 1}`);
-                    }
+                    this.setAccountLabel(address, `${keyring.getName()} ${index}`);
                     this.setSelectedAddress(address);
                 }
             });
             yield privates.get(this).keyring.persistAllKeyrings();
-            return this.fullUpdate();
+            yield this.fullUpdate();
         });
     }
     getAccountKeyringType(account) {
@@ -590,7 +618,7 @@ class KeyringController extends BaseController_1.BaseController {
     }
     forgetQRDevice() {
         return __awaiter(this, void 0, void 0, function* () {
-            const keyring = yield this.getQRKeyring();
+            const keyring = yield this.getOrAddQRKeyring();
             keyring.forgetDevice();
             const accounts = (yield privates
                 .get(this)
@@ -600,7 +628,6 @@ class KeyringController extends BaseController_1.BaseController {
             });
             yield privates.get(this).keyring.persistAllKeyrings();
             yield this.fullUpdate();
-            return true;
         });
     }
 }

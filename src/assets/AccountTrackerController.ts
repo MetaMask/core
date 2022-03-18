@@ -146,7 +146,7 @@ export class AccountTrackerController extends BaseController<
    */
   refresh = async () => {
     this.syncAccounts();
-    const { accounts } = this.state;
+    const accounts = { ...this.state.accounts };
     for (const address in accounts) {
       await safelyExecuteWithTimeout(async () => {
         const balance = await query(this.ethQuery, 'getBalance', [address]);
@@ -154,30 +154,41 @@ export class AccountTrackerController extends BaseController<
         this.update({ accounts: { ...accounts } });
       });
     }
+    this.update({ accounts });
   };
 
   /**
    * Sync accounts balances with some additional addresses.
    *
    * @param addresses - the additional addresses, may be hardware wallet addresses.
-   * @returns accounts - current state accounts
+   * @returns accounts - addresses with synced balance
    */
-  syncWithAddresses = async (addresses: string[]) => {
-    this.syncAccounts();
-    const { accounts } = this.state;
-    addresses.forEach((address) => {
-      accounts[address] = { balance: '0x0' };
-    });
+  async syncBalanceWithAddresses(addresses: string[]) {
+    return await Promise.all(
+      addresses.map(
+        (address): Promise<[string, string] | undefined> => {
+          return safelyExecuteWithTimeout(async () => {
+            const balance = await query(this.ethQuery, 'getBalance', [address]);
+            return [address, balance];
+          });
+        },
+      ),
+    ).then((value) => {
+      return value.reduce((obj, item) => {
+        if (!item) {
+          return obj;
+        }
 
-    for (const address in accounts) {
-      await safelyExecuteWithTimeout(async () => {
-        const balance = await query(this.ethQuery, 'getBalance', [address]);
-        accounts[address] = { balance: BNToHex(balance) };
-        this.update({ accounts: { ...accounts } });
-      });
-    }
-    return this.state.accounts;
-  };
+        const [address, balance] = item;
+        return {
+          ...obj,
+          [address]: {
+            balance,
+          },
+        };
+      }, {});
+    });
+  }
 }
 
 export default AccountTrackerController;
