@@ -24,7 +24,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PermissionController = exports.CaveatMutatorOperation = void 0;
-/* eslint-enable @typescript-eslint/no-unused-vars */
 const deep_freeze_strict_1 = __importDefault(require("deep-freeze-strict"));
 const immer_1 = require("immer");
 const nanoid_1 = require("nanoid");
@@ -187,6 +186,7 @@ class PermissionController extends BaseControllerV2_1.BaseController {
         this.messagingSystem.registerActionHandler(`${controllerName}:getPermissions`, (origin) => this.getPermissions(origin));
         this.messagingSystem.registerActionHandler(`${controllerName}:hasPermission`, (origin, targetName) => this.hasPermission(origin, targetName));
         this.messagingSystem.registerActionHandler(`${controllerName}:hasPermissions`, (origin) => this.hasPermissions(origin));
+        this.messagingSystem.registerActionHandler(`${controllerName}:revokePermissions`, this.revokePermissions.bind(this));
         this.messagingSystem.registerActionHandler(`${controllerName}:revokeAllPermissions`, (origin) => this.revokeAllPermissions(origin));
         this.messagingSystem.registerActionHandler(`${controllerName}:requestPermissions`, (subject, permissions) => this.requestPermissions(subject, permissions));
     }

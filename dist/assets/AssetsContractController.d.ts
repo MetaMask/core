@@ -85,7 +85,7 @@ export declare class AssetsContractController extends BaseController<AssetsContr
      * @param tokenId - ERC721 asset identifier.
      * @returns Promise resolving to an object containing the token standard and a set of details which depend on which standard the token supports.
      */
-    getTokenStandardAndDetails(tokenAddress: string, userAddress: string, tokenId?: string): Promise<{
+    getTokenStandardAndDetails(tokenAddress: string, userAddress?: string, tokenId?: string): Promise<{
         standard: string;
         tokenURI?: string | undefined;
         symbol?: string | undefined;

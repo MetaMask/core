@@ -87,9 +87,11 @@ class RateLimitController extends BaseControllerV2_1.BaseController {
     recordRequest(api, origin) {
         this.update((state) => {
             var _a;
-            state.requests[api][origin] =
-                ((_a = state.requests[api][origin]) !== null && _a !== void 0 ? _a : 0) + 1;
-            setTimeout(() => this.resetRequestCount(api, origin), this.rateLimitTimeout);
+            const previous = (_a = state.requests[api][origin]) !== null && _a !== void 0 ? _a : 0;
+            state.requests[api][origin] = previous + 1;
+            if (previous === 0) {
+                setTimeout(() => this.resetRequestCount(api, origin), this.rateLimitTimeout);
+            }
         });
     }
     /**

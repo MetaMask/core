@@ -14,14 +14,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const ethjs_unit_1 = require("ethjs-unit");
 const constants_1 = require("../constants");
-const BlockFeeHistoryDatasetFetcher_1 = __importDefault(require("./fetchGasEstimatesViaEthFeeHistory/BlockFeeHistoryDatasetFetcher"));
-const calculateGasFeeEstimatesForPriorityLevels_1 = __importDefault(require("./fetchGasEstimatesViaEthFeeHistory/calculateGasFeeEstimatesForPriorityLevels"));
-const calculateBaseFeeRange_1 = __importDefault(require("./fetchGasEstimatesViaEthFeeHistory/calculateBaseFeeRange"));
-const calculateBaseFeeTrend_1 = __importDefault(require("./fetchGasEstimatesViaEthFeeHistory/calculateBaseFeeTrend"));
-const calculatePriorityFeeRange_1 = __importDefault(require("./fetchGasEstimatesViaEthFeeHistory/calculatePriorityFeeRange"));
-const calculatePriorityFeeTrend_1 = __importDefault(require("./fetchGasEstimatesViaEthFeeHistory/calculatePriorityFeeTrend"));
-const calculateNetworkCongestion_1 = __importDefault(require("./fetchGasEstimatesViaEthFeeHistory/calculateNetworkCongestion"));
+const fetchBlockFeeHistory_1 = __importDefault(require("./fetchBlockFeeHistory"));
 const fetchLatestBlock_1 = __importDefault(require("./fetchGasEstimatesViaEthFeeHistory/fetchLatestBlock"));
+const calculateGasFeeEstimatesForPriorityLevels_1 = __importDefault(require("./fetchGasEstimatesViaEthFeeHistory/calculateGasFeeEstimatesForPriorityLevels"));
 /**
  * Generates gas fee estimates based on gas fees that have been used in the recent past so that
  * those estimates can be displayed to users.
@@ -33,6 +28,9 @@ const fetchLatestBlock_1 = __importDefault(require("./fetchGasEstimatesViaEthFee
  * calculate reasonable max priority and max fees for three different priority levels (higher
  * priority = higher fee).
  *
+ * Note that properties are returned for other data that are normally obtained via the API; however,
+ * to prevent extra requests to Infura, these properties are empty.
+ *
  * @param ethQuery - An EthQuery instance.
  * @returns Base and priority fee estimates, categorized by priority level, as well as an estimate
  * for the next block's base fee.
@@ -40,26 +38,15 @@ const fetchLatestBlock_1 = __importDefault(require("./fetchGasEstimatesViaEthFee
 function fetchGasEstimatesViaEthFeeHistory(ethQuery) {
     return __awaiter(this, void 0, void 0, function* () {
         const latestBlock = yield fetchLatestBlock_1.default(ethQuery);
-        const fetcher = new BlockFeeHistoryDatasetFetcher_1.default({
+        const blocks = yield fetchBlockFeeHistory_1.default({
             ethQuery,
-            endBlockNumber: latestBlock.number,
+            endBlock: latestBlock.number,
+            numberOfBlocks: 5,
+            percentiles: [10, 20, 30],
         });
-        const blocksByDataset = yield fetcher.forAll();
-        const levelSpecificEstimates = calculateGasFeeEstimatesForPriorityLevels_1.default(blocksByDataset.smallRange);
         const estimatedBaseFee = ethjs_unit_1.fromWei(latestBlock.baseFeePerGas, constants_1.GWEI);
-        const historicalBaseFeeRange = calculateBaseFeeRange_1.default(blocksByDataset.mediumRange);
-        const baseFeeTrend = calculateBaseFeeTrend_1.default(blocksByDataset.latestWithNextBlock);
-        const latestPriorityFeeRange = calculatePriorityFeeRange_1.default(blocksByDataset.latest);
-        const historicalPriorityFeeRange = calculatePriorityFeeRange_1.default(blocksByDataset.mediumRange);
-        const priorityFeeTrend = calculatePriorityFeeTrend_1.default(blocksByDataset.tinyRange);
-        const networkCongestion = calculateNetworkCongestion_1.default([]);
-        return Object.assign(Object.assign({}, levelSpecificEstimates), { estimatedBaseFee,
-            historicalBaseFeeRange,
-            baseFeeTrend,
-            latestPriorityFeeRange,
-            historicalPriorityFeeRange,
-            priorityFeeTrend,
-            networkCongestion });
+        const levelSpecificEstimates = calculateGasFeeEstimatesForPriorityLevels_1.default(blocks);
+        return Object.assign(Object.assign({}, levelSpecificEstimates), { estimatedBaseFee, historicalBaseFeeRange: null, baseFeeTrend: null, latestPriorityFeeRange: null, historicalPriorityFeeRange: null, priorityFeeTrend: null, networkCongestion: null });
     });
 }
 exports.default = fetchGasEstimatesViaEthFeeHistory;

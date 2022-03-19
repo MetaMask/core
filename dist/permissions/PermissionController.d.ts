@@ -1,6 +1,6 @@
 import { Patch } from 'immer';
 import { AcceptRequest as AcceptApprovalRequest, AddApprovalRequest, HasApprovalRequest, RejectRequest as RejectApprovalRequest } from '../approval/ApprovalController';
-import { Json, BaseController } from '../BaseControllerV2';
+import { BaseController, Json } from '../BaseControllerV2';
 import { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { NonEmptyArray } from '../util';
 import { CaveatConstraint, CaveatSpecificationConstraint, CaveatSpecificationMap, ExtractCaveat, ExtractCaveats, ExtractCaveatValue } from './Caveat';
@@ -104,6 +104,13 @@ export declare type RequestPermissions = {
     handler: GenericPermissionController['requestPermissions'];
 };
 /**
+ * Removes the specified permissions for each origin.
+ */
+export declare type RevokePermissions = {
+    type: `${typeof controllerName}:revokePermissions`;
+    handler: GenericPermissionController['revokePermissions'];
+};
+/**
  * Removes all permissions for a given origin
  */
 export declare type RevokeAllPermissions = {
@@ -127,7 +134,7 @@ export declare type GetEndowments = {
 /**
  * The {@link ControllerMessenger} actions of the {@link PermissionController}.
  */
-export declare type PermissionControllerActions = ClearPermissions | GetEndowments | GetPermissionControllerState | GetSubjects | GetPermissions | HasPermission | HasPermissions | RevokeAllPermissions | RequestPermissions;
+export declare type PermissionControllerActions = ClearPermissions | GetEndowments | GetPermissionControllerState | GetSubjects | GetPermissions | HasPermission | HasPermissions | RevokePermissions | RevokeAllPermissions | RequestPermissions;
 /**
  * The generic state change event of the {@link PermissionController}.
  */
@@ -366,7 +373,7 @@ export declare class PermissionController<ControllerPermissionSpecification exte
      * @param origin - The origin of the subject.
      * @returns The permissions of the subject, if any.
      */
-    getPermissions(origin: OriginString): SubjectPermissions<ValidPermission<string, ExtractCaveats<ControllerCaveatSpecification>>>;
+    getPermissions(origin: OriginString): SubjectPermissions<ValidPermission<string, ExtractCaveats<ControllerCaveatSpecification>>> | undefined;
     /**
      * Checks whether the subject with the specified origin has the specified
      * permission.
