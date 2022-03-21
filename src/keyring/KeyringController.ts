@@ -337,10 +337,19 @@ export class KeyringController extends BaseController<
           throw new Error('Cannot import an empty key.');
         }
         const prefixed = addHexPrefix(importedKey);
-        /* istanbul ignore if */
-        if (!isValidPrivate(toBuffer(prefixed))) {
+
+        let bufferedPrivateKey;
+        try {
+          bufferedPrivateKey = toBuffer(prefixed);
+        } catch {
           throw new Error('Cannot import invalid private key.');
         }
+
+        /* istanbul ignore if */
+        if (!isValidPrivate(bufferedPrivateKey)) {
+          throw new Error('Cannot import invalid private key.');
+        }
+
         privateKey = stripHexPrefix(prefixed);
         break;
       case 'json':

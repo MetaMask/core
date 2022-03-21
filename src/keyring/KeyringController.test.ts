@@ -155,10 +155,23 @@ describe('KeyringController', () => {
     } catch (e) {
       error2 = e;
     }
+
+    let error3;
+    try {
+      await keyringController.importAccountWithStrategy(
+        AccountImportStrategy.privateKey,
+        ['0xblahblah'],
+      );
+    } catch (e) {
+      error3 = e;
+    }
+
     expect(error1.message).toBe('Cannot import an empty key.');
     expect(error2.message).toBe(
       'Expected private key to be an Uint8Array with length 32',
     );
+    expect(error3.message).toBe('Cannot import invalid private key.');
+
     const address = '0x51253087e6f8358b5f10c0a94315d69db3357859';
     const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
     const obj = await keyringController.importAccountWithStrategy(
