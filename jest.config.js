@@ -25,8 +25,8 @@ module.exports = {
   // modules.
   restoreMocks: true,
   setupFiles: ['./tests/setupTests.ts'],
-  testEnvironment: 'jsdom',
-  testRegex: ['\\.test\\.(ts|js)$'],
+  setupFilesAfterEnv: ['./tests/setupTestsAfterEnv.ts'],
+  testEnvironment: 'setup-polly-jest/jest-environment-node',
   testTimeout: 5000,
   transform: {
     '^.+\\.tsx?$': 'ts-jest',

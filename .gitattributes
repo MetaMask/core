@@ -1,3 +1,5 @@
 * text=auto
 
 yarn.lock linguist-generated=false
+# Collapse changes to Polly recordings in PRs.
+tests/__recordings__/** linguist-generated

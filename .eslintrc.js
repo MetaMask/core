@@ -16,10 +16,15 @@ module.exports = {
       extends: ['@metamask/eslint-config-jest'],
     },
     {
-      files: ['*.js'],
+      files: ['scripts/*.js'],
       parserOptions: {
         sourceType: 'script',
         ecmaVersion: '2018',
+      },
+      rules: {
+        'node/no-process-exit': 'off',
+        'node/no-sync': 'off',
+        'node/shebang': 'off',
       },
     },
     {
