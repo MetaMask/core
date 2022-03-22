@@ -3,7 +3,7 @@ import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
 import { safelyExecute, toChecksumHexAddress } from '../util';
 import { MAINNET } from '../constants';
-
+import AbortController from 'abort-controller';
 import type { TokensController, TokensState } from './TokensController';
 import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
