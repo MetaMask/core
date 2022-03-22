@@ -146,7 +146,7 @@ export class KeyringController extends BaseController<
 
   private setSelectedAddress: PreferencesController['setSelectedAddress'];
 
-  private setAccountLabel: PreferencesController['setAccountLabel'];
+  private setAccountLabel?: PreferencesController['setAccountLabel'];
 
   /**
    * Creates a KeyringController instance.
@@ -172,7 +172,7 @@ export class KeyringController extends BaseController<
       syncIdentities: PreferencesController['syncIdentities'];
       updateIdentities: PreferencesController['updateIdentities'];
       setSelectedAddress: PreferencesController['setSelectedAddress'];
-      setAccountLabel: PreferencesController['setAccountLabel'];
+      setAccountLabel?: PreferencesController['setAccountLabel'];
     },
     config?: Partial<KeyringConfig>,
     state?: Partial<KeyringState>,
@@ -461,6 +461,7 @@ export class KeyringController extends BaseController<
           .get(this)
           .keyring.signTypedMessage(messageParamsClone, { version });
       }
+
       const { password } = privates.get(this).keyring;
       const privateKey = await this.exportAccount(password, address);
       const privateKeyBuffer = toBuffer(addHexPrefix(privateKey));
@@ -715,7 +716,9 @@ export class KeyringController extends BaseController<
     this.updateIdentities(newAccounts);
     newAccounts.forEach((address: string) => {
       if (!oldAccounts.includes(address)) {
-        this.setAccountLabel(address, `${keyring.getName()} ${index}`);
+        if (this.setAccountLabel) {
+          this.setAccountLabel(address, `${keyring.getName()} ${index}`);
+        }
         this.setSelectedAddress(address);
       }
     });
@@ -723,7 +726,7 @@ export class KeyringController extends BaseController<
     await this.fullUpdate();
   }
 
-  async getAccountKeyringType(account: string): Promise<string> {
+  async getAccountKeyringType(account: string): Promise<KeyringTypes> {
     return (await privates.get(this).keyring.getKeyringForAccount(account))
       .type;
   }

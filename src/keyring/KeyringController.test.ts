@@ -5,7 +5,7 @@ import {
   recoverTypedSignature_v4,
   recoverTypedSignatureLegacy,
 } from 'eth-sig-util';
-import { spy, stub } from 'sinon';
+import { stub } from 'sinon';
 import Common from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
@@ -13,7 +13,6 @@ import * as uuid from 'uuid';
 import { ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import MockEncryptor from '../../tests/mocks/mockEncryptor';
 import { PreferencesController } from '../user/PreferencesController';
-import { AccountTrackerController } from '../assets/AccountTrackerController';
 import { MAINNET } from '../constants';
 import {
   KeyringController,
@@ -51,6 +50,7 @@ describe('KeyringController', () => {
     encryptor: new MockEncryptor(),
     keyringTypes: additionalKeyrings,
   };
+
   beforeEach(async () => {
     preferences = new PreferencesController();
     keyringController = new KeyringController(
@@ -506,6 +506,16 @@ describe('KeyringController', () => {
   });
 
   describe('QR keyring', () => {
+    const composeMockSignature = (requestId: string, signature: string) => {
+      const rlpSignatureData = Buffer.from(signature, 'hex');
+      const idBuffer = uuid.parse(requestId) as Uint8Array;
+      const ethSignature = new ETHSignature(
+        rlpSignatureData,
+        Buffer.from(idBuffer),
+      );
+      return ethSignature.toCBOR().toString('hex');
+    };
+
     preferences = new PreferencesController();
 
     const signProcessKeyringController = new KeyringController(
@@ -567,16 +577,6 @@ describe('KeyringController', () => {
       );
       expect(qrKeyring?.accounts).toHaveLength(3);
     });
-
-    const composeMockSignature = (requestId: string, signature: string) => {
-      const rlpSignatureData = Buffer.from(signature, 'hex');
-      const idBuffer = uuid.parse(requestId) as Uint8Array;
-      const ethSignature = new ETHSignature(
-        rlpSignatureData,
-        Buffer.from(idBuffer),
-      );
-      return ethSignature.toCBOR().toString('hex');
-    };
 
     it('should sign message with QR keyring', async () => {
       setTimeout(async () => {
