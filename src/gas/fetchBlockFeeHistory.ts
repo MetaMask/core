@@ -22,6 +22,8 @@ type RequestChunkSpecifier = {
  * @property oldestBlock - The id of the oldest block (in hex format) in the range of blocks
  * requested.
  * @property baseFeePerGas - Base fee per gas for each block in the range of blocks requested.
+ * For go-ethereum based chains baseFeePerGas will not returned in case of empty results
+ * <github.com/ethereum/go-ethereum/blob/v1.10.16/internal/ethapi/api.go#L87>
  * @property gasUsedRatio - A number between 0 and 1 that represents the gas used vs. gas limit for
  * each block in the range of blocks requested.
  * @property reward - The priority fee at the percentiles requested for each block in the range of
@@ -30,7 +32,7 @@ type RequestChunkSpecifier = {
 
 export type EthFeeHistoryResponse = {
   oldestBlock: string;
-  baseFeePerGas: string[];
+  baseFeePerGas?: string[];
   gasUsedRatio: number[];
   reward?: string[][];
 };
@@ -48,7 +50,7 @@ export type EthFeeHistoryResponse = {
  * used for the block, indexed by those percentiles. (See docs for {@link fetchBlockFeeHistory} for more
  * on how this works.)
  */
-export type ExistingFeeHistoryBlock<Percentile extends number> = {
+type ExistingFeeHistoryBlock<Percentile extends number> = {
   number: BN;
   baseFeePerGas: BN;
   gasUsedRatio: number;
@@ -62,7 +64,7 @@ export type ExistingFeeHistoryBlock<Percentile extends number> = {
  * @property number - The number of the block, as a BN.
  * @property baseFeePerGas - The estimated base fee per gas for the block in WEI, as a BN.
  */
-export type NextFeeHistoryBlock = {
+type NextFeeHistoryBlock = {
   number: BN;
   baseFeePerGas: BN;
 };
@@ -288,6 +290,7 @@ async function makeRequestForChunk<Percentile extends number>({
   const startBlockNumber = fromHex(response.oldestBlock);
 
   if (
+    response.baseFeePerGas !== undefined &&
     response.baseFeePerGas.length > 0 &&
     response.gasUsedRatio.length > 0 &&
     (response.reward === undefined || response.reward.length > 0)
@@ -301,12 +304,14 @@ async function makeRequestForChunk<Percentile extends number>({
       : response.baseFeePerGas.slice(0, numberOfBlocks);
     const gasUsedRatios = response.gasUsedRatio;
     const priorityFeePercentileGroups = response.reward ?? [];
+    // Chain is allowed to return fewer number of block results
+    const numberOfExistingResults = gasUsedRatios.length;
 
     return baseFeesPerGasAsHex.map((baseFeePerGasAsHex, blockIndex) => {
       const baseFeePerGas = fromHex(baseFeePerGasAsHex);
       const number = startBlockNumber.addn(blockIndex);
 
-      return blockIndex > numberOfBlocks - 1
+      return blockIndex >= numberOfExistingResults
         ? buildNextFeeHistoryBlock({ baseFeePerGas, number })
         : buildExistingFeeHistoryBlock({
             baseFeePerGas,
@@ -326,6 +331,9 @@ async function makeRequestForChunk<Percentile extends number>({
  * Divides a block range (specified by a range size and the end of the range) into chunks based on
  * the maximum number of blocks that `eth_feeHistory` can return in a single call.
  *
+ * If the requested totalNumberOfBlocks exceed endBlockNumber, totalNumberOfBlocks is
+ * truncated to avoid requesting chunks with negative endBlockNumber.
+ *
  * @param endBlockNumber - The final block in the complete desired block range after all
  * `eth_feeHistory` requests have been made.
  * @param totalNumberOfBlocks - The total number of desired blocks after all `eth_feeHistory`
@@ -337,6 +345,10 @@ function determineRequestChunkSpecifiers(
   endBlockNumber: BN,
   totalNumberOfBlocks: number,
 ): RequestChunkSpecifier[] {
+  if (endBlockNumber.lt(new BN(totalNumberOfBlocks))) {
+    totalNumberOfBlocks = endBlockNumber.toNumber();
+  }
+
   const specifiers = [];
   for (
     let chunkStartBlockNumber = endBlockNumber.subn(totalNumberOfBlocks);

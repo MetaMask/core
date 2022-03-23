@@ -2,14 +2,9 @@ import { fromWei } from 'ethjs-unit';
 import { GWEI } from '../constants';
 import { GasFeeEstimates } from './GasFeeController';
 import { EthQuery } from './fetchGasEstimatesViaEthFeeHistory/types';
-import BlockFeeHistoryDatasetFetcher from './fetchGasEstimatesViaEthFeeHistory/BlockFeeHistoryDatasetFetcher';
-import calculateGasFeeEstimatesForPriorityLevels from './fetchGasEstimatesViaEthFeeHistory/calculateGasFeeEstimatesForPriorityLevels';
-import calculateBaseFeeRange from './fetchGasEstimatesViaEthFeeHistory/calculateBaseFeeRange';
-import calculateBaseFeeTrend from './fetchGasEstimatesViaEthFeeHistory/calculateBaseFeeTrend';
-import calculatePriorityFeeRange from './fetchGasEstimatesViaEthFeeHistory/calculatePriorityFeeRange';
-import calculatePriorityFeeTrend from './fetchGasEstimatesViaEthFeeHistory/calculatePriorityFeeTrend';
-import calculateNetworkCongestion from './fetchGasEstimatesViaEthFeeHistory/calculateNetworkCongestion';
+import fetchBlockFeeHistory from './fetchBlockFeeHistory';
 import fetchLatestBlock from './fetchGasEstimatesViaEthFeeHistory/fetchLatestBlock';
+import calculateGasFeeEstimatesForPriorityLevels from './fetchGasEstimatesViaEthFeeHistory/calculateGasFeeEstimatesForPriorityLevels';
 
 /**
  * Generates gas fee estimates based on gas fees that have been used in the recent past so that
@@ -22,6 +17,9 @@ import fetchLatestBlock from './fetchGasEstimatesViaEthFeeHistory/fetchLatestBlo
  * calculate reasonable max priority and max fees for three different priority levels (higher
  * priority = higher fee).
  *
+ * Note that properties are returned for other data that are normally obtained via the API; however,
+ * to prevent extra requests to Infura, these properties are empty.
+ *
  * @param ethQuery - An EthQuery instance.
  * @returns Base and priority fee estimates, categorized by priority level, as well as an estimate
  * for the next block's base fee.
@@ -30,41 +28,26 @@ export default async function fetchGasEstimatesViaEthFeeHistory(
   ethQuery: EthQuery,
 ): Promise<GasFeeEstimates> {
   const latestBlock = await fetchLatestBlock(ethQuery);
-  const fetcher = new BlockFeeHistoryDatasetFetcher({
+  const blocks = await fetchBlockFeeHistory({
     ethQuery,
-    endBlockNumber: latestBlock.number,
+    endBlock: latestBlock.number,
+    numberOfBlocks: 5,
+    percentiles: [10, 20, 30],
   });
-  const blocksByDataset = await fetcher.forAll();
+  const estimatedBaseFee = fromWei(latestBlock.baseFeePerGas, GWEI);
 
   const levelSpecificEstimates = calculateGasFeeEstimatesForPriorityLevels(
-    blocksByDataset.smallRange,
-  );
-  const estimatedBaseFee = fromWei(latestBlock.baseFeePerGas, GWEI);
-  const historicalBaseFeeRange = calculateBaseFeeRange(
-    blocksByDataset.mediumRange,
-  );
-  const baseFeeTrend = calculateBaseFeeTrend(
-    blocksByDataset.latestWithNextBlock,
-  );
-  const latestPriorityFeeRange = calculatePriorityFeeRange(
-    blocksByDataset.latest,
-  );
-  const historicalPriorityFeeRange = calculatePriorityFeeRange(
-    blocksByDataset.mediumRange,
-  );
-  const priorityFeeTrend = calculatePriorityFeeTrend(blocksByDataset.tinyRange);
-  const networkCongestion = calculateNetworkCongestion(
-    blocksByDataset.longRange,
+    blocks,
   );
 
   return {
     ...levelSpecificEstimates,
     estimatedBaseFee,
-    historicalBaseFeeRange,
-    baseFeeTrend,
-    latestPriorityFeeRange,
-    historicalPriorityFeeRange,
-    priorityFeeTrend,
-    networkCongestion,
+    historicalBaseFeeRange: null,
+    baseFeeTrend: null,
+    latestPriorityFeeRange: null,
+    historicalPriorityFeeRange: null,
+    priorityFeeTrend: null,
+    networkCongestion: null,
   };
 }

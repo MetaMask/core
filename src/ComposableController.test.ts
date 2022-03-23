@@ -91,7 +91,10 @@ describe('ComposableController', () => {
     it('should compose controller state', () => {
       const preferencesController = new PreferencesController();
       const networkController = new NetworkController();
-      const assetContractController = new AssetsContractController();
+      const assetContractController = new AssetsContractController({
+        onPreferencesStateChange: (listener) =>
+          preferencesController.subscribe(listener),
+      });
       const collectiblesController = new CollectiblesController({
         onPreferencesStateChange: (listener) =>
           preferencesController.subscribe(listener),
@@ -172,7 +175,10 @@ describe('ComposableController', () => {
     it('should compose flat controller state', () => {
       const preferencesController = new PreferencesController();
       const networkController = new NetworkController();
-      const assetContractController = new AssetsContractController();
+      const assetContractController = new AssetsContractController({
+        onPreferencesStateChange: (listener) =>
+          preferencesController.subscribe(listener),
+      });
       const collectiblesController = new CollectiblesController({
         onPreferencesStateChange: (listener) =>
           preferencesController.subscribe(listener),
