@@ -177,6 +177,8 @@ describe('PhishingController', () => {
     nock('https://cdn.jsdelivr.net', { allowUnmocked: true })
       .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
       .reply(304)
+      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .reply(304)
       .persist();
     const controller = new PhishingController();
     const oldState = controller.state.phishing;
@@ -186,16 +188,19 @@ describe('PhishingController', () => {
     expect(controller.state.phishing).toBe(oldState);
   });
 
-  it('should not update phishing lists if fetch returns error', async () => {
+  it('should not update phishing lists if fetch returns 500', async () => {
     nock('https://cdn.jsdelivr.net', { allowUnmocked: true })
       .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+      .reply(500)
+      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
       .reply(500)
       .persist();
 
     const controller = new PhishingController();
+    const oldState = controller.state.phishing;
 
-    await expect(controller.updatePhishingLists()).rejects.toThrow(
-      /Fetch failed with status '500'/u,
-    );
+    await controller.updatePhishingLists();
+
+    expect(controller.state.phishing).toBe(oldState);
   });
 });

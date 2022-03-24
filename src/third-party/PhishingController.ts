@@ -137,21 +137,37 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    const [phishingOpts, pfBlacklist] = await Promise.all([
+    const [metamaskConfig, phishfortHotlist] = await Promise.all([
       await this.queryConfig<EthPhishingResponse>(this.configUrlMetaMask),
       await this.queryConfig<string[]>(this.configUrlPhishFortHotlist),
     ]);
 
-    if (phishingOpts) {
-      if (pfBlacklist) {
-        phishingOpts.blacklist.push(...pfBlacklist);
-      }
 
-      this.detector = new PhishingDetector(phishingOpts);
-      this.update({
-        phishing: phishingOpts,
-      });
+    if (!metamaskConfig && !phishfortHotlist) {
+      return;
     }
+
+    // Default config populated with values from eth-phishing-detect@master on 2022/03/24.
+    const phishingOpts: EthPhishingResponse = metamaskConfig || {
+      version: 2,
+      tolerance: 2,
+      blacklist: [],
+      fuzzylist: [],
+      whitelist: []
+    };
+
+    if (phishfortHotlist) {
+      // Removal of duplicates.
+      const phishfortHotlistUnique = phishfortHotlist.filter(
+        (hotlistItem) => !phishingOpts.blacklist.includes(hotlistItem),
+      );
+      phishingOpts.blacklist.push(...phishfortHotlistUnique);
+    }
+
+    this.detector = new PhishingDetector(phishingOpts);
+    this.update({
+      phishing: phishingOpts,
+    });
   }
 
   private async queryConfig<ResponseType>(
@@ -163,15 +179,9 @@ export class PhishingController extends BaseController<
       case 200: {
         return await response.json();
       }
-      case 304:
-      case 403: {
-        return null;
-      }
 
       default: {
-        throw new Error(
-          `Fetch failed with status '${response.status}' for request '${input}'`,
-        );
+        return null;
       }
     }
   }
