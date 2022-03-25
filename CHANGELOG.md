@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.1.0]
+### Uncategorized
+- Support QR hardware ([#685](https://github.com/MetaMask/controllers/pull/685))
+- Bump minimist from 1.2.5 to 1.2.6 ([#752](https://github.com/MetaMask/controllers/pull/752))
+- Bump dependency version ([#742](https://github.com/MetaMask/controllers/pull/742))
+- Bump @metamask/contract-metadata from 1.31.0 to 1.33.0 ([#730](https://github.com/MetaMask/controllers/pull/730))
+- Catch errors thrown from ethereumjs-util methods in keyring controller ([#739](https://github.com/MetaMask/controllers/pull/739))
+
 ## [27.0.0]
 ### Changed
 - **BREAKING:** Further reduce load on Infura by removing non-critical data from the fallback implementation of the Gas API ([#712](https://github.com/MetaMask/controllers/pull/712))
@@ -522,7 +530,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v27.1.0...HEAD
+[27.1.0]: https://github.com/MetaMask/controllers/compare/v27.0.0...v27.1.0
 [27.0.0]: https://github.com/MetaMask/controllers/compare/v26.0.0...v27.0.0
 [26.0.0]: https://github.com/MetaMask/controllers/compare/v25.1.0...v26.0.0
 [25.1.0]: https://github.com/MetaMask/controllers/compare/v25.0.0...v25.1.0
