@@ -5,16 +5,21 @@ import {
   recoverTypedSignature_v4,
   recoverTypedSignatureLegacy,
 } from 'eth-sig-util';
-import { stub } from 'sinon';
+import sinon, { SinonStub, stub } from 'sinon';
 import Common from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
+import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
+import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
+import * as uuid from 'uuid';
 import MockEncryptor from '../../tests/mocks/mockEncryptor';
 import { PreferencesController } from '../user/PreferencesController';
+import { MAINNET } from '../constants';
 import {
-  KeyringController,
   AccountImportStrategy,
   Keyring,
   KeyringConfig,
+  KeyringController,
+  KeyringTypes,
   SignTypedDataVersion,
 } from './KeyringController';
 
@@ -40,11 +45,17 @@ describe('KeyringController', () => {
     keyringTypes: string[];
     keyrings: Keyring[];
   };
-  const baseConfig: Partial<KeyringConfig> = { encryptor: new MockEncryptor() };
+  const additionalKeyrings = [QRKeyring];
+  const baseConfig: Partial<KeyringConfig> = {
+    encryptor: new MockEncryptor(),
+    keyringTypes: additionalKeyrings,
+  };
+
   beforeEach(async () => {
     preferences = new PreferencesController();
     keyringController = new KeyringController(
       {
+        setAccountLabel: preferences.setAccountLabel.bind(preferences),
         removeIdentity: preferences.removeIdentity.bind(preferences),
         syncIdentities: preferences.syncIdentities.bind(preferences),
         updateIdentities: preferences.updateIdentities.bind(preferences),
@@ -492,5 +503,412 @@ describe('KeyringController', () => {
     keyringController.onUnlock(listenerUnlock);
     await keyringController.submitPassword(password);
     expect(listenerUnlock.called).toBe(true);
+  });
+
+  describe('QR keyring', () => {
+    const composeMockSignature = (
+      requestId: string,
+      signature: string,
+    ): ETHSignature => {
+      const rlpSignatureData = Buffer.from(signature, 'hex');
+      const idBuffer = uuid.parse(requestId);
+      return new ETHSignature(
+        rlpSignatureData,
+        Buffer.from(Uint8Array.from(idBuffer)),
+      );
+    };
+
+    let signProcessKeyringController: KeyringController;
+    preferences = new PreferencesController();
+
+    let requestSignatureStub: SinonStub;
+    let readAccountSub: SinonStub;
+
+    const setupQRKeyring = async () => {
+      readAccountSub.resolves(
+        CryptoHDKey.fromCBOR(
+          Buffer.from(
+            'a902f40358210219218eb65839d08bde4338640b03fdbbdec439ef880d397c2f881282c5b5d135045820e65ed63f52e3e93d48ffb55cd68c6721e58ead9b29b784b8aba58354f4a3d92905d90131a201183c020006d90130a30186182cf5183cf500f5021a5271c071030307d90130a2018400f480f40300081a625f3e6209684b657973746f6e650a706163636f756e742e7374616e64617264',
+            'hex',
+          ),
+        ),
+      );
+      await signProcessKeyringController.connectQRHardware(0);
+      await signProcessKeyringController.unlockQRHardwareWalletAccount(0);
+      await signProcessKeyringController.unlockQRHardwareWalletAccount(1);
+      await signProcessKeyringController.unlockQRHardwareWalletAccount(2);
+    };
+
+    beforeEach(async () => {
+      signProcessKeyringController = new KeyringController(
+        {
+          setAccountLabel: preferences.setAccountLabel.bind(preferences),
+          removeIdentity: preferences.removeIdentity.bind(preferences),
+          syncIdentities: preferences.syncIdentities.bind(preferences),
+          updateIdentities: preferences.updateIdentities.bind(preferences),
+          setSelectedAddress: preferences.setSelectedAddress.bind(preferences),
+        },
+        baseConfig,
+      );
+      await signProcessKeyringController.createNewVaultAndKeychain(password);
+      const qrkeyring = await signProcessKeyringController.getOrAddQRKeyring();
+      qrkeyring.forgetDevice();
+
+      if (!requestSignatureStub) {
+        requestSignatureStub = sinon.stub(
+          qrkeyring.getInteraction(),
+          'requestSignature',
+        );
+      }
+
+      if (!readAccountSub) {
+        readAccountSub = sinon.stub(
+          qrkeyring.getInteraction(),
+          'readCryptoHDKeyOrCryptoAccount',
+        );
+      }
+    });
+
+    afterEach(() => {
+      requestSignatureStub.reset();
+      readAccountSub.reset();
+    });
+
+    it('should setup QR keyring with crypto-hdkey', async () => {
+      readAccountSub.resolves(
+        CryptoHDKey.fromCBOR(
+          Buffer.from(
+            'a902f40358210219218eb65839d08bde4338640b03fdbbdec439ef880d397c2f881282c5b5d135045820e65ed63f52e3e93d48ffb55cd68c6721e58ead9b29b784b8aba58354f4a3d92905d90131a201183c020006d90130a30186182cf5183cf500f5021a5271c071030307d90130a2018400f480f40300081a625f3e6209684b657973746f6e650a706163636f756e742e7374616e64617264',
+            'hex',
+          ),
+        ),
+      );
+
+      const firstPage = await signProcessKeyringController.connectQRHardware(0);
+      expect(firstPage).toHaveLength(5);
+      expect(firstPage[0].index).toBe(0);
+
+      const secondPage = await signProcessKeyringController.connectQRHardware(
+        1,
+      );
+      expect(secondPage).toHaveLength(5);
+      expect(secondPage[0].index).toBe(5);
+
+      const goBackPage = await signProcessKeyringController.connectQRHardware(
+        -1,
+      );
+      expect(goBackPage).toStrictEqual(firstPage);
+
+      await signProcessKeyringController.unlockQRHardwareWalletAccount(0);
+      await signProcessKeyringController.unlockQRHardwareWalletAccount(1);
+      await signProcessKeyringController.unlockQRHardwareWalletAccount(2);
+
+      const qrKeyring = signProcessKeyringController.state.keyrings.find(
+        (keyring) => keyring.type === KeyringTypes.qr,
+      );
+      expect(qrKeyring?.accounts).toHaveLength(3);
+    });
+
+    it('should sign message with QR keyring', async () => {
+      await setupQRKeyring();
+      requestSignatureStub.resolves(
+        composeMockSignature(
+          '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+          '4cb25933c5225f9f92fc9b487451b93bc3646c6aa01b72b01065b8509ac4fd6c37798695d0d5c0949ed10c5e102800ea2b62c2b670729c5631c81b0c52002a641b',
+        ),
+      );
+
+      const data =
+        '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
+      const qrKeyring = signProcessKeyringController.state.keyrings.find(
+        (keyring) => keyring.type === KeyringTypes.qr,
+      );
+      const account = qrKeyring?.accounts[0] || '';
+      const signature = await signProcessKeyringController.signMessage({
+        data,
+        from: account,
+      });
+      expect(signature).not.toBe('');
+    });
+
+    it('should sign personal message with QR keyring', async () => {
+      await setupQRKeyring();
+      requestSignatureStub.resolves(
+        composeMockSignature(
+          '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+          '73f31609b618050c4058e8f959961c203470657e7218a21d8b94ac1bdef80f255ac5e7a07493302443296ccb20a04ebfa0c8f6ea4dd9134c19ecd65673c336261b',
+        ),
+      );
+
+      const data = bufferToHex(
+        Buffer.from('Example `personal_sign` message', 'utf8'),
+      );
+      const qrKeyring = signProcessKeyringController.state.keyrings.find(
+        (keyring) => keyring.type === KeyringTypes.qr,
+      );
+      const account = qrKeyring?.accounts[0] || '';
+      const signature = await signProcessKeyringController.signPersonalMessage({
+        data,
+        from: account,
+      });
+      const recovered = recoverPersonalSignature({ data, sig: signature });
+      expect(account.toLowerCase()).toBe(recovered.toLowerCase());
+    });
+
+    it('should sign typed message V1 with QR keyring', async () => {
+      await setupQRKeyring();
+      requestSignatureStub.resolves(
+        composeMockSignature(
+          '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+          '4b9b4cde5c883e3281a5a603179379817a94796f3a06079374db94f0b2c1882c5e708de2fa0ec84d74b3819f7baae0d310b4494d101359afe470910bec5d36071b',
+        ),
+      );
+
+      const typedMsgParams = [
+        {
+          name: 'Message',
+          type: 'string',
+          value: 'Hi, Alice!',
+        },
+        {
+          name: 'A number',
+          type: 'uint32',
+          value: '1337',
+        },
+      ];
+      const qrKeyring = signProcessKeyringController.state.keyrings.find(
+        (keyring) => keyring.type === KeyringTypes.qr,
+      );
+      const account = qrKeyring?.accounts[0] || '';
+      const signature = await signProcessKeyringController.signTypedMessage(
+        { data: typedMsgParams, from: account },
+        SignTypedDataVersion.V1,
+      );
+      const recovered = recoverTypedSignatureLegacy({
+        data: typedMsgParams,
+        sig: signature as string,
+      });
+      expect(account.toLowerCase()).toBe(recovered.toLowerCase());
+    });
+
+    it('should sign typed message V3 with QR keyring', async () => {
+      await setupQRKeyring();
+      requestSignatureStub.resolves(
+        composeMockSignature(
+          '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+          '112e4591abc834251f2671127acabebf33be3a8d8fa15312e94ba0f008e53d697930b4ae99cb36955e1c96fee888cf1ed6e314769db0bd4d6246d492b8685fd21c',
+        ),
+      );
+
+      const msg =
+        '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","version":"1","chainId":4,"verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"},"message":{"from":{"name":"Cow","wallet":"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},"to":{"name":"Bob","wallet":"0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},"contents":"Hello, Bob!"}}';
+
+      const qrKeyring = signProcessKeyringController.state.keyrings.find(
+        (keyring) => keyring.type === KeyringTypes.qr,
+      );
+      const account = qrKeyring?.accounts[0] || '';
+      const signature = await signProcessKeyringController.signTypedMessage(
+        {
+          data: msg,
+          from: account,
+        },
+        SignTypedDataVersion.V3,
+      );
+      const recovered = recoverTypedSignature({
+        data: JSON.parse(msg),
+        sig: signature as string,
+      });
+      expect(account.toLowerCase()).toBe(recovered);
+    });
+
+    it('should sign typed message V4 with QR keyring', async () => {
+      await setupQRKeyring();
+      requestSignatureStub.resolves(
+        composeMockSignature(
+          '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+          '1271c3de4683ed99b11ceecc0a81f48701057174eb0edd729342ecdd9e061ed26eea3c4b84d232e01de00f1f3884fdfe15f664fe2c58c2e565d672b3cb281ccb1c',
+        ),
+      );
+
+      const msg =
+        '{"domain":{"chainId":"4","name":"Ether Mail","verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC","version":"1"},"message":{"contents":"Hello, Bob!","from":{"name":"Cow","wallets":["0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826","0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF"]},"to":[{"name":"Bob","wallets":["0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB","0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57","0xB0B0b0b0b0b0B000000000000000000000000000"]}]},"primaryType":"Mail","types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Group":[{"name":"name","type":"string"},{"name":"members","type":"Person[]"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person[]"},{"name":"contents","type":"string"}],"Person":[{"name":"name","type":"string"},{"name":"wallets","type":"address[]"}]}}';
+
+      const qrKeyring = signProcessKeyringController.state.keyrings.find(
+        (keyring) => keyring.type === KeyringTypes.qr,
+      );
+      const account = qrKeyring?.accounts[0] || '';
+      const signature = await signProcessKeyringController.signTypedMessage(
+        { data: msg, from: account },
+        SignTypedDataVersion.V4,
+      );
+      const recovered = recoverTypedSignature_v4({
+        data: JSON.parse(msg),
+        sig: signature as string,
+      });
+      expect(account.toLowerCase()).toBe(recovered);
+    });
+
+    it('should sign transaction with QR keyring', async () => {
+      await setupQRKeyring();
+      requestSignatureStub.resolves(
+        composeMockSignature(
+          '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+          '33ea4c1dc4b201ad1b1feaf172aadf60dcf2f8bd76d941396bfaebfc3b2868b0340d5689341925c99cdea39e3c5daf7fe2776f220e5b018e85d3b1df19c7bc4701',
+        ),
+      );
+
+      const qrKeyring = signProcessKeyringController.state.keyrings.find(
+        (keyring) => keyring.type === KeyringTypes.qr,
+      );
+      const account = qrKeyring?.accounts[0] || '';
+      const tx = TransactionFactory.fromTxData(
+        {
+          accessList: [],
+          chainId: '0x4',
+          data: '0x',
+          gasLimit: '0x5208',
+          maxFeePerGas: '0x2540be400',
+          maxPriorityFeePerGas: '0x3b9aca00',
+          nonce: '0x68',
+          r: undefined,
+          s: undefined,
+          to: '0x0c54fccd2e384b4bb6f2e405bf5cbc15a017aafb',
+          v: undefined,
+          value: '0x0',
+          type: 2,
+        },
+        {
+          common: Common.forCustomChain(
+            MAINNET,
+            {
+              name: 'rinkeby',
+              chainId: parseInt('4'),
+              networkId: parseInt('4'),
+            },
+            'london',
+          ),
+        },
+      );
+      const signedTx = await signProcessKeyringController.signTransaction(
+        tx,
+        account,
+      );
+      expect(signedTx.v).not.toBeUndefined();
+      expect(signedTx).not.toBe('');
+    });
+
+    it('should reset qr keyring state', async () => {
+      await setupQRKeyring();
+      (await signProcessKeyringController.getQRKeyringState()).updateState({
+        sign: {
+          request: {
+            requestId: 'test',
+            payload: {
+              cbor: 'test',
+              type: 'test',
+            },
+          },
+        },
+      });
+
+      expect(
+        (await signProcessKeyringController.getQRKeyringState()).getState().sign
+          .request,
+      ).toBeDefined();
+
+      await signProcessKeyringController.resetQRKeyringState();
+
+      expect(
+        (await signProcessKeyringController.getQRKeyringState()).getState().sign
+          .request,
+      ).toBeUndefined();
+    });
+
+    it('should forget qr keyring', async () => {
+      await setupQRKeyring();
+      expect(
+        signProcessKeyringController.state.keyrings[1].accounts,
+      ).toHaveLength(3);
+      await signProcessKeyringController.forgetQRDevice();
+      expect(
+        signProcessKeyringController.state.keyrings[1].accounts,
+      ).toHaveLength(0);
+    });
+
+    it('should restore qr keyring', async () => {
+      const serializedQRKeyring = {
+        initialized: true,
+        accounts: ['0xE410157345be56688F43FF0D9e4B2B38Ea8F7828'],
+        currentAccount: 0,
+        page: 0,
+        perPage: 5,
+        keyringAccount: 'account.standard',
+        keyringMode: 'hd',
+        name: 'Keystone',
+        version: 1,
+        xfp: '5271c071',
+        xpub:
+          'xpub6CNhtuXAHDs84AhZj5ALZB6ii4sP5LnDXaKDSjiy6kcBbiysq89cDrLG29poKvZtX9z4FchZKTjTyiPuDeiFMUd1H4g5zViQxt4tpkronJr',
+        hdPath: "m/44'/60'/0'",
+        childrenPath: '0/*',
+        indexes: {
+          '0xE410157345be56688F43FF0D9e4B2B38Ea8F7828': 0,
+          '0xEEACb7a5e53600c144C0b9839A834bb4b39E540c': 1,
+          '0xA116800A72e56f91cF1677D40C9984f9C9f4B2c7': 2,
+          '0x4826BadaBC9894B3513e23Be408605611b236C0f': 3,
+          '0x8a1503beb17Ef02cC4Ff288b0A73583c4ce547c7': 4,
+        },
+        paths: {},
+      };
+      await signProcessKeyringController.restoreQRKeyring(serializedQRKeyring);
+      expect(
+        signProcessKeyringController.state.keyrings[1].accounts,
+      ).toHaveLength(1);
+    });
+
+    it('should get account keyring type', async () => {
+      await setupQRKeyring();
+      const qrAccount = '0xE410157345be56688F43FF0D9e4B2B38Ea8F7828';
+      const hdAccount =
+        signProcessKeyringController.state.keyrings[0].accounts[0];
+      expect(
+        await signProcessKeyringController.getAccountKeyringType(hdAccount),
+      ).toBe(KeyringTypes.hd);
+
+      expect(
+        await signProcessKeyringController.getAccountKeyringType(qrAccount),
+      ).toBe(KeyringTypes.qr);
+    });
+
+    it("should call qr keyring's methods", async () => {
+      await setupQRKeyring();
+      const qrKeyring = await signProcessKeyringController.getOrAddQRKeyring();
+
+      const submitCryptoHDKeyStub = sinon.stub(qrKeyring, 'submitCryptoHDKey');
+      submitCryptoHDKeyStub.resolves();
+      await signProcessKeyringController.submitQRCryptoHDKey('anything');
+      expect(submitCryptoHDKeyStub.calledWith('anything')).toBe(true);
+
+      const submitCryptoAccountStub = sinon.stub(
+        qrKeyring,
+        'submitCryptoAccount',
+      );
+      submitCryptoAccountStub.resolves();
+      await signProcessKeyringController.submitQRCryptoAccount('anything');
+      expect(submitCryptoAccountStub.calledWith('anything')).toBe(true);
+
+      const submitSignatureStub = sinon.stub(qrKeyring, 'submitSignature');
+      submitSignatureStub.resolves();
+      await signProcessKeyringController.submitQRSignature(
+        'anything',
+        'anything',
+      );
+      expect(submitSignatureStub.calledWith('anything', 'anything')).toBe(true);
+
+      const cancelSignRequestStub = sinon.stub(qrKeyring, 'cancelSignRequest');
+      cancelSignRequestStub.resolves();
+      await signProcessKeyringController.cancelQRSignRequest();
+      expect(cancelSignRequestStub.called).toBe(true);
+    });
   });
 });
