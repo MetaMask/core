@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Now the `KeyringController` supports the `QRKeyring` from `@keystonehq/metamask-airgapped-keyring`. Developers can enable the import of accounts from a QR hardware wallet. ([#685](https://github.com/MetaMask/controllers/pull/685))
   - A new optional parameter, `setAccountLabel` from the `PreferencesController`, should be passed to the `KeyringController` to enable this new functionality.
+  
 ### Changed
 - Bump `eth-phishing-detect` version from 1.1.14 to 1.1.16 ([#742](https://github.com/MetaMask/controllers/pull/742))
 - Bump `@metamask/contract-metadata` from 1.31.0 to 1.33.0 ([#730](https://github.com/MetaMask/controllers/pull/730))
