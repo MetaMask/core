@@ -54,6 +54,6 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
       - name: Publish
-        uses: rickycodes/action-npm-publish@c561c6562c3f8c24cd6372b526a5feb138506332
+        uses: MetaMask/action-npm-publish@v1
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
