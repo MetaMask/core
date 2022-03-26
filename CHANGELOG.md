@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/contract-metadata` from 1.31.0 to 1.33.0 ([#730](https://github.com/MetaMask/controllers/pull/730))
 
 ### Fixed
-- Catch errors thrown from `ethereumjs-util` methods in `KeyringController` ([#739](https://github.com/MetaMask/controllers/pull/739))
+- Improve error message when attempting to import an invalid private key ([#739](https://github.com/MetaMask/controllers/pull/739))
 
 ### Security
 - Bump `minimist` from 1.2.5 to 1.2.6 ([#752](https://github.com/MetaMask/controllers/pull/752))
