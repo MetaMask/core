@@ -17,9 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Improve error message when attempting to import an invalid private key ([#739](https://github.com/MetaMask/controllers/pull/739))
 
-### Security
-- Bump `minimist` from 1.2.5 to 1.2.6 ([#752](https://github.com/MetaMask/controllers/pull/752))
-
 ## [27.0.0]
 ### Changed
 - **BREAKING:** Further reduce load on Infura by removing non-critical data from the fallback implementation of the Gas API ([#712](https://github.com/MetaMask/controllers/pull/712))
