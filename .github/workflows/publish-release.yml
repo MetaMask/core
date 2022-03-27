@@ -47,6 +47,6 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
       - name: Publish
-        uses: MetaMask/action-npm-publish@v1
+        uses: MetaMask/action-npm-publish@v1.0.0
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
