@@ -9,6 +9,10 @@ import {
   calculateTimeEstimate,
 } from './gas-util';
 
+type DeeplyPartial<T> = T extends Record<any, any>
+  ? { [K in keyof T]?: DeeplyPartial<T[K]> }
+  : T;
+
 const mockEIP1559ApiResponses = [
   {
     low: {
@@ -242,29 +246,18 @@ describe('gas-util', () => {
   });
 
   describe('calculateTimeEstimate', () => {
-    const buildGasFeeEstimates = ({
-      estimatedBaseFee,
-      low = {},
-      medium = {},
-      high = {},
-    }: {
-      estimatedBaseFee: string;
-      low?: {
-        minWaitTimeEstimate?: number;
-        maxWaitTimeEstimate?: number;
-        suggestedMaxPriorityFeePerGas?: string;
-      };
-      medium?: {
-        minWaitTimeEstimate?: number;
-        maxWaitTimeEstimate?: number;
-        suggestedMaxPriorityFeePerGas?: string;
-      };
-      high?: {
-        minWaitTimeEstimate?: number;
-        maxWaitTimeEstimate?: number;
-        suggestedMaxPriorityFeePerGas?: string;
-      };
-    }): GasFeeEstimates => {
+    /**
+     * Allows building a GasFeeEstimates object in tests by specifying only the
+     * properties of the object that matter to those tests.
+     *
+     * @param overrides - The properties you want to override in the new
+     * GasFeeEstimates object.
+     * @returns The built GasFeeEstimates object.
+     */
+    function buildGasFeeEstimates(
+      overrides: DeeplyPartial<GasFeeEstimates>,
+    ): GasFeeEstimates {
+      const { low = {}, medium = {}, high = {}, estimatedBaseFee } = overrides;
       return {
         low: {
           minWaitTimeEstimate: 0,
@@ -295,7 +288,7 @@ describe('gas-util', () => {
         priorityFeeTrend: null,
         networkCongestion: null,
       };
-    };
+    }
 
     describe('if the given priority fee is less than the given max fee minus the latest base fee', () => {
       let maxPriorityFeePerGas: string;
@@ -330,7 +323,7 @@ describe('gas-util', () => {
         });
       });
 
-      describe('and the given priority fee reaches the suggested low priority fee threshold, but does reach the medium priority fee threshold', () => {
+      describe('and the given priority fee reaches the suggested low priority fee threshold, but does not reach the medium priority fee threshold', () => {
         it('should return a lower and upper bound equal to the low min and max wait time', () => {
           const timeBounds = calculateTimeEstimate(
             maxPriorityFeePerGas,
