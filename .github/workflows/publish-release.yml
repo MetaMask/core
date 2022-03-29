@@ -33,7 +33,9 @@ jobs:
       - uses: actions/cache@v2
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./node_modules/
           key: ${{ github.sha }}
 
   publish-npm:
