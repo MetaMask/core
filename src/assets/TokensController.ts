@@ -731,7 +731,6 @@ export class TokensController extends BaseController<
    * @returns The token metadata.
    */
   async fetchTokenMetadata(tokenAddress: string): Promise<RawToken> {
-    const releaseLock = await this.mutex.acquire();
     try {
       const token = await fetchTokenMetadata<RawToken>(
         this.config.chainId,
@@ -741,8 +740,6 @@ export class TokensController extends BaseController<
       return token;
     } catch {
       return {} as RawToken;
-    } finally {
-      releaseLock();
     }
   }
 
