@@ -4,15 +4,20 @@ import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import { ethers } from 'ethers';
+import { isHexString } from 'ethereumjs-util';
+import AbortController from 'abort-controller';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
-import { validateTokenToWatch, toChecksumHexAddress } from '../util';
+import {
+  validateTokenToWatch,
+  toChecksumHexAddress,
+  convertPriceToDecimal,
+} from '../util';
 import { MAINNET, ERC721_INTERFACE_ID } from '../constants';
+import { fetchTokenMetadata } from '../apis/token-service';
 import type { Token } from './TokenRatesController';
 import { RawToken } from './TokenListController';
-import { fetchTokenMetadata } from '../apis/token-service';
-import AbortController from 'abort-controller';
 
 /**
  * @type TokensConfig
@@ -670,8 +675,12 @@ export class TokensController extends BaseController<
    * Takes a new tokens and ignoredTokens array for the current network/account combination
    * and returns new allTokens and allIgnoredTokens state to update to.
    *
+   * @param params
    * @param newTokens - The new tokens to set for the current network and selected account.
    * @param newIgnoredTokens - The new ignored tokens to set for the current network and selected account.
+   * @param params.newTokens
+   * @param params.newIgnoredTokens
+   * @param params.newDetectedTokens
    * @returns The updated `allTokens` and `allIgnoredTokens` state.
    */
   _getNewAllTokensState(params: {
@@ -733,7 +742,9 @@ export class TokensController extends BaseController<
   async fetchTokenMetadata(tokenAddress: string): Promise<RawToken> {
     try {
       const token = await fetchTokenMetadata<RawToken>(
-        this.config.chainId,
+        isHexString(this.config.chainId)
+          ? convertPriceToDecimal(this.config.chainId).toString()
+          : this.config.chainId,
         tokenAddress,
         this.abortController.signal,
       );
