@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [27.1.1]
-### Uncategorized
-- Move new keystone package to dependencies ([#757](https://github.com/MetaMask/controllers/pull/757))
+### Fixed
+- Move `@keystonehq/metamask-airgapped-keyring` to dependencies, fixing an accidental breaking change in [27.1.0] ([#757](https://github.com/MetaMask/controllers/pull/757))
 
-## [27.1.0]
+## [27.1.0] [DEPRECATED]
+
+This version is deprecated because it includes an accidental breaking change. Please use [27.1.1] instead.
+
 ### Added
 - Now the `KeyringController` supports the `QRKeyring` from `@keystonehq/metamask-airgapped-keyring`. Developers can enable the import of accounts from a QR hardware wallet. A new optional parameter, `setAccountLabel` from the `PreferencesController`, should be passed to the `KeyringController` to enable this new functionality. ([#685](https://github.com/MetaMask/controllers/pull/685))
 
