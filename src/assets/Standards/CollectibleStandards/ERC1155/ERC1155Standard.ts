@@ -5,6 +5,7 @@ import {
   ERC1155_METADATA_URI_INTERFACE_ID,
   ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
 } from '../../../../constants';
+import { getFormattedIpfsUrl, timeoutFetch } from '../../../../util';
 
 export class ERC1155Standard {
   private web3: any;
@@ -139,20 +140,38 @@ export class ERC1155Standard {
    * Query if a contract implements an interface.
    *
    * @param address - Asset contract address.
+   * @param ipfsGateway - The user's preferred IPFS gateway.
    * @param tokenId - tokenId of a given token in the contract.
    * @returns Promise resolving an object containing the standard, tokenURI, symbol and name of the given contract/tokenId pair.
    */
   getDetails = async (
     address: string,
+    ipfsGateway: string,
     tokenId?: string,
   ): Promise<{
     standard: string;
     tokenURI: string | undefined;
+    image: string | undefined;
   }> => {
     const isERC1155 = await this.contractSupportsBase1155Interface(address);
-    let tokenURI;
+    let tokenURI, image;
+
     if (tokenId) {
       tokenURI = await this.getTokenURI(address, tokenId);
+      if (tokenURI.startsWith('ipfs://')) {
+        tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, true);
+      }
+
+      try {
+        const response = await timeoutFetch(tokenURI);
+        const object = await response.json();
+        image = object?.image;
+        if (image?.startsWith('ipfs://')) {
+          image = getFormattedIpfsUrl(ipfsGateway, image, true);
+        }
+      } catch {
+        // ignore
+      }
     }
 
     // TODO consider querying to the metadata to get name.
@@ -160,6 +179,7 @@ export class ERC1155Standard {
       return {
         standard: ERC1155,
         tokenURI,
+        image,
       };
     }
 

@@ -120,7 +120,10 @@ describe('TokenDetectionController', () => {
   beforeEach(async () => {
     preferences = new PreferencesController();
     network = new NetworkController();
-    assetsContract = new AssetsContractController();
+    assetsContract = new AssetsContractController({
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+    });
+
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
