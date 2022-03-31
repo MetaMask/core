@@ -4,13 +4,13 @@ import { Mutex } from 'async-mutex';
 import AbortController from 'abort-controller';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
-import { safelyExecute } from '../util';
+import { safelyExecute, isTokenDetectionEnabledForNetwork } from '../util';
 import { fetchTokenList } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
 import {
   AggregatorKey,
   formatAggregatorNames,
-  isTokenDetectionEnabledForNetwork,
+  formatIconUrlWithProxy,
 } from './assetsUtil';
 
 const DEFAULT_INTERVAL = 60 * 60 * 1000;
@@ -249,6 +249,10 @@ export class TokenListController extends BaseController<
             aggregators: formatAggregatorNames(
               token.aggregators as AggregatorKey[],
             ),
+            iconUrl: formatIconUrlWithProxy({
+              chainId: this.chainId,
+              tokenAddress: token.address,
+            }),
           };
           tokenList[token.address] = formattedToken;
         }

@@ -1,4 +1,3 @@
-import { NetworksChainId } from '../network/NetworkController';
 import { Collectible, CollectibleMetadata } from './CollectiblesController';
 
 /**
@@ -108,19 +107,18 @@ export const formatAggregatorNames = (aggregators: AggregatorKey[]) => {
 };
 
 /**
- * Check if token detection is enabled for certain networks
+ * Format token list assets to use image proxy from Codefi
  *
- * @param chainId - ChainID of network
- * @returns Whether the current network supports token detection
+ * @param params.chainId - ChainID of network
+ * @param params.tokenAddress - Address of token in lowercase
+ * @returns - Formatted image url
  */
-export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
-  switch (chainId) {
-    case NetworksChainId.mainnet:
-    case NetworksChainId.avax:
-    case NetworksChainId.bsc:
-    case NetworksChainId.polygon:
-      return true;
-    default:
-      return false;
-  }
-}
+export const formatIconUrlWithProxy = ({
+  chainId,
+  tokenAddress,
+}: {
+  chainId: string;
+  tokenAddress: string;
+}) => {
+  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainId}/${tokenAddress}.png`;
+};

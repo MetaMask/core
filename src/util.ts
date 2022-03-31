@@ -26,7 +26,6 @@ import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
 import { MAINNET } from './constants';
 import { Json } from './BaseControllerV2';
-import { NetworksChainId } from '.';
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 
@@ -931,4 +930,26 @@ export function isValidJson(value: unknown): value is Json {
   } catch (_) {
     return false;
   }
+}
+
+/**
+ * Networks where token detection is supported - Values are in decimal format
+ */
+export enum SupportedTokenDetectionNetworks {
+  mainnet = '1',
+  bsc = '56',
+  polygon = '137',
+  avax = '43114',
+}
+
+/**
+ * Check if token detection is enabled for certain networks
+ *
+ * @param chainId - ChainID of network
+ * @returns Whether the current network supports token detection
+ */
+export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
+  return Object.values<string>(SupportedTokenDetectionNetworks).includes(
+    chainId,
+  );
 }
