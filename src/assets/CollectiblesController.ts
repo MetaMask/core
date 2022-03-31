@@ -47,11 +47,13 @@ import { compareCollectiblesMetadata } from './assetsUtil';
  * @property externalLink - External link containing additional information
  * @property creator - The collectible owner information object
  * @property isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this collectible
+ * @property isTransacting - Boolean indicating if the Collectible is being transacting
  */
 export interface Collectible extends CollectibleMetadata {
   tokenId: string;
   address: string;
   isCurrentlyOwned?: boolean;
+  isTransacting?: boolean;
 }
 
 /**
@@ -584,6 +586,7 @@ export class CollectiblesController extends BaseController<
         tokenId,
         favorite: existingEntry?.favorite || false,
         isCurrentlyOwned: true,
+        isTransacting: false,
         ...collectibleMetadata,
       };
 
@@ -1147,6 +1150,66 @@ export class CollectiblesController extends BaseController<
     collectibles[index] = updatedCollectible;
 
     this.updateNestedCollectibleState(collectibles, ALL_COLLECTIBLES_STATE_KEY);
+  }
+
+  /**
+   * Update colletible isTransacted status
+   *
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - Hex address of the collectible contract.
+   * @param isTransacting - Collectible transacting status.
+   */
+  updateCollectibleTransactionStatus(
+    address: string,
+    tokenId: string,
+    isTransacting: boolean,
+  ) {
+    const { allCollectibles } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+    const index: number = collectibles.findIndex(
+      (collectible) =>
+        collectible.address === address && collectible.tokenId === tokenId,
+    );
+
+    if (index === -1) {
+      return;
+    }
+    const updatedCollectible: Collectible = {
+      ...collectibles[index],
+      isTransacting,
+    };
+
+    // Update Collectibles array
+    collectibles[index] = updatedCollectible;
+
+    this.updateNestedCollectibleState(collectibles, ALL_COLLECTIBLES_STATE_KEY);
+  }
+
+  /**
+   * Returns if the token is being transacted
+   *
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - Hex address of the collectible contract.
+   * @returns
+   */
+  getCollectibleTransactionStatus(
+    address: string,
+    tokenId: string,
+  ): boolean | undefined {
+    const { allCollectibles } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+    const index: number = collectibles.findIndex(
+      (collectible) =>
+        collectible.address === address && collectible.tokenId === tokenId,
+    );
+
+    if (index === -1) {
+      return;
+    }
+
+    return collectibles[index].isTransacting;
   }
 }
 
