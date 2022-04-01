@@ -115,9 +115,18 @@ export class TokenDetectionController extends BaseController<
       this.configure({ tokens });
     });
     onPreferencesStateChange(({ selectedAddress, useTokenDetection }) => {
-      const actualSelectedAddress = this.config.selectedAddress;
-      this.configure({ selectedAddress, disabled: !useTokenDetection });
-      if (selectedAddress !== actualSelectedAddress || useTokenDetection) {
+      const prevDisabled = this.config.disabled;
+      const prevSelectedAddress = this.config.selectedAddress;
+      const isTokenDetectionSupported = isTokenDetectionEnabledForNetwork(
+        this.config.chainId,
+      );
+      const isDetectionEnabled = useTokenDetection && isTokenDetectionSupported;
+      this.configure({ selectedAddress, disabled: !isDetectionEnabled });
+      // Check if detection state or selected address has changed
+      if (
+        isDetectionEnabled &&
+        (prevDisabled || selectedAddress !== prevSelectedAddress)
+      ) {
         this.detectTokens();
       }
     });
@@ -127,16 +136,20 @@ export class TokenDetectionController extends BaseController<
         this.abortController.abort();
         this.abortController = new AbortController();
         const incomingChainId = networkState.provider.chainId;
-        const isDisabled = !isTokenDetectionEnabledForNetwork(incomingChainId);
+        const isTokenDetectionSupported = isTokenDetectionEnabledForNetwork(
+          incomingChainId,
+        );
+        const isDetectionEnabled =
+          isTokenDetectionSupported && !this.config.disabled;
         this.configure({
           networkType: networkState.provider.type,
           chainId: incomingChainId,
-          disabled: isDisabled,
+          disabled: !isDetectionEnabled,
         });
-        if (isDisabled) {
-          this.stopPolling();
-        } else {
+        if (isDetectionEnabled) {
           await this.restart();
+        } else {
+          this.stopPolling();
         }
       }
     });
@@ -147,7 +160,7 @@ export class TokenDetectionController extends BaseController<
    * Start polling for the currency rate.
    */
   async start() {
-    if (this.disabled) {
+    if (this.config.disabled) {
       return;
     }
 
@@ -194,9 +207,11 @@ export class TokenDetectionController extends BaseController<
    */
   async detectTokens() {
     /* istanbul ignore if */
-    if (this.disabled) {
+    if (this.config.disabled) {
       return;
     }
+
+    console.log('DETECT IT');
 
     const tokensAddresses = this.config.tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
