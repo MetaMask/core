@@ -18,6 +18,7 @@ import { MAINNET, ERC721_INTERFACE_ID } from '../constants';
 import { fetchTokenMetadata } from '../apis/token-service';
 import type { Token } from './TokenRatesController';
 import { RawToken } from './TokenListController';
+import { AggregatorKey, formatAggregatorNames } from './assetsUtil';
 
 /**
  * @type TokensConfig
@@ -246,7 +247,9 @@ export class TokensController extends BaseController<
         decimals,
         image,
         isERC721,
-        aggregators: tokenMetadata.aggregators || [],
+        aggregators: formatAggregatorNames(
+          (tokenMetadata.aggregators || []) as AggregatorKey[],
+        ),
       };
       const previousEntry = tokens.find(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
