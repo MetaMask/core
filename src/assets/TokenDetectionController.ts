@@ -211,8 +211,6 @@ export class TokenDetectionController extends BaseController<
       return;
     }
 
-    console.log('DETECT IT');
-
     const tokensAddresses = this.config.tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
