@@ -33,6 +33,7 @@ export enum SmartTransactionStatuses {
   SUCCESS = 'success',
   REVERTED = 'reverted',
   UNKNOWN = 'unknown',
+  CANCELLED = 'cancelled',
   CANCELLED_WOULD_REVERT = 'cancelled_would_revert',
   CANCELLED_TOO_CHEAP = 'cancelled_too_cheap',
   CANCELLED_DEADLINE_MISSED = 'cancelled_deadline_missed',

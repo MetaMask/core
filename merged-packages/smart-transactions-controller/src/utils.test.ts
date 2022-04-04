@@ -118,6 +118,16 @@ describe('src/utils.js', () => {
       );
     });
 
+    it('returns cancelled if minedTx is cancelled', () => {
+      const statusResponse = {
+        ...createStatusResponse(),
+        minedTx: SmartTransactionMinedTx.CANCELLED,
+      };
+      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
+        SmartTransactionStatuses.CANCELLED,
+      );
+    });
+
     it('returns reverted if minedTx is reverted', () => {
       const statusResponse = {
         ...createStatusResponse(),

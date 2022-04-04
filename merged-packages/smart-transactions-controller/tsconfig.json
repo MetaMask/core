@@ -10,7 +10,8 @@
     "rootDir": "src",
     "sourceMap": true,
     "strict": true,
-    "target": "ES2017"
+    "target": "ES2017",
+    "skipLibCheck": true
   },
   "exclude": ["./src/**/*.test.ts"],
   "include": ["./src/**/*.ts"]

@@ -81,6 +81,8 @@ export const calculateStatus = (status: SmartTransactionsStatus) => {
     }
   } else if (status?.minedTx === SmartTransactionMinedTx.SUCCESS) {
     return SmartTransactionStatuses.SUCCESS;
+  } else if (status?.minedTx === SmartTransactionMinedTx.CANCELLED) {
+    return SmartTransactionStatuses.CANCELLED;
   } else if (status?.minedTx === SmartTransactionMinedTx.REVERTED) {
     return SmartTransactionStatuses.REVERTED;
   } else if (status?.minedTx === SmartTransactionMinedTx.UNKNOWN) {

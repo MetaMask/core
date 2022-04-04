@@ -39,7 +39,7 @@ const { safelyExecute } = util;
 const SECOND = 1000;
 const MINUTE = SECOND * 60;
 
-export const DEFAULT_INTERVAL = SECOND * 10;
+export const DEFAULT_INTERVAL = SECOND * 5;
 export const CANCELLABLE_INTERVAL = MINUTE;
 
 export interface SmartTransactionsControllerConfig extends BaseConfig {
@@ -235,6 +235,7 @@ export default class SmartTransactionsController extends BaseController<
     }
 
     const sensitiveProperties = {
+      uuid: updatedSmartTransaction.uuid,
       stx_status: updatedSmartTransaction.status,
       token_from_address: updatedSmartTransaction.txParams?.from,
       token_from_symbol: updatedSmartTransaction.sourceTokenSymbol,
@@ -605,20 +606,14 @@ export default class SmartTransactionsController extends BaseController<
     return data;
   }
 
-  // ! This should return if the cancellation was on chain or not (for nonce management)
-  // * After this successful call client must update nonce representative
-  // * in transaction controller external transactions list
-  // ! Ask backend API to make this endpoint a POST
+  // TODO: This should return if the cancellation was on chain or not (for nonce management)
+  // After this successful call client must update nonce representative
+  // in transaction controller external transactions list
   async cancelSmartTransaction(uuid: string): Promise<void> {
     const { chainId } = this.config;
     await this.fetch(getAPIRequestURL(APIType.CANCEL, chainId), {
       method: 'POST',
       body: JSON.stringify({ uuid }),
-    });
-
-    this.updateSmartTransaction({
-      uuid,
-      status: SmartTransactionStatuses.CANCELLED_USER_CANCELLED,
     });
   }
 
