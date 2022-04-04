@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0]
+### Added
+- Handle the "cancelled" status, lower status polling interval from 10s to 5s, don't mark a tx as cancelled immediately, track uuid ([#63](https://github.com/MetaMask/smart-transactions-controller/pull/63))
+- chore(deps): bump @metamask/controllers from 25.1.0 to 27.1.1 ([#62](https://github.com/MetaMask/smart-transactions-controller/pull/62))
+- Add tracking of the "current_stx_enabled" param ([#58](https://github.com/MetaMask/smart-transactions-controller/pull/58))
+
 ## [1.9.1]
 ### Added
 - Use the "confirmExternalTransaction" fn directly ([#56](https://github.com/MetaMask/smart-transactions-controller/pull/56))
@@ -75,7 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.9.1...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.9.1...v1.10.0
 [1.9.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.7.0...v1.8.0
