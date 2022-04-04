@@ -26,7 +26,7 @@
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd .."
   },
   "dependencies": {
-    "@metamask/controllers": "^25.1.0",
+    "@metamask/controllers": "^27.1.1",
     "@types/lodash": "^4.14.176",
     "bignumber.js": "^9.0.1",
     "ethers": "^5.5.1",
