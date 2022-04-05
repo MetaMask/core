@@ -53,8 +53,6 @@ export interface Collectible extends CollectibleMetadata {
   tokenId: string;
   address: string;
   isCurrentlyOwned?: boolean;
-  isTransacting?: boolean;
-  transactionId?: string;
 }
 
 /**
@@ -119,6 +117,7 @@ export interface CollectibleMetadata {
   externalLink?: string;
   creator?: ApiCollectibleCreator;
   lastSale?: ApiCollectibleLastSale;
+  transactionId?: string;
 }
 
 interface AccountParams {
@@ -587,8 +586,6 @@ export class CollectiblesController extends BaseController<
         tokenId,
         favorite: existingEntry?.favorite || false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
         ...collectibleMetadata,
       };
 
@@ -1155,18 +1152,43 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Update collectible isTransacting status
+   * Returns the collectible by the address and token id
    *
    * @param address - Hex address of the collectible contract.
    * @param tokenId - Number that represents the id of the token.
-   * @param isTransacting - Collectible transacting status.
-   * @param transactionId - Hex id of the send transaction of the collectible.
+   * @returns a collectible
    */
-  updateCollectibleTransactionStatus(
+  findCollectibleByAddressAndTokenId(
     address: string,
     tokenId: string,
-    isTransacting: boolean,
-    transactionId: string,
+  ): Collectible | undefined {
+    const { allCollectibles } = this.state;
+    const { chainId, selectedAddress } = this.config;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+    const index: number = collectibles.findIndex(
+      (collectible) =>
+        collectible.address.toLowerCase() === address.toLowerCase() &&
+        collectible.tokenId === tokenId,
+    );
+
+    if (index === -1) {
+      return;
+    }
+
+    return collectibles[index];
+  }
+
+  /**
+   * Update collectible data
+   *
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - Number that represents the id of the token.
+   * @param collectible - Hex id of the send transaction of the collectible.
+   */
+  updateCollectibleByAddressAndTokenId(
+    address: string,
+    tokenId: string,
+    collectible: Collectible,
   ) {
     const { allCollectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
@@ -1179,10 +1201,9 @@ export class CollectiblesController extends BaseController<
     if (index === -1) {
       return;
     }
+
     const updatedCollectible: Collectible = {
-      ...collectibles[index],
-      isTransacting,
-      transactionId,
+      ...collectible,
     };
 
     // Update Collectibles array
@@ -1194,7 +1215,7 @@ export class CollectiblesController extends BaseController<
    * Resets the transaction status of a collectible
    *
    * @param transactionId - Hex id of the send transaction of the collectible.
-   * @returns
+   * @returns a boolean indicating if the reset was well succeded or not
    */
   resetCollectibleTransactionStatusByTransactionId(
     transactionId: string,
@@ -1211,8 +1232,7 @@ export class CollectiblesController extends BaseController<
     }
     const updatedCollectible: Collectible = {
       ...collectibles[index],
-      isTransacting: false,
-      transactionId: '',
+      transactionId: undefined,
     };
 
     // Update Collectibles array
@@ -1220,37 +1240,6 @@ export class CollectiblesController extends BaseController<
 
     this.updateNestedCollectibleState(collectibles, ALL_COLLECTIBLES_STATE_KEY);
     return true;
-  }
-
-  /**
-   * Returns if the token is being transacted
-   *
-   * @param address - Hex address of the collectible contract.
-   * @param tokenId - Number that represents the id of the token.
-   * @returns
-   */
-  getCollectibleTransactionStatus(
-    address: string,
-    tokenId: string,
-  ):
-    | { isTransacting: boolean | undefined; transactionId: string | undefined }
-    | undefined {
-    const { allCollectibles } = this.state;
-    const { chainId, selectedAddress } = this.config;
-    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
-    const index: number = collectibles.findIndex(
-      (collectible) =>
-        collectible.address.toLowerCase() === address.toLowerCase() && collectible.tokenId === tokenId,
-    );
-
-    if (index === -1) {
-      return;
-    }
-
-    return {
-      isTransacting: collectibles[index].isTransacting,
-      transactionId: collectibles[index].transactionId,
-    };
   }
 }
 

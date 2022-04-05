@@ -225,8 +225,6 @@ describe('CollectiblesController', () => {
         standard: 'standard',
         favorite: false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
       });
 
       expect(
@@ -266,8 +264,6 @@ describe('CollectiblesController', () => {
         tokenId: '1234',
         favorite: false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
       });
     });
 
@@ -295,8 +291,6 @@ describe('CollectiblesController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
       });
 
       await collectiblesController.addCollectible('0x01', '1', {
@@ -320,8 +314,6 @@ describe('CollectiblesController', () => {
         standard: 'standard',
         favorite: false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
       });
     });
 
@@ -371,8 +363,6 @@ describe('CollectiblesController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
       });
     });
 
@@ -401,8 +391,6 @@ describe('CollectiblesController', () => {
         standard: 'ERC1155',
         favorite: false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
       });
     });
 
@@ -431,8 +419,6 @@ describe('CollectiblesController', () => {
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
       });
 
       expect(
@@ -473,8 +459,6 @@ describe('CollectiblesController', () => {
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
       });
 
       expect(
@@ -535,8 +519,6 @@ describe('CollectiblesController', () => {
         tokenId: '1234',
         favorite: false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
       });
     });
 
@@ -587,8 +569,6 @@ describe('CollectiblesController', () => {
           tokenId: '1203',
           favorite: false,
           isCurrentlyOwned: true,
-          isTransacting: false,
-          transactionId: '',
         },
       ]);
 
@@ -687,8 +667,6 @@ describe('CollectiblesController', () => {
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
       });
     });
   });
@@ -723,8 +701,6 @@ describe('CollectiblesController', () => {
         tokenId: '1234',
         favorite: false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
       });
     });
 
@@ -821,8 +797,6 @@ describe('CollectiblesController', () => {
         tokenId: '4321',
         favorite: false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
       });
     });
 
@@ -875,8 +849,6 @@ describe('CollectiblesController', () => {
         tokenId: '4321',
         favorite: false,
         isCurrentlyOwned: true,
-        isTransacting: false,
-        transactionId: '',
       });
     });
   });
@@ -1105,8 +1077,6 @@ describe('CollectiblesController', () => {
           tokenId: ERC721_DEPRESSIONIST_ID,
           favorite: true,
           isCurrentlyOwned: true,
-          isTransacting: false,
-          transactionId: '',
         }),
       );
 
@@ -1159,8 +1129,6 @@ describe('CollectiblesController', () => {
           tokenId: ERC721_DEPRESSIONIST_ID,
           favorite: false,
           isCurrentlyOwned: true,
-          isTransacting: false,
-          transactionId: '',
         }),
       );
 
@@ -1406,8 +1374,79 @@ describe('CollectiblesController', () => {
     });
   });
 
-  describe('checkUpdateAndResetIsTransactingAndTransactionIdProps', () => {
-    it('check, update and reset isTransacting and transactionId props', async () => {
+  describe('findCollectibleByAddressAndTokenId', () => {
+    it('should return undefined when the collectible does not exist', async () => {
+      const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
+
+      const collectible = {
+        address: '0x02',
+        tokenId: '1',
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
+      };
+
+      collectiblesController.updateCollectibleByAddressAndTokenId(
+        collectible.address,
+        collectible.tokenId,
+        { ...collectible, transactionId: mockTransactionId },
+      );
+
+      expect(
+        collectiblesController.findCollectibleByAddressAndTokenId(
+          collectible.address,
+          collectible.tokenId,
+        ),
+      ).toBe(undefined);
+    });
+
+    it('should return the collectible by the address and tokenId with the prop transactionId', async () => {
+      const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
+
+      const collectible = {
+        address: '0x02',
+        tokenId: '1',
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
+      };
+
+      await collectiblesController.addCollectible(
+        collectible.address,
+        collectible.tokenId,
+        collectible,
+      );
+
+      collectiblesController.updateCollectibleByAddressAndTokenId(
+        collectible.address,
+        collectible.tokenId,
+        { ...collectible, transactionId: mockTransactionId },
+      );
+
+      expect(
+        collectiblesController.findCollectibleByAddressAndTokenId(
+          collectible.address,
+          collectible.tokenId,
+        ),
+      ).toStrictEqual({
+        address: '0x02',
+        description: 'description',
+        favorite: false,
+        image: 'image',
+        name: 'name',
+        standard: 'standard',
+        tokenId: '1',
+        transactionId: '60d36710-b150-11ec-8a49-c377fbd05e27',
+      });
+    });
+  });
+
+  describe('updateCollectibleByAddressAndTokenId', () => {
+    it('should update the collectible when the collectible exist', async () => {
       const { selectedAddress, chainId } = collectiblesController.config;
       const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
 
@@ -1427,18 +1466,110 @@ describe('CollectiblesController', () => {
         collectible,
       );
 
-      collectiblesController.updateCollectibleTransactionStatus(
+      collectiblesController.updateCollectibleByAddressAndTokenId(
         collectible.address,
         collectible.tokenId,
-        true,
-        mockTransactionId,
+        { ...collectible, transactionId: mockTransactionId },
       );
 
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][
           chainId
-        ][0].isTransacting,
-      ).toBe(true);
+        ][0],
+      ).toStrictEqual({
+        address: '0x02',
+        description: 'description',
+        favorite: false,
+        image: 'image',
+        name: 'name',
+        standard: 'standard',
+        tokenId: '1',
+        transactionId: '60d36710-b150-11ec-8a49-c377fbd05e27',
+      });
+    });
+
+    it('should return undefined when the collectible does not exist', () => {
+      const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
+
+      const collectible = {
+        address: '0x02',
+        tokenId: '1',
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
+      };
+
+      expect(
+        collectiblesController.updateCollectibleByAddressAndTokenId(
+          collectible.address,
+          collectible.tokenId,
+          { ...collectible, transactionId: mockTransactionId },
+        ),
+      ).toBe(undefined);
+    });
+  });
+
+  describe('resetCollectibleTransactionStatusByTransactionId', () => {
+    it('should handle inputs with transaction ids that does not match any collectible', async () => {
+      const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
+      const nonExistTransactionId = '0123';
+
+      const collectible = {
+        address: '0x02',
+        tokenId: '1',
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
+      };
+
+      await collectiblesController.addCollectible(
+        collectible.address,
+        collectible.tokenId,
+        collectible,
+      );
+
+      collectiblesController.updateCollectibleByAddressAndTokenId(
+        collectible.address,
+        collectible.tokenId,
+        { ...collectible, transactionId: mockTransactionId },
+      );
+
+      expect(
+        collectiblesController.resetCollectibleTransactionStatusByTransactionId(
+          nonExistTransactionId,
+        ),
+      ).toBe(false);
+    });
+
+    it('should reset the transaction data from a collectible correctly', async () => {
+      const { selectedAddress, chainId } = collectiblesController.config;
+      const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
+
+      const collectible = {
+        address: '0x02',
+        tokenId: '1',
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
+      };
+
+      await collectiblesController.addCollectible(
+        collectible.address,
+        collectible.tokenId,
+        collectible,
+      );
+
+      collectiblesController.updateCollectibleByAddressAndTokenId(
+        collectible.address,
+        collectible.tokenId,
+        { ...collectible, transactionId: mockTransactionId },
+      );
 
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][
@@ -1447,14 +1578,7 @@ describe('CollectiblesController', () => {
       ).toBe(mockTransactionId);
 
       expect(
-        collectiblesController.getCollectibleTransactionStatus(
-          collectible.address,
-          collectible.tokenId,
-        )?.isTransacting,
-      ).toBe(true);
-
-      expect(
-        collectiblesController.getCollectibleTransactionStatus(
+        collectiblesController.findCollectibleByAddressAndTokenId(
           collectible.address,
           collectible.tokenId,
         )?.transactionId,
@@ -1465,39 +1589,26 @@ describe('CollectiblesController', () => {
           mockTransactionId,
         ),
       ).toBe(true);
-      expect(
-        collectiblesController.state.allCollectibles[selectedAddress][
-          chainId
-        ][0].isTransacting,
-      ).toBe(false);
 
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][
           chainId
         ][0].transactionId,
-      ).toBe('');
+      ).toBe(undefined);
 
       expect(
-        collectiblesController.getCollectibleTransactionStatus(
-          collectible.address,
-          collectible.tokenId,
-        )?.isTransacting,
-      ).toBe(false);
-
-      expect(
-        collectiblesController.getCollectibleTransactionStatus(
+        !!collectiblesController.findCollectibleByAddressAndTokenId(
           collectible.address,
           collectible.tokenId,
         )?.transactionId,
-      ).toBe('');
-
-      const nonExistTransactionId = '0123';
+      ).toBe(false);
 
       expect(
-        collectiblesController.resetCollectibleTransactionStatusByTransactionId(
-          nonExistTransactionId,
-        ),
-      ).toBe(false);
+        collectiblesController.findCollectibleByAddressAndTokenId(
+          collectible.address,
+          collectible.tokenId,
+        )?.transactionId,
+      ).toBe(undefined);
     });
   });
 });
