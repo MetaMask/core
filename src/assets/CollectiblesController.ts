@@ -1240,7 +1240,7 @@ export class CollectiblesController extends BaseController<
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const index: number = collectibles.findIndex(
       (collectible) =>
-        collectible.address === address && collectible.tokenId === tokenId,
+        collectible.address.toLowerCase() === address.toLowerCase() && collectible.tokenId === tokenId,
     );
 
     if (index === -1) {
