@@ -74,7 +74,7 @@ export async function fetchTokenMetadata<T>(
   if (response) {
     return parseJsonResponse(response) as Promise<T>;
   }
-  return undefined as any;
+  throw new Error(`TokenService Error: No response from fetchTokenMetadata`);
 }
 
 /**
