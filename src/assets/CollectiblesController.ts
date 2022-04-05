@@ -1191,7 +1191,7 @@ export class CollectiblesController extends BaseController<
     this.updateNestedCollectibleState(collectibles, ALL_COLLECTIBLES_STATE_KEY);
   }
   /**
-   * Reset the collectible transaction id value and turn false the isTransacting prop
+   * Resets the transaction status of a collectible
    *
    * @param transactionId - Hex id of the send transaction of the collectible.
    * @returns
