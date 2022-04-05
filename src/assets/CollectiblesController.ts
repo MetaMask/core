@@ -1155,7 +1155,7 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Update colletible isTransacted status
+   * Update collectible isTransacting status
    *
    * @param address - Hex address of the collectible contract.
    * @param tokenId - Number that represents the id of the token.
