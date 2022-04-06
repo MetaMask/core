@@ -1,6 +1,7 @@
 import type { Patch } from 'immer';
 import { nanoid } from 'nanoid';
 
+import { hasProperty } from '../util';
 import { BaseController } from '../BaseControllerV2';
 
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
@@ -17,6 +18,9 @@ export type NotificationState = {
 export type Notification = {
   id: string;
   type: NotificationType;
+  origin: string;
+  date: number;
+  viewed: boolean;
   title: string;
   message: string;
 };
@@ -60,6 +64,11 @@ export type DismissNotification = {
   handler: NotificationController['dismiss'];
 };
 
+export type MarkNotificationViewed = {
+  type: `${typeof name}:markViewed`;
+  handler: NotificationController['markViewed'];
+};
+
 export type GetNotifications = {
   type: `${typeof name}:getNotifications`;
   handler: NotificationController['getNotifications'];
@@ -74,6 +83,7 @@ export type ControllerActions =
   | GetNotificationState
   | ShowNotification
   | DismissNotification
+  | MarkNotificationViewed
   | GetNotifications
   | GetNotificationCount;
 
@@ -145,6 +155,11 @@ export class NotificationController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
+      `${name}:markViewed` as const,
+      (id: string) => this.markViewed(id),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${name}:getNotifications` as const,
       () => this.getNotifications(),
     );
@@ -174,18 +189,21 @@ export class NotificationController extends BaseController<
         this.showNativeNotification(title, args.message);
         break;
       case NotificationType.InApp:
-        this.add(title, args.message);
+        this.add(origin, title, args.message);
         break;
       default:
         throw new Error('Invalid notification type');
     }
   }
 
-  private add(title: string, message: string) {
+  private add(origin: string, title: string, message: string) {
     const id = nanoid();
     const notification = {
       id,
       type: NotificationType.InApp,
+      origin,
+      date: Date.now(),
+      viewed: false,
       title,
       message,
     };
@@ -201,7 +219,22 @@ export class NotificationController extends BaseController<
    */
   dismiss(id: string) {
     this.update((state) => {
-      delete state.notifications[id];
+      if (hasProperty(state.notifications, id)) {
+        delete state.notifications[id];
+      }
+    });
+  }
+
+  /**
+   * Marks a notification as viewed.
+   *
+   * @param id - The notification's ID
+   */
+  markViewed(id: string) {
+    this.update((state) => {
+      if (hasProperty(state.notifications, id)) {
+        state.notifications[id].viewed = true;
+      }
     });
   }
 

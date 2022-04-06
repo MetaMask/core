@@ -6,6 +6,7 @@ import {
   GetNotificationCount,
   GetNotifications,
   GetNotificationState,
+  MarkNotificationViewed,
   NotificationController,
   NotificationMessenger,
   NotificationStateChange,
@@ -25,6 +26,7 @@ function getUnrestrictedMessenger() {
     | GetNotificationState
     | ShowNotification
     | DismissNotification
+    | MarkNotificationViewed
     | GetNotificationCount
     | GetNotifications
     | GetSubjectMetadataState,
@@ -143,11 +145,53 @@ describe('NotificationControllerV2', () => {
     expect(notifications).toHaveLength(1);
     expect(notifications).toContainEqual({
       id: expect.any(String),
+      date: expect.any(Number),
+      origin,
+      viewed: false,
       message,
       title: SNAP_NAME,
       type: NotificationType.InApp,
     });
     expect(callActionSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('action: NotificationControllerV2:markViewed', async () => {
+    const unrestricted = getUnrestrictedMessenger();
+    const messenger = getRestrictedMessenger(unrestricted);
+    const callActionSpy = jest
+      .spyOn(messenger, 'call')
+      .mockImplementationOnce((..._args: any) => ({
+        subjectMetadata,
+      }));
+
+    const showNativeNotification = jest.fn();
+    new NotificationController({
+      showNativeNotification,
+      messenger,
+    });
+
+    expect(
+      await unrestricted.call('NotificationControllerV2:show', origin, {
+        type: NotificationType.InApp,
+        message,
+      }),
+    ).toBeUndefined();
+    expect(showNativeNotification).toHaveBeenCalledTimes(0);
+    expect(await unrestricted.call('NotificationControllerV2:getCount')).toBe(
+      1,
+    );
+    expect(callActionSpy).toHaveBeenCalledTimes(1);
+    const notifications = await unrestricted.call(
+      'NotificationControllerV2:getNotifications',
+    );
+    await unrestricted.call(
+      'NotificationControllerV2:markViewed',
+      notifications[0].id,
+    );
+
+    expect(
+      await unrestricted.call('NotificationControllerV2:getNotifications'),
+    ).toContainEqual({ ...notifications[0], viewed: true });
   });
 
   it('action: NotificationControllerV2:dismiss', async () => {
