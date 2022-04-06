@@ -42,7 +42,7 @@ export interface Token {
   address: string;
   decimals: number;
   symbol: string;
-  aggregators: string[];
+  aggregators?: string[];
   image?: string;
   balanceError?: unknown;
   isERC721?: boolean;

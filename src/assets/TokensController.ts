@@ -298,11 +298,16 @@ export class TokensController extends BaseController<
    */
   async importTokens(tokensToImport: Token[]) {
     const releaseLock = await this.mutex.acquire();
-    const { tokens, detectedTokens } = this.state;
+    const { tokens, detectedTokens, ignoredTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
+    // Used later to dedupe imported tokens
+    const newTokensMap = tokens.reduce((output, current) => {
+      output[current.address] = current;
+      return output;
+    }, {} as { [address: string]: Token });
 
     try {
-      const formattedTokens = tokensToImport.map((tokenToAdd) => {
+      tokensToImport.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image, aggregators } = tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const formattedToken: Token = {
@@ -312,26 +317,36 @@ export class TokensController extends BaseController<
           image,
           aggregators,
         };
+        newTokensMap[address] = formattedToken;
         importedTokensMap[address.toLowerCase()] = true;
         return formattedToken;
       });
-      tokens.push(...formattedTokens);
+      const newTokens = Object.values(newTokensMap);
+
       const newDetectedTokens = detectedTokens.filter(
         (token) => !importedTokensMap[token.address.toLowerCase()],
       );
-
-      const { newAllTokens, newAllDetectedTokens } = this._getNewAllTokensState(
-        {
-          newTokens: tokens,
-          newDetectedTokens,
-        },
+      const newIgnoredTokens = ignoredTokens.filter(
+        (tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()],
       );
 
+      const {
+        newAllTokens,
+        newAllDetectedTokens,
+        newAllIgnoredTokens,
+      } = this._getNewAllTokensState({
+        newTokens,
+        newDetectedTokens,
+        newIgnoredTokens,
+      });
+
       this.update({
-        tokens,
+        tokens: newTokens,
         allTokens: newAllTokens,
         detectedTokens: newDetectedTokens,
         allDetectedTokens: newAllDetectedTokens,
+        ignoredTokens: newIgnoredTokens,
+        allIgnoredTokens: newAllIgnoredTokens,
       });
     } finally {
       releaseLock();

@@ -151,7 +151,7 @@ describe('TokenRatesController', () => {
       },
       {
         interval,
-        tokens: [{ address: 'bar', decimals: 0, symbol: '' }],
+        tokens: [{ address: 'bar', decimals: 0, symbol: '', aggregators: [] }],
       },
     );
 
@@ -218,8 +218,8 @@ describe('TokenRatesController', () => {
     const address = '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
     expect(controller.state.contractExchangeRates).toStrictEqual({});
     controller.tokens = [
-      { address, decimals: 18, symbol: 'DAI' },
-      { address: ADDRESS, decimals: 0, symbol: '' },
+      { address, decimals: 18, symbol: 'DAI', aggregators: [] },
+      { address: ADDRESS, decimals: 0, symbol: '', aggregators: [] },
     ];
     await controller.updateExchangeRates();
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(
@@ -246,8 +246,10 @@ describe('TokenRatesController', () => {
       message: 'Not Found',
     });
     expect(controller.state.contractExchangeRates).toStrictEqual({});
-    controller.tokens = [{ address: 'bar', decimals: 0, symbol: '' }];
-    const mock = sinon.stub(controller, 'updateExchangeRates');
+    controller.tokens = [
+      { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
+    ];
+    const mock = stub(controller, 'updateExchangeRates');
     await controller.updateExchangeRates();
     expect(mock).not.toThrow();
   });
@@ -273,7 +275,7 @@ describe('TokenRatesController', () => {
       'updateExchangeRates',
     );
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    tokenStateChangeListener!({ tokens: [] });
+    tokenStateChangeListener!({ tokens: [], detectedTokens: [] });
     // FIXME: This is now being called twice
     expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
   });
@@ -362,6 +364,7 @@ describe('TokenRatesController', () => {
           isERC721: false,
         },
       ],
+      detectedTokens: [],
     });
 
     await controller.updateExchangeRates();
@@ -424,6 +427,7 @@ describe('TokenRatesController', () => {
           isERC721: false,
         },
       ],
+      detectedTokens: [],
     });
 
     await controller.updateExchangeRates();
@@ -441,6 +445,7 @@ describe('TokenRatesController', () => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await tokenStateChangeListener!({
       tokens: [],
+      detectedTokens: [],
     });
 
     expect(controller.state.contractExchangeRates).toStrictEqual({});

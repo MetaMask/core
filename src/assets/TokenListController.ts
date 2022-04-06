@@ -218,6 +218,7 @@ export class TokenListController extends BaseController<
         const tokensFromAPI: RawToken[] = await safelyExecute(() =>
           fetchTokenList(this.chainId, this.abortController.signal),
         );
+
         if (!tokensFromAPI) {
           // Fallback to expired cached tokens
           tokenList = tokensChainsCache?.[this.chainId]?.data || {};
@@ -253,7 +254,7 @@ export class TokenListController extends BaseController<
           const formattedToken: RawToken = {
             ...token,
             aggregators: formatAggregatorNames(
-              token.aggregators as AggregatorKey[],
+              (token.aggregators as AggregatorKey[]) || [],
             ),
             iconUrl: formatIconUrlWithProxy({
               chainId: this.chainId,

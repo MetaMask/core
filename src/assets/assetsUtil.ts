@@ -59,7 +59,9 @@ export type AggregatorKey =
   | 'pangolinDex'
   | 'pangolinDexStableCoin'
   | 'pangolinDexAvaxBridge'
-  | 'traderJoe';
+  | 'traderJoe'
+  | 'airswapLight'
+  | 'kleros';
 
 type AggregatorNameByKey = {
   [key in AggregatorKey]: string;
@@ -90,6 +92,8 @@ const aggregatorNameByKey: AggregatorNameByKey = {
   pangolinDexStableCoin: 'PangolinDexStableCoin',
   pangolinDexAvaxBridge: 'PangolinDexAvaxBridge',
   traderJoe: 'TraderJoe',
+  airswapLight: 'AirswapLight',
+  kleros: 'Kleros',
 };
 
 /**
@@ -102,7 +106,7 @@ export const formatAggregatorNames = (aggregators: AggregatorKey[]) => {
   return aggregators.map(
     (key) =>
       aggregatorNameByKey[key] ||
-      `${key[0].toUpperCase}${key.substring(1, key.length)}`,
+      `${key[0].toUpperCase()}${key.substring(1, key.length)}`,
   );
 };
 

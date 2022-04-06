@@ -2,6 +2,8 @@ import HttpProvider from 'ethjs-provider-http';
 import { IPFS_DEFAULT_GATEWAY_URL } from '../constants';
 import { PreferencesController } from '../user/PreferencesController';
 import { AssetsContractController } from './AssetsContractController';
+import { NetworkController } from '../network/NetworkController';
+import { SupportedTokenDetectionNetworks } from '../util';
 
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
@@ -19,10 +21,13 @@ const TEST_ACCOUNT_PUBLIC_ADDRESS =
 describe('AssetsContractController', () => {
   let assetsContract: AssetsContractController;
   let preferences: PreferencesController;
+  let network: NetworkController;
   beforeEach(() => {
     preferences = new PreferencesController();
+    network = new NetworkController();
     assetsContract = new AssetsContractController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onNetworkStateChange: (listener) => network.subscribe(listener),
     });
   });
 
@@ -42,6 +47,7 @@ describe('AssetsContractController', () => {
     preferences.setIpfsGateway('newIPFSGateWay');
     expect(assetsContract.config).toStrictEqual({
       ipfsGateway: 'newIPFSGateWay',
+      chainId: SupportedTokenDetectionNetworks.mainnet,
       provider: undefined,
     });
   });
