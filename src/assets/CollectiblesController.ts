@@ -1152,7 +1152,7 @@ export class CollectiblesController extends BaseController<
   }
 
   /**
-   * Returns the collectible by the address and token id
+   * Returns the collectible by the address and token id.
    *
    * @param address - Hex address of the collectible contract.
    * @param tokenId - Number that represents the id of the token.
@@ -1161,7 +1161,7 @@ export class CollectiblesController extends BaseController<
   findCollectibleByAddressAndTokenId(
     address: string,
     tokenId: string,
-  ): Collectible | undefined {
+  ): { collectible: Collectible; index: number } | null {
     const { allCollectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
@@ -1172,33 +1172,27 @@ export class CollectiblesController extends BaseController<
     );
 
     if (index === -1) {
-      return;
+      return null;
     }
 
-    return collectibles[index];
+    return { collectible: collectibles[index], index };
   }
 
   /**
-   * Update collectible data
+   * Update collectible data.
    *
-   * @param address - Hex address of the collectible contract.
-   * @param tokenId - Number that represents the id of the token.
-   * @param collectible - Hex id of the send transaction of the collectible.
+   * @param collectible - Collectible object to update.
    */
-  updateCollectibleByAddressAndTokenId(
-    address: string,
-    tokenId: string,
-    collectible: Collectible,
-  ) {
+  updateCollectibleByAddressAndTokenId(collectible: Collectible) {
     const { allCollectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
-    const index: number = collectibles.findIndex(
-      (collectible) =>
-        collectible.address === address && collectible.tokenId === tokenId,
+    const collectibleInfo = this.findCollectibleByAddressAndTokenId(
+      collectible.address,
+      collectible.tokenId,
     );
 
-    if (index === -1) {
+    if (!collectibleInfo) {
       return;
     }
 
@@ -1207,14 +1201,23 @@ export class CollectiblesController extends BaseController<
     };
 
     // Update Collectibles array
-    collectibles[index] = updatedCollectible;
 
-    this.updateNestedCollectibleState(collectibles, ALL_COLLECTIBLES_STATE_KEY);
+    const newCollectibles = [
+      ...collectibles.slice(0, collectibleInfo.index),
+      updatedCollectible,
+      ...collectibles.slice(collectibleInfo.index + 1),
+    ];
+
+    this.updateNestedCollectibleState(
+      newCollectibles,
+      ALL_COLLECTIBLES_STATE_KEY,
+    );
   }
+
   /**
-   * Resets the transaction status of a collectible
+   * Resets the transaction status of a collectible.
    *
-   * @param transactionId - Hex id of the send transaction of the collectible.
+   * @param transactionId - Collectible transaction id.
    * @returns a boolean indicating if the reset was well succeded or not
    */
   resetCollectibleTransactionStatusByTransactionId(
@@ -1236,9 +1239,16 @@ export class CollectiblesController extends BaseController<
     };
 
     // Update Collectibles array
-    collectibles[index] = updatedCollectible;
+    const newCollectibles = [
+      ...collectibles.slice(0, index),
+      updatedCollectible,
+      ...collectibles.slice(index + 1),
+    ];
 
-    this.updateNestedCollectibleState(collectibles, ALL_COLLECTIBLES_STATE_KEY);
+    this.updateNestedCollectibleState(
+      newCollectibles,
+      ALL_COLLECTIBLES_STATE_KEY,
+    );
     return true;
   }
 }
