@@ -60,9 +60,9 @@ export type DismissNotification = {
   handler: NotificationController['dismiss'];
 };
 
-export type GetCurrentNotification = {
-  type: `${typeof name}:getCurrent`;
-  handler: NotificationController['getCurrent'];
+export type GetNotifications = {
+  type: `${typeof name}:getNotifications`;
+  handler: NotificationController['getNotifications'];
 };
 
 export type GetNotificationCount = {
@@ -74,7 +74,7 @@ export type ControllerActions =
   | GetNotificationState
   | ShowNotification
   | DismissNotification
-  | GetCurrentNotification
+  | GetNotifications
   | GetNotificationCount;
 
 type AllowedActions = GetSubjectMetadataState;
@@ -145,8 +145,8 @@ export class NotificationController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${name}:getCurrent` as const,
-      () => this.getCurrent(),
+      `${name}:getNotifications` as const,
+      () => this.getNotifications(),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -206,17 +206,12 @@ export class NotificationController extends BaseController<
   }
 
   /**
-   * Gets the current notification to be shown.
+   * Gets the notifications.
    *
-   * @returns The current notification
+   * @returns The notifications
    */
-  getCurrent() {
-    // @todo Do we want a special ordering?
-    const values = Object.values(this.state.notifications);
-    if (values.length === 0) {
-      return null;
-    }
-    return values[0];
+  getNotifications() {
+    return Object.values(this.state.notifications);
   }
 
   /**

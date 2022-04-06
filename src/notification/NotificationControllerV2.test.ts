@@ -3,8 +3,8 @@ import { GetSubjectMetadataState } from '../subject-metadata';
 import {
   ControllerActions,
   DismissNotification,
-  GetCurrentNotification,
   GetNotificationCount,
+  GetNotifications,
   GetNotificationState,
   NotificationController,
   NotificationMessenger,
@@ -26,7 +26,7 @@ function getUnrestrictedMessenger() {
     | ShowNotification
     | DismissNotification
     | GetNotificationCount
-    | GetCurrentNotification
+    | GetNotifications
     | GetSubjectMetadataState,
     NotificationStateChange
   >();
@@ -115,7 +115,7 @@ describe('NotificationControllerV2', () => {
     expect(callActionSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('action: NotificationControllerV2:getCurrent', async () => {
+  it('action: NotificationControllerV2:getNotifications', async () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
     const callActionSpy = jest
@@ -137,20 +137,16 @@ describe('NotificationControllerV2', () => {
       }),
     ).toBeUndefined();
     expect(showNativeNotification).toHaveBeenCalledTimes(0);
-    const current = await unrestricted.call(
-      'NotificationControllerV2:getCurrent',
+    const notifications = await unrestricted.call(
+      'NotificationControllerV2:getNotifications',
     );
-    expect(current).toStrictEqual({
+    expect(notifications).toHaveLength(1);
+    expect(notifications).toContainEqual({
       id: expect.any(String),
       message,
       title: SNAP_NAME,
       type: NotificationType.InApp,
     });
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await unrestricted.call('NotificationControllerV2:dismiss', current!.id);
-    expect(
-      await unrestricted.call('NotificationControllerV2:getCurrent'),
-    ).toBeNull();
     expect(callActionSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -180,11 +176,14 @@ describe('NotificationControllerV2', () => {
       1,
     );
     expect(callActionSpy).toHaveBeenCalledTimes(1);
-    const current = await unrestricted.call(
-      'NotificationControllerV2:getCurrent',
+    const notifications = await unrestricted.call(
+      'NotificationControllerV2:getNotifications',
     );
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await unrestricted.call('NotificationControllerV2:dismiss', current!.id);
+    await unrestricted.call(
+      'NotificationControllerV2:dismiss',
+      notifications[0].id,
+    );
+
     expect(await unrestricted.call('NotificationControllerV2:getCount')).toBe(
       0,
     );
