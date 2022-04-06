@@ -20,7 +20,7 @@ export type Notification = {
   type: NotificationType;
   origin: string;
   date: number;
-  viewed: boolean;
+  read: boolean;
   title: string;
   message: string;
 };
@@ -64,9 +64,9 @@ export type DismissNotification = {
   handler: NotificationController['dismiss'];
 };
 
-export type MarkNotificationViewed = {
-  type: `${typeof name}:markViewed`;
-  handler: NotificationController['markViewed'];
+export type MarkNotificationRead = {
+  type: `${typeof name}:markRead`;
+  handler: NotificationController['markRead'];
 };
 
 export type GetNotifications = {
@@ -79,13 +79,19 @@ export type GetNotificationCount = {
   handler: NotificationController['getCount'];
 };
 
+export type GetUnreadNotificationCount = {
+  type: `${typeof name}:getUnreadCount`;
+  handler: NotificationController['getUnreadCount'];
+};
+
 export type ControllerActions =
   | GetNotificationState
   | ShowNotification
   | DismissNotification
-  | MarkNotificationViewed
+  | MarkNotificationRead
   | GetNotifications
-  | GetNotificationCount;
+  | GetNotificationCount
+  | GetUnreadNotificationCount;
 
 type AllowedActions = GetSubjectMetadataState;
 
@@ -155,8 +161,8 @@ export class NotificationController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${name}:markViewed` as const,
-      (id: string) => this.markViewed(id),
+      `${name}:markRead` as const,
+      (id: string) => this.markRead(id),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -167,6 +173,11 @@ export class NotificationController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${name}:getCount` as const,
       () => this.getCount(),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:getUnreadCount` as const,
+      () => this.getUnreadCount(),
     );
   }
 
@@ -203,7 +214,7 @@ export class NotificationController extends BaseController<
       type: NotificationType.InApp,
       origin,
       date: Date.now(),
-      viewed: false,
+      read: false,
       title,
       message,
     };
@@ -226,14 +237,14 @@ export class NotificationController extends BaseController<
   }
 
   /**
-   * Marks a notification as viewed.
+   * Marks a notification as read.
    *
    * @param id - The notification's ID
    */
-  markViewed(id: string) {
+  markRead(id: string) {
     this.update((state) => {
       if (hasProperty(state.notifications, id)) {
-        state.notifications[id].viewed = true;
+        state.notifications[id].read = true;
       }
     });
   }
@@ -254,5 +265,15 @@ export class NotificationController extends BaseController<
    */
   getCount() {
     return Object.values(this.state.notifications).length;
+  }
+
+  /**
+   * Gets the current number of unread notifications.
+   *
+   * @returns The number of current notifications
+   */
+  getUnreadCount() {
+    return Object.values(this.state.notifications).filter((n) => !n.read)
+      .length;
   }
 }

@@ -6,7 +6,8 @@ import {
   GetNotificationCount,
   GetNotifications,
   GetNotificationState,
-  MarkNotificationViewed,
+  GetUnreadNotificationCount,
+  MarkNotificationRead,
   NotificationController,
   NotificationMessenger,
   NotificationStateChange,
@@ -26,8 +27,9 @@ function getUnrestrictedMessenger() {
     | GetNotificationState
     | ShowNotification
     | DismissNotification
-    | MarkNotificationViewed
+    | MarkNotificationRead
     | GetNotificationCount
+    | GetUnreadNotificationCount
     | GetNotifications
     | GetSubjectMetadataState,
     NotificationStateChange
@@ -147,7 +149,7 @@ describe('NotificationControllerV2', () => {
       id: expect.any(String),
       date: expect.any(Number),
       origin,
-      viewed: false,
+      read: false,
       message,
       title: SNAP_NAME,
       type: NotificationType.InApp,
@@ -185,13 +187,21 @@ describe('NotificationControllerV2', () => {
       'NotificationControllerV2:getNotifications',
     );
     await unrestricted.call(
-      'NotificationControllerV2:markViewed',
+      'NotificationControllerV2:markRead',
       notifications[0].id,
     );
 
     expect(
       await unrestricted.call('NotificationControllerV2:getNotifications'),
-    ).toContainEqual({ ...notifications[0], viewed: true });
+    ).toContainEqual({ ...notifications[0], read: true });
+
+    expect(await unrestricted.call('NotificationControllerV2:getCount')).toBe(
+      1,
+    );
+
+    expect(
+      await unrestricted.call('NotificationControllerV2:getUnreadCount'),
+    ).toBe(0);
   });
 
   it('action: NotificationControllerV2:dismiss', async () => {
