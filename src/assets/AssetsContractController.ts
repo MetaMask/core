@@ -411,7 +411,7 @@ export class AssetsContractController extends BaseController<
             tokensToDetect.forEach((tokenAddress, index) => {
               const balance: BN = result[index];
               /* istanbul ignore else */
-              if (!balance.isZero()) {
+              if (String(balance) !== '0') {
                 nonZeroBalances[tokenAddress] = balance;
               }
             });
