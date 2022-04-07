@@ -39,6 +39,7 @@
     "@ethereumjs/tx": "^3.2.1",
     "@keystonehq/metamask-airgapped-keyring": "^0.3.0",
     "@metamask/contract-metadata": "^1.33.0",
+    "@metamask/eth-sig-util": "^4.0.0",
     "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/types": "^1.1.0",
     "@types/uuid": "^8.3.0",
@@ -53,7 +54,6 @@
     "eth-phishing-detect": "^1.1.16",
     "eth-query": "^2.1.2",
     "eth-rpc-errors": "^4.0.0",
-    "eth-sig-util": "^3.0.0",
     "ethereumjs-util": "^7.0.10",
     "ethereumjs-wallet": "^1.0.1",
     "ethers": "^5.4.1",
@@ -121,11 +121,10 @@
       "@lavamoat/preinstall-always-fail": false,
       "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
       "babel-runtime>core-js": false,
-      "eth-sig-util>ethereumjs-abi>ethereumjs-util>keccakjs>sha3": true,
-      "eth-sig-util>ethereumjs-util>keccak": true,
-      "eth-sig-util>ethereumjs-util>secp256k1": true,
       "ethereumjs-util>ethereum-cryptography>keccak": true,
-      "ethereumjs-util>ethereum-cryptography>secp256k1": true
+      "ethereumjs-util>ethereum-cryptography>secp256k1": true,
+      "web3-provider-engine>ethereumjs-util>keccak": false,
+      "web3-provider-engine>ethereumjs-util>secp256k1": false
     }
   }
 }
