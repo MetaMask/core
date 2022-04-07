@@ -4384,6 +4384,74 @@ describe('PermissionController', () => {
       expect(hasPermissionsSpy).toHaveBeenNthCalledWith(2, 'foo');
     });
 
+    it('action: PermissionController:hasAllPermissions', () => {
+      const messenger = getUnrestrictedMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+      const hasAllPermissionsSpy = jest.spyOn(controller, 'hasAllPermissions');
+
+      const origin = 'foo';
+      const permissions = ['wallet_getSecretArray', 'endowmentPermission1'];
+      expect(
+        messenger.call(
+          'PermissionController:hasAllPermissions',
+          origin,
+          permissions,
+        ),
+      ).toStrictEqual(false);
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          wallet_getSecretArray: {},
+        },
+      });
+
+      expect(
+        messenger.call(
+          'PermissionController:hasAllPermissions',
+          origin,
+          permissions,
+        ),
+      ).toStrictEqual(false);
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          endowmentPermission1: {},
+        },
+      });
+
+      expect(
+        messenger.call(
+          'PermissionController:hasAllPermissions',
+          origin,
+          permissions,
+        ),
+      ).toStrictEqual(true);
+      expect(hasAllPermissionsSpy).toHaveBeenCalledTimes(3);
+      expect(hasAllPermissionsSpy).toHaveBeenNthCalledWith(
+        1,
+        origin,
+        permissions,
+      );
+      expect(hasAllPermissionsSpy).toHaveBeenNthCalledWith(
+        2,
+        origin,
+        permissions,
+      );
+      expect(hasAllPermissionsSpy).toHaveBeenNthCalledWith(
+        3,
+        origin,
+        permissions,
+      );
+    });
+
     it('action: PermissionController:getPermissions', () => {
       const messenger = getUnrestrictedMessenger();
       const options = getPermissionControllerOptions({

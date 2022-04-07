@@ -213,6 +213,14 @@ export type HasPermission = {
 };
 
 /**
+ * Checks whether the specified subject has all specified permissions.
+ */
+export type HasAllPermissions = {
+  type: `${typeof controllerName}:hasAllPermissions`;
+  handler: GenericPermissionController['hasAllPermissions'];
+};
+
+/**
  * Requests given permissions for a specified origin
  */
 export type RequestPermissions = {
@@ -263,6 +271,7 @@ export type PermissionControllerActions =
   | GetPermissions
   | HasPermission
   | HasPermissions
+  | HasAllPermissions
   | RevokePermissions
   | RevokeAllPermissions
   | RequestPermissions;
@@ -686,6 +695,12 @@ export class PermissionController<
     );
 
     this.messagingSystem.registerActionHandler(
+      `${controllerName}:hasAllPermissions` as const,
+      (origin: OriginString, targets: string[]) =>
+        this.hasAllPermissions(origin, targets),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${controllerName}:revokeAllPermissions` as const,
       (origin: OriginString) => this.revokeAllPermissions(origin),
     );
@@ -843,6 +858,24 @@ export class PermissionController<
     >['parentCapability'],
   ): boolean {
     return Boolean(this.getPermission(origin, target));
+  }
+
+  /**
+   * Checks whether the subject with the specified origin has all the specified
+   * permissions.
+   *
+   * @param origin - The origin of the subject.
+   * @param targets - The target names of every permission.
+   * @returns Whether the subject has all the permissions.
+   */
+  hasAllPermissions(
+    origin: OriginString,
+    targets: ExtractPermission<
+      ControllerPermissionSpecification,
+      ControllerCaveatSpecification
+    >['parentCapability'][],
+  ): boolean {
+    return targets.every((target) => this.hasPermission(origin, target));
   }
 
   /**
