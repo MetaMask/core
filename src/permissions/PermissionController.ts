@@ -703,10 +703,12 @@ export class PermissionController<
 
     this.messagingSystem.registerActionHandler(
       `${controllerName}:revokePermissionForAllSubjects` as const,
-      (target: ExtractPermission<
-      ControllerPermissionSpecification,
-      ControllerCaveatSpecification
-    >['parentCapability']) => this.revokePermissionForAllSubjects(target),
+      (
+        target: ExtractPermission<
+          ControllerPermissionSpecification,
+          ControllerCaveatSpecification
+        >['parentCapability'],
+      ) => this.revokePermissionForAllSubjects(target),
     );
 
     this.messagingSystem.registerActionHandler(
