@@ -4440,11 +4440,13 @@ describe('PermissionController', () => {
         origin,
         permissions,
       );
+
       expect(hasAllPermissionsSpy).toHaveBeenNthCalledWith(
         2,
         origin,
         permissions,
       );
+
       expect(hasAllPermissionsSpy).toHaveBeenNthCalledWith(
         3,
         origin,
