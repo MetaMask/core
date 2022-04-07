@@ -37,7 +37,7 @@ jobs:
           key: ${{ github.sha }}
 
   publish-npm:
-    environment: publish
+    environment: npm-publish
     runs-on: ubuntu-latest
     needs: publish-release
     steps:
