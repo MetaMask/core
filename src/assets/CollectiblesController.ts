@@ -47,7 +47,7 @@ import { compareCollectiblesMetadata } from './assetsUtil';
  * @property externalLink - External link containing additional information
  * @property creator - The collectible owner information object
  * @property isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this collectible
- * @property isTransacting - Boolean indicating if the Collectible is being transacting
+ * @property transactionId - Collectible transaction id
  */
 export interface Collectible extends CollectibleMetadata {
   tokenId: string;
@@ -1165,6 +1165,7 @@ export class CollectiblesController extends BaseController<
     const { allCollectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+
     const index: number = collectibles.findIndex(
       (collectible) =>
         collectible.address.toLowerCase() === address.toLowerCase() &&
@@ -1181,9 +1182,10 @@ export class CollectiblesController extends BaseController<
   /**
    * Update collectible data.
    *
-   * @param collectible - Collectible object to update.
+   * @param collectible - Collectible object to find the right collectible to updates.
+   * @param updates - Collectible partial object to update properties of the collectible.
    */
-  updateCollectibleByAddressAndTokenId(collectible: Collectible) {
+  updateCollectible(collectible: Collectible, updates: Partial<Collectible>) {
     const { allCollectibles } = this.state;
     const { chainId, selectedAddress } = this.config;
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
@@ -1198,6 +1200,7 @@ export class CollectiblesController extends BaseController<
 
     const updatedCollectible: Collectible = {
       ...collectible,
+      ...updates,
     };
 
     // Update Collectibles array
