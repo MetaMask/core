@@ -1,37 +1,37 @@
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 
-interface viewedNotification {
+interface ViewedAnnouncement {
   [id: number]: boolean;
 }
 
-interface Notification {
+interface Announcement {
   id: number;
   date: string;
 }
 
-interface StateNotification extends Notification {
+interface StateAnnouncement extends Announcement {
   isShown: boolean;
 }
 
 /**
- * A map of notification ids to Notification objects
+ * A map of announcement ids to Announcement objects
  */
-interface NotificationMap {
-  [id: number]: Notification;
+interface AnnouncementMap {
+  [id: number]: Announcement;
 }
 
 /**
- * A map of notification ids to StateNotification objects
+ * A map of announcement ids to StateAnnouncement objects
  */
 export interface StateAnnouncementMap {
-  [id: number]: StateNotification;
+  [id: number]: StateAnnouncement;
 }
 
 /**
  * AnnouncementConfig will hold the active announcements
  */
 export interface AnnouncementConfig extends BaseConfig {
-  allNotifications: NotificationMap;
+  allAnnouncements: AnnouncementMap;
 }
 
 /**
@@ -39,11 +39,11 @@ export interface AnnouncementConfig extends BaseConfig {
  * that are still active
  */
 export interface AnnouncementState extends BaseState {
-  notifications: StateAnnouncementMap;
+  announcements: StateAnnouncementMap;
 }
 
 const defaultState = {
-  notifications: {},
+  announcements: {},
 };
 
 /**
@@ -62,45 +62,45 @@ export class AnnouncementController extends BaseController<
   constructor(config: AnnouncementConfig, state?: AnnouncementState) {
     super(config, state || defaultState);
     this.initialize();
-    this._addNotifications();
+    this._addAnnouncements();
   }
 
   /**
-   * Compares the notifications in state with the notifications from file
-   * to check if there are any new notifications/announcements
-   * if yes, the new notification will be added to the state with a flag indicating
-   * that the notification is not seen by the user.
+   * Compares the announcements in state with the announcements from file
+   * to check if there are any new announcements
+   * if yes, the new announcement will be added to the state with a flag indicating
+   * that the announcement is not seen by the user.
    */
-  private _addNotifications(): void {
-    const newNotifications: StateAnnouncementMap = {};
-    const { allNotifications } = this.config;
-    Object.values(allNotifications).forEach(
-      (notification: StateNotification) => {
-        newNotifications[notification.id] = this.state.notifications[
-          notification.id
+  private _addAnnouncements(): void {
+    const newAnnouncements: StateAnnouncementMap = {};
+    const { allAnnouncements } = this.config;
+    Object.values(allAnnouncements).forEach(
+      (announcement: StateAnnouncement) => {
+        newAnnouncements[announcement.id] = this.state.announcements[
+          announcement.id
         ]
-          ? this.state.notifications[notification.id]
+          ? this.state.announcements[announcement.id]
           : {
-              ...notification,
+              ...announcement,
               isShown: false,
             };
       },
     );
-    this.update({ notifications: newNotifications });
+    this.update({ announcements: newAnnouncements });
   }
 
   /**
-   * Updates the status of the status of the specified notifications
+   * Updates the status of the status of the specified announcements
    * once it is read by the user.
    *
-   * @param viewedIds - The notification IDs to mark as viewed.
+   * @param viewedIds - The announcement IDs to mark as viewed.
    */
-  updateViewed(viewedIds: viewedNotification): void {
-    const stateNotifications = this.state.notifications;
+  updateViewed(viewedIds: ViewedAnnouncement): void {
+    const stateAnnouncements = this.state.announcements;
 
     for (const id of Object.keys(viewedIds).map(Number)) {
-      stateNotifications[id].isShown = viewedIds[id];
+      stateAnnouncements[id].isShown = viewedIds[id];
     }
-    this.update({ notifications: stateNotifications }, true);
+    this.update({ announcements: stateAnnouncements }, true);
   }
 }

@@ -6,7 +6,7 @@ import {
 } from './AnnouncementController';
 
 const config1: AnnouncementConfig = {
-  allNotifications: {
+  allAnnouncements: {
     1: {
       id: 1,
       date: '12/8/2020',
@@ -19,7 +19,7 @@ const config1: AnnouncementConfig = {
 };
 
 const config2: AnnouncementConfig = {
-  allNotifications: {
+  allAnnouncements: {
     1: {
       id: 1,
       date: '12/8/2020',
@@ -36,7 +36,7 @@ const config2: AnnouncementConfig = {
 };
 
 const state1: AnnouncementState = {
-  notifications: {
+  announcements: {
     1: {
       id: 1,
       date: '12/8/2020',
@@ -51,47 +51,47 @@ const state1: AnnouncementState = {
 };
 
 describe('announcement controller', () => {
-  it('should add notifications to state', () => {
+  it('should add announcement to state', () => {
     const controller = new AnnouncementController(config1);
-    expect(Object.keys(controller.state.notifications)).toHaveLength(2);
+    expect(Object.keys(controller.state.announcements)).toHaveLength(2);
     const expectedStateNotifications: StateAnnouncementMap = {
       1: {
-        ...config1.allNotifications[1],
+        ...config1.allAnnouncements[1],
         isShown: false,
       },
       2: {
-        ...config1.allNotifications[2],
+        ...config1.allAnnouncements[2],
         isShown: false,
       },
     };
-    expect(controller.state.notifications).toStrictEqual(
+    expect(controller.state.announcements).toStrictEqual(
       expectedStateNotifications,
     );
   });
 
-  it('should add new notifcation to state', () => {
+  it('should add new announcement to state', () => {
     const controller = new AnnouncementController(config2, state1);
-    expect(Object.keys(controller.state.notifications)).toHaveLength(3);
-    expect(controller.state.notifications[1].isShown).toBe(true);
-    expect(controller.state.notifications[2].isShown).toBe(true);
-    expect(controller.state.notifications[3].isShown).toBe(false);
+    expect(Object.keys(controller.state.announcements)).toHaveLength(3);
+    expect(controller.state.announcements[1].isShown).toBe(true);
+    expect(controller.state.announcements[2].isShown).toBe(true);
+    expect(controller.state.announcements[3].isShown).toBe(false);
   });
 
-  describe('update viewed notifications', () => {
+  describe('update viewed announcements', () => {
     it('should update isShown status', () => {
       const controller = new AnnouncementController(config2);
       controller.updateViewed({ 1: true });
-      expect(controller.state.notifications[1].isShown).toBe(true);
-      expect(controller.state.notifications[2].isShown).toBe(false);
-      expect(controller.state.notifications[3].isShown).toBe(false);
+      expect(controller.state.announcements[1].isShown).toBe(true);
+      expect(controller.state.announcements[2].isShown).toBe(false);
+      expect(controller.state.announcements[3].isShown).toBe(false);
     });
 
-    it('should update isShown of more than one notifications', () => {
+    it('should update isShown of more than one announcement', () => {
       const controller = new AnnouncementController(config2);
       controller.updateViewed({ 2: true, 3: true });
-      expect(controller.state.notifications[1].isShown).toBe(false);
-      expect(controller.state.notifications[2].isShown).toBe(true);
-      expect(controller.state.notifications[3].isShown).toBe(true);
+      expect(controller.state.announcements[1].isShown).toBe(false);
+      expect(controller.state.announcements[2].isShown).toBe(true);
+      expect(controller.state.announcements[3].isShown).toBe(true);
     });
   });
 });
