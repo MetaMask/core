@@ -33,9 +33,7 @@ jobs:
       - uses: actions/cache@v3
         id: restore-build
         with:
-          path: |
-            ./*
-            !./node_modules/
+          path: ./dist
           key: ${{ github.sha }}
 
   publish-npm:
@@ -43,10 +41,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: publish-release
     steps:
+      - uses: actions/checkout@v2
+        with:
+          # We check out the release pull request's base branch, which will be
+          # used as the base branch for all git operations.
+          ref: ${{ github.event.pull_request.base.ref }}
       - uses: actions/cache@v3
         id: restore-build
         with:
-          path: ./*
+          path: ./dist
           key: ${{ github.sha }}
       - name: Publish
         uses: MetaMask/action-npm-publish@v1.0.0
