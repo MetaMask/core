@@ -237,6 +237,15 @@ export type RevokeAllPermissions = {
 };
 
 /**
+ * Revokes all permissions corresponding to the specified target for all subjects.
+ * Does nothing if no subjects or no such permission exists.
+ */
+export type RevokePermissionForAllSubjects = {
+  type: `${typeof controllerName}:revokePermissionForAllSubjects`;
+  handler: GenericPermissionController['revokePermissionForAllSubjects'];
+};
+
+/**
  * Clears all permissions from the {@link PermissionController}.
  */
 export type ClearPermissions = {
@@ -263,9 +272,10 @@ export type PermissionControllerActions =
   | GetPermissions
   | HasPermission
   | HasPermissions
-  | RevokePermissions
+  | RequestPermissions
   | RevokeAllPermissions
-  | RequestPermissions;
+  | RevokePermissionForAllSubjects
+  | RevokePermissions;
 
 /**
  * The generic state change event of the {@link PermissionController}.
@@ -681,8 +691,9 @@ export class PermissionController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:revokePermissions` as const,
-      this.revokePermissions.bind(this),
+      `${controllerName}:requestPermissions` as const,
+      (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
+        this.requestPermissions(subject, permissions),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -691,9 +702,18 @@ export class PermissionController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:requestPermissions` as const,
-      (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
-        this.requestPermissions(subject, permissions),
+      `${controllerName}:revokePermissionForAllSubjects` as const,
+      (
+        target: ExtractPermission<
+          ControllerPermissionSpecification,
+          ControllerCaveatSpecification
+        >['parentCapability'],
+      ) => this.revokePermissionForAllSubjects(target),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:revokePermissions` as const,
+      this.revokePermissions.bind(this),
     );
   }
 
