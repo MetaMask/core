@@ -23,23 +23,23 @@ interface NotificationMap {
 /**
  * A map of notification ids to StateNotification objects
  */
-export interface StateNotificationMap {
+export interface StateAnnouncementMap {
   [id: number]: StateNotification;
 }
 
 /**
- * NotitificationConfig will hold the active notifications
+ * AnnouncementConfig will hold the active announcements
  */
-export interface NotificationConfig extends BaseConfig {
+export interface AnnouncementConfig extends BaseConfig {
   allNotifications: NotificationMap;
 }
 
 /**
- * Notification state will hold all the seen and unseen notifications
+ * Announcement state will hold all the seen and unseen announcements
  * that are still active
  */
-export interface NotificationState extends BaseState {
-  notifications: StateNotificationMap;
+export interface AnnouncementState extends BaseState {
+  notifications: StateAnnouncementMap;
 }
 
 const defaultState = {
@@ -50,8 +50,8 @@ const defaultState = {
  * Controller for managing in-app announcements.
  */
 export class AnnouncementController extends BaseController<
-  NotificationConfig,
-  NotificationState
+  AnnouncementConfig,
+  AnnouncementState
 > {
   /**
    * Creates a AnnouncementController instance.
@@ -59,7 +59,7 @@ export class AnnouncementController extends BaseController<
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
-  constructor(config: NotificationConfig, state?: NotificationState) {
+  constructor(config: AnnouncementConfig, state?: AnnouncementState) {
     super(config, state || defaultState);
     this.initialize();
     this._addNotifications();
