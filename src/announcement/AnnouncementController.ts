@@ -72,7 +72,7 @@ export class AnnouncementController extends BaseController<
    * that the notification is not seen by the user.
    */
   private _addNotifications(): void {
-    const newNotifications: StateNotificationMap = {};
+    const newNotifications: StateAnnouncementMap = {};
     const { allNotifications } = this.config;
     Object.values(allNotifications).forEach(
       (notification: StateNotification) => {
