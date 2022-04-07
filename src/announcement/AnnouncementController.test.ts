@@ -1,11 +1,11 @@
 import {
-  NotificationConfig,
-  NotificationState,
+  AnnouncementConfig,
+  AnnouncementState,
   AnnouncementController,
-  StateNotificationMap,
+  StateAnnouncementMap,
 } from './AnnouncementController';
 
-const config1: NotificationConfig = {
+const config1: AnnouncementConfig = {
   allNotifications: {
     1: {
       id: 1,
@@ -18,7 +18,7 @@ const config1: NotificationConfig = {
   },
 };
 
-const config2: NotificationConfig = {
+const config2: AnnouncementConfig = {
   allNotifications: {
     1: {
       id: 1,
@@ -35,7 +35,7 @@ const config2: NotificationConfig = {
   },
 };
 
-const state1: NotificationState = {
+const state1: AnnouncementState = {
   notifications: {
     1: {
       id: 1,
@@ -54,7 +54,7 @@ describe('announcement controller', () => {
   it('should add notifications to state', () => {
     const controller = new AnnouncementController(config1);
     expect(Object.keys(controller.state.notifications)).toHaveLength(2);
-    const expectedStateNotifications: StateNotificationMap = {
+    const expectedStateNotifications: StateAnnouncementMap = {
       1: {
         ...config1.allNotifications[1],
         isShown: false,
