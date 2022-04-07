@@ -1397,19 +1397,15 @@ describe('CollectiblesController', () => {
     it('should return the collectible by the address and tokenId with the prop transactionId', () => {
       const { selectedAddress, chainId } = collectiblesController.config;
       collectiblesController.state.allCollectibles = {
-        [selectedAddress]: { [chainId]: [] },
+        [selectedAddress]: { [chainId]: [mockCollectible] },
       };
-
-      collectiblesController.state.allCollectibles[selectedAddress][
-        chainId
-      ].push(mockCollectible);
 
       expect(
         collectiblesController.findCollectibleByAddressAndTokenId(
           mockCollectible.address,
           mockCollectible.tokenId,
-        )?.collectible,
-      ).toStrictEqual(mockCollectible);
+        ),
+      ).toStrictEqual({ collectible: mockCollectible, index: 0 });
     });
   });
 
@@ -1439,12 +1435,8 @@ describe('CollectiblesController', () => {
     it('should update the collectible when the collectible exist', async () => {
       const { selectedAddress, chainId } = collectiblesController.config;
       collectiblesController.state.allCollectibles = {
-        [selectedAddress]: { [chainId]: [] },
+        [selectedAddress]: { [chainId]: [mockCollectible] },
       };
-
-      collectiblesController.state.allCollectibles[selectedAddress][
-        chainId
-      ].push(mockCollectible);
 
       collectiblesController.updateCollectible(mockCollectible, {
         transactionId: mockTransactionId,
@@ -1492,12 +1484,8 @@ describe('CollectiblesController', () => {
     it('should reset the transaction data from a collectible correctly', async () => {
       const { selectedAddress, chainId } = collectiblesController.config;
       collectiblesController.state.allCollectibles = {
-        [selectedAddress]: { [chainId]: [] },
+        [selectedAddress]: { [chainId]: [mockCollectible] },
       };
-
-      collectiblesController.state.allCollectibles[selectedAddress][
-        chainId
-      ].push(mockCollectible);
 
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][
