@@ -13,9 +13,9 @@ import {
   NotificationStateChange,
   NotificationType,
   ShowNotification,
-} from './NotificationControllerV2';
+} from './NotificationController';
 
-const name = 'NotificationControllerV2';
+const name = 'NotificationController';
 
 /**
  * Constructs a unrestricted controller messenger.
@@ -53,7 +53,7 @@ function getRestrictedMessenger(
     name,
     allowedActions: [
       'SubjectMetadataController:getState',
-      'NotificationControllerV2:show',
+      'NotificationController:show',
     ],
   }) as NotificationMessenger;
 }
@@ -66,8 +66,8 @@ const subjectMetadata = {
   snap_test: { origin: 'snap_test', name: SNAP_NAME },
 };
 
-describe('NotificationControllerV2', () => {
-  it('action: NotificationControllerV2:show native notifications', async () => {
+describe('NotificationController', () => {
+  it('action: NotificationController:show native notifications', async () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
     const callActionSpy = jest
@@ -83,7 +83,7 @@ describe('NotificationControllerV2', () => {
     });
 
     expect(
-      await unrestricted.call('NotificationControllerV2:show', origin, {
+      await unrestricted.call('NotificationController:show', origin, {
         type: NotificationType.Native,
         message,
       }),
@@ -92,7 +92,7 @@ describe('NotificationControllerV2', () => {
     expect(callActionSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('action: NotificationControllerV2:show in-app notifications', async () => {
+  it('action: NotificationController:show in-app notifications', async () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
     const callActionSpy = jest
@@ -108,18 +108,18 @@ describe('NotificationControllerV2', () => {
     });
 
     expect(
-      await unrestricted.call('NotificationControllerV2:show', origin, {
+      await unrestricted.call('NotificationController:show', origin, {
         type: NotificationType.InApp,
         message,
       }),
     ).toBeUndefined();
     expect(showNativeNotification).toHaveBeenCalledTimes(0);
-    const count = await unrestricted.call('NotificationControllerV2:getCount');
+    const count = await unrestricted.call('NotificationController:getCount');
     expect(count).toBe(1);
     expect(callActionSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('action: NotificationControllerV2:getNotifications', async () => {
+  it('action: NotificationController:getNotifications', async () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
     const callActionSpy = jest
@@ -135,14 +135,14 @@ describe('NotificationControllerV2', () => {
     });
 
     expect(
-      await unrestricted.call('NotificationControllerV2:show', origin, {
+      await unrestricted.call('NotificationController:show', origin, {
         type: NotificationType.InApp,
         message,
       }),
     ).toBeUndefined();
     expect(showNativeNotification).toHaveBeenCalledTimes(0);
     const notifications = await unrestricted.call(
-      'NotificationControllerV2:getNotifications',
+      'NotificationController:getNotifications',
     );
     expect(notifications).toHaveLength(1);
     expect(notifications).toContainEqual({
@@ -157,7 +157,7 @@ describe('NotificationControllerV2', () => {
     expect(callActionSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('action: NotificationControllerV2:markViewed', async () => {
+  it('action: NotificationController:markViewed', async () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
     const callActionSpy = jest
@@ -173,38 +173,34 @@ describe('NotificationControllerV2', () => {
     });
 
     expect(
-      await unrestricted.call('NotificationControllerV2:show', origin, {
+      await unrestricted.call('NotificationController:show', origin, {
         type: NotificationType.InApp,
         message,
       }),
     ).toBeUndefined();
     expect(showNativeNotification).toHaveBeenCalledTimes(0);
-    expect(await unrestricted.call('NotificationControllerV2:getCount')).toBe(
-      1,
-    );
+    expect(await unrestricted.call('NotificationController:getCount')).toBe(1);
     expect(callActionSpy).toHaveBeenCalledTimes(1);
     const notifications = await unrestricted.call(
-      'NotificationControllerV2:getNotifications',
+      'NotificationController:getNotifications',
     );
     await unrestricted.call(
-      'NotificationControllerV2:markRead',
+      'NotificationController:markRead',
       notifications[0].id,
     );
 
     expect(
-      await unrestricted.call('NotificationControllerV2:getNotifications'),
+      await unrestricted.call('NotificationController:getNotifications'),
     ).toContainEqual({ ...notifications[0], read: true });
 
-    expect(await unrestricted.call('NotificationControllerV2:getCount')).toBe(
-      1,
-    );
+    expect(await unrestricted.call('NotificationController:getCount')).toBe(1);
 
     expect(
-      await unrestricted.call('NotificationControllerV2:getUnreadCount'),
+      await unrestricted.call('NotificationController:getUnreadCount'),
     ).toBe(0);
   });
 
-  it('action: NotificationControllerV2:dismiss', async () => {
+  it('action: NotificationController:dismiss', async () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
     const callActionSpy = jest
@@ -220,27 +216,23 @@ describe('NotificationControllerV2', () => {
     });
 
     expect(
-      await unrestricted.call('NotificationControllerV2:show', origin, {
+      await unrestricted.call('NotificationController:show', origin, {
         type: NotificationType.InApp,
         message,
       }),
     ).toBeUndefined();
     expect(showNativeNotification).toHaveBeenCalledTimes(0);
-    expect(await unrestricted.call('NotificationControllerV2:getCount')).toBe(
-      1,
-    );
+    expect(await unrestricted.call('NotificationController:getCount')).toBe(1);
     expect(callActionSpy).toHaveBeenCalledTimes(1);
     const notifications = await unrestricted.call(
-      'NotificationControllerV2:getNotifications',
+      'NotificationController:getNotifications',
     );
     await unrestricted.call(
-      'NotificationControllerV2:dismiss',
+      'NotificationController:dismiss',
       notifications[0].id,
     );
 
-    expect(await unrestricted.call('NotificationControllerV2:getCount')).toBe(
-      0,
-    );
+    expect(await unrestricted.call('NotificationController:getCount')).toBe(0);
   });
 
   it('uses showNativeNotification to show a notification', () => {

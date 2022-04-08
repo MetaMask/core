@@ -42,7 +42,7 @@ export interface NotificationArgs {
   message: string;
 }
 
-const name = 'NotificationControllerV2';
+const name = 'NotificationController';
 
 export type NotificationStateChange = {
   type: `${typeof name}:stateChange`;
