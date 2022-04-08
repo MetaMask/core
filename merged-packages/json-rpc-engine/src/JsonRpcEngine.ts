@@ -133,35 +133,33 @@ export class JsonRpcEngine extends SafeEventEmitter {
   /**
    * Handle a JSON-RPC request, and return a response.
    *
-   * @param request - The request to handle.
-   * @returns A promise that resolves with the response, or rejects with an
-   * error.
+   * @param request - The JSON-RPC request to handle.
+   * @returns The JSON-RPC response.
    */
   handle<T, U>(request: JsonRpcRequest<T>): Promise<JsonRpcResponse<U>>;
 
   /**
    * Handle an array of JSON-RPC requests, and return an array of responses.
    *
-   * @param request - The requests to handle.
-   * @returns A promise that resolves with the array of responses, or rejects
-   * with an error.
+   * @param request - The JSON-RPC requests to handle.
+   * @returns An array of JSON-RPC responses.
    */
   handle<T, U>(requests: JsonRpcRequest<T>[]): Promise<JsonRpcResponse<U>[]>;
 
-  handle(req: unknown, cb?: any) {
-    if (cb && typeof cb !== 'function') {
+  handle(req: unknown, callback?: any) {
+    if (callback && typeof callback !== 'function') {
       throw new Error('"callback" must be a function if provided.');
     }
 
     if (Array.isArray(req)) {
-      if (cb) {
-        return this._handleBatch(req, cb);
+      if (callback) {
+        return this._handleBatch(req, callback);
       }
       return this._handleBatch(req);
     }
 
-    if (cb) {
-      return this._handle(req as JsonRpcRequest<unknown>, cb);
+    if (callback) {
+      return this._handle(req as JsonRpcRequest<unknown>, callback);
     }
     return this._promiseHandle(req as JsonRpcRequest<unknown>);
   }
@@ -209,12 +207,20 @@ export class JsonRpcEngine extends SafeEventEmitter {
    */
   private _handleBatch(
     reqs: JsonRpcRequest<unknown>[],
-    cb: (error: unknown, responses?: JsonRpcResponse<unknown>[]) => void,
+    callback: (error: unknown, responses?: JsonRpcResponse<unknown>[]) => void,
   ): Promise<void>;
 
+  /**
+   * Handles a batch of JSON-RPC requests, either in `async` or callback
+   * fashion.
+   *
+   * @param reqs - The request objects to process.
+   * @param callback - The completion callback.
+   * @returns The array of responses, or nothing if a callback was specified.
+   */
   private async _handleBatch(
     reqs: JsonRpcRequest<unknown>[],
-    cb?: (error: unknown, responses?: JsonRpcResponse<unknown>[]) => void,
+    callback?: (error: unknown, responses?: JsonRpcResponse<unknown>[]) => void,
   ): Promise<JsonRpcResponse<unknown>[] | void> {
     // The order here is important
     try {
@@ -226,13 +232,13 @@ export class JsonRpcEngine extends SafeEventEmitter {
       );
 
       // 3. Return batch response
-      if (cb) {
-        return cb(null, responses);
+      if (callback) {
+        return callback(null, responses);
       }
       return responses;
     } catch (error) {
-      if (cb) {
-        return cb(error);
+      if (callback) {
+        return callback(error);
       }
 
       throw error;
@@ -241,6 +247,9 @@ export class JsonRpcEngine extends SafeEventEmitter {
 
   /**
    * A promise-wrapped _handle.
+   *
+   * @param req - The JSON-RPC request.
+   * @returns The JSON-RPC response.
    */
   private _promiseHandle(
     req: JsonRpcRequest<unknown>,
@@ -259,10 +268,14 @@ export class JsonRpcEngine extends SafeEventEmitter {
    * error and the response object to the given callback.
    *
    * Does not reject.
+   *
+   * @param callerReq - The request object from the caller.
+   * @param callback - The callback function.
+   * @returns Nothing.
    */
   private async _handle(
     callerReq: JsonRpcRequest<unknown>,
-    cb: (error: unknown, response: JsonRpcResponse<unknown>) => void,
+    callback: (error: unknown, response: JsonRpcResponse<unknown>) => void,
   ): Promise<void> {
     if (
       !callerReq ||
@@ -274,7 +287,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
         `Requests must be plain objects. Received: ${typeof callerReq}`,
         { request: callerReq },
       );
-      return cb(error, { id: null, jsonrpc: '2.0', error });
+      return callback(error, { id: null, jsonrpc: '2.0', error });
     }
 
     if (typeof callerReq.method !== 'string') {
@@ -283,7 +296,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
         `Must specify a string method. Received: ${typeof callerReq.method}`,
         { request: callerReq },
       );
-      return cb(error, { id: callerReq.id, jsonrpc: '2.0', error });
+      return callback(error, { id: callerReq.id, jsonrpc: '2.0', error });
     }
 
     const req: JsonRpcRequest<unknown> = { ...callerReq };
@@ -309,13 +322,16 @@ export class JsonRpcEngine extends SafeEventEmitter {
       }
     }
 
-    return cb(error, res as JsonRpcResponse<unknown>);
+    return callback(error, res as JsonRpcResponse<unknown>);
   }
 
   /**
    * For the given request and response, runs all middleware and their return
    * handlers, if any, and ensures that internal request processing semantics
    * are satisfied.
+   *
+   * @param req - The request object.
+   * @param res - The response object.
    */
   private async _processRequest(
     req: JsonRpcRequest<unknown>,
@@ -342,6 +358,9 @@ export class JsonRpcEngine extends SafeEventEmitter {
   /**
    * Serially executes the given stack of middleware.
    *
+   * @param req - The request object.
+   * @param res - The response object.
+   * @param middlewareStack - The stack of middleware functions to execute.
    * @returns An array of any error encountered during middleware execution,
    * a boolean indicating whether the request was completed, and an array of
    * middleware-defined return handlers.
@@ -369,6 +388,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
         middleware,
         returnHandlers,
       );
+
       if (isComplete) {
         break;
       }
@@ -377,8 +397,12 @@ export class JsonRpcEngine extends SafeEventEmitter {
   }
 
   /**
-   * Runs an individual middleware.
+   * Runs an individual middleware function.
    *
+   * @param req - The request object.
+   * @param res - The response object.
+   * @param middleware - The middleware function to execute.
+   * @param returnHandlers - The return handlers array for the current request.
    * @returns An array of any error encountered during middleware exection,
    * and a boolean indicating whether the request should end.
    */
@@ -436,6 +460,8 @@ export class JsonRpcEngine extends SafeEventEmitter {
   /**
    * Serially executes array of return handlers. The request and response are
    * assumed to be in their scope.
+   *
+   * @param handlers - The return handlers to execute.
    */
   private static async _runReturnHandlers(
     handlers: JsonRpcEngineReturnHandler[],
@@ -450,6 +476,11 @@ export class JsonRpcEngine extends SafeEventEmitter {
   /**
    * Throws an error if the response has neither a result nor an error, or if
    * the "isComplete" flag is falsy.
+   *
+   * @param req - The request object.
+   * @param res - The response object.
+   * @param isComplete - Boolean from {@link JsonRpcEngine._runAllMiddleware}
+   * indicating whether a middleware ended the request.
    */
   private static _checkForCompletion(
     req: JsonRpcRequest<unknown>,
@@ -465,6 +496,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
         { request: req },
       );
     }
+
     if (!isComplete) {
       throw new EthereumRpcError(
         errorCodes.rpc.internal,
@@ -475,6 +507,12 @@ export class JsonRpcEngine extends SafeEventEmitter {
   }
 }
 
+/**
+ * JSON-stringifies a request object.
+ *
+ * @param request - The request object to JSON-stringify.
+ * @returns The JSON-stringified request object.
+ */
 function jsonify(request: JsonRpcRequest<unknown>): string {
   return JSON.stringify(request, null, 2);
 }

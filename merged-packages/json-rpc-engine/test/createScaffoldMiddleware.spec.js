@@ -40,6 +40,7 @@ describe('createScaffoldMiddleware', function () {
       'method3',
       'should have expected error',
     );
+
     assert.equal(
       response4.result,
       'passthrough',

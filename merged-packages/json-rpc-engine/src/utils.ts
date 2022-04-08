@@ -6,7 +6,7 @@ import type {
 } from './JsonRpcEngine';
 
 /**
- * **ATTN:** Assumes that only one of the `result` and `error` properties is
+ * ATTN: Assumes that only one of the `result` and `error` properties is
  * present on the `response`, as guaranteed by e.g. `JsonRpcEngine.handle`.
  *
  * Type guard to narrow a JsonRpcResponse object to a success (or failure).
@@ -22,7 +22,7 @@ export function isJsonRpcSuccess<T>(
 }
 
 /**
- * **ATTN:** Assumes that only one of the `result` and `error` properties is
+ * ATTN: Assumes that only one of the `result` and `error` properties is
  * present on the `response`, as guaranteed by e.g. `JsonRpcEngine.handle`.
  *
  * Type guard to narrow a JsonRpcResponse object to a failure (or success).
@@ -79,6 +79,8 @@ export function getJsonRpcIdValidator(options?: JsonRpcValidatorOptions) {
   };
 
   /**
+   * Type guard for {@link JsonRpcId}.
+   *
    * @param id - The JSON-RPC ID value to check.
    * @returns Whether the given ID is valid per the options given to the
    * factory.

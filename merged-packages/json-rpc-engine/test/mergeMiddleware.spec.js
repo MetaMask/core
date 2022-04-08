@@ -148,6 +148,7 @@ describe('mergeMiddleware', function () {
         },
       ]),
     );
+
     engine.push((_req, res, _next, end) => {
       res.result = true;
       end();

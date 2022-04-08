@@ -28,7 +28,7 @@ describe('idRemapMiddleware', function () {
     });
 
     const payload = { id: 1, jsonrpc: '2.0', method: 'hello' };
-    const payloadCopy = Object.assign({}, payload);
+    const payloadCopy = { ...payload };
 
     engine.handle(payload, function (err, res) {
       assert.ifError(err, 'did not error');
@@ -47,6 +47,7 @@ describe('idRemapMiddleware', function () {
         observedIds.after.req,
         'ids are different',
       );
+
       assert.equal(
         observedIds.before.req,
         res.id,

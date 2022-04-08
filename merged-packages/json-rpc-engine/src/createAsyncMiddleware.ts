@@ -30,6 +30,10 @@ type ReturnHandlerCallback = (error: null | Error) => void;
  *
  * The return handler will always be called. Its resolution of the promise
  * enables the control flow described above.
+ *
+ * @param asyncMiddleware - The asynchronous middleware function to wrap.
+ * @returns The wrapped asynchronous middleware function, ready to be consumed
+ * by JsonRpcEngine.
  */
 export function createAsyncMiddleware<T, U>(
   asyncMiddleware: AsyncJsonrpcMiddleware<T, U>,
