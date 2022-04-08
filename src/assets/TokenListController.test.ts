@@ -1,6 +1,5 @@
 import sinon from 'sinon';
 import nock from 'nock';
-import contractMap from '@metamask/contract-metadata';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
   NetworkController,
@@ -344,29 +343,6 @@ const sampleTwoChainState = {
       data: sampleBinanceTokensChainsCache,
     },
   },
-};
-
-const sampleTokenMetaData = {
-  address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-  symbol: 'LINK',
-  decimals: 18,
-  occurrences: 11,
-  name: 'Chainlink',
-  iconUrl:
-    'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
-  aggregators: [
-    'Aave',
-    'Bancor',
-    'CMC',
-    'Crypto.com',
-    'CoinGecko',
-    '1inch',
-    'Paraswap',
-    'PMM',
-    'Zapper',
-    'Zerion',
-    '0x',
-  ],
 };
 
 const existingState = {

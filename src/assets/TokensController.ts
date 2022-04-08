@@ -5,6 +5,7 @@ import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import { ethers } from 'ethers';
 import { isHexString } from 'ethereumjs-util';
+// eslint-disable-next-line import/no-named-as-default
 import AbortController from 'abort-controller';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
@@ -292,9 +293,9 @@ export class TokensController extends BaseController<
   }
 
   /**
-   * Import a batch of tokens
+   * Import a batch of tokens.
    *
-   * @param tokensToImport - Array of tokens to import
+   * @param tokensToImport - Array of tokens to import.
    */
   async importTokens(tokensToImport: Token[]) {
     const releaseLock = await this.mutex.acquire();
@@ -354,9 +355,9 @@ export class TokensController extends BaseController<
   }
 
   /**
-   * Ignore a batch of tokens
+   * Ignore a batch of tokens.
    *
-   * @param tokensToIgnore - Array of tokens to ignore
+   * @param tokensToIgnore - Array of tokens to ignore.
    */
   async ignoreTokens(tokensToIgnore: Token[]) {
     const releaseLock = await this.mutex.acquire();
@@ -693,12 +694,10 @@ export class TokensController extends BaseController<
    * Takes a new tokens and ignoredTokens array for the current network/account combination
    * and returns new allTokens and allIgnoredTokens state to update to.
    *
-   * @param params
-   * @param newTokens - The new tokens to set for the current network and selected account.
-   * @param newIgnoredTokens - The new ignored tokens to set for the current network and selected account.
-   * @param params.newTokens
-   * @param params.newIgnoredTokens
-   * @param params.newDetectedTokens
+   * @param params - Object that holds token params.
+   * @param params.newTokens - The new tokens to set for the current network and selected account.
+   * @param params.newIgnoredTokens - The new ignored tokens to set for the current network and selected account.
+   * @param params.newDetectedTokens - The new detected tokens to set for the current network and selected account.
    * @returns The updated `allTokens` and `allIgnoredTokens` state.
    */
   _getNewAllTokensState(params: {

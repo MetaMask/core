@@ -97,10 +97,10 @@ const aggregatorNameByKey: AggregatorNameByKey = {
 };
 
 /**
- * Formats aggregator names to presentable format
+ * Formats aggregator names to presentable format.
  *
- * @param aggregators - List of token list names in camelcase
- * @returns - Formatted aggregator names
+ * @param aggregators - List of token list names in camelcase.
+ * @returns Formatted aggregator names.
  */
 export const formatAggregatorNames = (aggregators: AggregatorKey[]) => {
   return aggregators.map(
@@ -111,11 +111,12 @@ export const formatAggregatorNames = (aggregators: AggregatorKey[]) => {
 };
 
 /**
- * Format token list assets to use image proxy from Codefi
+ * Format token list assets to use image proxy from Codefi.
  *
- * @param params.chainId - ChainID of network
- * @param params.tokenAddress - Address of token in lowercase
- * @returns - Formatted image url
+ * @param params - Object that contains chainID and tokenAddress.
+ * @param params.chainId - ChainID of network.
+ * @param params.tokenAddress - Address of token in lowercase.
+ * @returns Formatted image url
  */
 export const formatIconUrlWithProxy = ({
   chainId,

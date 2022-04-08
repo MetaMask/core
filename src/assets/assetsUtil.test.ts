@@ -101,7 +101,7 @@ describe('assetsUtil', () => {
       expect(different).toStrictEqual(false);
     });
 
-    it('Should format aggregator names', () => {
+    it('should format aggregator names', () => {
       const formattedAggregatorNames = assetsUtil.formatAggregatorNames([
         'bancor',
         'aave',
@@ -111,7 +111,7 @@ describe('assetsUtil', () => {
       expect(formattedAggregatorNames).toStrictEqual(expectedValue);
     });
 
-    it('Should format icon url with Codefi proxy', () => {
+    it('should format icon url with Codefi proxy', () => {
       const linkTokenAddress = '0x514910771af9ca656af840dff83e8264ecf986ca';
       const formattedIconUrl = assetsUtil.formatIconUrlWithProxy({
         chainId: NetworksChainId.mainnet,

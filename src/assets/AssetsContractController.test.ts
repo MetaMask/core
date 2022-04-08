@@ -2,8 +2,8 @@ import HttpProvider from 'ethjs-provider-http';
 import { IPFS_DEFAULT_GATEWAY_URL } from '../constants';
 import { SupportedTokenDetectionNetworks } from '../util';
 import { PreferencesController } from '../user/PreferencesController';
-import { AssetsContractController } from './AssetsContractController';
 import { NetworkController } from '../network/NetworkController';
+import { AssetsContractController } from './AssetsContractController';
 
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',

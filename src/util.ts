@@ -943,7 +943,7 @@ export enum SupportedTokenDetectionNetworks {
 }
 
 /**
- * Check if token detection is enabled for certain networks
+ * Check if token detection is enabled for certain networks.
  *
  * @param chainId - ChainID of network
  * @returns Whether the current network supports token detection

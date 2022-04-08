@@ -1,3 +1,5 @@
+// eslint-disable-next-line import/no-named-as-default
+import AbortController from 'abort-controller';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
@@ -7,12 +9,11 @@ import {
   isTokenDetectionEnabledForNetwork,
 } from '../util';
 import { MAINNET } from '../constants';
-import AbortController from 'abort-controller';
+import { NetworksChainId } from '..';
 import type { TokensController, TokensState } from './TokensController';
 import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
 import { TokenListState } from './TokenListController';
-import { NetworksChainId } from '..';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -116,9 +117,11 @@ export class TokenDetectionController extends BaseController<
     this.getTokensState = getTokensState;
     this.getTokenListState = getTokenListState;
     this.addDetectedTokens = addDetectedTokens;
+    this.abortController = new AbortController();
     onTokensStateChange(({ tokens }) => {
       this.configure({ tokens });
     });
+
     onPreferencesStateChange(({ selectedAddress, useTokenDetection }) => {
       const prevDisabled = this.config.disabled;
       const prevSelectedAddress = this.config.selectedAddress;
@@ -135,7 +138,7 @@ export class TokenDetectionController extends BaseController<
         this.detectTokens();
       }
     });
-    this.abortController = new AbortController();
+
     onNetworkStateChange(async (networkState) => {
       if (this.config.chainId !== networkState.provider.chainId) {
         this.abortController.abort();
@@ -151,6 +154,7 @@ export class TokenDetectionController extends BaseController<
           chainId: incomingChainId,
           disabled: !isDetectionEnabled,
         });
+
         if (isDetectionEnabled) {
           await this.restart();
         } else {
@@ -158,6 +162,7 @@ export class TokenDetectionController extends BaseController<
         }
       }
     });
+
     onTokenListStateChange(({ tokenList }) => {
       // Detect tokens when token list has been updated and is populated
       if (Object.keys(tokenList).length) {

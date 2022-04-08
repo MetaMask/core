@@ -5,10 +5,10 @@ import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import { IPFS_DEFAULT_GATEWAY_URL } from '../constants';
 import { SupportedTokenDetectionNetworks } from '../util';
+import { NetworkState } from '../network/NetworkController';
 import { ERC721Standard } from './Standards/CollectibleStandards/ERC721/ERC721Standard';
 import { ERC1155Standard } from './Standards/CollectibleStandards/ERC1155/ERC1155Standard';
 import { ERC20Standard } from './Standards/ERC20Standard';
-import { NetworkState } from '../network/NetworkController';
 
 /**
  * Check if token detection is enabled for certain networks

@@ -110,6 +110,7 @@ function getTokenListMessenger() {
 /**
  * Checks whether network is mainnet or not.
  *
+ * @param networkType - Name of current network.
  * @returns Whether current network is mainnet.
  */
 function isMainnet(networkType: NetworkType): boolean {
@@ -290,6 +291,7 @@ describe('TokenDetectionController', () => {
       chainId: NetworksChainId.mainnet,
       disabled: false,
     });
+
     getBalancesInSingleCall.resolves({
       '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
     });
@@ -323,6 +325,7 @@ describe('TokenDetectionController', () => {
       chainId: NetworksChainId.mainnet,
       disabled: false,
     });
+
     getBalancesInSingleCall.resolves({
       '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
     });
@@ -510,6 +513,7 @@ describe('TokenDetectionController', () => {
       chainId: NetworksChainId.mainnet,
       disabled: false,
     });
+
     getBalancesInSingleCall.resolves({
       '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
@@ -528,6 +532,7 @@ describe('TokenDetectionController', () => {
       chainId: NetworksChainId.mainnet,
       disabled: false,
     });
+
     getBalancesInSingleCall.resolves({
       '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
