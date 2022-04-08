@@ -47,6 +47,8 @@ jobs:
         with:
           path: ./dist
           key: ${{ github.sha }}
+        # set ignore-scripts to skip prePublish
+      - run: npm config set ignore-scripts true
       - name: Publish
         uses: MetaMask/action-npm-publish@v1.0.0
         with:
