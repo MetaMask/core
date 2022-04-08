@@ -15,9 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          # We check out the release pull request's base branch, which will be
-          # used as the base branch for all git operations.
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.sha }}
       - name: Get Node.js version
         id: nvm
         run: echo ::set-output name=NODE_VERSION::$(cat .nvmrc)
@@ -43,14 +41,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          # We check out the release pull request's base branch, which will be
-          # used as the base branch for all git operations.
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.sha }}
       - uses: actions/cache@v3
         id: restore-build
         with:
           path: ./dist
           key: ${{ github.sha }}
+        # Set `ignore-scripts` to skip `prepublishOnly` because the release was built already in the previous job
+      - run: npm config set ignore-scripts true
       - name: Publish
         uses: MetaMask/action-npm-publish@v1.0.0
         with:
