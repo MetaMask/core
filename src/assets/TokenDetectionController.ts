@@ -64,6 +64,7 @@ export class TokenDetectionController extends BaseController<
    * @param options.onTokensStateChange - Allows subscribing to tokens controller state changes.
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.addDetectedTokens - Add a list of detected tokens.
    * @param options.getTokenListState - Gets the current state of the TokenList controller.
@@ -76,6 +77,7 @@ export class TokenDetectionController extends BaseController<
       onTokensStateChange,
       onPreferencesStateChange,
       onNetworkStateChange,
+      onTokenListStateChange,
       getBalancesInSingleCall,
       addDetectedTokens,
       getTokenListState,
@@ -89,6 +91,9 @@ export class TokenDetectionController extends BaseController<
       ) => void;
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
+      ) => void;
+      onTokenListStateChange: (
+        listener: (tokenListState: TokenListState) => void,
       ) => void;
       getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
       addDetectedTokens: TokensController['addDetectedTokens'];
@@ -151,6 +156,12 @@ export class TokenDetectionController extends BaseController<
         } else {
           this.stopPolling();
         }
+      }
+    });
+    onTokenListStateChange(({ tokenList }) => {
+      // Detect tokens when token list has been updated and is populated
+      if (Object.keys(tokenList).length) {
+        this.detectTokens();
       }
     });
     this.getBalancesInSingleCall = getBalancesInSingleCall;
