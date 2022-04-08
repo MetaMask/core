@@ -4452,6 +4452,46 @@ describe('PermissionController', () => {
       expect(revokeAllPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
     });
 
+    it('action: PermissionController:revokePermissionForAllSubjects', () => {
+      const messenger = getUnrestrictedMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      controller.grantPermissions({
+        subject: { origin: 'foo' },
+        approvedPermissions: {
+          wallet_getSecretArray: {},
+        },
+      });
+      const revokePermissionForAllSubjectsSpy = jest.spyOn(
+        controller,
+        'revokePermissionForAllSubjects',
+      );
+
+      expect(
+        controller.hasPermission('foo', 'wallet_getSecretArray'),
+      ).toStrictEqual(true);
+
+      messenger.call(
+        'PermissionController:revokePermissionForAllSubjects',
+        'wallet_getSecretArray',
+      );
+
+      expect(
+        controller.hasPermission('foo', 'wallet_getSecretArray'),
+      ).toStrictEqual(false);
+      expect(revokePermissionForAllSubjectsSpy).toHaveBeenCalledTimes(1);
+      expect(revokePermissionForAllSubjectsSpy).toHaveBeenNthCalledWith(
+        1,
+        'wallet_getSecretArray',
+      );
+    });
+
     it('action: PermissionsController:requestPermissions', async () => {
       const messenger = getUnrestrictedMessenger();
       const options = getPermissionControllerOptions({
