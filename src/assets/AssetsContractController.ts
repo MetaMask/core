@@ -29,7 +29,7 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: {
     '0xD023D153a0DFa485130ECFdE2FAA7e612EF94818',
 };
 
-const MISSING_PROVIDER_ERROR =
+export const MISSING_PROVIDER_ERROR =
   'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';
 
 /**

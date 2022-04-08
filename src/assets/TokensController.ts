@@ -361,7 +361,7 @@ export class TokensController extends BaseController<
    */
   async ignoreTokens(tokensToIgnore: Token[]) {
     const releaseLock = await this.mutex.acquire();
-    const { ignoredTokens, detectedTokens } = this.state;
+    const { ignoredTokens, detectedTokens, tokens } = this.state;
     const ignoredTokensMap: { [key: string]: true } = {};
 
     try {
@@ -375,20 +375,27 @@ export class TokensController extends BaseController<
       const newDetectedTokens = detectedTokens.filter(
         (token) => !ignoredTokensMap[token.address.toLowerCase()],
       );
+      const newTokens = tokens.filter(
+        (token) => !ignoredTokensMap[token.address.toLowerCase()],
+      );
 
       const {
         newAllIgnoredTokens,
         newAllDetectedTokens,
+        newAllTokens,
       } = this._getNewAllTokensState({
         newIgnoredTokens: ignoredTokens,
         newDetectedTokens,
+        newTokens,
       });
 
       this.update({
         ignoredTokens,
-        allIgnoredTokens: newAllIgnoredTokens,
+        tokens: newTokens,
         detectedTokens: newDetectedTokens,
+        allIgnoredTokens: newAllIgnoredTokens,
         allDetectedTokens: newAllDetectedTokens,
+        allTokens: newAllTokens,
       });
     } finally {
       releaseLock();

@@ -3,7 +3,10 @@ import { IPFS_DEFAULT_GATEWAY_URL } from '../constants';
 import { SupportedTokenDetectionNetworks } from '../util';
 import { PreferencesController } from '../user/PreferencesController';
 import { NetworkController } from '../network/NetworkController';
-import { AssetsContractController } from './AssetsContractController';
+import {
+  AssetsContractController,
+  MISSING_PROVIDER_ERROR,
+} from './AssetsContractController';
 
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
@@ -58,6 +61,27 @@ describe('AssetsContractController', () => {
     );
   });
 
+  it('should throw missing provider error when getting ERC-20 token balance when missing provider', async () => {
+    assetsContract.configure({ provider: undefined });
+    try {
+      await assetsContract.getERC20BalanceOf(
+        ERC20_UNI_ADDRESS,
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+      );
+    } catch (err) {
+      expect(err.message).toBe(MISSING_PROVIDER_ERROR);
+    }
+  });
+
+  it('should throw missing provider error when getting ERC-20 token decimal when missing provider', async () => {
+    assetsContract.configure({ provider: undefined });
+    try {
+      await assetsContract.getERC20TokenDecimals(ERC20_UNI_ADDRESS);
+    } catch (err) {
+      expect(err.message).toBe(MISSING_PROVIDER_ERROR);
+    }
+  });
+
   it('should get balance of ERC-20 token contract correctly', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const UNIBalance = await assetsContract.getERC20BalanceOf(
@@ -80,6 +104,18 @@ describe('AssetsContractController', () => {
       0,
     );
     expect(tokenId).not.toStrictEqual(0);
+  });
+
+  it('should throw missing provider error when getting ERC-721 token standard and details when missing provider', async () => {
+    assetsContract.configure({ provider: undefined });
+    try {
+      await assetsContract.getTokenStandardAndDetails(
+        ERC20_UNI_ADDRESS,
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+      );
+    } catch (err) {
+      expect(err.message).toBe(MISSING_PROVIDER_ERROR);
+    }
   });
 
   it('should get ERC-721 collectible tokenURI correctly', async () => {
@@ -142,6 +178,21 @@ describe('AssetsContractController', () => {
       [ERC20_DAI_ADDRESS],
     );
     expect(balances[ERC20_DAI_ADDRESS]).not.toStrictEqual(0);
+  });
+
+  it('should throw missing provider error when transfering single ERC-1155 when missing provider', async () => {
+    assetsContract.configure({ provider: undefined });
+    try {
+      await assetsContract.transferSingleERC1155(
+        ERC1155_ADDRESS,
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+        ERC1155_ID,
+        '1',
+      );
+    } catch (err) {
+      expect(err.message).toBe(MISSING_PROVIDER_ERROR);
+    }
   });
 
   it('should get the balance of a ERC-1155 collectible for a given address', async () => {

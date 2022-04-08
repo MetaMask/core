@@ -486,6 +486,54 @@ describe('TokensController', () => {
     });
   });
 
+  it('should ignore multiple tokens with single ignoreTokens call', async () => {
+    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
+    await sinon
+      .stub(tokensController, '_createEthersContract')
+      .callsFake(() =>
+        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+      );
+    await tokensController.addToken('0x01', 'A', 4);
+    await tokensController.addToken('0x02', 'B', 5);
+    expect(tokensController.state.tokens).toStrictEqual([
+      {
+        address: '0x01',
+        decimals: 4,
+        image: undefined,
+        isERC721: false,
+        symbol: 'A',
+        aggregators: [],
+      },
+      {
+        address: '0x02',
+        decimals: 5,
+        image: undefined,
+        isERC721: false,
+        symbol: 'B',
+        aggregators: [],
+      },
+    ]);
+    await tokensController.ignoreTokens([
+      {
+        address: '0x01',
+        decimals: 4,
+        image: undefined,
+        isERC721: false,
+        symbol: 'A',
+        aggregators: [],
+      },
+      {
+        address: '0x02',
+        decimals: 5,
+        image: undefined,
+        isERC721: false,
+        symbol: 'B',
+        aggregators: [],
+      },
+    ]);
+    expect(tokensController.state.tokens).toStrictEqual([]);
+  });
+
   describe('isERC721 flag', function () {
     describe('updateTokenType method', function () {
       it('should add isERC721 = true to token object already in state when token is collectible and in our contract-metadata repo', async function () {
