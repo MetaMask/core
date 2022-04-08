@@ -47,7 +47,7 @@ jobs:
         with:
           path: ./dist
           key: ${{ github.sha }}
-        # set ignore-scripts to skip prePublish
+        # Set `ignore-scripts` to skip `prepublishOnly` because the release was built already in the previous job
       - run: npm config set ignore-scripts true
       - name: Publish
         uses: MetaMask/action-npm-publish@v1.0.0
