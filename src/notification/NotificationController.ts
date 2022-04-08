@@ -157,12 +157,12 @@ export class NotificationController extends BaseController<
 
     this.messagingSystem.registerActionHandler(
       `${name}:dismiss` as const,
-      (id: string) => this.dismiss(id),
+      (ids: string[]) => this.dismiss(ids),
     );
 
     this.messagingSystem.registerActionHandler(
       `${name}:markRead` as const,
-      (id: string) => this.markRead(id),
+      (ids: string[]) => this.markRead(ids),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -224,27 +224,31 @@ export class NotificationController extends BaseController<
   }
 
   /**
-   * Dimisses a notification.
+   * Dimisses a list of notifications.
    *
-   * @param id - The notification's ID
+   * @param ids - A list of notification IDs
    */
-  dismiss(id: string) {
+  dismiss(ids: string[]) {
     this.update((state) => {
-      if (hasProperty(state.notifications, id)) {
-        delete state.notifications[id];
+      for (const id of ids) {
+        if (hasProperty(state.notifications, id)) {
+          delete state.notifications[id];
+        }
       }
     });
   }
 
   /**
-   * Marks a notification as read.
+   * Marks a list of notifications as read.
    *
-   * @param id - The notification's ID
+   * @param ids - A list of notification IDs
    */
-  markRead(id: string) {
+  markRead(ids: string[]) {
     this.update((state) => {
-      if (hasProperty(state.notifications, id)) {
-        state.notifications[id].read = true;
+      for (const id of ids) {
+        if (hasProperty(state.notifications, id)) {
+          state.notifications[id].read = true;
+        }
       }
     });
   }
@@ -264,7 +268,7 @@ export class NotificationController extends BaseController<
    * @returns The number of current notifications
    */
   getCount() {
-    return Object.values(this.state.notifications).length;
+    return this.getNotifications().length;
   }
 
   /**
@@ -273,7 +277,6 @@ export class NotificationController extends BaseController<
    * @returns The number of current notifications
    */
   getUnreadCount() {
-    return Object.values(this.state.notifications).filter((n) => !n.read)
-      .length;
+    return this.getNotifications().filter((n) => !n.read).length;
   }
 }

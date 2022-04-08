@@ -184,10 +184,9 @@ describe('NotificationController', () => {
     const notifications = await unrestricted.call(
       'NotificationController:getNotifications',
     );
-    await unrestricted.call(
-      'NotificationController:markRead',
+    await unrestricted.call('NotificationController:markRead', [
       notifications[0].id,
-    );
+    ]);
 
     expect(
       await unrestricted.call('NotificationController:getNotifications'),
@@ -227,10 +226,9 @@ describe('NotificationController', () => {
     const notifications = await unrestricted.call(
       'NotificationController:getNotifications',
     );
-    await unrestricted.call(
-      'NotificationController:dismiss',
+    await unrestricted.call('NotificationController:dismiss', [
       notifications[0].id,
-    );
+    ]);
 
     expect(await unrestricted.call('NotificationController:getCount')).toBe(0);
   });
