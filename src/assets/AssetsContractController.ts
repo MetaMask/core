@@ -14,7 +14,7 @@ import { NetworkState } from '../network/NetworkController';
  * Check if token detection is enabled for certain networks
  *
  * @param chainId - ChainID of network
- * @returns - Whether the current network supports token detection
+ * @returns Whether the current network supports token detection
  */
 export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: {
   [chainId: string]: string;
@@ -83,41 +83,41 @@ export class AssetsContractController extends BaseController<
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
    */
-    constructor({
-      onPreferencesStateChange,
-      onNetworkStateChange,
-      config,
-      state,
-    }: {
-      onPreferencesStateChange: (
-        listener: (preferencesState: PreferencesState) => void,
-      ) => void;
-      onNetworkStateChange: (
-        listener: (networkState: NetworkState) => void,
-      ) => void;
-      config?: Partial<AssetsContractConfig>;
-      state?: Partial<BaseState>;
-    }) {
-      super(config, state);
-      this.defaultConfig = {
-        provider: undefined,
-        ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-        chainId: SupportedTokenDetectionNetworks.mainnet,
-      };
-      this.initialize();
-  
-      onPreferencesStateChange(({ ipfsGateway }) => {
-        this.configure({ ipfsGateway });
-      });
-  
-      onNetworkStateChange((networkState) => {
-        if (this.config.chainId !== networkState.provider.chainId) {
-          this.configure({
-            chainId: networkState.provider.chainId,
-          });
-        }
-      });
-    }
+  constructor({
+    onPreferencesStateChange,
+    onNetworkStateChange,
+    config,
+    state,
+  }: {
+    onPreferencesStateChange: (
+      listener: (preferencesState: PreferencesState) => void,
+    ) => void;
+    onNetworkStateChange: (
+      listener: (networkState: NetworkState) => void,
+    ) => void;
+    config?: Partial<AssetsContractConfig>;
+    state?: Partial<BaseState>;
+  }) {
+    super(config, state);
+    this.defaultConfig = {
+      provider: undefined,
+      ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
+      chainId: SupportedTokenDetectionNetworks.mainnet,
+    };
+    this.initialize();
+
+    onPreferencesStateChange(({ ipfsGateway }) => {
+      this.configure({ ipfsGateway });
+    });
+
+    onNetworkStateChange((networkState) => {
+      if (this.config.chainId !== networkState.provider.chainId) {
+        this.configure({
+          chainId: networkState.provider.chainId,
+        });
+      }
+    });
+  }
 
   /**
    * Sets a new provider.

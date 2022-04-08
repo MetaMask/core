@@ -1,6 +1,7 @@
 import sinon from 'sinon';
 import nock from 'nock';
 import { BN } from 'ethereumjs-util';
+import { NetworkType } from '..';
 import {
   NetworkController,
   NetworksChainId,
@@ -9,7 +10,6 @@ import { PreferencesController } from '../user/PreferencesController';
 import { ControllerMessenger } from '../ControllerMessenger';
 import { TokensController } from './TokensController';
 import { TokenDetectionController } from './TokenDetectionController';
-import { NetworkType } from '..';
 import {
   TokenListController,
   GetTokenListState,
