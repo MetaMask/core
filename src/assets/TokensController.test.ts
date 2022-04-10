@@ -513,6 +513,7 @@ describe('TokensController', () => {
         aggregators: [],
       },
     ]);
+
     await tokensController.ignoreTokens([
       {
         address: '0x01',

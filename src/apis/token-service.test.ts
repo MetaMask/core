@@ -313,6 +313,6 @@ describe('Token service', () => {
 
     const tokens = await fetchTokenList(NetworksChainId.mainnet, signal);
 
-    expect(tokens).toStrictEqual(undefined);
+    expect(tokens).toBeUndefined();
   });
 });

@@ -63,23 +63,20 @@ describe('AssetsContractController', () => {
 
   it('should throw missing provider error when getting ERC-20 token balance when missing provider', async () => {
     assetsContract.configure({ provider: undefined });
-    try {
-      await assetsContract.getERC20BalanceOf(
-        ERC20_UNI_ADDRESS,
-        TEST_ACCOUNT_PUBLIC_ADDRESS,
-      );
-    } catch (err) {
-      expect(err.message).toBe(MISSING_PROVIDER_ERROR);
-    }
+    await expect(
+      async () =>
+        await assetsContract.getERC20BalanceOf(
+          ERC20_UNI_ADDRESS,
+          TEST_ACCOUNT_PUBLIC_ADDRESS,
+        ),
+    ).rejects.toThrow(MISSING_PROVIDER_ERROR);
   });
 
   it('should throw missing provider error when getting ERC-20 token decimal when missing provider', async () => {
     assetsContract.configure({ provider: undefined });
-    try {
-      await assetsContract.getERC20TokenDecimals(ERC20_UNI_ADDRESS);
-    } catch (err) {
-      expect(err.message).toBe(MISSING_PROVIDER_ERROR);
-    }
+    await expect(
+      async () => await assetsContract.getERC20TokenDecimals(ERC20_UNI_ADDRESS),
+    ).rejects.toThrow(MISSING_PROVIDER_ERROR);
   });
 
   it('should get balance of ERC-20 token contract correctly', async () => {
@@ -108,14 +105,13 @@ describe('AssetsContractController', () => {
 
   it('should throw missing provider error when getting ERC-721 token standard and details when missing provider', async () => {
     assetsContract.configure({ provider: undefined });
-    try {
-      await assetsContract.getTokenStandardAndDetails(
-        ERC20_UNI_ADDRESS,
-        TEST_ACCOUNT_PUBLIC_ADDRESS,
-      );
-    } catch (err) {
-      expect(err.message).toBe(MISSING_PROVIDER_ERROR);
-    }
+    await expect(
+      async () =>
+        await assetsContract.getTokenStandardAndDetails(
+          ERC20_UNI_ADDRESS,
+          TEST_ACCOUNT_PUBLIC_ADDRESS,
+        ),
+    ).rejects.toThrow(MISSING_PROVIDER_ERROR);
   });
 
   it('should get ERC-721 collectible tokenURI correctly', async () => {
@@ -182,17 +178,16 @@ describe('AssetsContractController', () => {
 
   it('should throw missing provider error when transfering single ERC-1155 when missing provider', async () => {
     assetsContract.configure({ provider: undefined });
-    try {
-      await assetsContract.transferSingleERC1155(
-        ERC1155_ADDRESS,
-        TEST_ACCOUNT_PUBLIC_ADDRESS,
-        TEST_ACCOUNT_PUBLIC_ADDRESS,
-        ERC1155_ID,
-        '1',
-      );
-    } catch (err) {
-      expect(err.message).toBe(MISSING_PROVIDER_ERROR);
-    }
+    await expect(
+      async () =>
+        await assetsContract.transferSingleERC1155(
+          ERC1155_ADDRESS,
+          TEST_ACCOUNT_PUBLIC_ADDRESS,
+          TEST_ACCOUNT_PUBLIC_ADDRESS,
+          ERC1155_ID,
+          '1',
+        ),
+    ).rejects.toThrow(MISSING_PROVIDER_ERROR);
   });
 
   it('should get the balance of a ERC-1155 collectible for a given address', async () => {
