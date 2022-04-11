@@ -445,9 +445,7 @@ export class KeyringController extends BaseController<
     try {
       const address = normalizeAddress(messageParams.from);
 
-      const ledgerKeyring = privates
-        .get(this)
-        .keyring.getKeyringsByType(KeyringTypes.ledger)[0];
+      const ledgerKeyring = await this.getLedgerKeyring();
       const isLegerAccount = await ledgerKeyring.managesAccount(address);
 
       if (isLegerAccount) {
