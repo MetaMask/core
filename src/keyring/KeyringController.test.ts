@@ -1,4 +1,4 @@
-import { bufferToHex } from 'ethereumjs-util';
+import { BN, bufferToHex } from 'ethereumjs-util';
 import {
   recoverPersonalSignature,
   recoverTypedSignature,
@@ -10,6 +10,7 @@ import Common from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
+import LedgerKeyring from '@ledgerhq/metamask-keyring';
 import * as uuid from 'uuid';
 import MockEncryptor from '../../tests/mocks/mockEncryptor';
 import { PreferencesController } from '../user/PreferencesController';
@@ -45,7 +46,7 @@ describe('KeyringController', () => {
     keyringTypes: string[];
     keyrings: Keyring[];
   };
-  const additionalKeyrings = [QRKeyring];
+  const additionalKeyrings = [QRKeyring, LedgerKeyring];
   const baseConfig: Partial<KeyringConfig> = {
     encryptor: new MockEncryptor(),
     keyringTypes: additionalKeyrings,
@@ -263,6 +264,8 @@ describe('KeyringController', () => {
   });
 
   it('should throw when given invalid version', async () => {
+    await keyringController.getLedgerKeyring();
+
     const typedMsgParams = [
       {
         name: 'Message',
@@ -287,6 +290,8 @@ describe('KeyringController', () => {
   });
 
   it('should sign typed message V1', async () => {
+    await keyringController.getLedgerKeyring();
+
     const typedMsgParams = [
       {
         name: 'Message',
@@ -312,6 +317,8 @@ describe('KeyringController', () => {
   });
 
   it('should sign typed message V3', async () => {
+    await keyringController.getLedgerKeyring();
+
     const msgParams = {
       domain: {
         chainId: 1,
@@ -362,6 +369,8 @@ describe('KeyringController', () => {
   });
 
   it('should sign typed message V4', async () => {
+    await keyringController.getLedgerKeyring();
+
     const msgParams = {
       domain: {
         chainId: 1,
@@ -550,9 +559,13 @@ describe('KeyringController', () => {
         },
         baseConfig,
       );
+
       await signProcessKeyringController.createNewVaultAndKeychain(password);
       const qrkeyring = await signProcessKeyringController.getOrAddQRKeyring();
       qrkeyring.forgetDevice();
+
+      const ledgerKeyring = await signProcessKeyringController.getLedgerKeyring();
+      ledgerKeyring.forgetDevice();
 
       if (!requestSignatureStub) {
         requestSignatureStub = sinon.stub(
@@ -909,6 +922,265 @@ describe('KeyringController', () => {
       cancelSignRequestStub.resolves();
       await signProcessKeyringController.cancelQRSignRequest();
       expect(cancelSignRequestStub.called).toBe(true);
+    });
+  });
+
+  describe('Ledger Keyring', () => {
+    let ledgerKeyring: LedgerKeyring;
+    preferences = new PreferencesController();
+
+    beforeEach(async () => {
+      keyringController = new KeyringController(
+        {
+          setAccountLabel: preferences.setAccountLabel.bind(preferences),
+          removeIdentity: preferences.removeIdentity.bind(preferences),
+          syncIdentities: preferences.syncIdentities.bind(preferences),
+          updateIdentities: preferences.updateIdentities.bind(preferences),
+          setSelectedAddress: preferences.setSelectedAddress.bind(preferences),
+        },
+        baseConfig,
+      );
+
+      await keyringController.createNewVaultAndKeychain(password);
+      ledgerKeyring = await keyringController.getLedgerKeyring();
+
+      ledgerKeyring.setApp({
+        signTransaction: sinon.stub(),
+        getAddress: sinon.stub().resolves({
+          address: '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+        }),
+        signEIP712HashedMessage: sinon.stub(),
+        signPersonalMessage: sinon.stub(),
+      });
+
+      await keyringController.unlockLedgerDefaultAccount();
+    });
+
+    it('should unlock default account from Ledger', async () => {
+      const defaultAccount = await keyringController.unlockLedgerDefaultAccount();
+      expect(defaultAccount.address).toBe(
+        '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
+      );
+      expect(defaultAccount.balance).toBe('0x0');
+    });
+
+    it('should sign a message with a Ledger keyring', async () => {
+      const confirmSignatureStub = sinon.stub(ledgerKeyring, 'signMessage');
+
+      confirmSignatureStub.resolves(
+        '4cb25933c5225f9f92fc9b487451b93bc3646c6aa01b72b01065b8509ac4fd6c37798695d0d5c0949ed10c5e102800ea2b62c2b670729c5631c81b0c52002a641b',
+      );
+
+      const data =
+        '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
+
+      const account = await ledgerKeyring?.getDefaultAccount();
+      const signature = await keyringController.signMessage({
+        data,
+        from: account,
+      });
+      expect(signature).toBe(
+        '4cb25933c5225f9f92fc9b487451b93bc3646c6aa01b72b01065b8509ac4fd6c37798695d0d5c0949ed10c5e102800ea2b62c2b670729c5631c81b0c52002a641b',
+      );
+
+      confirmSignatureStub.reset();
+    });
+
+    it('should sign a personal message with a Ledger keyring', async () => {
+      const confirmSignatureStub = sinon.stub(
+        ledgerKeyring,
+        'signPersonalMessage',
+      );
+
+      confirmSignatureStub.resolves(
+        '4cb25933c5225f9f92fc9b487451b93bc3646c6aa01b72b01065b8509ac4fd6c37798695d0d5c0949ed10c5e102800ea2b62c2b670729c5631c81b0c52002a641b',
+      );
+
+      const data =
+        '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
+
+      const account = await ledgerKeyring?.getDefaultAccount();
+      const signature = await keyringController.signPersonalMessage({
+        data,
+        from: account,
+      });
+      expect(signature).toBe(
+        '4cb25933c5225f9f92fc9b487451b93bc3646c6aa01b72b01065b8509ac4fd6c37798695d0d5c0949ed10c5e102800ea2b62c2b670729c5631c81b0c52002a641b',
+      );
+
+      confirmSignatureStub.reset();
+    });
+
+    it('should sign transaction with Ledger keyring', async () => {
+      const tx = TransactionFactory.fromTxData(
+        {
+          accessList: [],
+          chainId: '0x4',
+          data: '0x',
+          gasLimit: '0x5208',
+          maxFeePerGas: '0x2540be400',
+          maxPriorityFeePerGas: '0x3b9aca00',
+          nonce: '0x68',
+          r: undefined,
+          s: undefined,
+          to: '0x0c54fccd2e384b4bb6f2e405bf5cbc15a017aafb',
+          v: undefined,
+          value: '0x0',
+          type: 2,
+        },
+        {
+          common: Common.forCustomChain(
+            MAINNET,
+            {
+              name: 'rinkeby',
+              chainId: parseInt('4'),
+              networkId: parseInt('4'),
+            },
+            'london',
+          ),
+        },
+      );
+
+      const confirmSignatureStub = sinon.stub(ledgerKeyring, 'signTransaction');
+
+      confirmSignatureStub.resolves({
+        ...tx,
+        r: new BN('1'),
+        s: new BN('2'),
+        v: new BN('3'),
+      } as any);
+
+      const account = await ledgerKeyring?.getDefaultAccount();
+
+      const { r, s, v } = await keyringController.signTransaction(tx, account);
+      expect(r.toString()).toBe('1');
+      expect(s.toString()).toBe('2');
+      expect(v.toString()).toBe('3');
+
+      confirmSignatureStub.reset();
+    });
+
+    it('should throw if typed data verions is not V4', async () => {
+      const typedMsgParams = [
+        {
+          name: 'Message',
+          type: 'string',
+          value: 'Hi, Alice!',
+        },
+        {
+          name: 'A number',
+          type: 'uint32',
+          value: '1337',
+        },
+      ];
+      const account = await ledgerKeyring.getDefaultAccount();
+
+      const signature = keyringController.signTypedMessage(
+        { data: typedMsgParams, from: account },
+        SignTypedDataVersion.V1,
+      );
+
+      await expect(signature).rejects.toThrow(
+        'Ledger: Only version 4 of typed data signing is supported',
+      );
+
+      const signature2 = keyringController.signTypedMessage(
+        { data: typedMsgParams, from: account },
+        SignTypedDataVersion.V3,
+      );
+
+      await expect(signature2).rejects.toThrow(
+        'Ledger: Only version 4 of typed data signing is supported',
+      );
+    });
+
+    it('should sign typed data for V4 with Ledger Keyring', async () => {
+      const msgParams = {
+        domain: {
+          chainId: 1,
+          name: 'Ether Mail',
+          verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+          version: '1',
+        },
+        message: {
+          contents: 'Hello, Bob!',
+          attachedMoneyInEth: 4.2,
+          from: {
+            name: 'Cow',
+            wallets: [
+              '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826',
+              '0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF',
+            ],
+          },
+          to: [
+            {
+              name: 'Bob',
+              wallets: [
+                '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+                '0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57',
+                '0xB0B0b0b0b0b0B000000000000000000000000000',
+              ],
+            },
+          ],
+        },
+        primaryType: 'Mail',
+        types: {
+          EIP712Domain: [
+            { name: 'name', type: 'string' },
+            { name: 'version', type: 'string' },
+            { name: 'chainId', type: 'uint256' },
+            { name: 'verifyingContract', type: 'address' },
+          ],
+          Group: [
+            { name: 'name', type: 'string' },
+            { name: 'members', type: 'Person[]' },
+          ],
+          Mail: [
+            { name: 'from', type: 'Person' },
+            { name: 'to', type: 'Person[]' },
+            { name: 'contents', type: 'string' },
+          ],
+          Person: [
+            { name: 'name', type: 'string' },
+            { name: 'wallets', type: 'address[]' },
+          ],
+        },
+      };
+
+      const confirmSignatureStub = sinon.stub(ledgerKeyring, 'signTypedData');
+
+      confirmSignatureStub.resolves(
+        '0xafb6e247b1c490e284053c87ab5f6b59e219d51f743f7a4d83e400782bc7e4b9479a268e0e0acd4de3f1e28e4fac2a6b32a4195e8dfa9d19147abe8807aa6f6400',
+      );
+
+      const account = await ledgerKeyring.getDefaultAccount();
+      const signature = await keyringController.signTypedMessage(
+        { data: JSON.stringify(msgParams), from: account },
+        SignTypedDataVersion.V4,
+      );
+      const recovered = recoverTypedSignature_v4({
+        data: msgParams as any,
+        sig: signature as string,
+      });
+      expect(account).toBe(recovered);
+    });
+
+    it('should forget Ledger Keyring', async () => {
+      const accounts = await ledgerKeyring.getAccounts();
+      expect(accounts).toHaveLength(1);
+
+      await keyringController.forgetLedger();
+      expect(keyringController.state.keyrings[1].accounts).toHaveLength(0);
+    });
+
+    it('should return Ledger Keyring for corresponding account', async () => {
+      const ledgerAccount = '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2';
+
+      const keyring = await keyringController.getAccountKeyringType(
+        ledgerAccount,
+      );
+
+      expect(keyring).toBe(KeyringTypes.ledger);
     });
   });
 });
