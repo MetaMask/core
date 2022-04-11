@@ -37,8 +37,8 @@
   "dependencies": {
     "@ethereumjs/common": "^2.3.1",
     "@ethereumjs/tx": "^3.2.1",
+    "@ledgerhq/metamask-keyring": "https://github.com/LedgerHQ/metamask-keyring#03c75af4dc731ceb6e960c4ad0d30cfb8ab32be3",
     "@metamask/contract-metadata": "^1.33.0",
-    "@ledgerhq/metamask-keyring": "https://github.com/LedgerHQ/metamask-keyring",
     "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/types": "^1.1.0",
     "@types/uuid": "^8.3.0",
