@@ -824,10 +824,9 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Forgets the ledger keyring's previous device specific state
-   *
+   * Forgets the ledger keyring's previous device specific state.
    */
-  async forgetLedger(): Promise<void> {
+  async forgetLedger() {
     const keyring = await this.getLedgerKeyring();
     keyring.forgetDevice();
 
