@@ -309,6 +309,12 @@ The project follows the same release process as the other libraries in the MetaM
 
 7. Publish the release on npm.
 
+   - This now happens automatically as part of `workflows/publish-release`...
+   - Once the `publish-release` job is complete a second job (`publish-npm`) will wait for a run approval by the `npm publishers` team.
+   - Once the workflow run is approved it will automatically publish the release to `npm`
+
+8. Optional manual publish.
+
    - Be very careful to use a clean local environment to publish the release, and follow exactly the same steps used during CI.
    - Use `npm publish --dry-run` to examine the release contents to ensure the correct files are included. Compare to previous releases if necessary (e.g. using `https://unpkg.com/browse/[package name]@[package version]/`).
    - Once you are confident the release contents are correct, publish the release using `npm publish`.
