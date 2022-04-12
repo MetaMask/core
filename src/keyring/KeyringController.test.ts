@@ -264,8 +264,6 @@ describe('KeyringController', () => {
   });
 
   it('should throw when given invalid version', async () => {
-    await keyringController.getLedgerKeyring();
-
     const typedMsgParams = [
       {
         name: 'Message',
@@ -290,8 +288,6 @@ describe('KeyringController', () => {
   });
 
   it('should sign typed message V1', async () => {
-    await keyringController.getLedgerKeyring();
-
     const typedMsgParams = [
       {
         name: 'Message',
@@ -317,8 +313,6 @@ describe('KeyringController', () => {
   });
 
   it('should sign typed message V3', async () => {
-    await keyringController.getLedgerKeyring();
-
     const msgParams = {
       domain: {
         chainId: 1,
@@ -369,8 +363,6 @@ describe('KeyringController', () => {
   });
 
   it('should sign typed message V4', async () => {
-    await keyringController.getLedgerKeyring();
-
     const msgParams = {
       domain: {
         chainId: 1,
@@ -563,9 +555,6 @@ describe('KeyringController', () => {
       await signProcessKeyringController.createNewVaultAndKeychain(password);
       const qrkeyring = await signProcessKeyringController.getOrAddQRKeyring();
       qrkeyring.forgetDevice();
-
-      const ledgerKeyring = await signProcessKeyringController.getLedgerKeyring();
-      ledgerKeyring.forgetDevice();
 
       if (!requestSignatureStub) {
         requestSignatureStub = sinon.stub(

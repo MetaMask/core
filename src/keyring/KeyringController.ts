@@ -18,6 +18,7 @@ import {
   MetaMaskKeyring as QRKeyring,
   IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
+import Transport from '@ledgerhq/hw-transport';
 import LedgerKeyring from '@ledgerhq/metamask-keyring';
 import {
   BaseController,
@@ -446,9 +447,9 @@ export class KeyringController extends BaseController<
       const address = normalizeAddress(messageParams.from);
 
       const ledgerKeyring = await this.getLedgerKeyring();
-      const isLegerAccount = await ledgerKeyring.managesAccount(address);
+      const isLedgerAccount = await ledgerKeyring.managesAccount(address);
 
-      if (isLegerAccount) {
+      if (isLedgerAccount) {
         return privates
           .get(this)
           .keyring.signTypedMessage(messageParams, { version });
@@ -786,7 +787,7 @@ export class KeyringController extends BaseController<
    * @param deviceId - The device ID to connect to
    * @returns The name of the currently open application on the device
    */
-  async connectLedgerHardware(transport: any, deviceId: string) {
+  async connectLedgerHardware(transport: Transport, deviceId: string) {
     const keyring = await this.getLedgerKeyring();
     keyring.setTransport(transport, deviceId);
     const { appName } = await keyring.getAppAndVersion();
