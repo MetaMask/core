@@ -1,45 +1,24 @@
 module.exports = {
-  extends: [
-    '@metamask/eslint-config',
-    '@metamask/eslint-config/config/nodejs',
-  ],
-  plugins: [
-    'json',
-  ],
-  parserOptions: {
-    ecmaVersion: 2018,
-  },
+  root: true,
+
+  extends: ['@metamask/eslint-config'],
+
   overrides: [
     {
       files: ['*.ts'],
-      extends: [
-        '@metamask/eslint-config/config/typescript',
-      ],
+      extends: ['@metamask/eslint-config-typescript'],
     },
+
     {
-      files: [
-        '*.js',
-        '*.json',
-      ],
-      parserOptions: {
-        sourceType: 'script',
-      },
-      rules: {
-        '@typescript-eslint/no-require-imports': 'off',
-        '@typescript-eslint/no-var-requires': 'off',
-      },
+      files: ['*.js'],
+      extends: ['@metamask/eslint-config-nodejs'],
     },
+
     {
-      files: ['test/*'],
-      rules: {
-        // This happens before a build is created. It doesn't matter.
-        'import/no-unresolved': 'off',
-      },
+      files: ['*.json'],
+      extends: ['plugin:json/recommended'],
     },
   ],
-  ignorePatterns: [
-    '!.eslintrc.js',
-    'dist/',
-    'node_modules/',
-  ],
+
+  ignorePatterns: ['!.eslintrc.js', '!.prettierrc.js', 'dist/'],
 };

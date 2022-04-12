@@ -15,7 +15,6 @@ interface SubscriptionNotificationParams {
 }
 
 export class SubscribeBlockTracker extends BaseBlockTracker {
-
   private _provider: Provider;
 
   private _subscriptionId: string | null;
@@ -40,8 +39,12 @@ export class SubscribeBlockTracker extends BaseBlockTracker {
   protected async _start(): Promise<void> {
     if (this._subscriptionId === undefined || this._subscriptionId === null) {
       try {
-        const blockNumber = await this._call('eth_blockNumber') as string;
-        this._subscriptionId = await this._call('eth_subscribe', 'newHeads', {}) as string;
+        const blockNumber = (await this._call('eth_blockNumber')) as string;
+        this._subscriptionId = (await this._call(
+          'eth_subscribe',
+          'newHeads',
+          {},
+        )) as string;
         this._provider.on('data', this._handleSubData.bind(this));
         this._newPotentialLatest(blockNumber);
       } catch (e) {
@@ -63,20 +66,32 @@ export class SubscribeBlockTracker extends BaseBlockTracker {
 
   private _call(method: string, ...params: unknown[]): Promise<unknown> {
     return new Promise((resolve, reject) => {
-      this._provider.sendAsync({
-        id: createRandomId(), method, params, jsonrpc: '2.0',
-      }, (err, res) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve((res as JsonRpcSuccess<unknown>).result);
-        }
-      });
+      this._provider.sendAsync(
+        {
+          id: createRandomId(),
+          method,
+          params,
+          jsonrpc: '2.0',
+        },
+        (err, res) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve((res as JsonRpcSuccess<unknown>).result);
+          }
+        },
+      );
     });
   }
 
-  private _handleSubData(_: unknown, response: JsonRpcNotification<SubscriptionNotificationParams>): void {
-    if (response.method === 'eth_subscription' && response.params?.subscription === this._subscriptionId) {
+  private _handleSubData(
+    _: unknown,
+    response: JsonRpcNotification<SubscriptionNotificationParams>,
+  ): void {
+    if (
+      response.method === 'eth_subscription' &&
+      response.params?.subscription === this._subscriptionId
+    ) {
       this._newPotentialLatest(response.params.result.number);
     }
   }

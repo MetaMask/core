@@ -3,11 +3,15 @@ import { JsonRpcRequest, JsonRpcResponse } from 'json-rpc-engine';
 
 const sec = 1000;
 
-const calculateSum = (accumulator: number, currentValue: number) => accumulator + currentValue;
+const calculateSum = (accumulator: number, currentValue: number) =>
+  accumulator + currentValue;
 const blockTrackerEvents: (string | symbol)[] = ['sync', 'latest'];
 
 export interface Provider extends SafeEventEmitter {
-  sendAsync: <T, U>(req: JsonRpcRequest<T>, cb: (err: Error, response: JsonRpcResponse<U>) => void) => void;
+  sendAsync: <T, U>(
+    req: JsonRpcRequest<T>,
+    cb: (err: Error, response: JsonRpcResponse<U>) => void,
+  ) => void;
 }
 
 interface BaseBlockTrackerArgs {
@@ -15,7 +19,6 @@ interface BaseBlockTrackerArgs {
 }
 
 export class BaseBlockTracker extends SafeEventEmitter {
-
   protected _isRunning: boolean;
 
   private _blockResetDuration: number;
@@ -56,7 +59,9 @@ export class BaseBlockTracker extends SafeEventEmitter {
       return this._currentBlock;
     }
     // wait for a new latest block
-    const latestBlock: string = await new Promise((resolve) => this.once('latest', resolve));
+    const latestBlock: string = await new Promise((resolve) =>
+      this.once('latest', resolve),
+    );
     // return newly set current block
     return latestBlock;
   }
@@ -144,7 +149,7 @@ export class BaseBlockTracker extends SafeEventEmitter {
   protected _newPotentialLatest(newBlock: string): void {
     const currentBlock = this._currentBlock;
     // only update if blok number is higher
-    if (currentBlock && (hexToInt(newBlock) <= hexToInt(currentBlock))) {
+    if (currentBlock && hexToInt(newBlock) <= hexToInt(currentBlock)) {
       return;
     }
     this._setCurrentBlock(newBlock);
@@ -161,7 +166,10 @@ export class BaseBlockTracker extends SafeEventEmitter {
     // clear any existing timeout
     this._cancelBlockResetTimeout();
     // clear latest block when stale
-    this._blockResetTimeout = setTimeout(this._resetCurrentBlock, this._blockResetDuration);
+    this._blockResetTimeout = setTimeout(
+      this._resetCurrentBlock,
+      this._blockResetDuration,
+    );
 
     // nodejs - dont hold process open
     if (this._blockResetTimeout.unref) {
@@ -178,9 +186,15 @@ export class BaseBlockTracker extends SafeEventEmitter {
   private _resetCurrentBlock(): void {
     this._currentBlock = null;
   }
-
 }
 
+/**
+ * Converts a number represented as a string in hexadecimal format into a native
+ * number.
+ *
+ * @param hexInt - The hex string.
+ * @returns The number.
+ */
 function hexToInt(hexInt: string): number {
   return Number.parseInt(hexInt, 16);
 }

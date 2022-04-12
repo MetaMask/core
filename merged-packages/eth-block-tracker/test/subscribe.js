@@ -2,7 +2,6 @@ const GanacheCore = require('ganache-core');
 const pify = require('pify');
 
 module.exports = (test, testLabel, SubscribeBlockTracker) => {
-
   test(`${testLabel} - latest`, async (t) => {
     const provider = GanacheCore.provider();
     const blockTracker = new SubscribeBlockTracker({
@@ -10,11 +9,19 @@ module.exports = (test, testLabel, SubscribeBlockTracker) => {
     });
 
     try {
-      t.equal(blockTracker.isRunning(), false, 'SubscribeBlockTracker should begin stopped');
+      t.equal(
+        blockTracker.isRunning(),
+        false,
+        'SubscribeBlockTracker should begin stopped',
+      );
 
       const blocks = [];
       blockTracker.on('latest', (block) => blocks.push(block));
-      t.equal(blockTracker.isRunning(), true, 'SubscribeBlockTracker should start after listener is added');
+      t.equal(
+        blockTracker.isRunning(),
+        true,
+        'SubscribeBlockTracker should start after listener is added',
+      );
       t.equal(blocks.length, 0, 'no blocks so far');
 
       await newLatestBlock(blockTracker);
@@ -31,11 +38,18 @@ module.exports = (test, testLabel, SubscribeBlockTracker) => {
       await triggerNextBlock(provider);
       const lastBlock = await lastBlockPromise;
       t.equal(blocks.length, 5, 'saw all intermediate blocks');
-      t.equal(Number.parseInt(lastBlock, 16), 4, 'saw correct block, with number 4');
+      t.equal(
+        Number.parseInt(lastBlock, 16),
+        4,
+        'saw correct block, with number 4',
+      );
 
       blockTracker.removeAllListeners();
-      t.equal(blockTracker.isRunning(), false, 'SubscribeBlockTracker stops after all listeners are removed');
-
+      t.equal(
+        blockTracker.isRunning(),
+        false,
+        'SubscribeBlockTracker stops after all listeners are removed',
+      );
     } catch (err) {
       t.ifError(err);
     }
@@ -44,13 +58,32 @@ module.exports = (test, testLabel, SubscribeBlockTracker) => {
     blockTracker.removeAllListeners();
     t.end();
   });
-
 };
 
+/**
+ * Calls the `evm_mine` RPC method via the given provider.
+ *
+ * @param {any} provider - The provider.
+ * @returns {Promise<any>} A promise that resolves to the result of the `evm_mine` call.
+ */
 async function triggerNextBlock(provider) {
-  await pify((cb) => provider.sendAsync({ id: 1, method: 'evm_mine', jsonrpc: '2.0', params: [] }, cb))();
+  await pify((cb) =>
+    provider.sendAsync(
+      { id: 1, method: 'evm_mine', jsonrpc: '2.0', params: [] },
+      cb,
+    ),
+  )();
 }
 
+/**
+ * Fetches the latest block via the given block tracker.
+ *
+ * @param {BaseBlockTracker} blockTracker - The block tracker.
+ * @returns {Promise<Block>} The promise for the block.
+ */
 async function newLatestBlock(blockTracker) {
-  return await pify(blockTracker.once, { errorFirst: false }).call(blockTracker, 'latest');
+  return await pify(blockTracker.once, { errorFirst: false }).call(
+    blockTracker,
+    'latest',
+  );
 }

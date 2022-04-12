@@ -19,7 +19,6 @@ interface ExtendedJsonRpcRequest<T> extends JsonRpcRequest<T> {
 }
 
 export class PollingBlockTracker extends BaseBlockTracker {
-
   private _provider: Provider;
 
   private _pollingInterval: number;
@@ -44,7 +43,8 @@ export class PollingBlockTracker extends BaseBlockTracker {
     this._provider = opts.provider;
     this._pollingInterval = opts.pollingInterval || 20 * sec;
     this._retryTimeout = opts.retryTimeout || this._pollingInterval / 10;
-    this._keepEventLoopActive = opts.keepEventLoopActive === undefined ? true : opts.keepEventLoopActive;
+    this._keepEventLoopActive =
+      opts.keepEventLoopActive === undefined ? true : opts.keepEventLoopActive;
     this._setSkipCacheFlag = opts.setSkipCacheFlag || false;
   }
 
@@ -63,8 +63,12 @@ export class PollingBlockTracker extends BaseBlockTracker {
       try {
         await this._updateLatestBlock();
         await timeout(this._pollingInterval, !this._keepEventLoopActive);
-      } catch (err) {
-        const newErr = new Error(`PollingBlockTracker - encountered an error while attempting to update latest block:\n${err.stack}`);
+      } catch (err: any) {
+        const newErr = new Error(
+          `PollingBlockTracker - encountered an error while attempting to update latest block:\n${
+            err.stack ?? err
+          }`,
+        );
         try {
           this.emit('error', newErr);
         } catch (emitErr) {
@@ -94,12 +98,23 @@ export class PollingBlockTracker extends BaseBlockTracker {
 
     const res = await pify((cb) => this._provider.sendAsync(req, cb))();
     if (res.error) {
-      throw new Error(`PollingBlockTracker - encountered error fetching block:\n${res.error}`);
+      throw new Error(
+        `PollingBlockTracker - encountered error fetching block:\n${res.error}`,
+      );
     }
     return res.result;
   }
 }
 
+/**
+ * Waits for the specified amount of time.
+ *
+ * @param duration - The amount of time in milliseconds.
+ * @param unref - Assuming this function is run in a Node context, governs
+ * whether Node should wait before the `setTimeout` has completed before ending
+ * the process (true for no, false for yes). Defaults to false.
+ * @returns A promise that can be used to wait.
+ */
 function timeout(duration: number, unref: boolean) {
   return new Promise((resolve) => {
     const timeoutRef = setTimeout(resolve, duration);
