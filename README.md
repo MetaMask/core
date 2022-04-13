@@ -309,9 +309,9 @@ The project follows the same release process as the other libraries in the MetaM
 
 7. Publish the release on npm.
 
-   - This now happens automatically as part of `workflows/publish-release`...
-   - Once the `publish-release` job is complete a second job (`publish-npm`) will wait for a run approval by the `npm publishers` team.
-   - Once the workflow run is approved it will automatically publish the release to `npm`
+   - Wait for the `publish-release` GitHub Action workflow to finish. This should trigger a second job (`publish-npm`), which will wait for a run approval by the `npm publishers` team.
+   - Approve the `publish-npm` job (or ask somebody on the npm publishers team to approve it for you).
+   - Once the `publish-npm` job has finished, check npm to verify that it has been published.
 
 8. Optional manual publish.
 
