@@ -11,7 +11,7 @@
     "inlineSources": true,
     "strict": true,
     "target": "es6",
-    "skipLibCheck": true,
+    "skipLibCheck": true, // Skip type checking of declaration files.
   },
   "include": ["src/**/*.ts"],
   "exclude": ["**/*.test.ts"]
