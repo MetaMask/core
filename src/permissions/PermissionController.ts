@@ -213,6 +213,14 @@ export type HasPermission = {
 };
 
 /**
+ * Directly grants given permissions for a specificed origin without requesting user approval
+ */
+export type GrantPermissions = {
+  type: `${typeof controllerName}:grantPermissions`;
+  handler: GenericPermissionController['grantPermissions'];
+};
+
+/**
  * Requests given permissions for a specified origin
  */
 export type RequestPermissions = {
@@ -272,6 +280,7 @@ export type PermissionControllerActions =
   | GetPermissions
   | HasPermission
   | HasPermissions
+  | GrantPermissions
   | RequestPermissions
   | RevokeAllPermissions
   | RevokePermissionForAllSubjects
@@ -688,6 +697,11 @@ export class PermissionController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:hasPermissions` as const,
       (origin: OriginString) => this.hasPermissions(origin),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:grantPermissions` as const,
+      this.grantPermissions.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
