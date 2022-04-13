@@ -21,7 +21,6 @@ export type Notification = {
   origin: string;
   date: number;
   read: boolean;
-  title: string;
   message: string;
 };
 
@@ -93,13 +92,11 @@ export type ControllerActions =
   | GetNotificationCount
   | GetUnreadNotificationCount;
 
-type AllowedActions = GetSubjectMetadataState;
-
 export type NotificationMessenger = RestrictedControllerMessenger<
   typeof name,
-  ControllerActions | AllowedActions,
+  ControllerActions,
   NotificationStateChange,
-  AllowedActions['type'],
+  never,
   never
 >;
 
@@ -137,9 +134,8 @@ export class NotificationController extends BaseController<
     messenger: NotificationMessenger;
     state?: Partial<NotificationState>;
     showNativeNotification: (
-      title: string,
-      message: string,
-      url?: string,
+      origin: string,
+      message: string
     ) => void;
   }) {
     super({
@@ -188,26 +184,19 @@ export class NotificationController extends BaseController<
    * @param args - Notification arguments, containing the notification message etc.
    */
   show(origin: string, args: NotificationArgs) {
-    const subjectMetadataState = this.messagingSystem.call(
-      'SubjectMetadataController:getState',
-    );
-
-    const originMetadata = subjectMetadataState.subjectMetadata[origin];
-    const title = originMetadata?.name ?? origin;
-
     switch (args.type) {
       case NotificationType.Native:
-        this.showNativeNotification(title, args.message);
+        this.showNativeNotification(origin, args.message);
         break;
       case NotificationType.InApp:
-        this.add(origin, title, args.message);
+        this.add(origin, args.message);
         break;
       default:
         throw new Error('Invalid notification type');
     }
   }
 
-  private add(origin: string, title: string, message: string) {
+  private add(origin: string, message: string) {
     const id = nanoid();
     const notification = {
       id,
@@ -215,7 +204,6 @@ export class NotificationController extends BaseController<
       origin,
       date: Date.now(),
       read: false,
-      title,
       message,
     };
     this.update((state) => {
