@@ -118,6 +118,14 @@ export declare type RevokeAllPermissions = {
     handler: GenericPermissionController['revokeAllPermissions'];
 };
 /**
+ * Revokes all permissions corresponding to the specified target for all subjects.
+ * Does nothing if no subjects or no such permission exists.
+ */
+export declare type RevokePermissionForAllSubjects = {
+    type: `${typeof controllerName}:revokePermissionForAllSubjects`;
+    handler: GenericPermissionController['revokePermissionForAllSubjects'];
+};
+/**
  * Clears all permissions from the {@link PermissionController}.
  */
 export declare type ClearPermissions = {
@@ -134,7 +142,7 @@ export declare type GetEndowments = {
 /**
  * The {@link ControllerMessenger} actions of the {@link PermissionController}.
  */
-export declare type PermissionControllerActions = ClearPermissions | GetEndowments | GetPermissionControllerState | GetSubjects | GetPermissions | HasPermission | HasPermissions | RevokePermissions | RevokeAllPermissions | RequestPermissions;
+export declare type PermissionControllerActions = ClearPermissions | GetEndowments | GetPermissionControllerState | GetSubjects | GetPermissions | HasPermission | HasPermissions | RequestPermissions | RevokeAllPermissions | RevokePermissionForAllSubjects | RevokePermissions;
 /**
  * The generic state change event of the {@link PermissionController}.
  */

@@ -320,7 +320,7 @@ export declare class TransactionController extends BaseController<TransactionCon
      */
     stopTransaction(transactionID: string, gasValues?: GasPriceValue | FeeMarketEIP1559Values): Promise<void>;
     /**
-     * Attemps to speed up a transaction increasing transaction gasPrice by ten percent.
+     * Attempts to speed up a transaction increasing transaction gasPrice by ten percent.
      *
      * @param transactionID - The ID of the transaction to speed up.
      * @param gasValues - The gas values to use for the speed up transation.

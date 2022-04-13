@@ -1,3 +1,4 @@
+import { MetaMaskKeyring as QRKeyring, IKeyringState as IQRKeyringState } from '@keystonehq/metamask-airgapped-keyring';
 import { BaseController, BaseConfig, BaseState, Listener } from '../BaseController';
 import { PreferencesController } from '../user/PreferencesController';
 import { PersonalMessageParams } from '../message-manager/PersonalMessageManager';
@@ -7,7 +8,8 @@ import { TypedMessageParams } from '../message-manager/TypedMessageManager';
  */
 export declare enum KeyringTypes {
     simple = "Simple Key Pair",
-    hd = "HD Key Tree"
+    hd = "HD Key Tree",
+    qr = "QR Hardware Wallet Device"
 }
 /**
  * @type KeyringObject
@@ -54,6 +56,7 @@ export interface KeyringMemState extends BaseState {
  */
 export interface KeyringConfig extends BaseConfig {
     encryptor?: any;
+    keyringTypes?: any[];
 }
 /**
  * @type Keyring
@@ -98,6 +101,7 @@ export declare class KeyringController extends BaseController<KeyringConfig, Key
     private syncIdentities;
     private updateIdentities;
     private setSelectedAddress;
+    private setAccountLabel?;
     /**
      * Creates a KeyringController instance.
      *
@@ -106,14 +110,16 @@ export declare class KeyringController extends BaseController<KeyringConfig, Key
      * @param options.syncIdentities - Sync identities with the given list of addresses.
      * @param options.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
      * @param options.setSelectedAddress - Set the selected address.
+     * @param options.setAccountLabel - Set a new name for account.
      * @param config - Initial options used to configure this controller.
      * @param state - Initial state to set on this controller.
      */
-    constructor({ removeIdentity, syncIdentities, updateIdentities, setSelectedAddress, }: {
+    constructor({ removeIdentity, syncIdentities, updateIdentities, setSelectedAddress, setAccountLabel, }: {
         removeIdentity: PreferencesController['removeIdentity'];
         syncIdentities: PreferencesController['syncIdentities'];
         updateIdentities: PreferencesController['updateIdentities'];
         setSelectedAddress: PreferencesController['setSelectedAddress'];
+        setAccountLabel?: PreferencesController['setAccountLabel'];
     }, config?: Partial<KeyringConfig>, state?: Partial<KeyringState>);
     /**
      * Adds a new account to the default (first) HD seed phrase keyring.
@@ -214,7 +220,7 @@ export declare class KeyringController extends BaseController<KeyringConfig, Key
      * @throws Will throw when passed an unrecognized version.
      * @returns Promise resolving to a signed message string or an error if any.
      */
-    signTypedMessage(messageParams: TypedMessageParams, version: SignTypedDataVersion): Promise<string>;
+    signTypedMessage(messageParams: TypedMessageParams, version: SignTypedDataVersion): Promise<any>;
     /**
      * Signs a transaction by calling down into a specific keyring.
      *
@@ -269,5 +275,32 @@ export declare class KeyringController extends BaseController<KeyringConfig, Key
      * @returns The current state.
      */
     fullUpdate(): Promise<KeyringMemState>;
+    /**
+     * Add qr hardware keyring.
+     *
+     * @returns The added keyring
+     */
+    private addQRKeyring;
+    /**
+     * Get qr hardware keyring.
+     *
+     * @returns The added keyring
+     */
+    getOrAddQRKeyring(): Promise<QRKeyring>;
+    restoreQRKeyring(serialized: any): Promise<void>;
+    resetQRKeyringState(): Promise<void>;
+    getQRKeyringState(): Promise<IQRKeyringState>;
+    submitQRCryptoHDKey(cryptoHDKey: string): Promise<void>;
+    submitQRCryptoAccount(cryptoAccount: string): Promise<void>;
+    submitQRSignature(requestId: string, ethSignature: string): Promise<void>;
+    cancelQRSignRequest(): Promise<void>;
+    connectQRHardware(page: number): Promise<{
+        balance: string;
+        address: string;
+        index: number;
+    }[]>;
+    unlockQRHardwareWalletAccount(index: number): Promise<void>;
+    getAccountKeyringType(account: string): Promise<KeyringTypes>;
+    forgetQRDevice(): Promise<void>;
 }
 export default KeyringController;

@@ -48,7 +48,7 @@ __exportStar(require("./assets/TokenRatesController"), exports);
 __exportStar(require("./transaction/TransactionController"), exports);
 __exportStar(require("./message-manager/PersonalMessageManager"), exports);
 __exportStar(require("./message-manager/TypedMessageManager"), exports);
-__exportStar(require("./notification/NotificationController"), exports);
+__exportStar(require("./announcement/AnnouncementController"), exports);
 __exportStar(require("./assets/TokenListController"), exports);
 __exportStar(require("./gas/GasFeeController"), exports);
 __exportStar(require("./assets/TokensController"), exports);

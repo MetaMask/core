@@ -186,9 +186,10 @@ class PermissionController extends BaseControllerV2_1.BaseController {
         this.messagingSystem.registerActionHandler(`${controllerName}:getPermissions`, (origin) => this.getPermissions(origin));
         this.messagingSystem.registerActionHandler(`${controllerName}:hasPermission`, (origin, targetName) => this.hasPermission(origin, targetName));
         this.messagingSystem.registerActionHandler(`${controllerName}:hasPermissions`, (origin) => this.hasPermissions(origin));
-        this.messagingSystem.registerActionHandler(`${controllerName}:revokePermissions`, this.revokePermissions.bind(this));
-        this.messagingSystem.registerActionHandler(`${controllerName}:revokeAllPermissions`, (origin) => this.revokeAllPermissions(origin));
         this.messagingSystem.registerActionHandler(`${controllerName}:requestPermissions`, (subject, permissions) => this.requestPermissions(subject, permissions));
+        this.messagingSystem.registerActionHandler(`${controllerName}:revokeAllPermissions`, (origin) => this.revokeAllPermissions(origin));
+        this.messagingSystem.registerActionHandler(`${controllerName}:revokePermissionForAllSubjects`, (target) => this.revokePermissionForAllSubjects(target));
+        this.messagingSystem.registerActionHandler(`${controllerName}:revokePermissions`, this.revokePermissions.bind(this));
     }
     /**
      * Clears the state of the controller.

@@ -47,6 +47,7 @@ var KeyringTypes;
 (function (KeyringTypes) {
     KeyringTypes["simple"] = "Simple Key Pair";
     KeyringTypes["hd"] = "HD Key Tree";
+    KeyringTypes["qr"] = "QR Hardware Wallet Device";
 })(KeyringTypes = exports.KeyringTypes || (exports.KeyringTypes = {}));
 /**
  * A strategy for importing an account
@@ -79,10 +80,11 @@ class KeyringController extends BaseController_1.BaseController {
      * @param options.syncIdentities - Sync identities with the given list of addresses.
      * @param options.updateIdentities - Generate an identity for each address given that doesn't already have an identity.
      * @param options.setSelectedAddress - Set the selected address.
+     * @param options.setAccountLabel - Set a new name for account.
      * @param config - Initial options used to configure this controller.
      * @param state - Initial state to set on this controller.
      */
-    constructor({ removeIdentity, syncIdentities, updateIdentities, setSelectedAddress, }, config, state) {
+    constructor({ removeIdentity, syncIdentities, updateIdentities, setSelectedAddress, setAccountLabel, }, config, state) {
         super(config, state);
         this.mutex = new async_mutex_1.Mutex();
         /**
@@ -97,6 +99,7 @@ class KeyringController extends BaseController_1.BaseController {
         this.syncIdentities = syncIdentities;
         this.updateIdentities = updateIdentities;
         this.setSelectedAddress = setSelectedAddress;
+        this.setAccountLabel = setAccountLabel;
         this.initialize();
         this.fullUpdate();
     }
@@ -252,8 +255,15 @@ class KeyringController extends BaseController_1.BaseController {
                         throw new Error('Cannot import an empty key.');
                     }
                     const prefixed = ethereumjs_util_1.addHexPrefix(importedKey);
+                    let bufferedPrivateKey;
+                    try {
+                        bufferedPrivateKey = ethereumjs_util_1.toBuffer(prefixed);
+                    }
+                    catch (_a) {
+                        throw new Error('Cannot import invalid private key.');
+                    }
                     /* istanbul ignore if */
-                    if (!ethereumjs_util_1.isValidPrivate(ethereumjs_util_1.toBuffer(prefixed))) {
+                    if (!ethereumjs_util_1.isValidPrivate(bufferedPrivateKey)) {
                         throw new Error('Cannot import invalid private key.');
                     }
                     privateKey = ethereumjs_util_1.stripHexPrefix(prefixed);
@@ -333,6 +343,18 @@ class KeyringController extends BaseController_1.BaseController {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const address = eth_sig_util_1.normalize(messageParams.from);
+                const qrKeyring = yield this.getOrAddQRKeyring();
+                const qrAccounts = yield qrKeyring.getAccounts();
+                if (qrAccounts.findIndex((qrAddress) => qrAddress.toLowerCase() === address.toLowerCase()) !== -1) {
+                    const messageParamsClone = Object.assign({}, messageParams);
+                    if (version !== SignTypedDataVersion.V1 &&
+                        typeof messageParamsClone.data === 'string') {
+                        messageParamsClone.data = JSON.parse(messageParamsClone.data);
+                    }
+                    return privates
+                        .get(this)
+                        .keyring.signTypedMessage(messageParamsClone, { version });
+                }
                 const { password } = privates.get(this).keyring;
                 const privateKey = yield this.exportAccount(password, address);
                 const privateKeyBuffer = ethereumjs_util_1.toBuffer(ethereumjs_util_1.addHexPrefix(privateKey));
@@ -479,6 +501,135 @@ class KeyringController extends BaseController_1.BaseController {
             })));
             this.update({ keyrings: [...keyrings] });
             return privates.get(this).keyring.fullUpdate();
+        });
+    }
+    // QR Hardware related methods
+    /**
+     * Add qr hardware keyring.
+     *
+     * @returns The added keyring
+     */
+    addQRKeyring() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const keyring = yield privates
+                .get(this)
+                .keyring.addNewKeyring(KeyringTypes.qr);
+            yield this.fullUpdate();
+            return keyring;
+        });
+    }
+    /**
+     * Get qr hardware keyring.
+     *
+     * @returns The added keyring
+     */
+    getOrAddQRKeyring() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const keyring = privates
+                .get(this)
+                .keyring.getKeyringsByType(KeyringTypes.qr)[0];
+            return keyring || (yield this.addQRKeyring());
+        });
+    }
+    restoreQRKeyring(serialized) {
+        return __awaiter(this, void 0, void 0, function* () {
+            (yield this.getOrAddQRKeyring()).deserialize(serialized);
+            this.updateIdentities(yield privates.get(this).keyring.getAccounts());
+            yield this.fullUpdate();
+        });
+    }
+    resetQRKeyringState() {
+        return __awaiter(this, void 0, void 0, function* () {
+            (yield this.getOrAddQRKeyring()).resetStore();
+        });
+    }
+    getQRKeyringState() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return (yield this.getOrAddQRKeyring()).getMemStore();
+        });
+    }
+    submitQRCryptoHDKey(cryptoHDKey) {
+        return __awaiter(this, void 0, void 0, function* () {
+            (yield this.getOrAddQRKeyring()).submitCryptoHDKey(cryptoHDKey);
+        });
+    }
+    submitQRCryptoAccount(cryptoAccount) {
+        return __awaiter(this, void 0, void 0, function* () {
+            (yield this.getOrAddQRKeyring()).submitCryptoAccount(cryptoAccount);
+        });
+    }
+    submitQRSignature(requestId, ethSignature) {
+        return __awaiter(this, void 0, void 0, function* () {
+            (yield this.getOrAddQRKeyring()).submitSignature(requestId, ethSignature);
+        });
+    }
+    cancelQRSignRequest() {
+        return __awaiter(this, void 0, void 0, function* () {
+            (yield this.getOrAddQRKeyring()).cancelSignRequest();
+        });
+    }
+    connectQRHardware(page) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const keyring = yield this.getOrAddQRKeyring();
+                let accounts;
+                switch (page) {
+                    case -1:
+                        accounts = yield keyring.getPreviousPage();
+                        break;
+                    case 1:
+                        accounts = yield keyring.getNextPage();
+                        break;
+                    default:
+                        accounts = yield keyring.getFirstPage();
+                }
+                return accounts.map((account) => {
+                    return Object.assign(Object.assign({}, account), { balance: '0x0' });
+                });
+            }
+            catch (e) {
+                throw new Error(`Unspecified error when connect QR Hardware, ${e}`);
+            }
+        });
+    }
+    unlockQRHardwareWalletAccount(index) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const keyring = yield this.getOrAddQRKeyring();
+            keyring.setAccountToUnlock(index);
+            const oldAccounts = yield privates.get(this).keyring.getAccounts();
+            yield privates.get(this).keyring.addNewAccount(keyring);
+            const newAccounts = yield privates.get(this).keyring.getAccounts();
+            this.updateIdentities(newAccounts);
+            newAccounts.forEach((address) => {
+                if (!oldAccounts.includes(address)) {
+                    if (this.setAccountLabel) {
+                        this.setAccountLabel(address, `${keyring.getName()} ${index}`);
+                    }
+                    this.setSelectedAddress(address);
+                }
+            });
+            yield privates.get(this).keyring.persistAllKeyrings();
+            yield this.fullUpdate();
+        });
+    }
+    getAccountKeyringType(account) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return (yield privates.get(this).keyring.getKeyringForAccount(account))
+                .type;
+        });
+    }
+    forgetQRDevice() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const keyring = yield this.getOrAddQRKeyring();
+            keyring.forgetDevice();
+            const accounts = (yield privates
+                .get(this)
+                .keyring.getAccounts());
+            accounts.forEach((account) => {
+                this.setSelectedAddress(account);
+            });
+            yield privates.get(this).keyring.persistAllKeyrings();
+            yield this.fullUpdate();
         });
     }
 }

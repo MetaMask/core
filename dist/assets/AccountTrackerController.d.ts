@@ -1,4 +1,4 @@
-import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import { BaseConfig, BaseController, BaseState } from '../BaseController';
 import { PreferencesState } from '../user/PreferencesController';
 /**
  * @type AccountInformation
@@ -75,5 +75,14 @@ export declare class AccountTrackerController extends BaseController<AccountTrac
      * Refreshes all accounts in the current keychain.
      */
     refresh: () => Promise<void>;
+    /**
+     * Sync accounts balances with some additional addresses.
+     *
+     * @param addresses - the additional addresses, may be hardware wallet addresses.
+     * @returns accounts - addresses with synced balance
+     */
+    syncBalanceWithAddresses(addresses: string[]): Promise<Record<string, {
+        balance: string;
+    }>>;
 }
 export default AccountTrackerController;
