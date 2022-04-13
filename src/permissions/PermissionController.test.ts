@@ -30,7 +30,6 @@ import {
   RestrictedMethodParameters,
   ValidPermission,
 } from '.';
-
 // Caveat types and specifications
 
 const CaveatTypes = {
@@ -4490,6 +4489,27 @@ describe('PermissionController', () => {
         1,
         'wallet_getSecretArray',
       );
+    });
+
+    it('action: PermissionsController:grantPermissions', async () => {
+      const messenger = getUnrestrictedMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      const result = messenger.call('PermissionController:grantPermissions', {
+        subject: { origin: 'foo' },
+        approvedPermissions: { wallet_getSecretArray: {} },
+      });
+
+      expect(result).toHaveProperty('wallet_getSecretArray');
+      expect(
+        controller.hasPermission('foo', 'wallet_getSecretArray'),
+      ).toStrictEqual(true);
     });
 
     it('action: PermissionsController:requestPermissions', async () => {
