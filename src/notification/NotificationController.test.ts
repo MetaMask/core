@@ -58,7 +58,6 @@ function getRestrictedMessenger(
   }) as NotificationMessenger;
 }
 
-const SNAP_NAME = 'Test Snap Name';
 const origin = 'snap_test';
 const message = 'foo';
 

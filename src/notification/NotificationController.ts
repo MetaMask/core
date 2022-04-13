@@ -5,7 +5,6 @@ import { hasProperty } from '../util';
 import { BaseController } from '../BaseControllerV2';
 
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
-import type { GetSubjectMetadataState } from '../subject-metadata';
 
 /**
  * @type NotificationState
@@ -133,10 +132,7 @@ export class NotificationController extends BaseController<
   }: {
     messenger: NotificationMessenger;
     state?: Partial<NotificationState>;
-    showNativeNotification: (
-      origin: string,
-      message: string
-    ) => void;
+    showNativeNotification: (origin: string, message: string) => void;
   }) {
     super({
       name,
