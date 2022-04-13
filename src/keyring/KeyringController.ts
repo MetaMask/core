@@ -759,7 +759,7 @@ export class KeyringController extends BaseController<
 
   // Ledger Related methods
 
-  private async addLedgerKeyring() {
+  private async addLedgerKeyring(): Promise<LedgerKeyring> {
     return await privates.get(this).keyring.addNewKeyring(KeyringTypes.ledger);
   }
 
@@ -787,7 +787,10 @@ export class KeyringController extends BaseController<
    * @param deviceId - The device ID to connect to
    * @returns The name of the currently open application on the device
    */
-  async connectLedgerHardware(transport: Transport, deviceId: string) {
+  async connectLedgerHardware(
+    transport: Transport,
+    deviceId: string,
+  ): Promise<string> {
     const keyring = await this.getLedgerKeyring();
     keyring.setTransport(transport, deviceId);
     const { appName } = await keyring.getAppAndVersion();
@@ -799,7 +802,10 @@ export class KeyringController extends BaseController<
    *
    * @returns The default (first) account on the device
    */
-  async unlockLedgerDefaultAccount() {
+  async unlockLedgerDefaultAccount(): Promise<{
+    address: string;
+    balance: string;
+  }> {
     const keyring = await this.getLedgerKeyring();
     const oldAccounts = await privates.get(this).keyring.getAccounts();
     await privates.get(this).keyring.addNewAccount(keyring);
@@ -827,7 +833,7 @@ export class KeyringController extends BaseController<
   /**
    * Forgets the ledger keyring's previous device specific state.
    */
-  async forgetLedger() {
+  async forgetLedger(): Promise<void> {
     const keyring = await this.getLedgerKeyring();
     keyring.forgetDevice();
 
