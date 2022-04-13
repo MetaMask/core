@@ -7,17 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [28.0.0]
-### Uncategorized
-- Added GrantPermissions action to PermissionsController ([#780](https://github.com/MetaMask/controllers/pull/780))
-- Use `github.sha` for publish jobs ([#776](https://github.com/MetaMask/controllers/pull/776))
-- Fix typo in TransactionController.ts ([#775](https://github.com/MetaMask/controllers/pull/775))
-- Add npm publish ([#737](https://github.com/MetaMask/controllers/pull/737))
-- BREAKING: Rename NotificationController to AnnouncementController ([#697](https://github.com/MetaMask/controllers/pull/697))
+### Added
+- Add GrantPermissions action to PermissionsController ([#780](https://github.com/MetaMask/controllers/pull/780))
 - Add `PermissionController.revokePermissionForAllSubjects` action ([#764](https://github.com/MetaMask/controllers/pull/764))
-- @lavamoat/allow-scripts@2.0.2 ([#766](https://github.com/MetaMask/controllers/pull/766))
-- Fix inclusion of module-augmenting .d.ts's ([#761](https://github.com/MetaMask/controllers/pull/761))
-- Improve support for backfilling types via .d.ts's ([#732](https://github.com/MetaMask/controllers/pull/732))
-- Copy .gitattributes from template repo ([#760](https://github.com/MetaMask/controllers/pull/760))
+
+### Changed
+- **BREAKING:** Rename NotificationController to AnnouncementController ([#697](https://github.com/MetaMask/controllers/pull/697))
+  - The `NotificationController` class is now `AnnouncementController`.
+  - The controller `notifications` state has been renamed to `announcements`.
+  - All other exported types including the word "notification" have been updated to use the word "announcement" instead.
 
 ## [27.1.1]
 ### Fixed
