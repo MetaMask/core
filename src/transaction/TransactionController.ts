@@ -814,7 +814,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Attemps to speed up a transaction increasing transaction gasPrice by ten percent.
+   * Attempts to speed up a transaction increasing transaction gasPrice by ten percent.
    *
    * @param transactionID - The ID of the transaction to speed up.
    * @param gasValues - The gas values to use for the speed up transation.

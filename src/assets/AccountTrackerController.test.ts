@@ -2,6 +2,7 @@ import { stub, spy } from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
 import type { ContactEntry } from '../user/AddressBookController';
 import { PreferencesController } from '../user/PreferencesController';
+import * as utils from '../util';
 import { AccountTrackerController } from './AccountTrackerController';
 
 const provider = new HttpProvider(
@@ -42,6 +43,23 @@ describe('AccountTrackerController', () => {
     );
     await controller.refresh();
     expect(controller.state.accounts[address].balance).toBeDefined();
+  });
+
+  it('should sync balance with addresses', async () => {
+    const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    const queryStub = stub(utils, 'query');
+    const controller = new AccountTrackerController(
+      {
+        onPreferencesStateChange: stub(),
+        getIdentities: () => {
+          return {};
+        },
+      },
+      { provider },
+    );
+    queryStub.returns(Promise.resolve('0x10'));
+    const result = await controller.syncBalanceWithAddresses([address]);
+    expect(result[address].balance).toBe('0x10');
   });
 
   it('should sync addresses', () => {
