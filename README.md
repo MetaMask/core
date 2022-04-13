@@ -312,9 +312,3 @@ The project follows the same release process as the other libraries in the MetaM
    - Wait for the `publish-release` GitHub Action workflow to finish. This should trigger a second job (`publish-npm`), which will wait for a run approval by the `npm publishers` team.
    - Approve the `publish-npm` job (or ask somebody on the npm publishers team to approve it for you).
    - Once the `publish-npm` job has finished, check npm to verify that it has been published.
-
-8. Optional manual publish.
-
-   - Be very careful to use a clean local environment to publish the release, and follow exactly the same steps used during CI.
-   - Use `npm publish --dry-run` to examine the release contents to ensure the correct files are included. Compare to previous releases if necessary (e.g. using `https://unpkg.com/browse/[package name]@[package version]/`).
-   - Once you are confident the release contents are correct, publish the release using `npm publish`.
