@@ -13,11 +13,6 @@ module.exports = {
       files: ['*.js'],
       extends: ['@metamask/eslint-config-nodejs'],
     },
-
-    {
-      files: ['*.json'],
-      extends: ['plugin:json/recommended'],
-    },
   ],
 
   ignorePatterns: ['!.eslintrc.js', '!.prettierrc.js', 'dist/'],

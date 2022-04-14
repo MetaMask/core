@@ -2,26 +2,27 @@
   "name": "eth-block-tracker",
   "version": "5.0.1",
   "description": "A block tracker for the Ethereum blockchain. Keeps track of the latest block.",
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
-    "access": "public"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/eth-block-tracker.git"
   },
+  "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist/"
   ],
-  "engines": {
-    "node": ">=12.0.0"
-  },
   "scripts": {
-    "lint": "eslint . --ext ts,js,json",
-    "lint:fix": "yarn lint --fix",
     "build": "tsc --project .",
-    "test": "node test/index.js",
-    "prepublishOnly": "yarn lint && yarn build && yarn test"
+    "build:clean": "rimraf dist && yarn build",
+    "lint": "yarn lint:eslint && yarn lint:misc --check",
+    "lint:eslint": "eslint . --cache --ext js,ts",
+    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
+    "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
+    "prepublishOnly": "yarn build:clean && yarn lint && yarn test",
+    "setup": "yarn install && yarn allow-scripts",
+    "test": "node test/index.js"
   },
-  "license": "MIT",
   "resolutions": {
     "ganache-core/**/elliptic": "^6.5.3",
     "ganache-core/lodash": "^4.17.19"
@@ -32,6 +33,8 @@
     "pify": "^3.0.0"
   },
   "devDependencies": {
+    "@lavamoat/allow-scripts": "^2.0.2",
+    "@metamask/auto-changelog": "^2.5.0",
     "@metamask/eslint-config": "^9.0.0",
     "@metamask/eslint-config-nodejs": "^9.0.0",
     "@metamask/eslint-config-typescript": "^9.0.1",
@@ -43,24 +46,35 @@
     "eslint-config-prettier": "^8.1.0",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-jsdoc": "^36.1.0",
-    "eslint-plugin-json": "^3.1.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^3.3.1",
     "ganache-core": "^2.13.2",
     "json-rpc-engine": "^6.1.0",
     "prettier": "^2.2.1",
+    "prettier-plugin-packagejson": "^2.2.11",
+    "rimraf": "^3.0.2",
     "tape": "^5.5.3",
     "typescript": "~4.4.0"
   },
-  "directories": {
-    "test": "test"
+  "engines": {
+    "node": ">=12.0.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/MetaMask/eth-block-tracker.git"
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
-  "bugs": {
-    "url": "https://github.com/MetaMask/eth-block-tracker/issues"
-  },
-  "homepage": "https://github.com/MetaMask/eth-block-tracker#readme"
+  "lavamoat": {
+    "allowScripts": {
+      "@lavamoat/preinstall-always-fail": false,
+      "ganache-core>ethereumjs-util>ethereum-cryptography>keccak": false,
+      "ganache-core>ethereumjs-util>ethereum-cryptography>secp256k1": false,
+      "ganache-core>ethereumjs-vm>core-js-pure": false,
+      "ganache-core>keccak": false,
+      "ganache-core>web3": false,
+      "ganache-core>web3-provider-engine>eth-block-tracker>json-rpc-engine>babelify>babel-core>babel-runtime>core-js": false,
+      "ganache-core>websocket>bufferutil": false,
+      "ganache-core>websocket>es5-ext": false,
+      "ganache-core>websocket>utf-8-validate": false
+    }
+  }
 }

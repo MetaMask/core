@@ -3,9 +3,7 @@
     "declaration": true,
     "esModuleInterop": true,
     "inlineSources": true,
-    "lib": [
-      "ES2017"
-    ],
+    "lib": ["ES2020"],
     "module": "CommonJS",
     "moduleResolution": "Node",
     "outDir": "dist",
@@ -14,7 +12,6 @@
     "strict": true,
     "target": "ES2017"
   },
-  "include": [
-    "./src/*.ts"
-  ]
+  "exclude": ["./src/**/*.test.ts"],
+  "include": ["./src/**/*.ts"]
 }
