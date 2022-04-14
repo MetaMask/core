@@ -37,8 +37,8 @@
   "dependencies": {
     "@ethereumjs/common": "^2.3.1",
     "@ethereumjs/tx": "^3.2.1",
-    "@ledgerhq/metamask-keyring": "https://github.com/LedgerHQ/metamask-keyring#03c75af4dc731ceb6e960c4ad0d30cfb8ab32be3",
     "@keystonehq/metamask-airgapped-keyring": "^0.3.0",
+    "@ledgerhq/metamask-keyring": "^0.2.0",
     "@metamask/contract-metadata": "^1.33.0",
     "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/types": "^1.1.0",
@@ -74,8 +74,8 @@
   },
   "devDependencies": {
     "@keystonehq/bc-ur-registry-eth": "^0.9.0",
-    "@ledgerhq/hw-transport": "^6.24.1",
     "@lavamoat/allow-scripts": "^2.0.2",
+    "@ledgerhq/hw-transport": "^6.24.1",
     "@metamask/auto-changelog": "^2.5.0",
     "@metamask/eslint-config": "^9.0.0",
     "@metamask/eslint-config-jest": "^9.0.0",
