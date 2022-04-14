@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "27.1.0",
+  "version": "27.1.1",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "keywords": [
     "MetaMask",
@@ -29,7 +29,7 @@
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
     "test": "jest",
     "test:watch": "jest --watch",
-    "build": "rimraf dist && tsc --project .",
+    "build": "rimraf dist && tsc --project tsconfig.build.json",
     "build:watch": "yarn build --watch",
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
     "doc": "typedoc && touch docs/.nojekyll"
@@ -38,6 +38,7 @@
     "@ethereumjs/common": "^2.3.1",
     "@ethereumjs/tx": "^3.2.1",
     "@ledgerhq/metamask-keyring": "https://github.com/LedgerHQ/metamask-keyring#03c75af4dc731ceb6e960c4ad0d30cfb8ab32be3",
+    "@keystonehq/metamask-airgapped-keyring": "^0.3.0",
     "@metamask/contract-metadata": "^1.33.0",
     "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/types": "^1.1.0",
@@ -73,9 +74,13 @@
   },
   "devDependencies": {
     "@keystonehq/bc-ur-registry-eth": "^0.9.0",
+<<<<<<< HEAD
     "@keystonehq/metamask-airgapped-keyring": "^0.3.0",
     "@lavamoat/allow-scripts": "^1.0.6",
     "@ledgerhq/hw-transport": "^6.24.1",
+=======
+    "@lavamoat/allow-scripts": "^2.0.2",
+>>>>>>> e4d59b6ee7d4401f7cb8aa06a4189097e4ed2277
     "@metamask/auto-changelog": "^2.5.0",
     "@metamask/eslint-config": "^9.0.0",
     "@metamask/eslint-config-jest": "^9.0.0",
@@ -121,10 +126,13 @@
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
-      "core-js": false,
-      "keccak": true,
-      "secp256k1": true,
-      "sha3": true
+      "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
+      "babel-runtime>core-js": false,
+      "eth-sig-util>ethereumjs-abi>ethereumjs-util>keccakjs>sha3": true,
+      "eth-sig-util>ethereumjs-util>keccak": true,
+      "eth-sig-util>ethereumjs-util>secp256k1": true,
+      "ethereumjs-util>ethereum-cryptography>keccak": true,
+      "ethereumjs-util>ethereum-cryptography>secp256k1": true
     }
   }
 }
