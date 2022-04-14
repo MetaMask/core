@@ -6,9 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [27.1.0]
+## [27.1.1]
+### Fixed
+- Move `@keystonehq/metamask-airgapped-keyring` to dependencies ([#757](https://github.com/MetaMask/controllers/pull/757))
+
+## [27.1.0] [DEPRECATED]
 ### Added
 - Now the `KeyringController` supports the `QRKeyring` from `@keystonehq/metamask-airgapped-keyring`. Developers can enable the import of accounts from a QR hardware wallet. A new optional parameter, `setAccountLabel` from the `PreferencesController`, should be passed to the `KeyringController` to enable this new functionality. ([#685](https://github.com/MetaMask/controllers/pull/685))
+  - **UPDATE:** This is broken. Consumers are encouraged to upgrade to [27.1.1].
 
 ### Changed
 - Bump `eth-phishing-detect` version from 1.1.14 to 1.1.16 ([#742](https://github.com/MetaMask/controllers/pull/742))
@@ -533,7 +538,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v27.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v27.1.1...HEAD
+[27.1.1]: https://github.com/MetaMask/controllers/compare/v27.1.0...v27.1.1
 [27.1.0]: https://github.com/MetaMask/controllers/compare/v27.0.0...v27.1.0
 [27.0.0]: https://github.com/MetaMask/controllers/compare/v26.0.0...v27.0.0
 [26.0.0]: https://github.com/MetaMask/controllers/compare/v25.1.0...v26.0.0

@@ -213,6 +213,14 @@ export type HasPermission = {
 };
 
 /**
+ * Directly grants given permissions for a specificed origin without requesting user approval
+ */
+export type GrantPermissions = {
+  type: `${typeof controllerName}:grantPermissions`;
+  handler: GenericPermissionController['grantPermissions'];
+};
+
+/**
  * Requests given permissions for a specified origin
  */
 export type RequestPermissions = {
@@ -234,6 +242,15 @@ export type RevokePermissions = {
 export type RevokeAllPermissions = {
   type: `${typeof controllerName}:revokeAllPermissions`;
   handler: GenericPermissionController['revokeAllPermissions'];
+};
+
+/**
+ * Revokes all permissions corresponding to the specified target for all subjects.
+ * Does nothing if no subjects or no such permission exists.
+ */
+export type RevokePermissionForAllSubjects = {
+  type: `${typeof controllerName}:revokePermissionForAllSubjects`;
+  handler: GenericPermissionController['revokePermissionForAllSubjects'];
 };
 
 /**
@@ -263,9 +280,11 @@ export type PermissionControllerActions =
   | GetPermissions
   | HasPermission
   | HasPermissions
-  | RevokePermissions
+  | GrantPermissions
+  | RequestPermissions
   | RevokeAllPermissions
-  | RequestPermissions;
+  | RevokePermissionForAllSubjects
+  | RevokePermissions;
 
 /**
  * The generic state change event of the {@link PermissionController}.
@@ -681,8 +700,14 @@ export class PermissionController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:revokePermissions` as const,
-      this.revokePermissions.bind(this),
+      `${controllerName}:grantPermissions` as const,
+      this.grantPermissions.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:requestPermissions` as const,
+      (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
+        this.requestPermissions(subject, permissions),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -691,9 +716,18 @@ export class PermissionController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:requestPermissions` as const,
-      (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
-        this.requestPermissions(subject, permissions),
+      `${controllerName}:revokePermissionForAllSubjects` as const,
+      (
+        target: ExtractPermission<
+          ControllerPermissionSpecification,
+          ControllerCaveatSpecification
+        >['parentCapability'],
+      ) => this.revokePermissionForAllSubjects(target),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:revokePermissions` as const,
+      this.revokePermissions.bind(this),
     );
   }
 

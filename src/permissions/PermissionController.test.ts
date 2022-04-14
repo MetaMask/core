@@ -30,7 +30,6 @@ import {
   RestrictedMethodParameters,
   ValidPermission,
 } from '.';
-
 // Caveat types and specifications
 
 const CaveatTypes = {
@@ -4450,6 +4449,67 @@ describe('PermissionController', () => {
       ).toStrictEqual(false);
       expect(revokeAllPermissionsSpy).toHaveBeenCalledTimes(1);
       expect(revokeAllPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
+    });
+
+    it('action: PermissionController:revokePermissionForAllSubjects', () => {
+      const messenger = getUnrestrictedMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      controller.grantPermissions({
+        subject: { origin: 'foo' },
+        approvedPermissions: {
+          wallet_getSecretArray: {},
+        },
+      });
+      const revokePermissionForAllSubjectsSpy = jest.spyOn(
+        controller,
+        'revokePermissionForAllSubjects',
+      );
+
+      expect(
+        controller.hasPermission('foo', 'wallet_getSecretArray'),
+      ).toStrictEqual(true);
+
+      messenger.call(
+        'PermissionController:revokePermissionForAllSubjects',
+        'wallet_getSecretArray',
+      );
+
+      expect(
+        controller.hasPermission('foo', 'wallet_getSecretArray'),
+      ).toStrictEqual(false);
+      expect(revokePermissionForAllSubjectsSpy).toHaveBeenCalledTimes(1);
+      expect(revokePermissionForAllSubjectsSpy).toHaveBeenNthCalledWith(
+        1,
+        'wallet_getSecretArray',
+      );
+    });
+
+    it('action: PermissionsController:grantPermissions', async () => {
+      const messenger = getUnrestrictedMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      const result = messenger.call('PermissionController:grantPermissions', {
+        subject: { origin: 'foo' },
+        approvedPermissions: { wallet_getSecretArray: {} },
+      });
+
+      expect(result).toHaveProperty('wallet_getSecretArray');
+      expect(
+        controller.hasPermission('foo', 'wallet_getSecretArray'),
+      ).toStrictEqual(true);
     });
 
     it('action: PermissionsController:requestPermissions', async () => {
