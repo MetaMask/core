@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "25.1.0",
+  "version": "28.0.0",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "keywords": [
     "MetaMask",
@@ -29,7 +29,7 @@
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
     "test": "jest",
     "test:watch": "jest --watch",
-    "build": "rimraf dist && tsc --project .",
+    "build": "rimraf dist && tsc --project tsconfig.build.json",
     "build:watch": "yarn build --watch",
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
     "doc": "typedoc && touch docs/.nojekyll"
@@ -37,17 +37,20 @@
   "dependencies": {
     "@ethereumjs/common": "^2.3.1",
     "@ethereumjs/tx": "^3.2.1",
-    "@metamask/contract-metadata": "^1.31.0",
+    "@keystonehq/metamask-airgapped-keyring": "^0.3.0",
+    "@metamask/contract-metadata": "^1.33.0",
     "@metamask/metamask-eth-abis": "3.0.0",
+    "@metamask/types": "^1.1.0",
     "@types/uuid": "^8.3.0",
     "abort-controller": "^3.0.0",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
+    "deep-freeze-strict": "^1.1.1",
     "eth-ens-namehash": "^2.0.8",
     "eth-json-rpc-infura": "^5.1.0",
     "eth-keyring-controller": "^6.2.1",
     "eth-method-registry": "1.1.0",
-    "eth-phishing-detect": "^1.1.14",
+    "eth-phishing-detect": "^1.1.16",
     "eth-query": "^2.1.2",
     "eth-rpc-errors": "^4.0.0",
     "eth-sig-util": "^3.0.0",
@@ -55,8 +58,10 @@
     "ethereumjs-wallet": "^1.0.1",
     "ethers": "^5.4.1",
     "ethjs-unit": "^0.1.6",
+    "fast-deep-equal": "^3.1.3",
     "immer": "^9.0.6",
     "isomorphic-fetch": "^3.0.0",
+    "json-rpc-engine": "^6.1.0",
     "jsonschema": "^1.2.4",
     "multiformats": "^9.5.2",
     "nanoid": "^3.1.31",
@@ -67,12 +72,14 @@
     "web3-provider-engine": "^16.0.3"
   },
   "devDependencies": {
-    "@lavamoat/allow-scripts": "^1.0.6",
+    "@keystonehq/bc-ur-registry-eth": "^0.9.0",
+    "@lavamoat/allow-scripts": "^2.0.2",
     "@metamask/auto-changelog": "^2.5.0",
     "@metamask/eslint-config": "^9.0.0",
     "@metamask/eslint-config-jest": "^9.0.0",
     "@metamask/eslint-config-nodejs": "^9.0.0",
     "@metamask/eslint-config-typescript": "^9.0.1",
+    "@types/deep-freeze-strict": "^1.1.0",
     "@types/jest": "^26.0.22",
     "@types/jest-when": "^2.7.3",
     "@types/node": "^14.14.31",
@@ -112,10 +119,13 @@
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
-      "core-js": false,
-      "keccak": true,
-      "secp256k1": true,
-      "sha3": true
+      "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
+      "babel-runtime>core-js": false,
+      "eth-sig-util>ethereumjs-abi>ethereumjs-util>keccakjs>sha3": true,
+      "eth-sig-util>ethereumjs-util>keccak": true,
+      "eth-sig-util>ethereumjs-util>secp256k1": true,
+      "ethereumjs-util>ethereum-cryptography>keccak": true,
+      "ethereumjs-util>ethereum-cryptography>secp256k1": true
     }
   }
 }

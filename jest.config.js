@@ -2,16 +2,16 @@ module.exports = {
   collectCoverage: true,
   // Ensures that we collect coverage from all source files, not just tested
   // ones.
-  collectCoverageFrom: ['./src/**.ts'],
+  collectCoverageFrom: ['./src/**/*.ts'],
   // TODO: Test index.ts
   coveragePathIgnorePatterns: ['./src/index.ts'],
   coverageReporters: ['text', 'html'],
   coverageThreshold: {
     global: {
-      branches: 100,
-      functions: 100,
-      lines: 100,
-      statements: 100,
+      branches: 90,
+      functions: 96,
+      lines: 95,
+      statements: 95,
     },
   },
   moduleFileExtensions: ['js', 'json', 'ts', 'node'],

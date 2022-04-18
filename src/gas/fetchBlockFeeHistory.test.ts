@@ -111,6 +111,26 @@ describe('fetchBlockFeeHistory', () => {
 
       expect(feeHistory).toStrictEqual([]);
     });
+
+    it('should be able to handle an response with undefined baseFeePerGas from eth_feeHistory', async () => {
+      when(mockedQuery)
+        .calledWith(ethQuery, 'eth_feeHistory', [
+          toHex(numberOfRequestedBlocks),
+          toHex(latestBlockNumber),
+          [],
+        ])
+        .mockResolvedValue({
+          oldestBlock: toHex(0),
+          gasUsedRatio: null,
+        });
+
+      const feeHistory = await fetchBlockFeeHistory({
+        ethQuery,
+        numberOfBlocks: numberOfRequestedBlocks,
+      });
+
+      expect(feeHistory).toStrictEqual([]);
+    });
   });
 
   describe('given a numberOfBlocks that exceeds the max limit that the EVM returns', () => {
@@ -367,6 +387,39 @@ describe('fetchBlockFeeHistory', () => {
           priorityFeesByPercentile: null,
         },
       ]);
+    });
+  });
+
+  describe('given a range which exceeds existing blocks', () => {
+    beforeEach(() => {
+      jest.resetAllMocks();
+    });
+
+    it('should adjust fetched numberOfBlocks', async () => {
+      const latestBlockNumber = 1024;
+      const numberOfRequestedBlocks = 2048;
+      const endBlock = new BN(latestBlockNumber);
+
+      when(mockedQuery)
+        .calledWith(ethQuery, 'eth_feeHistory', [
+          toHex(latestBlockNumber),
+          toHex(latestBlockNumber),
+          [],
+        ])
+        .mockResolvedValue({
+          oldestBlock: toHex(0),
+          baseFeePerGas: [],
+          gasUsedRatio: [],
+          reward: [],
+        });
+
+      await fetchBlockFeeHistory({
+        ethQuery,
+        numberOfBlocks: numberOfRequestedBlocks,
+        endBlock,
+      });
+
+      expect(mockedQuery).toHaveBeenCalledTimes(1);
     });
   });
 });
