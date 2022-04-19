@@ -83,6 +83,14 @@ describe('NotificationController', () => {
     expect(showNativeNotification).toHaveBeenCalledTimes(0);
     const notifications = Object.values(controller.state.notifications);
     expect(notifications).toHaveLength(1);
+    expect(notifications).toContainEqual({
+      createdDate: expect.any(Number),
+      id: expect.any(String),
+      message,
+      origin,
+      readDate: null,
+      type: NotificationType.InApp,
+    });
   });
 
   it('action: NotificationController:markViewed', async () => {
@@ -111,7 +119,7 @@ describe('NotificationController', () => {
     const newNotifications = Object.values(controller.state.notifications);
     expect(newNotifications).toContainEqual({
       ...notifications[0],
-      read: true,
+      readDate: expect.any(Number),
     });
 
     expect(newNotifications).toHaveLength(1);

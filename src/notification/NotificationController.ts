@@ -18,8 +18,8 @@ export type Notification = {
   id: string;
   type: NotificationType;
   origin: string;
-  date: number;
-  read: boolean;
+  createdDate: number;
+  readDate: number | null;
   message: string;
 };
 
@@ -165,8 +165,8 @@ export class NotificationController extends BaseController<
       id,
       type: NotificationType.InApp,
       origin,
-      date: Date.now(),
-      read: false,
+      createdDate: Date.now(),
+      readDate: null,
       message,
     };
     this.update((state) => {
@@ -198,7 +198,7 @@ export class NotificationController extends BaseController<
     this.update((state) => {
       for (const id of ids) {
         if (hasProperty(state.notifications, id)) {
-          state.notifications[id].read = true;
+          state.notifications[id].readDate = Date.now();
         }
       }
     });
