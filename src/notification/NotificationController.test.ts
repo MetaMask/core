@@ -112,9 +112,12 @@ describe('NotificationController', () => {
     expect(showNativeNotification).toHaveBeenCalledTimes(0);
     const notifications = Object.values(controller.state.notifications);
     expect(notifications).toHaveLength(1);
-    await unrestricted.call('NotificationController:markRead', [
-      notifications[0].id,
-    ]);
+    expect(
+      await unrestricted.call('NotificationController:markRead', [
+        notifications[0].id,
+        'foo',
+      ]),
+    ).toBeUndefined();
 
     const newNotifications = Object.values(controller.state.notifications);
     expect(newNotifications).toContainEqual({
@@ -144,9 +147,12 @@ describe('NotificationController', () => {
     expect(showNativeNotification).toHaveBeenCalledTimes(0);
     const notifications = Object.values(controller.state.notifications);
     expect(notifications).toHaveLength(1);
-    await unrestricted.call('NotificationController:dismiss', [
-      notifications[0].id,
-    ]);
+    expect(
+      await unrestricted.call('NotificationController:dismiss', [
+        notifications[0].id,
+        'foo',
+      ]),
+    ).toBeUndefined();
 
     expect(Object.values(controller.state.notifications)).toHaveLength(0);
   });
