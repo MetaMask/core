@@ -1,18 +1,10 @@
 import { ControllerMessenger } from '../ControllerMessenger';
-import { GetSubjectMetadataState } from '../subject-metadata';
 import {
   ControllerActions,
-  DismissNotification,
-  GetNotificationCount,
-  GetNotifications,
-  GetNotificationState,
-  GetUnreadNotificationCount,
-  MarkNotificationRead,
   NotificationController,
-  NotificationMessenger,
-  NotificationStateChange,
+  NotificationControllerMessenger,
+  NotificationControllerStateChange,
   NotificationType,
-  ShowNotification,
 } from './NotificationController';
 
 const name = 'NotificationController';
@@ -24,15 +16,8 @@ const name = 'NotificationController';
  */
 function getUnrestrictedMessenger() {
   return new ControllerMessenger<
-    | GetNotificationState
-    | ShowNotification
-    | DismissNotification
-    | MarkNotificationRead
-    | GetNotificationCount
-    | GetUnreadNotificationCount
-    | GetNotifications
-    | GetSubjectMetadataState,
-    NotificationStateChange
+    ControllerActions,
+    NotificationControllerStateChange
   >();
 }
 
@@ -47,15 +32,14 @@ function getRestrictedMessenger(
 ) {
   return controllerMessenger.getRestricted<
     typeof name,
-    ControllerActions['type'] | GetSubjectMetadataState['type'],
+    ControllerActions['type'],
     never
   >({
     name,
     allowedActions: [
-      'SubjectMetadataController:getState',
       'NotificationController:show',
     ],
-  }) as NotificationMessenger;
+  }) as NotificationControllerMessenger;
 }
 
 const origin = 'snap_test';

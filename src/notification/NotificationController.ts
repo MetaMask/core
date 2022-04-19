@@ -7,10 +7,10 @@ import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 
 /**
- * @type NotificationState
+ * @typedef NotificationControllerState
  * @property notifications - Stores existing notifications to be shown in the UI
  */
-export type NotificationState = {
+export type NotificationControllerState = {
   notifications: Record<string, Notification>;
 };
 
@@ -42,14 +42,14 @@ export interface NotificationArgs {
 
 const name = 'NotificationController';
 
-export type NotificationStateChange = {
+export type NotificationControllerStateChange = {
   type: `${typeof name}:stateChange`;
-  payload: [NotificationState, Patch[]];
+  payload: [NotificationControllerState, Patch[]];
 };
 
-export type GetNotificationState = {
+export type GetNotificationControllerState = {
   type: `${typeof name}:getState`;
-  handler: () => NotificationState;
+  handler: () => NotificationControllerState;
 };
 
 export type ShowNotification = {
@@ -83,7 +83,7 @@ export type GetUnreadNotificationCount = {
 };
 
 export type ControllerActions =
-  | GetNotificationState
+  | GetNotificationControllerState
   | ShowNotification
   | DismissNotification
   | MarkNotificationRead
@@ -91,10 +91,10 @@ export type ControllerActions =
   | GetNotificationCount
   | GetUnreadNotificationCount;
 
-export type NotificationMessenger = RestrictedControllerMessenger<
+export type NotificationControllerMessenger = RestrictedControllerMessenger<
   typeof name,
   ControllerActions,
-  NotificationStateChange,
+  NotificationControllerStateChange,
   never,
   never
 >;
@@ -108,12 +108,12 @@ const defaultState = {
 };
 
 /**
- * Controller that handles showing notifications to the user and rate limiting origins
+ * Controller that handles storing notifications and showing them to the user
  */
 export class NotificationController extends BaseController<
   typeof name,
-  NotificationState,
-  NotificationMessenger
+  NotificationControllerState,
+  NotificationControllerMessenger
 > {
   private showNativeNotification;
 
@@ -130,8 +130,8 @@ export class NotificationController extends BaseController<
     state,
     showNativeNotification,
   }: {
-    messenger: NotificationMessenger;
-    state?: Partial<NotificationState>;
+    messenger: NotificationControllerMessenger;
+    state?: Partial<NotificationControllerState>;
     showNativeNotification: (origin: string, message: string) => void;
   }) {
     super({
