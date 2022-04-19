@@ -75,7 +75,7 @@ export type Json =
 export class BaseController<
   N extends string,
   S extends Record<string, Json>,
-  messenger extends RestrictedControllerMessenger<N, any, any, string, string>
+  messenger extends RestrictedControllerMessenger<N, any, any, string, string>,
 > {
   private internalState: S;
 
@@ -158,10 +158,12 @@ export class BaseController<
     // We run into ts2589, "infinite type depth", if we don't cast
     // produceWithPatches here.
     // The final, omitted member of the returned tuple are the inverse patches.
-    const [nextState, patches] = ((produceWithPatches as unknown) as (
-      state: S,
-      cb: typeof callback,
-    ) => [S, Patch[], Patch[]])(this.internalState, callback);
+    const [nextState, patches] = (
+      produceWithPatches as unknown as (
+        state: S,
+        cb: typeof callback,
+      ) => [S, Patch[], Patch[]]
+    )(this.internalState, callback);
 
     this.internalState = nextState;
     this.messagingSystem.publish(

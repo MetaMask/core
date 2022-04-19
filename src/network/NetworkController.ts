@@ -280,12 +280,8 @@ export class NetworkController extends BaseController<
    * @param type - Human readable network name.
    */
   setProviderType(type: NetworkType) {
-    const {
-      rpcTarget,
-      chainId,
-      nickname,
-      ...providerState
-    } = this.state.provider;
+    const { rpcTarget, chainId, nickname, ...providerState } =
+      this.state.provider;
     this.update({
       provider: {
         ...providerState,
