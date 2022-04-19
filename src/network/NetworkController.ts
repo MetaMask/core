@@ -286,10 +286,12 @@ export class NetworkController extends BaseController<
       nickname,
       ...providerState
     } = this.state.provider;
+    const _ticker = this.setTicker(chainId, type);
+    console.log(providerState);
     this.update({
       provider: {
         ...providerState,
-        ...{ type, ticker: 'ETH', chainId: NetworksChainId[type] },
+        ...{ type, ticker: _ticker, chainId: NetworksChainId[type] },
       },
     });
     this.refreshNetwork();
@@ -316,6 +318,18 @@ export class NetworkController extends BaseController<
       },
     });
     this.refreshNetwork();
+  }
+
+  setTicker(chainId: string, type: string): string {
+    switch (chainId) {
+      case NetworksChainId.rinkeby:
+      case NetworksChainId.ropsten:
+      case NetworksChainId.kovan:
+      case NetworksChainId.goerli:
+        return `${type.toLocaleUpperCase()} ETH`;
+      default:
+        return 'ETH';
+    }
   }
 
   getEIP1559Compatibility() {

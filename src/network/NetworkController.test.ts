@@ -178,4 +178,25 @@ describe('NetworkController', () => {
       }, 4500);
     });
   });
+
+  it('should set ticker to RINKEBY ETH if testnet is Rinkeby', () => {
+    const controller = new NetworkController();
+    const ticker = controller.setTicker('4', 'rinkeby');
+    const expectedTicker = 'RINKEBY ETH';
+    expect(ticker).toBe(expectedTicker);
+  });
+
+  it('should set ticker to ROPSTEN ETH if testnet is Ropsten', () => {
+    const controller = new NetworkController();
+    const ticker = controller.setTicker('3', 'ropsten');
+    const expectedTicker = 'ROPSTEN ETH';
+    expect(ticker).toBe(expectedTicker);
+  });
+
+  it('should set ticker to ETH if network is Mainnet', () => {
+    const controller = new NetworkController();
+    const ticker = controller.setTicker('1', 'mainnet');
+    const expectedTicker = 'ETH';
+    expect(ticker).toBe(expectedTicker);
+  });
 });
