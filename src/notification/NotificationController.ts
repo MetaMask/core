@@ -14,6 +14,15 @@ export type NotificationControllerState = {
   notifications: Record<string, Notification>;
 };
 
+/**
+ * @typedef Notification - Stores information about in-app notifications, to be shown in the UI
+ * @property id - A UUID that identifies the notification
+ * @property type - The notification type
+ * @property origin - The origin that requested the notification
+ * @property createdDate - The notification creation date in milliseconds elapsed since the UNIX epoch
+ * @property readDate - The notification read date in milliseconds elapsed since the UNIX epoch or null if unread
+ * @property message - The notification message
+ */
 export type Notification = {
   id: string;
   type: NotificationType;
