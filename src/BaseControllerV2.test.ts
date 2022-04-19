@@ -779,13 +779,12 @@ describe('getPersistentState', () => {
       const visitorController = new VisitorController(
         visitorControllerMessenger,
       );
-      const visitorOverflowControllerMessenger = controllerMessenger.getRestricted(
-        {
+      const visitorOverflowControllerMessenger =
+        controllerMessenger.getRestricted({
           name: visitorOverflowName,
           allowedActions: ['VisitorController:clear'],
           allowedEvents: ['VisitorController:stateChange'],
-        },
-      );
+        });
       const visitorOverflowController = new VisitorOverflowController(
         visitorOverflowControllerMessenger,
       );

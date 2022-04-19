@@ -956,11 +956,10 @@ describe('RestrictedControllerMessenger', () => {
       handler: (increment: number) => void;
     };
     const controllerMessenger = new ControllerMessenger<CountAction, never>();
-    const externalRestrictedControllerMessenger = controllerMessenger.getRestricted(
-      {
+    const externalRestrictedControllerMessenger =
+      controllerMessenger.getRestricted({
         name: 'CountController',
-      },
-    );
+      });
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'OtherController',
       allowedActions: ['CountController:count'],
@@ -984,11 +983,10 @@ describe('RestrictedControllerMessenger', () => {
       payload: [string];
     };
     const controllerMessenger = new ControllerMessenger<never, MessageEvent>();
-    const externalRestrictedControllerMessenger = controllerMessenger.getRestricted(
-      {
+    const externalRestrictedControllerMessenger =
+      controllerMessenger.getRestricted({
         name: 'MessageController',
-      },
-    );
+      });
     const restrictedControllerMessenger = controllerMessenger.getRestricted({
       name: 'OtherController',
       allowedEvents: ['MessageController:message'],

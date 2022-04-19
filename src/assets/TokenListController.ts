@@ -241,9 +241,11 @@ export class TokenListController extends BaseController<
   async fetchFromStaticTokenList(): Promise<void> {
     const tokenList: TokenListMap = {};
     for (const tokenAddress in contractMap) {
-      const { erc20, logo: filePath, ...token } = (contractMap as ContractMap)[
-        tokenAddress
-      ];
+      const {
+        erc20,
+        logo: filePath,
+        ...token
+      } = (contractMap as ContractMap)[tokenAddress];
       if (erc20) {
         tokenList[tokenAddress] = {
           ...token,

@@ -76,8 +76,9 @@ describe('KeyringController', () => {
   });
 
   it('should add new account', async () => {
-    const initialIdentitiesLength = Object.keys(preferences.state.identities)
-      .length;
+    const initialIdentitiesLength = Object.keys(
+      preferences.state.identities,
+    ).length;
     const currentKeyringMemState = await keyringController.addNewAccount();
     expect(initialState.keyrings).toHaveLength(1);
     expect(initialState.keyrings[0].accounts).not.toBe(
@@ -89,9 +90,11 @@ describe('KeyringController', () => {
   });
 
   it('should add new account without updating', async () => {
-    const initialIdentitiesLength = Object.keys(preferences.state.identities)
-      .length;
-    const currentKeyringMemState = await keyringController.addNewAccountWithoutUpdate();
+    const initialIdentitiesLength = Object.keys(
+      preferences.state.identities,
+    ).length;
+    const currentKeyringMemState =
+      await keyringController.addNewAccountWithoutUpdate();
     expect(initialState.keyrings).toHaveLength(1);
     expect(initialState.keyrings[0].accounts).not.toBe(
       currentKeyringMemState.keyrings,
@@ -847,8 +850,7 @@ describe('KeyringController', () => {
         name: 'Keystone',
         version: 1,
         xfp: '5271c071',
-        xpub:
-          'xpub6CNhtuXAHDs84AhZj5ALZB6ii4sP5LnDXaKDSjiy6kcBbiysq89cDrLG29poKvZtX9z4FchZKTjTyiPuDeiFMUd1H4g5zViQxt4tpkronJr',
+        xpub: 'xpub6CNhtuXAHDs84AhZj5ALZB6ii4sP5LnDXaKDSjiy6kcBbiysq89cDrLG29poKvZtX9z4FchZKTjTyiPuDeiFMUd1H4g5zViQxt4tpkronJr',
         hdPath: "m/44'/60'/0'",
         childrenPath: '0/*',
         indexes: {

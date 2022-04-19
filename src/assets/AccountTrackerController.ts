@@ -166,14 +166,12 @@ export class AccountTrackerController extends BaseController<
     addresses: string[],
   ): Promise<Record<string, { balance: string }>> {
     return await Promise.all(
-      addresses.map(
-        (address): Promise<[string, string] | undefined> => {
-          return safelyExecuteWithTimeout(async () => {
-            const balance = await query(this.ethQuery, 'getBalance', [address]);
-            return [address, balance];
-          });
-        },
-      ),
+      addresses.map((address): Promise<[string, string] | undefined> => {
+        return safelyExecuteWithTimeout(async () => {
+          const balance = await query(this.ethQuery, 'getBalance', [address]);
+          return [address, balance];
+        });
+      }),
     ).then((value) => {
       return value.reduce((obj, item) => {
         if (!item) {
