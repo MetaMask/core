@@ -55,12 +55,12 @@ type NetworkControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
-// BOILERPLATE (to some degree)
 type NetworkControllerOptions = {
-  // default
+  // BOILERPLATE
   messenger: NetworkControllerMessenger;
   state?: Partial<NetworkControllerState>;
-  // additional
+  // custom
+  infuraProjectId: string;
 };
 
 // BOILERPLATE (to some degree)
@@ -77,6 +77,8 @@ export default class NetworkController extends BaseController<
   NetworkControllerState,
   NetworkControllerMessenger
 > {
+  private provider: EthQueryProvider;
+
   constructor({ messenger, state = {} }: NetworkControllerOptions) {
     super({
       name,
@@ -84,5 +86,10 @@ export default class NetworkController extends BaseController<
       metadata,
       state: { ...defaultState, ...state },
     });
+    this.refreshProvider();
+  }
+
+  private refreshProvider() {
+    this.provider;
   }
 }

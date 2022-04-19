@@ -69,6 +69,7 @@
     "single-call-balance-checker-abi": "^1.0.0",
     "uuid": "^8.3.2",
     "web3": "^0.20.7",
+    "web3-eth": "^1.7.1",
     "web3-provider-engine": "^16.0.3"
   },
   "devDependencies": {
@@ -126,7 +127,10 @@
       "eth-sig-util>ethereumjs-util>keccak": true,
       "eth-sig-util>ethereumjs-util>secp256k1": true,
       "ethereumjs-util>ethereum-cryptography>keccak": true,
-      "ethereumjs-util>ethereum-cryptography>secp256k1": true
+      "ethereumjs-util>ethereum-cryptography>secp256k1": true,
+      "web3-eth>web3-core>web3-core-requestmanager>web3-providers-ws>websocket>bufferutil": false,
+      "web3-eth>web3-core>web3-core-requestmanager>web3-providers-ws>websocket>es5-ext": false,
+      "web3-eth>web3-core>web3-core-requestmanager>web3-providers-ws>websocket>utf-8-validate": false
     }
   }
 }
