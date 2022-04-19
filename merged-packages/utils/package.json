@@ -1,10 +1,10 @@
 {
-  "name": "@metamask/module-template",
+  "name": "@metamask/utils",
   "version": "0.0.0",
-  "description": "The MetaMask Node module template.",
+  "description": "Various JavaScript/TypeScript utilities of wide relevance to the MetaMask codebase.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MetaMask/metamask-module-template.git"
+    "url": "https://github.com/MetaMask/utils.git"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

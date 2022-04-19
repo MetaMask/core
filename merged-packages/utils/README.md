@@ -1,14 +1,14 @@
-# MetaMask Module Template
+# MetaMask Utils
 
-This TypeScript module is maintained in the style of the MetaMask team.
+Various JavaScript/TypeScript utilities of wide relevance to the MetaMask codebase.
 
 ## Installation
 
-`yarn add @metamask/this-module`
+`yarn add @metamask/utils`
 
 or
 
-`npm install @metamask/this-module`
+`npm install @metamask/utils`
 
 ## Usage
 
