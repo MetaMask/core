@@ -8,7 +8,7 @@
     "sourceMap": true,
     "strict": true,
     "target": "es6",
-    "skipLibCheck": true, // Skip type checking of declaration files.
+    "skipLibCheck": true
   },
   "include": ["./types/**/*.d.ts", "./src/**/*.ts"]
 }
