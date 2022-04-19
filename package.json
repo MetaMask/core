@@ -86,8 +86,8 @@
     "@types/punycode": "^2.1.0",
     "@types/sinon": "^9.0.10",
     "@types/web3": "^1.0.6",
-    "@typescript-eslint/eslint-plugin": "^4.22.0",
-    "@typescript-eslint/parser": "^4.22.0",
+    "@typescript-eslint/eslint-plugin": "^4.33.0",
+    "@typescript-eslint/parser": "^4.33.0",
     "eslint": "^7.24.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-import-resolver-typescript": "^2.4.0",
@@ -108,7 +108,7 @@
     "ts-jest": "^26.5.2",
     "typedoc": "^0.22.15",
     "typedoc-plugin-missing-exports": "^0.22.6",
-    "typescript": "~4.2.2"
+    "typescript": "~4.3.5"
   },
   "engines": {
     "node": ">=12.0.0"
