@@ -129,7 +129,7 @@ export abstract class AbstractMessageManager<
   /**
    * Name of this controller used during composition
    */
-  name = 'AbstractMessageManager';
+  override name = 'AbstractMessageManager';
 
   /**
    * Creates an AbstractMessageManager instance.

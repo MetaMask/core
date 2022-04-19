@@ -136,7 +136,7 @@ export class KeyringController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'KeyringController';
+  override name = 'KeyringController';
 
   private removeIdentity: PreferencesController['removeIdentity'];
 
@@ -516,7 +516,7 @@ export class KeyringController extends BaseController<
    *
    * @param listener - Callback triggered when state changes.
    */
-  subscribe(listener: Listener<KeyringState>) {
+  override subscribe(listener: Listener<KeyringState>) {
     privates.get(this).keyring.store.subscribe(listener);
   }
 
@@ -526,7 +526,7 @@ export class KeyringController extends BaseController<
    * @param listener - Callback to remove.
    * @returns True if a listener is found and unsubscribed.
    */
-  unsubscribe(listener: Listener<KeyringState>) {
+  override unsubscribe(listener: Listener<KeyringState>) {
     return privates.get(this).keyring.store.unsubscribe(listener);
   }
 
