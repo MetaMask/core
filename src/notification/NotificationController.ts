@@ -67,29 +67,11 @@ export type MarkNotificationRead = {
   handler: NotificationController['markRead'];
 };
 
-export type GetNotifications = {
-  type: `${typeof name}:getNotifications`;
-  handler: NotificationController['getNotifications'];
-};
-
-export type GetNotificationCount = {
-  type: `${typeof name}:getCount`;
-  handler: NotificationController['getCount'];
-};
-
-export type GetUnreadNotificationCount = {
-  type: `${typeof name}:getUnreadCount`;
-  handler: NotificationController['getUnreadCount'];
-};
-
 export type ControllerActions =
   | GetNotificationControllerState
   | ShowNotification
   | DismissNotification
-  | MarkNotificationRead
-  | GetNotifications
-  | GetNotificationCount
-  | GetUnreadNotificationCount;
+  | MarkNotificationRead;
 
 export type NotificationControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -156,21 +138,6 @@ export class NotificationController extends BaseController<
       `${name}:markRead` as const,
       (ids: string[]) => this.markRead(ids),
     );
-
-    this.messagingSystem.registerActionHandler(
-      `${name}:getNotifications` as const,
-      () => this.getNotifications(),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${name}:getCount` as const,
-      () => this.getCount(),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${name}:getUnreadCount` as const,
-      () => this.getUnreadCount(),
-    );
   }
 
   /**
@@ -235,32 +202,5 @@ export class NotificationController extends BaseController<
         }
       }
     });
-  }
-
-  /**
-   * Gets the notifications.
-   *
-   * @returns The notifications
-   */
-  getNotifications() {
-    return Object.values(this.state.notifications);
-  }
-
-  /**
-   * Gets the current number of notifications.
-   *
-   * @returns The number of current notifications
-   */
-  getCount() {
-    return this.getNotifications().length;
-  }
-
-  /**
-   * Gets the current number of unread notifications.
-   *
-   * @returns The number of current notifications
-   */
-  getUnreadCount() {
-    return this.getNotifications().filter((n) => !n.read).length;
   }
 }
