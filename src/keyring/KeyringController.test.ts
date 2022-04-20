@@ -5,7 +5,7 @@ import {
   recoverTypedSignature_v4,
   recoverTypedSignatureLegacy,
 } from 'eth-sig-util';
-import sinon, { SinonStub, stub } from 'sinon';
+import sinon, { SinonStub } from 'sinon';
 import Common from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
@@ -65,6 +65,10 @@ describe('KeyringController', () => {
     );
 
     initialState = await keyringController.createNewVaultAndKeychain(password);
+  });
+
+  afterEach(() => {
+    sinon.restore();
   });
 
   it('should set default state', () => {
@@ -483,7 +487,7 @@ describe('KeyringController', () => {
   });
 
   it('should subscribe and unsubscribe', async () => {
-    const listener = stub();
+    const listener = sinon.stub();
     keyringController.subscribe(listener);
     await keyringController.importAccountWithStrategy(
       AccountImportStrategy.privateKey,
@@ -498,11 +502,11 @@ describe('KeyringController', () => {
   });
 
   it('should receive lock and unlock events', async () => {
-    const listenerLock = stub();
+    const listenerLock = sinon.stub();
     keyringController.onLock(listenerLock);
     await keyringController.setLocked();
     expect(listenerLock.called).toBe(true);
-    const listenerUnlock = stub();
+    const listenerUnlock = sinon.stub();
     keyringController.onUnlock(listenerUnlock);
     await keyringController.submitPassword(password);
     expect(listenerUnlock.called).toBe(true);
@@ -557,24 +561,15 @@ describe('KeyringController', () => {
       const qrkeyring = await signProcessKeyringController.getOrAddQRKeyring();
       qrkeyring.forgetDevice();
 
-      if (!requestSignatureStub) {
-        requestSignatureStub = sinon.stub(
-          qrkeyring.getInteraction(),
-          'requestSignature',
-        );
-      }
+      requestSignatureStub = sinon.stub(
+        qrkeyring.getInteraction(),
+        'requestSignature',
+      );
 
-      if (!readAccountSub) {
-        readAccountSub = sinon.stub(
-          qrkeyring.getInteraction(),
-          'readCryptoHDKeyOrCryptoAccount',
-        );
-      }
-    });
-
-    afterEach(() => {
-      requestSignatureStub.reset();
-      readAccountSub.reset();
+      readAccountSub = sinon.stub(
+        qrkeyring.getInteraction(),
+        'readCryptoHDKeyOrCryptoAccount',
+      );
     });
 
     it('should setup QR keyring with crypto-hdkey', async () => {

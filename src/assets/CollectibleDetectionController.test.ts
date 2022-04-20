@@ -238,7 +238,6 @@ describe('CollectibleDetectionController', () => {
       expect(mockCollectibles.calledOnce).toBe(true);
       setTimeout(() => {
         expect(mockCollectibles.calledTwice).toBe(true);
-        mockCollectibles.restore();
         resolve('');
       }, 15);
     });
@@ -273,7 +272,6 @@ describe('CollectibleDetectionController', () => {
         { interval: 10, networkType: ROPSTEN },
       );
       expect(mockCollectibles.called).toBe(false);
-      mockCollectibles.restore();
       resolve('');
     });
   });

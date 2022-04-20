@@ -1,4 +1,4 @@
-import { stub } from 'sinon';
+import sinon from 'sinon';
 import nock from 'nock';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
@@ -36,10 +36,11 @@ const getStubbedDate = () => {
 describe('CurrencyRateController', () => {
   afterEach(() => {
     nock.cleanAll();
+    sinon.restore();
   });
 
   it('should set default state', () => {
-    const fetchExchangeRateStub = stub();
+    const fetchExchangeRateStub = sinon.stub();
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       fetchExchangeRate: fetchExchangeRateStub,
@@ -59,7 +60,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should initialize with initial state', () => {
-    const fetchExchangeRateStub = stub();
+    const fetchExchangeRateStub = sinon.stub();
     const messenger = getRestrictedMessenger();
     const existingState = { currentCurrency: 'rep' };
     const controller = new CurrencyRateController({
@@ -81,7 +82,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should not poll before being started', async () => {
-    const fetchExchangeRateStub = stub();
+    const fetchExchangeRateStub = sinon.stub();
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
@@ -96,7 +97,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should poll and update rate in the right interval', async () => {
-    const fetchExchangeRateStub = stub();
+    const fetchExchangeRateStub = sinon.stub();
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
@@ -115,7 +116,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should not poll after being stopped', async () => {
-    const fetchExchangeRateStub = stub();
+    const fetchExchangeRateStub = sinon.stub();
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
@@ -136,7 +137,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should poll correctly after being started, stopped, and started again', async () => {
-    const fetchExchangeRateStub = stub();
+    const fetchExchangeRateStub = sinon.stub();
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
@@ -160,7 +161,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should update exchange rate', async () => {
-    const fetchExchangeRateStub = stub().resolves({ conversionRate: 10 });
+    const fetchExchangeRateStub = sinon.stub().resolves({ conversionRate: 10 });
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 10,
@@ -175,7 +176,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should update current currency', async () => {
-    const fetchExchangeRateStub = stub().resolves({ conversionRate: 10 });
+    const fetchExchangeRateStub = sinon.stub().resolves({ conversionRate: 10 });
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 10,
@@ -190,7 +191,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should update native currency', async () => {
-    const fetchExchangeRateStub = stub().resolves({ conversionRate: 10 });
+    const fetchExchangeRateStub = sinon.stub().resolves({ conversionRate: 10 });
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 10,
@@ -205,7 +206,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should add usd rate to state when includeUsdRate is configured true', async () => {
-    const fetchExchangeRateStub = stub().resolves({});
+    const fetchExchangeRateStub = sinon.stub().resolves({});
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       includeUsdRate: true,
