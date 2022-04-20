@@ -259,17 +259,17 @@ export class TransactionController extends BaseController<
   TransactionConfig,
   TransactionState
 > {
-  private ethQuery: any;
+  #ethQuery: any;
 
-  private registry: any;
+  #registry: any;
 
-  private handle?: NodeJS.Timer;
+  #handle?: NodeJS.Timer;
 
-  private mutex = new Mutex();
+  #mutex = new Mutex();
 
-  private getNetworkState: () => NetworkState;
+  #getNetworkState: () => NetworkState;
 
-  private failTransaction(transactionMeta: TransactionMeta, error: Error) {
+  #failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
       ...transactionMeta,
       error,
@@ -279,9 +279,9 @@ export class TransactionController extends BaseController<
     this.hub.emit(`${transactionMeta.id}:finished`, newTransactionMeta);
   }
 
-  private async registryLookup(fourBytePrefix: string): Promise<MethodData> {
-    const registryMethod = await this.registry.lookup(fourBytePrefix);
-    const parsedRegistryMethod = this.registry.parse(registryMethod);
+  async #registryLookup(fourBytePrefix: string): Promise<MethodData> {
+    const registryMethod = await this.#registry.lookup(fourBytePrefix);
+    const parsedRegistryMethod = this.#registry.parse(registryMethod);
     return { registryMethod, parsedRegistryMethod };
   }
 
@@ -294,7 +294,7 @@ export class TransactionController extends BaseController<
    * @param currentChainId - The current chain ID.
    * @returns The normalized transaction.
    */
-  private normalizeTx(
+  #normalizeTx(
     txMeta: EtherscanTransactionMeta,
     currentNetworkID: string,
     currentChainId: string,
@@ -336,7 +336,7 @@ export class TransactionController extends BaseController<
     };
   }
 
-  private normalizeTokenTx = (
+  #normalizeTokenTx = (
     txMeta: EtherscanTransactionMeta,
     currentNetworkID: string,
     currentChainId: string,
@@ -433,13 +433,13 @@ export class TransactionController extends BaseController<
     };
     this.initialize();
     const provider = getProvider();
-    this.getNetworkState = getNetworkState;
-    this.ethQuery = new EthQuery(provider);
-    this.registry = new MethodRegistry({ provider });
+    this.#getNetworkState = getNetworkState;
+    this.#ethQuery = new EthQuery(provider);
+    this.#registry = new MethodRegistry({ provider });
     onNetworkStateChange(() => {
       const newProvider = getProvider();
-      this.ethQuery = new EthQuery(newProvider);
-      this.registry = new MethodRegistry({ provider: newProvider });
+      this.#ethQuery = new EthQuery(newProvider);
+      this.#registry = new MethodRegistry({ provider: newProvider });
     });
     this.poll();
   }
@@ -451,9 +451,9 @@ export class TransactionController extends BaseController<
    */
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
+    this.#handle && clearTimeout(this.#handle);
     await safelyExecute(() => this.queryTransactionStatuses());
-    this.handle = setTimeout(() => {
+    this.#handle = setTimeout(() => {
       this.poll(this.config.interval);
     }, this.config.interval);
   }
@@ -465,7 +465,7 @@ export class TransactionController extends BaseController<
    * @returns The method data object corresponding to the given signature prefix.
    */
   async handleMethodData(fourBytePrefix: string): Promise<MethodData> {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     try {
       const { methodData } = this.state;
       const knownMethod = Object.keys(methodData).find(
@@ -474,7 +474,7 @@ export class TransactionController extends BaseController<
       if (knownMethod) {
         return methodData[fourBytePrefix];
       }
-      const registry = await this.registryLookup(fourBytePrefix);
+      const registry = await this.#registryLookup(fourBytePrefix);
       this.update({
         methodData: { ...methodData, ...{ [fourBytePrefix]: registry } },
       });
@@ -499,7 +499,7 @@ export class TransactionController extends BaseController<
     origin?: string,
     deviceConfirmedOn?: WalletDevice,
   ): Promise<Result> {
-    const { provider, network } = this.getNetworkState();
+    const { provider, network } = this.#getNetworkState();
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
@@ -520,7 +520,7 @@ export class TransactionController extends BaseController<
       const { gas } = await this.estimateGas(transaction);
       transaction.gas = gas;
     } catch (error: any) {
-      this.failTransaction(transactionMeta, error);
+      this.#failTransaction(transactionMeta, error);
       return Promise.reject(error);
     }
 
@@ -558,7 +558,7 @@ export class TransactionController extends BaseController<
     });
 
     transactions.push(transactionMeta);
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
+    this.update({ transactions: this.#trimTransactionsForState(transactions) });
     this.hub.emit(`unapprovedTransaction`, transactionMeta);
     return { result, transactionMeta };
   }
@@ -584,7 +584,7 @@ export class TransactionController extends BaseController<
     const {
       network: networkId,
       provider: { type: chain, chainId, nickname: name },
-    } = this.getNetworkState();
+    } = this.#getNetworkState();
 
     if (chain !== RPC) {
       return new Common({ chain, hardfork: HARDFORK });
@@ -609,8 +609,8 @@ export class TransactionController extends BaseController<
    */
   async approveTransaction(transactionID: string) {
     const { transactions } = this.state;
-    const releaseLock = await this.mutex.acquire();
-    const { provider } = this.getNetworkState();
+    const releaseLock = await this.#mutex.acquire();
+    const { provider } = this.#getNetworkState();
     const { chainId: currentChainId } = provider;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
@@ -620,14 +620,17 @@ export class TransactionController extends BaseController<
       const { from } = transactionMeta.transaction;
       if (!this.sign) {
         releaseLock();
-        this.failTransaction(
+        this.#failTransaction(
           transactionMeta,
           new Error('No sign method defined.'),
         );
         return;
       } else if (!currentChainId) {
         releaseLock();
-        this.failTransaction(transactionMeta, new Error('No chainId defined.'));
+        this.#failTransaction(
+          transactionMeta,
+          new Error('No chainId defined.'),
+        );
         return;
       }
 
@@ -636,7 +639,7 @@ export class TransactionController extends BaseController<
 
       const txNonce =
         nonce ||
-        (await query(this.ethQuery, 'getTransactionCount', [from, 'pending']));
+        (await query(this.#ethQuery, 'getTransactionCount', [from, 'pending']));
 
       transactionMeta.status = status;
       transactionMeta.transaction.nonce = txNonce;
@@ -677,15 +680,17 @@ export class TransactionController extends BaseController<
 
       transactionMeta.rawTransaction = rawTransaction;
       this.updateTransaction(transactionMeta);
-      const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
-        rawTransaction,
-      ]);
+      const transactionHash = await query(
+        this.#ethQuery,
+        'sendRawTransaction',
+        [rawTransaction],
+      );
       transactionMeta.transactionHash = transactionHash;
       transactionMeta.status = TransactionStatus.submitted;
       this.updateTransaction(transactionMeta);
       this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
     } catch (error: any) {
-      this.failTransaction(transactionMeta, error);
+      this.#failTransaction(transactionMeta, error);
     } finally {
       releaseLock();
     }
@@ -709,7 +714,7 @@ export class TransactionController extends BaseController<
     const transactions = this.state.transactions.filter(
       ({ id }) => id !== transactionID,
     );
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
+    this.update({ transactions: this.#trimTransactionsForState(transactions) });
   }
 
   /**
@@ -808,7 +813,7 @@ export class TransactionController extends BaseController<
       transactionMeta.transaction.from,
     );
     const rawTransaction = bufferToHex(signedTx.serialize());
-    await query(this.ethQuery, 'sendRawTransaction', [rawTransaction]);
+    await query(this.#ethQuery, 'sendRawTransaction', [rawTransaction]);
     transactionMeta.status = TransactionStatus.cancelled;
     this.hub.emit(`${transactionMeta.id}:finished`, transactionMeta);
   }
@@ -906,7 +911,7 @@ export class TransactionController extends BaseController<
       transactionMeta.transaction.from,
     );
     const rawTransaction = bufferToHex(signedTx.serialize());
-    const transactionHash = await query(this.ethQuery, 'sendRawTransaction', [
+    const transactionHash = await query(this.#ethQuery, 'sendRawTransaction', [
       rawTransaction,
     ]);
     const baseTransactionMeta = {
@@ -933,7 +938,7 @@ export class TransactionController extends BaseController<
             },
           };
     transactions.push(newTransactionMeta);
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
+    this.update({ transactions: this.#trimTransactionsForState(transactions) });
     this.hub.emit(`${transactionMeta.id}:speedup`, newTransactionMeta);
   }
 
@@ -954,14 +959,14 @@ export class TransactionController extends BaseController<
     } = estimatedTransaction;
     const gasPrice =
       typeof providedGasPrice === 'undefined'
-        ? await query(this.ethQuery, 'gasPrice')
+        ? await query(this.#ethQuery, 'gasPrice')
         : providedGasPrice;
-    const { isCustomNetwork } = this.getNetworkState();
+    const { isCustomNetwork } = this.#getNetworkState();
     // 1. If gas is already defined on the transaction, use it
     if (typeof gas !== 'undefined') {
       return { gas, gasPrice };
     }
-    const { gasLimit } = await query(this.ethQuery, 'getBlockByNumber', [
+    const { gasLimit } = await query(this.#ethQuery, 'getBlockByNumber', [
       'latest',
       false,
     ]);
@@ -969,7 +974,7 @@ export class TransactionController extends BaseController<
     // 2. If to is not defined or this is not a contract address, and there is no data use 0x5208 / 21000.
     // If the newtwork is a custom network then bypass this check and fetch 'estimateGas'.
     /* istanbul ignore next */
-    const code = to ? await query(this.ethQuery, 'getCode', [to]) : undefined;
+    const code = to ? await query(this.#ethQuery, 'getCode', [to]) : undefined;
     /* istanbul ignore next */
     if (
       !isCustomNetwork &&
@@ -988,7 +993,7 @@ export class TransactionController extends BaseController<
       typeof value === 'undefined' ? '0x0' : /* istanbul ignore next */ value;
     const gasLimitBN = hexToBN(gasLimit);
     estimatedTransaction.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
-    const gasHex = await query(this.ethQuery, 'estimateGas', [
+    const gasHex = await query(this.#ethQuery, 'estimateGas', [
       estimatedTransaction,
     ]);
 
@@ -1015,7 +1020,7 @@ export class TransactionController extends BaseController<
    */
   async queryTransactionStatuses() {
     const { transactions } = this.state;
-    const { provider, network: currentNetworkID } = this.getNetworkState();
+    const { provider, network: currentNetworkID } = this.#getNetworkState();
     const { chainId: currentChainId } = provider;
     let gotUpdates = false;
     await safelyExecute(() =>
@@ -1029,7 +1034,7 @@ export class TransactionController extends BaseController<
 
           if (!meta.verifiedOnBlockchain && txBelongsToCurrentChain) {
             const [reconciledTx, updateRequired] =
-              await this.blockchainTransactionStateReconciler(meta);
+              await this.#blockchainTransactionStateReconciler(meta);
             if (updateRequired) {
               transactions[index] = reconciledTx;
               gotUpdates = updateRequired;
@@ -1042,7 +1047,7 @@ export class TransactionController extends BaseController<
     /* istanbul ignore else */
     if (gotUpdates) {
       this.update({
-        transactions: this.trimTransactionsForState(transactions),
+        transactions: this.#trimTransactionsForState(transactions),
       });
     }
   }
@@ -1060,7 +1065,7 @@ export class TransactionController extends BaseController<
     validateTransaction(transactionMeta.transaction);
     const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
     transactions[index] = transactionMeta;
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
+    this.update({ transactions: this.#trimTransactionsForState(transactions) });
   }
 
   /**
@@ -1075,7 +1080,7 @@ export class TransactionController extends BaseController<
       this.update({ transactions: [] });
       return;
     }
-    const { provider, network: currentNetworkID } = this.getNetworkState();
+    const { provider, network: currentNetworkID } = this.#getNetworkState();
     const { chainId: currentChainId } = provider;
     const newTransactions = this.state.transactions.filter(
       ({ networkID, chainId }) => {
@@ -1088,7 +1093,7 @@ export class TransactionController extends BaseController<
     );
 
     this.update({
-      transactions: this.trimTransactionsForState(newTransactions),
+      transactions: this.#trimTransactionsForState(newTransactions),
     });
   }
 
@@ -1105,7 +1110,7 @@ export class TransactionController extends BaseController<
     address: string,
     opt?: FetchAllOptions,
   ): Promise<string | void> {
-    const { provider, network: currentNetworkID } = this.getNetworkState();
+    const { provider, network: currentNetworkID } = this.#getNetworkState();
     const { chainId: currentChainId, type: networkType } = provider;
     const { transactions } = this.state;
 
@@ -1125,14 +1130,14 @@ export class TransactionController extends BaseController<
 
     const normalizedTxs = etherscanTxResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
-        this.normalizeTx(tx, currentNetworkID, currentChainId),
+        this.#normalizeTx(tx, currentNetworkID, currentChainId),
     );
     const normalizedTokenTxs = etherscanTokenResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
-        this.normalizeTokenTx(tx, currentNetworkID, currentChainId),
+        this.#normalizeTokenTx(tx, currentNetworkID, currentChainId),
     );
 
-    const [updateRequired, allTxs] = this.etherscanTransactionStateReconciler(
+    const [updateRequired, allTxs] = this.#etherscanTransactionStateReconciler(
       [...normalizedTxs, ...normalizedTokenTxs],
       transactions,
     );
@@ -1166,7 +1171,7 @@ export class TransactionController extends BaseController<
           tx.transaction.to &&
           (!tx.transaction.data || tx.transaction.data !== '0x')
         ) {
-          const code = await query(this.ethQuery, 'getCode', [
+          const code = await query(this.#ethQuery, 'getCode', [
             tx.transaction.to,
           ]);
           tx.toSmartContract = isSmartContractCode(code);
@@ -1179,7 +1184,7 @@ export class TransactionController extends BaseController<
     // Update state only if new transactions were fetched or
     // the status or gas data of a transaction has changed
     if (updateRequired) {
-      this.update({ transactions: this.trimTransactionsForState(allTxs) });
+      this.update({ transactions: this.#trimTransactionsForState(allTxs) });
     }
     return latestIncomingTxBlockNumber;
   }
@@ -1198,7 +1203,7 @@ export class TransactionController extends BaseController<
    * @param transactions - The transactions to be applied to the state.
    * @returns The trimmed list of transactions.
    */
-  private trimTransactionsForState(
+  #trimTransactionsForState(
     transactions: TransactionMeta[],
   ): TransactionMeta[] {
     const nonceNetworkSet = new Set();
@@ -1212,7 +1217,7 @@ export class TransactionController extends BaseController<
           return true;
         } else if (
           nonceNetworkSet.size < this.config.txHistoryLimit ||
-          !this.isFinalState(status)
+          !this.#isFinalState(status)
         ) {
           nonceNetworkSet.add(key);
           return true;
@@ -1230,7 +1235,7 @@ export class TransactionController extends BaseController<
    * @param status - The transaction status.
    * @returns Whether the transaction is in a final state.
    */
-  private isFinalState(status: TransactionStatus): boolean {
+  #isFinalState(status: TransactionStatus): boolean {
     return (
       status === TransactionStatus.rejected ||
       status === TransactionStatus.confirmed ||
@@ -1245,13 +1250,13 @@ export class TransactionController extends BaseController<
    * @param meta - The local transaction to verify on the blockchain.
    * @returns A tuple containing the updated transaction, and whether or not an update was required.
    */
-  private async blockchainTransactionStateReconciler(
+  async #blockchainTransactionStateReconciler(
     meta: TransactionMeta,
   ): Promise<[TransactionMeta, boolean]> {
     const { status, transactionHash } = meta;
     switch (status) {
       case TransactionStatus.confirmed:
-        const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
+        const txReceipt = await query(this.#ethQuery, 'getTransactionReceipt', [
           transactionHash,
         ]);
 
@@ -1268,19 +1273,19 @@ export class TransactionController extends BaseController<
           const error: Error = new Error(
             'Transaction failed. The transaction was reversed',
           );
-          this.failTransaction(meta, error);
+          this.#failTransaction(meta, error);
           return [meta, false];
         }
 
         return [meta, true];
       case TransactionStatus.submitted:
-        const txObj = await query(this.ethQuery, 'getTransactionByHash', [
+        const txObj = await query(this.#ethQuery, 'getTransactionByHash', [
           transactionHash,
         ]);
 
         if (!txObj) {
           const receiptShowsFailedStatus =
-            await this.checkTxReceiptStatusIsFailed(transactionHash);
+            await this.#checkTxReceiptStatusIsFailed(transactionHash);
 
           // Case the txObj is evaluated as false, a second check will
           // determine if the tx failed or it is pending or confirmed
@@ -1288,7 +1293,7 @@ export class TransactionController extends BaseController<
             const error: Error = new Error(
               'Transaction failed. The transaction was dropped or replaced by a new one',
             );
-            this.failTransaction(meta, error);
+            this.#failTransaction(meta, error);
           }
         }
 
@@ -1314,10 +1319,10 @@ export class TransactionController extends BaseController<
    * @param txHash - The transaction hash.
    * @returns Whether the transaction has failed.
    */
-  private async checkTxReceiptStatusIsFailed(
+  async #checkTxReceiptStatusIsFailed(
     txHash: string | undefined,
   ): Promise<boolean> {
-    const txReceipt = await query(this.ethQuery, 'getTransactionReceipt', [
+    const txReceipt = await query(this.#ethQuery, 'getTransactionReceipt', [
       txHash,
     ]);
     if (!txReceipt) {
@@ -1334,16 +1339,16 @@ export class TransactionController extends BaseController<
    * @param localTxs - Transactions to reconcile that are local.
    * @returns A tuple containing a boolean indicating whether or not an update was required, and the updated transaction.
    */
-  private etherscanTransactionStateReconciler(
+  #etherscanTransactionStateReconciler(
     remoteTxs: TransactionMeta[],
     localTxs: TransactionMeta[],
   ): [boolean, TransactionMeta[]] {
-    const updatedTxs: TransactionMeta[] = this.getUpdatedTransactions(
+    const updatedTxs: TransactionMeta[] = this.#getUpdatedTransactions(
       remoteTxs,
       localTxs,
     );
 
-    const newTxs: TransactionMeta[] = this.getNewTransactions(
+    const newTxs: TransactionMeta[] = this.#getNewTransactions(
       remoteTxs,
       localTxs,
     );
@@ -1368,7 +1373,7 @@ export class TransactionController extends BaseController<
    * @param localTxs - Array of transactions stored locally.
    * @returns The new transactions.
    */
-  private getNewTransactions(
+  #getNewTransactions(
     remoteTxs: TransactionMeta[],
     localTxs: TransactionMeta[],
   ): TransactionMeta[] {
@@ -1389,7 +1394,7 @@ export class TransactionController extends BaseController<
    * @param localTxs - Array of transactions stored locally.
    * @returns The updated transactions.
    */
-  private getUpdatedTransactions(
+  #getUpdatedTransactions(
     remoteTxs: TransactionMeta[],
     localTxs: TransactionMeta[],
   ): TransactionMeta[] {
@@ -1397,7 +1402,7 @@ export class TransactionController extends BaseController<
       const isTxOutdated = localTxs.find((localTx) => {
         return (
           remoteTx.transactionHash === localTx.transactionHash &&
-          this.isTransactionOutdated(remoteTx, localTx)
+          this.#isTransactionOutdated(remoteTx, localTx)
         );
       });
       return isTxOutdated;
@@ -1411,17 +1416,17 @@ export class TransactionController extends BaseController<
    * @param localTx - The local transaction.
    * @returns Whether the transaction is outdated.
    */
-  private isTransactionOutdated(
+  #isTransactionOutdated(
     remoteTx: TransactionMeta,
     localTx: TransactionMeta,
   ): boolean {
-    const statusOutdated = this.isStatusOutdated(
+    const statusOutdated = this.#isStatusOutdated(
       remoteTx.transactionHash,
       localTx.transactionHash,
       remoteTx.status,
       localTx.status,
     );
-    const gasDataOutdated = this.isGasDataOutdated(
+    const gasDataOutdated = this.#isGasDataOutdated(
       remoteTx.transaction.gasUsed,
       localTx.transaction.gasUsed,
     );
@@ -1437,7 +1442,7 @@ export class TransactionController extends BaseController<
    * @param localTxStatus - Local transaction status.
    * @returns Whether the status is outdated.
    */
-  private isStatusOutdated(
+  #isStatusOutdated(
     remoteTxHash: string | undefined,
     localTxHash: string | undefined,
     remoteTxStatus: TransactionStatus,
@@ -1453,7 +1458,7 @@ export class TransactionController extends BaseController<
    * @param localGasUsed - Local gas used in the transaction.
    * @returns Whether the gas data is outdated.
    */
-  private isGasDataOutdated(
+  #isGasDataOutdated(
     remoteGasUsed: string | undefined,
     localGasUsed: string | undefined,
   ): boolean {

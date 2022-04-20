@@ -62,7 +62,7 @@ export class AnnouncementController extends BaseController<
   constructor(config: AnnouncementConfig, state?: AnnouncementState) {
     super(config, state || defaultState);
     this.initialize();
-    this._addAnnouncements();
+    this.#addAnnouncements();
   }
 
   /**
@@ -71,7 +71,7 @@ export class AnnouncementController extends BaseController<
    * if yes, the new announcement will be added to the state with a flag indicating
    * that the announcement is not seen by the user.
    */
-  private _addAnnouncements(): void {
+  #addAnnouncements(): void {
     const newAnnouncements: StateAnnouncementMap = {};
     const { allAnnouncements } = this.config;
     Object.values(allAnnouncements).forEach(

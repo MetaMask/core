@@ -190,14 +190,6 @@ describe('TokenBalancesController', () => {
       onNetworkStateChange: (listener) => network.subscribe(listener),
     });
 
-    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-
-    sinon
-      .stub(tokensController, '_createEthersContract')
-      .callsFake(() =>
-        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-      );
-
     const tokenBalances = new TokenBalancesController(
       {
         onTokensStateChange: (listener) => tokensController.subscribe(listener),

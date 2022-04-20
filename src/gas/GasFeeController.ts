@@ -231,29 +231,29 @@ export class GasFeeController extends BaseController<
   GasFeeState,
   GasFeeMessenger
 > {
-  private intervalId?: NodeJS.Timeout;
+  #intervalId?: NodeJS.Timeout;
 
-  private intervalDelay;
+  #intervalDelay;
 
-  private pollTokens: Set<string>;
+  #pollTokens: Set<string>;
 
-  private legacyAPIEndpoint: string;
+  #legacyAPIEndpoint: string;
 
-  private EIP1559APIEndpoint: string;
+  #EIP1559APIEndpoint: string;
 
-  private getCurrentNetworkEIP1559Compatibility;
+  #getCurrentNetworkEIP1559Compatibility;
 
-  private getCurrentNetworkLegacyGasAPICompatibility;
+  #getCurrentNetworkLegacyGasAPICompatibility;
 
-  private getCurrentAccountEIP1559Compatibility;
+  #getCurrentAccountEIP1559Compatibility;
 
-  private getChainId;
+  #getChainId;
 
-  private currentChainId;
+  #currentChainId;
 
-  private ethQuery: any;
+  #ethQuery: any;
 
-  private clientId?: string;
+  #clientId?: string;
 
   /**
    * Creates a GasFeeController instance.
@@ -312,41 +312,41 @@ export class GasFeeController extends BaseController<
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.intervalDelay = interval;
-    this.pollTokens = new Set();
-    this.getCurrentNetworkEIP1559Compatibility =
+    this.#intervalDelay = interval;
+    this.#pollTokens = new Set();
+    this.#getCurrentNetworkEIP1559Compatibility =
       getCurrentNetworkEIP1559Compatibility;
 
-    this.getCurrentNetworkLegacyGasAPICompatibility =
+    this.#getCurrentNetworkLegacyGasAPICompatibility =
       getCurrentNetworkLegacyGasAPICompatibility;
 
-    this.getCurrentAccountEIP1559Compatibility =
+    this.#getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility;
-    this.EIP1559APIEndpoint = EIP1559APIEndpoint;
-    this.legacyAPIEndpoint = legacyAPIEndpoint;
-    this.getChainId = getChainId;
-    this.currentChainId = this.getChainId();
+    this.#EIP1559APIEndpoint = EIP1559APIEndpoint;
+    this.#legacyAPIEndpoint = legacyAPIEndpoint;
+    this.#getChainId = getChainId;
+    this.#currentChainId = this.#getChainId();
     const provider = getProvider();
-    this.ethQuery = new EthQuery(provider);
-    this.clientId = clientId;
+    this.#ethQuery = new EthQuery(provider);
+    this.#clientId = clientId;
     onNetworkStateChange(async () => {
       const newProvider = getProvider();
-      const newChainId = this.getChainId();
-      this.ethQuery = new EthQuery(newProvider);
-      if (this.currentChainId !== newChainId) {
-        this.currentChainId = newChainId;
+      const newChainId = this.#getChainId();
+      this.#ethQuery = new EthQuery(newProvider);
+      if (this.#currentChainId !== newChainId) {
+        this.#currentChainId = newChainId;
         await this.resetPolling();
       }
     });
   }
 
   async resetPolling() {
-    if (this.pollTokens.size !== 0) {
-      const tokens = Array.from(this.pollTokens);
+    if (this.#pollTokens.size !== 0) {
+      const tokens = Array.from(this.#pollTokens);
       this.stopPolling();
       await this.getGasFeeEstimatesAndStartPolling(tokens[0]);
       tokens.slice(1).forEach((token) => {
-        this.pollTokens.add(token);
+        this.#pollTokens.add(token);
       });
     }
   }
@@ -360,11 +360,11 @@ export class GasFeeController extends BaseController<
   ): Promise<string> {
     const _pollToken = pollToken || random();
 
-    this.pollTokens.add(_pollToken);
+    this.#pollTokens.add(_pollToken);
 
-    if (this.pollTokens.size === 1) {
+    if (this.#pollTokens.size === 1) {
       await this._fetchGasFeeEstimateData();
-      this._poll();
+      this.#poll();
     }
 
     return _pollToken;
@@ -384,15 +384,15 @@ export class GasFeeController extends BaseController<
     const { shouldUpdateState = true } = options;
     let isEIP1559Compatible;
     const isLegacyGasAPICompatible =
-      this.getCurrentNetworkLegacyGasAPICompatibility();
+      this.#getCurrentNetworkLegacyGasAPICompatibility();
 
-    let chainId = this.getChainId();
+    let chainId = this.#getChainId();
     if (typeof chainId === 'string' && isHexString(chainId)) {
       chainId = parseInt(chainId, 16);
     }
 
     try {
-      isEIP1559Compatible = await this.getEIP1559Compatibility();
+      isEIP1559Compatible = await this.#getEIP1559Compatibility();
     } catch (e) {
       console.error(e);
       isEIP1559Compatible = false;
@@ -402,20 +402,20 @@ export class GasFeeController extends BaseController<
       isEIP1559Compatible,
       isLegacyGasAPICompatible,
       fetchGasEstimates,
-      fetchGasEstimatesUrl: this.EIP1559APIEndpoint.replace(
+      fetchGasEstimatesUrl: this.#EIP1559APIEndpoint.replace(
         '<chain_id>',
         `${chainId}`,
       ),
       fetchGasEstimatesViaEthFeeHistory,
       fetchLegacyGasPriceEstimates,
-      fetchLegacyGasPriceEstimatesUrl: this.legacyAPIEndpoint.replace(
+      fetchLegacyGasPriceEstimatesUrl: this.#legacyAPIEndpoint.replace(
         '<chain_id>',
         `${chainId}`,
       ),
       fetchEthGasPriceEstimate,
       calculateTimeEstimate,
-      clientId: this.clientId,
-      ethQuery: this.ethQuery,
+      clientId: this.#clientId,
+      ethQuery: this.#ethQuery,
     });
 
     if (shouldUpdateState) {
@@ -436,18 +436,18 @@ export class GasFeeController extends BaseController<
    * @param pollToken - The poll token to disconnect.
    */
   disconnectPoller(pollToken: string) {
-    this.pollTokens.delete(pollToken);
-    if (this.pollTokens.size === 0) {
+    this.#pollTokens.delete(pollToken);
+    if (this.#pollTokens.size === 0) {
       this.stopPolling();
     }
   }
 
   stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
     }
-    this.pollTokens.clear();
-    this.resetState();
+    this.#pollTokens.clear();
+    this.#resetState();
   }
 
   /**
@@ -460,27 +460,27 @@ export class GasFeeController extends BaseController<
     this.stopPolling();
   }
 
-  private _poll() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+  #poll() {
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
     }
 
-    this.intervalId = setInterval(async () => {
+    this.#intervalId = setInterval(async () => {
       await safelyExecute(() => this._fetchGasFeeEstimateData());
-    }, this.intervalDelay);
+    }, this.#intervalDelay);
   }
 
-  private resetState() {
+  #resetState() {
     this.update(() => {
       return defaultState;
     });
   }
 
-  private async getEIP1559Compatibility() {
+  async #getEIP1559Compatibility() {
     const currentNetworkIsEIP1559Compatible =
-      await this.getCurrentNetworkEIP1559Compatibility();
+      await this.#getCurrentNetworkEIP1559Compatibility();
     const currentAccountIsEIP1559Compatible =
-      this.getCurrentAccountEIP1559Compatibility?.() ?? true;
+      this.#getCurrentAccountEIP1559Compatibility?.() ?? true;
 
     return (
       currentNetworkIsEIP1559Compatible && currentAccountIsEIP1559Compatible

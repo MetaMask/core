@@ -9,10 +9,10 @@ import { getFormattedIpfsUrl, timeoutFetch } from '../../../../util';
 import { Web3 } from '../../standards-types';
 
 export class ERC1155Standard {
-  private web3: Web3;
+  #web3: Web3;
 
   constructor(web3: Web3) {
-    this.web3 = web3;
+    this.#web3 = web3;
   }
 
   /**
@@ -24,7 +24,7 @@ export class ERC1155Standard {
   contractSupportsURIMetadataInterface = async (
     address: string,
   ): Promise<boolean> => {
-    return this.contractSupportsInterface(
+    return this.#contractSupportsInterface(
       address,
       ERC1155_METADATA_URI_INTERFACE_ID,
     );
@@ -39,7 +39,7 @@ export class ERC1155Standard {
   contractSupportsTokenReceiverInterface = async (
     address: string,
   ): Promise<boolean> => {
-    return this.contractSupportsInterface(
+    return this.#contractSupportsInterface(
       address,
       ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
     );
@@ -54,7 +54,7 @@ export class ERC1155Standard {
   contractSupportsBase1155Interface = async (
     address: string,
   ): Promise<boolean> => {
-    return this.contractSupportsInterface(address, ERC1155_INTERFACE_ID);
+    return this.#contractSupportsInterface(address, ERC1155_INTERFACE_ID);
   };
 
   /**
@@ -65,7 +65,7 @@ export class ERC1155Standard {
    * @returns Promise resolving to the 'tokenURI'.
    */
   getTokenURI = async (address: string, tokenId: string): Promise<string> => {
-    const contract = this.web3.eth.contract(abiERC1155).at(address);
+    const contract = this.#web3.eth.contract(abiERC1155).at(address);
     return new Promise<string>((resolve, reject) => {
       contract.uri(tokenId, (error: Error, result: string) => {
         /* istanbul ignore if */
@@ -91,7 +91,7 @@ export class ERC1155Standard {
     address: string,
     tokenId: string,
   ): Promise<number> => {
-    const contract = this.web3.eth.contract(abiERC1155).at(contractAddress);
+    const contract = this.#web3.eth.contract(abiERC1155).at(contractAddress);
     return new Promise<number>((resolve, reject) => {
       contract.balanceOf(address, tokenId, (error: Error, result: number) => {
         /* istanbul ignore if */
@@ -123,7 +123,7 @@ export class ERC1155Standard {
     id: string,
     value: string,
   ): Promise<void> => {
-    const contract = this.web3.eth.contract(abiERC1155).at(operator);
+    const contract = this.#web3.eth.contract(abiERC1155).at(operator);
     return new Promise<void>((resolve, reject) => {
       contract.transferSingle(
         operator,
@@ -150,11 +150,11 @@ export class ERC1155Standard {
    * @param interfaceId - Interface identifier.
    * @returns Promise resolving to whether the contract implements `interfaceID`.
    */
-  private contractSupportsInterface = async (
+  #contractSupportsInterface = async (
     address: string,
     interfaceId: string,
   ): Promise<boolean> => {
-    const contract = this.web3.eth.contract(abiERC1155).at(address);
+    const contract = this.#web3.eth.contract(abiERC1155).at(address);
     return new Promise<boolean>((resolve, reject) => {
       contract.supportsInterface(
         interfaceId,

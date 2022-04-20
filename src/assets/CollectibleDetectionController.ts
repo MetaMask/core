@@ -129,22 +129,22 @@ export class CollectibleDetectionController extends BaseController<
   CollectibleDetectionConfig,
   BaseState
 > {
-  private intervalId?: NodeJS.Timeout;
+  #intervalId?: NodeJS.Timeout;
 
-  private getOwnerCollectiblesApi(address: string, offset: number) {
+  #getOwnerCollectiblesApi(address: string, offset: number) {
     return `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`;
   }
 
-  private async getOwnerCollectibles(address: string) {
+  async #getOwnerCollectibles(address: string) {
     let response: Response;
     let collectibles: any = [];
-    const openSeaApiKey = this.getOpenSeaApiKey();
+    const openSeaApiKey = this.#getOpenSeaApiKey();
     try {
       let offset = 0;
       let pagingFinish = false;
       /* istanbul ignore if */
       do {
-        const api = this.getOwnerCollectiblesApi(address, offset);
+        const api = this.#getOwnerCollectiblesApi(address, offset);
         response = await timeoutFetch(
           api,
           openSeaApiKey ? { headers: { 'X-API-KEY': openSeaApiKey } } : {},
@@ -168,11 +168,11 @@ export class CollectibleDetectionController extends BaseController<
    */
   override name = 'CollectibleDetectionController';
 
-  private getOpenSeaApiKey: () => string | undefined;
+  #getOpenSeaApiKey: () => string | undefined;
 
-  private addCollectible: CollectiblesController['addCollectible'];
+  #addCollectible: CollectiblesController['addCollectible'];
 
-  private getCollectiblesState: () => CollectiblesState;
+  #getCollectiblesState: () => CollectiblesState;
 
   /**
    * Creates a CollectibleDetectionController instance.
@@ -220,7 +220,7 @@ export class CollectibleDetectionController extends BaseController<
       disabled: true,
     };
     this.initialize();
-    this.getCollectiblesState = getCollectiblesState;
+    this.#getCollectiblesState = getCollectiblesState;
     onPreferencesStateChange(({ selectedAddress, useCollectibleDetection }) => {
       const { selectedAddress: previouslySelectedAddress, disabled } =
         this.config;
@@ -247,8 +247,8 @@ export class CollectibleDetectionController extends BaseController<
         chainId: provider.chainId as CollectibleDetectionConfig['chainId'],
       });
     });
-    this.getOpenSeaApiKey = getOpenSeaApiKey;
-    this.addCollectible = addCollectible;
+    this.#getOpenSeaApiKey = getOpenSeaApiKey;
+    this.#addCollectible = addCollectible;
   }
 
   /**
@@ -259,19 +259,19 @@ export class CollectibleDetectionController extends BaseController<
       return;
     }
 
-    await this.startPolling();
+    await this.#startPolling();
   }
 
   /**
    * Stop polling for the currency rate.
    */
   stop() {
-    this.stopPolling();
+    this.#stopPolling();
   }
 
-  private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+  #stopPolling() {
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
     }
   }
 
@@ -280,11 +280,11 @@ export class CollectibleDetectionController extends BaseController<
    *
    * @param interval - An interval on which to poll.
    */
-  private async startPolling(interval?: number): Promise<void> {
+  async #startPolling(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
-    this.stopPolling();
+    this.#stopPolling();
     await this.detectCollectibles();
-    this.intervalId = setInterval(async () => {
+    this.#intervalId = setInterval(async () => {
       await this.detectCollectibles();
     }, this.config.interval);
   }
@@ -313,7 +313,7 @@ export class CollectibleDetectionController extends BaseController<
     }
 
     await safelyExecute(async () => {
-      const apiCollectibles = await this.getOwnerCollectibles(selectedAddress);
+      const apiCollectibles = await this.#getOwnerCollectibles(selectedAddress);
       const addCollectiblesPromises = apiCollectibles.map(
         async (collectible: ApiCollectible) => {
           const {
@@ -336,7 +336,7 @@ export class CollectibleDetectionController extends BaseController<
 
           let ignored;
           /* istanbul ignore else */
-          const { ignoredCollectibles } = this.getCollectiblesState();
+          const { ignoredCollectibles } = this.#getCollectiblesState();
           if (ignoredCollectibles.length) {
             ignored = ignoredCollectibles.find((c) => {
               /* istanbul ignore next */
@@ -369,7 +369,7 @@ export class CollectibleDetectionController extends BaseController<
               external_link && { externalLink: external_link },
               last_sale && { lastSale: last_sale },
             );
-            await this.addCollectible(address, token_id, collectibleMetadata, {
+            await this.#addCollectible(address, token_id, collectibleMetadata, {
               userAddress: selectedAddress,
               chainId: chainId as string,
             });

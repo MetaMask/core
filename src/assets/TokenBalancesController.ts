@@ -39,16 +39,16 @@ export class TokenBalancesController extends BaseController<
   TokenBalancesConfig,
   TokenBalancesState
 > {
-  private handle?: NodeJS.Timer;
+  #handle?: NodeJS.Timer;
 
   /**
    * Name of this controller used during composition
    */
   override name = 'TokenBalancesController';
 
-  private getSelectedAddress: () => PreferencesState['selectedAddress'];
+  #getSelectedAddress: () => PreferencesState['selectedAddress'];
 
-  private getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
+  #getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
 
   /**
    * Creates a TokenBalancesController instance.
@@ -86,8 +86,8 @@ export class TokenBalancesController extends BaseController<
       this.configure({ tokens });
       this.updateBalances();
     });
-    this.getSelectedAddress = getSelectedAddress;
-    this.getERC20BalanceOf = getERC20BalanceOf;
+    this.#getSelectedAddress = getSelectedAddress;
+    this.#getERC20BalanceOf = getERC20BalanceOf;
     this.poll();
   }
 
@@ -98,9 +98,9 @@ export class TokenBalancesController extends BaseController<
    */
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
+    this.#handle && clearTimeout(this.#handle);
     await safelyExecute(() => this.updateBalances());
-    this.handle = setTimeout(() => {
+    this.#handle = setTimeout(() => {
       this.poll(this.config.interval);
     }, this.config.interval);
   }
@@ -117,9 +117,9 @@ export class TokenBalancesController extends BaseController<
     for (const i in tokens) {
       const { address } = tokens[i];
       try {
-        newContractBalances[address] = await this.getERC20BalanceOf(
+        newContractBalances[address] = await this.#getERC20BalanceOf(
           address,
-          this.getSelectedAddress(),
+          this.#getSelectedAddress(),
         );
         tokens[i].balanceError = null;
       } catch (error) {

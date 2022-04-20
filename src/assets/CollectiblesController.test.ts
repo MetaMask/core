@@ -237,9 +237,6 @@ describe('CollectiblesController', () => {
       const firstAddress = '0x123';
       const secondAddress = '0x321';
 
-      sinon
-        .stub(collectiblesController, 'getCollectibleInformation' as any)
-        .returns({ name: 'name', image: 'url', description: 'description' });
       preferences.update({ selectedAddress: firstAddress });
       await collectiblesController.addCollectible('0x01', '1234');
       preferences.update({ selectedAddress: secondAddress });
@@ -249,9 +246,10 @@ describe('CollectiblesController', () => {
         collectiblesController.state.allCollectibles[firstAddress][chainId][0],
       ).toStrictEqual({
         address: '0x01',
-        description: 'description',
-        image: 'url',
-        name: 'name',
+        description: null,
+        image: null,
+        name: null,
+        standard: null,
         tokenId: '1234',
         favorite: false,
         isCurrentlyOwned: true,
@@ -388,12 +386,6 @@ describe('CollectiblesController', () => {
     it('should add collectible erc721 and get collectible contract information from contract and OpenSea', async () => {
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = collectiblesController.config;
-      sinon
-        .stub(
-          collectiblesController,
-          'getCollectibleContractInformationFromApi' as any,
-        )
-        .returns(undefined);
 
       await collectiblesController.addCollectible(ERC721_KUDOSADDRESS, '1203');
       expect(
@@ -418,24 +410,18 @@ describe('CollectiblesController', () => {
         ][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
+        description: 'Kudos Description',
+        logo: 'Kudos url',
         name: 'KudosToken',
         symbol: 'KDO',
+        totalSupply: 10,
       });
     });
 
     it('should add collectible erc721 and get collectible contract information only from contract', async () => {
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = collectiblesController.config;
-      sinon
-        .stub(
-          collectiblesController,
-          'getCollectibleContractInformationFromApi' as any,
-        )
-        .returns(undefined);
 
-      sinon
-        .stub(collectiblesController, 'getCollectibleInformationFromApi' as any)
-        .returns(undefined);
       await collectiblesController.addCollectible(ERC721_KUDOSADDRESS, '1203');
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][
@@ -444,6 +430,7 @@ describe('CollectiblesController', () => {
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
         image: 'Kudos Image (from uri)',
+        imageOriginal: 'Kudos url',
         name: 'Kudos Name (from uri)',
         description: 'Kudos Description (from uri)',
         tokenId: '1203',
@@ -458,8 +445,11 @@ describe('CollectiblesController', () => {
         ][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
+        description: 'Kudos Description',
+        logo: 'Kudos url',
         name: 'KudosToken',
         symbol: 'KDO',
+        totalSupply: 10,
       });
     });
 
@@ -467,9 +457,6 @@ describe('CollectiblesController', () => {
       const firstNetworkType = 'rinkeby';
       const secondNetworkType = 'ropsten';
       const { selectedAddress } = collectiblesController.config;
-      sinon
-        .stub(collectiblesController, 'getCollectibleInformation' as any)
-        .returns({ name: 'name', image: 'url', description: 'description' });
 
       network.update({
         provider: {
@@ -504,9 +491,10 @@ describe('CollectiblesController', () => {
         ][0],
       ).toStrictEqual({
         address: '0x01',
-        description: 'description',
-        image: 'url',
-        name: 'name',
+        description: null,
+        image: null,
+        name: null,
+        standard: null,
         tokenId: '1234',
         favorite: false,
         isCurrentlyOwned: true,
@@ -671,10 +659,6 @@ describe('CollectiblesController', () => {
       sinon
         .stub(collectiblesController, 'isCollectibleOwner' as any)
         .returns(true);
-
-      sinon
-        .stub(collectiblesController, 'getCollectibleInformation' as any)
-        .returns({ name: 'name', image: 'url', description: 'description' });
       preferences.update({ selectedAddress: firstAddress });
       await collectiblesController.addCollectibleVerifyOwnership(
         '0x01',
@@ -690,9 +674,10 @@ describe('CollectiblesController', () => {
         collectiblesController.state.allCollectibles[firstAddress][chainId][0],
       ).toStrictEqual({
         address: '0x01',
-        description: 'description',
-        image: 'url',
-        name: 'name',
+        description: null,
+        image: null,
+        name: null,
+        standard: null,
         tokenId: '1234',
         favorite: false,
         isCurrentlyOwned: true,
@@ -767,9 +752,6 @@ describe('CollectiblesController', () => {
 
     it('should remove collectible by selected address', async () => {
       const { chainId } = collectiblesController.config;
-      sinon
-        .stub(collectiblesController, 'getCollectibleInformation' as any)
-        .returns({ name: 'name', image: 'url', description: 'description' });
       const firstAddress = '0x123';
       const secondAddress = '0x321';
       preferences.update({ selectedAddress: firstAddress });
@@ -785,9 +767,10 @@ describe('CollectiblesController', () => {
         collectiblesController.state.allCollectibles[firstAddress][chainId][0],
       ).toStrictEqual({
         address: '0x02',
-        description: 'description',
-        image: 'url',
-        name: 'name',
+        description: null,
+        image: null,
+        name: null,
+        standard: null,
         tokenId: '4321',
         favorite: false,
         isCurrentlyOwned: true,
@@ -797,9 +780,6 @@ describe('CollectiblesController', () => {
     it('should remove collectible by provider type', async () => {
       const { selectedAddress } = collectiblesController.config;
 
-      sinon
-        .stub(collectiblesController, 'getCollectibleInformation' as any)
-        .returns({ name: 'name', image: 'url', description: 'description' });
       const firstNetworkType = 'rinkeby';
       const secondNetworkType = 'ropsten';
       network.update({
@@ -808,7 +788,14 @@ describe('CollectiblesController', () => {
           chainId: NetworksChainId[firstNetworkType],
         },
       });
-      await collectiblesController.addCollectible('0x02', '4321');
+
+      await collectiblesController.addCollectible('0x02', '4321', {
+        name: 'name',
+        image: 'url',
+        description: 'description',
+        standard: 'ERC721',
+      });
+
       network.update({
         provider: {
           type: secondNetworkType,
@@ -840,6 +827,7 @@ describe('CollectiblesController', () => {
         description: 'description',
         image: 'url',
         name: 'name',
+        standard: 'ERC721',
         tokenId: '4321',
         favorite: false,
         isCurrentlyOwned: true,

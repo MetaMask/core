@@ -19,9 +19,9 @@ export type ControllerList = (
  * Controller that can be used to compose multiple controllers together
  */
 export class ComposableController extends BaseController<never, any> {
-  private controllers: ControllerList = [];
+  #controllers: ControllerList = [];
 
-  private messagingSystem?: RestrictedControllerMessenger<
+  #messagingSystem?: RestrictedControllerMessenger<
     'ComposableController',
     never,
     any,
@@ -58,16 +58,16 @@ export class ComposableController extends BaseController<never, any> {
       }, {} as any),
     );
     this.initialize();
-    this.controllers = controllers;
-    this.messagingSystem = messenger;
-    this.controllers.forEach((controller) => {
+    this.#controllers = controllers;
+    this.#messagingSystem = messenger;
+    this.#controllers.forEach((controller) => {
       const { name } = controller;
       if ((controller as BaseController<any, any>).subscribe !== undefined) {
         (controller as BaseController<any, any>).subscribe((state) => {
           this.update({ [name]: state });
         });
-      } else if (this.messagingSystem) {
-        (this.messagingSystem.subscribe as any)(
+      } else if (this.#messagingSystem) {
+        (this.#messagingSystem.subscribe as any)(
           `${name}:stateChange`,
           (state: any) => {
             this.update({ [name]: state });
@@ -90,7 +90,7 @@ export class ComposableController extends BaseController<never, any> {
    */
   get flatState() {
     let flatState = {};
-    for (const controller of this.controllers) {
+    for (const controller of this.#controllers) {
       flatState = { ...flatState, ...controller.state };
     }
     return flatState;

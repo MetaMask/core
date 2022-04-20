@@ -94,21 +94,19 @@ export class TokenListController extends BaseController<
   TokenListState,
   TokenListMessenger
 > {
-  private mutex = new Mutex();
+  #mutex = new Mutex();
 
-  private intervalId?: NodeJS.Timeout;
+  #intervalId?: NodeJS.Timeout;
 
-  private intervalDelay: number;
+  #intervalDelay: number;
 
-  private cacheRefreshThreshold: number;
+  #cacheRefreshThreshold: number;
 
-  private chainId: string;
+  #chainId: string;
 
-  private useStaticTokenList: boolean;
+  #useStaticTokenList: boolean;
 
-  private abortController: AbortController;
-
-  // private abortSignal: AbortSignal;
+  #abortController: AbortController;
 
   /**
    * Creates a TokenListController instance.
@@ -152,25 +150,25 @@ export class TokenListController extends BaseController<
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.intervalDelay = interval;
-    this.cacheRefreshThreshold = cacheRefreshThreshold;
-    this.chainId = chainId;
-    this.useStaticTokenList = useStaticTokenList;
-    this.abortController = new AbortController();
+    this.#intervalDelay = interval;
+    this.#cacheRefreshThreshold = cacheRefreshThreshold;
+    this.#chainId = chainId;
+    this.#useStaticTokenList = useStaticTokenList;
+    this.#abortController = new AbortController();
     onNetworkStateChange(async (networkState) => {
-      if (this.chainId !== networkState.provider.chainId) {
-        this.abortController.abort();
-        this.abortController = new AbortController();
-        this.chainId = networkState.provider.chainId;
+      if (this.#chainId !== networkState.provider.chainId) {
+        this.#abortController.abort();
+        this.#abortController = new AbortController();
+        this.#chainId = networkState.provider.chainId;
         await this.restart();
       }
     });
 
     onPreferencesStateChange(async (preferencesState) => {
-      if (this.useStaticTokenList !== preferencesState.useStaticTokenList) {
-        this.abortController.abort();
-        this.abortController = new AbortController();
-        this.useStaticTokenList = preferencesState.useStaticTokenList;
+      if (this.#useStaticTokenList !== preferencesState.useStaticTokenList) {
+        this.#abortController.abort();
+        this.#abortController = new AbortController();
+        this.#useStaticTokenList = preferencesState.useStaticTokenList;
         await this.restart();
       }
     });
@@ -180,22 +178,22 @@ export class TokenListController extends BaseController<
    * Start polling for the token list.
    */
   async start() {
-    await this.startPolling();
+    await this.#startPolling();
   }
 
   /**
    * Restart polling for the token list.
    */
   async restart() {
-    this.stopPolling();
-    await this.startPolling();
+    this.#stopPolling();
+    await this.#startPolling();
   }
 
   /**
    * Stop polling for the token list.
    */
   stop() {
-    this.stopPolling();
+    this.#stopPolling();
   }
 
   /**
@@ -205,30 +203,30 @@ export class TokenListController extends BaseController<
    */
   override destroy() {
     super.destroy();
-    this.stopPolling();
+    this.#stopPolling();
   }
 
-  private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+  #stopPolling() {
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
     }
   }
 
   /**
    * Starts a new polling interval.
    */
-  private async startPolling(): Promise<void> {
+  async #startPolling(): Promise<void> {
     await safelyExecute(() => this.fetchTokenList());
-    this.intervalId = setInterval(async () => {
+    this.#intervalId = setInterval(async () => {
       await safelyExecute(() => this.fetchTokenList());
-    }, this.intervalDelay);
+    }, this.#intervalDelay);
   }
 
   /**
    * Fetching token list.
    */
   async fetchTokenList(): Promise<void> {
-    if (this.useStaticTokenList) {
+    if (this.#useStaticTokenList) {
       await this.fetchFromStaticTokenList();
     } else {
       await this.fetchFromDynamicTokenList();
@@ -268,7 +266,7 @@ export class TokenListController extends BaseController<
    * Fetching token list from the Token Service API.
    */
   async fetchFromDynamicTokenList(): Promise<void> {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     try {
       const cachedTokens: TokenListToken[] | null = await safelyExecute(() =>
         this.fetchFromCache(),
@@ -281,11 +279,11 @@ export class TokenListController extends BaseController<
         }
       } else {
         const tokensFromAPI: DynamicToken[] = await safelyExecute(() =>
-          fetchTokenList(this.chainId, this.abortController.signal),
+          fetchTokenList(this.#chainId, this.#abortController.signal),
         );
         if (!tokensFromAPI) {
-          const backupTokenList = tokensChainsCache[this.chainId]
-            ? tokensChainsCache[this.chainId].data
+          const backupTokenList = tokensChainsCache[this.#chainId]
+            ? tokensChainsCache[this.#chainId].data
             : [];
           for (const token of backupTokenList) {
             tokenList[token.address] = token;
@@ -322,7 +320,7 @@ export class TokenListController extends BaseController<
       }
       const updatedTokensChainsCache: TokensChainsCache = {
         ...tokensChainsCache,
-        [this.chainId]: {
+        [this.#chainId]: {
           timestamp: Date.now(),
           data: Object.values(tokenList),
         },
@@ -348,11 +346,11 @@ export class TokenListController extends BaseController<
    */
   async fetchFromCache(): Promise<TokenListToken[] | null> {
     const { tokensChainsCache }: TokenListState = this.state;
-    const dataCache = tokensChainsCache[this.chainId];
+    const dataCache = tokensChainsCache[this.#chainId];
     const now = Date.now();
     if (
       dataCache?.data &&
-      now - dataCache?.timestamp < this.cacheRefreshThreshold
+      now - dataCache?.timestamp < this.#cacheRefreshThreshold
     ) {
       return dataCache.data;
     }
@@ -366,12 +364,12 @@ export class TokenListController extends BaseController<
    * @returns The token metadata.
    */
   async fetchTokenMetadata(tokenAddress: string): Promise<DynamicToken> {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     try {
       const token = (await fetchTokenMetadata(
-        this.chainId,
+        this.#chainId,
         tokenAddress,
-        this.abortController.signal,
+        this.#abortController.signal,
       )) as DynamicToken;
       return token;
     } finally {

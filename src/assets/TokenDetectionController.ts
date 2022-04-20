@@ -34,20 +34,20 @@ export class TokenDetectionController extends BaseController<
   TokenDetectionConfig,
   BaseState
 > {
-  private intervalId?: NodeJS.Timeout;
+  #intervalId?: NodeJS.Timeout;
 
   /**
    * Name of this controller used during composition
    */
   override name = 'TokenDetectionController';
 
-  private getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+  #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
-  private addTokens: TokensController['addTokens'];
+  #addTokens: TokensController['addTokens'];
 
-  private getTokensState: () => TokensState;
+  #getTokensState: () => TokensState;
 
-  private getTokenListState: () => TokenListState;
+  #getTokenListState: () => TokenListState;
 
   /**
    * Creates a TokenDetectionController instance.
@@ -98,9 +98,9 @@ export class TokenDetectionController extends BaseController<
       tokens: [],
     };
     this.initialize();
-    this.getTokensState = getTokensState;
-    this.getTokenListState = getTokenListState;
-    this.addTokens = addTokens;
+    this.#getTokensState = getTokensState;
+    this.#getTokenListState = getTokenListState;
+    this.#addTokens = addTokens;
     onTokensStateChange(({ tokens }) => {
       this.configure({ tokens });
     });
@@ -116,7 +116,7 @@ export class TokenDetectionController extends BaseController<
     onNetworkStateChange(({ provider }) => {
       this.configure({ networkType: provider.type });
     });
-    this.getBalancesInSingleCall = getBalancesInSingleCall;
+    this.#getBalancesInSingleCall = getBalancesInSingleCall;
   }
 
   /**
@@ -127,19 +127,19 @@ export class TokenDetectionController extends BaseController<
       return;
     }
 
-    await this.startPolling();
+    await this.#startPolling();
   }
 
   /**
    * Stop polling for the currency rate.
    */
   stop() {
-    this.stopPolling();
+    this.#stopPolling();
   }
 
-  private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+  #stopPolling() {
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
     }
   }
 
@@ -148,11 +148,11 @@ export class TokenDetectionController extends BaseController<
    *
    * @param interval - An interval on which to poll.
    */
-  private async startPolling(interval?: number): Promise<void> {
+  async #startPolling(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
-    this.stopPolling();
+    this.#stopPolling();
     await this.detectTokens();
-    this.intervalId = setInterval(async () => {
+    this.#intervalId = setInterval(async () => {
       await this.detectTokens();
     }, this.config.interval);
   }
@@ -176,7 +176,7 @@ export class TokenDetectionController extends BaseController<
     const tokensAddresses = this.config.tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
-    const { tokenList } = this.getTokenListState();
+    const { tokenList } = this.#getTokenListState();
     const tokensToDetect: string[] = [];
     for (const address in tokenList) {
       if (!tokensAddresses.includes(address)) {
@@ -202,7 +202,7 @@ export class TokenDetectionController extends BaseController<
       }
 
       await safelyExecute(async () => {
-        const balances = await this.getBalancesInSingleCall(
+        const balances = await this.#getBalancesInSingleCall(
           selectedAddress,
           tokensSlice,
         );
@@ -210,7 +210,7 @@ export class TokenDetectionController extends BaseController<
         for (const tokenAddress in balances) {
           let ignored;
           /* istanbul ignore else */
-          const { ignoredTokens } = this.getTokensState();
+          const { ignoredTokens } = this.#getTokensState();
           if (ignoredTokens.length) {
             ignored = ignoredTokens.find(
               (ignoredTokenAddress) =>
@@ -232,7 +232,7 @@ export class TokenDetectionController extends BaseController<
         }
 
         if (tokensToAdd.length) {
-          await this.addTokens(tokensToAdd);
+          await this.#addTokens(tokensToAdd);
         }
       });
     }

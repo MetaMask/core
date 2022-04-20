@@ -42,15 +42,15 @@ export class AccountTrackerController extends BaseController<
   AccountTrackerConfig,
   AccountTrackerState
 > {
-  private ethQuery: any;
+  #ethQuery: any;
 
-  private mutex = new Mutex();
+  #mutex = new Mutex();
 
-  private handle?: NodeJS.Timer;
+  #handle?: NodeJS.Timer;
 
-  private syncAccounts() {
+  #syncAccounts() {
     const { accounts } = this.state;
-    const addresses = Object.keys(this.getIdentities());
+    const addresses = Object.keys(this.#getIdentities());
     const existing = Object.keys(accounts);
     const newAddresses = addresses.filter(
       (address) => existing.indexOf(address) === -1,
@@ -73,7 +73,7 @@ export class AccountTrackerController extends BaseController<
    */
   override name = 'AccountTrackerController';
 
-  private getIdentities: () => PreferencesState['identities'];
+  #getIdentities: () => PreferencesState['identities'];
 
   /**
    * Creates an AccountTracker instance.
@@ -103,7 +103,7 @@ export class AccountTrackerController extends BaseController<
     };
     this.defaultState = { accounts: {} };
     this.initialize();
-    this.getIdentities = getIdentities;
+    this.#getIdentities = getIdentities;
     onPreferencesStateChange(() => {
       this.refresh();
     });
@@ -118,7 +118,7 @@ export class AccountTrackerController extends BaseController<
    * @param provider - Provider used to create a new underlying EthQuery instance.
    */
   set provider(provider: any) {
-    this.ethQuery = new EthQuery(provider);
+    this.#ethQuery = new EthQuery(provider);
   }
 
   get provider() {
@@ -131,11 +131,11 @@ export class AccountTrackerController extends BaseController<
    * @param interval - Polling interval trigger a 'refresh'.
    */
   async poll(interval?: number): Promise<void> {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
+    this.#handle && clearTimeout(this.#handle);
     await this.refresh();
-    this.handle = setTimeout(() => {
+    this.#handle = setTimeout(() => {
       releaseLock();
       this.poll(this.config.interval);
     }, this.config.interval);
@@ -145,11 +145,11 @@ export class AccountTrackerController extends BaseController<
    * Refreshes all accounts in the current keychain.
    */
   refresh = async () => {
-    this.syncAccounts();
+    this.#syncAccounts();
     const accounts = { ...this.state.accounts };
     for (const address in accounts) {
       await safelyExecuteWithTimeout(async () => {
-        const balance = await query(this.ethQuery, 'getBalance', [address]);
+        const balance = await query(this.#ethQuery, 'getBalance', [address]);
         accounts[address] = { balance: BNToHex(balance) };
       });
     }
@@ -168,7 +168,7 @@ export class AccountTrackerController extends BaseController<
     return await Promise.all(
       addresses.map((address): Promise<[string, string] | undefined> => {
         return safelyExecuteWithTimeout(async () => {
-          const balance = await query(this.ethQuery, 'getBalance', [address]);
+          const balance = await query(this.#ethQuery, 'getBalance', [address]);
           return [address, balance];
         });
       }),
