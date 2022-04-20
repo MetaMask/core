@@ -316,13 +316,11 @@ export function normalizeTransaction(transaction: Transaction) {
  *
  * @param operation - Function returning a Promise.
  * @param logError - Determines if the error should be logged.
- * @param retry - Function called if an error is caught.
  * @returns Promise resolving to the result of the async operation.
  */
 export async function safelyExecute(
   operation: () => Promise<any>,
   logError = false,
-  retry?: (error: Error) => void,
 ) {
   try {
     return await operation();
@@ -331,7 +329,6 @@ export async function safelyExecute(
     if (logError) {
       console.error(error);
     }
-    retry?.(error);
     return undefined;
   }
 }
