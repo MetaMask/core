@@ -610,19 +610,21 @@ export class KeyringController extends BaseController<
    */
   async fullUpdate(): Promise<KeyringMemState> {
     const keyrings: Keyring[] = await Promise.all<Keyring>(
-      privates.get(this).keyring.keyrings.map(
-        async (keyring: KeyringObject, index: number): Promise<Keyring> => {
-          const keyringAccounts = await keyring.getAccounts();
-          const accounts = Array.isArray(keyringAccounts)
-            ? keyringAccounts.map((address) => toChecksumHexAddress(address))
-            : /* istanbul ignore next */ [];
-          return {
-            accounts,
-            index,
-            type: keyring.type,
-          };
-        },
-      ),
+      privates
+        .get(this)
+        .keyring.keyrings.map(
+          async (keyring: KeyringObject, index: number): Promise<Keyring> => {
+            const keyringAccounts = await keyring.getAccounts();
+            const accounts = Array.isArray(keyringAccounts)
+              ? keyringAccounts.map((address) => toChecksumHexAddress(address))
+              : /* istanbul ignore next */ [];
+            return {
+              accounts,
+              index,
+              type: keyring.type,
+            };
+          },
+        ),
     );
     this.update({ keyrings: [...keyrings] });
     return privates.get(this).keyring.fullUpdate();

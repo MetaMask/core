@@ -1028,10 +1028,8 @@ export class TransactionController extends BaseController<
             (!meta.chainId && meta.networkID === currentNetworkID);
 
           if (!meta.verifiedOnBlockchain && txBelongsToCurrentChain) {
-            const [
-              reconciledTx,
-              updateRequired,
-            ] = await this.blockchainTransactionStateReconciler(meta);
+            const [reconciledTx, updateRequired] =
+              await this.blockchainTransactionStateReconciler(meta);
             if (updateRequired) {
               transactions[index] = reconciledTx;
               gotUpdates = updateRequired;
@@ -1117,15 +1115,13 @@ export class TransactionController extends BaseController<
       return undefined;
     }
 
-    const [
-      etherscanTxResponse,
-      etherscanTokenResponse,
-    ] = await handleTransactionFetch(
-      networkType,
-      address,
-      this.config.txHistoryLimit,
-      opt,
-    );
+    const [etherscanTxResponse, etherscanTokenResponse] =
+      await handleTransactionFetch(
+        networkType,
+        address,
+        this.config.txHistoryLimit,
+        opt,
+      );
 
     const normalizedTxs = etherscanTxResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
@@ -1283,9 +1279,8 @@ export class TransactionController extends BaseController<
         ]);
 
         if (!txObj) {
-          const receiptShowsFailedStatus = await this.checkTxReceiptStatusIsFailed(
-            transactionHash,
-          );
+          const receiptShowsFailedStatus =
+            await this.checkTxReceiptStatusIsFailed(transactionHash);
 
           // Case the txObj is evaluated as false, a second check will
           // determine if the tx failed or it is pending or confirmed

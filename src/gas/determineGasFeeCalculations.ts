@@ -78,10 +78,8 @@ export default async function determineGasFeeCalculations({
       } catch {
         estimates = await fetchGasEstimatesViaEthFeeHistory(ethQuery);
       }
-      const {
-        suggestedMaxPriorityFeePerGas,
-        suggestedMaxFeePerGas,
-      } = estimates.medium;
+      const { suggestedMaxPriorityFeePerGas, suggestedMaxFeePerGas } =
+        estimates.medium;
       const estimatedGasFeeTimeBounds = calculateTimeEstimate(
         suggestedMaxPriorityFeePerGas,
         suggestedMaxFeePerGas,

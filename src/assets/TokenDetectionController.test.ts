@@ -147,7 +147,8 @@ describe('TokenDetectionController', () => {
       onTokensStateChange: (listener) => tokensController.subscribe(listener),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      getBalancesInSingleCall: (getBalancesInSingleCall as unknown) as AssetsContractController['getBalancesInSingleCall'],
+      getBalancesInSingleCall:
+        getBalancesInSingleCall as unknown as AssetsContractController['getBalancesInSingleCall'],
       addTokens: tokensController.addTokens.bind(tokensController),
       getTokensState: () => tokensController.state,
       getTokenListState: () => tokenList.state,
@@ -186,9 +187,8 @@ describe('TokenDetectionController', () => {
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
           onNetworkStateChange: (listener) => network.subscribe(listener),
-          getBalancesInSingleCall: assetsContract.getBalancesInSingleCall.bind(
-            assetsContract,
-          ),
+          getBalancesInSingleCall:
+            assetsContract.getBalancesInSingleCall.bind(assetsContract),
           addTokens: tokensController.addTokens.bind(tokensController),
           getTokensState: () => tokensController.state,
           getTokenListState: () => tokenList.state,
@@ -226,9 +226,8 @@ describe('TokenDetectionController', () => {
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
           onNetworkStateChange: (listener) => network.subscribe(listener),
-          getBalancesInSingleCall: assetsContract.getBalancesInSingleCall.bind(
-            assetsContract,
-          ),
+          getBalancesInSingleCall:
+            assetsContract.getBalancesInSingleCall.bind(assetsContract),
           addTokens: tokensController.addTokens.bind(tokensController),
           getTokensState: () => tokensController.state,
           getTokenListState: () => tokenList.state,

@@ -36,9 +36,8 @@ export default async function fetchGasEstimatesViaEthFeeHistory(
   });
   const estimatedBaseFee = fromWei(latestBlock.baseFeePerGas, GWEI);
 
-  const levelSpecificEstimates = calculateGasFeeEstimatesForPriorityLevels(
-    blocks,
-  );
+  const levelSpecificEstimates =
+    calculateGasFeeEstimatesForPriorityLevels(blocks);
 
   return {
     ...levelSpecificEstimates,
