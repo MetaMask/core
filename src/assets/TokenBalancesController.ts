@@ -44,7 +44,7 @@ export class TokenBalancesController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'TokenBalancesController';
+  override name = 'TokenBalancesController';
 
   private getSelectedAddress: () => PreferencesState['selectedAddress'];
 

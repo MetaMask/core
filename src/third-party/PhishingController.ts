@@ -62,7 +62,7 @@ export class PhishingController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'PhishingController';
+  override name = 'PhishingController';
 
   /**
    * Creates a PhishingController instance.

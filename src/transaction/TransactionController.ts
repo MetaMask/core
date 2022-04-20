@@ -388,7 +388,7 @@ export class TransactionController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'TransactionController';
+  override name = 'TransactionController';
 
   /**
    * Method used to sign transactions
