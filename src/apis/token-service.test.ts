@@ -4,8 +4,8 @@ import { fetchTokenList, fetchTokenMetadata } from './token-service';
 
 const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 
-const oneMillisecond = 1;
-const oneSecondInMilliseconds = 1_000;
+const ONE_MILLISECOND = 1;
+const ONE_SECOND_IN_MILLISECONDS = 1_000;
 
 const sampleTokenList = [
   {
@@ -160,7 +160,7 @@ describe('Token service', () => {
       nock(TOKEN_END_POINT_API)
         .get(`/tokens/${NetworksChainId.mainnet}`)
         // well beyond time it will take to abort
-        .delay(oneSecondInMilliseconds)
+        .delay(ONE_SECOND_IN_MILLISECONDS)
         .reply(200, sampleTokenList)
         .persist();
 
@@ -202,12 +202,12 @@ describe('Token service', () => {
       nock(TOKEN_END_POINT_API)
         .get(`/tokens/${NetworksChainId.mainnet}`)
         // well beyond timeout
-        .delay(oneSecondInMilliseconds)
+        .delay(ONE_SECOND_IN_MILLISECONDS)
         .reply(200, sampleTokenList)
         .persist();
 
       const result = await fetchTokenList(NetworksChainId.mainnet, signal, {
-        timeout: oneMillisecond,
+        timeout: ONE_MILLISECOND,
       });
 
       expect(result).toBeUndefined();
@@ -238,7 +238,7 @@ describe('Token service', () => {
       nock(TOKEN_END_POINT_API)
         .get(`/tokens/${NetworksChainId.mainnet}`)
         // well beyond time it will take to abort
-        .delay(oneSecondInMilliseconds)
+        .delay(ONE_SECOND_IN_MILLISECONDS)
         .reply(200, sampleTokenList)
         .persist();
 
@@ -289,7 +289,7 @@ describe('Token service', () => {
       nock(TOKEN_END_POINT_API)
         .get(`/tokens/${NetworksChainId.mainnet}`)
         // well beyond timeout
-        .delay(oneSecondInMilliseconds)
+        .delay(ONE_SECOND_IN_MILLISECONDS)
         .reply(200, sampleTokenList)
         .persist();
 
@@ -297,7 +297,7 @@ describe('Token service', () => {
         NetworksChainId.mainnet,
         '0x514910771af9ca656af840dff83e8264ecf986ca',
         signal,
-        { timeout: oneMillisecond },
+        { timeout: ONE_MILLISECOND },
       );
 
       expect(result).toBeUndefined();
