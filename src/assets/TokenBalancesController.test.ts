@@ -162,7 +162,7 @@ describe('TokenBalancesController', () => {
     await tokenBalances.updateBalances();
     const mytoken = getToken(tokenBalances, address);
     expect(mytoken?.balanceError).toBeInstanceOf(Error);
-    expect(mytoken?.balanceError?.message).toBe(errorMsg);
+    expect(mytoken?.balanceError).toHaveProperty('message', errorMsg);
     expect(
       tokenBalances.state.contractBalances[address].toNumber(),
     ).toStrictEqual(0);

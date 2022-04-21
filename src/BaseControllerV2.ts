@@ -92,11 +92,10 @@ export class BaseController<
 
   /**
    * The existence of the `subscribe` property is how the ComposableController detects whether a
-   * controller extends the old BaseController or the new one. We set it to `never` here to ensure
-   * this property is never used for new BaseController-based controllers, to ensure the
-   * ComposableController never mistakes them for an older style controller.
+   * controller extends the old BaseController or the new one. We set it to `undefined` here to
+   * ensure the ComposableController never mistakes them for an older style controller.
    */
-  public readonly subscribe: never;
+  public readonly subscribe: undefined;
 
   /**
    * Creates a BaseController instance.
