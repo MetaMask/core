@@ -210,7 +210,7 @@ export class NetworkController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'NetworkController';
+  override name = 'NetworkController';
 
   /**
    * Ethereum provider object for the current network

@@ -150,7 +150,7 @@ export class TokenRatesController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'TokenRatesController';
+  override name = 'TokenRatesController';
 
   /**
    * Creates a TokenRatesController instance.

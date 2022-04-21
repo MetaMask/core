@@ -291,20 +291,6 @@ describe('util', () => {
         }),
       ).toBeUndefined();
     });
-
-    it('should call retry function', async () => {
-      const mockRetry = jest.fn();
-      new Promise(() => {
-        util.safelyExecute(
-          () => {
-            throw new Error('ahh');
-          },
-          false,
-          mockRetry,
-        );
-      });
-      expect(mockRetry).toHaveBeenCalledWith(new Error('ahh'));
-    });
   });
 
   describe('safelyExecuteWithTimeout', () => {

@@ -717,7 +717,7 @@ describe('CollectiblesController', () => {
     });
   });
 
-  describe('RemoveCollectible', () => {
+  describe('removeCollectible', () => {
     it('should remove collectible and collectible contract', async () => {
       const { selectedAddress, chainId } = collectiblesController.config;
 
