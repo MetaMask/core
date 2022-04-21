@@ -1,4 +1,4 @@
-import { createSandbox, stub } from 'sinon';
+import sinon from 'sinon';
 import { BN } from 'ethereumjs-util';
 import { NetworkController } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
@@ -11,8 +11,6 @@ import {
 } from './TokenBalancesController';
 
 describe('TokenBalancesController', () => {
-  const sandbox = createSandbox();
-
   const getToken = (
     tokenBalances: TokenBalancesController,
     address: string,
@@ -22,7 +20,7 @@ describe('TokenBalancesController', () => {
   };
 
   afterEach(() => {
-    sandbox.restore();
+    sinon.restore();
   });
 
   it('should re-export BN', () => {
@@ -31,18 +29,18 @@ describe('TokenBalancesController', () => {
 
   it('should set default state', () => {
     const tokenBalances = new TokenBalancesController({
-      onTokensStateChange: stub(),
+      onTokensStateChange: sinon.stub(),
       getSelectedAddress: () => '0x1234',
-      getERC20BalanceOf: stub(),
+      getERC20BalanceOf: sinon.stub(),
     });
     expect(tokenBalances.state).toStrictEqual({ contractBalances: {} });
   });
 
   it('should set default config', () => {
     const tokenBalances = new TokenBalancesController({
-      onTokensStateChange: stub(),
+      onTokensStateChange: sinon.stub(),
       getSelectedAddress: () => '0x1234',
-      getERC20BalanceOf: stub(),
+      getERC20BalanceOf: sinon.stub(),
     });
     expect(tokenBalances.config).toStrictEqual({
       interval: 180000,
@@ -52,12 +50,15 @@ describe('TokenBalancesController', () => {
 
   it('should poll and update balances in the right interval', async () => {
     await new Promise<void>((resolve) => {
-      const mock = stub(TokenBalancesController.prototype, 'updateBalances');
+      const mock = sinon.stub(
+        TokenBalancesController.prototype,
+        'updateBalances',
+      );
       new TokenBalancesController(
         {
-          onTokensStateChange: stub(),
+          onTokensStateChange: sinon.stub(),
           getSelectedAddress: () => '0x1234',
-          getERC20BalanceOf: stub(),
+          getERC20BalanceOf: sinon.stub(),
         },
         { interval: 10 },
       );
@@ -74,27 +75,27 @@ describe('TokenBalancesController', () => {
   it('should not update rates if disabled', async () => {
     const tokenBalances = new TokenBalancesController(
       {
-        onTokensStateChange: stub(),
+        onTokensStateChange: sinon.stub(),
         getSelectedAddress: () => '0x1234',
-        getERC20BalanceOf: stub(),
+        getERC20BalanceOf: sinon.stub(),
       },
       {
         disabled: true,
         interval: 10,
       },
     );
-    const mock = stub(tokenBalances, 'update');
+    const mock = sinon.stub(tokenBalances, 'update');
     await tokenBalances.updateBalances();
     expect(mock.called).toBe(false);
   });
 
   it('should clear previous interval', async () => {
-    const mock = stub(global, 'clearTimeout');
+    const mock = sinon.stub(global, 'clearTimeout');
     const tokenBalances = new TokenBalancesController(
       {
-        onTokensStateChange: stub(),
+        onTokensStateChange: sinon.stub(),
         getSelectedAddress: () => '0x1234',
-        getERC20BalanceOf: stub(),
+        getERC20BalanceOf: sinon.stub(),
       },
       { interval: 1337 },
     );
@@ -120,7 +121,7 @@ describe('TokenBalancesController', () => {
       {
         onTokensStateChange: (listener) => assets.subscribe(listener),
         getSelectedAddress: () => preferences.state.selectedAddress,
-        getERC20BalanceOf: stub().returns(new BN(1)),
+        getERC20BalanceOf: sinon.stub().returns(new BN(1)),
       },
       { interval: 1337, tokens: [{ address, decimals: 18, symbol: 'EOS' }] },
     );
@@ -147,9 +148,9 @@ describe('TokenBalancesController', () => {
     });
     const errorMsg = 'Failed to get balance';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-    const getERC20BalanceOfStub = stub().returns(
-      Promise.reject(new Error(errorMsg)),
-    );
+    const getERC20BalanceOfStub = sinon
+      .stub()
+      .returns(Promise.reject(new Error(errorMsg)));
     const tokenBalances = new TokenBalancesController(
       {
         onTokensStateChange: (listener) => assets.subscribe(listener),
@@ -191,11 +192,13 @@ describe('TokenBalancesController', () => {
       onNetworkStateChange: (listener) => network.subscribe(listener),
     });
 
-    const supportsInterfaceStub = stub().returns(Promise.resolve(false));
+    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
 
-    stub(tokensController, '_createEthersContract').callsFake(() =>
-      Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-    );
+    sinon
+      .stub(tokensController, '_createEthersContract')
+      .callsFake(() =>
+        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+      );
 
     const tokenBalances = new TokenBalancesController(
       {
@@ -206,7 +209,7 @@ describe('TokenBalancesController', () => {
       },
       { interval: 1337 },
     );
-    const updateBalances = sandbox.stub(tokenBalances, 'updateBalances');
+    const updateBalances = sinon.stub(tokenBalances, 'updateBalances');
     await tokensController.addToken('0x00', 'FOO', 18);
     const { tokens } = tokensController.state;
     const found = tokens.filter((token: Token) => token.address === '0x00');

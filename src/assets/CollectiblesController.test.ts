@@ -1,4 +1,4 @@
-import { createSandbox } from 'sinon';
+import sinon from 'sinon';
 import nock from 'nock';
 import HttpProvider from 'ethjs-provider-http';
 import { PreferencesController } from '../user/PreferencesController';
@@ -46,7 +46,6 @@ describe('CollectiblesController', () => {
   let preferences: PreferencesController;
   let network: NetworkController;
   let assetsContract: AssetsContractController;
-  const sandbox = createSandbox();
 
   beforeEach(() => {
     preferences = new PreferencesController();
@@ -74,10 +73,6 @@ describe('CollectiblesController', () => {
       selectedAddress: OWNER_ADDRESS,
       openSeaEnabled: true,
     });
-
-    sandbox
-      .stub(collectiblesController, 'isCollectibleOwner' as any)
-      .returns(true);
 
     nock(OPEN_SEA_HOST)
       .get(`${OPEN_SEA_PATH}/asset_contract/0x01`)
@@ -186,7 +181,7 @@ describe('CollectiblesController', () => {
 
   afterEach(() => {
     nock.cleanAll();
-    sandbox.reset();
+    sinon.restore();
   });
 
   it('should set default state', () => {
@@ -242,7 +237,7 @@ describe('CollectiblesController', () => {
       const firstAddress = '0x123';
       const secondAddress = '0x321';
 
-      sandbox
+      sinon
         .stub(collectiblesController, 'getCollectibleInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
       preferences.update({ selectedAddress: firstAddress });
@@ -393,7 +388,7 @@ describe('CollectiblesController', () => {
     it('should add collectible erc721 and get collectible contract information from contract and OpenSea', async () => {
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = collectiblesController.config;
-      sandbox
+      sinon
         .stub(
           collectiblesController,
           'getCollectibleContractInformationFromApi' as any,
@@ -431,14 +426,14 @@ describe('CollectiblesController', () => {
     it('should add collectible erc721 and get collectible contract information only from contract', async () => {
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = collectiblesController.config;
-      sandbox
+      sinon
         .stub(
           collectiblesController,
           'getCollectibleContractInformationFromApi' as any,
         )
         .returns(undefined);
 
-      sandbox
+      sinon
         .stub(collectiblesController, 'getCollectibleInformationFromApi' as any)
         .returns(undefined);
       await collectiblesController.addCollectible(ERC721_KUDOSADDRESS, '1203');
@@ -472,7 +467,7 @@ describe('CollectiblesController', () => {
       const firstNetworkType = 'rinkeby';
       const secondNetworkType = 'ropsten';
       const { selectedAddress } = collectiblesController.config;
-      sandbox
+      sinon
         .stub(collectiblesController, 'getCollectibleInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
 
@@ -673,7 +668,11 @@ describe('CollectiblesController', () => {
       const secondAddress = '0x321';
       const { chainId } = collectiblesController.config;
 
-      sandbox
+      sinon
+        .stub(collectiblesController, 'isCollectibleOwner' as any)
+        .returns(true);
+
+      sinon
         .stub(collectiblesController, 'getCollectibleInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
       preferences.update({ selectedAddress: firstAddress });
@@ -701,8 +700,7 @@ describe('CollectiblesController', () => {
     });
 
     it('should throw an error if selected address is not owner of input collectible', async () => {
-      sandbox.restore();
-      sandbox
+      sinon
         .stub(collectiblesController, 'isCollectibleOwner' as any)
         .returns(false);
       const firstAddress = '0x123';
@@ -769,7 +767,7 @@ describe('CollectiblesController', () => {
 
     it('should remove collectible by selected address', async () => {
       const { chainId } = collectiblesController.config;
-      sandbox
+      sinon
         .stub(collectiblesController, 'getCollectibleInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
       const firstAddress = '0x123';
@@ -799,7 +797,7 @@ describe('CollectiblesController', () => {
     it('should remove collectible by provider type', async () => {
       const { selectedAddress } = collectiblesController.config;
 
-      sandbox
+      sinon
         .stub(collectiblesController, 'getCollectibleInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
       const firstNetworkType = 'rinkeby';
@@ -903,7 +901,6 @@ describe('CollectiblesController', () => {
     });
 
     it('should not verify the ownership of an ERC-721 collectible with the wrong owner address', async () => {
-      sandbox.restore();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const isOwner = await collectiblesController.isCollectibleOwner(
         '0x0000000000000000000000000000000000000000',
@@ -924,7 +921,6 @@ describe('CollectiblesController', () => {
     });
 
     it('should not verify the ownership of an ERC-1155 collectible with the wrong owner address', async () => {
-      sandbox.restore();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const isOwner = await collectiblesController.isCollectibleOwner(
         '0x0000000000000000000000000000000000000000',
@@ -935,7 +931,6 @@ describe('CollectiblesController', () => {
     });
 
     it('should throw an error for an unsupported standard', async () => {
-      sandbox.restore();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const error =
         'Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect';
@@ -1136,8 +1131,7 @@ describe('CollectiblesController', () => {
     describe('checkAndUpdateCollectiblesOwnershipStatus', () => {
       describe('checkAndUpdateAllCollectiblesOwnershipStatus', () => {
         it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and update the isCurrentlyOwned value to false when collectible is not still owned', async () => {
-          sandbox.restore();
-          sandbox
+          sinon
             .stub(collectiblesController, 'isCollectibleOwner' as any)
             .returns(false);
 
@@ -1166,6 +1160,10 @@ describe('CollectiblesController', () => {
       });
 
       it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave/set the isCurrentlyOwned value to true when collectible is still owned', async () => {
+        sinon
+          .stub(collectiblesController, 'isCollectibleOwner' as any)
+          .returns(true);
+
         const { selectedAddress, chainId } = collectiblesController.config;
         await collectiblesController.addCollectible('0x02', '1', {
           name: 'name',
@@ -1190,8 +1188,7 @@ describe('CollectiblesController', () => {
       });
 
       it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave the isCurrentlyOwned value as is when collectible ownership check fails', async () => {
-        sandbox.restore();
-        sandbox
+        sinon
           .stub(collectiblesController, 'isCollectibleOwner' as any)
           .throws(new Error('Unable to verify ownership'));
 
@@ -1243,8 +1240,7 @@ describe('CollectiblesController', () => {
             ][0].isCurrentlyOwned,
           ).toBe(true);
 
-          sandbox.restore();
-          sandbox
+          sinon
             .stub(collectiblesController, 'isCollectibleOwner' as any)
             .returns(false);
 
@@ -1285,8 +1281,7 @@ describe('CollectiblesController', () => {
           ][0].isCurrentlyOwned,
         ).toBe(true);
 
-        sandbox.restore();
-        sandbox
+        sinon
           .stub(collectiblesController, 'isCollectibleOwner' as any)
           .returns(false);
 
@@ -1340,8 +1335,7 @@ describe('CollectiblesController', () => {
           ][0].isCurrentlyOwned,
         ).toBe(true);
 
-        sandbox.restore();
-        sandbox
+        sinon
           .stub(collectiblesController, 'isCollectibleOwner' as any)
           .returns(false);
 
