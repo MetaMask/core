@@ -52,10 +52,14 @@ describe('PhishingController', () => {
     const controller = new PhishingController();
     controller.update({}, true);
     await controller.updatePhishingLists();
-    expect(controller.state.phishing).toHaveProperty('blacklist');
-    expect(controller.state.phishing).toHaveProperty('fuzzylist');
-    expect(controller.state.phishing).toHaveProperty('version');
-    expect(controller.state.phishing).toHaveProperty('whitelist');
+    controller.state.phishing.forEach((config) => {
+      expect(config).toHaveProperty('allowlist');
+      expect(config).toHaveProperty('blocklist');
+      expect(config).toHaveProperty('fuzzylist');
+      expect(config).toHaveProperty('tolerance');
+      expect(config).toHaveProperty('name');
+      expect(config).toHaveProperty('version');
+    });
   });
 
   it('should not update infura rate if disabled', async () => {
