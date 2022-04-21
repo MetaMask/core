@@ -24,6 +24,24 @@ export interface EthPhishingResponse {
 }
 
 /**
+ * @type EthPhishingDetectConfig
+ *
+ * Interface defining expected input to PhishingDetector.
+ * @property allowlist - List of approved origins (legacy naming "whitelist")
+ * @property blocklist - List of unapproved origins (legacy naming "blacklist")
+ * @property fuzzylist - List of fuzzy-matched unapproved origins
+ * @property tolerance - Fuzzy match tolerance level
+ */
+export interface EthPhishingDetectConfig {
+  allowlist: string[];
+  blocklist: string[];
+  fuzzylist: string[];
+  tolerance: number;
+  name: string;
+  version: number;
+}
+
+/**
  * @type PhishingConfig
  *
  * Phishing controller configuration
@@ -41,7 +59,7 @@ export interface PhishingConfig extends BaseConfig {
  * @property whitelist - array of temporarily-approved origins
  */
 export interface PhishingState extends BaseState {
-  phishing: EthPhishingResponse;
+  phishing: EthPhishingDetectConfig[];
   whitelist: string[];
 }
 
@@ -137,36 +155,47 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    const [metamaskConfig, phishfortHotlist] = await Promise.all([
+    const configs: EthPhishingDetectConfig[] = [];
+
+    const [metamaskConfigLegacy, phishfortHotlist] = await Promise.all([
       await this.queryConfig<EthPhishingResponse>(this.configUrlMetaMask),
       await this.queryConfig<string[]>(this.configUrlPhishFortHotlist),
     ]);
 
+    // Correctly shaping MetaMask config.
+    const metamaskConfig: EthPhishingDetectConfig = {
+      allowlist: metamaskConfigLegacy ? metamaskConfigLegacy.whitelist : [],
+      blocklist: metamaskConfigLegacy ? metamaskConfigLegacy.blacklist : [],
+      fuzzylist: metamaskConfigLegacy ? metamaskConfigLegacy.fuzzylist : [],
+      tolerance: metamaskConfigLegacy ? metamaskConfigLegacy.tolerance : 0,
+      name: `MetaMask`,
+      version: metamaskConfigLegacy ? metamaskConfigLegacy.version : 0,
+    };
+    if (metamaskConfigLegacy) {
+      configs.push(metamaskConfig);
+    }
 
-    if (!metamaskConfig && !phishfortHotlist) {
+    // Correctly shaping PhishFort config.
+    const phishfortConfig: EthPhishingDetectConfig = {
+      allowlist: [],
+      blocklist: (phishfortHotlist || []).filter(i => !metamaskConfig.blocklist.includes(i)), // Removal of duplicates.
+      fuzzylist: [],
+      tolerance: 0,
+      name: `PhishFort`,
+      version: 1
+    };
+    if (phishfortHotlist) {
+      configs.push(phishfortConfig);
+    }
+
+    // Do not update if all configs are unavailable.
+    if (!configs.length) {
       return;
     }
 
-    // Default config populated with values from eth-phishing-detect@master on 2022/03/24.
-    const phishingOpts: EthPhishingResponse = metamaskConfig || {
-      version: 2,
-      tolerance: 2,
-      blacklist: [],
-      fuzzylist: [],
-      whitelist: []
-    };
-
-    if (phishfortHotlist) {
-      // Removal of duplicates.
-      const phishfortHotlistUnique = phishfortHotlist.filter(
-        (hotlistItem) => !phishingOpts.blacklist.includes(hotlistItem),
-      );
-      phishingOpts.blacklist.push(...phishfortHotlistUnique);
-    }
-
-    this.detector = new PhishingDetector(phishingOpts);
+    this.detector = new PhishingDetector(configs);
     this.update({
-      phishing: phishingOpts,
+      phishing: configs,
     });
   }
 
