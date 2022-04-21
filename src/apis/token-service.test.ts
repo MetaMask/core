@@ -126,7 +126,7 @@ const sampleToken = {
   name: 'Chainlink',
 };
 
-describe('FetchtokenList', () => {
+describe('fetchTokenList', () => {
   beforeAll(() => {
     nock.disableNetConnect();
   });
