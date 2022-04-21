@@ -32,6 +32,7 @@
     "prepublishOnly": "yarn build",
     "setup": "yarn install && yarn allow-scripts",
     "test": "jest",
+    "posttest": "jest-it-up",
     "test:watch": "jest --watch"
   },
   "dependencies": {
@@ -99,6 +100,7 @@
     "ethjs-provider-http": "^0.1.6",
     "jest": "^26.4.2",
     "jest-environment-jsdom": "^25.0.0",
+    "jest-it-up": "^2.0.1",
     "jest-when": "^3.4.2",
     "nock": "^13.0.7",
     "prettier": "^2.6.2",

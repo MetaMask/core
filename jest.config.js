@@ -5,13 +5,13 @@ module.exports = {
   collectCoverageFrom: ['./src/**/*.ts'],
   // TODO: Test index.ts
   coveragePathIgnorePatterns: ['./src/index.ts'],
-  coverageReporters: ['text', 'html'],
+  coverageReporters: ['json-summary', 'text', 'html'],
   coverageThreshold: {
     global: {
-      branches: 90,
-      functions: 96,
-      lines: 95,
-      statements: 95,
+      branches: 90.4,
+      functions: 96.42,
+      lines: 95.77,
+      statements: 95.82,
     },
   },
   moduleFileExtensions: ['js', 'json', 'ts', 'node'],

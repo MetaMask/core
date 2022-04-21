@@ -35,6 +35,13 @@ jobs:
       - run: yarn build
       - run: yarn lint
       - run: yarn test --maxWorkers=1
+      - name: Check for a Jest coverage threshold bump
+        shell: bash
+        run: |
+          if ! git diff --exit-code jest.config.js; then
+            echo "Jest coverage has increased"
+            exit 1
+          fi
       - name: Validate RC changelog
         if: ${{ startsWith(github.ref, 'release/') }}
         run: yarn auto-changelog validate --rc
