@@ -1,6 +1,6 @@
 import EthQuery from 'eth-query';
 import { Mutex } from 'async-mutex';
-import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import { BaseConfig, BaseController, BaseState } from '../BaseController';
 import { PreferencesState } from '../user/PreferencesController';
 import { BNToHex, query, safelyExecuteWithTimeout } from '../util';
 
@@ -71,7 +71,7 @@ export class AccountTrackerController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'AccountTrackerController';
+  override name = 'AccountTrackerController';
 
   private getIdentities: () => PreferencesState['identities'];
 
@@ -146,15 +146,48 @@ export class AccountTrackerController extends BaseController<
    */
   refresh = async () => {
     this.syncAccounts();
-    const { accounts } = this.state;
+    const accounts = { ...this.state.accounts };
     for (const address in accounts) {
       await safelyExecuteWithTimeout(async () => {
         const balance = await query(this.ethQuery, 'getBalance', [address]);
         accounts[address] = { balance: BNToHex(balance) };
-        this.update({ accounts: { ...accounts } });
       });
     }
+    this.update({ accounts });
   };
+
+  /**
+   * Sync accounts balances with some additional addresses.
+   *
+   * @param addresses - the additional addresses, may be hardware wallet addresses.
+   * @returns accounts - addresses with synced balance
+   */
+  async syncBalanceWithAddresses(
+    addresses: string[],
+  ): Promise<Record<string, { balance: string }>> {
+    return await Promise.all(
+      addresses.map((address): Promise<[string, string] | undefined> => {
+        return safelyExecuteWithTimeout(async () => {
+          const balance = await query(this.ethQuery, 'getBalance', [address]);
+          return [address, balance];
+        });
+      }),
+    ).then((value) => {
+      return value.reduce((obj, item) => {
+        if (!item) {
+          return obj;
+        }
+
+        const [address, balance] = item;
+        return {
+          ...obj,
+          [address]: {
+            balance,
+          },
+        };
+      }, {});
+    });
+  }
 }
 
 export default AccountTrackerController;

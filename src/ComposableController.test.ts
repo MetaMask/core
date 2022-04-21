@@ -74,7 +74,7 @@ class BarController extends BaseController<never, BarControllerState> {
     bar: 'bar',
   };
 
-  name = 'BarController';
+  override name = 'BarController';
 
   constructor() {
     super();

@@ -30,20 +30,16 @@ describe('CollectibleDetectionController', () => {
     collectiblesController = new CollectiblesController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      getERC721AssetName: assetsContract.getERC721AssetName.bind(
-        assetsContract,
-      ),
-      getERC721AssetSymbol: assetsContract.getERC721AssetSymbol.bind(
-        assetsContract,
-      ),
+      getERC721AssetName:
+        assetsContract.getERC721AssetName.bind(assetsContract),
+      getERC721AssetSymbol:
+        assetsContract.getERC721AssetSymbol.bind(assetsContract),
       getERC721TokenURI: assetsContract.getERC721TokenURI.bind(assetsContract),
       getERC721OwnerOf: assetsContract.getERC721OwnerOf.bind(assetsContract),
-      getERC1155BalanceOf: assetsContract.getERC1155BalanceOf.bind(
-        assetsContract,
-      ),
-      getERC1155TokenURI: assetsContract.getERC1155TokenURI.bind(
-        assetsContract,
-      ),
+      getERC1155BalanceOf:
+        assetsContract.getERC1155BalanceOf.bind(assetsContract),
+      getERC1155TokenURI:
+        assetsContract.getERC1155TokenURI.bind(assetsContract),
     });
 
     collectibleDetection = new CollectibleDetectionController({
@@ -222,21 +218,22 @@ describe('CollectibleDetectionController', () => {
         CollectibleDetectionController.prototype,
         'detectCollectibles',
       );
-      const collectiblesDetectionController = new CollectibleDetectionController(
-        {
-          onCollectiblesStateChange: (listener) =>
-            collectiblesController.subscribe(listener),
-          onPreferencesStateChange: (listener) =>
-            preferences.subscribe(listener),
-          onNetworkStateChange: (listener) => network.subscribe(listener),
-          getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
-          addCollectible: collectiblesController.addCollectible.bind(
-            collectiblesController,
-          ),
-          getCollectiblesState: () => collectiblesController.state,
-        },
-        { interval: 10 },
-      );
+      const collectiblesDetectionController =
+        new CollectibleDetectionController(
+          {
+            onCollectiblesStateChange: (listener) =>
+              collectiblesController.subscribe(listener),
+            onPreferencesStateChange: (listener) =>
+              preferences.subscribe(listener),
+            onNetworkStateChange: (listener) => network.subscribe(listener),
+            getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
+            addCollectible: collectiblesController.addCollectible.bind(
+              collectiblesController,
+            ),
+            getCollectiblesState: () => collectiblesController.state,
+          },
+          { interval: 10 },
+        );
       collectiblesDetectionController.configure({ disabled: false });
       collectiblesDetectionController.start();
       expect(mockCollectibles.calledOnce).toBe(true);

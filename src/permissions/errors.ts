@@ -182,7 +182,7 @@ export class CaveatAlreadyExistsError extends Error {
 }
 
 export class InvalidCaveatError extends EthereumRpcError<unknown> {
-  public data: { origin: string; target: string };
+  public override data: { origin: string; target: string };
 
   constructor(receivedCaveat: unknown, origin: string, target: string) {
     super(

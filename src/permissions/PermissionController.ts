@@ -109,16 +109,15 @@ const controllerName = 'PermissionController';
 /**
  * Permissions associated with a {@link PermissionController} subject.
  */
-export type SubjectPermissions<
-  Permission extends PermissionConstraint
-> = Record<Permission['parentCapability'], Permission>;
+export type SubjectPermissions<Permission extends PermissionConstraint> =
+  Record<Permission['parentCapability'], Permission>;
 
 /**
  * Permissions and metadata associated with a {@link PermissionController}
  * subject.
  */
 export type PermissionSubjectEntry<
-  SubjectPermission extends PermissionConstraint
+  SubjectPermission extends PermissionConstraint,
 > = {
   origin: SubjectPermission['invoker'];
   permissions: SubjectPermissions<SubjectPermission>;
@@ -130,7 +129,7 @@ export type PermissionSubjectEntry<
  * @template SubjectPermission - The permissions of the subject.
  */
 export type PermissionControllerSubjects<
-  SubjectPermission extends PermissionConstraint
+  SubjectPermission extends PermissionConstraint,
 > = Record<
   SubjectPermission['invoker'],
   PermissionSubjectEntry<SubjectPermission>
@@ -142,13 +141,12 @@ export type PermissionControllerSubjects<
  *
  * @template Permission - The controller's permission type union.
  */
-export type PermissionControllerState<
-  Permission
-> = Permission extends PermissionConstraint
-  ? {
-      subjects: PermissionControllerSubjects<Permission>;
-    }
-  : never;
+export type PermissionControllerState<Permission> =
+  Permission extends PermissionConstraint
+    ? {
+        subjects: PermissionControllerSubjects<Permission>;
+      }
+    : never;
 
 /**
  * Get the state metadata of the {@link PermissionController}.
@@ -213,6 +211,14 @@ export type HasPermission = {
 };
 
 /**
+ * Directly grants given permissions for a specificed origin without requesting user approval
+ */
+export type GrantPermissions = {
+  type: `${typeof controllerName}:grantPermissions`;
+  handler: GenericPermissionController['grantPermissions'];
+};
+
+/**
  * Requests given permissions for a specified origin
  */
 export type RequestPermissions = {
@@ -234,6 +240,15 @@ export type RevokePermissions = {
 export type RevokeAllPermissions = {
   type: `${typeof controllerName}:revokeAllPermissions`;
   handler: GenericPermissionController['revokeAllPermissions'];
+};
+
+/**
+ * Revokes all permissions corresponding to the specified target for all subjects.
+ * Does nothing if no subjects or no such permission exists.
+ */
+export type RevokePermissionForAllSubjects = {
+  type: `${typeof controllerName}:revokePermissionForAllSubjects`;
+  handler: GenericPermissionController['revokePermissionForAllSubjects'];
 };
 
 /**
@@ -263,9 +278,11 @@ export type PermissionControllerActions =
   | GetPermissions
   | HasPermission
   | HasPermissions
-  | RevokePermissions
+  | GrantPermissions
+  | RequestPermissions
   | RevokeAllPermissions
-  | RequestPermissions;
+  | RevokePermissionForAllSubjects
+  | RevokePermissions;
 
 /**
  * The generic state change event of the {@link PermissionController}.
@@ -361,7 +378,7 @@ type CaveatMutatorResult =
  */
 export type ExtractPermission<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
-  ControllerCaveatSpecification extends CaveatSpecificationConstraint
+  ControllerCaveatSpecification extends CaveatSpecificationConstraint,
 > = ControllerPermissionSpecification extends ValidPermissionSpecification<ControllerPermissionSpecification>
   ? ValidPermission<
       ControllerPermissionSpecification['targetKey'],
@@ -381,7 +398,7 @@ export type ExtractPermission<
  */
 export type ExtractRestrictedMethodPermission<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
-  ControllerCaveatSpecification extends CaveatSpecificationConstraint
+  ControllerCaveatSpecification extends CaveatSpecificationConstraint,
 > = ExtractPermission<
   Extract<
     ControllerPermissionSpecification,
@@ -402,7 +419,7 @@ export type ExtractRestrictedMethodPermission<
  */
 export type ExtractEndowmentPermission<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
-  ControllerCaveatSpecification extends CaveatSpecificationConstraint
+  ControllerCaveatSpecification extends CaveatSpecificationConstraint,
 > = ExtractPermission<
   Extract<ControllerPermissionSpecification, EndowmentSpecificationConstraint>,
   ControllerCaveatSpecification
@@ -419,7 +436,7 @@ export type ExtractEndowmentPermission<
  */
 export type PermissionControllerOptions<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
-  ControllerCaveatSpecification extends CaveatSpecificationConstraint
+  ControllerCaveatSpecification extends CaveatSpecificationConstraint,
 > = {
   messenger: PermissionControllerMessenger;
   caveatSpecifications: CaveatSpecificationMap<ControllerCaveatSpecification>;
@@ -449,7 +466,7 @@ export type PermissionControllerOptions<
  */
 export class PermissionController<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
-  ControllerCaveatSpecification extends CaveatSpecificationConstraint
+  ControllerCaveatSpecification extends CaveatSpecificationConstraint,
 > extends BaseController<
   typeof controllerName,
   PermissionControllerState<
@@ -524,12 +541,13 @@ export class PermissionController<
 
     super({
       name: controllerName,
-      metadata: getStateMetadata<
-        ExtractPermission<
-          ControllerPermissionSpecification,
-          ControllerCaveatSpecification
-        >
-      >(),
+      metadata:
+        getStateMetadata<
+          ExtractPermission<
+            ControllerPermissionSpecification,
+            ControllerCaveatSpecification
+          >
+        >(),
       messenger,
       state: {
         ...getDefaultState<
@@ -571,7 +589,7 @@ export class PermissionController<
    * @returns The permission specification with the specified target key.
    */
   private getPermissionSpecification<
-    TargetKey extends ControllerPermissionSpecification['targetKey']
+    TargetKey extends ControllerPermissionSpecification['targetKey'],
   >(
     targetKey: TargetKey,
   ): ExtractPermissionSpecification<
@@ -588,7 +606,7 @@ export class PermissionController<
    * @returns The caveat specification with the specified type.
    */
   private getCaveatSpecification<
-    CaveatType extends ControllerCaveatSpecification['type']
+    CaveatType extends ControllerCaveatSpecification['type'],
   >(caveatType: CaveatType) {
     return this._caveatSpecifications[caveatType];
   }
@@ -681,8 +699,14 @@ export class PermissionController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:revokePermissions` as const,
-      this.revokePermissions.bind(this),
+      `${controllerName}:grantPermissions` as const,
+      this.grantPermissions.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:requestPermissions` as const,
+      (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
+        this.requestPermissions(subject, permissions),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -691,9 +715,18 @@ export class PermissionController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:requestPermissions` as const,
-      (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
-        this.requestPermissions(subject, permissions),
+      `${controllerName}:revokePermissionForAllSubjects` as const,
+      (
+        target: ExtractPermission<
+          ControllerPermissionSpecification,
+          ControllerCaveatSpecification
+        >['parentCapability'],
+      ) => this.revokePermissionForAllSubjects(target),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:revokePermissions` as const,
+      this.revokePermissions.bind(this),
     );
   }
 
@@ -801,7 +834,7 @@ export class PermissionController<
     SubjectPermission extends ExtractPermission<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
-    >
+    >,
   >(
     origin: OriginString,
     targetName: SubjectPermission['parentCapability'],
@@ -1001,7 +1034,7 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>
+    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(origin: OriginString, target: TargetName, caveatType: CaveatType): boolean {
     return Boolean(this.getCaveat(origin, target, caveatType));
   }
@@ -1026,7 +1059,7 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>
+    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(
     origin: OriginString,
     target: TargetName,
@@ -1066,7 +1099,7 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>
+    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(
     origin: OriginString,
     target: TargetName,
@@ -1107,7 +1140,7 @@ export class PermissionController<
     CaveatValue extends ExtractCaveatValue<
       ControllerCaveatSpecification,
       CaveatType
-    >
+    >,
   >(
     origin: OriginString,
     target: TargetName,
@@ -1144,7 +1177,7 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>
+    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(
     origin: OriginString,
     target: TargetName,
@@ -1224,7 +1257,7 @@ export class PermissionController<
     TargetCaveat extends ExtractCaveat<
       ControllerCaveatSpecification,
       CaveatType
-    >
+    >,
   >(targetCaveatType: CaveatType, mutator: CaveatMutator<TargetCaveat>): void {
     if (Object.keys(this.state.subjects).length === 0) {
       return;
@@ -1315,7 +1348,7 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>
+    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(origin: OriginString, target: TargetName, caveatType: CaveatType): void {
     this.update((draftState) => {
       const permission = draftState.subjects[origin]?.permissions[target];
@@ -1349,7 +1382,7 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractCaveats<ControllerCaveatSpecification>['type']
+    CaveatType extends ExtractCaveats<ControllerCaveatSpecification>['type'],
   >(
     permission: Draft<PermissionConstraint>,
     caveatType: CaveatType,
@@ -1500,11 +1533,13 @@ export class PermissionController<
       throw new InvalidSubjectIdentifierError(origin);
     }
 
-    const permissions = (preserveExistingPermissions
-      ? {
-          ...this.getPermissions(origin),
-        }
-      : {}) as SubjectPermissions<
+    const permissions = (
+      preserveExistingPermissions
+        ? {
+            ...this.getPermissions(origin),
+          }
+        : {}
+    ) as SubjectPermissions<
       ExtractPermission<
         ControllerPermissionSpecification,
         ControllerCaveatSpecification
@@ -1806,10 +1841,8 @@ export class PermissionController<
       permissions: requestedPermissions,
     };
 
-    const {
-      permissions: approvedPermissions,
-      ...requestData
-    } = await this.requestUserApproval(permissionsRequest);
+    const { permissions: approvedPermissions, ...requestData } =
+      await this.requestUserApproval(permissionsRequest);
 
     return [
       this.grantPermissions({
