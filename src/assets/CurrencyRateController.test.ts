@@ -34,10 +34,8 @@ const getStubbedDate = () => {
 };
 
 describe('CurrencyRateController', () => {
-  const realDate = Date.now;
   afterEach(() => {
     nock.cleanAll();
-    global.Date.now = realDate;
   });
 
   it('should set default state', () => {
