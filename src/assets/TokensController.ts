@@ -103,7 +103,7 @@ export class TokensController extends BaseController<
 
   private failSuggestedAsset(
     suggestedAssetMeta: SuggestedAssetMeta,
-    error: Error,
+    error: unknown,
   ) {
     const failedSuggestedAssetMeta = {
       ...suggestedAssetMeta,

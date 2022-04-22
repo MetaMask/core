@@ -102,8 +102,8 @@ async function queryApi(
   fetchOptions.headers.set('Content-Type', 'application/json');
   try {
     return await timeoutFetch(apiURL, fetchOptions, timeout);
-  } catch (err) {
-    if (err.name === 'AbortError') {
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
       console.log('Request is aborted');
     }
   }

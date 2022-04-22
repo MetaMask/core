@@ -221,19 +221,13 @@ describe('KeyringController', () => {
 
   it('should import account with strategy json wrong password', async () => {
     const somePassword = 'holachao12';
-    let error;
-    try {
-      await keyringController.importAccountWithStrategy(
-        AccountImportStrategy.json,
-        [input, somePassword],
-      );
-    } catch (e) {
-      error = e;
-    }
 
-    expect(error.message).toBe(
-      'Key derivation failed - possibly wrong passphrase',
-    );
+    await expect(
+      keyringController.importAccountWithStrategy(AccountImportStrategy.json, [
+        input,
+        somePassword,
+      ]),
+    ).rejects.toThrow('Key derivation failed - possibly wrong passphrase');
   });
 
   it('should remove account', async () => {
@@ -435,26 +429,20 @@ describe('KeyringController', () => {
   it('should fail when sign typed message format is wrong', async () => {
     const msgParams = [{}];
     const account = initialState.keyrings[0].accounts[0];
-    let error1;
-    try {
-      await keyringController.signTypedMessage(
+
+    await expect(
+      keyringController.signTypedMessage(
         { data: msgParams, from: account },
         SignTypedDataVersion.V1,
-      );
-    } catch (e) {
-      error1 = e;
-    }
-    let error2;
-    try {
-      await keyringController.signTypedMessage(
+      ),
+    ).rejects.toThrow('Keyring Controller signTypedMessage:');
+
+    await expect(
+      keyringController.signTypedMessage(
         { data: msgParams, from: account },
         SignTypedDataVersion.V3,
-      );
-    } catch (e) {
-      error2 = e;
-    }
-    expect(error1.message).toContain('Keyring Controller signTypedMessage:');
-    expect(error2.message).toContain('Keyring Controller signTypedMessage:');
+      ),
+    ).rejects.toThrow('Keyring Controller signTypedMessage:');
   });
 
   it('should sign transaction', async () => {
