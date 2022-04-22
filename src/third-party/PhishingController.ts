@@ -42,6 +42,23 @@ export interface EthPhishingDetectConfig {
 }
 
 /**
+ * @type EthPhishingDetectResult
+ *
+ * Interface that describes the result of .
+ * @property name - Name of the config on which a match was found. Not returned when using legacy config.
+ * @property version - Version of the config on which a match was found. Not returned when using legacy config.
+ * @property result - Whether a domain was detected as a phishing domain. True means an unsafe domain.
+ * @property type - The field of the config on which a match was found. 'whitelist' and 'blacklist' can be returned when using legacy config.
+ */
+export interface EthPhishingDetectResult {
+  name?: string; // Not returned for legacy config.
+  version?: string; // Not returned for legacy config.
+  result: boolean;
+  type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist' | 'whitelist' | 'blacklist';
+}
+
+
+/**
  * @type PhishingConfig
  *
  * Phishing controller configuration
@@ -125,12 +142,12 @@ export class PhishingController extends BaseController<
    * @param origin - Domain origin of a website.
    * @returns Whether the origin is an unapproved origin.
    */
-  test(origin: string): boolean {
+  test(origin: string): EthPhishingDetectResult {
     const punycodeOrigin = toASCII(origin);
     if (this.state.whitelist.indexOf(punycodeOrigin) !== -1) {
-      return false;
+      return { result: false, type: 'all' }; // Same as whitelisted match returned by detector.check(...).
     }
-    return this.detector.check(punycodeOrigin).result;
+    return this.detector.check(punycodeOrigin);
   }
 
   /**
@@ -178,7 +195,9 @@ export class PhishingController extends BaseController<
     // Correctly shaping PhishFort config.
     const phishfortConfig: EthPhishingDetectConfig = {
       allowlist: [],
-      blocklist: (phishfortHotlist || []).filter(i => !metamaskConfig.blocklist.includes(i)), // Removal of duplicates.
+      blocklist: (phishfortHotlist || []).filter(
+        (i) => !metamaskConfig.blocklist.includes(i),
+      ), // Removal of duplicates.
       fuzzylist: [],
       tolerance: 0,
       name: `PhishFort`,
