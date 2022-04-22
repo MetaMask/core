@@ -2001,7 +2001,7 @@ export class PermissionController<
         // Re-throw as an internal error; we should never receive invalid approved
         // permissions.
         throw internalError(
-          `Invalid approved permissions request: ${error?.message}`,
+          `Invalid approved permissions request: ${error.message}`,
           error.data,
         );
       }
