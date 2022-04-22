@@ -66,7 +66,6 @@ describe('TokenBalancesController', () => {
       expect(mock.calledTwice).toBe(false);
       setTimeout(() => {
         expect(mock.calledTwice).toBe(true);
-        mock.restore();
         resolve();
       }, 15);
     });
@@ -103,7 +102,6 @@ describe('TokenBalancesController', () => {
       setTimeout(() => {
         tokenBalances.poll(1338);
         expect(mock.called).toBe(true);
-        mock.restore();
         resolve();
       }, 100);
     });

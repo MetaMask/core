@@ -199,7 +199,6 @@ describe('TokenDetectionController', () => {
       expect(mockTokens.calledOnce).toBe(true);
       setTimeout(() => {
         expect(mockTokens.calledTwice).toBe(true);
-        mockTokens.restore();
         resolve('');
       }, 15);
     });
@@ -234,7 +233,6 @@ describe('TokenDetectionController', () => {
         { interval: 10, networkType: ROPSTEN },
       );
       expect(mockTokens.called).toBe(false);
-      mockTokens.restore();
       resolve('');
     });
   });

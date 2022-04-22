@@ -1,4 +1,4 @@
-import { stub } from 'sinon';
+import sinon from 'sinon';
 import Web3ProviderEngine from 'web3-provider-engine';
 import {
   NetworkController,
@@ -10,6 +10,10 @@ import {
 const RPC_TARGET = 'http://foo';
 
 describe('NetworkController', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
   it('should set default state', () => {
     const controller = new NetworkController();
     expect(controller.state).toStrictEqual({
@@ -158,7 +162,7 @@ describe('NetworkController', () => {
       network: 'loading',
     });
     controller.providerConfig = {} as ProviderConfig;
-    controller.lookupNetwork = stub();
+    controller.lookupNetwork = sinon.stub();
     controller.provider.emit('error', {});
     expect((controller.lookupNetwork as any).called).toBe(true);
   });

@@ -1,4 +1,4 @@
-import { useFakeTimers, SinonFakeTimers } from 'sinon';
+import sinon, { SinonFakeTimers } from 'sinon';
 import { mocked } from 'ts-jest/utils';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
@@ -190,14 +190,14 @@ describe('GasFeeController', () => {
   }
 
   beforeEach(() => {
-    clock = useFakeTimers();
+    clock = sinon.useFakeTimers();
     mockedDetermineGasFeeCalculations.mockResolvedValue(
       buildMockGasFeeStateFeeMarket(),
     );
   });
 
   afterEach(() => {
-    clock.uninstall();
+    sinon.restore();
     gasFeeController.destroy();
     jest.clearAllMocks();
   });
