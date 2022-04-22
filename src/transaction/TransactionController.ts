@@ -508,11 +508,11 @@ export class TransactionController extends BaseController<
       id: random(),
       networkID: network,
       chainId: provider.chainId,
-      origin,
+      ...(origin ? { origin } : {}),
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
       transaction,
-      deviceConfirmedOn,
+      ...(deviceConfirmedOn ? { deviceConfirmedOn } : {}),
       verifiedOnBlockchain: false,
     };
 
@@ -591,7 +591,7 @@ export class TransactionController extends BaseController<
     }
 
     const customChainParams = {
-      name,
+      ...(name ? { name } : {}),
       chainId: parseInt(chainId, undefined),
       networkId: parseInt(networkId, undefined),
     };
@@ -978,10 +978,9 @@ export class TransactionController extends BaseController<
       return { gas: '0x5208', gasPrice };
     }
 
-    // if data, should be hex string format
-    estimatedTransaction.data = !data
-      ? data
-      : /* istanbul ignore next */ addHexPrefix(data);
+    if (data) {
+      estimatedTransaction.data = addHexPrefix(data);
+    }
 
     // 3. If this is a contract address, safely estimate gas using RPC
     estimatedTransaction.value =

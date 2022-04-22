@@ -245,11 +245,22 @@ export class PreferencesController extends BaseController<
     }
     const newFrequestRpc: FrequentRpc = {
       rpcUrl: url,
-      chainId,
-      ticker,
-      nickname,
-      rpcPrefs,
     };
+    if (chainId) {
+      newFrequestRpc.chainId = chainId;
+    }
+
+    if (ticker) {
+      newFrequestRpc.ticker = ticker;
+    }
+
+    if (nickname) {
+      newFrequestRpc.nickname = nickname;
+    }
+
+    if (rpcPrefs) {
+      newFrequestRpc.rpcPrefs = rpcPrefs;
+    }
     frequentRpcList.push(newFrequestRpc);
     this.update({ frequentRpcList: [...frequentRpcList] });
   }

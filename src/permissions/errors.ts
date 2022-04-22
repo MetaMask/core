@@ -14,7 +14,7 @@ export function unauthorized(opts: UnauthorizedArg) {
   return ethErrors.provider.unauthorized({
     message:
       'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
-    data: opts.data,
+    ...(opts.data ? { data: opts.data } : {}),
   });
 }
 
@@ -47,10 +47,7 @@ type InvalidParamsArg = {
  * @returns The built error
  */
 export function invalidParams(opts: InvalidParamsArg) {
-  return ethErrors.rpc.invalidParams({
-    data: opts.data,
-    message: opts.message,
-  });
+  return ethErrors.rpc.invalidParams(opts);
 }
 
 /**
@@ -76,7 +73,10 @@ export function internalError<Data extends Record<string, unknown>>(
   message: string,
   data?: Data,
 ): EthereumRpcError<Data> {
-  return ethErrors.rpc.internal({ message, data });
+  return ethErrors.rpc.internal({
+    ...(message ? { message } : {}),
+    ...(data ? { data } : {}),
+  });
 }
 
 export class InvalidSubjectIdentifierError extends Error {

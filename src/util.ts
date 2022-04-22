@@ -844,7 +844,7 @@ export function getIpfsCIDv1AndPath(ipfsUrl: string): {
   // because most cid v0s appear to be incompatible with IPFS subdomains
   return {
     cid: CID.parse(cid).toV1().toString(),
-    path,
+    ...(path ? { path } : {}),
   };
 }
 

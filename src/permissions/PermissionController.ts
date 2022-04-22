@@ -1582,7 +1582,7 @@ export class PermissionController<
       );
 
       const permissionOptions = {
-        caveats,
+        ...(caveats ? { caveats } : {}),
         invoker: origin,
         target: targetName,
       };

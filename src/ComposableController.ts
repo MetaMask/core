@@ -59,7 +59,10 @@ export class ComposableController extends BaseController<never, any> {
     );
     this.initialize();
     this.controllers = controllers;
-    this.messagingSystem = messenger;
+    if (messenger) {
+      this.messagingSystem = messenger;
+    }
+
     this.controllers.forEach((controller) => {
       const { name } = controller;
       if ((controller as BaseController<any, any>).subscribe !== undefined) {

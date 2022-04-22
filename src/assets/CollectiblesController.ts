@@ -1069,7 +1069,9 @@ export class CollectiblesController extends BaseController<
       }
     }
 
-    collectible.isCurrentlyOwned = isOwned;
+    if (isOwned) {
+      collectible.isCurrentlyOwned = isOwned;
+    }
 
     if (batch === true) {
       return collectible;
@@ -1084,7 +1086,9 @@ export class CollectiblesController extends BaseController<
         item.address.toLowerCase() === address.toLowerCase(),
     );
     if (collectibleToUpdate) {
-      collectibleToUpdate.isCurrentlyOwned = isOwned;
+      if (isOwned) {
+        collectibleToUpdate.isCurrentlyOwned = isOwned;
+      }
       this.updateNestedCollectibleState(
         collectibles,
         ALL_COLLECTIBLES_STATE_KEY,

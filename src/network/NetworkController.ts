@@ -308,7 +308,11 @@ export class NetworkController extends BaseController<
     this.update({
       provider: {
         ...this.state.provider,
-        ...{ type: RPC, ticker, rpcTarget, chainId, nickname },
+        type: RPC,
+        rpcTarget,
+        chainId,
+        ...(ticker ? { ticker } : {}),
+        ...(nickname ? { nickname } : {}),
       },
     });
     this.refreshNetwork();
