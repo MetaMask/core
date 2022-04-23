@@ -94,20 +94,20 @@ export class NetworkController extends BaseController<
   NetworkConfig,
   NetworkState
 > {
-  private ethQuery: any;
+  #ethQuery: any;
 
-  private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
+  #internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 
-  private mutex = new Mutex();
+  #mutex = new Mutex();
 
-  private initializeProvider(
+  #initializeProvider(
     type: NetworkType,
     rpcTarget?: string,
     chainId?: string,
     ticker?: string,
     nickname?: string,
   ) {
-    this.update({ isCustomNetwork: this.getIsCustomNetwork(chainId) });
+    this.update({ isCustomNetwork: this.#getIsCustomNetwork(chainId) });
     switch (type) {
       case 'kovan':
       case MAINNET:
@@ -116,40 +116,40 @@ export class NetworkController extends BaseController<
       case 'optimism':
       case 'optimismTest':
       case 'ropsten':
-        this.setupInfuraProvider(type);
+        this.#setupInfuraProvider(type);
         break;
       case 'localhost':
-        this.setupStandardProvider(LOCALHOST_RPC_URL);
+        this.#setupStandardProvider(LOCALHOST_RPC_URL);
         break;
       case RPC:
         rpcTarget &&
-          this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
+          this.#setupStandardProvider(rpcTarget, chainId, ticker, nickname);
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
     }
   }
 
-  private refreshNetwork() {
+  #refreshNetwork() {
     this.update({ network: 'loading', properties: {} });
     const { rpcTarget, type, chainId, ticker } = this.state.provider;
-    this.initializeProvider(type, rpcTarget, chainId, ticker);
+    this.#initializeProvider(type, rpcTarget, chainId, ticker);
     this.lookupNetwork();
   }
 
-  private registerProvider() {
-    this.provider.on('error', this.verifyNetwork.bind(this));
-    this.ethQuery = new EthQuery(this.provider);
+  #registerProvider() {
+    this.provider.on('error', this.#verifyNetwork.bind(this));
+    this.#ethQuery = new EthQuery(this.provider);
   }
 
-  private setupInfuraProvider(type: NetworkType) {
+  #setupInfuraProvider(type: NetworkType) {
     const infuraProvider = createInfuraProvider({
       network: type,
       projectId: this.config.infuraProjectId,
     });
     const infuraSubprovider = new Subprovider(infuraProvider);
     const config = {
-      ...this.internalProviderConfig,
+      ...this.#internalProviderConfig,
       ...{
         dataSubprovider: infuraSubprovider,
         engineParams: {
@@ -158,10 +158,10 @@ export class NetworkController extends BaseController<
         },
       },
     };
-    this.updateProvider(createMetamaskProvider(config));
+    this.#updateProvider(createMetamaskProvider(config));
   }
 
-  private getIsCustomNetwork(chainId?: string) {
+  #getIsCustomNetwork(chainId?: string) {
     return (
       chainId !== NetworksChainId.mainnet &&
       chainId !== NetworksChainId.kovan &&
@@ -172,14 +172,14 @@ export class NetworkController extends BaseController<
     );
   }
 
-  private setupStandardProvider(
+  #setupStandardProvider(
     rpcTarget: string,
     chainId?: string,
     ticker?: string,
     nickname?: string,
   ) {
     const config = {
-      ...this.internalProviderConfig,
+      ...this.#internalProviderConfig,
       ...{
         chainId,
         engineParams: { pollingInterval: 12000 },
@@ -188,22 +188,22 @@ export class NetworkController extends BaseController<
         ticker,
       },
     };
-    this.updateProvider(createMetamaskProvider(config));
+    this.#updateProvider(createMetamaskProvider(config));
   }
 
-  private updateProvider(provider: any) {
-    this.safelyStopProvider(this.provider);
+  #updateProvider(provider: any) {
+    this.#safelyStopProvider(this.provider);
     this.provider = provider;
-    this.registerProvider();
+    this.#registerProvider();
   }
 
-  private safelyStopProvider(provider: any) {
+  #safelyStopProvider(provider: any) {
     setTimeout(() => {
       provider?.stop();
     }, 500);
   }
 
-  private verifyNetwork() {
+  #verifyNetwork() {
     this.state.network === 'loading' && this.lookupNetwork();
   }
 
@@ -243,10 +243,10 @@ export class NetworkController extends BaseController<
    * @param providerConfig - The web3-provider-engine configuration.
    */
   set providerConfig(providerConfig: ProviderConfig) {
-    this.internalProviderConfig = providerConfig;
+    this.#internalProviderConfig = providerConfig;
     const { type, rpcTarget, chainId, ticker, nickname } = this.state.provider;
-    this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
-    this.registerProvider();
+    this.#initializeProvider(type, rpcTarget, chainId, ticker, nickname);
+    this.#registerProvider();
     this.lookupNetwork();
   }
 
@@ -259,11 +259,11 @@ export class NetworkController extends BaseController<
    */
   async lookupNetwork() {
     /* istanbul ignore if */
-    if (!this.ethQuery || !this.ethQuery.sendAsync) {
+    if (!this.#ethQuery || !this.#ethQuery.sendAsync) {
       return;
     }
-    const releaseLock = await this.mutex.acquire();
-    this.ethQuery.sendAsync(
+    const releaseLock = await this.#mutex.acquire();
+    this.#ethQuery.sendAsync(
       { method: 'net_version' },
       (error: Error, network: string) => {
         this.update({
@@ -288,7 +288,7 @@ export class NetworkController extends BaseController<
         ...{ type, ticker: 'ETH', chainId: NetworksChainId[type] },
       },
     });
-    this.refreshNetwork();
+    this.#refreshNetwork();
   }
 
   /**
@@ -311,18 +311,18 @@ export class NetworkController extends BaseController<
         ...{ type: RPC, ticker, rpcTarget, chainId, nickname },
       },
     });
-    this.refreshNetwork();
+    this.#refreshNetwork();
   }
 
   getEIP1559Compatibility() {
     const { properties = {} } = this.state;
 
     if (!properties.isEIP1559Compatible) {
-      if (typeof this.ethQuery?.sendAsync !== 'function') {
+      if (typeof this.#ethQuery?.sendAsync !== 'function') {
         return Promise.resolve(true);
       }
       return new Promise((resolve, reject) => {
-        this.ethQuery.sendAsync(
+        this.#ethQuery.sendAsync(
           { method: 'eth_getBlockByNumber', params: ['latest', false] },
           (error: Error, block: Block) => {
             if (error) {

@@ -129,22 +129,22 @@ export class KeyringController extends BaseController<
   KeyringConfig,
   KeyringState
 > {
-  private mutex = new Mutex();
+  #mutex = new Mutex();
 
   /**
    * Name of this controller used during composition
    */
   override name = 'KeyringController';
 
-  private removeIdentity: PreferencesController['removeIdentity'];
+  #removeIdentity: PreferencesController['removeIdentity'];
 
-  private syncIdentities: PreferencesController['syncIdentities'];
+  #syncIdentities: PreferencesController['syncIdentities'];
 
-  private updateIdentities: PreferencesController['updateIdentities'];
+  #updateIdentities: PreferencesController['updateIdentities'];
 
-  private setSelectedAddress: PreferencesController['setSelectedAddress'];
+  #setSelectedAddress: PreferencesController['setSelectedAddress'];
 
-  private setAccountLabel?: PreferencesController['setAccountLabel'];
+  #setAccountLabel?: PreferencesController['setAccountLabel'];
 
   #keyring: typeof Keyring;
 
@@ -184,11 +184,11 @@ export class KeyringController extends BaseController<
       ...this.#keyring.store.getState(),
       keyrings: [],
     };
-    this.removeIdentity = removeIdentity;
-    this.syncIdentities = syncIdentities;
-    this.updateIdentities = updateIdentities;
-    this.setSelectedAddress = setSelectedAddress;
-    this.setAccountLabel = setAccountLabel;
+    this.#removeIdentity = removeIdentity;
+    this.#syncIdentities = syncIdentities;
+    this.#updateIdentities = updateIdentities;
+    this.#setSelectedAddress = setSelectedAddress;
+    this.#setAccountLabel = setAccountLabel;
     this.initialize();
     this.fullUpdate();
   }
@@ -210,10 +210,10 @@ export class KeyringController extends BaseController<
 
     await this.verifySeedPhrase();
 
-    this.updateIdentities(newAccounts);
+    this.#updateIdentities(newAccounts);
     newAccounts.forEach((selectedAddress: string) => {
       if (!oldAccounts.includes(selectedAddress)) {
-        this.setSelectedAddress(selectedAddress);
+        this.#setSelectedAddress(selectedAddress);
       }
     });
     return this.fullUpdate();
@@ -244,14 +244,14 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to th restored keychain object.
    */
   async createNewVaultAndRestore(password: string, seed: string) {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     try {
-      this.updateIdentities([]);
+      this.#updateIdentities([]);
       const vault = await this.#keyring.createNewVaultAndRestore(
         password,
         seed,
       );
-      this.updateIdentities(await this.#keyring.getAccounts());
+      this.#updateIdentities(await this.#keyring.getAccounts());
       this.fullUpdate();
       return vault;
     } finally {
@@ -266,10 +266,10 @@ export class KeyringController extends BaseController<
    * @returns Newly-created keychain object.
    */
   async createNewVaultAndKeychain(password: string) {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     try {
       const vault = await this.#keyring.createNewVaultAndKeychain(password);
-      this.updateIdentities(await this.#keyring.getAccounts());
+      this.#updateIdentities(await this.#keyring.getAccounts());
       this.fullUpdate();
       return vault;
     } finally {
@@ -375,8 +375,8 @@ export class KeyringController extends BaseController<
     ]);
     const accounts = await newKeyring.getAccounts();
     const allAccounts = await this.#keyring.getAccounts();
-    this.updateIdentities(allAccounts);
-    this.setSelectedAddress(accounts[0]);
+    this.#updateIdentities(allAccounts);
+    this.#setSelectedAddress(accounts[0]);
     return this.fullUpdate();
   }
 
@@ -387,7 +387,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving current state when this account removal completes.
    */
   async removeAccount(address: string): Promise<KeyringMemState> {
-    this.removeIdentity(address);
+    this.#removeIdentity(address);
     await this.#keyring.removeAccount(address);
     return this.fullUpdate();
   }
@@ -498,7 +498,7 @@ export class KeyringController extends BaseController<
   async submitPassword(password: string): Promise<KeyringMemState> {
     await this.#keyring.submitPassword(password);
     const accounts = await this.#keyring.getAccounts();
-    await this.syncIdentities(accounts);
+    await this.#syncIdentities(accounts);
     return this.fullUpdate();
   }
 
@@ -615,7 +615,7 @@ export class KeyringController extends BaseController<
    *
    * @returns The added keyring
    */
-  private async addQRKeyring(): Promise<QRKeyring> {
+  async #addQRKeyring(): Promise<QRKeyring> {
     const keyring = await this.#keyring.addNewKeyring(KeyringTypes.qr);
     await this.fullUpdate();
     return keyring;
@@ -628,12 +628,12 @@ export class KeyringController extends BaseController<
    */
   async getOrAddQRKeyring(): Promise<QRKeyring> {
     const keyring = this.#keyring.getKeyringsByType(KeyringTypes.qr)[0];
-    return keyring || (await this.addQRKeyring());
+    return keyring || (await this.#addQRKeyring());
   }
 
   async restoreQRKeyring(serialized: any): Promise<void> {
     (await this.getOrAddQRKeyring()).deserialize(serialized);
-    this.updateIdentities(await this.#keyring.getAccounts());
+    this.#updateIdentities(await this.#keyring.getAccounts());
     await this.fullUpdate();
   }
 
@@ -698,13 +698,13 @@ export class KeyringController extends BaseController<
     const oldAccounts = await this.#keyring.getAccounts();
     await this.#keyring.addNewAccount(keyring);
     const newAccounts = await this.#keyring.getAccounts();
-    this.updateIdentities(newAccounts);
+    this.#updateIdentities(newAccounts);
     newAccounts.forEach((address: string) => {
       if (!oldAccounts.includes(address)) {
-        if (this.setAccountLabel) {
-          this.setAccountLabel(address, `${keyring.getName()} ${index}`);
+        if (this.#setAccountLabel) {
+          this.#setAccountLabel(address, `${keyring.getName()} ${index}`);
         }
-        this.setSelectedAddress(address);
+        this.#setSelectedAddress(address);
       }
     });
     await this.#keyring.persistAllKeyrings();
@@ -720,7 +720,7 @@ export class KeyringController extends BaseController<
     keyring.forgetDevice();
     const accounts = (await this.#keyring.getAccounts()) as string[];
     accounts.forEach((account) => {
-      this.setSelectedAddress(account);
+      this.#setSelectedAddress(account);
     });
     await this.#keyring.persistAllKeyrings();
     await this.fullUpdate();

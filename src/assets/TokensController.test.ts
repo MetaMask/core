@@ -20,10 +20,6 @@ describe('TokensController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
     });
-
-    sinon
-      .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
   });
 
   afterEach(() => {
@@ -41,12 +37,6 @@ describe('TokensController', () => {
   });
 
   it('should add a token', async () => {
-    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    sinon
-      .stub(tokensController, '_createEthersContract')
-      .callsFake(() =>
-        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-      );
     await tokensController.addToken('0x01', 'bar', 2);
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
@@ -66,13 +56,6 @@ describe('TokensController', () => {
   });
 
   it('should add tokens', async () => {
-    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    sinon
-      .stub(tokensController, '_createEthersContract')
-      .callsFake(() =>
-        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-      );
-
     await tokensController.addTokens([
       { address: '0x01', symbol: 'barA', decimals: 2 },
       { address: '0x02', symbol: 'barB', decimals: 2 },
@@ -117,13 +100,6 @@ describe('TokensController', () => {
   });
 
   it('should add token by selected address', async () => {
-    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    sinon
-      .stub(tokensController, '_createEthersContract')
-      .callsFake(() =>
-        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-      );
-
     const firstAddress = '0x123';
     const secondAddress = '0x321';
 
@@ -142,12 +118,6 @@ describe('TokensController', () => {
   });
 
   it('should add token by network', async () => {
-    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    sinon
-      .stub(tokensController, '_createEthersContract')
-      .callsFake(() =>
-        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-      );
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'ropsten';
     network.update({
@@ -181,24 +151,12 @@ describe('TokensController', () => {
   });
 
   it('should remove token', async () => {
-    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    sinon
-      .stub(tokensController, '_createEthersContract')
-      .callsFake(() =>
-        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-      );
     await tokensController.addToken('0x01', 'bar', 2);
     tokensController.removeAndIgnoreToken('0x01');
     expect(tokensController.state.tokens).toHaveLength(0);
   });
 
   it('should remove token by selected address', async () => {
-    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    sinon
-      .stub(tokensController, '_createEthersContract')
-      .callsFake(() =>
-        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-      );
     const firstAddress = '0x123';
     const secondAddress = '0x321';
     preferences.update({ selectedAddress: firstAddress });
@@ -218,12 +176,6 @@ describe('TokensController', () => {
   });
 
   it('should remove token by provider type', async () => {
-    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-    sinon
-      .stub(tokensController, '_createEthersContract')
-      .callsFake(() =>
-        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-      );
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'ropsten';
     network.update({
@@ -282,15 +234,6 @@ describe('TokensController', () => {
           chainId: defaultSelectedChainID,
         },
       });
-
-      const supportsInterfaceStub = sinon
-        .stub()
-        .returns(Promise.resolve(false));
-      sinon
-        .stub(tokensController, '_createEthersContract')
-        .callsFake(() =>
-          Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-        );
     });
 
     it('should remove token from ignoredTokens/allIgnoredTokens lists if added back via addToken', async () => {
@@ -438,14 +381,6 @@ describe('TokensController', () => {
       });
 
       it('should add isERC721 = true to token object already in state when token is collectible and is not in our contract-metadata repo', async function () {
-        const supportsInterfaceStub = sinon
-          .stub()
-          .returns(Promise.resolve(true));
-        await sinon
-          .stub(tokensController, '_createEthersContract')
-          .callsFake(() =>
-            Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-          );
         const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
         tokensController.update({
           tokens: [
@@ -463,14 +398,6 @@ describe('TokensController', () => {
       });
 
       it('should add isERC721 = false to token object already in state when token is not a collectible and not in our contract-metadata repo', async function () {
-        const supportsInterfaceStub = sinon
-          .stub()
-          .returns(Promise.resolve(false));
-        await sinon
-          .stub(tokensController, '_createEthersContract')
-          .callsFake(() =>
-            Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-          );
         const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
         tokensController.update({
           tokens: [
@@ -510,15 +437,6 @@ describe('TokensController', () => {
       });
 
       it('should add isERC721 = true when the token is a collectible but not in our contract-metadata repo', async function () {
-        const supportsInterfaceStub = sinon
-          .stub()
-          .returns(Promise.resolve(true));
-        await sinon
-          .stub(tokensController, '_createEthersContract')
-          .callsFake(() =>
-            Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-          );
-
         const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
 
         await tokensController.addToken(tokenAddress, 'REST', 4);
@@ -556,14 +474,6 @@ describe('TokensController', () => {
       });
 
       it('should add isERC721 = false when the token is not a collectible and not in our contract-metadata repo', async function () {
-        const supportsInterfaceStub = sinon
-          .stub()
-          .returns(Promise.resolve(false));
-        await sinon
-          .stub(tokensController, '_createEthersContract')
-          .callsFake(() =>
-            Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-          );
         const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
 
         await tokensController.addToken(tokenAddress, 'LEST', 5);
@@ -592,14 +502,6 @@ describe('TokensController', () => {
         symbol: 'SES',
         image: 'image',
       };
-      const supportsInterfaceStub = sinon
-        .stub()
-        .returns(Promise.resolve(false));
-      sinon
-        .stub(tokensController, '_createEthersContract')
-        .callsFake(() =>
-          Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-        );
     });
 
     it('should error if passed no type', async function () {
@@ -680,9 +582,6 @@ describe('TokensController', () => {
 
     it('should handle ERC20 type and add to suggestedAssets', async function () {
       sinon.useFakeTimers(1);
-      sinon
-        .stub(tokensController, '_generateRandomId')
-        .callsFake(() => '12345');
       type = 'ERC20';
       await tokensController.watchAsset(asset, type);
       await expect(tokensController.state.suggestedAssets).toStrictEqual([
@@ -697,9 +596,6 @@ describe('TokensController', () => {
     });
 
     it('should add token correctly if user confirms', async function () {
-      sinon
-        .stub(tokensController, '_generateRandomId')
-        .callsFake(() => '12345');
       type = 'ERC20';
       await tokensController.watchAsset(asset, type);
 
@@ -793,14 +689,6 @@ describe('TokensController', () => {
 
   describe('onPreferencesStateChange', function () {
     it('should update tokens list when set address changes', async function () {
-      const supportsInterfaceStub = sinon
-        .stub()
-        .returns(Promise.resolve(false));
-      await sinon
-        .stub(tokensController, '_createEthersContract')
-        .callsFake(() =>
-          Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-        );
       preferences.setSelectedAddress('0x1');
       await tokensController.addToken('0x01', 'A', 4);
       await tokensController.addToken('0x02', 'B', 5);
@@ -839,14 +727,6 @@ describe('TokensController', () => {
 
   describe('onNetworkStateChange', function () {
     it('should remove a token from its state on corresponding network', async function () {
-      const supportsInterfaceStub = sinon
-        .stub()
-        .returns(Promise.resolve(false));
-      await sinon
-        .stub(tokensController, '_createEthersContract')
-        .callsFake(() =>
-          Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-        );
       const firstNetworkType = 'rinkeby';
       const secondNetworkType = 'ropsten';
       network.update({

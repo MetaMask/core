@@ -97,14 +97,11 @@ export class TokensController extends BaseController<
   TokensConfig,
   TokensState
 > {
-  private mutex = new Mutex();
+  #mutex = new Mutex();
 
-  private ethersProvider: any;
+  #ethersProvider: any;
 
-  private failSuggestedAsset(
-    suggestedAssetMeta: SuggestedAssetMeta,
-    error: unknown,
-  ) {
+  #failSuggestedAsset(suggestedAssetMeta: SuggestedAssetMeta, error: unknown) {
     const failedSuggestedAssetMeta = {
       ...suggestedAssetMeta,
       status: SuggestedAssetStatus.failed,
@@ -186,7 +183,7 @@ export class TokensController extends BaseController<
       const { selectedAddress } = this.config;
       const { chainId } = provider;
       this.configure({ chainId });
-      this.ethersProvider = this._instantiateNewEthersProvider();
+      this.#ethersProvider = this._instantiateNewEthersProvider();
       this.update({
         tokens: allTokens[chainId]?.[selectedAddress] || [],
         ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] || [],
@@ -213,7 +210,7 @@ export class TokensController extends BaseController<
     decimals: number,
     image?: string,
   ): Promise<Token[]> {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     try {
       address = toChecksumHexAddress(address);
       const { tokens, ignoredTokens } = this.state;
@@ -256,7 +253,7 @@ export class TokensController extends BaseController<
    * @returns Current token list.
    */
   async addTokens(tokensToAdd: Token[]): Promise<Token[]> {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     const { tokens, ignoredTokens } = this.state;
 
     try {
@@ -352,7 +349,7 @@ export class TokensController extends BaseController<
     const tokenContract = await this._createEthersContract(
       tokenAddress,
       abiERC721,
-      this.ethersProvider,
+      this.#ethersProvider,
     );
     try {
       return await tokenContract.supportsInterface(ERC721_INTERFACE_ID);
@@ -407,7 +404,7 @@ export class TokensController extends BaseController<
           throw new Error(`Asset of type ${type} not supported`);
       }
     } catch (error) {
-      this.failSuggestedAsset(suggestedAssetMeta, error);
+      this.#failSuggestedAsset(suggestedAssetMeta, error);
       return Promise.reject(error);
     }
 
@@ -467,7 +464,7 @@ export class TokensController extends BaseController<
           );
       }
     } catch (error) {
-      this.failSuggestedAsset(suggestedAssetMeta, error);
+      this.#failSuggestedAsset(suggestedAssetMeta, error);
     }
     const newSuggestedAssets = suggestedAssets.filter(
       ({ id }) => id !== suggestedAssetID,

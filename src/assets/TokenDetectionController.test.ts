@@ -152,10 +152,6 @@ describe('TokenDetectionController', () => {
       getTokensState: () => tokensController.state,
       getTokenListState: () => tokenList.state,
     });
-
-    sinon
-      .stub(tokensController, '_detectIsERC721')
-      .callsFake(() => Promise.resolve(false));
   });
 
   afterEach(() => {
@@ -293,10 +289,6 @@ describe('TokenDetectionController', () => {
   });
 
   it('should not add ignoredTokens to the tokens list if detected with balance', async () => {
-    sinon
-      .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
-
     preferences.setSelectedAddress('0x0001');
     network.update({
       provider: {
@@ -337,10 +329,6 @@ describe('TokenDetectionController', () => {
   });
 
   it('should add a token when detected with a balance even if it is ignored on another account', async () => {
-    sinon
-      .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
-
     preferences.setSelectedAddress('0x0001');
     network.update({
       provider: {
@@ -433,9 +421,6 @@ describe('TokenDetectionController', () => {
   });
 
   it('should subscribe to new sibling detecting tokens when account changes', async () => {
-    sinon
-      .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'mainnet';
     const firstAddress = '0x123';

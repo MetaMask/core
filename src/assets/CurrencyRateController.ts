@@ -76,15 +76,15 @@ export class CurrencyRateController extends BaseController<
   CurrencyRateState,
   CurrencyRateMessenger
 > {
-  private mutex = new Mutex();
+  #mutex = new Mutex();
 
-  private intervalId?: NodeJS.Timeout;
+  #intervalId?: NodeJS.Timeout;
 
-  private intervalDelay;
+  #intervalDelay;
 
-  private fetchExchangeRate;
+  #fetchExchangeRate;
 
-  private includeUsdRate;
+  #includeUsdRate;
 
   /**
    * Creates a CurrencyRateController instance.
@@ -115,23 +115,23 @@ export class CurrencyRateController extends BaseController<
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.includeUsdRate = includeUsdRate;
-    this.intervalDelay = interval;
-    this.fetchExchangeRate = fetchExchangeRate;
+    this.#includeUsdRate = includeUsdRate;
+    this.#intervalDelay = interval;
+    this.#fetchExchangeRate = fetchExchangeRate;
   }
 
   /**
    * Start polling for the currency rate.
    */
   async start() {
-    await this.startPolling();
+    await this.#startPolling();
   }
 
   /**
    * Stop polling for the currency rate.
    */
   stop() {
-    this.stopPolling();
+    this.#stopPolling();
   }
 
   /**
@@ -141,7 +141,7 @@ export class CurrencyRateController extends BaseController<
    */
   override destroy() {
     super.destroy();
-    this.stopPolling();
+    this.#stopPolling();
   }
 
   /**
@@ -168,22 +168,22 @@ export class CurrencyRateController extends BaseController<
     await this.updateExchangeRate();
   }
 
-  private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+  #stopPolling() {
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
     }
   }
 
   /**
    * Starts a new polling interval.
    */
-  private async startPolling(): Promise<void> {
-    this.stopPolling();
+  async #startPolling(): Promise<void> {
+    this.#stopPolling();
     // TODO: Expose polling currency rate update errors
     await safelyExecute(() => this.updateExchangeRate());
-    this.intervalId = setInterval(async () => {
+    this.#intervalId = setInterval(async () => {
       await safelyExecute(() => this.updateExchangeRate());
-    }, this.intervalDelay);
+    }, this.#intervalDelay);
   }
 
   /**
@@ -192,7 +192,7 @@ export class CurrencyRateController extends BaseController<
    * @returns The controller state.
    */
   async updateExchangeRate(): Promise<CurrencyRateState | void> {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     const {
       currentCurrency: stateCurrentCurrency,
       nativeCurrency: stateNativeCurrency,
@@ -216,10 +216,10 @@ export class CurrencyRateController extends BaseController<
         currentCurrency !== '' &&
         nativeCurrency !== ''
       ) {
-        ({ conversionRate, usdConversionRate } = await this.fetchExchangeRate(
+        ({ conversionRate, usdConversionRate } = await this.#fetchExchangeRate(
           currentCurrency,
           nativeCurrency,
-          this.includeUsdRate,
+          this.#includeUsdRate,
         ));
         conversionDate = Date.now() / 1000;
       }

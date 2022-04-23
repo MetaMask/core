@@ -78,39 +78,53 @@ export class SubjectMetadataController extends BaseController<
   SubjectMetadataControllerState,
   SubjectMetadataControllerMessenger
 > {
-  private subjectCacheLimit: number;
+  #subjectCacheLimit: number;
 
-  private subjectsWithoutPermissionsEcounteredSinceStartup: Set<string>;
+  #subjectsWithoutPermissionsEcounteredSinceStartup: Set<string>;
 
-  private subjectHasPermissions: GenericPermissionController['hasPermissions'];
+  #subjectHasPermissions: GenericPermissionController['hasPermissions'];
 
   constructor({
     messenger,
     subjectCacheLimit,
     state = {},
   }: SubjectMetadataControllerOptions) {
+    super({
+      name: controllerName,
+      metadata: stateMetadata,
+      messenger,
+      state: {
+        ...SubjectMetadataController.#getTrimmedState(
+          state,
+          SubjectMetadataController.#hasPermissions.bind(null, messenger),
+        ),
+      },
+    });
+
     if (!Number.isInteger(subjectCacheLimit) || subjectCacheLimit < 1) {
       throw new Error(
         `subjectCacheLimit must be a positive integer. Received: "${subjectCacheLimit}"`,
       );
     }
 
-    const hasPermissions = (origin: string) => {
-      return messenger.call('PermissionController:hasPermissions', origin);
-    };
+    this.#subjectHasPermissions =
+      SubjectMetadataController.#hasPermissions.bind(null, messenger);
+    this.#subjectCacheLimit = subjectCacheLimit;
+    this.#subjectsWithoutPermissionsEcounteredSinceStartup = new Set();
+  }
 
-    super({
-      name: controllerName,
-      metadata: stateMetadata,
-      messenger,
-      state: {
-        ...SubjectMetadataController.getTrimmedState(state, hasPermissions),
-      },
-    });
-
-    this.subjectHasPermissions = hasPermissions;
-    this.subjectCacheLimit = subjectCacheLimit;
-    this.subjectsWithoutPermissionsEcounteredSinceStartup = new Set();
+  /**
+   * Check whether an origin has permissions.
+   *
+   * @param messenger - The restricted messenger for the subject metadata controller.
+   * @param origin - The origin to check for permissions.
+   * @returns Whether the origin has any permissions or not.
+   */
+  static #hasPermissions(
+    messenger: SubjectMetadataControllerMessenger,
+    origin: string,
+  ): boolean {
+    return messenger.call('PermissionController:hasPermissions', origin);
   }
 
   /**
@@ -118,7 +132,7 @@ export class SubjectMetadataController extends BaseController<
    * encountered since startup, so as to not prematurely reach the cache limit.
    */
   clearState(): void {
-    this.subjectsWithoutPermissionsEcounteredSinceStartup.clear();
+    this.#subjectsWithoutPermissionsEcounteredSinceStartup.clear();
     this.update((_draftState) => {
       return { ...defaultState };
     });
@@ -149,23 +163,24 @@ export class SubjectMetadataController extends BaseController<
     // We only delete the oldest encountered subject from the cache, again to
     // ensure that the user's experience isn't degraded by missing icons etc.
     if (
-      this.subjectsWithoutPermissionsEcounteredSinceStartup.size >=
-      this.subjectCacheLimit
+      this.#subjectsWithoutPermissionsEcounteredSinceStartup.size >=
+      this.#subjectCacheLimit
     ) {
-      const cachedOrigin = this.subjectsWithoutPermissionsEcounteredSinceStartup
-        .values()
-        .next().value;
+      const cachedOrigin =
+        this.#subjectsWithoutPermissionsEcounteredSinceStartup
+          .values()
+          .next().value;
 
-      this.subjectsWithoutPermissionsEcounteredSinceStartup.delete(
+      this.#subjectsWithoutPermissionsEcounteredSinceStartup.delete(
         cachedOrigin,
       );
 
-      if (!this.subjectHasPermissions(cachedOrigin)) {
+      if (!this.#subjectHasPermissions(cachedOrigin)) {
         originToForget = cachedOrigin;
       }
     }
 
-    this.subjectsWithoutPermissionsEcounteredSinceStartup.add(origin);
+    this.#subjectsWithoutPermissionsEcounteredSinceStartup.add(origin);
 
     this.update((draftState) => {
       // Typecast: ts(2589)
@@ -181,10 +196,10 @@ export class SubjectMetadataController extends BaseController<
    */
   trimMetadataState(): void {
     this.update((draftState) => {
-      return SubjectMetadataController.getTrimmedState(
+      return SubjectMetadataController.#getTrimmedState(
         // Typecast: ts(2589)
         draftState as any,
-        this.subjectHasPermissions,
+        this.#subjectHasPermissions,
       );
     });
   }
@@ -202,9 +217,9 @@ export class SubjectMetadataController extends BaseController<
    * subject metadata, the returned object will be equivalent to the default
    * state of this controller.
    */
-  private static getTrimmedState(
+  static #getTrimmedState(
     state: Partial<SubjectMetadataControllerState>,
-    hasPermissions: SubjectMetadataController['subjectHasPermissions'],
+    hasPermissions: GenericPermissionController['hasPermissions'],
   ): SubjectMetadataControllerState {
     const { subjectMetadata = {} } = state;
 

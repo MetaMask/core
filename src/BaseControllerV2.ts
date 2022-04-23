@@ -77,7 +77,7 @@ export class BaseController<
   S extends Record<string, Json>,
   messenger extends RestrictedControllerMessenger<N, any, any, string, string>,
 > {
-  private internalState: S;
+  #internalState: S;
 
   protected messagingSystem: messenger;
 
@@ -120,7 +120,7 @@ export class BaseController<
   }) {
     this.messagingSystem = messenger;
     this.name = name;
-    this.internalState = state;
+    this.#internalState = state;
     this.metadata = metadata;
 
     this.messagingSystem.registerActionHandler(
@@ -135,7 +135,7 @@ export class BaseController<
    * @returns The current state.
    */
   get state() {
-    return this.internalState;
+    return this.#internalState;
   }
 
   set state(_) {
@@ -162,9 +162,9 @@ export class BaseController<
         state: S,
         cb: typeof callback,
       ) => [S, Patch[], Patch[]]
-    )(this.internalState, callback);
+    )(this.#internalState, callback);
 
-    this.internalState = nextState;
+    this.#internalState = nextState;
     this.messagingSystem.publish(
       `${this.name}:stateChange` as Namespaced<N, any>,
       nextState,

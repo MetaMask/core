@@ -52,12 +52,12 @@ export class PhishingController extends BaseController<
   PhishingConfig,
   PhishingState
 > {
-  private configUrl =
+  #configUrl =
     'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
 
-  private detector: any;
+  #detector: any;
 
-  private handle?: NodeJS.Timer;
+  #handle?: NodeJS.Timer;
 
   /**
    * Name of this controller used during composition
@@ -80,7 +80,7 @@ export class PhishingController extends BaseController<
       phishing: DEFAULT_PHISHING_RESPONSE,
       whitelist: [],
     };
-    this.detector = new PhishingDetector(this.defaultState.phishing);
+    this.#detector = new PhishingDetector(this.defaultState.phishing);
     this.initialize();
     this.poll();
   }
@@ -92,9 +92,9 @@ export class PhishingController extends BaseController<
    */
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
+    this.#handle && clearTimeout(this.#handle);
     await safelyExecute(() => this.updatePhishingLists());
-    this.handle = setTimeout(() => {
+    this.#handle = setTimeout(() => {
       this.poll(this.config.interval);
     }, this.config.interval);
   }
@@ -110,7 +110,7 @@ export class PhishingController extends BaseController<
     if (this.state.whitelist.indexOf(punycodeOrigin) !== -1) {
       return false;
     }
-    return this.detector.check(punycodeOrigin).result;
+    return this.#detector.check(punycodeOrigin).result;
   }
 
   /**
@@ -135,18 +135,16 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    const phishingOpts = await this.queryConfig(this.configUrl);
+    const phishingOpts = await this.#queryConfig(this.#configUrl);
     if (phishingOpts) {
-      this.detector = new PhishingDetector(phishingOpts);
+      this.#detector = new PhishingDetector(phishingOpts);
       this.update({
         phishing: phishingOpts,
       });
     }
   }
 
-  private async queryConfig(
-    input: RequestInfo,
-  ): Promise<EthPhishingResponse | null> {
+  async #queryConfig(input: RequestInfo): Promise<EthPhishingResponse | null> {
     const response = await fetch(input, { cache: 'no-cache' });
 
     switch (response.status) {
