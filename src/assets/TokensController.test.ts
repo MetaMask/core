@@ -679,7 +679,7 @@ describe('TokensController', () => {
     });
 
     it('should handle ERC20 type and add to suggestedAssets', async function () {
-      const clock = sinon.useFakeTimers(1);
+      sinon.useFakeTimers(1);
       sinon
         .stub(tokensController, '_generateRandomId')
         .callsFake(() => '12345');
@@ -694,7 +694,6 @@ describe('TokensController', () => {
           asset,
         },
       ]);
-      clock.restore();
     });
 
     it('should add token correctly if user confirms', async function () {

@@ -1,11 +1,12 @@
 import { strict as assert } from 'assert';
-import { stub } from 'sinon';
+import sinon from 'sinon';
 import nock from 'nock';
 import { PhishingController } from './PhishingController';
 
 describe('PhishingController', () => {
   afterEach(() => {
     nock.cleanAll();
+    sinon.restore();
   });
 
   it('should set default state', () => {
@@ -23,26 +24,27 @@ describe('PhishingController', () => {
 
   it('should poll and update rate in the right interval', async () => {
     await new Promise<void>((resolve) => {
-      const mock = stub(PhishingController.prototype, 'updatePhishingLists');
+      const mock = sinon.stub(
+        PhishingController.prototype,
+        'updatePhishingLists',
+      );
       new PhishingController({ interval: 10 });
       expect(mock.called).toBe(true);
       expect(mock.calledTwice).toBe(false);
       setTimeout(() => {
         expect(mock.calledTwice).toBe(true);
-        mock.restore();
         resolve();
       }, 15);
     });
   });
 
   it('should clear previous interval', async () => {
-    const mock = stub(global, 'clearTimeout');
+    const mock = sinon.stub(global, 'clearTimeout');
     const controller = new PhishingController({ interval: 1337 });
     await new Promise<void>((resolve) => {
       setTimeout(() => {
         controller.poll(1338);
         expect(mock.called).toBe(true);
-        mock.restore();
         resolve();
       }, 100);
     });

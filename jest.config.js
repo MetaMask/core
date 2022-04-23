@@ -16,14 +16,14 @@ module.exports = {
   },
   moduleFileExtensions: ['js', 'json', 'ts', 'node'],
   preset: 'ts-jest',
-  // TODO: Enable resetMocks and restoreMocks
+  // TODO: Enable resetMocks
   // "resetMocks" resets all mocks, including mocked modules, to jest.fn(),
   // between each test case.
   // resetMocks: true,
   // "restoreMocks" restores all mocks created using jest.spyOn to their
   // original implementations, between each test. It does not affect mocked
   // modules.
-  // restoreMocks: true,
+  restoreMocks: true,
   setupFiles: ['./tests/setupTests.ts'],
   testEnvironment: 'jsdom',
   testRegex: ['\\.test\\.(ts|js)$'],

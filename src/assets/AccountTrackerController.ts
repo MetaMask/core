@@ -71,7 +71,7 @@ export class AccountTrackerController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'AccountTrackerController';
+  override name = 'AccountTrackerController';
 
   private getIdentities: () => PreferencesState['identities'];
 

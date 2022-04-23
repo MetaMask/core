@@ -83,6 +83,10 @@ class CountController extends BaseController<
 }
 
 describe('BaseController', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
   it('should set initial state', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
