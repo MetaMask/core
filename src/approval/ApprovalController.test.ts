@@ -97,9 +97,9 @@ describe('approval controller', () => {
       expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
       expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
       expect(approvalController.has({ type: 'myType' })).toStrictEqual(true);
-      expect(
-        approvalController.state[STORE_KEY].foo.requestData,
-      ).toStrictEqual({ foo: 'bar' });
+      expect(approvalController.state[STORE_KEY].foo.requestData).toStrictEqual(
+        { foo: 'bar' },
+      );
     });
 
     it('adds multiple entries for same origin with different types and ids', () => {

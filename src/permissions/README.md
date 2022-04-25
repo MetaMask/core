@@ -101,19 +101,23 @@ const caveatSpecifications = {
     // If a permission has any caveats, its corresponding restricted method
     // implementation is decorated / wrapped with the implementations of its
     // caveats, using the caveat's decorator function.
-    decorator: (
-      // Restricted methods and other caveats can be async, so we have to
-      // assume that the method is async.
-      method: AsyncRestrictedMethod<RestrictedMethodParameters, Json>,
-      caveat: FilterArrayCaveat,
-    ) => async (args: RestrictedMethodOptions<RestrictedMethodParameters>) => {
-      const result = await method(args);
-      if (!Array.isArray(result)) {
-        throw Error('not an array');
-      }
+    decorator:
+      (
+        // Restricted methods and other caveats can be async, so we have to
+        // assume that the method is async.
+        method: AsyncRestrictedMethod<RestrictedMethodParameters, Json>,
+        caveat: FilterArrayCaveat,
+      ) =>
+      async (args: RestrictedMethodOptions<RestrictedMethodParameters>) => {
+        const result = await method(args);
+        if (!Array.isArray(result)) {
+          throw Error('not an array');
+        }
 
-      return result.filter((resultValue) => caveat.value.includes(resultValue));
-    },
+        return result.filter((resultValue) =>
+          caveat.value.includes(resultValue),
+        );
+      },
   },
 };
 

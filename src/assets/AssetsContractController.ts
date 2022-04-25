@@ -53,7 +53,7 @@ export class AssetsContractController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'AssetsContractController';
+  override name = 'AssetsContractController';
 
   /**
    * Creates a AssetsContractController instance.

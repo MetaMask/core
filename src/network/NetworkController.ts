@@ -210,7 +210,7 @@ export class NetworkController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'NetworkController';
+  override name = 'NetworkController';
 
   /**
    * Ethereum provider object for the current network
@@ -280,12 +280,8 @@ export class NetworkController extends BaseController<
    * @param type - Human readable network name.
    */
   setProviderType(type: NetworkType) {
-    const {
-      rpcTarget,
-      chainId,
-      nickname,
-      ...providerState
-    } = this.state.provider;
+    const { rpcTarget, chainId, nickname, ...providerState } =
+      this.state.provider;
     this.update({
       provider: {
         ...providerState,

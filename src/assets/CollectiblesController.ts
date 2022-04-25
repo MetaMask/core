@@ -789,7 +789,7 @@ export class CollectiblesController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'CollectiblesController';
+  override name = 'CollectiblesController';
 
   private getERC721AssetName: AssetsContractController['getERC721AssetName'];
 

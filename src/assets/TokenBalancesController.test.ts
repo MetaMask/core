@@ -201,9 +201,8 @@ describe('TokenBalancesController', () => {
       {
         onTokensStateChange: (listener) => tokensController.subscribe(listener),
         getSelectedAddress: () => preferences.state.selectedAddress,
-        getERC20BalanceOf: assetsContract.getERC20BalanceOf.bind(
-          assetsContract,
-        ),
+        getERC20BalanceOf:
+          assetsContract.getERC20BalanceOf.bind(assetsContract),
       },
       { interval: 1337 },
     );
