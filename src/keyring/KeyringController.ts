@@ -443,9 +443,7 @@ export class KeyringController extends BaseController<
       const isLedgerAccount = await ledgerKeyring.managesAccount(address);
 
       if (isLedgerAccount) {
-        return privates
-          .get(this)
-          .keyring.signTypedMessage(messageParams, { version });
+        return this.#keyring.signTypedMessage(messageParams, { version });
       }
 
       const qrKeyring = await this.getOrAddQRKeyring();
@@ -742,7 +740,7 @@ export class KeyringController extends BaseController<
   // Ledger Related methods
 
   private async addLedgerKeyring(): Promise<LedgerKeyring> {
-    return await privates.get(this).keyring.addNewKeyring(KeyringTypes.ledger);
+    return await this.#keyring.addNewKeyring(KeyringTypes.ledger);
   }
 
   /**
@@ -751,9 +749,7 @@ export class KeyringController extends BaseController<
    * @returns The stored Ledger Keyring
    */
   async getLedgerKeyring(): Promise<LedgerKeyring> {
-    const keyring = privates
-      .get(this)
-      .keyring.getKeyringsByType(KeyringTypes.ledger)[0];
+    const keyring = this.#keyring.getKeyringsByType(KeyringTypes.ledger)[0];
 
     if (keyring) {
       return keyring;
@@ -775,7 +771,9 @@ export class KeyringController extends BaseController<
   ): Promise<string> {
     const keyring = await this.getLedgerKeyring();
     keyring.setTransport(transport, deviceId);
+
     const { appName } = await keyring.getAppAndVersion();
+
     return appName;
   }
 
@@ -789,9 +787,9 @@ export class KeyringController extends BaseController<
     balance: string;
   }> {
     const keyring = await this.getLedgerKeyring();
-    const oldAccounts = await privates.get(this).keyring.getAccounts();
-    await privates.get(this).keyring.addNewAccount(keyring);
-    const newAccounts = await privates.get(this).keyring.getAccounts();
+    const oldAccounts = await this.#keyring.getAccounts();
+    await this.#keyring.addNewAccount(keyring);
+    const newAccounts = await this.#keyring.getAccounts();
 
     this.updateIdentities(newAccounts);
     newAccounts.forEach((address: string, index: number) => {
@@ -802,7 +800,7 @@ export class KeyringController extends BaseController<
         this.setSelectedAddress(address);
       }
     });
-    await privates.get(this).keyring.persistAllKeyrings();
+    await this.#keyring.persistAllKeyrings();
     this.fullUpdate();
 
     const address = await keyring.getDefaultAccount();
@@ -813,16 +811,37 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Automatically opens the Ethereum app on the Ledger device
+   */
+  async openEthereumApp(): Promise<void> {
+    const keyring = await this.getLedgerKeyring();
+    await keyring.openEthApp();
+  }
+
+  /**
+   * Automatically closes the current app on the Ledger device
+   */
+  async closeRunningApp(): Promise<void> {
+    const keyring = await this.getLedgerKeyring();
+    const { appName } = await keyring.getAppAndVersion();
+
+    // BOLOS means we are on the dashboard we don't need to close anything
+    if (appName !== 'BOLOS') {
+      await keyring.quitApp();
+    }
+  }
+
+  /**
    * Forgets the ledger keyring's previous device specific state.
    */
   async forgetLedger(): Promise<void> {
     const keyring = await this.getLedgerKeyring();
     keyring.forgetDevice();
 
-    const accounts: string[] = await privates.get(this).keyring.getAccounts();
+    const accounts: string[] = await this.#keyring.getAccounts();
     this.setSelectedAddress(accounts[0]);
 
-    await privates.get(this).keyring.persistAllKeyrings();
+    await this.#keyring.persistAllKeyrings();
     await this.fullUpdate();
   }
 }
