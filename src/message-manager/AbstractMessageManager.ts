@@ -72,7 +72,7 @@ export interface MessageManagerState<M extends AbstractMessage>
 export abstract class AbstractMessageManager<
   M extends AbstractMessage,
   P extends AbstractMessageParams,
-  PM extends AbstractMessageParamsMetamask
+  PM extends AbstractMessageParamsMetamask,
 > extends BaseController<BaseConfig, MessageManagerState<M>> {
   protected messages: M[];
 
@@ -129,7 +129,7 @@ export abstract class AbstractMessageManager<
   /**
    * Name of this controller used during composition
    */
-  name = 'AbstractMessageManager';
+  override name = 'AbstractMessageManager';
 
   /**
    * Creates an AbstractMessageManager instance.

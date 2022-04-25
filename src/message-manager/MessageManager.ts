@@ -60,7 +60,7 @@ export class MessageManager extends AbstractMessageManager<
   /**
    * Name of this controller used during composition
    */
-  name = 'MessageManager';
+  override name = 'MessageManager';
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.

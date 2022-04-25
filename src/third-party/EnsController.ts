@@ -37,7 +37,7 @@ export class EnsController extends BaseController<BaseConfig, EnsState> {
   /**
    * Name of this controller used during composition
    */
-  name = 'EnsController';
+  override name = 'EnsController';
 
   /**
    * Creates an EnsController instance.

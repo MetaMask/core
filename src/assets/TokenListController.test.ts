@@ -1,4 +1,4 @@
-import { stub } from 'sinon';
+import sinon from 'sinon';
 import nock from 'nock';
 import contractMap from '@metamask/contract-metadata';
 import { ControllerMessenger } from '../ControllerMessenger';
@@ -21,9 +21,11 @@ const timestamp = Date.now();
 
 const staticTokenList: TokenListMap = {};
 for (const tokenAddress in contractMap) {
-  const { erc20, logo: filePath, ...token } = (contractMap as ContractMap)[
-    tokenAddress
-  ];
+  const {
+    erc20,
+    logo: filePath,
+    ...token
+  } = (contractMap as ContractMap)[tokenAddress];
   if (erc20) {
     staticTokenList[tokenAddress] = {
       ...token,
@@ -272,6 +274,7 @@ describe('TokenListController', () => {
 
   afterEach(() => {
     nock.cleanAll();
+    sinon.restore();
   });
 
   it('should set default state', async () => {
@@ -342,7 +345,10 @@ describe('TokenListController', () => {
   });
 
   it('should poll and update rate in the right interval', async () => {
-    const tokenListMock = stub(TokenListController.prototype, 'fetchTokenList');
+    const tokenListMock = sinon.stub(
+      TokenListController.prototype,
+      'fetchTokenList',
+    );
 
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
@@ -362,11 +368,13 @@ describe('TokenListController', () => {
     expect(tokenListMock.calledTwice).toBe(true);
 
     controller.destroy();
-    tokenListMock.restore();
   });
 
   it('should not poll after being stopped', async () => {
-    const tokenListMock = stub(TokenListController.prototype, 'fetchTokenList');
+    const tokenListMock = sinon.stub(
+      TokenListController.prototype,
+      'fetchTokenList',
+    );
 
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
@@ -388,11 +396,13 @@ describe('TokenListController', () => {
     expect(tokenListMock.calledTwice).toBe(false);
 
     controller.destroy();
-    tokenListMock.restore();
   });
 
   it('should poll correctly after being started, stopped, and started again', async () => {
-    const tokenListMock = stub(TokenListController.prototype, 'fetchTokenList');
+    const tokenListMock = sinon.stub(
+      TokenListController.prototype,
+      'fetchTokenList',
+    );
 
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
@@ -417,7 +427,6 @@ describe('TokenListController', () => {
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     expect(tokenListMock.calledThrice).toBe(true);
     controller.destroy();
-    tokenListMock.restore();
   });
 
   it('should update token list from api', async () => {

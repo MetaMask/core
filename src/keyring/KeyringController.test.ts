@@ -5,7 +5,7 @@ import {
   recoverTypedSignature_v4,
   recoverTypedSignatureLegacy,
 } from 'eth-sig-util';
-import sinon, { SinonStub, stub } from 'sinon';
+import sinon, { SinonStub } from 'sinon';
 import Common from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
@@ -67,6 +67,10 @@ describe('KeyringController', () => {
     initialState = await keyringController.createNewVaultAndKeychain(password);
   });
 
+  afterEach(() => {
+    sinon.restore();
+  });
+
   it('should set default state', () => {
     expect(keyringController.state.keyrings).not.toStrictEqual([]);
     const keyring = keyringController.state.keyrings[0];
@@ -76,8 +80,9 @@ describe('KeyringController', () => {
   });
 
   it('should add new account', async () => {
-    const initialIdentitiesLength = Object.keys(preferences.state.identities)
-      .length;
+    const initialIdentitiesLength = Object.keys(
+      preferences.state.identities,
+    ).length;
     const currentKeyringMemState = await keyringController.addNewAccount();
     expect(initialState.keyrings).toHaveLength(1);
     expect(initialState.keyrings[0].accounts).not.toBe(
@@ -89,9 +94,11 @@ describe('KeyringController', () => {
   });
 
   it('should add new account without updating', async () => {
-    const initialIdentitiesLength = Object.keys(preferences.state.identities)
-      .length;
-    const currentKeyringMemState = await keyringController.addNewAccountWithoutUpdate();
+    const initialIdentitiesLength = Object.keys(
+      preferences.state.identities,
+    ).length;
+    const currentKeyringMemState =
+      await keyringController.addNewAccountWithoutUpdate();
     expect(initialState.keyrings).toHaveLength(1);
     expect(initialState.keyrings[0].accounts).not.toBe(
       currentKeyringMemState.keyrings,
@@ -214,19 +221,13 @@ describe('KeyringController', () => {
 
   it('should import account with strategy json wrong password', async () => {
     const somePassword = 'holachao12';
-    let error;
-    try {
-      await keyringController.importAccountWithStrategy(
-        AccountImportStrategy.json,
-        [input, somePassword],
-      );
-    } catch (e) {
-      error = e;
-    }
 
-    expect(error.message).toBe(
-      'Key derivation failed - possibly wrong passphrase',
-    );
+    await expect(
+      keyringController.importAccountWithStrategy(AccountImportStrategy.json, [
+        input,
+        somePassword,
+      ]),
+    ).rejects.toThrow('Key derivation failed - possibly wrong passphrase');
   });
 
   it('should remove account', async () => {
@@ -428,26 +429,20 @@ describe('KeyringController', () => {
   it('should fail when sign typed message format is wrong', async () => {
     const msgParams = [{}];
     const account = initialState.keyrings[0].accounts[0];
-    let error1;
-    try {
-      await keyringController.signTypedMessage(
+
+    await expect(
+      keyringController.signTypedMessage(
         { data: msgParams, from: account },
         SignTypedDataVersion.V1,
-      );
-    } catch (e) {
-      error1 = e;
-    }
-    let error2;
-    try {
-      await keyringController.signTypedMessage(
+      ),
+    ).rejects.toThrow('Keyring Controller signTypedMessage:');
+
+    await expect(
+      keyringController.signTypedMessage(
         { data: msgParams, from: account },
         SignTypedDataVersion.V3,
-      );
-    } catch (e) {
-      error2 = e;
-    }
-    expect(error1.message).toContain('Keyring Controller signTypedMessage:');
-    expect(error2.message).toContain('Keyring Controller signTypedMessage:');
+      ),
+    ).rejects.toThrow('Keyring Controller signTypedMessage:');
   });
 
   it('should sign transaction', async () => {
@@ -480,7 +475,7 @@ describe('KeyringController', () => {
   });
 
   it('should subscribe and unsubscribe', async () => {
-    const listener = stub();
+    const listener = sinon.stub();
     keyringController.subscribe(listener);
     await keyringController.importAccountWithStrategy(
       AccountImportStrategy.privateKey,
@@ -495,11 +490,11 @@ describe('KeyringController', () => {
   });
 
   it('should receive lock and unlock events', async () => {
-    const listenerLock = stub();
+    const listenerLock = sinon.stub();
     keyringController.onLock(listenerLock);
     await keyringController.setLocked();
     expect(listenerLock.called).toBe(true);
-    const listenerUnlock = stub();
+    const listenerUnlock = sinon.stub();
     keyringController.onUnlock(listenerUnlock);
     await keyringController.submitPassword(password);
     expect(listenerUnlock.called).toBe(true);
@@ -554,24 +549,15 @@ describe('KeyringController', () => {
       const qrkeyring = await signProcessKeyringController.getOrAddQRKeyring();
       qrkeyring.forgetDevice();
 
-      if (!requestSignatureStub) {
-        requestSignatureStub = sinon.stub(
-          qrkeyring.getInteraction(),
-          'requestSignature',
-        );
-      }
+      requestSignatureStub = sinon.stub(
+        qrkeyring.getInteraction(),
+        'requestSignature',
+      );
 
-      if (!readAccountSub) {
-        readAccountSub = sinon.stub(
-          qrkeyring.getInteraction(),
-          'readCryptoHDKeyOrCryptoAccount',
-        );
-      }
-    });
-
-    afterEach(() => {
-      requestSignatureStub.reset();
-      readAccountSub.reset();
+      readAccountSub = sinon.stub(
+        qrkeyring.getInteraction(),
+        'readCryptoHDKeyOrCryptoAccount',
+      );
     });
 
     it('should setup QR keyring with crypto-hdkey', async () => {
@@ -847,8 +833,7 @@ describe('KeyringController', () => {
         name: 'Keystone',
         version: 1,
         xfp: '5271c071',
-        xpub:
-          'xpub6CNhtuXAHDs84AhZj5ALZB6ii4sP5LnDXaKDSjiy6kcBbiysq89cDrLG29poKvZtX9z4FchZKTjTyiPuDeiFMUd1H4g5zViQxt4tpkronJr',
+        xpub: 'xpub6CNhtuXAHDs84AhZj5ALZB6ii4sP5LnDXaKDSjiy6kcBbiysq89cDrLG29poKvZtX9z4FchZKTjTyiPuDeiFMUd1H4g5zViQxt4tpkronJr',
         hdPath: "m/44'/60'/0'",
         childrenPath: '0/*',
         indexes: {

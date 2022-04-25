@@ -1,4 +1,4 @@
-import { createSandbox, stub } from 'sinon';
+import sinon from 'sinon';
 import nock from 'nock';
 import { NetworkController } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
@@ -18,7 +18,6 @@ describe('CollectibleDetectionController', () => {
   let network: NetworkController;
   let collectiblesController: CollectiblesController;
   let assetsContract: AssetsContractController;
-  const sandbox = createSandbox();
 
   beforeEach(async () => {
     preferences = new PreferencesController();
@@ -30,20 +29,16 @@ describe('CollectibleDetectionController', () => {
     collectiblesController = new CollectiblesController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      getERC721AssetName: assetsContract.getERC721AssetName.bind(
-        assetsContract,
-      ),
-      getERC721AssetSymbol: assetsContract.getERC721AssetSymbol.bind(
-        assetsContract,
-      ),
+      getERC721AssetName:
+        assetsContract.getERC721AssetName.bind(assetsContract),
+      getERC721AssetSymbol:
+        assetsContract.getERC721AssetSymbol.bind(assetsContract),
       getERC721TokenURI: assetsContract.getERC721TokenURI.bind(assetsContract),
       getERC721OwnerOf: assetsContract.getERC721OwnerOf.bind(assetsContract),
-      getERC1155BalanceOf: assetsContract.getERC1155BalanceOf.bind(
-        assetsContract,
-      ),
-      getERC1155TokenURI: assetsContract.getERC1155TokenURI.bind(
-        assetsContract,
-      ),
+      getERC1155BalanceOf:
+        assetsContract.getERC1155BalanceOf.bind(assetsContract),
+      getERC1155TokenURI:
+        assetsContract.getERC1155TokenURI.bind(assetsContract),
     });
 
     collectibleDetection = new CollectibleDetectionController({
@@ -202,7 +197,7 @@ describe('CollectibleDetectionController', () => {
 
   afterEach(() => {
     nock.cleanAll();
-    sandbox.reset();
+    sinon.restore();
   });
 
   it('should set default config', () => {
@@ -218,31 +213,31 @@ describe('CollectibleDetectionController', () => {
 
   it('should poll and detect collectibles on interval while on mainnet', async () => {
     await new Promise((resolve) => {
-      const mockCollectibles = stub(
+      const mockCollectibles = sinon.stub(
         CollectibleDetectionController.prototype,
         'detectCollectibles',
       );
-      const collectiblesDetectionController = new CollectibleDetectionController(
-        {
-          onCollectiblesStateChange: (listener) =>
-            collectiblesController.subscribe(listener),
-          onPreferencesStateChange: (listener) =>
-            preferences.subscribe(listener),
-          onNetworkStateChange: (listener) => network.subscribe(listener),
-          getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
-          addCollectible: collectiblesController.addCollectible.bind(
-            collectiblesController,
-          ),
-          getCollectiblesState: () => collectiblesController.state,
-        },
-        { interval: 10 },
-      );
+      const collectiblesDetectionController =
+        new CollectibleDetectionController(
+          {
+            onCollectiblesStateChange: (listener) =>
+              collectiblesController.subscribe(listener),
+            onPreferencesStateChange: (listener) =>
+              preferences.subscribe(listener),
+            onNetworkStateChange: (listener) => network.subscribe(listener),
+            getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
+            addCollectible: collectiblesController.addCollectible.bind(
+              collectiblesController,
+            ),
+            getCollectiblesState: () => collectiblesController.state,
+          },
+          { interval: 10 },
+        );
       collectiblesDetectionController.configure({ disabled: false });
       collectiblesDetectionController.start();
       expect(mockCollectibles.calledOnce).toBe(true);
       setTimeout(() => {
         expect(mockCollectibles.calledTwice).toBe(true);
-        mockCollectibles.restore();
         resolve('');
       }, 15);
     });
@@ -257,7 +252,7 @@ describe('CollectibleDetectionController', () => {
 
   it('should not autodetect while not on mainnet', async () => {
     await new Promise((resolve) => {
-      const mockCollectibles = stub(
+      const mockCollectibles = sinon.stub(
         CollectibleDetectionController.prototype,
         'detectCollectibles',
       );
@@ -277,7 +272,6 @@ describe('CollectibleDetectionController', () => {
         { interval: 10, networkType: ROPSTEN },
       );
       expect(mockCollectibles.called).toBe(false);
-      mockCollectibles.restore();
       resolve('');
     });
   });

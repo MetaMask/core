@@ -78,10 +78,8 @@ export default async function determineGasFeeCalculations({
       } catch {
         estimates = await fetchGasEstimatesViaEthFeeHistory(ethQuery);
       }
-      const {
-        suggestedMaxPriorityFeePerGas,
-        suggestedMaxFeePerGas,
-      } = estimates.medium;
+      const { suggestedMaxPriorityFeePerGas, suggestedMaxFeePerGas } =
+        estimates.medium;
       const estimatedGasFeeTimeBounds = calculateTimeEstimate(
         suggestedMaxPriorityFeePerGas,
         suggestedMaxFeePerGas,
@@ -113,9 +111,12 @@ export default async function determineGasFeeCalculations({
         gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
       };
     } catch (error) {
-      throw new Error(
-        `Gas fee/price estimation failed. Message: ${error.message}`,
-      );
+      if (error instanceof Error) {
+        throw new Error(
+          `Gas fee/price estimation failed. Message: ${error.message}`,
+        );
+      }
+      throw error;
     }
   }
 }

@@ -8,7 +8,7 @@ import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 const controllerName = 'ApprovalController';
 
 type ApprovalPromiseResolve = (value?: unknown) => void;
-type ApprovalPromiseReject = (error?: Error) => void;
+type ApprovalPromiseReject = (error?: unknown) => void;
 
 type ApprovalRequestData = Record<string, Json> | null;
 
@@ -396,7 +396,7 @@ export class ApprovalController extends BaseController<
    * @param id - The id of the approval request.
    * @param error - The error to reject the approval promise with.
    */
-  reject(id: string, error: Error): void {
+  reject(id: string, error: unknown): void {
     this._deleteApprovalAndGetCallbacks(id).reject(error);
   }
 

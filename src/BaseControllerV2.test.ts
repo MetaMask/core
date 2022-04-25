@@ -83,6 +83,10 @@ class CountController extends BaseController<
 }
 
 describe('BaseController', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
   it('should set initial state', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
@@ -779,13 +783,12 @@ describe('getPersistentState', () => {
       const visitorController = new VisitorController(
         visitorControllerMessenger,
       );
-      const visitorOverflowControllerMessenger = controllerMessenger.getRestricted(
-        {
+      const visitorOverflowControllerMessenger =
+        controllerMessenger.getRestricted({
           name: visitorOverflowName,
           allowedActions: ['VisitorController:clear'],
           allowedEvents: ['VisitorController:stateChange'],
-        },
-      );
+        });
       const visitorOverflowController = new VisitorOverflowController(
         visitorOverflowControllerMessenger,
       );

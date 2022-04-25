@@ -32,7 +32,7 @@ export class ComposableController extends BaseController<never, any> {
   /**
    * Name of this controller used during composition
    */
-  name = 'ComposableController';
+  override name = 'ComposableController';
 
   /**
    * Creates a ComposableController instance.
