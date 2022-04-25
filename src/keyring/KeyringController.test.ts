@@ -85,8 +85,8 @@ describe('KeyringController', () => {
     ).length;
     const currentKeyringMemState = await keyringController.addNewAccount();
     expect(initialState.keyrings).toHaveLength(1);
-    expect(initialState.keyrings[0].accounts).not.toBe(
-      currentKeyringMemState.keyrings,
+    expect(initialState.keyrings[0].accounts).not.toHaveLength(
+      currentKeyringMemState.keyrings[0].accounts.length,
     );
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
     const identitiesLength = Object.keys(preferences.state.identities).length;
@@ -100,21 +100,12 @@ describe('KeyringController', () => {
     const currentKeyringMemState =
       await keyringController.addNewAccountWithoutUpdate();
     expect(initialState.keyrings).toHaveLength(1);
-    expect(initialState.keyrings[0].accounts).not.toBe(
-      currentKeyringMemState.keyrings,
+    expect(initialState.keyrings[0].accounts).not.toHaveLength(
+      currentKeyringMemState.keyrings[0].accounts.length,
     );
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
     const identitiesLength = Object.keys(preferences.state.identities).length;
     expect(identitiesLength).toStrictEqual(initialIdentitiesLength);
-  });
-
-  it('should create new vault, mnemonic and keychain', async () => {
-    const currentState = await keyringController.createNewVaultAndKeychain(
-      password,
-    );
-    expect(initialState).not.toBe(currentState);
-    const currentSeedWord = await keyringController.exportSeedPhrase(password);
-    expect(currentSeedWord).toBeDefined();
   });
 
   it('should create new vault and restore', async () => {
@@ -146,6 +137,18 @@ describe('KeyringController', () => {
     ).rejects.toThrow('Seed phrase is invalid');
   });
 
+  it('should create new vault, mnemonic and keychain', async () => {
+    const initialSeedWord = await keyringController.exportSeedPhrase(password);
+    expect(initialSeedWord).toBeDefined();
+    const currentState = await keyringController.createNewVaultAndKeychain(
+      password,
+    );
+    expect(initialState).not.toBe(currentState);
+    const currentSeedWord = await keyringController.exportSeedPhrase(password);
+    expect(currentSeedWord).toBeDefined();
+    expect(initialSeedWord).not.toBe(currentSeedWord);
+  });
+
   it('should set locked correctly', () => {
     expect(keyringController.isUnlocked()).toBe(true);
     keyringController.setLocked();
@@ -167,16 +170,17 @@ describe('KeyringController', () => {
       account,
     );
     expect(newPrivateKey).not.toBe('');
+
     expect(() => keyringController.exportAccount('', account)).toThrow(
       'Invalid password',
     );
-  });
 
-  it('should not export account if address is not provided', async () => {
-    await expect(
-      async () => await keyringController.exportAccount(password, ''),
-    ).rejects.toThrow(
-      'No keyring found for the requested account. Error info: The address passed in is invalid/empty; There are keyrings, but none match the address;',
+    expect(() =>
+      keyringController.exportAccount('JUNK_VALUE', account),
+    ).toThrow('Invalid password');
+
+    await expect(keyringController.exportAccount(password, '')).rejects.toThrow(
+      /^No keyring found for the requested account./u,
     );
   });
 
@@ -188,29 +192,26 @@ describe('KeyringController', () => {
 
   it('should import account with strategy privateKey', async () => {
     await expect(
-      async () =>
-        await keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          [],
-        ),
+      keyringController.importAccountWithStrategy(
+        AccountImportStrategy.privateKey,
+        [],
+      ),
     ).rejects.toThrow('Cannot import an empty key.');
 
     await expect(
-      async () =>
-        await keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          ['123'],
-        ),
+      keyringController.importAccountWithStrategy(
+        AccountImportStrategy.privateKey,
+        ['123'],
+      ),
     ).rejects.toThrow(
       'Expected private key to be an Uint8Array with length 32',
     );
 
     await expect(
-      async () =>
-        await keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          ['0xblahblah'],
-        ),
+      keyringController.importAccountWithStrategy(
+        AccountImportStrategy.privateKey,
+        ['0xblahblah'],
+      ),
     ).rejects.toThrow('Cannot import invalid private key.');
 
     const address = '0x51253087e6f8358b5f10c0a94315d69db3357859';
@@ -228,19 +229,17 @@ describe('KeyringController', () => {
 
   it('should not import account with strategy privateKey if wrong data is provided', async () => {
     await expect(
-      async () =>
-        await keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          [],
-        ),
+      keyringController.importAccountWithStrategy(
+        AccountImportStrategy.privateKey,
+        [],
+      ),
     ).rejects.toThrow('Cannot import an empty key.');
 
     await expect(
-      async () =>
-        await keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          ['123'],
-        ),
+      keyringController.importAccountWithStrategy(
+        AccountImportStrategy.privateKey,
+        ['123'],
+      ),
     ).rejects.toThrow(
       'Expected private key to be an Uint8Array with length 32',
     );
@@ -248,6 +247,14 @@ describe('KeyringController', () => {
 
   it('should import account with strategy json', async () => {
     const somePassword = 'holachao123';
+
+    await expect(
+      keyringController.importAccountWithStrategy(AccountImportStrategy.json, [
+        '',
+        somePassword,
+      ]),
+    ).rejects.toThrow('Unexpected end of JSON input');
+
     const address = '0xb97c80fab7a3793bbe746864db80d236f1345ea7';
     const obj = await keyringController.importAccountWithStrategy(
       AccountImportStrategy.json,
@@ -259,25 +266,6 @@ describe('KeyringController', () => {
       keyrings: [initialState.keyrings[0], newKeyring],
     };
     expect(obj).toStrictEqual(modifiedState);
-  });
-
-  it('should not import account with strategy json', async () => {
-    const somePassword = 'holachao123';
-    await expect(
-      async () =>
-        await keyringController.importAccountWithStrategy(
-          AccountImportStrategy.json,
-          ['', somePassword],
-        ),
-    ).rejects.toThrow('Unexpected end of JSON input');
-
-    await expect(
-      async () =>
-        await keyringController.importAccountWithStrategy(
-          AccountImportStrategy.json,
-          [input, ''],
-        ),
-    ).rejects.toThrow('Key derivation failed - possibly wrong passphrase');
   });
 
   it('should throw when passed an unrecognized strategy', async () => {
@@ -293,11 +281,19 @@ describe('KeyringController', () => {
   it('should import account with strategy json wrong password', async () => {
     const somePassword = 'holachao12';
     await expect(
-      async () =>
-        await keyringController.importAccountWithStrategy(
-          AccountImportStrategy.json,
-          [input, somePassword],
-        ),
+      keyringController.importAccountWithStrategy(AccountImportStrategy.json, [
+        input,
+        somePassword,
+      ]),
+    ).rejects.toThrow('Key derivation failed - possibly wrong passphrase');
+  });
+
+  it('should import account with strategy json empty password', async () => {
+    await expect(
+      keyringController.importAccountWithStrategy(AccountImportStrategy.json, [
+        input,
+        '',
+      ]),
     ).rejects.toThrow('Key derivation failed - possibly wrong passphrase');
   });
 
@@ -310,6 +306,21 @@ describe('KeyringController', () => {
       '0x51253087e6f8358b5f10c0a94315d69db3357859',
     );
     expect(finalState).toStrictEqual(initialState);
+  });
+
+  it('should not remove account if wrong address is provided', async () => {
+    await keyringController.importAccountWithStrategy(
+      AccountImportStrategy.privateKey,
+      [privateKey],
+    );
+
+    await expect(keyringController.removeAccount('')).rejects.toThrow(
+      /^No keyring found for the requested account/u,
+    );
+
+    await expect(
+      keyringController.removeAccount('DUMMY_INPUT'),
+    ).rejects.toThrow(/^No keyring found for the requested account/u);
   });
 
   it('should sign message', async () => {
@@ -325,21 +336,19 @@ describe('KeyringController', () => {
 
   it('should not sign message even if empty data is passed', async () => {
     await expect(
-      async () =>
-        await keyringController.signMessage({
-          data: '',
-          from: initialState.keyrings[0].accounts[0],
-        }),
+      keyringController.signMessage({
+        data: '',
+        from: initialState.keyrings[0].accounts[0],
+      }),
     ).rejects.toThrow('Expected message to be an Uint8Array with length 32');
   });
 
   it('should not sign message if from account is not passed', async () => {
     await expect(
-      async () =>
-        await keyringController.signMessage({
-          data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
-          from: '',
-        }),
+      keyringController.signMessage({
+        data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
+        from: '',
+      }),
     ).rejects.toThrow(
       'No keyring found for the requested account. Error info: The address passed in is invalid/empty; There are keyrings, but none match the address;',
     );
@@ -371,11 +380,10 @@ describe('KeyringController', () => {
 
   it('should not sign personal message if from account is not passed', async () => {
     await expect(
-      async () =>
-        await keyringController.signPersonalMessage({
-          data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
-          from: '',
-        }),
+      keyringController.signPersonalMessage({
+        data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
+        from: '',
+      }),
     ).rejects.toThrow(
       'No keyring found for the requested account. Error info: The address passed in is invalid/empty; There are keyrings, but none match the address;',
     );
