@@ -316,13 +316,11 @@ export function normalizeTransaction(transaction: Transaction) {
  *
  * @param operation - Function returning a Promise.
  * @param logError - Determines if the error should be logged.
- * @param retry - Function called if an error is caught.
  * @returns Promise resolving to the result of the async operation.
  */
 export async function safelyExecute(
   operation: () => Promise<any>,
   logError = false,
-  retry?: (error: Error) => void,
 ) {
   try {
     return await operation();
@@ -331,7 +329,6 @@ export async function safelyExecute(
     if (logError) {
       console.error(error);
     }
-    retry?.(error);
     return undefined;
   }
 }
@@ -603,7 +600,7 @@ export function validateTokenToWatch(token: Token) {
       `Invalid symbol "${symbol}": longer than 11 characters.`,
     );
   }
-  const numDecimals = parseInt((decimals as unknown) as string, 10);
+  const numDecimals = parseInt(decimals as unknown as string, 10);
   if (isNaN(numDecimals) || numDecimals > 36 || numDecimals < 0) {
     throw ethErrors.rpc.invalidParams(
       `Invalid decimals "${decimals}": must be 0 <= 36.`,
@@ -831,9 +828,10 @@ export function removeIpfsProtocolPrefix(ipfsUrl: string) {
  * @returns IFPS content identifier (cid) and sub path as string.
  * @throws Will throw if the url passed is not ipfs.
  */
-export function getIpfsCIDv1AndPath(
-  ipfsUrl: string,
-): { cid: string; path?: string } {
+export function getIpfsCIDv1AndPath(ipfsUrl: string): {
+  cid: string;
+  path?: string;
+} {
   const url = removeIpfsProtocolPrefix(ipfsUrl);
 
   // check if there is a path

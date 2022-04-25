@@ -32,8 +32,7 @@ describe('ERC1155Standard', () => {
         params: [
           {
             to: '0xfaaFDc07907ff5120a76b34b731b278c38d6043C',
-            data:
-              '0x01ffc9a70e89341c00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a70e89341c00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -44,9 +43,10 @@ describe('ERC1155Standard', () => {
         result:
           '0x0000000000000000000000000000000000000000000000000000000000000001',
       });
-    const contractSupportsUri = await erc1155Standard.contractSupportsURIMetadataInterface(
-      ERC1155_ADDRESS,
-    );
+    const contractSupportsUri =
+      await erc1155Standard.contractSupportsURIMetadataInterface(
+        ERC1155_ADDRESS,
+      );
     expect(contractSupportsUri).toBe(true);
   });
 });

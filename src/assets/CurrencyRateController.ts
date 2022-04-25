@@ -139,7 +139,7 @@ export class CurrencyRateController extends BaseController<
    *
    * This stops any active polling.
    */
-  destroy() {
+  override destroy() {
     super.destroy();
     this.stopPolling();
   }

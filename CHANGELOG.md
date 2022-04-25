@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.0.0]
+### Added
+- Add GrantPermissions action to PermissionsController ([#780](https://github.com/MetaMask/controllers/pull/780))
+- Add `PermissionController.revokePermissionForAllSubjects` action ([#764](https://github.com/MetaMask/controllers/pull/764))
+
+### Changed
+- **BREAKING:** Rename NotificationController to AnnouncementController ([#697](https://github.com/MetaMask/controllers/pull/697))
+  - The `NotificationController` class is now `AnnouncementController`.
+  - The controller `notifications` state has been renamed to `announcements`.
+  - All other exported types including the word "notification" have been updated to use the word "announcement" instead.
+
 ## [27.1.1]
 ### Fixed
 - Move `@keystonehq/metamask-airgapped-keyring` to dependencies ([#757](https://github.com/MetaMask/controllers/pull/757))
@@ -538,7 +549,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v27.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v28.0.0...HEAD
+[28.0.0]: https://github.com/MetaMask/controllers/compare/v27.1.1...v28.0.0
 [27.1.1]: https://github.com/MetaMask/controllers/compare/v27.1.0...v27.1.1
 [27.1.0]: https://github.com/MetaMask/controllers/compare/v27.0.0...v27.1.0
 [27.0.0]: https://github.com/MetaMask/controllers/compare/v26.0.0...v27.0.0
