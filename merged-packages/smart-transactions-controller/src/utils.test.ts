@@ -172,4 +172,44 @@ describe('src/utils.js', () => {
       expect(processingTime).toStrictEqual(3);
     });
   });
+
+  describe('isSmartTransactionCancellable', () => {
+    const createStxStatus = (customProps = {}) => {
+      return {
+        error: undefined,
+        minedTx: SmartTransactionMinedTx.NOT_MINED,
+        cancellationFeeWei: 10000,
+        cancellationReason: SmartTransactionCancellationReason.NOT_CANCELLED,
+        deadlineRatio: 10,
+        minedHash: undefined,
+        ...customProps,
+      };
+    };
+
+    it('returns true if minedTx is NOT_MINED and cancellationReason is NOT_CANCELLED', () => {
+      const stxStatus = createStxStatus();
+      expect(utils.isSmartTransactionCancellable(stxStatus)).toBe(true);
+    });
+
+    it('returns true if minedTx is NOT_MINED and cancellationReason is undefined', () => {
+      const stxStatus = createStxStatus({
+        cancellationReason: undefined,
+      });
+      expect(utils.isSmartTransactionCancellable(stxStatus)).toBe(true);
+    });
+
+    it('returns false if minedTx is NOT_MINED and cancellationReason is USER_CANCELLED', () => {
+      const stxStatus = createStxStatus({
+        cancellationReason: SmartTransactionCancellationReason.USER_CANCELLED,
+      });
+      expect(utils.isSmartTransactionCancellable(stxStatus)).toBe(false);
+    });
+
+    it('returns false if minedTx is CANCELLED and cancellationReason is NOT_CANCELLED', () => {
+      const stxStatus = createStxStatus({
+        minedTx: SmartTransactionMinedTx.CANCELLED,
+      });
+      expect(utils.isSmartTransactionCancellable(stxStatus)).toBe(false);
+    });
+  });
 });

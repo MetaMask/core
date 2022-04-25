@@ -16,8 +16,8 @@ export function isSmartTransactionPending(smartTransaction: SmartTransaction) {
 }
 
 export const isSmartTransactionStatusResolved = (
-  status: SmartTransactionsStatus | string,
-) => status === 'uuid_not_found';
+  stxStatus: SmartTransactionsStatus | string,
+) => stxStatus === 'uuid_not_found';
 
 // TODO use actual url once API is defined
 export function getAPIRequestURL(apiType: APIType, chainId: string): string {
@@ -53,8 +53,8 @@ export function getAPIRequestURL(apiType: APIType, chainId: string): string {
   }
 }
 
-export const calculateStatus = (status: SmartTransactionsStatus) => {
-  if (isSmartTransactionStatusResolved(status)) {
+export const calculateStatus = (stxStatus: SmartTransactionsStatus) => {
+  if (isSmartTransactionStatusResolved(stxStatus)) {
     return SmartTransactionStatuses.RESOLVED;
   }
   const cancellations = [
@@ -64,9 +64,9 @@ export const calculateStatus = (status: SmartTransactionsStatus) => {
     SmartTransactionCancellationReason.INVALID_NONCE,
     SmartTransactionCancellationReason.USER_CANCELLED,
   ];
-  if (status?.minedTx === SmartTransactionMinedTx.NOT_MINED) {
+  if (stxStatus?.minedTx === SmartTransactionMinedTx.NOT_MINED) {
     if (
-      status.cancellationReason ===
+      stxStatus.cancellationReason ===
       SmartTransactionCancellationReason.NOT_CANCELLED
     ) {
       return SmartTransactionStatuses.PENDING;
@@ -74,18 +74,18 @@ export const calculateStatus = (status: SmartTransactionsStatus) => {
 
     const isCancellation =
       cancellations.findIndex(
-        (cancellation) => cancellation === status.cancellationReason,
+        (cancellation) => cancellation === stxStatus.cancellationReason,
       ) > -1;
-    if (status.cancellationReason && isCancellation) {
-      return cancellationReasonToStatusMap[status.cancellationReason];
+    if (stxStatus.cancellationReason && isCancellation) {
+      return cancellationReasonToStatusMap[stxStatus.cancellationReason];
     }
-  } else if (status?.minedTx === SmartTransactionMinedTx.SUCCESS) {
+  } else if (stxStatus?.minedTx === SmartTransactionMinedTx.SUCCESS) {
     return SmartTransactionStatuses.SUCCESS;
-  } else if (status?.minedTx === SmartTransactionMinedTx.CANCELLED) {
+  } else if (stxStatus?.minedTx === SmartTransactionMinedTx.CANCELLED) {
     return SmartTransactionStatuses.CANCELLED;
-  } else if (status?.minedTx === SmartTransactionMinedTx.REVERTED) {
+  } else if (stxStatus?.minedTx === SmartTransactionMinedTx.REVERTED) {
     return SmartTransactionStatuses.REVERTED;
-  } else if (status?.minedTx === SmartTransactionMinedTx.UNKNOWN) {
+  } else if (stxStatus?.minedTx === SmartTransactionMinedTx.UNKNOWN) {
     return SmartTransactionStatuses.UNKNOWN;
   }
   return SmartTransactionStatuses.UNKNOWN;
@@ -172,3 +172,14 @@ export async function handleFetch(request: string, options?: RequestInit) {
   }
   return json;
 }
+
+export const isSmartTransactionCancellable = (
+  stxStatus: SmartTransactionsStatus,
+): boolean => {
+  return (
+    stxStatus.minedTx === SmartTransactionMinedTx.NOT_MINED &&
+    (!stxStatus.cancellationReason ||
+      stxStatus.cancellationReason ===
+        SmartTransactionCancellationReason.NOT_CANCELLED)
+  );
+};

@@ -152,6 +152,7 @@ const createStateAfterPending = () => {
     {
       uuid: 'uuid1',
       status: 'pending',
+      cancellable: true,
       statusMetadata: {
         cancellationFeeWei: 0,
         cancellationReason: 'not_cancelled',
@@ -179,6 +180,7 @@ const createStateAfterSuccess = () => {
     {
       uuid: 'uuid2',
       status: 'success',
+      cancellable: false,
       statusMetadata: {
         cancellationFeeWei: 36777567771000,
         cancellationReason: 'not_cancelled',

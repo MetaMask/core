@@ -29,18 +29,14 @@ import {
   generateHistoryEntry,
   getStxProcessingTime,
   handleFetch,
+  isSmartTransactionCancellable,
 } from './utils';
 import { CHAIN_IDS } from './constants';
 
 const { safelyExecute } = util;
 
-// TODO: JSDoc all methods
-// TODO: Remove all comments (* ! ?)
 const SECOND = 1000;
-const MINUTE = SECOND * 60;
-
 export const DEFAULT_INTERVAL = SECOND * 5;
-export const CANCELLABLE_INTERVAL = MINUTE;
 
 export interface SmartTransactionsControllerConfig extends BaseConfig {
   interval: number;
@@ -447,10 +443,13 @@ export default class SmartTransactionsController extends BaseController<
 
     const data = await this.fetch(url);
 
-    Object.entries(data).forEach(([uuid, smartTransaction]) => {
+    Object.entries(data).forEach(([uuid, stxStatus]) => {
       this.updateSmartTransaction({
-        statusMetadata: smartTransaction as SmartTransactionsStatus,
-        status: calculateStatus(smartTransaction as SmartTransactionsStatus),
+        statusMetadata: stxStatus as SmartTransactionsStatus,
+        status: calculateStatus(stxStatus as SmartTransactionsStatus),
+        cancellable: isSmartTransactionCancellable(
+          stxStatus as SmartTransactionsStatus,
+        ),
         uuid,
       });
     });
@@ -590,18 +589,6 @@ export default class SmartTransactionsController extends BaseController<
       cancellable: true,
     });
 
-    setTimeout(() => {
-      if (!this.isNewSmartTransaction(data.uuid)) {
-        // Only do this for an existing smart transaction. If an STX is not in the list anymore
-        // (e.g. because it was cancelled and a new one was submitted, which deletes the first one),
-        // do not try to update the old one, because it would create a new one with most
-        // of the required STX params missing. It would only have "uuid" and "cancellable" params.
-        this.updateSmartTransaction({
-          uuid: data.uuid,
-          cancellable: false,
-        });
-      }
-    }, CANCELLABLE_INTERVAL);
     nonceLock.releaseLock();
     return data;
   }
