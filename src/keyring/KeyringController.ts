@@ -385,11 +385,6 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * TODO:
-   * If there is only HD Key Tree keyring with 1 account and removeAccount is called passing that account
-   * It deletes keyring object also from state - not sure if this is correct behavior.
-   */
-  /**
    * Removes an account from keyring state.
    *
    * @param address - Address of the account to remove.

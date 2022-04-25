@@ -85,8 +85,8 @@ describe('KeyringController', () => {
     ).length;
     const currentKeyringMemState = await keyringController.addNewAccount();
     expect(initialState.keyrings).toHaveLength(1);
-    expect(initialState.keyrings[0].accounts).not.toHaveLength(
-      currentKeyringMemState.keyrings[0].accounts.length,
+    expect(initialState.keyrings[0].accounts).not.toStrictEqual(
+      currentKeyringMemState.keyrings[0].accounts,
     );
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
     const identitiesLength = Object.keys(preferences.state.identities).length;
@@ -100,8 +100,8 @@ describe('KeyringController', () => {
     const currentKeyringMemState =
       await keyringController.addNewAccountWithoutUpdate();
     expect(initialState.keyrings).toHaveLength(1);
-    expect(initialState.keyrings[0].accounts).not.toHaveLength(
-      currentKeyringMemState.keyrings[0].accounts.length,
+    expect(initialState.keyrings[0].accounts).not.toStrictEqual(
+      currentKeyringMemState.keyrings[0].accounts,
     );
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
     const identitiesLength = Object.keys(preferences.state.identities).length;
@@ -170,7 +170,6 @@ describe('KeyringController', () => {
       account,
     );
     expect(newPrivateKey).not.toBe('');
-
     expect(() => keyringController.exportAccount('', account)).toThrow(
       'Invalid password',
     );
@@ -298,6 +297,17 @@ describe('KeyringController', () => {
     ).rejects.toThrow('Key derivation failed - possibly wrong passphrase');
   });
 
+  /**
+   * If there is only HD Key Tree keyring with 1 account and removeAccount is called passing that account
+   * It deletes keyring object also from state - not sure if this is correct behavior.
+   * https://github.com/MetaMask/controllers/issues/801
+   */
+  it('should remove HD Key Tree keyring from state when single account associated with it is deleted', async () => {
+    const account = initialState.keyrings[0].accounts[0];
+    const finalState = await keyringController.removeAccount(account);
+    expect(finalState.keyrings).toHaveLength(0);
+  });
+
   it('should remove account', async () => {
     await keyringController.importAccountWithStrategy(
       AccountImportStrategy.privateKey,
@@ -367,7 +377,8 @@ describe('KeyringController', () => {
   });
 
   /**
-   * TODO: signPersonalMessage does not seems to fails for empty data value, check if this is ok
+   * signPersonalMessage does not fail for empty data value
+   * https://github.com/MetaMask/controllers/issues/799
    */
   it('should sign personal message even if empty data is passed', async () => {
     const account = initialState.keyrings[0].accounts[0];
@@ -641,7 +652,8 @@ describe('KeyringController', () => {
   });
 
   /**
-   * TODO: There can be a better check in method signTransaction for valid transaction.
+   * Task added to improve check for valid transaction in signTransaction method
+   * https://github.com/MetaMask/controllers/issues/800
    */
   it('should not sign transaction if transaction is not valid', async () => {
     await expect(async () => {
@@ -658,9 +670,10 @@ describe('KeyringController', () => {
   });
 
   /**
-   * TODO: test below should fail for wrong password
+   * submitPassword does not fail if wrong password is passed
+   * https://github.com/MetaMask/controllers/issues/798
    */
-  it('should fail on submit password for wrong password', async () => {
+  it('should not fail on submit password for wrong password', async () => {
     const state = await keyringController.submitPassword('JUNK');
     expect(state).toStrictEqual(initialState);
   });
