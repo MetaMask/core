@@ -23,8 +23,6 @@ import {
   SignTypedDataVersion,
 } from './KeyringController';
 
-type ErrorMessageObject = { message: string };
-
 const input =
   '{"version":3,"id":"534e0199-53f6-41a9-a8fe-d504702ee5e8","address":"b97c80fab7a3793bbe746864db80d236f1345ea7",' +
   '"crypto":{"ciphertext":"974fec42023c2d6340d9710863aa82a2961aa03b9d7e5dd19aa77ab4aab1f344",' +
@@ -138,14 +136,14 @@ describe('KeyringController', () => {
 
   it('should throw error if creating new vault and restore without password', async () => {
     await expect(
-      keyringController.createNewVaultAndRestore('', seedWords)
+      keyringController.createNewVaultAndRestore('', seedWords),
     ).rejects.toThrow('Invalid password');
   });
 
-  it('should throw error if creating new vault and restore without seedWord', async () => {
-    await expect(async () => {
-      await keyringController.createNewVaultAndRestore(password, '');
-    }).rejects.toThrow('Seed phrase is invalid');
+  it('should throw error if creating new vault and restoring without seed phrase', async () => {
+    await expect(
+      keyringController.createNewVaultAndRestore(password, ''),
+    ).rejects.toThrow('Seed phrase is invalid');
   });
 
   it('should set locked correctly', () => {
@@ -566,31 +564,24 @@ describe('KeyringController', () => {
   });
 
   it('should fail in signing message when from address is not provided', async () => {
-    let error: unknown = { message: '' };
-    try {
-      const typedMsgParams = [
-        {
-          name: 'Message',
-          type: 'string',
-          value: 'Hi, Alice!',
-        },
-        {
-          name: 'A number',
-          type: 'uint32',
-          value: '1337',
-        },
-      ];
-      await keyringController.signTypedMessage(
+    const typedMsgParams = [
+      {
+        name: 'Message',
+        type: 'string',
+        value: 'Hi, Alice!',
+      },
+      {
+        name: 'A number',
+        type: 'uint32',
+        value: '1337',
+      },
+    ];
+    await expect(
+      keyringController.signTypedMessage(
         { data: typedMsgParams, from: '' },
         SignTypedDataVersion.V1,
-      );
-    } catch (e) {
-      error = e;
-    }
-
-    expect((error as ErrorMessageObject).message).toContain(
-      'Keyring Controller signTypedMessage: Error: No keyring found for the requested account. Error info: The address passed in is invalid/empty; There are keyrings, but none match the address;',
-    );
+      ),
+    ).rejects.toThrow(/^Keyring Controller signTypedMessage:/u);
   });
 
   it('should sign transaction', async () => {
