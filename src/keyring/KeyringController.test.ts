@@ -280,6 +280,7 @@ describe('KeyringController', () => {
 
   it('should import account with strategy json wrong password', async () => {
     const somePassword = 'holachao12';
+
     await expect(
       keyringController.importAccountWithStrategy(AccountImportStrategy.json, [
         input,
