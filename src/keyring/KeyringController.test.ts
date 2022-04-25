@@ -137,9 +137,9 @@ describe('KeyringController', () => {
   });
 
   it('should throw error if creating new vault and restore without password', async () => {
-    await expect(async () => {
-      await keyringController.createNewVaultAndRestore('', seedWords);
-    }).rejects.toThrow('Invalid password');
+    await expect(
+      keyringController.createNewVaultAndRestore('', seedWords)
+    ).rejects.toThrow('Invalid password');
   });
 
   it('should throw error if creating new vault and restore without seedWord', async () => {
