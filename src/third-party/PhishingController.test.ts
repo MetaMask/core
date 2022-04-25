@@ -10,10 +10,14 @@ describe('PhishingController', () => {
 
   it('should set default state', () => {
     const controller = new PhishingController();
-    expect(controller.state.phishing).toHaveProperty('blacklist');
-    expect(controller.state.phishing).toHaveProperty('fuzzylist');
-    expect(controller.state.phishing).toHaveProperty('version');
-    expect(controller.state.phishing).toHaveProperty('whitelist');
+    controller.state.phishing.forEach((i) => {
+      expect(i).toHaveProperty('allowlist');
+      expect(i).toHaveProperty('blocklist');
+      expect(i).toHaveProperty('fuzzylist');
+      expect(i).toHaveProperty('tolerance');
+      expect(i).toHaveProperty('name');
+      expect(i).toHaveProperty('version');
+    });
   });
 
   it('should set default config', () => {
@@ -82,15 +86,16 @@ describe('PhishingController', () => {
     expect(async () => await controller.updatePhishingLists()).not.toThrow();
   });
 
-  it('should return negative result for safe domain from legacy config', () => {
+  it('should return negative result for safe domain from default config', () => {
     const controller = new PhishingController();
     expect(controller.test('metamask.io')).toMatchObject<EthPhishingDetectResult>({
       result: false,
-      type: 'whitelist',
+      type: 'allowlist',
+      name: 'MetaMask',
     });
   });
 
-  it('should return negative result for safe unicode domain from legacy config', () => {
+  it('should return negative result for safe unicode domain from default config', () => {
     const controller = new PhishingController();
     expect(controller.test('i❤.ws')).toMatchObject<EthPhishingDetectResult>({
       result: false,
@@ -98,7 +103,7 @@ describe('PhishingController', () => {
     });
   });
 
-  it('should return negative result for safe punycode domain from legacy config', () => {
+  it('should return negative result for safe punycode domain from default config', () => {
     const controller = new PhishingController();
     expect(controller.test('xn--i-7iq.ws')).toMatchObject<EthPhishingDetectResult>({
       result: false,
@@ -106,27 +111,30 @@ describe('PhishingController', () => {
     });
   });
 
-  it('should return positive result for unsafe domain from legacy config', () => {
+  it('should return positive result for unsafe domain from default config', () => {
     const controller = new PhishingController();
     expect(controller.test('etnerscan.io')).toMatchObject<EthPhishingDetectResult>({
       result: true,
-      type: 'blacklist',
+      type: 'blocklist',
+      name: 'MetaMask',
     });
   });
 
-  it('should return positive result for unsafe unicode domain from legacy config', () => {
+  it('should return positive result for unsafe unicode domain from default config', () => {
     const controller = new PhishingController();
     expect(controller.test('myetherẉalletṭ.com')).toMatchObject<EthPhishingDetectResult>({
       result: true,
-      type: 'blacklist',
+      type: 'blocklist',
+      name: 'MetaMask',
     });
   });
 
-  it('should return positive result for unsafe punycode domain from legacy config', () => {
+  it('should return positive result for unsafe punycode domain from default config', () => {
     const controller = new PhishingController();
     expect(controller.test('xn--myetherallet-4k5fwn.com')).toMatchObject<EthPhishingDetectResult>({
       result: true,
-      type: 'blacklist',
+      type: 'blocklist',
+      name: `MetaMask`,
     });
   });
 

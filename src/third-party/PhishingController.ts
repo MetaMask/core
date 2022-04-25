@@ -113,10 +113,18 @@ export class PhishingController extends BaseController<
     config?: Partial<PhishingConfig>,
     state?: Partial<PhishingState>,
   ) {
+
     super(config, state);
     this.defaultConfig = { interval: 60 * 60 * 1000 };
     this.defaultState = {
-      phishing: DEFAULT_PHISHING_RESPONSE,
+      phishing: [{
+        allowlist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).whitelist,
+        blocklist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).blacklist,
+        fuzzylist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).fuzzylist,
+        tolerance: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).tolerance,
+        name: `MetaMask`,
+        version: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).version
+      }],
       whitelist: [],
     };
     this.detector = new PhishingDetector(this.defaultState.phishing);
