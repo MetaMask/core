@@ -1,4 +1,4 @@
-import { createSandbox, stub } from 'sinon';
+import sinon from 'sinon';
 import nock from 'nock';
 import { NetworkController } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
@@ -18,7 +18,6 @@ describe('CollectibleDetectionController', () => {
   let network: NetworkController;
   let collectiblesController: CollectiblesController;
   let assetsContract: AssetsContractController;
-  const sandbox = createSandbox();
 
   beforeEach(async () => {
     preferences = new PreferencesController();
@@ -198,7 +197,7 @@ describe('CollectibleDetectionController', () => {
 
   afterEach(() => {
     nock.cleanAll();
-    sandbox.reset();
+    sinon.restore();
   });
 
   it('should set default config', () => {
@@ -214,7 +213,7 @@ describe('CollectibleDetectionController', () => {
 
   it('should poll and detect collectibles on interval while on mainnet', async () => {
     await new Promise((resolve) => {
-      const mockCollectibles = stub(
+      const mockCollectibles = sinon.stub(
         CollectibleDetectionController.prototype,
         'detectCollectibles',
       );
@@ -239,7 +238,6 @@ describe('CollectibleDetectionController', () => {
       expect(mockCollectibles.calledOnce).toBe(true);
       setTimeout(() => {
         expect(mockCollectibles.calledTwice).toBe(true);
-        mockCollectibles.restore();
         resolve('');
       }, 15);
     });
@@ -254,7 +252,7 @@ describe('CollectibleDetectionController', () => {
 
   it('should not autodetect while not on mainnet', async () => {
     await new Promise((resolve) => {
-      const mockCollectibles = stub(
+      const mockCollectibles = sinon.stub(
         CollectibleDetectionController.prototype,
         'detectCollectibles',
       );
@@ -274,7 +272,6 @@ describe('CollectibleDetectionController', () => {
         { interval: 10, networkType: ROPSTEN },
       );
       expect(mockCollectibles.called).toBe(false);
-      mockCollectibles.restore();
       resolve('');
     });
   });

@@ -35,8 +35,13 @@ function getRestrictedMessenger() {
 }
 
 describe('approval controller', () => {
-  const clock = sinon.useFakeTimers(1);
-  afterAll(() => clock.restore());
+  beforeEach(() => {
+    sinon.useFakeTimers(1);
+  });
+
+  afterEach(() => {
+    sinon.restore();
+  });
 
   describe('add', () => {
     let approvalController: ApprovalController;
