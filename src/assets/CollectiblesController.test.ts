@@ -27,7 +27,7 @@ const MAINNET_PROVIDER = new HttpProvider(
 const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 const SECOND_OWNER_ADDRESS = '0x500017171kasdfbou081';
 
-const OPEN_SEA_HOST = 'https://api.opensea.io';
+const OPEN_SEA_HOST_PROXY = 'https://proxy.metaswap.codefi.network/opensea/v1';
 const OPEN_SEA_PATH = '/api/v1';
 
 const CLOUDFARE_PATH = 'https://cloudflare-ipfs.com/ipfs/';
@@ -77,7 +77,7 @@ describe('CollectiblesController', () => {
       openSeaEnabled: true,
     });
 
-    nock(OPEN_SEA_HOST)
+    nock(OPEN_SEA_HOST_PROXY)
       .get(`${OPEN_SEA_PATH}/asset_contract/0x01`)
       .reply(200, {
         description: 'Description',
@@ -150,9 +150,9 @@ describe('CollectiblesController', () => {
         description: 'Kudos Description (from uri)',
       });
 
-    nock(OPEN_SEA_HOST)
+    nock('https://api.opensea.io')
       .get(
-        '/api/v1/metadata/0x495f947276749Ce646f68AC8c248420045cb7b5e/0x5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+        `/api/v1/metadata/${ERC1155_COLLECTIBLE_ADDRESS}/0x5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001`,
       )
       .reply(200, {
         name: 'name (from contract uri)',
@@ -162,9 +162,9 @@ describe('CollectiblesController', () => {
         animation_url: null,
       });
 
-    nock(OPEN_SEA_HOST)
+    nock(OPEN_SEA_HOST_PROXY)
       .get(
-        '/api/v1/asset/0x495f947276749Ce646f68AC8c248420045cb7b5e/40815311521795738946686668571398122012172359753720345430028676522525371400193',
+        `/api/v1/asset/${ERC1155_COLLECTIBLE_ADDRESS}/${ERC1155_COLLECTIBLE_ID}`,
       )
       .reply(200, {
         num_sales: 1,

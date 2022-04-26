@@ -176,7 +176,7 @@ export class CollectiblesController extends BaseController<
       case RINKEBY_CHAIN_ID:
         return `https://testnets-api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
       default:
-        return `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
+        return `https://proxy.metaswap.codefi.network/opensea/v1/api/v1/asset/${contractAddress}/${tokenId}`;
     }
   }
 
@@ -186,7 +186,7 @@ export class CollectiblesController extends BaseController<
       case RINKEBY_CHAIN_ID:
         return `https://testnets-api.opensea.io/api/v1/asset_contract/${contractAddress}`;
       default:
-        return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
+        return `https://proxy.metaswap.codefi.network/opensea/v1/api/v1/asset_contract/${contractAddress}`;
     }
   }
 
@@ -237,14 +237,25 @@ export class CollectiblesController extends BaseController<
   ): Promise<CollectibleMetadata> {
     const tokenURI = this.getCollectibleApi(contractAddress, tokenId);
     let collectibleInformation: ApiCollectible;
-
     /* istanbul ignore if */
-    if (this.openSeaApiKey) {
-      collectibleInformation = await handleFetch(tokenURI, {
-        headers: { 'X-API-KEY': this.openSeaApiKey },
-      });
-    } else {
+    try {
       collectibleInformation = await handleFetch(tokenURI);
+    } catch {
+      if (this.openSeaApiKey) {
+        collectibleInformation = await handleFetch(
+          `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`,
+          {
+            headers: { 'X-API-KEY': this.openSeaApiKey },
+          },
+        );
+      } else {
+        return {
+          name: null,
+          description: null,
+          image: null,
+          standard: null,
+        };
+      }
     }
 
     const {

@@ -132,7 +132,7 @@ export class CollectibleDetectionController extends BaseController<
   private intervalId?: NodeJS.Timeout;
 
   private getOwnerCollectiblesApi(address: string, offset: number) {
-    return `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`;
+    return `https://proxy.metaswap.codefi.network/opensea/v1/api/v1/assets?owner=${address}&offset=${offset}&limit=50`;
   }
 
   private async getOwnerCollectibles(address: string) {
@@ -145,12 +145,20 @@ export class CollectibleDetectionController extends BaseController<
       /* istanbul ignore if */
       do {
         const api = this.getOwnerCollectiblesApi(address, offset);
-        response = await timeoutFetch(
-          api,
-          openSeaApiKey ? { headers: { 'X-API-KEY': openSeaApiKey } } : {},
-          15000,
-        );
-        const collectiblesArray = await response.json();
+        try {
+          response = await timeoutFetch(api, {}, 15000);
+        } catch {
+          if (openSeaApiKey) {
+            response = await timeoutFetch(
+              `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`,
+              { headers: { 'X-API-KEY': openSeaApiKey } },
+              15000,
+            );
+          } else {
+            return [];
+          }
+        }
+        const collectiblesArray = await response?.json();
         collectiblesArray.assets?.length !== 0
           ? (collectibles = [...collectibles, ...collectiblesArray.assets])
           : (pagingFinish = true);
