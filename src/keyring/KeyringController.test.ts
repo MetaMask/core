@@ -85,8 +85,8 @@ describe('KeyringController', () => {
     ).length;
     const currentKeyringMemState = await keyringController.addNewAccount();
     expect(initialState.keyrings).toHaveLength(1);
-    expect(initialState.keyrings[0].accounts).not.toBe(
-      currentKeyringMemState.keyrings,
+    expect(initialState.keyrings[0].accounts).not.toStrictEqual(
+      currentKeyringMemState.keyrings[0].accounts,
     );
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
     const identitiesLength = Object.keys(preferences.state.identities).length;
@@ -100,19 +100,12 @@ describe('KeyringController', () => {
     const currentKeyringMemState =
       await keyringController.addNewAccountWithoutUpdate();
     expect(initialState.keyrings).toHaveLength(1);
-    expect(initialState.keyrings[0].accounts).not.toBe(
-      currentKeyringMemState.keyrings,
+    expect(initialState.keyrings[0].accounts).not.toStrictEqual(
+      currentKeyringMemState.keyrings[0].accounts,
     );
     expect(currentKeyringMemState.keyrings[0].accounts).toHaveLength(2);
     const identitiesLength = Object.keys(preferences.state.identities).length;
     expect(identitiesLength).toStrictEqual(initialIdentitiesLength);
-  });
-
-  it('should create new vault and keychain', async () => {
-    const currentState = await keyringController.createNewVaultAndKeychain(
-      password,
-    );
-    expect(initialState).not.toBe(currentState);
   });
 
   it('should create new vault and restore', async () => {
@@ -123,7 +116,41 @@ describe('KeyringController', () => {
     expect(initialState).not.toBe(currentState);
   });
 
+  it('should restore same vault if old seedWord is used', async () => {
+    const currentSeedWord = await keyringController.exportSeedPhrase(password);
+    const currentState = await keyringController.createNewVaultAndRestore(
+      password,
+      currentSeedWord,
+    );
+    expect(initialState).toStrictEqual(currentState);
+  });
+
+  it('should throw error if creating new vault and restore without password', async () => {
+    await expect(
+      keyringController.createNewVaultAndRestore('', seedWords),
+    ).rejects.toThrow('Invalid password');
+  });
+
+  it('should throw error if creating new vault and restoring without seed phrase', async () => {
+    await expect(
+      keyringController.createNewVaultAndRestore(password, ''),
+    ).rejects.toThrow('Seed phrase is invalid');
+  });
+
+  it('should create new vault, mnemonic and keychain', async () => {
+    const initialSeedWord = await keyringController.exportSeedPhrase(password);
+    expect(initialSeedWord).toBeDefined();
+    const currentState = await keyringController.createNewVaultAndKeychain(
+      password,
+    );
+    expect(initialState).not.toBe(currentState);
+    const currentSeedWord = await keyringController.exportSeedPhrase(password);
+    expect(currentSeedWord).toBeDefined();
+    expect(initialSeedWord).not.toBe(currentSeedWord);
+  });
+
   it('should set locked correctly', () => {
+    expect(keyringController.isUnlocked()).toBe(true);
     keyringController.setLocked();
     expect(keyringController.isUnlocked()).toBe(false);
   });
@@ -146,6 +173,14 @@ describe('KeyringController', () => {
     expect(() => keyringController.exportAccount('', account)).toThrow(
       'Invalid password',
     );
+
+    expect(() =>
+      keyringController.exportAccount('JUNK_VALUE', account),
+    ).toThrow('Invalid password');
+
+    await expect(keyringController.exportAccount(password, '')).rejects.toThrow(
+      /^No keyring found for the requested account./u,
+    );
   });
 
   it('should get accounts', async () => {
@@ -156,29 +191,26 @@ describe('KeyringController', () => {
 
   it('should import account with strategy privateKey', async () => {
     await expect(
-      async () =>
-        await keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          [],
-        ),
+      keyringController.importAccountWithStrategy(
+        AccountImportStrategy.privateKey,
+        [],
+      ),
     ).rejects.toThrow('Cannot import an empty key.');
 
     await expect(
-      async () =>
-        await keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          ['123'],
-        ),
+      keyringController.importAccountWithStrategy(
+        AccountImportStrategy.privateKey,
+        ['123'],
+      ),
     ).rejects.toThrow(
       'Expected private key to be an Uint8Array with length 32',
     );
 
     await expect(
-      async () =>
-        await keyringController.importAccountWithStrategy(
-          AccountImportStrategy.privateKey,
-          ['0xblahblah'],
-        ),
+      keyringController.importAccountWithStrategy(
+        AccountImportStrategy.privateKey,
+        ['0xblahblah'],
+      ),
     ).rejects.toThrow('Cannot import invalid private key.');
 
     const address = '0x51253087e6f8358b5f10c0a94315d69db3357859';
@@ -194,8 +226,34 @@ describe('KeyringController', () => {
     expect(obj).toStrictEqual(modifiedState);
   });
 
+  it('should not import account with strategy privateKey if wrong data is provided', async () => {
+    await expect(
+      keyringController.importAccountWithStrategy(
+        AccountImportStrategy.privateKey,
+        [],
+      ),
+    ).rejects.toThrow('Cannot import an empty key.');
+
+    await expect(
+      keyringController.importAccountWithStrategy(
+        AccountImportStrategy.privateKey,
+        ['123'],
+      ),
+    ).rejects.toThrow(
+      'Expected private key to be an Uint8Array with length 32',
+    );
+  });
+
   it('should import account with strategy json', async () => {
     const somePassword = 'holachao123';
+
+    await expect(
+      keyringController.importAccountWithStrategy(AccountImportStrategy.json, [
+        '',
+        somePassword,
+      ]),
+    ).rejects.toThrow('Unexpected end of JSON input');
+
     const address = '0xb97c80fab7a3793bbe746864db80d236f1345ea7';
     const obj = await keyringController.importAccountWithStrategy(
       AccountImportStrategy.json,
@@ -230,6 +288,26 @@ describe('KeyringController', () => {
     ).rejects.toThrow('Key derivation failed - possibly wrong passphrase');
   });
 
+  it('should import account with strategy json empty password', async () => {
+    await expect(
+      keyringController.importAccountWithStrategy(AccountImportStrategy.json, [
+        input,
+        '',
+      ]),
+    ).rejects.toThrow('Key derivation failed - possibly wrong passphrase');
+  });
+
+  /**
+   * If there is only HD Key Tree keyring with 1 account and removeAccount is called passing that account
+   * It deletes keyring object also from state - not sure if this is correct behavior.
+   * https://github.com/MetaMask/controllers/issues/801
+   */
+  it('should remove HD Key Tree keyring from state when single account associated with it is deleted', async () => {
+    const account = initialState.keyrings[0].accounts[0];
+    const finalState = await keyringController.removeAccount(account);
+    expect(finalState.keyrings).toHaveLength(0);
+  });
+
   it('should remove account', async () => {
     await keyringController.importAccountWithStrategy(
       AccountImportStrategy.privateKey,
@@ -239,6 +317,21 @@ describe('KeyringController', () => {
       '0x51253087e6f8358b5f10c0a94315d69db3357859',
     );
     expect(finalState).toStrictEqual(initialState);
+  });
+
+  it('should not remove account if wrong address is provided', async () => {
+    await keyringController.importAccountWithStrategy(
+      AccountImportStrategy.privateKey,
+      [privateKey],
+    );
+
+    await expect(keyringController.removeAccount('')).rejects.toThrow(
+      /^No keyring found for the requested account/u,
+    );
+
+    await expect(
+      keyringController.removeAccount('DUMMY_INPUT'),
+    ).rejects.toThrow(/^No keyring found for the requested account/u);
   });
 
   it('should sign message', async () => {
@@ -252,6 +345,26 @@ describe('KeyringController', () => {
     expect(signature).not.toBe('');
   });
 
+  it('should not sign message even if empty data is passed', async () => {
+    await expect(
+      keyringController.signMessage({
+        data: '',
+        from: initialState.keyrings[0].accounts[0],
+      }),
+    ).rejects.toThrow('Expected message to be an Uint8Array with length 32');
+  });
+
+  it('should not sign message if from account is not passed', async () => {
+    await expect(
+      keyringController.signMessage({
+        data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
+        from: '',
+      }),
+    ).rejects.toThrow(
+      'No keyring found for the requested account. Error info: The address passed in is invalid/empty; There are keyrings, but none match the address;',
+    );
+  });
+
   it('should sign personal message', async () => {
     const data = bufferToHex(Buffer.from('Hello from test', 'utf8'));
     const account = initialState.keyrings[0].accounts[0];
@@ -261,6 +374,31 @@ describe('KeyringController', () => {
     });
     const recovered = recoverPersonalSignature({ data, sig: signature });
     expect(account).toBe(recovered);
+  });
+
+  /**
+   * signPersonalMessage does not fail for empty data value
+   * https://github.com/MetaMask/controllers/issues/799
+   */
+  it('should sign personal message even if empty data is passed', async () => {
+    const account = initialState.keyrings[0].accounts[0];
+    const signature = await keyringController.signPersonalMessage({
+      data: '',
+      from: account,
+    });
+    const recovered = recoverPersonalSignature({ data: '', sig: signature });
+    expect(account).toBe(recovered);
+  });
+
+  it('should not sign personal message if from account is not passed', async () => {
+    await expect(
+      keyringController.signPersonalMessage({
+        data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
+        from: '',
+      }),
+    ).rejects.toThrow(
+      'No keyring found for the requested account. Error info: The address passed in is invalid/empty; There are keyrings, but none match the address;',
+    );
   });
 
   it('should throw when given invalid version', async () => {
@@ -445,6 +583,27 @@ describe('KeyringController', () => {
     ).rejects.toThrow('Keyring Controller signTypedMessage:');
   });
 
+  it('should fail in signing message when from address is not provided', async () => {
+    const typedMsgParams = [
+      {
+        name: 'Message',
+        type: 'string',
+        value: 'Hi, Alice!',
+      },
+      {
+        name: 'A number',
+        type: 'uint32',
+        value: '1337',
+      },
+    ];
+    await expect(
+      keyringController.signTypedMessage(
+        { data: typedMsgParams, from: '' },
+        SignTypedDataVersion.V1,
+      ),
+    ).rejects.toThrow(/^Keyring Controller signTypedMessage:/u);
+  });
+
   it('should sign transaction', async () => {
     const account = initialState.keyrings[0].accounts[0];
     const txParams = {
@@ -467,6 +626,40 @@ describe('KeyringController', () => {
     );
     expect(signedTx.v).not.toBeUndefined();
     expect(signedTx).not.toBe('');
+  });
+
+  it('should not sign transaction if from account is not provided', async () => {
+    await expect(async () => {
+      const account = initialState.keyrings[0].accounts[0];
+      const txParams = {
+        chainId: 3,
+        data: '0x1',
+        from: account,
+        gasLimit: '0x5108',
+        gasPrice: '0x5108',
+        to: '0x51253087e6f8358b5f10c0a94315d69db3357859',
+        value: '0x5208',
+      };
+      const unsignedEthTx = TransactionFactory.fromTxData(txParams, {
+        common: new Common(commonConfig),
+        freeze: false,
+      });
+      expect(unsignedEthTx.v).toBeUndefined();
+      await keyringController.signTransaction(unsignedEthTx, '');
+    }).rejects.toThrow(
+      'No keyring found for the requested account. Error info: The address passed in is invalid/empty; There are keyrings, but none match the address;',
+    );
+  });
+
+  /**
+   * Task added to improve check for valid transaction in signTransaction method
+   * https://github.com/MetaMask/controllers/issues/800
+   */
+  it('should not sign transaction if transaction is not valid', async () => {
+    await expect(async () => {
+      const account = initialState.keyrings[0].accounts[0];
+      await keyringController.signTransaction({}, account);
+    }).rejects.toThrow('tx.sign is not a function');
   });
 
   it('should submit password and decrypt', async () => {
@@ -498,6 +691,11 @@ describe('KeyringController', () => {
     keyringController.onUnlock(listenerUnlock);
     await keyringController.submitPassword(password);
     expect(listenerUnlock.called).toBe(true);
+  });
+
+  it('should return current seedphrase', async () => {
+    const seedPhrase = await keyringController.verifySeedPhrase();
+    expect(seedPhrase).toBeDefined();
   });
 
   describe('QR keyring', () => {

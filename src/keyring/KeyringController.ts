@@ -245,6 +245,10 @@ export class KeyringController extends BaseController<
    */
   async createNewVaultAndRestore(password: string, seed: string) {
     const releaseLock = await this.mutex.acquire();
+    if (!password || !password.length) {
+      throw new Error('Invalid password');
+    }
+
     try {
       this.updateIdentities([]);
       const vault = await this.#keyring.createNewVaultAndRestore(
