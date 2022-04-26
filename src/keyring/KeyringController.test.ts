@@ -120,7 +120,7 @@ describe('KeyringController', () => {
     const currentSeedWord = await keyringController.exportSeedPhrase(password);
     const currentState = await keyringController.createNewVaultAndRestore(
       password,
-      currentSeedWord,
+      currentSeedWord.toString(),
     );
     expect(initialState).toStrictEqual(currentState);
   });
@@ -361,7 +361,7 @@ describe('KeyringController', () => {
         from: '',
       }),
     ).rejects.toThrow(
-      'No keyring found for the requested account. Error info: The address passed in is invalid/empty; There are keyrings, but none match the address;',
+      'No keyring found for the requested account. Error info: The address passed in is invalid/empty',
     );
   });
 
@@ -397,7 +397,7 @@ describe('KeyringController', () => {
         from: '',
       }),
     ).rejects.toThrow(
-      'No keyring found for the requested account. Error info: The address passed in is invalid/empty; There are keyrings, but none match the address;',
+      'No keyring found for the requested account. Error info: The address passed in is invalid/empty',
     );
   });
 
@@ -647,7 +647,7 @@ describe('KeyringController', () => {
       expect(unsignedEthTx.v).toBeUndefined();
       await keyringController.signTransaction(unsignedEthTx, '');
     }).rejects.toThrow(
-      'No keyring found for the requested account. Error info: The address passed in is invalid/empty; There are keyrings, but none match the address;',
+      'No keyring found for the requested account. Error info: The address passed in is invalid/empty',
     );
   });
 
