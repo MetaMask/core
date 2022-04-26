@@ -44,19 +44,19 @@ export interface EthPhishingDetectConfig {
 /**
  * @type EthPhishingDetectResult
  *
- * Interface that describes the result of .
- * @property name - Name of the config on which a match was found. Not returned when using legacy config.
- * @property version - Version of the config on which a match was found. Not returned when using legacy config.
+ * Interface that describes the result of the `test` method.
+ * @property name - Name of the config on which a match was found.
+ * @property version - Version of the config on which a match was found.
  * @property result - Whether a domain was detected as a phishing domain. True means an unsafe domain.
  * @property match - The matching fuzzylist origin when a fuzzylist match is found. Returned as undefined for non-fuzzy true results.
- * @property type - The field of the config on which a match was found. 'whitelist' and 'blacklist' can be returned when using legacy config.
+ * @property type - The field of the config on which a match was found.
  */
 export interface EthPhishingDetectResult {
-  name?: string; // Not returned for legacy config.
-  version?: string; // Not returned for legacy config.
+  name: string;
+  version: string;
   result: boolean;
   match?: string;  // Returned as undefined for non-fuzzy true results.
-  type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist' | 'whitelist' | 'blacklist';
+  type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist';
 }
 
 
