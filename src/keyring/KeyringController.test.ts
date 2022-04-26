@@ -658,9 +658,7 @@ describe('KeyringController', () => {
   it('should not sign transaction if transaction is not valid', async () => {
     await expect(async () => {
       const account = initialState.keyrings[0].accounts[0];
-      const signedTx = await keyringController.signTransaction({}, account);
-      expect(signedTx.v).not.toBeUndefined();
-      expect(signedTx).not.toBe('');
+      await keyringController.signTransaction({}, account);
     }).rejects.toThrow('tx.sign is not a function');
   });
 
