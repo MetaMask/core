@@ -52,8 +52,8 @@ export interface EthPhishingDetectConfig {
  * @property type - The field of the config on which a match was found.
  */
 export interface EthPhishingDetectResult {
-  name: string;
-  version: string;
+  name?: string;
+  version?: string;
   result: boolean;
   match?: string;  // Returned as undefined for non-fuzzy true results.
   type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist';
