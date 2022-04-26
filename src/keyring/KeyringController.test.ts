@@ -667,15 +667,6 @@ describe('KeyringController', () => {
     expect(state).toStrictEqual(initialState);
   });
 
-  /**
-   * submitPassword does not fail if wrong password is passed
-   * https://github.com/MetaMask/controllers/issues/798
-   */
-  it('should not fail on submit password for wrong password', async () => {
-    const state = await keyringController.submitPassword('JUNK');
-    expect(state).toStrictEqual(initialState);
-  });
-
   it('should subscribe and unsubscribe', async () => {
     const listener = sinon.stub();
     keyringController.subscribe(listener);
