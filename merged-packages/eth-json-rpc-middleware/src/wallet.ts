@@ -21,7 +21,12 @@ interface TypedMessageParams extends MessageParams {
   version: string;
 }
 interface WalletMiddlewareOptions {
-  getAccounts: (req: JsonRpcRequest<unknown>) => Promise<string[]>;
+  getAccounts: (
+    req: JsonRpcRequest<unknown>,
+    options?: {
+      suppressUnauthorized?: boolean;
+    },
+  ) => Promise<string[]>;
   processDecryptMessage?: (
     msgParams: MessageParams,
     req: JsonRpcRequest<unknown>,
@@ -376,9 +381,17 @@ export function createWalletMiddleware({
     address: string,
     req: JsonRpcRequest<unknown>,
   ): Promise<string> {
-    if (typeof address === 'string' && address.length > 0) {
-      // ensure address is included in provided accounts
-      const accounts: string[] = await getAccounts(req);
+    if (
+      typeof address === 'string' &&
+      address.length > 0 &&
+      resemblesAddress(address)
+    ) {
+      // ensure address is included in provided accounts. `suppressUnauthorized: false` is passed to `getAccounts`
+      // so that an "unauthorized" error is thrown if the requester does not have the `eth_accounts`
+      // permission.
+      const accounts: string[] = await getAccounts(req, {
+        suppressUnauthorized: false,
+      });
       const normalizedAccounts: string[] = accounts.map((_address) =>
         _address.toLowerCase(),
       );
@@ -387,6 +400,7 @@ export function createWalletMiddleware({
       if (normalizedAccounts.includes(normalizedAddress)) {
         return normalizedAddress;
       }
+      throw ethErrors.provider.unauthorized();
     }
     throw ethErrors.rpc.invalidParams({
       message: `Invalid parameters: must provide an Ethereum address.`,
