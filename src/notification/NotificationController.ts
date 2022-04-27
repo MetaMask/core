@@ -17,7 +17,6 @@ export type NotificationControllerState = {
 /**
  * @typedef Notification - Stores information about in-app notifications, to be shown in the UI
  * @property id - A UUID that identifies the notification
- * @property type - The notification type
  * @property origin - The origin that requested the notification
  * @property createdDate - The notification creation date in milliseconds elapsed since the UNIX epoch
  * @property readDate - The notification read date in milliseconds elapsed since the UNIX epoch or null if unread
@@ -25,29 +24,11 @@ export type NotificationControllerState = {
  */
 export type Notification = {
   id: string;
-  type: NotificationType;
   origin: string;
   createdDate: number;
   readDate: number | null;
   message: string;
 };
-
-export enum NotificationType {
-  Native = 'native',
-  InApp = 'in-app',
-}
-
-export interface NotificationArgs {
-  /**
-   * Enum type to determine notification type.
-   */
-  type: NotificationType;
-
-  /**
-   * A message to show on the notification.
-   */
-  message: string;
-}
 
 const name = 'NotificationController';
 
@@ -106,24 +87,19 @@ export class NotificationController extends BaseController<
   NotificationControllerState,
   NotificationControllerMessenger
 > {
-  private showNativeNotification;
-
   /**
    * Creates a NotificationController instance.
    *
    * @param options - Constructor options.
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
-   * @param options.showNativeNotification - Function that shows a native notification in the consumer
    */
   constructor({
     messenger,
     state,
-    showNativeNotification,
   }: {
     messenger: NotificationControllerMessenger;
     state?: Partial<NotificationControllerState>;
-    showNativeNotification: (origin: string, message: string) => void;
   }) {
     super({
       name,
@@ -131,11 +107,10 @@ export class NotificationController extends BaseController<
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.showNativeNotification = showNativeNotification;
 
     this.messagingSystem.registerActionHandler(
       `${name}:show` as const,
-      (origin: string, args: NotificationArgs) => this.show(origin, args),
+      (origin: string, message: string) => this.show(origin, message),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -153,26 +128,12 @@ export class NotificationController extends BaseController<
    * Shows a notification.
    *
    * @param origin - The origin trying to send a notification
-   * @param args - Notification arguments, containing the notification message etc.
+   * @param message - A message to show on the notification
    */
-  show(origin: string, args: NotificationArgs) {
-    switch (args.type) {
-      case NotificationType.Native:
-        this.showNativeNotification(origin, args.message);
-        break;
-      case NotificationType.InApp:
-        this.add(origin, args.message);
-        break;
-      default:
-        throw new Error('Invalid notification type');
-    }
-  }
-
-  private add(origin: string, message: string) {
+  show(origin: string, message: string) {
     const id = nanoid();
     const notification = {
       id,
-      type: NotificationType.InApp,
       origin,
       createdDate: Date.now(),
       readDate: null,
