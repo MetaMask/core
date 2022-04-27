@@ -1,6 +1,10 @@
 import nock from 'nock';
 import { NetworksChainId } from '../network/NetworkController';
-import { fetchTokenList, fetchTokenMetadata } from './token-service';
+import {
+  fetchTokenList,
+  fetchTokenMetadata,
+  FETCH_TOKEN_METADATA_ERROR,
+} from './token-service';
 
 const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 
@@ -249,9 +253,7 @@ describe('Token service', () => {
           abortController.signal,
         );
         abortController.abort();
-      }).rejects.toThrow(
-        `TokenService Error: No response from fetchTokenMetadata`,
-      );
+      }).rejects.toThrow(FETCH_TOKEN_METADATA_ERROR);
     });
 
     it('should throw error if the fetch fails with a network error', async () => {
@@ -267,9 +269,7 @@ describe('Token service', () => {
           '0x514910771af9ca656af840dff83e8264ecf986ca',
           signal,
         );
-      }).rejects.toThrow(
-        `TokenService Error: No response from fetchTokenMetadata`,
-      );
+      }).rejects.toThrow(FETCH_TOKEN_METADATA_ERROR);
     });
 
     it('should throw error if the fetch fails with an unsuccessful status code', async () => {
@@ -285,9 +285,7 @@ describe('Token service', () => {
           '0x514910771af9ca656af840dff83e8264ecf986ca',
           signal,
         );
-      }).rejects.toThrow(
-        `TokenService Error: No response from fetchTokenMetadata`,
-      );
+      }).rejects.toThrow(FETCH_TOKEN_METADATA_ERROR);
     });
 
     it('should throw error if the fetch fails with a timeout', async () => {
@@ -306,9 +304,7 @@ describe('Token service', () => {
           signal,
           { timeout: ONE_MILLISECOND },
         );
-      }).rejects.toThrow(
-        `TokenService Error: No response from fetchTokenMetadata`,
-      );
+      }).rejects.toThrow(FETCH_TOKEN_METADATA_ERROR);
     });
   });
 

@@ -1,6 +1,8 @@
 import { timeoutFetch } from '../util';
 
 const END_POINT = 'https://token-api.metaswap.codefi.network';
+export const FETCH_TOKEN_METADATA_ERROR =
+  'TokenService Error: No response from fetchTokenMetadata';
 
 /**
  * Get the tokens URL for a specific network.
@@ -74,7 +76,7 @@ export async function fetchTokenMetadata<T>(
   if (response) {
     return parseJsonResponse(response) as Promise<T>;
   }
-  throw new Error(`TokenService Error: No response from fetchTokenMetadata`);
+  throw new Error(FETCH_TOKEN_METADATA_ERROR);
 }
 
 /**
