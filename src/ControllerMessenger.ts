@@ -87,7 +87,7 @@ export class RestrictedControllerMessenger<
   Action extends ActionConstraint,
   Event extends EventConstraint,
   AllowedAction extends string,
-  AllowedEvent extends string
+  AllowedEvent extends string,
 > {
   private controllerMessenger: ControllerMessenger<
     ActionConstraint,
@@ -352,7 +352,7 @@ export class RestrictedControllerMessenger<
  */
 export class ControllerMessenger<
   Action extends ActionConstraint,
-  Event extends EventConstraint
+  Event extends EventConstraint,
 > {
   private actions = new Map<Action['type'], unknown>();
 
@@ -595,7 +595,7 @@ export class ControllerMessenger<
   getRestricted<
     N extends string,
     AllowedAction extends string,
-    AllowedEvent extends string
+    AllowedEvent extends string,
   >({
     name,
     allowedActions,

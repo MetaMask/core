@@ -1,4 +1,4 @@
-import { stub } from 'sinon';
+import sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
 import {
   NetworksChainId,
@@ -188,20 +188,23 @@ const TRANSACTIONS_IN_STATE: TransactionMeta[] = txsInStateMock(
   TOKEN_TRANSACTION_HASH,
 );
 
-const TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS: TransactionMeta[] = txsInStateWithOutdatedStatusMock(
-  ETHER_TRANSACTION_HASH,
-  TOKEN_TRANSACTION_HASH,
-);
+const TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS: TransactionMeta[] =
+  txsInStateWithOutdatedStatusMock(
+    ETHER_TRANSACTION_HASH,
+    TOKEN_TRANSACTION_HASH,
+  );
 
-const TRANSACTIONS_IN_STATE_WITH_OUTDATED_GAS_DATA: TransactionMeta[] = txsInStateWithOutdatedGasDataMock(
-  ETHER_TRANSACTION_HASH,
-  TOKEN_TRANSACTION_HASH,
-);
+const TRANSACTIONS_IN_STATE_WITH_OUTDATED_GAS_DATA: TransactionMeta[] =
+  txsInStateWithOutdatedGasDataMock(
+    ETHER_TRANSACTION_HASH,
+    TOKEN_TRANSACTION_HASH,
+  );
 
-const TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS_AND_GAS_DATA: TransactionMeta[] = txsInStateWithOutdatedStatusAndGasDataMock(
-  ETHER_TRANSACTION_HASH,
-  TOKEN_TRANSACTION_HASH,
-);
+const TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS_AND_GAS_DATA: TransactionMeta[] =
+  txsInStateWithOutdatedStatusAndGasDataMock(
+    ETHER_TRANSACTION_HASH,
+    TOKEN_TRANSACTION_HASH,
+  );
 
 const ETH_TX_HISTORY_DATA = {
   message: 'OK',
@@ -234,14 +237,22 @@ const ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND = {
 };
 
 const MOCK_FETCH_TX_HISTORY_DATA_OK = {
-  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=tokentx&tag=latest&page=1': ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND,
-  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=tokentx&tag=latest&page=1': TOKEN_TX_HISTORY_DATA,
-  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&offset=40&order=desc&action=tokentx&tag=latest&page=1': TOKEN_TX_HISTORY_DATA_FROM_BLOCK,
-  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA,
-  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA,
-  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&offset=40&order=desc&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA_FROM_BLOCK,
-  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=2&order=desc&action=tokentx&tag=latest&page=1': ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND,
-  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=2&order=desc&action=txlist&tag=latest&page=1': ETH_TX_HISTORY_DATA,
+  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=tokentx&tag=latest&page=1':
+    ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND,
+  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=tokentx&tag=latest&page=1':
+    TOKEN_TX_HISTORY_DATA,
+  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&offset=40&order=desc&action=tokentx&tag=latest&page=1':
+    TOKEN_TX_HISTORY_DATA_FROM_BLOCK,
+  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=txlist&tag=latest&page=1':
+    ETH_TX_HISTORY_DATA,
+  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=40&order=desc&action=txlist&tag=latest&page=1':
+    ETH_TX_HISTORY_DATA,
+  'https://api.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&startBlock=999&offset=40&order=desc&action=txlist&tag=latest&page=1':
+    ETH_TX_HISTORY_DATA_FROM_BLOCK,
+  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=2&order=desc&action=tokentx&tag=latest&page=1':
+    ETH_TX_HISTORY_DATA_ROPSTEN_NO_TRANSACTIONS_FOUND,
+  'https://api-ropsten.etherscan.io/api?module=account&address=0x6bf137f335ea1b8f193b8f6ea92561a60d23a207&offset=2&order=desc&action=txlist&tag=latest&page=1':
+    ETH_TX_HISTORY_DATA,
 };
 
 const MOCK_FETCH_TX_HISTORY_DATA_ERROR = {
@@ -253,6 +264,10 @@ describe('TransactionController', () => {
     for (const key in mockFlags) {
       mockFlags[key] = null;
     }
+  });
+
+  afterEach(() => {
+    sinon.restore();
   });
 
   it('should set default state', () => {
@@ -281,7 +296,7 @@ describe('TransactionController', () => {
 
   it('should poll and update transaction statuses in the right interval', async () => {
     await new Promise((resolve) => {
-      const mock = stub(
+      const mock = sinon.stub(
         TransactionController.prototype,
         'queryTransactionStatuses',
       );
@@ -297,14 +312,13 @@ describe('TransactionController', () => {
       expect(mock.calledTwice).toBe(false);
       setTimeout(() => {
         expect(mock.calledTwice).toBe(true);
-        mock.restore();
         resolve('');
       }, 15);
     });
   });
 
   it('should clear previous interval', async () => {
-    const mock = stub(global, 'clearTimeout');
+    const mock = sinon.stub(global, 'clearTimeout');
     const controller = new TransactionController(
       {
         getNetworkState: () => MOCK_NETWORK.state,
@@ -317,7 +331,6 @@ describe('TransactionController', () => {
       setTimeout(() => {
         controller.poll(1338);
         expect(mock.called).toBe(true);
-        mock.restore();
         resolve('');
       }, 100);
     });
@@ -333,10 +346,9 @@ describe('TransactionController', () => {
         },
         { interval: 10 },
       );
-      const func = stub(controller, 'update');
+      const func = sinon.stub(controller, 'update');
       setTimeout(() => {
         expect(func.called).toBe(false);
-        func.restore();
         resolve('');
       }, 20);
     });
@@ -379,14 +391,13 @@ describe('TransactionController', () => {
   });
 
   it('should add a valid transaction after a network switch', async () => {
-    const getNetworkState = stub().returns(MOCK_NETWORK.state);
-    let networkStateChangeListener:
-      | ((state: NetworkState) => void)
-      | null = null;
+    const getNetworkState = sinon.stub().returns(MOCK_NETWORK.state);
+    let networkStateChangeListener: ((state: NetworkState) => void) | null =
+      null;
     const onNetworkStateChange = (listener: (state: NetworkState) => void) => {
       networkStateChangeListener = listener;
     };
-    const getProvider = stub().returns(PROVIDER);
+    const getProvider = sinon.stub().returns(PROVIDER);
     const controller = new TransactionController({
       getNetworkState,
       onNetworkStateChange,
@@ -419,14 +430,13 @@ describe('TransactionController', () => {
   });
 
   it('should add a valid transaction after a switch to custom network', async () => {
-    const getNetworkState = stub().returns(MOCK_NETWORK.state);
-    let networkStateChangeListener:
-      | ((state: NetworkState) => void)
-      | null = null;
+    const getNetworkState = sinon.stub().returns(MOCK_NETWORK.state);
+    let networkStateChangeListener: ((state: NetworkState) => void) | null =
+      null;
     const onNetworkStateChange = (listener: (state: NetworkState) => void) => {
       networkStateChangeListener = listener;
     };
-    const getProvider = stub().returns(PROVIDER);
+    const getProvider = sinon.stub().returns(PROVIDER);
     const controller = new TransactionController({
       getNetworkState,
       onNetworkStateChange,
@@ -905,7 +915,8 @@ describe('TransactionController', () => {
     controller.wipeTransactions();
     expect(controller.state.transactions).toHaveLength(0);
 
-    controller.state.transactions = TRANSACTIONS_IN_STATE_WITH_OUTDATED_GAS_DATA;
+    controller.state.transactions =
+      TRANSACTIONS_IN_STATE_WITH_OUTDATED_GAS_DATA;
 
     await controller.fetchAll(from);
     expect(controller.state.transactions).toHaveLength(17);
@@ -931,7 +942,8 @@ describe('TransactionController', () => {
     controller.wipeTransactions();
     expect(controller.state.transactions).toHaveLength(0);
 
-    controller.state.transactions = TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS_AND_GAS_DATA;
+    controller.state.transactions =
+      TRANSACTIONS_IN_STATE_WITH_OUTDATED_STATUS_AND_GAS_DATA;
 
     await controller.fetchAll(from);
     expect(controller.state.transactions).toHaveLength(17);
@@ -997,7 +1009,7 @@ describe('TransactionController', () => {
       args: [{ type: 'uint256' }, { type: 'uint256' }],
       name: 'Eth To Token Swap Input',
     });
-    const registryLookup = stub(controller, 'registryLookup' as any);
+    const registryLookup = sinon.stub(controller, 'registryLookup' as any);
     await controller.handleMethodData('0xf39b5b9b');
     expect(registryLookup.called).toBe(false);
   });

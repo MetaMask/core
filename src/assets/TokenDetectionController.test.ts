@@ -1,4 +1,4 @@
-import { createSandbox, SinonStub, stub } from 'sinon';
+import sinon from 'sinon';
 import nock from 'nock';
 import { BN } from 'ethereumjs-util';
 import {
@@ -111,11 +111,10 @@ describe('TokenDetectionController', () => {
   let tokensController: TokensController;
   let tokenList: TokenListController;
   let assetsContract: AssetsContractController;
-  let getBalancesInSingleCall: SinonStub<
+  let getBalancesInSingleCall: sinon.SinonStub<
     Parameters<AssetsContractController['getBalancesInSingleCall']>,
     ReturnType<AssetsContractController['getBalancesInSingleCall']>
   >;
-  const sandbox = createSandbox();
 
   beforeEach(async () => {
     preferences = new PreferencesController();
@@ -142,25 +141,26 @@ describe('TokenDetectionController', () => {
       messenger,
     });
     await tokenList.start();
-    getBalancesInSingleCall = sandbox.stub();
+    getBalancesInSingleCall = sinon.stub();
     tokenDetection = new TokenDetectionController({
       onTokensStateChange: (listener) => tokensController.subscribe(listener),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      getBalancesInSingleCall: (getBalancesInSingleCall as unknown) as AssetsContractController['getBalancesInSingleCall'],
+      getBalancesInSingleCall:
+        getBalancesInSingleCall as unknown as AssetsContractController['getBalancesInSingleCall'],
       addTokens: tokensController.addTokens.bind(tokensController),
       getTokensState: () => tokensController.state,
       getTokenListState: () => tokenList.state,
     });
 
-    stub(tokensController, '_detectIsERC721').callsFake(() =>
-      Promise.resolve(false),
-    );
+    sinon
+      .stub(tokensController, '_detectIsERC721')
+      .callsFake(() => Promise.resolve(false));
   });
 
   afterEach(() => {
     nock.cleanAll();
-    sandbox.reset();
+    sinon.restore();
     tokenList.destroy();
   });
 
@@ -175,7 +175,7 @@ describe('TokenDetectionController', () => {
 
   it('should poll and detect tokens on interval while on mainnet', async () => {
     await new Promise((resolve) => {
-      const mockTokens = stub(
+      const mockTokens = sinon.stub(
         TokenDetectionController.prototype,
         'detectTokens',
       );
@@ -186,9 +186,8 @@ describe('TokenDetectionController', () => {
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
           onNetworkStateChange: (listener) => network.subscribe(listener),
-          getBalancesInSingleCall: assetsContract.getBalancesInSingleCall.bind(
-            assetsContract,
-          ),
+          getBalancesInSingleCall:
+            assetsContract.getBalancesInSingleCall.bind(assetsContract),
           addTokens: tokensController.addTokens.bind(tokensController),
           getTokensState: () => tokensController.state,
           getTokenListState: () => tokenList.state,
@@ -200,7 +199,6 @@ describe('TokenDetectionController', () => {
       expect(mockTokens.calledOnce).toBe(true);
       setTimeout(() => {
         expect(mockTokens.calledTwice).toBe(true);
-        mockTokens.restore();
         resolve('');
       }, 15);
     });
@@ -215,7 +213,7 @@ describe('TokenDetectionController', () => {
 
   it('should not autodetect while not on mainnet', async () => {
     await new Promise((resolve) => {
-      const mockTokens = stub(
+      const mockTokens = sinon.stub(
         TokenDetectionController.prototype,
         'detectTokens',
       );
@@ -226,9 +224,8 @@ describe('TokenDetectionController', () => {
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
           onNetworkStateChange: (listener) => network.subscribe(listener),
-          getBalancesInSingleCall: assetsContract.getBalancesInSingleCall.bind(
-            assetsContract,
-          ),
+          getBalancesInSingleCall:
+            assetsContract.getBalancesInSingleCall.bind(assetsContract),
           addTokens: tokensController.addTokens.bind(tokensController),
           getTokensState: () => tokensController.state,
           getTokenListState: () => tokenList.state,
@@ -236,7 +233,6 @@ describe('TokenDetectionController', () => {
         { interval: 10, networkType: ROPSTEN },
       );
       expect(mockTokens.called).toBe(false);
-      mockTokens.restore();
       resolve('');
     });
   });
@@ -297,9 +293,9 @@ describe('TokenDetectionController', () => {
   });
 
   it('should not add ignoredTokens to the tokens list if detected with balance', async () => {
-    stub(tokensController, '_instantiateNewEthersProvider').callsFake(
-      () => null,
-    );
+    sinon
+      .stub(tokensController, '_instantiateNewEthersProvider')
+      .callsFake(() => null);
 
     preferences.setSelectedAddress('0x0001');
     network.update({
@@ -341,9 +337,9 @@ describe('TokenDetectionController', () => {
   });
 
   it('should add a token when detected with a balance even if it is ignored on another account', async () => {
-    stub(tokensController, '_instantiateNewEthersProvider').callsFake(
-      () => null,
-    );
+    sinon
+      .stub(tokensController, '_instantiateNewEthersProvider')
+      .callsFake(() => null);
 
     preferences.setSelectedAddress('0x0001');
     network.update({
@@ -437,14 +433,14 @@ describe('TokenDetectionController', () => {
   });
 
   it('should subscribe to new sibling detecting tokens when account changes', async () => {
-    stub(tokensController, '_instantiateNewEthersProvider').callsFake(
-      () => null,
-    );
+    sinon
+      .stub(tokensController, '_instantiateNewEthersProvider')
+      .callsFake(() => null);
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'mainnet';
     const firstAddress = '0x123';
     const secondAddress = '0x321';
-    const detectTokens = sandbox.stub(tokenDetection, 'detectTokens');
+    const detectTokens = sinon.stub(tokenDetection, 'detectTokens');
     preferences.update({ selectedAddress: secondAddress });
     preferences.update({ selectedAddress: secondAddress });
     expect(preferences.state.selectedAddress).toStrictEqual(secondAddress);

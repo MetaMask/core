@@ -35,8 +35,13 @@ function getRestrictedMessenger() {
 }
 
 describe('approval controller', () => {
-  const clock = sinon.useFakeTimers(1);
-  afterAll(() => clock.restore());
+  beforeEach(() => {
+    sinon.useFakeTimers(1);
+  });
+
+  afterEach(() => {
+    sinon.restore();
+  });
 
   describe('add', () => {
     let approvalController: ApprovalController;
@@ -97,9 +102,9 @@ describe('approval controller', () => {
       expect(approvalController.has({ id: 'foo' })).toStrictEqual(true);
       expect(approvalController.has({ origin: 'bar.baz' })).toStrictEqual(true);
       expect(approvalController.has({ type: 'myType' })).toStrictEqual(true);
-      expect(
-        approvalController.state[STORE_KEY].foo.requestData,
-      ).toStrictEqual({ foo: 'bar' });
+      expect(approvalController.state[STORE_KEY].foo.requestData).toStrictEqual(
+        { foo: 'bar' },
+      );
     });
 
     it('adds multiple entries for same origin with different types and ids', () => {
