@@ -98,6 +98,8 @@ describe('ComposableController', () => {
       const assetContractController = new AssetsContractController({
         onPreferencesStateChange: (listener) =>
           preferencesController.subscribe(listener),
+        onNetworkStateChange: (listener) =>
+          networkController.subscribe(listener),
       });
       const collectiblesController = new CollectiblesController({
         onPreferencesStateChange: (listener) =>
@@ -152,6 +154,8 @@ describe('ComposableController', () => {
           allIgnoredTokens: {},
           suggestedAssets: [],
           tokens: [],
+          detectedTokens: [],
+          allDetectedTokens: {},
         },
         EnsController: {
           ensEntries: {},
@@ -169,7 +173,7 @@ describe('ComposableController', () => {
           ipfsGateway: 'https://ipfs.io/ipfs/',
           lostIdentities: {},
           selectedAddress: '',
-          useStaticTokenList: false,
+          useTokenDetection: false,
           useCollectibleDetection: false,
           openSeaEnabled: false,
         },
@@ -182,6 +186,8 @@ describe('ComposableController', () => {
       const assetContractController = new AssetsContractController({
         onPreferencesStateChange: (listener) =>
           preferencesController.subscribe(listener),
+        onNetworkStateChange: (listener) =>
+          networkController.subscribe(listener),
       });
       const collectiblesController = new CollectiblesController({
         onPreferencesStateChange: (listener) =>
@@ -234,6 +240,8 @@ describe('ComposableController', () => {
         ignoredCollectibles: [],
         ignoredTokens: [],
         allIgnoredTokens: {},
+        detectedTokens: [],
+        allDetectedTokens: {},
         ipfsGateway: 'https://ipfs.io/ipfs/',
         lostIdentities: {},
         network: 'loading',
@@ -241,7 +249,7 @@ describe('ComposableController', () => {
         properties: { isEIP1559Compatible: false },
         provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
         selectedAddress: '',
-        useStaticTokenList: false,
+        useTokenDetection: false,
         useCollectibleDetection: false,
         openSeaEnabled: false,
         suggestedAssets: [],
