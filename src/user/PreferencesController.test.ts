@@ -10,7 +10,7 @@ describe('PreferencesController', () => {
       ipfsGateway: 'https://ipfs.io/ipfs/',
       lostIdentities: {},
       selectedAddress: '',
-      useStaticTokenList: false,
+      useTokenDetection: false,
       useCollectibleDetection: false,
       openSeaEnabled: false,
     });
@@ -213,10 +213,10 @@ describe('PreferencesController', () => {
     );
   });
 
-  it('should set useStaticTokenList', () => {
+  it('should set useTokenDetection', () => {
     const controller = new PreferencesController();
-    controller.setUseStaticTokenList(true);
-    expect(controller.state.useStaticTokenList).toStrictEqual(true);
+    controller.setUseTokenDetection(true);
+    expect(controller.state.useTokenDetection).toStrictEqual(true);
   });
 
   it('should set useCollectibleDetection', () => {
