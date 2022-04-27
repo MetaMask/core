@@ -25,6 +25,7 @@ describe('AssetsContractController', () => {
   let assetsContract: AssetsContractController;
   let preferences: PreferencesController;
   let network: NetworkController;
+
   beforeEach(() => {
     preferences = new PreferencesController();
     network = new NetworkController();
@@ -36,6 +37,7 @@ describe('AssetsContractController', () => {
 
   it('should set default config', () => {
     expect(assetsContract.config).toStrictEqual({
+      chainId: SupportedTokenDetectionNetworks.mainnet,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       provider: undefined,
     });
@@ -43,6 +45,7 @@ describe('AssetsContractController', () => {
 
   it('should update the ipfsGateWay config value when this value is changed in the preferences controller', () => {
     expect(assetsContract.config).toStrictEqual({
+      chainId: SupportedTokenDetectionNetworks.mainnet,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       provider: undefined,
     });

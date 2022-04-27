@@ -1,13 +1,16 @@
 import sinon from 'sinon';
 import nock from 'nock';
 import { BN } from 'ethereumjs-util';
-import { NetworkType } from '..';
 import {
   NetworkController,
   NetworksChainId,
 } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
 import { ControllerMessenger } from '../ControllerMessenger';
+import {
+  isTokenDetectionEnabledForNetwork,
+  SupportedTokenDetectionNetworks,
+} from '../util';
 import { TokensController } from './TokensController';
 import { TokenDetectionController } from './TokenDetectionController';
 import {
@@ -107,16 +110,6 @@ function getTokenListMessenger() {
   return { messenger, controllerMessenger };
 }
 
-/**
- * Checks whether network is mainnet or not.
- *
- * @param networkType - Name of current network.
- * @returns Whether current network is mainnet.
- */
-function isMainnet(networkType: NetworkType): boolean {
-  return networkType === MAINNET;
-}
-
 describe('TokenDetectionController', () => {
   let tokenDetection: TokenDetectionController;
   let preferences: PreferencesController;
@@ -136,6 +129,7 @@ describe('TokenDetectionController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
     });
+
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
@@ -162,10 +156,10 @@ describe('TokenDetectionController', () => {
           `TokenListController:stateChange`,
           listener,
         ),
-      getBalancesInSingleCall: (getBalancesInSingleCall as unknown) as AssetsContractController['getBalancesInSingleCall'],
-      addDetectedTokens: tokensController.addDetectedTokens.bind(
-        tokensController,
-      ),
+      getBalancesInSingleCall:
+        getBalancesInSingleCall as unknown as AssetsContractController['getBalancesInSingleCall'],
+      addDetectedTokens:
+        tokensController.addDetectedTokens.bind(tokensController),
       getTokensState: () => tokensController.state,
       getTokenListState: () => tokenList.state,
     });
@@ -192,7 +186,7 @@ describe('TokenDetectionController', () => {
     });
   });
 
-  it('should poll and detect tokens on interval while on mainnet', async () => {
+  it('should poll and detect tokens on interval while on supported networks', async () => {
     await new Promise((resolve) => {
       const mockTokens = sinon.stub(
         TokenDetectionController.prototype,
@@ -211,12 +205,10 @@ describe('TokenDetectionController', () => {
               `TokenListController:stateChange`,
               listener,
             ),
-          getBalancesInSingleCall: assetsContract.getBalancesInSingleCall.bind(
-            assetsContract,
-          ),
-          addDetectedTokens: tokensController.addDetectedTokens.bind(
-            tokensController,
-          ),
+          getBalancesInSingleCall:
+            assetsContract.getBalancesInSingleCall.bind(assetsContract),
+          addDetectedTokens:
+            tokensController.addDetectedTokens.bind(tokensController),
           getTokensState: () => tokensController.state,
           getTokenListState: () => tokenList.state,
         },
@@ -237,14 +229,25 @@ describe('TokenDetectionController', () => {
     });
   });
 
-  it('should detect mainnet correctly', () => {
-    tokenDetection.configure({ networkType: MAINNET });
-    expect(isMainnet(tokenDetection.config.networkType)).toStrictEqual(true);
-    tokenDetection.configure({ networkType: ROPSTEN });
-    expect(isMainnet(tokenDetection.config.networkType)).toStrictEqual(false);
+  it('should detect supported networks correctly', () => {
+    tokenDetection.configure({
+      chainId: SupportedTokenDetectionNetworks.mainnet,
+    });
+
+    expect(
+      isTokenDetectionEnabledForNetwork(tokenDetection.config.chainId),
+    ).toStrictEqual(true);
+    tokenDetection.configure({ chainId: SupportedTokenDetectionNetworks.bsc });
+    expect(
+      isTokenDetectionEnabledForNetwork(tokenDetection.config.chainId),
+    ).toStrictEqual(true);
+    tokenDetection.configure({ chainId: NetworksChainId.ropsten });
+    expect(
+      isTokenDetectionEnabledForNetwork(tokenDetection.config.chainId),
+    ).toStrictEqual(false);
   });
 
-  it('should not autodetect while not on mainnet', async () => {
+  it('should not autodetect while not on supported networks', async () => {
     await new Promise((resolve) => {
       const mockTokens = sinon.stub(
         TokenDetectionController.prototype,
@@ -263,12 +266,10 @@ describe('TokenDetectionController', () => {
               `TokenListController:stateChange`,
               listener,
             ),
-          getBalancesInSingleCall: assetsContract.getBalancesInSingleCall.bind(
-            assetsContract,
-          ),
-          addDetectedTokens: tokensController.addDetectedTokens.bind(
-            tokensController,
-          ),
+          getBalancesInSingleCall:
+            assetsContract.getBalancesInSingleCall.bind(assetsContract),
+          addDetectedTokens:
+            tokensController.addDetectedTokens.bind(tokensController),
           getTokensState: () => tokensController.state,
           getTokenListState: () => tokenList.state,
         },
@@ -449,9 +450,9 @@ describe('TokenDetectionController', () => {
       disabled: false,
     });
 
-    stub(tokensController, '_instantiateNewEthersProvider').callsFake(
-      () => null,
-    );
+    sinon
+      .stub(tokensController, '_instantiateNewEthersProvider')
+      .callsFake(() => null);
 
     preferences.setSelectedAddress('0x0001');
     network.update({

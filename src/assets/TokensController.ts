@@ -268,15 +268,12 @@ export class TokensController extends BaseController<
       const newDetectedTokens = detectedTokens.filter(
         (token) => token.address.toLowerCase() !== address.toLowerCase(),
       );
-      const {
-        newAllTokens,
-        newAllIgnoredTokens,
-        newAllDetectedTokens,
-      } = this._getNewAllTokensState({
-        newTokens: tokens,
-        newIgnoredTokens,
-        newDetectedTokens,
-      });
+      const { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens } =
+        this._getNewAllTokensState({
+          newTokens: tokens,
+          newIgnoredTokens,
+          newDetectedTokens,
+        });
 
       this.update({
         tokens,
@@ -331,15 +328,12 @@ export class TokensController extends BaseController<
         (tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()],
       );
 
-      const {
-        newAllTokens,
-        newAllDetectedTokens,
-        newAllIgnoredTokens,
-      } = this._getNewAllTokensState({
-        newTokens,
-        newDetectedTokens,
-        newIgnoredTokens,
-      });
+      const { newAllTokens, newAllDetectedTokens, newAllIgnoredTokens } =
+        this._getNewAllTokensState({
+          newTokens,
+          newDetectedTokens,
+          newIgnoredTokens,
+        });
 
       this.update({
         tokens: newTokens,
@@ -379,15 +373,12 @@ export class TokensController extends BaseController<
         (token) => !ignoredTokensMap[token.address.toLowerCase()],
       );
 
-      const {
-        newAllIgnoredTokens,
-        newAllDetectedTokens,
-        newAllTokens,
-      } = this._getNewAllTokensState({
-        newIgnoredTokens: ignoredTokens,
-        newDetectedTokens,
-        newTokens,
-      });
+      const { newAllIgnoredTokens, newAllDetectedTokens, newAllTokens } =
+        this._getNewAllTokensState({
+          newIgnoredTokens: ignoredTokens,
+          newDetectedTokens,
+          newTokens,
+        });
 
       this.update({
         ignoredTokens,
@@ -677,15 +668,12 @@ export class TokensController extends BaseController<
     );
     ignoredTokens.push(address);
 
-    const {
-      newAllTokens,
-      newAllIgnoredTokens,
-      newAllDetectedTokens,
-    } = this._getNewAllTokensState({
-      newTokens,
-      newIgnoredTokens: ignoredTokens,
-      newDetectedTokens,
-    });
+    const { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens } =
+      this._getNewAllTokensState({
+        newTokens,
+        newIgnoredTokens: ignoredTokens,
+        newDetectedTokens,
+      });
 
     this.update({
       allTokens: newAllTokens,

@@ -144,9 +144,8 @@ export class TokenDetectionController extends BaseController<
         this.abortController.abort();
         this.abortController = new AbortController();
         const incomingChainId = networkState.provider.chainId;
-        const isTokenDetectionSupported = isTokenDetectionEnabledForNetwork(
-          incomingChainId,
-        );
+        const isTokenDetectionSupported =
+          isTokenDetectionEnabledForNetwork(incomingChainId);
         const isDetectionEnabled =
           isTokenDetectionSupported && !this.config.disabled;
         this.configure({

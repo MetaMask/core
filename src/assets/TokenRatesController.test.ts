@@ -249,7 +249,7 @@ describe('TokenRatesController', () => {
     controller.tokens = [
       { address: 'bar', decimals: 0, symbol: '', aggregators: [] },
     ];
-    const mock = stub(controller, 'updateExchangeRates');
+    const mock = sinon.stub(controller, 'updateExchangeRates');
     await controller.updateExchangeRates();
     expect(mock).not.toThrow();
   });

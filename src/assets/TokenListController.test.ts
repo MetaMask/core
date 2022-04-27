@@ -114,13 +114,11 @@ const sampleWithDuplicateSymbols = [
   },
 ];
 
-const sampleWithDuplicateSymbolsTokensChainsCache = sampleWithDuplicateSymbols.reduce(
-  (output, current) => {
+const sampleWithDuplicateSymbolsTokensChainsCache =
+  sampleWithDuplicateSymbols.reduce((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as any,
-);
+  }, {} as any);
 
 const sampleWithLessThan2Occurences = [
   {
@@ -170,13 +168,11 @@ const sampleWithLessThan2Occurences = [
   },
 ];
 
-const sampleWithLessThan2OccurencesTokensChainsCache = sampleWithLessThan2Occurences.reduce(
-  (output, current) => {
+const sampleWithLessThan2OccurencesTokensChainsCache =
+  sampleWithLessThan2Occurences.reduce((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as any,
-);
+  }, {} as any);
 
 const sampleBinanceTokenList = [
   {

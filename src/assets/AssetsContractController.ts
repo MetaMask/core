@@ -74,7 +74,7 @@ export class AssetsContractController extends BaseController<
    */
   override name = 'AssetsContractController';
 
-   /**
+  /**
    * Creates a AssetsContractController instance.
    *
    * @param options - The controller options.
