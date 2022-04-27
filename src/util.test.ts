@@ -809,14 +809,7 @@ describe('util', () => {
     });
 
     it('should throw error for an unsuccessful fetch', async () => {
-      let error;
-      try {
-        await util.successfulFetch(SOME_FAILING_API);
-      } catch (e) {
-        error = e;
-      }
-
-      expect(error.message).toBe(
+      await expect(util.successfulFetch(SOME_FAILING_API)).rejects.toThrow(
         `Fetch failed with status '500' for request '${SOME_FAILING_API}'`,
       );
     });
@@ -834,13 +827,9 @@ describe('util', () => {
     });
 
     it('should fail fetch with timeout', async () => {
-      let error;
-      try {
-        await util.timeoutFetch(SOME_API, {}, 100);
-      } catch (e) {
-        error = e;
-      }
-      expect(error.message).toBe('timeout');
+      await expect(util.timeoutFetch(SOME_API, {}, 100)).rejects.toThrow(
+        'timeout',
+      );
     });
   });
 

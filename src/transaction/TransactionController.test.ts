@@ -1,4 +1,4 @@
-import { stub } from 'sinon';
+import sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
 import {
   NetworksChainId,
@@ -266,6 +266,10 @@ describe('TransactionController', () => {
     }
   });
 
+  afterEach(() => {
+    sinon.restore();
+  });
+
   it('should set default state', () => {
     const controller = new TransactionController({
       getNetworkState: () => MOCK_NETWORK.state,
@@ -292,7 +296,7 @@ describe('TransactionController', () => {
 
   it('should poll and update transaction statuses in the right interval', async () => {
     await new Promise((resolve) => {
-      const mock = stub(
+      const mock = sinon.stub(
         TransactionController.prototype,
         'queryTransactionStatuses',
       );
@@ -308,14 +312,13 @@ describe('TransactionController', () => {
       expect(mock.calledTwice).toBe(false);
       setTimeout(() => {
         expect(mock.calledTwice).toBe(true);
-        mock.restore();
         resolve('');
       }, 15);
     });
   });
 
   it('should clear previous interval', async () => {
-    const mock = stub(global, 'clearTimeout');
+    const mock = sinon.stub(global, 'clearTimeout');
     const controller = new TransactionController(
       {
         getNetworkState: () => MOCK_NETWORK.state,
@@ -328,7 +331,6 @@ describe('TransactionController', () => {
       setTimeout(() => {
         controller.poll(1338);
         expect(mock.called).toBe(true);
-        mock.restore();
         resolve('');
       }, 100);
     });
@@ -344,10 +346,9 @@ describe('TransactionController', () => {
         },
         { interval: 10 },
       );
-      const func = stub(controller, 'update');
+      const func = sinon.stub(controller, 'update');
       setTimeout(() => {
         expect(func.called).toBe(false);
-        func.restore();
         resolve('');
       }, 20);
     });
@@ -390,13 +391,13 @@ describe('TransactionController', () => {
   });
 
   it('should add a valid transaction after a network switch', async () => {
-    const getNetworkState = stub().returns(MOCK_NETWORK.state);
+    const getNetworkState = sinon.stub().returns(MOCK_NETWORK.state);
     let networkStateChangeListener: ((state: NetworkState) => void) | null =
       null;
     const onNetworkStateChange = (listener: (state: NetworkState) => void) => {
       networkStateChangeListener = listener;
     };
-    const getProvider = stub().returns(PROVIDER);
+    const getProvider = sinon.stub().returns(PROVIDER);
     const controller = new TransactionController({
       getNetworkState,
       onNetworkStateChange,
@@ -429,13 +430,13 @@ describe('TransactionController', () => {
   });
 
   it('should add a valid transaction after a switch to custom network', async () => {
-    const getNetworkState = stub().returns(MOCK_NETWORK.state);
+    const getNetworkState = sinon.stub().returns(MOCK_NETWORK.state);
     let networkStateChangeListener: ((state: NetworkState) => void) | null =
       null;
     const onNetworkStateChange = (listener: (state: NetworkState) => void) => {
       networkStateChangeListener = listener;
     };
-    const getProvider = stub().returns(PROVIDER);
+    const getProvider = sinon.stub().returns(PROVIDER);
     const controller = new TransactionController({
       getNetworkState,
       onNetworkStateChange,
@@ -1008,7 +1009,7 @@ describe('TransactionController', () => {
       args: [{ type: 'uint256' }, { type: 'uint256' }],
       name: 'Eth To Token Swap Input',
     });
-    const registryLookup = stub(controller, 'registryLookup' as any);
+    const registryLookup = sinon.stub(controller, 'registryLookup' as any);
     await controller.handleMethodData('0xf39b5b9b');
     expect(registryLookup.called).toBe(false);
   });

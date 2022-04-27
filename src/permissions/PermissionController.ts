@@ -3,6 +3,7 @@ import { Mutable } from '@metamask/types';
 import deepFreeze from 'deep-freeze-strict';
 import { castDraft, Draft, Patch } from 'immer';
 import { nanoid } from 'nanoid';
+import { EthereumRpcError } from 'eth-rpc-errors';
 import {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
@@ -1996,12 +1997,15 @@ export class PermissionController<
     try {
       this.validateRequestedPermissions(origin, permissions);
     } catch (error) {
-      // Re-throw as an internal error; we should never receive invalid approved
-      // permissions.
-      throw internalError(
-        `Invalid approved permissions request: ${error.message}`,
-        error.data,
-      );
+      if (error instanceof EthereumRpcError) {
+        // Re-throw as an internal error; we should never receive invalid approved
+        // permissions.
+        throw internalError(
+          `Invalid approved permissions request: ${error.message}`,
+          error.data,
+        );
+      }
+      throw internalError('Unrecognized error type', { error });
     }
   }
 
@@ -2087,7 +2091,7 @@ export class PermissionController<
    * @param error - The error associated with the rejection.
    * @returns Nothing
    */
-  private _rejectPermissionsRequest(id: string, error: Error): void {
+  private _rejectPermissionsRequest(id: string, error: unknown): void {
     return this.messagingSystem.call(
       'ApprovalController:rejectRequest',
       id,
