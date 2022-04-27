@@ -1,40 +1,20 @@
 import sinon from 'sinon';
 import nock from 'nock';
-import contractMap from '@metamask/contract-metadata';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
   NetworkController,
   NetworksChainId,
 } from '../network/NetworkController';
-import { PreferencesController } from '../user/PreferencesController';
 import {
   TokenListController,
   TokenListStateChange,
   GetTokenListState,
-  TokenListMap,
-  ContractMap,
 } from './TokenListController';
 
 const name = 'TokenListController';
 const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 const timestamp = Date.now();
 
-const staticTokenList: TokenListMap = {};
-for (const tokenAddress in contractMap) {
-  const {
-    erc20,
-    logo: filePath,
-    ...token
-  } = (contractMap as ContractMap)[tokenAddress];
-  if (erc20) {
-    staticTokenList[tokenAddress] = {
-      ...token,
-      address: tokenAddress,
-      iconUrl: filePath,
-      occurrences: null,
-    };
-  }
-}
 const sampleMainnetTokenList = [
   {
     address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
@@ -42,7 +22,22 @@ const sampleMainnetTokenList = [
     decimals: 18,
     occurrences: 11,
     name: 'Synthetix',
-    iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
+    iconUrl:
+      'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
+    aggregators: [
+      'Aave',
+      'Bancor',
+      'CMC',
+      'Crypto.com',
+      'CoinGecko',
+      '1inch',
+      'Paraswap',
+      'PMM',
+      'Synthetix',
+      'Zapper',
+      'Zerion',
+      '0x',
+    ],
   },
   {
     address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -50,7 +45,21 @@ const sampleMainnetTokenList = [
     decimals: 18,
     occurrences: 11,
     name: 'Chainlink',
-    iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
+    iconUrl:
+      'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+    aggregators: [
+      'Aave',
+      'Bancor',
+      'CMC',
+      'Crypto.com',
+      'CoinGecko',
+      '1inch',
+      'Paraswap',
+      'PMM',
+      'Zapper',
+      'Zerion',
+      '0x',
+    ],
   },
   {
     address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
@@ -58,9 +67,30 @@ const sampleMainnetTokenList = [
     decimals: 18,
     occurrences: 11,
     name: 'Bancor',
-    iconUrl: 'https://s3.amazonaws.com/airswap-token-images/BNT.png',
+    iconUrl:
+      'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
+    aggregators: [
+      'Bancor',
+      'CMC',
+      'CoinGecko',
+      '1inch',
+      'Paraswap',
+      'PMM',
+      'Zapper',
+      'Zerion',
+      '0x',
+    ],
   },
 ];
+
+const sampleMainnetTokensChainsCache = sampleMainnetTokenList.reduce(
+  (output, current) => {
+    output[current.address] = current;
+    return output;
+  },
+  {} as any,
+);
+
 const sampleWithDuplicateSymbols = [
   {
     address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
@@ -68,9 +98,28 @@ const sampleWithDuplicateSymbols = [
     decimals: 18,
     occurrences: 11,
     name: 'Bancor',
-    iconUrl: 'https://s3.amazonaws.com/airswap-token-images/BNT.png',
+    iconUrl:
+      'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
+    aggregators: [
+      'Bancor',
+      'CMC',
+      'CoinGecko',
+      '1inch',
+      'Paraswap',
+      'PMM',
+      'Zapper',
+      'Zerion',
+      '0x',
+    ],
   },
 ];
+
+const sampleWithDuplicateSymbolsTokensChainsCache =
+  sampleWithDuplicateSymbols.reduce((output, current) => {
+    output[current.address] = current;
+    return output;
+  }, {} as any);
+
 const sampleWithLessThan2Occurences = [
   {
     address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
@@ -78,7 +127,22 @@ const sampleWithLessThan2Occurences = [
     decimals: 18,
     occurrences: 2,
     name: 'Synthetix',
-    iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
+    iconUrl:
+      'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
+    aggregators: [
+      'Aave',
+      'Bancor',
+      'CMC',
+      'Crypto.com',
+      'CoinGecko',
+      '1inch',
+      'Paraswap',
+      'PMM',
+      'Synthetix',
+      'Zapper',
+      'Zerion',
+      '0x',
+    ],
   },
   {
     address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -86,9 +150,30 @@ const sampleWithLessThan2Occurences = [
     decimals: 18,
     occurrences: 11,
     name: 'Chainlink',
-    iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
+    iconUrl:
+      'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+    aggregators: [
+      'Aave',
+      'Bancor',
+      'CMC',
+      'Crypto.com',
+      'CoinGecko',
+      '1inch',
+      'Paraswap',
+      'PMM',
+      'Zapper',
+      'Zerion',
+      '0x',
+    ],
   },
 ];
+
+const sampleWithLessThan2OccurencesTokensChainsCache =
+  sampleWithLessThan2Occurences.reduce((output, current) => {
+    output[current.address] = current;
+    return output;
+  }, {} as any);
+
 const sampleBinanceTokenList = [
   {
     address: '0x7083609fce4d1d8dc0c979aab8c869ea2c873402',
@@ -96,6 +181,15 @@ const sampleBinanceTokenList = [
     decimals: 18,
     name: 'PolkadotBEP2',
     occurrences: 5,
+    aggregators: [
+      'BinanceDex',
+      '1inch',
+      'PancakeExtended',
+      'ApeSwap',
+      'Paraswap',
+    ],
+    iconUrl:
+      'https://static.metaswap.codefi.network/api/v1/tokenIcons/56/0x7083609fce4d1d8dc0c979aab8c869ea2c873402.png',
   },
   {
     address: '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3',
@@ -103,6 +197,16 @@ const sampleBinanceTokenList = [
     decimals: 18,
     name: 'DaiBEP2',
     occurrences: 5,
+    aggregators: [
+      'BinanceDex',
+      '1inch',
+      'PancakeExtended',
+      'ApeSwap',
+      '0x',
+      'Paraswap',
+    ],
+    iconUrl:
+      'https://static.metaswap.codefi.network/api/v1/tokenIcons/56/0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3.png',
   },
 ];
 const sampleSingleChainState = {
@@ -113,7 +217,22 @@ const sampleSingleChainState = {
       decimals: 18,
       occurrences: 11,
       name: 'Synthetix',
-      iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
+      iconUrl:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
+      aggregators: [
+        'Aave',
+        'Bancor',
+        'CMC',
+        'Crypto.com',
+        'CoinGecko',
+        '1inch',
+        'Paraswap',
+        'PMM',
+        'Synthetix',
+        'Zapper',
+        'Zerion',
+        '0x',
+      ],
     },
     '0x514910771af9ca656af840dff83e8264ecf986ca': {
       address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -121,7 +240,21 @@ const sampleSingleChainState = {
       decimals: 18,
       occurrences: 11,
       name: 'Chainlink',
-      iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
+      iconUrl:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+      aggregators: [
+        'Aave',
+        'Bancor',
+        'CMC',
+        'Crypto.com',
+        'CoinGecko',
+        '1inch',
+        'Paraswap',
+        'PMM',
+        'Zapper',
+        'Zerion',
+        '0x',
+      ],
     },
     '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c': {
       address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
@@ -129,16 +262,36 @@ const sampleSingleChainState = {
       decimals: 18,
       occurrences: 11,
       name: 'Bancor',
-      iconUrl: 'https://s3.amazonaws.com/airswap-token-images/BNT.png',
+      iconUrl:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
+      aggregators: [
+        'Bancor',
+        'CMC',
+        'CoinGecko',
+        '1inch',
+        'Paraswap',
+        'PMM',
+        'Zapper',
+        'Zerion',
+        '0x',
+      ],
     },
   },
   tokensChainsCache: {
     '1': {
       timestamp,
-      data: sampleMainnetTokenList,
+      data: sampleMainnetTokensChainsCache,
     },
   },
 };
+
+const sampleBinanceTokensChainsCache = sampleBinanceTokenList.reduce(
+  (output, current) => {
+    output[current.address] = current;
+    return output;
+  },
+  {} as any,
+);
 
 const sampleTwoChainState = {
   tokenList: {
@@ -148,6 +301,15 @@ const sampleTwoChainState = {
       decimals: 18,
       name: 'PolkadotBEP2',
       occurrences: 5,
+      aggregators: [
+        'BinanceDex',
+        '1inch',
+        'PancakeExtended',
+        'ApeSwap',
+        'Paraswap',
+      ],
+      iconUrl:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/56/0x7083609fce4d1d8dc0c979aab8c869ea2c873402.png',
     },
     '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3': {
       address: '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3',
@@ -155,27 +317,28 @@ const sampleTwoChainState = {
       decimals: 18,
       name: 'DaiBEP2',
       occurrences: 5,
+      aggregators: [
+        'BinanceDex',
+        '1inch',
+        'PancakeExtended',
+        'ApeSwap',
+        '0x',
+        'Paraswap',
+      ],
+      iconUrl:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/56/0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3.png',
     },
   },
   tokensChainsCache: {
     '1': {
       timestamp,
-      data: sampleMainnetTokenList,
+      data: sampleMainnetTokensChainsCache,
     },
     '56': {
       timestamp: timestamp + 150,
-      data: sampleBinanceTokenList,
+      data: sampleBinanceTokensChainsCache,
     },
   },
-};
-
-const sampleTokenMetaData = {
-  address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-  symbol: 'LINK',
-  decimals: 18,
-  occurrences: 11,
-  name: 'Chainlink',
-  iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
 };
 
 const existingState = {
@@ -186,13 +349,27 @@ const existingState = {
       decimals: 18,
       occurrences: 11,
       name: 'Chainlink',
-      iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
+      iconUrl:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+      aggregators: [
+        'Aave',
+        'Bancor',
+        'CMC',
+        'Crypto.com',
+        'CoinGecko',
+        '1inch',
+        'Paraswap',
+        'PMM',
+        'Zapper',
+        'Zerion',
+        '0x',
+      ],
     },
   },
   tokensChainsCache: {
     '1': {
       timestamp,
-      data: sampleMainnetTokenList,
+      data: sampleMainnetTokensChainsCache,
     },
   },
 };
@@ -205,13 +382,27 @@ const outdatedExistingState = {
       decimals: 18,
       occurrences: 11,
       name: 'Chainlink',
-      iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
+      iconUrl:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+      aggregators: [
+        'Aave',
+        'Bancor',
+        'CMC',
+        'Crypto.com',
+        'CoinGecko',
+        '1inch',
+        'Paraswap',
+        'PMM',
+        'Zapper',
+        'Zerion',
+        '0x',
+      ],
     },
   },
   tokensChainsCache: {
     '1': {
       timestamp,
-      data: sampleMainnetTokenList,
+      data: sampleMainnetTokensChainsCache,
     },
   },
 };
@@ -224,7 +415,21 @@ const expiredCacheExistingState = {
       decimals: 18,
       occurrences: 9,
       name: 'Chainlink',
-      iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
+      iconUrl:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+      aggregators: [
+        'Aave',
+        'Bancor',
+        'CMC',
+        'Crypto.com',
+        'CoinGecko',
+        '1inch',
+        'Paraswap',
+        'PMM',
+        'Zapper',
+        'Zerion',
+        '0x',
+      ],
     },
   },
   tokensChainsCache: {
@@ -237,7 +442,21 @@ const expiredCacheExistingState = {
           decimals: 18,
           occurrences: 11,
           name: 'Chainlink',
-          iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
+          iconUrl:
+            'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+          aggregators: [
+            'Aave',
+            'Bancor',
+            'CMC',
+            'Crypto.com',
+            'CoinGecko',
+            '1inch',
+            'Paraswap',
+            'PMM',
+            'Zapper',
+            'Zerion',
+            '0x',
+          ],
         },
       ],
     },
@@ -266,10 +485,8 @@ function getRestrictedMessenger() {
 
 describe('TokenListController', () => {
   let network: NetworkController;
-  let preferences: PreferencesController;
   beforeEach(() => {
     network = new NetworkController();
-    preferences = new PreferencesController();
   });
 
   afterEach(() => {
@@ -281,9 +498,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
 
@@ -299,9 +514,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: existingState,
     });
@@ -313,13 +526,27 @@ describe('TokenListController', () => {
           decimals: 18,
           occurrences: 11,
           name: 'Chainlink',
-          iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
+          iconUrl:
+            'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+          aggregators: [
+            'Aave',
+            'Bancor',
+            'CMC',
+            'Crypto.com',
+            'CoinGecko',
+            '1inch',
+            'Paraswap',
+            'PMM',
+            'Zapper',
+            'Zerion',
+            '0x',
+          ],
         },
       },
       tokensChainsCache: {
         '1': {
           timestamp,
-          data: sampleMainnetTokenList,
+          data: sampleMainnetTokensChainsCache,
         },
       },
     });
@@ -331,9 +558,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -353,9 +578,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -379,9 +602,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -407,9 +628,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -437,9 +656,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
     await controller.start();
@@ -475,9 +692,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       interval: 100,
     });
@@ -499,9 +714,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: existingState,
     });
@@ -527,9 +740,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
     await controller.start();
@@ -540,13 +751,25 @@ describe('TokenListController', () => {
         decimals: 18,
         occurrences: 11,
         name: 'Bancor',
-        iconUrl: 'https://s3.amazonaws.com/airswap-token-images/BNT.png',
+        iconUrl:
+          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
+        aggregators: [
+          'Bancor',
+          'CMC',
+          'CoinGecko',
+          '1inch',
+          'Paraswap',
+          'PMM',
+          'Zapper',
+          'Zerion',
+          '0x',
+        ],
       },
     });
 
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
-    ).toStrictEqual(sampleWithDuplicateSymbols);
+    ).toStrictEqual(sampleWithDuplicateSymbolsTokensChainsCache);
     controller.destroy();
   });
 
@@ -558,9 +781,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
     await controller.start();
@@ -571,7 +792,22 @@ describe('TokenListController', () => {
         decimals: 18,
         occurrences: 2,
         name: 'Synthetix',
-        iconUrl: 'https://airswap-token-images.s3.amazonaws.com/SNX.png',
+        iconUrl:
+          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
+        aggregators: [
+          'Aave',
+          'Bancor',
+          'CMC',
+          'Crypto.com',
+          'CoinGecko',
+          '1inch',
+          'Paraswap',
+          'PMM',
+          'Synthetix',
+          'Zapper',
+          'Zerion',
+          '0x',
+        ],
       },
       '0x514910771af9ca656af840dff83e8264ecf986ca': {
         address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -579,13 +815,27 @@ describe('TokenListController', () => {
         decimals: 18,
         occurrences: 11,
         name: 'Chainlink',
-        iconUrl: 'https://s3.amazonaws.com/airswap-token-images/LINK.png',
+        iconUrl:
+          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+        aggregators: [
+          'Aave',
+          'Bancor',
+          'CMC',
+          'Crypto.com',
+          'CoinGecko',
+          '1inch',
+          'Paraswap',
+          'PMM',
+          'Zapper',
+          'Zerion',
+          '0x',
+        ],
       },
     });
 
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
-    ).toStrictEqual(sampleWithLessThan2Occurences);
+    ).toStrictEqual(sampleWithLessThan2OccurencesTokensChainsCache);
     controller.destroy();
   });
 
@@ -597,9 +847,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: outdatedExistingState,
     });
@@ -625,11 +873,9 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
-      state: expiredCacheExistingState,
+      state: expiredCacheExistingState as any,
     });
     expect(controller.state).toStrictEqual(expiredCacheExistingState);
     await controller.start();
@@ -660,9 +906,7 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: existingState,
       interval: 100,
@@ -713,198 +957,6 @@ describe('TokenListController', () => {
     expect(controller.state.tokensChainsCache['56'].data).toStrictEqual(
       sampleTwoChainState.tokensChainsCache['56'].data,
     );
-
-    controller.destroy();
-  });
-
-  it('should use static token list when useStaticTokenList flag is set to true', async () => {
-    const messenger = getRestrictedMessenger();
-    const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
-      useStaticTokenList: true,
-      onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      messenger,
-      state: existingState,
-      interval: 100,
-    });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(staticTokenList);
-    expect(controller.state.tokensChainsCache).toStrictEqual({});
-
-    controller.destroy();
-  });
-
-  it('should switch between static and dynamic list based on the preference change', async () => {
-    nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
-      .reply(200, sampleMainnetTokenList)
-      .persist();
-    const messenger = getRestrictedMessenger();
-    const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
-      onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      messenger,
-      interval: 100,
-    });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
-
-    preferences.update({
-      useStaticTokenList: true,
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 50));
-    expect(controller.state.tokenList).toStrictEqual(staticTokenList);
-    expect(controller.state.tokensChainsCache).toStrictEqual({});
-
-    preferences.update({
-      useStaticTokenList: false,
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 50));
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
-
-    expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
-    ).toStrictEqual(sampleMainnetTokenList);
-
-    controller.destroy();
-  });
-
-  it('should switch between static and dynamic list only if useStaticTokenList change', async () => {
-    nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
-      .reply(200, sampleMainnetTokenList)
-      .persist();
-    const messenger = getRestrictedMessenger();
-    const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
-      onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      messenger,
-      interval: 100,
-    });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
-
-    preferences.update({
-      ipfsGateway: 'https://ipfs.infura.io/ipfs/',
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 50));
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
-
-    expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
-    ).toStrictEqual(sampleMainnetTokenList);
-
-    preferences.update({
-      useStaticTokenList: true,
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 50));
-    expect(controller.state.tokenList).toStrictEqual(staticTokenList);
-    expect(controller.state.tokensChainsCache).toStrictEqual({});
-
-    controller.destroy();
-  });
-
-  it('should switch between static and dynamic list when the preference change after network change', async () => {
-    nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
-      .reply(200, sampleMainnetTokenList)
-      .get(`/tokens/56`)
-      .reply(200, sampleBinanceTokenList)
-      .persist();
-    const messenger = getRestrictedMessenger();
-    const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
-      onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      messenger,
-      interval: 100,
-    });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
-
-    expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
-    ).toStrictEqual(sampleMainnetTokenList);
-
-    network.update({
-      provider: {
-        type: 'rpc',
-        chainId: '56',
-      },
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 10));
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleTwoChainState.tokenList,
-    );
-
-    expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
-    ).toStrictEqual(sampleMainnetTokenList);
-
-    expect(controller.state.tokensChainsCache['56'].data).toStrictEqual(
-      sampleBinanceTokenList,
-    );
-
-    preferences.update({
-      useStaticTokenList: true,
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 10));
-    expect(controller.state.tokenList).toStrictEqual(staticTokenList);
-    expect(controller.state.tokensChainsCache).toStrictEqual({});
-
-    preferences.update({
-      useStaticTokenList: false,
-    });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 10));
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleTwoChainState.tokenList,
-    );
-
-    expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet],
-    ).toBeUndefined();
-
-    expect(controller.state.tokensChainsCache['56'].data).toStrictEqual(
-      sampleBinanceTokenList,
-    );
-
-    controller.destroy();
-  });
-
-  it('should return the metadata for a tokenAddress provided', async () => {
-    nock(TOKEN_END_POINT_API)
-      .get(`/token/${NetworksChainId.mainnet}`)
-      .query({ address: '0x514910771af9ca656af840dff83e8264ecf986ca' })
-      .reply(200, sampleTokenMetaData)
-      .persist();
-    const messenger = getRestrictedMessenger();
-    const controller = new TokenListController({
-      chainId: NetworksChainId.mainnet,
-      useStaticTokenList: false,
-      onNetworkStateChange: (listener) => network.subscribe(listener),
-      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      messenger,
-    });
-    const tokenMeta = await controller.fetchTokenMetadata(
-      '0x514910771af9ca656af840dff83e8264ecf986ca',
-    );
-    expect(tokenMeta).toStrictEqual(sampleTokenMetaData);
 
     controller.destroy();
   });
