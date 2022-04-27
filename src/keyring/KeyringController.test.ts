@@ -931,7 +931,8 @@ describe('KeyringController', () => {
     });
 
     it('should unlock default account from Ledger', async () => {
-      const defaultAccount = await keyringController.unlockLedgerDefaultAccount();
+      const defaultAccount =
+        await keyringController.unlockLedgerDefaultAccount();
       expect(defaultAccount.address).toBe(
         '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
       );

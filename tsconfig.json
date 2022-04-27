@@ -7,8 +7,7 @@
     "moduleResolution": "node",
     "sourceMap": true,
     "strict": true,
-    "target": "es6",
-    "skipLibCheck": true
+    "target": "es6"
   },
   "include": ["./types/**/*.d.ts", "./src/**/*.ts"]
 }
