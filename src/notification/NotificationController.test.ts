@@ -2,7 +2,6 @@ import { ControllerMessenger } from '../ControllerMessenger';
 import {
   ControllerActions,
   NotificationController,
-  NotificationControllerMessenger,
   NotificationControllerStateChange,
   NotificationType,
 } from './NotificationController';
@@ -30,14 +29,9 @@ function getUnrestrictedMessenger() {
 function getRestrictedMessenger(
   controllerMessenger = getUnrestrictedMessenger(),
 ) {
-  return controllerMessenger.getRestricted<
-    typeof name,
-    ControllerActions['type'],
-    never
-  >({
+  return controllerMessenger.getRestricted<typeof name, never, never>({
     name,
-    allowedActions: ['NotificationController:show'],
-  }) as NotificationControllerMessenger;
+  });
 }
 
 const origin = 'snap_test';
