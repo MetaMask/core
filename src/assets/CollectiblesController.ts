@@ -47,7 +47,7 @@ import { compareCollectiblesMetadata } from './assetsUtil';
  * @property externalLink - External link containing additional information
  * @property creator - The collectible owner information object
  * @property isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this collectible
- * @property transactionId - Collectible transaction id
+ * @property transactionId - Transaction Id associated with the collectible
  */
 export interface Collectible extends CollectibleMetadata {
   tokenId: string;
@@ -1161,7 +1161,7 @@ export class CollectiblesController extends BaseController<
    *
    * @param address - Hex address of the collectible contract.
    * @param tokenId - Number that represents the id of the token.
-   * @returns a collectible
+   * @returns Object containing the Collectible and their position in the array
    */
   findCollectibleByAddressAndTokenId(
     address: string,

@@ -1376,7 +1376,7 @@ describe('CollectiblesController', () => {
       favorite: false,
     };
 
-    it('should return undefined when the collectible does not exist', async () => {
+    it('should return null if the collectible does not exist in the state', async () => {
       expect(
         collectiblesController.findCollectibleByAddressAndTokenId(
           mockCollectible.address,
@@ -1385,7 +1385,7 @@ describe('CollectiblesController', () => {
       ).toBeNull();
     });
 
-    it('should return the collectible by the address and tokenId with the prop transactionId', () => {
+    it('should return the collectible by the address and tokenId', () => {
       const { selectedAddress, chainId } = collectiblesController.config;
       collectiblesController.state.allCollectibles = {
         [selectedAddress]: { [chainId]: [mockCollectible] },
@@ -1423,7 +1423,7 @@ describe('CollectiblesController', () => {
       tokenId: '1',
       transactionId: mockTransactionId,
     };
-    it('should update the collectible when the collectible exist', async () => {
+    it('should update the collectible if the collectible exist', async () => {
       const { selectedAddress, chainId } = collectiblesController.config;
       collectiblesController.state.allCollectibles = {
         [selectedAddress]: { [chainId]: [mockCollectible] },
@@ -1440,7 +1440,7 @@ describe('CollectiblesController', () => {
       ).toStrictEqual(expectedMockCollectible);
     });
 
-    it('should return undefined when the collectible does not exist', () => {
+    it('should return undefined if the collectible does not exist', () => {
       expect(
         collectiblesController.updateCollectible(mockCollectible, {
           transactionId: mockTransactionId,
