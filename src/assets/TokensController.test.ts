@@ -37,6 +37,8 @@ describe('TokensController', () => {
       ignoredTokens: [],
       suggestedAssets: [],
       tokens: [],
+      detectedTokens: [],
+      allDetectedTokens: {},
     });
   });
 
@@ -54,6 +56,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'bar',
       isERC721: false,
+      aggregators: [],
     });
     await tokensController.addToken('0x01', 'baz', 2);
     expect(tokensController.state.tokens[0]).toStrictEqual({
@@ -62,6 +65,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'baz',
       isERC721: false,
+      aggregators: [],
     });
   });
 
@@ -73,9 +77,9 @@ describe('TokensController', () => {
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
       );
 
-    await tokensController.addTokens([
-      { address: '0x01', symbol: 'barA', decimals: 2 },
-      { address: '0x02', symbol: 'barB', decimals: 2 },
+    await tokensController.importTokens([
+      { address: '0x01', symbol: 'barA', decimals: 2, aggregators: [] },
+      { address: '0x02', symbol: 'barB', decimals: 2, aggregators: [] },
     ]);
 
     expect(tokensController.state.tokens[0]).toStrictEqual({
@@ -83,7 +87,7 @@ describe('TokensController', () => {
       decimals: 2,
       image: undefined,
       symbol: 'barA',
-      isERC721: false,
+      aggregators: [],
     });
 
     expect(tokensController.state.tokens[1]).toStrictEqual({
@@ -91,12 +95,22 @@ describe('TokensController', () => {
       decimals: 2,
       image: undefined,
       symbol: 'barB',
-      isERC721: false,
+      aggregators: [],
     });
 
-    await tokensController.addTokens([
-      { address: '0x01', symbol: 'bazA', decimals: 2 },
-      { address: '0x02', symbol: 'bazB', decimals: 2 },
+    await tokensController.importTokens([
+      {
+        address: '0x01',
+        symbol: 'bazA',
+        decimals: 2,
+        aggregators: [],
+      },
+      {
+        address: '0x02',
+        symbol: 'bazB',
+        decimals: 2,
+        aggregators: [],
+      },
     ]);
 
     expect(tokensController.state.tokens[0]).toStrictEqual({
@@ -104,7 +118,7 @@ describe('TokensController', () => {
       decimals: 2,
       image: undefined,
       symbol: 'bazA',
-      isERC721: false,
+      aggregators: [],
     });
 
     expect(tokensController.state.tokens[1]).toStrictEqual({
@@ -112,7 +126,68 @@ describe('TokensController', () => {
       decimals: 2,
       image: undefined,
       symbol: 'bazB',
-      isERC721: false,
+      aggregators: [],
+    });
+  });
+
+  it('should add detected tokens', async () => {
+    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
+    sinon
+      .stub(tokensController, '_createEthersContract')
+      .callsFake(() =>
+        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+      );
+
+    await tokensController.addDetectedTokens([
+      { address: '0x01', symbol: 'barA', decimals: 2, aggregators: [] },
+      { address: '0x02', symbol: 'barB', decimals: 2, aggregators: [] },
+    ]);
+
+    expect(tokensController.state.detectedTokens[0]).toStrictEqual({
+      address: '0x01',
+      decimals: 2,
+      image: undefined,
+      symbol: 'barA',
+      aggregators: [],
+    });
+
+    expect(tokensController.state.detectedTokens[1]).toStrictEqual({
+      address: '0x02',
+      decimals: 2,
+      image: undefined,
+      symbol: 'barB',
+      aggregators: [],
+    });
+
+    await tokensController.addDetectedTokens([
+      {
+        address: '0x01',
+        symbol: 'bazA',
+        decimals: 2,
+        aggregators: [],
+      },
+      {
+        address: '0x02',
+        symbol: 'bazB',
+        decimals: 2,
+        aggregators: [],
+      },
+    ]);
+
+    expect(tokensController.state.detectedTokens[0]).toStrictEqual({
+      address: '0x01',
+      decimals: 2,
+      image: undefined,
+      symbol: 'bazA',
+      aggregators: [],
+    });
+
+    expect(tokensController.state.detectedTokens[1]).toStrictEqual({
+      address: '0x02',
+      decimals: 2,
+      image: undefined,
+      symbol: 'bazB',
+      aggregators: [],
     });
   });
 
@@ -138,6 +213,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'bar',
       isERC721: false,
+      aggregators: [],
     });
   });
 
@@ -177,6 +253,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'bar',
       isERC721: false,
+      aggregators: [],
     });
   });
 
@@ -214,6 +291,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'baz',
       isERC721: false,
+      aggregators: [],
     });
   });
 
@@ -255,6 +333,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'baz',
       isERC721: false,
+      aggregators: [],
     });
   });
 
@@ -325,10 +404,10 @@ describe('TokensController', () => {
       tokensController.removeAndIgnoreToken('0xFAa');
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.ignoredTokens).toHaveLength(2);
-      await tokensController.addTokens([
-        { address: '0x01', decimals: 3, symbol: 'bar' },
-        { address: '0x02', decimals: 4, symbol: 'baz' },
-        { address: '0x04', decimals: 4, symbol: 'foo' },
+      await tokensController.importTokens([
+        { address: '0x01', decimals: 3, symbol: 'bar', aggregators: [] },
+        { address: '0x02', decimals: 4, symbol: 'baz', aggregators: [] },
+        { address: '0x04', decimals: 4, symbol: 'foo', aggregators: [] },
       ]);
       expect(tokensController.state.tokens).toHaveLength(3);
       expect(tokensController.state.ignoredTokens).toHaveLength(1);
@@ -405,6 +484,55 @@ describe('TokensController', () => {
         },
       });
     });
+  });
+
+  it('should ignore multiple tokens with single ignoreTokens call', async () => {
+    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
+    await sinon
+      .stub(tokensController, '_createEthersContract')
+      .callsFake(() =>
+        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+      );
+    await tokensController.addToken('0x01', 'A', 4);
+    await tokensController.addToken('0x02', 'B', 5);
+    expect(tokensController.state.tokens).toStrictEqual([
+      {
+        address: '0x01',
+        decimals: 4,
+        image: undefined,
+        isERC721: false,
+        symbol: 'A',
+        aggregators: [],
+      },
+      {
+        address: '0x02',
+        decimals: 5,
+        image: undefined,
+        isERC721: false,
+        symbol: 'B',
+        aggregators: [],
+      },
+    ]);
+
+    await tokensController.ignoreTokens([
+      {
+        address: '0x01',
+        decimals: 4,
+        image: undefined,
+        isERC721: false,
+        symbol: 'A',
+        aggregators: [],
+      },
+      {
+        address: '0x02',
+        decimals: 5,
+        image: undefined,
+        isERC721: false,
+        symbol: 'B',
+        aggregators: [],
+      },
+    ]);
+    expect(tokensController.state.tokens).toStrictEqual([]);
   });
 
   describe('isERC721 flag', function () {
@@ -505,6 +633,7 @@ describe('TokensController', () => {
             isERC721: true,
             image: undefined,
             decimals,
+            aggregators: [],
           },
         ]);
       });
@@ -530,6 +659,7 @@ describe('TokensController', () => {
             isERC721: true,
             image: undefined,
             decimals: 4,
+            aggregators: [],
           },
         ]);
       });
@@ -551,6 +681,7 @@ describe('TokensController', () => {
             isERC721: false,
             image: undefined,
             decimals,
+            aggregators: [],
           },
         ]);
       });
@@ -575,6 +706,7 @@ describe('TokensController', () => {
             isERC721: false,
             image: undefined,
             decimals: 5,
+            aggregators: [],
           },
         ]);
       });
@@ -709,6 +841,7 @@ describe('TokensController', () => {
       await expect(tokensController.state.tokens).toStrictEqual([
         {
           isERC721: false,
+          aggregators: [],
           ...asset,
         },
       ]);
@@ -815,6 +948,7 @@ describe('TokensController', () => {
           image: undefined,
           isERC721: false,
           symbol: 'A',
+          aggregators: [],
         },
         {
           address: '0x02',
@@ -822,6 +956,7 @@ describe('TokensController', () => {
           image: undefined,
           isERC721: false,
           symbol: 'B',
+          aggregators: [],
         },
       ]);
       preferences.setSelectedAddress('0x2');
@@ -832,6 +967,7 @@ describe('TokensController', () => {
           image: undefined,
           isERC721: false,
           symbol: 'C',
+          aggregators: [],
         },
       ]);
     });
@@ -881,6 +1017,7 @@ describe('TokensController', () => {
           image: undefined,
           isERC721: false,
           symbol: 'A',
+          aggregators: [],
         },
         {
           address: '0x02',
@@ -888,6 +1025,7 @@ describe('TokensController', () => {
           image: undefined,
           isERC721: false,
           symbol: 'B',
+          aggregators: [],
         },
       ]);
 
@@ -898,6 +1036,7 @@ describe('TokensController', () => {
           image: undefined,
           isERC721: false,
           symbol: 'C',
+          aggregators: [],
         },
         {
           address: '0x04',
@@ -905,6 +1044,7 @@ describe('TokensController', () => {
           image: undefined,
           isERC721: false,
           symbol: 'D',
+          aggregators: [],
         },
       ]);
 

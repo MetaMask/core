@@ -1,12 +1,18 @@
+// eslint-disable-next-line import/no-named-as-default
+import AbortController from 'abort-controller';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
-import { safelyExecute, toChecksumHexAddress } from '../util';
+import {
+  safelyExecute,
+  toChecksumHexAddress,
+  isTokenDetectionEnabledForNetwork,
+} from '../util';
 import { MAINNET } from '../constants';
-
+import { NetworksChainId } from '..';
 import type { TokensController, TokensState } from './TokensController';
 import type { AssetsContractController } from './AssetsContractController';
-import { Token } from './TokenRatesController';
+import { Token } from './TokenListController';
 import { TokenListState } from './TokenListController';
 
 const DEFAULT_INTERVAL = 180000;
@@ -25,6 +31,7 @@ export interface TokenDetectionConfig extends BaseConfig {
   networkType: NetworkType;
   selectedAddress: string;
   tokens: Token[];
+  chainId: string;
 }
 
 /**
@@ -39,15 +46,17 @@ export class TokenDetectionController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  override name = 'TokenDetectionController';
+  name = 'TokenDetectionController';
 
   private getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
-  private addTokens: TokensController['addTokens'];
+  private addDetectedTokens: TokensController['addDetectedTokens'];
 
   private getTokensState: () => TokensState;
 
   private getTokenListState: () => TokenListState;
+
+  private abortController: AbortController;
 
   /**
    * Creates a TokenDetectionController instance.
@@ -56,8 +65,9 @@ export class TokenDetectionController extends BaseController<
    * @param options.onTokensStateChange - Allows subscribing to tokens controller state changes.
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
-   * @param options.addTokens - Add a list of tokens.
+   * @param options.addDetectedTokens - Add a list of detected tokens.
    * @param options.getTokenListState - Gets the current state of the TokenList controller.
    * @param options.getTokensState - Gets the current state of the Tokens controller.
    * @param config - Initial options used to configure this controller.
@@ -68,8 +78,9 @@ export class TokenDetectionController extends BaseController<
       onTokensStateChange,
       onPreferencesStateChange,
       onNetworkStateChange,
+      onTokenListStateChange,
       getBalancesInSingleCall,
-      addTokens,
+      addDetectedTokens,
       getTokenListState,
       getTokensState,
     }: {
@@ -82,8 +93,11 @@ export class TokenDetectionController extends BaseController<
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
       ) => void;
+      onTokenListStateChange: (
+        listener: (tokenListState: TokenListState) => void,
+      ) => void;
       getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
-      addTokens: TokensController['addTokens'];
+      addDetectedTokens: TokensController['addDetectedTokens'];
       getTokenListState: () => TokenListState;
       getTokensState: () => TokensState;
     },
@@ -96,25 +110,64 @@ export class TokenDetectionController extends BaseController<
       networkType: MAINNET,
       selectedAddress: '',
       tokens: [],
+      disabled: true,
+      chainId: NetworksChainId.mainnet,
     };
     this.initialize();
     this.getTokensState = getTokensState;
     this.getTokenListState = getTokenListState;
-    this.addTokens = addTokens;
+    this.addDetectedTokens = addDetectedTokens;
+    this.abortController = new AbortController();
     onTokensStateChange(({ tokens }) => {
       this.configure({ tokens });
     });
 
-    onPreferencesStateChange(({ selectedAddress }) => {
-      const actualSelectedAddress = this.config.selectedAddress;
-      if (selectedAddress !== actualSelectedAddress) {
-        this.configure({ selectedAddress });
+    onPreferencesStateChange(({ selectedAddress, useTokenDetection }) => {
+      const prevDisabled = this.config.disabled;
+      const prevSelectedAddress = this.config.selectedAddress;
+      const isTokenDetectionSupported = isTokenDetectionEnabledForNetwork(
+        this.config.chainId,
+      );
+      const isDetectionEnabled = useTokenDetection && isTokenDetectionSupported;
+      this.configure({ selectedAddress, disabled: !isDetectionEnabled });
+      // Check if detection state or selected address has changed
+      if (
+        isDetectionEnabled &&
+        (prevDisabled || selectedAddress !== prevSelectedAddress)
+      ) {
         this.detectTokens();
       }
     });
 
-    onNetworkStateChange(({ provider }) => {
-      this.configure({ networkType: provider.type });
+    onNetworkStateChange(async (networkState) => {
+      if (this.config.chainId !== networkState.provider.chainId) {
+        this.abortController.abort();
+        this.abortController = new AbortController();
+        const incomingChainId = networkState.provider.chainId;
+        const isTokenDetectionSupported = isTokenDetectionEnabledForNetwork(
+          incomingChainId,
+        );
+        const isDetectionEnabled =
+          isTokenDetectionSupported && !this.config.disabled;
+        this.configure({
+          networkType: networkState.provider.type,
+          chainId: incomingChainId,
+          disabled: !isDetectionEnabled,
+        });
+
+        if (isDetectionEnabled) {
+          await this.restart();
+        } else {
+          this.stopPolling();
+        }
+      }
+    });
+
+    onTokenListStateChange(({ tokenList }) => {
+      // Detect tokens when token list has been updated and is populated
+      if (Object.keys(tokenList).length) {
+        this.detectTokens();
+      }
     });
     this.getBalancesInSingleCall = getBalancesInSingleCall;
   }
@@ -123,7 +176,7 @@ export class TokenDetectionController extends BaseController<
    * Start polling for the currency rate.
    */
   async start() {
-    if (!this.isMainnet() || this.disabled) {
+    if (this.config.disabled) {
       return;
     }
 
@@ -135,6 +188,14 @@ export class TokenDetectionController extends BaseController<
    */
   stop() {
     this.stopPolling();
+  }
+
+  /**
+   * Restart polling for the token list.
+   */
+  async restart() {
+    this.stopPolling();
+    await this.startPolling();
   }
 
   private stopPolling() {
@@ -158,18 +219,11 @@ export class TokenDetectionController extends BaseController<
   }
 
   /**
-   * Checks whether network is mainnet or not.
-   *
-   * @returns Whether current network is mainnet.
-   */
-  isMainnet = (): boolean => this.config.networkType === MAINNET;
-
-  /**
    * Triggers asset ERC20 token auto detection for each contract address in contract metadata on mainnet.
    */
   async detectTokens() {
     /* istanbul ignore if */
-    if (!this.isMainnet() || this.disabled) {
+    if (this.config.disabled) {
       return;
     }
 
@@ -206,7 +260,7 @@ export class TokenDetectionController extends BaseController<
           selectedAddress,
           tokensSlice,
         );
-        const tokensToAdd = [];
+        const tokensToAdd: Token[] = [];
         for (const tokenAddress in balances) {
           let ignored;
           /* istanbul ignore else */
@@ -227,12 +281,13 @@ export class TokenDetectionController extends BaseController<
               address: tokenAddress,
               decimals: tokenList[caseInsensitiveTokenKey].decimals,
               symbol: tokenList[caseInsensitiveTokenKey].symbol,
+              aggregators: tokenList[caseInsensitiveTokenKey].aggregators,
             });
           }
         }
 
         if (tokensToAdd.length) {
-          await this.addTokens(tokensToAdd);
+          await this.addDetectedTokens(tokensToAdd);
         }
       });
     }

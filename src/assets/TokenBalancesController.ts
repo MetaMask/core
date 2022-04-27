@@ -82,8 +82,8 @@ export class TokenBalancesController extends BaseController<
     };
     this.defaultState = { contractBalances: {} };
     this.initialize();
-    onTokensStateChange(({ tokens }) => {
-      this.configure({ tokens });
+    onTokensStateChange(({ tokens, detectedTokens }) => {
+      this.configure({ tokens: [...tokens, ...detectedTokens] });
       this.updateBalances();
     });
     this.getSelectedAddress = getSelectedAddress;
@@ -122,7 +122,7 @@ export class TokenBalancesController extends BaseController<
           this.getSelectedAddress(),
         );
         tokens[i].balanceError = null;
-      } catch (error) {
+      } catch (error: any) {
         newContractBalances[address] = new BN(0);
         tokens[i].balanceError = error;
       }
