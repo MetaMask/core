@@ -77,7 +77,7 @@ export class PreferencesController extends BaseController<
       ipfsGateway: 'https://ipfs.io/ipfs/',
       lostIdentities: {},
       selectedAddress: '',
-      useTokenDetection: false,
+      useTokenDetection: true,
       useCollectibleDetection: false,
       openSeaEnabled: false,
     };
