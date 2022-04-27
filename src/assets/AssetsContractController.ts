@@ -4,14 +4,32 @@ import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import { IPFS_DEFAULT_GATEWAY_URL } from '../constants';
+import { SupportedTokenDetectionNetworks } from '../util';
+import { NetworkState } from '../network/NetworkController';
 import { ERC721Standard } from './Standards/CollectibleStandards/ERC721/ERC721Standard';
 import { ERC1155Standard } from './Standards/CollectibleStandards/ERC1155/ERC1155Standard';
 import { ERC20Standard } from './Standards/ERC20Standard';
 
-const SINGLE_CALL_BALANCES_ADDRESS =
-  '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39';
+/**
+ * Check if token detection is enabled for certain networks
+ *
+ * @param chainId - ChainID of network
+ * @returns Whether the current network supports token detection
+ */
+export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: {
+  [chainId: string]: string;
+} = {
+  [SupportedTokenDetectionNetworks.mainnet]:
+    '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
+  [SupportedTokenDetectionNetworks.bsc]:
+    '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
+  [SupportedTokenDetectionNetworks.polygon]:
+    '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
+  [SupportedTokenDetectionNetworks.avax]:
+    '0xD023D153a0DFa485130ECFdE2FAA7e612EF94818',
+};
 
-const MISSING_PROVIDER_ERROR =
+export const MISSING_PROVIDER_ERROR =
   'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';
 
 /**
@@ -23,6 +41,7 @@ const MISSING_PROVIDER_ERROR =
 export interface AssetsContractConfig extends BaseConfig {
   provider: any;
   ipfsGateway: string;
+  chainId: string;
 }
 
 /**
@@ -60,15 +79,20 @@ export class AssetsContractController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.config - Initial options used to configure this controller.
+   * @param options.state - Initial state to set on this controller.
    */
   constructor(
     {
       onPreferencesStateChange,
+      onNetworkStateChange,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
+      ) => void;
+      onNetworkStateChange: (
+        listener: (networkState: NetworkState) => void,
       ) => void;
     },
     config?: Partial<AssetsContractConfig>,
@@ -78,10 +102,20 @@ export class AssetsContractController extends BaseController<
     this.defaultConfig = {
       provider: undefined,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
+      chainId: SupportedTokenDetectionNetworks.mainnet,
     };
     this.initialize();
+
     onPreferencesStateChange(({ ipfsGateway }) => {
       this.configure({ ipfsGateway });
+    });
+
+    onNetworkStateChange((networkState) => {
+      if (this.config.chainId !== networkState.provider.chainId) {
+        this.configure({
+          chainId: networkState.provider.chainId,
+        });
+      }
     });
   }
 
@@ -356,9 +390,11 @@ export class AssetsContractController extends BaseController<
     selectedAddress: string,
     tokensToDetect: string[],
   ) {
+    const contractAddress =
+      SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID[this.config.chainId];
     const contract = this.web3.eth
       .contract(abiSingleCallBalancesContract)
-      .at(SINGLE_CALL_BALANCES_ADDRESS);
+      .at(contractAddress);
     return new Promise<BalanceMap>((resolve, reject) => {
       contract.balances(
         [selectedAddress],
@@ -375,7 +411,7 @@ export class AssetsContractController extends BaseController<
             tokensToDetect.forEach((tokenAddress, index) => {
               const balance: BN = result[index];
               /* istanbul ignore else */
-              if (!balance.isZero()) {
+              if (String(balance) !== '0') {
                 nonZeroBalances[tokenAddress] = balance;
               }
             });
