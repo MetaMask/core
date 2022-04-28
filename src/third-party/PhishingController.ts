@@ -55,10 +55,9 @@ export interface EthPhishingDetectResult {
   name?: string;
   version?: string;
   result: boolean;
-  match?: string;  // Returned as undefined for non-fuzzy true results.
+  match?: string; // Returned as undefined for non-fuzzy true results.
   type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist';
 }
-
 
 /**
  * @type PhishingConfig
@@ -113,18 +112,23 @@ export class PhishingController extends BaseController<
     config?: Partial<PhishingConfig>,
     state?: Partial<PhishingState>,
   ) {
-
     super(config, state);
     this.defaultConfig = { interval: 60 * 60 * 1000 };
     this.defaultState = {
-      phishing: [{
-        allowlist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).whitelist,
-        blocklist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).blacklist,
-        fuzzylist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).fuzzylist,
-        tolerance: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).tolerance,
-        name: `MetaMask`,
-        version: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).version
-      }],
+      phishing: [
+        {
+          allowlist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
+            .whitelist,
+          blocklist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
+            .blacklist,
+          fuzzylist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
+            .fuzzylist,
+          tolerance: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
+            .tolerance,
+          name: `MetaMask`,
+          version: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).version,
+        },
+      ],
       whitelist: [],
     };
     this.detector = new PhishingDetector(this.defaultState.phishing);
@@ -211,7 +215,7 @@ export class PhishingController extends BaseController<
       fuzzylist: [],
       tolerance: 0,
       name: `PhishFort`,
-      version: 1
+      version: 1,
     };
     if (phishfortHotlist) {
       configs.push(phishfortConfig);
