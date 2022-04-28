@@ -7,7 +7,7 @@ import {
 } from 'json-rpc-engine';
 import * as sigUtil from 'eth-sig-util';
 import { ethErrors } from 'eth-rpc-errors';
-import { Block } from './utils/cache';
+import type { Block } from './types';
 
 export interface TransactionParams {
   from: string;

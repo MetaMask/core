@@ -1,5 +1,5 @@
 import { JsonRpcEngine, JsonRpcMiddleware } from 'json-rpc-engine';
-import { SafeEventEmitterProvider, Block } from './utils/cache';
+import type { SafeEventEmitterProvider, Block } from './types';
 import { providerFromEngine } from './providerFromEngine';
 
 export function providerFromMiddleware(

@@ -6,12 +6,8 @@ import {
   PendingJsonRpcResponse,
 } from 'json-rpc-engine';
 import pify from 'pify';
-
-import {
-  Block,
-  blockTagParamIndex,
-  SafeEventEmitterProvider,
-} from './utils/cache';
+import { blockTagParamIndex } from './utils/cache';
+import { Block, SafeEventEmitterProvider } from './types';
 
 //
 // RetryOnEmptyMiddleware will retry any request with an empty response that has

@@ -8,4 +8,5 @@ export * from './providerAsMiddleware';
 export * from './providerFromEngine';
 export * from './providerFromMiddleware';
 export * from './retryOnEmpty';
+export type { SafeEventEmitterProvider } from './types';
 export * from './wallet';

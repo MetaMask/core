@@ -1,7 +1,6 @@
 import { PollingBlockTracker } from 'eth-block-tracker';
 import { createAsyncMiddleware, JsonRpcMiddleware } from 'json-rpc-engine';
-
-import { Block } from './utils/cache';
+import type { Block } from './types';
 
 const futureBlockRefRequests: string[] = [
   'eth_getTransactionByHash',

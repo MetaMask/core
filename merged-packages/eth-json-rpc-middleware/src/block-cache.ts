@@ -5,12 +5,14 @@ import {
   blockTagForPayload,
   cacheTypeForPayload,
   canCache,
+} from './utils/cache';
+import type {
   Payload,
   Block,
   BlockCache,
   Cache,
   JsonRpcRequestToCache,
-} from './utils/cache';
+} from './types';
 
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
 const emptyValues = [undefined, null, '\u003cnil\u003e'];

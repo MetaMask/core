@@ -4,11 +4,8 @@ import {
   JsonRpcMiddleware,
   PendingJsonRpcResponse,
 } from 'json-rpc-engine';
-import {
-  cacheIdentifierForPayload,
-  Block,
-  JsonRpcRequestToCache,
-} from './utils/cache';
+import { cacheIdentifierForPayload } from './utils/cache';
+import type { Block, JsonRpcRequestToCache } from './types';
 
 type RequestHandlers = (handledRes: PendingJsonRpcResponse<Block>) => void;
 interface InflightRequest {

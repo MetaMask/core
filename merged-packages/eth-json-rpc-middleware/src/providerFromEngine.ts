@@ -1,6 +1,6 @@
 import { JsonRpcEngine, JsonRpcRequest } from 'json-rpc-engine';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
-import { SafeEventEmitterProvider } from './utils/cache';
+import type { SafeEventEmitterProvider } from './types';
 
 export function providerFromEngine(
   engine: JsonRpcEngine,
