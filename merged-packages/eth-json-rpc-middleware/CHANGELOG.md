@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0]
+### Added
+- Expose `SafeEventEmitterProvider` type ([#127](https://github.com/MetaMask/eth-json-rpc-middleware/pull/127))
+
+### Fixed
+- Move `eth-block-tracker` from `devDependencies` to `dependencies` ([#125](https://github.com/MetaMask/eth-json-rpc-middleware/pull/125))
+  - We depend upon this package only for types.
+
 ## [8.0.2]
 ### Added
 - Added `suppressUnauthorized` param to `getAccounts` ([#116](https://github.com/MetaMask/eth-json-rpc-middleware/pull/116))
@@ -68,7 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v8.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v8.0.2...v8.1.0
 [8.0.2]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v8.0.1...v8.0.2
 [8.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v8.0.0...v8.0.1
 [8.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v7.0.1...v8.0.0
