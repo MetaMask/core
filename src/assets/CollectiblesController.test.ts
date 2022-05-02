@@ -7,6 +7,7 @@ import {
   NetworksChainId,
 } from '../network/NetworkController';
 import { getFormattedIpfsUrl } from '../util';
+import { ASSET_TYPES } from '../constants';
 import { AssetsContractController } from './AssetsContractController';
 import { CollectiblesController } from './CollectiblesController';
 
@@ -46,6 +47,7 @@ describe('CollectiblesController', () => {
   let preferences: PreferencesController;
   let network: NetworkController;
   let assetsContract: AssetsContractController;
+  const trackEventSpy = jest.fn();
 
   beforeEach(() => {
     preferences = new PreferencesController();
@@ -67,6 +69,7 @@ describe('CollectiblesController', () => {
         assetsContract.getERC1155BalanceOf.bind(assetsContract),
       getERC1155TokenURI:
         assetsContract.getERC1155TokenURI.bind(assetsContract),
+      trackMetaMetricsEvent: trackEventSpy,
     });
 
     preferences.update({
@@ -229,6 +232,58 @@ describe('CollectiblesController', () => {
         name: 'Name',
         symbol: 'FOO',
         totalSupply: 0,
+      });
+    });
+
+    it('should call track events method correctly when collectible is manually added', async () => {
+      await collectiblesController.addCollectible('0x01', '1', {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'ERC1155',
+        favorite: false,
+      });
+
+      expect(trackEventSpy).toHaveBeenCalledWith({
+        category: 'Wallet',
+        event: 'Token Added',
+        sensitiveProperties: {
+          asset_type: ASSET_TYPES.COLLECTIBLE,
+          source: 'custom',
+          tokenId: '1',
+          token_contract_address: '0x01',
+          token_standard: 'ERC1155',
+          token_symbol: 'FOO',
+        },
+      });
+    });
+
+    it('should call track events method correctly when collectible is added via detection', async () => {
+      const detectedUserAddress = '0x123';
+      await collectiblesController.addCollectible(
+        '0x01',
+        '2',
+        {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'ERC721',
+          favorite: false,
+        },
+        { userAddress: detectedUserAddress, chainId: '0x2' },
+      );
+
+      expect(trackEventSpy).toHaveBeenCalledWith({
+        category: 'Wallet',
+        event: 'Token Added',
+        sensitiveProperties: {
+          asset_type: ASSET_TYPES.COLLECTIBLE,
+          source: 'detected',
+          tokenId: '2',
+          token_contract_address: '0x01',
+          token_standard: 'ERC721',
+          token_symbol: 'FOO',
+        },
       });
     });
 

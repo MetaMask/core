@@ -18,7 +18,9 @@ import {
   IPFS_DEFAULT_GATEWAY_URL,
   ERC721,
   ERC1155,
+  ASSET_TYPES,
 } from '../constants';
+
 import type {
   ApiCollectible,
   ApiCollectibleCreator,
@@ -526,6 +528,7 @@ export class CollectiblesController extends BaseController<
    * @param address - Hex address of the collectible contract.
    * @param tokenId - The collectible identifier.
    * @param collectibleMetadata - Collectible optional information (name, image and description).
+   * @param collectibleContract - An object containing contract data of the collectible being added.
    * @param detection - The chain ID and address of the currently selected network and account at the moment the collectible was detected.
    * @returns Promise resolving to the current collectible list.
    */
@@ -533,6 +536,7 @@ export class CollectiblesController extends BaseController<
     address: string,
     tokenId: string,
     collectibleMetadata: CollectibleMetadata,
+    collectibleContract: CollectibleContract,
     detection?: AccountParams,
   ): Promise<Collectible[]> {
     // TODO: Remove unused return
@@ -593,6 +597,19 @@ export class CollectiblesController extends BaseController<
         ALL_COLLECTIBLES_STATE_KEY,
         { chainId, userAddress: selectedAddress },
       );
+
+      this.trackMetaMetricsEvent({
+        event: 'Token Added',
+        category: 'Wallet',
+        sensitiveProperties: {
+          token_contract_address: address,
+          token_symbol: collectibleContract.symbol,
+          tokenId: tokenId.toString(),
+          asset_type: ASSET_TYPES.COLLECTIBLE,
+          token_standard: collectibleMetadata.standard,
+          source: detection ? 'detected' : 'custom',
+        },
+      });
 
       return newCollectibles;
     } finally {
@@ -803,6 +820,12 @@ export class CollectiblesController extends BaseController<
 
   private getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
 
+  private trackMetaMetricsEvent: (eventObject: {
+    event: string;
+    category: string;
+    sensitiveProperties: any;
+  }) => void;
+
   /**
    * Creates a CollectiblesController instance.
    *
@@ -815,6 +838,7 @@ export class CollectiblesController extends BaseController<
    * @param options.getERC721OwnerOf - Get the owner of a ERC-721 collectible.
    * @param options.getERC1155BalanceOf - Gets balance of a ERC-1155 collectible.
    * @param options.getERC1155TokenURI - Gets the URI of the ERC1155 token at the given address, with the given ID.
+   * @param options.trackMetaMetricsEvent - Creates and broadcasts a track event.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -828,6 +852,7 @@ export class CollectiblesController extends BaseController<
       getERC721OwnerOf,
       getERC1155BalanceOf,
       getERC1155TokenURI,
+      trackMetaMetricsEvent,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -841,6 +866,11 @@ export class CollectiblesController extends BaseController<
       getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
       getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
       getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
+      trackMetaMetricsEvent: (eventObject: {
+        event: string;
+        category: string;
+        sensitiveProperties: any;
+      }) => void;
     },
     config?: Partial<BaseConfig>,
     state?: Partial<CollectiblesState>,
@@ -867,6 +897,8 @@ export class CollectiblesController extends BaseController<
     this.getERC721OwnerOf = getERC721OwnerOf;
     this.getERC1155BalanceOf = getERC1155BalanceOf;
     this.getERC1155TokenURI = getERC1155TokenURI;
+    this.trackMetaMetricsEvent = trackMetaMetricsEvent;
+
     onPreferencesStateChange(
       ({ selectedAddress, ipfsGateway, openSeaEnabled }) => {
         this.configure({ selectedAddress, ipfsGateway, openSeaEnabled });
@@ -981,6 +1013,7 @@ export class CollectiblesController extends BaseController<
         address,
         tokenId,
         collectibleMetadata,
+        collectibleContract,
         detection,
       );
     }

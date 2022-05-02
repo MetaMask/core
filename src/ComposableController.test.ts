@@ -122,6 +122,7 @@ describe('ComposableController', () => {
         getERC1155TokenURI: assetContractController.getERC1155TokenURI.bind(
           assetContractController,
         ),
+        trackMetaMetricsEvent: jest.fn(),
       });
       const tokensController = new TokensController({
         onPreferencesStateChange: (listener) =>
@@ -206,6 +207,7 @@ describe('ComposableController', () => {
         getERC1155TokenURI: assetContractController.getERC1155TokenURI.bind(
           assetContractController,
         ),
+        trackMetaMetricsEvent: jest.fn(),
       });
       const tokensController = new TokensController({
         onPreferencesStateChange: (listener) =>
