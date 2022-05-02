@@ -1,7 +1,12 @@
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
-import { safelyExecute, timeoutFetch, toChecksumHexAddress } from '../util';
+import {
+  logOrRethrowError,
+  safelyExecute,
+  timeoutFetch,
+  toChecksumHexAddress,
+} from '../util';
 import { MAINNET } from '../constants';
 import type {
   CollectiblesController,
@@ -139,35 +144,33 @@ export class CollectibleDetectionController extends BaseController<
     let response: Response;
     let collectibles: any = [];
     const openSeaApiKey = this.getOpenSeaApiKey();
-    try {
-      let offset = 0;
-      let pagingFinish = false;
-      /* istanbul ignore if */
-      do {
-        const api = this.getOwnerCollectiblesApi(address, offset);
-        try {
-          response = await timeoutFetch(api, {}, 15000);
-        } catch {
-          if (openSeaApiKey) {
-            response = await timeoutFetch(
-              `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`,
-              { headers: { 'X-API-KEY': openSeaApiKey } },
-              15000,
-            );
-          } else {
-            return [];
-          }
+    let offset = 0;
+    let pagingFinish = false;
+    /* istanbul ignore if */
+    do {
+      const api = this.getOwnerCollectiblesApi(address, offset);
+      try {
+        response = await timeoutFetch(api, {}, 15000);
+      } catch (e) {
+        logOrRethrowError(e);
+
+        if (openSeaApiKey) {
+          response = await timeoutFetch(
+            `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`,
+            { headers: { 'X-API-KEY': openSeaApiKey } },
+            15000,
+          );
+        } else {
+          return [];
         }
-        const collectiblesArray = await response?.json();
-        collectiblesArray.assets?.length !== 0
-          ? (collectibles = [...collectibles, ...collectiblesArray.assets])
-          : (pagingFinish = true);
-        offset += 50;
-      } while (!pagingFinish);
-    } catch (e) {
-      /* istanbul ignore next */
-      return [];
-    }
+      }
+      const collectiblesArray = await response?.json();
+      collectiblesArray.assets?.length !== 0
+        ? (collectibles = [...collectibles, ...collectiblesArray.assets])
+        : (pagingFinish = true);
+      offset += 50;
+    } while (!pagingFinish);
+
     return collectibles;
   }
 

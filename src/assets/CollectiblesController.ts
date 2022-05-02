@@ -11,6 +11,7 @@ import {
   toChecksumHexAddress,
   BNToHex,
   getFormattedIpfsUrl,
+  logOrRethrowError,
 } from '../util';
 import {
   MAINNET,
@@ -240,7 +241,9 @@ export class CollectiblesController extends BaseController<
     /* istanbul ignore if */
     try {
       collectibleInformation = await handleFetch(tokenURI);
-    } catch {
+    } catch (e) {
+      logOrRethrowError(e);
+
       if (this.openSeaApiKey) {
         collectibleInformation = await handleFetch(
           `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`,

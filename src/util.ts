@@ -953,3 +953,20 @@ export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
     chainId,
   );
 }
+
+/**
+ * Utility method to log if error is a common fetch error and otherwise rethrow it.
+ *
+ * @param error - Caught error that we should either rethrow or log to console.
+ */
+export function logOrRethrowError(error: any) {
+  if (
+    error.message?.match(/NetworkError|Fetch failed with status:/u) ||
+    error.message === 'Failed to fetch' ||
+    error.message === 'timeout'
+  ) {
+    console.error(error);
+  } else {
+    throw error;
+  }
+}
