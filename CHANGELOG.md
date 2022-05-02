@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **BREAKING**: Bump eth-keyring-controller to 7.0.1 ([#802](https://github.com/MetaMask/controllers/pull/802))
-  - Mnemonics in keyrings of type `HD Key Tree` are always serialized as buffers. `exportSeedPhrase` now returns a buffer rather than a string, consumers will need to adapt to this new return type accordingly.
+  - Mnemonics in keyrings of type `HD Key Tree` are always serialized as arrays of numbers. `exportSeedPhrase` now returns a buffer rather than a string, consumers will need to adapt to this new return type accordingly.
 
 ## [28.0.0]
 ### Added
