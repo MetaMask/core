@@ -7,24 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [29.0.0]
-### Uncategorized
+### Added
 - Reintroduce NotificationController for in-app notifications ([#709](https://github.com/MetaMask/controllers/pull/709))
-- bump eth-keyring-controller to 7.0.1 + Adapt tests accordingly ([#802](https://github.com/MetaMask/controllers/pull/802))
-- KeyringController: improve unit test coverage ([#693](https://github.com/MetaMask/controllers/pull/693))
-- Update to TypeScript v4.6 ([#804](https://github.com/MetaMask/controllers/pull/804))
-- Update TypeScript to v4.5 ([#803](https://github.com/MetaMask/controllers/pull/803))
-- Update TypeScript to v4.4 ([#795](https://github.com/MetaMask/controllers/pull/795))
-- Call `sinon.restore()` after each test using sinon ([#789](https://github.com/MetaMask/controllers/pull/789))
-- Remove sinon sandboxes ([#788](https://github.com/MetaMask/controllers/pull/788))
-- Enable `restoreMocks` Jest setting ([#794](https://github.com/MetaMask/controllers/pull/794))
 - Add token service timeout param and improve tests ([#793](https://github.com/MetaMask/controllers/pull/793))
-- Fix the capitalization on two describe blocks ([#791](https://github.com/MetaMask/controllers/pull/791))
-- Remove unused `retry` parameter from `safelyExecute` ([#787](https://github.com/MetaMask/controllers/pull/787))
-- Replace WeakMap with private fields ([#786](https://github.com/MetaMask/controllers/pull/786))
-- Add `override` keyword ([#785](https://github.com/MetaMask/controllers/pull/785))
-- Update to TypeScript v4.3 ([#784](https://github.com/MetaMask/controllers/pull/784))
-- Update typedoc to v0.22.15 ([#782](https://github.com/MetaMask/controllers/pull/782))
-- Update `prettier` and related packages ([#783](https://github.com/MetaMask/controllers/pull/783))
+
+### Changed
+- **BREAKING**: Bump eth-keyring-controller to 7.0.1 ([#802](https://github.com/MetaMask/controllers/pull/802))
+  - Mnemonics in keyrings of type `HD Key Tree` are always serialized as buffers. `exportSeedPhrase` now returns a buffer rather than a string, consumers will need to adapt to this new return type accordingly.
 
 ## [28.0.0]
 ### Added
