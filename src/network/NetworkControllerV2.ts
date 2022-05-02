@@ -89,7 +89,11 @@ export default class NetworkController extends BaseController<
     this.refreshProvider();
   }
 
-  private refreshProvider() {
-    this.provider;
+  switchToInfuraNetwork(networkName) {
+    // ...
+  }
+
+  switchToCustomNetwork(name, chainId, rpcTarget) {
+    // ...
   }
 }
