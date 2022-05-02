@@ -48,7 +48,7 @@
     "deep-freeze-strict": "^1.1.1",
     "eth-ens-namehash": "^2.0.8",
     "eth-json-rpc-infura": "^5.1.0",
-    "eth-keyring-controller": "^6.2.1",
+    "eth-keyring-controller": "^7.0.1",
     "eth-method-registry": "1.1.0",
     "eth-phishing-detect": "^1.1.16",
     "eth-query": "^2.1.2",
@@ -108,7 +108,7 @@
     "ts-jest": "^26.5.2",
     "typedoc": "^0.22.15",
     "typedoc-plugin-missing-exports": "^0.22.6",
-    "typescript": "~4.4.4"
+    "typescript": "~4.6.3"
   },
   "engines": {
     "node": ">=12.0.0"
