@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [29.0.0]
 ### Added
 - Reintroduce NotificationController for in-app notifications ([#709](https://github.com/MetaMask/controllers/pull/709))
-- Add token service timeout param and improve tests ([#793](https://github.com/MetaMask/controllers/pull/793))
+- Add optional token service timeout parameter([#793](https://github.com/MetaMask/controllers/pull/793))
 
 ### Changed
 - **BREAKING**: Bump eth-keyring-controller to 7.0.1 ([#802](https://github.com/MetaMask/controllers/pull/802))
