@@ -57,7 +57,7 @@ export type MarkNotificationRead = {
   handler: NotificationController['markRead'];
 };
 
-export type ControllerActions =
+export type NotificationControllerActions =
   | GetNotificationControllerState
   | ShowNotification
   | DismissNotification
@@ -65,7 +65,7 @@ export type ControllerActions =
 
 export type NotificationControllerMessenger = RestrictedControllerMessenger<
   typeof name,
-  ControllerActions,
+  NotificationControllerActions,
   NotificationControllerStateChange,
   never,
   never
