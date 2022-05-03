@@ -28,4 +28,12 @@ export const ASSET_TYPES = {
   TOKEN: 'TOKEN',
   COLLECTIBLE: 'COLLECTIBLE',
   UNKNOWN: 'UNKNOWN',
+}
+
+// TICKER SYMBOLS
+export const TESTNET_TICKER_SYMBOLS = {
+  RINKEBY: 'RinkebyETH',
+  GOERLI: 'GoerliETH',
+  ROPSTEN: 'RopstenETH',
+  KOVAN: 'KovanETH',
 };
