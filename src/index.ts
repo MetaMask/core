@@ -38,4 +38,5 @@ export * from './assets/CollectibleDetectionController';
 export * from './permissions';
 export * from './subject-metadata';
 export * from './ratelimit/RateLimitController';
+export * from './notification/NotificationController';
 export { util };

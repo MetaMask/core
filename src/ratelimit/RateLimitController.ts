@@ -38,7 +38,7 @@ export type CallApi<
   handler: RateLimitController<RateLimitedApis>['call'];
 };
 
-export type ControllerActions<
+export type RateLimitControllerActions<
   RateLimitedApis extends Record<string, (...args: any[]) => any>,
 > = GetRateLimitState<RateLimitedApis> | CallApi<RateLimitedApis>;
 
@@ -46,7 +46,7 @@ export type RateLimitMessenger<
   RateLimitedApis extends Record<string, (...args: any[]) => any>,
 > = RestrictedControllerMessenger<
   typeof name,
-  ControllerActions<RateLimitedApis>,
+  RateLimitControllerActions<RateLimitedApis>,
   RateLimitStateChange<RateLimitedApis>,
   never,
   never
