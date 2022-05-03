@@ -1,0 +1,1 @@
+{"version":3,"file":"index.js","sourceRoot":"","sources":["../../src/subject-metadata/index.ts"],"names":[],"mappings":";;;;;;;;;;;;;;;;AAAA,8DAA4C","sourcesContent":["export * from './SubjectMetadataController';\n"]}
