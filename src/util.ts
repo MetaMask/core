@@ -324,7 +324,7 @@ export async function safelyExecute(
 ) {
   try {
     return await operation();
-  } catch (error) {
+  } catch (error: any) {
     /* istanbul ignore next */
     if (logError) {
       console.error(error);
@@ -930,4 +930,26 @@ export function isValidJson(value: unknown): value is Json {
   } catch (_) {
     return false;
   }
+}
+
+/**
+ * Networks where token detection is supported - Values are in decimal format
+ */
+export enum SupportedTokenDetectionNetworks {
+  mainnet = '1',
+  bsc = '56',
+  polygon = '137',
+  avax = '43114',
+}
+
+/**
+ * Check if token detection is enabled for certain networks.
+ *
+ * @param chainId - ChainID of network
+ * @returns Whether the current network supports token detection
+ */
+export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
+  return Object.values<string>(SupportedTokenDetectionNetworks).includes(
+    chainId,
+  );
 }
