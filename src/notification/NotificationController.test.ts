@@ -1,6 +1,6 @@
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
-  ControllerActions,
+  NotificationControllerActions,
   NotificationController,
   NotificationControllerStateChange,
 } from './NotificationController';
@@ -14,7 +14,7 @@ const name = 'NotificationController';
  */
 function getUnrestrictedMessenger() {
   return new ControllerMessenger<
-    ControllerActions,
+    NotificationControllerActions,
     NotificationControllerStateChange
   >();
 }
