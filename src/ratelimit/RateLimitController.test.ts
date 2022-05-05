@@ -1,6 +1,6 @@
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
-  ControllerActions,
+  RateLimitControllerActions,
   RateLimitStateChange,
   RateLimitController,
   RateLimitMessenger,
@@ -39,7 +39,7 @@ function getRestrictedMessenger(
 ) {
   return controllerMessenger.getRestricted<
     typeof name,
-    ControllerActions<RateLimitedApis>['type'],
+    RateLimitControllerActions<RateLimitedApis>['type'],
     never
   >({
     name,
