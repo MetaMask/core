@@ -67,11 +67,10 @@ describe('AssetsContractController', () => {
   it('should throw missing provider error when getting ERC-20 token balance when missing provider', async () => {
     assetsContract.configure({ provider: undefined });
     await expect(
-      async () =>
-        await assetsContract.getERC20BalanceOf(
-          ERC20_UNI_ADDRESS,
-          TEST_ACCOUNT_PUBLIC_ADDRESS,
-        ),
+      assetsContract.getERC20BalanceOf(
+        ERC20_UNI_ADDRESS,
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+      ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
   });
 
