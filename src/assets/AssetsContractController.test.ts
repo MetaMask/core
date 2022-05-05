@@ -2,7 +2,10 @@ import HttpProvider from 'ethjs-provider-http';
 import { IPFS_DEFAULT_GATEWAY_URL } from '../constants';
 import { SupportedTokenDetectionNetworks } from '../util';
 import { PreferencesController } from '../user/PreferencesController';
-import { NetworkController } from '../network/NetworkController';
+import {
+  NetworkController,
+  NetworksChainId,
+} from '../network/NetworkController';
 import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
@@ -169,13 +172,33 @@ describe('AssetsContractController', () => {
     expect(tokenId).not.toStrictEqual('');
   });
 
-  it('should get balance of ERC-20 token in a single call', async () => {
+  it('should get balance of ERC-20 token in a single call on network with token detection support', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const balances = await assetsContract.getBalancesInSingleCall(
       ERC20_DAI_ADDRESS,
       [ERC20_DAI_ADDRESS],
     );
-    expect(balances[ERC20_DAI_ADDRESS]).not.toStrictEqual(0);
+    expect(balances[ERC20_DAI_ADDRESS]).not.toBeUndefined();
+  });
+
+  it('should not have balance in a single call after switching to network without token detection support', async () => {
+    assetsContract.configure({
+      provider: MAINNET_PROVIDER,
+    });
+
+    const balances = await assetsContract.getBalancesInSingleCall(
+      ERC20_DAI_ADDRESS,
+      [ERC20_DAI_ADDRESS],
+    );
+    expect(balances[ERC20_DAI_ADDRESS]).not.toBeUndefined();
+
+    network.setProviderType('localhost');
+
+    const noBalances = await assetsContract.getBalancesInSingleCall(
+      ERC20_DAI_ADDRESS,
+      [ERC20_DAI_ADDRESS],
+    );
+    expect(noBalances).toStrictEqual({});
   });
 
   it('should throw missing provider error when transfering single ERC-1155 when missing provider', async () => {
