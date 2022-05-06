@@ -1,12 +1,7 @@
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
-import {
-  logOrRethrowError,
-  safelyExecute,
-  timeoutFetch,
-  toChecksumHexAddress,
-} from '../util';
+import { logOrRethrowError, timeoutFetch, toChecksumHexAddress } from '../util';
 import { MAINNET } from '../constants';
 import type {
   CollectiblesController,
@@ -152,16 +147,14 @@ export class CollectibleDetectionController extends BaseController<
       try {
         response = await timeoutFetch(api, {}, 15000);
       } catch (e) {
-        // logOrRethrowError(e);
+        logOrRethrowError(e);
         if (openSeaApiKey) {
           response = await timeoutFetch(
             `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`,
             { headers: { 'X-API-KEY': openSeaApiKey } },
             15000,
           );
-          console.log('RESPONSE:', response);
         } else {
-          console.log("EY")
           return [];
         }
       }
@@ -171,7 +164,6 @@ export class CollectibleDetectionController extends BaseController<
         : (pagingFinish = true);
       offset += 50;
     } while (!pagingFinish);
-    console.log('collectibles:', collectibles);
     return collectibles;
   }
 
@@ -324,72 +316,71 @@ export class CollectibleDetectionController extends BaseController<
       return;
     }
 
-    await safelyExecute(async () => {
-      const apiCollectibles = await this.getOwnerCollectibles(selectedAddress);
-      const addCollectiblesPromises = apiCollectibles.map(
-        async (collectible: ApiCollectible) => {
-          const {
-            token_id,
-            num_sales,
-            background_color,
-            image_url,
-            image_preview_url,
-            image_thumbnail_url,
-            image_original_url,
-            animation_url,
-            animation_original_url,
-            name,
-            description,
-            external_link,
-            creator,
-            asset_contract: { address, schema_name },
-            last_sale,
-          } = collectible;
+    const apiCollectibles = await this.getOwnerCollectibles(selectedAddress);
+    const addCollectiblesPromises = apiCollectibles.map(
+      async (collectible: ApiCollectible) => {
+        const {
+          token_id,
+          num_sales,
+          background_color,
+          image_url,
+          image_preview_url,
+          image_thumbnail_url,
+          image_original_url,
+          animation_url,
+          animation_original_url,
+          name,
+          description,
+          external_link,
+          creator,
+          asset_contract: { address, schema_name },
+          last_sale,
+        } = collectible;
 
-          let ignored;
-          /* istanbul ignore else */
-          const { ignoredCollectibles } = this.getCollectiblesState();
-          if (ignoredCollectibles.length) {
-            ignored = ignoredCollectibles.find((c) => {
-              /* istanbul ignore next */
-              return (
-                c.address === toChecksumHexAddress(address) &&
-                c.tokenId === token_id
-              );
-            });
-          }
-
-          /* istanbul ignore else */
-          if (!ignored) {
+        let ignored;
+        /* istanbul ignore else */
+        const { ignoredCollectibles } = this.getCollectiblesState();
+        if (ignoredCollectibles.length) {
+          ignored = ignoredCollectibles.find((c) => {
             /* istanbul ignore next */
-            const collectibleMetadata: CollectibleMetadata = Object.assign(
-              {},
-              { name },
-              creator && { creator },
-              description && { description },
-              image_url && { image: image_url },
-              num_sales && { numberOfSales: num_sales },
-              background_color && { backgroundColor: background_color },
-              image_preview_url && { imagePreview: image_preview_url },
-              image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
-              image_original_url && { imageOriginal: image_original_url },
-              animation_url && { animation: animation_url },
-              animation_original_url && {
-                animationOriginal: animation_original_url,
-              },
-              schema_name && { standard: schema_name },
-              external_link && { externalLink: external_link },
-              last_sale && { lastSale: last_sale },
+            return (
+              c.address === toChecksumHexAddress(address) &&
+              c.tokenId === token_id
             );
-            await this.addCollectible(address, token_id, collectibleMetadata, {
-              userAddress: selectedAddress,
-              chainId: chainId as string,
-            });
-          }
-        },
-      );
-      await Promise.all(addCollectiblesPromises);
-    });
+          });
+        }
+
+        /* istanbul ignore else */
+        if (!ignored) {
+          /* istanbul ignore next */
+          const collectibleMetadata: CollectibleMetadata = Object.assign(
+            {},
+            { name },
+            creator && { creator },
+            description && { description },
+            image_url && { image: image_url },
+            num_sales && { numberOfSales: num_sales },
+            background_color && { backgroundColor: background_color },
+            image_preview_url && { imagePreview: image_preview_url },
+            image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
+            image_original_url && { imageOriginal: image_original_url },
+            animation_url && { animation: animation_url },
+            animation_original_url && {
+              animationOriginal: animation_original_url,
+            },
+            schema_name && { standard: schema_name },
+            external_link && { externalLink: external_link },
+            last_sale && { lastSale: last_sale },
+          );
+
+          await this.addCollectible(address, token_id, collectibleMetadata, {
+            userAddress: selectedAddress,
+            chainId: chainId as string,
+          });
+        }
+      },
+    );
+    await Promise.all(addCollectiblesPromises);
   }
 }
 

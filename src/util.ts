@@ -962,7 +962,7 @@ export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
 export function logOrRethrowError(error: any) {
   if (
     error.message?.match(/Fetch failed with status/u) ||
-    error.message === 'Failed to fetch' ||
+    error.message?.includes('Failed to fetch') ||
     error.message === 'timeout'
   ) {
     console.error(error);
