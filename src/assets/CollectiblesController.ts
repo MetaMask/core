@@ -598,17 +598,13 @@ export class CollectiblesController extends BaseController<
         { chainId, userAddress: selectedAddress },
       );
 
-      this.trackMetaMetricsEvent({
-        event: 'Token Added',
-        category: 'Wallet',
-        sensitiveProperties: {
-          token_contract_address: address,
-          token_symbol: collectibleContract.symbol,
-          tokenId: tokenId.toString(),
-          asset_type: ASSET_TYPES.COLLECTIBLE,
-          token_standard: collectibleMetadata.standard,
-          source: detection ? 'detected' : 'custom',
-        },
+      this.onCollectibleAdded({
+        token_contract_address: address,
+        token_symbol: collectibleContract.symbol,
+        tokenId: tokenId.toString(),
+        asset_type: ASSET_TYPES.COLLECTIBLE,
+        token_standard: collectibleMetadata.standard,
+        source: detection ? 'detected' : 'custom',
       });
 
       return newCollectibles;
@@ -820,10 +816,13 @@ export class CollectiblesController extends BaseController<
 
   private getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
 
-  private trackMetaMetricsEvent: (eventObject: {
-    event: string;
-    category: string;
-    sensitiveProperties: any;
+  private onCollectibleAdded: (sensitiveProperties: {
+    token_contract_address: string;
+    token_symbol?: string;
+    tokenId: string;
+    asset_type: string;
+    token_standard: string | null;
+    source: string;
   }) => void;
 
   /**
@@ -838,7 +837,7 @@ export class CollectiblesController extends BaseController<
    * @param options.getERC721OwnerOf - Get the owner of a ERC-721 collectible.
    * @param options.getERC1155BalanceOf - Gets balance of a ERC-1155 collectible.
    * @param options.getERC1155TokenURI - Gets the URI of the ERC1155 token at the given address, with the given ID.
-   * @param options.trackMetaMetricsEvent - Creates and broadcasts a track event.
+   * @param options.onCollectibleAdded - Event hook currently used to emit a track event for the collectible added.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -852,7 +851,7 @@ export class CollectiblesController extends BaseController<
       getERC721OwnerOf,
       getERC1155BalanceOf,
       getERC1155TokenURI,
-      trackMetaMetricsEvent,
+      onCollectibleAdded,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
@@ -866,10 +865,13 @@ export class CollectiblesController extends BaseController<
       getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
       getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
       getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
-      trackMetaMetricsEvent: (eventObject: {
-        event: string;
-        category: string;
-        sensitiveProperties: any;
+      onCollectibleAdded: (sensitiveProperties: {
+        token_contract_address: string;
+        token_symbol?: string;
+        tokenId: string;
+        asset_type: string;
+        token_standard: string | null;
+        source: string;
       }) => void;
     },
     config?: Partial<BaseConfig>,
@@ -897,7 +899,7 @@ export class CollectiblesController extends BaseController<
     this.getERC721OwnerOf = getERC721OwnerOf;
     this.getERC1155BalanceOf = getERC1155BalanceOf;
     this.getERC1155TokenURI = getERC1155TokenURI;
-    this.trackMetaMetricsEvent = trackMetaMetricsEvent;
+    this.onCollectibleAdded = onCollectibleAdded;
 
     onPreferencesStateChange(
       ({ selectedAddress, ipfsGateway, openSeaEnabled }) => {
