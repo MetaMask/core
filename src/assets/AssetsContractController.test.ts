@@ -2,10 +2,7 @@ import HttpProvider from 'ethjs-provider-http';
 import { IPFS_DEFAULT_GATEWAY_URL } from '../constants';
 import { SupportedTokenDetectionNetworks } from '../util';
 import { PreferencesController } from '../user/PreferencesController';
-import {
-  NetworkController,
-  NetworksChainId,
-} from '../network/NetworkController';
+import { NetworkController } from '../network/NetworkController';
 import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,

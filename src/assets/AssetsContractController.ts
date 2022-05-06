@@ -4,7 +4,10 @@ import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import { IPFS_DEFAULT_GATEWAY_URL } from '../constants';
-import { isTokenDetectionEnabledForNetwork, SupportedTokenDetectionNetworks } from '../util';
+import {
+  isTokenDetectionEnabledForNetwork,
+  SupportedTokenDetectionNetworks,
+} from '../util';
 import { NetworkState } from '../network/NetworkController';
 import { ERC721Standard } from './Standards/CollectibleStandards/ERC721/ERC721Standard';
 import { ERC1155Standard } from './Standards/CollectibleStandards/ERC1155/ERC1155Standard';
@@ -78,8 +81,8 @@ export class AssetsContractController extends BaseController<
    * @param options - The controller options.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
-   * @param options.config - Initial options used to configure this controller.
-   * @param options.state - Initial state to set on this controller.
+   * @param config - Initial options used to configure this controller.
+   * @param state - Initial state to set on this controller.
    */
   constructor(
     {
@@ -393,7 +396,9 @@ export class AssetsContractController extends BaseController<
       return {};
     }
     const contractAddress =
-      SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID[this.config.chainId as SupportedTokenDetectionNetworks];
+      SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID[
+        this.config.chainId as SupportedTokenDetectionNetworks
+      ];
     const contract = this.web3.eth
       .contract(abiSingleCallBalancesContract)
       .at(contractAddress);
