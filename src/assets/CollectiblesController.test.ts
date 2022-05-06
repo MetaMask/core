@@ -69,7 +69,7 @@ describe('CollectiblesController', () => {
         assetsContract.getERC1155BalanceOf.bind(assetsContract),
       getERC1155TokenURI:
         assetsContract.getERC1155TokenURI.bind(assetsContract),
-      trackMetaMetricsEvent: trackEventSpy,
+      onCollectibleAdded: trackEventSpy,
     });
 
     preferences.update({
@@ -245,16 +245,12 @@ describe('CollectiblesController', () => {
       });
 
       expect(trackEventSpy).toHaveBeenCalledWith({
-        category: 'Wallet',
-        event: 'Token Added',
-        sensitiveProperties: {
-          asset_type: ASSET_TYPES.COLLECTIBLE,
-          source: 'custom',
-          tokenId: '1',
-          token_contract_address: '0x01',
-          token_standard: 'ERC1155',
-          token_symbol: 'FOO',
-        },
+        asset_type: ASSET_TYPES.COLLECTIBLE,
+        source: 'custom',
+        tokenId: '1',
+        token_contract_address: '0x01',
+        token_standard: 'ERC1155',
+        token_symbol: 'FOO',
       });
     });
 
@@ -274,16 +270,12 @@ describe('CollectiblesController', () => {
       );
 
       expect(trackEventSpy).toHaveBeenCalledWith({
-        category: 'Wallet',
-        event: 'Token Added',
-        sensitiveProperties: {
-          asset_type: ASSET_TYPES.COLLECTIBLE,
-          source: 'detected',
-          tokenId: '2',
-          token_contract_address: '0x01',
-          token_standard: 'ERC721',
-          token_symbol: 'FOO',
-        },
+        asset_type: ASSET_TYPES.COLLECTIBLE,
+        source: 'detected',
+        tokenId: '2',
+        token_contract_address: '0x01',
+        token_standard: 'ERC721',
+        token_symbol: 'FOO',
       });
     });
 
