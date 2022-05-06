@@ -77,7 +77,7 @@ describe('AssetsContractController', () => {
   it('should throw missing provider error when getting ERC-20 token decimal when missing provider', async () => {
     assetsContract.configure({ provider: undefined });
     await expect(
-      async () => await assetsContract.getERC20TokenDecimals(ERC20_UNI_ADDRESS),
+      assetsContract.getERC20TokenDecimals(ERC20_UNI_ADDRESS),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
   });
 
@@ -108,11 +108,10 @@ describe('AssetsContractController', () => {
   it('should throw missing provider error when getting ERC-721 token standard and details when missing provider', async () => {
     assetsContract.configure({ provider: undefined });
     await expect(
-      async () =>
-        await assetsContract.getTokenStandardAndDetails(
-          ERC20_UNI_ADDRESS,
-          TEST_ACCOUNT_PUBLIC_ADDRESS,
-        ),
+      assetsContract.getTokenStandardAndDetails(
+        ERC20_UNI_ADDRESS,
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+      ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
   });
 
@@ -201,14 +200,13 @@ describe('AssetsContractController', () => {
   it('should throw missing provider error when transfering single ERC-1155 when missing provider', async () => {
     assetsContract.configure({ provider: undefined });
     await expect(
-      async () =>
-        await assetsContract.transferSingleERC1155(
-          ERC1155_ADDRESS,
-          TEST_ACCOUNT_PUBLIC_ADDRESS,
-          TEST_ACCOUNT_PUBLIC_ADDRESS,
-          ERC1155_ID,
-          '1',
-        ),
+      assetsContract.transferSingleERC1155(
+        ERC1155_ADDRESS,
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+        ERC1155_ID,
+        '1',
+      ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
   });
 
