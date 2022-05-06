@@ -152,15 +152,16 @@ export class CollectibleDetectionController extends BaseController<
       try {
         response = await timeoutFetch(api, {}, 15000);
       } catch (e) {
-        logOrRethrowError(e);
-
+        // logOrRethrowError(e);
         if (openSeaApiKey) {
           response = await timeoutFetch(
             `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`,
             { headers: { 'X-API-KEY': openSeaApiKey } },
             15000,
           );
+          console.log('RESPONSE:', response);
         } else {
+          console.log("EY")
           return [];
         }
       }
@@ -170,7 +171,7 @@ export class CollectibleDetectionController extends BaseController<
         : (pagingFinish = true);
       offset += 50;
     } while (!pagingFinish);
-
+    console.log('collectibles:', collectibles);
     return collectibles;
   }
 

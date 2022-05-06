@@ -19,6 +19,8 @@ describe('CollectibleDetectionController', () => {
   let collectiblesController: CollectiblesController;
   let assetsContract: AssetsContractController;
 
+  const getOpenSeaApiKeyStub = jest.fn();
+
   beforeEach(async () => {
     preferences = new PreferencesController();
     network = new NetworkController();
@@ -48,7 +50,7 @@ describe('CollectibleDetectionController', () => {
         collectiblesController.subscribe(listener),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
+      getOpenSeaApiKey: getOpenSeaApiKeyStub,
       addCollectible: collectiblesController.addCollectible.bind(
         collectiblesController,
       ),
@@ -621,5 +623,96 @@ describe('CollectibleDetectionController', () => {
     expect(
       collectiblesController.state.allCollectibles[selectedAddress][chainId],
     ).toStrictEqual([collectibleHH2574, collectibleII2577, collectibleGG2574]);
+  });
+
+  it.only('Should fallback to use OpenSea API directly when the OpenSea proxy server is down or responds with a failure', async () => {
+    nock.restore();
+    // nock.recorder.rec();
+
+    getOpenSeaApiKeyStub.mockImplementationOnce(() => 'FAKE API KEY');
+    nock(OPEN_SEA_HOST_PROXY)
+      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&offset=0&limit=50`)
+      .replyWithError(new TypeError('Failed to fetch'));
+
+    nock('https://api.opensea.io:443', { encodedQueryParams: true })
+      .get('/api/v1/assets')
+      .query({ owner: '0x1', offset: '0', limit: '50' })
+      .reply(200, {
+        assets: [
+          {
+            asset_contract: {
+              address: '0x1d963688fe2209a98db35c67a041524822cf04ff',
+              schema_name: 'ERC721',
+            },
+            collection: {
+              name: 'Collection 2577',
+              image_url: 'url',
+            },
+            description: 'Description 2577',
+            image_original_url: 'image/2577.png',
+            name: 'ID 2577',
+            token_id: '2577',
+          },
+        ],
+      });
+    // nock('https://api.opensea.io:443', { encodedQueryParams: true })
+    //   // .matchHeader('X-API-KEY', 'FAKE API KEY')
+    //   .get(`${OPEN_SEA_PATH}/assets`)
+    //   .query({ owner: '0x1', offset: '0', limit: '50' })
+    //   .reply((uri, requestBody) => {
+    //     console.log('IN RESPONSE:', uri, 'BOPDY:', requestBody);
+    //   });
+    // .reply(200, {
+    //   assets: [
+    //     {
+    //       asset_contract: {
+    //         address: '0x1d963688fe2209a98db35c67a041524822cf04ff',
+    //         schema_name: 'ERC721',
+    //       },
+    //       collection: {
+    //         name: 'Collection 2577',
+    //         image_url: 'url',
+    //       },
+    //       description: 'Description 2577',
+    //       image_original_url: 'image/2577.png',
+    //       name: 'ID 2577',
+    //       token_id: '2577',
+    //     },
+    //   ],
+    // });
+
+    const selectedAddress = '0x1';
+
+    collectibleDetection.configure({
+      networkType: MAINNET,
+      selectedAddress,
+    });
+
+    collectiblesController.configure({
+      networkType: MAINNET,
+      selectedAddress,
+    });
+    const { chainId } = collectibleDetection.config;
+
+    await collectibleDetection.detectCollectibles();
+
+    console.log(
+      'collectiblesController.state.allCollectibles',
+      collectiblesController.state.allCollectibles,
+    );
+    // const collectibles =
+    //   collectiblesController.state.allCollectibles[selectedAddress][chainId];
+    // expect(collectibles).toStrictEqual([
+    //   {
+    //     address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+    //     description: 'Description 2574',
+    //     image: 'image/2574.png',
+    //     name: 'ID 2574',
+    //     tokenId: '2574',
+    //     standard: 'ERC721',
+    //     favorite: false,
+    //     isCurrentlyOwned: true,
+    //   },
+    // ]);
   });
 });

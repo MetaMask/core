@@ -961,7 +961,7 @@ export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
  */
 export function logOrRethrowError(error: any) {
   if (
-    error.message?.match(/NetworkError|Fetch failed with status:/u) ||
+    error.message?.match(/Fetch failed with status/u) ||
     error.message === 'Failed to fetch' ||
     error.message === 'timeout'
   ) {
