@@ -18,6 +18,8 @@ import {
   MetaMaskKeyring as QRKeyring,
   IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
+import Transport from '@ledgerhq/hw-transport';
+import LedgerKeyring from '@ledgerhq/metamask-keyring';
 import {
   BaseController,
   BaseConfig,
@@ -36,6 +38,7 @@ export enum KeyringTypes {
   simple = 'Simple Key Pair',
   hd = 'HD Key Tree',
   qr = 'QR Hardware Wallet Device',
+  ledger = 'Ledger',
 }
 
 /**
@@ -439,6 +442,14 @@ export class KeyringController extends BaseController<
   ) {
     try {
       const address = normalizeAddress(messageParams.from);
+
+      const ledgerKeyring = await this.getLedgerKeyring();
+      const isLedgerAccount = await ledgerKeyring.managesAccount(address);
+
+      if (isLedgerAccount) {
+        return this.#keyring.signTypedMessage(messageParams, { version });
+      }
+
       const qrKeyring = await this.getOrAddQRKeyring();
       const qrAccounts = await qrKeyring.getAccounts();
       if (
@@ -726,6 +737,114 @@ export class KeyringController extends BaseController<
     accounts.forEach((account) => {
       this.setSelectedAddress(account);
     });
+    await this.#keyring.persistAllKeyrings();
+    await this.fullUpdate();
+  }
+
+  // Ledger Related methods
+
+  private async addLedgerKeyring(): Promise<LedgerKeyring> {
+    return await this.#keyring.addNewKeyring(KeyringTypes.ledger);
+  }
+
+  /**
+   * Retrieve the existing LedgerKeyring or create a new one.
+   *
+   * @returns The stored Ledger Keyring
+   */
+  async getLedgerKeyring(): Promise<LedgerKeyring> {
+    const keyring = this.#keyring.getKeyringsByType(KeyringTypes.ledger)[0];
+
+    if (keyring) {
+      return keyring;
+    }
+
+    return await this.addLedgerKeyring();
+  }
+
+  /**
+   * Connects to the ledger device by requesting some metadata from it.
+   *
+   * @param transport - The transport to use to connect to the device
+   * @param deviceId - The device ID to connect to
+   * @returns The name of the currently open application on the device
+   */
+  async connectLedgerHardware(
+    transport: Transport,
+    deviceId: string,
+  ): Promise<string> {
+    const keyring = await this.getLedgerKeyring();
+    keyring.setTransport(transport, deviceId);
+
+    const { appName } = await keyring.getAppAndVersion();
+
+    return appName;
+  }
+
+  /**
+   * Retrieve the first account from the Ledger device.
+   *
+   * @returns The default (first) account on the device
+   */
+  async unlockLedgerDefaultAccount(): Promise<{
+    address: string;
+    balance: string;
+  }> {
+    const keyring = await this.getLedgerKeyring();
+    const oldAccounts = await this.#keyring.getAccounts();
+    await this.#keyring.addNewAccount(keyring);
+    const newAccounts = await this.#keyring.getAccounts();
+
+    this.updateIdentities(newAccounts);
+    newAccounts.forEach((address: string, index: number) => {
+      if (!oldAccounts.includes(address)) {
+        if (this.setAccountLabel) {
+          this.setAccountLabel(address, `${keyring.getName()} ${index + 1}`);
+        }
+        this.setSelectedAddress(address);
+      }
+    });
+    await this.#keyring.persistAllKeyrings();
+    this.fullUpdate();
+
+    const address = await keyring.getDefaultAccount();
+    return {
+      address,
+      balance: `0x0`,
+    };
+  }
+
+  /**
+   * Automatically opens the Ethereum app on the Ledger device.
+   */
+  async openEthereumApp(): Promise<void> {
+    const keyring = await this.getLedgerKeyring();
+    await keyring.openEthApp();
+  }
+
+  /**
+   * Automatically closes the current app on the Ledger device.
+   */
+  async closeRunningApp(): Promise<void> {
+    const keyring = await this.getLedgerKeyring();
+    const { appName } = await keyring.getAppAndVersion();
+
+    // BOLOS means we are on the dashboard we don't need to close anything
+    if (appName !== 'BOLOS') {
+      await keyring.quitApp();
+    }
+  }
+
+  /**
+   * Forgets the ledger keyring's previous device specific state.
+   */
+  async forgetLedger(): Promise<void> {
+    const keyring = await this.getLedgerKeyring();
+    keyring.forgetDevice();
+
+    const accounts: string[] = await this.#keyring.getAccounts();
+    this.setSelectedAddress(accounts[0]);
+
     await this.#keyring.persistAllKeyrings();
     await this.fullUpdate();
   }
