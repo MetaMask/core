@@ -27,3 +27,5 @@ packages/*/docs
 
 # typescript
 packages/*/*.tsbuildinfo
+coverage
+docs
