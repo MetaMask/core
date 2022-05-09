@@ -233,12 +233,13 @@ export class ERC721Standard {
       ]);
 
       if (tokenId) {
-        tokenURI = await this.getTokenURI(address, tokenId);
-        if (tokenURI.startsWith('ipfs://')) {
-          tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, true);
-        }
-
         try {
+          tokenURI = await this.getTokenURI(address, tokenId);
+  
+          if (tokenURI.startsWith('ipfs://')) {
+            tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, true);
+          }
+  
           const response = await timeoutFetch(tokenURI);
           const object = await response.json();
           image = object?.image;

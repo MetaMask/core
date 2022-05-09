@@ -537,4 +537,135 @@ describe('ERC721Standard', () => {
     };
     await expect(result).rejects.toThrow("This isn't a valid ERC721 contract");
   });
+
+
+  it('should get correct details including tokenURI and image for a given contract (that supports the ERC721 metadata interface) when the tokenURI is invalid', async () => {
+    nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 24,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0x36697e362Ee7E9CA977b7550B3e4f955fc5BF27d',
+            data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 24,
+        result:
+          '0x0000000000000000000000000000000000000000000000000000000000000001',
+      })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 23,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0x36697e362Ee7E9CA977b7550B3e4f955fc5BF27d',
+            data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 23,
+        result:
+          '0x0000000000000000000000000000000000000000000000000000000000000001',
+      })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 25,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0x36697e362Ee7E9CA977b7550B3e4f955fc5BF27d',
+            data: '0x95d89b41',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 25,
+        result:
+          '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000044241594300000000000000000000000000000000000000000000000000000000',
+      })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 26,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0x36697e362Ee7E9CA977b7550B3e4f955fc5BF27d',
+            data: '0x06fdde03',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 26,
+        result:
+          '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000011426f7265644170655961636874436c7562000000000000000000000000000000',
+      })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 27,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0x36697e362Ee7E9CA977b7550B3e4f955fc5BF27d',
+            data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 27,
+        result:
+          '0x0000000000000000000000000000000000000000000000000000000000000001',
+      });
+
+    nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 28,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0x36697e362Ee7E9CA977b7550B3e4f955fc5BF27d',
+            data: '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000003',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 28,
+        result:
+          '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000037697066733a2f2f68747470733a2f2f4870506e6d586d73704d6a776958794e367a533445397a63636172694752336a7863615774712f33000000000000000000',
+      });
+
+    const expectedResult = {
+      name: 'BoredApeYachtClub',
+      standard: 'ERC721',
+      symbol: 'BAYC',
+      tokenURI: "ipfs://https://HpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/3",
+      image: undefined,
+    };
+
+    const details = await erc721Standard.getDetails(
+      '0x36697e362Ee7E9CA977b7550B3e4f955fc5BF27d',
+      IPFS_DEFAULT_GATEWAY_URL,
+      '3',
+    );
+
+    expect(details).toMatchObject(expectedResult);
+  });
 });
