@@ -1,8 +1,6 @@
 import { timeoutFetch } from '../util';
 
 const END_POINT = 'https://token-api.metaswap.codefi.network';
-export const FETCH_TOKEN_METADATA_ERROR =
-  'TokenService Error: No response from fetchTokenMetadata';
 
 /**
  * Get the tokens URL for a specific network.
@@ -65,18 +63,18 @@ export async function fetchTokenList(
  * @param options.timeout - The fetch timeout.
  * @returns The token metadata, or `undefined` if the request was cancelled.
  */
-export async function fetchTokenMetadata<T>(
+export async function fetchTokenMetadata(
   chainId: string,
   tokenAddress: string,
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
-): Promise<T> {
+): Promise<unknown> {
   const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
   const response = await queryApi(tokenMetadataURL, abortSignal, timeout);
   if (response) {
-    return parseJsonResponse(response) as Promise<T>;
+    return parseJsonResponse(response);
   }
-  throw new Error(FETCH_TOKEN_METADATA_ERROR);
+  return undefined;
 }
 
 /**
