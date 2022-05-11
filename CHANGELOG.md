@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [29.0.1]
+### Uncategorized
+- Revert "[Token Detection V2] 1 of 7 - Throw on failure for fetchTokenMetadata in token service (#812)" ([#812](https://github.com/MetaMask/controllers/pull/812))
+- bump eth-keyring-controller to v7.0.2 ([#819](https://github.com/MetaMask/controllers/pull/819))
+- Add utils to format token list tokens for aggregators and icon url. ([#810](https://github.com/MetaMask/controllers/pull/810))
+- Add SupportedTokenDetectionNetworks enum and util for token detection support. ([#811](https://github.com/MetaMask/controllers/pull/811))
+- [Token Detection V2] 1 of 7 - Throw on failure for fetchTokenMetadata in token service ([#812](https://github.com/MetaMask/controllers/pull/812))
+- Bump cross-fetch from 2.2.3 to 2.2.6 ([#817](https://github.com/MetaMask/controllers/pull/817))
+
 ## [29.0.0]
 ### Added
 - Reintroduce NotificationController for in-app notifications ([#709](https://github.com/MetaMask/controllers/pull/709))
@@ -558,7 +567,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v29.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v29.0.1...HEAD
+[29.0.1]: https://github.com/MetaMask/controllers/compare/v29.0.0...v29.0.1
 [29.0.0]: https://github.com/MetaMask/controllers/compare/v28.0.0...v29.0.0
 [28.0.0]: https://github.com/MetaMask/controllers/compare/v27.1.1...v28.0.0
 [27.1.1]: https://github.com/MetaMask/controllers/compare/v27.1.0...v27.1.1
