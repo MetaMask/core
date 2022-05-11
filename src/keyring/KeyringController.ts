@@ -240,10 +240,11 @@ export class KeyringController extends BaseController<
    * using the given seed phrase.
    *
    * @param password - Password to unlock keychain.
-   * @param seed - Seed phrase to restore keychain.
-   * @returns Promise resolving to th restored keychain object.
+   * @param seed - A BIP39-compliant seed phrase,
+   * either as a string or an array of UTF-8 bytes that represent the string.
+   * @returns Promise resolving to the restored keychain object.
    */
-  async createNewVaultAndRestore(password: string, seed: string) {
+  async createNewVaultAndRestore(password: string, seed: string | number[]) {
     const releaseLock = await this.mutex.acquire();
     if (!password || !password.length) {
       throw new Error('Invalid password');
