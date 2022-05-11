@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add SupportedTokenDetectionNetworks enum and util for token detection support. ([#811](https://github.com/MetaMask/controllers/pull/811))
 
 ### Fixed
-- Fix bug introduced in v29.0.0 where serialized seedphrases passed to `createNewVaultAndRestore` were not correctly validated. ([#819](https://github.com/MetaMask/controllers/pull/819))
+- Fix bug introduced in v29.0.0 where `createNewVaultAndRestore` would crash with a validation failure. ([#819](https://github.com/MetaMask/controllers/pull/819))
 
 
 ## [29.0.0]
