@@ -1,10 +1,6 @@
 import nock from 'nock';
 import { NetworksChainId } from '../network/NetworkController';
-import {
-  fetchTokenList,
-  fetchTokenMetadata,
-  FETCH_TOKEN_METADATA_ERROR,
-} from './token-service';
+import { fetchTokenList, fetchTokenMetadata } from './token-service';
 
 const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 
@@ -237,7 +233,7 @@ describe('Token service', () => {
       expect(token).toStrictEqual(sampleToken);
     });
 
-    it('should throw error if the fetch is aborted', async () => {
+    it('should return undefined if the fetch is aborted', async () => {
       const abortController = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(`/tokens/${NetworksChainId.mainnet}`)
@@ -246,49 +242,49 @@ describe('Token service', () => {
         .reply(200, sampleTokenList)
         .persist();
 
-      await expect(async () => {
-        await fetchTokenMetadata(
-          NetworksChainId.mainnet,
-          '0x514910771af9ca656af840dff83e8264ecf986ca',
-          abortController.signal,
-        );
-        abortController.abort();
-      }).rejects.toThrow(FETCH_TOKEN_METADATA_ERROR);
+      const fetchPromise = fetchTokenMetadata(
+        NetworksChainId.mainnet,
+        '0x514910771af9ca656af840dff83e8264ecf986ca',
+        abortController.signal,
+      );
+      abortController.abort();
+
+      expect(await fetchPromise).toBeUndefined();
     });
 
-    it('should throw error if the fetch fails with a network error', async () => {
+    it('should return undefined if the fetch fails with a network error', async () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(`/tokens/${NetworksChainId.mainnet}`)
         .replyWithError('Example network error')
         .persist();
 
-      await expect(async () => {
-        await fetchTokenMetadata(
-          NetworksChainId.mainnet,
-          '0x514910771af9ca656af840dff83e8264ecf986ca',
-          signal,
-        );
-      }).rejects.toThrow(FETCH_TOKEN_METADATA_ERROR);
+      const result = await fetchTokenMetadata(
+        NetworksChainId.mainnet,
+        '0x514910771af9ca656af840dff83e8264ecf986ca',
+        signal,
+      );
+
+      expect(result).toBeUndefined();
     });
 
-    it('should throw error if the fetch fails with an unsuccessful status code', async () => {
+    it('should return undefined if the fetch fails with an unsuccessful status code', async () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(`/tokens/${NetworksChainId.mainnet}`)
         .reply(500)
         .persist();
 
-      await expect(async () => {
-        await fetchTokenMetadata(
-          NetworksChainId.mainnet,
-          '0x514910771af9ca656af840dff83e8264ecf986ca',
-          signal,
-        );
-      }).rejects.toThrow(FETCH_TOKEN_METADATA_ERROR);
+      const result = await fetchTokenMetadata(
+        NetworksChainId.mainnet,
+        '0x514910771af9ca656af840dff83e8264ecf986ca',
+        signal,
+      );
+
+      expect(result).toBeUndefined();
     });
 
-    it('should throw error if the fetch fails with a timeout', async () => {
+    it('should return undefined if the fetch fails with a timeout', async () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(`/tokens/${NetworksChainId.mainnet}`)
@@ -297,26 +293,14 @@ describe('Token service', () => {
         .reply(200, sampleTokenList)
         .persist();
 
-      await expect(async () => {
-        await fetchTokenMetadata(
-          NetworksChainId.mainnet,
-          '0x514910771af9ca656af840dff83e8264ecf986ca',
-          signal,
-          { timeout: ONE_MILLISECOND },
-        );
-      }).rejects.toThrow(FETCH_TOKEN_METADATA_ERROR);
+      const result = await fetchTokenMetadata(
+        NetworksChainId.mainnet,
+        '0x514910771af9ca656af840dff83e8264ecf986ca',
+        signal,
+        { timeout: ONE_MILLISECOND },
+      );
+
+      expect(result).toBeUndefined();
     });
-  });
-
-  it('should call the tokens api and return undefined', async () => {
-    const { signal } = new AbortController();
-    nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
-      .reply(404, undefined)
-      .persist();
-
-    const tokens = await fetchTokenList(NetworksChainId.mainnet, signal);
-
-    expect(tokens).toBeUndefined();
   });
 });
