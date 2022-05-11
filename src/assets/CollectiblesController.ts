@@ -816,9 +816,9 @@ export class CollectiblesController extends BaseController<
 
   private getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
 
-  private onCollectibleAdded: (sensitiveProperties: {
+  private onCollectibleAdded: (data: {
     token_contract_address: string;
-    token_symbol?: string;
+    token_symbol: string | undefined;
     tokenId: string;
     asset_type: string;
     token_standard: string | null;
