@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [29.0.1]
 ### Added
-- Add utils to format token list tokens for aggregators and icon url. ([#810](https://github.com/MetaMask/controllers/pull/810))
 - Add SupportedTokenDetectionNetworks enum and util for token detection support. ([#811](https://github.com/MetaMask/controllers/pull/811))
 
 ### Fixed
