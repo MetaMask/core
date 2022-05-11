@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [29.0.1]
-### Uncategorized
-- Revert "[Token Detection V2] 1 of 7 - Throw on failure for fetchTokenMetadata in token service (#812)" ([#812](https://github.com/MetaMask/controllers/pull/812))
-- bump eth-keyring-controller to v7.0.2 ([#819](https://github.com/MetaMask/controllers/pull/819))
+### Added
 - Add utils to format token list tokens for aggregators and icon url. ([#810](https://github.com/MetaMask/controllers/pull/810))
 - Add SupportedTokenDetectionNetworks enum and util for token detection support. ([#811](https://github.com/MetaMask/controllers/pull/811))
-- [Token Detection V2] 1 of 7 - Throw on failure for fetchTokenMetadata in token service ([#812](https://github.com/MetaMask/controllers/pull/812))
-- Bump cross-fetch from 2.2.3 to 2.2.6 ([#817](https://github.com/MetaMask/controllers/pull/817))
+
+### Fixed
+- Fix bug introduced in v29.0.0 where serialized seedphrases passed to `createNewVaultAndRestore` were not correctly validated. ([#819](https://github.com/MetaMask/controllers/pull/819))
+
 
 ## [29.0.0]
 ### Added
