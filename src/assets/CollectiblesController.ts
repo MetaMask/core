@@ -837,7 +837,8 @@ export class CollectiblesController extends BaseController<
    * @param options.getERC721OwnerOf - Get the owner of a ERC-721 collectible.
    * @param options.getERC1155BalanceOf - Gets balance of a ERC-1155 collectible.
    * @param options.getERC1155TokenURI - Gets the URI of the ERC1155 token at the given address, with the given ID.
-   * @param options.onCollectibleAdded - Event hook currently used to emit a track event for the collectible added.
+   * @param options.onCollectibleAdded - Callback that is called when a collectible is added. Currently used pass data 
+   * for tracking the collectible added event.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
