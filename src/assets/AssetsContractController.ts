@@ -16,7 +16,7 @@ import { ERC20Standard } from './Standards/ERC20Standard';
  * @param chainId - ChainID of network
  * @returns Whether the current network supports token detection
  */
-export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
+export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<string, string> = {
   [SupportedTokenDetectionNetworks.mainnet]:
     '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
   [SupportedTokenDetectionNetworks.bsc]:
@@ -393,9 +393,7 @@ export class AssetsContractController extends BaseController<
       return {};
     }
     const contractAddress =
-      SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID[
-        this.config.chainId as SupportedTokenDetectionNetworks
-      ];
+      SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID[this.config.chainId];
 
     const contract = this.web3.eth
       .contract(abiSingleCallBalancesContract)
