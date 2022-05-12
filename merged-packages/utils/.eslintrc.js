@@ -7,6 +7,9 @@ module.exports = {
     {
       files: ['*.ts'],
       extends: ['@metamask/eslint-config-typescript'],
+      rules: {
+        '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
+      },
     },
 
     {
