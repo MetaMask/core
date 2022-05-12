@@ -7,7 +7,6 @@ import {
   NetworksChainId,
 } from '../network/NetworkController';
 import { getFormattedIpfsUrl } from '../util';
-import { ASSET_TYPES } from '../constants';
 import { AssetsContractController } from './AssetsContractController';
 import { CollectiblesController } from './CollectiblesController';
 
@@ -245,12 +244,11 @@ describe('CollectiblesController', () => {
       });
 
       expect(onCollectibleAddedSpy).toHaveBeenCalledWith({
-        asset_type: ASSET_TYPES.COLLECTIBLE,
         source: 'custom',
         tokenId: '1',
-        token_contract_address: '0x01',
-        token_standard: 'ERC1155',
-        token_symbol: 'FOO',
+        address: '0x01',
+        standard: 'ERC1155',
+        symbol: 'FOO',
       });
     });
 
@@ -271,12 +269,11 @@ describe('CollectiblesController', () => {
       );
 
       expect(onCollectibleAddedSpy).toHaveBeenCalledWith({
-        asset_type: ASSET_TYPES.COLLECTIBLE,
         source: 'detected',
         tokenId: '2',
-        token_contract_address: '0x01',
-        token_standard: 'ERC721',
-        token_symbol: 'FOO',
+        address: '0x01',
+        standard: 'ERC721',
+        symbol: 'FOO',
       });
     });
 

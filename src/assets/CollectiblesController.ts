@@ -18,7 +18,6 @@ import {
   IPFS_DEFAULT_GATEWAY_URL,
   ERC721,
   ERC1155,
-  ASSET_TYPES,
 } from '../constants';
 
 import type {
@@ -599,11 +598,10 @@ export class CollectiblesController extends BaseController<
       );
 
       this.onCollectibleAdded({
-        token_contract_address: address,
-        token_symbol: collectibleContract.symbol,
+        address,
+        symbol: collectibleContract.symbol,
         tokenId: tokenId.toString(),
-        asset_type: ASSET_TYPES.COLLECTIBLE,
-        token_standard: collectibleMetadata.standard,
+        standard: collectibleMetadata.standard,
         source: detection ? 'detected' : 'custom',
       });
 
@@ -817,11 +815,10 @@ export class CollectiblesController extends BaseController<
   private getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
 
   private onCollectibleAdded: (data: {
-    token_contract_address: string;
-    token_symbol: string | undefined;
+    address: string;
+    symbol: string | undefined;
     tokenId: string;
-    asset_type: string;
-    token_standard: string | null;
+    standard: string | null;
     source: string;
   }) => void;
 
@@ -866,12 +863,11 @@ export class CollectiblesController extends BaseController<
       getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
       getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
       getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
-      onCollectibleAdded: (sensitiveProperties: {
-        token_contract_address: string;
-        token_symbol?: string;
+      onCollectibleAdded: (data: {
+        address: string;
+        symbol: string | undefined;
         tokenId: string;
-        asset_type: string;
-        token_standard: string | null;
+        standard: string | null;
         source: string;
       }) => void;
     },
