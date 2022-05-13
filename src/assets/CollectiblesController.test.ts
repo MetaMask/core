@@ -1472,7 +1472,7 @@ describe('CollectiblesController', () => {
       ).toBe(false);
     });
 
-    it('should reset the transaction data from a collectible correctly', async () => {
+    it('should set the transaction id of a collectible in state to undefined, and return true when it has successfully updated this state', async () => {
       const { selectedAddress, chainId } = collectiblesController.config;
       collectiblesController.state.allCollectibles = {
         [selectedAddress]: { [chainId]: [mockCollectible] },
