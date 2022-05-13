@@ -34,3 +34,96 @@ export function compareCollectiblesMetadata(
   }, 0);
   return differentValues > 0;
 }
+
+export type AggregatorKey =
+  | 'aave'
+  | 'bancor'
+  | 'cmc'
+  | 'cryptocom'
+  | 'coinGecko'
+  | 'oneInch'
+  | 'paraswap'
+  | 'pmm'
+  | 'zapper'
+  | 'zerion'
+  | 'zeroEx'
+  | 'synthetix'
+  | 'yearn'
+  | 'apeswap'
+  | 'binanceDex'
+  | 'pancakeTop100'
+  | 'pancakeExtended'
+  | 'balancer'
+  | 'quickswap'
+  | 'matcha'
+  | 'pangolinDex'
+  | 'pangolinDexStableCoin'
+  | 'pangolinDexAvaxBridge'
+  | 'traderJoe'
+  | 'airswapLight'
+  | 'kleros';
+
+type AggregatorNameByKey = {
+  [key in AggregatorKey]: string;
+};
+
+const aggregatorNameByKey: AggregatorNameByKey = {
+  aave: 'Aave',
+  bancor: 'Bancor',
+  cmc: 'CMC',
+  cryptocom: 'Crypto.com',
+  coinGecko: 'CoinGecko',
+  oneInch: '1inch',
+  paraswap: 'Paraswap',
+  pmm: 'PMM',
+  zapper: 'Zapper',
+  zerion: 'Zerion',
+  zeroEx: '0x',
+  synthetix: 'Synthetix',
+  yearn: 'Yearn',
+  apeswap: 'ApeSwap',
+  binanceDex: 'BinanceDex',
+  pancakeTop100: 'PancakeTop100',
+  pancakeExtended: 'PancakeExtended',
+  balancer: 'Balancer',
+  quickswap: 'QuickSwap',
+  matcha: 'Matcha',
+  pangolinDex: 'PangolinDex',
+  pangolinDexStableCoin: 'PangolinDexStableCoin',
+  pangolinDexAvaxBridge: 'PangolinDexAvaxBridge',
+  traderJoe: 'TraderJoe',
+  airswapLight: 'AirswapLight',
+  kleros: 'Kleros',
+};
+
+/**
+ * Formats aggregator names to presentable format.
+ *
+ * @param aggregators - List of token list names in camelcase.
+ * @returns Formatted aggregator names.
+ */
+export const formatAggregatorNames = (aggregators: AggregatorKey[]) => {
+  return aggregators.map(
+    (key) =>
+      aggregatorNameByKey[key] ||
+      `${key[0].toUpperCase()}${key.substring(1, key.length)}`,
+  );
+};
+
+/**
+ * Format token list assets to use image proxy from Codefi.
+ *
+ * @param params - Object that contains chainID and tokenAddress.
+ * @param params.chainId - ChainID of network.
+ * @param params.tokenAddress - Address of token in lowercase.
+ * @returns Formatted image url
+ */
+export const formatIconUrlWithProxy = ({
+  chainId,
+  tokenAddress,
+}: {
+  chainId: string;
+  tokenAddress: string;
+}) => {
+  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainId}/${tokenAddress}.png`;
+};

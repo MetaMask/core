@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "28.0.0",
+  "version": "29.0.1",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "keywords": [
     "MetaMask",
@@ -38,7 +38,7 @@
     "@ethereumjs/common": "^2.3.1",
     "@ethereumjs/tx": "^3.2.1",
     "@keystonehq/metamask-airgapped-keyring": "^0.3.0",
-    "@metamask/contract-metadata": "^1.33.0",
+    "@metamask/contract-metadata": "^1.34.0",
     "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/types": "^1.1.0",
     "@types/uuid": "^8.3.0",
@@ -48,7 +48,7 @@
     "deep-freeze-strict": "^1.1.1",
     "eth-ens-namehash": "^2.0.8",
     "eth-json-rpc-infura": "^5.1.0",
-    "eth-keyring-controller": "^7.0.1",
+    "eth-keyring-controller": "^7.0.2",
     "eth-method-registry": "1.1.0",
     "eth-phishing-detect": "^1.1.16",
     "eth-query": "^2.1.2",
