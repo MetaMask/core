@@ -1161,14 +1161,17 @@ export class CollectiblesController extends BaseController<
    *
    * @param address - Hex address of the collectible contract.
    * @param tokenId - Number that represents the id of the token.
+   * @param selectedAddress - Hex address of the user account.
+   * @param chainId - Id of the current network.
    * @returns Object containing the Collectible and their position in the array
    */
   findCollectibleByAddressAndTokenId(
     address: string,
     tokenId: string,
+    selectedAddress: string,
+    chainId: string
   ): { collectible: Collectible; index: number } | null {
     const { allCollectibles } = this.state;
-    const { chainId, selectedAddress } = this.config;
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
 
     const index: number = collectibles.findIndex(
@@ -1189,14 +1192,17 @@ export class CollectiblesController extends BaseController<
    *
    * @param collectible - Collectible object to find the right collectible to updates.
    * @param updates - Collectible partial object to update properties of the collectible.
+   * @param selectedAddress - Hex address of the user account.
+   * @param chainId - Id of the current network.
    */
-  updateCollectible(collectible: Collectible, updates: Partial<Collectible>) {
+  updateCollectible(collectible: Collectible, updates: Partial<Collectible>, selectedAddress: string, chainId:string) {
     const { allCollectibles } = this.state;
-    const { chainId, selectedAddress } = this.config;
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const collectibleInfo = this.findCollectibleByAddressAndTokenId(
       collectible.address,
       collectible.tokenId,
+      selectedAddress,
+      chainId
     );
 
     if (!collectibleInfo) {
@@ -1226,13 +1232,16 @@ export class CollectiblesController extends BaseController<
    * Resets the transaction status of a collectible.
    *
    * @param transactionId - Collectible transaction id.
+   * @param selectedAddress - Hex address of the user account.
+   * @param chainId - Id of the current network.
    * @returns a boolean indicating if the reset was well succeded or not
    */
   resetCollectibleTransactionStatusByTransactionId(
     transactionId: string,
+    selectedAddress: string,
+    chainId: string
   ): boolean {
     const { allCollectibles } = this.state;
-    const { chainId, selectedAddress } = this.config;
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const index: number = collectibles.findIndex(
       (collectible) => collectible.transactionId === transactionId,
