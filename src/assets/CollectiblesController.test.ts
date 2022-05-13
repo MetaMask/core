@@ -46,6 +46,7 @@ describe('CollectiblesController', () => {
   let preferences: PreferencesController;
   let network: NetworkController;
   let assetsContract: AssetsContractController;
+  const onCollectibleAddedSpy = jest.fn();
 
   beforeEach(() => {
     preferences = new PreferencesController();
@@ -67,6 +68,7 @@ describe('CollectiblesController', () => {
         assetsContract.getERC1155BalanceOf.bind(assetsContract),
       getERC1155TokenURI:
         assetsContract.getERC1155TokenURI.bind(assetsContract),
+      onCollectibleAdded: onCollectibleAddedSpy,
     });
 
     preferences.update({
@@ -229,6 +231,49 @@ describe('CollectiblesController', () => {
         name: 'Name',
         symbol: 'FOO',
         totalSupply: 0,
+      });
+    });
+
+    it('should call onCollectibleAdded callback correctly when collectible is manually added', async () => {
+      await collectiblesController.addCollectible('0x01', '1', {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'ERC1155',
+        favorite: false,
+      });
+
+      expect(onCollectibleAddedSpy).toHaveBeenCalledWith({
+        source: 'custom',
+        tokenId: '1',
+        address: '0x01',
+        standard: 'ERC1155',
+        symbol: 'FOO',
+      });
+    });
+
+    it('should call onCollectibleAdded callback correctly when collectible is added via detection', async () => {
+      const detectedUserAddress = '0x123';
+      await collectiblesController.addCollectible(
+        '0x01',
+        '2',
+        {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'ERC721',
+          favorite: false,
+        },
+        // this object in the third argument slot is only defined when the collectible is added via detection
+        { userAddress: detectedUserAddress, chainId: '0x2' },
+      );
+
+      expect(onCollectibleAddedSpy).toHaveBeenCalledWith({
+        source: 'detected',
+        tokenId: '2',
+        address: '0x01',
+        standard: 'ERC721',
+        symbol: 'FOO',
       });
     });
 

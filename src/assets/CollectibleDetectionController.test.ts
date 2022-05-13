@@ -39,6 +39,7 @@ describe('CollectibleDetectionController', () => {
         assetsContract.getERC1155BalanceOf.bind(assetsContract),
       getERC1155TokenURI:
         assetsContract.getERC1155TokenURI.bind(assetsContract),
+      onCollectibleAdded: jest.fn(),
     });
 
     collectibleDetection = new CollectibleDetectionController({
