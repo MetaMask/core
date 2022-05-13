@@ -18,6 +18,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: '',
             name: 'foo',
+            addressType: '',
           },
         },
       },
@@ -31,6 +32,7 @@ describe('AddressBookController', () => {
       'foo',
       '1',
       'account 1',
+      'EXTERNALLY_OWNED_ACCOUNTS',
     );
 
     expect(controller.state).toStrictEqual({
@@ -42,6 +44,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: 'account 1',
             name: 'foo',
+            addressType: 'EXTERNALLY_OWNED_ACCOUNTS',
           },
         },
       },
@@ -55,6 +58,7 @@ describe('AddressBookController', () => {
       'foo',
       '1',
       'account 2',
+      'EXTERNALLY_OWNED_ACCOUNTS',
     );
 
     controller.set(
@@ -62,6 +66,7 @@ describe('AddressBookController', () => {
       'foo',
       '2',
       'account 2',
+      'EXTERNALLY_OWNED_ACCOUNTS',
     );
 
     expect(controller.state).toStrictEqual({
@@ -73,6 +78,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: 'account 2',
             name: 'foo',
+            addressType: 'EXTERNALLY_OWNED_ACCOUNTS',
           },
         },
         2: {
@@ -82,6 +88,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: 'account 2',
             name: 'foo',
+            addressType: 'EXTERNALLY_OWNED_ACCOUNTS',
           },
         },
       },
@@ -101,6 +108,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: '',
             name: 'bar',
+            addressType: '',
           },
         },
       },
@@ -136,6 +144,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: '',
             name: 'foo',
+            addressType: '',
           },
         },
       },
@@ -156,6 +165,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: '',
             name: 'foo',
+            addressType: '',
           },
           '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D': {
             address: '0xC38bF1aD06ef69F0c04E29DBeB4152B4175f0A8D',
@@ -163,6 +173,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: '',
             name: 'bar',
+            addressType: '',
           },
         },
       },
@@ -185,6 +196,7 @@ describe('AddressBookController', () => {
             isEns: true,
             memo: '',
             name: 'metamask.eth',
+            addressType: '',
           },
         },
       },
@@ -240,6 +252,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: '',
             name: 'foo',
+            addressType: '',
           },
         },
       },
