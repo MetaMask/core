@@ -57,16 +57,20 @@ describe('CollectiblesController', () => {
     collectiblesController = new CollectiblesController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      getERC721AssetName:
-        assetsContract.getERC721AssetName.bind(assetsContract),
-      getERC721AssetSymbol:
-        assetsContract.getERC721AssetSymbol.bind(assetsContract),
+      getERC721AssetName: assetsContract.getERC721AssetName.bind(
+        assetsContract,
+      ),
+      getERC721AssetSymbol: assetsContract.getERC721AssetSymbol.bind(
+        assetsContract,
+      ),
       getERC721TokenURI: assetsContract.getERC721TokenURI.bind(assetsContract),
       getERC721OwnerOf: assetsContract.getERC721OwnerOf.bind(assetsContract),
-      getERC1155BalanceOf:
-        assetsContract.getERC1155BalanceOf.bind(assetsContract),
-      getERC1155TokenURI:
-        assetsContract.getERC1155TokenURI.bind(assetsContract),
+      getERC1155BalanceOf: assetsContract.getERC1155BalanceOf.bind(
+        assetsContract,
+      ),
+      getERC1155TokenURI: assetsContract.getERC1155TokenURI.bind(
+        assetsContract,
+      ),
     });
 
     preferences.update({
@@ -1285,11 +1289,10 @@ describe('CollectiblesController', () => {
           .stub(collectiblesController, 'isCollectibleOwner' as any)
           .returns(false);
 
-        const updatedCollectible =
-          await collectiblesController.checkAndUpdateSingleCollectibleOwnershipStatus(
-            collectible,
-            true,
-          );
+        const updatedCollectible = await collectiblesController.checkAndUpdateSingleCollectibleOwnershipStatus(
+          collectible,
+          true,
+        );
 
         expect(
           collectiblesController.state.allCollectibles[selectedAddress][
@@ -1376,17 +1379,20 @@ describe('CollectiblesController', () => {
       favorite: false,
     };
 
+    const { selectedAddress, chainId } = collectiblesController.config;
+
     it('should return null if the collectible does not exist in the state', async () => {
       expect(
         collectiblesController.findCollectibleByAddressAndTokenId(
           mockCollectible.address,
           mockCollectible.tokenId,
+          selectedAddress,
+          chainId,
         ),
       ).toBeNull();
     });
 
     it('should return the collectible by the address and tokenId', () => {
-      const { selectedAddress, chainId } = collectiblesController.config;
       collectiblesController.state.allCollectibles = {
         [selectedAddress]: { [chainId]: [mockCollectible] },
       };
@@ -1395,6 +1401,8 @@ describe('CollectiblesController', () => {
         collectiblesController.findCollectibleByAddressAndTokenId(
           mockCollectible.address,
           mockCollectible.tokenId,
+          selectedAddress,
+          chainId,
         ),
       ).toStrictEqual({ collectible: mockCollectible, index: 0 });
     });
@@ -1423,15 +1431,21 @@ describe('CollectiblesController', () => {
       tokenId: '1',
       transactionId: mockTransactionId,
     };
+
+    const { selectedAddress, chainId } = collectiblesController.config;
     it('should update the collectible if the collectible exist', async () => {
-      const { selectedAddress, chainId } = collectiblesController.config;
       collectiblesController.state.allCollectibles = {
         [selectedAddress]: { [chainId]: [mockCollectible] },
       };
 
-      collectiblesController.updateCollectible(mockCollectible, {
-        transactionId: mockTransactionId,
-      });
+      collectiblesController.updateCollectible(
+        mockCollectible,
+        {
+          transactionId: mockTransactionId,
+        },
+        selectedAddress,
+        chainId,
+      );
 
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][
@@ -1442,9 +1456,14 @@ describe('CollectiblesController', () => {
 
     it('should return undefined if the collectible does not exist', () => {
       expect(
-        collectiblesController.updateCollectible(mockCollectible, {
-          transactionId: mockTransactionId,
-        }),
+        collectiblesController.updateCollectible(
+          mockCollectible,
+          {
+            transactionId: mockTransactionId,
+          },
+          selectedAddress,
+          chainId,
+        ),
       ).toBeUndefined();
     });
   });
@@ -1464,16 +1483,19 @@ describe('CollectiblesController', () => {
       transactionId: mockTransactionId,
     };
 
+    const { selectedAddress, chainId } = collectiblesController.config;
+
     it('should not update any collectible state and should return false when passed a transaction id that does not match that of any collectible', async () => {
       expect(
         collectiblesController.resetCollectibleTransactionStatusByTransactionId(
           nonExistTransactionId,
+          selectedAddress,
+          chainId,
         ),
       ).toBe(false);
     });
 
     it('should set the transaction id of a collectible in state to undefined, and return true when it has successfully updated this state', async () => {
-      const { selectedAddress, chainId } = collectiblesController.config;
       collectiblesController.state.allCollectibles = {
         [selectedAddress]: { [chainId]: [mockCollectible] },
       };
@@ -1487,6 +1509,8 @@ describe('CollectiblesController', () => {
       expect(
         collectiblesController.resetCollectibleTransactionStatusByTransactionId(
           mockTransactionId,
+          selectedAddress,
+          chainId,
         ),
       ).toBe(true);
 
