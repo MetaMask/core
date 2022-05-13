@@ -1464,7 +1464,7 @@ describe('CollectiblesController', () => {
       transactionId: mockTransactionId,
     };
 
-    it('should handle inputs with transaction ids that does not match any collectible', async () => {
+    it('should not update any collectible state and should return false when passed a transaction id that does not match that of any collectible', async () => {
       expect(
         collectiblesController.resetCollectibleTransactionStatusByTransactionId(
           nonExistTransactionId,
