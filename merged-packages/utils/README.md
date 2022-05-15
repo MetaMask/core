@@ -10,13 +10,9 @@ or
 
 `npm install @metamask/utils`
 
-## Usage
-
-_Add examples here_
-
 ## API
 
-_Add examples here_
+The full API documentation for the latest published version of this library is [available here](https://metamask.github.io/eth-sig-util/index.html).
 
 ## Contributing
 
@@ -33,6 +29,10 @@ _Add examples here_
 Run `yarn test` to run the tests once. To run tests on file changes, run `yarn test:watch`.
 
 Run `yarn lint` to run the linter, or run `yarn lint:fix` to run the linter and fix any automatically fixable issues.
+
+### Documentation
+
+The API documentation can be generated with the command `yarn docs`, which saves it in the `./docs` directory. Open the `./docs/index.html` file to browse the documentation.
 
 ### Release & Publishing
 

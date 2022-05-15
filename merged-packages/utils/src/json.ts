@@ -61,9 +61,9 @@ export type JsonRpcError = {
  * @template Params - The type of the params.
  */
 export type JsonRpcRequest<Params> = {
+  id: JsonRpcId;
   jsonrpc: JsonRpcVersion2;
   method: string;
-  id: JsonRpcId;
   params?: Params;
 };
 
@@ -79,26 +79,22 @@ export type JsonRpcNotification<Params> = {
 };
 
 /**
- * The internal, base type for JSON-RPC responses.
- */
-type JsonRpcResponseBase = {
-  jsonrpc: JsonRpcVersion2;
-  id: JsonRpcId;
-};
-
-/**
  * A successful JSON-RPC response object.
  *
  * @template Result - The type of the result.
  */
-export type JsonRpcSuccess<Result = unknown> = JsonRpcResponseBase & {
+export type JsonRpcSuccess<Result = unknown> = {
+  id: JsonRpcId;
+  jsonrpc: JsonRpcVersion2;
   result: Result;
 };
 
 /**
  * A failed JSON-RPC response object.
  */
-export type JsonRpcFailure = JsonRpcResponseBase & {
+export type JsonRpcFailure = {
+  id: JsonRpcId;
+  jsonrpc: JsonRpcVersion2;
   error: JsonRpcError;
 };
 
