@@ -7,6 +7,7 @@ import {
   GasPriceValue,
   FeeMarketEIP1559Values,
 } from './transaction/TransactionController';
+import { NetworksChainId } from './network/NetworkController';
 
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
@@ -1265,5 +1266,29 @@ describe('isValidJson', () => {
 
   it('returns true for valid JSON', () => {
     expect(util.isValidJson({ foo: 'bar', test: { num: 5 } })).toBe(true);
+  });
+});
+
+describe('isTokenDetectionEnabledForNetwork', () => {
+  it('returns true for Mainnet', () => {
+    expect(
+      util.isTokenDetectionEnabledForNetwork(
+        util.SupportedTokenDetectionNetworks.mainnet,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns true for custom network such as BSC', () => {
+    expect(
+      util.isTokenDetectionEnabledForNetwork(
+        util.SupportedTokenDetectionNetworks.bsc,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns false for testnets such as Ropsten', () => {
+    expect(
+      util.isTokenDetectionEnabledForNetwork(NetworksChainId.ropsten),
+    ).toBe(false);
   });
 });

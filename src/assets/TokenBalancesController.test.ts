@@ -181,10 +181,11 @@ describe('TokenBalancesController', () => {
 
   it('should subscribe to new sibling assets controllers', async () => {
     const preferences = new PreferencesController();
+    const network = new NetworkController();
     const assetsContract = new AssetsContractController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onNetworkStateChange: (listener) => network.subscribe(listener),
     });
-    const network = new NetworkController();
     const tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),

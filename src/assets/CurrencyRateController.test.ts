@@ -1,6 +1,7 @@
 import sinon from 'sinon';
 import nock from 'nock';
 import { ControllerMessenger } from '../ControllerMessenger';
+import { TESTNET_TICKER_SYMBOLS } from '../constants';
 import {
   CurrencyRateController,
   CurrencyRateStateChange,
@@ -170,6 +171,39 @@ describe('CurrencyRateController', () => {
     });
     expect(controller.state.conversionRate).toStrictEqual(0);
     await controller.updateExchangeRate();
+    expect(controller.state.conversionRate).toStrictEqual(10);
+
+    controller.destroy();
+  });
+
+  it('should update exchange rate to ETH conversion rate when native currency is testnet ETH', async () => {
+    const fetchExchangeRateStub = jest
+      .fn()
+      .mockImplementation((_, nativeCurrency) => {
+        if (nativeCurrency === 'ETH') {
+          return {
+            conversionRate: 10,
+          };
+        } else if (nativeCurrency === 'DAI') {
+          return {
+            conversionRate: 1,
+          };
+        }
+        return {
+          conversionRate: 0,
+        };
+      });
+    const messenger = getRestrictedMessenger();
+    const controller = new CurrencyRateController({
+      fetchExchangeRate: fetchExchangeRateStub,
+      messenger,
+    });
+
+    await controller.setNativeCurrency('DAI');
+    await controller.updateExchangeRate();
+    expect(controller.state.conversionRate).toStrictEqual(1);
+    await controller.updateExchangeRate();
+    await controller.setNativeCurrency(TESTNET_TICKER_SYMBOLS.RINKEBY);
     expect(controller.state.conversionRate).toStrictEqual(10);
 
     controller.destroy();

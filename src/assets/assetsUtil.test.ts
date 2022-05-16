@@ -1,3 +1,4 @@
+import { NetworksChainId } from '../network/NetworkController';
 import * as assetsUtil from './assetsUtil';
 import { Collectible, CollectibleMetadata } from './CollectiblesController';
 
@@ -98,6 +99,26 @@ describe('assetsUtil', () => {
         collectible,
       );
       expect(different).toStrictEqual(false);
+    });
+
+    it('should format aggregator names', () => {
+      const formattedAggregatorNames = assetsUtil.formatAggregatorNames([
+        'bancor',
+        'aave',
+        'coinGecko',
+      ]);
+      const expectedValue = ['Bancor', 'Aave', 'CoinGecko'];
+      expect(formattedAggregatorNames).toStrictEqual(expectedValue);
+    });
+
+    it('should format icon url with Codefi proxy', () => {
+      const linkTokenAddress = '0x514910771af9ca656af840dff83e8264ecf986ca';
+      const formattedIconUrl = assetsUtil.formatIconUrlWithProxy({
+        chainId: NetworksChainId.mainnet,
+        tokenAddress: linkTokenAddress,
+      });
+      const expectedValue = `https://static.metaswap.codefi.network/api/v1/tokenIcons/${NetworksChainId.mainnet}/${linkTokenAddress}.png`;
+      expect(formattedIconUrl).toStrictEqual(expectedValue);
     });
   });
 });
