@@ -18,13 +18,10 @@ module.exports = {
     },
 
     {
-      files: ['test/*'],
-      extends: ['@metamask/eslint-config-mocha'],
-      parserOptions: {
-        ecmaVersion: 2020,
-      },
+      files: ['*.test.ts', '*.test.js'],
+      extends: ['@metamask/eslint-config-jest'],
     },
   ],
 
-  ignorePatterns: ['!.eslintrc.js', '.nyc*', 'coverage/', 'dist/'],
+  ignorePatterns: ['!.eslintrc.js', '!.prettierrc.js', 'dist/'],
 };

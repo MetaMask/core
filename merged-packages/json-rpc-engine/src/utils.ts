@@ -5,6 +5,11 @@ import type {
   JsonRpcSuccess,
 } from './JsonRpcEngine';
 
+export const hasProperty = (
+  object: Object, // eslint-disable-line @typescript-eslint/ban-types
+  name: string | number | symbol,
+): boolean => Object.hasOwnProperty.call(object, name);
+
 /**
  * ATTN: Assumes that only one of the `result` and `error` properties is
  * present on the `response`, as guaranteed by e.g. `JsonRpcEngine.handle`.
@@ -18,7 +23,23 @@ import type {
 export function isJsonRpcSuccess<T>(
   response: JsonRpcResponse<T>,
 ): response is JsonRpcSuccess<T> {
-  return 'result' in response;
+  return hasProperty(response, 'result');
+}
+
+/**
+ * ATTN: Assumes that only one of the `result` and `error` properties is
+ * present on the `response`, as guaranteed by e.g. `JsonRpcEngine.handle`.
+ *
+ * Type assertion to narrow a JsonRpcResponse object to a success (or failure).
+ *
+ * @param response - The response object to check.
+ */
+export function assertIsJsonRpcSuccess<T>(
+  response: JsonRpcResponse<T>,
+): asserts response is JsonRpcSuccess<T> {
+  if (!isJsonRpcSuccess(response)) {
+    throw new Error('Not a successful JSON-RPC response.');
+  }
 }
 
 /**
@@ -34,7 +55,23 @@ export function isJsonRpcSuccess<T>(
 export function isJsonRpcFailure(
   response: JsonRpcResponse<unknown>,
 ): response is JsonRpcFailure {
-  return 'error' in response;
+  return hasProperty(response, 'error');
+}
+
+/**
+ * ATTN: Assumes that only one of the `result` and `error` properties is
+ * present on the `response`, as guaranteed by e.g. `JsonRpcEngine.handle`.
+ *
+ * Type assertion to narrow a JsonRpcResponse object to a failure (or success).
+ *
+ * @param response - The response object to check.
+ */
+export function assertIsJsonRpcFailure(
+  response: JsonRpcResponse<unknown>,
+): asserts response is JsonRpcFailure {
+  if (!isJsonRpcFailure(response)) {
+    throw new Error('Not a failed JSON-RPC response.');
+  }
 }
 
 interface JsonRpcValidatorOptions {
