@@ -12,7 +12,7 @@ or
 
 ## API
 
-The full API documentation for the latest published version of this library is [available here](https://metamask.github.io/eth-sig-util/index.html).
+The full API documentation for the latest published version of this library is [available here](https://metamask.github.io/utils/index.html).
 
 ## Contributing
 
