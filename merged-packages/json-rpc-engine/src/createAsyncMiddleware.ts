@@ -1,14 +1,11 @@
-import {
-  JsonRpcMiddleware,
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
-} from './JsonRpcEngine';
+import { JsonRpcRequest } from '@metamask/utils';
+import { JsonRpcMiddleware, PendingJsonRpcResponse } from './JsonRpcEngine';
 
 export type AsyncJsonRpcEngineNextCallback = () => Promise<void>;
 
-export type AsyncJsonrpcMiddleware<T, U> = (
-  req: JsonRpcRequest<T>,
-  res: PendingJsonRpcResponse<U>,
+export type AsyncJsonrpcMiddleware<Params, Result> = (
+  req: JsonRpcRequest<Params>,
+  res: PendingJsonRpcResponse<Result>,
   next: AsyncJsonRpcEngineNextCallback,
 ) => Promise<void>;
 
@@ -35,9 +32,9 @@ type ReturnHandlerCallback = (error: null | Error) => void;
  * @returns The wrapped asynchronous middleware function, ready to be consumed
  * by JsonRpcEngine.
  */
-export function createAsyncMiddleware<T, U>(
-  asyncMiddleware: AsyncJsonrpcMiddleware<T, U>,
-): JsonRpcMiddleware<T, U> {
+export function createAsyncMiddleware<Params, Result>(
+  asyncMiddleware: AsyncJsonrpcMiddleware<Params, Result>,
+): JsonRpcMiddleware<Params, Result> {
   return async (req, res, next, end) => {
     // nextPromise is the key to the implementation
     // it is resolved by the return handler passed to the

@@ -1,9 +1,9 @@
 import {
   assertIsJsonRpcSuccess,
-  JsonRpcEngine,
+  hasProperty,
   JsonRpcRequest,
-  mergeMiddleware,
-} from '.';
+} from '@metamask/utils';
+import { JsonRpcEngine, mergeMiddleware } from '.';
 
 const jsonrpc = '2.0' as const;
 
@@ -30,7 +30,7 @@ describe('mergeMiddleware', () => {
         expect(res).toBeDefined();
         expect(originalReq.id).toStrictEqual(res.id);
         expect(originalReq.jsonrpc).toStrictEqual(res.jsonrpc);
-        expect('result' in res).toBe(true);
+        expect(hasProperty(res, 'result')).toBe(true);
         resolve();
       });
     });

@@ -1,69 +1,19 @@
 import SafeEventEmitter from '@metamask/safe-event-emitter';
+import {
+  hasProperty,
+  JsonRpcError,
+  JsonRpcRequest,
+  JsonRpcResponse,
+} from '@metamask/utils';
 import { errorCodes, EthereumRpcError, serializeError } from 'eth-rpc-errors';
 
-type Maybe<T> = Partial<T> | null | undefined;
-
-export type Json =
-  | boolean
-  | number
-  | string
-  | null
-  | { [property: string]: Json }
-  | Json[];
-
-/**
- * A String specifying the version of the JSON-RPC protocol.
- * MUST be exactly "2.0".
- */
-export type JsonRpcVersion = '2.0';
-
-/**
- * An identifier established by the Client that MUST contain a String, Number,
- * or NULL value if included. If it is not included it is assumed to be a
- * notification. The value SHOULD normally not be Null and Numbers SHOULD
- * NOT contain fractional parts.
- */
-export type JsonRpcId = number | string | null;
-
-export interface JsonRpcError {
-  code: number;
-  message: string;
-  data?: unknown;
-  stack?: string;
-}
-
-export interface JsonRpcRequest<T> {
-  jsonrpc: JsonRpcVersion;
-  method: string;
-  id: JsonRpcId;
-  params?: T;
-}
-
-export interface JsonRpcNotification<T> {
-  jsonrpc: JsonRpcVersion;
-  method: string;
-  params?: T;
-}
-
-interface JsonRpcResponseBase {
-  jsonrpc: JsonRpcVersion;
-  id: JsonRpcId;
-}
-
-export interface JsonRpcSuccess<T> extends JsonRpcResponseBase {
-  result: Maybe<T>;
-}
-
-export interface JsonRpcFailure extends JsonRpcResponseBase {
-  error: JsonRpcError;
-}
-
-export type JsonRpcResponse<T> = JsonRpcSuccess<T> | JsonRpcFailure;
-
-export interface PendingJsonRpcResponse<T> extends JsonRpcResponseBase {
-  result?: T;
-  error?: Error | JsonRpcError;
-}
+export type PendingJsonRpcResponse<Result> = Omit<
+  JsonRpcResponse<Result>,
+  'error' | 'result'
+> & {
+  result?: Result;
+  error?: JsonRpcError;
+};
 
 export type JsonRpcEngineCallbackError = Error | JsonRpcError | null;
 
@@ -79,9 +29,9 @@ export type JsonRpcEngineEndCallback = (
   error?: JsonRpcEngineCallbackError,
 ) => void;
 
-export type JsonRpcMiddleware<T, U> = (
-  req: JsonRpcRequest<T>,
-  res: PendingJsonRpcResponse<U>,
+export type JsonRpcMiddleware<Params, Result> = (
+  req: JsonRpcRequest<Params>,
+  res: PendingJsonRpcResponse<Result>,
   next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
 ) => void;
@@ -103,7 +53,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    *
    * @param middleware - The middleware function to add.
    */
-  push<T, U>(middleware: JsonRpcMiddleware<T, U>): void {
+  push<Params, Result>(middleware: JsonRpcMiddleware<Params, Result>): void {
     this._middleware.push(middleware as JsonRpcMiddleware<unknown, unknown>);
   }
 
@@ -113,9 +63,9 @@ export class JsonRpcEngine extends SafeEventEmitter {
    * @param request - The request to handle.
    * @param callback - An error-first callback that will receive the response.
    */
-  handle<T, U>(
-    request: JsonRpcRequest<T>,
-    callback: (error: unknown, response: JsonRpcResponse<U>) => void,
+  handle<Params, Result>(
+    request: JsonRpcRequest<Params>,
+    callback: (error: unknown, response: JsonRpcResponse<Result>) => void,
   ): void;
 
   /**
@@ -125,9 +75,9 @@ export class JsonRpcEngine extends SafeEventEmitter {
    * @param callback - An error-first callback that will receive the array of
    * responses.
    */
-  handle<T, U>(
-    requests: JsonRpcRequest<T>[],
-    callback: (error: unknown, responses: JsonRpcResponse<U>[]) => void,
+  handle<Params, Result>(
+    requests: JsonRpcRequest<Params>[],
+    callback: (error: unknown, responses: JsonRpcResponse<Result>[]) => void,
   ): void;
 
   /**
@@ -136,7 +86,9 @@ export class JsonRpcEngine extends SafeEventEmitter {
    * @param request - The JSON-RPC request to handle.
    * @returns The JSON-RPC response.
    */
-  handle<T, U>(request: JsonRpcRequest<T>): Promise<JsonRpcResponse<U>>;
+  handle<Params, Result>(
+    request: JsonRpcRequest<Params>,
+  ): Promise<JsonRpcResponse<Result>>;
 
   /**
    * Handle an array of JSON-RPC requests, and return an array of responses.
@@ -144,7 +96,9 @@ export class JsonRpcEngine extends SafeEventEmitter {
    * @param request - The JSON-RPC requests to handle.
    * @returns An array of JSON-RPC responses.
    */
-  handle<T, U>(requests: JsonRpcRequest<T>[]): Promise<JsonRpcResponse<U>[]>;
+  handle<Params, Result>(
+    requests: JsonRpcRequest<Params>[],
+  ): Promise<JsonRpcResponse<Result>[]>;
 
   handle(req: unknown, callback?: any) {
     if (callback && typeof callback !== 'function') {
@@ -487,7 +441,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     res: PendingJsonRpcResponse<unknown>,
     isComplete: boolean,
   ): void {
-    if (!('result' in res) && !('error' in res)) {
+    if (!hasProperty(res, 'result') && !hasProperty(res, 'error')) {
       throw new EthereumRpcError(
         errorCodes.rpc.internal,
         `JsonRpcEngine: Response has no error or result for request:\n${jsonify(

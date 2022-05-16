@@ -1,6 +1,9 @@
-import { Json, JsonRpcMiddleware, JsonRpcSuccess } from './JsonRpcEngine';
+import { Json, JsonRpcSuccess } from '@metamask/utils';
+import { JsonRpcMiddleware } from './JsonRpcEngine';
 
-type ScaffoldMiddlewareHandler<T, U> = JsonRpcMiddleware<T, U> | Json;
+type ScaffoldMiddlewareHandler<Params, Result> =
+  | JsonRpcMiddleware<Params, Result>
+  | Json;
 
 /**
  * Creates a middleware function from an object of RPC method handler functions,
