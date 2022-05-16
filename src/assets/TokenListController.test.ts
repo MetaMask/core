@@ -9,6 +9,8 @@ import {
   TokenListController,
   TokenListStateChange,
   GetTokenListState,
+  TokenListMap,
+  TokenListState,
 } from './TokenListController';
 
 const name = 'TokenListController';
@@ -88,7 +90,7 @@ const sampleMainnetTokensChainsCache = sampleMainnetTokenList.reduce(
     output[current.address] = current;
     return output;
   },
-  {} as any,
+  {} as TokenListMap,
 );
 
 const sampleWithDuplicateSymbols = [
@@ -118,7 +120,7 @@ const sampleWithDuplicateSymbolsTokensChainsCache =
   sampleWithDuplicateSymbols.reduce((output, current) => {
     output[current.address] = current;
     return output;
-  }, {} as any);
+  }, {} as TokenListMap);
 
 const sampleWithLessThan2Occurences = [
   {
@@ -172,7 +174,7 @@ const sampleWithLessThan2OccurencesTokensChainsCache =
   sampleWithLessThan2Occurences.reduce((output, current) => {
     output[current.address] = current;
     return output;
-  }, {} as any);
+  }, {} as TokenListMap);
 
 const sampleBinanceTokenList = [
   {
@@ -290,7 +292,7 @@ const sampleBinanceTokensChainsCache = sampleBinanceTokenList.reduce(
     output[current.address] = current;
     return output;
   },
-  {} as any,
+  {} as TokenListMap,
 );
 
 const sampleTwoChainState = {
@@ -407,7 +409,7 @@ const outdatedExistingState = {
   },
 };
 
-const expiredCacheExistingState = {
+const expiredCacheExistingState: TokenListState = {
   tokenList: {
     '0x514910771af9ca656af840dff83e8264ecf986ca': {
       address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -435,8 +437,8 @@ const expiredCacheExistingState = {
   tokensChainsCache: {
     '1': {
       timestamp: timestamp - 1800000,
-      data: [
-        {
+      data: {
+        '0x514910771af9ca656af840dff83e8264ecf986ca': {
           address: '0x514910771af9ca656af840dff83e8264ecf986ca',
           symbol: 'LINK',
           decimals: 18,
@@ -458,7 +460,7 @@ const expiredCacheExistingState = {
             '0x',
           ],
         },
-      ],
+      },
     },
   },
 };
@@ -646,6 +648,46 @@ describe('TokenListController', () => {
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     expect(tokenListMock.calledThrice).toBe(true);
     controller.destroy();
+  });
+
+  it('should call fetchTokenList on network that supports token detection', async () => {
+    const tokenListMock = stub(TokenListController.prototype, 'fetchTokenList');
+
+    const messenger = getRestrictedMessenger();
+    const controller = new TokenListController({
+      chainId: NetworksChainId.mainnet,
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      interval: 100,
+      messenger,
+    });
+    await controller.start();
+    controller.stop();
+
+    // called once upon initial start
+    expect(tokenListMock.called).toBe(true);
+
+    controller.destroy();
+    tokenListMock.restore();
+  });
+
+  it('should not call fetchTokenList on network that does not support token detection', async () => {
+    const tokenListMock = stub(TokenListController.prototype, 'fetchTokenList');
+
+    const messenger = getRestrictedMessenger();
+    const controller = new TokenListController({
+      chainId: NetworksChainId.localhost,
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      interval: 100,
+      messenger,
+    });
+    await controller.start();
+    controller.stop();
+
+    // called once upon initial start
+    expect(tokenListMock.called).toBe(false);
+
+    controller.destroy();
+    tokenListMock.restore();
   });
 
   it('should update token list from api', async () => {
@@ -875,7 +917,7 @@ describe('TokenListController', () => {
       chainId: NetworksChainId.mainnet,
       onNetworkStateChange: (listener) => network.subscribe(listener),
       messenger,
-      state: expiredCacheExistingState as any,
+      state: expiredCacheExistingState,
     });
     expect(controller.state).toStrictEqual(expiredCacheExistingState);
     await controller.start();
