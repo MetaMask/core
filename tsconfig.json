@@ -1,13 +1,12 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
-    "esModuleInterop": true,
-    "inlineSources": true,
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "sourceMap": true,
-    "strict": true,
-    "target": "es6"
+    "noEmit": true
   },
-  "include": ["./types/**/*.d.ts", "./src/**/*.ts"]
+  "references": [
+    { "path": "./packages/base-controller" },
+    { "path": "./packages/controller-utils" },
+    { "path": "./packages/ens-controller" }
+  ],
+  "files": [],
+  "include": []
 }

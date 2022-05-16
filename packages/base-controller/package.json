@@ -1,0 +1,39 @@
+{
+  "name": "@metamask/base-controller",
+  "version": "0.1.0",
+  "description": "A base controller and related interfaces",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/base-controller#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/controllers/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/controllers.git"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "devDependencies": {
+    "@types/sinon": "^9.0.10",
+    "sinon": "^9.2.4",
+    "ts-deepmerge": "^2.0.1"
+  },
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "immer": "^9.0.6",
+    "isomorphic-fetch": "^3.0.0"
+  }
+}

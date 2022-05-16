@@ -1,10 +1,9 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "declaration": true,
-    "declarationDir": "./dist",
-    "outDir": "./dist",
-    "rootDir": "./src"
-  },
-  "exclude": ["**/*.test.ts"]
+  "references": [
+    { "path": "./packages/base-controller/tsconfig.build.json" },
+    { "path": "./packages/controller-utils/tsconfig.build.json" },
+    { "path": "./packages/ens-controller/tsconfig.build.json" }
+  ],
+  "files": [],
+  "include": []
 }
