@@ -66,12 +66,13 @@ describe('CollectiblesController', () => {
       ),
       getERC721TokenURI: assetsContract.getERC721TokenURI.bind(assetsContract),
       getERC721OwnerOf: assetsContract.getERC721OwnerOf.bind(assetsContract),
-      getERC1155BalanceOf:
-        assetsContract.getERC1155BalanceOf.bind(assetsContract),
-      getERC1155TokenURI:
-        assetsContract.getERC1155TokenURI.bind(assetsContract),
+      getERC1155BalanceOf: assetsContract.getERC1155BalanceOf.bind(
+        assetsContract,
+      ),
+      getERC1155TokenURI: assetsContract.getERC1155TokenURI.bind(
+        assetsContract,
+      ),
       onCollectibleAdded: onCollectibleAddedSpy,
-
     });
 
     preferences.update({
