@@ -7,30 +7,24 @@ import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { safelyExecute, isTokenDetectionEnabledForNetwork } from '../util';
 import { fetchTokenList } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
-import {
-  AggregatorKey,
-  formatAggregatorNames,
-  formatIconUrlWithProxy,
-} from './assetsUtil';
+import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
 
 const DEFAULT_INTERVAL = 60 * 60 * 1000;
 const DEFAULT_THRESHOLD = 60 * 30 * 1000;
 
 const name = 'TokenListController';
 
-export type RawToken = {
+export type TokenListToken = {
   name: string;
   symbol: string;
   decimals: number;
   address: string;
   occurrences: number;
-  aggregators: AggregatorKey[] | string[];
+  aggregators: string[];
   iconUrl: string;
 };
 
-export type TokenListMap = {
-  [address: string]: RawToken;
-};
+export type TokenListMap = Record<string, TokenListToken>;
 
 type DataCache = {
   timestamp: number;
@@ -140,7 +134,7 @@ export class TokenListController extends BaseController<
         this.update(() => {
           return {
             ...this.state,
-            tokenList: this.state.tokensChainsCache?.[this.chainId]?.data || {},
+            tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
           };
         });
         await this.restart();
@@ -212,16 +206,16 @@ export class TokenListController extends BaseController<
       );
       if (cachedTokens) {
         // Use non-expired cached tokens
-        tokenList = cachedTokens;
+        tokenList = { ...cachedTokens };
       } else {
         // Fetch fresh token list
-        const tokensFromAPI: RawToken[] = await safelyExecute(() =>
+        const tokensFromAPI: TokenListToken[] = await safelyExecute(() =>
           fetchTokenList(this.chainId, this.abortController.signal),
         );
 
         if (!tokensFromAPI) {
           // Fallback to expired cached tokens
-          tokenList = tokensChainsCache?.[this.chainId]?.data || {};
+          tokenList = { ...(tokensChainsCache[this.chainId]?.data || {}) };
 
           this.update(() => {
             return {
@@ -251,11 +245,9 @@ export class TokenListController extends BaseController<
           (token) => !duplicateSymbols.includes(token.symbol),
         );
         for (const token of uniqueTokenList) {
-          const formattedToken: RawToken = {
+          const formattedToken: TokenListToken = {
             ...token,
-            aggregators: formatAggregatorNames(
-              (token.aggregators as AggregatorKey[]) || [],
-            ),
+            aggregators: formatAggregatorNames(token.aggregators),
             iconUrl: formatIconUrlWithProxy({
               chainId: this.chainId,
               tokenAddress: token.address,
