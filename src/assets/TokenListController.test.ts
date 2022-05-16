@@ -651,7 +651,10 @@ describe('TokenListController', () => {
   });
 
   it('should call fetchTokenList on network that supports token detection', async () => {
-    const tokenListMock = stub(TokenListController.prototype, 'fetchTokenList');
+    const tokenListMock = sinon.stub(
+      TokenListController.prototype,
+      'fetchTokenList',
+    );
 
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
@@ -671,7 +674,10 @@ describe('TokenListController', () => {
   });
 
   it('should not call fetchTokenList on network that does not support token detection', async () => {
-    const tokenListMock = stub(TokenListController.prototype, 'fetchTokenList');
+    const tokenListMock = sinon.stub(
+      TokenListController.prototype,
+      'fetchTokenList',
+    );
 
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
