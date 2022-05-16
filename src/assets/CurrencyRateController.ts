@@ -6,6 +6,7 @@ import { safelyExecute } from '../util';
 import { fetchExchangeRate as defaultFetchExchangeRate } from '../apis/crypto-compare';
 
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
+import { TESTNET_TICKER_SYMBOLS, FALL_BACK_VS_CURRENCY } from '../constants';
 
 /**
  * @type CurrencyRateState
@@ -206,6 +207,13 @@ export class CurrencyRateController extends BaseController<
     const currentCurrency = pendingCurrentCurrency ?? stateCurrentCurrency;
     const nativeCurrency = pendingNativeCurrency ?? stateNativeCurrency;
 
+    // For preloaded testnets (Rinkeby, Ropsten, Goerli, Kovan) we want to fetch exchange rate for real ETH.
+    const nativeCurrencyForExchangeRate = Object.values(
+      TESTNET_TICKER_SYMBOLS,
+    ).includes(nativeCurrency)
+      ? FALL_BACK_VS_CURRENCY // ETH
+      : nativeCurrency;
+
     try {
       if (
         currentCurrency &&
@@ -218,7 +226,7 @@ export class CurrencyRateController extends BaseController<
       ) {
         ({ conversionRate, usdConversionRate } = await this.fetchExchangeRate(
           currentCurrency,
-          nativeCurrency,
+          nativeCurrencyForExchangeRate,
           this.includeUsdRate,
         ));
         conversionDate = Date.now() / 1000;
