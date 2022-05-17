@@ -21,3 +21,19 @@ export const ERC1155_TOKEN_RECEIVER_INTERFACE_ID = '0x4e2312e0';
 
 // UNITS
 export const GWEI = 'gwei';
+
+// ASSET TYPES
+export const ASSET_TYPES = {
+  NATIVE: 'NATIVE',
+  TOKEN: 'TOKEN',
+  COLLECTIBLE: 'COLLECTIBLE',
+  UNKNOWN: 'UNKNOWN',
+};
+
+// TICKER SYMBOLS
+export const TESTNET_TICKER_SYMBOLS = {
+  RINKEBY: 'RinkebyETH',
+  GOERLI: 'GoerliETH',
+  ROPSTEN: 'RopstenETH',
+  KOVAN: 'KovanETH',
+};
