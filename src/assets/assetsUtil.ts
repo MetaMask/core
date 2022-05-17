@@ -35,7 +35,39 @@ export function compareCollectiblesMetadata(
   return differentValues > 0;
 }
 
-const aggregatorNameByKey: Record<string, string> = {
+export type AggregatorKey =
+  | 'aave'
+  | 'bancor'
+  | 'cmc'
+  | 'cryptocom'
+  | 'coinGecko'
+  | 'oneInch'
+  | 'paraswap'
+  | 'pmm'
+  | 'zapper'
+  | 'zerion'
+  | 'zeroEx'
+  | 'synthetix'
+  | 'yearn'
+  | 'apeswap'
+  | 'binanceDex'
+  | 'pancakeTop100'
+  | 'pancakeExtended'
+  | 'balancer'
+  | 'quickswap'
+  | 'matcha'
+  | 'pangolinDex'
+  | 'pangolinDexStableCoin'
+  | 'pangolinDexAvaxBridge'
+  | 'traderJoe'
+  | 'airswapLight'
+  | 'kleros';
+
+type AggregatorNameByKey = {
+  [key in AggregatorKey]: string;
+};
+
+const aggregatorNameByKey: AggregatorNameByKey = {
   aave: 'Aave',
   bancor: 'Bancor',
   cmc: 'CMC',
@@ -70,7 +102,7 @@ const aggregatorNameByKey: Record<string, string> = {
  * @param aggregators - List of token list names in camelcase.
  * @returns Formatted aggregator names.
  */
-export const formatAggregatorNames = (aggregators: string[]) => {
+export const formatAggregatorNames = (aggregators: AggregatorKey[]) => {
   return aggregators.map(
     (key) =>
       aggregatorNameByKey[key] ||

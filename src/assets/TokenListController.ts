@@ -1,37 +1,49 @@
+import contractMap from '@metamask/contract-metadata';
 import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
 // eslint-disable-next-line import/no-named-as-default
 import AbortController from 'abort-controller';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
-import { safelyExecute, isTokenDetectionEnabledForNetwork } from '../util';
-import { fetchTokenList } from '../apis/token-service';
+import { safelyExecute } from '../util';
+import { fetchTokenList, fetchTokenMetadata } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
-import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
+import { PreferencesState } from '../user/PreferencesController';
 
 const DEFAULT_INTERVAL = 60 * 60 * 1000;
 const DEFAULT_THRESHOLD = 60 * 30 * 1000;
 
 const name = 'TokenListController';
 
-export type TokenListToken = {
+type BaseToken = {
   name: string;
   symbol: string;
   decimals: number;
+};
+
+type StaticToken = {
+  logo: string;
+  erc20: boolean;
+} & BaseToken;
+
+export type ContractMap = {
+  [address: string]: StaticToken;
+};
+
+export type DynamicToken = {
   address: string;
   occurrences: number;
-  aggregators: string[];
   iconUrl: string;
-};
+} & BaseToken;
 
-export type TokenListMap = Record<string, TokenListToken>;
+export type TokenListToken = {
+  address: string;
+  iconUrl: string;
+  occurrences: number | null;
+} & BaseToken;
 
-type DataCache = {
-  timestamp: number;
-  data: TokenListMap;
-};
-type TokensChainsCache = {
-  [chainSlug: string]: DataCache;
+export type TokenListMap = {
+  [address: string]: TokenListToken;
 };
 
 export type TokenListState = {
@@ -47,6 +59,13 @@ export type TokenListStateChange = {
 export type GetTokenListState = {
   type: `${typeof name}:getState`;
   handler: () => TokenListState;
+};
+type DataCache = {
+  timestamp: number;
+  data: TokenListToken[];
+};
+type TokensChainsCache = {
+  [chainSlug: string]: DataCache;
 };
 
 type TokenListMessenger = RestrictedControllerMessenger<
@@ -85,14 +104,20 @@ export class TokenListController extends BaseController<
 
   private chainId: string;
 
+  private useStaticTokenList: boolean;
+
   private abortController: AbortController;
+
+  // private abortSignal: AbortSignal;
 
   /**
    * Creates a TokenListController instance.
    *
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
+   * @param options.useStaticTokenList - Indicates whether to use the static token list or not.
    * @param options.onNetworkStateChange - A function for registering an event handler for network state changes.
+   * @param options.onPreferencesStateChange -A function for registering an event handler for preference state changes.
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
    * @param options.messenger - A restricted controller messenger.
@@ -100,15 +125,21 @@ export class TokenListController extends BaseController<
    */
   constructor({
     chainId,
+    useStaticTokenList,
     onNetworkStateChange,
+    onPreferencesStateChange,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
     messenger,
     state,
   }: {
     chainId: string;
+    useStaticTokenList: boolean;
     onNetworkStateChange: (
       listener: (networkState: NetworkState) => void,
+    ) => void;
+    onPreferencesStateChange: (
+      listener: (preferencesState: PreferencesState) => void,
     ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
@@ -124,19 +155,22 @@ export class TokenListController extends BaseController<
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
+    this.useStaticTokenList = useStaticTokenList;
     this.abortController = new AbortController();
     onNetworkStateChange(async (networkState) => {
       if (this.chainId !== networkState.provider.chainId) {
         this.abortController.abort();
         this.abortController = new AbortController();
         this.chainId = networkState.provider.chainId;
-        // Ensure tokenList is referencing data from correct network
-        this.update(() => {
-          return {
-            ...this.state,
-            tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
-          };
-        });
+        await this.restart();
+      }
+    });
+
+    onPreferencesStateChange(async (preferencesState) => {
+      if (this.useStaticTokenList !== preferencesState.useStaticTokenList) {
+        this.abortController.abort();
+        this.abortController = new AbortController();
+        this.useStaticTokenList = preferencesState.useStaticTokenList;
         await this.restart();
       }
     });
@@ -146,9 +180,6 @@ export class TokenListController extends BaseController<
    * Start polling for the token list.
    */
   async start() {
-    if (!isTokenDetectionEnabledForNetwork(this.chainId)) {
-      return;
-    }
     await this.startPolling();
   }
 
@@ -194,45 +225,86 @@ export class TokenListController extends BaseController<
   }
 
   /**
-   * Fetching token list from the Token Service API.
+   * Fetching token list.
    */
   async fetchTokenList(): Promise<void> {
+    if (this.useStaticTokenList) {
+      await this.fetchFromStaticTokenList();
+    } else {
+      await this.fetchFromDynamicTokenList();
+    }
+  }
+
+  /**
+   * Fetching token list from the contract-metadata as a fallback.
+   */
+  async fetchFromStaticTokenList(): Promise<void> {
+    const tokenList: TokenListMap = {};
+    for (const tokenAddress in contractMap) {
+      const {
+        erc20,
+        logo: filePath,
+        ...token
+      } = (contractMap as ContractMap)[tokenAddress];
+      if (erc20) {
+        tokenList[tokenAddress] = {
+          ...token,
+          address: tokenAddress,
+          iconUrl: filePath,
+          occurrences: null,
+        };
+      }
+    }
+
+    this.update(() => {
+      return {
+        tokenList,
+        tokensChainsCache: {},
+      };
+    });
+  }
+
+  /**
+   * Fetching token list from the Token Service API.
+   */
+  async fetchFromDynamicTokenList(): Promise<void> {
     const releaseLock = await this.mutex.acquire();
     try {
-      const { tokensChainsCache } = this.state;
-      let tokenList: TokenListMap = {};
-      const cachedTokens: TokenListMap = await safelyExecute(() =>
+      const cachedTokens: TokenListToken[] | null = await safelyExecute(() =>
         this.fetchFromCache(),
       );
+      const { tokensChainsCache, ...tokensData } = this.state;
+      const tokenList: TokenListMap = {};
       if (cachedTokens) {
-        // Use non-expired cached tokens
-        tokenList = { ...cachedTokens };
+        for (const token of cachedTokens) {
+          tokenList[token.address] = token;
+        }
       } else {
-        // Fetch fresh token list
-        const tokensFromAPI: TokenListToken[] = await safelyExecute(() =>
+        const tokensFromAPI: DynamicToken[] = await safelyExecute(() =>
           fetchTokenList(this.chainId, this.abortController.signal),
         );
-
         if (!tokensFromAPI) {
-          // Fallback to expired cached tokens
-          tokenList = { ...(tokensChainsCache[this.chainId]?.data || {}) };
+          const backupTokenList = tokensChainsCache[this.chainId]
+            ? tokensChainsCache[this.chainId].data
+            : [];
+          for (const token of backupTokenList) {
+            tokenList[token.address] = token;
+          }
 
           this.update(() => {
             return {
+              ...tokensData,
               tokenList,
               tokensChainsCache,
             };
           });
           return;
         }
-        // Filtering out tokens with less than 2 occurrences and native tokens
+        // filtering out tokens with less than 2 occurrences
         const filteredTokenList = tokensFromAPI.filter(
-          (token) =>
-            token.occurrences &&
-            token.occurrences >= 2 &&
-            token.address !== '0x0000000000000000000000000000000000000000',
+          (token) => token.occurrences && token.occurrences >= 2,
         );
-        // Removing the tokens with symbol conflicts
+        // removing the tokens with symbol conflicts
         const symbolsList = filteredTokenList.map((token) => token.symbol);
         const duplicateSymbols = [
           ...new Set(
@@ -245,26 +317,19 @@ export class TokenListController extends BaseController<
           (token) => !duplicateSymbols.includes(token.symbol),
         );
         for (const token of uniqueTokenList) {
-          const formattedToken: TokenListToken = {
-            ...token,
-            aggregators: formatAggregatorNames(token.aggregators),
-            iconUrl: formatIconUrlWithProxy({
-              chainId: this.chainId,
-              tokenAddress: token.address,
-            }),
-          };
-          tokenList[token.address] = formattedToken;
+          tokenList[token.address] = token;
         }
       }
       const updatedTokensChainsCache: TokensChainsCache = {
         ...tokensChainsCache,
         [this.chainId]: {
           timestamp: Date.now(),
-          data: tokenList,
+          data: Object.values(tokenList),
         },
       };
       this.update(() => {
         return {
+          ...tokensData,
           tokenList,
           tokensChainsCache: updatedTokensChainsCache,
         };
@@ -281,7 +346,7 @@ export class TokenListController extends BaseController<
    *
    * @returns The cached data, or `null` if the cache was expired.
    */
-  async fetchFromCache(): Promise<TokenListMap | null> {
+  async fetchFromCache(): Promise<TokenListToken[] | null> {
     const { tokensChainsCache }: TokenListState = this.state;
     const dataCache = tokensChainsCache[this.chainId];
     const now = Date.now();
@@ -292,6 +357,26 @@ export class TokenListController extends BaseController<
       return dataCache.data;
     }
     return null;
+  }
+
+  /**
+   * Fetch metadata for a token.
+   *
+   * @param tokenAddress - The address of the token.
+   * @returns The token metadata.
+   */
+  async fetchTokenMetadata(tokenAddress: string): Promise<DynamicToken> {
+    const releaseLock = await this.mutex.acquire();
+    try {
+      const token = (await fetchTokenMetadata(
+        this.chainId,
+        tokenAddress,
+        this.abortController.signal,
+      )) as DynamicToken;
+      return token;
+    } finally {
+      releaseLock();
+    }
   }
 }
 
