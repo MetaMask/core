@@ -1,5 +1,5 @@
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { BN } from 'ethereumjs-util';
+import { BN, stripHexPrefix, toUtf8 } from 'ethereumjs-util';
 import { ERC20 } from '../../constants';
 import { Web3 } from './standards-types';
 
@@ -40,13 +40,13 @@ export class ERC20Standard {
   async getTokenDecimals(address: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC20).at(address);
     return new Promise<string>((resolve, reject) => {
-      contract.decimals((error: Error, result: string) => {
+      contract.decimals((error: Error, result: BN | string) => {
         /* istanbul ignore if */
         if (error) {
           reject(error);
           return;
         }
-        resolve(result);
+        resolve(result.toString());
       });
     });
   }
@@ -58,15 +58,35 @@ export class ERC20Standard {
    * @returns Promise resolving to the 'symbol'.
    */
   async getTokenSymbol(address: string): Promise<string> {
-    const contract = this.web3.eth.contract(abiERC20).at(address);
+    const payload = { to: address, data: '0x95d89b41' }
     return new Promise<string>((resolve, reject) => {
-      contract.symbol((error: Error, result: string) => {
+      this.web3.eth.call(payload, undefined, (error: Error, result: string) => {
         /* istanbul ignore if */
         if (error) {
           reject(error);
           return;
         }
-        resolve(result);
+        // Parse as string
+        try {
+          const stripped = stripHexPrefix(result);
+          const stringLength = new BN(stripped.slice(64, 128), 16).toNumber();
+          const stringValue = stripped.slice(128, 128 + (stringLength * 2));
+          if (stringValue.length > 0) {
+            resolve(toUtf8(stringValue));
+            return;
+          }
+        } catch {
+        }
+
+        try {
+          // Parse as bytes
+          const utf8 = toUtf8(result);
+          resolve(utf8);
+          return;
+        } catch {
+        }
+
+        reject(new Error('Failed to parse token symbol'));
       });
     });
   }
