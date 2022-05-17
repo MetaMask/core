@@ -1,5 +1,7 @@
 import jsonDiffer from 'fast-json-patch';
 import { cloneDeep } from 'lodash';
+import { BigNumber } from 'bignumber.js';
+import { ethers } from 'ethers';
 import {
   APIType,
   SmartTransaction,
@@ -63,6 +65,7 @@ export const calculateStatus = (stxStatus: SmartTransactionsStatus) => {
     SmartTransactionCancellationReason.DEADLINE_MISSED,
     SmartTransactionCancellationReason.INVALID_NONCE,
     SmartTransactionCancellationReason.USER_CANCELLED,
+    SmartTransactionCancellationReason.PREVIOUS_TX_CANCELLED,
   ];
   if (stxStatus?.minedTx === SmartTransactionMinedTx.NOT_MINED) {
     if (
@@ -182,4 +185,9 @@ export const isSmartTransactionCancellable = (
       stxStatus.cancellationReason ===
         SmartTransactionCancellationReason.NOT_CANCELLED)
   );
+};
+
+export const incrementNonceInHex = (nonceInHex: string): string => {
+  const nonceInDec = new BigNumber(nonceInHex, 16).toString(10);
+  return ethers.utils.hexlify(Number(nonceInDec) + 1);
 };

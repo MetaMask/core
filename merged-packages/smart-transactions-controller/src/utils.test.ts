@@ -157,6 +157,17 @@ describe('src/utils.js', () => {
         SmartTransactionStatuses.CANCELLED_USER_CANCELLED,
       );
     });
+
+    it('returns cancellation state "CANCELLED_PREVIOUS_TX_CANCELLED" if cancellationReason provided', () => {
+      const statusResponse = {
+        ...createStatusResponse(),
+        cancellationReason:
+          SmartTransactionCancellationReason.PREVIOUS_TX_CANCELLED,
+      };
+      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
+        SmartTransactionStatuses.CANCELLED_PREVIOUS_TX_CANCELLED,
+      );
+    });
   });
 
   describe('getStxProcessingTime', () => {
@@ -210,6 +221,13 @@ describe('src/utils.js', () => {
         minedTx: SmartTransactionMinedTx.CANCELLED,
       });
       expect(utils.isSmartTransactionCancellable(stxStatus)).toBe(false);
+    });
+  });
+
+  describe('incrementNonceInHex', () => {
+    it('returns "0x57" if we pass "0x56"', () => {
+      const incrementedNonce = utils.incrementNonceInHex('0x56');
+      expect(incrementedNonce).toStrictEqual('0x57');
     });
   });
 });

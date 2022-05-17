@@ -18,7 +18,7 @@ import {
   SmartTransactionsStatus,
   SmartTransactionStatuses,
   Fees,
-  EstimatedGas,
+  IndividualTxFees,
 } from './types';
 import {
   getAPIRequestURL,
@@ -30,6 +30,7 @@ import {
   getStxProcessingTime,
   handleFetch,
   isSmartTransactionCancellable,
+  incrementNonceInHex,
 } from './utils';
 import { CHAIN_IDS } from './constants';
 
@@ -50,10 +51,9 @@ export interface SmartTransactionsControllerState extends BaseState {
     smartTransactions: Record<string, SmartTransaction[]>;
     userOptIn: boolean | undefined;
     liveness: boolean | undefined;
-    fees: Fees | undefined;
-    estimatedGas: {
-      txData: EstimatedGas | undefined;
-      approvalTxData: EstimatedGas | undefined;
+    fees: {
+      approvalTxFees: IndividualTxFees | undefined;
+      tradeTxFees: IndividualTxFees | undefined;
     };
   };
 }
@@ -122,12 +122,11 @@ export default class SmartTransactionsController extends BaseController<
       smartTransactionsState: {
         smartTransactions: {},
         userOptIn: undefined,
-        fees: undefined,
-        liveness: true,
-        estimatedGas: {
-          txData: undefined,
-          approvalTxData: undefined,
+        fees: {
+          approvalTxFees: undefined,
+          tradeTxFees: undefined,
         },
+        liveness: true,
       },
     };
 
@@ -469,72 +468,57 @@ export default class SmartTransactionsController extends BaseController<
     };
   }
 
-  async getFees(unsignedTransaction: UnsignedTransaction): Promise<Fees> {
+  async getFees(
+    tradeTx: UnsignedTransaction,
+    approvalTx: UnsignedTransaction,
+  ): Promise<Fees> {
     const { chainId } = this.config;
-
-    const unsignedTransactionWithNonce = await this.addNonceToTransaction(
-      unsignedTransaction,
-    );
+    const transactions = [];
+    let unsignedTradeTransactionWithNonce;
+    if (approvalTx) {
+      const unsignedApprovalTransactionWithNonce = await this.addNonceToTransaction(
+        approvalTx,
+      );
+      transactions.push(unsignedApprovalTransactionWithNonce);
+      unsignedTradeTransactionWithNonce = {
+        ...tradeTx,
+        // If there is an approval tx, the trade tx's nonce is increased by 1.
+        nonce: incrementNonceInHex(unsignedApprovalTransactionWithNonce.nonce),
+      };
+    } else {
+      unsignedTradeTransactionWithNonce = await this.addNonceToTransaction(
+        tradeTx,
+      );
+    }
+    transactions.push(unsignedTradeTransactionWithNonce);
     const data = await this.fetch(getAPIRequestURL(APIType.GET_FEES, chainId), {
       method: 'POST',
       body: JSON.stringify({
-        tx: unsignedTransactionWithNonce,
+        txs: transactions,
       }),
     });
-    this.update({
-      smartTransactionsState: {
-        ...this.state.smartTransactionsState,
-        fees: data,
-      },
-    });
-    return data;
-  }
-
-  async estimateGas(
-    unsignedTransaction: UnsignedTransaction,
-    approveTxParams: UnsignedTransaction,
-  ): Promise<EstimatedGas> {
-    const { chainId } = this.config;
-
-    let approvalTxData;
-    if (approveTxParams) {
-      const unsignedApprovalTransactionWithNonce = await this.addNonceToTransaction(
-        approveTxParams,
-      );
-      approvalTxData = await this.fetch(
-        getAPIRequestURL(APIType.ESTIMATE_GAS, chainId),
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            tx: unsignedApprovalTransactionWithNonce,
-          }),
-        },
-      );
+    let approvalTxFees;
+    let tradeTxFees;
+    if (approvalTx) {
+      approvalTxFees = data?.txs[0];
+      tradeTxFees = data?.txs[1];
+    } else {
+      tradeTxFees = data?.txs[0];
     }
-    const unsignedTransactionWithNonce = await this.addNonceToTransaction(
-      unsignedTransaction,
-    );
-    const data = await this.fetch(
-      getAPIRequestURL(APIType.ESTIMATE_GAS, chainId),
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          tx: unsignedTransactionWithNonce,
-          ...(approveTxParams && { pending_txs: [approveTxParams] }),
-        }),
-      },
-    );
+
     this.update({
       smartTransactionsState: {
         ...this.state.smartTransactionsState,
-        estimatedGas: {
-          txData: data,
-          approvalTxData,
+        fees: {
+          approvalTxFees,
+          tradeTxFees,
         },
       },
     });
-
-    return data;
+    return {
+      approvalTxFees,
+      tradeTxFees,
+    };
   }
 
   // * After this successful call client must add a nonce representative to

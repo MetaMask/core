@@ -26,6 +26,7 @@ export enum SmartTransactionCancellationReason {
   INVALID_NONCE = 'invalid_nonce',
   USER_CANCELLED = 'user_cancelled',
   NOT_CANCELLED = 'not_cancelled',
+  PREVIOUS_TX_CANCELLED = 'previous_tx_cancelled',
 }
 
 export enum SmartTransactionStatuses {
@@ -39,6 +40,7 @@ export enum SmartTransactionStatuses {
   CANCELLED_DEADLINE_MISSED = 'cancelled_deadline_missed',
   CANCELLED_INVALID_NONCE = 'cancelled_invalid_nonce',
   CANCELLED_USER_CANCELLED = 'cancelled_user_cancelled',
+  CANCELLED_PREVIOUS_TX_CANCELLED = 'cancelled_previous_tx_cancelled',
   RESOLVED = 'resolved',
 }
 
@@ -53,6 +55,8 @@ export const cancellationReasonToStatusMap = {
     SmartTransactionStatuses.CANCELLED_INVALID_NONCE,
   [SmartTransactionCancellationReason.USER_CANCELLED]:
     SmartTransactionStatuses.CANCELLED_USER_CANCELLED,
+  [SmartTransactionCancellationReason.PREVIOUS_TX_CANCELLED]:
+    SmartTransactionStatuses.CANCELLED_PREVIOUS_TX_CANCELLED,
 };
 
 export interface SmartTransactionsStatus {
@@ -92,7 +96,7 @@ export interface Fee {
   maxPriorityFeePerGas: number;
 }
 
-export interface Fees {
+export interface IndividualTxFees {
   fees: Fee[];
   cancelFees: Fee[];
   feeEstimate: number;
@@ -100,13 +104,12 @@ export interface Fees {
   gasUsed: number;
 }
 
-export interface EstimatedGas {
-  gasUsed: number;
-  gasLimit: number;
-  feeEstimate: number;
+export interface Fees {
+  approvalTxFees: IndividualTxFees | undefined;
+  tradeTxFees: IndividualTxFees | undefined;
 }
 
-// TODO: maybe grab the type from transactions controller?
+// TODO
 export type UnsignedTransaction = any;
 
 // TODO

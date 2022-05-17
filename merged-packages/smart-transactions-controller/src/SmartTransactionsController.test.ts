@@ -47,59 +47,104 @@ const createUnsignedTransaction = () => {
 
 const createGetFeesApiResponse = () => {
   return {
-    cancelFees: [
-      { maxFeePerGas: 2100001000, maxPriorityFeePerGas: 466503987 },
-      { maxFeePerGas: 2310003200, maxPriorityFeePerGas: 513154852 },
-      { maxFeePerGas: 2541005830, maxPriorityFeePerGas: 564470851 },
-      { maxFeePerGas: 2795108954, maxPriorityFeePerGas: 620918500 },
-      { maxFeePerGas: 3074622644, maxPriorityFeePerGas: 683010971 },
-      { maxFeePerGas: 3382087983, maxPriorityFeePerGas: 751312751 },
-      { maxFeePerGas: 3720300164, maxPriorityFeePerGas: 826444778 },
-      { maxFeePerGas: 4092333900, maxPriorityFeePerGas: 909090082 },
-      { maxFeePerGas: 4501571383, maxPriorityFeePerGas: 1000000000 },
-      { maxFeePerGas: 4951733023, maxPriorityFeePerGas: 1100001000 },
-      { maxFeePerGas: 5446911277, maxPriorityFeePerGas: 1210002200 },
-      { maxFeePerGas: 5991607851, maxPriorityFeePerGas: 1331003630 },
-      { maxFeePerGas: 6590774628, maxPriorityFeePerGas: 1464105324 },
-      { maxFeePerGas: 7249858682, maxPriorityFeePerGas: 1610517320 },
-      { maxFeePerGas: 7974851800, maxPriorityFeePerGas: 1771570663 },
-      { maxFeePerGas: 8772344955, maxPriorityFeePerGas: 1948729500 },
-      { maxFeePerGas: 9649588222, maxPriorityFeePerGas: 2143604399 },
-      { maxFeePerGas: 10614556694, maxPriorityFeePerGas: 2357966983 },
-      { maxFeePerGas: 11676022978, maxPriorityFeePerGas: 2593766039 },
+    txs: [
+      {
+        // Approval tx.
+        cancelFees: [
+          { maxFeePerGas: 2100001000, maxPriorityFeePerGas: 466503987 },
+          { maxFeePerGas: 2310003200, maxPriorityFeePerGas: 513154852 },
+          { maxFeePerGas: 2541005830, maxPriorityFeePerGas: 564470851 },
+          { maxFeePerGas: 2795108954, maxPriorityFeePerGas: 620918500 },
+          { maxFeePerGas: 3074622644, maxPriorityFeePerGas: 683010971 },
+          { maxFeePerGas: 3382087983, maxPriorityFeePerGas: 751312751 },
+          { maxFeePerGas: 3720300164, maxPriorityFeePerGas: 826444778 },
+          { maxFeePerGas: 4092333900, maxPriorityFeePerGas: 909090082 },
+          { maxFeePerGas: 4501571383, maxPriorityFeePerGas: 1000000000 },
+          { maxFeePerGas: 4951733023, maxPriorityFeePerGas: 1100001000 },
+          { maxFeePerGas: 5446911277, maxPriorityFeePerGas: 1210002200 },
+          { maxFeePerGas: 5991607851, maxPriorityFeePerGas: 1331003630 },
+          { maxFeePerGas: 6590774628, maxPriorityFeePerGas: 1464105324 },
+          { maxFeePerGas: 7249858682, maxPriorityFeePerGas: 1610517320 },
+          { maxFeePerGas: 7974851800, maxPriorityFeePerGas: 1771570663 },
+          { maxFeePerGas: 8772344955, maxPriorityFeePerGas: 1948729500 },
+          { maxFeePerGas: 9649588222, maxPriorityFeePerGas: 2143604399 },
+          { maxFeePerGas: 10614556694, maxPriorityFeePerGas: 2357966983 },
+          { maxFeePerGas: 11676022978, maxPriorityFeePerGas: 2593766039 },
+        ],
+        feeEstimate: 42000000000000,
+        fees: [
+          { maxFeePerGas: 2310003200, maxPriorityFeePerGas: 513154852 },
+          { maxFeePerGas: 2541005830, maxPriorityFeePerGas: 564470850 },
+          { maxFeePerGas: 2795108954, maxPriorityFeePerGas: 620918500 },
+          { maxFeePerGas: 3074622644, maxPriorityFeePerGas: 683010970 },
+          { maxFeePerGas: 3382087983, maxPriorityFeePerGas: 751312751 },
+          { maxFeePerGas: 3720300163, maxPriorityFeePerGas: 826444777 },
+          { maxFeePerGas: 4092333900, maxPriorityFeePerGas: 909090082 },
+          { maxFeePerGas: 4501571382, maxPriorityFeePerGas: 999999999 },
+          { maxFeePerGas: 4951733022, maxPriorityFeePerGas: 1100001000 },
+          { maxFeePerGas: 5446911277, maxPriorityFeePerGas: 1210002200 },
+          { maxFeePerGas: 5991607851, maxPriorityFeePerGas: 1331003630 },
+          { maxFeePerGas: 6590774627, maxPriorityFeePerGas: 1464105324 },
+          { maxFeePerGas: 7249858681, maxPriorityFeePerGas: 1610517320 },
+          { maxFeePerGas: 7974851800, maxPriorityFeePerGas: 1771570662 },
+          { maxFeePerGas: 8772344954, maxPriorityFeePerGas: 1948729500 },
+          { maxFeePerGas: 9649588222, maxPriorityFeePerGas: 2143604398 },
+          { maxFeePerGas: 10614556693, maxPriorityFeePerGas: 2357966982 },
+          { maxFeePerGas: 11676022977, maxPriorityFeePerGas: 2593766039 },
+          { maxFeePerGas: 12843636951, maxPriorityFeePerGas: 2853145236 },
+        ],
+        gasLimit: 21000,
+        gasUsed: 21000,
+      },
+      {
+        // Trade tx.
+        cancelFees: [
+          { maxFeePerGas: 2100001000, maxPriorityFeePerGas: 466503987 },
+          { maxFeePerGas: 2310003200, maxPriorityFeePerGas: 513154852 },
+          { maxFeePerGas: 2541005830, maxPriorityFeePerGas: 564470851 },
+          { maxFeePerGas: 2795108954, maxPriorityFeePerGas: 620918500 },
+          { maxFeePerGas: 3074622644, maxPriorityFeePerGas: 683010971 },
+          { maxFeePerGas: 3382087983, maxPriorityFeePerGas: 751312751 },
+          { maxFeePerGas: 3720300164, maxPriorityFeePerGas: 826444778 },
+          { maxFeePerGas: 4092333900, maxPriorityFeePerGas: 909090082 },
+          { maxFeePerGas: 4501571383, maxPriorityFeePerGas: 1000000000 },
+          { maxFeePerGas: 4951733023, maxPriorityFeePerGas: 1100001000 },
+          { maxFeePerGas: 5446911277, maxPriorityFeePerGas: 1210002200 },
+          { maxFeePerGas: 5991607851, maxPriorityFeePerGas: 1331003630 },
+          { maxFeePerGas: 6590774628, maxPriorityFeePerGas: 1464105324 },
+          { maxFeePerGas: 7249858682, maxPriorityFeePerGas: 1610517320 },
+          { maxFeePerGas: 7974851800, maxPriorityFeePerGas: 1771570663 },
+          { maxFeePerGas: 8772344955, maxPriorityFeePerGas: 1948729500 },
+          { maxFeePerGas: 9649588222, maxPriorityFeePerGas: 2143604399 },
+          { maxFeePerGas: 10614556694, maxPriorityFeePerGas: 2357966983 },
+          { maxFeePerGas: 11676022978, maxPriorityFeePerGas: 2593766039 },
+        ],
+        feeEstimate: 42000000000000,
+        fees: [
+          { maxFeePerGas: 2310003200, maxPriorityFeePerGas: 513154852 },
+          { maxFeePerGas: 2541005830, maxPriorityFeePerGas: 564470850 },
+          { maxFeePerGas: 2795108954, maxPriorityFeePerGas: 620918500 },
+          { maxFeePerGas: 3074622644, maxPriorityFeePerGas: 683010970 },
+          { maxFeePerGas: 3382087983, maxPriorityFeePerGas: 751312751 },
+          { maxFeePerGas: 3720300163, maxPriorityFeePerGas: 826444777 },
+          { maxFeePerGas: 4092333900, maxPriorityFeePerGas: 909090082 },
+          { maxFeePerGas: 4501571382, maxPriorityFeePerGas: 999999999 },
+          { maxFeePerGas: 4951733022, maxPriorityFeePerGas: 1100001000 },
+          { maxFeePerGas: 5446911277, maxPriorityFeePerGas: 1210002200 },
+          { maxFeePerGas: 5991607851, maxPriorityFeePerGas: 1331003630 },
+          { maxFeePerGas: 6590774627, maxPriorityFeePerGas: 1464105324 },
+          { maxFeePerGas: 7249858681, maxPriorityFeePerGas: 1610517320 },
+          { maxFeePerGas: 7974851800, maxPriorityFeePerGas: 1771570662 },
+          { maxFeePerGas: 8772344954, maxPriorityFeePerGas: 1948729500 },
+          { maxFeePerGas: 9649588222, maxPriorityFeePerGas: 2143604398 },
+          { maxFeePerGas: 10614556693, maxPriorityFeePerGas: 2357966982 },
+          { maxFeePerGas: 11676022977, maxPriorityFeePerGas: 2593766039 },
+          { maxFeePerGas: 12843636951, maxPriorityFeePerGas: 2853145236 },
+        ],
+        gasLimit: 21000,
+        gasUsed: 21000,
+      },
     ],
-    feeEstimate: 42000000000000,
-    fees: [
-      { maxFeePerGas: 2310003200, maxPriorityFeePerGas: 513154852 },
-      { maxFeePerGas: 2541005830, maxPriorityFeePerGas: 564470850 },
-      { maxFeePerGas: 2795108954, maxPriorityFeePerGas: 620918500 },
-      { maxFeePerGas: 3074622644, maxPriorityFeePerGas: 683010970 },
-      { maxFeePerGas: 3382087983, maxPriorityFeePerGas: 751312751 },
-      { maxFeePerGas: 3720300163, maxPriorityFeePerGas: 826444777 },
-      { maxFeePerGas: 4092333900, maxPriorityFeePerGas: 909090082 },
-      { maxFeePerGas: 4501571382, maxPriorityFeePerGas: 999999999 },
-      { maxFeePerGas: 4951733022, maxPriorityFeePerGas: 1100001000 },
-      { maxFeePerGas: 5446911277, maxPriorityFeePerGas: 1210002200 },
-      { maxFeePerGas: 5991607851, maxPriorityFeePerGas: 1331003630 },
-      { maxFeePerGas: 6590774627, maxPriorityFeePerGas: 1464105324 },
-      { maxFeePerGas: 7249858681, maxPriorityFeePerGas: 1610517320 },
-      { maxFeePerGas: 7974851800, maxPriorityFeePerGas: 1771570662 },
-      { maxFeePerGas: 8772344954, maxPriorityFeePerGas: 1948729500 },
-      { maxFeePerGas: 9649588222, maxPriorityFeePerGas: 2143604398 },
-      { maxFeePerGas: 10614556693, maxPriorityFeePerGas: 2357966982 },
-      { maxFeePerGas: 11676022977, maxPriorityFeePerGas: 2593766039 },
-      { maxFeePerGas: 12843636951, maxPriorityFeePerGas: 2853145236 },
-    ],
-    gasLimit: 21000,
-    gasUsed: 21000,
-  };
-};
-
-const createEstimateGasApiResponse = () => {
-  return {
-    feeEstimate: 42000000000000,
-    gasLimit: 21000,
-    gasUsed: 21000,
   };
 };
 
@@ -255,12 +300,11 @@ describe('SmartTransactionsController', () => {
           [CHAIN_IDS.ETHEREUM]: [],
         },
         userOptIn: undefined,
-        fees: undefined,
-        liveness: true,
-        estimatedGas: {
-          approvalTxData: undefined,
-          txData: undefined,
+        fees: {
+          approvalTxFees: undefined,
+          tradeTxFees: undefined,
         },
+        liveness: true,
       },
     });
   });
@@ -391,15 +435,20 @@ describe('SmartTransactionsController', () => {
 
   describe('getFees', () => {
     it('gets unsigned transactions and estimates based on an unsigned transaction', async () => {
-      const unsignedTransaction = createUnsignedTransaction();
+      const tradeTx = createUnsignedTransaction();
+      const approvalTx = createUnsignedTransaction();
       const getFeesApiResponse = createGetFeesApiResponse();
       nock(API_BASE_URL)
         .post(`/networks/${ethereumChainIdDec}/getFees`)
         .reply(200, getFeesApiResponse);
       const fees = await smartTransactionsController.getFees(
-        unsignedTransaction,
+        tradeTx,
+        approvalTx,
       );
-      expect(fees).toStrictEqual(getFeesApiResponse);
+      expect(fees).toMatchObject({
+        approvalTxFees: getFeesApiResponse.txs[0],
+        tradeTxFees: getFeesApiResponse.txs[1],
+      });
     });
   });
 
@@ -451,12 +500,11 @@ describe('SmartTransactionsController', () => {
             [CHAIN_IDS.ETHEREUM]: [pendingTransaction],
           },
           userOptIn: undefined,
-          fees: undefined,
-          liveness: true,
-          estimatedGas: {
-            approvalTxData: undefined,
-            txData: undefined,
+          fees: {
+            approvalTxFees: undefined,
+            tradeTxFees: undefined,
           },
+          liveness: true,
         },
       });
     });
@@ -488,10 +536,9 @@ describe('SmartTransactionsController', () => {
             ],
           },
           userOptIn: undefined,
-          fees: undefined,
-          estimatedGas: {
-            approvalTxData: undefined,
-            txData: undefined,
+          fees: {
+            approvalTxFees: undefined,
+            tradeTxFees: undefined,
           },
           liveness: true,
         },
@@ -686,21 +733,6 @@ describe('SmartTransactionsController', () => {
       });
       const actual = smartTransactionsController.isNewSmartTransaction('uuid1');
       expect(actual).toBe(false);
-    });
-  });
-
-  describe('estimateGas', () => {
-    it('gets estimated gas for a transaction', async () => {
-      const unsignedTransaction = createUnsignedTransaction();
-      const estimateGasApiResponse = createEstimateGasApiResponse();
-      nock(API_BASE_URL)
-        .post(`/networks/${ethereumChainIdDec}/estimateGas`)
-        .reply(200, estimateGasApiResponse);
-      const estimatedGas = await smartTransactionsController.estimateGas(
-        unsignedTransaction,
-        null,
-      );
-      expect(estimatedGas).toStrictEqual(estimateGasApiResponse);
     });
   });
 });
