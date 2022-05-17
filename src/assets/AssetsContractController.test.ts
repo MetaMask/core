@@ -165,7 +165,12 @@ describe('AssetsContractController', () => {
     const details = await assetsContract.getTokenStandardAndDetails(
       ERC20_UNI_ADDRESS,
     );
-    expect(details).toStrictEqual({ decimals: '18', standard: 'ERC20', symbol: "UNI", balance: undefined });
+    expect(details).toStrictEqual({
+      decimals: '18',
+      standard: 'ERC20',
+      symbol: 'UNI',
+      balance: undefined,
+    });
   });
 
   it('should support non-standard ERC20 symbols', async () => {
@@ -173,7 +178,12 @@ describe('AssetsContractController', () => {
     const details = await assetsContract.getTokenStandardAndDetails(
       MKR_ADDRESS,
     );
-    expect(details).toStrictEqual({ decimals: '18', standard: 'ERC20', symbol: "MKR", balance: undefined });
+    expect(details).toStrictEqual({
+      decimals: '18',
+      standard: 'ERC20',
+      symbol: 'MKR',
+      balance: undefined,
+    });
   });
 
   it('should get ERC-721 collectible ownership', async () => {

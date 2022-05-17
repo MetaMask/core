@@ -58,7 +58,7 @@ export class ERC20Standard {
    * @returns Promise resolving to the 'symbol'.
    */
   async getTokenSymbol(address: string): Promise<string> {
-    const payload = { to: address, data: '0x95d89b41' }
+    const payload = { to: address, data: '0x95d89b41' };
     return new Promise<string>((resolve, reject) => {
       this.web3.eth.call(payload, undefined, (error: Error, result: string) => {
         /* istanbul ignore if */
@@ -66,16 +66,18 @@ export class ERC20Standard {
           reject(error);
           return;
         }
+
         // Parse as string
         try {
           const stripped = stripHexPrefix(result);
           const stringLength = new BN(stripped.slice(64, 128), 16).toNumber();
-          const stringValue = stripped.slice(128, 128 + (stringLength * 2));
+          const stringValue = stripped.slice(128, 128 + stringLength * 2);
           if (stringValue.length > 0) {
             resolve(toUtf8(stringValue));
             return;
           }
         } catch {
+          // Ignore error
         }
 
         try {
@@ -84,6 +86,7 @@ export class ERC20Standard {
           resolve(utf8);
           return;
         } catch {
+          // Ignore error
         }
 
         reject(new Error('Failed to parse token symbol'));
