@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+### Added
+- "estimateGas" -> "getFees", support a new cancellation reason, refactoring ([#69](https://github.com/MetaMask/smart-transactions-controller/pull/69))
+- chore(deps): bump @metamask/controllers from 28.0.0 to 29.0.1 ([#68](https://github.com/MetaMask/smart-transactions-controller/pull/68))
+- If mined status is not mined and cancel reason not set, then show the cancel link, refactoring ([#66](https://github.com/MetaMask/smart-transactions-controller/pull/66))
+- chore(deps): bump @metamask/controllers from 27.1.1 to 28.0.0 ([#65](https://github.com/MetaMask/smart-transactions-controller/pull/65))
+
 ## [1.10.0]
 ### Added
 - Handle the "cancelled" status, lower status polling interval from 10s to 5s, don't mark a tx as cancelled immediately, track uuid ([#63](https://github.com/MetaMask/smart-transactions-controller/pull/63))
@@ -81,7 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.10.0...v2.0.0
 [1.10.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.9.1...v1.10.0
 [1.9.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v1.8.0...v1.9.0
