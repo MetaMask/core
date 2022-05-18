@@ -126,6 +126,33 @@ engine.push(
 );
 ```
 
+### Teardown
+
+If your middleware has teardown to perform, you can assign a method `destroy()` to your middleware function(s),
+and calling `JsonRpcEngine.destroy()` will call this method on each middleware that has it.
+A destroyed engine can no longer be used.
+
+```js
+const middleware = (req, res, next, end) => {
+  /* do something */
+};
+middleware.destroy = () => {
+  /* perform teardown */
+};
+
+const engine = new JsonRpcEngine();
+engine.push(middleware);
+
+/* perform work */
+
+// This will call middleware.destroy() and destroy the engine itself.
+engine.destroy();
+
+// Calling any public method on the middleware other than `destroy()` itself
+// will throw an error.
+engine.handle(req);
+```
+
 ### Gotchas
 
 Handle errors via `end(err)`, _NOT_ `next(err)`.
