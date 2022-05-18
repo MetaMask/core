@@ -18,8 +18,8 @@ import {
 import { MAINNET, ERC721_INTERFACE_ID } from '../constants';
 import { fetchTokenMetadata } from '../apis/token-service';
 import type { Token } from './TokenRatesController';
-import { RawToken } from './TokenListController';
-import { AggregatorKey, formatAggregatorNames } from './assetsUtil';
+import { TokenListToken } from './TokenListController';
+import { formatAggregatorNames } from './assetsUtil';
 
 /**
  * @type TokensConfig
@@ -248,9 +248,7 @@ export class TokensController extends BaseController<
         decimals,
         image,
         isERC721,
-        aggregators: formatAggregatorNames(
-          (tokenMetadata.aggregators || []) as AggregatorKey[],
-        ),
+        aggregators: formatAggregatorNames(tokenMetadata.aggregators || []),
       };
       const previousEntry = tokens.find(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
@@ -751,9 +749,9 @@ export class TokensController extends BaseController<
    * @param tokenAddress - The address of the token.
    * @returns The token metadata.
    */
-  async fetchTokenMetadata(tokenAddress: string): Promise<RawToken> {
+  async fetchTokenMetadata(tokenAddress: string): Promise<TokenListToken> {
     try {
-      const token = await fetchTokenMetadata<RawToken>(
+      const token = await fetchTokenMetadata<TokenListToken>(
         isHexString(this.config.chainId)
           ? convertPriceToDecimal(this.config.chainId).toString()
           : this.config.chainId,
@@ -762,7 +760,7 @@ export class TokensController extends BaseController<
       );
       return token;
     } catch {
-      return {} as RawToken;
+      return {} as TokenListToken;
     }
   }
 

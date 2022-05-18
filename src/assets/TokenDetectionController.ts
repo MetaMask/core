@@ -12,7 +12,7 @@ import { MAINNET } from '../constants';
 import { NetworksChainId } from '..';
 import type { TokensController, TokensState } from './TokensController';
 import type { AssetsContractController } from './AssetsContractController';
-import { Token } from './TokenListController';
+import { Token } from './TokenRatesController';
 import { TokenListState } from './TokenListController';
 
 const DEFAULT_INTERVAL = 180000;
@@ -144,9 +144,8 @@ export class TokenDetectionController extends BaseController<
         this.abortController.abort();
         this.abortController = new AbortController();
         const incomingChainId = networkState.provider.chainId;
-        const isTokenDetectionSupported = isTokenDetectionEnabledForNetwork(
-          incomingChainId,
-        );
+        const isTokenDetectionSupported =
+          isTokenDetectionEnabledForNetwork(incomingChainId);
         const isDetectionEnabled =
           isTokenDetectionSupported && !this.config.disabled;
         this.configure({
