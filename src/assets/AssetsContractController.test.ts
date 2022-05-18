@@ -14,7 +14,6 @@ const MAINNET_PROVIDER = new HttpProvider(
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_DAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';
-const MKR_ADDRESS = '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2';
 const ERC721_GODS_ADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
 const ERC1155_ADDRESS = '0x495f947276749ce646f68ac8c248420045cb7b5e';
 const ERC1155_ID =
@@ -158,32 +157,6 @@ describe('AssetsContractController', () => {
       ERC20_DAI_ADDRESS,
     );
     expect(Number(decimals)).toStrictEqual(18);
-  });
-
-  it('should support standard ERC20 symbols', async () => {
-    assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const details = await assetsContract.getTokenStandardAndDetails(
-      ERC20_UNI_ADDRESS,
-    );
-    expect(details).toStrictEqual({
-      decimals: '18',
-      standard: 'ERC20',
-      symbol: 'UNI',
-      balance: undefined,
-    });
-  });
-
-  it('should support non-standard ERC20 symbols', async () => {
-    assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const details = await assetsContract.getTokenStandardAndDetails(
-      MKR_ADDRESS,
-    );
-    expect(details).toStrictEqual({
-      decimals: '18',
-      standard: 'ERC20',
-      symbol: 'MKR',
-      balance: undefined,
-    });
   });
 
   it('should get ERC-721 collectible ownership', async () => {
