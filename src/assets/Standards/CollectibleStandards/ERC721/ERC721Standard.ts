@@ -221,46 +221,45 @@ export class ERC721Standard {
     name: string | undefined;
     image: string | undefined;
   }> => {
-    const [isERC721, supportsMetadata] = await Promise.all([
-      this.contractSupportsBase721Interface(address),
-      this.contractSupportsMetadataInterface(address),
-    ]);
-    let tokenURI, symbol, name, image;
-    if (supportsMetadata) {
+    const isERC721 = await this.contractSupportsBase721Interface(address);
+    if (!isERC721) {
+      throw new Error("This isn't a valid ERC721 contract");
+    }
+
+    let tokenURI, image, symbol, name;
+    try {
       [symbol, name] = await Promise.all([
         this.getAssetSymbol(address),
         this.getAssetName(address),
       ]);
+    } catch {
+      // ignore
+    }
 
-      if (tokenId) {
+    if (tokenId) {
+      try {
         tokenURI = await this.getTokenURI(address, tokenId);
         if (tokenURI.startsWith('ipfs://')) {
           tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, true);
         }
 
-        try {
-          const response = await timeoutFetch(tokenURI);
-          const object = await response.json();
-          image = object?.image;
-          if (image?.startsWith('ipfs://')) {
-            image = getFormattedIpfsUrl(ipfsGateway, image, true);
-          }
-        } catch {
-          // ignore
+        const response = await timeoutFetch(tokenURI);
+        const object = await response.json();
+        image = object?.image;
+        if (image?.startsWith('ipfs://')) {
+          image = getFormattedIpfsUrl(ipfsGateway, image, true);
         }
+      } catch {
+        // ignore
       }
     }
 
-    if (isERC721) {
-      return {
-        standard: ERC721,
-        tokenURI,
-        symbol,
-        name,
-        image,
-      };
-    }
-
-    throw new Error("This isn't a valid ERC721 contract");
+    return {
+      standard: ERC721,
+      tokenURI,
+      symbol,
+      name,
+      image,
+    };
   };
 }
