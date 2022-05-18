@@ -1,5 +1,6 @@
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { BN, stripHexPrefix, toUtf8 } from 'ethereumjs-util';
+import { BN, toUtf8 } from 'ethereumjs-util';
+import { AbiCoder } from 'ethers/lib/utils';
 import { ERC20 } from '../../constants';
 import { Web3 } from './standards-types';
 
@@ -68,14 +69,13 @@ export class ERC20Standard {
           return;
         }
 
+        const abiCoder = new AbiCoder();
+
         // Parse as string
         try {
-          const stripped = stripHexPrefix(result);
-          const stringLength =
-            new BN(stripped.slice(64, 128), 16).toNumber() * 2;
-          const stringValue = stripped.slice(128, 128 + stringLength);
-          if (stringValue.length === stringLength && stringLength > 0) {
-            resolve(toUtf8(stringValue));
+          const decoded = abiCoder.decode(['string'], result)[0];
+          if (decoded) {
+            resolve(decoded);
             return;
           }
         } catch {
