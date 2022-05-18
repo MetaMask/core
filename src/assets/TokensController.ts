@@ -5,8 +5,7 @@ import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import { ethers } from 'ethers';
 import { isHexString } from 'ethereumjs-util';
-// eslint-disable-next-line import/no-named-as-default
-import AbortController from 'abort-controller';
+import { AbortController } from 'abort-controller';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';

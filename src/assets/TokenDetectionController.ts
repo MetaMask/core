@@ -1,5 +1,4 @@
-// eslint-disable-next-line import/no-named-as-default
-import AbortController from 'abort-controller';
+import { AbortController } from 'abort-controller';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
