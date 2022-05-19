@@ -228,10 +228,9 @@ export class ERC721Standard {
 
     let tokenURI, image, symbol, name;
     try {
-      [symbol, name] = await Promise.all([
-        this.getAssetSymbol(address),
-        this.getAssetName(address),
-      ]);
+      // TODO upgrade to use Promise.allSettled
+      symbol = await this.getAssetSymbol(address);
+      name = await this.getAssetName(address);
     } catch {
       // ignore
     }
