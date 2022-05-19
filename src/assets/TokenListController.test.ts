@@ -122,12 +122,12 @@ const sampleWithDuplicateSymbolsTokensChainsCache =
     return output;
   }, {} as TokenListMap);
 
-const sampleWithLessThan2Occurences = [
+const sampleWithLessThan3Occurences = [
   {
     address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
     symbol: 'SNX',
     decimals: 18,
-    occurrences: 2,
+    occurrences: 3,
     name: 'Synthetix',
     iconUrl:
       'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
@@ -170,8 +170,8 @@ const sampleWithLessThan2Occurences = [
   },
 ];
 
-const sampleWithLessThan2OccurencesTokensChainsCache =
-  sampleWithLessThan2Occurences.reduce((output, current) => {
+const sampleWithLessThan3OccurencesTokensChainsCache =
+  sampleWithLessThan3Occurences.reduce((output, current) => {
     output[current.address] = current;
     return output;
   }, {} as TokenListMap);
@@ -436,7 +436,7 @@ const expiredCacheExistingState: TokenListState = {
   },
   tokensChainsCache: {
     '1': {
-      timestamp: timestamp - 1800000,
+      timestamp: timestamp - 86400000,
       data: {
         '0x514910771af9ca656af840dff83e8264ecf986ca': {
           address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -821,10 +821,10 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
-  it('should update token list after removing data less than 2 occurrences', async () => {
+  it('should update token list after removing data less than 3 occurrences', async () => {
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${NetworksChainId.mainnet}`)
-      .reply(200, sampleWithLessThan2Occurences)
+      .reply(200, sampleWithLessThan3Occurences)
       .persist();
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
@@ -838,7 +838,7 @@ describe('TokenListController', () => {
         address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
         symbol: 'SNX',
         decimals: 18,
-        occurrences: 2,
+        occurrences: 3,
         name: 'Synthetix',
         iconUrl:
           'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
@@ -883,7 +883,7 @@ describe('TokenListController', () => {
 
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
-    ).toStrictEqual(sampleWithLessThan2OccurencesTokensChainsCache);
+    ).toStrictEqual(sampleWithLessThan3OccurencesTokensChainsCache);
     controller.destroy();
   });
 
