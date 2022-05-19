@@ -127,7 +127,7 @@ const sampleWithLessThan3Occurences = [
     address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
     symbol: 'SNX',
     decimals: 18,
-    occurrences: 3,
+    occurrences: 2,
     name: 'Synthetix',
     iconUrl:
       'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
@@ -171,10 +171,12 @@ const sampleWithLessThan3Occurences = [
 ];
 
 const sampleWithLessThan3OccurencesTokensChainsCache =
-  sampleWithLessThan3Occurences.reduce((output, current) => {
-    output[current.address] = current;
-    return output;
-  }, {} as TokenListMap);
+  sampleWithLessThan3Occurences
+    .filter(({ occurrences }) => occurrences >= 3)
+    .reduce((output, current) => {
+      output[current.address] = current;
+      return output;
+    }, {} as TokenListMap);
 
 const sampleBinanceTokenList = [
   {
@@ -834,29 +836,6 @@ describe('TokenListController', () => {
     });
     await controller.start();
     expect(controller.state.tokenList).toStrictEqual({
-      '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f': {
-        address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
-        symbol: 'SNX',
-        decimals: 18,
-        occurrences: 3,
-        name: 'Synthetix',
-        iconUrl:
-          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
-        aggregators: [
-          'Aave',
-          'Bancor',
-          'CMC',
-          'Crypto.com',
-          'CoinGecko',
-          '1inch',
-          'Paraswap',
-          'PMM',
-          'Synthetix',
-          'Zapper',
-          'Zerion',
-          '0x',
-        ],
-      },
       '0x514910771af9ca656af840dff83e8264ecf986ca': {
         address: '0x514910771af9ca656af840dff83e8264ecf986ca',
         symbol: 'LINK',
