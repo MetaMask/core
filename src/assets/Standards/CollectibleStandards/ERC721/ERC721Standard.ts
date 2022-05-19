@@ -227,9 +227,15 @@ export class ERC721Standard {
     }
 
     let tokenURI, image, symbol, name;
+
+    // TODO upgrade to use Promise.allSettled for name/symbol when we can refactor to use es2020 in tsconfig
     try {
-      // TODO upgrade to use Promise.allSettled
       symbol = await this.getAssetSymbol(address);
+    } catch {
+      // ignore
+    }
+
+    try {
       name = await this.getAssetName(address);
     } catch {
       // ignore

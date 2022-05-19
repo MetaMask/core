@@ -447,7 +447,7 @@ describe('ERC721Standard', () => {
     nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 19,
+        id: 20,
         method: 'eth_call',
         params: [
           {
@@ -459,7 +459,7 @@ describe('ERC721Standard', () => {
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 19,
+        id: 20,
         result:
           '0x0000000000000000000000000000000000000000000000000000000000000000',
       });
@@ -474,7 +474,7 @@ describe('ERC721Standard', () => {
     nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 20,
+        id: 21,
         method: 'eth_call',
         params: [
           {
@@ -486,13 +486,13 @@ describe('ERC721Standard', () => {
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 20,
+        id: 21,
         result:
           '0x0000000000000000000000000000000000000000000000000000000000000001',
       })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 21,
+        id: 22,
         method: 'eth_call',
         params: [
           {
@@ -504,13 +504,13 @@ describe('ERC721Standard', () => {
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 21,
+        id: 22,
         result:
           '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000044c414e4400000000000000000000000000000000000000000000000000000000',
       })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 22,
+        id: 23,
         method: 'eth_call',
         params: [
           {
@@ -522,7 +522,7 @@ describe('ERC721Standard', () => {
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 22,
+        id: 23,
         result:
           '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000011446563656e7472616c616e64204c414e44000000000000000000000000000000',
       });
