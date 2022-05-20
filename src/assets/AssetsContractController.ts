@@ -9,6 +9,7 @@ import { NetworkState } from '../network/NetworkController';
 import { ERC721Standard } from './Standards/CollectibleStandards/ERC721/ERC721Standard';
 import { ERC1155Standard } from './Standards/CollectibleStandards/ERC1155/ERC1155Standard';
 import { ERC20Standard } from './Standards/ERC20Standard';
+import { NonStandardFallback } from './Standards/NonStandardFallBack';
 
 /**
  * Check if token detection is enabled for certain networks
@@ -66,6 +67,8 @@ export class AssetsContractController extends BaseController<
   private erc1155Standard?: ERC1155Standard;
 
   private erc20Standard?: ERC20Standard;
+
+  private nonStandardFallback?: NonStandardFallback;
 
   /**
    * Name of this controller used during composition
@@ -129,6 +132,11 @@ export class AssetsContractController extends BaseController<
     this.erc721Standard = new ERC721Standard(this.web3);
     this.erc1155Standard = new ERC1155Standard(this.web3);
     this.erc20Standard = new ERC20Standard(this.web3);
+
+    this.nonStandardFallback = new NonStandardFallback({
+      erc721Standard: this.erc721Standard,
+      erc20Standard: this.erc20Standard,
+    });
   }
 
   get provider() {
@@ -211,7 +219,8 @@ export class AssetsContractController extends BaseController<
     if (
       this.erc721Standard === undefined ||
       this.erc1155Standard === undefined ||
-      this.erc20Standard === undefined
+      this.erc20Standard === undefined ||
+      this.nonStandardFallback === undefined
     ) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
@@ -253,7 +262,12 @@ export class AssetsContractController extends BaseController<
       // Ignore
     }
 
-    throw new Error('Unable to determine contract standard');
+    return await this.nonStandardFallback.getDetails(
+      tokenAddress,
+      ipfsGateway,
+      userAddress,
+      tokenId,
+    );
   }
 
   /**

@@ -202,6 +202,38 @@ export class ERC721Standard {
     });
   };
 
+  getTokenURIAndImage = async (
+    address: string,
+    ipfsGateway: string,
+    tokenId: string,
+  ) => {
+    let tokenURI, image;
+
+    try {
+      tokenURI = await this.getTokenURI(address, tokenId);
+      if (tokenURI.startsWith('ipfs://')) {
+        tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, true);
+      }
+    } catch {
+      // ignore
+    }
+
+    if (tokenURI) {
+      try {
+        const response = await timeoutFetch(tokenURI);
+        const object = await response.json();
+        image = object?.image;
+        if (image?.startsWith('ipfs://')) {
+          image = getFormattedIpfsUrl(ipfsGateway, image, true);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return { tokenURI, image };
+  };
+
   /**
    * Query if a contract implements an interface.
    *
@@ -242,21 +274,11 @@ export class ERC721Standard {
     }
 
     if (tokenId) {
-      try {
-        tokenURI = await this.getTokenURI(address, tokenId);
-        if (tokenURI.startsWith('ipfs://')) {
-          tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, true);
-        }
-
-        const response = await timeoutFetch(tokenURI);
-        const object = await response.json();
-        image = object?.image;
-        if (image?.startsWith('ipfs://')) {
-          image = getFormattedIpfsUrl(ipfsGateway, image, true);
-        }
-      } catch {
-        // ignore
-      }
+      ({ tokenURI, image } = await this.getTokenURIAndImage(
+        address,
+        ipfsGateway,
+        tokenId,
+      ));
     }
 
     return {
