@@ -103,11 +103,12 @@ function getTokenListMessenger() {
   const messenger = controllerMessenger.getRestricted<
     'TokenListController',
     never,
-    never
+    TokenListStateChange['type']
   >({
     name: 'TokenListController',
+    allowedEvents: ['TokenListController:stateChange'],
   });
-  return { messenger, controllerMessenger };
+  return messenger;
 }
 
 describe('TokenDetectionController', () => {
@@ -139,7 +140,7 @@ describe('TokenDetectionController', () => {
       .get(`/tokens/${NetworksChainId.mainnet}`)
       .reply(200, sampleTokenList)
       .persist();
-    const { messenger, controllerMessenger } = getTokenListMessenger();
+    const messenger = getTokenListMessenger();
     tokenList = new TokenListController({
       chainId: NetworksChainId.mainnet,
       onNetworkStateChange: (listener) => network.subscribe(listener),
@@ -152,10 +153,7 @@ describe('TokenDetectionController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
       onTokenListStateChange: (listener) =>
-        controllerMessenger.subscribe(
-          `TokenListController:stateChange`,
-          listener,
-        ),
+        messenger.subscribe(`TokenListController:stateChange`, listener),
       getBalancesInSingleCall:
         getBalancesInSingleCall as unknown as AssetsContractController['getBalancesInSingleCall'],
       addDetectedTokens:
@@ -192,7 +190,7 @@ describe('TokenDetectionController', () => {
         TokenDetectionController.prototype,
         'detectTokens',
       );
-      const { controllerMessenger } = getTokenListMessenger();
+      const messenger = getTokenListMessenger();
       const tokenDetectionController = new TokenDetectionController(
         {
           onTokensStateChange: (listener) =>
@@ -201,10 +199,7 @@ describe('TokenDetectionController', () => {
             preferences.subscribe(listener),
           onNetworkStateChange: (listener) => network.subscribe(listener),
           onTokenListStateChange: (listener) =>
-            controllerMessenger.subscribe(
-              `TokenListController:stateChange`,
-              listener,
-            ),
+            messenger.subscribe(`TokenListController:stateChange`, listener),
           getBalancesInSingleCall:
             assetsContract.getBalancesInSingleCall.bind(assetsContract),
           addDetectedTokens:
@@ -253,7 +248,7 @@ describe('TokenDetectionController', () => {
         TokenDetectionController.prototype,
         'detectTokens',
       );
-      const { controllerMessenger } = getTokenListMessenger();
+      const messenger = getTokenListMessenger();
       new TokenDetectionController(
         {
           onTokensStateChange: (listener) =>
@@ -262,10 +257,7 @@ describe('TokenDetectionController', () => {
             preferences.subscribe(listener),
           onNetworkStateChange: (listener) => network.subscribe(listener),
           onTokenListStateChange: (listener) =>
-            controllerMessenger.subscribe(
-              `TokenListController:stateChange`,
-              listener,
-            ),
+            messenger.subscribe(`TokenListController:stateChange`, listener),
           getBalancesInSingleCall:
             assetsContract.getBalancesInSingleCall.bind(assetsContract),
           addDetectedTokens:

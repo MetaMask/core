@@ -53,7 +53,7 @@ type TokenListMessenger = RestrictedControllerMessenger<
   GetTokenListState,
   TokenListStateChange,
   never,
-  never
+  string
 >;
 
 const metadata = {
