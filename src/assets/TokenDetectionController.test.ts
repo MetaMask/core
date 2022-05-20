@@ -311,7 +311,7 @@ describe('TokenDetectionController', () => {
     ]);
   });
 
-  it('should update the tokens list when new tokens are detected', async () => {
+  it('should update detectedTokens when new tokens are detected', async () => {
     tokenDetection.configure({
       networkType: MAINNET,
       selectedAddress: '0x1',
@@ -432,7 +432,9 @@ describe('TokenDetectionController', () => {
         aggregators: [],
       },
     ]);
-    expect(tokensController.state.detectedTokens).toStrictEqual([]);
+    expect(tokensController.state.ignoredTokens).toStrictEqual([
+      '0x59Ec8e68D9cAa87f6B5BC4013172c20E85ccdaD0',
+    ]);
   });
 
   it('should add a token when detected with a balance even if it is ignored on another account', async () => {
@@ -511,6 +513,28 @@ describe('TokenDetectionController', () => {
       '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
     });
     await tokenDetection.detectTokens();
+
+    expect(tokensController.state.detectedTokens).toStrictEqual([
+      {
+        address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        symbol: 'LINK',
+        decimals: 18,
+        image: undefined,
+        aggregators: [
+          'Paraswap',
+          'PMM',
+          'AirswapLight',
+          '0x',
+          'Bancor',
+          'CoinGecko',
+          'Zapper',
+          'Kleros',
+          'Zerion',
+          'CMC',
+          '1inch',
+        ],
+      },
+    ]);
 
     tokensController.removeAndIgnoreToken(
       '0x514910771af9ca656af840dff83e8264ecf986ca',
