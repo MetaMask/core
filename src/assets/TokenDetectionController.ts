@@ -1,4 +1,3 @@
-import { AbortController } from 'abort-controller';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
@@ -54,8 +53,6 @@ export class TokenDetectionController extends BaseController<
   private getTokensState: () => TokensState;
 
   private getTokenListState: () => TokenListState;
-
-  private abortController: AbortController;
 
   /**
    * Creates a TokenDetectionController instance.
@@ -116,32 +113,27 @@ export class TokenDetectionController extends BaseController<
     this.getTokensState = getTokensState;
     this.getTokenListState = getTokenListState;
     this.addDetectedTokens = addDetectedTokens;
-    this.abortController = new AbortController();
     onTokensStateChange(({ tokens }) => {
       this.configure({ tokens });
     });
 
     onPreferencesStateChange(({ selectedAddress, useTokenDetection }) => {
       const prevDisabled = this.config.disabled;
-      const prevSelectedAddress = this.config.selectedAddress;
+      const isSelectedAddressChanged =
+        selectedAddress !== this.config.selectedAddress;
       const isTokenDetectionSupported = isTokenDetectionEnabledForNetwork(
         this.config.chainId,
       );
       const isDetectionEnabled = useTokenDetection && isTokenDetectionSupported;
       this.configure({ selectedAddress, disabled: !isDetectionEnabled });
-      // Check if detection state or selected address has changed
-      if (
-        isDetectionEnabled &&
-        (prevDisabled || selectedAddress !== prevSelectedAddress)
-      ) {
+      // Check if token detection is enabled AND if detection was previously disabled or selected address has changed
+      if (isDetectionEnabled && (prevDisabled || isSelectedAddressChanged)) {
         this.detectTokens();
       }
     });
 
     onNetworkStateChange(async (networkState) => {
       if (this.config.chainId !== networkState.provider.chainId) {
-        this.abortController.abort();
-        this.abortController = new AbortController();
         const incomingChainId = networkState.provider.chainId;
         const isTokenDetectionSupported =
           isTokenDetectionEnabledForNetwork(incomingChainId);
