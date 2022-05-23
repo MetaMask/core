@@ -11,7 +11,7 @@ import {
   toChecksumHexAddress,
   BNToHex,
   getFormattedIpfsUrl,
-  logOrRethrowError,
+  fetchWithErrorHandling,
 } from '../util';
 import {
   MAINNET,
@@ -171,24 +171,35 @@ export class CollectiblesController extends BaseController<
 > {
   private mutex = new Mutex();
 
-  private getCollectibleApi(contractAddress: string, tokenId: string) {
+  private getCollectibleApi(
+    contractAddress: string,
+    tokenId: string,
+    useProxy = true,
+  ) {
     const { chainId } = this.config;
-    switch (chainId) {
-      case RINKEBY_CHAIN_ID:
-        return `https://testnets-api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
-      default:
-        return `https://proxy.metaswap.codefi.network/opensea/v1/api/v1/asset/${contractAddress}/${tokenId}`;
+
+    if (chainId === RINKEBY_CHAIN_ID) {
+      return `https://testnets-api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
     }
+
+    return useProxy
+      ? `https://proxy.metaswap.codefi.network/opensea/v1/api/v1/asset/${contractAddress}/${tokenId}`
+      : `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
   }
 
-  private getCollectibleContractInformationApi(contractAddress: string) {
+  private getCollectibleContractInformationApi(
+    contractAddress: string,
+    useProxy = true,
+  ) {
     const { chainId } = this.config;
-    switch (chainId) {
-      case RINKEBY_CHAIN_ID:
-        return `https://testnets-api.opensea.io/api/v1/asset_contract/${contractAddress}`;
-      default:
-        return `https://proxy.metaswap.codefi.network/opensea/v1/api/v1/asset_contract/${contractAddress}`;
+
+    if (chainId === RINKEBY_CHAIN_ID) {
+      return `https://testnets-api.opensea.io/api/v1/asset_contract/${contractAddress}`;
     }
+
+    return useProxy
+      ? `https://proxy.metaswap.codefi.network/opensea/v1/api/v1/asset_contract/${contractAddress}`
+      : `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
   }
 
   /**
@@ -236,31 +247,37 @@ export class CollectiblesController extends BaseController<
     contractAddress: string,
     tokenId: string,
   ): Promise<CollectibleMetadata> {
-    const tokenURI = this.getCollectibleApi(contractAddress, tokenId);
-    let collectibleInformation: ApiCollectible;
-    /* istanbul ignore if */
-    try {
-      collectibleInformation = await handleFetch(tokenURI);
-    } catch (e) {
-      logOrRethrowError(e);
+    // Attempt to fetch the data with the proxy
+    let collectibleInformation: ApiCollectible | undefined =
+      await fetchWithErrorHandling(
+        // the third arg defaults to true to use the proxy
+        this.getCollectibleApi(contractAddress, tokenId),
+      );
 
+    // if an openSeaApiKey is set we should attempt to refetch calling directly to OpenSea
+    if (!collectibleInformation) {
       if (this.openSeaApiKey) {
-        collectibleInformation = await handleFetch(
-          `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`,
+        collectibleInformation = await fetchWithErrorHandling(
+          this.getCollectibleApi(contractAddress, tokenId, false),
           {
             headers: { 'X-API-KEY': this.openSeaApiKey },
           },
         );
-      } else {
-        return {
-          name: null,
-          description: null,
-          image: null,
-          standard: null,
-        };
       }
     }
 
+    // if we were still unable to fetch the data we return out the default/null of `CollectibleMetadata`
+    if (!collectibleInformation) {
+      return {
+        name: null,
+        description: null,
+        image: null,
+        standard: null,
+      };
+    }
+
+    // if we've reached this point, we have successfully fetched some data for collectibleInformation
+    // now we reconfigure the data to conform to the `CollectibleMetadata` type for storage.
     const {
       num_sales,
       background_color,
@@ -442,40 +459,48 @@ export class CollectiblesController extends BaseController<
   private async getCollectibleContractInformationFromApi(
     contractAddress: string,
   ): Promise<ApiCollectibleContract> {
-    const api = this.getCollectibleContractInformationApi(contractAddress);
-    let apiCollectibleContractObject: ApiCollectibleContract;
     /* istanbul ignore if */
+    let apiCollectibleContractObject: ApiCollectibleContract | undefined =
+      await fetchWithErrorHandling(
+        this.getCollectibleContractInformationApi(contractAddress),
+      );
 
-    try {
-      apiCollectibleContractObject = await handleFetch(api);
-    } catch (e) {
-      logOrRethrowError(e);
-      if (this.openSeaApiKey) {
-        apiCollectibleContractObject = await handleFetch(
-          `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`,
-          {
-            headers: { 'X-API-KEY': this.openSeaApiKey },
-          },
-        );
-      } else {
-        return {
-          address: contractAddress,
-          asset_contract_type: null,
-          created_date: null,
-          schema_name: null,
-          symbol: null,
-          total_supply: null,
-          description: null,
-          external_link: null,
-          collection: {
-            name: null,
-            image_url: null,
-          },
-        };
+    // if we successfully fetched return the fetched data immediately
+    if (apiCollectibleContractObject) {
+      return apiCollectibleContractObject;
+    }
+
+    // if we were unsuccessful in fetching from the API and an OpenSea API key is present
+    // attempt to refetch directly against the OpenSea API and if successful return the data immediately
+    if (this.openSeaApiKey) {
+      apiCollectibleContractObject = await fetchWithErrorHandling(
+        this.getCollectibleContractInformationApi(contractAddress, false),
+        {
+          headers: { 'X-API-KEY': this.openSeaApiKey },
+        },
+      );
+
+      if (apiCollectibleContractObject) {
+        return apiCollectibleContractObject;
       }
     }
 
-    return apiCollectibleContractObject;
+    // If we've reached this point we were unable to fetch data from either the proxy or opensea so we return
+    // the default/null of ApiCollectibleContract
+    return {
+      address: contractAddress,
+      asset_contract_type: null,
+      created_date: null,
+      schema_name: null,
+      symbol: null,
+      total_supply: null,
+      description: null,
+      external_link: null,
+      collection: {
+        name: null,
+        image_url: null,
+      },
+    };
   }
 
   /**

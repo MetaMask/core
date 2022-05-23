@@ -659,6 +659,28 @@ export async function handleFetch(request: string, options?: RequestInit) {
 }
 
 /**
+ * Execute fetch and return object response, log if known error thrown, otherwise rethrow error.
+ *
+ * @param request - The request information.
+ * @param options - The fetch options.
+ * @returns The fetch response JSON data or undefined (if error occurs).
+ */
+export async function fetchWithErrorHandling(
+  request: string,
+  options?: RequestInit,
+) {
+  let object;
+  try {
+    const response = await successfulFetch(request, options);
+    await response.json();
+  } catch (e) {
+    logOrRethrowError(e);
+  }
+
+  return object;
+}
+
+/**
  * Fetch that fails after timeout.
  *
  * @param url - Url to fetch.

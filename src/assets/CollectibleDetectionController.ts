@@ -131,8 +131,14 @@ export class CollectibleDetectionController extends BaseController<
 > {
   private intervalId?: NodeJS.Timeout;
 
-  private getOwnerCollectiblesApi(address: string, offset: number) {
-    return `https://proxy.metaswap.codefi.network/opensea/v1/api/v1/assets?owner=${address}&offset=${offset}&limit=50`;
+  private getOwnerCollectiblesApi(
+    address: string,
+    offset: number,
+    useProxy = true,
+  ) {
+    return useProxy
+      ? `https://proxy.metaswap.codefi.network/opensea/v1/api/v1/assets?owner=${address}&offset=${offset}&limit=50`
+      : `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`;
   }
 
   private async getOwnerCollectibles(address: string) {
@@ -143,17 +149,25 @@ export class CollectibleDetectionController extends BaseController<
     let pagingFinish = false;
     /* istanbul ignore if */
     do {
-      const api = this.getOwnerCollectiblesApi(address, offset);
       try {
-        response = await timeoutFetch(api, {}, 15000);
+        response = await timeoutFetch(
+          this.getOwnerCollectiblesApi(address, offset),
+          {},
+          15000,
+        );
       } catch (e) {
         logOrRethrowError(e);
         if (openSeaApiKey) {
-          response = await timeoutFetch(
-            `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`,
-            { headers: { 'X-API-KEY': openSeaApiKey } },
-            15000,
-          );
+          try {
+            response = await timeoutFetch(
+              this.getOwnerCollectiblesApi(address, offset, false),
+              { headers: { 'X-API-KEY': openSeaApiKey } },
+              15000,
+            );
+          } catch (error) {
+            logOrRethrowError(error);
+            return [];
+          }
         } else {
           return [];
         }
