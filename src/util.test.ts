@@ -963,15 +963,13 @@ describe('util', () => {
     });
   });
 
-  describe('convertPriceToDecimal', () => {
+  describe('convertHexToDecimal', () => {
     it('should convert hex price to decimal', () => {
-      expect(util.convertPriceToDecimal('0x50fd51da')).toStrictEqual(
-        1358778842,
-      );
+      expect(util.convertHexToDecimal('0x50fd51da')).toStrictEqual(1358778842);
     });
 
     it('should return zero when undefined', () => {
-      expect(util.convertPriceToDecimal(undefined)).toStrictEqual(0);
+      expect(util.convertHexToDecimal(undefined)).toStrictEqual(0);
     });
   });
 

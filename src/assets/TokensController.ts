@@ -12,7 +12,7 @@ import type { NetworkState, NetworkType } from '../network/NetworkController';
 import {
   validateTokenToWatch,
   toChecksumHexAddress,
-  convertPriceToDecimal,
+  convertHexToDecimal,
 } from '../util';
 import { MAINNET, ERC721_INTERFACE_ID } from '../constants';
 import { fetchTokenMetadata } from '../apis/token-service';
@@ -287,11 +287,11 @@ export class TokensController extends BaseController<
   }
 
   /**
-   * Import a batch of tokens.
+   * Add a batch of tokens.
    *
    * @param tokensToImport - Array of tokens to import.
    */
-  async importTokens(tokensToImport: Token[]) {
+  async addTokens(tokensToImport: Token[]) {
     const releaseLock = await this.mutex.acquire();
     const { tokens, detectedTokens, ignoredTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
@@ -548,7 +548,7 @@ export class TokensController extends BaseController<
         default:
           throw new Error(`Asset of type ${type} not supported`);
       }
-    } catch (error: any) {
+    } catch (error) {
       this.failSuggestedAsset(suggestedAssetMeta, error);
       return Promise.reject(error);
     }
@@ -608,7 +608,7 @@ export class TokensController extends BaseController<
             `Asset of type ${suggestedAssetMeta.type} not supported`,
           );
       }
-    } catch (error: any) {
+    } catch (error) {
       this.failSuggestedAsset(suggestedAssetMeta, error);
     }
     const newSuggestedAssets = suggestedAssets.filter(
@@ -752,7 +752,7 @@ export class TokensController extends BaseController<
     try {
       const token = await fetchTokenMetadata<TokenListToken>(
         isHexString(this.config.chainId)
-          ? convertPriceToDecimal(this.config.chainId).toString()
+          ? convertHexToDecimal(this.config.chainId).toString()
           : this.config.chainId,
         tokenAddress,
         this.abortController.signal,

@@ -432,6 +432,7 @@ describe('TokenDetectionController', () => {
         aggregators: [],
       },
     ]);
+
     expect(tokensController.state.ignoredTokens).toStrictEqual([
       '0x59Ec8e68D9cAa87f6B5BC4013172c20E85ccdaD0',
     ]);

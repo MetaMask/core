@@ -77,7 +77,7 @@ describe('TokensController', () => {
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
       );
 
-    await tokensController.importTokens([
+    await tokensController.addTokens([
       { address: '0x01', symbol: 'barA', decimals: 2, aggregators: [] },
       { address: '0x02', symbol: 'barB', decimals: 2, aggregators: [] },
     ]);
@@ -98,7 +98,7 @@ describe('TokensController', () => {
       aggregators: [],
     });
 
-    await tokensController.importTokens([
+    await tokensController.addTokens([
       {
         address: '0x01',
         symbol: 'bazA',
@@ -404,7 +404,7 @@ describe('TokensController', () => {
       tokensController.removeAndIgnoreToken('0xFAa');
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.ignoredTokens).toHaveLength(2);
-      await tokensController.importTokens([
+      await tokensController.addTokens([
         { address: '0x01', decimals: 3, symbol: 'bar', aggregators: [] },
         { address: '0x02', decimals: 4, symbol: 'baz', aggregators: [] },
         { address: '0x04', decimals: 4, symbol: 'foo', aggregators: [] },
