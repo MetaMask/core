@@ -122,7 +122,7 @@ const sampleWithDuplicateSymbolsTokensChainsCache =
     return output;
   }, {} as TokenListMap);
 
-const sampleWithLessThan2Occurences = [
+const sampleWithLessThan3OccurencesResponse = [
   {
     address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
     symbol: 'SNX',
@@ -170,9 +170,11 @@ const sampleWithLessThan2Occurences = [
   },
 ];
 
-const sampleWithLessThan2OccurencesTokensChainsCache =
-  sampleWithLessThan2Occurences.reduce((output, current) => {
-    output[current.address] = current;
+const sampleWith3OrMoreOccurrences =
+  sampleWithLessThan3OccurencesResponse.reduce((output, token) => {
+    if (token.occurrences >= 3) {
+      output[token.address] = token;
+    }
     return output;
   }, {} as TokenListMap);
 
@@ -436,7 +438,7 @@ const expiredCacheExistingState: TokenListState = {
   },
   tokensChainsCache: {
     '1': {
-      timestamp: timestamp - 1800000,
+      timestamp: timestamp - 86400000,
       data: {
         '0x514910771af9ca656af840dff83e8264ecf986ca': {
           address: '0x514910771af9ca656af840dff83e8264ecf986ca',
@@ -821,10 +823,10 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
-  it('should update token list after removing data less than 2 occurrences', async () => {
+  it('should update token list after removing data less than 3 occurrences', async () => {
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${NetworksChainId.mainnet}`)
-      .reply(200, sampleWithLessThan2Occurences)
+      .reply(200, sampleWithLessThan3OccurencesResponse)
       .persist();
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
@@ -833,57 +835,13 @@ describe('TokenListController', () => {
       messenger,
     });
     await controller.start();
-    expect(controller.state.tokenList).toStrictEqual({
-      '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f': {
-        address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
-        symbol: 'SNX',
-        decimals: 18,
-        occurrences: 2,
-        name: 'Synthetix',
-        iconUrl:
-          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
-        aggregators: [
-          'Aave',
-          'Bancor',
-          'CMC',
-          'Crypto.com',
-          'CoinGecko',
-          '1inch',
-          'Paraswap',
-          'PMM',
-          'Synthetix',
-          'Zapper',
-          'Zerion',
-          '0x',
-        ],
-      },
-      '0x514910771af9ca656af840dff83e8264ecf986ca': {
-        address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-        symbol: 'LINK',
-        decimals: 18,
-        occurrences: 11,
-        name: 'Chainlink',
-        iconUrl:
-          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
-        aggregators: [
-          'Aave',
-          'Bancor',
-          'CMC',
-          'Crypto.com',
-          'CoinGecko',
-          '1inch',
-          'Paraswap',
-          'PMM',
-          'Zapper',
-          'Zerion',
-          '0x',
-        ],
-      },
-    });
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleWith3OrMoreOccurrences,
+    );
 
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
-    ).toStrictEqual(sampleWithLessThan2OccurencesTokensChainsCache);
+    ).toStrictEqual(sampleWith3OrMoreOccurrences);
     controller.destroy();
   });
 

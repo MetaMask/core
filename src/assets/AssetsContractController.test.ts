@@ -153,10 +153,10 @@ describe('AssetsContractController', () => {
 
   it('should get ERC-20 token decimals', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const symbol = await assetsContract.getERC20TokenDecimals(
+    const decimals = await assetsContract.getERC20TokenDecimals(
       ERC20_DAI_ADDRESS,
     );
-    expect(Number(symbol)).toStrictEqual(18);
+    expect(Number(decimals)).toStrictEqual(18);
   });
 
   it('should get ERC-721 collectible ownership', async () => {

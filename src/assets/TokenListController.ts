@@ -8,8 +8,8 @@ import { fetchTokenList } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
 
-const DEFAULT_INTERVAL = 60 * 60 * 1000;
-const DEFAULT_THRESHOLD = 60 * 30 * 1000;
+const DEFAULT_INTERVAL = 24 * 60 * 60 * 1000;
+const DEFAULT_THRESHOLD = 24 * 60 * 60 * 1000;
 
 const name = 'TokenListController';
 
@@ -224,11 +224,11 @@ export class TokenListController extends BaseController<
           });
           return;
         }
-        // Filtering out tokens with less than 2 occurrences and native tokens
+        // Filtering out tokens with less than 3 occurrences and native tokens
         const filteredTokenList = tokensFromAPI.filter(
           (token) =>
             token.occurrences &&
-            token.occurrences >= 2 &&
+            token.occurrences >= 3 &&
             token.address !== '0x0000000000000000000000000000000000000000',
         );
         // Removing the tokens with symbol conflicts

@@ -188,6 +188,10 @@ export class ERC1155Standard {
     image: string | undefined;
   }> => {
     const isERC1155 = await this.contractSupportsBase1155Interface(address);
+
+    if (!isERC1155) {
+      throw new Error("This isn't a valid ERC1155 contract");
+    }
     let tokenURI, image;
 
     if (tokenId) {
@@ -209,14 +213,10 @@ export class ERC1155Standard {
     }
 
     // TODO consider querying to the metadata to get name.
-    if (isERC1155) {
-      return {
-        standard: ERC1155,
-        tokenURI,
-        image,
-      };
-    }
-
-    throw new Error("This isn't a valid ERC1155 contract");
+    return {
+      standard: ERC1155,
+      tokenURI,
+      image,
+    };
   };
 }
