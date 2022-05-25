@@ -663,18 +663,33 @@ export async function handleFetch(request: string, options?: RequestInit) {
  *
  * @param request - The request information.
  * @param options - The fetch options.
+ * @param timeout - Timeout to fail request.
  * @returns The fetch response JSON data or undefined (if error occurs).
  */
 export async function fetchWithErrorHandling(
   request: string,
   options?: RequestInit,
+  timeout?: number,
 ) {
+  let result;
   try {
-    const response = await successfulFetch(request, options);
-    return await response.json();
+    if (timeout) {
+      result = Promise.race([
+        successfulFetch(request, options),
+        new Promise<Response>((_, reject) =>
+          setTimeout(() => {
+            reject(new Error('timeout'));
+          }, timeout),
+        ),
+      ]);
+    } else {
+      const response = await successfulFetch(request, options);
+      result = await response.json();
+    }
   } catch (e) {
     logOrRethrowError(e);
   }
+  return result;
 }
 
 /**

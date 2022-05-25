@@ -1,7 +1,7 @@
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
-import { logOrRethrowError, timeoutFetch, toChecksumHexAddress } from '../util';
+import { fetchWithErrorHandling, toChecksumHexAddress } from '../util';
 import { MAINNET } from '../constants';
 import type {
   CollectiblesController,
@@ -149,35 +149,31 @@ export class CollectibleDetectionController extends BaseController<
     let pagingFinish = false;
     /* istanbul ignore if */
     do {
-      try {
-        response = await timeoutFetch(
-          this.getOwnerCollectiblesApi(address, offset),
-          {},
+      response = await fetchWithErrorHandling(
+        this.getOwnerCollectiblesApi(address, offset),
+        {},
+        15000,
+      );
+
+      if (openSeaApiKey && !response) {
+        response = await fetchWithErrorHandling(
+          this.getOwnerCollectiblesApi(address, offset, false),
+          { headers: { 'X-API-KEY': openSeaApiKey } },
           15000,
         );
-      } catch (e) {
-        logOrRethrowError(e);
-        if (openSeaApiKey) {
-          try {
-            response = await timeoutFetch(
-              this.getOwnerCollectiblesApi(address, offset, false),
-              { headers: { 'X-API-KEY': openSeaApiKey } },
-              15000,
-            );
-          } catch (error) {
-            logOrRethrowError(error);
-            return [];
-          }
-        } else {
-          return [];
-        }
       }
+
+      if (!response) {
+        return collectibles;
+      }
+
       const collectiblesArray = await response?.json();
-      collectiblesArray.assets?.length !== 0
+      collectiblesArray?.assets?.length !== 0
         ? (collectibles = [...collectibles, ...collectiblesArray.assets])
         : (pagingFinish = true);
       offset += 50;
     } while (!pagingFinish);
+
     return collectibles;
   }
 
