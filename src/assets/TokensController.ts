@@ -239,6 +239,7 @@ export class TokensController extends BaseController<
     try {
       address = toChecksumHexAddress(address);
       const { tokens, ignoredTokens, detectedTokens } = this.state;
+      let newTokens: Token[] = [...tokens];
       const isERC721 = await this._detectIsERC721(address);
       const tokenMetadata = await this.fetchTokenMetadata(address);
       const newEntry: Token = {
@@ -247,16 +248,16 @@ export class TokensController extends BaseController<
         decimals,
         image,
         isERC721,
-        aggregators: formatAggregatorNames(tokenMetadata.aggregators || []),
+        aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
       };
-      const previousEntry = tokens.find(
+      const previousEntry = newTokens.find(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
       );
       if (previousEntry) {
-        const previousIndex = tokens.indexOf(previousEntry);
-        tokens[previousIndex] = newEntry;
+        const previousIndex = newTokens.indexOf(previousEntry);
+        newTokens[previousIndex] = newEntry;
       } else {
-        tokens.push(newEntry);
+        newTokens.push(newEntry);
       }
 
       const newIgnoredTokens = ignoredTokens.filter(
@@ -267,13 +268,13 @@ export class TokensController extends BaseController<
       );
       const { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens } =
         this._getNewAllTokensState({
-          newTokens: tokens,
+          newTokens,
           newIgnoredTokens,
           newDetectedTokens,
         });
 
       this.update({
-        tokens,
+        tokens: newTokens,
         ignoredTokens: newIgnoredTokens,
         detectedTokens: newDetectedTokens,
         allTokens: newAllTokens,
@@ -354,6 +355,7 @@ export class TokensController extends BaseController<
     const releaseLock = await this.mutex.acquire();
     const { ignoredTokens, detectedTokens, tokens } = this.state;
     const ignoredTokensMap: { [key: string]: true } = {};
+    let newIgnoredTokens: string[] = [...ignoredTokens];
 
     try {
       const formattedTokens = tokensToIgnore.map((tokenToIgnore) => {
@@ -362,7 +364,7 @@ export class TokensController extends BaseController<
         ignoredTokensMap[address.toLowerCase()] = true;
         return checksumAddress;
       });
-      ignoredTokens.push(...formattedTokens);
+      newIgnoredTokens = [...ignoredTokens, ...formattedTokens];
       const newDetectedTokens = detectedTokens.filter(
         (token) => !ignoredTokensMap[token.address.toLowerCase()],
       );
@@ -372,13 +374,13 @@ export class TokensController extends BaseController<
 
       const { newAllIgnoredTokens, newAllDetectedTokens, newAllTokens } =
         this._getNewAllTokensState({
-          newIgnoredTokens: ignoredTokens,
+          newIgnoredTokens,
           newDetectedTokens,
           newTokens,
         });
 
       this.update({
-        ignoredTokens,
+        ignoredTokens: newIgnoredTokens,
         tokens: newTokens,
         detectedTokens: newDetectedTokens,
         allIgnoredTokens: newAllIgnoredTokens,
@@ -393,14 +395,16 @@ export class TokensController extends BaseController<
   /**
    * Adds a batch of detected tokens to the stored token list.
    *
-   * @param newDetectedTokens - Array of detected tokens to be added or updated.
+   * @param incomingDetectedTokens - Array of detected tokens to be added or updated.
    */
-  async addDetectedTokens(newDetectedTokens: Token[]) {
+  async addDetectedTokens(incomingDetectedTokens: Token[]) {
     const releaseLock = await this.mutex.acquire();
     const { tokens, detectedTokens, ignoredTokens } = this.state;
+    let newTokens: Token[] = [...tokens];
+    let newDetectedTokens: Token[] = [...detectedTokens];
 
     try {
-      newDetectedTokens.forEach((tokenToAdd) => {
+      incomingDetectedTokens.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image, aggregators } = tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const newEntry: Token = {
@@ -410,29 +414,31 @@ export class TokensController extends BaseController<
           image,
           aggregators,
         };
-        const previousImportedEntry = tokens.find(
+        const previousImportedEntry = newTokens.find(
           (token) =>
             token.address.toLowerCase() === checksumAddress.toLowerCase(),
         );
         if (previousImportedEntry) {
           // Update existing data of imported token
-          const previousImportedIndex = tokens.indexOf(previousImportedEntry);
-          tokens[previousImportedIndex] = newEntry;
+          const previousImportedIndex = newTokens.indexOf(
+            previousImportedEntry,
+          );
+          newTokens[previousImportedIndex] = newEntry;
         } else {
           const ignoredTokenIndex = ignoredTokens.indexOf(address);
           if (ignoredTokenIndex === -1) {
             // Add detected token
-            const previousDetectedEntry = detectedTokens.find(
+            const previousDetectedEntry = newDetectedTokens.find(
               (token) =>
                 token.address.toLowerCase() === checksumAddress.toLowerCase(),
             );
             if (previousDetectedEntry) {
-              const previousDetectedIndex = detectedTokens.indexOf(
+              const previousDetectedIndex = newDetectedTokens.indexOf(
                 previousDetectedEntry,
               );
-              detectedTokens[previousDetectedIndex] = newEntry;
+              newDetectedTokens[previousDetectedIndex] = newEntry;
             } else {
-              detectedTokens.push(newEntry);
+              newDetectedTokens.push(newEntry);
             }
           }
         }
@@ -440,15 +446,15 @@ export class TokensController extends BaseController<
 
       const { newAllTokens, newAllDetectedTokens } = this._getNewAllTokensState(
         {
-          newTokens: tokens,
-          newDetectedTokens: detectedTokens,
+          newTokens,
+          newDetectedTokens,
         },
       );
 
       this.update({
-        tokens,
+        tokens: newTokens,
         allTokens: newAllTokens,
-        detectedTokens,
+        detectedTokens: newDetectedTokens,
         allDetectedTokens: newAllDetectedTokens,
       });
     } finally {
@@ -648,8 +654,9 @@ export class TokensController extends BaseController<
   removeAndIgnoreToken(address: string) {
     address = toChecksumHexAddress(address);
     const { tokens, ignoredTokens, detectedTokens } = this.state;
+    let newIgnoredTokens: string[] = [...ignoredTokens];
 
-    const alreadyIgnored = ignoredTokens.find(
+    const alreadyIgnored = newIgnoredTokens.find(
       (tokenAddress) => tokenAddress.toLowerCase() === address.toLowerCase(),
     );
 
@@ -663,12 +670,12 @@ export class TokensController extends BaseController<
     const newDetectedTokens = detectedTokens.filter(
       (token) => token.address.toLowerCase() !== address.toLowerCase(),
     );
-    ignoredTokens.push(address);
+    newIgnoredTokens.push(address);
 
     const { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens } =
       this._getNewAllTokensState({
         newTokens,
-        newIgnoredTokens: ignoredTokens,
+        newIgnoredTokens,
         newDetectedTokens,
       });
 
@@ -676,7 +683,7 @@ export class TokensController extends BaseController<
       allTokens: newAllTokens,
       tokens: newTokens,
       allIgnoredTokens: newAllIgnoredTokens,
-      ignoredTokens,
+      ignoredTokens: newIgnoredTokens,
       detectedTokens: newDetectedTokens,
       allDetectedTokens: newAllDetectedTokens,
     });
@@ -748,7 +755,9 @@ export class TokensController extends BaseController<
    * @param tokenAddress - The address of the token.
    * @returns The token metadata.
    */
-  async fetchTokenMetadata(tokenAddress: string): Promise<TokenListToken> {
+  async fetchTokenMetadata(
+    tokenAddress: string,
+  ): Promise<TokenListToken | null> {
     try {
       const token = await fetchTokenMetadata<TokenListToken>(
         isHexString(this.config.chainId)
@@ -759,7 +768,7 @@ export class TokensController extends BaseController<
       );
       return token;
     } catch {
-      return {} as TokenListToken;
+      return null;
     }
   }
 
