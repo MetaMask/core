@@ -126,7 +126,6 @@ export class TokenDetectionController extends BaseController<
       );
       const isDetectionEnabled = useTokenDetection && isTokenDetectionSupported;
       this.configure({ selectedAddress, disabled: !isDetectionEnabled });
-      // Check if token detection is enabled AND if detection was previously disabled or selected address has changed
       if (isDetectionEnabled && (prevDisabled || isSelectedAddressChanged)) {
         this.detectTokens();
       }
