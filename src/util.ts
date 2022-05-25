@@ -669,15 +669,12 @@ export async function fetchWithErrorHandling(
   request: string,
   options?: RequestInit,
 ) {
-  let object;
   try {
     const response = await successfulFetch(request, options);
-    await response.json();
+    return await response.json();
   } catch (e) {
     logOrRethrowError(e);
   }
-
-  return object;
 }
 
 /**
