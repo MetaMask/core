@@ -160,6 +160,8 @@ export class CollectibleDetectionController extends BaseController<
           this.getOwnerCollectiblesApi(address, offset, false),
           { headers: { 'X-API-KEY': openSeaApiKey } },
           15000,
+          // catch 403 errors (in case API key is down we don't want to blow up)
+          [403],
         );
       }
 

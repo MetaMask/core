@@ -262,6 +262,9 @@ export class CollectiblesController extends BaseController<
           {
             headers: { 'X-API-KEY': this.openSeaApiKey },
           },
+          null,
+          // catch 403 errors (in case API key is down we don't want to blow up)
+          [403],
         );
       }
     }
@@ -478,6 +481,9 @@ export class CollectiblesController extends BaseController<
         {
           headers: { 'X-API-KEY': this.openSeaApiKey },
         },
+        null,
+        // catch 403 errors (in case API key is down we don't want to blow up)
+        [403],
       );
 
       if (apiCollectibleContractObject) {

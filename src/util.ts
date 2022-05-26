@@ -664,12 +664,14 @@ export async function handleFetch(request: string, options?: RequestInit) {
  * @param request - The request information.
  * @param options - The fetch options.
  * @param timeout - Timeout to fail request.
+ * @param errorCodesToCatch - array of error codes for errors we want to catch in a particular context
  * @returns The fetch response JSON data or undefined (if error occurs).
  */
 export async function fetchWithErrorHandling(
   request: string,
   options?: RequestInit,
-  timeout?: number,
+  timeout?: number | null,
+  errorCodesToCatch?: number[],
 ) {
   let result;
   try {
@@ -687,7 +689,7 @@ export async function fetchWithErrorHandling(
       result = await response.json();
     }
   } catch (e) {
-    logOrRethrowError(e);
+    logOrRethrowError(e, errorCodesToCatch);
   }
   return result;
 }
@@ -992,10 +994,17 @@ export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
  * Utility method to log if error is a common fetch error and otherwise rethrow it.
  *
  * @param error - Caught error that we should either rethrow or log to console.
+ * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
  */
-export function logOrRethrowError(error: any) {
+export function logOrRethrowError(error: any, codesToCatch?: number[]) {
+  const includesErrorCodeToCatch = codesToCatch?.length
+    ? codesToCatch?.some((code) =>
+        error.message?.includes(`Fetch failed with status '${code}'`),
+      )
+    : false;
+
   if (
-    error.message?.match(/Fetch failed with status/u) ||
+    includesErrorCodeToCatch ||
     error.message?.includes('Failed to fetch') ||
     error.message === 'timeout'
   ) {
