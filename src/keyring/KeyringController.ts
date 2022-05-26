@@ -796,10 +796,10 @@ export class KeyringController extends BaseController<
     const newAccounts = await this.#keyring.getAccounts();
 
     this.updateIdentities(newAccounts);
-    newAccounts.forEach((address: string, index: number) => {
+    newAccounts.forEach((address: string) => {
       if (!oldAccounts.includes(address)) {
         if (this.setAccountLabel) {
-          this.setAccountLabel(address, `${keyring.getName()} ${index + 1}`);
+          this.setAccountLabel(address, `${keyring.getName()} 1`);
         }
         this.setSelectedAddress(address);
       }
