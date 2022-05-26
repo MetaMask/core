@@ -1,6 +1,8 @@
 import { timeoutFetch } from '../util';
 
 const END_POINT = 'https://token-api.metaswap.codefi.network';
+export const FETCH_TOKEN_METADATA_ERROR =
+  'TokenService Error: No response from fetchTokenMetadata';
 
 /**
  * Get the tokens URL for a specific network.
@@ -23,9 +25,11 @@ function getTokenMetadataURL(chainId: string, tokenAddress: string) {
   return `${END_POINT}/token/${chainId}?address=${tokenAddress}`;
 }
 
+const tenSecondsInMilliseconds = 10_000;
+
 // Token list averages 1.6 MB in size
 // timeoutFetch by default has a 500ms timeout, which will almost always timeout given the response size.
-const timeout = 10000;
+const defaultTimeout = tenSecondsInMilliseconds;
 
 /**
  * Fetch the list of token metadata for a given network. This request is cancellable using the
@@ -33,14 +37,17 @@ const timeout = 10000;
  *
  * @param chainId - The chain ID of the network the requested tokens are on.
  * @param abortSignal - The abort signal used to cancel the request if necessary.
+ * @param options - Additional fetch options.
+ * @param options.timeout - The fetch timeout.
  * @returns The token list, or `undefined` if the request was cancelled.
  */
 export async function fetchTokenList(
   chainId: string,
   abortSignal: AbortSignal,
+  { timeout = defaultTimeout } = {},
 ): Promise<unknown> {
   const tokenURL = getTokensURL(chainId);
-  const response = await queryApi(tokenURL, abortSignal);
+  const response = await queryApi(tokenURL, abortSignal, timeout);
   if (response) {
     return parseJsonResponse(response);
   }
@@ -54,19 +61,22 @@ export async function fetchTokenList(
  * @param chainId - The chain ID of the network the token is on.
  * @param tokenAddress - The address of the token to fetch metadata for.
  * @param abortSignal - The abort signal used to cancel the request if necessary.
+ * @param options - Additional fetch options.
+ * @param options.timeout - The fetch timeout.
  * @returns The token metadata, or `undefined` if the request was cancelled.
  */
-export async function fetchTokenMetadata(
+export async function fetchTokenMetadata<T>(
   chainId: string,
   tokenAddress: string,
   abortSignal: AbortSignal,
-): Promise<unknown> {
+  { timeout = defaultTimeout } = {},
+): Promise<T> {
   const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
-  const response = await queryApi(tokenMetadataURL, abortSignal);
+  const response = await queryApi(tokenMetadataURL, abortSignal, timeout);
   if (response) {
-    return parseJsonResponse(response);
+    return parseJsonResponse(response) as Promise<T>;
   }
-  return undefined;
+  throw new Error(FETCH_TOKEN_METADATA_ERROR);
 }
 
 /**
@@ -74,11 +84,13 @@ export async function fetchTokenMetadata(
  *
  * @param apiURL - The URL of the API to fetch.
  * @param abortSignal - The abort signal used to cancel the request if necessary.
+ * @param timeout - The fetch timeout.
  * @returns Promise resolving request response.
  */
 async function queryApi(
   apiURL: string,
   abortSignal: AbortSignal,
+  timeout: number,
 ): Promise<Response | undefined> {
   const fetchOptions: RequestInit = {
     referrer: apiURL,
@@ -92,8 +104,8 @@ async function queryApi(
   fetchOptions.headers.set('Content-Type', 'application/json');
   try {
     return await timeoutFetch(apiURL, fetchOptions, timeout);
-  } catch (err) {
-    if (err.name === 'AbortError') {
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
       console.log('Request is aborted');
     }
   }

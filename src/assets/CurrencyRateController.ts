@@ -139,7 +139,7 @@ export class CurrencyRateController extends BaseController<
    *
    * This stops any active polling.
    */
-  destroy() {
+  override destroy() {
     super.destroy();
     this.stopPolling();
   }
@@ -224,7 +224,12 @@ export class CurrencyRateController extends BaseController<
         conversionDate = Date.now() / 1000;
       }
     } catch (error) {
-      if (!error.message.includes('market does not exist for this coin pair')) {
+      if (
+        !(
+          error instanceof Error &&
+          error.message.includes('market does not exist for this coin pair')
+        )
+      ) {
         throw error;
       }
     } finally {

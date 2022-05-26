@@ -1,4 +1,4 @@
-import { stub } from 'sinon';
+import sinon from 'sinon';
 import type { Patch } from 'immer';
 import { TokensController } from './assets/TokensController';
 import { CollectiblesController } from './assets/CollectiblesController';
@@ -74,7 +74,7 @@ class BarController extends BaseController<never, BarControllerState> {
     bar: 'bar',
   };
 
-  name = 'BarController';
+  override name = 'BarController';
 
   constructor() {
     super();
@@ -87,6 +87,10 @@ class BarController extends BaseController<never, BarControllerState> {
 }
 
 describe('ComposableController', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
   describe('BaseController', () => {
     it('should compose controller state', () => {
       const preferencesController = new PreferencesController();
@@ -268,7 +272,7 @@ describe('ComposableController', () => {
     it('should notify listeners of nested state change', () => {
       const addressBookController = new AddressBookController();
       const controller = new ComposableController([addressBookController]);
-      const listener = stub();
+      const listener = sinon.stub();
       controller.subscribe(listener);
       addressBookController.set(
         '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
@@ -381,7 +385,7 @@ describe('ComposableController', () => {
         composableControllerMessenger,
       );
 
-      const listener = stub();
+      const listener = sinon.stub();
       composableController.subscribe(listener);
       fooController.updateFoo('bar');
 
@@ -486,7 +490,7 @@ describe('ComposableController', () => {
         composableControllerMessenger,
       );
 
-      const listener = stub();
+      const listener = sinon.stub();
       composableController.subscribe(listener);
       barController.updateBar('foo');
 
@@ -528,7 +532,7 @@ describe('ComposableController', () => {
         composableControllerMessenger,
       );
 
-      const listener = stub();
+      const listener = sinon.stub();
       composableController.subscribe(listener);
       fooController.updateFoo('bar');
 

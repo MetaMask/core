@@ -34,8 +34,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
-            data:
-              '0x01ffc9a7780e9d6300000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a7780e9d6300000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -53,8 +52,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0x01ffc9a7780e9d6300000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a7780e9d6300000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -66,12 +64,14 @@ describe('ERC721Standard', () => {
           '0x0000000000000000000000000000000000000000000000000000000000000001',
       });
 
-    const CKSupportsEnumerable = await erc721Standard.contractSupportsEnumerableInterface(
-      CRYPTO_KITTIES_ADDRESS,
-    );
-    const GODSSupportsEnumerable = await erc721Standard.contractSupportsEnumerableInterface(
-      ERC721_GODSADDRESS,
-    );
+    const CKSupportsEnumerable =
+      await erc721Standard.contractSupportsEnumerableInterface(
+        CRYPTO_KITTIES_ADDRESS,
+      );
+    const GODSSupportsEnumerable =
+      await erc721Standard.contractSupportsEnumerableInterface(
+        ERC721_GODSADDRESS,
+      );
     expect(CKSupportsEnumerable).toBe(false);
     expect(GODSSupportsEnumerable).toBe(true);
   });
@@ -85,8 +85,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -104,8 +103,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -174,8 +172,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -193,8 +190,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -248,8 +244,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -267,8 +262,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000004',
+            data: '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000004',
           },
           'latest',
         ],
@@ -313,8 +307,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -332,8 +325,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D',
-            data:
-              '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -387,8 +379,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -408,8 +399,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D',
-            data:
-              '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000003',
+            data: '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000003',
           },
           'latest',
         ],
@@ -459,8 +449,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85',
-            data:
-              '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -478,8 +467,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -514,8 +502,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
-            data:
-              '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -533,8 +520,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],

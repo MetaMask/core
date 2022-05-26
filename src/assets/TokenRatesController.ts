@@ -43,7 +43,7 @@ export interface Token {
   decimals: number;
   symbol: string;
   image?: string;
-  balanceError?: Error | null;
+  balanceError?: unknown;
   isERC721?: boolean;
 }
 
@@ -150,7 +150,7 @@ export class TokenRatesController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'TokenRatesController';
+  override name = 'TokenRatesController';
 
   /**
    * Creates a TokenRatesController instance.
@@ -396,6 +396,7 @@ export class TokenRatesController extends BaseController<
         ]);
       } catch (error) {
         if (
+          error instanceof Error &&
           error.message.includes('market does not exist for this coin pair')
         ) {
           return {};

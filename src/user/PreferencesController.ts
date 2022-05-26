@@ -60,7 +60,7 @@ export class PreferencesController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'PreferencesController';
+  override name = 'PreferencesController';
 
   /**
    * Creates a PreferencesController instance.

@@ -10,7 +10,7 @@ import type { RestrictedControllerMessenger } from '../ControllerMessenger';
  * @property requests - Object containing number of requests in a given interval for each origin and api type combination
  */
 export type RateLimitState<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>
+  RateLimitedApis extends Record<string, (...args: any[]) => any>,
 > = {
   requests: Record<keyof RateLimitedApis, Record<string, number>>;
 };
@@ -18,35 +18,35 @@ export type RateLimitState<
 const name = 'RateLimitController';
 
 export type RateLimitStateChange<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>
+  RateLimitedApis extends Record<string, (...args: any[]) => any>,
 > = {
   type: `${typeof name}:stateChange`;
   payload: [RateLimitState<RateLimitedApis>, Patch[]];
 };
 
 export type GetRateLimitState<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>
+  RateLimitedApis extends Record<string, (...args: any[]) => any>,
 > = {
   type: `${typeof name}:getState`;
   handler: () => RateLimitState<RateLimitedApis>;
 };
 
 export type CallApi<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>
+  RateLimitedApis extends Record<string, (...args: any[]) => any>,
 > = {
   type: `${typeof name}:call`;
   handler: RateLimitController<RateLimitedApis>['call'];
 };
 
-export type ControllerActions<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>
+export type RateLimitControllerActions<
+  RateLimitedApis extends Record<string, (...args: any[]) => any>,
 > = GetRateLimitState<RateLimitedApis> | CallApi<RateLimitedApis>;
 
 export type RateLimitMessenger<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>
+  RateLimitedApis extends Record<string, (...args: any[]) => any>,
 > = RestrictedControllerMessenger<
   typeof name,
-  ControllerActions<RateLimitedApis>,
+  RateLimitControllerActions<RateLimitedApis>,
   RateLimitStateChange<RateLimitedApis>,
   never,
   never
@@ -60,7 +60,7 @@ const metadata = {
  * Controller with logic for rate-limiting API endpoints per requesting origin.
  */
 export class RateLimitController<
-  RateLimitedApis extends Record<string, (...args: any[]) => any>
+  RateLimitedApis extends Record<string, (...args: any[]) => any>,
 > extends BaseController<
   typeof name,
   RateLimitState<RateLimitedApis>,

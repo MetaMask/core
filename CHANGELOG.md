@@ -6,6 +6,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [29.0.0]
+### Added
+- Reintroduce NotificationController for in-app notifications ([#709](https://github.com/MetaMask/controllers/pull/709))
+- Add optional token service timeout parameter([#793](https://github.com/MetaMask/controllers/pull/793))
+
+### Changed
+- **BREAKING**: Bump eth-keyring-controller to 7.0.1 ([#802](https://github.com/MetaMask/controllers/pull/802))
+  - Mnemonics in keyrings of type `HD Key Tree` are always serialized as arrays of numbers. `exportSeedPhrase` now returns a buffer rather than a string, consumers will need to adapt to this new return type accordingly.
+
+## [28.0.0]
+### Added
+- Add GrantPermissions action to PermissionsController ([#780](https://github.com/MetaMask/controllers/pull/780))
+- Add `PermissionController.revokePermissionForAllSubjects` action ([#764](https://github.com/MetaMask/controllers/pull/764))
+
+### Changed
+- **BREAKING:** Rename NotificationController to AnnouncementController ([#697](https://github.com/MetaMask/controllers/pull/697))
+  - The `NotificationController` class is now `AnnouncementController`.
+  - The controller `notifications` state has been renamed to `announcements`.
+  - All other exported types including the word "notification" have been updated to use the word "announcement" instead.
+
 ## [27.1.1]
 ### Fixed
 - Move `@keystonehq/metamask-airgapped-keyring` to dependencies ([#757](https://github.com/MetaMask/controllers/pull/757))
@@ -538,7 +558,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v27.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v29.0.0...HEAD
+[29.0.0]: https://github.com/MetaMask/controllers/compare/v28.0.0...v29.0.0
+[28.0.0]: https://github.com/MetaMask/controllers/compare/v27.1.1...v28.0.0
 [27.1.1]: https://github.com/MetaMask/controllers/compare/v27.1.0...v27.1.1
 [27.1.0]: https://github.com/MetaMask/controllers/compare/v27.0.0...v27.1.0
 [27.0.0]: https://github.com/MetaMask/controllers/compare/v26.0.0...v27.0.0

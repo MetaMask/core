@@ -7,6 +7,7 @@ import {
   GasPriceValue,
   FeeMarketEIP1559Values,
 } from './transaction/TransactionController';
+import { NetworksChainId } from './network/NetworkController';
 
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
@@ -290,20 +291,6 @@ describe('util', () => {
           throw new Error('ahh');
         }),
       ).toBeUndefined();
-    });
-
-    it('should call retry function', async () => {
-      const mockRetry = jest.fn();
-      new Promise(() => {
-        util.safelyExecute(
-          () => {
-            throw new Error('ahh');
-          },
-          false,
-          mockRetry,
-        );
-      });
-      expect(mockRetry).toHaveBeenCalledWith(new Error('ahh'));
     });
   });
 
@@ -823,14 +810,7 @@ describe('util', () => {
     });
 
     it('should throw error for an unsuccessful fetch', async () => {
-      let error;
-      try {
-        await util.successfulFetch(SOME_FAILING_API);
-      } catch (e) {
-        error = e;
-      }
-
-      expect(error.message).toBe(
+      await expect(util.successfulFetch(SOME_FAILING_API)).rejects.toThrow(
         `Fetch failed with status '500' for request '${SOME_FAILING_API}'`,
       );
     });
@@ -848,13 +828,9 @@ describe('util', () => {
     });
 
     it('should fail fetch with timeout', async () => {
-      let error;
-      try {
-        await util.timeoutFetch(SOME_API, {}, 100);
-      } catch (e) {
-        error = e;
-      }
-      expect(error.message).toBe('timeout');
+      await expect(util.timeoutFetch(SOME_API, {}, 100)).rejects.toThrow(
+        'timeout',
+      );
     });
   });
 
@@ -1290,5 +1266,29 @@ describe('isValidJson', () => {
 
   it('returns true for valid JSON', () => {
     expect(util.isValidJson({ foo: 'bar', test: { num: 5 } })).toBe(true);
+  });
+});
+
+describe('isTokenDetectionEnabledForNetwork', () => {
+  it('returns true for Mainnet', () => {
+    expect(
+      util.isTokenDetectionEnabledForNetwork(
+        util.SupportedTokenDetectionNetworks.mainnet,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns true for custom network such as BSC', () => {
+    expect(
+      util.isTokenDetectionEnabledForNetwork(
+        util.SupportedTokenDetectionNetworks.bsc,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns false for testnets such as Ropsten', () => {
+    expect(
+      util.isTokenDetectionEnabledForNetwork(NetworksChainId.ropsten),
+    ).toBe(false);
   });
 });

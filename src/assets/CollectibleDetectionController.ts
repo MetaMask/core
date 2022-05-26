@@ -166,7 +166,7 @@ export class CollectibleDetectionController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'CollectibleDetectionController';
+  override name = 'CollectibleDetectionController';
 
   private getOpenSeaApiKey: () => string | undefined;
 
@@ -222,10 +222,8 @@ export class CollectibleDetectionController extends BaseController<
     this.initialize();
     this.getCollectiblesState = getCollectiblesState;
     onPreferencesStateChange(({ selectedAddress, useCollectibleDetection }) => {
-      const {
-        selectedAddress: previouslySelectedAddress,
-        disabled,
-      } = this.config;
+      const { selectedAddress: previouslySelectedAddress, disabled } =
+        this.config;
 
       if (
         selectedAddress !== previouslySelectedAddress ||

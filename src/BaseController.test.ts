@@ -1,4 +1,4 @@
-import { stub } from 'sinon';
+import sinon from 'sinon';
 import { BaseController, BaseConfig, BaseState } from './BaseController';
 
 const STATE = { name: 'foo' };
@@ -12,6 +12,10 @@ class TestController extends BaseController<BaseConfig, BaseState> {
 }
 
 describe('BaseController', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
   it('should set initial state', () => {
     const controller = new TestController(undefined, STATE);
     expect(controller.state).toStrictEqual(STATE);
@@ -45,8 +49,8 @@ describe('BaseController', () => {
 
   it('should notify all listeners', () => {
     const controller = new TestController(undefined, STATE);
-    const listenerOne = stub();
-    const listenerTwo = stub();
+    const listenerOne = sinon.stub();
+    const listenerTwo = sinon.stub();
     controller.subscribe(listenerOne);
     controller.subscribe(listenerTwo);
     controller.notify();
@@ -58,7 +62,7 @@ describe('BaseController', () => {
 
   it('should not notify unsubscribed listeners', () => {
     const controller = new TestController();
-    const listener = stub();
+    const listener = sinon.stub();
     controller.subscribe(listener);
     controller.unsubscribe(listener);
     controller.unsubscribe(() => null);

@@ -789,7 +789,7 @@ export class CollectiblesController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'CollectiblesController';
+  override name = 'CollectiblesController';
 
   private getERC721AssetName: AssetsContractController['getERC721AssetName'];
 
@@ -1059,7 +1059,12 @@ export class CollectiblesController extends BaseController<
     try {
       isOwned = await this.isCollectibleOwner(userAddress, address, tokenId);
     } catch (error) {
-      if (!error.message.includes('Unable to verify ownership')) {
+      if (
+        !(
+          error instanceof Error &&
+          error.message.includes('Unable to verify ownership')
+        )
+      ) {
         throw error;
       }
     }

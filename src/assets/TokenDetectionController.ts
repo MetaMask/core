@@ -39,7 +39,7 @@ export class TokenDetectionController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'TokenDetectionController';
+  override name = 'TokenDetectionController';
 
   private getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
