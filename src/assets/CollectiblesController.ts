@@ -164,10 +164,6 @@ export interface CollectiblesState extends BaseState {
 
 const ALL_COLLECTIBLES_STATE_KEY = 'allCollectibles';
 const ALL_COLLECTIBLES_CONTRACTS_STATE_KEY = 'allCollectibleContracts';
-// const OPENSEA_PROXY_URL =
-//   'https://proxy.metaswap.codefi.network/opensea/v1/api/v1';
-// const OPENSEA_API_URL = 'https://api.opensea.io/api/v1';
-// const OPENSEA_TEST_API_URL = 'https://testnets-api.opensea.io/api/v1';
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -259,10 +255,7 @@ export class CollectiblesController extends BaseController<
         // the third arg defaults to true to use the proxy
         this.getCollectibleApi(contractAddress, tokenId),
       );
-    // console.log(
-    //   'COLLectibleInformation in getFromAPI;',
-    //   collectibleInformation,
-    // );
+
     // if an openSeaApiKey is set we should attempt to refetch calling directly to OpenSea
     if (!collectibleInformation) {
       if (this.openSeaApiKey) {

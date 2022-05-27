@@ -141,8 +141,6 @@ describe('CollectiblesController', () => {
     });
   });
 
-  // shared nock mocks:
-
   afterEach(() => {
     sinon.restore();
   });
