@@ -4,16 +4,11 @@ import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import { ethers } from 'ethers';
-import { isHexString } from 'ethereumjs-util';
 import { AbortController } from 'abort-controller';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
-import {
-  validateTokenToWatch,
-  toChecksumHexAddress,
-  convertHexToDecimal,
-} from '../util';
+import { validateTokenToWatch, toChecksumHexAddress } from '../util';
 import { MAINNET, ERC721_INTERFACE_ID } from '../constants';
 import { fetchTokenMetadata } from '../apis/token-service';
 import type { Token } from './TokenRatesController';
@@ -760,9 +755,7 @@ export class TokensController extends BaseController<
   ): Promise<TokenListToken | null> {
     try {
       const token = await fetchTokenMetadata<TokenListToken>(
-        isHexString(this.config.chainId)
-          ? convertHexToDecimal(this.config.chainId).toString()
-          : this.config.chainId,
+        this.config.chainId,
         tokenAddress,
         this.abortController.signal,
       );
