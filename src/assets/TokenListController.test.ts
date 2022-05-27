@@ -12,9 +12,9 @@ import {
   TokenListMap,
   TokenListState,
 } from './TokenListController';
+import { TOKEN_END_POINT_API } from '../apis/token-service';
 
 const name = 'TokenListController';
-const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 const timestamp = Date.now();
 
 const sampleMainnetTokenList = [
