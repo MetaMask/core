@@ -7,6 +7,8 @@ import {
   NetworksChainId,
 } from '../network/NetworkController';
 import { getFormattedIpfsUrl } from '../util';
+import { OPENSEA_PROXY_URL, IPFS_DEFAULT_GATEWAY_URL } from '../constants';
+
 import { AssetsContractController } from './AssetsContractController';
 import { CollectiblesController } from './CollectiblesController';
 
@@ -27,16 +29,11 @@ const MAINNET_PROVIDER = new HttpProvider(
 const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 const SECOND_OWNER_ADDRESS = '0x500017171kasdfbou081';
 
-const OPEN_SEA_HOST_PROXY = 'https://proxy.metaswap.codefi.network/opensea/v1';
-const OPEN_SEA_PATH = '/api/v1';
-
-const CLOUDFARE_PATH = 'https://cloudflare-ipfs.com/ipfs/';
-
 const DEPRESSIONIST_CID_V1 =
   'bafybeidf7aw7bmnmewwj4ayq3she2jfk5jrdpp24aaucf6fddzb3cfhrvm';
 
 const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
-  CLOUDFARE_PATH,
+  IPFS_DEFAULT_GATEWAY_URL,
   `ipfs://${DEPRESSIONIST_CID_V1}`,
   true,
 );
@@ -77,8 +74,8 @@ describe('CollectiblesController', () => {
       openSeaEnabled: true,
     });
 
-    nock(OPEN_SEA_HOST_PROXY)
-      .get(`${OPEN_SEA_PATH}/asset_contract/0x01`)
+    nock(OPENSEA_PROXY_URL)
+      .get(`/asset_contract/0x01`)
       .reply(200, {
         description: 'Description',
         symbol: 'FOO',
@@ -88,7 +85,7 @@ describe('CollectiblesController', () => {
           image_url: 'url',
         },
       })
-      .get(`${OPEN_SEA_PATH}/asset_contract/0x02`)
+      .get(`/asset_contract/0x02`)
       .reply(200, {
         description: 'Description',
         image_url: 'url',
@@ -100,7 +97,7 @@ describe('CollectiblesController', () => {
           image_url: 'url',
         },
       })
-      .get(`${OPEN_SEA_PATH}/asset/0x01/1`)
+      .get(`/asset/0x01/1`)
       .reply(200, {
         description: 'Description',
         image_original_url: 'url',
@@ -110,9 +107,7 @@ describe('CollectiblesController', () => {
           schema_name: 'ERC1155',
         },
       })
-      .get(
-        `${OPEN_SEA_PATH}/asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203`,
-      )
+      .get(`/asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203`)
       .reply(200, {
         image_original_url: 'Kudos url',
         name: 'Kudos Name',
@@ -121,17 +116,11 @@ describe('CollectiblesController', () => {
           schema_name: 'ERC721',
         },
       })
-      .get(
-        `${OPEN_SEA_PATH}/asset/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/798958393`,
-      )
+      .get(`/asset/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/798958393`)
       .replyWithError(new TypeError('Failed to fetch'))
-      .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab`,
-      )
+      .get(`/asset_contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab`)
       .replyWithError(new TypeError('Failed to fetch'))
-      .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163`,
-      )
+      .get(`/asset_contract/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163`)
       .reply(200, {
         description: 'Kudos Description',
         symbol: 'KDO',
@@ -162,7 +151,7 @@ describe('CollectiblesController', () => {
         animation_url: null,
       });
 
-    nock(OPEN_SEA_HOST_PROXY)
+    nock(OPENSEA_PROXY_URL)
       .get(
         `/api/v1/asset/${ERC1155_COLLECTIBLE_ADDRESS}/${ERC1155_COLLECTIBLE_ID}`,
       )
@@ -674,7 +663,9 @@ describe('CollectiblesController', () => {
 
     it('should add collectible with metadata hosted in IPFS', async () => {
       assetsContract.configure({ provider: MAINNET_PROVIDER });
-      collectiblesController.configure({ ipfsGateway: CLOUDFARE_PATH });
+      collectiblesController.configure({
+        ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
+      });
       const { selectedAddress, chainId } = collectiblesController.config;
       await collectiblesController.addCollectible(
         ERC721_DEPRESSIONIST_ADDRESS,

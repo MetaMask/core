@@ -19,6 +19,9 @@ import {
   IPFS_DEFAULT_GATEWAY_URL,
   ERC721,
   ERC1155,
+  OPENSEA_API_URL,
+  OPENSEA_PROXY_URL,
+  OPENSEA_TEST_API_URL,
 } from '../constants';
 
 import type {
@@ -161,6 +164,10 @@ export interface CollectiblesState extends BaseState {
 
 const ALL_COLLECTIBLES_STATE_KEY = 'allCollectibles';
 const ALL_COLLECTIBLES_CONTRACTS_STATE_KEY = 'allCollectibleContracts';
+// const OPENSEA_PROXY_URL =
+//   'https://proxy.metaswap.codefi.network/opensea/v1/api/v1';
+// const OPENSEA_API_URL = 'https://api.opensea.io/api/v1';
+// const OPENSEA_TEST_API_URL = 'https://testnets-api.opensea.io/api/v1';
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -179,12 +186,11 @@ export class CollectiblesController extends BaseController<
     const { chainId } = this.config;
 
     if (chainId === RINKEBY_CHAIN_ID) {
-      return `https://testnets-api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
+      return `${OPENSEA_TEST_API_URL}/asset/${contractAddress}/${tokenId}`;
     }
-
     return useProxy
-      ? `https://proxy.metaswap.codefi.network/opensea/v1/api/v1/asset/${contractAddress}/${tokenId}`
-      : `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
+      ? `${OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`
+      : `${OPENSEA_API_URL}/asset/${contractAddress}/${tokenId}`;
   }
 
   private getCollectibleContractInformationApi(
@@ -198,8 +204,8 @@ export class CollectiblesController extends BaseController<
     }
 
     return useProxy
-      ? `https://proxy.metaswap.codefi.network/opensea/v1/api/v1/asset_contract/${contractAddress}`
-      : `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
+      ? `${OPENSEA_PROXY_URL}/asset_contract/${contractAddress}`
+      : `${OPENSEA_API_URL}/asset_contract/${contractAddress}`;
   }
 
   /**

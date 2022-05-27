@@ -2,7 +2,8 @@ import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
 import { fetchWithErrorHandling, toChecksumHexAddress } from '../util';
-import { MAINNET } from '../constants';
+import { MAINNET, OPENSEA_PROXY_URL, OPENSEA_API_URL } from '../constants';
+
 import type {
   CollectiblesController,
   CollectiblesState,
@@ -137,8 +138,8 @@ export class CollectibleDetectionController extends BaseController<
     useProxy = true,
   ) {
     return useProxy
-      ? `https://proxy.metaswap.codefi.network/opensea/v1/api/v1/assets?owner=${address}&offset=${offset}&limit=50`
-      : `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`;
+      ? `${OPENSEA_PROXY_URL}/assets?owner=${address}&offset=${offset}&limit=50`
+      : `${OPENSEA_API_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
   }
 
   private async getOwnerCollectibles(address: string) {
