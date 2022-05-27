@@ -1267,10 +1267,10 @@ describe('isValidJson', () => {
   });
 });
 
-describe('isTokenDetectionEnabledForNetwork', () => {
+describe('isTokenDetectionSupportedForNetwork', () => {
   it('returns true for Mainnet', () => {
     expect(
-      util.isTokenDetectionEnabledForNetwork(
+      util.isTokenDetectionSupportedForNetwork(
         util.SupportedTokenDetectionNetworks.mainnet,
       ),
     ).toBe(true);
@@ -1278,7 +1278,7 @@ describe('isTokenDetectionEnabledForNetwork', () => {
 
   it('returns true for custom network such as BSC', () => {
     expect(
-      util.isTokenDetectionEnabledForNetwork(
+      util.isTokenDetectionSupportedForNetwork(
         util.SupportedTokenDetectionNetworks.bsc,
       ),
     ).toBe(true);
@@ -1286,7 +1286,7 @@ describe('isTokenDetectionEnabledForNetwork', () => {
 
   it('returns false for testnets such as Ropsten', () => {
     expect(
-      util.isTokenDetectionEnabledForNetwork(NetworksChainId.ropsten),
+      util.isTokenDetectionSupportedForNetwork(NetworksChainId.ropsten),
     ).toBe(false);
   });
 });

@@ -948,7 +948,7 @@ export enum SupportedTokenDetectionNetworks {
  * @param chainId - ChainID of network
  * @returns Whether the current network supports token detection
  */
-export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
+export function isTokenDetectionSupportedForNetwork(chainId: string): boolean {
   return Object.values<string>(SupportedTokenDetectionNetworks).includes(
     chainId,
   );
