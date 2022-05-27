@@ -141,6 +141,28 @@ describe('CollectiblesController', () => {
     });
   });
 
+  nock(OPENSEA_PROXY_URL)
+    .get(`/asset/${ERC721_KUDOSADDRESS}/${ERC721_KUDOS_TOKEN_ID}`)
+    .reply(200, {
+      image_original_url: 'Kudos image (from API)',
+      name: 'Kudos Name',
+      description: 'Kudos Description',
+      asset_contract: {
+        schema_name: 'ERC721',
+      },
+    })
+    .get(`/asset_contract/${ERC721_KUDOSADDRESS}`)
+    .reply(200, {
+      description: 'Kudos Description',
+      symbol: 'KDO',
+      total_supply: 10,
+      collection: {
+        name: 'Kudos',
+        image_url: 'Kudos logo (from API)',
+      },
+    })
+    .persist();
+
   afterEach(() => {
     sinon.restore();
   });
@@ -368,27 +390,6 @@ describe('CollectiblesController', () => {
           image: 'Kudos Image (directly from tokenURI)',
           name: 'Kudos Name (directly from tokenURI)',
           description: 'Kudos Description (directly from tokenURI)',
-        });
-
-      nock(OPENSEA_PROXY_URL)
-        .get(`/asset/${ERC721_KUDOSADDRESS}/${ERC721_KUDOS_TOKEN_ID}`)
-        .reply(200, {
-          image_original_url: 'Kudos image (from API)',
-          name: 'Kudos Name',
-          description: 'Kudos Description',
-          asset_contract: {
-            schema_name: 'ERC721',
-          },
-        })
-        .get(`/asset_contract/${ERC721_KUDOSADDRESS}`)
-        .reply(200, {
-          description: 'Kudos Description',
-          symbol: 'KDO',
-          total_supply: 10,
-          collection: {
-            name: 'Kudos',
-            image_url: 'Kudos logo (from API)',
-          },
         });
 
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
@@ -841,7 +842,7 @@ describe('CollectiblesController', () => {
         {
           address: ERC721_KUDOSADDRESS,
           description: 'Kudos Description',
-          imageOriginal: 'Kudos url',
+          imageOriginal: 'Kudos image (from API)',
           name: 'Kudos Name',
           image: null,
           standard: 'ERC721',
@@ -859,7 +860,7 @@ describe('CollectiblesController', () => {
         {
           address: ERC721_KUDOSADDRESS,
           description: 'Kudos Description',
-          logo: 'Kudos url',
+          logo: 'Kudos logo (from API)',
           name: 'Kudos',
           symbol: 'KDO',
           totalSupply: 10,
@@ -915,6 +916,81 @@ describe('CollectiblesController', () => {
     });
 
     it('should add collectible with metadata hosted in IPFS', async () => {
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 13,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x18E8E76aeB9E2d9FA2A2b88DD9CF3C8ED45c3660',
+              data: '0x06fdde03',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 13,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001c4d616c746a696b2e6a706727732044657072657373696f6e6973747300000000',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 14,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x18E8E76aeB9E2d9FA2A2b88DD9CF3C8ED45c3660',
+              data: '0x95d89b41',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 14,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000444504e5300000000000000000000000000000000000000000000000000000000',
+        });
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 15,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x18E8E76aeB9E2d9FA2A2b88DD9CF3C8ED45c3660',
+              data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 15,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 16,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x18E8E76aeB9E2d9FA2A2b88DD9CF3C8ED45c3660',
+              data: '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000024',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 16,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003a697066733a2f2f697066732f516d5643684e7453745a66507956384a664b70756265336569675168357255587159636850674c63393174574c4a000000000000',
+        });
+
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       collectiblesController.configure({
         ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
@@ -1181,6 +1257,26 @@ describe('CollectiblesController', () => {
 
   describe('isCollectibleOwner', () => {
     it('should verify the ownership of an ERC-721 collectible with the correct owner address', async () => {
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 17,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x60f80121c31a0d46b5279700f9df786054aa5ee5',
+              data: '0x6352211e000000000000000000000000000000000000000000000000000000000011781a',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 17,
+          result:
+            '0x0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d',
+        });
+
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const isOwner = await collectiblesController.isCollectibleOwner(
         OWNER_ADDRESS,
@@ -1191,6 +1287,44 @@ describe('CollectiblesController', () => {
     });
 
     it('should not verify the ownership of an ERC-721 collectible with the wrong owner address', async () => {
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 18,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x60f80121c31a0d46b5279700f9df786054aa5ee5',
+              data: '0x6352211e000000000000000000000000000000000000000000000000000000000011781a',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 18,
+          result:
+            '0x0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d',
+        });
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 19,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
+              data: '0x6352211e5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 19,
+          error: { code: -32000, message: 'execution reverted' },
+        });
+
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const isOwner = await collectiblesController.isCollectibleOwner(
         '0x0000000000000000000000000000000000000000',
@@ -1201,6 +1335,42 @@ describe('CollectiblesController', () => {
     });
 
     it('should verify the ownership of an ERC-1155 collectible with the correct owner address', async () => {
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 20,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
+              data: '0x6352211e5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 20,
+          error: { code: -32000, message: 'execution reverted' },
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 2,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
+              data: '0x00fdd58e0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 2,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+        });
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const isOwner = await collectiblesController.isCollectibleOwner(
         OWNER_ADDRESS,
@@ -1211,6 +1381,43 @@ describe('CollectiblesController', () => {
     });
 
     it('should not verify the ownership of an ERC-1155 collectible with the wrong owner address', async () => {
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 22,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
+              data: '0x6352211e5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 22,
+          error: { code: -32000, message: 'execution reverted' },
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 23,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
+              data: '0x00fdd58e00000000000000000000000000000000000000000000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 23,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000000',
+        });
+
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const isOwner = await collectiblesController.isCollectibleOwner(
         '0x0000000000000000000000000000000000000000',
