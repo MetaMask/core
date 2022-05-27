@@ -8,7 +8,7 @@ import {
 import { PreferencesController } from '../user/PreferencesController';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
-  isTokenDetectionEnabledForNetwork,
+  isTokenDetectionSupportedForNetwork,
   SupportedTokenDetectionNetworks,
 } from '../util';
 import { TokensController } from './TokensController';
@@ -17,78 +17,68 @@ import {
   TokenListController,
   GetTokenListState,
   TokenListStateChange,
+  TokenListToken,
 } from './TokenListController';
 import { AssetsContractController } from './AssetsContractController';
+import { TOKEN_END_POINT_API } from '../apis/token-service';
+import { formatAggregatorNames } from './assetsUtil';
+import { Token } from './TokenRatesController';
 
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 const ROPSTEN = 'ropsten';
-const TOKENS = [
-  { address: '0xfoO', symbol: 'bar', decimals: 2, aggregators: [] },
-];
 
-const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
-const sampleTokenList = [
+const sampleAggregators = [
+  'paraswap',
+  'pmm',
+  'airswapLight',
+  'zeroEx',
+  'bancor',
+  'coinGecko',
+  'zapper',
+  'kleros',
+  'zerion',
+  'cmc',
+  'oneInch',
+];
+const formattedSampleAggregators = formatAggregatorNames(sampleAggregators);
+const sampleTokenList: TokenListToken[] = [
   {
-    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
+    address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
     symbol: 'LINK',
     decimals: 18,
+    iconUrl: '',
     occurrences: 11,
-    aggregators: [
-      'paraswap',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
+    aggregators: sampleAggregators,
     name: 'Chainlink',
   },
   {
-    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
+    address: '0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C',
     symbol: 'BNT',
     decimals: 18,
+    iconUrl: '',
     occurrences: 11,
-    aggregators: [
-      'paraswap',
-      'pmm',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
+    aggregators: sampleAggregators,
     name: 'Bancor',
   },
-  {
-    address: '0x6810e776880c02933d47db1b9fc05908e5386b96',
-    symbol: 'GNO',
-    name: 'Gnosis',
-    decimals: 18,
-    occurrences: 10,
-    aggregators: [
-      'paraswap',
-      'airswapLight',
-      'zeroEx',
-      'bancor',
-      'coinGecko',
-      'zapper',
-      'kleros',
-      'zerion',
-      'cmc',
-      'oneInch',
-    ],
-  },
 ];
+const [tokenAFromList, tokenBFromList] = sampleTokenList;
+const sampleTokenA: Token = {
+  address: tokenAFromList.address,
+  symbol: tokenAFromList.symbol,
+  decimals: tokenAFromList.decimals,
+  image: undefined,
+  isERC721: false,
+  aggregators: formattedSampleAggregators,
+};
+const sampleTokenB: Token = {
+  address: tokenBFromList.address,
+  symbol: tokenBFromList.symbol,
+  decimals: tokenBFromList.decimals,
+  image: undefined,
+  isERC721: false,
+  aggregators: formattedSampleAggregators,
+};
 
 /**
  * Constructs a restricted controller messenger.
@@ -124,6 +114,18 @@ describe('TokenDetectionController', () => {
   >;
 
   beforeEach(async () => {
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .reply(200, sampleTokenList)
+      .get(
+        `/token/${NetworksChainId.mainnet}?address=${tokenAFromList.address}`,
+      )
+      .reply(200, tokenAFromList)
+      .get(
+        `/token/${NetworksChainId.mainnet}?address=${tokenBFromList.address}`,
+      )
+      .reply(200, tokenBFromList)
+      .persist();
     preferences = new PreferencesController({}, { useTokenDetection: true });
     network = new NetworkController();
     assetsContract = new AssetsContractController({
@@ -135,11 +137,6 @@ describe('TokenDetectionController', () => {
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
     });
-
-    nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
-      .reply(200, sampleTokenList)
-      .persist();
     const messenger = getTokenListMessenger();
     tokenList = new TokenListController({
       chainId: NetworksChainId.mainnet,
@@ -230,15 +227,15 @@ describe('TokenDetectionController', () => {
     });
 
     expect(
-      isTokenDetectionEnabledForNetwork(tokenDetection.config.chainId),
+      isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
     ).toStrictEqual(true);
     tokenDetection.configure({ chainId: SupportedTokenDetectionNetworks.bsc });
     expect(
-      isTokenDetectionEnabledForNetwork(tokenDetection.config.chainId),
+      isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
     ).toStrictEqual(true);
     tokenDetection.configure({ chainId: NetworksChainId.ropsten });
     expect(
-      isTokenDetectionEnabledForNetwork(tokenDetection.config.chainId),
+      isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
     ).toStrictEqual(false);
   });
 
@@ -286,29 +283,10 @@ describe('TokenDetectionController', () => {
     });
 
     getBalancesInSingleCall.resolves({
-      '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
+      [sampleTokenA.address]: new BN(1),
     });
     await tokenDetection.detectTokens();
-    expect(tokensController.state.detectedTokens).toStrictEqual([
-      {
-        address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
-        decimals: 18,
-        image: undefined,
-        symbol: 'GNO',
-        aggregators: [
-          'Paraswap',
-          'AirswapLight',
-          '0x',
-          'Bancor',
-          'CoinGecko',
-          'Zapper',
-          'Kleros',
-          'Zerion',
-          'CMC',
-          '1inch',
-        ],
-      },
-    ]);
+    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
   });
 
   it('should update detectedTokens when new tokens are detected', async () => {
@@ -320,72 +298,18 @@ describe('TokenDetectionController', () => {
     });
 
     getBalancesInSingleCall.resolves({
-      '0x6810e776880c02933d47db1b9fc05908e5386b96': new BN(1),
+      [sampleTokenA.address]: new BN(1),
     });
     await tokenDetection.detectTokens();
-    expect(tokensController.state.detectedTokens).toStrictEqual([
-      {
-        address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
-        decimals: 18,
-        image: undefined,
-        symbol: 'GNO',
-        aggregators: [
-          'Paraswap',
-          'AirswapLight',
-          '0x',
-          'Bancor',
-          'CoinGecko',
-          'Zapper',
-          'Kleros',
-          'Zerion',
-          'CMC',
-          '1inch',
-        ],
-      },
-    ]);
+    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
 
     getBalancesInSingleCall.resolves({
-      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
+      [sampleTokenB.address]: new BN(1),
     });
     await tokenDetection.detectTokens();
     expect(tokensController.state.detectedTokens).toStrictEqual([
-      {
-        address: '0x6810e776880C02933D47DB1b9fc05908e5386b96',
-        decimals: 18,
-        image: undefined,
-        symbol: 'GNO',
-        aggregators: [
-          'Paraswap',
-          'AirswapLight',
-          '0x',
-          'Bancor',
-          'CoinGecko',
-          'Zapper',
-          'Kleros',
-          'Zerion',
-          'CMC',
-          '1inch',
-        ],
-      },
-      {
-        address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
-        symbol: 'LINK',
-        decimals: 18,
-        image: undefined,
-        aggregators: [
-          'Paraswap',
-          'PMM',
-          'AirswapLight',
-          '0x',
-          'Bancor',
-          'CoinGecko',
-          'Zapper',
-          'Kleros',
-          'Zerion',
-          'CMC',
-          '1inch',
-        ],
-      },
+      sampleTokenA,
+      sampleTokenB,
     ]);
   });
 
@@ -403,38 +327,27 @@ describe('TokenDetectionController', () => {
     });
 
     await tokensController.addToken(
-      '0x59Ec8e68D9cAa87f6B5BC4013172c20E85ccdaD0',
-      'BAR',
-      5,
+      sampleTokenA.address,
+      sampleTokenA.symbol,
+      sampleTokenA.decimals,
     );
 
     await tokensController.addToken(
-      '0x588047365df5ba589f923604aac23d673555c623',
-      'FOO',
-      6,
+      sampleTokenB.address,
+      sampleTokenB.symbol,
+      sampleTokenB.decimals,
     );
 
-    await tokensController.removeAndIgnoreToken(
-      '0x59Ec8e68D9cAa87f6B5BC4013172c20E85ccdaD0',
-    );
+    await tokensController.removeAndIgnoreToken(sampleTokenA.address);
 
     getBalancesInSingleCall.resolves({
-      '0x59Ec8e68D9cAa87f6B5BC4013172c20E85ccdaD0': new BN(1),
+      [sampleTokenA.address]: new BN(1),
     });
     await tokenDetection.detectTokens();
-    expect(tokensController.state.tokens).toStrictEqual([
-      {
-        address: '0x588047365dF5BA589F923604AAC23d673555c623',
-        decimals: 6,
-        image: undefined,
-        symbol: 'FOO',
-        isERC721: false,
-        aggregators: [],
-      },
-    ]);
+    expect(tokensController.state.tokens).toStrictEqual([sampleTokenB]);
 
     expect(tokensController.state.ignoredTokens).toStrictEqual([
-      '0x59Ec8e68D9cAa87f6B5BC4013172c20E85ccdaD0',
+      sampleTokenA.address,
     ]);
   });
 
@@ -458,48 +371,20 @@ describe('TokenDetectionController', () => {
     });
 
     await tokensController.addToken(
-      '0x514910771AF9Ca656af840dff83E8264EcF986CA',
-      'LINK',
-      18,
+      sampleTokenA.address,
+      sampleTokenA.symbol,
+      sampleTokenA.decimals,
     );
 
-    await tokensController.addToken(
-      '0x588047365df5ba589f923604aac23d673555c623',
-      'FOO',
-      6,
-    );
-
-    await tokensController.removeAndIgnoreToken(
-      '0x514910771AF9Ca656af840dff83E8264EcF986CA',
-    );
+    await tokensController.removeAndIgnoreToken(sampleTokenA.address);
 
     await preferences.setSelectedAddress('0x0002');
 
     getBalancesInSingleCall.resolves({
-      '0x514910771AF9Ca656af840dff83E8264EcF986CA': new BN(1),
+      [sampleTokenA.address]: new BN(1),
     });
     await tokenDetection.detectTokens();
-    expect(tokensController.state.detectedTokens).toStrictEqual([
-      {
-        address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
-        decimals: 18,
-        image: undefined,
-        symbol: 'LINK',
-        aggregators: [
-          'Paraswap',
-          'PMM',
-          'AirswapLight',
-          '0x',
-          'Bancor',
-          'CoinGecko',
-          'Zapper',
-          'Kleros',
-          'Zerion',
-          'CMC',
-          '1inch',
-        ],
-      },
-    ]);
+    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
   });
 
   it('should not autodetect tokens that exist in the ignoreList', async () => {
@@ -511,35 +396,13 @@ describe('TokenDetectionController', () => {
     });
 
     getBalancesInSingleCall.resolves({
-      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
+      [sampleTokenA.address]: new BN(1),
     });
     await tokenDetection.detectTokens();
 
-    expect(tokensController.state.detectedTokens).toStrictEqual([
-      {
-        address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
-        symbol: 'LINK',
-        decimals: 18,
-        image: undefined,
-        aggregators: [
-          'Paraswap',
-          'PMM',
-          'AirswapLight',
-          '0x',
-          'Bancor',
-          'CoinGecko',
-          'Zapper',
-          'Kleros',
-          'Zerion',
-          'CMC',
-          '1inch',
-        ],
-      },
-    ]);
+    expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
 
-    tokensController.removeAndIgnoreToken(
-      '0x514910771af9ca656af840dff83e8264ecf986ca',
-    );
+    tokensController.removeAndIgnoreToken(sampleTokenA.address);
     await tokenDetection.detectTokens();
     expect(tokensController.state.detectedTokens).toStrictEqual([]);
   });
@@ -552,7 +415,7 @@ describe('TokenDetectionController', () => {
     });
 
     getBalancesInSingleCall.resolves({
-      '0x514910771af9ca656af840dff83e8264ecf986ca': new BN(1),
+      [sampleTokenA.address]: new BN(1),
     });
     await tokenDetection.detectTokens();
     expect(tokensController.state.detectedTokens).toStrictEqual([]);
@@ -587,7 +450,10 @@ describe('TokenDetectionController', () => {
       },
     });
     expect(network.state.provider.type).toStrictEqual(firstNetworkType);
-    tokensController.update({ tokens: TOKENS });
-    expect(tokenDetection.config.tokens).toStrictEqual(TOKENS);
+    tokensController.update({ tokens: [sampleTokenA, sampleTokenB] });
+    expect(tokenDetection.config.tokens).toStrictEqual([
+      sampleTokenA,
+      sampleTokenB,
+    ]);
   });
 });

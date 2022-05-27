@@ -4,7 +4,7 @@ import type { PreferencesState } from '../user/PreferencesController';
 import {
   safelyExecute,
   toChecksumHexAddress,
-  isTokenDetectionEnabledForNetwork,
+  isTokenDetectionSupportedForNetwork,
 } from '../util';
 import { MAINNET } from '../constants';
 import { NetworksChainId } from '..';
@@ -121,7 +121,7 @@ export class TokenDetectionController extends BaseController<
       const prevDisabled = this.config.disabled;
       const isSelectedAddressChanged =
         selectedAddress !== this.config.selectedAddress;
-      const isTokenDetectionSupported = isTokenDetectionEnabledForNetwork(
+      const isTokenDetectionSupported = isTokenDetectionSupportedForNetwork(
         this.config.chainId,
       );
       const isDetectionEnabled = useTokenDetection && isTokenDetectionSupported;
@@ -135,7 +135,7 @@ export class TokenDetectionController extends BaseController<
       if (this.config.chainId !== networkState.provider.chainId) {
         const incomingChainId = networkState.provider.chainId;
         const isTokenDetectionSupported =
-          isTokenDetectionEnabledForNetwork(incomingChainId);
+          isTokenDetectionSupportedForNetwork(incomingChainId);
         const isDetectionEnabled =
           isTokenDetectionSupported && !this.config.disabled;
         this.configure({
@@ -271,6 +271,7 @@ export class TokenDetectionController extends BaseController<
               decimals: tokenList[caseInsensitiveTokenKey].decimals,
               symbol: tokenList[caseInsensitiveTokenKey].symbol,
               aggregators: tokenList[caseInsensitiveTokenKey].aggregators,
+              isERC721: false,
             });
           }
         }
