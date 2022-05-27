@@ -3,10 +3,10 @@ import { NetworksChainId } from '../network/NetworkController';
 import {
   fetchTokenList,
   fetchTokenMetadata,
-  FETCH_TOKEN_METADATA_ERROR,
+  TOKEN_END_POINT_API,
+  TOKEN_METADATA_NO_RESPONSE_ERROR,
+  TOKEN_METADATA_NO_SUPPORT_ERROR,
 } from './token-service';
-
-const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 
 const ONE_MILLISECOND = 1;
 const ONE_SECOND_IN_MILLISECONDS = 1_000;
@@ -253,7 +253,7 @@ describe('Token service', () => {
           abortController.signal,
         );
         abortController.abort();
-      }).rejects.toThrow(FETCH_TOKEN_METADATA_ERROR);
+      }).rejects.toThrow(TOKEN_METADATA_NO_RESPONSE_ERROR);
     });
 
     it('should throw error if the fetch fails with a network error', async () => {
@@ -269,7 +269,7 @@ describe('Token service', () => {
           '0x514910771af9ca656af840dff83e8264ecf986ca',
           signal,
         );
-      }).rejects.toThrow(FETCH_TOKEN_METADATA_ERROR);
+      }).rejects.toThrow(TOKEN_METADATA_NO_RESPONSE_ERROR);
     });
 
     it('should throw error if the fetch fails with an unsuccessful status code', async () => {
@@ -285,7 +285,7 @@ describe('Token service', () => {
           '0x514910771af9ca656af840dff83e8264ecf986ca',
           signal,
         );
-      }).rejects.toThrow(FETCH_TOKEN_METADATA_ERROR);
+      }).rejects.toThrow(TOKEN_METADATA_NO_RESPONSE_ERROR);
     });
 
     it('should throw error if the fetch fails with a timeout', async () => {
@@ -304,7 +304,18 @@ describe('Token service', () => {
           signal,
           { timeout: ONE_MILLISECOND },
         );
-      }).rejects.toThrow(FETCH_TOKEN_METADATA_ERROR);
+      }).rejects.toThrow(TOKEN_METADATA_NO_RESPONSE_ERROR);
+    });
+
+    it('should throw error if fetching from non supported network', async () => {
+      const { signal } = new AbortController();
+      await expect(async () => {
+        await fetchTokenMetadata(
+          NetworksChainId.goerli,
+          '0x514910771af9ca656af840dff83e8264ecf986ca',
+          signal,
+        );
+      }).rejects.toThrow(TOKEN_METADATA_NO_SUPPORT_ERROR);
     });
   });
 

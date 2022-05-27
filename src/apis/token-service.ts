@@ -1,8 +1,10 @@
-import { timeoutFetch } from '../util';
+import { isTokenDetectionSupportedForNetwork, timeoutFetch } from '../util';
 
-const END_POINT = 'https://token-api.metaswap.codefi.network';
-export const FETCH_TOKEN_METADATA_ERROR =
+export const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
+export const TOKEN_METADATA_NO_RESPONSE_ERROR =
   'TokenService Error: No response from fetchTokenMetadata';
+export const TOKEN_METADATA_NO_SUPPORT_ERROR =
+  'TokenService Error: Network does not support fetchTokenMetadata';
 
 /**
  * Get the tokens URL for a specific network.
@@ -11,7 +13,7 @@ export const FETCH_TOKEN_METADATA_ERROR =
  * @returns The tokens URL.
  */
 function getTokensURL(chainId: string) {
-  return `${END_POINT}/tokens/${chainId}`;
+  return `${TOKEN_END_POINT_API}/tokens/${chainId}`;
 }
 
 /**
@@ -22,7 +24,7 @@ function getTokensURL(chainId: string) {
  * @returns The token metadata URL.
  */
 function getTokenMetadataURL(chainId: string, tokenAddress: string) {
-  return `${END_POINT}/token/${chainId}?address=${tokenAddress}`;
+  return `${TOKEN_END_POINT_API}/token/${chainId}?address=${tokenAddress}`;
 }
 
 const tenSecondsInMilliseconds = 10_000;
@@ -71,12 +73,15 @@ export async function fetchTokenMetadata<T>(
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
 ): Promise<T> {
+  if (!isTokenDetectionSupportedForNetwork(chainId)) {
+    throw new Error(TOKEN_METADATA_NO_SUPPORT_ERROR);
+  }
   const tokenMetadataURL = getTokenMetadataURL(chainId, tokenAddress);
   const response = await queryApi(tokenMetadataURL, abortSignal, timeout);
   if (response) {
     return parseJsonResponse(response) as Promise<T>;
   }
-  throw new Error(FETCH_TOKEN_METADATA_ERROR);
+  throw new Error(TOKEN_METADATA_NO_RESPONSE_ERROR);
 }
 
 /**
