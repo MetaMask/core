@@ -10,7 +10,10 @@ import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import { validateTokenToWatch, toChecksumHexAddress } from '../util';
 import { MAINNET, ERC721_INTERFACE_ID } from '../constants';
-import { fetchTokenMetadata } from '../apis/token-service';
+import {
+  fetchTokenMetadata,
+  TOKEN_METADATA_NO_SUPPORT_ERROR,
+} from '../apis/token-service';
 import type { Token } from './TokenRatesController';
 import { TokenListToken } from './TokenListController';
 import { formatAggregatorNames } from './assetsUtil';
@@ -127,6 +130,33 @@ export class TokensController extends BaseController<
   }
 
   /**
+   * Fetch metadata for a token.
+   *
+   * @param tokenAddress - The address of the token.
+   * @returns The token metadata.
+   */
+  private async fetchTokenMetadata(
+    tokenAddress: string,
+  ): Promise<TokenListToken | null> {
+    try {
+      const token = await fetchTokenMetadata<TokenListToken>(
+        this.config.chainId,
+        tokenAddress,
+        this.abortController.signal,
+      );
+      return token;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes(TOKEN_METADATA_NO_SUPPORT_ERROR)
+      ) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
    * EventEmitter instance used to listen to specific EIP747 events
    */
   hub = new EventEmitter();
@@ -230,13 +260,21 @@ export class TokensController extends BaseController<
     decimals: number,
     image?: string,
   ): Promise<Token[]> {
+    const currentChainId = this.config.chainId;
     const releaseLock = await this.mutex.acquire();
     try {
       address = toChecksumHexAddress(address);
       const { tokens, ignoredTokens, detectedTokens } = this.state;
       let newTokens: Token[] = [...tokens];
-      const isERC721 = await this._detectIsERC721(address);
-      const tokenMetadata = await this.fetchTokenMetadata(address);
+      const [isERC721, tokenMetadata] = await Promise.all([
+        this._detectIsERC721(address),
+        this.fetchTokenMetadata(address),
+      ]);
+      if (currentChainId !== this.config.chainId) {
+        throw new Error(
+          'TokensController Error: Switched networks while adding token',
+        );
+      }
       const newEntry: Token = {
         address,
         symbol,
@@ -400,13 +438,15 @@ export class TokensController extends BaseController<
 
     try {
       incomingDetectedTokens.forEach((tokenToAdd) => {
-        const { address, symbol, decimals, image, aggregators } = tokenToAdd;
+        const { address, symbol, decimals, image, aggregators, isERC721 } =
+          tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const newEntry: Token = {
           address: checksumAddress,
           symbol,
           decimals,
           image,
+          isERC721,
           aggregators,
         };
         const previousImportedEntry = newTokens.find(
@@ -742,27 +782,6 @@ export class TokensController extends BaseController<
       };
     }
     return { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens };
-  }
-
-  /**
-   * Fetch metadata for a token.
-   *
-   * @param tokenAddress - The address of the token.
-   * @returns The token metadata.
-   */
-  async fetchTokenMetadata(
-    tokenAddress: string,
-  ): Promise<TokenListToken | null> {
-    try {
-      const token = await fetchTokenMetadata<TokenListToken>(
-        this.config.chainId,
-        tokenAddress,
-        this.abortController.signal,
-      );
-      return token;
-    } catch {
-      return null;
-    }
   }
 
   /**

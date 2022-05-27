@@ -149,6 +149,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'barA',
       aggregators: [],
+      isERC721: undefined,
     });
 
     expect(tokensController.state.detectedTokens[1]).toStrictEqual({
@@ -157,6 +158,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'barB',
       aggregators: [],
+      isERC721: undefined,
     });
 
     await tokensController.addDetectedTokens([
@@ -165,12 +167,14 @@ describe('TokensController', () => {
         symbol: 'bazA',
         decimals: 2,
         aggregators: [],
+        isERC721: undefined,
       },
       {
         address: '0x02',
         symbol: 'bazB',
         decimals: 2,
         aggregators: [],
+        isERC721: undefined,
       },
     ]);
 
@@ -180,6 +184,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'bazA',
       aggregators: [],
+      isERC721: undefined,
     });
 
     expect(tokensController.state.detectedTokens[1]).toStrictEqual({
@@ -188,6 +193,7 @@ describe('TokensController', () => {
       image: undefined,
       symbol: 'bazB',
       aggregators: [],
+      isERC721: undefined,
     });
   });
 
