@@ -24,6 +24,7 @@ describe('CollectibleDetectionController', () => {
     network = new NetworkController();
     assetsContract = new AssetsContractController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onNetworkStateChange: (listener) => network.subscribe(listener),
     });
 
     collectiblesController = new CollectiblesController({
@@ -39,6 +40,7 @@ describe('CollectibleDetectionController', () => {
         assetsContract.getERC1155BalanceOf.bind(assetsContract),
       getERC1155TokenURI:
         assetsContract.getERC1155TokenURI.bind(assetsContract),
+      onCollectibleAdded: jest.fn(),
     });
 
     collectibleDetection = new CollectibleDetectionController({
