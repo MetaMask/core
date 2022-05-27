@@ -7,13 +7,18 @@ import {
   NetworksChainId,
 } from '../network/NetworkController';
 import { getFormattedIpfsUrl } from '../util';
-import { OPENSEA_PROXY_URL, IPFS_DEFAULT_GATEWAY_URL } from '../constants';
+import {
+  OPENSEA_PROXY_URL,
+  IPFS_DEFAULT_GATEWAY_URL,
+  ERC1155,
+} from '../constants';
 
 import { AssetsContractController } from './AssetsContractController';
 import { CollectiblesController } from './CollectiblesController';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
+const ERC721_KUDOS_TOKEN_ID = '1203';
 const ERC721_COLLECTIBLE_ADDRESS = '0x60f80121c31a0d46b5279700f9df786054aa5ee5';
 const ERC721_COLLECTIBLE_ID = '1144858';
 const ERC1155_COLLECTIBLE_ADDRESS =
@@ -44,6 +49,10 @@ describe('CollectiblesController', () => {
   let network: NetworkController;
   let assetsContract: AssetsContractController;
   const onCollectibleAddedSpy = jest.fn();
+
+  beforeAll(() => {
+    nock.disableNetConnect();
+  });
 
   beforeEach(() => {
     preferences = new PreferencesController();
@@ -107,49 +116,10 @@ describe('CollectiblesController', () => {
           schema_name: 'ERC1155',
         },
       })
-      .get(`/asset/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163/1203`)
-      .reply(200, {
-        image_original_url: 'Kudos url',
-        name: 'Kudos Name',
-        description: 'Kudos Description',
-        asset_contract: {
-          schema_name: 'ERC721',
-        },
-      })
       .get(`/asset/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab/798958393`)
       .replyWithError(new TypeError('Failed to fetch'))
       .get(`/asset_contract/0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab`)
-      .replyWithError(new TypeError('Failed to fetch'))
-      .get(`/asset_contract/0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163`)
-      .reply(200, {
-        description: 'Kudos Description',
-        symbol: 'KDO',
-        total_supply: 10,
-        collection: {
-          name: 'Kudos',
-          image_url: 'Kudos url',
-        },
-      });
-
-    nock('https://ipfs.gitcoin.co:443')
-      .get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov')
-      .reply(200, {
-        image: 'Kudos Image (from uri)',
-        name: 'Kudos Name (from uri)',
-        description: 'Kudos Description (from uri)',
-      });
-
-    nock('https://api.opensea.io')
-      .get(
-        `/api/v1/metadata/${ERC1155_COLLECTIBLE_ADDRESS}/0x5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001`,
-      )
-      .reply(200, {
-        name: 'name (from contract uri)',
-        description: null,
-        external_link: null,
-        image: 'image (from contract uri)',
-        animation_url: null,
-      });
+      .replyWithError(new TypeError('Failed to fetch'));
 
     nock(OPENSEA_PROXY_URL)
       .get(
@@ -171,8 +141,9 @@ describe('CollectiblesController', () => {
     });
   });
 
+  // shared nock mocks:
+
   afterEach(() => {
-    nock.cleanAll();
     sinon.restore();
   });
 
@@ -392,35 +363,110 @@ describe('CollectiblesController', () => {
       });
     });
 
-    it('should add collectible erc1155 and get collectible contract information from contract', async () => {
-      assetsContract.configure({ provider: MAINNET_PROVIDER });
-      const { selectedAddress, chainId } = collectiblesController.config;
+    it('should add collectible erc721 and aggregate collectible data from both contract and OpenSea', async () => {
+      nock('https://ipfs.gitcoin.co:443')
+        .get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov')
+        .reply(200, {
+          image: 'Kudos Image (directly from tokenURI)',
+          name: 'Kudos Name (directly from tokenURI)',
+          description: 'Kudos Description (directly from tokenURI)',
+        });
 
-      await collectiblesController.addCollectible(
-        ERC1155_COLLECTIBLE_ADDRESS,
-        ERC1155_COLLECTIBLE_ID,
-      );
+      nock(OPENSEA_PROXY_URL)
+        .get(`/asset/${ERC721_KUDOSADDRESS}/${ERC721_KUDOS_TOKEN_ID}`)
+        .reply(200, {
+          image_original_url: 'Kudos image (from API)',
+          name: 'Kudos Name',
+          description: 'Kudos Description',
+          asset_contract: {
+            schema_name: 'ERC721',
+          },
+        })
+        .get(`/asset_contract/${ERC721_KUDOSADDRESS}`)
+        .reply(200, {
+          description: 'Kudos Description',
+          symbol: 'KDO',
+          total_supply: 10,
+          collection: {
+            name: 'Kudos',
+            image_url: 'Kudos logo (from API)',
+          },
+        });
 
-      expect(
-        collectiblesController.state.allCollectibles[selectedAddress][
-          chainId
-        ][0],
-      ).toStrictEqual({
-        address: ERC1155_COLLECTIBLE_ADDRESS,
-        image: 'image (from contract uri)',
-        name: 'name (from contract uri)',
-        description: 'description',
-        tokenId:
-          '40815311521795738946686668571398122012172359753720345430028676522525371400193',
-        imageOriginal: 'image.uri',
-        numberOfSales: 1,
-        standard: 'ERC1155',
-        favorite: false,
-        isCurrentlyOwned: true,
-      });
-    });
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+              data: '0x06fdde03',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 1,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000a4b75646f73546f6b656e00000000000000000000000000000000000000000000',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 2,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+              data: '0x95d89b41',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 2,
+          result:
+            '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000034b444f0000000000000000000000000000000000000000000000000000000000',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 3,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+              data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 3,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 4,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+              data: '0xc87b56dd00000000000000000000000000000000000000000000000000000000000004b3',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 4,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000005568747470733a2f2f697066732e676974636f696e2e636f3a3434332f6170692f76302f6361742f516d506d7436454161696f4e373845436e57356f434c38763259765653706f426a4c436a725868687341766f6f760000000000000000000000',
+        });
 
-    it('should add collectible erc721 and get collectible contract information from contract and OpenSea', async () => {
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = collectiblesController.config;
       sinon
@@ -430,18 +476,22 @@ describe('CollectiblesController', () => {
         )
         .returns(undefined);
 
-      await collectiblesController.addCollectible(ERC721_KUDOSADDRESS, '1203');
+      await collectiblesController.addCollectible(
+        ERC721_KUDOSADDRESS,
+        ERC721_KUDOS_TOKEN_ID,
+      );
+
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][
           chainId
         ][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
-        image: 'Kudos Image (from uri)',
-        name: 'Kudos Name (from uri)',
-        description: 'Kudos Description (from uri)',
-        tokenId: '1203',
-        imageOriginal: 'Kudos url',
+        image: 'Kudos Image (directly from tokenURI)',
+        name: 'Kudos Name (directly from tokenURI)',
+        description: 'Kudos Description (directly from tokenURI)',
+        tokenId: ERC721_KUDOS_TOKEN_ID,
+        imageOriginal: 'Kudos image (from API)',
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
@@ -458,7 +508,207 @@ describe('CollectiblesController', () => {
       });
     });
 
-    it('should add collectible erc721 and get collectible contract information only from contract', async () => {
+    it('should add collectible erc1155 and get collectible information from contract when OpenSea API and proxy are unavailable', async () => {
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 5,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
+              data: '0x06fdde03',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 5,
+          result:
+            '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000194f70656e536561205368617265642053746f726566726f6e7400000000000000',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 6,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
+              data: '0x95d89b41',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 6,
+          result:
+            '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000094f50454e53544f52450000000000000000000000000000000000000000000000',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 7,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
+              data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 7,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000000',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 8,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
+              data: '0x0e89341c5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 8,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000005868747470733a2f2f6170692e6f70656e7365612e696f2f6170692f76312f6d657461646174612f3078343935663934373237363734394365363436663638414338633234383432303034356362376235652f30787b69647d0000000000000000',
+        });
+
+      nock(OPENSEA_PROXY_URL)
+        .get(
+          '/opensea/v1/api/v1/asset_contract/0x495f947276749Ce646f68AC8c248420045cb7b5e',
+        )
+        .replyWithError(new TypeError('Failed to fetch'));
+
+      // the tokenURI for ERC1155_COLLECTIBLE_ADDRESS + ERC1155_COLLECTIBLE_ID
+      nock('https://api.opensea.io')
+        .get(
+          `/api/v1/metadata/${ERC1155_COLLECTIBLE_ADDRESS}/0x5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001`,
+        )
+        .reply(200, {
+          name: 'name (directly from tokenURI)',
+          description: 'description (direclty from tokenURI)',
+          external_link: null,
+          image: 'image (directly from tokenURI)',
+          animation_url: null,
+        });
+
+      assetsContract.configure({ provider: MAINNET_PROVIDER });
+      const { selectedAddress, chainId } = collectiblesController.config;
+
+      await collectiblesController.addCollectible(
+        ERC1155_COLLECTIBLE_ADDRESS,
+        ERC1155_COLLECTIBLE_ID,
+      );
+
+      expect(
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0],
+      ).toStrictEqual({
+        address: ERC1155_COLLECTIBLE_ADDRESS,
+        image: 'image (directly from tokenURI)',
+        name: 'name (directly from tokenURI)',
+        description: 'description (direclty from tokenURI)',
+        tokenId: ERC1155_COLLECTIBLE_ID,
+        standard: ERC1155,
+        favorite: false,
+        isCurrentlyOwned: true,
+      });
+    });
+
+    it('should add collectible erc721 and get collectible information only from contract', async () => {
+      nock('https://ipfs.gitcoin.co:443')
+        .get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov')
+        .reply(200, {
+          image: 'Kudos Image (directly from tokenURI)',
+          name: 'Kudos Name (directly from tokenURI)',
+          description: 'Kudos Description (directly from tokenURI)',
+        });
+
+      nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 9,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+              data: '0x06fdde03',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 9,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000a4b75646f73546f6b656e00000000000000000000000000000000000000000000',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 10,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+              data: '0x95d89b41',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 10,
+          result:
+            '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000034b444f0000000000000000000000000000000000000000000000000000000000',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 11,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+              data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 11,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+        })
+        .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
+          jsonrpc: '2.0',
+          id: 12,
+          method: 'eth_call',
+          params: [
+            {
+              to: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+              data: '0xc87b56dd00000000000000000000000000000000000000000000000000000000000004b3',
+            },
+            'latest',
+          ],
+        })
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: 12,
+          result:
+            '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000005568747470733a2f2f697066732e676974636f696e2e636f3a3434332f6170692f76302f6361742f516d506d7436454161696f4e373845436e57356f434c38763259765653706f426a4c436a725868687341766f6f760000000000000000000000',
+        });
+
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = collectiblesController.config;
       sinon
@@ -471,17 +721,22 @@ describe('CollectiblesController', () => {
       sinon
         .stub(collectiblesController, 'getCollectibleInformationFromApi' as any)
         .returns(undefined);
-      await collectiblesController.addCollectible(ERC721_KUDOSADDRESS, '1203');
+
+      await collectiblesController.addCollectible(
+        ERC721_KUDOSADDRESS,
+        ERC721_KUDOS_TOKEN_ID,
+      );
+
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][
           chainId
         ][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
-        image: 'Kudos Image (from uri)',
-        name: 'Kudos Name (from uri)',
-        description: 'Kudos Description (from uri)',
-        tokenId: '1203',
+        image: 'Kudos Image (directly from tokenURI)',
+        name: 'Kudos Name (directly from tokenURI)',
+        description: 'Kudos Description (directly from tokenURI)',
+        tokenId: ERC721_KUDOS_TOKEN_ID,
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
@@ -574,7 +829,7 @@ describe('CollectiblesController', () => {
 
       await collectiblesController.addCollectible(
         ERC721_KUDOSADDRESS,
-        '1203',
+        ERC721_KUDOS_TOKEN_ID,
         undefined,
         {
           userAddress: selectedAddress,
@@ -592,7 +847,7 @@ describe('CollectiblesController', () => {
           name: 'Kudos Name',
           image: null,
           standard: 'ERC721',
-          tokenId: '1203',
+          tokenId: ERC721_KUDOS_TOKEN_ID,
           favorite: false,
           isCurrentlyOwned: true,
         },

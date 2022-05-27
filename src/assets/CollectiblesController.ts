@@ -259,7 +259,10 @@ export class CollectiblesController extends BaseController<
         // the third arg defaults to true to use the proxy
         this.getCollectibleApi(contractAddress, tokenId),
       );
-
+    // console.log(
+    //   'COLLectibleInformation in getFromAPI;',
+    //   collectibleInformation,
+    // );
     // if an openSeaApiKey is set we should attempt to refetch calling directly to OpenSea
     if (!collectibleInformation) {
       if (this.openSeaApiKey) {
@@ -447,7 +450,6 @@ export class CollectiblesController extends BaseController<
         );
       });
     }
-
     return {
       ...openSeaMetadata,
       name: blockchainMetadata.name ?? openSeaMetadata?.name ?? null,
@@ -1069,7 +1071,6 @@ export class CollectiblesController extends BaseController<
       address,
       detection,
     );
-
     collectibleMetadata =
       collectibleMetadata ||
       (await this.getCollectibleInformation(address, tokenId));
