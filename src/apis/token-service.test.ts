@@ -263,13 +263,13 @@ describe('Token service', () => {
         .replyWithError('Example network error')
         .persist();
 
-      await expect(async () => {
-        await fetchTokenMetadata(
+      await expect(
+        fetchTokenMetadata(
           NetworksChainId.mainnet,
           '0x514910771af9ca656af840dff83e8264ecf986ca',
           signal,
-        );
-      }).rejects.toThrow(TOKEN_METADATA_NO_RESPONSE_ERROR);
+        ),
+      ).rejects.toThrow(TOKEN_METADATA_NO_RESPONSE_ERROR);
     });
 
     it('should throw error if the fetch fails with an unsuccessful status code', async () => {
@@ -279,13 +279,13 @@ describe('Token service', () => {
         .reply(500)
         .persist();
 
-      await expect(async () => {
-        await fetchTokenMetadata(
+      await expect(
+        fetchTokenMetadata(
           NetworksChainId.mainnet,
           '0x514910771af9ca656af840dff83e8264ecf986ca',
           signal,
-        );
-      }).rejects.toThrow(TOKEN_METADATA_NO_RESPONSE_ERROR);
+        ),
+      ).rejects.toThrow(TOKEN_METADATA_NO_RESPONSE_ERROR);
     });
 
     it('should throw error if the fetch fails with a timeout', async () => {
@@ -297,25 +297,25 @@ describe('Token service', () => {
         .reply(200, sampleTokenList)
         .persist();
 
-      await expect(async () => {
-        await fetchTokenMetadata(
+      await expect(
+        fetchTokenMetadata(
           NetworksChainId.mainnet,
           '0x514910771af9ca656af840dff83e8264ecf986ca',
           signal,
           { timeout: ONE_MILLISECOND },
-        );
-      }).rejects.toThrow(TOKEN_METADATA_NO_RESPONSE_ERROR);
+        ),
+      ).rejects.toThrow(TOKEN_METADATA_NO_RESPONSE_ERROR);
     });
 
     it('should throw error if fetching from non supported network', async () => {
       const { signal } = new AbortController();
-      await expect(async () => {
-        await fetchTokenMetadata(
+      await expect(
+        fetchTokenMetadata(
           NetworksChainId.goerli,
           '0x514910771af9ca656af840dff83e8264ecf986ca',
           signal,
-        );
-      }).rejects.toThrow(TOKEN_METADATA_NO_SUPPORT_ERROR);
+        ),
+      ).rejects.toThrow(TOKEN_METADATA_NO_SUPPORT_ERROR);
     });
   });
 
