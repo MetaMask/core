@@ -728,9 +728,10 @@ describe('TokensController', () => {
         network.update({
           provider: {
             type: 'goerli',
-            chainId: NetworksChainId['goerli'],
+            chainId: NetworksChainId.goerli,
           },
         });
+
         await expect(addTokenPromise).rejects.toThrow(
           'TokensController Error: Switched networks while adding token',
         );

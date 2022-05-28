@@ -11,6 +11,7 @@ import {
   isTokenDetectionSupportedForNetwork,
   SupportedTokenDetectionNetworks,
 } from '../util';
+import { TOKEN_END_POINT_API } from '../apis/token-service';
 import { TokensController } from './TokensController';
 import { TokenDetectionController } from './TokenDetectionController';
 import {
@@ -20,7 +21,6 @@ import {
   TokenListToken,
 } from './TokenListController';
 import { AssetsContractController } from './AssetsContractController';
-import { TOKEN_END_POINT_API } from '../apis/token-service';
 import { formatAggregatorNames } from './assetsUtil';
 import { Token } from './TokenRatesController';
 

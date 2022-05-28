@@ -1,5 +1,6 @@
 import sinon from 'sinon';
 import nock from 'nock';
+import { TOKEN_END_POINT_API } from '../apis/token-service';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
   NetworkController,
@@ -12,7 +13,6 @@ import {
   TokenListMap,
   TokenListState,
 } from './TokenListController';
-import { TOKEN_END_POINT_API } from '../apis/token-service';
 
 const name = 'TokenListController';
 const timestamp = Date.now();

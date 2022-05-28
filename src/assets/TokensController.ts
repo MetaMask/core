@@ -265,7 +265,7 @@ export class TokensController extends BaseController<
     try {
       address = toChecksumHexAddress(address);
       const { tokens, ignoredTokens, detectedTokens } = this.state;
-      let newTokens: Token[] = [...tokens];
+      const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
         this._detectIsERC721(address),
         this.fetchTokenMetadata(address),
@@ -433,8 +433,8 @@ export class TokensController extends BaseController<
   async addDetectedTokens(incomingDetectedTokens: Token[]) {
     const releaseLock = await this.mutex.acquire();
     const { tokens, detectedTokens, ignoredTokens } = this.state;
-    let newTokens: Token[] = [...tokens];
-    let newDetectedTokens: Token[] = [...detectedTokens];
+    const newTokens: Token[] = [...tokens];
+    const newDetectedTokens: Token[] = [...detectedTokens];
 
     try {
       incomingDetectedTokens.forEach((tokenToAdd) => {
@@ -689,7 +689,7 @@ export class TokensController extends BaseController<
   removeAndIgnoreToken(address: string) {
     address = toChecksumHexAddress(address);
     const { tokens, ignoredTokens, detectedTokens } = this.state;
-    let newIgnoredTokens: string[] = [...ignoredTokens];
+    const newIgnoredTokens: string[] = [...ignoredTokens];
 
     const alreadyIgnored = newIgnoredTokens.find(
       (tokenAddress) => tokenAddress.toLowerCase() === address.toLowerCase(),
