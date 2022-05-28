@@ -314,7 +314,7 @@ export class TokensController extends BaseController<
         allIgnoredTokens: newAllIgnoredTokens,
         allDetectedTokens: newAllDetectedTokens,
       });
-      return tokens;
+      return newTokens;
     } finally {
       releaseLock();
     }

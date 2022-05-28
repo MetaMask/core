@@ -716,6 +716,25 @@ describe('TokensController', () => {
           },
         ]);
       });
+
+      it('should throw error if switching networks while adding token', async function () {
+        const dummyTokenAddress = '0x514910771AF9Ca656af840dff83E8264EcF986CA';
+        tokensController.configure({ chainId: NetworksChainId.mainnet });
+        const addTokenPromise = tokensController.addToken(
+          dummyTokenAddress,
+          'LINK',
+          18,
+        );
+        network.update({
+          provider: {
+            type: 'goerli',
+            chainId: NetworksChainId['goerli'],
+          },
+        });
+        await expect(addTokenPromise).rejects.toThrow(
+          'TokensController Error: Switched networks while adding token',
+        );
+      });
     });
   });
 
