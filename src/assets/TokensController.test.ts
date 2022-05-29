@@ -690,7 +690,7 @@ describe('TokensController', () => {
             isERC721: false,
             image: undefined,
             decimals,
-            aggregators: ['CoinGecko'],
+            aggregators: ['Dynamic'],
           },
         ]);
       });
