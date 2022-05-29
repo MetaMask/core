@@ -137,7 +137,7 @@ export class TokensController extends BaseController<
    */
   private async fetchTokenMetadata(
     tokenAddress: string,
-  ): Promise<TokenListToken | null> {
+  ): Promise<TokenListToken | undefined> {
     try {
       const token = await fetchTokenMetadata<TokenListToken>(
         this.config.chainId,
@@ -150,7 +150,7 @@ export class TokensController extends BaseController<
         error instanceof Error &&
         error.message.includes(TOKEN_METADATA_NO_SUPPORT_ERROR)
       ) {
-        return null;
+        return undefined;
       }
       throw error;
     }

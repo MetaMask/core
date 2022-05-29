@@ -19,6 +19,9 @@ describe('TokensController', () => {
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      config: {
+        chainId: NetworksChainId.mainnet,
+      },
     });
 
     sinon
@@ -639,7 +642,7 @@ describe('TokensController', () => {
             isERC721: true,
             image: undefined,
             decimals,
-            aggregators: [],
+            aggregators: ['Dynamic'],
           },
         ]);
       });
@@ -687,7 +690,7 @@ describe('TokensController', () => {
             isERC721: false,
             image: undefined,
             decimals,
-            aggregators: [],
+            aggregators: ['CoinGecko'],
           },
         ]);
       });
@@ -719,7 +722,6 @@ describe('TokensController', () => {
 
       it('should throw error if switching networks while adding token', async function () {
         const dummyTokenAddress = '0x514910771AF9Ca656af840dff83E8264EcF986CA';
-        tokensController.configure({ chainId: NetworksChainId.mainnet });
         const addTokenPromise = tokensController.addToken(
           dummyTokenAddress,
           'LINK',

@@ -1,8 +1,6 @@
 import { isTokenDetectionSupportedForNetwork, timeoutFetch } from '../util';
 
 export const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
-export const TOKEN_METADATA_NO_RESPONSE_ERROR =
-  'TokenService Error: No response from fetchTokenMetadata';
 export const TOKEN_METADATA_NO_SUPPORT_ERROR =
   'TokenService Error: Network does not support fetchTokenMetadata';
 
@@ -72,7 +70,7 @@ export async function fetchTokenMetadata<T>(
   tokenAddress: string,
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
-): Promise<T> {
+): Promise<T | undefined> {
   if (!isTokenDetectionSupportedForNetwork(chainId)) {
     throw new Error(TOKEN_METADATA_NO_SUPPORT_ERROR);
   }
@@ -81,7 +79,7 @@ export async function fetchTokenMetadata<T>(
   if (response) {
     return parseJsonResponse(response) as Promise<T>;
   }
-  throw new Error(TOKEN_METADATA_NO_RESPONSE_ERROR);
+  return undefined;
 }
 
 /**
