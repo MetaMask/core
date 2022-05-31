@@ -1049,6 +1049,7 @@ describe('CollectiblesController', () => {
         isCurrentlyOwned: true,
       });
     });
+
     it('should add collectible erc721 and get collectible information directly from OpenSea API when OpenSeaAPIkey is set and queries to OpenSea proxy fail', async () => {
       nock(OPENSEA_PROXY_URL)
         .get(`/asset_contract/${ERC721_COLLECTIBLE_ADDRESS}`)
@@ -1098,6 +1099,7 @@ describe('CollectiblesController', () => {
           result:
             '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000194f70656e536561205368617265642053746f726566726f6e7400000000000000',
         });
+
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
