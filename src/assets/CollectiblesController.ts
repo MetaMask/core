@@ -193,10 +193,13 @@ export class CollectiblesController extends BaseController<
       : `${OPENSEA_API_URL}/asset/${contractAddress}/${tokenId}`;
   }
 
-  private getCollectibleContractInformationApi(
-    contractAddress: string,
-    useProxy = true,
-  ) {
+  private getCollectibleContractInformationApi({
+    contractAddress,
+    useProxy,
+  }: {
+    contractAddress: string;
+    useProxy: boolean;
+  }) {
     const { chainId } = this.config;
 
     if (chainId === RINKEBY_CHAIN_ID) {
@@ -474,7 +477,10 @@ export class CollectiblesController extends BaseController<
     /* istanbul ignore if */
     let apiCollectibleContractObject: ApiCollectibleContract | undefined =
       await fetchWithErrorHandling({
-        url: this.getCollectibleContractInformationApi(contractAddress),
+        url: this.getCollectibleContractInformationApi({
+          contractAddress,
+          useProxy: true,
+        }),
       });
 
     // if we successfully fetched return the fetched data immediately
@@ -486,7 +492,10 @@ export class CollectiblesController extends BaseController<
     // attempt to refetch directly against the OpenSea API and if successful return the data immediately
     if (this.openSeaApiKey) {
       apiCollectibleContractObject = await fetchWithErrorHandling({
-        url: this.getCollectibleContractInformationApi(contractAddress, false),
+        url: this.getCollectibleContractInformationApi({
+          contractAddress,
+          useProxy: false,
+        }),
         options: {
           headers: { 'X-API-KEY': this.openSeaApiKey },
         },
