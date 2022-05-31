@@ -173,7 +173,6 @@ describe('TokenDetectionController', () => {
   it('should set default config', () => {
     expect(tokenDetection.config).toStrictEqual({
       interval: DEFAULT_INTERVAL,
-      networkType: 'mainnet',
       selectedAddress: '',
       tokens: [],
       disabled: true,
@@ -206,7 +205,6 @@ describe('TokenDetectionController', () => {
         },
         {
           interval: 10,
-          networkType: MAINNET,
           chainId: NetworksChainId.mainnet,
           disabled: false,
         },
@@ -264,7 +262,6 @@ describe('TokenDetectionController', () => {
         },
         {
           interval: 10,
-          networkType: ROPSTEN,
           chainId: NetworksChainId.ropsten,
           disabled: true,
         },
@@ -276,7 +273,6 @@ describe('TokenDetectionController', () => {
 
   it('should detect tokens correctly', async () => {
     tokenDetection.configure({
-      networkType: MAINNET,
       selectedAddress: '0x1',
       chainId: NetworksChainId.mainnet,
       disabled: false,
@@ -291,7 +287,6 @@ describe('TokenDetectionController', () => {
 
   it('should update detectedTokens when new tokens are detected', async () => {
     tokenDetection.configure({
-      networkType: MAINNET,
       selectedAddress: '0x1',
       chainId: NetworksChainId.mainnet,
       disabled: false,
@@ -353,7 +348,6 @@ describe('TokenDetectionController', () => {
 
   it('should add a token when detected with a balance even if it is ignored on another account', async () => {
     tokenDetection.configure({
-      networkType: MAINNET,
       chainId: NetworksChainId.mainnet,
       disabled: false,
     });
@@ -389,7 +383,6 @@ describe('TokenDetectionController', () => {
 
   it('should not autodetect tokens that exist in the ignoreList', async () => {
     tokenDetection.configure({
-      networkType: MAINNET,
       selectedAddress: '0x1',
       chainId: NetworksChainId.mainnet,
       disabled: false,
@@ -409,7 +402,6 @@ describe('TokenDetectionController', () => {
 
   it('should not detect tokens if there is no selectedAddress set', async () => {
     tokenDetection.configure({
-      networkType: MAINNET,
       chainId: NetworksChainId.mainnet,
       disabled: false,
     });

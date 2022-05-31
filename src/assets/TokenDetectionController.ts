@@ -1,5 +1,5 @@
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
-import type { NetworkState, NetworkType } from '../network/NetworkController';
+import type { NetworkState } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
 import {
   safelyExecute,
@@ -20,13 +20,11 @@ const DEFAULT_INTERVAL = 180000;
  *
  * TokenDetection configuration
  * @property interval - Polling interval used to fetch new token rates
- * @property networkType - Network type ID as per net_version
  * @property selectedAddress - Vault selected address
  * @property tokens - List of tokens associated with the active vault
  */
 export interface TokenDetectionConfig extends BaseConfig {
   interval: number;
-  networkType: NetworkType;
   selectedAddress: string;
   tokens: Token[];
   chainId: string;
@@ -103,7 +101,6 @@ export class TokenDetectionController extends BaseController<
     super(config, state);
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
-      networkType: MAINNET,
       selectedAddress: '',
       tokens: [],
       disabled: true,
@@ -139,7 +136,6 @@ export class TokenDetectionController extends BaseController<
         const isDetectionEnabled =
           isTokenDetectionSupported && !this.config.disabled;
         this.configure({
-          networkType: networkState.provider.type,
           chainId: incomingChainId,
           disabled: !isDetectionEnabled,
         });
