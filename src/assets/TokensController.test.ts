@@ -56,7 +56,8 @@ describe('TokensController', () => {
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
       decimals: 2,
-      image: undefined,
+      image:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
       symbol: 'bar',
       isERC721: false,
       aggregators: [],
@@ -65,7 +66,8 @@ describe('TokensController', () => {
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
       decimals: 2,
-      image: undefined,
+      image:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
       symbol: 'baz',
       isERC721: false,
       aggregators: [],
@@ -219,7 +221,8 @@ describe('TokensController', () => {
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
       decimals: 2,
-      image: undefined,
+      image:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
       symbol: 'bar',
       isERC721: false,
       aggregators: [],
@@ -259,7 +262,8 @@ describe('TokensController', () => {
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
       decimals: 2,
-      image: undefined,
+      image:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/4/0x01.png',
       symbol: 'bar',
       isERC721: false,
       aggregators: [],
@@ -274,7 +278,7 @@ describe('TokensController', () => {
         Promise.resolve({ supportsInterface: supportsInterfaceStub }),
       );
     await tokensController.addToken('0x01', 'bar', 2);
-    tokensController.removeAndIgnoreToken('0x01');
+    tokensController.ignoreTokens(['0x01']);
     expect(tokensController.state.tokens).toHaveLength(0);
   });
 
@@ -291,13 +295,14 @@ describe('TokensController', () => {
     await tokensController.addToken('0x02', 'baz', 2);
     preferences.update({ selectedAddress: secondAddress });
     await tokensController.addToken('0x01', 'bar', 2);
-    tokensController.removeAndIgnoreToken('0x01');
+    tokensController.ignoreTokens(['0x01']);
     expect(tokensController.state.tokens).toHaveLength(0);
     preferences.update({ selectedAddress: firstAddress });
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x02',
       decimals: 2,
-      image: undefined,
+      image:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x02.png',
       symbol: 'baz',
       isERC721: false,
       aggregators: [],
@@ -327,7 +332,7 @@ describe('TokensController', () => {
       },
     });
     await tokensController.addToken('0x01', 'bar', 2);
-    tokensController.removeAndIgnoreToken('0x01');
+    tokensController.ignoreTokens(['0x01']);
     expect(tokensController.state.tokens).toHaveLength(0);
     network.update({
       provider: {
@@ -339,7 +344,8 @@ describe('TokensController', () => {
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x02',
       decimals: 2,
-      image: undefined,
+      image:
+        'https://static.metaswap.codefi.network/api/v1/tokenIcons/4/0x02.png',
       symbol: 'baz',
       isERC721: false,
       aggregators: [],
@@ -386,7 +392,7 @@ describe('TokensController', () => {
       await tokensController.addToken('0xFAa', 'bar', 3);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       expect(tokensController.state.tokens).toHaveLength(2);
-      tokensController.removeAndIgnoreToken('0x01');
+      tokensController.ignoreTokens(['0x01']);
       expect(tokensController.state.tokens).toHaveLength(1);
       expect(tokensController.state.ignoredTokens).toHaveLength(1);
       await tokensController.addToken('0x01', 'bar', 2);
@@ -409,8 +415,8 @@ describe('TokensController', () => {
       await tokensController.addToken('0xFAa', 'bar', 3);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       expect(tokensController.state.tokens).toHaveLength(2);
-      tokensController.removeAndIgnoreToken('0x01');
-      tokensController.removeAndIgnoreToken('0xFAa');
+      tokensController.ignoreTokens(['0x01']);
+      tokensController.ignoreTokens(['0xFAa']);
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.ignoredTokens).toHaveLength(2);
       await tokensController.addTokens([
@@ -430,7 +436,7 @@ describe('TokensController', () => {
     it('should be able to clear the ignoredToken list', async () => {
       await tokensController.addToken('0x01', 'bar', 2);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
-      tokensController.removeAndIgnoreToken('0x01');
+      tokensController.ignoreTokens(['0x01']);
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
         [NetworksChainId[defaultSelectedNetwork]]: {
@@ -460,7 +466,7 @@ describe('TokensController', () => {
 
       await tokensController.addToken('0x01', 'bar', 2);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
-      tokensController.removeAndIgnoreToken('0x01');
+      tokensController.ignoreTokens(['0x01']);
       expect(tokensController.state.tokens).toHaveLength(0);
 
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x01']);
@@ -474,13 +480,13 @@ describe('TokensController', () => {
 
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       await tokensController.addToken('0x02', 'bazz', 3);
-      tokensController.removeAndIgnoreToken('0x02');
+      tokensController.ignoreTokens(['0x02']);
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x02']);
 
       preferences.setSelectedAddress(selectedAddress2);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       await tokensController.addToken('0x03', 'foo', 4);
-      tokensController.removeAndIgnoreToken('0x03');
+      tokensController.ignoreTokens(['0x03']);
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x03']);
 
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
@@ -508,7 +514,8 @@ describe('TokensController', () => {
       {
         address: '0x01',
         decimals: 4,
-        image: undefined,
+        image:
+          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
         isERC721: false,
         symbol: 'A',
         aggregators: [],
@@ -516,31 +523,15 @@ describe('TokensController', () => {
       {
         address: '0x02',
         decimals: 5,
-        image: undefined,
+        image:
+          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x02.png',
         isERC721: false,
         symbol: 'B',
         aggregators: [],
       },
     ]);
 
-    await tokensController.ignoreTokens([
-      {
-        address: '0x01',
-        decimals: 4,
-        image: undefined,
-        isERC721: false,
-        symbol: 'A',
-        aggregators: [],
-      },
-      {
-        address: '0x02',
-        decimals: 5,
-        image: undefined,
-        isERC721: false,
-        symbol: 'B',
-        aggregators: [],
-      },
-    ]);
+    tokensController.ignoreTokens(['0x01', '0x02']);
     expect(tokensController.state.tokens).toStrictEqual([]);
   });
 
@@ -640,7 +631,8 @@ describe('TokensController', () => {
             address,
             symbol,
             isERC721: true,
-            image: undefined,
+            image:
+              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x06012c8cf97BEaD5deAe237070F9587f8E7A266d.png',
             decimals,
             aggregators: ['Dynamic'],
           },
@@ -666,7 +658,8 @@ describe('TokensController', () => {
             address: tokenAddress,
             symbol: 'REST',
             isERC721: true,
-            image: undefined,
+            image:
+              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D.png',
             decimals: 4,
             aggregators: [],
           },
@@ -688,7 +681,8 @@ describe('TokensController', () => {
             address,
             symbol,
             isERC721: false,
-            image: undefined,
+            image:
+              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x5aFE3855358E112B5647B952709E6165e1c1eEEe.png',
             decimals,
             aggregators: ['Dynamic'],
           },
@@ -713,7 +707,8 @@ describe('TokensController', () => {
             address: tokenAddress,
             symbol: 'LEST',
             isERC721: false,
-            image: undefined,
+            image:
+              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D.png',
             decimals: 5,
             aggregators: [],
           },
@@ -871,6 +866,8 @@ describe('TokensController', () => {
           isERC721: false,
           aggregators: [],
           ...asset,
+          image:
+            'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x000000000000000000000000000000000000dEaD.png',
         },
       ]);
     });
@@ -973,7 +970,8 @@ describe('TokensController', () => {
         {
           address: '0x01',
           decimals: 4,
-          image: undefined,
+          image:
+            'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
           isERC721: false,
           symbol: 'A',
           aggregators: [],
@@ -981,7 +979,8 @@ describe('TokensController', () => {
         {
           address: '0x02',
           decimals: 5,
-          image: undefined,
+          image:
+            'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x02.png',
           isERC721: false,
           symbol: 'B',
           aggregators: [],
@@ -992,7 +991,8 @@ describe('TokensController', () => {
         {
           address: '0x03',
           decimals: 6,
-          image: undefined,
+          image:
+            'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x03.png',
           isERC721: false,
           symbol: 'C',
           aggregators: [],
@@ -1042,7 +1042,8 @@ describe('TokensController', () => {
         {
           address: '0x01',
           decimals: 4,
-          image: undefined,
+          image:
+            'https://static.metaswap.codefi.network/api/v1/tokenIcons/4/0x01.png',
           isERC721: false,
           symbol: 'A',
           aggregators: [],
@@ -1050,7 +1051,8 @@ describe('TokensController', () => {
         {
           address: '0x02',
           decimals: 5,
-          image: undefined,
+          image:
+            'https://static.metaswap.codefi.network/api/v1/tokenIcons/4/0x02.png',
           isERC721: false,
           symbol: 'B',
           aggregators: [],
@@ -1061,7 +1063,8 @@ describe('TokensController', () => {
         {
           address: '0x03',
           decimals: 4,
-          image: undefined,
+          image:
+            'https://static.metaswap.codefi.network/api/v1/tokenIcons/3/0x03.png',
           isERC721: false,
           symbol: 'C',
           aggregators: [],
@@ -1069,7 +1072,8 @@ describe('TokensController', () => {
         {
           address: '0x04',
           decimals: 5,
-          image: undefined,
+          image:
+            'https://static.metaswap.codefi.network/api/v1/tokenIcons/3/0x04.png',
           isERC721: false,
           symbol: 'D',
           aggregators: [],

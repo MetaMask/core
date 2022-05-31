@@ -25,8 +25,6 @@ import { formatAggregatorNames } from './assetsUtil';
 import { Token } from './TokenRatesController';
 
 const DEFAULT_INTERVAL = 180000;
-const MAINNET = 'mainnet';
-const ROPSTEN = 'ropsten';
 
 const sampleAggregators = [
   'paraswap',
@@ -67,7 +65,8 @@ const sampleTokenA: Token = {
   address: tokenAFromList.address,
   symbol: tokenAFromList.symbol,
   decimals: tokenAFromList.decimals,
-  image: undefined,
+  image:
+    'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771AF9Ca656af840dff83E8264EcF986CA.png',
   isERC721: false,
   aggregators: formattedSampleAggregators,
 };
@@ -75,7 +74,8 @@ const sampleTokenB: Token = {
   address: tokenBFromList.address,
   symbol: tokenBFromList.symbol,
   decimals: tokenBFromList.decimals,
-  image: undefined,
+  image:
+    'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C.png',
   isERC721: false,
   aggregators: formattedSampleAggregators,
 };
@@ -333,7 +333,7 @@ describe('TokenDetectionController', () => {
       sampleTokenB.decimals,
     );
 
-    await tokensController.removeAndIgnoreToken(sampleTokenA.address);
+    tokensController.ignoreTokens([sampleTokenA.address]);
 
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
@@ -370,7 +370,7 @@ describe('TokenDetectionController', () => {
       sampleTokenA.decimals,
     );
 
-    await tokensController.removeAndIgnoreToken(sampleTokenA.address);
+    tokensController.ignoreTokens([sampleTokenA.address]);
 
     await preferences.setSelectedAddress('0x0002');
 
@@ -395,7 +395,7 @@ describe('TokenDetectionController', () => {
 
     expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
 
-    tokensController.removeAndIgnoreToken(sampleTokenA.address);
+    tokensController.ignoreTokens([sampleTokenA.address]);
     await tokenDetection.detectTokens();
     expect(tokensController.state.detectedTokens).toStrictEqual([]);
   });

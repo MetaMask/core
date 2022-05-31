@@ -384,47 +384,41 @@ export class TokensController extends BaseController<
   /**
    * Ignore a batch of tokens.
    *
-   * @param tokensToIgnore - Array of tokens to ignore.
+   * @param tokenAddressesToIgnore - Array of token addresses to ignore.
    */
-  async ignoreTokens(tokensToIgnore: Token[]) {
-    const releaseLock = await this.mutex.acquire();
+  ignoreTokens(tokenAddressesToIgnore: string[]) {
     const { ignoredTokens, detectedTokens, tokens } = this.state;
     const ignoredTokensMap: { [key: string]: true } = {};
     let newIgnoredTokens: string[] = [...ignoredTokens];
 
-    try {
-      const formattedTokens = tokensToIgnore.map((tokenToIgnore) => {
-        const { address } = tokenToIgnore;
-        const checksumAddress = toChecksumHexAddress(address);
-        ignoredTokensMap[address.toLowerCase()] = true;
-        return checksumAddress;
-      });
-      newIgnoredTokens = [...ignoredTokens, ...formattedTokens];
-      const newDetectedTokens = detectedTokens.filter(
-        (token) => !ignoredTokensMap[token.address.toLowerCase()],
-      );
-      const newTokens = tokens.filter(
-        (token) => !ignoredTokensMap[token.address.toLowerCase()],
-      );
+    const checksummedTokenAddresses = tokenAddressesToIgnore.map((address) => {
+      const checksumAddress = toChecksumHexAddress(address);
+      ignoredTokensMap[address.toLowerCase()] = true;
+      return checksumAddress;
+    });
+    newIgnoredTokens = [...ignoredTokens, ...checksummedTokenAddresses];
+    const newDetectedTokens = detectedTokens.filter(
+      (token) => !ignoredTokensMap[token.address.toLowerCase()],
+    );
+    const newTokens = tokens.filter(
+      (token) => !ignoredTokensMap[token.address.toLowerCase()],
+    );
 
-      const { newAllIgnoredTokens, newAllDetectedTokens, newAllTokens } =
-        this._getNewAllTokensState({
-          newIgnoredTokens,
-          newDetectedTokens,
-          newTokens,
-        });
-
-      this.update({
-        ignoredTokens: newIgnoredTokens,
-        tokens: newTokens,
-        detectedTokens: newDetectedTokens,
-        allIgnoredTokens: newAllIgnoredTokens,
-        allDetectedTokens: newAllDetectedTokens,
-        allTokens: newAllTokens,
+    const { newAllIgnoredTokens, newAllDetectedTokens, newAllTokens } =
+      this._getNewAllTokensState({
+        newIgnoredTokens,
+        newDetectedTokens,
+        newTokens,
       });
-    } finally {
-      releaseLock();
-    }
+
+    this.update({
+      ignoredTokens: newIgnoredTokens,
+      tokens: newTokens,
+      detectedTokens: newDetectedTokens,
+      allIgnoredTokens: newAllIgnoredTokens,
+      allDetectedTokens: newAllDetectedTokens,
+      allTokens: newAllTokens,
+    });
   }
 
   /**
@@ -638,8 +632,8 @@ export class TokensController extends BaseController<
     try {
       switch (suggestedAssetMeta.type) {
         case 'ERC20':
-          const { address, symbol, decimals, image } = suggestedAssetMeta.asset;
-          await this.addToken(address, symbol, decimals, image);
+          const { address, symbol, decimals } = suggestedAssetMeta.asset;
+          await this.addToken(address, symbol, decimals);
           suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
           this.hub.emit(
             `${suggestedAssetMeta.id}:finished`,
@@ -681,49 +675,6 @@ export class TokensController extends BaseController<
       ({ id }) => id !== suggestedAssetID,
     );
     this.update({ suggestedAssets: [...newSuggestedAssets] });
-  }
-
-  /**
-   * Removes a token from the stored token list and saves it in ignored tokens list.
-   *
-   * @param address - The hex address of the token contract.
-   */
-  removeAndIgnoreToken(address: string) {
-    address = toChecksumHexAddress(address);
-    const { tokens, ignoredTokens, detectedTokens } = this.state;
-    const newIgnoredTokens: string[] = [...ignoredTokens];
-
-    const alreadyIgnored = newIgnoredTokens.find(
-      (tokenAddress) => tokenAddress.toLowerCase() === address.toLowerCase(),
-    );
-
-    if (alreadyIgnored) {
-      return;
-    }
-
-    const newTokens = tokens.filter(
-      (token) => token.address.toLowerCase() !== address.toLowerCase(),
-    );
-    const newDetectedTokens = detectedTokens.filter(
-      (token) => token.address.toLowerCase() !== address.toLowerCase(),
-    );
-    newIgnoredTokens.push(address);
-
-    const { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens } =
-      this._getNewAllTokensState({
-        newTokens,
-        newIgnoredTokens,
-        newDetectedTokens,
-      });
-
-    this.update({
-      allTokens: newAllTokens,
-      tokens: newTokens,
-      allIgnoredTokens: newAllIgnoredTokens,
-      ignoredTokens: newIgnoredTokens,
-      detectedTokens: newDetectedTokens,
-      allDetectedTokens: newAllDetectedTokens,
-    });
   }
 
   /**
