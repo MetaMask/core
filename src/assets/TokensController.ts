@@ -16,7 +16,7 @@ import {
 } from '../apis/token-service';
 import type { Token } from './TokenRatesController';
 import { TokenListToken } from './TokenListController';
-import { formatAggregatorNames } from './assetsUtil';
+import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
 
 /**
  * @type TokensConfig
@@ -258,7 +258,6 @@ export class TokensController extends BaseController<
     address: string,
     symbol: string,
     decimals: number,
-    image?: string,
   ): Promise<Token[]> {
     const currentChainId = this.config.chainId;
     const releaseLock = await this.mutex.acquire();
@@ -279,7 +278,10 @@ export class TokensController extends BaseController<
         address,
         symbol,
         decimals,
-        image,
+        image: formatIconUrlWithProxy({
+          chainId: this.config.chainId,
+          tokenAddress: address,
+        }),
         isERC721,
         aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
       };

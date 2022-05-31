@@ -262,11 +262,14 @@ export class TokenDetectionController extends BaseController<
             ) || '';
 
           if (ignored === undefined) {
+            const { decimals, symbol, aggregators, iconUrl } =
+              tokenList[caseInsensitiveTokenKey];
             tokensToAdd.push({
               address: tokenAddress,
-              decimals: tokenList[caseInsensitiveTokenKey].decimals,
-              symbol: tokenList[caseInsensitiveTokenKey].symbol,
-              aggregators: tokenList[caseInsensitiveTokenKey].aggregators,
+              decimals,
+              symbol,
+              aggregators,
+              image: iconUrl,
               isERC721: false,
             });
           }
