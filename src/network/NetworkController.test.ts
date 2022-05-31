@@ -147,6 +147,14 @@ describe('NetworkController', () => {
     expect(controller.state.isCustomNetwork).toBe(false);
   });
 
+  it('should set new testnet provider type', () => {
+    const controller = new NetworkController();
+    controller.setProviderType('rinkeby');
+    expect(controller.state.provider.type).toBe('rinkeby');
+    expect(controller.state.provider.ticker).toBe('RinkebyETH');
+    expect(controller.state.isCustomNetwork).toBe(false);
+  });
+
   it('should throw when setting an unrecognized provider type', () => {
     const controller = new NetworkController();
     expect(() => controller.setProviderType('junk' as NetworkType)).toThrow(
