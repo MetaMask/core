@@ -1,4 +1,5 @@
 import sinon from 'sinon';
+import { TESTNET_TICKER_SYMBOLS } from 'src/constants';
 import Web3ProviderEngine from 'web3-provider-engine';
 import {
   NetworkController,
@@ -149,7 +150,8 @@ describe('NetworkController', () => {
 
   it('should set new testnet provider type', () => {
     const controller = new NetworkController();
-    controller.setProviderType('rinkeby');
+    controller.config.infuraProjectId = '0x0000';
+    controller.setProviderType('rinkeby' as NetworkType);
     expect(controller.state.provider.type).toBe('rinkeby');
     expect(controller.state.provider.ticker).toBe('RinkebyETH');
     expect(controller.state.isCustomNetwork).toBe(false);

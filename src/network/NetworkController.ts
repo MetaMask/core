@@ -284,12 +284,12 @@ export class NetworkController extends BaseController<
       this.state.provider;
     
     // If testnet the ticker symbol should use a testnet prefix 
-    const ticker = TESTNET_TICKER_SYMBOLS[type.toUpperCase()];
+    const testNetTicker = TESTNET_TICKER_SYMBOLS[type.toUpperCase()];
 
     this.update({
       provider: {
         ...providerState,
-        ...{ type, ticker: ticker ? ticker : 'ETH', chainId: NetworksChainId[type] },
+        ...{ type, ticker: testNetTicker ? testNetTicker : 'ETH', chainId: NetworksChainId[type] },
       },
     });
     this.refreshNetwork();
