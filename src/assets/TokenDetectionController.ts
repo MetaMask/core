@@ -182,7 +182,7 @@ export class TokenDetectionController extends BaseController<
   /**
    * Restart polling for the token list.
    */
-  async restart() {
+  private async restart() {
     this.stopPolling();
     await this.startPolling();
   }
