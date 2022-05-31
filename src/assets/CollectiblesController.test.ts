@@ -54,6 +54,9 @@ describe('CollectiblesController', () => {
   beforeAll(() => {
     nock.disableNetConnect();
   });
+  afterAll(() => {
+    nock.enableNetConnect();
+  });
 
   beforeEach(() => {
     preferences = new PreferencesController();

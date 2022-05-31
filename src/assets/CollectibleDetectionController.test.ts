@@ -19,7 +19,13 @@ describe('CollectibleDetectionController', () => {
   let assetsContract: AssetsContractController;
 
   const getOpenSeaApiKeyStub = jest.fn();
-  nock.disableNetConnect();
+  beforeAll(() => {
+    nock.disableNetConnect();
+  });
+
+  afterAll(() => {
+    nock.enableNetConnect();
+  });
 
   beforeEach(async () => {
     preferences = new PreferencesController();
