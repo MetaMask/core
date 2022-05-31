@@ -185,7 +185,7 @@ describe('GasFeeController', () => {
       getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkController.state.properties.isEIP1559Compatible ???
       legacyAPIEndpoint,
       EIP1559APIEndpoint,
-      clientId,
+      ...(clientId ? { clientId } : {}),
     });
   }
 

@@ -620,8 +620,8 @@ export class ControllerMessenger<
     >({
       controllerMessenger: this,
       name,
-      allowedActions,
-      allowedEvents,
+      ...(allowedActions ? { allowedActions } : {}),
+      ...(allowedEvents ? { allowedEvents } : {}),
     });
   }
 }

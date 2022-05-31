@@ -218,7 +218,13 @@ export class TokensController extends BaseController<
       address = toChecksumHexAddress(address);
       const { tokens, ignoredTokens } = this.state;
       const isERC721 = await this._detectIsERC721(address);
-      const newEntry: Token = { address, symbol, decimals, image, isERC721 };
+      const newEntry: Token = {
+        address,
+        symbol,
+        decimals,
+        ...(image ? { image } : {}),
+        isERC721,
+      };
       const previousEntry = tokens.find(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
       );
@@ -276,8 +282,8 @@ export class TokensController extends BaseController<
           address: checksumAddress,
           symbol,
           decimals,
-          image,
-          isERC721,
+          ...(image ? { image } : {}),
+          ...(isERC721 ? { isERC721 } : {}),
         };
         const previousEntry = tokens.find(
           (token) =>

@@ -188,7 +188,9 @@ export class KeyringController extends BaseController<
     this.syncIdentities = syncIdentities;
     this.updateIdentities = updateIdentities;
     this.setSelectedAddress = setSelectedAddress;
-    this.setAccountLabel = setAccountLabel;
+    if (setAccountLabel) {
+      this.setAccountLabel = setAccountLabel;
+    }
     this.initialize();
     this.fullUpdate();
   }

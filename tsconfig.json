@@ -2,6 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "esModuleInterop": true,
+    "exactOptionalPropertyTypes": true,
     "inlineSources": true,
     "module": "commonjs",
     "moduleResolution": "node",

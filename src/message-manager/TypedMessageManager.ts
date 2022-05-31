@@ -152,7 +152,7 @@ export class TypedMessageManager extends AbstractMessageManager<
       metamaskId: messageId,
       version,
     };
-    if (req) {
+    if (req?.origin) {
       messageParams.origin = req.origin;
     }
     const messageData: TypedMessage = {

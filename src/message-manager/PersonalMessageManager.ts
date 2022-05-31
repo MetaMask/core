@@ -115,7 +115,7 @@ export class PersonalMessageManager extends AbstractMessageManager<
     messageParams: PersonalMessageParams,
     req?: OriginalRequest,
   ) {
-    if (req) {
+    if (req?.origin) {
       messageParams.origin = req.origin;
     }
     messageParams.data = normalizeMessageData(messageParams.data);

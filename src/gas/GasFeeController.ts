@@ -328,7 +328,10 @@ export class GasFeeController extends BaseController<
     this.currentChainId = this.getChainId();
     const provider = getProvider();
     this.ethQuery = new EthQuery(provider);
-    this.clientId = clientId;
+    if (clientId) {
+      this.clientId = clientId;
+    }
+
     onNetworkStateChange(async () => {
       const newProvider = getProvider();
       const newChainId = this.getChainId();

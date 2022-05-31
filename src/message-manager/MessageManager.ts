@@ -111,7 +111,7 @@ export class MessageManager extends AbstractMessageManager<
    * @returns The id of the newly created message.
    */
   addUnapprovedMessage(messageParams: MessageParams, req?: OriginalRequest) {
-    if (req) {
+    if (req?.origin) {
       messageParams.origin = req.origin;
     }
     messageParams.data = normalizeMessageData(messageParams.data);
