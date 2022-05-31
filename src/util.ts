@@ -661,23 +661,29 @@ export async function handleFetch(request: string, options?: RequestInit) {
 /**
  * Execute fetch and return object response, log if known error thrown, otherwise rethrow error.
  *
- * @param request - The request information.
- * @param options - The fetch options.
- * @param timeout - Timeout to fail request.
- * @param errorCodesToCatch - array of error codes for errors we want to catch in a particular context
+ * @param request - the request options object
+ * @param request.url - The request url to query.
+ * @param request.options - The fetch options.
+ * @param request.timeout - Timeout to fail request
+ * @param request.errorCodesToCatch - array of error codes for errors we want to catch in a particular context
  * @returns The fetch response JSON data or undefined (if error occurs).
  */
-export async function fetchWithErrorHandling(
-  request: string,
-  options?: RequestInit,
-  timeout?: number | null,
-  errorCodesToCatch?: number[],
-) {
+export async function fetchWithErrorHandling({
+  url,
+  options,
+  timeout,
+  errorCodesToCatch,
+}: {
+  url: string;
+  options?: RequestInit;
+  timeout?: number;
+  errorCodesToCatch?: number[];
+}) {
   let result;
   try {
     if (timeout) {
       result = Promise.race([
-        successfulFetch(request, options),
+        handleFetch(url, options),
         new Promise<Response>((_, reject) =>
           setTimeout(() => {
             reject(new Error('timeout'));
@@ -685,8 +691,7 @@ export async function fetchWithErrorHandling(
         ),
       ]);
     } else {
-      const response = await successfulFetch(request, options);
-      result = await response.json();
+      result = await handleFetch(url, options);
     }
   } catch (e) {
     logOrRethrowError(e, errorCodesToCatch);

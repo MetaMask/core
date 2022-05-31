@@ -150,20 +150,19 @@ export class CollectibleDetectionController extends BaseController<
     let pagingFinish = false;
     /* istanbul ignore if */
     do {
-      response = await fetchWithErrorHandling(
-        this.getOwnerCollectiblesApi(address, offset),
-        {},
-        15000,
-      );
+      response = await fetchWithErrorHandling({
+        url: this.getOwnerCollectiblesApi(address, offset),
+        timeout: 15000,
+      });
 
       if (openSeaApiKey && !response) {
-        response = await fetchWithErrorHandling(
-          this.getOwnerCollectiblesApi(address, offset, false),
-          { headers: { 'X-API-KEY': openSeaApiKey } },
-          15000,
+        response = await fetchWithErrorHandling({
+          url: this.getOwnerCollectiblesApi(address, offset, false),
+          options: { headers: { 'X-API-KEY': openSeaApiKey } },
+          timeout: 15000,
           // catch 403 errors (in case API key is down we don't want to blow up)
-          [403],
-        );
+          errorCodesToCatch: [403],
+        });
       }
 
       if (!response) {

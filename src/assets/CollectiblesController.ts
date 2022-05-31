@@ -251,23 +251,22 @@ export class CollectiblesController extends BaseController<
   ): Promise<CollectibleMetadata> {
     // Attempt to fetch the data with the proxy
     let collectibleInformation: ApiCollectible | undefined =
-      await fetchWithErrorHandling(
+      await fetchWithErrorHandling({
         // the third arg defaults to true to use the proxy
-        this.getCollectibleApi(contractAddress, tokenId),
-      );
+        url: this.getCollectibleApi(contractAddress, tokenId),
+      });
 
     // if an openSeaApiKey is set we should attempt to refetch calling directly to OpenSea
     if (!collectibleInformation) {
       if (this.openSeaApiKey) {
-        collectibleInformation = await fetchWithErrorHandling(
-          this.getCollectibleApi(contractAddress, tokenId, false),
-          {
+        collectibleInformation = await fetchWithErrorHandling({
+          url: this.getCollectibleApi(contractAddress, tokenId, false),
+          options: {
             headers: { 'X-API-KEY': this.openSeaApiKey },
           },
-          null,
           // catch 403 errors (in case API key is down we don't want to blow up)
-          [403],
-        );
+          errorCodesToCatch: [403],
+        });
       }
     }
 
@@ -465,9 +464,9 @@ export class CollectiblesController extends BaseController<
   ): Promise<ApiCollectibleContract> {
     /* istanbul ignore if */
     let apiCollectibleContractObject: ApiCollectibleContract | undefined =
-      await fetchWithErrorHandling(
-        this.getCollectibleContractInformationApi(contractAddress),
-      );
+      await fetchWithErrorHandling({
+        url: this.getCollectibleContractInformationApi(contractAddress),
+      });
 
     // if we successfully fetched return the fetched data immediately
     if (apiCollectibleContractObject) {
@@ -477,15 +476,14 @@ export class CollectiblesController extends BaseController<
     // if we were unsuccessful in fetching from the API and an OpenSea API key is present
     // attempt to refetch directly against the OpenSea API and if successful return the data immediately
     if (this.openSeaApiKey) {
-      apiCollectibleContractObject = await fetchWithErrorHandling(
-        this.getCollectibleContractInformationApi(contractAddress, false),
-        {
+      apiCollectibleContractObject = await fetchWithErrorHandling({
+        url: this.getCollectibleContractInformationApi(contractAddress, false),
+        options: {
           headers: { 'X-API-KEY': this.openSeaApiKey },
         },
-        null,
         // catch 403 errors (in case API key is down we don't want to blow up)
-        [403],
-      );
+        errorCodesToCatch: [403],
+      });
 
       if (apiCollectibleContractObject) {
         return apiCollectibleContractObject;
