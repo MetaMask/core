@@ -1011,9 +1011,10 @@ export function logOrRethrowError(error: any, codesToCatch: number[] = []) {
   );
 
   if (
-    includesErrorCodeToCatch ||
-    error.message?.includes('Failed to fetch') ||
-    error.message === 'timeout'
+    error instanceof Error &&
+    (includesErrorCodeToCatch ||
+      error.message?.includes('Failed to fetch') ||
+      error.message === 'timeout')
   ) {
     console.error(error);
   } else {
