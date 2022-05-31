@@ -683,7 +683,7 @@ export async function fetchWithErrorHandling({
   try {
     if (timeout) {
       result = Promise.race([
-        handleFetch(url, options),
+        await handleFetch(url, options),
         new Promise<Response>((_, reject) =>
           setTimeout(() => {
             reject(new Error('timeout'));
@@ -998,7 +998,7 @@ export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
 /**
  * Utility method to log if error is a common fetch error and otherwise rethrow it.
  *
- * @param error - Caught error that we should either rethrow or log to console.
+ * @param error - Caught error that we should either rethrow or log to console
  * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
  */
 export function logOrRethrowError(error: any, codesToCatch: number[] = []) {

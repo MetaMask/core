@@ -953,6 +953,7 @@ describe('CollectiblesController', () => {
           result:
             '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000444504e5300000000000000000000000000000000000000000000000000000000',
         });
+
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
@@ -1306,6 +1307,7 @@ describe('CollectiblesController', () => {
           result:
             '0x0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d',
         });
+
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',

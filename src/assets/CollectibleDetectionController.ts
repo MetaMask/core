@@ -132,32 +132,40 @@ export class CollectibleDetectionController extends BaseController<
 > {
   private intervalId?: NodeJS.Timeout;
 
-  private getOwnerCollectiblesApi(
-    address: string,
-    offset: number,
-    useProxy = true,
-  ) {
+  private getOwnerCollectiblesApi({
+    address,
+    offset,
+    useProxy,
+  }: {
+    address: string;
+    offset: number;
+    useProxy: boolean;
+  }) {
     return useProxy
       ? `${OPENSEA_PROXY_URL}/assets?owner=${address}&offset=${offset}&limit=50`
       : `${OPENSEA_API_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
   }
 
   private async getOwnerCollectibles(address: string) {
-    let response: Response;
-    let collectibles: any = [];
+    let collectiblesApiResponse: { assets: ApiCollectible[] };
+    let collectibles: ApiCollectible[] = [];
     const openSeaApiKey = this.getOpenSeaApiKey();
     let offset = 0;
     let pagingFinish = false;
     /* istanbul ignore if */
     do {
-      response = await fetchWithErrorHandling({
-        url: this.getOwnerCollectiblesApi(address, offset),
+      collectiblesApiResponse = await fetchWithErrorHandling({
+        url: this.getOwnerCollectiblesApi({ address, offset, useProxy: true }),
         timeout: 15000,
       });
 
-      if (openSeaApiKey && !response) {
-        response = await fetchWithErrorHandling({
-          url: this.getOwnerCollectiblesApi(address, offset, false),
+      if (openSeaApiKey && !collectiblesApiResponse) {
+        collectiblesApiResponse = await fetchWithErrorHandling({
+          url: this.getOwnerCollectiblesApi({
+            address,
+            offset,
+            useProxy: false,
+          }),
           options: { headers: { 'X-API-KEY': openSeaApiKey } },
           timeout: 15000,
           // catch 403 errors (in case API key is down we don't want to blow up)
@@ -165,13 +173,12 @@ export class CollectibleDetectionController extends BaseController<
         });
       }
 
-      if (!response) {
+      if (!collectiblesApiResponse) {
         return collectibles;
       }
 
-      const collectiblesArray = await response?.json();
-      collectiblesArray?.assets?.length !== 0
-        ? (collectibles = [...collectibles, ...collectiblesArray.assets])
+      collectiblesApiResponse?.assets?.length !== 0
+        ? (collectibles = [...collectibles, ...collectiblesApiResponse.assets])
         : (pagingFinish = true);
       offset += 50;
     } while (!pagingFinish);

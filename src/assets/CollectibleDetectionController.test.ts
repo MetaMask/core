@@ -19,6 +19,7 @@ describe('CollectibleDetectionController', () => {
   let assetsContract: AssetsContractController;
 
   const getOpenSeaApiKeyStub = jest.fn();
+  nock.disableNetConnect();
 
   beforeEach(async () => {
     preferences = new PreferencesController();
@@ -110,9 +111,9 @@ describe('CollectibleDetectionController', () => {
         },
       })
       .get(`/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`)
-      .replyWithError(new TypeError('Failed to fetch'))
+      .replyWithError(new Error('Failed to fetch'))
       .get(`/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`)
-      .replyWithError(new TypeError('Failed to fetch'))
+      .replyWithError(new Error('Failed to fetch'))
       .get(`/assets?owner=0x1&offset=0&limit=50`)
       .reply(200, {
         assets: [
@@ -613,7 +614,8 @@ describe('CollectibleDetectionController', () => {
   });
 
   it('should fallback to use OpenSea API directly when the OpenSea proxy server is down or responds with a failure', async () => {
-    nock.cleanAll();
+    const selectedAddress = '0x3';
+
     getOpenSeaApiKeyStub.mockImplementation(() => 'FAKE API KEY');
     collectiblesController.setApiKey('FAKE API KEY');
 
@@ -621,19 +623,19 @@ describe('CollectibleDetectionController', () => {
       encodedQueryParams: true,
     })
       .get('/opensea/v1/api/v1/assets')
-      .query({ owner: '0x1', offset: '0', limit: '50' })
-      .replyWithError(new TypeError('Failed to fetch'));
+      .query({ owner: selectedAddress, offset: '0', limit: '50' })
+      .replyWithError(new Error('Failed to fetch'));
 
     nock('https://proxy.metaswap.codefi.network:443', {
       encodedQueryParams: true,
     })
       .get('/opensea/v1/api/v1/assets')
-      .query({ owner: '0x1', offset: '50', limit: '50' })
-      .replyWithError(new TypeError('Failed to fetch'));
+      .query({ owner: selectedAddress, offset: '50', limit: '50' })
+      .replyWithError(new Error('Failed to fetch'));
 
     nock('https://api.opensea.io:443', { encodedQueryParams: true })
       .get('/api/v1/assets')
-      .query({ owner: '0x1', offset: '0', limit: '50' })
+      .query({ owner: selectedAddress, offset: '0', limit: '50' })
       .reply(200, {
         assets: [
           {
@@ -655,7 +657,7 @@ describe('CollectibleDetectionController', () => {
 
     nock('https://api.opensea.io:443', { encodedQueryParams: true })
       .get('/api/v1/assets')
-      .query({ owner: '0x1', offset: '50', limit: '50' })
+      .query({ owner: selectedAddress, offset: '50', limit: '50' })
       .reply(200, {
         assets: [],
       });
@@ -674,12 +676,6 @@ describe('CollectibleDetectionController', () => {
         },
       });
 
-    nock(OPENSEA_PROXY_URL)
-      .get(`/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`)
-      .replyWithError(new TypeError('Failed to fetch'));
-
-    const selectedAddress = '0x1';
-
     collectibleDetection.configure({
       networkType: MAINNET,
       selectedAddress,
@@ -689,6 +685,7 @@ describe('CollectibleDetectionController', () => {
       networkType: MAINNET,
       selectedAddress,
     });
+
     const { chainId } = collectibleDetection.config;
 
     await collectibleDetection.detectCollectibles();
@@ -710,16 +707,13 @@ describe('CollectibleDetectionController', () => {
   });
 
   it('should rethrow error when OpenSea proxy server fails with error other than fetch failure', async () => {
-    nock.cleanAll();
-
+    const selectedAddress = '0x4';
     nock('https://proxy.metaswap.codefi.network:443', {
       encodedQueryParams: true,
     })
       .get('/opensea/v1/api/v1/assets')
-      .query({ owner: '0x1', offset: '0', limit: '50' })
-      .replyWithError(new TypeError('UNEXPECTED ERROR'));
-
-    const selectedAddress = '0x1';
+      .query({ owner: selectedAddress, offset: '0', limit: '50' })
+      .replyWithError(new Error('UNEXPECTED ERROR'));
 
     collectibleDetection.configure({
       networkType: MAINNET,
