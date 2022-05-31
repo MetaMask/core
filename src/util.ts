@@ -1001,12 +1001,14 @@ export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
  * @param error - Caught error that we should either rethrow or log to console.
  * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
  */
-export function logOrRethrowError(error: any, codesToCatch?: number[]) {
-  const includesErrorCodeToCatch = codesToCatch?.length
-    ? codesToCatch?.some((code) =>
-        error.message?.includes(`Fetch failed with status '${code}'`),
-      )
-    : false;
+export function logOrRethrowError(error: any, codesToCatch: number[] = []) {
+  if (!error) {
+    return;
+  }
+
+  const includesErrorCodeToCatch = codesToCatch.some((code) =>
+    error.message?.includes(`Fetch failed with status '${code}'`),
+  );
 
   if (
     includesErrorCodeToCatch ||

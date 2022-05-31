@@ -174,11 +174,15 @@ export class CollectiblesController extends BaseController<
 > {
   private mutex = new Mutex();
 
-  private getCollectibleApi(
-    contractAddress: string,
-    tokenId: string,
-    useProxy = true,
-  ) {
+  private getCollectibleApi({
+    contractAddress,
+    tokenId,
+    useProxy,
+  }: {
+    contractAddress: string;
+    tokenId: string;
+    useProxy: boolean;
+  }) {
     const { chainId } = this.config;
 
     if (chainId === RINKEBY_CHAIN_ID) {
@@ -196,7 +200,7 @@ export class CollectiblesController extends BaseController<
     const { chainId } = this.config;
 
     if (chainId === RINKEBY_CHAIN_ID) {
-      return `https://testnets-api.opensea.io/api/v1/asset_contract/${contractAddress}`;
+      return `${OPENSEA_TEST_API_URL}/asset_contract/${contractAddress}`;
     }
 
     return useProxy
@@ -252,22 +256,27 @@ export class CollectiblesController extends BaseController<
     // Attempt to fetch the data with the proxy
     let collectibleInformation: ApiCollectible | undefined =
       await fetchWithErrorHandling({
-        // the third arg defaults to true to use the proxy
-        url: this.getCollectibleApi(contractAddress, tokenId),
+        url: this.getCollectibleApi({
+          contractAddress,
+          tokenId,
+          useProxy: true,
+        }),
       });
 
     // if an openSeaApiKey is set we should attempt to refetch calling directly to OpenSea
-    if (!collectibleInformation) {
-      if (this.openSeaApiKey) {
-        collectibleInformation = await fetchWithErrorHandling({
-          url: this.getCollectibleApi(contractAddress, tokenId, false),
-          options: {
-            headers: { 'X-API-KEY': this.openSeaApiKey },
-          },
-          // catch 403 errors (in case API key is down we don't want to blow up)
-          errorCodesToCatch: [403],
-        });
-      }
+    if (!collectibleInformation && this.openSeaApiKey) {
+      collectibleInformation = await fetchWithErrorHandling({
+        url: this.getCollectibleApi({
+          contractAddress,
+          tokenId,
+          useProxy: false,
+        }),
+        options: {
+          headers: { 'X-API-KEY': this.openSeaApiKey },
+        },
+        // catch 403 errors (in case API key is down we don't want to blow up)
+        errorCodesToCatch: [403],
+      });
     }
 
     // if we were still unable to fetch the data we return out the default/null of `CollectibleMetadata`
