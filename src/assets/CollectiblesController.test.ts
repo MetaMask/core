@@ -54,6 +54,7 @@ describe('CollectiblesController', () => {
   beforeAll(() => {
     nock.disableNetConnect();
   });
+
   afterAll(() => {
     nock.enableNetConnect();
   });
