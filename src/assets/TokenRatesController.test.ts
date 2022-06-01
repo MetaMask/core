@@ -479,6 +479,8 @@ describe('TokenRatesController', () => {
       { interval: 10, chainId: '1', nativeCurrency: 'ETH' },
     );
 
+    expect(controller.state.contractExchangeRates).toStrictEqual({});
+
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await tokenStateChangeListener!({
       detectedTokens: [
