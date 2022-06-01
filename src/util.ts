@@ -27,6 +27,8 @@ import { Token } from './assets/TokenRatesController';
 import { MAINNET } from './constants';
 import { Json } from './BaseControllerV2';
 
+const TIMEOUT_ERROR = new Error('timeout');
+
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
@@ -351,7 +353,7 @@ export async function safelyExecuteWithTimeout(
       operation(),
       new Promise<void>((_, reject) =>
         setTimeout(() => {
-          reject(new Error('timeout'));
+          reject(TIMEOUT_ERROR);
         }, timeout),
       ),
     ]);
@@ -686,7 +688,7 @@ export async function fetchWithErrorHandling({
         await handleFetch(url, options),
         new Promise<Response>((_, reject) =>
           setTimeout(() => {
-            reject(new Error('timeout'));
+            reject(TIMEOUT_ERROR);
           }, timeout),
         ),
       ]);
@@ -716,7 +718,7 @@ export async function timeoutFetch(
     successfulFetch(url, options),
     new Promise<Response>((_, reject) =>
       setTimeout(() => {
-        reject(new Error('timeout'));
+        reject(TIMEOUT_ERROR);
       }, timeout),
     ),
   ]);
@@ -1001,7 +1003,7 @@ export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
  * @param error - Caught error that we should either rethrow or log to console
  * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
  */
-export function logOrRethrowError(error: any, codesToCatch: number[] = []) {
+function logOrRethrowError(error: any, codesToCatch: number[] = []) {
   if (!error) {
     return;
   }
@@ -1014,7 +1016,7 @@ export function logOrRethrowError(error: any, codesToCatch: number[] = []) {
     error instanceof Error &&
     (includesErrorCodeToCatch ||
       error.message?.includes('Failed to fetch') ||
-      error.message === 'timeout')
+      error === TIMEOUT_ERROR)
   ) {
     console.error(error);
   } else {
