@@ -450,4 +450,61 @@ describe('TokenRatesController', () => {
 
     expect(controller.state.contractExchangeRates).toStrictEqual({});
   });
+
+  it('should update exchange rates when detected tokens are added', async () => {
+    nock(COINGECKO_API)
+      .get(`${COINGECKO_ETH_PATH}`)
+      .query({ contract_addresses: '0x02,0x03', vs_currencies: 'eth' })
+      .reply(200, {
+        '0x02': {
+          eth: 0.001,
+        },
+        '0x03': {
+          eth: 0.002,
+        },
+      })
+      .persist();
+
+    let tokenStateChangeListener: (state: any) => void;
+    const onTokensStateChange = sinon.stub().callsFake((listener) => {
+      tokenStateChangeListener = listener;
+    });
+
+    const controller = new TokenRatesController(
+      {
+        onTokensStateChange,
+        onNetworkStateChange: sinon.stub(),
+        onCurrencyRateStateChange: sinon.stub(),
+      },
+      { interval: 10, chainId: '1', nativeCurrency: 'ETH' },
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await tokenStateChangeListener!({
+      detectedTokens: [
+        {
+          address: '0x02',
+          decimals: 18,
+          image: undefined,
+          symbol: 'bar',
+          isERC721: false,
+        },
+        {
+          address: '0x03',
+          decimals: 18,
+          image: undefined,
+          symbol: 'bazz',
+          isERC721: false,
+        },
+      ],
+      tokens: [],
+    });
+
+    await controller.updateExchangeRates();
+
+    expect(controller.state.contractExchangeRates).toStrictEqual({
+      '0x02': 0.001,
+      '0x03': 0.002,
+    });
+  });
 });
