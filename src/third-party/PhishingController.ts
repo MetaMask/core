@@ -24,6 +24,42 @@ export interface EthPhishingResponse {
 }
 
 /**
+ * @type EthPhishingDetectConfig
+ *
+ * Interface defining expected input to PhishingDetector.
+ * @property allowlist - List of approved origins (legacy naming "whitelist")
+ * @property blocklist - List of unapproved origins (legacy naming "blacklist")
+ * @property fuzzylist - List of fuzzy-matched unapproved origins
+ * @property tolerance - Fuzzy match tolerance level
+ */
+export interface EthPhishingDetectConfig {
+  allowlist: string[];
+  blocklist: string[];
+  fuzzylist: string[];
+  tolerance: number;
+  name: string;
+  version: number;
+}
+
+/**
+ * @type EthPhishingDetectResult
+ *
+ * Interface that describes the result of the `test` method.
+ * @property name - Name of the config on which a match was found.
+ * @property version - Version of the config on which a match was found.
+ * @property result - Whether a domain was detected as a phishing domain. True means an unsafe domain.
+ * @property match - The matching fuzzylist origin when a fuzzylist match is found. Returned as undefined for non-fuzzy true results.
+ * @property type - The field of the config on which a match was found.
+ */
+export interface EthPhishingDetectResult {
+  name?: string;
+  version?: string;
+  result: boolean;
+  match?: string; // Returned as undefined for non-fuzzy true results.
+  type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist';
+}
+
+/**
  * @type PhishingConfig
  *
  * Phishing controller configuration
@@ -41,7 +77,7 @@ export interface PhishingConfig extends BaseConfig {
  * @property whitelist - array of temporarily-approved origins
  */
 export interface PhishingState extends BaseState {
-  phishing: EthPhishingResponse;
+  phishing: EthPhishingDetectConfig[];
   whitelist: string[];
 }
 
@@ -52,8 +88,10 @@ export class PhishingController extends BaseController<
   PhishingConfig,
   PhishingState
 > {
-  private configUrl =
+  private configUrlMetaMask =
     'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
+
+  private configUrlPhishFortHotlist = `https://cdn.jsdelivr.net/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json`;
 
   private detector: any;
 
@@ -77,7 +115,20 @@ export class PhishingController extends BaseController<
     super(config, state);
     this.defaultConfig = { interval: 60 * 60 * 1000 };
     this.defaultState = {
-      phishing: DEFAULT_PHISHING_RESPONSE,
+      phishing: [
+        {
+          allowlist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
+            .whitelist,
+          blocklist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
+            .blacklist,
+          fuzzylist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
+            .fuzzylist,
+          tolerance: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
+            .tolerance,
+          name: `MetaMask`,
+          version: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).version,
+        },
+      ],
       whitelist: [],
     };
     this.detector = new PhishingDetector(this.defaultState.phishing);
@@ -105,12 +156,12 @@ export class PhishingController extends BaseController<
    * @param origin - Domain origin of a website.
    * @returns Whether the origin is an unapproved origin.
    */
-  test(origin: string): boolean {
+  test(origin: string): EthPhishingDetectResult {
     const punycodeOrigin = toASCII(origin);
     if (this.state.whitelist.indexOf(punycodeOrigin) !== -1) {
-      return false;
+      return { result: false, type: 'all' }; // Same as whitelisted match returned by detector.check(...).
     }
-    return this.detector.check(punycodeOrigin).result;
+    return this.detector.check(punycodeOrigin);
   }
 
   /**
@@ -135,33 +186,64 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    const phishingOpts = await this.queryConfig(this.configUrl);
-    if (phishingOpts) {
-      this.detector = new PhishingDetector(phishingOpts);
-      this.update({
-        phishing: phishingOpts,
-      });
+    const configs: EthPhishingDetectConfig[] = [];
+
+    const [metamaskConfigLegacy, phishfortHotlist] = await Promise.all([
+      await this.queryConfig<EthPhishingResponse>(this.configUrlMetaMask),
+      await this.queryConfig<string[]>(this.configUrlPhishFortHotlist),
+    ]);
+
+    // Correctly shaping MetaMask config.
+    const metamaskConfig: EthPhishingDetectConfig = {
+      allowlist: metamaskConfigLegacy ? metamaskConfigLegacy.whitelist : [],
+      blocklist: metamaskConfigLegacy ? metamaskConfigLegacy.blacklist : [],
+      fuzzylist: metamaskConfigLegacy ? metamaskConfigLegacy.fuzzylist : [],
+      tolerance: metamaskConfigLegacy ? metamaskConfigLegacy.tolerance : 0,
+      name: `MetaMask`,
+      version: metamaskConfigLegacy ? metamaskConfigLegacy.version : 0,
+    };
+    if (metamaskConfigLegacy) {
+      configs.push(metamaskConfig);
     }
+
+    // Correctly shaping PhishFort config.
+    const phishfortConfig: EthPhishingDetectConfig = {
+      allowlist: [],
+      blocklist: (phishfortHotlist || []).filter(
+        (i) => !metamaskConfig.blocklist.includes(i),
+      ), // Removal of duplicates.
+      fuzzylist: [],
+      tolerance: 0,
+      name: `PhishFort`,
+      version: 1,
+    };
+    if (phishfortHotlist) {
+      configs.push(phishfortConfig);
+    }
+
+    // Do not update if all configs are unavailable.
+    if (!configs.length) {
+      return;
+    }
+
+    this.detector = new PhishingDetector(configs);
+    this.update({
+      phishing: configs,
+    });
   }
 
-  private async queryConfig(
+  private async queryConfig<ResponseType>(
     input: RequestInfo,
-  ): Promise<EthPhishingResponse | null> {
+  ): Promise<ResponseType | null> {
     const response = await fetch(input, { cache: 'no-cache' });
 
     switch (response.status) {
       case 200: {
         return await response.json();
       }
-      case 304:
-      case 403: {
-        return null;
-      }
 
       default: {
-        throw new Error(
-          `Fetch failed with status '${response.status}' for request '${input}'`,
-        );
+        return null;
       }
     }
   }

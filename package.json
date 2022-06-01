@@ -50,7 +50,7 @@
     "eth-json-rpc-infura": "^5.1.0",
     "eth-keyring-controller": "^7.0.2",
     "eth-method-registry": "1.1.0",
-    "eth-phishing-detect": "^1.1.16",
+    "eth-phishing-detect": "^1.2.0",
     "eth-query": "^2.1.2",
     "eth-rpc-errors": "^4.0.0",
     "eth-sig-util": "^3.0.0",
