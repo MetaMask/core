@@ -63,7 +63,7 @@ export async function fetchTokenList(
  * @param abortSignal - The abort signal used to cancel the request if necessary.
  * @param options - Additional fetch options.
  * @param options.timeout - The fetch timeout.
- * @returns The token metadata, or `undefined` if the request was cancelled.
+ * @returns The token metadata, or `undefined` if the request was either aborted or failed.
  */
 export async function fetchTokenMetadata<T>(
   chainId: string,
