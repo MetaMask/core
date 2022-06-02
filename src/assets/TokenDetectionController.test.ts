@@ -66,7 +66,7 @@ const sampleTokenA: Token = {
   symbol: tokenAFromList.symbol,
   decimals: tokenAFromList.decimals,
   image:
-    'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771AF9Ca656af840dff83E8264EcF986CA.png',
+    'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
   isERC721: false,
   aggregators: formattedSampleAggregators,
 };
@@ -75,7 +75,7 @@ const sampleTokenB: Token = {
   symbol: tokenBFromList.symbol,
   decimals: tokenBFromList.decimals,
   image:
-    'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x1F573D6Fb3F13d689FF844B4cE37794d79a7FF1C.png',
+    'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
   isERC721: false,
   aggregators: formattedSampleAggregators,
 };

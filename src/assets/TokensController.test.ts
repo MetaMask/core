@@ -632,7 +632,7 @@ describe('TokensController', () => {
             symbol,
             isERC721: true,
             image:
-              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03.png',
+              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03.png',
             decimals,
             aggregators: ['Dynamic'],
           },
@@ -659,7 +659,7 @@ describe('TokensController', () => {
             symbol: 'REST',
             isERC721: true,
             image:
-              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D.png',
+              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
             decimals: 4,
             aggregators: [],
           },
@@ -682,7 +682,7 @@ describe('TokensController', () => {
             symbol,
             isERC721: false,
             image:
-              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x5aFE3855358E112B5647B952709E6165e1c1eEEe.png',
+              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x5afe3855358e112b5647b952709e6165e1c1eeee.png',
             decimals,
             aggregators: ['Dynamic'],
           },
@@ -708,7 +708,7 @@ describe('TokensController', () => {
             symbol: 'LEST',
             isERC721: false,
             image:
-              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D.png',
+              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
             decimals: 5,
             aggregators: [],
           },
@@ -866,8 +866,7 @@ describe('TokensController', () => {
           isERC721: false,
           aggregators: [],
           ...asset,
-          image:
-            'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x000000000000000000000000000000000000dEaD.png',
+          image: 'image',
         },
       ]);
     });
