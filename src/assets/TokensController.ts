@@ -251,12 +251,14 @@ export class TokensController extends BaseController<
    * @param address - Hex address of the token contract.
    * @param symbol - Symbol of the token.
    * @param decimals - Number of decimals the token uses.
+   * @param image - Image of the token.
    * @returns Current token list.
    */
   async addToken(
     address: string,
     symbol: string,
     decimals: number,
+    image?: string,
   ): Promise<Token[]> {
     const currentChainId = this.config.chainId;
     const releaseLock = await this.mutex.acquire();
@@ -277,10 +279,12 @@ export class TokensController extends BaseController<
         address,
         symbol,
         decimals,
-        image: formatIconUrlWithProxy({
-          chainId: this.config.chainId,
-          tokenAddress: address,
-        }),
+        image:
+          image ||
+          formatIconUrlWithProxy({
+            chainId: this.config.chainId,
+            tokenAddress: address,
+          }),
         isERC721,
         aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
       };
@@ -631,8 +635,8 @@ export class TokensController extends BaseController<
     try {
       switch (suggestedAssetMeta.type) {
         case 'ERC20':
-          const { address, symbol, decimals } = suggestedAssetMeta.asset;
-          await this.addToken(address, symbol, decimals);
+          const { address, symbol, decimals, image } = suggestedAssetMeta.asset;
+          await this.addToken(address, symbol, decimals, image);
           suggestedAssetMeta.status = SuggestedAssetStatus.accepted;
           this.hub.emit(
             `${suggestedAssetMeta.id}:finished`,

@@ -93,5 +93,5 @@ export const formatIconUrlWithProxy = ({
   chainId: string;
   tokenAddress: string;
 }) => {
-  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainId}/${tokenAddress}.png`;
+  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainId}/${tokenAddress.toLowerCase()}.png`;
 };
