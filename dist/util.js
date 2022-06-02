@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isTokenDetectionEnabledForNetwork = exports.SupportedTokenDetectionNetworks = exports.isValidJson = exports.isNonEmptyArray = exports.hasProperty = exports.isPlainObject = exports.getFormattedIpfsUrl = exports.addUrlProtocolPrefix = exports.getIpfsCIDv1AndPath = exports.removeIpfsProtocolPrefix = exports.validateMinimumIncrease = exports.isGasPriceValue = exports.isFeeMarketEIP1559Values = exports.validateGasValues = exports.getIncreasedPriceFromExisting = exports.getIncreasedPriceHex = exports.convertPriceToDecimal = exports.isEIP1559Transaction = exports.query = exports.normalizeEnsName = exports.timeoutFetch = exports.handleFetch = exports.successfulFetch = exports.isSmartContractCode = exports.validateTokenToWatch = exports.validateTypedSignMessageDataV3 = exports.validateTypedSignMessageDataV1 = exports.validateSignMessageData = exports.normalizeMessageData = exports.validateTransaction = exports.isValidHexAddress = exports.toChecksumHexAddress = exports.safelyExecuteWithTimeout = exports.safelyExecute = exports.normalizeTransaction = exports.toHex = exports.fromHex = exports.hexToText = exports.hexToBN = exports.handleTransactionFetch = exports.getEtherscanApiUrl = exports.getBuyURL = exports.weiHexToGweiDec = exports.gweiDecToWEIBN = exports.fractionBN = exports.BNToHex = void 0;
+exports.isTokenDetectionEnabledForNetwork = exports.SupportedTokenDetectionNetworks = exports.isValidJson = exports.isNonEmptyArray = exports.hasProperty = exports.isPlainObject = exports.getFormattedIpfsUrl = exports.addUrlProtocolPrefix = exports.getIpfsCIDv1AndPath = exports.removeIpfsProtocolPrefix = exports.validateMinimumIncrease = exports.isGasPriceValue = exports.isFeeMarketEIP1559Values = exports.validateGasValues = exports.getIncreasedPriceFromExisting = exports.getIncreasedPriceHex = exports.convertPriceToDecimal = exports.isEIP1559Transaction = exports.query = exports.normalizeEnsName = exports.timeoutFetch = exports.fetchWithErrorHandling = exports.handleFetch = exports.successfulFetch = exports.isSmartContractCode = exports.validateTokenToWatch = exports.validateTypedSignMessageDataV3 = exports.validateTypedSignMessageDataV1 = exports.validateSignMessageData = exports.normalizeMessageData = exports.validateTransaction = exports.isValidHexAddress = exports.toChecksumHexAddress = exports.safelyExecuteWithTimeout = exports.safelyExecute = exports.normalizeTransaction = exports.toHex = exports.fromHex = exports.hexToText = exports.hexToBN = exports.handleTransactionFetch = exports.getEtherscanApiUrl = exports.getBuyURL = exports.weiHexToGweiDec = exports.gweiDecToWEIBN = exports.fractionBN = exports.BNToHex = void 0;
 const ethereumjs_util_1 = require("ethereumjs-util");
 const ethjs_unit_1 = require("ethjs-unit");
 const eth_rpc_errors_1 = require("eth-rpc-errors");
@@ -22,6 +22,7 @@ const jsonschema_1 = require("jsonschema");
 const cid_1 = require("multiformats/cid");
 const fast_deep_equal_1 = __importDefault(require("fast-deep-equal"));
 const constants_1 = require("./constants");
+const TIMEOUT_ERROR = new Error('timeout');
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 const NORMALIZERS = {
     data: (data) => (0, ethereumjs_util_1.addHexPrefix)(data),
@@ -302,7 +303,7 @@ function safelyExecuteWithTimeout(operation, logError = false, timeout = 500) {
             return yield Promise.race([
                 operation(),
                 new Promise((_, reject) => setTimeout(() => {
-                    reject(new Error('timeout'));
+                    reject(TIMEOUT_ERROR);
                 }, timeout)),
             ]);
         }
@@ -563,6 +564,39 @@ function handleFetch(request, options) {
 }
 exports.handleFetch = handleFetch;
 /**
+ * Execute fetch and return object response, log if known error thrown, otherwise rethrow error.
+ *
+ * @param request - the request options object
+ * @param request.url - The request url to query.
+ * @param request.options - The fetch options.
+ * @param request.timeout - Timeout to fail request
+ * @param request.errorCodesToCatch - array of error codes for errors we want to catch in a particular context
+ * @returns The fetch response JSON data or undefined (if error occurs).
+ */
+function fetchWithErrorHandling({ url, options, timeout, errorCodesToCatch, }) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let result;
+        try {
+            if (timeout) {
+                result = Promise.race([
+                    yield handleFetch(url, options),
+                    new Promise((_, reject) => setTimeout(() => {
+                        reject(TIMEOUT_ERROR);
+                    }, timeout)),
+                ]);
+            }
+            else {
+                result = yield handleFetch(url, options);
+            }
+        }
+        catch (e) {
+            logOrRethrowError(e, errorCodesToCatch);
+        }
+        return result;
+    });
+}
+exports.fetchWithErrorHandling = fetchWithErrorHandling;
+/**
  * Fetch that fails after timeout.
  *
  * @param url - Url to fetch.
@@ -575,7 +609,7 @@ function timeoutFetch(url, options, timeout = 500) {
         return Promise.race([
             successfulFetch(url, options),
             new Promise((_, reject) => setTimeout(() => {
-                reject(new Error('timeout'));
+                reject(TIMEOUT_ERROR);
             }, timeout)),
         ]);
     });
@@ -812,4 +846,26 @@ function isTokenDetectionEnabledForNetwork(chainId) {
     return Object.values(SupportedTokenDetectionNetworks).includes(chainId);
 }
 exports.isTokenDetectionEnabledForNetwork = isTokenDetectionEnabledForNetwork;
+/**
+ * Utility method to log if error is a common fetch error and otherwise rethrow it.
+ *
+ * @param error - Caught error that we should either rethrow or log to console
+ * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
+ */
+function logOrRethrowError(error, codesToCatch = []) {
+    var _a;
+    if (!error) {
+        return;
+    }
+    const includesErrorCodeToCatch = codesToCatch.some((code) => { var _a; return (_a = error.message) === null || _a === void 0 ? void 0 : _a.includes(`Fetch failed with status '${code}'`); });
+    if (error instanceof Error &&
+        (includesErrorCodeToCatch ||
+            ((_a = error.message) === null || _a === void 0 ? void 0 : _a.includes('Failed to fetch')) ||
+            error === TIMEOUT_ERROR)) {
+        console.error(error);
+    }
+    else {
+        throw error;
+    }
+}
 //# sourceMappingURL=util.js.map

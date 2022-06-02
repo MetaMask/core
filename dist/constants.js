@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TESTNET_TICKER_SYMBOLS = exports.ASSET_TYPES = exports.GWEI = exports.ERC1155_TOKEN_RECEIVER_INTERFACE_ID = exports.ERC1155_METADATA_URI_INTERFACE_ID = exports.ERC1155_INTERFACE_ID = exports.ERC721_ENUMERABLE_INTERFACE_ID = exports.ERC721_METADATA_INTERFACE_ID = exports.ERC721_INTERFACE_ID = exports.ERC20 = exports.ERC1155 = exports.ERC721 = exports.RINKEBY_CHAIN_ID = exports.IPFS_DEFAULT_GATEWAY_URL = exports.FALL_BACK_VS_CURRENCY = exports.RPC = exports.MAINNET = void 0;
+exports.OPENSEA_TEST_API_URL = exports.OPENSEA_API_URL = exports.OPENSEA_PROXY_URL = exports.TESTNET_TICKER_SYMBOLS = exports.ASSET_TYPES = exports.GWEI = exports.ERC1155_TOKEN_RECEIVER_INTERFACE_ID = exports.ERC1155_METADATA_URI_INTERFACE_ID = exports.ERC1155_INTERFACE_ID = exports.ERC721_ENUMERABLE_INTERFACE_ID = exports.ERC721_METADATA_INTERFACE_ID = exports.ERC721_INTERFACE_ID = exports.ERC20 = exports.ERC1155 = exports.ERC721 = exports.RINKEBY_CHAIN_ID = exports.IPFS_DEFAULT_GATEWAY_URL = exports.FALL_BACK_VS_CURRENCY = exports.RPC = exports.MAINNET = void 0;
 exports.MAINNET = 'mainnet';
 exports.RPC = 'rpc';
 exports.FALL_BACK_VS_CURRENCY = 'ETH';
@@ -34,4 +34,8 @@ exports.TESTNET_TICKER_SYMBOLS = {
     ROPSTEN: 'RopstenETH',
     KOVAN: 'KovanETH',
 };
+// APIs
+exports.OPENSEA_PROXY_URL = 'https://proxy.metaswap.codefi.network/opensea/v1/api/v1';
+exports.OPENSEA_API_URL = 'https://api.opensea.io/api/v1';
+exports.OPENSEA_TEST_API_URL = 'https://testnets-api.opensea.io/api/v1';
 //# sourceMappingURL=constants.js.map

@@ -210,6 +210,22 @@ export declare function successfulFetch(request: string, options?: RequestInit):
  */
 export declare function handleFetch(request: string, options?: RequestInit): Promise<any>;
 /**
+ * Execute fetch and return object response, log if known error thrown, otherwise rethrow error.
+ *
+ * @param request - the request options object
+ * @param request.url - The request url to query.
+ * @param request.options - The fetch options.
+ * @param request.timeout - Timeout to fail request
+ * @param request.errorCodesToCatch - array of error codes for errors we want to catch in a particular context
+ * @returns The fetch response JSON data or undefined (if error occurs).
+ */
+export declare function fetchWithErrorHandling({ url, options, timeout, errorCodesToCatch, }: {
+    url: string;
+    options?: RequestInit;
+    timeout?: number;
+    errorCodesToCatch?: number[];
+}): Promise<any>;
+/**
  * Fetch that fails after timeout.
  *
  * @param url - Url to fetch.

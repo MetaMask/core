@@ -30,14 +30,28 @@ class PhishingController extends BaseController_1.BaseController {
      */
     constructor(config, state) {
         super(config, state);
-        this.configUrl = 'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
+        this.configUrlMetaMask = 'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
+        this.configUrlPhishFortHotlist = `https://cdn.jsdelivr.net/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json`;
         /**
          * Name of this controller used during composition
          */
         this.name = 'PhishingController';
         this.defaultConfig = { interval: 60 * 60 * 1000 };
         this.defaultState = {
-            phishing: config_json_1.default,
+            phishing: [
+                {
+                    allowlist: config_json_1.default
+                        .whitelist,
+                    blocklist: config_json_1.default
+                        .blacklist,
+                    fuzzylist: config_json_1.default
+                        .fuzzylist,
+                    tolerance: config_json_1.default
+                        .tolerance,
+                    name: `MetaMask`,
+                    version: config_json_1.default.version,
+                },
+            ],
             whitelist: [],
         };
         this.detector = new detector_1.default(this.defaultState.phishing);
@@ -68,9 +82,9 @@ class PhishingController extends BaseController_1.BaseController {
     test(origin) {
         const punycodeOrigin = (0, punycode_1.toASCII)(origin);
         if (this.state.whitelist.indexOf(punycodeOrigin) !== -1) {
-            return false;
+            return { result: false, type: 'all' }; // Same as whitelisted match returned by detector.check(...).
         }
-        return this.detector.check(punycodeOrigin).result;
+        return this.detector.check(punycodeOrigin);
     }
     /**
      * Temporarily marks a given origin as approved.
@@ -93,13 +107,43 @@ class PhishingController extends BaseController_1.BaseController {
             if (this.disabled) {
                 return;
             }
-            const phishingOpts = yield this.queryConfig(this.configUrl);
-            if (phishingOpts) {
-                this.detector = new detector_1.default(phishingOpts);
-                this.update({
-                    phishing: phishingOpts,
-                });
+            const configs = [];
+            const [metamaskConfigLegacy, phishfortHotlist] = yield Promise.all([
+                yield this.queryConfig(this.configUrlMetaMask),
+                yield this.queryConfig(this.configUrlPhishFortHotlist),
+            ]);
+            // Correctly shaping MetaMask config.
+            const metamaskConfig = {
+                allowlist: metamaskConfigLegacy ? metamaskConfigLegacy.whitelist : [],
+                blocklist: metamaskConfigLegacy ? metamaskConfigLegacy.blacklist : [],
+                fuzzylist: metamaskConfigLegacy ? metamaskConfigLegacy.fuzzylist : [],
+                tolerance: metamaskConfigLegacy ? metamaskConfigLegacy.tolerance : 0,
+                name: `MetaMask`,
+                version: metamaskConfigLegacy ? metamaskConfigLegacy.version : 0,
+            };
+            if (metamaskConfigLegacy) {
+                configs.push(metamaskConfig);
             }
+            // Correctly shaping PhishFort config.
+            const phishfortConfig = {
+                allowlist: [],
+                blocklist: (phishfortHotlist || []).filter((i) => !metamaskConfig.blocklist.includes(i)),
+                fuzzylist: [],
+                tolerance: 0,
+                name: `PhishFort`,
+                version: 1,
+            };
+            if (phishfortHotlist) {
+                configs.push(phishfortConfig);
+            }
+            // Do not update if all configs are unavailable.
+            if (!configs.length) {
+                return;
+            }
+            this.detector = new detector_1.default(configs);
+            this.update({
+                phishing: configs,
+            });
         });
     }
     queryConfig(input) {
@@ -109,12 +153,8 @@ class PhishingController extends BaseController_1.BaseController {
                 case 200: {
                     return yield response.json();
                 }
-                case 304:
-                case 403: {
-                    return null;
-                }
                 default: {
-                    throw new Error(`Fetch failed with status '${response.status}' for request '${input}'`);
+                    return null;
                 }
             }
         });

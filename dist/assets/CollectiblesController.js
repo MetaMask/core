@@ -80,23 +80,23 @@ class CollectiblesController extends BaseController_1.BaseController {
             this.configure({ chainId });
         });
     }
-    getCollectibleApi(contractAddress, tokenId) {
+    getCollectibleApi({ contractAddress, tokenId, useProxy, }) {
         const { chainId } = this.config;
-        switch (chainId) {
-            case constants_1.RINKEBY_CHAIN_ID:
-                return `https://testnets-api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
-            default:
-                return `https://api.opensea.io/api/v1/asset/${contractAddress}/${tokenId}`;
+        if (chainId === constants_1.RINKEBY_CHAIN_ID) {
+            return `${constants_1.OPENSEA_TEST_API_URL}/asset/${contractAddress}/${tokenId}`;
         }
+        return useProxy
+            ? `${constants_1.OPENSEA_PROXY_URL}/asset/${contractAddress}/${tokenId}`
+            : `${constants_1.OPENSEA_API_URL}/asset/${contractAddress}/${tokenId}`;
     }
-    getCollectibleContractInformationApi(contractAddress) {
+    getCollectibleContractInformationApi({ contractAddress, useProxy, }) {
         const { chainId } = this.config;
-        switch (chainId) {
-            case constants_1.RINKEBY_CHAIN_ID:
-                return `https://testnets-api.opensea.io/api/v1/asset_contract/${contractAddress}`;
-            default:
-                return `https://api.opensea.io/api/v1/asset_contract/${contractAddress}`;
+        if (chainId === constants_1.RINKEBY_CHAIN_ID) {
+            return `${constants_1.OPENSEA_TEST_API_URL}/asset_contract/${contractAddress}`;
         }
+        return useProxy
+            ? `${constants_1.OPENSEA_PROXY_URL}/asset_contract/${contractAddress}`
+            : `${constants_1.OPENSEA_API_URL}/asset_contract/${contractAddress}`;
     }
     /**
      * Helper method to update nested state for allCollectibles and allCollectibleContracts.
@@ -128,17 +128,40 @@ class CollectiblesController extends BaseController_1.BaseController {
      */
     getCollectibleInformationFromApi(contractAddress, tokenId) {
         return __awaiter(this, void 0, void 0, function* () {
-            const tokenURI = this.getCollectibleApi(contractAddress, tokenId);
-            let collectibleInformation;
-            /* istanbul ignore if */
-            if (this.openSeaApiKey) {
-                collectibleInformation = yield (0, util_1.handleFetch)(tokenURI, {
-                    headers: { 'X-API-KEY': this.openSeaApiKey },
+            // Attempt to fetch the data with the proxy
+            let collectibleInformation = yield (0, util_1.fetchWithErrorHandling)({
+                url: this.getCollectibleApi({
+                    contractAddress,
+                    tokenId,
+                    useProxy: true,
+                }),
+            });
+            // if an openSeaApiKey is set we should attempt to refetch calling directly to OpenSea
+            if (!collectibleInformation && this.openSeaApiKey) {
+                collectibleInformation = yield (0, util_1.fetchWithErrorHandling)({
+                    url: this.getCollectibleApi({
+                        contractAddress,
+                        tokenId,
+                        useProxy: false,
+                    }),
+                    options: {
+                        headers: { 'X-API-KEY': this.openSeaApiKey },
+                    },
+                    // catch 403 errors (in case API key is down we don't want to blow up)
+                    errorCodesToCatch: [403],
                 });
             }
-            else {
-                collectibleInformation = yield (0, util_1.handleFetch)(tokenURI);
+            // if we were still unable to fetch the data we return out the default/null of `CollectibleMetadata`
+            if (!collectibleInformation) {
+                return {
+                    name: null,
+                    description: null,
+                    image: null,
+                    standard: null,
+                };
             }
+            // if we've reached this point, we have successfully fetched some data for collectibleInformation
+            // now we reconfigure the data to conform to the `CollectibleMetadata` type for storage.
             const { num_sales, background_color, image_url, image_preview_url, image_thumbnail_url, image_original_url, animation_url, animation_original_url, name, description, external_link, creator, last_sale, asset_contract: { schema_name }, } = collectibleInformation;
             /* istanbul ignore next */
             const collectibleMetadata = Object.assign({}, { name: name || null }, { description: description || null }, { image: image_url || null }, creator && { creator }, num_sales && { numberOfSales: num_sales }, background_color && { backgroundColor: background_color }, image_preview_url && { imagePreview: image_preview_url }, image_thumbnail_url && { imageThumbnail: image_thumbnail_url }, image_original_url && { imageOriginal: image_original_url }, animation_url && { animation: animation_url }, animation_original_url && {
@@ -257,18 +280,51 @@ class CollectiblesController extends BaseController_1.BaseController {
      */
     getCollectibleContractInformationFromApi(contractAddress) {
         return __awaiter(this, void 0, void 0, function* () {
-            const api = this.getCollectibleContractInformationApi(contractAddress);
-            let apiCollectibleContractObject;
             /* istanbul ignore if */
+            let apiCollectibleContractObject = yield (0, util_1.fetchWithErrorHandling)({
+                url: this.getCollectibleContractInformationApi({
+                    contractAddress,
+                    useProxy: true,
+                }),
+            });
+            // if we successfully fetched return the fetched data immediately
+            if (apiCollectibleContractObject) {
+                return apiCollectibleContractObject;
+            }
+            // if we were unsuccessful in fetching from the API and an OpenSea API key is present
+            // attempt to refetch directly against the OpenSea API and if successful return the data immediately
             if (this.openSeaApiKey) {
-                apiCollectibleContractObject = yield (0, util_1.handleFetch)(api, {
-                    headers: { 'X-API-KEY': this.openSeaApiKey },
+                apiCollectibleContractObject = yield (0, util_1.fetchWithErrorHandling)({
+                    url: this.getCollectibleContractInformationApi({
+                        contractAddress,
+                        useProxy: false,
+                    }),
+                    options: {
+                        headers: { 'X-API-KEY': this.openSeaApiKey },
+                    },
+                    // catch 403 errors (in case API key is down we don't want to blow up)
+                    errorCodesToCatch: [403],
                 });
+                if (apiCollectibleContractObject) {
+                    return apiCollectibleContractObject;
+                }
             }
-            else {
-                apiCollectibleContractObject = yield (0, util_1.handleFetch)(api);
-            }
-            return apiCollectibleContractObject;
+            // If we've reached this point we were unable to fetch data from either the proxy or opensea so we return
+            // the default/null of ApiCollectibleContract
+            return {
+                address: contractAddress,
+                asset_contract_type: null,
+                created_date: null,
+                schema_name: null,
+                symbol: null,
+                total_supply: null,
+                description: null,
+                external_link: null,
+                collection: {
+                    name: null,
+                    image_url: null,
+                },
+            };
         });
     }
     /**
@@ -416,7 +472,7 @@ class CollectiblesController extends BaseController_1.BaseController {
                 const contractInformation = yield this.getCollectibleContractInformation(address);
                 const { asset_contract_type, created_date, schema_name, symbol, total_supply, description, external_link, collection: { name, image_url }, } = contractInformation;
                 // If being auto-detected opensea information is expected
-                // Otherwise at least name and symbol from contract is needed
+                // Otherwise at least name from the contract is needed
                 if ((detection && !name) ||
                     Object.keys(contractInformation).length === 0) {
                     return collectibleContracts;

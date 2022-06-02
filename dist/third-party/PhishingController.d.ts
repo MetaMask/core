@@ -18,6 +18,40 @@ export interface EthPhishingResponse {
     whitelist: string[];
 }
 /**
+ * @type EthPhishingDetectConfig
+ *
+ * Interface defining expected input to PhishingDetector.
+ * @property allowlist - List of approved origins (legacy naming "whitelist")
+ * @property blocklist - List of unapproved origins (legacy naming "blacklist")
+ * @property fuzzylist - List of fuzzy-matched unapproved origins
+ * @property tolerance - Fuzzy match tolerance level
+ */
+export interface EthPhishingDetectConfig {
+    allowlist: string[];
+    blocklist: string[];
+    fuzzylist: string[];
+    tolerance: number;
+    name: string;
+    version: number;
+}
+/**
+ * @type EthPhishingDetectResult
+ *
+ * Interface that describes the result of the `test` method.
+ * @property name - Name of the config on which a match was found.
+ * @property version - Version of the config on which a match was found.
+ * @property result - Whether a domain was detected as a phishing domain. True means an unsafe domain.
+ * @property match - The matching fuzzylist origin when a fuzzylist match is found. Returned as undefined for non-fuzzy true results.
+ * @property type - The field of the config on which a match was found.
+ */
+export interface EthPhishingDetectResult {
+    name?: string;
+    version?: string;
+    result: boolean;
+    match?: string;
+    type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist';
+}
+/**
  * @type PhishingConfig
  *
  * Phishing controller configuration
@@ -34,14 +68,15 @@ export interface PhishingConfig extends BaseConfig {
  * @property whitelist - array of temporarily-approved origins
  */
 export interface PhishingState extends BaseState {
-    phishing: EthPhishingResponse;
+    phishing: EthPhishingDetectConfig[];
     whitelist: string[];
 }
 /**
  * Controller that passively polls on a set interval for approved and unapproved website origins
  */
 export declare class PhishingController extends BaseController<PhishingConfig, PhishingState> {
-    private configUrl;
+    private configUrlMetaMask;
+    private configUrlPhishFortHotlist;
     private detector;
     private handle?;
     /**
@@ -67,7 +102,7 @@ export declare class PhishingController extends BaseController<PhishingConfig, P
      * @param origin - Domain origin of a website.
      * @returns Whether the origin is an unapproved origin.
      */
-    test(origin: string): boolean;
+    test(origin: string): EthPhishingDetectResult;
     /**
      * Temporarily marks a given origin as approved.
      *

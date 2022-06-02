@@ -23,4 +23,7 @@ declare type tickerType = {
     [key: string]: string;
 };
 export declare const TESTNET_TICKER_SYMBOLS: tickerType;
+export declare const OPENSEA_PROXY_URL = "https://proxy.metaswap.codefi.network/opensea/v1/api/v1";
+export declare const OPENSEA_API_URL = "https://api.opensea.io/api/v1";
+export declare const OPENSEA_TEST_API_URL = "https://testnets-api.opensea.io/api/v1";
 export {};
