@@ -251,7 +251,6 @@ export class TokensController extends BaseController<
    * @param address - Hex address of the token contract.
    * @param symbol - Symbol of the token.
    * @param decimals - Number of decimals the token uses.
-   * @param image - Image of the token.
    * @returns Current token list.
    */
   async addToken(
