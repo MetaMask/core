@@ -6,8 +6,6 @@ import {
   toChecksumHexAddress,
   isTokenDetectionSupportedForNetwork,
 } from '../util';
-import { MAINNET } from '../constants';
-import { NetworksChainId } from '..';
 import type { TokensController, TokensState } from './TokensController';
 import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
@@ -21,13 +19,16 @@ const DEFAULT_INTERVAL = 180000;
  * TokenDetection configuration
  * @property interval - Polling interval used to fetch new token rates
  * @property selectedAddress - Vault selected address
- * @property tokens - List of tokens associated with the active vault
+ * @property chainId - The chain ID of the current network
+ * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
+ * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */
 export interface TokenDetectionConfig extends BaseConfig {
   interval: number;
   selectedAddress: string;
-  tokens: Token[];
   chainId: string;
+  isDetectionEnabledFromPreferences: boolean;
+  isDetectionEnabledForNetwork: boolean;
 }
 
 /**
@@ -64,6 +65,8 @@ export class TokenDetectionController extends BaseController<
    * @param options.addDetectedTokens - Add a list of detected tokens.
    * @param options.getTokenListState - Gets the current state of the TokenList controller.
    * @param options.getTokensState - Gets the current state of the Tokens controller.
+   * @param options.getNetworkState - Gets the state of the network controller.
+   * @param options.getPreferencesState - Gets the state of the preferences controller.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -77,6 +80,8 @@ export class TokenDetectionController extends BaseController<
       addDetectedTokens,
       getTokenListState,
       getTokensState,
+      getNetworkState,
+      getPreferencesState,
     }: {
       onTokensStateChange: (
         listener: (tokensState: TokensState) => void,
@@ -94,93 +99,137 @@ export class TokenDetectionController extends BaseController<
       addDetectedTokens: TokensController['addDetectedTokens'];
       getTokenListState: () => TokenListState;
       getTokensState: () => TokensState;
+      getNetworkState: () => NetworkState;
+      getPreferencesState: () => PreferencesState;
     },
     config?: Partial<TokenDetectionConfig>,
     state?: Partial<BaseState>,
   ) {
+    const {
+      provider: { chainId: defaultChainId },
+    } = getNetworkState();
+    const { useTokenDetection: defaultUseTokenDetection } =
+      getPreferencesState();
+
     super(config, state);
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
       selectedAddress: '',
-      tokens: [],
       disabled: true,
-      chainId: NetworksChainId.mainnet,
+      chainId: defaultChainId,
+      isDetectionEnabledFromPreferences: defaultUseTokenDetection,
+      isDetectionEnabledForNetwork:
+        isTokenDetectionSupportedForNetwork(defaultChainId),
+      ...config,
     };
+
     this.initialize();
     this.getTokensState = getTokensState;
     this.getTokenListState = getTokenListState;
     this.addDetectedTokens = addDetectedTokens;
-    onTokensStateChange(({ tokens }) => {
-      this.configure({ tokens });
+    this.getBalancesInSingleCall = getBalancesInSingleCall;
+
+    onTokenListStateChange(({ tokenList }) => {
+      const {
+        disabled,
+        isDetectionEnabledForNetwork,
+        isDetectionEnabledFromPreferences,
+      } = this.config;
+      const hasTokens = Object.keys(tokenList).length;
+
+      if (
+        !disabled &&
+        isDetectionEnabledForNetwork &&
+        isDetectionEnabledFromPreferences &&
+        hasTokens
+      ) {
+        this.detectTokens();
+      }
+    });
+
+    onTokensStateChange(() => {
+      const {
+        disabled,
+        isDetectionEnabledForNetwork,
+        isDetectionEnabledFromPreferences,
+      } = this.config;
+
+      if (
+        !disabled &&
+        isDetectionEnabledForNetwork &&
+        isDetectionEnabledFromPreferences
+      ) {
+        this.detectTokens();
+      }
     });
 
     onPreferencesStateChange(({ selectedAddress, useTokenDetection }) => {
-      const prevDisabled = this.config.disabled;
+      const {
+        disabled,
+        selectedAddress: currentSelectedAddress,
+        isDetectionEnabledFromPreferences,
+        isDetectionEnabledForNetwork,
+      } = this.config;
       const isSelectedAddressChanged =
-        selectedAddress !== this.config.selectedAddress;
-      const isTokenDetectionSupported = isTokenDetectionSupportedForNetwork(
-        this.config.chainId,
-      );
-      const isDetectionEnabled = useTokenDetection && isTokenDetectionSupported;
-      this.configure({ selectedAddress, disabled: !isDetectionEnabled });
-      if (isDetectionEnabled && (prevDisabled || isSelectedAddressChanged)) {
+        selectedAddress !== currentSelectedAddress;
+      const isDetectionChangedFromPreferences =
+        isDetectionEnabledFromPreferences !== useTokenDetection;
+
+      this.configure({
+        isDetectionEnabledFromPreferences: useTokenDetection,
+        selectedAddress,
+      });
+
+      if (
+        !disabled &&
+        isDetectionEnabledForNetwork &&
+        useTokenDetection &&
+        (isSelectedAddressChanged || isDetectionChangedFromPreferences)
+      ) {
         this.detectTokens();
       }
     });
 
-    onNetworkStateChange(async (networkState) => {
-      if (this.config.chainId !== networkState.provider.chainId) {
-        const incomingChainId = networkState.provider.chainId;
-        const isTokenDetectionSupported =
-          isTokenDetectionSupportedForNetwork(incomingChainId);
-        const isDetectionEnabled =
-          isTokenDetectionSupported && !this.config.disabled;
-        this.configure({
-          chainId: incomingChainId,
-          disabled: !isDetectionEnabled,
-        });
+    onNetworkStateChange(({ provider: { chainId } }) => {
+      const {
+        disabled,
+        chainId: currentChainId,
+        isDetectionEnabledFromPreferences,
+      } = this.config;
+      const isDetectionEnabledForNetwork =
+        isTokenDetectionSupportedForNetwork(chainId);
+      const isChainIdChanged = currentChainId !== chainId;
 
-        if (isDetectionEnabled) {
-          await this.restart();
-        } else {
-          this.stopPolling();
-        }
-      }
-    });
+      this.configure({
+        chainId,
+        isDetectionEnabledForNetwork,
+      });
 
-    onTokenListStateChange(({ tokenList }) => {
-      // Detect tokens when token list has been updated and is populated
-      if (Object.keys(tokenList).length) {
+      if (
+        !disabled &&
+        isDetectionEnabledFromPreferences &&
+        isDetectionEnabledForNetwork &&
+        isChainIdChanged
+      ) {
         this.detectTokens();
       }
     });
-    this.getBalancesInSingleCall = getBalancesInSingleCall;
   }
 
   /**
-   * Start polling for the currency rate.
+   * Start polling for detected tokens.
    */
   async start() {
-    if (this.config.disabled) {
-      return;
-    }
-
+    this.configure({ disabled: false });
     await this.startPolling();
   }
 
   /**
-   * Stop polling for the currency rate.
+   * Stop polling for detected tokens.
    */
   stop() {
+    this.configure({ disabled: true });
     this.stopPolling();
-  }
-
-  /**
-   * Restart polling for the token list.
-   */
-  private async restart() {
-    this.stopPolling();
-    await this.startPolling();
   }
 
   private stopPolling() {
@@ -207,12 +256,22 @@ export class TokenDetectionController extends BaseController<
    * Triggers asset ERC20 token auto detection for each contract address in contract metadata on mainnet.
    */
   async detectTokens() {
-    /* istanbul ignore if */
-    if (this.config.disabled) {
+    const {
+      disabled,
+      isDetectionEnabledForNetwork,
+      isDetectionEnabledFromPreferences,
+    } = this.config;
+    if (
+      disabled ||
+      !isDetectionEnabledForNetwork ||
+      !isDetectionEnabledFromPreferences
+    ) {
       return;
     }
+    const { tokens } = this.getTokensState();
+    const { selectedAddress } = this.config;
 
-    const tokensAddresses = this.config.tokens.map(
+    const tokensAddresses = tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
     const { tokenList } = this.getTokenListState();
@@ -229,7 +288,6 @@ export class TokenDetectionController extends BaseController<
       tokensToDetect.length - 1,
     );
 
-    const { selectedAddress } = this.config;
     /* istanbul ignore else */
     if (!selectedAddress) {
       return;
