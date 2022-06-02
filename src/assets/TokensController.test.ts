@@ -632,7 +632,7 @@ describe('TokensController', () => {
             symbol,
             isERC721: true,
             image:
-              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x06012c8cf97BEaD5deAe237070F9587f8E7A266d.png',
+              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03.png',
             decimals,
             aggregators: ['Dynamic'],
           },
