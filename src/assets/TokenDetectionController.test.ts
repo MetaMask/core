@@ -140,7 +140,6 @@ describe('TokenDetectionController', () => {
     await tokenList.start();
     getBalancesInSingleCall = sinon.stub();
     tokenDetection = new TokenDetectionController({
-      onTokensStateChange: (listener) => tokensController.subscribe(listener),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
       onTokenListStateChange: (listener) =>

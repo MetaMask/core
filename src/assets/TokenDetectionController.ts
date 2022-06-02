@@ -57,7 +57,6 @@ export class TokenDetectionController extends BaseController<
    * Creates a TokenDetectionController instance.
    *
    * @param options - The controller options.
-   * @param options.onTokensStateChange - Allows subscribing to tokens controller state changes.
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
@@ -72,7 +71,6 @@ export class TokenDetectionController extends BaseController<
    */
   constructor(
     {
-      onTokensStateChange,
       onPreferencesStateChange,
       onNetworkStateChange,
       onTokenListStateChange,
@@ -83,9 +81,6 @@ export class TokenDetectionController extends BaseController<
       getNetworkState,
       getPreferencesState,
     }: {
-      onTokensStateChange: (
-        listener: (tokensState: TokensState) => void,
-      ) => void;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
@@ -142,22 +137,6 @@ export class TokenDetectionController extends BaseController<
         isDetectionEnabledForNetwork &&
         isDetectionEnabledFromPreferences &&
         hasTokens
-      ) {
-        this.detectTokens();
-      }
-    });
-
-    onTokensStateChange(() => {
-      const {
-        disabled,
-        isDetectionEnabledForNetwork,
-        isDetectionEnabledFromPreferences,
-      } = this.config;
-
-      if (
-        !disabled &&
-        isDetectionEnabledForNetwork &&
-        isDetectionEnabledFromPreferences
       ) {
         this.detectTokens();
       }
