@@ -105,6 +105,16 @@ describe('AssetsContractController', () => {
     expect(tokenId).not.toStrictEqual(0);
   });
 
+  it('should throw missing provider error when getting ERC-721 collectible tokenId when missing provider', async () => {
+    await expect(
+      assetsContract.getERC721CollectibleTokenId(
+        ERC721_GODS_ADDRESS,
+        '0x9a90bd8d1149a88b42a99cf62215ad955d6f498a',
+        0,
+      ),
+    ).rejects.toThrow(MISSING_PROVIDER_ERROR);
+  });
+
   it('should throw missing provider error when getting ERC-721 token standard and details when missing provider', async () => {
     assetsContract.configure({ provider: undefined });
     await expect(
@@ -189,6 +199,12 @@ describe('AssetsContractController', () => {
     expect(symbol).toStrictEqual('GODS');
   });
 
+  it('should throw missing provider error when getting ERC-721 collectible symbol when missing provider', async () => {
+    await expect(
+      assetsContract.getERC721AssetSymbol(ERC721_GODS_ADDRESS),
+    ).rejects.toThrow(MISSING_PROVIDER_ERROR);
+  });
+
   it('should get ERC-20 token decimals', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const decimals = await assetsContract.getERC20TokenDecimals(
@@ -262,6 +278,16 @@ describe('AssetsContractController', () => {
       ERC1155_ID,
     );
     expect(Number(balance)).toBeGreaterThan(0);
+  });
+
+  it('should throw missing provider error when getting the balance of a ERC-1155 collectible when missing provider', async () => {
+    await expect(
+      assetsContract.getERC1155BalanceOf(
+        TEST_ACCOUNT_PUBLIC_ADDRESS,
+        ERC1155_ADDRESS,
+        ERC1155_ID,
+      ),
+    ).rejects.toThrow(MISSING_PROVIDER_ERROR);
   });
 
   it('should get the URI of a ERC-1155 collectible', async () => {
