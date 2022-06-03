@@ -3,12 +3,13 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { BN, toUtf8 } from 'ethereumjs-util';
 import { AbiCoder } from '@ethersproject/abi';
 import { ERC20 } from '@metamask/controller-utils';
+import { BigNumber } from '@ethersproject/bignumber';
 
 export class ERC20Standard {
   private provider: StaticWeb3Provider;
 
   constructor(provider: any, chainId: number) {
-    this.provider = getEthersProvider(provider, chainId);
+    this.provider = new StaticWeb3Provider(provider, chainId);
   }
 
   /**

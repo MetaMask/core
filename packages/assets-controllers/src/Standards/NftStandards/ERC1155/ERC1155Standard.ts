@@ -10,10 +10,10 @@ import {
 import { getFormattedIpfsUrl } from '../../../assetsUtil';
 
 export class ERC1155Standard {
-  private provider: any;
+  private provider: StaticWeb3Provider;
 
   constructor(provider: any, chainId: number) {
-    this.provider = getEthersProvider(provider, chainId);
+    this.provider = new StaticWeb3Provider(provider, chainId);
   }
 
   /**
