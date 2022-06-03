@@ -43,7 +43,6 @@ export class SubscribeBlockTracker extends BaseBlockTracker {
         this._subscriptionId = (await this._call(
           'eth_subscribe',
           'newHeads',
-          {},
         )) as string;
         this._provider.on('data', this._handleSubData.bind(this));
         this._newPotentialLatest(blockNumber);
