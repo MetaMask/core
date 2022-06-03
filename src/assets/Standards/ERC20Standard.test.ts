@@ -7,6 +7,7 @@ const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
 const ERC20_MATIC_ADDRESS = '0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0';
+const MKR_ADDRESS = '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2';
 
 describe('ERC20Standard', () => {
   let erc20Standard: ERC20Standard;
@@ -70,5 +71,49 @@ describe('ERC20Standard', () => {
       ERC20_MATIC_ADDRESS,
     );
     expect(maticDecimals.toString()).toStrictEqual('18');
+  });
+
+  it('should support non-standard ERC20 symbols and decimals', async () => {
+    nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 3,
+        method: 'eth_call',
+        params: [
+          {
+            to: MKR_ADDRESS,
+            data: '0x313ce567',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 3,
+        result:
+          '0x0000000000000000000000000000000000000000000000000000000000000012',
+      })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 4,
+        method: 'eth_call',
+        params: [
+          {
+            to: MKR_ADDRESS,
+            data: '0x95d89b41',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 4,
+        result:
+          '0x4d4b520000000000000000000000000000000000000000000000000000000000',
+      });
+    const decimals = await erc20Standard.getTokenDecimals(MKR_ADDRESS);
+    const symbol = await erc20Standard.getTokenSymbol(MKR_ADDRESS);
+    expect(decimals).toBe('18');
+    expect(symbol).toBe('MKR');
   });
 });

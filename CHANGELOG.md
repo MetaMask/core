@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [29.0.1]
+### Added
+- Add SupportedTokenDetectionNetworks enum and util for token detection support. ([#811](https://github.com/MetaMask/controllers/pull/811))
+
+### Fixed
+- Fix bug introduced in v29.0.0 where `createNewVaultAndRestore` would crash with a validation failure. ([#819](https://github.com/MetaMask/controllers/pull/819))
+
+
 ## [29.0.0]
 ### Added
 - Reintroduce NotificationController for in-app notifications ([#709](https://github.com/MetaMask/controllers/pull/709))
@@ -558,7 +566,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v29.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v29.0.1...HEAD
+[29.0.1]: https://github.com/MetaMask/controllers/compare/v29.0.0...v29.0.1
 [29.0.0]: https://github.com/MetaMask/controllers/compare/v28.0.0...v29.0.0
 [28.0.0]: https://github.com/MetaMask/controllers/compare/v27.1.1...v28.0.0
 [27.1.1]: https://github.com/MetaMask/controllers/compare/v27.1.0...v27.1.1

@@ -1,7 +1,10 @@
 import { strict as assert } from 'assert';
 import sinon from 'sinon';
 import nock from 'nock';
-import { PhishingController } from './PhishingController';
+import {
+  EthPhishingDetectResult,
+  PhishingController,
+} from './PhishingController';
 
 describe('PhishingController', () => {
   afterEach(() => {
@@ -11,10 +14,14 @@ describe('PhishingController', () => {
 
   it('should set default state', () => {
     const controller = new PhishingController();
-    expect(controller.state.phishing).toHaveProperty('blacklist');
-    expect(controller.state.phishing).toHaveProperty('fuzzylist');
-    expect(controller.state.phishing).toHaveProperty('version');
-    expect(controller.state.phishing).toHaveProperty('whitelist');
+    controller.state.phishing.forEach((i) => {
+      expect(i).toHaveProperty('allowlist');
+      expect(i).toHaveProperty('blocklist');
+      expect(i).toHaveProperty('fuzzylist');
+      expect(i).toHaveProperty('tolerance');
+      expect(i).toHaveProperty('name');
+      expect(i).toHaveProperty('version');
+    });
   });
 
   it('should set default config', () => {
@@ -54,10 +61,14 @@ describe('PhishingController', () => {
     const controller = new PhishingController();
     controller.update({}, true);
     await controller.updatePhishingLists();
-    expect(controller.state.phishing).toHaveProperty('blacklist');
-    expect(controller.state.phishing).toHaveProperty('fuzzylist');
-    expect(controller.state.phishing).toHaveProperty('version');
-    expect(controller.state.phishing).toHaveProperty('whitelist');
+    controller.state.phishing.forEach((config) => {
+      expect(config).toHaveProperty('allowlist');
+      expect(config).toHaveProperty('blocklist');
+      expect(config).toHaveProperty('fuzzylist');
+      expect(config).toHaveProperty('tolerance');
+      expect(config).toHaveProperty('name');
+      expect(config).toHaveProperty('version');
+    });
   });
 
   it('should not update infura rate if disabled', async () => {
@@ -80,88 +91,303 @@ describe('PhishingController', () => {
     expect(async () => await controller.updatePhishingLists()).not.toThrow();
   });
 
-  it('should return negative result for safe domain', () => {
+  it('should return negative result for safe domain from default config', () => {
     const controller = new PhishingController();
-    expect(controller.test('metamask.io')).toBe(false);
+    expect(
+      controller.test('metamask.io'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'allowlist',
+      name: 'MetaMask',
+    });
   });
 
-  it('should return negative result for safe unicode domain', () => {
+  it('should return negative result for safe unicode domain from default config', () => {
     const controller = new PhishingController();
-    expect(controller.test('i❤.ws')).toBe(false);
+    expect(controller.test('i❤.ws')).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'all',
+    });
   });
 
-  it('should return negative result for safe punycode domain', () => {
+  it('should return negative result for safe punycode domain from default config', () => {
     const controller = new PhishingController();
-    expect(controller.test('xn--i-7iq.ws')).toBe(false);
+    expect(
+      controller.test('xn--i-7iq.ws'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'all',
+    });
   });
 
-  it('should return positive result for unsafe domain', () => {
+  it('should return positive result for unsafe domain from default config', () => {
     const controller = new PhishingController();
-    expect(controller.test('etnerscan.io')).toBe(true);
+    expect(
+      controller.test('etnerscan.io'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: true,
+      type: 'blocklist',
+      name: 'MetaMask',
+    });
   });
 
-  it('should return positive result for unsafe unicode domain', () => {
+  it('should return positive result for unsafe unicode domain from default config', () => {
     const controller = new PhishingController();
-    expect(controller.test('myetherẉalletṭ.com')).toBe(true);
+    expect(
+      controller.test('myetherẉalletṭ.com'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: true,
+      type: 'blocklist',
+      name: 'MetaMask',
+    });
   });
 
-  it('should return positive result for unsafe punycode domain', () => {
+  it('should return positive result for unsafe punycode domain from default config', () => {
     const controller = new PhishingController();
-    expect(controller.test('xn--myetherallet-4k5fwn.com')).toBe(true);
+    expect(
+      controller.test('xn--myetherallet-4k5fwn.com'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: true,
+      type: 'blocklist',
+      name: `MetaMask`,
+    });
   });
 
-  it('should bypass a given domain', () => {
+  it('should return negative result for safe domain from MetaMask config', async () => {
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(
+      controller.test('metamask.io'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'allowlist',
+      name: 'MetaMask',
+    });
+  });
+
+  it('should return negative result for safe unicode domain from MetaMask config', async () => {
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(controller.test('i❤.ws')).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'all',
+    });
+  });
+
+  it('should return negative result for safe punycode domain from MetaMask config', async () => {
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(
+      controller.test('xn--i-7iq.ws'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'all',
+    });
+  });
+
+  it('should return positive result for unsafe domain from MetaMask config', async () => {
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(
+      controller.test('etnerscan.io'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: true,
+      type: 'blocklist',
+      name: 'MetaMask',
+    });
+  });
+
+  it('should return positive result for unsafe unicode domain from MetaMask config', async () => {
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(
+      controller.test('myetherẉalletṭ.com'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: true,
+      type: 'blocklist',
+      name: 'MetaMask',
+    });
+  });
+
+  it('should return negative result for unsafe unicode domain if the MetaMask config returns 500', async () => {
+    nock('https://cdn.jsdelivr.net', { allowUnmocked: true })
+      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+      .reply(500)
+      .persist();
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(
+      controller.test('myetherẉalletṭ.com'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'all',
+    });
+  });
+
+  it('should return positive result for unsafe punycode domain from MetaMask config', async () => {
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(
+      controller.test('xn--myetherallet-4k5fwn.com'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: true,
+      type: 'blocklist',
+      name: 'MetaMask',
+    });
+  });
+
+  it('should return positive result for unsafe unicode domain from the PhishFort hotlist (blocklist)', async () => {
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(
+      controller.test('e4d600ab9141b7a9859511c77e63b9b3.com'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: true,
+      type: 'blocklist',
+      name: 'PhishFort',
+    });
+  });
+
+  it('should return negative result for unsafe unicode domain if the PhishFort hotlist (blocklist) returns 500', async () => {
+    nock('https://cdn.jsdelivr.net', { allowUnmocked: true })
+      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .reply(500)
+      .persist();
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(
+      controller.test('e4d600ab9141b7a9859511c77e63b9b3.com'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'all',
+    });
+  });
+
+  it('should return negative result for safe fuzzylist domain from MetaMask config', async () => {
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(
+      controller.test('opensea.io'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'allowlist',
+      name: 'MetaMask',
+    });
+  });
+
+  it('should return positive result for domain very close to fuzzylist from MetaMask config', async () => {
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(
+      controller.test('ohpensea.io'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: true,
+      type: 'fuzzy',
+      name: 'MetaMask',
+    });
+  });
+
+  it('should return negative result for domain very close to fuzzylist if MetaMask config returns 500', async () => {
+    nock('https://cdn.jsdelivr.net', { allowUnmocked: true })
+      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+      .reply(500)
+      .persist();
+
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(
+      controller.test('ohpensea.io'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'all',
+    });
+  });
+
+  it('should return negative result for domain not very close to fuzzylist from MetaMask config', async () => {
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(
+      controller.test('this-is-the-official-website-of-opensea.io'),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'all',
+    });
+  });
+
+  it('should bypass a given domain, and return a negative result', () => {
     const controller = new PhishingController();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
-      controller.test(unsafeDomain),
+      controller.test(unsafeDomain).result,
       true,
       'Example unsafe domain seems to be safe',
     );
     controller.bypass(unsafeDomain);
-    expect(controller.test(unsafeDomain)).toBe(false);
+    expect(
+      controller.test(unsafeDomain),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'all',
+    });
   });
 
-  it('should ignore second attempt to bypass a domain', () => {
+  it('should ignore second attempt to bypass a domain, and still return a negative result', () => {
     const controller = new PhishingController();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
-      controller.test(unsafeDomain),
+      controller.test(unsafeDomain).result,
       true,
       'Example unsafe domain seems to be safe',
     );
     controller.bypass(unsafeDomain);
     controller.bypass(unsafeDomain);
-    expect(controller.test(unsafeDomain)).toBe(false);
+    expect(
+      controller.test(unsafeDomain),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'all',
+    });
   });
 
-  it('should bypass a given unicode domain', () => {
+  it('should bypass a given unicode domain, and return a negative result', () => {
     const controller = new PhishingController();
     const unsafeDomain = 'myetherẉalletṭ.com';
     assert.equal(
-      controller.test(unsafeDomain),
+      controller.test(unsafeDomain).result,
       true,
       'Example unsafe domain seems to be safe',
     );
     controller.bypass(unsafeDomain);
-    expect(controller.test(unsafeDomain)).toBe(false);
+    expect(
+      controller.test(unsafeDomain),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'all',
+    });
   });
 
-  it('should bypass a given punycode domain', () => {
+  it('should bypass a given punycode domain, and return a negative result', () => {
     const controller = new PhishingController();
     const unsafeDomain = 'xn--myetherallet-4k5fwn.com';
     assert.equal(
-      controller.test(unsafeDomain),
+      controller.test(unsafeDomain).result,
       true,
       'Example unsafe domain seems to be safe',
     );
     controller.bypass(unsafeDomain);
-    expect(controller.test(unsafeDomain)).toBe(false);
+    expect(
+      controller.test(unsafeDomain),
+    ).toMatchObject<EthPhishingDetectResult>({
+      result: false,
+      type: 'all',
+    });
   });
 
   it('should not update phishing lists if fetch returns 304', async () => {
-    nock('https://cdn.jsdelivr.net')
+    nock('https://cdn.jsdelivr.net', { allowUnmocked: true })
       .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+      .reply(304)
+      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
       .reply(304)
       .persist();
     const controller = new PhishingController();
@@ -172,16 +398,19 @@ describe('PhishingController', () => {
     expect(controller.state.phishing).toBe(oldState);
   });
 
-  it('should not update phishing lists if fetch returns error', async () => {
-    nock('https://cdn.jsdelivr.net')
+  it('should not update phishing lists if fetch returns 500', async () => {
+    nock('https://cdn.jsdelivr.net', { allowUnmocked: true })
       .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+      .reply(500)
+      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
       .reply(500)
       .persist();
 
     const controller = new PhishingController();
+    const oldState = controller.state.phishing;
 
-    await expect(controller.updatePhishingLists()).rejects.toThrow(
-      /Fetch failed with status '500'/u,
-    );
+    await controller.updatePhishingLists();
+
+    expect(controller.state.phishing).toBe(oldState);
   });
 });
