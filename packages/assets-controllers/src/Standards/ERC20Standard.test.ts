@@ -1,4 +1,3 @@
-import Web3 from 'web3';
 import HttpProvider from 'ethjs-provider-http';
 import nock from 'nock';
 import { ERC20Standard } from './ERC20Standard';
@@ -12,11 +11,9 @@ const AMBIRE_ADDRESS = '0xa07D75aacEFd11b425AF7181958F0F85c312f143';
 
 describe('ERC20Standard', () => {
   let erc20Standard: ERC20Standard;
-  let web3: any;
 
   beforeAll(() => {
-    web3 = new Web3(MAINNET_PROVIDER);
-    erc20Standard = new ERC20Standard(web3);
+    erc20Standard = new ERC20Standard(MAINNET_PROVIDER, 1);
     nock.disableNetConnect();
   });
 

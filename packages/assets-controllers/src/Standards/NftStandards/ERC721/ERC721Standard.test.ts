@@ -1,4 +1,3 @@
-import Web3 from 'web3';
 import HttpProvider from 'ethjs-provider-http';
 import nock from 'nock';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
@@ -15,11 +14,9 @@ const ERC721_DECENTRALAND_ADDRESS =
 
 describe('ERC721Standard', () => {
   let erc721Standard: ERC721Standard;
-  let web3: any;
 
   beforeAll(() => {
-    web3 = new Web3(MAINNET_PROVIDER);
-    erc721Standard = new ERC721Standard(web3);
+    erc721Standard = new ERC721Standard(MAINNET_PROVIDER, 1);
     nock.disableNetConnect();
   });
 

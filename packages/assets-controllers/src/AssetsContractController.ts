@@ -1,6 +1,6 @@
 import { BN } from 'ethereumjs-util';
-import Web3 from 'web3';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
+import { Contract } from '@ethersproject/contracts';
 import {
   BaseController,
   BaseConfig,
@@ -63,8 +63,6 @@ export class AssetsContractController extends BaseController<
   AssetsContractConfig,
   BaseState
 > {
-  private web3: any;
-
   private erc721Standard?: ERC721Standard;
 
   private erc1155Standard?: ERC1155Standard;
@@ -129,10 +127,10 @@ export class AssetsContractController extends BaseController<
    * @property provider - Provider used to create a new underlying Web3 instance
    */
   set provider(provider: any) {
-    this.web3 = new Web3(provider);
-    this.erc721Standard = new ERC721Standard(this.web3);
-    this.erc1155Standard = new ERC1155Standard(this.web3);
-    this.erc20Standard = new ERC20Standard(this.web3);
+    const chainId = parseInt(this.config.chainId, 10);
+    this.erc721Standard = new ERC721Standard(provider, chainId);
+    this.erc1155Standard = new ERC1155Standard(provider, chainId);
+    this.erc20Standard = new ERC20Standard(provider, chainId);
   }
 
   get provider() {
@@ -395,9 +393,11 @@ export class AssetsContractController extends BaseController<
     const contractAddress =
       SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID[this.config.chainId];
 
-    const contract = this.web3.eth
-      .contract(abiSingleCallBalancesContract)
-      .at(contractAddress);
+    const contract = new Contract(
+      contractAddress,
+      abiSingleCallBalancesContract,
+      this.provider,
+    );
     return new Promise<BalanceMap>((resolve, reject) => {
       contract.balances(
         [selectedAddress],
