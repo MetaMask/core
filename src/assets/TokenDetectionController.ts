@@ -125,29 +125,17 @@ export class TokenDetectionController extends BaseController<
     this.getBalancesInSingleCall = getBalancesInSingleCall;
 
     onTokenListStateChange(({ tokenList }) => {
-      const {
-        disabled,
-        isDetectionEnabledForNetwork,
-        isDetectionEnabledFromPreferences,
-      } = this.config;
       const hasTokens = Object.keys(tokenList).length;
 
-      if (
-        !disabled &&
-        isDetectionEnabledForNetwork &&
-        isDetectionEnabledFromPreferences &&
-        hasTokens
-      ) {
+      if (hasTokens) {
         this.detectTokens();
       }
     });
 
     onPreferencesStateChange(({ selectedAddress, useTokenDetection }) => {
       const {
-        disabled,
         selectedAddress: currentSelectedAddress,
         isDetectionEnabledFromPreferences,
-        isDetectionEnabledForNetwork,
       } = this.config;
       const isSelectedAddressChanged =
         selectedAddress !== currentSelectedAddress;
@@ -160,8 +148,6 @@ export class TokenDetectionController extends BaseController<
       });
 
       if (
-        !disabled &&
-        isDetectionEnabledForNetwork &&
         useTokenDetection &&
         (isSelectedAddressChanged || isDetectionChangedFromPreferences)
       ) {
@@ -170,11 +156,7 @@ export class TokenDetectionController extends BaseController<
     });
 
     onNetworkStateChange(({ provider: { chainId } }) => {
-      const {
-        disabled,
-        chainId: currentChainId,
-        isDetectionEnabledFromPreferences,
-      } = this.config;
+      const { chainId: currentChainId } = this.config;
       const isDetectionEnabledForNetwork =
         isTokenDetectionSupportedForNetwork(chainId);
       const isChainIdChanged = currentChainId !== chainId;
@@ -184,12 +166,7 @@ export class TokenDetectionController extends BaseController<
         isDetectionEnabledForNetwork,
       });
 
-      if (
-        !disabled &&
-        isDetectionEnabledFromPreferences &&
-        isDetectionEnabledForNetwork &&
-        isChainIdChanged
-      ) {
+      if (isDetectionEnabledForNetwork && isChainIdChanged) {
         this.detectTokens();
       }
     });

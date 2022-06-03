@@ -105,16 +105,6 @@ describe('AssetsContractController', () => {
     expect(tokenId).not.toStrictEqual(0);
   });
 
-  it('should throw missing provider error when getting ERC-721 collectible tokenId when missing provider', async () => {
-    await expect(
-      assetsContract.getERC721CollectibleTokenId(
-        ERC721_GODS_ADDRESS,
-        '0x9a90bd8d1149a88b42a99cf62215ad955d6f498a',
-        0,
-      ),
-    ).rejects.toThrow(MISSING_PROVIDER_ERROR);
-  });
-
   it('should throw missing provider error when getting ERC-721 token standard and details when missing provider', async () => {
     assetsContract.configure({ provider: undefined });
     await expect(

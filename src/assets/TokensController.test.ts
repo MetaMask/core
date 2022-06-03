@@ -1,12 +1,15 @@
 import sinon from 'sinon';
+import nock from 'nock';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '../user/PreferencesController';
+import { TOKEN_END_POINT_API } from '../apis/token-service';
 import {
   NetworkController,
   NetworksChainId,
   NetworkType,
 } from '../network/NetworkController';
 import { TokensController } from './TokensController';
+import { Token } from './TokenRatesController';
 
 describe('TokensController', () => {
   let tokensController: TokensController;
@@ -733,6 +736,160 @@ describe('TokensController', () => {
           'TokensController Error: Switched networks while adding token',
         );
       });
+    });
+
+    it('should throw TokenService error if fetchTokenMetadata returns a response with an error', async () => {
+      const dummyTokenAddress = '0x514910771AF9Ca656af840dff83E8264EcF986CA';
+      const error = 'An error occured';
+      const fullErrorMessage = `TokenService Error: ${error}`;
+      nock(TOKEN_END_POINT_API)
+        .get(`/token/${NetworksChainId.mainnet}?address=${dummyTokenAddress}`)
+        .reply(200, { error })
+        .persist();
+
+      await expect(
+        tokensController.addToken(dummyTokenAddress, 'LINK', 18),
+      ).rejects.toThrow(fullErrorMessage);
+    });
+
+    it('should add token that was previously a detected token', async () => {
+      const supportsInterfaceStub = sinon
+        .stub()
+        .returns(Promise.resolve(false));
+      await sinon
+        .stub(tokensController, '_createEthersContract')
+        .callsFake(() =>
+          Promise.resolve({ supportsInterface: supportsInterfaceStub }),
+        );
+      const dummyDetectedToken: Token = {
+        address: '0x01',
+        symbol: 'barA',
+        decimals: 2,
+        aggregators: [],
+        image: undefined,
+        isERC721: false,
+      };
+      const dummyAddedToken: Token = {
+        ...dummyDetectedToken,
+        image:
+          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
+      };
+
+      await tokensController.addDetectedTokens([dummyDetectedToken]);
+
+      expect(tokensController.state.detectedTokens).toStrictEqual([
+        dummyDetectedToken,
+      ]);
+
+      await tokensController.addToken(
+        dummyDetectedToken.address,
+        dummyDetectedToken.symbol,
+        dummyDetectedToken.decimals,
+      );
+
+      expect(tokensController.state.detectedTokens).toStrictEqual([]);
+      expect(tokensController.state.tokens).toStrictEqual([dummyAddedToken]);
+    });
+  });
+
+  describe('addTokens method', function () {
+    it('should add tokens that were previously detected tokens', async () => {
+      const dummyAddedTokens: Token[] = [
+        {
+          address: '0x01',
+          symbol: 'barA',
+          decimals: 2,
+          aggregators: [],
+          image: undefined,
+        },
+        {
+          address: '0x02',
+          symbol: 'barB',
+          decimals: 2,
+          aggregators: [],
+          image: undefined,
+        },
+      ];
+      const dummyDetectedTokens: Token[] = [
+        {
+          ...dummyAddedTokens[0],
+          isERC721: false,
+        },
+        {
+          ...dummyAddedTokens[1],
+          isERC721: false,
+        },
+      ];
+
+      await tokensController.addDetectedTokens(dummyDetectedTokens);
+
+      expect(tokensController.state.detectedTokens).toStrictEqual(
+        dummyDetectedTokens,
+      );
+
+      await tokensController.addTokens(dummyDetectedTokens);
+
+      expect(tokensController.state.detectedTokens).toStrictEqual([]);
+      expect(tokensController.state.tokens).toStrictEqual(dummyAddedTokens);
+    });
+  });
+
+  describe('_getNewAllTokensState method', () => {
+    const dummySelectedAddress = '0x1';
+    const dummyTokens: Token[] = [
+      {
+        address: '0x01',
+        symbol: 'barA',
+        decimals: 2,
+        aggregators: [],
+        image: undefined,
+      },
+    ];
+
+    it('should nest newTokens under chain ID and selected address when provided with newTokens as input', async () => {
+      tokensController.configure({
+        selectedAddress: dummySelectedAddress,
+        chainId: NetworksChainId.mainnet,
+      });
+      const processedTokens = await tokensController._getNewAllTokensState({
+        newTokens: dummyTokens,
+      });
+      expect(
+        processedTokens.newAllTokens[NetworksChainId.mainnet][
+          dummySelectedAddress
+        ],
+      ).toStrictEqual(dummyTokens);
+    });
+
+    it('should nest detectedTokens under chain ID and selected address when provided with detectedTokens as input', async () => {
+      tokensController.configure({
+        selectedAddress: dummySelectedAddress,
+        chainId: NetworksChainId.mainnet,
+      });
+      const processedTokens = await tokensController._getNewAllTokensState({
+        newDetectedTokens: dummyTokens,
+      });
+      expect(
+        processedTokens.newAllDetectedTokens[NetworksChainId.mainnet][
+          dummySelectedAddress
+        ],
+      ).toStrictEqual(dummyTokens);
+    });
+
+    it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', async () => {
+      tokensController.configure({
+        selectedAddress: dummySelectedAddress,
+        chainId: NetworksChainId.mainnet,
+      });
+      const dummyIgnoredTokens = [dummyTokens[0].address];
+      const processedTokens = await tokensController._getNewAllTokensState({
+        newIgnoredTokens: dummyIgnoredTokens,
+      });
+      expect(
+        processedTokens.newAllIgnoredTokens[NetworksChainId.mainnet][
+          dummySelectedAddress
+        ],
+      ).toStrictEqual(dummyIgnoredTokens);
     });
   });
 

@@ -399,7 +399,7 @@ describe('TokenDetectionController', () => {
     });
 
     await tokenDetection.start();
-    expect(detectedTokensMock.callCount).toBe(1);
+    expect(detectedTokensMock.callCount).toBe(2);
 
     tokenDetection.stop();
     network.update({
@@ -409,6 +409,110 @@ describe('TokenDetectionController', () => {
       },
     });
 
-    expect(detectedTokensMock.callCount).toBe(1);
+    // Detected tokens will still be called once more but will not actually detect tokens
+    expect(detectedTokensMock.callCount).toBe(3);
+  });
+
+  it('should not call detectedTokens from onTokenListStateChange if tokenList is empty', async () => {
+    const stub = sinon.stub();
+    const detectTokensMock = sinon.stub(tokenDetection, 'detectTokens');
+    let tokenListStateChangeListener: (state: any) => void;
+    const onTokenListStateChange = sinon.stub().callsFake((listener) => {
+      tokenListStateChangeListener = listener;
+    });
+    tokenDetection = new TokenDetectionController(
+      {
+        onTokenListStateChange,
+        onPreferencesStateChange: stub,
+        onNetworkStateChange: stub,
+        getBalancesInSingleCall: stub,
+        addDetectedTokens: stub,
+        getTokensState: stub,
+        getTokenListState: stub,
+        getNetworkState: () => network.state,
+        getPreferencesState: () => preferences.state,
+      },
+      {
+        disabled: false,
+        isDetectionEnabledForNetwork: true,
+        isDetectionEnabledFromPreferences: true,
+      },
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await tokenListStateChangeListener!({ tokenList: {} });
+
+    expect(detectTokensMock.called).toBe(false);
+  });
+
+  it('should call detectedTokens from onPreferencesStateChange if useTokenDetection is true and changed', async () => {
+    const stub = sinon.stub();
+    let preferencesStateChangeListener: (state: any) => void;
+    const onPreferencesStateChange = sinon.stub().callsFake((listener) => {
+      preferencesStateChangeListener = listener;
+    });
+    tokenDetection = new TokenDetectionController(
+      {
+        onPreferencesStateChange,
+        onTokenListStateChange: stub,
+        onNetworkStateChange: stub,
+        getBalancesInSingleCall: stub,
+        addDetectedTokens: stub,
+        getTokensState: stub,
+        getTokenListState: stub,
+        getNetworkState: () => network.state,
+        getPreferencesState: () => preferences.state,
+      },
+      {
+        disabled: false,
+        isDetectionEnabledForNetwork: true,
+        isDetectionEnabledFromPreferences: false,
+        selectedAddress: '0x1',
+      },
+    );
+    const detectTokensMock = sinon.stub(tokenDetection, 'detectTokens');
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await preferencesStateChangeListener!({
+      selectedAddress: '0x1',
+      useTokenDetection: true,
+    });
+
+    expect(detectTokensMock.calledOnce).toBe(true);
+  });
+
+  it('should call detectedTokens from onNetworkStateChange if chainId has changed and is supported network', async () => {
+    const stub = sinon.stub();
+    let networkStateChangeListener: (state: any) => void;
+    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+      networkStateChangeListener = listener;
+    });
+    tokenDetection = new TokenDetectionController(
+      {
+        onNetworkStateChange,
+        onTokenListStateChange: stub,
+        onPreferencesStateChange: stub,
+        getBalancesInSingleCall: stub,
+        addDetectedTokens: stub,
+        getTokensState: stub,
+        getTokenListState: stub,
+        getNetworkState: () => network.state,
+        getPreferencesState: () => preferences.state,
+      },
+      {
+        disabled: false,
+        isDetectionEnabledFromPreferences: true,
+        chainId: SupportedTokenDetectionNetworks.polygon,
+        isDetectionEnabledForNetwork: true,
+      },
+    );
+    const detectTokensMock = sinon.stub(tokenDetection, 'detectTokens');
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await networkStateChangeListener!({
+      provider: { chainId: NetworksChainId.mainnet },
+    });
+
+    expect(detectTokensMock.called).toBe(true);
   });
 });
