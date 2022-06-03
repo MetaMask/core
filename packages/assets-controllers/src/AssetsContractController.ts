@@ -400,31 +400,19 @@ export class AssetsContractController extends BaseController<
       abiSingleCallBalancesContract,
       this._provider,
     );
-    return new Promise<BalanceMap>((resolve, reject) => {
-      contract.balances(
-        [selectedAddress],
-        tokensToDetect,
-        (error: Error, result: BN[]) => {
-          /* istanbul ignore if */
-          if (error) {
-            reject(error);
-            return;
-          }
-          const nonZeroBalances: BalanceMap = {};
-          /* istanbul ignore else */
-          if (result.length > 0) {
-            tokensToDetect.forEach((tokenAddress, index) => {
-              const balance: BN = result[index];
-              /* istanbul ignore else */
-              if (String(balance) !== '0') {
-                nonZeroBalances[tokenAddress] = balance;
-              }
-            });
-          }
-          resolve(nonZeroBalances);
-        },
-      );
-    });
+    const result = await contract.balances([selectedAddress], tokensToDetect);
+    const nonZeroBalances: BalanceMap = {};
+    /* istanbul ignore else */
+    if (result.length > 0) {
+      tokensToDetect.forEach((tokenAddress, index) => {
+        const balance: BN = result[index];
+        /* istanbul ignore else */
+        if (String(balance) !== '0') {
+          nonZeroBalances[tokenAddress] = balance;
+        }
+      });
+    }
+    return nonZeroBalances;
   }
 }
 

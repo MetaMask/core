@@ -1107,7 +1107,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC721_NFT_ADDRESS,
+              to: ERC721_NFT_ADDRESS.toLowerCase(),
               data: '0x06fdde03',
             },
             'latest',
@@ -1127,7 +1127,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC721_NFT_ADDRESS,
+              to: ERC721_NFT_ADDRESS.toLowerCase(),
               data: '0x95d89b41',
             },
             'latest',
@@ -1145,7 +1145,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC721_NFT_ADDRESS,
+              to: ERC721_NFT_ADDRESS.toLowerCase(),
               data: '0x0e89341c5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
             },
             'latest',
@@ -1165,7 +1165,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC721_NFT_ADDRESS,
+              to: ERC721_NFT_ADDRESS.toLowerCase(),
               data: '0xc87b56dd000000000000000000000000000000000000000000000000000000000011781a',
             },
             'latest',
@@ -1427,7 +1427,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC721_NFT_ADDRESS,
+              to: ERC721_NFT_ADDRESS.toLowerCase(),
               data: '0x6352211e000000000000000000000000000000000000000000000000000000000011781a',
             },
             'latest',
@@ -1460,7 +1460,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC721_NFT_ADDRESS,
+              to: ERC721_NFT_ADDRESS.toLowerCase(),
               data: '0x6352211e000000000000000000000000000000000000000000000000000000000011781a',
             },
             'latest',
