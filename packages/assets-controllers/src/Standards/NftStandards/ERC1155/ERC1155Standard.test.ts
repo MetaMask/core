@@ -6,7 +6,7 @@ const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
 
-const ERC1155_ADDRESS = '0xfaaFDc07907ff5120a76b34b731b278c38d6043C';
+const ERC1155_ADDRESS = '0xfaafdc07907ff5120a76b34b731b278c38d6043c';
 
 describe('ERC1155Standard', () => {
   let erc1155Standard: ERC1155Standard;
@@ -29,7 +29,7 @@ describe('ERC1155Standard', () => {
         method: 'eth_call',
         params: [
           {
-            to: '0xfaaFDc07907ff5120a76b34b731b278c38d6043C',
+            to: ERC1155_ADDRESS,
             data: '0x01ffc9a70e89341c00000000000000000000000000000000000000000000000000000000',
           },
           'latest',

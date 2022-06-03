@@ -74,8 +74,6 @@ describe('ERC20Standard', () => {
   it('should support non-standard ERC20 symbols and decimals', async () => {
     nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
-        jsonrpc: '2.0',
-        id: 3,
         method: 'eth_call',
         params: [
           {
@@ -84,6 +82,8 @@ describe('ERC20Standard', () => {
           },
           'latest',
         ],
+        id: 3,
+        jsonrpc: '2.0',
       })
       .reply(200, {
         jsonrpc: '2.0',
@@ -92,8 +92,6 @@ describe('ERC20Standard', () => {
           '0x0000000000000000000000000000000000000000000000000000000000000012',
       })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
-        jsonrpc: '2.0',
-        id: 4,
         method: 'eth_call',
         params: [
           {
@@ -102,6 +100,8 @@ describe('ERC20Standard', () => {
           },
           'latest',
         ],
+        id: 4,
+        jsonrpc: '2.0',
       })
       .reply(200, {
         jsonrpc: '2.0',

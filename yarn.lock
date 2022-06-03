@@ -1368,6 +1368,7 @@ __metadata:
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
     "@ethersproject/abi": ^5.7.0
+    "@ethersproject/bignumber": ^5.7.0
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
     "@metamask/auto-changelog": ^3.0.0

@@ -31,7 +31,9 @@ export class ERC20Standard {
    */
   async getTokenDecimals(address: string): Promise<string> {
     const contract = new Contract(address, abiERC20, this.provider);
-    return contract.decimals();
+    return contract
+      .decimals()
+      .then((result: BigNumber | string) => result.toString());
   }
 
   /**
