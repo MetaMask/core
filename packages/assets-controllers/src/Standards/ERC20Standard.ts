@@ -21,7 +21,7 @@ export class ERC20Standard {
    */
   async getBalanceOf(address: string, selectedAddress: string): Promise<BN> {
     const contract = new Contract(address, abiERC20, this.provider);
-    return contract.balanceOf(selectedAddress);
+    return contract.balanceOf(selectedAddress).then(ethersBigNumberToBN);
   }
 
   /**

@@ -115,8 +115,8 @@ describe('AssetsContractController', () => {
       ERC20_UNI_ADDRESS,
       '0x202637dAAEfbd7f131f90338a4A6c69F6Cd5CE91',
     );
-    expect(UNIBalance.toNumber()).not.toStrictEqual(0);
-    expect(UNINoBalance.toNumber()).toStrictEqual(0);
+    expect(UNIBalance.toString(16)).not.toStrictEqual('0');
+    expect(UNINoBalance.toString(16)).toStrictEqual('0');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 

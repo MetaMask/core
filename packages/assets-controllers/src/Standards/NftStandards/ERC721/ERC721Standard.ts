@@ -139,7 +139,15 @@ export class ERC721Standard {
     interfaceId: string,
   ): Promise<boolean> => {
     const contract = new Contract(address, abiERC721, this.provider);
-    return contract.supportsInterface(interfaceId);
+    try {
+      return await contract.supportsInterface(interfaceId);
+    } catch (err: any) {
+      // Mirror previous implementation
+      if (err.message.includes('call revert exception')) {
+        return false;
+      }
+      throw err;
+    }
   };
 
   /**

@@ -336,7 +336,7 @@ export class AssetsContractController extends BaseController<
     userAddress: string,
     nftAddress: string,
     nftId: string,
-  ): Promise<number> {
+  ): Promise<BN> {
     if (this.erc1155Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }

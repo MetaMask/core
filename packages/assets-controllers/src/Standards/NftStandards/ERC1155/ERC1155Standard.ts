@@ -1,5 +1,6 @@
 import { abiERC1155 } from '@metamask/metamask-eth-abis';
 import { Contract } from 'ethers';
+import { BN } from 'ethereumjs-util';
 import {
   ERC1155,
   ERC1155_INTERFACE_ID,
@@ -82,9 +83,9 @@ export class ERC1155Standard {
     contractAddress: string,
     address: string,
     tokenId: string,
-  ): Promise<number> => {
+  ): Promise<BN> => {
     const contract = new Contract(contractAddress, abiERC1155, this.provider);
-    return contract.balanceOf(address, tokenId);
+    return contract.balanceOf(address, tokenId).then(ethersBigNumberToBN);
   };
 
   /**
