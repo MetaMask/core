@@ -47,8 +47,7 @@
     "immer": "^9.0.6",
     "multiformats": "^9.5.2",
     "single-call-balance-checker-abi": "^1.0.0",
-    "uuid": "^8.3.2",
-    "web3": "^0.20.7"
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.0.0",
