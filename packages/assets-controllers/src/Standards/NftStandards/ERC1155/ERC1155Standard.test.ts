@@ -1,18 +1,19 @@
 import HttpProvider from 'ethjs-provider-http';
 import nock from 'nock';
+import { StaticWeb3Provider } from '../../../../StaticWeb3Provider';
 import { ERC1155Standard } from './ERC1155Standard';
 
-const MAINNET_PROVIDER = new HttpProvider(
+const MAINNET_PROVIDER_HTTP = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
-
+const MAINNET_PROVIDER = new StaticWeb3Provider(MAINNET_PROVIDER_HTTP, 1);
 const ERC1155_ADDRESS = '0xfaafdc07907ff5120a76b34b731b278c38d6043c';
 
 describe('ERC1155Standard', () => {
   let erc1155Standard: ERC1155Standard;
 
   beforeAll(() => {
-    erc1155Standard = new ERC1155Standard(MAINNET_PROVIDER, 1);
+    erc1155Standard = new ERC1155Standard(MAINNET_PROVIDER);
     nock.disableNetConnect();
   });
 
