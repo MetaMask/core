@@ -30,7 +30,7 @@
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' --ignore-path .gitignore",
     "prepack": "yarn build",
-    "setup": "yarn install && yarn allow-scripts",
+    "setup": "yarn install",
     "test": "jest",
     "test:watch": "jest --watch"
   },
