@@ -379,7 +379,7 @@ describe('TokenDetectionController', () => {
     expect(tokensController.state.detectedTokens).toStrictEqual([sampleTokenA]);
   });
 
-  it('should not detect tokens after stopping polling, and then switching between networks that support token detection', async () => {
+  it('should not call getBalancesInSingleCall after stopping polling, and then switching between networks that support token detection', async () => {
     const polygonDecimalChainId = '137';
     nock(TOKEN_END_POINT_API)
       .get(`/tokens/${polygonDecimalChainId}`)
@@ -430,7 +430,7 @@ describe('TokenDetectionController', () => {
     expect(getBalancesInSingleCallMock.called).toBe(false);
   });
 
-  it('should not call detectedTokens from onTokenListStateChange if tokenList is empty', async () => {
+  it('should not call getBalancesInSingleCallMock if onTokenListStateChange is called with an empty token list', async () => {
     const stub = sinon.stub();
     const getBalancesInSingleCallMock = sinon.stub();
     let tokenListStateChangeListener: (state: any) => void;
