@@ -430,7 +430,7 @@ describe('TokenDetectionController', () => {
     expect(getBalancesInSingleCallMock.called).toBe(false);
   });
 
-  it('should not call getBalancesInSingleCallMock if onTokenListStateChange is called with an empty token list', async () => {
+  it('should not call getBalancesInSingleCall if onTokenListStateChange is called with an empty token list', async () => {
     const stub = sinon.stub();
     const getBalancesInSingleCallMock = sinon.stub();
     let tokenListStateChangeListener: (state: any) => void;
@@ -462,8 +462,9 @@ describe('TokenDetectionController', () => {
     expect(getBalancesInSingleCallMock.called).toBe(false);
   });
 
-  it('should call detectedTokens from onPreferencesStateChange if useTokenDetection is true and changed', async () => {
+  it('should call getBalancesInSingleCall if onPreferencesStateChange is called with useTokenDetection being true and is changed', async () => {
     const stub = sinon.stub();
+    const getBalancesInSingleCallMock = sinon.stub();
     let preferencesStateChangeListener: (state: any) => void;
     const onPreferencesStateChange = sinon.stub().callsFake((listener) => {
       preferencesStateChangeListener = listener;
@@ -473,10 +474,10 @@ describe('TokenDetectionController', () => {
         onPreferencesStateChange,
         onTokenListStateChange: stub,
         onNetworkStateChange: stub,
-        getBalancesInSingleCall: stub,
+        getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
-        getTokensState: stub,
-        getTokenListState: stub,
+        getTokensState: () => tokensController.state,
+        getTokenListState: () => tokenList.state,
         getNetworkState: () => network.state,
         getPreferencesState: () => preferences.state,
       },
@@ -487,7 +488,6 @@ describe('TokenDetectionController', () => {
         selectedAddress: '0x1',
       },
     );
-    const detectTokensMock = sinon.stub(tokenDetection, 'detectTokens');
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await preferencesStateChangeListener!({
@@ -495,11 +495,12 @@ describe('TokenDetectionController', () => {
       useTokenDetection: true,
     });
 
-    expect(detectTokensMock.calledOnce).toBe(true);
+    expect(getBalancesInSingleCallMock.called).toBe(true);
   });
 
-  it('should call detectedTokens from onNetworkStateChange if chainId has changed and is supported network', async () => {
+  it('should call getBalancesInSingleCall if onNetworkStateChange is called with a chainId that supports token detection and is changed', async () => {
     const stub = sinon.stub();
+    const getBalancesInSingleCallMock = sinon.stub();
     let networkStateChangeListener: (state: any) => void;
     const onNetworkStateChange = sinon.stub().callsFake((listener) => {
       networkStateChangeListener = listener;
@@ -509,10 +510,10 @@ describe('TokenDetectionController', () => {
         onNetworkStateChange,
         onTokenListStateChange: stub,
         onPreferencesStateChange: stub,
-        getBalancesInSingleCall: stub,
+        getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
-        getTokensState: stub,
-        getTokenListState: stub,
+        getTokensState: () => tokensController.state,
+        getTokenListState: () => tokenList.state,
         getNetworkState: () => network.state,
         getPreferencesState: () => preferences.state,
       },
@@ -521,15 +522,15 @@ describe('TokenDetectionController', () => {
         isDetectionEnabledFromPreferences: true,
         chainId: SupportedTokenDetectionNetworks.polygon,
         isDetectionEnabledForNetwork: true,
+        selectedAddress: '0x1',
       },
     );
-    const detectTokensMock = sinon.stub(tokenDetection, 'detectTokens');
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await networkStateChangeListener!({
       provider: { chainId: NetworksChainId.mainnet },
     });
 
-    expect(detectTokensMock.called).toBe(true);
+    expect(getBalancesInSingleCallMock.called).toBe(true);
   });
 });
