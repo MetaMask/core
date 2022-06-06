@@ -380,42 +380,59 @@ describe('TokenDetectionController', () => {
   });
 
   it('should not detect tokens after stopping polling, and then switching between networks that support token detection', async () => {
+    const polygonDecimalChainId = '137';
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${polygonDecimalChainId}`)
+      .reply(200, sampleTokenList);
+
     sinon
       .stub(tokensController, '_instantiateNewEthersProvider')
       .callsFake(() => null);
-
-    tokenDetection.configure({
-      selectedAddress: '0x1',
+    const stub = sinon.stub();
+    const getBalancesInSingleCallMock = sinon.stub();
+    let networkStateChangeListener: (state: any) => void;
+    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+      networkStateChangeListener = listener;
     });
-    const detectedTokensMock = sinon
-      .stub(tokenDetection, 'detectTokens')
-      .callsFake(() => Promise.resolve());
 
-    network.update({
-      provider: {
-        type: 'rpc',
-        chainId: '56',
+    tokenDetection = new TokenDetectionController(
+      {
+        onTokenListStateChange: stub,
+        onPreferencesStateChange: stub,
+        onNetworkStateChange,
+        getBalancesInSingleCall: getBalancesInSingleCallMock,
+        addDetectedTokens: stub,
+        getTokensState: () => tokensController.state,
+        getTokenListState: () => tokenList.state,
+        getNetworkState: () => network.state,
+        getPreferencesState: () => preferences.state,
       },
-    });
+      {
+        disabled: false,
+        isDetectionEnabledForNetwork: true,
+        isDetectionEnabledFromPreferences: true,
+        selectedAddress: '0x1',
+        chainId: NetworksChainId.mainnet,
+      },
+    );
 
     await tokenDetection.start();
-    expect(detectedTokensMock.callCount).toBe(2);
+
+    expect(getBalancesInSingleCallMock.called).toBe(true);
+    getBalancesInSingleCallMock.reset();
 
     tokenDetection.stop();
-    network.update({
-      provider: {
-        type: 'rpc',
-        chainId: '137',
-      },
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await networkStateChangeListener!({
+      provider: { chainId: polygonDecimalChainId },
     });
 
-    // Detected tokens will still be called once more but will not actually detect tokens
-    expect(detectedTokensMock.callCount).toBe(3);
+    expect(getBalancesInSingleCallMock.called).toBe(false);
   });
 
   it('should not call detectedTokens from onTokenListStateChange if tokenList is empty', async () => {
     const stub = sinon.stub();
-    const detectTokensMock = sinon.stub(tokenDetection, 'detectTokens');
+    const getBalancesInSingleCallMock = sinon.stub();
     let tokenListStateChangeListener: (state: any) => void;
     const onTokenListStateChange = sinon.stub().callsFake((listener) => {
       tokenListStateChangeListener = listener;
@@ -425,7 +442,7 @@ describe('TokenDetectionController', () => {
         onTokenListStateChange,
         onPreferencesStateChange: stub,
         onNetworkStateChange: stub,
-        getBalancesInSingleCall: stub,
+        getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
         getTokensState: stub,
         getTokenListState: stub,
@@ -442,7 +459,7 @@ describe('TokenDetectionController', () => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await tokenListStateChangeListener!({ tokenList: {} });
 
-    expect(detectTokensMock.called).toBe(false);
+    expect(getBalancesInSingleCallMock.called).toBe(false);
   });
 
   it('should call detectedTokens from onPreferencesStateChange if useTokenDetection is true and changed', async () => {
