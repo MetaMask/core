@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [30.0.0]
-### Uncategorized
-- Introduce Detected Tokens ([#808](https://github.com/MetaMask/controllers/pull/808))
-- Always pull from dynamic token list from TokenListController ([#806](https://github.com/MetaMask/controllers/pull/806))
-
 ### Added
 - **BREAKING:** Introduce `getNetworkState`, `getPreferencesState`, and `onTokenListStateChange` to the TokenDetectionController constructor options object ([#808](https://github.com/MetaMask/controllers/pull/808))
   - getPreferencesState provides the default value for `useTokenDetection` from the PreferencesController state.
