@@ -20,13 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consumers will need to pass listener method `onNetworkStateChange` in `AssetsContractController` constructor options object. This method should be called with network/provider details when network changes occur.
 - Add "onCollectibleAdded" event handler to the CollectiblesController constructor ([#814](https://github.com/MetaMask/controllers/pull/814))
   - This event handler was added to allow us to capture metrics.
-- Append phishfort blocklist to list used by PhishingController ([#715](https://github.com/MetaMask/controllers/pull/715))
 
 ### Changed
 - **BREAKING:** Change `addTokens` to `addDetectedTokens` on the TokenDetectionController constructor ([#808](https://github.com/MetaMask/controllers/pull/808))
   - We are no longer automatically adding detected tokens to the wallet. This will provide users with the ability to manually import or ignore detected tokens.
 - **BREAKING:** Rename `useStaticTokenList` to `useTokenDetection` on the `PreferencesController` constructor options object and set the value to be true by default ([#808](https://github.com/MetaMask/controllers/pull/808))
   - Token detection will now be enabled by default.
+- **BREAKING:** Append phishfort blocklist to list used by PhishingController ([#715](https://github.com/MetaMask/controllers/pull/715))
+  - The `test` method on `PhishingController` no longer returns a boolean, it now returns an object matching the `EthPhishingDetectResult` interface (defined in `PhishingController.ts`).
 - **BREAKING:** Rename `convertPriceToDecimal` method name to `convertHexToDecimal` ([#808](https://github.com/MetaMask/controllers/pull/808))
   - Consumers of the controllers repo may have to update the instances where this function is used.
 - Update TokensController to support detected tokens ([#808](https://github.com/MetaMask/controllers/pull/808))
