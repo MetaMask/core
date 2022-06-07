@@ -20,10 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issues parsing non-standard ERC20 responses ([#830](https://github.com/MetaMask/controllers/pull/830))
 - [Token Detection V2] 5 of 7 - Always pull from dynamic token list from TokenListController ([#806](https://github.com/MetaMask/controllers/pull/806))
 - [Token Detection V2] 4 of 7 - Expose chainId to AssetsContractController ([#809](https://github.com/MetaMask/controllers/pull/809))
-- re-enable preloaded testnet conversion rates ([#816](https://github.com/MetaMask/controllers/pull/816))
-- NFT auto detect metrics ([#814](https://github.com/MetaMask/controllers/pull/814))
-- Revert "Revert "[Token Detection V2] 1 of 7 - Throw on failure for fetchTokenMetadata in token service (#812)" (#824)" ([#812](https://github.com/MetaMask/controllers/pull/812))
-- Bump @metamask/contract-metadata from 1.33.0 to 1.34.0 ([#821](https://github.com/MetaMask/controllers/pull/821))
+
+### Added
+- Add "onCollectibleAdded" event handler to the CollectiblesController constructor ([#814](https://github.com/MetaMask/controllers/pull/814))
+    - This event handler was added to allow us to capture metrics.
+
+### Changed
+- Return ETH currency rate for testnet ETH ([#816](https://github.com/MetaMask/controllers/pull/816))
 
 ## [29.0.1]
 ### Added
