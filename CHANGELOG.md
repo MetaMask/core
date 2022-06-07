@@ -16,9 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consumers will need to pass listener method `onNetworkStateChange` in `AssetsContractController` constructor options object. This method should be called with network/provider details when network changes occur.
 - Add "onCollectibleAdded" event handler to the CollectiblesController constructor ([#814](https://github.com/MetaMask/controllers/pull/814))
   - This event handler was added to allow us to capture metrics.
-- Append phishfort blocklist to list used by PhishingController ([#715](https://github.com/MetaMask/controllers/pull/715))
 
 ### Changed
+- **BREAKING:** Append phishfort blocklist to list used by PhishingController ([#715](https://github.com/MetaMask/controllers/pull/715))
+  - The `test` method on `PhishingController` no longer returns a boolean, it now returns an object matching the `EthPhishingDetectResult` interface (defined in `PhishingController.ts`).
 - Re-point OpeanSea API calls to Codefi proxy ([#805](https://github.com/MetaMask/controllers/pull/805))
   - All NFT related queries that were routed to OpenSea will now first route to a proxy server owened by Codefi. If this first request fails, and an OpenSea API key has been set, the query will re-route to OpenSea as a fallback.
 - Return ETH currency rate for testnet ETH ([#816](https://github.com/MetaMask/controllers/pull/816))
