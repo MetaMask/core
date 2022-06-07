@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Expose chainId to AssetsContractController and add check whether current network supports token detection ([#809](https://github.com/MetaMask/controllers/pull/809))
   - Consumers will need to pass listener method `onNetworkStateChange` in `AssetsContractController` constructor options object. This method should be called with network/provider details when network changes occur.
 - Add "onCollectibleAdded" event handler to the CollectiblesController constructor ([#814](https://github.com/MetaMask/controllers/pull/814))
-    - This event handler was added to allow us to capture metrics.
+  - This event handler was added to allow us to capture metrics.
 - Append phishfort blocklist to list used by PhishingController ([#715](https://github.com/MetaMask/controllers/pull/715))
 
 ### Changed
@@ -26,7 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refining the polling interval and the occurrences limit for the Dynamic token list ([#836](https://github.com/MetaMask/controllers/pull/836))
 
 ### Removed
-- **BREAKING:** Remove snap-specific endowments ([#820](https://github.com/MetaMask/controllers/pull/820))
+- **BREAKING:** Remove snap-specific network-access endowment ([#820](https://github.com/MetaMask/controllers/pull/820))
+  - Consumers who still require this endowment should import from @metamask/snap-controllers minimum version 0.13.0
 
 ### Fixed
 - Fix issues parsing non-standard ERC20 responses ([#830](https://github.com/MetaMask/controllers/pull/830))
