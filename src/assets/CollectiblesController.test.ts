@@ -53,7 +53,7 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
  * @returns A collection of test controllers and stubs.
  */
 function setupController({
-  includeOnCollectibleAdded = true,
+  includeOnCollectibleAdded = false,
 }: { includeOnCollectibleAdded?: boolean } = {}) {
   const preferences = new PreferencesController();
   const network = new NetworkController();
@@ -216,52 +216,10 @@ describe('CollectiblesController', () => {
       });
     });
 
-    it('should add collectible and collectible contract even when "onCollectibleAdded" is unset', async () => {
-      const { collectiblesController } = setupController({
-        includeOnCollectibleAdded: false,
-      });
-
-      const { selectedAddress, chainId } = collectiblesController.config;
-      await collectiblesController.addCollectible('0x01', '1', {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        favorite: false,
-      });
-
-      expect(
-        collectiblesController.state.allCollectibles[selectedAddress][
-          chainId
-        ][0],
-      ).toStrictEqual({
-        address: '0x01',
-        description: 'description',
-        image: 'image',
-        name: 'name',
-        tokenId: '1',
-        standard: 'standard',
-        favorite: false,
-        isCurrentlyOwned: true,
-      });
-
-      expect(
-        collectiblesController.state.allCollectibleContracts[selectedAddress][
-          chainId
-        ][0],
-      ).toStrictEqual({
-        address: '0x01',
-        description: 'Description',
-        logo: 'url',
-        name: 'Name',
-        symbol: 'FOO',
-        totalSupply: 0,
-      });
-    });
-
     it('should call onCollectibleAdded callback correctly when collectible is manually added', async () => {
-      const { collectiblesController, onCollectibleAddedSpy } =
-        setupController();
+      const { collectiblesController, onCollectibleAddedSpy } = setupController(
+        { includeOnCollectibleAdded: true },
+      );
 
       await collectiblesController.addCollectible('0x01', '1', {
         name: 'name',
@@ -281,8 +239,9 @@ describe('CollectiblesController', () => {
     });
 
     it('should call onCollectibleAdded callback correctly when collectible is added via detection', async () => {
-      const { collectiblesController, onCollectibleAddedSpy } =
-        setupController();
+      const { collectiblesController, onCollectibleAddedSpy } = setupController(
+        { includeOnCollectibleAdded: true },
+      );
 
       const detectedUserAddress = '0x123';
       await collectiblesController.addCollectible(
