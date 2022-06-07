@@ -2,6 +2,8 @@ import EthQuery from 'eth-query';
 import Subprovider from 'web3-provider-engine/subproviders/provider';
 import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import createMetamaskProvider from 'web3-provider-engine/zero';
+import deepFreeze from 'deep-freeze-strict';
+import { cloneDeep } from 'lodash';
 import { Mutex } from 'async-mutex';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { MAINNET, RPC } from '../constants';
@@ -217,6 +219,13 @@ export class NetworkController extends BaseController<
    */
   provider: any;
 
+  static defaultState: NetworkState = deepFreeze({
+    network: 'loading',
+    isCustomNetwork: false,
+    provider: { type: MAINNET, chainId: NetworksChainId.mainnet },
+    properties: { isEIP1559Compatible: false },
+  });
+
   /**
    * Creates a NetworkController instance.
    *
@@ -225,12 +234,7 @@ export class NetworkController extends BaseController<
    */
   constructor(config?: Partial<NetworkConfig>, state?: Partial<NetworkState>) {
     super(config, state);
-    this.defaultState = {
-      network: 'loading',
-      isCustomNetwork: false,
-      provider: { type: MAINNET, chainId: NetworksChainId.mainnet },
-      properties: { isEIP1559Compatible: false },
-    };
+    this.defaultState = cloneDeep(NetworkController.defaultState);
     this.initialize();
     this.getEIP1559Compatibility();
   }

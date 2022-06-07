@@ -1,3 +1,6 @@
+import deepFreeze from 'deep-freeze-strict';
+import { cloneDeep } from 'lodash';
+
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { toChecksumHexAddress } from '../util';
 import { ContactEntry } from './AddressBookController';
@@ -62,6 +65,18 @@ export class PreferencesController extends BaseController<
    */
   override name = 'PreferencesController';
 
+  static defaultState: PreferencesState = deepFreeze({
+    featureFlags: {},
+    frequentRpcList: [],
+    identities: {},
+    ipfsGateway: 'https://ipfs.io/ipfs/',
+    lostIdentities: {},
+    selectedAddress: '',
+    useTokenDetection: true,
+    useCollectibleDetection: false,
+    openSeaEnabled: false,
+  });
+
   /**
    * Creates a PreferencesController instance.
    *
@@ -70,17 +85,7 @@ export class PreferencesController extends BaseController<
    */
   constructor(config?: Partial<BaseConfig>, state?: Partial<PreferencesState>) {
     super(config, state);
-    this.defaultState = {
-      featureFlags: {},
-      frequentRpcList: [],
-      identities: {},
-      ipfsGateway: 'https://ipfs.io/ipfs/',
-      lostIdentities: {},
-      selectedAddress: '',
-      useTokenDetection: true,
-      useCollectibleDetection: false,
-      openSeaEnabled: false,
-    };
+    this.defaultState = cloneDeep(PreferencesController.defaultState);
     this.initialize();
   }
 
