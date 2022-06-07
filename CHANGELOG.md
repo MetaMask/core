@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Append phishfort blocklist to list used by PhishingController ([#715](https://github.com/MetaMask/controllers/pull/715))
   - The `test` method on `PhishingController` no longer returns a boolean, it now returns an object matching the `EthPhishingDetectResult` interface (defined in `PhishingController.ts`).
 - **BREAKING:** Rename `convertPriceToDecimal` method name to `convertHexToDecimal` ([#808](https://github.com/MetaMask/controllers/pull/808))
-  - Consumers of the controllers repo may have to update the instances where this function is used.
+  - Consumers of this method must update the function name wherever it is used.
 - Update TokensController to support detected tokens ([#808](https://github.com/MetaMask/controllers/pull/808))
   - Introduce `detectedTokens` to the config object to track detected tokens, which is updated by calling `addDetectedTokens` whenever TokenDetectionController detects new tokens.
   - Added `fetchTokenMetadata` private method to fetch token metadata whenever adding individual tokens. This is currently used to populate aggregator information.
@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All NFT related queries that were routed to OpenSea will now first route to a proxy server owened by Codefi. If this first request fails, and an OpenSea API key has been set, the query will re-route to OpenSea as a fallback.
 - Return ETH currency rate for testnet ETH ([#816](https://github.com/MetaMask/controllers/pull/816))
 - Query for name and symbol on ERC721 contracts regardless of whether or not they support the metadata interface ([#834](https://github.com/MetaMask/controllers/pull/834))
-- Refining the polling interval and the occurrences limit for the Dynamic token list ([#836](https://github.com/MetaMask/controllers/pull/836))
+- Increase polling interval for tokenListController and require minimum of 3 occurences across sources for use in the dynamic token list ([#836](https://github.com/MetaMask/controllers/pull/836))
 
 ### Removed
 - **BREAKING:** Deprecate `removeAndIgnoreToken` method in TokensController ([#808](https://github.com/MetaMask/controllers/pull/808))
@@ -54,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fix issues parsing non-standard ERC20 responses ([#830](https://github.com/MetaMask/controllers/pull/830))
- - Correctly read token contracts with decimals and symbol return types bytes32
+ - Now correctly reads token contract values for decimals and symbol with solidity return type `bytes32`
 
 ## [29.0.1]
 ### Added
