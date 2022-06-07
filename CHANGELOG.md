@@ -6,6 +6,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.0.0]
+### Uncategorized
+- [Token Detection V2] 6 of 7 - Introduce Detected Tokens ([#808](https://github.com/MetaMask/controllers/pull/808))
+- BREAKING: Remove snap-specific endowments ([#820](https://github.com/MetaMask/controllers/pull/820))
+- Re-point OS API calls to Codefi proxy ([#805](https://github.com/MetaMask/controllers/pull/805))
+- Append phishfort blocklist ([#715](https://github.com/MetaMask/controllers/pull/715))
+- Bump @metamask/contract-metadata from 1.34.0 to 1.35.0 ([#839](https://github.com/MetaMask/controllers/pull/839))
+- Add dry run publish just before actual publish ([#842](https://github.com/MetaMask/controllers/pull/842))
+- [Token Detection V2] Refining the polling interval and the occurrences limit for the Dynamic token list ([#836](https://github.com/MetaMask/controllers/pull/836))
+- Query for name and symbol on ERC721 contracts regardless of whether or not they support the metadata interface ([#834](https://github.com/MetaMask/controllers/pull/834))
+- Bump @metamask/auto-changelog from 2.5.0 to 2.6.0 ([#833](https://github.com/MetaMask/controllers/pull/833))
+- Fix issues parsing non-standard ERC20 responses ([#830](https://github.com/MetaMask/controllers/pull/830))
+- [Token Detection V2] 5 of 7 - Always pull from dynamic token list from TokenListController ([#806](https://github.com/MetaMask/controllers/pull/806))
+- [Token Detection V2] 4 of 7 - Expose chainId to AssetsContractController ([#809](https://github.com/MetaMask/controllers/pull/809))
+- re-enable preloaded testnet conversion rates ([#816](https://github.com/MetaMask/controllers/pull/816))
+- NFT auto detect metrics ([#814](https://github.com/MetaMask/controllers/pull/814))
+- Revert "Revert "[Token Detection V2] 1 of 7 - Throw on failure for fetchTokenMetadata in token service (#812)" (#824)" ([#812](https://github.com/MetaMask/controllers/pull/812))
+- Bump @metamask/contract-metadata from 1.33.0 to 1.34.0 ([#821](https://github.com/MetaMask/controllers/pull/821))
+
 ## [29.0.1]
 ### Added
 - Add SupportedTokenDetectionNetworks enum and util for token detection support. ([#811](https://github.com/MetaMask/controllers/pull/811))
@@ -566,7 +585,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v29.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v30.0.0...HEAD
+[30.0.0]: https://github.com/MetaMask/controllers/compare/v29.0.1...v30.0.0
 [29.0.1]: https://github.com/MetaMask/controllers/compare/v29.0.0...v29.0.1
 [29.0.0]: https://github.com/MetaMask/controllers/compare/v28.0.0...v29.0.0
 [28.0.0]: https://github.com/MetaMask/controllers/compare/v27.1.1...v28.0.0
