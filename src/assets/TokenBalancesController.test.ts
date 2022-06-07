@@ -121,7 +121,10 @@ describe('TokenBalancesController', () => {
         getSelectedAddress: () => preferences.state.selectedAddress,
         getERC20BalanceOf: sinon.stub().returns(new BN(1)),
       },
-      { interval: 1337, tokens: [{ address, decimals: 18, symbol: 'EOS' }] },
+      {
+        interval: 1337,
+        tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      },
     );
     expect(tokenBalances.state.contractBalances).toStrictEqual({});
 
@@ -155,7 +158,10 @@ describe('TokenBalancesController', () => {
         getSelectedAddress: () => preferences.state.selectedAddress,
         getERC20BalanceOf: getERC20BalanceOfStub,
       },
-      { interval: 1337, tokens: [{ address, decimals: 18, symbol: 'EOS' }] },
+      {
+        interval: 1337,
+        tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      },
     );
 
     expect(tokenBalances.state.contractBalances).toStrictEqual({});
@@ -180,8 +186,8 @@ describe('TokenBalancesController', () => {
   });
 
   it('should subscribe to new sibling assets controllers', async () => {
-    const preferences = new PreferencesController();
     const network = new NetworkController();
+    const preferences = new PreferencesController();
     const assetsContract = new AssetsContractController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
@@ -214,5 +220,44 @@ describe('TokenBalancesController', () => {
     const found = tokens.filter((token: Token) => token.address === '0x00');
     expect(found.length > 0).toBe(true);
     expect(updateBalances.called).toBe(true);
+  });
+
+  it('should update token balances when detected tokens are added', async () => {
+    let tokenStateChangeListener: (state: any) => void;
+    const onTokensStateChange = sinon.stub().callsFake((listener) => {
+      tokenStateChangeListener = listener;
+    });
+    const tokenBalances = new TokenBalancesController(
+      {
+        onTokensStateChange,
+        getSelectedAddress: () => '0x1234',
+        getERC20BalanceOf: sinon.stub().returns(new BN(1)),
+      },
+      {
+        interval: 1337,
+      },
+    );
+
+    expect(tokenBalances.state.contractBalances).toStrictEqual({});
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await tokenStateChangeListener!({
+      detectedTokens: [
+        {
+          address: '0x02',
+          decimals: 18,
+          image: undefined,
+          symbol: 'bar',
+          isERC721: false,
+        },
+      ],
+      tokens: [],
+    });
+
+    await tokenBalances.updateBalances();
+
+    expect(tokenBalances.state.contractBalances).toStrictEqual({
+      '0x02': new BN(1),
+    });
   });
 });

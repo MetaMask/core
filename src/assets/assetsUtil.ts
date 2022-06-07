@@ -83,7 +83,7 @@ export const formatAggregatorNames = (aggregators: string[]) => {
  *
  * @param params - Object that contains chainID and tokenAddress.
  * @param params.chainId - ChainID of network.
- * @param params.tokenAddress - Address of token in lowercase.
+ * @param params.tokenAddress - Address of token in mixed or lowercase.
  * @returns Formatted image url
  */
 export const formatIconUrlWithProxy = ({
@@ -93,5 +93,5 @@ export const formatIconUrlWithProxy = ({
   chainId: string;
   tokenAddress: string;
 }) => {
-  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainId}/${tokenAddress}.png`;
+  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainId}/${tokenAddress.toLowerCase()}.png`;
 };
