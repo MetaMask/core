@@ -61,7 +61,9 @@ function setupController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) => network.subscribe(listener),
   });
-  const onCollectibleAddedSpy = jest.fn();
+  const onCollectibleAddedSpy = includeOnCollectibleAdded
+    ? jest.fn()
+    : undefined;
 
   const collectiblesController = new CollectiblesController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
@@ -74,9 +76,7 @@ function setupController({
     getERC1155BalanceOf:
       assetsContract.getERC1155BalanceOf.bind(assetsContract),
     getERC1155TokenURI: assetsContract.getERC1155TokenURI.bind(assetsContract),
-    onCollectibleAdded: includeOnCollectibleAdded
-      ? onCollectibleAddedSpy
-      : undefined,
+    onCollectibleAdded: onCollectibleAddedSpy,
   });
 
   preferences.update({
