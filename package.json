@@ -7,8 +7,6 @@
     "packages/*"
   ],
   "scripts": {
-    "// 1": "'pre' commands are not supported by Yarn >= 2",
-    "// prepublish": "yarn build",
     "build": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "./scripts/clean-build.sh",
     "build:watch": "yarn build --watch",
@@ -17,14 +15,15 @@
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' --ignore-path .gitignore",
-    "setup": "yarn install && yarn allow-scripts",
+    "prepack": "yarn build",
+    "setup": "yarn install",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "devDependencies": {
     "@jest/types": "^28.1.0",
     "@lavamoat/allow-scripts": "^2.0.2",
-    "@metamask/auto-changelog": "^2.5.0",
+    "@metamask/auto-changelog": "^2.6.0",
     "@metamask/eslint-config": "^9.0.0",
     "@metamask/eslint-config-jest": "^9.0.0",
     "@metamask/eslint-config-nodejs": "^9.0.0",

@@ -917,9 +917,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/auto-changelog@npm:^2.5.0":
-  version: 2.5.0
-  resolution: "@metamask/auto-changelog@npm:2.5.0"
+"@metamask/auto-changelog@npm:^2.6.0":
+  version: 2.6.0
+  resolution: "@metamask/auto-changelog@npm:2.6.0"
   dependencies:
     diff: ^5.0.0
     execa: ^5.1.1
@@ -927,7 +927,7 @@ __metadata:
     yargs: ^17.0.1
   bin:
     auto-changelog: dist/cli.js
-  checksum: 1a4de9c7b674b11e51c5d2e943b49d6f45c9dd08689d133223dc8ddcc5b92448c50786d139ad9bf5e776f086a1289ee72ef29430d8d697493bed62d771b21278
+  checksum: f01ae6a1aef85c277b155a0b0bbfb1d8f4d17a3e93888e7c60780e1fd5f7b2a1730b3ba3247487a91fb4beb9ddfb0fe9d3ba61f4b84391dc5bde2d4607c575c8
   languageName: node
   linkType: hard
 
@@ -959,7 +959,7 @@ __metadata:
   dependencies:
     "@jest/types": ^28.1.0
     "@lavamoat/allow-scripts": ^2.0.2
-    "@metamask/auto-changelog": ^2.5.0
+    "@metamask/auto-changelog": ^2.6.0
     "@metamask/eslint-config": ^9.0.0
     "@metamask/eslint-config-jest": ^9.0.0
     "@metamask/eslint-config-nodejs": ^9.0.0
@@ -1133,11 +1133,11 @@ __metadata:
   linkType: hard
 
 "@sinonjs/commons@npm:^1.6.0, @sinonjs/commons@npm:^1.8.1":
-  version: 1.8.3
-  resolution: "@sinonjs/commons@npm:1.8.3"
+  version: 1.8.2
+  resolution: "@sinonjs/commons@npm:1.8.2"
   dependencies:
     type-detect: 4.0.8
-  checksum: 6159726db5ce6bf9f2297f8427f7ca5b3dff45b31e5cee23496f1fa6ef0bb4eab878b23fb2c5e6446381f6a66aba4968ef2fc255c1180d753d4b8c271636a2e5
+  checksum: 67aa47d4a19e688da5c291286786635625356d6dc379d86f255c8425b9da3dfd26d07cfef82aad755ad51bd1a889bde07abd1e1592f9f5b3e29013045738e344
   languageName: node
   linkType: hard
 
@@ -1427,18 +1427,18 @@ __metadata:
   linkType: hard
 
 "@types/sinon@npm:^9.0.10":
-  version: 9.0.11
-  resolution: "@types/sinon@npm:9.0.11"
+  version: 9.0.10
+  resolution: "@types/sinon@npm:9.0.10"
   dependencies:
     "@types/sinonjs__fake-timers": "*"
-  checksum: 2074490973012283ec9ccb9f607fa12f36c78d8801f63ec437d3e8351dae161a018836cc02e8b039118ec9fb7680331594716ed0858075a11d381edd27faa75c
+  checksum: d0fb5db239af2292e8d107ac349861e0d01784d09d86732e90113752beddd0258fff7a993194767b8b5944882654a7cf594d83bb881fc0a60858167667f34923
   languageName: node
   linkType: hard
 
 "@types/sinonjs__fake-timers@npm:*":
-  version: 8.1.2
-  resolution: "@types/sinonjs__fake-timers@npm:8.1.2"
-  checksum: bbc73a5ab6c0ec974929392f3d6e1e8db4ebad97ec506d785301e1c3d8a4f98a35b1aa95b97035daef02886fd8efd7788a2fa3ced2ec7105988bfd8dce61eedd
+  version: 6.0.2
+  resolution: "@types/sinonjs__fake-timers@npm:6.0.2"
+  checksum: fe62eec9cffa05aa159a036f671c8ba4117c6abe186d574c92e573117075825a756c56a4fe955bd874b77f6054fa25c1420eb22619312c43412f75f3d95f885f
   languageName: node
   linkType: hard
 
@@ -2208,9 +2208,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cacache@npm:^16.0.2":
-  version: 16.0.7
-  resolution: "cacache@npm:16.0.7"
+"cacache@npm:^16.1.0":
+  version: 16.1.1
+  resolution: "cacache@npm:16.1.1"
   dependencies:
     "@npmcli/fs": ^2.1.0
     "@npmcli/move-file": ^2.0.0
@@ -2230,7 +2230,7 @@ __metadata:
     ssri: ^9.0.0
     tar: ^6.1.11
     unique-filename: ^1.1.1
-  checksum: 2155b099b7e0f0369fb1155ca4673532ca7efe2ebdbec63acca8743580b8446b5d4fd7184626b1cb059001af77b981cdc67035c7855544d365d4f048eafca2ca
+  checksum: 488524617008b793f0249b0c4ea2c330c710ca997921376e15650cc2415a8054491ae2dee9f01382c2015602c0641f3f977faf2fa7361aa33d2637dcfb03907a
   languageName: node
   linkType: hard
 
@@ -3929,9 +3929,9 @@ __metadata:
   linkType: hard
 
 "immer@npm:^9.0.6":
-  version: 9.0.14
-  resolution: "immer@npm:9.0.14"
-  checksum: 17f1365c06d653e672a4f609f08e7203e9ab4b4284818332d6ca9b3f3577a0e3c0066ca7933b636fbae560df79a4b3fde70ed717ce3c6e95c39bf3d5861d5be9
+  version: 9.0.6
+  resolution: "immer@npm:9.0.6"
+  checksum: 75da22f3b32f3f14604eb389b4f50e84a14f2e42f306f0cbe4d2969aed54ec7fda9a7e9ca42ebae2ba73ec9bb6ec1001fafbac535accaf03860054ab0f7e8388
   languageName: node
   linkType: hard
 
@@ -4932,9 +4932,9 @@ __metadata:
   linkType: hard
 
 "just-extend@npm:^4.0.2":
-  version: 4.2.1
-  resolution: "just-extend@npm:4.2.1"
-  checksum: ff9fdede240fad313efeeeb68a660b942e5586d99c0058064c78884894a2690dc09bba44c994ad4e077e45d913fef01a9240c14a72c657b53687ac58de53b39c
+  version: 4.0.2
+  resolution: "just-extend@npm:4.0.2"
+  checksum: 03916980fc6855a0a9bcba164246c46984fcfb85b56f13405a4f244dd9369fddebcd700f33e2636d99780a704a6cec2b5333229eb03c5cbfa897340ecda4c616
   languageName: node
   linkType: hard
 
@@ -5089,11 +5089,11 @@ __metadata:
   linkType: hard
 
 "make-fetch-happen@npm:^10.0.3":
-  version: 10.1.3
-  resolution: "make-fetch-happen@npm:10.1.3"
+  version: 10.1.7
+  resolution: "make-fetch-happen@npm:10.1.7"
   dependencies:
     agentkeepalive: ^4.2.1
-    cacache: ^16.0.2
+    cacache: ^16.1.0
     http-cache-semantics: ^4.1.0
     http-proxy-agent: ^5.0.0
     https-proxy-agent: ^5.0.0
@@ -5106,9 +5106,9 @@ __metadata:
     minipass-pipeline: ^1.2.4
     negotiator: ^0.6.3
     promise-retry: ^2.0.1
-    socks-proxy-agent: ^6.1.1
+    socks-proxy-agent: ^7.0.0
     ssri: ^9.0.0
-  checksum: 14b9bc5fb65a1a1f53b4579c947d1ebdb18db71eb0b35a2eab612e9642a14127917528fe4ffb2c37aaa0d27dfd7507e4044e6e2e47b43985e8fa18722f535b8f
+  checksum: 2b7301256e18a2f825c1c3cad14e11492428531ecdea04d846dc12c2d69658d65832746ce965e67c7f98b0d0506115674cf43676c3322709278620bfc886cf4a
   languageName: node
   linkType: hard
 
@@ -5361,15 +5361,15 @@ __metadata:
   linkType: hard
 
 "nise@npm:^4.0.4":
-  version: 4.1.0
-  resolution: "nise@npm:4.1.0"
+  version: 4.0.4
+  resolution: "nise@npm:4.0.4"
   dependencies:
     "@sinonjs/commons": ^1.7.0
     "@sinonjs/fake-timers": ^6.0.0
     "@sinonjs/text-encoding": ^0.7.1
     just-extend: ^4.0.2
     path-to-regexp: ^1.7.0
-  checksum: b2ea1c96a41c392adf746509904af565ebd667ad4e40267f6d73be3648f04267945624ba0ce6a991b779f3ae246181f71975152b93b4dafee1f62886fa897c32
+  checksum: b03b5608d73ba9401d92f773e5f3a4d361cdb281ee9b0a9c9cb88c9f5aa8323c8876977e879db650c78503033dabbb850f46beef79b356c212c33be7410a967c
   languageName: node
   linkType: hard
 
@@ -5775,11 +5775,11 @@ __metadata:
   linkType: hard
 
 "path-to-regexp@npm:^1.7.0":
-  version: 1.8.0
-  resolution: "path-to-regexp@npm:1.8.0"
+  version: 1.7.0
+  resolution: "path-to-regexp@npm:1.7.0"
   dependencies:
     isarray: 0.0.1
-  checksum: 709f6f083c0552514ef4780cb2e7e4cf49b0cc89a97439f2b7cc69a608982b7690fb5d1720a7473a59806508fc2dae0be751ba49f495ecf89fd8fbc62abccbcd
+  checksum: bf5054aa006508b4f9fa9603f091ce90cb448f5a2714ce8b5dfefce761f107ca3a029401c28bf5824e4f38b71a605b3c24bd92e8a284c6436ab3060a497dd7ad
   languageName: node
   linkType: hard
 
@@ -6504,14 +6504,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"socks-proxy-agent@npm:^6.1.1":
-  version: 6.2.0
-  resolution: "socks-proxy-agent@npm:6.2.0"
+"socks-proxy-agent@npm:^7.0.0":
+  version: 7.0.0
+  resolution: "socks-proxy-agent@npm:7.0.0"
   dependencies:
     agent-base: ^6.0.2
     debug: ^4.3.3
     socks: ^2.6.2
-  checksum: 6723fd64fb50334e2b340fd0a80fd8488ffc5bc43d85b7cf1d25612044f814dd7d6ea417fd47602159941236f7f4bd15669fa5d7e1f852598a31288e1a43967b
+  checksum: 720554370154cbc979e2e9ce6a6ec6ced205d02757d8f5d93fe95adae454fc187a5cbfc6b022afab850a5ce9b4c7d73e0f98e381879cf45f66317a4895953846
   languageName: node
   linkType: hard
 
@@ -6628,11 +6628,11 @@ __metadata:
   linkType: hard
 
 "ssri@npm:^9.0.0":
-  version: 9.0.0
-  resolution: "ssri@npm:9.0.0"
+  version: 9.0.1
+  resolution: "ssri@npm:9.0.1"
   dependencies:
     minipass: ^3.1.1
-  checksum: bf33174232d07cc64e77ab1c51b55d28352273380c503d35642a19627e88a2c5f160039bb0a28608a353485075dda084dbf0390c7070f9f284559eb71d01b84b
+  checksum: fb58f5e46b6923ae67b87ad5ef1c5ab6d427a17db0bead84570c2df3cd50b4ceb880ebdba2d60726588272890bae842a744e1ecce5bd2a2a582fccd5068309eb
   languageName: node
   linkType: hard
 
@@ -7353,9 +7353,9 @@ __metadata:
   linkType: hard
 
 "whatwg-fetch@npm:^3.4.1":
-  version: 3.6.2
-  resolution: "whatwg-fetch@npm:3.6.2"
-  checksum: ee976b7249e7791edb0d0a62cd806b29006ad7ec3a3d89145921ad8c00a3a67e4be8f3fb3ec6bc7b58498724fd568d11aeeeea1f7827e7e1e5eae6c8a275afed
+  version: 3.4.1
+  resolution: "whatwg-fetch@npm:3.4.1"
+  checksum: c27cd1a06bdb661a39ae632806dc539e0b45e0e09b0c43aa0796366727fd3c419a29d39978c769dda3cb860c4970d51079e99ee748aa5eb53cc2496374da4de6
   languageName: node
   linkType: hard
 

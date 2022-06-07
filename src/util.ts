@@ -27,6 +27,8 @@ import { Token } from './assets/TokenRatesController';
 import { MAINNET } from './constants';
 import { Json } from './BaseControllerV2';
 
+const TIMEOUT_ERROR = new Error('timeout');
+
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
@@ -351,7 +353,7 @@ export async function safelyExecuteWithTimeout(
       operation(),
       new Promise<void>((_, reject) =>
         setTimeout(() => {
-          reject(new Error('timeout'));
+          reject(TIMEOUT_ERROR);
         }, timeout),
       ),
     ]);
@@ -659,6 +661,47 @@ export async function handleFetch(request: string, options?: RequestInit) {
 }
 
 /**
+ * Execute fetch and return object response, log if known error thrown, otherwise rethrow error.
+ *
+ * @param request - the request options object
+ * @param request.url - The request url to query.
+ * @param request.options - The fetch options.
+ * @param request.timeout - Timeout to fail request
+ * @param request.errorCodesToCatch - array of error codes for errors we want to catch in a particular context
+ * @returns The fetch response JSON data or undefined (if error occurs).
+ */
+export async function fetchWithErrorHandling({
+  url,
+  options,
+  timeout,
+  errorCodesToCatch,
+}: {
+  url: string;
+  options?: RequestInit;
+  timeout?: number;
+  errorCodesToCatch?: number[];
+}) {
+  let result;
+  try {
+    if (timeout) {
+      result = Promise.race([
+        await handleFetch(url, options),
+        new Promise<Response>((_, reject) =>
+          setTimeout(() => {
+            reject(TIMEOUT_ERROR);
+          }, timeout),
+        ),
+      ]);
+    } else {
+      result = await handleFetch(url, options);
+    }
+  } catch (e) {
+    logOrRethrowError(e, errorCodesToCatch);
+  }
+  return result;
+}
+
+/**
  * Fetch that fails after timeout.
  *
  * @param url - Url to fetch.
@@ -675,7 +718,7 @@ export async function timeoutFetch(
     successfulFetch(url, options),
     new Promise<Response>((_, reject) =>
       setTimeout(() => {
-        reject(new Error('timeout'));
+        reject(TIMEOUT_ERROR);
       }, timeout),
     ),
   ]);
@@ -749,7 +792,7 @@ export const isEIP1559Transaction = (transaction: Transaction): boolean => {
   );
 };
 
-export const convertPriceToDecimal = (value: string | undefined): number =>
+export const convertHexToDecimal = (value: string | undefined): number =>
   parseInt(value === undefined ? '0x0' : value, 16);
 
 export const getIncreasedPriceHex = (value: number, rate: number): string =>
@@ -759,7 +802,7 @@ export const getIncreasedPriceFromExisting = (
   value: string | undefined,
   rate: number,
 ): string => {
-  return getIncreasedPriceHex(convertPriceToDecimal(value), rate);
+  return getIncreasedPriceHex(convertHexToDecimal(value), rate);
 };
 
 export const validateGasValues = (
@@ -795,8 +838,8 @@ export const isGasPriceValue = (
  * @throws Will throw if the proposed value is too low.
  */
 export function validateMinimumIncrease(proposed: string, min: string) {
-  const proposedDecimal = convertPriceToDecimal(proposed);
-  const minDecimal = convertPriceToDecimal(min);
+  const proposedDecimal = convertHexToDecimal(proposed);
+  const minDecimal = convertHexToDecimal(min);
   if (proposedDecimal >= minDecimal) {
     return proposed;
   }
@@ -948,8 +991,35 @@ export enum SupportedTokenDetectionNetworks {
  * @param chainId - ChainID of network
  * @returns Whether the current network supports token detection
  */
-export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
+export function isTokenDetectionSupportedForNetwork(chainId: string): boolean {
   return Object.values<string>(SupportedTokenDetectionNetworks).includes(
     chainId,
   );
+}
+
+/**
+ * Utility method to log if error is a common fetch error and otherwise rethrow it.
+ *
+ * @param error - Caught error that we should either rethrow or log to console
+ * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
+ */
+function logOrRethrowError(error: any, codesToCatch: number[] = []) {
+  if (!error) {
+    return;
+  }
+
+  const includesErrorCodeToCatch = codesToCatch.some((code) =>
+    error.message?.includes(`Fetch failed with status '${code}'`),
+  );
+
+  if (
+    error instanceof Error &&
+    (includesErrorCodeToCatch ||
+      error.message?.includes('Failed to fetch') ||
+      error === TIMEOUT_ERROR)
+  ) {
+    console.error(error);
+  } else {
+    throw error;
+  }
 }

@@ -35,39 +35,7 @@ export function compareCollectiblesMetadata(
   return differentValues > 0;
 }
 
-export type AggregatorKey =
-  | 'aave'
-  | 'bancor'
-  | 'cmc'
-  | 'cryptocom'
-  | 'coinGecko'
-  | 'oneInch'
-  | 'paraswap'
-  | 'pmm'
-  | 'zapper'
-  | 'zerion'
-  | 'zeroEx'
-  | 'synthetix'
-  | 'yearn'
-  | 'apeswap'
-  | 'binanceDex'
-  | 'pancakeTop100'
-  | 'pancakeExtended'
-  | 'balancer'
-  | 'quickswap'
-  | 'matcha'
-  | 'pangolinDex'
-  | 'pangolinDexStableCoin'
-  | 'pangolinDexAvaxBridge'
-  | 'traderJoe'
-  | 'airswapLight'
-  | 'kleros';
-
-type AggregatorNameByKey = {
-  [key in AggregatorKey]: string;
-};
-
-const aggregatorNameByKey: AggregatorNameByKey = {
+const aggregatorNameByKey: Record<string, string> = {
   aave: 'Aave',
   bancor: 'Bancor',
   cmc: 'CMC',
@@ -102,7 +70,7 @@ const aggregatorNameByKey: AggregatorNameByKey = {
  * @param aggregators - List of token list names in camelcase.
  * @returns Formatted aggregator names.
  */
-export const formatAggregatorNames = (aggregators: AggregatorKey[]) => {
+export const formatAggregatorNames = (aggregators: string[]) => {
   return aggregators.map(
     (key) =>
       aggregatorNameByKey[key] ||
@@ -115,7 +83,7 @@ export const formatAggregatorNames = (aggregators: AggregatorKey[]) => {
  *
  * @param params - Object that contains chainID and tokenAddress.
  * @param params.chainId - ChainID of network.
- * @param params.tokenAddress - Address of token in lowercase.
+ * @param params.tokenAddress - Address of token in mixed or lowercase.
  * @returns Formatted image url
  */
 export const formatIconUrlWithProxy = ({
@@ -125,5 +93,5 @@ export const formatIconUrlWithProxy = ({
   chainId: string;
   tokenAddress: string;
 }) => {
-  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainId}/${tokenAddress}.png`;
+  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainId}/${tokenAddress.toLowerCase()}.png`;
 };

@@ -2,6 +2,7 @@ import sinon from 'sinon';
 import nock from 'nock';
 import { NetworkController } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
+import { OPENSEA_PROXY_URL } from '../constants';
 import { CollectiblesController } from './CollectiblesController';
 import { AssetsContractController } from './AssetsContractController';
 import { CollectibleDetectionController } from './CollectibleDetectionController';
@@ -9,8 +10,6 @@ import { CollectibleDetectionController } from './CollectibleDetectionController
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 const ROPSTEN = 'ropsten';
-const OPEN_SEA_HOST = 'https://api.opensea.io';
-const OPEN_SEA_PATH = '/api/v1';
 
 describe('CollectibleDetectionController', () => {
   let collectibleDetection: CollectibleDetectionController;
@@ -19,11 +18,21 @@ describe('CollectibleDetectionController', () => {
   let collectiblesController: CollectiblesController;
   let assetsContract: AssetsContractController;
 
+  const getOpenSeaApiKeyStub = jest.fn();
+  beforeAll(() => {
+    nock.disableNetConnect();
+  });
+
+  afterAll(() => {
+    nock.enableNetConnect();
+  });
+
   beforeEach(async () => {
     preferences = new PreferencesController();
     network = new NetworkController();
     assetsContract = new AssetsContractController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onNetworkStateChange: (listener) => network.subscribe(listener),
     });
 
     collectiblesController = new CollectiblesController({
@@ -47,7 +56,7 @@ describe('CollectibleDetectionController', () => {
         collectiblesController.subscribe(listener),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) => network.subscribe(listener),
-      getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
+      getOpenSeaApiKey: getOpenSeaApiKeyStub,
       addCollectible: collectiblesController.addCollectible.bind(
         collectiblesController,
       ),
@@ -58,8 +67,8 @@ describe('CollectibleDetectionController', () => {
     preferences.setOpenSeaEnabled(true);
     preferences.setUseCollectibleDetection(true);
 
-    nock(OPEN_SEA_HOST)
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x2&offset=0&limit=50`)
+    nock(OPENSEA_PROXY_URL)
+      .get(`/assets?owner=0x2&offset=0&limit=50`)
       .reply(200, {
         assets: [
           {
@@ -78,16 +87,14 @@ describe('CollectibleDetectionController', () => {
           },
         ],
       })
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x2&offset=50&limit=50`)
+      .get(`/assets?owner=0x2&offset=50&limit=50`)
       .reply(200, {
         assets: [],
       })
       .persist();
 
-    nock(OPEN_SEA_HOST)
-      .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`,
-      )
+    nock(OPENSEA_PROXY_URL)
+      .get(`/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`)
       .reply(200, {
         description: 'Description',
         image_url: 'url',
@@ -99,9 +106,7 @@ describe('CollectibleDetectionController', () => {
           name: 'Name',
         },
       })
-      .get(
-        `${OPEN_SEA_PATH}/asset_contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`,
-      )
+      .get(`/asset_contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`)
       .reply(200, {
         description: 'Description HH',
         symbol: 'HH',
@@ -111,15 +116,11 @@ describe('CollectibleDetectionController', () => {
           name: 'Name HH',
         },
       })
-      .get(
-        `${OPEN_SEA_PATH}/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`,
-      )
-      .replyWithError(new TypeError('Failed to fetch'))
-      .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
-      )
-      .replyWithError(new TypeError('Failed to fetch'))
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&offset=0&limit=50`)
+      .get(`/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`)
+      .replyWithError(new Error('Failed to fetch'))
+      .get(`/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`)
+      .replyWithError(new Error('Failed to fetch'))
+      .get(`/assets?owner=0x1&offset=0&limit=50`)
       .reply(200, {
         assets: [
           {
@@ -166,11 +167,11 @@ describe('CollectibleDetectionController', () => {
           },
         ],
       })
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&offset=50&limit=50`)
+      .get(`/assets?owner=0x1&offset=50&limit=50`)
       .reply(200, {
         assets: [],
       })
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x9&offset=50&limit=50`)
+      .get(`/assets?owner=0x9&offset=0&limit=50`)
       .delay(800)
       .reply(200, {
         assets: [
@@ -190,7 +191,7 @@ describe('CollectibleDetectionController', () => {
           },
         ],
       })
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x9&offset=50&limit=50`)
+      .get(`/assets?owner=0x9&offset=50&limit=50`)
       .reply(200, {
         assets: [],
       });
@@ -528,10 +529,8 @@ describe('CollectibleDetectionController', () => {
     ).toStrictEqual([collectibleContractHH]);
     // During next call of assets detection, API succeds returning contract ending in gg information
 
-    nock(OPEN_SEA_HOST)
-      .get(
-        `${OPEN_SEA_PATH}/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`,
-      )
+    nock(OPENSEA_PROXY_URL)
+      .get(`/asset_contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`)
       .reply(200, {
         description: 'Description GG',
         symbol: 'GG',
@@ -541,9 +540,7 @@ describe('CollectibleDetectionController', () => {
           name: 'Name GG',
         },
       })
-      .get(
-        `${OPEN_SEA_PATH}/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
-      )
+      .get(`/asset_contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`)
       .reply(200, {
         description: 'Description II',
         symbol: 'II',
@@ -553,7 +550,7 @@ describe('CollectibleDetectionController', () => {
           name: 'Name II',
         },
       })
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&offset=0&limit=50`)
+      .get(`/assets?owner=0x1&offset=0&limit=50`)
       .reply(200, {
         assets: [
           {
@@ -600,7 +597,7 @@ describe('CollectibleDetectionController', () => {
           },
         ],
       })
-      .get(`${OPEN_SEA_PATH}/assets?owner=0x1&offset=50&limit=50`)
+      .get(`/assets?owner=0x1&offset=50&limit=50`)
       .reply(200, {
         assets: [],
       });
@@ -620,5 +617,122 @@ describe('CollectibleDetectionController', () => {
     expect(
       collectiblesController.state.allCollectibles[selectedAddress][chainId],
     ).toStrictEqual([collectibleHH2574, collectibleII2577, collectibleGG2574]);
+  });
+
+  it('should fallback to use OpenSea API directly when the OpenSea proxy server is down or responds with a failure', async () => {
+    const selectedAddress = '0x3';
+
+    getOpenSeaApiKeyStub.mockImplementation(() => 'FAKE API KEY');
+    collectiblesController.setApiKey('FAKE API KEY');
+
+    nock('https://proxy.metaswap.codefi.network:443', {
+      encodedQueryParams: true,
+    })
+      .get('/opensea/v1/api/v1/assets')
+      .query({ owner: selectedAddress, offset: '0', limit: '50' })
+      .replyWithError(new Error('Failed to fetch'));
+
+    nock('https://proxy.metaswap.codefi.network:443', {
+      encodedQueryParams: true,
+    })
+      .get('/opensea/v1/api/v1/assets')
+      .query({ owner: selectedAddress, offset: '50', limit: '50' })
+      .replyWithError(new Error('Failed to fetch'));
+
+    nock('https://api.opensea.io:443', { encodedQueryParams: true })
+      .get('/api/v1/assets')
+      .query({ owner: selectedAddress, offset: '0', limit: '50' })
+      .reply(200, {
+        assets: [
+          {
+            asset_contract: {
+              address: '0x1d963688fe2209a98db35c67a041524822cf04ff',
+              schema_name: 'ERC721',
+            },
+            collection: {
+              name: 'DIRECT FROM OPENSEA',
+              image_url: 'URL',
+            },
+            description: 'DESCRIPTION: DIRECT FROM OPENSEA',
+            image_original_url: 'DIRECT FROM OPENSEA.jpg',
+            name: 'NAME: DIRECT FROM OPENSEA',
+            token_id: '2577',
+          },
+        ],
+      });
+
+    nock('https://api.opensea.io:443', { encodedQueryParams: true })
+      .get('/api/v1/assets')
+      .query({ owner: selectedAddress, offset: '50', limit: '50' })
+      .reply(200, {
+        assets: [],
+      });
+
+    nock('https://api.opensea.io:443')
+      .get(`/api/v1/asset_contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`)
+      .reply(200, {
+        description: 'Description',
+        image_url: 'url',
+        name: 'Name',
+        symbol: 'FOO',
+        total_supply: 0,
+        collection: {
+          image_url: 'url',
+          name: 'Name',
+        },
+      });
+
+    collectibleDetection.configure({
+      networkType: MAINNET,
+      selectedAddress,
+    });
+
+    collectiblesController.configure({
+      networkType: MAINNET,
+      selectedAddress,
+    });
+
+    const { chainId } = collectibleDetection.config;
+
+    await collectibleDetection.detectCollectibles();
+
+    const collectibles =
+      collectiblesController.state.allCollectibles[selectedAddress][chainId];
+    expect(collectibles).toStrictEqual([
+      {
+        address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
+        description: 'DESCRIPTION: DIRECT FROM OPENSEA',
+        imageOriginal: 'DIRECT FROM OPENSEA.jpg',
+        name: 'NAME: DIRECT FROM OPENSEA',
+        standard: 'ERC721',
+        tokenId: '2577',
+        favorite: false,
+        isCurrentlyOwned: true,
+      },
+    ]);
+  });
+
+  it('should rethrow error when OpenSea proxy server fails with error other than fetch failure', async () => {
+    const selectedAddress = '0x4';
+    nock('https://proxy.metaswap.codefi.network:443', {
+      encodedQueryParams: true,
+    })
+      .get('/opensea/v1/api/v1/assets')
+      .query({ owner: selectedAddress, offset: '0', limit: '50' })
+      .replyWithError(new Error('UNEXPECTED ERROR'));
+
+    collectibleDetection.configure({
+      networkType: MAINNET,
+      selectedAddress,
+    });
+
+    collectiblesController.configure({
+      networkType: MAINNET,
+      selectedAddress,
+    });
+
+    await expect(() =>
+      collectibleDetection.detectCollectibles(),
+    ).rejects.toThrow('UNEXPECTED ERROR');
   });
 });
