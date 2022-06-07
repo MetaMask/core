@@ -48,9 +48,13 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
 /**
  * Setup a test controller instance.
  *
- * @returns A collection of test controllers and stubs
+ * @param options - Controller options.
+ * @param options.includeOnCollectibleAdded - Whether to include the "onCollectibleAdded" parameter.
+ * @returns A collection of test controllers and stubs.
  */
-function setupController() {
+function setupController({
+  includeOnCollectibleAdded = true,
+}: { includeOnCollectibleAdded?: boolean } = {}) {
   const preferences = new PreferencesController();
   const network = new NetworkController();
   const assetsContract = new AssetsContractController({
@@ -70,7 +74,9 @@ function setupController() {
     getERC1155BalanceOf:
       assetsContract.getERC1155BalanceOf.bind(assetsContract),
     getERC1155TokenURI: assetsContract.getERC1155TokenURI.bind(assetsContract),
-    onCollectibleAdded: onCollectibleAddedSpy,
+    onCollectibleAdded: includeOnCollectibleAdded
+      ? onCollectibleAddedSpy
+      : undefined,
   });
 
   preferences.update({
@@ -171,6 +177,49 @@ describe('CollectiblesController', () => {
   describe('addCollectible', () => {
     it('should add collectible and collectible contract', async () => {
       const { collectiblesController } = setupController();
+
+      const { selectedAddress, chainId } = collectiblesController.config;
+      await collectiblesController.addCollectible('0x01', '1', {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
+      });
+
+      expect(
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0],
+      ).toStrictEqual({
+        address: '0x01',
+        description: 'description',
+        image: 'image',
+        name: 'name',
+        tokenId: '1',
+        standard: 'standard',
+        favorite: false,
+        isCurrentlyOwned: true,
+      });
+
+      expect(
+        collectiblesController.state.allCollectibleContracts[selectedAddress][
+          chainId
+        ][0],
+      ).toStrictEqual({
+        address: '0x01',
+        description: 'Description',
+        logo: 'url',
+        name: 'Name',
+        symbol: 'FOO',
+        totalSupply: 0,
+      });
+    });
+
+    it('should add collectible and collectible contract even when "onCollectibleAdded" is unset', async () => {
+      const { collectiblesController } = setupController({
+        includeOnCollectibleAdded: false,
+      });
 
       const { selectedAddress, chainId } = collectiblesController.config;
       await collectiblesController.addCollectible('0x01', '1', {
