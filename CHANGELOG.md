@@ -8,25 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [30.0.0]
 ### Uncategorized
-- [Token Detection V2] 6 of 7 - Introduce Detected Tokens ([#808](https://github.com/MetaMask/controllers/pull/808))
-- BREAKING: Remove snap-specific endowments ([#820](https://github.com/MetaMask/controllers/pull/820))
-- Re-point OS API calls to Codefi proxy ([#805](https://github.com/MetaMask/controllers/pull/805))
-- Append phishfort blocklist ([#715](https://github.com/MetaMask/controllers/pull/715))
-- Bump @metamask/contract-metadata from 1.34.0 to 1.35.0 ([#839](https://github.com/MetaMask/controllers/pull/839))
-- Add dry run publish just before actual publish ([#842](https://github.com/MetaMask/controllers/pull/842))
-- [Token Detection V2] Refining the polling interval and the occurrences limit for the Dynamic token list ([#836](https://github.com/MetaMask/controllers/pull/836))
-- Query for name and symbol on ERC721 contracts regardless of whether or not they support the metadata interface ([#834](https://github.com/MetaMask/controllers/pull/834))
-- Bump @metamask/auto-changelog from 2.5.0 to 2.6.0 ([#833](https://github.com/MetaMask/controllers/pull/833))
-- Fix issues parsing non-standard ERC20 responses ([#830](https://github.com/MetaMask/controllers/pull/830))
-- [Token Detection V2] 5 of 7 - Always pull from dynamic token list from TokenListController ([#806](https://github.com/MetaMask/controllers/pull/806))
-- [Token Detection V2] 4 of 7 - Expose chainId to AssetsContractController ([#809](https://github.com/MetaMask/controllers/pull/809))
+- Introduce Detected Tokens ([#808](https://github.com/MetaMask/controllers/pull/808))
+- Always pull from dynamic token list from TokenListController ([#806](https://github.com/MetaMask/controllers/pull/806))
 
 ### Added
+- **BREAKING:** Expose chainId to AssetsContractController and add check whether current network supports token detection ([#809](https://github.com/MetaMask/controllers/pull/809))
+  - Consumers will need to pass listener method `onNetworkStateChange` in `AssetsContractController` constructor options object. This method should be called with network/provider details when network changes occur.
 - Add "onCollectibleAdded" event handler to the CollectiblesController constructor ([#814](https://github.com/MetaMask/controllers/pull/814))
     - This event handler was added to allow us to capture metrics.
+- Append phishfort blocklist to list used by PhishingController ([#715](https://github.com/MetaMask/controllers/pull/715))
 
 ### Changed
+- Re-point OpeanSea API calls to Codefi proxy ([#805](https://github.com/MetaMask/controllers/pull/805))
+  - All NFT related queries that were routed to OpenSea will now first route to a proxy server owened by Codefi. If this first request fails, and an OpenSea API key has been set, the query will re-route to OpenSea as a fallback.
 - Return ETH currency rate for testnet ETH ([#816](https://github.com/MetaMask/controllers/pull/816))
+- Query for name and symbol on ERC721 contracts regardless of whether or not they support the metadata interface ([#834](https://github.com/MetaMask/controllers/pull/834))
+- Refining the polling interval and the occurrences limit for the Dynamic token list ([#836](https://github.com/MetaMask/controllers/pull/836))
+
+### Removed
+- **BREAKING:** Remove snap-specific endowments ([#820](https://github.com/MetaMask/controllers/pull/820))
+
+### Fixed
+- Fix issues parsing non-standard ERC20 responses ([#830](https://github.com/MetaMask/controllers/pull/830))
+ - Correctly read token contracts with decimals and symbol return types bytes32
 
 ## [29.0.1]
 ### Added
