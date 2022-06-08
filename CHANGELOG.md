@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - onTokenListStateChange listener triggers a detect action whenever the TokenListController finishes fetching a token list.
 - **BREAKING:** Expose `chainId` to AssetsContractController and add check whether current network supports token detection ([#809](https://github.com/MetaMask/controllers/pull/809))
   - Consumers will need to pass listener method `onNetworkStateChange` in `AssetsContractController` constructor options object. This method should be called with network/provider details when network changes occur.
-- Add "onCollectibleAdded" event handler to the CollectiblesController constructor ([#814](https://github.com/MetaMask/controllers/pull/814))
+- Add `onCollectibleAdded` event handler to the CollectiblesController constructor ([#814](https://github.com/MetaMask/controllers/pull/814))
   - This event handler was added to allow us to capture metrics.
 
 ### Changed
@@ -32,11 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `fetchTokenMetadata` private method to fetch token metadata whenever adding individual tokens. This is currently used to populate aggregator information.
 - Append `detectedTokens` to both TokenBalancesController & TokenRatesController `tokens` config object within their `onTokensStateChange` listener methods ([#808](https://github.com/MetaMask/controllers/pull/808))
   - This change ensures that we are populating both balances and rates for detected tokens.
-- Re-point OpeanSea API calls to Codefi proxy ([#805](https://github.com/MetaMask/controllers/pull/805))
+- Re-point OpenSea API calls to Codefi proxy ([#805](https://github.com/MetaMask/controllers/pull/805))
   - All NFT related queries that were routed to OpenSea will now first route to a proxy server owened by Codefi. If this first request fails, and an OpenSea API key has been set, the query will re-route to OpenSea as a fallback.
 - Return ETH currency rate for testnet ETH ([#816](https://github.com/MetaMask/controllers/pull/816))
 - Query for name and symbol on ERC721 contracts regardless of whether or not they support the metadata interface ([#834](https://github.com/MetaMask/controllers/pull/834))
-- Increase polling interval for tokenListController and require minimum of 3 occurences across sources for use in the dynamic token list ([#836](https://github.com/MetaMask/controllers/pull/836))
+- Increase polling interval for TokenListController and require minimum of 3 occurences across sources for use in the dynamic token list ([#836](https://github.com/MetaMask/controllers/pull/836))
 
 ### Removed
 - **BREAKING:** Deprecate `removeAndIgnoreToken` method in TokensController ([#808](https://github.com/MetaMask/controllers/pull/808))
