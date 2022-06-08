@@ -66,6 +66,7 @@ export interface SmartTransactionsStatus {
   deadlineRatio: number;
   minedHash: string | undefined;
   minedTx: SmartTransactionMinedTx;
+  isSettled: boolean;
 }
 
 export interface SmartTransaction {

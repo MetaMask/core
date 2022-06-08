@@ -19,6 +19,7 @@ describe('src/utils.js', () => {
           cancellationFeeWei: 10000,
           deadlineRatio: 10,
           minedHash: undefined,
+          isSettled: true,
         },
       };
     };
@@ -85,6 +86,7 @@ describe('src/utils.js', () => {
         minedHash: '',
         cancellationFeeWei: 0.1,
         deadlineRatio: 0.1,
+        isSettled: true,
       };
       expect(utils.isSmartTransactionStatusResolved(statusResponse)).toBe(
         false,
@@ -99,6 +101,7 @@ describe('src/utils.js', () => {
       minedHash: '',
       cancellationFeeWei: 0.1,
       deadlineRatio: 0.1,
+      isSettled: true,
     });
 
     it('returns pending if transaction is not mined and has no cancellationReason', () => {
@@ -158,6 +161,17 @@ describe('src/utils.js', () => {
       );
     });
 
+    it('returns pending if a tx was user cancelled, but is not settled yet', () => {
+      const statusResponse = {
+        ...createStatusResponse(),
+        cancellationReason: SmartTransactionCancellationReason.USER_CANCELLED,
+        isSettled: false,
+      };
+      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
+        SmartTransactionStatuses.PENDING,
+      );
+    });
+
     it('returns cancellation state "CANCELLED_PREVIOUS_TX_CANCELLED" if cancellationReason provided', () => {
       const statusResponse = {
         ...createStatusResponse(),
@@ -193,6 +207,7 @@ describe('src/utils.js', () => {
         cancellationReason: SmartTransactionCancellationReason.NOT_CANCELLED,
         deadlineRatio: 10,
         minedHash: undefined,
+        isSettled: true,
         ...customProps,
       };
     };

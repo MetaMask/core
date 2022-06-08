@@ -80,6 +80,9 @@ export const calculateStatus = (stxStatus: SmartTransactionsStatus) => {
         (cancellation) => cancellation === stxStatus.cancellationReason,
       ) > -1;
     if (stxStatus.cancellationReason && isCancellation) {
+      if (!stxStatus.isSettled) {
+        return SmartTransactionStatuses.PENDING;
+      }
       return cancellationReasonToStatusMap[stxStatus.cancellationReason];
     }
   } else if (stxStatus?.minedTx === SmartTransactionMinedTx.SUCCESS) {
