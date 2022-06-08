@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The `test` method on `PhishingController` no longer returns a boolean, it now returns an object matching the `EthPhishingDetectResult` interface (defined in `PhishingController.ts`).
   - Designs may need to be updated to account for the fact that sites may now be blocked by Phishfort. We should ensure users are not directed to the `eth-phishing-detect` repository to dispute Phishfort blocks, because we will not be able to help them.
 - **BREAKING:** Rename `convertPriceToDecimal` function name to `convertHexToDecimal` ([#808](https://github.com/MetaMask/controllers/pull/808))
+- Rename `fetchFromDynamicTokenList` to `fetchTokenList` ([#806](https://github.com/MetaMask/controllers/pull/806))
+  - No need to mention dynamic in the naming since there is only one way to fetch the token list.
+- Update `fetchFromCache` in TokenListController to return `TokenListMap | null` instead of `TokenListToken[] | null` ([#806](https://github.com/MetaMask/controllers/pull/806))
+  - This allows us to remove some unnecessary mapping when working with cached tokens and token list.
+- Update `TokenListToken` in TokenListController to include `aggregators` property ([#806](https://github.com/MetaMask/controllers/pull/806))
+  - This allows us to show the aggregator names for a token.
 - Update TokensController to support detected tokens ([#808](https://github.com/MetaMask/controllers/pull/808))
   - Introduce `detectedTokens` to the config object to track detected tokens, which is updated by calling `addDetectedTokens` whenever TokenDetectionController detects new tokens.
   - Added `fetchTokenMetadata` utility function to fetch token metadata whenever adding individual tokens. This is currently used to populate aggregator information.
