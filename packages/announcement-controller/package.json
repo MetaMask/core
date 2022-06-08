@@ -1,0 +1,37 @@
+{
+  "name": "@metamask/announcement-controller",
+  "version": "0.1.0",
+  "description": "TODO",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/announcement-controller#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/controllers/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/controllers.git"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {},
+  "dependencies": {
+    "@metamask/base-controller": "workspace:~"
+  },
+  "devDependencies": {
+    "ts-deepmerge": "^2.0.1"
+  },
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

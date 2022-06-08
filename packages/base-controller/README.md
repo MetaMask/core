@@ -1,6 +1,6 @@
 # `@metamask/base-controller`
 
-A base controller and related interfaces.
+(TODO)
 
 ## Installation
 

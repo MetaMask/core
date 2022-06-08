@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    { "path": "../assets-controllers/tsconfig.build.json" },
+    { "path": "../base-controller/tsconfig.build.json" },
+    { "path": "../network-controller/tsconfig.build.json" },
+    { "path": "../third-party-controllers/tsconfig.build.json" },
+    { "path": "../user-controllers/tsconfig.build.json" }
+  ],
+  "include": ["../../types/**/*", "./src/**/*"]
+}

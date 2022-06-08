@@ -1,7 +1,7 @@
 {
   "name": "@metamask/base-controller",
   "version": "0.1.0",
-  "description": "A base controller and related interfaces",
+  "description": "TODO",
   "keywords": [
     "MetaMask",
     "Ethereum"
@@ -20,6 +20,10 @@
   "files": [
     "dist/"
   ],
+  "scripts": {},
+  "dependencies": {
+    "immer": "^9.0.6"
+  },
   "devDependencies": {
     "@types/sinon": "^9.0.10",
     "sinon": "^9.2.4",
@@ -31,9 +35,5 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  },
-  "dependencies": {
-    "immer": "^9.0.6",
-    "isomorphic-fetch": "^3.0.0"
   }
 }

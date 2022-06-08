@@ -1,6 +1,6 @@
 # `@metamask/controller-utils`
 
-Utility functions etc.
+(TODO)
 
 ## Installation
 

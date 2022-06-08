@@ -72,10 +72,10 @@ module.exports = {
 
     // These options do not support our monorepo structure, which houses
     // two levels of `package.json`'s instead of just one.
-    'import/no-extraneous-import': 'off',
-    'import/no-extraneous-dependencies': 'off',
-    'node/no-extraneous-import': 'off',
-    'node/no-extraneous-dependencies': 'off',
+    // 'import/no-extraneous-import': 'off',
+    // 'import/no-extraneous-dependencies': 'off',
+    // 'node/no-extraneous-import': 'off',
+    // 'node/no-extraneous-dependencies': 'off',
 
     // TODO: This isn't working for `jest.config.ts` (see first line). Look into
     // why.

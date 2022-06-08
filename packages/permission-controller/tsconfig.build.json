@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    { "path": "../approval-controller/tsconfig.build.json" },
+    { "path": "../base-controller/tsconfig.build.json" },
+    { "path": "../controller-utils/tsconfig.build.json" }
+  ],
+  "include": ["../../types/**/*", "./src/**/*"]
+}

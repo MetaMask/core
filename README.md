@@ -6,9 +6,9 @@ A collection of platform-agnostic modules for creating secure data models for cr
 
 Please refer to the READMEs for the following packages for installation and usage instructions:
 
-* [`@metamask/base-controller`](packages/base-controller)
-* [`@metamask/controller-utils`](packages/controller-utils)
-* [`@metamask/ens-controller`](packages/ens-controller)
+- [`@metamask/base-controller`](packages/base-controller)
+- [`@metamask/controller-utils`](packages/controller-utils)
+- [`@metamask/ens-controller`](packages/ens-controller)
 
 ## Usage
 

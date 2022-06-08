@@ -3,12 +3,15 @@
  * https://jestjs.io/docs/configuration
  */
 
+import * as path from 'path';
 import merge from 'ts-deepmerge';
 import baseConfig from '../../jest.config.packages';
 
+const displayName = path.basename(__dirname);
+
 const config = merge(baseConfig, {
   // The display name when running multiple projects
-  displayName: 'controller-utils',
+  displayName,
 });
 
 export default config;

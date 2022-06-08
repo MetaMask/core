@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    { "path": "../assets-controllers" },
+    { "path": "../base-controller" },
+    { "path": "../network-controller" },
+    { "path": "../third-party-controllers" },
+    { "path": "../user-controllers" }
+  ],
+  "include": ["../../types/**/*", "./src/**/*", "./jest.config.packages.ts"]
+}

@@ -1,7 +1,7 @@
 {
   "name": "@metamask/controller-utils",
   "version": "0.1.0",
-  "description": "Utility function etc.",
+  "description": "TODO",
   "keywords": [
     "MetaMask",
     "Ethereum"
@@ -20,9 +20,21 @@
   "files": [
     "dist/"
   ],
-  "devDependencies": {
+  "scripts": {},
+  "dependencies": {
+    "@metamask/assets-controllers": "workspace:~",
+    "@metamask/base-controller": "workspace:~",
+    "@metamask/message-manager": "workspace:~",
+    "@metamask/transaction-controller": "workspace:~",
     "eth-ens-namehash": "^2.0.8",
+    "eth-rpc-errors": "^4.0.0",
     "ethereumjs-util": "^7.1.4",
+    "ethjs-unit": "^0.1.6",
+    "fast-deep-equal": "^3.1.3",
+    "isomorphic-fetch": "^3.0.0",
+    "multiformats": "^9.5.2"
+  },
+  "devDependencies": {
     "ts-deepmerge": "^2.0.1"
   },
   "engines": {

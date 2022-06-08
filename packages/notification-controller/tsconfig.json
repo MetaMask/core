@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    { "path": "../base-controller" },
+    { "path": "../controller-utils" }
+  ],
+  "include": ["../../types/**/*", "./src/**/*", "./jest.config.packages.ts"]
+}

@@ -3,9 +3,22 @@
     "noEmit": true
   },
   "references": [
+    { "path": "./packages/announcement-controller" },
+    { "path": "./packages/approval-controller" },
+    { "path": "./packages/assets-controllers" },
     { "path": "./packages/base-controller" },
+    { "path": "./packages/composable-controller" },
     { "path": "./packages/controller-utils" },
-    { "path": "./packages/ens-controller" }
+    { "path": "./packages/gas-fee-controller" },
+    { "path": "./packages/keyring-controller" },
+    { "path": "./packages/message-manager" },
+    { "path": "./packages/network-controller" },
+    { "path": "./packages/notification-controller" },
+    { "path": "./packages/permission-controller" },
+    { "path": "./packages/rate-limit-controller" },
+    { "path": "./packages/subject-metadata-controller" },
+    { "path": "./packages/third-party-controllers" },
+    { "path": "./packages/user-controllers" }
   ],
   "files": [],
   "include": []

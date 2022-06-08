@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    { "path": "../base-controller/tsconfig.build.json" },
+    { "path": "../permission-controller/tsconfig.build.json" }
+  ],
+  "include": ["../../types/**/*", "./src/**/*"]
+}
