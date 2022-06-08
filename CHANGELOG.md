@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Token detection will now be enabled by default.
 - **BREAKING:** Append phishfort blocklist to list used by PhishingController ([#715](https://github.com/MetaMask/controllers/pull/715))
   - The `test` method on `PhishingController` no longer returns a boolean, it now returns an object matching the `EthPhishingDetectResult` interface (defined in `PhishingController.ts`).
+  - Designs may need to be updated to account for the fact that sites may now be blocked by Phishfort. We should ensure users are not directed to the `eth-phishing-detect` repository to dispute Phishfort blocks, because we will not be able to help them.
 - **BREAKING:** Rename `convertPriceToDecimal` method name to `convertHexToDecimal` ([#808](https://github.com/MetaMask/controllers/pull/808))
   - Consumers of this method must update the function name wherever it is used.
 - Update TokensController to support detected tokens ([#808](https://github.com/MetaMask/controllers/pull/808))
