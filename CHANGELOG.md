@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This allows us to show the aggregator names for a token.
 - Update TokensController to support detected tokens ([#808](https://github.com/MetaMask/controllers/pull/808))
   - Introduce `detectedTokens` to the config object to track detected tokens, which is updated by calling `addDetectedTokens` whenever TokenDetectionController detects new tokens.
-  - Added `fetchTokenMetadata` utility function to fetch token metadata whenever adding individual tokens. This is currently used to populate aggregator information.
+  - Added `fetchTokenMetadata` private method to fetch token metadata whenever adding individual tokens. This is currently used to populate aggregator information.
 - Append `detectedTokens` to both TokenBalancesController & TokenRatesController `tokens` config object within their `onTokensStateChange` listener methods ([#808](https://github.com/MetaMask/controllers/pull/808))
   - This change ensures that we are populating both balances and rates for detected tokens.
 - Update CollectibleDetectionController to place a proxy API (provided by Codefi) in front of OpenSea requests ([#805](https://github.com/MetaMask/controllers/pull/805))
