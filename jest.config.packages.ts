@@ -3,6 +3,7 @@
  * https://jestjs.io/docs/configuration
  */
 
+import * as path from 'path';
 import type { Config } from '@jest/types';
 // TODO: Figure out if this is really needed
 // import { jsWithBabel as tsjPreset } from 'ts-jest/presets';
@@ -157,10 +158,10 @@ const config: Config.InitialOptions = {
   // runner: "jest-runner",
 
   // The paths to modules that run some code to configure or set up the testing environment before each test
-  setupFiles: ['../../tests/setupTests.ts'],
+  setupFiles: [path.resolve(__dirname, 'tests/setupTests.ts')],
 
   // A list of paths to modules that run some code to configure or set up the testing framework before each test
-  setupFilesAfterEnv: ['../../tests/setupTestsAfterEnv.ts'],
+  // setupFilesAfterEnv: [],
 
   // The number of seconds after which a test is considered as slow and reported as such in the results.
   // slowTestThreshold: 5,
