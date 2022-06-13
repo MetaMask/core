@@ -5,9 +5,6 @@
 
 import * as path from 'path';
 import type { Config } from '@jest/types';
-// TODO: Figure out if this is really needed
-// import { jsWithBabel as tsjPreset } from 'ts-jest/presets';
-import { jsWithTs as tsjPreset } from 'ts-jest/presets';
 
 const config: Config.InitialOptions = {
   // All imported modules in your tests should be mocked automatically
@@ -28,17 +25,15 @@ const config: Config.InitialOptions = {
   collectCoverage: true,
 
   // An array of glob patterns indicating a set of files for which coverage information should be collected
-  collectCoverageFrom: ['./packages/src/**/*.ts'],
+  collectCoverageFrom: ['<rootDir>/src/**/*.ts'],
 
   // The directory where Jest should output its coverage files
   coverageDirectory: 'coverage',
 
   // An array of regexp pattern strings used to skip coverage collection
-  // TODO: Test index.ts
-  // coveragePathIgnorePatterns: ['./packages/index.ts'],
+  // coveragePathIgnorePatterns: [],
 
   // Indicates which provider should be used to instrument code for coverage
-  // XXX: Might have to be 'babel'
   coverageProvider: 'v8',
 
   // A list of reporter names that Jest uses when writing coverage reports
@@ -103,13 +98,6 @@ const config: Config.InitialOptions = {
       // so in that case use their published versions
       '<rootDir>/../../node_modules/@metamask/$1',
     ],
-    // The ethjs-* packages strangely link to their uncompiled versions instead
-    // of compiled versions as their main files
-    // '^ethjs$': '<rootDir>/../../node_modules/ethjs/dist/ethjs.js',
-    // '^ethjs-query$':
-    // '<rootDir>/../../node_modules/ethjs-query/dist/ethjs-query.js',
-    // '^ethjs-provider-http$':
-    // '<rootDir>/../../node_modules/ethjs-provider-http/dist/ethjs-provider-http.js',
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
@@ -122,7 +110,10 @@ const config: Config.InitialOptions = {
   // notifyMode: "failure-change",
 
   // A preset that is used as a base for Jest's configuration
-  // preset: 'ts-jest/presets/js-with-babel',
+  // Here we're telling ts-jest to run JavaScript code through babel-jest
+  // because some of our dependencies (e.g. ethjs-*) ship with uncompiled
+  // JavaScript.
+  preset: 'ts-jest/presets/js-with-ts',
 
   // Run tests from one or more projects
   // projects: undefined
@@ -205,15 +196,12 @@ const config: Config.InitialOptions = {
   // timers: "real",
 
   // A map from regular expressions to paths to transformers
-  transform: {
-    ...tsjPreset.transform,
-    // '\\.jsx?$': 'babel-jest',
-  },
+  // transform: undefined,
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
   transformIgnorePatterns: [
     // Transform multiformats as it ships as ESM for the browser version
-    '/node_modules/(?!(?:multiformats|uuid)/)',
+    '/node_modules/(?!multiformats/)',
     '\\.pnp\\.[^\\/]+$',
   ],
 

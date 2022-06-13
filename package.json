@@ -20,7 +20,7 @@
     "test": "jest",
     "test:watch": "jest --watch"
   },
-  "devDependencies": {
+  "dependencies": {
     "@jest/types": "^28.1.0",
     "@lavamoat/allow-scripts": "^2.0.2",
     "@metamask/auto-changelog": "^2.6.0",
