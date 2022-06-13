@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [30.0.1]
-### Uncategorized
+### Fixed
 - Change `formatIconUrlWithProxy` to accept hex strings for `chainId` ([#851](https://github.com/MetaMask/controllers/pull/851))
+ - This change fixes an issue introduced in v30.0.0 for metamask-extension where the `chainId` is currently represented as a hexadecimal in the TokensController and was, as a result, getting invalid URL responses from `formatIconUrlWithProxy` which previously expected its `chainId` argument to be in decimal format.
 
 ## [30.0.0]
 ### Added
