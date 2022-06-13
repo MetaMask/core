@@ -44,38 +44,28 @@ const getStubbedDate = () => {
  * @param options.conversionRate - the conversionRate to set for the fetchExchangeRateStub.
  * @param options.includeUsdRate - a boolean indicating whether or not to fetch/return a usdConversion rate.
  * @param options.usdConversionRate - the usdConversionRate to set for the fetchExchangeRateStub.
- * @param options.fetchExchangeRateStub - a full stub of the fetchExchangeRate method used by the Currency rate.
+ * @param options.fetchExchangeRateStub - a full stub of the fetchExchangeRate method used by the CurrencyRateController.
  * @returns an object containing the setup CurrencyRateController and the fetchExchangeRateStub.
  */
-function setupController(
-  {
-    state,
-    interval,
-    conversionRate,
-    includeUsdRate,
-    usdConversionRate,
-    fetchExchangeRateStub,
-  }: {
-    conversionRate?: number;
-    usdConversionRate?: number;
-    interval?: number;
-    state?: { nativeCurrency?: string; currentCurrency?: string };
-    includeUsdRate?: boolean;
-    fetchExchangeRateStub?:
-      | ((
-          currency: string,
-          nativeCurrency: string,
-          includeUSDRate?: boolean | undefined,
-        ) => Promise<{ conversionRate: number; usdConversionRate: number }>)
-      | undefined;
-  } = {
-    conversionRate: 1,
-    usdConversionRate: 2,
-    interval: 100,
-    state: { nativeCurrency: 'ETH' },
-    includeUsdRate: false,
-  },
-) {
+function setupController({
+  state,
+  interval,
+  conversionRate,
+  includeUsdRate,
+  usdConversionRate,
+  fetchExchangeRateStub,
+}: {
+  conversionRate?: number;
+  usdConversionRate?: number;
+  interval?: number;
+  state?: { nativeCurrency?: string; currentCurrency?: string };
+  includeUsdRate?: boolean;
+  fetchExchangeRateStub?: (
+    currency: string,
+    nativeCurrency: string,
+    includeUSDRate?: boolean | undefined,
+  ) => Promise<{ conversionRate: number; usdConversionRate: number }>;
+} = {}) {
   let fetchExchangeRate;
   if (fetchExchangeRateStub) {
     fetchExchangeRate = fetchExchangeRateStub;
@@ -282,6 +272,8 @@ describe('CurrencyRateController', () => {
     const { controller } = setupController({
       state: { currentCurrency: 'xyz' },
     });
+
+    expect(controller.state.conversionRate).toStrictEqual(0);
 
     await controller.updateExchangeRate();
 
