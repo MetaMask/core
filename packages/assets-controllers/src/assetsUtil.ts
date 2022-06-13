@@ -1,5 +1,9 @@
 import { ethErrors } from 'eth-rpc-errors';
-import { isValidHexAddress } from '@metamask/controller-utils';
+import { isHexString } from 'ethereumjs-util';
+import {
+  convertHexToDecimal,
+  isValidHexAddress,
+} from '@metamask/controller-utils';
 import { Collectible, CollectibleMetadata } from './CollectiblesController';
 import { Token } from './TokenRatesController';
 
@@ -85,7 +89,7 @@ export const formatAggregatorNames = (aggregators: string[]) => {
  * Format token list assets to use image proxy from Codefi.
  *
  * @param params - Object that contains chainID and tokenAddress.
- * @param params.chainId - ChainID of network.
+ * @param params.chainId - ChainID of network in decimal or hexadecimal format.
  * @param params.tokenAddress - Address of token in mixed or lowercase.
  * @returns Formatted image url
  */
@@ -96,7 +100,11 @@ export const formatIconUrlWithProxy = ({
   chainId: string;
   tokenAddress: string;
 }) => {
-  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainId}/${tokenAddress.toLowerCase()}.png`;
+  let chainIdDec = chainId;
+  if (isHexString(chainId)) {
+    chainIdDec = convertHexToDecimal(chainId).toString();
+  }
+  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainIdDec}/${tokenAddress.toLowerCase()}.png`;
 };
 
 /**

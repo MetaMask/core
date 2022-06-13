@@ -48,16 +48,22 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
 /**
  * Setup a test controller instance.
  *
- * @returns A collection of test controllers and stubs
+ * @param options - Controller options.
+ * @param options.includeOnCollectibleAdded - Whether to include the "onCollectibleAdded" parameter.
+ * @returns A collection of test controllers and stubs.
  */
-function setupController() {
+function setupController({
+  includeOnCollectibleAdded = false,
+}: { includeOnCollectibleAdded?: boolean } = {}) {
   const preferences = new PreferencesController();
   const network = new NetworkController();
   const assetsContract = new AssetsContractController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) => network.subscribe(listener),
   });
-  const onCollectibleAddedSpy = jest.fn();
+  const onCollectibleAddedSpy = includeOnCollectibleAdded
+    ? jest.fn()
+    : undefined;
 
   const collectiblesController = new CollectiblesController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
@@ -211,8 +217,9 @@ describe('CollectiblesController', () => {
     });
 
     it('should call onCollectibleAdded callback correctly when collectible is manually added', async () => {
-      const { collectiblesController, onCollectibleAddedSpy } =
-        setupController();
+      const { collectiblesController, onCollectibleAddedSpy } = setupController(
+        { includeOnCollectibleAdded: true },
+      );
 
       await collectiblesController.addCollectible('0x01', '1', {
         name: 'name',
@@ -232,8 +239,9 @@ describe('CollectiblesController', () => {
     });
 
     it('should call onCollectibleAdded callback correctly when collectible is added via detection', async () => {
-      const { collectiblesController, onCollectibleAddedSpy } =
-        setupController();
+      const { collectiblesController, onCollectibleAddedSpy } = setupController(
+        { includeOnCollectibleAdded: true },
+      );
 
       const detectedUserAddress = '0x123';
       await collectiblesController.addCollectible(

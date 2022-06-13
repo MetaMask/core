@@ -682,13 +682,15 @@ export class CollectiblesController extends BaseController<
         { chainId, userAddress: selectedAddress },
       );
 
-      this.onCollectibleAdded({
-        address,
-        symbol: collectibleContract.symbol,
-        tokenId: tokenId.toString(),
-        standard: collectibleMetadata.standard,
-        source: detection ? 'detected' : 'custom',
-      });
+      if (this.onCollectibleAdded) {
+        this.onCollectibleAdded({
+          address,
+          symbol: collectibleContract.symbol,
+          tokenId: tokenId.toString(),
+          standard: collectibleMetadata.standard,
+          source: detection ? 'detected' : 'custom',
+        });
+      }
 
       return newCollectibles;
     } finally {
@@ -897,7 +899,7 @@ export class CollectiblesController extends BaseController<
 
   private getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
 
-  private onCollectibleAdded: (data: {
+  private onCollectibleAdded?: (data: {
     address: string;
     symbol: string | undefined;
     tokenId: string;
@@ -946,7 +948,7 @@ export class CollectiblesController extends BaseController<
       getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
       getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
       getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
-      onCollectibleAdded: (data: {
+      onCollectibleAdded?: (data: {
         address: string;
         symbol: string | undefined;
         tokenId: string;

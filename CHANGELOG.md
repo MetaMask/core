@@ -6,6 +6,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.0.0]
+### Added
+- **BREAKING:** Introduce `getNetworkState`, `getPreferencesState`, and `onTokenListStateChange` to the TokenDetectionController constructor options object ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - `getPreferencesState` provides the default value for `useTokenDetection` from the PreferencesController state.
+  - `getNetworkState` provides the default value for `chainId` from the NetworkController state.
+  - `onTokenListStateChange` listener triggers a detect action whenever the TokenListController finishes fetching a token list.
+- **BREAKING:** Update AssetsContractController to keep track of the current network (accessible via config.chainId) as well as whether the network supports token detection ([#809](https://github.com/MetaMask/controllers/pull/809))
+  - Consumers will need to pass listener method `onNetworkStateChange` in AssetsContractController constructor options object. This method should be called with network/provider details when network changes occur.
+- Add `onCollectibleAdded` event handler to the CollectiblesController constructor ([#814](https://github.com/MetaMask/controllers/pull/814))
+  - This event handler was added to allow us to capture metrics.
+
+### Changed
+- **BREAKING:** Rename `addTokens` on the TokenDetectionController constructor options object to `addDetectedTokens` ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - We are no longer automatically adding detected tokens to the wallet. This will provide users with the ability to manually import or ignore detected tokens.
+- **BREAKING:** Rename `useStaticTokenList` to `useTokenDetection` on the PreferencesController constructor options object and set the value to be true by default ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - Token detection will now be enabled by default.
+- **BREAKING:** Append phishfort blocklist to list used by PhishingController ([#715](https://github.com/MetaMask/controllers/pull/715))
+  - The `test` method on `PhishingController` no longer returns a boolean, it now returns an object matching the `EthPhishingDetectResult` interface (defined in `PhishingController.ts`).
+  - Designs may need to be updated to account for the fact that sites may now be blocked by Phishfort. We should ensure users are not directed to the `eth-phishing-detect` repository to dispute Phishfort blocks, because we will not be able to help them.
+- **BREAKING:** Rename `convertPriceToDecimal` function name to `convertHexToDecimal` ([#808](https://github.com/MetaMask/controllers/pull/808))
+- Rename `fetchFromDynamicTokenList` to `fetchTokenList` ([#806](https://github.com/MetaMask/controllers/pull/806))
+  - No need to mention dynamic in the naming since there is only one way to fetch the token list.
+- Update `fetchFromCache` in TokenListController to return `TokenListMap | null` instead of `TokenListToken[] | null` ([#806](https://github.com/MetaMask/controllers/pull/806))
+  - This allows us to remove some unnecessary mapping when working with cached tokens and token list.
+- Update `TokenListToken` in TokenListController to include `aggregators` property ([#806](https://github.com/MetaMask/controllers/pull/806))
+  - This allows us to show the aggregator names for a token.
+- Update TokensController to support detected tokens ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - Introduce `detectedTokens` to the config object to track detected tokens, which is updated by calling `addDetectedTokens` whenever TokenDetectionController detects new tokens.
+  - Added `fetchTokenMetadata` private method to fetch token metadata whenever adding individual tokens. This is currently used to populate aggregator information.
+- Append `detectedTokens` to both TokenBalancesController & TokenRatesController `tokens` config object within their `onTokensStateChange` listener methods ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - This change ensures that we are populating both balances and rates for detected tokens.
+- Update CollectibleDetectionController to place a proxy API (provided by Codefi) in front of OpenSea requests ([#805](https://github.com/MetaMask/controllers/pull/805))
+  - All NFT related queries that were routed to OpenSea will now first route to a proxy server owened by Codefi. If this first request fails, and an OpenSea API key has been set, the query will re-route to OpenSea as a fallback.
+- Update CurrencyRateController to use ETH exchange rate for preloaded testnets native currency (Rinkeby, Ropsten, Goerli, Kovan) ([#816](https://github.com/MetaMask/controllers/pull/816))
+- Update ERC721Standard to query for name and symbol values on ERC721 contracts even when the contract does not support the metadata interface ([#834](https://github.com/MetaMask/controllers/pull/834))
+- Increase polling interval for TokenListController and require minimum of 3 occurrences across our aggregated public token lists for use in the dynamic token list ([#836](https://github.com/MetaMask/controllers/pull/836))
+
+### Removed
+- **BREAKING:** Remove `removeAndIgnoreToken` from TokensController ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - The logic for removing token(s) is now consolidated in a new method named `ignoredTokens`. Consumers will need to update instances of `removeAndIgnoreToken` to use `ignoredTokens` instead.
+- **BREAKING:** Remove `onTokensStateChange` from the TokenDetectionController constructor options object ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - This was previously used to update the `tokens` property in the controller's configuration object. This is not needed since those tokens are managed by the TokensController.
+- **BREAKING:** Remove `useStaticTokenList` and `onPreferencesStateChange` from TokenListController constructor options object ([#806](https://github.com/MetaMask/controllers/pull/806))
+  - `useStaticTokenList` was previously used to determined if this controller fetched against a static vs dynamic token list and `onPreferencesStateChange` was used to update `useStaticTokenList`.
+  - The controller now always fetches from a dynamic token list.
+- **BREAKING:** Remove snap-specific network-access endowment ([#820](https://github.com/MetaMask/controllers/pull/820))
+  - Consumers who still require this endowment should import from `@metamask/snap-controllers` minimum version 0.13.0.
+
+### Fixed
+- Update AssetsContractController to fix issues parsing non-standard ERC-20 responses ([#830](https://github.com/MetaMask/controllers/pull/830))
+ - Now correctly reads token contract values for decimals and symbol with solidity return type `bytes32`.
+
 ## [29.0.1]
 ### Added
 - Add SupportedTokenDetectionNetworks enum and util for token detection support. ([#811](https://github.com/MetaMask/controllers/pull/811))
@@ -566,7 +618,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v29.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v30.0.0...HEAD
+[30.0.0]: https://github.com/MetaMask/controllers/compare/v29.0.1...v30.0.0
 [29.0.1]: https://github.com/MetaMask/controllers/compare/v29.0.0...v29.0.1
 [29.0.0]: https://github.com/MetaMask/controllers/compare/v28.0.0...v29.0.0
 [28.0.0]: https://github.com/MetaMask/controllers/compare/v27.1.1...v28.0.0
