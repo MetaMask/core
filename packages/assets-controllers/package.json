@@ -20,10 +20,11 @@
   "files": [
     "dist/"
   ],
-  "scripts": {},
   "dependencies": {
     "@metamask/base-controller": "workspace:~",
+    "@metamask/contract-metadata": "^1.35.0",
     "@metamask/controller-utils": "workspace:~",
+    "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/network-controller": "workspace:~",
     "@metamask/user-controllers": "workspace:~",
     "@types/uuid": "^8.3.4",
@@ -42,6 +43,7 @@
   "devDependencies": {
     "ethereumjs-util": "^7.1.4",
     "ethjs-provider-http": "^0.1.6",
+    "nock": "^13.0.7",
     "sinon": "^9.2.4",
     "ts-deepmerge": "^2.0.1"
   },

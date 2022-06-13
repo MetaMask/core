@@ -1,4 +1,3 @@
-import { mocked } from 'ts-jest/utils';
 import determineGasFeeCalculations from './determineGasFeeCalculations';
 import {
   unknownString,
@@ -18,17 +17,28 @@ import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHisto
 jest.mock('./gas-util');
 jest.mock('./fetchGasEstimatesViaEthFeeHistory');
 
-const mockedFetchGasEstimates = mocked(fetchGasEstimates, true);
-const mockedFetchLegacyGasPriceEstimates = mocked(
-  fetchLegacyGasPriceEstimates,
-  true,
-);
-const mockedFetchEthGasPriceEstimate = mocked(fetchEthGasPriceEstimate, true);
-const mockedCalculateTimeEstimate = mocked(calculateTimeEstimate, true);
-const mockedFetchGasEstimatesViaEthFeeHistory = mocked(
-  fetchGasEstimatesViaEthFeeHistory,
-  true,
-);
+const mockedFetchGasEstimates = fetchGasEstimates as jest.Mock<
+  ReturnType<typeof fetchGasEstimates>,
+  Parameters<typeof fetchGasEstimates>
+>;
+const mockedFetchLegacyGasPriceEstimates =
+  fetchLegacyGasPriceEstimates as jest.Mock<
+    ReturnType<typeof fetchLegacyGasPriceEstimates>,
+    Parameters<typeof fetchLegacyGasPriceEstimates>
+  >;
+const mockedFetchEthGasPriceEstimate = fetchEthGasPriceEstimate as jest.Mock<
+  ReturnType<typeof fetchEthGasPriceEstimate>,
+  Parameters<typeof fetchEthGasPriceEstimate>
+>;
+const mockedCalculateTimeEstimate = calculateTimeEstimate as jest.Mock<
+  ReturnType<typeof calculateTimeEstimate>,
+  Parameters<typeof calculateTimeEstimate>
+>;
+const mockedFetchGasEstimatesViaEthFeeHistory =
+  fetchGasEstimatesViaEthFeeHistory as jest.Mock<
+    ReturnType<typeof fetchGasEstimatesViaEthFeeHistory>,
+    Parameters<typeof fetchGasEstimatesViaEthFeeHistory>
+  >;
 
 /**
  * Builds mock data for the `fetchGasEstimates` function. All of the data here is filled in to make

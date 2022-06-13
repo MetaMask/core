@@ -1,18 +1,20 @@
 import { BN } from 'ethereumjs-util';
-import { mocked } from 'ts-jest/utils';
 import { when } from 'jest-when';
 import { query, fromHex, toHex } from '@metamask/controller-utils';
 import fetchBlockFeeHistory from './fetchBlockFeeHistory';
 
-jest.mock('../util', () => {
+jest.mock('@metamask/controller-utils', () => {
   return {
-    ...jest.requireActual('../util'),
+    ...jest.requireActual('@metamask/controller-utils'),
     __esModule: true,
     query: jest.fn(),
   };
 });
 
-const mockedQuery = mocked(query, true);
+const mockedQuery = query as jest.Mock<
+  ReturnType<typeof query>,
+  Parameters<typeof query>
+>;
 
 /**
  * Calls the given function the given number of times, collecting the results from each call.
@@ -71,20 +73,20 @@ describe('fetchBlockFeeHistory', () => {
 
       expect(feeHistory).toStrictEqual([
         {
-          number: new BN(1),
-          baseFeePerGas: new BN(10_000_000_000),
+          number: fromHex(toHex(1)),
+          baseFeePerGas: fromHex(toHex(10_000_000_000)),
           gasUsedRatio: 0.1,
           priorityFeesByPercentile: {},
         },
         {
-          number: new BN(2),
-          baseFeePerGas: new BN(20_000_000_000),
+          number: fromHex(toHex(2)),
+          baseFeePerGas: fromHex(toHex(20_000_000_000)),
           gasUsedRatio: 0.2,
           priorityFeesByPercentile: {},
         },
         {
-          number: new BN(3),
-          baseFeePerGas: new BN(30_000_000_000),
+          number: fromHex(toHex(3)),
+          baseFeePerGas: fromHex(toHex(30_000_000_000)),
           gasUsedRatio: 0.3,
           priorityFeesByPercentile: {},
         },
@@ -183,7 +185,7 @@ describe('fetchBlockFeeHistory', () => {
       expect(feeHistory).toStrictEqual(
         expectedBlocks.map((block) => {
           return {
-            number: new BN(block.number),
+            number: fromHex(toHex(block.number)),
             baseFeePerGas: fromHex(block.baseFeePerGas),
             gasUsedRatio: block.gasUsedRatio,
             priorityFeesByPercentile: {},
@@ -273,33 +275,33 @@ describe('fetchBlockFeeHistory', () => {
 
       expect(feeHistory).toStrictEqual([
         {
-          number: new BN(1),
-          baseFeePerGas: new BN(100_000_000_000),
+          number: fromHex(toHex(1)),
+          baseFeePerGas: fromHex(toHex(100_000_000_000)),
           gasUsedRatio: 0.1,
           priorityFeesByPercentile: {
-            10: new BN(10_000_000_000),
-            20: new BN(15_000_000_000),
-            30: new BN(20_000_000_000),
+            10: fromHex(toHex(10_000_000_000)),
+            20: fromHex(toHex(15_000_000_000)),
+            30: fromHex(toHex(20_000_000_000)),
           },
         },
         {
-          number: new BN(2),
-          baseFeePerGas: new BN(200_000_000_000),
+          number: fromHex(toHex(2)),
+          baseFeePerGas: fromHex(toHex(200_000_000_000)),
           gasUsedRatio: 0.2,
           priorityFeesByPercentile: {
-            10: new BN(0),
-            20: new BN(10_000_000_000),
-            30: new BN(15_000_000_000),
+            10: fromHex(toHex(0)),
+            20: fromHex(toHex(10_000_000_000)),
+            30: fromHex(toHex(15_000_000_000)),
           },
         },
         {
-          number: new BN(3),
-          baseFeePerGas: new BN(300_000_000_000),
+          number: fromHex(toHex(3)),
+          baseFeePerGas: fromHex(toHex(300_000_000_000)),
           gasUsedRatio: 0.3,
           priorityFeesByPercentile: {
-            10: new BN(20_000_000_000),
-            20: new BN(20_000_000_000),
-            30: new BN(30_000_000_000),
+            10: fromHex(toHex(20_000_000_000)),
+            20: fromHex(toHex(20_000_000_000)),
+            30: fromHex(toHex(30_000_000_000)),
           },
         },
       ]);
@@ -363,26 +365,26 @@ describe('fetchBlockFeeHistory', () => {
 
       expect(feeHistory).toStrictEqual([
         {
-          number: new BN(1),
-          baseFeePerGas: new BN(10_000_000_000),
+          number: fromHex(toHex(1)),
+          baseFeePerGas: fromHex(toHex(10_000_000_000)),
           gasUsedRatio: 0.1,
           priorityFeesByPercentile: {},
         },
         {
-          number: new BN(2),
-          baseFeePerGas: new BN(20_000_000_000),
+          number: fromHex(toHex(2)),
+          baseFeePerGas: fromHex(toHex(20_000_000_000)),
           gasUsedRatio: 0.2,
           priorityFeesByPercentile: {},
         },
         {
-          number: new BN(3),
-          baseFeePerGas: new BN(30_000_000_000),
+          number: fromHex(toHex(3)),
+          baseFeePerGas: fromHex(toHex(30_000_000_000)),
           gasUsedRatio: 0.3,
           priorityFeesByPercentile: {},
         },
         {
-          number: new BN(4),
-          baseFeePerGas: new BN(40_000_000_000),
+          number: fromHex(toHex(4)),
+          baseFeePerGas: fromHex(toHex(40_000_000_000)),
           gasUsedRatio: null,
           priorityFeesByPercentile: null,
         },

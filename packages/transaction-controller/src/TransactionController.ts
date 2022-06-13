@@ -20,21 +20,23 @@ import {
   BNToHex,
   fractionBN,
   hexToBN,
-  normalizeTransaction,
   safelyExecute,
-  validateTransaction,
   isSmartContractCode,
-  handleTransactionFetch,
   query,
   getIncreasedPriceFromExisting,
-  isEIP1559Transaction,
-  isGasPriceValue,
-  isFeeMarketEIP1559Values,
-  validateGasValues,
   validateMinimumIncrease,
   MAINNET,
   RPC,
 } from '@metamask/controller-utils';
+import {
+  normalizeTransaction,
+  validateTransaction,
+  handleTransactionFetch,
+  isEIP1559Transaction,
+  isGasPriceValue,
+  isFeeMarketEIP1559Values,
+  validateGasValues,
+} from './utils';
 
 const HARDFORK = 'london';
 

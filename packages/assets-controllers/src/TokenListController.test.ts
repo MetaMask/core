@@ -703,30 +703,36 @@ describe('TokenListController', () => {
       .get(`/tokens/${NetworksChainId.mainnet}`)
       .reply(200, sampleMainnetTokenList)
       .persist();
+
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
       onNetworkStateChange: (listener) => network.subscribe(listener),
       messenger,
+      interval: 750,
     });
     await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      expect(controller.state.tokenList).toStrictEqual(
+        sampleSingleChainState.tokenList,
+      );
 
-    expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
-    ).toStrictEqual(
-      sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet].data,
-    );
+      expect(
+        controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+      ).toStrictEqual(
+        sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet].data,
+      );
 
-    expect(
-      controller.state.tokensChainsCache[NetworksChainId.mainnet].timestamp,
-    ).toBeGreaterThanOrEqual(
-      sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet]
-        .timestamp,
-    );
-    controller.destroy();
+      expect(
+        controller.state.tokensChainsCache[NetworksChainId.mainnet].timestamp,
+      ).toBeGreaterThanOrEqual(
+        sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet]
+          .timestamp,
+      );
+    } finally {
+      controller.destroy();
+    }
   });
 
   it('should update the cache before threshold time if the current data is undefined', async () => {

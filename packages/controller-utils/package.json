@@ -20,7 +20,6 @@
   "files": [
     "dist/"
   ],
-  "scripts": {},
   "dependencies": {
     "@metamask/assets-controllers": "workspace:~",
     "@metamask/base-controller": "workspace:~",
@@ -35,6 +34,8 @@
     "multiformats": "^9.5.2"
   },
   "devDependencies": {
+    "abort-controller": "^3.0.0",
+    "nock": "^13.0.7",
     "ts-deepmerge": "^2.0.1"
   },
   "engines": {

@@ -20,7 +20,6 @@
   "files": [
     "dist/"
   ],
-  "scripts": {},
   "dependencies": {
     "immer": "^9.0.6"
   },

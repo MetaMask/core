@@ -12,15 +12,16 @@ const MKR_ADDRESS = '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2';
 describe('ERC20Standard', () => {
   let erc20Standard: ERC20Standard;
   let web3: any;
-  nock.disableNetConnect();
 
   beforeAll(() => {
     web3 = new Web3(MAINNET_PROVIDER);
     erc20Standard = new ERC20Standard(web3);
+    nock.disableNetConnect();
   });
 
   afterAll(() => {
-    nock.restore();
+    nock.enableNetConnect();
+    // nock.restore();
   });
 
   it('should get correct token symbol for a given ERC20 contract address', async () => {

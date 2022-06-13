@@ -9,5 +9,5 @@
     { "path": "../network-controller" },
     { "path": "../user-controllers" }
   ],
-  "include": ["../../types/**/*", "./src/**/*", "./jest.config.packages.ts"]
+  "include": ["../../types/**/*", "./src/**/*"]
 }

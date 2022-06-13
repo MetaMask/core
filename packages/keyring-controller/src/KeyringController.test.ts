@@ -23,6 +23,13 @@ import {
   SignTypedDataVersion,
 } from './KeyringController';
 
+jest.mock('uuid', () => {
+  return {
+    ...jest.requireActual('uuid'),
+    v4: () => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+  };
+});
+
 const input =
   '{"version":3,"id":"534e0199-53f6-41a9-a8fe-d504702ee5e8","address":"b97c80fab7a3793bbe746864db80d236f1345ea7",' +
   '"crypto":{"ciphertext":"974fec42023c2d6340d9710863aa82a2961aa03b9d7e5dd19aa77ab4aab1f344",' +

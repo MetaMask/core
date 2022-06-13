@@ -8,5 +8,5 @@
     { "path": "../base-controller" },
     { "path": "../controller-utils" }
   ],
-  "include": ["../../types/**/*", "./src/**/*", "./jest.config.packages.ts"]
+  "include": ["../../types/**/*", "./src/**/*"]
 }

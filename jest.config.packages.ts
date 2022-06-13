@@ -4,6 +4,9 @@
  */
 
 import type { Config } from '@jest/types';
+// TODO: Figure out if this is really needed
+// import { jsWithBabel as tsjPreset } from 'ts-jest/presets';
+import { jsWithTs as tsjPreset } from 'ts-jest/presets';
 
 const config: Config.InitialOptions = {
   // All imported modules in your tests should be mocked automatically
@@ -66,7 +69,11 @@ const config: Config.InitialOptions = {
   // globalTeardown: undefined,
 
   // A set of global variables that need to be available in all test environments
-  // globals: {}
+  globals: {
+    'ts-jest': {
+      tsconfig: '<rootDir>/tsconfig.test.json',
+    },
+  },
 
   // The maximum amount of workers used to run your tests. Can be specified as % or a number. E.g. maxWorkers: 10% will use 10% of your CPU amount + 1 as the maximum worker number. maxWorkers: 2 will use a maximum of 2 workers.
   // maxWorkers: "50%",
@@ -89,7 +96,19 @@ const config: Config.InitialOptions = {
   // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
   // NOTE: This must be synchronized with the `paths` option in `tsconfig.packages.json`
   moduleNameMapper: {
-    '^@metamask/(.+)$': '<rootDir>/../$1/src',
+    '^@metamask/(.+)$': [
+      '<rootDir>/../$1/src',
+      // Some @metamask/* packages we are referencing aren't in this monorepo,
+      // so in that case use their published versions
+      '<rootDir>/../../node_modules/@metamask/$1',
+    ],
+    // The ethjs-* packages strangely link to their uncompiled versions instead
+    // of compiled versions as their main files
+    // '^ethjs$': '<rootDir>/../../node_modules/ethjs/dist/ethjs.js',
+    // '^ethjs-query$':
+    // '<rootDir>/../../node_modules/ethjs-query/dist/ethjs-query.js',
+    // '^ethjs-provider-http$':
+    // '<rootDir>/../../node_modules/ethjs-provider-http/dist/ethjs-provider-http.js',
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
@@ -102,7 +121,7 @@ const config: Config.InitialOptions = {
   // notifyMode: "failure-change",
 
   // A preset that is used as a base for Jest's configuration
-  preset: 'ts-jest',
+  // preset: 'ts-jest/presets/js-with-babel',
 
   // Run tests from one or more projects
   // projects: undefined
@@ -138,10 +157,10 @@ const config: Config.InitialOptions = {
   // runner: "jest-runner",
 
   // The paths to modules that run some code to configure or set up the testing environment before each test
-  // setupFiles: [],
+  setupFiles: ['../../tests/setupTests.ts'],
 
   // A list of paths to modules that run some code to configure or set up the testing framework before each test
-  // setupFilesAfterEnv: [],
+  setupFilesAfterEnv: ['../../tests/setupTestsAfterEnv.ts'],
 
   // The number of seconds after which a test is considered as slow and reported as such in the results.
   // slowTestThreshold: 5,
@@ -150,7 +169,7 @@ const config: Config.InitialOptions = {
   // snapshotSerializers: [],
 
   // The test environment that will be used for testing
-  testEnvironment: 'jsdom',
+  // testEnvironment: 'jsdom',
 
   // Options that will be passed to the testEnvironment
   // testEnvironmentOptions: {},
@@ -185,13 +204,17 @@ const config: Config.InitialOptions = {
   // timers: "real",
 
   // A map from regular expressions to paths to transformers
-  // transform: undefined,
+  transform: {
+    ...tsjPreset.transform,
+    // '\\.jsx?$': 'babel-jest',
+  },
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
-  // transformIgnorePatterns: [
-  //   "/node_modules/",
-  //   "\\.pnp\\.[^\\/]+$"
-  // ],
+  transformIgnorePatterns: [
+    // Transform multiformats as it ships as ESM for the browser version
+    '/node_modules/(?!(?:multiformats|uuid)/)',
+    '\\.pnp\\.[^\\/]+$',
+  ],
 
   // An array of regexp pattern strings that are matched against all modules before the module loader will automatically return a mock for them
   // unmockedModulePathPatterns: undefined,

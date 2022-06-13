@@ -2,8 +2,20 @@ import sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
 import type { ContactEntry } from '@metamask/user-controllers';
 import { PreferencesController } from '@metamask/user-controllers';
-import * as utils from '@metamask/controller-utils';
+import { query } from '@metamask/controller-utils';
 import { AccountTrackerController } from './AccountTrackerController';
+
+jest.mock('@metamask/controller-utils', () => {
+  return {
+    ...jest.requireActual('@metamask/controller-utils'),
+    query: jest.fn(),
+  };
+});
+
+const mockedQuery = query as jest.Mock<
+  ReturnType<typeof query>,
+  Parameters<typeof query>
+>;
 
 const provider = new HttpProvider(
   'https://ropsten.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
@@ -51,7 +63,6 @@ describe('AccountTrackerController', () => {
 
   it('should sync balance with addresses', async () => {
     const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const queryStub = sinon.stub(utils, 'query');
     const controller = new AccountTrackerController(
       {
         onPreferencesStateChange: sinon.stub(),
@@ -61,7 +72,7 @@ describe('AccountTrackerController', () => {
       },
       { provider },
     );
-    queryStub.returns(Promise.resolve('0x10'));
+    mockedQuery.mockReturnValue(Promise.resolve('0x10'));
     const result = await controller.syncBalanceWithAddresses([address]);
     expect(result[address].balance).toBe('0x10');
   });

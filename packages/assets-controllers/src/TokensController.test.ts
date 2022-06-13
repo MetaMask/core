@@ -11,6 +11,13 @@ import { TOKEN_END_POINT_API } from '@metamask/controller-utils';
 import { TokensController } from './TokensController';
 import { Token } from './TokenRatesController';
 
+jest.mock('uuid', () => {
+  return {
+    ...jest.requireActual('uuid'),
+    v1: () => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+  };
+});
+
 describe('TokensController', () => {
   let tokensController: TokensController;
   let preferences: PreferencesController;

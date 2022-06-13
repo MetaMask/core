@@ -1,5 +1,4 @@
 import sinon, { SinonFakeTimers } from 'sinon';
-import { mocked } from 'ts-jest/utils';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   GAS_ESTIMATE_TYPES,
@@ -15,10 +14,8 @@ import determineGasFeeCalculations from './determineGasFeeCalculations';
 
 jest.mock('./determineGasFeeCalculations');
 
-const mockedDetermineGasFeeCalculations = mocked(
-  determineGasFeeCalculations,
-  true,
-);
+const mockedDetermineGasFeeCalculations =
+  determineGasFeeCalculations as jest.Mock<any>;
 
 const name = 'GasFeeController';
 

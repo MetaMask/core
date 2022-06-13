@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.packages.test.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    { "path": "../approval-controller" },
+    { "path": "../base-controller" },
+    { "path": "../controller-utils" }
+  ],
+  "include": ["../../types/**/*", "./src/**/*"]
+}

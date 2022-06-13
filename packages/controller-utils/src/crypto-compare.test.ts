@@ -1,5 +1,5 @@
+import 'isomorphic-fetch';
 import nock from 'nock';
-
 import { fetchExchangeRate } from './crypto-compare';
 
 const cryptoCompareHost = 'https://min-api.cryptocompare.com';

@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.packages.json",
+  "compilerOptions": {
+    /**
+     * Instruct ts-jest to process JS files as well as TS files.
+     * This is important because some NPM modules (e.g. "multiformats") ship
+     * with ESM files, and these files will be used even if they ship with TS
+     * definition files, if Jest is run using the `jsdom` environment and the
+     * "browser" field for these packages points to the ESM version.
+     * This is paired with `transformIgnorePatterns` to explicit tell Jest not
+     * to ignore these packages when transforming files.
+     * See: <https://github.com/kulshekhar/ts-jest/issues/2629#issuecomment-1073200793>
+     */
+    "allowJs": true,
+    /**
+     * Prevent warnings related to this option from being printed when running
+     * tests.
+     */
+    "esModuleInterop": true
+  }
+}

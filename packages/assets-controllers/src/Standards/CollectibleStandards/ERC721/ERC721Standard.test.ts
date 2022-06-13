@@ -25,6 +25,7 @@ describe('ERC721Standard', () => {
 
   afterAll(() => {
     nock.restore();
+    nock.enableNetConnect();
   });
 
   it('should determine if contract supports interface correctly', async () => {

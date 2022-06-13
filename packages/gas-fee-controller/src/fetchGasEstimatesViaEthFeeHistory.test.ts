@@ -1,5 +1,4 @@
 import { BN } from 'ethereumjs-util';
-import { mocked } from 'ts-jest/utils';
 import { when } from 'jest-when';
 import fetchBlockFeeHistory from './fetchBlockFeeHistory';
 import calculateGasFeeEstimatesForPriorityLevels from './fetchGasEstimatesViaEthFeeHistory/calculateGasFeeEstimatesForPriorityLevels';
@@ -12,12 +11,19 @@ jest.mock(
 );
 jest.mock('./fetchGasEstimatesViaEthFeeHistory/fetchLatestBlock');
 
-const mockedFetchBlockFeeHistory = mocked(fetchBlockFeeHistory, true);
-const mockedCalculateGasFeeEstimatesForPriorityLevels = mocked(
-  calculateGasFeeEstimatesForPriorityLevels,
-  true,
-);
-const mockedFetchLatestBlock = mocked(fetchLatestBlock, true);
+const mockedFetchBlockFeeHistory = fetchBlockFeeHistory as jest.Mock<
+  ReturnType<typeof fetchBlockFeeHistory>,
+  Parameters<typeof fetchBlockFeeHistory>
+>;
+const mockedCalculateGasFeeEstimatesForPriorityLevels =
+  calculateGasFeeEstimatesForPriorityLevels as jest.Mock<
+    ReturnType<typeof calculateGasFeeEstimatesForPriorityLevels>,
+    Parameters<typeof calculateGasFeeEstimatesForPriorityLevels>
+  >;
+const mockedFetchLatestBlock = fetchLatestBlock as jest.Mock<
+  ReturnType<typeof fetchLatestBlock>,
+  Parameters<typeof fetchLatestBlock>
+>;
 
 describe('fetchGasEstimatesViaEthFeeHistory', () => {
   const latestBlock = {

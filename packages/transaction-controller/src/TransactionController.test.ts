@@ -25,6 +25,13 @@ const mockFlags: { [key: string]: any } = {
   estimateGas: null,
 };
 
+jest.mock('uuid', () => {
+  return {
+    ...jest.requireActual('uuid'),
+    v1: () => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+  };
+});
+
 jest.mock('eth-query', () =>
   jest.fn().mockImplementation(() => {
     return {

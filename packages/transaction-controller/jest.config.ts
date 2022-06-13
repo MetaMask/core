@@ -12,6 +12,9 @@ const displayName = path.basename(__dirname);
 const config = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
+
+  // We rely on `XMLHttpRequest` to make requests
+  testEnvironment: 'jsdom',
 });
 
 export default config;

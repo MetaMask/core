@@ -11,7 +11,7 @@ import {
   NetworkController,
   NetworksChainId,
 } from '@metamask/network-controller';
-import { ControllerMessenger } from '../ControllerMessenger';
+import { ControllerMessenger } from '@metamask/base-controller';
 
 import { TokensController } from './TokensController';
 import { TokenDetectionController } from './TokenDetectionController';

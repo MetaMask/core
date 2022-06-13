@@ -795,6 +795,6 @@ describe('isTokenDetectionSupportedForNetwork', () => {
   });
 
   it('returns false for testnets such as Ropsten', () => {
-    expect(util.isTokenDetectionSupportedForNetwork('137')).toBe(false);
+    expect(util.isTokenDetectionSupportedForNetwork('3')).toBe(false);
   });
 });

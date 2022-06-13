@@ -12,15 +12,16 @@ const ERC1155_ADDRESS = '0xfaaFDc07907ff5120a76b34b731b278c38d6043C';
 describe('ERC1155Standard', () => {
   let erc1155Standard: ERC1155Standard;
   let web3: any;
-  nock.disableNetConnect();
 
   beforeAll(() => {
     web3 = new Web3(MAINNET_PROVIDER);
     erc1155Standard = new ERC1155Standard(web3);
+    nock.disableNetConnect();
   });
 
   afterAll(() => {
     nock.restore();
+    nock.enableNetConnect();
   });
 
   it('should determine if contract supports URI metadata interface correctly', async () => {

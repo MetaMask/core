@@ -20,7 +20,6 @@
   "files": [
     "dist/"
   ],
-  "scripts": {},
   "dependencies": {
     "@keystonehq/metamask-airgapped-keyring": "^0.3.0",
     "@metamask/base-controller": "workspace:~",
