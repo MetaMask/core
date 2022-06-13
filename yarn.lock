@@ -2097,6 +2097,7 @@ __metadata:
     immer: ^9.0.6
     jest: ^28.1.0
     jest-when: ^3.5.1
+    nock: ^13.0.7
     sinon: ^9.2.4
     ts-deepmerge: ^2.0.1
     uuid: ^8.3.2
@@ -2242,6 +2243,7 @@ __metadata:
     eth-phishing-detect: ^1.2.0
     ethereumjs-util: ^7.1.4
     isomorphic-fetch: ^3.0.0
+    nock: ^13.0.7
     punycode: ^2.1.1
     sinon: ^9.2.4
     ts-deepmerge: ^2.0.1
