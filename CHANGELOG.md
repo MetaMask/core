@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.0.1]
+### Uncategorized
+- Change `formatIconUrlWithProxy` to accept hex strings for `chainId` ([#851](https://github.com/MetaMask/controllers/pull/851))
+
 ## [30.0.0]
 ### Added
 - **BREAKING:** Introduce `getNetworkState`, `getPreferencesState`, and `onTokenListStateChange` to the TokenDetectionController constructor options object ([#808](https://github.com/MetaMask/controllers/pull/808))
@@ -618,7 +622,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v30.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v30.0.1...HEAD
+[30.0.1]: https://github.com/MetaMask/controllers/compare/v30.0.0...v30.0.1
 [30.0.0]: https://github.com/MetaMask/controllers/compare/v29.0.1...v30.0.0
 [29.0.1]: https://github.com/MetaMask/controllers/compare/v29.0.0...v29.0.1
 [29.0.0]: https://github.com/MetaMask/controllers/compare/v28.0.0...v29.0.0
