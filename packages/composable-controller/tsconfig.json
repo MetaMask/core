@@ -10,5 +10,5 @@
     { "path": "../third-party-controllers" },
     { "path": "../user-controllers" }
   ],
-  "include": ["../../types/**/*", "./src/**/*"]
+  "include": ["../../types", "./src"]
 }

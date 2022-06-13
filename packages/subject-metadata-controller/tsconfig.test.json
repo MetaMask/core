@@ -7,5 +7,5 @@
     { "path": "../base-controller" },
     { "path": "../permission-controller" }
   ],
-  "include": ["../../types/**/*", "./src/**/*"]
+  "include": ["../../types", "./src"]
 }

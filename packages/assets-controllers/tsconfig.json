@@ -9,5 +9,5 @@
     { "path": "../network-controller" },
     { "path": "../user-controllers" }
   ],
-  "include": ["../../types/**/*", "./src/**/*"]
+  "include": ["../../types", "./src"]
 }

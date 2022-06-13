@@ -12,5 +12,5 @@
     { "path": "../third-party-controllers/tsconfig.build.json" },
     { "path": "../user-controllers/tsconfig.build.json" }
   ],
-  "include": ["../../types/**/*", "./src/**/*"]
+  "include": ["../../types", "./src"]
 }

@@ -9,5 +9,5 @@
     { "path": "../base-controller/tsconfig.build.json" },
     { "path": "../permission-controller/tsconfig.build.json" }
   ],
-  "include": ["../../types/**/*", "./src/**/*"]
+  "include": ["../../types", "./src"]
 }

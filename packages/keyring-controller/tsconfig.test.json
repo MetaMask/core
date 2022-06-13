@@ -9,5 +9,5 @@
     { "path": "../message-manager" },
     { "path": "../user-controllers" }
   ],
-  "include": ["../../types/**/*", "./src/**/*", "./tests/**/*"]
+  "include": ["../../types", "./src", "./tests"]
 }

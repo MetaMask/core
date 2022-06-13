@@ -8,5 +8,5 @@
     { "path": "../base-controller" },
     { "path": "../controller-utils" }
   ],
-  "include": ["../../types/**/*", "./src/**/*"]
+  "include": ["../../types", "./src"]
 }
