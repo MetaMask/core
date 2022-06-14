@@ -62,5 +62,8 @@
       "ethereumjs-util>ethereum-cryptography>keccak": true,
       "ethereumjs-util>ethereum-cryptography>secp256k1": true
     }
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.23.0"
   }
 }
