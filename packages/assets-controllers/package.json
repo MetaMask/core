@@ -20,6 +20,10 @@
   "files": [
     "dist/"
   ],
+  "scripts": {
+    "test": "jest && jest-it-up",
+    "test:watch": "jest --watch"
+  },
   "dependencies": {
     "@metamask/base-controller": "workspace:~",
     "@metamask/contract-metadata": "^1.35.0",
@@ -41,11 +45,16 @@
     "web3": "^0.20.7"
   },
   "devDependencies": {
+    "@types/jest": "^26.0.22",
+    "deepmerge": "^4.2.2",
     "ethereumjs-util": "^7.1.4",
     "ethjs-provider-http": "^0.1.6",
+    "jest": "^26.4.2",
+    "jest-it-up": "^2.0.2",
     "nock": "^13.0.7",
     "sinon": "^9.2.4",
-    "ts-deepmerge": "^2.0.1"
+    "ts-jest": "^26.5.2",
+    "typescript": "~4.6.3"
   },
   "engines": {
     "node": ">=12.0.0"

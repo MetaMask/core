@@ -26,7 +26,12 @@
     "immer": "^9.0.6"
   },
   "devDependencies": {
-    "ts-deepmerge": "^2.0.1"
+    "@types/jest": "^26.0.22",
+    "deepmerge": "^4.2.2",
+    "jest": "^26.4.2",
+    "jest-it-up": "^2.0.2",
+    "ts-jest": "^26.5.2",
+    "typescript": "~4.6.3"
   },
   "engines": {
     "node": ">=12.0.0"
@@ -34,5 +39,9 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "test": "jest && jest-it-up",
+    "test:watch": "jest --watch"
   }
 }

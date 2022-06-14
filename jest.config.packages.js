@@ -3,10 +3,9 @@
  * https://jestjs.io/docs/configuration
  */
 
-import * as path from 'path';
-import type { Config } from '@jest/types';
+const path = require('path');
 
-const config: Config.InitialOptions = {
+module.exports = {
   // All imported modules in your tests should be mocked automatically
   // automock: false,
 
@@ -25,29 +24,24 @@ const config: Config.InitialOptions = {
   collectCoverage: true,
 
   // An array of glob patterns indicating a set of files for which coverage information should be collected
-  collectCoverageFrom: ['<rootDir>/src/**/*.ts'],
+  collectCoverageFrom: ['./src/**/*.ts'],
 
   // The directory where Jest should output its coverage files
   coverageDirectory: 'coverage',
 
   // An array of regexp pattern strings used to skip coverage collection
-  // coveragePathIgnorePatterns: [],
+  // TODO: Test index.ts
+  coveragePathIgnorePatterns: ['./src/index.ts'],
 
   // Indicates which provider should be used to instrument code for coverage
-  coverageProvider: 'v8',
+  coverageProvider: 'babel',
 
   // A list of reporter names that Jest uses when writing coverage reports
-  coverageReporters: ['text', 'html'],
+  coverageReporters: ['text', 'html', 'json-summary'],
 
   // An object that configures minimum threshold enforcement for coverage results
-  coverageThreshold: {
-    global: {
-      branches: 90,
-      functions: 96,
-      lines: 95,
-      statements: 95,
-    },
-  },
+  // (Each package defines this separately)
+  // coverageThreshold: undefined
 
   // A path to a custom dependency extractor
   // dependencyExtractor: undefined,
@@ -161,7 +155,7 @@ const config: Config.InitialOptions = {
   // snapshotSerializers: [],
 
   // The test environment that will be used for testing
-  // testEnvironment: 'jsdom',
+  testEnvironment: 'node',
 
   // Options that will be passed to the testEnvironment
   // testEnvironmentOptions: {},
@@ -217,5 +211,3 @@ const config: Config.InitialOptions = {
   // Whether to use watchman for file crawling
   // watchman: true,
 };
-
-export default config;

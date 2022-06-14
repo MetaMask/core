@@ -55,6 +55,45 @@ describe('approval controller', () => {
       });
     });
 
+    it('validates input', () => {
+      expect(() =>
+        approvalController.add({ id: null, origin: 'bar.baz' } as any),
+      ).toThrow(getInvalidIdError());
+
+      expect(() => approvalController.add({ id: 'foo' } as any)).toThrow(
+        getInvalidOriginError(),
+      );
+
+      expect(() =>
+        approvalController.add({ id: 'foo', origin: true } as any),
+      ).toThrow(getInvalidOriginError());
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: {},
+        } as any),
+      ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: '',
+        } as any),
+      ).toThrow(getInvalidTypeError(errorCodes.rpc.internal));
+
+      expect(() =>
+        approvalController.add({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'type',
+          requestData: 'foo',
+        } as any),
+      ).toThrow(getInvalidRequestDataError());
+    });
+
     it('adds correctly specified entry', () => {
       expect(() =>
         approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE }),
@@ -194,6 +233,21 @@ describe('approval controller', () => {
         time: 1,
       });
     });
+
+    it('returns undefined for non-existing entry', () => {
+      const approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
+
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
+
+      expect(approvalController.get('fizz')).toBeUndefined();
+
+      expect((approvalController as any).get()).toBeUndefined();
+
+      expect(approvalController.get({} as any)).toBeUndefined();
+    });
   });
 
   describe('getApprovalCount', () => {
@@ -208,6 +262,24 @@ describe('approval controller', () => {
 
       addWithCatch = (args: any) =>
         approvalController.add(args).catch(() => undefined);
+    });
+
+    it('validates input', () => {
+      expect(() => approvalController.getApprovalCount()).toThrow(
+        getApprovalCountParamsError(),
+      );
+
+      expect(() => approvalController.getApprovalCount({})).toThrow(
+        getApprovalCountParamsError(),
+      );
+
+      expect(() =>
+        approvalController.getApprovalCount({ origin: null } as any),
+      ).toThrow(getApprovalCountParamsError());
+
+      expect(() =>
+        approvalController.getApprovalCount({ type: false } as any),
+      ).toThrow(getApprovalCountParamsError());
     });
 
     it('gets the count when specifying origin and type', () => {
@@ -343,6 +415,32 @@ describe('approval controller', () => {
         messenger: getRestrictedMessenger(),
         showApprovalRequest: sinon.spy(),
       });
+    });
+
+    it('validates input', () => {
+      expect(() => approvalController.has()).toThrow(
+        getInvalidHasParamsError(),
+      );
+
+      expect(() => approvalController.has({})).toThrow(
+        getInvalidHasParamsError(),
+      );
+
+      expect(() => approvalController.has({ id: true } as any)).toThrow(
+        getInvalidHasIdError(),
+      );
+
+      expect(() => approvalController.has({ origin: true } as any)).toThrow(
+        getInvalidHasOriginError(),
+      );
+
+      expect(() => approvalController.has({ type: true } as any)).toThrow(
+        getInvalidHasTypeError(),
+      );
+
+      expect(() =>
+        approvalController.has({ origin: 'foo', type: true } as any),
+      ).toThrow(getInvalidHasTypeError());
     });
 
     it('returns true for existing entry by id', () => {
@@ -630,6 +728,63 @@ describe('approval controller', () => {
     });
   });
 
+  // We test this internal function before resolve, reject, and clear because
+  // they are heavily dependent upon it.
+  // TODO: Stop using private methods in tests
+  describe('_delete', () => {
+    let approvalController: ApprovalController;
+
+    beforeEach(() => {
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
+    });
+
+    it('deletes entry', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
+
+      (approvalController as any)._delete('foo');
+
+      expect(
+        !approvalController.has({ id: 'foo' }) &&
+          !approvalController.has({ type: 'type' }) &&
+          !approvalController.has({ origin: 'bar.baz' }) &&
+          !approvalController.state[STORE_KEY].foo,
+      ).toStrictEqual(true);
+    });
+
+    it('deletes one entry out of many without side-effects', () => {
+      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type1' });
+      approvalController.add({ id: 'fizz', origin: 'bar.baz', type: 'type2' });
+
+      (approvalController as any)._delete('fizz');
+
+      expect(
+        !approvalController.has({ id: 'fizz' }) &&
+          !approvalController.has({ origin: 'bar.baz', type: 'type2' }),
+      ).toStrictEqual(true);
+
+      expect(
+        approvalController.has({ id: 'foo' }) &&
+          approvalController.has({ origin: 'bar.baz' }),
+      ).toStrictEqual(true);
+    });
+  });
+
+  // TODO: Stop using private methods in tests
+  describe('_isEmptyOrigin', () => {
+    it('handles non-existing origin', () => {
+      const approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
+      expect(() =>
+        (approvalController as any)._isEmptyOrigin('kaplar'),
+      ).not.toThrow();
+    });
+  });
+
   describe('actions', () => {
     it('addApprovalRequest: shouldShowRequest = true', async () => {
       const messenger = new ControllerMessenger<
@@ -707,6 +862,15 @@ function getOriginTypeCollisionError(origin: string, type = TYPE) {
 }
 
 /**
+ * Get an invalid ID error.
+ *
+ * @returns An invalid ID error.
+ */
+function getInvalidIdError() {
+  return getError('Must specify non-empty string id.', errorCodes.rpc.internal);
+}
+
+/**
  * Get an "ID not found" error.
  *
  * @param id - The ID that was not found.
@@ -714,6 +878,85 @@ function getOriginTypeCollisionError(origin: string, type = TYPE) {
  */
 function getIdNotFoundError(id: string) {
   return getError(`Approval request with id '${id}' not found.`);
+}
+
+/**
+ * Get an invalid ID type error.
+ *
+ * @returns An invalid ID type error.
+ */
+function getInvalidHasIdError() {
+  return getError('May not specify non-string id.');
+}
+
+/**
+ * Get an invalid origin type error.
+ *
+ * @returns The invalid origin type error.
+ */
+function getInvalidHasOriginError() {
+  return getError('May not specify non-string origin.');
+}
+
+/**
+ * Get an invalid type error.
+ *
+ * @returns The invalid type error.
+ */
+function getInvalidHasTypeError() {
+  return getError('May not specify non-string type.');
+}
+
+/**
+ * Get an invalid origin error.
+ *
+ * @returns The invalid origin error.
+ */
+function getInvalidOriginError() {
+  return getError(
+    'Must specify non-empty string origin.',
+    errorCodes.rpc.internal,
+  );
+}
+
+/**
+ * Get an invalid request data error.
+ *
+ * @returns The invalid request data error.
+ */
+function getInvalidRequestDataError() {
+  return getError(
+    'Request data must be a plain object if specified.',
+    errorCodes.rpc.internal,
+  );
+}
+
+/**
+ * Get an invalid type error.
+ *
+ * @param code - The error code.
+ * @returns The invalid type error.
+ */
+function getInvalidTypeError(code: number) {
+  return getError('Must specify non-empty string type.', code);
+}
+
+/**
+ * Get an invalid params error.
+ *
+ * @returns The invalid params error.
+ */
+function getInvalidHasParamsError() {
+  return getError('Must specify a valid combination of id, origin, and type.');
+}
+
+/**
+ * Get an invalid approval count params error.
+ *
+ * @returns The invalid approval count params error.
+ */
+function getApprovalCountParamsError() {
+  return getError('Must specify origin, type, or both.');
 }
 
 /**
