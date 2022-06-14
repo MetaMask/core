@@ -20,6 +20,10 @@
   "files": [
     "dist/"
   ],
+  "scripts": {
+    "test": "jest && jest-it-up",
+    "test:watch": "jest --watch"
+  },
   "dependencies": {
     "@keystonehq/metamask-airgapped-keyring": "^0.3.0",
     "@metamask/base-controller": "workspace:~",
@@ -51,9 +55,5 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  },
-  "scripts": {
-    "test": "jest && jest-it-up",
-    "test:watch": "jest --watch"
   }
 }

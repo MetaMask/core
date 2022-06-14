@@ -20,6 +20,10 @@
   "files": [
     "dist/"
   ],
+  "scripts": {
+    "test": "jest && jest-it-up",
+    "test:watch": "jest --watch"
+  },
   "dependencies": {
     "@metamask/base-controller": "workspace:~",
     "eth-rpc-errors": "^4.0.0",
@@ -39,9 +43,5 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  },
-  "scripts": {
-    "test": "jest && jest-it-up",
-    "test:watch": "jest --watch"
   }
 }

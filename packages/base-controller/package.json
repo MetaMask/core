@@ -20,6 +20,10 @@
   "files": [
     "dist/"
   ],
+  "scripts": {
+    "test": "jest && jest-it-up",
+    "test:watch": "jest --watch"
+  },
   "dependencies": {
     "immer": "^9.0.6"
   },
@@ -39,9 +43,5 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  },
-  "scripts": {
-    "test": "jest && jest-it-up",
-    "test:watch": "jest --watch"
   }
 }

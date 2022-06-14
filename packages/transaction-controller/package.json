@@ -20,6 +20,10 @@
   "files": [
     "dist/"
   ],
+  "scripts": {
+    "test": "jest && jest-it-up",
+    "test:watch": "jest --watch"
+  },
   "dependencies": {
     "@ethereumjs/common": "^2.3.1",
     "@ethereumjs/tx": "^3.2.1",
@@ -50,9 +54,5 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  },
-  "scripts": {
-    "test": "jest && jest-it-up",
-    "test:watch": "jest --watch"
   }
 }
