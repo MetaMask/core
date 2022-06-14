@@ -1103,20 +1103,20 @@
     pbkdf2 "^3.0.9"
     randombytes "^2.0.1"
 
-"@metamask/contract-metadata@^1.33.0":
-  version "1.33.0"
-  resolved "https://registry.yarnpkg.com/@metamask/contract-metadata/-/contract-metadata-1.33.0.tgz#3f0501d5c6d9119ce09c1edb075fc0a8fed7d09c"
-  integrity sha512-sWfzsUe59UH2Y1A7czRjhPmYrWlg4UQDOUPdf+lY7kbXwYrlF/ZUvhQYajdgJVchv2yDzr+cFhWF7DmNb5NyTQ==
+"@metamask/contract-metadata@^1.35.0":
+  version "1.35.0"
+  resolved "https://registry.yarnpkg.com/@metamask/contract-metadata/-/contract-metadata-1.35.0.tgz#2bf2b8f2b6fdbd5132f0bcfa594b6c02dc71c42e"
+  integrity sha512-zfZKwLFOVrQS8vTFoeoNCG9JhqmK4oyembGiGVVpUAYD9BHVZnd9WpicGoUC07ROXLEyQuAK9AJZNBtqwwzfEQ==
 
-"@metamask/controllers@^29.0.1":
-  version "29.0.1"
-  resolved "https://registry.yarnpkg.com/@metamask/controllers/-/controllers-29.0.1.tgz#8b6d066a23877c82de005ce566b7fd6bbaa7cc13"
-  integrity sha512-jOZiaOg9E0Th2Pq75kRNMtKmku7dba6KVvKA5olEd7YB+2tzCkBh+TU16RAS1RUQzGXahWvt+kXDV/FLFa2ixg==
+"@metamask/controllers@^30.0.0":
+  version "30.0.0"
+  resolved "https://registry.yarnpkg.com/@metamask/controllers/-/controllers-30.0.0.tgz#35b38039532bd401977b25e61121766f4285d850"
+  integrity sha512-KDewzkKqAbxzZl09gmPCMnRtVAQyJmTBzswHd4Z/5PkcM/zioduqCoaXMiTcePUYJR5uotGaA6CV2xgJxBNusA==
   dependencies:
     "@ethereumjs/common" "^2.3.1"
     "@ethereumjs/tx" "^3.2.1"
     "@keystonehq/metamask-airgapped-keyring" "^0.3.0"
-    "@metamask/contract-metadata" "^1.33.0"
+    "@metamask/contract-metadata" "^1.35.0"
     "@metamask/metamask-eth-abis" "3.0.0"
     "@metamask/types" "^1.1.0"
     "@types/uuid" "^8.3.0"
@@ -1128,7 +1128,7 @@
     eth-json-rpc-infura "^5.1.0"
     eth-keyring-controller "^7.0.2"
     eth-method-registry "1.1.0"
-    eth-phishing-detect "^1.1.16"
+    eth-phishing-detect "^1.2.0"
     eth-query "^2.1.2"
     eth-rpc-errors "^4.0.0"
     eth-sig-util "^3.0.0"
@@ -3116,10 +3116,10 @@ eth-method-registry@1.1.0:
   dependencies:
     ethjs "^0.3.0"
 
-eth-phishing-detect@^1.1.16:
-  version "1.1.16"
-  resolved "https://registry.yarnpkg.com/eth-phishing-detect/-/eth-phishing-detect-1.1.16.tgz#637158d5774819e1a861f6d169e6d77d076a47fd"
-  integrity sha512-/o9arK5qFOKVdfZK9hJVAQP0eKXjAvImIKNBMfF9Nj1HGicD3wfsVuXDu1OHrxuEi6+4kYtD9wyAn/3G7g7VrA==
+eth-phishing-detect@^1.2.0:
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/eth-phishing-detect/-/eth-phishing-detect-1.2.0.tgz#11b357776b2d1b98a9ac594a1343e5184fc26bf0"
+  integrity sha512-+M7D4dhu5tkSA9b5eiBwDeJCjwy+7Lv49nuTEw8fNZIZUAVZC3d2XHatBq1MOW7J8kxNGbBdgBuIf65opI7Tkg==
   dependencies:
     fast-levenshtein "^2.0.6"
 
