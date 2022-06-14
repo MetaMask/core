@@ -1753,7 +1753,6 @@ __metadata:
   resolution: "@metamask/controllers-monorepo@workspace:."
   dependencies:
     "@lavamoat/allow-scripts": ^2.0.2
-    "@metamask/auto-changelog": ^2.6.0
     "@metamask/eslint-config": ^9.0.0
     "@metamask/eslint-config-jest": ^9.0.0
     "@metamask/eslint-config-nodejs": ^9.0.0
