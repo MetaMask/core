@@ -21,6 +21,7 @@
     "dist/"
   ],
   "scripts": {
+    "doc": "typedoc && touch docs/.nojekyll",
     "test": "jest && jest-it-up",
     "test:watch": "jest --watch"
   },
@@ -54,6 +55,8 @@
     "nock": "^13.0.7",
     "sinon": "^9.2.4",
     "ts-jest": "^26.5.2",
+    "typedoc": "^0.22.15",
+    "typedoc-plugin-missing-exports": "^0.22.6",
     "typescript": "~4.6.3"
   },
   "engines": {
