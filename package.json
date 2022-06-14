@@ -17,7 +17,7 @@
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore",
     "prepack": "yarn build",
     "setup": "yarn install",
-    "test": "yarn workspaces foreach --parallel --interlaced --jobs 3 --verbose run test"
+    "test": "yarn workspaces foreach --verbose run test"
   },
   "dependencies": {
     "@lavamoat/allow-scripts": "^2.0.2",
