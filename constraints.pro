@@ -4,21 +4,15 @@
 % "description" is required for all workspaces.
 \+ gen_enforced_field(WorkspaceCwd, 'description', null).
 
-% "repository" must be unset for non-publishable workspaces.
-gen_enforced_field(WorkspaceCwd, 'repository', null) :-
-  workspace_field(WorkspaceCwd, 'private', true).
+% "repository.type" must be "git" for all workspaces (including the root).
+gen_enforced_field(WorkspaceCwd, 'repository.type', 'git').
 
-% "repository.type" must be "git" for publishable workspaces.
-gen_enforced_field(WorkspaceCwd, 'repository.type', 'git') :-
-  workspace_field(WorkspaceCwd, 'private', null).
-
-% "repository.type" must start with "git@github.com:mcmire/" for publishable
-% workspaces.
-% TODO
+% "repository.type" must start with "git@github.com:mcmire/" for all workspaces
+% (including the root).
+% TODO: Figure this out
 %atom_starts_with(Atom, Prefix) :-
   %sub_atom(Atom, _, _, _, Prefix).
 %gen_enforced_field(WorkspaceCwd, 'repository.url', RepoUrl) :-
-  %\+ workspace_field(WorkspaceCwd, 'private', true),
   %atom_starts_with(RepoUrl, 'git@github.com:mcmire/').
 
 % "license" must be "MIT" for all publishable workspaces and unset for the

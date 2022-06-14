@@ -23,7 +23,8 @@
   "scripts": {
     "doc": "typedoc && touch docs/.nojekyll",
     "test": "./scripts/test.sh",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "changelog:validate": "./scripts/validate-changelog.sh"
   },
   "dependencies": {
     "@metamask/base-controller": "workspace:~",
@@ -46,6 +47,7 @@
     "web3": "^0.20.7"
   },
   "devDependencies": {
+    "@metamask/auto-changelog": "^2.6.0",
     "@types/jest": "^26.0.22",
     "deepmerge": "^4.2.2",
     "ethereumjs-util": "^7.1.4",

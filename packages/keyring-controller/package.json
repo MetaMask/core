@@ -23,7 +23,8 @@
   "scripts": {
     "doc": "typedoc && touch docs/.nojekyll",
     "test": "./scripts/test.sh",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "changelog:validate": "./scripts/validate-changelog.sh"
   },
   "dependencies": {
     "@keystonehq/metamask-airgapped-keyring": "^0.3.0",
@@ -41,6 +42,7 @@
     "@ethereumjs/common": "^2.3.1",
     "@ethereumjs/tx": "^3.2.1",
     "@keystonehq/bc-ur-registry-eth": "^0.9.0",
+    "@metamask/auto-changelog": "^2.6.0",
     "@types/jest": "^26.0.22",
     "deepmerge": "^4.2.2",
     "jest": "^26.4.2",

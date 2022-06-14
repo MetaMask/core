@@ -3,6 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/controllers.git"
+  },
   "workspaces": [
     "packages/*"
   ],
@@ -10,7 +14,8 @@
     "build": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn rimraf './**/*.tsbuildinfo' './dist'",
     "build:watch": "yarn build --watch",
-    "doc": "yarn workspaces foreach --parallel --interlaced --jobs 3 --verbose run doc",
+    "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
+    "doc": "yarn workspaces foreach --parallel --interlaced --verbose run doc",
     "lint": "yarn lint:eslint && yarn lint:misc --check",
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
@@ -21,7 +26,6 @@
   },
   "dependencies": {
     "@lavamoat/allow-scripts": "^2.0.2",
-    "@metamask/auto-changelog": "^2.6.0",
     "@metamask/eslint-config": "^9.0.0",
     "@metamask/eslint-config-jest": "^9.0.0",
     "@metamask/eslint-config-nodejs": "^9.0.0",

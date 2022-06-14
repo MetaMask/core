@@ -23,12 +23,14 @@
   "scripts": {
     "doc": "typedoc && touch docs/.nojekyll",
     "test": "./scripts/test.sh",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "changelog:validate": "./scripts/validate-changelog.sh"
   },
   "dependencies": {
     "immer": "^9.0.6"
   },
   "devDependencies": {
+    "@metamask/auto-changelog": "^2.6.0",
     "@types/jest": "^26.0.22",
     "@types/sinon": "^9.0.10",
     "deepmerge": "^4.2.2",

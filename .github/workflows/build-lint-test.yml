@@ -34,12 +34,8 @@ jobs:
       - run: yarn build
       - run: yarn lint
       - run: yarn test --maxWorkers=1 --forceExit
-      - name: Validate RC changelog
-        if: ${{ startsWith(github.ref, 'release/') }}
-        run: yarn auto-changelog validate --rc
-      - name: Validate changelog
-        if: ${{ !startsWith(github.ref, 'release/') }}
-        run: yarn auto-changelog validate
+      - name: Validate changelogs
+        run: yarn changelog:validate
   all-jobs-pass:
     name: All jobs pass
     runs-on: ubuntu-20.04

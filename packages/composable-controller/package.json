@@ -23,10 +23,12 @@
   "scripts": {
     "doc": "typedoc && touch docs/.nojekyll",
     "test": "./scripts/test.sh",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "changelog:validate": "./scripts/validate-changelog.sh"
   },
   "devDependencies": {
     "@metamask/assets-controllers": "workspace:~",
+    "@metamask/auto-changelog": "^2.6.0",
     "@metamask/base-controller": "workspace:~",
     "@metamask/network-controller": "workspace:~",
     "@metamask/third-party-controllers": "workspace:~",

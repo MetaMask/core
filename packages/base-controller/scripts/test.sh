@@ -1,3 +1,1 @@
-#!/bin/sh
-
-jest "$@" && jest-it-up
+../../../scripts/test.sh
