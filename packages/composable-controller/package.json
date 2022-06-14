@@ -22,7 +22,7 @@
   ],
   "scripts": {
     "doc": "typedoc && touch docs/.nojekyll",
-    "test": "jest && jest-it-up",
+    "test": "./scripts/test.sh",
     "test:watch": "jest --watch"
   },
   "devDependencies": {
