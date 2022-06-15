@@ -24,7 +24,7 @@ import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
-import { MAINNET } from './constants';
+import { MAINNET, GANACHE_CHAIN_ID } from './constants';
 import { Json } from './BaseControllerV2';
 
 const TIMEOUT_ERROR = new Error('timeout');
@@ -983,7 +983,6 @@ export enum SupportedTokenDetectionNetworks {
   bsc = '56',
   polygon = '137',
   avax = '43114',
-  local = '1337',
 }
 
 /**
@@ -995,6 +994,19 @@ export enum SupportedTokenDetectionNetworks {
 export function isTokenDetectionSupportedForNetwork(chainId: string): boolean {
   return Object.values<string>(SupportedTokenDetectionNetworks).includes(
     chainId,
+  );
+}
+
+/**
+ * Check if token list polling is enabled for a given network.
+ * Currently this method is used to support e2e testing for consumers of this package.
+ *
+ * @param chainId - ChainID of network
+ * @returns Whether the current network supports tokenlists
+ */
+export function isTokenListSupportedForNetwork(chainId: string): boolean {
+  return (
+    isTokenDetectionSupportedForNetwork(chainId) || chainId === GANACHE_CHAIN_ID
   );
 }
 

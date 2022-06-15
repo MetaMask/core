@@ -1,6 +1,7 @@
 import 'isomorphic-fetch';
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
+import { GANACHE_CHAIN_ID } from './constants';
 import * as util from './util';
 import {
   Transaction,
@@ -1288,5 +1289,33 @@ describe('isTokenDetectionSupportedForNetwork', () => {
     expect(
       util.isTokenDetectionSupportedForNetwork(NetworksChainId.ropsten),
     ).toBe(false);
+  });
+});
+
+describe('isTokenListSupportedForNetwork', () => {
+  it('returns true for Mainnet', () => {
+    expect(
+      util.isTokenListSupportedForNetwork(
+        util.SupportedTokenDetectionNetworks.mainnet,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns true for ganache local network', () => {
+    expect(util.isTokenListSupportedForNetwork(GANACHE_CHAIN_ID)).toBe(true);
+  });
+
+  it('returns true for custom network such as Polygon', () => {
+    expect(
+      util.isTokenListSupportedForNetwork(
+        util.SupportedTokenDetectionNetworks.polygon,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns false for testnets such as Ropsten', () => {
+    expect(util.isTokenListSupportedForNetwork(NetworksChainId.ropsten)).toBe(
+      false,
+    );
   });
 });
