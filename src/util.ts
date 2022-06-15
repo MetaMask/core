@@ -983,6 +983,7 @@ export enum SupportedTokenDetectionNetworks {
   bsc = '56',
   polygon = '137',
   avax = '43114',
+  local = '1337',
 }
 
 /**
