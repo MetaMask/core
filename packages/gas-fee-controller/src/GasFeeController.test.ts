@@ -15,7 +15,10 @@ import determineGasFeeCalculations from './determineGasFeeCalculations';
 jest.mock('./determineGasFeeCalculations');
 
 const mockedDetermineGasFeeCalculations =
-  determineGasFeeCalculations as jest.Mock<any>;
+  determineGasFeeCalculations as jest.Mock<
+    ReturnType<typeof determineGasFeeCalculations>,
+    Parameters<typeof determineGasFeeCalculations>
+  >;
 
 const name = 'GasFeeController';
 

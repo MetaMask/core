@@ -84,7 +84,8 @@ module.exports = {
   // ],
 
   // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
-  // NOTE: This must be synchronized with the `paths` option in `tsconfig.packages.json`
+  // Here we ensure that Jest resolves `@metamask/*` imports to the uncompiled source code for packages that live in this repo.
+  // NOTE: This must be synchronized with the `paths` option in `tsconfig.packages.json`.
   moduleNameMapper: {
     '^@metamask/(.+)$': [
       '<rootDir>/../$1/src',
@@ -104,9 +105,9 @@ module.exports = {
   // notifyMode: "failure-change",
 
   // A preset that is used as a base for Jest's configuration
-  // Here we're telling ts-jest to run JavaScript code through babel-jest
-  // because some of our dependencies (e.g. ethjs-*) ship with uncompiled
-  // JavaScript.
+  // Here we're telling ts-jest to run JavaScript code through TypeScript
+  // because some of our dependencies (e.g. multiformats, ethjs-*) ship with
+  // uncompiled JavaScript or JavaScript that uses ESM format.
   preset: 'ts-jest/presets/js-with-ts',
 
   // Run tests from one or more projects
@@ -193,11 +194,7 @@ module.exports = {
   // transform: undefined,
 
   // An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
-  transformIgnorePatterns: [
-    // Transform multiformats as it ships as ESM for the browser version
-    '/node_modules/(?!multiformats/)',
-    '\\.pnp\\.[^\\/]+$',
-  ],
+  // transformIgnorePatterns: undefined
 
   // An array of regexp pattern strings that are matched against all modules before the module loader will automatically return a mock for them
   // unmockedModulePathPatterns: undefined,

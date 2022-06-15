@@ -1,7 +1,6 @@
 import type { Patch } from 'immer';
 import sinon from 'sinon';
-
-import { ControllerMessenger } from '.';
+import { ControllerMessenger } from './ControllerMessenger';
 
 describe('ControllerMessenger', () => {
   afterEach(() => {

@@ -1,5 +1,5 @@
 import sinon from 'sinon';
-import { BaseController, BaseConfig, BaseState } from '.';
+import { BaseController, BaseConfig, BaseState } from './BaseController';
 
 const STATE = { name: 'foo' };
 const CONFIG = { disabled: true };

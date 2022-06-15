@@ -7,7 +7,6 @@ import {
   RejectRequest as RejectApprovalRequest,
 } from '@metamask/approval-controller';
 import { Json, ControllerMessenger } from '@metamask/base-controller';
-
 import { hasProperty, isPlainObject } from '@metamask/controller-utils';
 import * as errors from './errors';
 import { EndowmentGetterParams } from './Permission';
@@ -30,6 +29,7 @@ import {
   RestrictedMethodParameters,
   ValidPermission,
 } from '.';
+
 // Caveat types and specifications
 
 const CaveatTypes = {

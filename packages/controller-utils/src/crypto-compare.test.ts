@@ -1,4 +1,3 @@
-import 'isomorphic-fetch';
 import nock from 'nock';
 import { fetchExchangeRate } from './crypto-compare';
 

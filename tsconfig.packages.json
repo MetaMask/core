@@ -4,10 +4,9 @@
     "esModuleInterop": true,
     "module": "CommonJS",
     "moduleResolution": "node",
-    /* NOTE: This must be synchronized with the `moduleNameMapper` option in `jest.config.packages.json` */
+    /* Here we ensure that TypeScript resolves `@metamask/*` imports to the uncompiled source code for packages that live in this repo. */
+    /* NOTE: This must be synchronized with the `moduleNameMapper` option in `jest.config.packages.js`. */
     "paths": { "@metamask/*": ["../*/src"] },
-    /* We can't enable noEmit because when our subpackages refer to other packages TypeScript will give us a warning */
-    /* "noEmit": true, */
     "strict": true,
     "target": "es6"
   }

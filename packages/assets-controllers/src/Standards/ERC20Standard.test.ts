@@ -21,7 +21,6 @@ describe('ERC20Standard', () => {
 
   afterAll(() => {
     nock.enableNetConnect();
-    // nock.restore();
   });
 
   it('should get correct token symbol for a given ERC20 contract address', async () => {

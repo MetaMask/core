@@ -1,11 +1,14 @@
 import type { Draft, Patch } from 'immer';
 import sinon from 'sinon';
-
 import {
   ControllerMessenger,
   RestrictedControllerMessenger,
 } from './ControllerMessenger';
-import { BaseControllerV2, getAnonymizedState, getPersistentState } from '.';
+import {
+  BaseController,
+  getAnonymizedState,
+  getPersistentState,
+} from './BaseControllerV2';
 
 const countControllerName = 'CountController';
 
@@ -60,7 +63,7 @@ function getCountMessenger(
   });
 }
 
-class CountController extends BaseControllerV2<
+class CountController extends BaseController<
   typeof countControllerName,
   CountControllerState,
   CountMessenger
@@ -658,7 +661,7 @@ describe('getPersistentState', () => {
       never,
       never
     >;
-    class VisitorController extends BaseControllerV2<
+    class VisitorController extends BaseController<
       typeof visitorName,
       VisitorControllerState,
       VisitorMessenger
@@ -723,7 +726,7 @@ describe('getPersistentState', () => {
       `${typeof visitorName}:stateChange`
     >;
 
-    class VisitorOverflowController extends BaseControllerV2<
+    class VisitorOverflowController extends BaseController<
       typeof visitorOverflowName,
       VisitorOverflowControllerState,
       VisitorOverflowMessenger
