@@ -792,8 +792,21 @@ export const isEIP1559Transaction = (transaction: Transaction): boolean => {
   );
 };
 
-export const convertHexToDecimal = (value: string | undefined): number =>
-  parseInt(value === undefined ? '0x0' : value, 16);
+/**
+ * Converts valid hex strings to decimal numbers, and handles unexpected arg types.
+ *
+ * @param value - a string that is either a hexadecimal with `0x` prefix or a decimal string.
+ * @returns a decimal number.
+ */
+export const convertHexToDecimal = (
+  value: string | undefined = '0x0',
+): number => {
+  if (isHexString(value)) {
+    return parseInt(value, 16);
+  }
+
+  return Number(value) ? Number(value) : 0;
+};
 
 export const getIncreasedPriceHex = (value: number, rate: number): string =>
   addHexPrefix(`${parseInt(`${value * rate}`, 10).toString(16)}`);
@@ -1005,8 +1018,10 @@ export function isTokenDetectionSupportedForNetwork(chainId: string): boolean {
  * @returns Whether the current network supports tokenlists
  */
 export function isTokenListSupportedForNetwork(chainId: string): boolean {
+  const chainIdDecimal = convertHexToDecimal(chainId).toString();
   return (
-    isTokenDetectionSupportedForNetwork(chainId) || chainId === GANACHE_CHAIN_ID
+    isTokenDetectionSupportedForNetwork(chainIdDecimal) ||
+    chainIdDecimal === GANACHE_CHAIN_ID
   );
 }
 

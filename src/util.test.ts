@@ -972,6 +972,14 @@ describe('util', () => {
     it('should return zero when undefined', () => {
       expect(util.convertHexToDecimal(undefined)).toStrictEqual(0);
     });
+
+    it('should return a decimal string as the same decimal number', () => {
+      expect(util.convertHexToDecimal('1611')).toStrictEqual(1611);
+    });
+
+    it('should return 0 when passed an invalid hex string', () => {
+      expect(util.convertHexToDecimal('0x12398u12')).toStrictEqual(0);
+    });
   });
 
   describe('getIncreasedPriceHex', () => {
@@ -1293,12 +1301,16 @@ describe('isTokenDetectionSupportedForNetwork', () => {
 });
 
 describe('isTokenListSupportedForNetwork', () => {
-  it('returns true for Mainnet', () => {
+  it('returns true for Mainnet when chainId is passed as a decimal string', () => {
     expect(
       util.isTokenListSupportedForNetwork(
         util.SupportedTokenDetectionNetworks.mainnet,
       ),
     ).toBe(true);
+  });
+
+  it('returns true for Mainnet when chainId is passed as a hexadecimal string', () => {
+    expect(util.isTokenListSupportedForNetwork('0x1')).toBe(true);
   });
 
   it('returns true for ganache local network', () => {
