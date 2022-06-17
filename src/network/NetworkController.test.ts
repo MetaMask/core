@@ -1,5 +1,4 @@
 import sinon from 'sinon';
-import { TESTNET_TICKER_SYMBOLS } from 'src/constants';
 import Web3ProviderEngine from 'web3-provider-engine';
 import {
   NetworkController,

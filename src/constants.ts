@@ -31,9 +31,8 @@ export const ASSET_TYPES = {
 };
 
 type tickerType = {
-  [key: string]: string
-}
-
+  [key: string]: string;
+};
 
 // TICKER SYMBOLS
 export const TESTNET_TICKER_SYMBOLS: tickerType = {
