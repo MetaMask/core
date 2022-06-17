@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [30.0.2]
-### Uncategorized
-- Add local ganache network chainId as a SupportedTokenListNetwork ([#855](https://github.com/MetaMask/controllers/pull/855))
+### Added
+- Adds method `isTokenListSupportedForNetwork` which returns `SupportedTokenDetectionNetworks` plus the local ganache network chainId. Then changes TokenListController to use this method to check whether or not to start polling, so that polling can occur on ganache networks to allow for e2e testing ([#855](https://github.com/MetaMask/controllers/pull/855))
 
 ## [30.0.1]
 ### Fixed
