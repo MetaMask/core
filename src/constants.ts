@@ -30,8 +30,12 @@ export const ASSET_TYPES = {
   UNKNOWN: 'UNKNOWN',
 };
 
+type tickerType = {
+  [key: string]: string;
+};
+
 // TICKER SYMBOLS
-export const TESTNET_TICKER_SYMBOLS = {
+export const TESTNET_TICKER_SYMBOLS: tickerType = {
   RINKEBY: 'RinkebyETH',
   GOERLI: 'GoerliETH',
   ROPSTEN: 'RopstenETH',
