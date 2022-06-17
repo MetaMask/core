@@ -792,7 +792,7 @@ export const isEIP1559Transaction = (transaction: Transaction): boolean => {
   );
 };
 
-export const convertPriceToDecimal = (value: string | undefined): number =>
+export const convertHexToDecimal = (value: string | undefined): number =>
   parseInt(value === undefined ? '0x0' : value, 16);
 
 export const getIncreasedPriceHex = (value: number, rate: number): string =>
@@ -802,7 +802,7 @@ export const getIncreasedPriceFromExisting = (
   value: string | undefined,
   rate: number,
 ): string => {
-  return getIncreasedPriceHex(convertPriceToDecimal(value), rate);
+  return getIncreasedPriceHex(convertHexToDecimal(value), rate);
 };
 
 export const validateGasValues = (
@@ -838,8 +838,8 @@ export const isGasPriceValue = (
  * @throws Will throw if the proposed value is too low.
  */
 export function validateMinimumIncrease(proposed: string, min: string) {
-  const proposedDecimal = convertPriceToDecimal(proposed);
-  const minDecimal = convertPriceToDecimal(min);
+  const proposedDecimal = convertHexToDecimal(proposed);
+  const minDecimal = convertHexToDecimal(min);
   if (proposedDecimal >= minDecimal) {
     return proposed;
   }
@@ -991,7 +991,7 @@ export enum SupportedTokenDetectionNetworks {
  * @param chainId - ChainID of network
  * @returns Whether the current network supports token detection
  */
-export function isTokenDetectionEnabledForNetwork(chainId: string): boolean {
+export function isTokenDetectionSupportedForNetwork(chainId: string): boolean {
   return Object.values<string>(SupportedTokenDetectionNetworks).includes(
     chainId,
   );

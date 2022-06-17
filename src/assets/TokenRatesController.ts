@@ -42,6 +42,7 @@ export interface Token {
   address: string;
   decimals: number;
   symbol: string;
+  aggregators?: string[];
   image?: string;
   balanceError?: unknown;
   isERC721?: boolean;
@@ -196,8 +197,8 @@ export class TokenRatesController extends BaseController<
     };
     this.initialize();
     this.configure({ disabled: false }, false, false);
-    onTokensStateChange((tokensState) => {
-      this.configure({ tokens: tokensState.tokens });
+    onTokensStateChange(({ tokens, detectedTokens }) => {
+      this.configure({ tokens: [...tokens, ...detectedTokens] });
     });
 
     onCurrencyRateStateChange((currencyRateState) => {
