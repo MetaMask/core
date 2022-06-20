@@ -1,6 +1,7 @@
 import 'isomorphic-fetch';
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
+import { GANACHE_CHAIN_ID } from './constants';
 import * as util from './util';
 import {
   Transaction,
@@ -963,15 +964,21 @@ describe('util', () => {
     });
   });
 
-  describe('convertPriceToDecimal', () => {
+  describe('convertHexToDecimal', () => {
     it('should convert hex price to decimal', () => {
-      expect(util.convertPriceToDecimal('0x50fd51da')).toStrictEqual(
-        1358778842,
-      );
+      expect(util.convertHexToDecimal('0x50fd51da')).toStrictEqual(1358778842);
     });
 
     it('should return zero when undefined', () => {
-      expect(util.convertPriceToDecimal(undefined)).toStrictEqual(0);
+      expect(util.convertHexToDecimal(undefined)).toStrictEqual(0);
+    });
+
+    it('should return a decimal string as the same decimal number', () => {
+      expect(util.convertHexToDecimal('1611')).toStrictEqual(1611);
+    });
+
+    it('should return 0 when passed an invalid hex string', () => {
+      expect(util.convertHexToDecimal('0x12398u12')).toStrictEqual(0);
     });
   });
 
@@ -1269,10 +1276,10 @@ describe('isValidJson', () => {
   });
 });
 
-describe('isTokenDetectionEnabledForNetwork', () => {
+describe('isTokenDetectionSupportedForNetwork', () => {
   it('returns true for Mainnet', () => {
     expect(
-      util.isTokenDetectionEnabledForNetwork(
+      util.isTokenDetectionSupportedForNetwork(
         util.SupportedTokenDetectionNetworks.mainnet,
       ),
     ).toBe(true);
@@ -1280,7 +1287,7 @@ describe('isTokenDetectionEnabledForNetwork', () => {
 
   it('returns true for custom network such as BSC', () => {
     expect(
-      util.isTokenDetectionEnabledForNetwork(
+      util.isTokenDetectionSupportedForNetwork(
         util.SupportedTokenDetectionNetworks.bsc,
       ),
     ).toBe(true);
@@ -1288,7 +1295,39 @@ describe('isTokenDetectionEnabledForNetwork', () => {
 
   it('returns false for testnets such as Ropsten', () => {
     expect(
-      util.isTokenDetectionEnabledForNetwork(NetworksChainId.ropsten),
+      util.isTokenDetectionSupportedForNetwork(NetworksChainId.ropsten),
     ).toBe(false);
+  });
+});
+
+describe('isTokenListSupportedForNetwork', () => {
+  it('returns true for Mainnet when chainId is passed as a decimal string', () => {
+    expect(
+      util.isTokenListSupportedForNetwork(
+        util.SupportedTokenDetectionNetworks.mainnet,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns true for Mainnet when chainId is passed as a hexadecimal string', () => {
+    expect(util.isTokenListSupportedForNetwork('0x1')).toBe(true);
+  });
+
+  it('returns true for ganache local network', () => {
+    expect(util.isTokenListSupportedForNetwork(GANACHE_CHAIN_ID)).toBe(true);
+  });
+
+  it('returns true for custom network such as Polygon', () => {
+    expect(
+      util.isTokenListSupportedForNetwork(
+        util.SupportedTokenDetectionNetworks.polygon,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns false for testnets such as Ropsten', () => {
+    expect(util.isTokenListSupportedForNetwork(NetworksChainId.ropsten)).toBe(
+      false,
+    );
   });
 });

@@ -1,8 +1,9 @@
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
-import { safelyExecute, timeoutFetch, toChecksumHexAddress } from '../util';
-import { MAINNET } from '../constants';
+import { fetchWithErrorHandling, toChecksumHexAddress } from '../util';
+import { MAINNET, OPENSEA_PROXY_URL, OPENSEA_API_URL } from '../constants';
+
 import type {
   CollectiblesController,
   CollectiblesState,
@@ -131,35 +132,57 @@ export class CollectibleDetectionController extends BaseController<
 > {
   private intervalId?: NodeJS.Timeout;
 
-  private getOwnerCollectiblesApi(address: string, offset: number) {
-    return `https://api.opensea.io/api/v1/assets?owner=${address}&offset=${offset}&limit=50`;
+  private getOwnerCollectiblesApi({
+    address,
+    offset,
+    useProxy,
+  }: {
+    address: string;
+    offset: number;
+    useProxy: boolean;
+  }) {
+    return useProxy
+      ? `${OPENSEA_PROXY_URL}/assets?owner=${address}&offset=${offset}&limit=50`
+      : `${OPENSEA_API_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
   }
 
   private async getOwnerCollectibles(address: string) {
-    let response: Response;
-    let collectibles: any = [];
+    let collectiblesApiResponse: { assets: ApiCollectible[] };
+    let collectibles: ApiCollectible[] = [];
     const openSeaApiKey = this.getOpenSeaApiKey();
-    try {
-      let offset = 0;
-      let pagingFinish = false;
-      /* istanbul ignore if */
-      do {
-        const api = this.getOwnerCollectiblesApi(address, offset);
-        response = await timeoutFetch(
-          api,
-          openSeaApiKey ? { headers: { 'X-API-KEY': openSeaApiKey } } : {},
-          15000,
-        );
-        const collectiblesArray = await response.json();
-        collectiblesArray.assets?.length !== 0
-          ? (collectibles = [...collectibles, ...collectiblesArray.assets])
-          : (pagingFinish = true);
-        offset += 50;
-      } while (!pagingFinish);
-    } catch (e) {
-      /* istanbul ignore next */
-      return [];
-    }
+    let offset = 0;
+    let pagingFinish = false;
+    /* istanbul ignore if */
+    do {
+      collectiblesApiResponse = await fetchWithErrorHandling({
+        url: this.getOwnerCollectiblesApi({ address, offset, useProxy: true }),
+        timeout: 15000,
+      });
+
+      if (openSeaApiKey && !collectiblesApiResponse) {
+        collectiblesApiResponse = await fetchWithErrorHandling({
+          url: this.getOwnerCollectiblesApi({
+            address,
+            offset,
+            useProxy: false,
+          }),
+          options: { headers: { 'X-API-KEY': openSeaApiKey } },
+          timeout: 15000,
+          // catch 403 errors (in case API key is down we don't want to blow up)
+          errorCodesToCatch: [403],
+        });
+      }
+
+      if (!collectiblesApiResponse) {
+        return collectibles;
+      }
+
+      collectiblesApiResponse?.assets?.length !== 0
+        ? (collectibles = [...collectibles, ...collectiblesApiResponse.assets])
+        : (pagingFinish = true);
+      offset += 50;
+    } while (!pagingFinish);
+
     return collectibles;
   }
 
@@ -312,72 +335,71 @@ export class CollectibleDetectionController extends BaseController<
       return;
     }
 
-    await safelyExecute(async () => {
-      const apiCollectibles = await this.getOwnerCollectibles(selectedAddress);
-      const addCollectiblesPromises = apiCollectibles.map(
-        async (collectible: ApiCollectible) => {
-          const {
-            token_id,
-            num_sales,
-            background_color,
-            image_url,
-            image_preview_url,
-            image_thumbnail_url,
-            image_original_url,
-            animation_url,
-            animation_original_url,
-            name,
-            description,
-            external_link,
-            creator,
-            asset_contract: { address, schema_name },
-            last_sale,
-          } = collectible;
+    const apiCollectibles = await this.getOwnerCollectibles(selectedAddress);
+    const addCollectiblesPromises = apiCollectibles.map(
+      async (collectible: ApiCollectible) => {
+        const {
+          token_id,
+          num_sales,
+          background_color,
+          image_url,
+          image_preview_url,
+          image_thumbnail_url,
+          image_original_url,
+          animation_url,
+          animation_original_url,
+          name,
+          description,
+          external_link,
+          creator,
+          asset_contract: { address, schema_name },
+          last_sale,
+        } = collectible;
 
-          let ignored;
-          /* istanbul ignore else */
-          const { ignoredCollectibles } = this.getCollectiblesState();
-          if (ignoredCollectibles.length) {
-            ignored = ignoredCollectibles.find((c) => {
-              /* istanbul ignore next */
-              return (
-                c.address === toChecksumHexAddress(address) &&
-                c.tokenId === token_id
-              );
-            });
-          }
-
-          /* istanbul ignore else */
-          if (!ignored) {
+        let ignored;
+        /* istanbul ignore else */
+        const { ignoredCollectibles } = this.getCollectiblesState();
+        if (ignoredCollectibles.length) {
+          ignored = ignoredCollectibles.find((c) => {
             /* istanbul ignore next */
-            const collectibleMetadata: CollectibleMetadata = Object.assign(
-              {},
-              { name },
-              creator && { creator },
-              description && { description },
-              image_url && { image: image_url },
-              num_sales && { numberOfSales: num_sales },
-              background_color && { backgroundColor: background_color },
-              image_preview_url && { imagePreview: image_preview_url },
-              image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
-              image_original_url && { imageOriginal: image_original_url },
-              animation_url && { animation: animation_url },
-              animation_original_url && {
-                animationOriginal: animation_original_url,
-              },
-              schema_name && { standard: schema_name },
-              external_link && { externalLink: external_link },
-              last_sale && { lastSale: last_sale },
+            return (
+              c.address === toChecksumHexAddress(address) &&
+              c.tokenId === token_id
             );
-            await this.addCollectible(address, token_id, collectibleMetadata, {
-              userAddress: selectedAddress,
-              chainId: chainId as string,
-            });
-          }
-        },
-      );
-      await Promise.all(addCollectiblesPromises);
-    });
+          });
+        }
+
+        /* istanbul ignore else */
+        if (!ignored) {
+          /* istanbul ignore next */
+          const collectibleMetadata: CollectibleMetadata = Object.assign(
+            {},
+            { name },
+            creator && { creator },
+            description && { description },
+            image_url && { image: image_url },
+            num_sales && { numberOfSales: num_sales },
+            background_color && { backgroundColor: background_color },
+            image_preview_url && { imagePreview: image_preview_url },
+            image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
+            image_original_url && { imageOriginal: image_original_url },
+            animation_url && { animation: animation_url },
+            animation_original_url && {
+              animationOriginal: animation_original_url,
+            },
+            schema_name && { standard: schema_name },
+            external_link && { externalLink: external_link },
+            last_sale && { lastSale: last_sale },
+          );
+
+          await this.addCollectible(address, token_id, collectibleMetadata, {
+            userAddress: selectedAddress,
+            chainId: chainId as string,
+          });
+        }
+      },
+    );
+    await Promise.all(addCollectiblesPromises);
   }
 }
 

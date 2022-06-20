@@ -1,3 +1,4 @@
+import { convertHexToDecimal } from '../util';
 import { Collectible, CollectibleMetadata } from './CollectiblesController';
 
 /**
@@ -82,8 +83,8 @@ export const formatAggregatorNames = (aggregators: string[]) => {
  * Format token list assets to use image proxy from Codefi.
  *
  * @param params - Object that contains chainID and tokenAddress.
- * @param params.chainId - ChainID of network.
- * @param params.tokenAddress - Address of token in lowercase.
+ * @param params.chainId - ChainID of network in decimal or hexadecimal format.
+ * @param params.tokenAddress - Address of token in mixed or lowercase.
  * @returns Formatted image url
  */
 export const formatIconUrlWithProxy = ({
@@ -93,5 +94,6 @@ export const formatIconUrlWithProxy = ({
   chainId: string;
   tokenAddress: string;
 }) => {
-  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainId}/${tokenAddress}.png`;
+  const chainIdDecimal = convertHexToDecimal(chainId).toString();
+  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
