@@ -3,7 +3,7 @@ import { Mutex } from 'async-mutex';
 import { AbortController } from 'abort-controller';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
-import { safelyExecute, isTokenDetectionSupportedForNetwork } from '../util';
+import { safelyExecute, isTokenListSupportedForNetwork } from '../util';
 import { fetchTokenList } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
@@ -145,7 +145,7 @@ export class TokenListController extends BaseController<
    * Start polling for the token list.
    */
   async start() {
-    if (!isTokenDetectionSupportedForNetwork(this.chainId)) {
+    if (!isTokenListSupportedForNetwork(this.chainId)) {
       return;
     }
     await this.startPolling();

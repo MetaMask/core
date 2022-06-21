@@ -1,4 +1,3 @@
-import { isHexString } from 'ethereumjs-util';
 import { convertHexToDecimal } from '../util';
 import { Collectible, CollectibleMetadata } from './CollectiblesController';
 
@@ -95,9 +94,6 @@ export const formatIconUrlWithProxy = ({
   chainId: string;
   tokenAddress: string;
 }) => {
-  let chainIdDec = chainId;
-  if (isHexString(chainId)) {
-    chainIdDec = convertHexToDecimal(chainId).toString();
-  }
-  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainIdDec}/${tokenAddress.toLowerCase()}.png`;
+  const chainIdDecimal = convertHexToDecimal(chainId).toString();
+  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
