@@ -24,7 +24,7 @@ import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
-import { MAINNET } from './constants';
+import { MAINNET, GANACHE_CHAIN_ID } from './constants';
 import { Json } from './BaseControllerV2';
 
 const TIMEOUT_ERROR = new Error('timeout');
@@ -792,8 +792,21 @@ export const isEIP1559Transaction = (transaction: Transaction): boolean => {
   );
 };
 
-export const convertHexToDecimal = (value: string | undefined): number =>
-  parseInt(value === undefined ? '0x0' : value, 16);
+/**
+ * Converts valid hex strings to decimal numbers, and handles unexpected arg types.
+ *
+ * @param value - a string that is either a hexadecimal with `0x` prefix or a decimal string.
+ * @returns a decimal number.
+ */
+export const convertHexToDecimal = (
+  value: string | undefined = '0x0',
+): number => {
+  if (isHexString(value)) {
+    return parseInt(value, 16);
+  }
+
+  return Number(value) ? Number(value) : 0;
+};
 
 export const getIncreasedPriceHex = (value: number, rate: number): string =>
   addHexPrefix(`${parseInt(`${value * rate}`, 10).toString(16)}`);
@@ -994,6 +1007,21 @@ export enum SupportedTokenDetectionNetworks {
 export function isTokenDetectionSupportedForNetwork(chainId: string): boolean {
   return Object.values<string>(SupportedTokenDetectionNetworks).includes(
     chainId,
+  );
+}
+
+/**
+ * Check if token list polling is enabled for a given network.
+ * Currently this method is used to support e2e testing for consumers of this package.
+ *
+ * @param chainId - ChainID of network
+ * @returns Whether the current network supports tokenlists
+ */
+export function isTokenListSupportedForNetwork(chainId: string): boolean {
+  const chainIdDecimal = convertHexToDecimal(chainId).toString();
+  return (
+    isTokenDetectionSupportedForNetwork(chainIdDecimal) ||
+    chainIdDecimal === GANACHE_CHAIN_ID
   );
 }
 

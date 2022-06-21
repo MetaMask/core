@@ -5,6 +5,7 @@ export const IPFS_DEFAULT_GATEWAY_URL = 'https://cloudflare-ipfs.com/ipfs/';
 
 // NETWORKS ID
 export const RINKEBY_CHAIN_ID = '4';
+export const GANACHE_CHAIN_ID = '1337';
 
 // TOKEN STANDARDS
 export const ERC721 = 'ERC721';
