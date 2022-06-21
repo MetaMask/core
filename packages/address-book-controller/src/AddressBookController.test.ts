@@ -1,4 +1,4 @@
-import { AddressBookController } from './AddressBookController';
+import { AddressBookController, AddressType } from './AddressBookController';
 
 describe('AddressBookController', () => {
   it('should set default state', () => {
@@ -32,7 +32,7 @@ describe('AddressBookController', () => {
       'foo',
       '1',
       'account 1',
-      'EXTERNALLY_OWNED_ACCOUNTS',
+      AddressType.externallyOwnedAccounts,
     );
 
     expect(controller.state).toStrictEqual({
@@ -44,7 +44,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: 'account 1',
             name: 'foo',
-            addressType: 'EXTERNALLY_OWNED_ACCOUNTS',
+            addressType: AddressType.externallyOwnedAccounts,
           },
         },
       },
@@ -58,7 +58,7 @@ describe('AddressBookController', () => {
       'foo',
       '1',
       'account 2',
-      'EXTERNALLY_OWNED_ACCOUNTS',
+      AddressType.externallyOwnedAccounts,
     );
 
     controller.set(
@@ -66,7 +66,7 @@ describe('AddressBookController', () => {
       'foo',
       '2',
       'account 2',
-      'EXTERNALLY_OWNED_ACCOUNTS',
+      AddressType.externallyOwnedAccounts,
     );
 
     expect(controller.state).toStrictEqual({
@@ -78,7 +78,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: 'account 2',
             name: 'foo',
-            addressType: 'EXTERNALLY_OWNED_ACCOUNTS',
+            addressType: AddressType.externallyOwnedAccounts,
           },
         },
         2: {
@@ -88,7 +88,7 @@ describe('AddressBookController', () => {
             isEns: false,
             memo: 'account 2',
             name: 'foo',
-            addressType: 'EXTERNALLY_OWNED_ACCOUNTS',
+            addressType: AddressType.externallyOwnedAccounts,
           },
         },
       },

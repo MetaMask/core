@@ -23,6 +23,11 @@ export interface ContactEntry {
   importTime?: number;
 }
 
+export enum AddressType {
+  externallyOwnedAccounts = 'EXTERNALLY_OWNED_ACCOUNTS',
+  contractAccounts = 'CONTRACT_ACCOUNTS',
+}
+
 /**
  * @type AddressBookEntry
  *
