@@ -6,6 +6,7 @@ import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { safelyExecute, isTokenListSupportedForNetwork } from '../util';
 import { fetchTokenList } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
+import { PreferencesState } from '../user/PreferencesController';
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
 
 const DEFAULT_INTERVAL = 24 * 60 * 60 * 1000;
@@ -84,6 +85,10 @@ export class TokenListController extends BaseController<
 
   private chainId: string;
 
+  private useTokenDetection: boolean;
+
+  private avoidThirdPartyFetchInExtension: boolean;
+
   private abortController: AbortController;
 
   /**
@@ -91,7 +96,10 @@ export class TokenListController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
+   * @param options.useTokenDetection - Indicates whether token detection in turned ON by the user(this is specifically for extension).
+   * @param options.avoidThirdPartyFetchInExtension - Indicates whether the request came from extension.
    * @param options.onNetworkStateChange - A function for registering an event handler for network state changes.
+   * @param options.onPreferencesStateChange -A function for registering an event handler for preference state changes.
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
    * @param options.messenger - A restricted controller messenger.
@@ -99,15 +107,23 @@ export class TokenListController extends BaseController<
    */
   constructor({
     chainId,
+    useTokenDetection = true,
+    avoidThirdPartyFetchInExtension = false,
     onNetworkStateChange,
+    onPreferencesStateChange,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
     messenger,
     state,
   }: {
     chainId: string;
+    useTokenDetection: boolean;
+    avoidThirdPartyFetchInExtension: boolean;
     onNetworkStateChange: (
       listener: (networkState: NetworkState) => void,
+    ) => void;
+    onPreferencesStateChange: (
+      listener: (preferencesState: PreferencesState) => void,
     ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
@@ -123,6 +139,8 @@ export class TokenListController extends BaseController<
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
+    this.useTokenDetection = useTokenDetection;
+    this.avoidThirdPartyFetchInExtension = avoidThirdPartyFetchInExtension;
     this.abortController = new AbortController();
     onNetworkStateChange(async (networkState) => {
       if (this.chainId !== networkState.provider.chainId) {
@@ -139,6 +157,29 @@ export class TokenListController extends BaseController<
         await this.restart();
       }
     });
+
+    onPreferencesStateChange(async (preferencesState) => {
+      if (this.avoidThirdPartyFetchInExtension) {
+        if (this.useTokenDetection !== preferencesState.useTokenDetection) {
+          this.abortController.abort();
+          this.abortController = new AbortController();
+          this.useTokenDetection = preferencesState.useTokenDetection;
+          if (preferencesState.useTokenDetection) {
+            await this.restart();
+          } else {
+            this.stop();
+            // Ensure tokenList is referencing data from correct network
+            this.update(() => {
+              return {
+                ...this.state,
+                tokenList: {},
+                tokensChainsCache: {},
+              };
+            });
+          }
+        }
+      }
+    });
   }
 
   /**
@@ -148,6 +189,18 @@ export class TokenListController extends BaseController<
     if (!isTokenListSupportedForNetwork(this.chainId)) {
       return;
     }
+
+    if (this.avoidThirdPartyFetchInExtension && !this.useTokenDetection) {
+      this.update(() => {
+        return {
+          ...this.state,
+          tokenList: {},
+          tokensChainsCache: {},
+        };
+      });
+      return;
+    }
+
     await this.startPolling();
   }
 

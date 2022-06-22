@@ -6,6 +6,7 @@ import {
   NetworkController,
   NetworksChainId,
 } from '../network/NetworkController';
+import { PreferencesController } from '../user/PreferencesController';
 import {
   TokenListController,
   TokenListStateChange,
@@ -489,8 +490,10 @@ function getRestrictedMessenger() {
 
 describe('TokenListController', () => {
   let network: NetworkController;
+  let preferences: PreferencesController;
   beforeEach(() => {
     network = new NetworkController();
+    preferences = new PreferencesController();
   });
 
   afterEach(() => {
@@ -502,7 +505,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
 
@@ -518,7 +524,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: existingState,
     });
@@ -562,7 +571,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -582,7 +594,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -606,7 +621,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -632,7 +650,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -661,7 +682,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -684,7 +708,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.localhost,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       interval: 100,
       messenger,
     });
@@ -706,7 +733,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
     await controller.start();
@@ -742,7 +772,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       interval: 100,
     });
@@ -764,7 +797,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: existingState,
     });
@@ -790,7 +826,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
     await controller.start();
@@ -831,7 +870,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
     });
     await controller.start();
@@ -853,7 +895,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: outdatedExistingState,
     });
@@ -879,7 +924,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: expiredCacheExistingState,
     });
@@ -912,7 +960,10 @@ describe('TokenListController', () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: false,
+      useTokenDetection: true,
       onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       messenger,
       state: existingState,
       interval: 100,
@@ -962,6 +1013,55 @@ describe('TokenListController', () => {
 
     expect(controller.state.tokensChainsCache['56'].data).toStrictEqual(
       sampleTwoChainState.tokensChainsCache['56'].data,
+    );
+
+    controller.destroy();
+  });
+
+  it('should not fetch from the third party api when the extension user turn off token detection', async () => {
+    const messenger = getRestrictedMessenger();
+    const controller = new TokenListController({
+      chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: true,
+      useTokenDetection: false,
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      messenger,
+      state: existingState,
+    });
+    expect(controller.state).toStrictEqual(existingState);
+    await controller.start();
+    expect(controller.state.tokenList).toStrictEqual({});
+    expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+    controller.destroy();
+  });
+
+  it('should fetch from the third party api when the extension user turn ON token detection', async () => {
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .reply(200, sampleMainnetTokenList)
+      .persist();
+    const messenger = getRestrictedMessenger();
+    const controller = new TokenListController({
+      chainId: NetworksChainId.mainnet,
+      avoidThirdPartyFetchInExtension: true,
+      useTokenDetection: true,
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      messenger,
+      state: existingState,
+    });
+    expect(controller.state).toStrictEqual(existingState);
+    await controller.start();
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleSingleChainState.tokenList,
+    );
+
+    expect(
+      controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
+    ).toStrictEqual(
+      sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
 
     controller.destroy();
