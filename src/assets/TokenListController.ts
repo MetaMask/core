@@ -1,10 +1,9 @@
 import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
-// eslint-disable-next-line import/no-named-as-default
-import AbortController from 'abort-controller';
+import { AbortController } from 'abort-controller';
 import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
-import { safelyExecute, isTokenDetectionEnabledForNetwork } from '../util';
+import { safelyExecute, isTokenListSupportedForNetwork } from '../util';
 import { fetchTokenList } from '../apis/token-service';
 import { NetworkState } from '../network/NetworkController';
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
@@ -54,7 +53,7 @@ type TokenListMessenger = RestrictedControllerMessenger<
   GetTokenListState,
   TokenListStateChange,
   never,
-  never
+  TokenListStateChange['type']
 >;
 
 const metadata = {
@@ -146,7 +145,7 @@ export class TokenListController extends BaseController<
    * Start polling for the token list.
    */
   async start() {
-    if (!isTokenDetectionEnabledForNetwork(this.chainId)) {
+    if (!isTokenListSupportedForNetwork(this.chainId)) {
       return;
     }
     await this.startPolling();

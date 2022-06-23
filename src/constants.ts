@@ -5,6 +5,7 @@ export const IPFS_DEFAULT_GATEWAY_URL = 'https://cloudflare-ipfs.com/ipfs/';
 
 // NETWORKS ID
 export const RINKEBY_CHAIN_ID = '4';
+export const GANACHE_CHAIN_ID = '1337';
 
 // TOKEN STANDARDS
 export const ERC721 = 'ERC721';
@@ -37,3 +38,9 @@ export const TESTNET_TICKER_SYMBOLS = {
   ROPSTEN: 'RopstenETH',
   KOVAN: 'KovanETH',
 };
+
+// APIs
+export const OPENSEA_PROXY_URL =
+  'https://proxy.metaswap.codefi.network/opensea/v1/api/v1';
+export const OPENSEA_API_URL = 'https://api.opensea.io/api/v1';
+export const OPENSEA_TEST_API_URL = 'https://testnets-api.opensea.io/api/v1';

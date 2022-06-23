@@ -1,5 +1,6 @@
 import sinon from 'sinon';
 import nock from 'nock';
+import { TOKEN_END_POINT_API } from '../apis/token-service';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
   NetworkController,
@@ -14,7 +15,6 @@ import {
 } from './TokenListController';
 
 const name = 'TokenListController';
-const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
 const timestamp = Date.now();
 
 const sampleMainnetTokenList = [
