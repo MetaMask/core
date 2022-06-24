@@ -307,8 +307,7 @@ export class TokenListController extends BaseController<
   }
 
   /**
-   * Clears the tokenList and tokensChainsCache from extension 
-   * when token detection is OFF
+   * Clearing tokenList and tokensChainsCache explicitly.
    */
   clearingTokenListData(): void {
     this.update(() => {
@@ -321,8 +320,9 @@ export class TokenListController extends BaseController<
   }
 
   /**
-   * Updates preventPollingOnNetworkRestart from extension
-   * @param shouldPreventPolling 
+   * Updates preventPollingOnNetworkRestart from extension.
+   *
+   * @param shouldPreventPolling - Determine whether to prevent polling on network change
    */
   updatePreventPollingOnNetworkRestart(shouldPreventPolling: boolean): void {
     this.update(() => {
