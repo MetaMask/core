@@ -28,6 +28,7 @@ import {
   isFeeMarketEIP1559Values,
   validateGasValues,
   validateMinimumIncrease,
+  getMethodFrom4Byte,
 } from '../util';
 import { MAINNET, RPC } from '../constants';
 
@@ -281,8 +282,12 @@ export class TransactionController extends BaseController<
 
   private async registryLookup(fourBytePrefix: string): Promise<MethodData> {
     const registryMethod = await this.registry.lookup(fourBytePrefix);
-    const parsedRegistryMethod = this.registry.parse(registryMethod);
-    return { registryMethod, parsedRegistryMethod };
+    const methodFrom4Byte = await getMethodFrom4Byte(fourBytePrefix);
+    const method =
+      methodFrom4Byte <= registryMethod ? methodFrom4Byte : registryMethod;
+
+    const parsedRegistryMethod = this.registry.parse(method);
+    return { registryMethod: method, parsedRegistryMethod };
   }
 
   /**

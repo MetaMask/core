@@ -24,7 +24,7 @@ import { MessageParams } from './message-manager/MessageManager';
 import { PersonalMessageParams } from './message-manager/PersonalMessageManager';
 import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
-import { MAINNET, GANACHE_CHAIN_ID } from './constants';
+import { MAINNET, GANACHE_CHAIN_ID, DIRECTORY_4BYTE } from './constants';
 import { Json } from './BaseControllerV2';
 
 const TIMEOUT_ERROR = new Error('timeout');
@@ -1050,4 +1050,31 @@ function logOrRethrowError(error: any, codesToCatch: number[] = []) {
   } else {
     throw error;
   }
+}
+
+/**
+ * Gets Hex Signature from 4Byte directory.
+ *
+ * @param fourBytePrefix - something something
+ * @returns First text signature result
+ */
+export async function getMethodFrom4Byte(
+  fourBytePrefix: string,
+): Promise<string> {
+  const domain = 'signatures';
+  const fourByteResponse = await fetch(
+    `${DIRECTORY_4BYTE}/${domain}/?hex_signature=${fourBytePrefix}`,
+    {
+      referrerPolicy: 'no-referrer-when-downgrade',
+      body: null,
+      method: 'GET',
+      mode: 'cors',
+    },
+  );
+  fourByteResponse.results.sort((a: any, b: any) => {
+    return new Date(a.created_at).getTime() < new Date(b.created_at).getTime()
+      ? -1
+      : 1;
+  });
+  return fourByteResponse.results[0].text_signature;
 }

@@ -44,3 +44,4 @@ export const OPENSEA_PROXY_URL =
   'https://proxy.metaswap.codefi.network/opensea/v1/api/v1';
 export const OPENSEA_API_URL = 'https://api.opensea.io/api/v1';
 export const OPENSEA_TEST_API_URL = 'https://testnets-api.opensea.io/api/v1';
+export const DIRECTORY_4BYTE = 'https://www.4byte.directory/api/v1';
