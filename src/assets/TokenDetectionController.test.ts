@@ -134,6 +134,7 @@ describe('TokenDetectionController', () => {
     const messenger = getTokenListMessenger();
     tokenList = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      preventPollingOnNetworkRestart: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
       messenger,
     });
