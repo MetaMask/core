@@ -69,14 +69,12 @@ function setupController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) => network.subscribe(listener),
     getERC721AssetName: assetsContract.getERC721AssetName.bind(assetsContract),
-    getERC721AssetSymbol: assetsContract.getERC721AssetSymbol.bind(
-      assetsContract,
-    ),
+    getERC721AssetSymbol:
+      assetsContract.getERC721AssetSymbol.bind(assetsContract),
     getERC721TokenURI: assetsContract.getERC721TokenURI.bind(assetsContract),
     getERC721OwnerOf: assetsContract.getERC721OwnerOf.bind(assetsContract),
-    getERC1155BalanceOf: assetsContract.getERC1155BalanceOf.bind(
-      assetsContract,
-    ),
+    getERC1155BalanceOf:
+      assetsContract.getERC1155BalanceOf.bind(assetsContract),
     getERC1155TokenURI: assetsContract.getERC1155TokenURI.bind(assetsContract),
     onCollectibleAdded: onCollectibleAddedSpy,
   });
@@ -219,10 +217,9 @@ describe('CollectiblesController', () => {
     });
 
     it('should call onCollectibleAdded callback correctly when collectible is manually added', async () => {
-      const {
-        collectiblesController,
-        onCollectibleAddedSpy,
-      } = setupController({ includeOnCollectibleAdded: true });
+      const { collectiblesController, onCollectibleAddedSpy } = setupController(
+        { includeOnCollectibleAdded: true },
+      );
 
       await collectiblesController.addCollectible('0x01', '1', {
         name: 'name',
@@ -242,10 +239,9 @@ describe('CollectiblesController', () => {
     });
 
     it('should call onCollectibleAdded callback correctly when collectible is added via detection', async () => {
-      const {
-        collectiblesController,
-        onCollectibleAddedSpy,
-      } = setupController({ includeOnCollectibleAdded: true });
+      const { collectiblesController, onCollectibleAddedSpy } = setupController(
+        { includeOnCollectibleAdded: true },
+      );
 
       const detectedUserAddress = '0x123';
       await collectiblesController.addCollectible(
@@ -476,8 +472,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
-              data:
-                '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+              data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
             },
             'latest',
           ],
@@ -495,8 +490,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
-              data:
-                '0xc87b56dd00000000000000000000000000000000000000000000000000000000000004b3',
+              data: '0xc87b56dd00000000000000000000000000000000000000000000000000000000000004b3',
             },
             'latest',
           ],
@@ -595,8 +589,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
-              data:
-                '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+              data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
             },
             'latest',
           ],
@@ -614,8 +607,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
-              data:
-                '0x0e89341c5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+              data: '0x0e89341c5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
             },
             'latest',
           ],
@@ -726,8 +718,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
-              data:
-                '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+              data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
             },
             'latest',
           ],
@@ -745,8 +736,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
-              data:
-                '0xc87b56dd00000000000000000000000000000000000000000000000000000000000004b3',
+              data: '0xc87b56dd00000000000000000000000000000000000000000000000000000000000004b3',
             },
             'latest',
           ],
@@ -1037,8 +1027,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: '0x18E8E76aeB9E2d9FA2A2b88DD9CF3C8ED45c3660',
-              data:
-                '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+              data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
             },
             'latest',
           ],
@@ -1056,8 +1045,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: '0x18E8E76aeB9E2d9FA2A2b88DD9CF3C8ED45c3660',
-              data:
-                '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000024',
+              data: '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000024',
             },
             'latest',
           ],
@@ -1182,8 +1170,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: ERC721_COLLECTIBLE_ADDRESS,
-              data:
-                '0x0e89341c5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+              data: '0x0e89341c5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
             },
             'latest',
           ],
@@ -1203,8 +1190,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: ERC721_COLLECTIBLE_ADDRESS,
-              data:
-                '0xc87b56dd000000000000000000000000000000000000000000000000000000000011781a',
+              data: '0xc87b56dd000000000000000000000000000000000000000000000000000000000011781a',
             },
             'latest',
           ],
@@ -1488,8 +1474,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: ERC721_COLLECTIBLE_ADDRESS,
-              data:
-                '0x6352211e000000000000000000000000000000000000000000000000000000000011781a',
+              data: '0x6352211e000000000000000000000000000000000000000000000000000000000011781a',
             },
             'latest',
           ],
@@ -1520,8 +1505,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: ERC721_COLLECTIBLE_ADDRESS,
-              data:
-                '0x6352211e000000000000000000000000000000000000000000000000000000000011781a',
+              data: '0x6352211e000000000000000000000000000000000000000000000000000000000011781a',
             },
             'latest',
           ],
@@ -1552,8 +1536,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
-              data:
-                '0x6352211e5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+              data: '0x6352211e5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
             },
             'latest',
           ],
@@ -1570,8 +1553,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
-              data:
-                '0x00fdd58e0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+              data: '0x00fdd58e0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
             },
             'latest',
           ],
@@ -1601,8 +1583,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
-              data:
-                '0x6352211e5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+              data: '0x6352211e5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
             },
             'latest',
           ],
@@ -1619,8 +1600,7 @@ describe('CollectiblesController', () => {
           params: [
             {
               to: '0x495f947276749Ce646f68AC8c248420045cb7b5e',
-              data:
-                '0x00fdd58e00000000000000000000000000000000000000000000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
+              data: '0x00fdd58e00000000000000000000000000000000000000000000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
             },
             'latest',
           ],
@@ -2006,10 +1986,11 @@ describe('CollectiblesController', () => {
           .stub(collectiblesController, 'isCollectibleOwner' as any)
           .returns(false);
 
-        const updatedCollectible = await collectiblesController.checkAndUpdateSingleCollectibleOwnershipStatus(
-          collectible,
-          true,
-        );
+        const updatedCollectible =
+          await collectiblesController.checkAndUpdateSingleCollectibleOwnershipStatus(
+            collectible,
+            true,
+          );
 
         expect(
           collectiblesController.state.allCollectibles[selectedAddress][
@@ -2021,11 +2002,8 @@ describe('CollectiblesController', () => {
       });
 
       it('should check whether the passed collectible is still owned by the the selectedAddress/chainId combination passed in the accountParams argument and update its isCurrentlyOwned property in state, when the currently configured selectedAddress/chainId are different from those passed', async () => {
-        const {
-          collectiblesController,
-          network,
-          preferences,
-        } = setupController();
+        const { collectiblesController, network, preferences } =
+          setupController();
         const firstNetworkType = 'rinkeby';
         const secondNetworkType = 'ropsten';
 
@@ -2100,7 +2078,7 @@ describe('CollectiblesController', () => {
       standard: 'standard',
       favorite: false,
     };
-
+    const { collectiblesController } = setupController();
     const { selectedAddress, chainId } = collectiblesController.config;
 
     it('should return null if the collectible does not exist in the state', async () => {
@@ -2131,8 +2109,9 @@ describe('CollectiblesController', () => {
   });
 
   describe('updateCollectibleByAddressAndTokenId', () => {
-    const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
+    const { collectiblesController } = setupController();
 
+    const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
     const mockCollectible = {
       address: '0x02',
       tokenId: '1',
@@ -2191,6 +2170,8 @@ describe('CollectiblesController', () => {
   });
 
   describe('resetCollectibleTransactionStatusByTransactionId', () => {
+    const { collectiblesController } = setupController();
+
     const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
     const nonExistTransactionId = '0123';
 

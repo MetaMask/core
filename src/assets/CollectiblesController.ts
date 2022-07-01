@@ -1286,7 +1286,7 @@ export class CollectiblesController extends BaseController<
     address: string,
     tokenId: string,
     selectedAddress: string,
-    chainId: string
+    chainId: string,
   ): { collectible: Collectible; index: number } | null {
     const { allCollectibles } = this.state;
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
@@ -1312,14 +1312,19 @@ export class CollectiblesController extends BaseController<
    * @param selectedAddress - Hex address of the user account.
    * @param chainId - Id of the current network.
    */
-  updateCollectible(collectible: Collectible, updates: Partial<Collectible>, selectedAddress: string, chainId:string) {
+  updateCollectible(
+    collectible: Collectible,
+    updates: Partial<Collectible>,
+    selectedAddress: string,
+    chainId: string,
+  ) {
     const { allCollectibles } = this.state;
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
     const collectibleInfo = this.findCollectibleByAddressAndTokenId(
       collectible.address,
       collectible.tokenId,
       selectedAddress,
-      chainId
+      chainId,
     );
 
     if (!collectibleInfo) {
@@ -1356,7 +1361,7 @@ export class CollectiblesController extends BaseController<
   resetCollectibleTransactionStatusByTransactionId(
     transactionId: string,
     selectedAddress: string,
-    chainId: string
+    chainId: string,
   ): boolean {
     const { allCollectibles } = this.state;
     const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
