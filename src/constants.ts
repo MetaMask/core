@@ -1,4 +1,4 @@
-import { NetworkType } from "./network/NetworkController";
+import { NetworkType } from './network/NetworkController';
 
 export const MAINNET = 'mainnet';
 export const RPC = 'rpc';
