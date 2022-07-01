@@ -28,9 +28,9 @@
     "lint": "yarn lint:eslint && yarn lint:misc --check",
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
-    "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' --ignore-path .gitignore",
-    "prepublishOnly": "yarn build",
-    "setup": "yarn install && yarn allow-scripts",
+    "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore",
+    "prepack": "yarn build",
+    "setup": "yarn install",
     "test": "jest",
     "test:watch": "jest --watch"
   },
@@ -110,6 +110,7 @@
     "typedoc-plugin-missing-exports": "^0.22.6",
     "typescript": "~4.6.3"
   },
+  "packageManager": "yarn@3.2.1",
   "engines": {
     "node": ">=12.0.0"
   },
