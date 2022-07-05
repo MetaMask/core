@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.1.0]
+### Uncategorized
+- Making preventPollingOnNetworkRestart optional in TokenListController ([#865](https://github.com/MetaMask/controllers/pull/865))
+- Prevent third party token list polling in the Extension when token detection is OFF ([#861](https://github.com/MetaMask/controllers/pull/861))
+- Migrate from Yarn v1 to Yarn v3 ([#846](https://github.com/MetaMask/controllers/pull/846))
+
 ## [30.0.2]
 ### Added
 - Adds method `isTokenListSupportedForNetwork` which returns `SupportedTokenDetectionNetworks` plus the local ganache network chainId. Then changes TokenListController to use this method to check whether or not to start polling, so that polling can occur on ganache networks to allow for e2e testing ([#855](https://github.com/MetaMask/controllers/pull/855))
@@ -627,7 +633,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v30.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v30.1.0...HEAD
+[30.1.0]: https://github.com/MetaMask/controllers/compare/v30.0.2...v30.1.0
 [30.0.2]: https://github.com/MetaMask/controllers/compare/v30.0.1...v30.0.2
 [30.0.1]: https://github.com/MetaMask/controllers/compare/v30.0.0...v30.0.1
 [30.0.0]: https://github.com/MetaMask/controllers/compare/v29.0.1...v30.0.0
