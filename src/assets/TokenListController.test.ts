@@ -565,6 +565,23 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
+  it('should set initiate without preventPollingOnNetworkRestart', async () => {
+    const messenger = getRestrictedMessenger();
+    const controller = new TokenListController({
+      chainId: NetworksChainId.mainnet,
+      onNetworkStateChange: (listener) => network.subscribe(listener),
+      messenger,
+    });
+
+    expect(controller.state).toStrictEqual({
+      tokenList: {},
+      tokensChainsCache: {},
+      preventPollingOnNetworkRestart: false,
+    });
+
+    controller.destroy();
+  });
+
   it('should not poll before being started', async () => {
     const messenger = getRestrictedMessenger();
     const controller = new TokenListController({
