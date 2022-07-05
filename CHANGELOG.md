@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [30.1.0]
-### Uncategorized
-- Making preventPollingOnNetworkRestart optional in TokenListController ([#865](https://github.com/MetaMask/controllers/pull/865))
-- Prevent third party token list polling in the Extension when token detection is OFF ([#861](https://github.com/MetaMask/controllers/pull/861))
-- Migrate from Yarn v1 to Yarn v3 ([#846](https://github.com/MetaMask/controllers/pull/846))
+### Added
+- Allow clients to avoid third party tokenlist polling ([#861](https://github.com/MetaMask/controllers/pull/861)):
+  - Added a new configuration property `preventPollingOnNetworkRestart` is added to TokenListController.
+  - Added a method to update the new preventPollingOnNetworkRestart property value.
+  - Added a method to reset the `tokenList` and `tokensChainsCache` properties in state. 
 
 ## [30.0.2]
 ### Added
