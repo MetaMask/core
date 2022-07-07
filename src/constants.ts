@@ -1,5 +1,3 @@
-import { NetworkType } from './network/NetworkController';
-
 export const MAINNET = 'mainnet';
 export const RPC = 'rpc';
 export const FALL_BACK_VS_CURRENCY = 'ETH';
@@ -39,21 +37,6 @@ export const TESTNET_TICKER_SYMBOLS = {
   GOERLI: 'GoerliETH',
   ROPSTEN: 'RopstenETH',
   KOVAN: 'KovanETH',
-};
-
-// TYPED NetworkType TICKER SYMBOLS
-export const TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL: {
-  [K in NetworkType]: string;
-} = {
-  rinkeby: 'RinkebyETH',
-  goerli: 'GoerliETH',
-  ropsten: 'RopstenETH',
-  kovan: 'KovanETH',
-  mainnet: '',
-  rpc: '',
-  localhost: '',
-  optimism: '',
-  optimismTest: '',
 };
 
 // APIs
