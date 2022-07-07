@@ -111,7 +111,7 @@ export class TokenListController extends BaseController<
     state,
   }: {
     chainId: string;
-    preventPollingOnNetworkRestart: boolean;
+    preventPollingOnNetworkRestart?: boolean;
     onNetworkStateChange: (
       listener: (networkState: NetworkState) => void,
     ) => void;
