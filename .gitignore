@@ -12,6 +12,7 @@ package-lock.json
 
 .DS_STORE
 coverage
+dist
 docs
 
 # yarn v3 (w/o zero-install)
