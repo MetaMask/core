@@ -134,6 +134,7 @@ export class AccountTrackerController extends BaseController<
     const releaseLock = await this.mutex.acquire();
     interval && this.configure({ interval }, false, false);
     this.handle && clearTimeout(this.handle);
+    // explain(minhdoan): trigger refresh in every interval
     await this.refresh();
     this.handle = setTimeout(() => {
       releaseLock();
@@ -141,6 +142,7 @@ export class AccountTrackerController extends BaseController<
     }, this.config.interval);
   }
 
+  // explain(minhdoan): go through all accounts and do refresh
   /**
    * Refreshes all accounts in the current keychain.
    */

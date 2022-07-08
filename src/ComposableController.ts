@@ -15,6 +15,7 @@ export type ControllerList = (
   | { name: string; state: Record<string, unknown> }
 )[];
 
+// explain(minhdoan): compose nhieu controllers cung luc - see tests as example
 /**
  * Controller that can be used to compose multiple controllers together
  */

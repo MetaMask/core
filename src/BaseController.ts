@@ -23,6 +23,10 @@ export interface BaseState {
   name?: string;
 }
 
+// explain(minhdoan): BaseController cho tat ca cac controller kh'ac
+// controller luon chu'a config va state
+// controller co' the subsribe, unsubsribe
+// notify to call subscribed actions
 /**
  * Controller class that provides configuration, state management, and subscriptions
  */
@@ -166,6 +170,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
     return index > -1;
   }
 
+  // explain(minhdoan): notify all subscribed actions to execute if a state change happens
   /**
    * Updates controller state.
    *
@@ -176,6 +181,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
     this.internalState = overwrite
       ? Object.assign({}, state as S)
       : Object.assign({}, this.internalState, state);
+    // explain(minhdoan): notify here
     this.notify();
   }
 }

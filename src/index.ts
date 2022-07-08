@@ -7,6 +7,7 @@ export * from './approval/ApprovalController';
 export * from './assets/AssetsContractController';
 export * from './BaseController';
 export {
+  // explain(minhdoan): BaseControllerV2 implemented in BaseControllerV2 
   BaseController as BaseControllerV2,
   getPersistentState,
   getAnonymizedState,

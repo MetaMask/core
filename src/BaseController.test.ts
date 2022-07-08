@@ -47,6 +47,7 @@ describe('BaseController', () => {
     expect(controller.config).toStrictEqual({ disabled: false });
   });
 
+  // explain(minhdoan): example of notifying 
   it('should notify all listeners', () => {
     const controller = new TestController(undefined, STATE);
     const listenerOne = sinon.stub();

@@ -2,6 +2,8 @@ import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { toChecksumHexAddress } from '../util';
 import { ContactEntry } from './AddressBookController';
 
+// explain(minhdoan): rpc network information
+
 /**
  * Custom RPC network information
  *
@@ -19,6 +21,7 @@ export interface FrequentRpc {
   rpcPrefs?: RpcPreferences;
 }
 
+// explain(minhdoan): block explorer url
 /**
  * Custom RPC network preferences
  *
@@ -28,6 +31,8 @@ export interface RpcPreferences {
   blockExplorerUrl: string;
 }
 
+// explain(minhdoan): thông tin rpc, ipfs, lost identities,
+// current selected Address, useTokenDection, openSeaEnabled
 /**
  * @type PreferencesState
  *
@@ -84,6 +89,7 @@ export class PreferencesController extends BaseController<
     this.initialize();
   }
 
+  // explain(minhdoan): add them identities - tao new accounts tren metamask
   /**
    * Adds identities to state.
    *
@@ -107,6 +113,8 @@ export class PreferencesController extends BaseController<
     this.update({ identities: { ...identities } });
   }
 
+
+  // explain(minhdoan): remove accounts tren metamask
   /**
    * Removes an identity from state.
    *
@@ -190,6 +198,8 @@ export class PreferencesController extends BaseController<
     return this.state.selectedAddress;
   }
 
+  // explain(minhdoan): update lai identities, neu ma selected address unset hoac la identity do'
+  // removed thi se set la index 0
   /**
    * Generates and stores a new list of stored identities based on address. If the selected address
    * is unset, or if it refers to an identity that was removed, it will be set to the first
@@ -220,6 +230,7 @@ export class PreferencesController extends BaseController<
     this.update({ identities: { ...identities }, selectedAddress });
   }
 
+  // add new customized network
   /**
    * Adds custom RPC URL to state.
    *
@@ -254,6 +265,7 @@ export class PreferencesController extends BaseController<
     this.update({ frequentRpcList: [...frequentRpcList] });
   }
 
+  // remove 1 network
   /**
    * Removes custom RPC URL from state.
    *
@@ -270,6 +282,7 @@ export class PreferencesController extends BaseController<
     this.update({ frequentRpcList: [...frequentRpcList] });
   }
 
+  // chon select address
   /**
    * Sets selected address.
    *
