@@ -4,7 +4,11 @@ import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Mutex } from 'async-mutex';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
-import { MAINNET, RPC } from '../constants';
+import {
+  MAINNET,
+  RPC,
+  TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL,
+} from '../constants';
 
 /**
  * Human-readable network name
@@ -282,10 +286,22 @@ export class NetworkController extends BaseController<
   setProviderType(type: NetworkType) {
     const { rpcTarget, chainId, nickname, ...providerState } =
       this.state.provider;
+
+    // If testnet the ticker symbol should use a testnet prefix
+    const ticker =
+      type in TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL &&
+      TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
+        ? TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type]
+        : 'ETH';
+
     this.update({
       provider: {
         ...providerState,
-        ...{ type, ticker: 'ETH', chainId: NetworksChainId[type] },
+        ...{
+          type,
+          ticker,
+          chainId: NetworksChainId[type],
+        },
       },
     });
     this.refreshNetwork();

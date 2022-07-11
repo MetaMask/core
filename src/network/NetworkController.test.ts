@@ -147,6 +147,24 @@ describe('NetworkController', () => {
     expect(controller.state.isCustomNetwork).toBe(false);
   });
 
+  it('should set new testnet provider type', () => {
+    const controller = new NetworkController();
+    controller.config.infuraProjectId = '0x0000';
+    controller.setProviderType('rinkeby' as NetworkType);
+    expect(controller.state.provider.type).toBe('rinkeby');
+    expect(controller.state.provider.ticker).toBe('RinkebyETH');
+    expect(controller.state.isCustomNetwork).toBe(false);
+  });
+
+  it('should set mainnet provider type', () => {
+    const controller = new NetworkController();
+    controller.config.infuraProjectId = '0x0000';
+    controller.setProviderType('mainnet' as NetworkType);
+    expect(controller.state.provider.type).toBe('mainnet');
+    expect(controller.state.provider.ticker).toBe('ETH');
+    expect(controller.state.isCustomNetwork).toBe(false);
+  });
+
   it('should throw when setting an unrecognized provider type', () => {
     const controller = new NetworkController();
     expect(() => controller.setProviderType('junk' as NetworkType)).toThrow(
