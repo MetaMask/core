@@ -1,5 +1,5 @@
 import jsonDiffer from 'fast-json-patch';
-import { cloneDeep } from 'lodash';
+import _ from 'lodash';
 import { BigNumber } from 'bignumber.js';
 import { ethers } from 'ethers';
 import {
@@ -131,7 +131,7 @@ export function generateHistoryEntry(
   @returns {Object}
 */
 export function replayHistory(_shortHistory: any) {
-  const shortHistory = cloneDeep(_shortHistory);
+  const shortHistory = _.cloneDeep(_shortHistory);
   return shortHistory.reduce(
     (val: any, entry: any) => jsonDiffer.applyPatch(val, entry).newDocument,
   );
@@ -145,7 +145,7 @@ export function replayHistory(_shortHistory: any) {
 export function snapshotFromTxMeta(txMeta: any) {
   const shallow = { ...txMeta };
   delete shallow.history;
-  return cloneDeep(shallow);
+  return _.cloneDeep(shallow);
 }
 
 /**
@@ -162,17 +162,33 @@ export const getStxProcessingTime = (
   return Math.round((Date.now() - smartTransactionSubmittedtime) / 1000);
 };
 
+export const mapKeysToCamel = (
+  obj: Record<string, any>,
+): Record<string, any> => {
+  if (!_.isObject(obj)) {
+    return obj;
+  }
+  const mappedValues = _.mapValues(obj, (val: Record<string, any>) => {
+    if (_.isArray(val)) {
+      return val.map(mapKeysToCamel);
+    } else if (_.isObject(val)) {
+      return mapKeysToCamel(val);
+    }
+    return val;
+  });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  return _.mapKeys(mappedValues, (value, key) => _.camelCase(key));
+};
+
 export async function handleFetch(request: string, options?: RequestInit) {
   const response = await fetch(request, options);
   const json = await response.json();
   if (!response.ok) {
-    const { error: type, error_details: message } = json;
     console.log(`response`, response);
     throw new Error(
       `Fetch error:${JSON.stringify({
         status: response.status,
-        type,
-        message,
+        ...mapKeysToCamel(json),
       })}`,
     );
   }

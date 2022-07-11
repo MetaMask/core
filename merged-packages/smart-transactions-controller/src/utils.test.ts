@@ -245,4 +245,30 @@ describe('src/utils.js', () => {
       expect(incrementedNonce).toStrictEqual('0x57');
     });
   });
+
+  describe('mapKeysToCamel', () => {
+    it('returns keys and nested keys in camelCase', () => {
+      const errResponse = {
+        error_props: {
+          balance_needed_wei: 235105211121513150,
+          current_balance_wei: 230652394534126820,
+        },
+        error: 'not_enough_funds',
+        error_details:
+          'Not enough funds. Balance is only 230652394534126801 wei and we need 235105211121513136 wei at the very least.',
+      };
+      const errResponseCamelCase = utils.mapKeysToCamel(errResponse);
+      expect(errResponseCamelCase.errorProps.balanceNeededWei).toStrictEqual(
+        errResponse.error_props.balance_needed_wei,
+      );
+
+      expect(errResponseCamelCase.errorProps.currentBalanceWei).toStrictEqual(
+        errResponse.error_props.current_balance_wei,
+      );
+
+      expect(errResponseCamelCase.errorDetails).toStrictEqual(
+        errResponse.error_details,
+      );
+    });
+  });
 });
