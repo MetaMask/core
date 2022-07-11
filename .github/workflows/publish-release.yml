@@ -34,9 +34,7 @@ jobs:
       - uses: actions/cache@v3
         id: restore-build
         with:
-          path: |
-            ./dist
-            ./node_modules
+          path: ./dist
           key: ${{ github.sha }}
 
   publish-npm-dry-run:
@@ -49,9 +47,7 @@ jobs:
       - uses: actions/cache@v3
         id: restore-build
         with:
-          path: |
-            ./dist
-            ./node_modules
+          path: ./dist
           key: ${{ github.sha }}
         # Set `ignore-scripts` to skip `prepublishOnly` because the release was built already in the previous job
       - run: npm config set ignore-scripts true
@@ -72,9 +68,7 @@ jobs:
       - uses: actions/cache@v3
         id: restore-build
         with:
-          path: |
-            ./dist
-            ./node_modules
+          path: ./dist
           key: ${{ github.sha }}
         # Set `ignore-scripts` to skip `prepublishOnly` because the release was built already in the previous job
       - run: npm config set ignore-scripts true
