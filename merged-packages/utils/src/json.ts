@@ -1,5 +1,11 @@
 import deepEqual from 'fast-deep-equal';
-import { hasProperty } from './misc';
+import {
+  calculateNumberSize,
+  calculateStringSize,
+  hasProperty,
+  isPlainObject,
+  JsonSize,
+} from './misc';
 
 /**
  * Any JSON-compatible value.
@@ -265,4 +271,157 @@ export function getJsonRpcIdValidator(options?: JsonRpcValidatorOptions) {
     );
   };
   return isValidJsonRpcId;
+}
+
+/**
+ * Checks whether a value is JSON serializable and counts the total number
+ * of bytes needed to store the serialized version of the value.
+ *
+ * @param jsObject - Potential JSON serializable object.
+ * @param skipSizingProcess - Skip JSON size calculation (default: false).
+ * @returns Tuple [isValid, plainTextSizeInBytes] containing a boolean that signals whether
+ * the value was serializable and a number of bytes that it will use when serialized to JSON.
+ */
+export function validateJsonAndGetSize(
+  jsObject: unknown,
+  skipSizingProcess = false,
+): [isValid: boolean, plainTextSizeInBytes: number] {
+  const seenObjects = new Set();
+  /**
+   * Checks whether a value is JSON serializable and counts the total number
+   * of bytes needed to store the serialized version of the value.
+   *
+   * This function assumes the encoding of the JSON is done in UTF-8.
+   *
+   * @param value - Potential JSON serializable value.
+   * @param skipSizing - Skip JSON size calculation (default: false).
+   * @returns Tuple [isValid, plainTextSizeInBytes] containing a boolean that signals whether
+   * the value was serializable and a number of bytes that it will use when serialized to JSON.
+   */
+  function getJsonSerializableInfo(
+    value: unknown,
+    skipSizing: boolean,
+  ): [isValid: boolean, plainTextSizeInBytes: number] {
+    if (value === undefined) {
+      // Return zero for undefined, since these are omitted from JSON serialization
+      return [true, 0];
+    } else if (value === null) {
+      // Return already specified constant size for null (special object)
+      return [true, skipSizing ? 0 : JsonSize.Null];
+    }
+
+    // Check and calculate sizes for basic (and some special) types
+    const typeOfValue = typeof value;
+    try {
+      if (typeOfValue === 'function') {
+        return [false, 0];
+      } else if (typeOfValue === 'string' || value instanceof String) {
+        return [
+          true,
+          skipSizing
+            ? 0
+            : calculateStringSize(value as string) + JsonSize.Quote * 2,
+        ];
+      } else if (typeOfValue === 'boolean' || value instanceof Boolean) {
+        if (skipSizing) {
+          return [true, 0];
+        }
+        // eslint-disable-next-line eqeqeq
+        return [true, value == true ? JsonSize.True : JsonSize.False];
+      } else if (typeOfValue === 'number' || value instanceof Number) {
+        if (skipSizing) {
+          return [true, 0];
+        }
+        return [true, calculateNumberSize(value as number)];
+      } else if (value instanceof Date) {
+        if (skipSizing) {
+          return [true, 0];
+        }
+        return [
+          true,
+          // Note: Invalid dates will serialize to null
+          isNaN(value.getDate())
+            ? JsonSize.Null
+            : JsonSize.Date + JsonSize.Quote * 2,
+        ];
+      }
+    } catch (_) {
+      return [false, 0];
+    }
+
+    // If object is not plain and cannot be serialized properly,
+    // stop here and return false for serialization
+    if (!isPlainObject(value) && !Array.isArray(value)) {
+      return [false, 0];
+    }
+
+    // Circular object detection (handling)
+    // Check if the same object already exists
+    if (seenObjects.has(value)) {
+      return [false, 0];
+    }
+    // Add new object to the seen objects set
+    // Only the plain objects should be added (Primitive types are skipped)
+    seenObjects.add(value);
+
+    // Continue object decomposition
+    try {
+      return [
+        true,
+        Object.entries(value).reduce(
+          (sum, [key, nestedValue], idx, arr) => {
+            // Recursively process next nested object or primitive type
+            // eslint-disable-next-line prefer-const
+            let [valid, size] = getJsonSerializableInfo(
+              nestedValue,
+              skipSizing,
+            );
+            if (!valid) {
+              throw new Error(
+                'JSON validation did not pass. Validation process stopped.',
+              );
+            }
+
+            // Circular object detection
+            // Once a child node is visited and processed remove it from the set.
+            // This will prevent false positives with the same adjacent objects.
+            seenObjects.delete(value);
+
+            if (skipSizing) {
+              return 0;
+            }
+
+            // If the size is 0, the value is undefined and undefined in an array
+            // when serialized will be replaced with null
+            if (size === 0 && Array.isArray(value)) {
+              size = JsonSize.Null;
+            }
+
+            // If the size is 0, that means the object is undefined and
+            // the rest of the object structure will be omitted
+            if (size === 0) {
+              return sum;
+            }
+
+            // Objects will have be serialized with "key": value,
+            // therefore we include the key in the calculation here
+            const keySize = Array.isArray(value)
+              ? 0
+              : key.length + JsonSize.Comma + JsonSize.Colon * 2;
+
+            const separator = idx < arr.length - 1 ? JsonSize.Comma : 0;
+
+            return sum + keySize + size + separator;
+          },
+          // Starts at 2 because the serialized JSON string data (plain text)
+          // will minimally contain {}/[]
+          skipSizing ? 0 : JsonSize.Wrapper * 2,
+        ),
+      ];
+    } catch (_) {
+      return [false, 0];
+    }
+  }
+
+  return getJsonSerializableInfo(jsObject, skipSizingProcess);
 }

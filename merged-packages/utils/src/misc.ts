@@ -92,3 +92,86 @@ export const hasProperty = (
   object: RuntimeObject,
   name: string | number | symbol,
 ): boolean => Object.hasOwnProperty.call(object, name);
+
+export type PlainObject = Record<number | string | symbol, unknown>;
+
+/**
+ * Predefined sizes (in Bytes) of specific parts of JSON structure.
+ */
+export enum JsonSize {
+  Null = 4,
+  Comma = 1,
+  Wrapper = 1,
+  True = 4,
+  False = 5,
+  Quote = 1,
+  Colon = 1,
+  Date = 24,
+}
+
+/**
+ * Regular expression with pattern matching for (special) escaped characters.
+ */
+export const ESCAPE_CHARACTERS_REGEXP = /"|\\|\n|\r|\t/gu;
+
+/**
+ * Check if the value is plain object.
+ *
+ * @param value - Value to be checked.
+ * @returns True if an object is the plain JavaScript object,
+ * false if the object is not plain (e.g. function).
+ */
+export function isPlainObject(value: unknown): value is PlainObject {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  try {
+    let proto = value;
+    while (Object.getPrototypeOf(proto) !== null) {
+      proto = Object.getPrototypeOf(proto);
+    }
+
+    return Object.getPrototypeOf(value) === proto;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Check if character is ASCII.
+ *
+ * @param character - Character.
+ * @returns True if a character code is ASCII, false if not.
+ */
+export function isASCII(character: string) {
+  return character.charCodeAt(0) <= 127;
+}
+
+/**
+ * Calculate string size.
+ *
+ * @param value - String value to calculate size.
+ * @returns Number of bytes used to store whole string value.
+ */
+export function calculateStringSize(value: string): number {
+  const size = value.split('').reduce((total, character) => {
+    if (isASCII(character)) {
+      return total + 1;
+    }
+    return total + 2;
+  }, 0);
+
+  // Also detect characters that need backslash escape
+  return size + (value.match(ESCAPE_CHARACTERS_REGEXP) ?? []).length;
+}
+
+/**
+ * Calculate size of a number ofter JSON serialization.
+ *
+ * @param value - Number value to calculate size.
+ * @returns Number of bytes used to store whole number in JSON.
+ */
+export function calculateNumberSize(value: number): number {
+  return value.toString().length;
+}
