@@ -468,6 +468,20 @@ export default class SmartTransactionsController extends BaseController<
     };
   }
 
+  clearFees(): Fees {
+    const fees = {
+      approvalTxFees: undefined,
+      tradeTxFees: undefined,
+    };
+    this.update({
+      smartTransactionsState: {
+        ...this.state.smartTransactionsState,
+        fees,
+      },
+    });
+    return fees;
+  }
+
   async getFees(
     tradeTx: UnsignedTransaction,
     approvalTx: UnsignedTransaction,
