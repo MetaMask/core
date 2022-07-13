@@ -1,6 +1,6 @@
 {
   "name": "@metamask/utils",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Various JavaScript/TypeScript utilities of wide relevance to the MetaMask codebase.",
   "repository": {
     "type": "git",
