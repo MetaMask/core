@@ -143,6 +143,7 @@ export class TokensController extends BaseController<
         this.config.chainId,
         tokenAddress,
         this.abortController.signal,
+        { timeout: 5000 },
       );
       return token;
     } catch (error) {
