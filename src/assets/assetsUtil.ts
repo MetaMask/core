@@ -97,3 +97,23 @@ export const formatIconUrlWithProxy = ({
   const chainIdDecimal = convertHexToDecimal(chainId).toString();
   return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
+
+/**
+ * Query for smart contract code at a given address.
+ *
+ * @param ethQuery - ethQuery rpc wrapper.
+ * @param address - Address at which to query for code.
+ * @returns an object containing the contract code if present and boolean value indicating whether the address points to smart contract
+ */
+export const readAddressAsContract = async (ethQuery: any, address: string) => {
+  let contractCode;
+  try {
+    contractCode = await ethQuery.getCode(address);
+  } catch (e) {
+    contractCode = null;
+  }
+
+  const isContractAddress =
+    contractCode && contractCode !== '0x' && contractCode !== '0x0';
+  return { contractCode, isContractAddress };
+};

@@ -1,6 +1,7 @@
 import { BN } from 'ethereumjs-util';
 import Web3 from 'web3';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
+import EthQuery from 'eth-query';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import { IPFS_DEFAULT_GATEWAY_URL } from '../constants';
@@ -9,6 +10,7 @@ import { NetworkState } from '../network/NetworkController';
 import { ERC721Standard } from './Standards/CollectibleStandards/ERC721/ERC721Standard';
 import { ERC1155Standard } from './Standards/CollectibleStandards/ERC1155/ERC1155Standard';
 import { ERC20Standard } from './Standards/ERC20Standard';
+import { readAddressAsContract } from './assetsUtil';
 
 /**
  * Check if token detection is enabled for certain networks
@@ -66,6 +68,8 @@ export class AssetsContractController extends BaseController<
   private erc1155Standard?: ERC1155Standard;
 
   private erc20Standard?: ERC20Standard;
+
+  private ethQuery?: any;
 
   /**
    * Name of this controller used during composition
@@ -126,6 +130,7 @@ export class AssetsContractController extends BaseController<
    */
   set provider(provider: any) {
     this.web3 = new Web3(provider);
+    this.ethQuery = new EthQuery(provider);
     this.erc721Standard = new ERC721Standard(this.web3);
     this.erc1155Standard = new ERC1155Standard(this.web3);
     this.erc20Standard = new ERC20Standard(this.web3);
@@ -214,6 +219,15 @@ export class AssetsContractController extends BaseController<
       this.erc20Standard === undefined
     ) {
       throw new Error(MISSING_PROVIDER_ERROR);
+    }
+
+    const { isContractAddress } = await readAddressAsContract(
+      this.ethQuery,
+      tokenAddress,
+    );
+
+    if (!isContractAddress) {
+      throw new Error('The address passed is not a smart contract');
     }
 
     const { ipfsGateway } = this.config;
