@@ -32,6 +32,9 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<string, string> = {
 export const MISSING_PROVIDER_ERROR =
   'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';
 
+export const NOT_SMART_CONTRACT_ERROR =
+  'The address passed is not a smart contract';
+
 /**
  * @type AssetsContractConfig
  *
@@ -227,7 +230,7 @@ export class AssetsContractController extends BaseController<
     );
 
     if (!isContractAddress) {
-      throw new Error('The address passed is not a smart contract');
+      throw new Error(NOT_SMART_CONTRACT_ERROR);
     }
 
     const { ipfsGateway } = this.config;

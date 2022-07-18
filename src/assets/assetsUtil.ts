@@ -1,4 +1,4 @@
-import { convertHexToDecimal } from '../util';
+import { convertHexToDecimal, query } from '../util';
 import { Collectible, CollectibleMetadata } from './CollectiblesController';
 
 /**
@@ -105,14 +105,16 @@ export const formatIconUrlWithProxy = ({
  * @param address - Address at which to query for code.
  * @returns an object containing the contract code if present and boolean value indicating whether the address points to smart contract
  */
-export const readAddressAsContract = async (ethQuery: any, address: string) => {
+export const readAddressAsContract = async (
+  ethQuery: any,
+  address: string,
+): Promise<{ contractCode: string | null; isContractAddress: boolean }> => {
   let contractCode;
   try {
-    contractCode = await ethQuery.getCode(address);
+    contractCode = await query(ethQuery, 'getCode', [address]);
   } catch (e) {
     contractCode = null;
   }
-
   const isContractAddress =
     contractCode && contractCode !== '0x' && contractCode !== '0x0';
   return { contractCode, isContractAddress };

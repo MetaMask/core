@@ -4,6 +4,7 @@ import { SupportedTokenDetectionNetworks } from '../util';
 import { PreferencesController } from '../user/PreferencesController';
 import { NetworkController } from '../network/NetworkController';
 import {
+  NOT_SMART_CONTRACT_ERROR,
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
 } from './AssetsContractController';
@@ -21,6 +22,7 @@ const ERC1155_ID =
 
 const TEST_ACCOUNT_PUBLIC_ADDRESS =
   '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
+
 describe('AssetsContractController', () => {
   let assetsContract: AssetsContractController;
   let preferences: PreferencesController;
@@ -62,6 +64,13 @@ describe('AssetsContractController', () => {
     expect(() => console.log(assetsContract.provider)).toThrow(
       'Property only used for setting',
     );
+  });
+
+  it('should throw not a smart contract error when attempting to get token standard and details for an EOA', async () => {
+    assetsContract.configure({ provider: MAINNET_PROVIDER });
+    await expect(
+      assetsContract.getTokenStandardAndDetails(TEST_ACCOUNT_PUBLIC_ADDRESS),
+    ).rejects.toThrow(NOT_SMART_CONTRACT_ERROR);
   });
 
   it('should throw missing provider error when getting ERC-20 token balance when missing provider', async () => {
@@ -117,13 +126,12 @@ describe('AssetsContractController', () => {
 
   it('should throw contract standard error when getting ERC-20 token standard and details when provided with invalid ERC-20 address', async () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const error = 'Unable to determine contract standard';
     await expect(
       assetsContract.getTokenStandardAndDetails(
         'BaDeRc20AdDrEsS',
         TEST_ACCOUNT_PUBLIC_ADDRESS,
       ),
-    ).rejects.toThrow(error);
+    ).rejects.toThrow(NOT_SMART_CONTRACT_ERROR);
   });
 
   it('should get ERC-721 token standard and details', async () => {
