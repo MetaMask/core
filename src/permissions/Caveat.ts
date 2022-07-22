@@ -76,15 +76,16 @@ export type CaveatDecorator<ParentCaveat extends CaveatConstraint> = (
  * @template Decorator - The {@link CaveatDecorator} to extract a caveat value
  * type from.
  */
-type ExtractCaveatValueFromDecorator<Decorator extends CaveatDecorator<any>> =
-  Decorator extends (
-    decorated: any,
-    caveat: infer ParentCaveat,
-  ) => AsyncRestrictedMethod<any, any>
-    ? ParentCaveat extends CaveatConstraint
-      ? ParentCaveat['value']
-      : never
-    : never;
+type ExtractCaveatValueFromDecorator<
+  Decorator extends CaveatDecorator<any> | undefined,
+> = Decorator extends (
+  decorated: any,
+  caveat: infer ParentCaveat,
+) => AsyncRestrictedMethod<any, any>
+  ? ParentCaveat extends CaveatConstraint
+    ? ParentCaveat['value']
+    : never
+  : never;
 
 /**
  * A function for validating caveats of a particular type.
@@ -120,7 +121,7 @@ export type CaveatSpecificationConstraint = {
    * The decorator function used to apply the caveat to restricted method
    * requests.
    */
-  decorator: CaveatDecorator<any>;
+  decorator?: CaveatDecorator<any>;
 
   /**
    * The validator function used to validate caveats of the associated type
@@ -256,7 +257,9 @@ export function decorateWithCaveats<
       throw new UnrecognizedCaveatTypeError(caveat.type);
     }
 
-    decorated = specification.decorator(decorated, caveat);
+    if (specification.decorator) {
+      decorated = specification.decorator(decorated, caveat);
+    }
   }
 
   return decorated;

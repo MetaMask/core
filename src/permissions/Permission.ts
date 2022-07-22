@@ -460,11 +460,6 @@ export type RestrictedMethodSpecificationConstraint =
 export type EndowmentSpecificationConstraint =
   PermissionSpecificationBase<PermissionType.Endowment> & {
     /**
-     * Endowment permissions do not support caveats.
-     */
-    allowedCaveats: null;
-
-    /**
      * The {@link EndowmentGetter} function for the permission. This function
      * will be called by the {@link PermissionController} whenever the
      * permission is invoked, after which the host can apply the endowments to
