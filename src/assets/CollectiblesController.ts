@@ -12,6 +12,7 @@ import {
   BNToHex,
   getFormattedIpfsUrl,
   fetchWithErrorHandling,
+  validateCollectibleToWatch,
 } from '../util';
 import {
   MAINNET,
@@ -32,6 +33,7 @@ import type {
 } from './CollectibleDetectionController';
 import type { AssetsContractController } from './AssetsContractController';
 import { compareCollectiblesMetadata } from './assetsUtil';
+import { v1 as random } from 'uuid';
 
 /**
  * @type Collectible
@@ -160,7 +162,55 @@ export interface CollectiblesState extends BaseState {
   };
   allCollectibles: { [key: string]: { [key: string]: Collectible[] } };
   ignoredCollectibles: Collectible[];
+  suggestedCollectibles: SuggestedCollectibleMeta[];
 }
+
+enum SuggestedCollectibleStatus {
+  accepted = 'accepted',
+  failed = 'failed',
+  pending = 'pending',
+  rejected = 'rejected',
+}
+
+export type SuggestedCollectibleMetaBase = {
+  id: string;
+  time: number;
+  collectible: Collectible;
+};
+
+
+/**
+* @type SuggestedCollectibleMeta
+*
+* Suggested collectible
+* @property error - Synthesized error information for failed collectible suggestions
+* @property id - Generated UUID associated with this suggested collectible
+* @property status - String status of this this suggested collectible
+* @property time - Timestamp associated with this this suggested collectible
+* @property collectible - Collectible suggested object
+*/
+export type SuggestedCollectibleMeta =
+| (SuggestedCollectibleMetaBase & {
+   status: SuggestedCollectibleStatus.failed;
+   error: Error;
+ })
+| (SuggestedCollectibleMetaBase & {
+   status:
+     | SuggestedCollectibleStatus.accepted
+     | SuggestedCollectibleStatus.rejected
+     | SuggestedCollectibleStatus.pending;
+ });
+
+/**
+* @type CollectibleSuggestionResult
+* @property result - Promise resolving to a new suggested collectible address
+* @property suggestedCollectibleMeta - Meta information about this new suggested collectible
+*/
+interface CollectibleSuggestionResult {
+result: Promise<string>;
+suggestedCollectibleMeta: SuggestedCollectibleMeta;
+}
+
 
 const ALL_COLLECTIBLES_STATE_KEY = 'allCollectibles';
 const ALL_COLLECTIBLES_CONTRACTS_STATE_KEY = 'allCollectibleContracts';
@@ -973,6 +1023,7 @@ export class CollectiblesController extends BaseController<
       allCollectibleContracts: {},
       allCollectibles: {},
       ignoredCollectibles: [],
+      suggestedCollectibles: [],
     };
     this.initialize();
     this.getERC721AssetName = getERC721AssetName;
@@ -1269,6 +1320,145 @@ export class CollectiblesController extends BaseController<
     collectibles[index] = updatedCollectible;
 
     this.updateNestedCollectibleState(collectibles, ALL_COLLECTIBLES_STATE_KEY);
+  }
+
+  _generateRandomId(): string {
+    return random();
+  }
+  
+  private failSuggestedCollectible(
+    suggestedCollectibleMeta: SuggestedCollectibleMeta,
+    error: unknown,
+  ) {
+    const failedSuggestedCollectibleMeta = {
+      ...suggestedCollectibleMeta,
+      status: SuggestedCollectibleStatus.failed,
+      error,
+    };
+    this.hub.emit(
+      `${suggestedCollectibleMeta.id}:finished`,
+      failedSuggestedCollectibleMeta,
+    );
+  }
+
+  /**
+   * Adds a new suggestedCollectible to state. Parameters will be validated according to
+   * Collectible type being watched. A `<suggestedCollectibleMeta.id>:pending` hub event will be emitted once added.
+   *
+   * @param collectible - The Collectible to be watched. For now only ERC20 tokens are accepted.
+   * @returns Object containing a Promise resolving to the suggestedCollectible address if accepted.
+   */
+   async watchCollectible(collectible: Collectible): Promise<CollectibleSuggestionResult> {
+    
+    const suggestedCollectibleMeta = {
+      collectible,
+      id: this._generateRandomId(),
+      status: SuggestedCollectibleStatus.pending as SuggestedCollectibleStatus.pending,
+      time: Date.now(),
+    };
+
+    try {
+      validateCollectibleToWatch(collectible);
+
+      const { selectedAddress } = this.config;
+      if (!(await this.isCollectibleOwner(selectedAddress, collectible.address, collectible.tokenId))) {
+        throw new Error('This collectible is not owned by the user');
+      }
+
+      const collectibleInfo = await this.getCollectibleInformation(collectible.address, collectible.tokenId)
+
+      suggestedCollectibleMeta.collectible = {
+        ...suggestedCollectibleMeta.collectible,
+        ...collectibleInfo
+      }
+
+    } catch (error) {
+      this.failSuggestedCollectible(suggestedCollectibleMeta, error);
+      return Promise.reject(error);
+    }
+
+    const result: Promise<string> = new Promise((resolve, reject) => {
+      this.hub.once(
+        `${suggestedCollectibleMeta.id}:finished`,
+        (meta: SuggestedCollectibleMeta) => {
+          switch (meta.status) {
+            case SuggestedCollectibleStatus.accepted:
+              return resolve(meta.collectible.address);
+            case SuggestedCollectibleStatus.rejected:
+              return reject(new Error('User rejected to watch the Collectible.'));
+            case SuggestedCollectibleStatus.failed:
+              return reject(new Error(meta.error.message));
+            /* istanbul ignore next */
+            default:
+              return reject(new Error(`Unknown status: ${meta.status}`));
+          }
+        },
+      );
+    });
+
+    const { suggestedCollectibles } = this.state;
+
+    suggestedCollectibles.push(suggestedCollectibleMeta);
+
+    this.update({ suggestedCollectibles: [...suggestedCollectibles] });
+
+    this.hub.emit('pendingSuggestedCollectible', suggestedCollectibleMeta);
+
+    return { result, suggestedCollectibleMeta };
+  }
+
+  /**
+   * Accepts to watch an Collectible and updates it's status and deletes the suggestedCollectible from state,
+   * adding the Collectible to corresponding Collectible state. In this case ERC20 tokens.
+   * A `<suggestedCollectibleMeta.id>:finished` hub event is fired after accepted or failure.
+   *
+   * @param suggestedCollectibleID - The ID of the suggestedCollectible to accept.
+   */
+   async acceptWatchCollectible(suggestedCollectibleID: string): Promise<void> {
+    const { suggestedCollectibles } = this.state;
+    const index = suggestedCollectibles.findIndex(
+      ({ id }) => suggestedCollectibleID === id,
+    );
+    const suggestedCollectibleMeta = suggestedCollectibles[index];
+    try {
+          const { address, tokenId } = suggestedCollectibleMeta.collectible;
+          await this.addCollectibleVerifyOwnership(address, tokenId);
+          suggestedCollectibleMeta.status = SuggestedCollectibleStatus.accepted;
+          this.hub.emit(
+            `${suggestedCollectibleMeta.id}:finished`,
+            suggestedCollectibleMeta,
+          );
+    } catch (error) {
+      this.failSuggestedCollectible(suggestedCollectibleMeta, error);
+    }
+
+    const newSuggestedCollectibles = suggestedCollectibles.filter(
+      ({ id }) => id !== suggestedCollectibleID,
+    );
+    this.update({ suggestedCollectibles: [...newSuggestedCollectibles] });
+  }
+
+  /**
+   * Rejects a watchCollectible request based on its ID by setting its status to "rejected"
+   * and emitting a `<suggestedCollectibleMeta.id>:finished` hub event.
+   *
+   * @param suggestedCollectibleID - The ID of the suggestedCollectible to accept.
+   */
+  rejectWatchCollectible(suggestedCollectibleID: string) {
+    const { suggestedCollectibles } = this.state;
+    const index = suggestedCollectibles.findIndex(
+      ({ id }) => suggestedCollectibleID === id,
+    );
+    const suggestedCollectibleMeta = suggestedCollectibles[index];
+    if (!suggestedCollectibleMeta) {
+      return;
+    }
+    suggestedCollectibleMeta.status = SuggestedCollectibleStatus.rejected;
+    this.hub.emit(`${suggestedCollectibleMeta.id}:finished`, suggestedCollectibleMeta);
+    const newSuggestedCollectibles = suggestedCollectibles.filter(
+      ({ id }) => id !== suggestedCollectibleID,
+    );
+    this.update({ suggestedCollectibles: [...newSuggestedCollectibles] });
   }
 }
 
