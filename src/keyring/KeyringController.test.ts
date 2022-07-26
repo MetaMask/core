@@ -1147,7 +1147,7 @@ describe('KeyringController', () => {
       const data =
         '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
 
-      const account = await ledgerKeyring?.getDefaultAccount();
+      const account = await ledgerKeyring.getDefaultAccount();
       const signature = await keyringController.signMessage({
         data,
         from: account,
@@ -1172,7 +1172,7 @@ describe('KeyringController', () => {
       const data =
         '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
 
-      const account = await ledgerKeyring?.getDefaultAccount();
+      const account = await ledgerKeyring.getDefaultAccount();
       const signature = await keyringController.signPersonalMessage({
         data,
         from: account,
@@ -1223,7 +1223,7 @@ describe('KeyringController', () => {
         v: new BN('3'),
       } as any);
 
-      const account = await ledgerKeyring?.getDefaultAccount();
+      const account = await ledgerKeyring.getDefaultAccount();
 
       const { r, s, v } = await keyringController.signTransaction(tx, account);
       expect(r.toString()).toBe('1');
