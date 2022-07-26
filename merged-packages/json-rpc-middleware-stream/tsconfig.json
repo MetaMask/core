@@ -1,18 +1,14 @@
 {
   "compilerOptions": {
-    "declaration": true,
     "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["ES2020"],
     "module": "CommonJS",
     "moduleResolution": "node",
-    "outDir": "dist",
-    "sourceMap": true,
+    "noEmit": true,
+    "skipLibCheck": true,
     "strict": true,
-    "target": "ES2017",
-    "typeRoots": [
-      "./node_modules/@types",
-    ],
+    "target": "es2017"
   },
-  "include": [
-    "./src/*.ts"
-  ]
+  "exclude": ["./dist/**/*"]
 }

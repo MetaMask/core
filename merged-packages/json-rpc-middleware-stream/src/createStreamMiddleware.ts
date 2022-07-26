@@ -32,7 +32,7 @@ export default function createStreamMiddleware() {
   const idMap: IdMap = {};
   const stream = new Duplex({
     objectMode: true,
-    read: readNoop,
+    read: () => undefined,
     write: processMessage,
   });
 
@@ -47,42 +47,50 @@ export default function createStreamMiddleware() {
     // write req to stream
     stream.push(req);
     // register request on id map
-    idMap[(req.id as unknown) as string] = { req, res, next, end };
+    idMap[req.id as unknown as string] = { req, res, next, end };
   };
 
   return { events, middleware, stream };
 
-  function readNoop() {
-    return false;
-  }
-
+  /**
+   * Writes a JSON-RPC object to the stream.
+   *
+   * @param res - The JSON-RPC response object.
+   * @param _encoding - The stream encoding, not used.
+   * @param cb - The stream write callback.
+   */
   function processMessage(
     res: PendingJsonRpcResponse<unknown>,
     _encoding: unknown,
     cb: (error?: Error | null) => void,
   ) {
-    let err;
+    let err: Error | null = null;
     try {
       const isNotification = !res.id;
       if (isNotification) {
-        processNotification((res as unknown) as JsonRpcNotification<unknown>);
+        processNotification(res as unknown as JsonRpcNotification<unknown>);
       } else {
         processResponse(res);
       }
     } catch (_err) {
-      err = _err;
+      err = _err as Error;
     }
     // continue processing stream
     cb(err);
   }
 
+  /**
+   * Processes a JSON-RPC response.
+   *
+   * @param res - The response to process.
+   */
   function processResponse(res: PendingJsonRpcResponse<unknown>) {
-    const context = idMap[(res.id as unknown) as string];
+    const context = idMap[res.id as unknown as string];
     if (!context) {
       throw new Error(`StreamMiddleware - Unknown response id "${res.id}"`);
     }
 
-    delete idMap[(res.id as unknown) as string];
+    delete idMap[res.id as unknown as string];
     // copy whole res onto original res
     Object.assign(context.res, res);
     // run callback on empty stack,
@@ -90,7 +98,12 @@ export default function createStreamMiddleware() {
     setTimeout(context.end);
   }
 
-  function processNotification(res: JsonRpcNotification<unknown>) {
-    events.emit('notification', res);
+  /**
+   * Processes a JSON-RPC notification.
+   *
+   * @param notif - The notification to process.
+   */
+  function processNotification(notif: JsonRpcNotification<unknown>) {
+    events.emit('notification', notif);
   }
 }

@@ -18,7 +18,7 @@ export default function createEngineStream(opts: EngineStreamOptions): Duplex {
   }
 
   const { engine } = opts;
-  const stream = new Duplex({ objectMode: true, read, write });
+  const stream = new Duplex({ objectMode: true, read: () => undefined, write });
   // forward notifications
   if (engine.on) {
     engine.on('notification', (message) => {
@@ -27,10 +27,13 @@ export default function createEngineStream(opts: EngineStreamOptions): Duplex {
   }
   return stream;
 
-  function read() {
-    return undefined;
-  }
-
+  /**
+   * Write a JSON-RPC request to the stream.
+   *
+   * @param req - The JSON-rpc request.
+   * @param _encoding - The stream encoding, not used.
+   * @param cb - The stream write callback.
+   */
   function write(
     req: JsonRpcRequest<unknown>,
     _encoding: unknown,
