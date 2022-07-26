@@ -1233,7 +1233,7 @@ describe('KeyringController', () => {
       confirmSignatureStub.reset();
     });
 
-    it('should throw if typed data verions is not V4', async () => {
+    it('should throw if typed data versions is not V4', async () => {
       const typedMsgParams = [
         {
           name: 'Message',
