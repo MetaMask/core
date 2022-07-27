@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.2.0]
+### Uncategorized
+- turn check-release step into job ([#874](https://github.com/MetaMask/controllers/pull/874))
+- check release ([#873](https://github.com/MetaMask/controllers/pull/873))
+- Fix publishing configuration, closes #858 ([#863](https://github.com/MetaMask/controllers/pull/863))
+- [CHANGED] - Testnet Ticker format update <network name>ETH ([#868](https://github.com/MetaMask/controllers/pull/868))
+- Revert "[CHANGED] - Testnet Ticker format update <network name>ETH (#856)" ([#856](https://github.com/MetaMask/controllers/pull/856))
+- [CHANGED] - Testnet Ticker format update <network name>ETH ([#856](https://github.com/MetaMask/controllers/pull/856))
+
 ## [30.1.0]
 ### Added
 - Allow clients to avoid third party tokenlist polling ([#861](https://github.com/MetaMask/controllers/pull/861)):
@@ -634,7 +643,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v30.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v30.2.0...HEAD
+[30.2.0]: https://github.com/MetaMask/controllers/compare/v30.1.0...v30.2.0
 [30.1.0]: https://github.com/MetaMask/controllers/compare/v30.0.2...v30.1.0
 [30.0.2]: https://github.com/MetaMask/controllers/compare/v30.0.1...v30.0.2
 [30.0.1]: https://github.com/MetaMask/controllers/compare/v30.0.0...v30.0.1
