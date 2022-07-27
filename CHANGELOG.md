@@ -7,13 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [30.2.0]
-### Uncategorized
-- turn check-release step into job ([#874](https://github.com/MetaMask/controllers/pull/874))
-- check release ([#873](https://github.com/MetaMask/controllers/pull/873))
-- Fix publishing configuration, closes #858 ([#863](https://github.com/MetaMask/controllers/pull/863))
-- [CHANGED] - Testnet Ticker format update <network name>ETH ([#868](https://github.com/MetaMask/controllers/pull/868))
-- Revert "[CHANGED] - Testnet Ticker format update <network name>ETH (#856)" ([#856](https://github.com/MetaMask/controllers/pull/856))
-- [CHANGED] - Testnet Ticker format update <network name>ETH ([#856](https://github.com/MetaMask/controllers/pull/856))
+### Changed
+- Updated the Testnet Ticker string format to be prefixed with the network name (e.g. <network name>ETH) ([#868](https://github.com/MetaMask/controllers/pull/868))
 
 ## [30.1.0]
 ### Added
