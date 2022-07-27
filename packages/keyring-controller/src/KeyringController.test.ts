@@ -1157,7 +1157,7 @@ describe('KeyringController', () => {
         signPersonalMessage: sinon.stub(),
       });
 
-      defaultAccount = await keyringController.unlockLedgerDefaultAccount();
+      defaultAccount = await keyringController.unlockDefaultLedgerAccount();
     });
 
     it('should unlock default account from Ledger', async () => {
