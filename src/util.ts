@@ -26,6 +26,7 @@ import { TypedMessageParams } from './message-manager/TypedMessageManager';
 import { Token } from './assets/TokenRatesController';
 import { MAINNET, GANACHE_CHAIN_ID } from './constants';
 import { Json } from './BaseControllerV2';
+import { Collectible } from './assets/CollectiblesController';
 
 const TIMEOUT_ERROR = new Error('timeout');
 
@@ -602,11 +603,35 @@ export function validateTokenToWatch(token: Token) {
       `Invalid symbol "${symbol}": longer than 11 characters.`,
     );
   }
-  const numDecimals = parseInt(decimals as unknown as string, 10);
+  const numDecimals = parseInt((decimals as unknown) as string, 10);
   if (isNaN(numDecimals) || numDecimals > 36 || numDecimals < 0) {
     throw ethErrors.rpc.invalidParams(
       `Invalid decimals "${decimals}": must be 0 <= 36.`,
     );
+  }
+
+  if (!isValidHexAddress(address)) {
+    throw ethErrors.rpc.invalidParams(`Invalid address "${address}".`);
+  }
+}
+
+/**
+ * Validates a Collectbile to be added.
+ *
+ * @param collectible - collectbile object to validate.
+ */
+export function validateCollectibleToWatch(collectible: Collectible) {
+  const { address, tokenId } = collectible;
+  if (!address || !tokenId) {
+    throw ethErrors.rpc.invalidParams(`Must specify address and tokenId.`);
+  }
+
+  if (typeof address !== 'string') {
+    throw ethErrors.rpc.invalidParams(`Invalid address: not a string.`);
+  }
+
+  if (typeof tokenId !== 'string') {
+    throw ethErrors.rpc.invalidParams(`Invalid tokenId: not a string.`);
   }
 
   if (!isValidHexAddress(address)) {
@@ -884,7 +909,9 @@ export function removeIpfsProtocolPrefix(ipfsUrl: string) {
  * @returns IFPS content identifier (cid) and sub path as string.
  * @throws Will throw if the url passed is not ipfs.
  */
-export function getIpfsCIDv1AndPath(ipfsUrl: string): {
+export function getIpfsCIDv1AndPath(
+  ipfsUrl: string,
+): {
   cid: string;
   path?: string;
 } {
