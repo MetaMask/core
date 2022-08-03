@@ -1,11 +1,39 @@
 import deepEqual from 'fast-deep-equal';
 import {
+  array,
+  assert,
+  boolean,
+  Infer,
+  is,
+  lazy,
+  literal,
+  nullable,
+  number,
+  object,
+  omit,
+  optional,
+  record,
+  string,
+  Struct,
+  union,
+  unknown,
+} from 'superstruct';
+import {
   calculateNumberSize,
   calculateStringSize,
-  hasProperty,
   isPlainObject,
   JsonSize,
 } from './misc';
+
+// Note: This struct references itself, so TypeScript cannot infer the type.
+export const JsonStruct: Struct<Json> = union([
+  literal(null),
+  boolean(),
+  number(),
+  string(),
+  lazy(() => array(JsonStruct)),
+  lazy(() => record(string(), JsonStruct)),
+]);
 
 /**
  * Any JSON-compatible value.
@@ -36,6 +64,7 @@ export function isValidJson(value: unknown): value is Json {
  * The string '2.0'.
  */
 export const jsonrpc2 = '2.0' as const;
+export const JsonRpcVersionStruct = literal(jsonrpc2);
 
 /**
  * A String specifying the version of the JSON-RPC protocol.
@@ -43,46 +72,63 @@ export const jsonrpc2 = '2.0' as const;
  */
 export type JsonRpcVersion2 = typeof jsonrpc2;
 
+export const JsonRpcIdStruct = nullable(union([number(), string()]));
+
 /**
  * An identifier established by the Client that MUST contain a String, Number,
  * or NULL value if included. If it is not included it is assumed to be a
  * notification. The value SHOULD normally not be Null and Numbers SHOULD
  * NOT contain fractional parts.
  */
-export type JsonRpcId = number | string | null;
+export type JsonRpcId = Infer<typeof JsonRpcIdStruct>;
+
+export const JsonRpcErrorStruct = object({
+  code: number(),
+  message: string(),
+  data: optional(unknown()),
+  stack: optional(string()),
+});
 
 /**
  * A JSON-RPC error object.
  */
-export type JsonRpcError = {
-  code: number;
-  message: string;
-  data?: unknown;
-  stack?: string;
+export type JsonRpcError = Infer<typeof JsonRpcErrorStruct>;
+
+export const JsonRpcParamsStruct = optional(union([object(), array()]));
+
+export type JsonRpcParams = Infer<typeof JsonRpcParamsStruct>;
+
+export const JsonRpcRequestStruct = object({
+  id: JsonRpcIdStruct,
+  jsonrpc: JsonRpcVersionStruct,
+  method: string(),
+  params: JsonRpcParamsStruct,
+});
+
+export type InferWithParams<
+  Type extends Struct<any, unknown>,
+  Params extends JsonRpcParams
+> = Omit<Infer<Type>, 'params'> & {
+  params: Params;
 };
 
 /**
  * A JSON-RPC request object.
- *
- * @template Params - The type of the params.
  */
-export type JsonRpcRequest<Params> = {
-  id: JsonRpcId;
-  jsonrpc: JsonRpcVersion2;
-  method: string;
-  params?: Params;
-};
+export type JsonRpcRequest<Params extends JsonRpcParams> = InferWithParams<
+  typeof JsonRpcRequestStruct,
+  Params
+>;
+
+export const JsonRpcNotificationStruct = omit(JsonRpcRequestStruct, ['id']);
 
 /**
  * A JSON-RPC notification object.
- *
- * @template Params - The type of the params.
  */
-export type JsonRpcNotification<Params> = {
-  jsonrpc: JsonRpcVersion2;
-  method: string;
-  params?: Params;
-};
+export type JsonRpcNotification<Params extends JsonRpcParams> = InferWithParams<
+  typeof JsonRpcNotificationStruct,
+  Params
+>;
 
 /**
  * Type guard to narrow a JSON-RPC request or notification object to a
@@ -91,10 +137,10 @@ export type JsonRpcNotification<Params> = {
  * @param requestOrNotification - The JSON-RPC request or notification to check.
  * @returns Whether the specified JSON-RPC message is a notification.
  */
-export function isJsonRpcNotification<T>(
-  requestOrNotification: JsonRpcNotification<T> | JsonRpcRequest<T>,
-): requestOrNotification is JsonRpcNotification<T> {
-  return !hasProperty(requestOrNotification, 'id');
+export function isJsonRpcNotification(
+  requestOrNotification: unknown,
+): requestOrNotification is JsonRpcNotification<JsonRpcParams> {
+  return is(requestOrNotification, JsonRpcNotificationStruct);
 }
 
 /**
@@ -103,11 +149,13 @@ export function isJsonRpcNotification<T>(
  *
  * @param requestOrNotification - The JSON-RPC request or notification to check.
  */
-export function assertIsJsonRpcNotification<T>(
-  requestOrNotification: JsonRpcNotification<T> | JsonRpcRequest<T>,
-): asserts requestOrNotification is JsonRpcNotification<T> {
-  if (!isJsonRpcNotification(requestOrNotification)) {
-    throw new Error('Not a JSON-RPC notification.');
+export function assertIsJsonRpcNotification(
+  requestOrNotification: unknown,
+): asserts requestOrNotification is JsonRpcNotification<JsonRpcParams> {
+  try {
+    assert(requestOrNotification, JsonRpcNotificationStruct);
+  } catch (error) {
+    throw new Error(`Not a JSON-RPC notification: ${error.message}.`);
   }
 }
 
@@ -117,10 +165,10 @@ export function assertIsJsonRpcNotification<T>(
  * @param requestOrNotification - The JSON-RPC request or notification to check.
  * @returns Whether the specified JSON-RPC message is a request.
  */
-export function isJsonRpcRequest<T>(
-  requestOrNotification: JsonRpcNotification<T> | JsonRpcRequest<T>,
-): requestOrNotification is JsonRpcRequest<T> {
-  return hasProperty(requestOrNotification, 'id');
+export function isJsonRpcRequest(
+  requestOrNotification: unknown,
+): requestOrNotification is JsonRpcRequest<JsonRpcParams> {
+  return is(requestOrNotification, JsonRpcRequestStruct);
 }
 
 /**
@@ -129,33 +177,47 @@ export function isJsonRpcRequest<T>(
  *
  * @param requestOrNotification - The JSON-RPC request or notification to check.
  */
-export function assertIsJsonRpcRequest<T>(
-  requestOrNotification: JsonRpcNotification<T> | JsonRpcRequest<T>,
-): asserts requestOrNotification is JsonRpcRequest<T> {
-  if (!isJsonRpcRequest(requestOrNotification)) {
-    throw new Error('Not a JSON-RPC request.');
+export function assertIsJsonRpcRequest(
+  requestOrNotification: unknown,
+): asserts requestOrNotification is JsonRpcRequest<JsonRpcParams> {
+  try {
+    assert(requestOrNotification, JsonRpcRequestStruct);
+  } catch (error) {
+    throw new Error(`Not a JSON-RPC request: ${error.message}.`);
   }
 }
 
+export const JsonRpcSuccessStruct = object({
+  id: JsonRpcIdStruct,
+  jsonrpc: JsonRpcVersionStruct,
+  result: JsonStruct,
+});
+
 /**
  * A successful JSON-RPC response object.
- *
- * @template Result - The type of the result.
  */
-export type JsonRpcSuccess<Result = unknown> = {
-  id: JsonRpcId;
-  jsonrpc: JsonRpcVersion2;
+export type JsonRpcSuccess<Result extends Json> = Omit<
+  Infer<typeof JsonRpcSuccessStruct>,
+  'result'
+> & {
   result: Result;
 };
+
+export const JsonRpcFailureStruct = object({
+  id: JsonRpcIdStruct,
+  jsonrpc: JsonRpcVersionStruct,
+  error: JsonRpcErrorStruct,
+});
 
 /**
  * A failed JSON-RPC response object.
  */
-export type JsonRpcFailure = {
-  id: JsonRpcId;
-  jsonrpc: JsonRpcVersion2;
-  error: JsonRpcError;
-};
+export type JsonRpcFailure = Infer<typeof JsonRpcFailureStruct>;
+
+export const JsonRpcResponseStruct = union([
+  JsonRpcSuccessStruct,
+  JsonRpcFailureStruct,
+]);
 
 /**
  * A JSON-RPC response object. Must be checked to determine whether it's a
@@ -163,21 +225,47 @@ export type JsonRpcFailure = {
  *
  * @template Result - The type of the result.
  */
-export type JsonRpcResponse<Result = unknown> =
+export type JsonRpcResponse<Result extends Json> =
   | JsonRpcSuccess<Result>
   | JsonRpcFailure;
+
+/**
+ * Type guard to check if a value is a JsonRpcResponse.
+ *
+ * @param response - The object to check.
+ * @returns Whether the object is a JsonRpcResponse.
+ */
+export function isJsonRpcResponse(
+  response: unknown,
+): response is JsonRpcResponse<Json> {
+  return is(response, JsonRpcResponseStruct);
+}
+
+/**
+ * Type assertion to check if a value is a JsonRpcResponse.
+ *
+ * @param response - The response to check.
+ */
+export function assertIsJsonRpcResponse(
+  response: unknown,
+): asserts response is JsonRpcResponse<Json> {
+  try {
+    assert(response, JsonRpcResponseStruct);
+  } catch (error) {
+    throw new Error(`Not a JSON-RPC response: ${error.message}.`);
+  }
+}
 
 /**
  * Type guard to narrow a JsonRpcResponse object to a success (or failure).
  *
  * @param response - The response object to check.
- * @returns Whether the response object is a success, i.e. has a `result`
- * property.
+ * @returns Whether the response object is a success.
  */
-export function isJsonRpcSuccess<Result>(
-  response: JsonRpcResponse<Result>,
-): response is JsonRpcSuccess<Result> {
-  return hasProperty(response, 'result');
+export function isJsonRpcSuccess(
+  response: unknown,
+): response is JsonRpcSuccess<Json> {
+  return is(response, JsonRpcSuccessStruct);
 }
 
 /**
@@ -185,11 +273,13 @@ export function isJsonRpcSuccess<Result>(
  *
  * @param response - The response object to check.
  */
-export function assertIsJsonRpcSuccess<T>(
-  response: JsonRpcResponse<T>,
-): asserts response is JsonRpcSuccess<T> {
-  if (!isJsonRpcSuccess(response)) {
-    throw new Error('Not a successful JSON-RPC response.');
+export function assertIsJsonRpcSuccess(
+  response: unknown,
+): asserts response is JsonRpcSuccess<Json> {
+  try {
+    assert(response, JsonRpcSuccessStruct);
+  } catch (error) {
+    throw new Error(`Not a successful JSON-RPC response: ${error.message}.`);
   }
 }
 
@@ -201,9 +291,9 @@ export function assertIsJsonRpcSuccess<T>(
  * property.
  */
 export function isJsonRpcFailure(
-  response: JsonRpcResponse<unknown>,
+  response: unknown,
 ): response is JsonRpcFailure {
-  return hasProperty(response, 'error');
+  return is(response, JsonRpcFailureStruct);
 }
 
 /**
@@ -212,10 +302,12 @@ export function isJsonRpcFailure(
  * @param response - The response object to check.
  */
 export function assertIsJsonRpcFailure(
-  response: JsonRpcResponse<unknown>,
+  response: unknown,
 ): asserts response is JsonRpcFailure {
-  if (!isJsonRpcFailure(response)) {
-    throw new Error('Not a failed JSON-RPC response.');
+  try {
+    assert(response, JsonRpcFailureStruct);
+  } catch (error) {
+    throw new Error(`Not a failed JSON-RPC response: ${error.message}.`);
   }
 }
 
@@ -270,6 +362,7 @@ export function getJsonRpcIdValidator(options?: JsonRpcValidatorOptions) {
         (permitNull && id === null),
     );
   };
+
   return isValidJsonRpcId;
 }
 
