@@ -286,7 +286,7 @@ export class KeyringController extends BaseController<
    * Method to validate a password against the password from the keyring.
    *
    * @param password - Password of the keyring.
-   * @returns Boolean indicating if password is valid
+   * @returns Boolean indicating if input password is valid
    */
   validatePassword(password: string): boolean {
     return this.#keyring.password === password;
