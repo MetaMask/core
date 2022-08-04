@@ -1354,5 +1354,44 @@ describe('KeyringController', () => {
 
       expect(keyring).toBe(KeyringTypes.ledger);
     });
+
+    it('should execute openEthereumAppOnLedger properly', async () => {
+      sinon.stub(ledgerKeyring, 'openEthApp');
+      const openEthAppSpy = jest.spyOn(ledgerKeyring, 'openEthApp');
+      await keyringController.openEthereumAppOnLedger();
+      expect(openEthAppSpy).toHaveBeenCalled();
+    });
+
+    it('should execute closeRunningAppOnLedger properly if appName is BOLOS', async () => {
+      const getAppAndVersionStub = sinon.stub(
+        ledgerKeyring,
+        'getAppAndVersion',
+      );
+      const appNameAndVersion = {
+        appName: 'BOLOS',
+        version: 'mock_version',
+      };
+      getAppAndVersionStub.resolves(appNameAndVersion);
+      sinon.stub(ledgerKeyring, 'quitApp');
+      const quitApp = jest.spyOn(ledgerKeyring, 'quitApp');
+      await keyringController.closeRunningAppOnLedger();
+      expect(quitApp).not.toHaveBeenCalled();
+    });
+
+    it('should execute closeRunningAppOnLedger properly if appName is not BOLOS', async () => {
+      const getAppAndVersionStub = sinon.stub(
+        ledgerKeyring,
+        'getAppAndVersion',
+      );
+      const appNameAndVersion = {
+        appName: 'mock_app_name',
+        version: 'mock_version',
+      };
+      getAppAndVersionStub.resolves(appNameAndVersion);
+      sinon.stub(ledgerKeyring, 'quitApp');
+      const quitApp = jest.spyOn(ledgerKeyring, 'quitApp');
+      await keyringController.closeRunningAppOnLedger();
+      expect(quitApp).toHaveBeenCalled();
+    });
   });
 });
