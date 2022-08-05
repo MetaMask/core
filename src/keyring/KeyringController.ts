@@ -308,7 +308,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the seed phrase.
    */
   exportSeedPhrase(password: string) {
-    if (this.#keyring.password === password) {
+    if (this.validatePassword(password)) {
       return this.#keyring.keyrings[0].mnemonic;
     }
     throw new Error('Invalid password');
@@ -322,7 +322,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the private key for an address.
    */
   exportAccount(password: string, address: string): Promise<string> {
-    if (this.#keyring.password === password) {
+    if (this.validatePassword(password)) {
       return this.#keyring.exportAccount(address);
     }
     throw new Error('Invalid password');
