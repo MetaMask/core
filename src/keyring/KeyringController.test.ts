@@ -4,6 +4,7 @@ import {
   recoverTypedSignature,
   recoverTypedSignature_v4,
   recoverTypedSignatureLegacy,
+  TypedMessage,
 } from 'eth-sig-util';
 import sinon, { SinonStub } from 'sinon';
 import Common from '@ethereumjs/common';
@@ -452,7 +453,20 @@ describe('KeyringController', () => {
   });
 
   it('should sign typed message V3', async () => {
-    const msgParams = {
+    const msgParams: TypedMessage<{
+      EIP712Domain: {
+        name: string;
+        type: string;
+      }[];
+      Mail: {
+        name: string;
+        type: string;
+      }[];
+      Person: {
+        name: string;
+        type: string;
+      }[];
+    }> = {
       domain: {
         chainId: 1,
         name: 'Ether Mail',
@@ -495,14 +509,31 @@ describe('KeyringController', () => {
       SignTypedDataVersion.V3,
     );
     const recovered = recoverTypedSignature({
-      data: msgParams as any,
+      data: msgParams,
       sig: signature as string,
     });
     expect(account).toBe(recovered);
   });
 
   it('should sign typed message V4', async () => {
-    const msgParams = {
+    const msgParams: TypedMessage<{
+      EIP712Domain: {
+        name: string;
+        type: string;
+      }[];
+      Group: {
+        name: string;
+        type: string;
+      }[];
+      Mail: {
+        name: string;
+        type: string;
+      }[];
+      Person: {
+        name: string;
+        type: string;
+      }[];
+    }> = {
       domain: {
         chainId: 1,
         name: 'Ether Mail',
@@ -559,7 +590,7 @@ describe('KeyringController', () => {
       SignTypedDataVersion.V4,
     );
     const recovered = recoverTypedSignature_v4({
-      data: msgParams as any,
+      data: msgParams,
       sig: signature as string,
     });
     expect(account).toBe(recovered);
@@ -1267,7 +1298,24 @@ describe('KeyringController', () => {
     });
 
     it('should sign typed data for V4 with Ledger Keyring', async () => {
-      const msgParams = {
+      const msgParams: TypedMessage<{
+        EIP712Domain: {
+          name: string;
+          type: string;
+        }[];
+        Group: {
+          name: string;
+          type: string;
+        }[];
+        Mail: {
+          name: string;
+          type: string;
+        }[];
+        Person: {
+          name: string;
+          type: string;
+        }[];
+      }> = {
         domain: {
           chainId: 1,
           name: 'Ether Mail',
@@ -1331,7 +1379,7 @@ describe('KeyringController', () => {
         SignTypedDataVersion.V4,
       );
       const recovered = recoverTypedSignature_v4({
-        data: msgParams as any,
+        data: msgParams,
         sig: signature as string,
       });
       expect(account).toBe(recovered);
