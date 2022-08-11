@@ -1,5 +1,6 @@
 import 'isomorphic-fetch';
 import * as util from './util';
+import { formatIconUrlWithProxy } from './assets/assetsUtil';
 
 export * from './assets/AccountTrackerController';
 export * from './user/AddressBookController';
@@ -40,3 +41,4 @@ export * from './subject-metadata';
 export * from './ratelimit/RateLimitController';
 export * from './notification/NotificationController';
 export { util };
+export { formatIconUrlWithProxy };
