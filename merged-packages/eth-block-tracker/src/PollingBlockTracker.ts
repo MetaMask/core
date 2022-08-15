@@ -6,12 +6,13 @@ import { BaseBlockTracker, Provider } from './BaseBlockTracker';
 const createRandomId = getCreateRandomId();
 const sec = 1000;
 
-interface PollingBlockTrackerArgs {
-  provider: Provider;
-  pollingInterval: number;
-  retryTimeout: number;
-  keepEventLoopActive: boolean;
-  setSkipCacheFlag: boolean;
+export interface PollingBlockTrackerOptions {
+  provider?: Provider;
+  pollingInterval?: number;
+  retryTimeout?: number;
+  keepEventLoopActive?: boolean;
+  setSkipCacheFlag?: boolean;
+  blockResetDuration?: number;
 }
 
 interface ExtendedJsonRpcRequest<T> extends JsonRpcRequest<T> {
@@ -29,14 +30,14 @@ export class PollingBlockTracker extends BaseBlockTracker {
 
   private _setSkipCacheFlag: boolean;
 
-  constructor(opts: Partial<PollingBlockTrackerArgs> = {}) {
+  constructor(opts: PollingBlockTrackerOptions = {}) {
     // parse + validate args
     if (!opts.provider) {
       throw new Error('PollingBlockTracker - no provider specified.');
     }
 
     super({
-      blockResetDuration: opts.pollingInterval,
+      blockResetDuration: opts.blockResetDuration ?? opts.pollingInterval,
     });
 
     // config
@@ -54,15 +55,24 @@ export class PollingBlockTracker extends BaseBlockTracker {
     return await this.getLatestBlock();
   }
 
-  protected _start(): void {
-    this._synchronize().catch((err) => this.emit('error', err));
+  protected async _start(): Promise<void> {
+    this._synchronize();
+  }
+
+  protected async _end(): Promise<void> {
+    // No-op
   }
 
   private async _synchronize(): Promise<void> {
     while (this._isRunning) {
       try {
         await this._updateLatestBlock();
-        await timeout(this._pollingInterval, !this._keepEventLoopActive);
+        const promise = timeout(
+          this._pollingInterval,
+          !this._keepEventLoopActive,
+        );
+        this.emit('_waitingForNextIteration');
+        await promise;
       } catch (err: any) {
         const newErr = new Error(
           `PollingBlockTracker - encountered an error while attempting to update latest block:\n${
@@ -74,7 +84,9 @@ export class PollingBlockTracker extends BaseBlockTracker {
         } catch (emitErr) {
           console.error(newErr);
         }
-        await timeout(this._retryTimeout, !this._keepEventLoopActive);
+        const promise = timeout(this._retryTimeout, !this._keepEventLoopActive);
+        this.emit('_waitingForNextIteration');
+        await promise;
       }
     }
   }
@@ -99,7 +111,7 @@ export class PollingBlockTracker extends BaseBlockTracker {
     const res = await pify((cb) => this._provider.sendAsync(req, cb))();
     if (res.error) {
       throw new Error(
-        `PollingBlockTracker - encountered error fetching block:\n${res.error}`,
+        `PollingBlockTracker - encountered error fetching block:\n${res.error.message}`,
       );
     }
     return res.result;

@@ -4,8 +4,8 @@ import { BaseBlockTracker, Provider } from './BaseBlockTracker';
 
 const createRandomId = getCreateRandomId();
 
-interface SubscribeBlockTrackerArgs {
-  provider: Provider;
+export interface SubscribeBlockTrackerOptions {
+  provider?: Provider;
   blockResetDuration?: number;
 }
 
@@ -19,7 +19,7 @@ export class SubscribeBlockTracker extends BaseBlockTracker {
 
   private _subscriptionId: string | null;
 
-  constructor(opts: Partial<SubscribeBlockTrackerArgs> = {}) {
+  constructor(opts: SubscribeBlockTrackerOptions = {}) {
     // parse + validate args
     if (!opts.provider) {
       throw new Error('SubscribeBlockTracker - no provider specified.');

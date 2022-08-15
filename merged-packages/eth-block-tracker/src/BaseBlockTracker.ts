@@ -18,7 +18,7 @@ interface BaseBlockTrackerArgs {
   blockResetDuration?: number;
 }
 
-export class BaseBlockTracker extends SafeEventEmitter {
+export abstract class BaseBlockTracker extends SafeEventEmitter {
   protected _isRunning: boolean;
 
   private _blockResetDuration: number;
@@ -27,7 +27,7 @@ export class BaseBlockTracker extends SafeEventEmitter {
 
   private _blockResetTimeout?: ReturnType<typeof setTimeout>;
 
-  constructor(opts: BaseBlockTrackerArgs = {}) {
+  constructor(opts: BaseBlockTrackerArgs) {
     super();
 
     // config
@@ -67,7 +67,7 @@ export class BaseBlockTracker extends SafeEventEmitter {
   }
 
   // dont allow module consumer to remove our internal event listeners
-  removeAllListeners(eventName: string | symbol) {
+  removeAllListeners(eventName?: string | symbol) {
     // perform default behavior, preserve fn arity
     if (eventName) {
       super.removeAllListeners(eventName);
@@ -86,16 +86,12 @@ export class BaseBlockTracker extends SafeEventEmitter {
   /**
    * To be implemented in subclass.
    */
-  protected _start(): void {
-    // default behavior is noop
-  }
+  protected abstract _start(): Promise<void>;
 
   /**
    * To be implemented in subclass.
    */
-  protected _end(): void {
-    // default behavior is noop
-  }
+  protected abstract _end(): Promise<void>;
 
   private _setupInternalEvents(): void {
     // first remove listeners for idempotence
@@ -121,23 +117,25 @@ export class BaseBlockTracker extends SafeEventEmitter {
     this._maybeEnd();
   }
 
-  private _maybeStart(): void {
+  private async _maybeStart(): Promise<void> {
     if (this._isRunning) {
       return;
     }
     this._isRunning = true;
     // cancel setting latest block to stale
     this._cancelBlockResetTimeout();
-    this._start();
+    await this._start();
+    this.emit('_started');
   }
 
-  private _maybeEnd(): void {
+  private async _maybeEnd(): Promise<void> {
     if (!this._isRunning) {
       return;
     }
     this._isRunning = false;
     this._setupBlockResetTimeout();
-    this._end();
+    await this._end();
+    this.emit('_ended');
   }
 
   private _getBlockTrackerEventCount(): number {
