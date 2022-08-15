@@ -11,13 +11,13 @@ const jsonrpc = '2.0' as const;
 
 describe('JsonRpcEngine', () => {
   it('handle: throws on truthy, non-function callback', () => {
-    const engine: any = new JsonRpcEngine();
-    expect(() => engine.handle({}, true)).toThrow(
+    const engine = new JsonRpcEngine();
+    expect(() => engine.handle({} as any, 'foo' as any)).toThrow(
       '"callback" must be a function if provided.',
     );
   });
 
-  it('handle: returns error for invalid request parameter', async () => {
+  it('handle: returns error for invalid request value', async () => {
     const engine = new JsonRpcEngine();
     let response: any = await engine.handle(null as any);
     expect(response.error.code).toStrictEqual(-32600);
@@ -30,13 +30,102 @@ describe('JsonRpcEngine', () => {
 
   it('handle: returns error for invalid request method', async () => {
     const engine = new JsonRpcEngine();
-    let response: any = await engine.handle({ method: null } as any);
-    expect(response.error.code).toStrictEqual(-32600);
-    expect(response.result).toBeUndefined();
+    const response: any = await engine.handle({ id: 1, method: null } as any);
 
-    response = await engine.handle({ method: true } as any);
     expect(response.error.code).toStrictEqual(-32600);
     expect(response.result).toBeUndefined();
+  });
+
+  it('handle: returns error for invalid request method with nullish id', async () => {
+    const engine = new JsonRpcEngine();
+    const response: any = await engine.handle({
+      id: undefined,
+      method: null,
+    } as any);
+
+    expect(response.error.code).toStrictEqual(-32600);
+    expect(response.result).toBeUndefined();
+  });
+
+  it('handle: returns undefined for malformed notifications', async () => {
+    const middleware = jest.fn();
+    const notificationHandler = jest.fn();
+    const engine = new JsonRpcEngine({ notificationHandler });
+    engine.push(middleware);
+
+    expect(
+      await engine.handle({ jsonrpc, method: true } as any),
+    ).toBeUndefined();
+    expect(notificationHandler).not.toHaveBeenCalled();
+    expect(middleware).not.toHaveBeenCalled();
+  });
+
+  it('handle: treats notifications as requests when no notification handler is specified', async () => {
+    const middleware = jest.fn().mockImplementation((_req, res, _next, end) => {
+      res.result = 'bar';
+      end();
+    });
+    const engine = new JsonRpcEngine();
+    engine.push(middleware);
+
+    expect(await engine.handle({ jsonrpc, method: 'foo' })).toStrictEqual({
+      jsonrpc,
+      result: 'bar',
+      id: undefined,
+    });
+    expect(middleware).toHaveBeenCalledTimes(1);
+  });
+
+  it('handle: forwards notifications to handlers', async () => {
+    const middleware = jest.fn();
+    const notificationHandler = jest.fn();
+    const engine = new JsonRpcEngine({ notificationHandler });
+    engine.push(middleware);
+
+    expect(await engine.handle({ jsonrpc, method: 'foo' })).toBeUndefined();
+    expect(notificationHandler).toHaveBeenCalledTimes(1);
+    expect(notificationHandler).toHaveBeenCalledWith({
+      jsonrpc,
+      method: 'foo',
+    });
+    expect(middleware).not.toHaveBeenCalled();
+  });
+
+  it('handle: re-throws errors from notification handlers (async)', async () => {
+    const notificationHandler = jest.fn().mockImplementation(() => {
+      throw new Error('baz');
+    });
+    const engine = new JsonRpcEngine({ notificationHandler });
+
+    await expect(engine.handle({ jsonrpc, method: 'foo' })).rejects.toThrow(
+      new Error('baz'),
+    );
+    expect(notificationHandler).toHaveBeenCalledTimes(1);
+    expect(notificationHandler).toHaveBeenCalledWith({
+      jsonrpc,
+      method: 'foo',
+    });
+  });
+
+  it('handle: re-throws errors from notification handlers (callback)', async () => {
+    const notificationHandler = jest.fn().mockImplementation(() => {
+      throw new Error('baz');
+    });
+    const engine = new JsonRpcEngine({ notificationHandler });
+
+    await new Promise<void>((resolve) => {
+      engine.handle({ jsonrpc, method: 'foo' }, (error, response) => {
+        expect(error).toStrictEqual(new Error('baz'));
+        expect(response).toBeUndefined();
+
+        expect(notificationHandler).toHaveBeenCalledTimes(1);
+        expect(notificationHandler).toHaveBeenCalledWith({
+          jsonrpc,
+          method: 'foo',
+        });
+        resolve();
+      });
+    });
   });
 
   it('handle: basic middleware test 1', async () => {

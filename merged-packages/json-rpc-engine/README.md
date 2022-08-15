@@ -7,7 +7,7 @@ A tool for processing JSON-RPC requests and responses.
 ```js
 const { JsonRpcEngine } = require('json-rpc-engine');
 
-let engine = new JsonRpcEngine();
+const engine = new JsonRpcEngine();
 ```
 
 Build a stack of JSON-RPC processors by pushing middleware to the engine.
@@ -22,7 +22,7 @@ engine.push(function (req, res, next, end) {
 Requests are handled asynchronously, stepping down the stack until complete.
 
 ```js
-let request = { id: 1, jsonrpc: '2.0', method: 'hello' };
+const request = { id: 1, jsonrpc: '2.0', method: 'hello' };
 
 engine.handle(request, function (err, response) {
   // Do something with response.result, or handle response.error
@@ -51,6 +51,18 @@ engine.push(function (req, res, next, end) {
     insertIntoCache(res, cb);
   });
 });
+```
+
+If you specify a `notificationHandler` when constructing the engine, JSON-RPC notifications passed to `handle()` will be handed off directly to this function without touching the middleware stack:
+
+```js
+const engine = new JsonRpcEngine({ notificationHandler });
+
+// A notification is defined as a JSON-RPC request without an `id` property.
+const notification = { jsonrpc: '2.0', method: 'hello' };
+
+const response = await engine.handle(notification);
+console.log(typeof response); // 'undefined'
 ```
 
 Engines can be nested by converting them to middleware using `JsonRpcEngine.asMiddleware()`:
