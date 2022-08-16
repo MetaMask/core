@@ -52,6 +52,7 @@ import { compareCollectiblesMetadata } from './assetsUtil';
  * @property externalLink - External link containing additional information
  * @property creator - The collectible owner information object
  * @property isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this collectible
+ * @property transactionId - Transaction Id associated with the collectible
  */
 export interface Collectible extends CollectibleMetadata {
   tokenId: string;
@@ -121,6 +122,7 @@ export interface CollectibleMetadata {
   externalLink?: string;
   creator?: ApiCollectibleCreator;
   lastSale?: ApiCollectibleLastSale;
+  transactionId?: string;
 }
 
 interface AccountParams {
@@ -1269,6 +1271,124 @@ export class CollectiblesController extends BaseController<
     collectibles[index] = updatedCollectible;
 
     this.updateNestedCollectibleState(collectibles, ALL_COLLECTIBLES_STATE_KEY);
+  }
+
+  /**
+   * Returns the collectible by the address and token id.
+   *
+   * @param address - Hex address of the collectible contract.
+   * @param tokenId - Number that represents the id of the token.
+   * @param selectedAddress - Hex address of the user account.
+   * @param chainId - Id of the current network.
+   * @returns Object containing the Collectible and their position in the array
+   */
+  findCollectibleByAddressAndTokenId(
+    address: string,
+    tokenId: string,
+    selectedAddress: string,
+    chainId: string,
+  ): { collectible: Collectible; index: number } | null {
+    const { allCollectibles } = this.state;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+
+    const index: number = collectibles.findIndex(
+      (collectible) =>
+        collectible.address.toLowerCase() === address.toLowerCase() &&
+        collectible.tokenId === tokenId,
+    );
+
+    if (index === -1) {
+      return null;
+    }
+
+    return { collectible: collectibles[index], index };
+  }
+
+  /**
+   * Update collectible data.
+   *
+   * @param collectible - Collectible object to find the right collectible to updates.
+   * @param updates - Collectible partial object to update properties of the collectible.
+   * @param selectedAddress - Hex address of the user account.
+   * @param chainId - Id of the current network.
+   */
+  updateCollectible(
+    collectible: Collectible,
+    updates: Partial<Collectible>,
+    selectedAddress: string,
+    chainId: string,
+  ) {
+    const { allCollectibles } = this.state;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+    const collectibleInfo = this.findCollectibleByAddressAndTokenId(
+      collectible.address,
+      collectible.tokenId,
+      selectedAddress,
+      chainId,
+    );
+
+    if (!collectibleInfo) {
+      return;
+    }
+
+    const updatedCollectible: Collectible = {
+      ...collectible,
+      ...updates,
+    };
+
+    // Update Collectibles array
+
+    const newCollectibles = [
+      ...collectibles.slice(0, collectibleInfo.index),
+      updatedCollectible,
+      ...collectibles.slice(collectibleInfo.index + 1),
+    ];
+
+    this.updateNestedCollectibleState(
+      newCollectibles,
+      ALL_COLLECTIBLES_STATE_KEY,
+    );
+  }
+
+  /**
+   * Resets the transaction status of a collectible.
+   *
+   * @param transactionId - Collectible transaction id.
+   * @param selectedAddress - Hex address of the user account.
+   * @param chainId - Id of the current network.
+   * @returns a boolean indicating if the reset was well succeded or not
+   */
+  resetCollectibleTransactionStatusByTransactionId(
+    transactionId: string,
+    selectedAddress: string,
+    chainId: string,
+  ): boolean {
+    const { allCollectibles } = this.state;
+    const collectibles = allCollectibles[selectedAddress]?.[chainId] || [];
+    const index: number = collectibles.findIndex(
+      (collectible) => collectible.transactionId === transactionId,
+    );
+
+    if (index === -1) {
+      return false;
+    }
+    const updatedCollectible: Collectible = {
+      ...collectibles[index],
+      transactionId: undefined,
+    };
+
+    // Update Collectibles array
+    const newCollectibles = [
+      ...collectibles.slice(0, index),
+      updatedCollectible,
+      ...collectibles.slice(index + 1),
+    ];
+
+    this.updateNestedCollectibleState(
+      newCollectibles,
+      ALL_COLLECTIBLES_STATE_KEY,
+    );
+    return true;
   }
 }
 
