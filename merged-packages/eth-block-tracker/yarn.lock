@@ -569,9 +569,9 @@
     yargs "^16.2.0"
 
 "@metamask/auto-changelog@^2.5.0":
-  version "2.5.0"
-  resolved "https://registry.yarnpkg.com/@metamask/auto-changelog/-/auto-changelog-2.5.0.tgz#078f38142a3086fdb5556c758969a015c71dfdc9"
-  integrity sha512-39FeU98Poll3eTqv/bggqo3Yisza0WQJ8l9IiYloMVa2LV8XqTNqVkS4cNEU/5yq62n47JSAv6lZBtWCqeAjZQ==
+  version "2.6.1"
+  resolved "https://registry.yarnpkg.com/@metamask/auto-changelog/-/auto-changelog-2.6.1.tgz#5a6291df6c1592f010bd54f1a97814a4570b1eaf"
+  integrity sha512-7VI4lftbQQHbZcxl1W+qFTWHxoeDGybL22Q70SNyYUVIBLlK5PirJHPh1zVYL4jEFmW0rItLLAXd/OZDuVG1Jg==
   dependencies:
     diff "^5.0.0"
     execa "^5.1.1"
