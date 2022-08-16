@@ -40,5 +40,4 @@ export * from './permissions';
 export * from './subject-metadata';
 export * from './ratelimit/RateLimitController';
 export * from './notification/NotificationController';
-export { util };
-export { formatIconUrlWithProxy };
+export { util, formatIconUrlWithProxy };
