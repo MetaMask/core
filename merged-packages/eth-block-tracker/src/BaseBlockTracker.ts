@@ -45,6 +45,12 @@ export abstract class BaseBlockTracker extends SafeEventEmitter {
     this._setupInternalEvents();
   }
 
+  async destroy() {
+    this._cancelBlockResetTimeout();
+    await this._maybeEnd();
+    super.removeAllListeners();
+  }
+
   isRunning(): boolean {
     return this._isRunning;
   }

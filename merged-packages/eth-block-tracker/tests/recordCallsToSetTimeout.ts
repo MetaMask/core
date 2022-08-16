@@ -44,6 +44,29 @@ class SetTimeoutRecorder {
   }
 
   /**
+   * Removes the first `setTimeout` call from the call stack and calls it, or
+   * waits until one appears.
+   *
+   * @returns A promise that resolves when the first `setTimeout` call is
+   * called.
+   */
+  next(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (this.calls.length > 0) {
+        const call = this.calls.shift() as SetTimeoutCall;
+        call.callback();
+        resolve();
+      } else {
+        this.#events.once('setTimeoutAdded', () => {
+          const call = this.calls.shift() as SetTimeoutCall;
+          call.callback();
+          resolve();
+        });
+      }
+    });
+  }
+
+  /**
    * Looks for the first `setTimeout` call in the call stack that matches the
    * given duration and calls it, removing it from the call stack, or waits
    * until such a call appears.
