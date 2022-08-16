@@ -2067,4 +2067,161 @@ describe('CollectiblesController', () => {
       });
     });
   });
+
+  describe('findCollectibleByAddressAndTokenId', () => {
+    const mockCollectible = {
+      address: '0x02',
+      tokenId: '1',
+      name: 'name',
+      image: 'image',
+      description: 'description',
+      standard: 'standard',
+      favorite: false,
+    };
+    const { collectiblesController } = setupController();
+    const { selectedAddress, chainId } = collectiblesController.config;
+
+    it('should return null if the collectible does not exist in the state', async () => {
+      expect(
+        collectiblesController.findCollectibleByAddressAndTokenId(
+          mockCollectible.address,
+          mockCollectible.tokenId,
+          selectedAddress,
+          chainId,
+        ),
+      ).toBeNull();
+    });
+
+    it('should return the collectible by the address and tokenId', () => {
+      collectiblesController.state.allCollectibles = {
+        [selectedAddress]: { [chainId]: [mockCollectible] },
+      };
+
+      expect(
+        collectiblesController.findCollectibleByAddressAndTokenId(
+          mockCollectible.address,
+          mockCollectible.tokenId,
+          selectedAddress,
+          chainId,
+        ),
+      ).toStrictEqual({ collectible: mockCollectible, index: 0 });
+    });
+  });
+
+  describe('updateCollectibleByAddressAndTokenId', () => {
+    const { collectiblesController } = setupController();
+
+    const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
+    const mockCollectible = {
+      address: '0x02',
+      tokenId: '1',
+      name: 'name',
+      image: 'image',
+      description: 'description',
+      standard: 'standard',
+      favorite: false,
+    };
+
+    const expectedMockCollectible = {
+      address: '0x02',
+      description: 'description',
+      favorite: false,
+      image: 'image',
+      name: 'name',
+      standard: 'standard',
+      tokenId: '1',
+      transactionId: mockTransactionId,
+    };
+
+    const { selectedAddress, chainId } = collectiblesController.config;
+    it('should update the collectible if the collectible exist', async () => {
+      collectiblesController.state.allCollectibles = {
+        [selectedAddress]: { [chainId]: [mockCollectible] },
+      };
+
+      collectiblesController.updateCollectible(
+        mockCollectible,
+        {
+          transactionId: mockTransactionId,
+        },
+        selectedAddress,
+        chainId,
+      );
+
+      expect(
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0],
+      ).toStrictEqual(expectedMockCollectible);
+    });
+
+    it('should return undefined if the collectible does not exist', () => {
+      expect(
+        collectiblesController.updateCollectible(
+          mockCollectible,
+          {
+            transactionId: mockTransactionId,
+          },
+          selectedAddress,
+          chainId,
+        ),
+      ).toBeUndefined();
+    });
+  });
+
+  describe('resetCollectibleTransactionStatusByTransactionId', () => {
+    const { collectiblesController } = setupController();
+
+    const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
+    const nonExistTransactionId = '0123';
+
+    const mockCollectible = {
+      address: '0x02',
+      tokenId: '1',
+      name: 'name',
+      image: 'image',
+      description: 'description',
+      standard: 'standard',
+      favorite: false,
+      transactionId: mockTransactionId,
+    };
+
+    const { selectedAddress, chainId } = collectiblesController.config;
+
+    it('should not update any collectible state and should return false when passed a transaction id that does not match that of any collectible', async () => {
+      expect(
+        collectiblesController.resetCollectibleTransactionStatusByTransactionId(
+          nonExistTransactionId,
+          selectedAddress,
+          chainId,
+        ),
+      ).toBe(false);
+    });
+
+    it('should set the transaction id of a collectible in state to undefined, and return true when it has successfully updated this state', async () => {
+      collectiblesController.state.allCollectibles = {
+        [selectedAddress]: { [chainId]: [mockCollectible] },
+      };
+
+      expect(
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0].transactionId,
+      ).toBe(mockTransactionId);
+
+      expect(
+        collectiblesController.resetCollectibleTransactionStatusByTransactionId(
+          mockTransactionId,
+          selectedAddress,
+          chainId,
+        ),
+      ).toBe(true);
+
+      expect(
+        collectiblesController.state.allCollectibles[selectedAddress][
+          chainId
+        ][0].transactionId,
+      ).toBeUndefined();
+    });
+  });
 });
