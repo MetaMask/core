@@ -698,6 +698,14 @@ describe('KeyringController', () => {
     expect(seedPhrase).toBeDefined();
   });
 
+  it('should validate password as true if it matches with input', () => {
+    expect(keyringController.validatePassword(password)).toBe(true);
+  });
+
+  it('should validate password as false if it does not match with input', () => {
+    expect(keyringController.validatePassword('12341234')).toBe(false);
+  });
+
   describe('QR keyring', () => {
     const composeMockSignature = (
       requestId: string,
