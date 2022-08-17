@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.3.0]
+### Uncategorized
+- Update `is-release` filter ([#891](https://github.com/MetaMask/controllers/pull/891))
+- Exporting formatIconUrlWithProxy to format iconUrl Proxy for tokens from swaps api ([#889](https://github.com/MetaMask/controllers/pull/889))
+- Fix/keep nft when transaction fail ([#762](https://github.com/MetaMask/controllers/pull/762))
+- Add method to validate keyring password ([#884](https://github.com/MetaMask/controllers/pull/884))
+- update is-release filter ([#888](https://github.com/MetaMask/controllers/pull/888))
+- use `MetaMask/action-is-release@v1.0` ([#883](https://github.com/MetaMask/controllers/pull/883))
+
 ## [30.2.0]
 ### Changed
 - Updated the Testnet Ticker string format to be prefixed with the network name (e.g. <network name>ETH) ([#868](https://github.com/MetaMask/controllers/pull/868))
@@ -638,7 +647,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v30.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v30.3.0...HEAD
+[30.3.0]: https://github.com/MetaMask/controllers/compare/v30.2.0...v30.3.0
 [30.2.0]: https://github.com/MetaMask/controllers/compare/v30.1.0...v30.2.0
 [30.1.0]: https://github.com/MetaMask/controllers/compare/v30.0.2...v30.1.0
 [30.0.2]: https://github.com/MetaMask/controllers/compare/v30.0.1...v30.0.2
