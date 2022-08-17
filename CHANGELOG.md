@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [30.3.0]
-### Uncategorized
-- Update `is-release` filter ([#891](https://github.com/MetaMask/controllers/pull/891))
-- Exporting formatIconUrlWithProxy to format iconUrl Proxy for tokens from swaps api ([#889](https://github.com/MetaMask/controllers/pull/889))
-- Fix/keep nft when transaction fail ([#762](https://github.com/MetaMask/controllers/pull/762))
-- Add method to validate keyring password ([#884](https://github.com/MetaMask/controllers/pull/884))
-- update is-release filter ([#888](https://github.com/MetaMask/controllers/pull/888))
-- use `MetaMask/action-is-release@v1.0` ([#883](https://github.com/MetaMask/controllers/pull/883))
+### Added
+- New functionality added to the CollectiblesController to verify the transaction state of a collectible ([#762](https://github.com/MetaMask/controllers/pull/762)).
+  - New method added to the CollectiblesController to search a Collectible by smart contract address and token ID (`findCollectibleByAddressAndTokenId`).
+  - New method added to the CollectiblesController to update the state of a Collectible (`updateCollectible`).
+  - New method added to the CollectiblesController to reset the transaction status of a Collectible (`resetCollectibleTransactionStatusByTransactionId`).
+- New method called `validatePassword` is added to KeyringController to validate the password ([#884](https://github.com/MetaMask/controllers/pull/884))
+
+### Changed
+- Exporting `formatIconUrlWithProxy` to format iconUrl Proxy for tokens from Swaps API ([#889](https://github.com/MetaMask/controllers/pull/889))
 
 ## [30.2.0]
 ### Changed
