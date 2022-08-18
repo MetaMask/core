@@ -1,3 +1,4 @@
+import * as superstructModule from 'superstruct';
 import {
   ARRAY_OF_DIFFRENT_KINDS_OF_NUMBERS,
   ARRAY_OF_MIXED_SPECIAL_OBJECTS,
@@ -85,6 +86,16 @@ describe('json', () => {
         'Not a JSON-RPC notification: At path: jsonrpc -- Expected the literal `"2.0"`, but received: undefined.',
       );
     });
+
+    it('includes the value thrown in the message if it is not an error', () => {
+      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        throw 'oops';
+      });
+
+      expect(() =>
+        assertIsJsonRpcNotification(JSON_RPC_NOTIFICATION_FIXTURES.invalid[0]),
+      ).toThrow('Not a JSON-RPC notification: oops');
+    });
   });
 
   describe('isJsonRpcRequest', () => {
@@ -126,6 +137,16 @@ describe('json', () => {
       ).toThrow(
         'Not a JSON-RPC request: At path: id -- Expected the value to satisfy a union of `number | string`, but received: undefined.',
       );
+    });
+
+    it('includes the value thrown in the message if it is not an error', () => {
+      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        throw 'oops';
+      });
+
+      expect(() =>
+        assertIsJsonRpcRequest(JSON_RPC_REQUEST_FIXTURES.invalid[0]),
+      ).toThrow('Not a JSON-RPC request: oops');
     });
   });
 
@@ -169,6 +190,16 @@ describe('json', () => {
         'Not a successful JSON-RPC response: At path: id -- Expected the value to satisfy a union of `number | string`, but received: undefined.',
       );
     });
+
+    it('includes the value thrown in the message if it is not an error', () => {
+      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        throw 'oops';
+      });
+
+      expect(() =>
+        assertIsJsonRpcSuccess(JSON_RPC_SUCCESS_FIXTURES.invalid[0]),
+      ).toThrow('Not a successful JSON-RPC response: oops');
+    });
   });
 
   describe('isJsonRpcFailure', () => {
@@ -211,6 +242,16 @@ describe('json', () => {
         'Not a failed JSON-RPC response: At path: id -- Expected the value to satisfy a union of `number | string`, but received: undefined.',
       );
     });
+
+    it('includes the value thrown in the message if it is not an error', () => {
+      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        throw 'oops';
+      });
+
+      expect(() =>
+        assertIsJsonRpcFailure(JSON_RPC_FAILURE_FIXTURES.invalid[0]),
+      ).toThrow('Not a failed JSON-RPC response: oops');
+    });
   });
 
   describe('isJsonRpcResponse', () => {
@@ -252,6 +293,16 @@ describe('json', () => {
       ).toThrow(
         'Not a JSON-RPC response: Expected the value to satisfy a union of `object | object`, but received: [object Object].',
       );
+    });
+
+    it('includes the value thrown in the message if it is not an error', () => {
+      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        throw 'oops';
+      });
+
+      expect(() =>
+        assertIsJsonRpcResponse(JSON_RPC_RESPONSE_FIXTURES.invalid[0]),
+      ).toThrow('Not a JSON-RPC response: oops');
     });
   });
 

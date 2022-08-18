@@ -25,6 +25,17 @@ import {
   JsonSize,
 } from './misc';
 
+/**
+ * Type guard for determining whether the given value is an error object with a
+ * `message` property, such as an instance of Error.
+ *
+ * @param error - The object to check.
+ * @returns True or false, depending on the result.
+ */
+function isErrorWithMessage(error: unknown): error is { message: string } {
+  return typeof error === 'object' && error !== null && 'message' in error;
+}
+
 // Note: This struct references itself, so TypeScript cannot infer the type.
 export const JsonStruct: Struct<Json> = union([
   literal(null),
@@ -155,7 +166,8 @@ export function assertIsJsonRpcNotification(
   try {
     assert(requestOrNotification, JsonRpcNotificationStruct);
   } catch (error) {
-    throw new Error(`Not a JSON-RPC notification: ${error.message}.`);
+    const message = isErrorWithMessage(error) ? error.message : error;
+    throw new Error(`Not a JSON-RPC notification: ${message}.`);
   }
 }
 
@@ -183,7 +195,8 @@ export function assertIsJsonRpcRequest(
   try {
     assert(requestOrNotification, JsonRpcRequestStruct);
   } catch (error) {
-    throw new Error(`Not a JSON-RPC request: ${error.message}.`);
+    const message = isErrorWithMessage(error) ? error.message : error;
+    throw new Error(`Not a JSON-RPC request: ${message}.`);
   }
 }
 
@@ -252,7 +265,8 @@ export function assertIsJsonRpcResponse(
   try {
     assert(response, JsonRpcResponseStruct);
   } catch (error) {
-    throw new Error(`Not a JSON-RPC response: ${error.message}.`);
+    const message = isErrorWithMessage(error) ? error.message : error;
+    throw new Error(`Not a JSON-RPC response: ${message}.`);
   }
 }
 
@@ -279,7 +293,8 @@ export function assertIsJsonRpcSuccess(
   try {
     assert(response, JsonRpcSuccessStruct);
   } catch (error) {
-    throw new Error(`Not a successful JSON-RPC response: ${error.message}.`);
+    const message = isErrorWithMessage(error) ? error.message : error;
+    throw new Error(`Not a successful JSON-RPC response: ${message}.`);
   }
 }
 
@@ -307,7 +322,8 @@ export function assertIsJsonRpcFailure(
   try {
     assert(response, JsonRpcFailureStruct);
   } catch (error) {
-    throw new Error(`Not a failed JSON-RPC response: ${error.message}.`);
+    const message = isErrorWithMessage(error) ? error.message : error;
+    throw new Error(`Not a failed JSON-RPC response: ${message}.`);
   }
 }
 
