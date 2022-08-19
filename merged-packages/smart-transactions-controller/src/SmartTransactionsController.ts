@@ -230,11 +230,8 @@ export default class SmartTransactionsController extends BaseController<
     }
 
     const sensitiveProperties = {
-      uuid: updatedSmartTransaction.uuid,
       stx_status: updatedSmartTransaction.status,
-      token_from_address: updatedSmartTransaction.txParams?.from,
       token_from_symbol: updatedSmartTransaction.sourceTokenSymbol,
-      token_to_address: updatedSmartTransaction.txParams?.to,
       token_to_symbol: updatedSmartTransaction.destinationTokenSymbol,
       processing_time: getStxProcessingTime(updatedSmartTransaction.time),
       stx_enabled: true,
