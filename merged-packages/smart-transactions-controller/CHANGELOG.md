@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1]
+### Changed
+- Remove unnecessary event props ([#93](https://github.com/MetaMask/smart-transactions-controller/pull/93))
+- Update `is-release` filter ([#91](https://github.com/MetaMask/smart-transactions-controller/pull/91))
+- update is-release filter ([#89](https://github.com/MetaMask/smart-transactions-controller/pull/89))
+- use `MetaMask/action-is-release@v1.0` ([#88](https://github.com/MetaMask/smart-transactions-controller/pull/88))
+- add config for MetaMask/action-npm-publish ([#85](https://github.com/MetaMask/smart-transactions-controller/pull/85))
+
 ## [2.3.0]
 ### Added
 - Add the "clearFees" function ([#84](https://github.com/MetaMask/smart-transactions-controller/pull/84))
@@ -109,7 +117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v2.3.1...HEAD
+[2.3.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v2.0.1...v2.1.0

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/smart-transactions-controller",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "MetaMask controller for Smart Transactions.",
   "repository": {
     "type": "git",
