@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.1]
+### Fixed
+- Promote `@types/debug` from development dependencies to production dependencies ([#23](https://github.com/MetaMask/utils/pull/23))
+
 ## [3.0.0]
 ### Added
 - Add logging functions ([#20](https://github.com/MetaMask/utils/pull/20))
@@ -50,7 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v3.0.1...HEAD
+[3.0.1]: https://github.com/MetaMask/utils/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/MetaMask/utils/compare/v2.1.0...v3.0.0
 [2.1.0]: https://github.com/MetaMask/utils/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/MetaMask/utils/compare/v1.0.0...v2.0.0
