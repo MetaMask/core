@@ -6,6 +6,7 @@ import {
 } from 'json-rpc-engine';
 import clone from 'clone';
 import pify from 'pify';
+import { projectLogger, createModuleLogger } from './logging-utils';
 import { blockTagParamIndex } from './utils/cache';
 import type { Block, SafeEventEmitterProvider } from './types';
 
@@ -13,6 +14,8 @@ interface BlockRefMiddlewareOptions {
   blockTracker?: PollingBlockTracker;
   provider?: SafeEventEmitterProvider;
 }
+
+const log = createModuleLogger(projectLogger, 'block-ref');
 
 export function createBlockRefMiddleware({
   provider,
@@ -42,6 +45,7 @@ export function createBlockRefMiddleware({
     }
 
     if (blockRef !== 'latest') {
+      log('blockRef is not "latest", carrying request forward');
       return next();
     }
     // lookup latest block
@@ -52,6 +56,7 @@ export function createBlockRefMiddleware({
       childRequest.params[blockRefIndex] = latestBlockNumber;
     }
     // perform child request
+    log('Performing another request %o', childRequest);
     const childRes: PendingJsonRpcResponse<Block> = await pify(
       (provider as SafeEventEmitterProvider).sendAsync,
     ).call(provider, childRequest);

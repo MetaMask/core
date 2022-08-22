@@ -6,6 +6,7 @@ import {
   PendingJsonRpcResponse,
 } from 'json-rpc-engine';
 import pify from 'pify';
+import { projectLogger, createModuleLogger } from './logging-utils';
 import { blockTagParamIndex } from './utils/cache';
 import { Block, SafeEventEmitterProvider } from './types';
 
@@ -16,6 +17,7 @@ import { Block, SafeEventEmitterProvider } from './types';
 // nodes that are not always in sync with each other.
 //
 
+const log = createModuleLogger(projectLogger, 'retry-on-empty');
 // empty values used to determine if a request should be retried
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
 const emptyValues: (string | null | undefined)[] = [
@@ -75,17 +77,31 @@ export function createRetryOnEmptyMiddleware({
     );
     // skip if request block number is higher than current
     if (blockRefNumber > latestBlockNumber) {
+      log(
+        'Requested block number %o is higher than latest block number %o, falling through to original request',
+        blockRefNumber,
+        latestBlockNumber,
+      );
       return next();
     }
+
+    log(
+      'Requested block number %o is not higher than latest block number %o, retrying request until non-empty response is received',
+      blockRefNumber,
+      latestBlockNumber,
+    );
+
     // create child request with specific block-ref
     const childRequest = clone(req);
     // attempt child request until non-empty response is received
     const childResponse: PendingJsonRpcResponse<Block> = await retry(
       10,
       async () => {
+        log('Performing another request %o', childRequest);
         const attemptResponse: PendingJsonRpcResponse<Block> = await pify(
           (provider as SafeEventEmitterProvider).sendAsync,
         ).call(provider, childRequest);
+        log('Response is %o', attemptResponse);
         // verify result
         if (emptyValues.includes(attemptResponse as any)) {
           throw new Error(

@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@metamask/safe-event-emitter": "^2.0.0",
+    "@metamask/utils": "^3.0.1",
     "btoa": "^1.2.1",
     "clone": "^2.1.1",
     "eth-block-tracker": "^5.0.1",

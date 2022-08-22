@@ -1,5 +1,6 @@
 import { PollingBlockTracker } from 'eth-block-tracker';
 import { createAsyncMiddleware, JsonRpcMiddleware } from 'json-rpc-engine';
+import { projectLogger, createModuleLogger } from './logging-utils';
 import {
   cacheIdentifierForPayload,
   blockTagForPayload,
@@ -14,6 +15,7 @@ import type {
   JsonRpcRequestToCache,
 } from './types';
 
+const log = createModuleLogger(projectLogger, 'block-cache');
 // `<nil>` comes from https://github.com/ethereum/go-ethereum/issues/16925
 const emptyValues = [undefined, null, '\u003cnil\u003e'];
 
@@ -178,6 +180,8 @@ export function createBlockCacheMiddleware({
       blockTag = 'latest';
     }
 
+    log('blockTag = %o, req = %o', blockTag, req);
+
     // get exact block number
     let requestedBlockNumber: string;
     if (blockTag === 'earliest') {
@@ -185,8 +189,13 @@ export function createBlockCacheMiddleware({
       requestedBlockNumber = '0x00';
     } else if (blockTag === 'latest') {
       // fetch latest block number
+      log('Fetching latest block number to determine cache key');
       const latestBlockNumber = await blockTracker.getLatestBlock();
       // clear all cache before latest block
+      log(
+        'Clearing values stored under block numbers before %o',
+        latestBlockNumber,
+      );
       blockCache.clearBefore(latestBlockNumber);
       requestedBlockNumber = latestBlockNumber;
     } else {
@@ -201,15 +210,24 @@ export function createBlockCacheMiddleware({
     if (cacheResult === undefined) {
       // cache miss
       // wait for other middleware to handle request
+      log(
+        'No cache stored under block number %o, carrying request forward',
+        requestedBlockNumber,
+      );
       // eslint-disable-next-line node/callback-return
       await next();
 
       // add result to cache
       // it's safe to cast res.result as Block, due to runtime type checks
       // performed when strategy.set is called
+      log('Populating cache with', res);
       await strategy.set(req, requestedBlockNumber, res.result as Block);
     } else {
       // fill in result from cache
+      log(
+        'Cache hit, reusing cache result stored under block number %o',
+        requestedBlockNumber,
+      );
       res.result = cacheResult;
     }
     return undefined;

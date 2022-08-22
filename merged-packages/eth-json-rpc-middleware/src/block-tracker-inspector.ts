@@ -1,7 +1,9 @@
 import { PollingBlockTracker } from 'eth-block-tracker';
 import { createAsyncMiddleware, JsonRpcMiddleware } from 'json-rpc-engine';
+import { projectLogger, createModuleLogger } from './logging-utils';
 import type { Block } from './types';
 
+const log = createModuleLogger(projectLogger, 'block-tracker-inspector');
 const futureBlockRefRequests: string[] = [
   'eth_getTransactionByHash',
   'eth_getTransactionReceipt',
@@ -26,6 +28,8 @@ export function createBlockTrackerInspectorMiddleware({
       return undefined;
     }
 
+    log('res.result.blockNumber exists, proceeding. res = %o', res);
+
     if (typeof res.result.blockNumber === 'string') {
       // if number is higher, suggest block-tracker check for a new block
       const blockNumber: number = Number.parseInt(res.result.blockNumber, 16);
@@ -35,6 +39,9 @@ export function createBlockTrackerInspectorMiddleware({
         16,
       );
       if (blockNumber > currentBlockNumber) {
+        log(
+          'blockNumber from response is greater than current block number, refreshing current block number',
+        );
         await blockTracker.checkForLatestBlock();
       }
     }
