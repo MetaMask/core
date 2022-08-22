@@ -202,10 +202,14 @@ export type CaveatSpecificationMap<
 export type ExtractCaveats<
   CaveatSpecification extends CaveatSpecificationConstraint,
 > = CaveatSpecification extends any
-  ? Caveat<
-      CaveatSpecification['type'],
-      ExtractCaveatValueFromDecorator<CaveatSpecification['decorator']>
-    >
+  ? CaveatSpecification extends RestrictedMethodCaveatSpecificationConstraint
+    ? Caveat<
+        CaveatSpecification['type'],
+        ExtractCaveatValueFromDecorator<
+          RestrictedMethodCaveatSpecificationConstraint['decorator']
+        >
+      >
+    : Caveat<CaveatSpecification['type'], Json>
   : never;
 
 /**
