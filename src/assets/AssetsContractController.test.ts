@@ -2,7 +2,11 @@ import HttpProvider from 'ethjs-provider-http';
 import { IPFS_DEFAULT_GATEWAY_URL } from '../constants';
 import { SupportedTokenDetectionNetworks } from '../util';
 import { PreferencesController } from '../user/PreferencesController';
-import { NetworkController } from '../network/NetworkController';
+import {
+  NetworkController,
+  NetworkControllerMessenger,
+} from '../network/NetworkController';
+import { ControllerMessenger } from '../ControllerMessenger';
 import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
@@ -25,13 +29,23 @@ describe('AssetsContractController', () => {
   let assetsContract: AssetsContractController;
   let preferences: PreferencesController;
   let network: NetworkController;
+  let messenger: NetworkControllerMessenger;
 
   beforeEach(() => {
+    messenger = new ControllerMessenger().getRestricted({
+      name: 'NetworkController',
+      allowedEvents: ['NetworkController:stateChange'],
+      allowedActions: [],
+    });
+
+    network = new NetworkController({
+      messenger,
+    });
     preferences = new PreferencesController();
-    network = new NetworkController();
     assetsContract = new AssetsContractController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        messenger.subscribe('NetworkController:stateChange', listener),
     });
   });
 

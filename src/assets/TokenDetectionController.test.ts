@@ -3,6 +3,8 @@ import nock from 'nock';
 import { BN } from 'ethereumjs-util';
 import {
   NetworkController,
+  NetworkControllerMessenger,
+  NetworkControllerStateChangeEvent,
   NetworksChainId,
 } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
@@ -81,7 +83,7 @@ const sampleTokenB: Token = {
 };
 
 /**
- * Constructs a restricted controller messenger.
+ * Constructs a restricted controller messenger for TokenList.
  *
  * @returns A restricted controller messenger.
  */
@@ -101,10 +103,32 @@ function getTokenListMessenger() {
   return messenger;
 }
 
+/**
+ * Constructs a restricted controller messenger for NetworkController.
+ *
+ * @returns A restricted controller messenger.
+ */
+function getNetworkMessenger() {
+  const controllerMessenger = new ControllerMessenger<
+    never,
+    NetworkControllerStateChangeEvent
+  >();
+  const messenger = controllerMessenger.getRestricted<
+    'NetworkController',
+    never,
+    NetworkControllerStateChangeEvent['type']
+  >({
+    name: 'NetworkController',
+    allowedEvents: ['NetworkController:stateChange'],
+  });
+  return messenger;
+}
+
 describe('TokenDetectionController', () => {
   let tokenDetection: TokenDetectionController;
   let preferences: PreferencesController;
   let network: NetworkController;
+  let networkMessenger: NetworkControllerMessenger;
   let tokensController: TokensController;
   let tokenList: TokenListController;
   let getBalancesInSingleCall: sinon.SinonStub<
@@ -125,24 +149,33 @@ describe('TokenDetectionController', () => {
       )
       .reply(200, tokenBFromList)
       .persist();
+
     preferences = new PreferencesController({}, { useTokenDetection: true });
-    network = new NetworkController();
+    networkMessenger = getNetworkMessenger();
+    network = new NetworkController({
+      messenger: networkMessenger,
+      infuraProjectId: '123',
+    });
+
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        networkMessenger.subscribe('NetworkController:stateChange', listener),
     });
     const messenger = getTokenListMessenger();
     tokenList = new TokenListController({
       chainId: NetworksChainId.mainnet,
       preventPollingOnNetworkRestart: false,
-      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        networkMessenger.subscribe('NetworkController:stateChange', listener),
       messenger,
     });
     await tokenList.start();
     getBalancesInSingleCall = sinon.stub();
     tokenDetection = new TokenDetectionController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        networkMessenger.subscribe('NetworkController:stateChange', listener),
       onTokenListStateChange: (listener) =>
         messenger.subscribe(`TokenListController:stateChange`, listener),
       getBalancesInSingleCall:
@@ -165,6 +198,7 @@ describe('TokenDetectionController', () => {
     sinon.restore();
     tokenDetection.stop();
     tokenList.destroy();
+    networkMessenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should set default config', () => {
@@ -269,12 +303,8 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     preferences.setSelectedAddress('0x0001');
-    network.update({
-      provider: {
-        type: 'mainnet',
-        chainId: NetworksChainId.mainnet,
-      },
-    });
+
+    network.setProviderType('mainnet');
 
     await tokenDetection.start();
 
@@ -309,12 +339,7 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     preferences.setSelectedAddress('0x0001');
-    network.update({
-      provider: {
-        type: 'mainnet',
-        chainId: NetworksChainId.mainnet,
-      },
-    });
+    network.setProviderType('mainnet');
 
     await tokenDetection.start();
 

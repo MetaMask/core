@@ -14,6 +14,7 @@ import {
 import { PreferencesController } from './user/PreferencesController';
 import {
   NetworkController,
+  NetworkControllerMessenger,
   NetworksChainId,
 } from './network/NetworkController';
 import { AssetsContractController } from './assets/AssetsContractController';
@@ -87,6 +88,25 @@ class BarController extends BaseController<never, BarControllerState> {
 }
 
 describe('ComposableController', () => {
+  let networkMessenger: NetworkControllerMessenger;
+  let messenger: any;
+
+  beforeEach(() => {
+    const _messenger = new ControllerMessenger();
+
+    networkMessenger = _messenger.getRestricted({
+      name: 'NetworkController',
+      allowedEvents: ['NetworkController:stateChange'],
+      allowedActions: [],
+    });
+
+    messenger = _messenger.getRestricted<string, any, any>({
+      name: 'ComposableController',
+      allowedEvents: ['NetworkController:stateChange'],
+      allowedActions: [],
+    });
+  });
+
   afterEach(() => {
     sinon.restore();
   });
@@ -94,18 +114,20 @@ describe('ComposableController', () => {
   describe('BaseController', () => {
     it('should compose controller state', () => {
       const preferencesController = new PreferencesController();
-      const networkController = new NetworkController();
+      const networkController = new NetworkController({
+        messenger: networkMessenger,
+      });
       const assetContractController = new AssetsContractController({
         onPreferencesStateChange: (listener) =>
           preferencesController.subscribe(listener),
         onNetworkStateChange: (listener) =>
-          networkController.subscribe(listener),
+          messenger.subscribe('NetworkController:stateChange', listener),
       });
       const collectiblesController = new CollectiblesController({
         onPreferencesStateChange: (listener) =>
           preferencesController.subscribe(listener),
         onNetworkStateChange: (listener) =>
-          networkController.subscribe(listener),
+          messenger.subscribe('NetworkController:stateChange', listener),
         getERC721AssetName: assetContractController.getERC721AssetName.bind(
           assetContractController,
         ),
@@ -130,17 +152,21 @@ describe('ComposableController', () => {
         onPreferencesStateChange: (listener) =>
           preferencesController.subscribe(listener),
         onNetworkStateChange: (listener) =>
-          networkController.subscribe(listener),
+          messenger.subscribe('NetworkController:stateChange', listener),
       });
-      const controller = new ComposableController([
-        new AddressBookController(),
-        collectiblesController,
-        assetContractController,
-        new EnsController(),
-        networkController,
-        preferencesController,
-        tokensController,
-      ]);
+      const controller = new ComposableController(
+        [
+          new AddressBookController(),
+          collectiblesController,
+          assetContractController,
+          new EnsController(),
+          networkController,
+          preferencesController,
+          tokensController,
+        ],
+        messenger,
+      );
+
       expect(controller.state).toStrictEqual({
         AddressBookController: { addressBook: {} },
         AssetsContractController: {},
@@ -183,18 +209,20 @@ describe('ComposableController', () => {
 
     it('should compose flat controller state', () => {
       const preferencesController = new PreferencesController();
-      const networkController = new NetworkController();
+      const networkController = new NetworkController({
+        messenger: networkMessenger,
+      });
       const assetContractController = new AssetsContractController({
         onPreferencesStateChange: (listener) =>
           preferencesController.subscribe(listener),
         onNetworkStateChange: (listener) =>
-          networkController.subscribe(listener),
+          messenger.subscribe('NetworkController:stateChange', listener),
       });
       const collectiblesController = new CollectiblesController({
         onPreferencesStateChange: (listener) =>
           preferencesController.subscribe(listener),
         onNetworkStateChange: (listener) =>
-          networkController.subscribe(listener),
+          messenger.subscribe('NetworkController:stateChange', listener),
         getERC721AssetName: assetContractController.getERC721AssetName.bind(
           assetContractController,
         ),
@@ -219,17 +247,20 @@ describe('ComposableController', () => {
         onPreferencesStateChange: (listener) =>
           preferencesController.subscribe(listener),
         onNetworkStateChange: (listener) =>
-          networkController.subscribe(listener),
+          messenger.subscribe('NetworkController:stateChange', listener),
       });
-      const controller = new ComposableController([
-        new AddressBookController(),
-        collectiblesController,
-        assetContractController,
-        new EnsController(),
-        networkController,
-        preferencesController,
-        tokensController,
-      ]);
+      const controller = new ComposableController(
+        [
+          new AddressBookController(),
+          collectiblesController,
+          assetContractController,
+          new EnsController(),
+          networkController,
+          preferencesController,
+          tokensController,
+        ],
+        messenger,
+      );
       expect(controller.flatState).toStrictEqual({
         addressBook: {},
         allCollectibleContracts: {},

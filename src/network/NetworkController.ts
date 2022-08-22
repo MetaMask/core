@@ -3,12 +3,14 @@ import Subprovider from 'web3-provider-engine/subproviders/provider';
 import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Mutex } from 'async-mutex';
-import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import type { Patch } from 'immer';
+import { BaseController } from '../BaseControllerV2';
 import {
   MAINNET,
   RPC,
   TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL,
 } from '../constants';
+import { RestrictedControllerMessenger } from '../ControllerMessenger';
 
 /**
  * Human-readable network name
@@ -42,33 +44,21 @@ export enum NetworksChainId {
  * @property ticker - Currency ticker.
  * @property nickname - Personalized network name.
  */
-export interface ProviderConfig {
+export type ProviderConfig = {
   rpcTarget?: string;
   type: NetworkType;
   chainId: string;
   ticker?: string;
   nickname?: string;
-}
+};
 
-export interface Block {
+export type Block = {
   baseFeePerGas?: string;
-}
+};
 
-export interface NetworkProperties {
+export type NetworkProperties = {
   isEIP1559Compatible?: boolean;
-}
-
-/**
- * @type NetworkConfig
- *
- * Network controller configuration
- * @property infuraProjectId - an Infura project ID
- * @property providerConfig - web3-provider-engine configuration
- */
-export interface NetworkConfig extends BaseConfig {
-  infuraProjectId?: string;
-  providerConfig: ProviderConfig;
-}
+};
 
 /**
  * @type NetworkState
@@ -78,27 +68,90 @@ export interface NetworkConfig extends BaseConfig {
  * @property isCustomNetwork - Identifies if the network is a custom network
  * @property provider - RPC URL and network name provider settings
  */
-export interface NetworkState extends BaseState {
+export type NetworkState = {
   network: string;
-  isCustomNetwork: boolean;
+  isCustomNetwork?: boolean;
   provider: ProviderConfig;
-  properties: NetworkProperties;
-}
+  properties?: NetworkProperties;
+};
 
 const LOCALHOST_RPC_URL = 'http://localhost:8545';
+
+const name = 'NetworkController';
+
+export type NetworkControllerStateChangeEvent = {
+  type: `NetworkController:stateChange`;
+  payload: [NetworkState, Patch[]];
+};
+
+export type NetworkControllerProviderChangeEvent = {
+  type: `NetworkController:providerChange`;
+  payload: [any]; // 'any' is actually 'new NetworkController().provider'
+};
+
+export type NetworkControllerMessenger = RestrictedControllerMessenger<
+  typeof name,
+  any,
+  NetworkControllerStateChangeEvent | NetworkControllerProviderChangeEvent,
+  string,
+  string
+>;
+
+export type NetworkControllerOptions = {
+  messenger: NetworkControllerMessenger;
+  infuraProjectId?: string;
+  state?: Partial<NetworkState>;
+};
+
+const defaultState: NetworkState = {
+  network: 'loading',
+  isCustomNetwork: false,
+  provider: { type: MAINNET, chainId: NetworksChainId.mainnet },
+  properties: { isEIP1559Compatible: false },
+};
 
 /**
  * Controller that creates and manages an Ethereum network provider
  */
 export class NetworkController extends BaseController<
-  NetworkConfig,
-  NetworkState
+  typeof name,
+  NetworkState,
+  NetworkControllerMessenger
 > {
   private ethQuery: any;
 
   private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 
+  private _infuraProjectId: string | undefined;
+
   private mutex = new Mutex();
+
+  constructor({ messenger, state, infuraProjectId }: NetworkControllerOptions) {
+    super({
+      name,
+      metadata: {
+        network: {
+          persist: true,
+          anonymous: false,
+        },
+        isCustomNetwork: {
+          persist: true,
+          anonymous: false,
+        },
+        properties: {
+          persist: true,
+          anonymous: false,
+        },
+        provider: {
+          persist: true,
+          anonymous: false,
+        },
+      },
+      messenger,
+      state: { ...defaultState, ...state },
+    });
+    this._infuraProjectId = infuraProjectId;
+  }
 
   private initializeProvider(
     type: NetworkType,
@@ -107,7 +160,10 @@ export class NetworkController extends BaseController<
     ticker?: string,
     nickname?: string,
   ) {
-    this.update({ isCustomNetwork: this.getIsCustomNetwork(chainId) });
+    this.update((state: any) => {
+      state.isCustomNetwork = this.getIsCustomNetwork(chainId);
+    });
+
     switch (type) {
       case 'kovan':
       case MAINNET:
@@ -126,10 +182,14 @@ export class NetworkController extends BaseController<
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
     }
+    this.getEIP1559Compatibility();
   }
 
   private refreshNetwork() {
-    this.update({ network: 'loading', properties: {} });
+    this.update((state: any) => {
+      state.network = 'loading';
+      state.properties = {};
+    });
     const { rpcTarget, type, chainId, ticker } = this.state.provider;
     this.initializeProvider(type, rpcTarget, chainId, ticker);
     this.lookupNetwork();
@@ -143,7 +203,7 @@ export class NetworkController extends BaseController<
   private setupInfuraProvider(type: NetworkType) {
     const infuraProvider = createInfuraProvider({
       network: type,
-      projectId: this.config.infuraProjectId,
+      projectId: this._infuraProjectId,
     });
     const infuraSubprovider = new Subprovider(infuraProvider);
     const config = {
@@ -206,32 +266,9 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Name of this controller used during composition
-   */
-  override name = 'NetworkController';
-
-  /**
    * Ethereum provider object for the current network
    */
   provider: any;
-
-  /**
-   * Creates a NetworkController instance.
-   *
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
-   */
-  constructor(config?: Partial<NetworkConfig>, state?: Partial<NetworkState>) {
-    super(config, state);
-    this.defaultState = {
-      network: 'loading',
-      isCustomNetwork: false,
-      provider: { type: MAINNET, chainId: NetworksChainId.mainnet },
-      properties: { isEIP1559Compatible: false },
-    };
-    this.initialize();
-    this.getEIP1559Compatibility();
-  }
 
   /**
    * Sets a new configuration for web3-provider-engine.
@@ -264,9 +301,16 @@ export class NetworkController extends BaseController<
     this.ethQuery.sendAsync(
       { method: 'net_version' },
       (error: Error, network: string) => {
-        this.update({
-          network: error ? /* istanbul ignore next*/ 'loading' : network,
+        this.update((state: any) => {
+          state.network = error ? /* istanbul ignore next*/ 'loading' : network;
         });
+
+        if (!error) {
+          this.messagingSystem.publish(
+            `${this.name}:providerChange`,
+            this.provider,
+          );
+        }
         releaseLock();
       },
     );
@@ -278,9 +322,6 @@ export class NetworkController extends BaseController<
    * @param type - Human readable network name.
    */
   setProviderType(type: NetworkType) {
-    const { rpcTarget, chainId, nickname, ...providerState } =
-      this.state.provider;
-
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
       type in TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL &&
@@ -288,15 +329,10 @@ export class NetworkController extends BaseController<
         ? TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type]
         : 'ETH';
 
-    this.update({
-      provider: {
-        ...providerState,
-        ...{
-          type,
-          ticker,
-          chainId: NetworksChainId[type],
-        },
-      },
+    this.update((state: any) => {
+      state.provider.type = type;
+      state.provider.ticker = ticker;
+      state.provider.chainId = NetworksChainId[type];
     });
     this.refreshNetwork();
   }
@@ -315,11 +351,12 @@ export class NetworkController extends BaseController<
     ticker?: string,
     nickname?: string,
   ) {
-    this.update({
-      provider: {
-        ...this.state.provider,
-        ...{ type: RPC, ticker, rpcTarget, chainId, nickname },
-      },
+    this.update((state: any) => {
+      state.provider.type = RPC;
+      state.provider.rpcTarget = rpcTarget;
+      state.provider.chainId = chainId;
+      state.provider.ticker = ticker;
+      state.provider.nickname = nickname;
     });
     this.refreshNetwork();
   }
@@ -341,10 +378,8 @@ export class NetworkController extends BaseController<
               const isEIP1559Compatible =
                 typeof block.baseFeePerGas !== 'undefined';
               if (properties.isEIP1559Compatible !== isEIP1559Compatible) {
-                this.update({
-                  properties: {
-                    isEIP1559Compatible,
-                  },
+                this.update((state: any) => {
+                  state.properties.isEIP1559Compatible = isEIP1559Compatible;
                 });
               }
               resolve(isEIP1559Compatible);

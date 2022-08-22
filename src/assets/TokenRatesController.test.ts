@@ -1,7 +1,11 @@
 import sinon from 'sinon';
 import nock from 'nock';
 import { PreferencesController } from '../user/PreferencesController';
-import { NetworkController } from '../network/NetworkController';
+import {
+  NetworkController,
+  NetworkControllerMessenger,
+} from '../network/NetworkController';
+import { ControllerMessenger } from '../ControllerMessenger';
 import { TokenRatesController } from './TokenRatesController';
 import { TokensController } from './TokensController';
 
@@ -13,6 +17,7 @@ const COINGECKO_ASSETS_PATH = '/asset_platforms';
 const COINGECKO_SUPPORTED_CURRENCIES = '/simple/supported_vs_currencies';
 const ADDRESS = '0x01';
 
+let messenger: NetworkControllerMessenger;
 describe('TokenRatesController', () => {
   beforeEach(() => {
     nock(COINGECKO_API)
@@ -94,11 +99,18 @@ describe('TokenRatesController', () => {
       .get('/data/price?fsym=ETH&tsyms=USD')
       .reply(200, { USD: 179.63 })
       .persist();
+
+    messenger = new ControllerMessenger().getRestricted({
+      name: 'NetworkController',
+      allowedEvents: ['NetworkController:stateChange'],
+      allowedActions: [],
+    });
   });
 
   afterEach(() => {
     nock.cleanAll();
     sinon.restore();
+    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should set default state', () => {
@@ -201,17 +213,19 @@ describe('TokenRatesController', () => {
   });
 
   it('should update all rates', async () => {
-    const network = new NetworkController();
+    new NetworkController({ messenger });
     const preferences = new PreferencesController();
     const tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        messenger.subscribe('NetworkController:stateChange', listener),
     });
     const controller = new TokenRatesController(
       {
         onTokensStateChange: (listener) => tokensController.subscribe(listener),
         onCurrencyRateStateChange: sinon.stub(),
-        onNetworkStateChange: (listener) => network.subscribe(listener),
+        onNetworkStateChange: (listener) =>
+          messenger.subscribe('NetworkController:stateChange', listener),
       },
       { interval: 10, chainId: '1' },
     );
