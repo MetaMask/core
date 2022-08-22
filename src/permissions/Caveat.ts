@@ -101,27 +101,11 @@ export type CaveatValidator<ParentCaveat extends CaveatConstraint> = (
   target?: string,
 ) => void;
 
-/**
- * The constraint for caveat specification objects. Every {@link Caveat}
- * supported by a {@link PermissionController} must have an associated
- * specification, which is the source of truth for all caveat-related types.
- * In addition, a caveat specification includes the decorator function used
- * to apply the caveat's attenuation to a restricted method, and any validator
- * function specified by the consumer.
- *
- * See the README for more details.
- */
-export type CaveatSpecificationConstraint = {
+export type CaveatSpecificationBase = {
   /**
    * The string type of the caveat.
    */
   type: string;
-
-  /**
-   * The decorator function used to apply the caveat to restricted method
-   * requests.
-   */
-  decorator?: CaveatDecorator<any>;
 
   /**
    * The validator function used to validate caveats of the associated type
@@ -136,6 +120,31 @@ export type CaveatSpecificationConstraint = {
    */
   validator?: CaveatValidator<any>;
 };
+
+export type RestrictedMethodCaveatSpecificationConstraint =
+  CaveatSpecificationBase & {
+    /**
+     * The decorator function used to apply the caveat to restricted method
+     * requests.
+     */
+    decorator: CaveatDecorator<any>;
+  };
+
+export type EndowmentCaveatSpecificationConstraint = CaveatSpecificationBase;
+
+/**
+ * The constraint for caveat specification objects. Every {@link Caveat}
+ * supported by a {@link PermissionController} must have an associated
+ * specification, which is the source of truth for all caveat-related types.
+ * In addition, a caveat specification includes the decorator function used
+ * to apply the caveat's attenuation to a restricted method, and any validator
+ * function specified by the consumer.
+ *
+ * See the README for more details.
+ */
+export type CaveatSpecificationConstraint =
+  | RestrictedMethodCaveatSpecificationConstraint
+  | EndowmentCaveatSpecificationConstraint;
 
 /**
  * Options for {@link CaveatSpecificationBuilder} functions.
@@ -224,6 +233,18 @@ export type ExtractCaveatValue<
 > = ExtractCaveat<CaveatSpecifications, CaveatType>['value'];
 
 /**
+ * Determines whether a caveat specification has a decorator.
+ *
+ * @param specification - The caveat specification.
+ * @returns True if the caveat specification has a decorator, otherwise false.
+ */
+export function hasDecorator(
+  specification: CaveatSpecificationConstraint,
+): specification is RestrictedMethodCaveatSpecificationConstraint {
+  return 'decorator' in specification;
+}
+
+/**
  * Decorate a restricted method implementation with its caveats.
  *
  * Note that all caveat functions (i.e. the argument and return value of the
@@ -257,7 +278,7 @@ export function decorateWithCaveats<
       throw new UnrecognizedCaveatTypeError(caveat.type);
     }
 
-    if (specification.decorator) {
+    if (hasDecorator(specification)) {
       decorated = specification.decorator(decorated, caveat);
     }
   }
