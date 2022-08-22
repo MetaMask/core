@@ -2,7 +2,9 @@ import getCreateRandomId from 'json-rpc-random-id';
 import pify from 'pify';
 import { JsonRpcRequest } from 'json-rpc-engine';
 import { BaseBlockTracker, Provider } from './BaseBlockTracker';
+import { projectLogger, createModuleLogger } from './logging-utils';
 
+const log = createModuleLogger(projectLogger, 'polling-block-tracker');
 const createRandomId = getCreateRandomId();
 const sec = 1000;
 
@@ -108,7 +110,9 @@ export class PollingBlockTracker extends BaseBlockTracker {
       req.skipCache = true;
     }
 
+    log('Making request', req);
     const res = await pify((cb) => this._provider.sendAsync(req, cb))();
+    log('Got response', res);
     if (res.error) {
       throw new Error(
         `PollingBlockTracker - encountered error fetching block:\n${res.error.message}`,

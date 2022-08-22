@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@metamask/safe-event-emitter": "^2.0.0",
+    "@metamask/utils": "^3.0.1",
     "json-rpc-random-id": "^1.0.1",
     "pify": "^3.0.0"
   },
