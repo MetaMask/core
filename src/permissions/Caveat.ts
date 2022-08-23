@@ -1,5 +1,9 @@
 import { Json } from '@metamask/types';
-import { UnrecognizedCaveatTypeError } from './errors';
+import { hasProperty } from '../util';
+import {
+  CaveatSpecificationMismatch,
+  UnrecognizedCaveatTypeError,
+} from './errors';
 import {
   AsyncRestrictedMethod,
   RestrictedMethod,
@@ -236,15 +240,15 @@ export type ExtractCaveatValue<
 > = ExtractCaveat<CaveatSpecifications, CaveatType>['value'];
 
 /**
- * Determines whether a caveat specification has a decorator.
+ * Determines whether a caveat specification is a restricted method caveat specification.
  *
  * @param specification - The caveat specification.
- * @returns True if the caveat specification has a decorator, otherwise false.
+ * @returns True if the caveat specification is a restricted method caveat specification, otherwise false.
  */
-export function hasDecorator(
+export function isRestrictedMethodCaveatSpecification(
   specification: CaveatSpecificationConstraint,
 ): specification is RestrictedMethodCaveatSpecificationConstraint {
-  return 'decorator' in specification;
+  return hasProperty(specification, 'decorator');
 }
 
 /**
@@ -281,8 +285,10 @@ export function decorateWithCaveats<
       throw new UnrecognizedCaveatTypeError(caveat.type);
     }
 
-    if (hasDecorator(specification)) {
+    if (isRestrictedMethodCaveatSpecification(specification)) {
       decorated = specification.decorator(decorated, caveat);
+    } else {
+      throw new CaveatSpecificationMismatch(caveat);
     }
   }
 

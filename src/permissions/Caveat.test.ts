@@ -133,4 +133,32 @@ describe('decorateWithCaveats', () => {
       }),
     ).toThrow(new errors.UnrecognizedCaveatTypeError('kaplar'));
   });
+
+  it('throws an error if no decorator is present', async () => {
+    const methodImplementation = () => [1, 2, 3];
+
+    const caveatSpecifications = {
+      reverse: {
+        type: 'reverse',
+      },
+    };
+
+    const permission: PermissionConstraint = {
+      id: 'foo',
+      parentCapability: 'arbitraryMethod',
+      invoker: 'arbitraryInvoker',
+      date: Date.now(),
+      caveats: [{ type: 'reverse', value: null }],
+    };
+
+    expect(() =>
+      decorateWithCaveats(
+        methodImplementation,
+        permission,
+        caveatSpecifications,
+      ),
+    ).toThrow(
+      new errors.CaveatSpecificationMismatch(caveatSpecifications.reverse),
+    );
+  });
 });

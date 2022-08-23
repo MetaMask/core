@@ -278,6 +278,19 @@ export class DuplicateCaveatError extends Error {
   }
 }
 
+export class CaveatSpecificationMismatch extends Error {
+  public data: {
+    caveat: Record<string, unknown>;
+  };
+
+  constructor(caveat: Record<string, unknown>) {
+    super(
+      'Caveat specification uses a mismatched type. Expected restricted method caveat specification.',
+    );
+    this.data = { caveat };
+  }
+}
+
 export class PermissionsRequestNotFoundError extends Error {
   constructor(id: string) {
     super(`Permissions request with id "${id}" not found.`);
