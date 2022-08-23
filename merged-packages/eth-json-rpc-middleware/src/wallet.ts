@@ -5,7 +5,7 @@ import {
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from 'json-rpc-engine';
-import * as sigUtil from 'eth-sig-util';
+import * as sigUtil from '@metamask/eth-sig-util';
 import { ethErrors } from 'eth-rpc-errors';
 import type { Block } from './types';
 
@@ -247,7 +247,7 @@ export function createWalletMiddleware({
       (req.params as string[])[0],
       req,
     );
-    const message: string = (req.params as string)[1];
+    const message: string = (req.params as string[])[1];
     const version = 'V4';
     const msgParams: TypedMessageParams = {
       data: message,
@@ -310,16 +310,12 @@ export function createWalletMiddleware({
     req: JsonRpcRequest<unknown>,
     res: PendingJsonRpcResponse<unknown>,
   ): Promise<void> {
-    const message: string = (req.params as string)[0];
-    const signature: string = (req.params as string)[1];
-    const extraParams: Record<string, unknown> =
-      (req.params as Record<string, unknown>[])[2] || {};
-    const msgParams: sigUtil.SignedMessageData<unknown> = {
-      ...extraParams,
-      sig: signature,
+    const message: string = (req.params as string[])[0];
+    const signature: string = (req.params as string[])[1];
+    const signerAddress: string = sigUtil.recoverPersonalSignature({
       data: message,
-    };
-    const signerAddress: string = sigUtil.recoverPersonalSignature(msgParams);
+      signature,
+    });
 
     res.result = signerAddress;
   }
@@ -333,7 +329,7 @@ export function createWalletMiddleware({
     }
 
     const address: string = await validateAndNormalizeKeyholder(
-      (req.params as string)[0],
+      (req.params as string[])[0],
       req,
     );
 
@@ -348,9 +344,9 @@ export function createWalletMiddleware({
       throw ethErrors.rpc.methodNotSupported();
     }
 
-    const ciphertext: string = (req.params as string)[0];
+    const ciphertext: string = (req.params as string[])[0];
     const address: string = await validateAndNormalizeKeyholder(
-      (req.params as string)[1],
+      (req.params as string[])[1],
       req,
     );
     const extraParams: Record<string, unknown> =
