@@ -1,4 +1,5 @@
 import { errorCodes, ethErrors, EthereumRpcError } from 'eth-rpc-errors';
+import { PermissionType } from './Permission';
 
 type UnauthorizedArg = {
   data?: Record<string, unknown>;
@@ -280,14 +281,18 @@ export class DuplicateCaveatError extends Error {
 
 export class CaveatSpecificationMismatchError extends Error {
   public data: {
-    caveat: Record<string, unknown>;
+    caveatSpec: Record<string, unknown>;
+    permissionType: PermissionType;
   };
 
-  constructor(caveat: Record<string, unknown>) {
+  constructor(
+    caveatSpec: Record<string, unknown>,
+    permissionType: PermissionType,
+  ) {
     super(
-      'Caveat specification uses a mismatched type. Expected restricted method caveat specification.',
+      `Caveat specification uses a mismatched type. Expected caveats for ${permissionType}`,
     );
-    this.data = { caveat };
+    this.data = { caveatSpec, permissionType };
   }
 }
 

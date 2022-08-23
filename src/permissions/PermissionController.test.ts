@@ -629,6 +629,57 @@ describe('PermissionController', () => {
           ),
       ).toThrow(new errors.UnrecognizedCaveatTypeError('foo'));
     });
+
+    it('throws if a specified caveat has a type mismatch', () => {
+      const defaultCaveats = getDefaultCaveatSpecifications();
+      expect(
+        () =>
+          new PermissionController<
+            DefaultPermissionSpecifications,
+            DefaultCaveatSpecifications
+          >(
+            getPermissionControllerOptions({
+              permissionSpecifications: {
+                ...getDefaultPermissionSpecifications(),
+                foo: {
+                  permissionType: PermissionType.Endowment,
+                  targetKey: 'foo',
+                  allowedCaveats: [defaultCaveats.reverseArrayResponse.type],
+                },
+              },
+            }),
+          ),
+      ).toThrow(
+        new errors.CaveatSpecificationMismatchError(
+          defaultCaveats.reverseArrayResponse,
+          PermissionType.Endowment,
+        ),
+      );
+
+      expect(
+        () =>
+          new PermissionController<
+            DefaultPermissionSpecifications,
+            DefaultCaveatSpecifications
+          >(
+            getPermissionControllerOptions({
+              permissionSpecifications: {
+                ...getDefaultPermissionSpecifications(),
+                foo: {
+                  permissionType: PermissionType.RestrictedMethod,
+                  targetKey: 'foo',
+                  allowedCaveats: [defaultCaveats.endowmentCaveat.type],
+                },
+              },
+            }),
+          ),
+      ).toThrow(
+        new errors.CaveatSpecificationMismatchError(
+          defaultCaveats.endowmentCaveat,
+          PermissionType.RestrictedMethod,
+        ),
+      );
+    });
   });
 
   describe('clearState', () => {

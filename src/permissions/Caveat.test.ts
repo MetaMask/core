@@ -1,5 +1,5 @@
 import * as errors from './errors';
-import { decorateWithCaveats, PermissionConstraint } from '.';
+import { decorateWithCaveats, PermissionConstraint, PermissionType } from '.';
 
 describe('decorateWithCaveats', () => {
   it('decorates a method with caveat', async () => {
@@ -158,7 +158,10 @@ describe('decorateWithCaveats', () => {
         caveatSpecifications,
       ),
     ).toThrow(
-      new errors.CaveatSpecificationMismatchError(caveatSpecifications.reverse),
+      new errors.CaveatSpecificationMismatchError(
+        caveatSpecifications.reverse,
+        PermissionType.RestrictedMethod,
+      ),
     );
   });
 });

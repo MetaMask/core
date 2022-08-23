@@ -9,6 +9,7 @@ import {
   RestrictedMethod,
   PermissionConstraint,
   RestrictedMethodParameters,
+  PermissionType,
 } from './Permission';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { PermissionController } from './PermissionController';
@@ -286,7 +287,10 @@ export function decorateWithCaveats<
     }
 
     if (!isRestrictedMethodCaveatSpecification(specification)) {
-      throw new CaveatSpecificationMismatchError(caveat);
+      throw new CaveatSpecificationMismatchError(
+        specification,
+        PermissionType.RestrictedMethod,
+      );
     }
     decorated = specification.decorator(decorated, caveat);
   }
