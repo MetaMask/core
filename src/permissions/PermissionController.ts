@@ -27,12 +27,14 @@ import {
   ExtractCaveat,
   ExtractCaveats,
   ExtractCaveatValue,
+  isRestrictedMethodCaveatSpecification,
 } from './Caveat';
 import {
   CaveatAlreadyExistsError,
   CaveatDoesNotExistError,
   CaveatInvalidJsonError,
   CaveatMissingValueError,
+  CaveatSpecificationMismatchError,
   DuplicateCaveatError,
   EndowmentPermissionDoesNotExistError,
   ForbiddenCaveatError,
@@ -655,6 +657,25 @@ export class PermissionController<
           allowedCaveats.forEach((caveatType) => {
             if (!hasProperty(caveatSpecifications, caveatType)) {
               throw new UnrecognizedCaveatTypeError(caveatType);
+            }
+
+            const specification =
+              caveatSpecifications[
+                caveatType as ControllerCaveatSpecification['type']
+              ];
+            const isRestrictedMethodCaveat =
+              isRestrictedMethodCaveatSpecification(specification);
+
+            if (
+              (permissionType === PermissionType.RestrictedMethod &&
+                !isRestrictedMethodCaveat) ||
+              (permissionType === PermissionType.Endowment &&
+                isRestrictedMethodCaveat)
+            ) {
+              throw new CaveatSpecificationMismatchError(
+                specification,
+                permissionType,
+              );
             }
           });
         }
