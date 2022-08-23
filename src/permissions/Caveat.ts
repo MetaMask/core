@@ -285,11 +285,10 @@ export function decorateWithCaveats<
       throw new UnrecognizedCaveatTypeError(caveat.type);
     }
 
-    if (isRestrictedMethodCaveatSpecification(specification)) {
-      decorated = specification.decorator(decorated, caveat);
-    } else {
+    if (!isRestrictedMethodCaveatSpecification(specification)) {
       throw new CaveatSpecificationMismatch(caveat);
     }
+    decorated = specification.decorator(decorated, caveat);
   }
 
   return decorated;
