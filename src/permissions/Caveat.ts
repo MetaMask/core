@@ -136,8 +136,8 @@ export type EndowmentCaveatSpecificationConstraint = CaveatSpecificationBase;
  * supported by a {@link PermissionController} must have an associated
  * specification, which is the source of truth for all caveat-related types.
  * In addition, a caveat specification may include a decorator function used
- * to apply the caveat's attenuation to a restricted method. It may also include a validator
- * function specified by the consumer.
+ * to apply the caveat's attenuation to a restricted method. It may also include
+ * a validator function specified by the consumer.
  *
  * See the README for more details.
  */
