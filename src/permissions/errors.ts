@@ -278,7 +278,7 @@ export class DuplicateCaveatError extends Error {
   }
 }
 
-export class CaveatSpecificationMismatch extends Error {
+export class CaveatSpecificationMismatchError extends Error {
   public data: {
     caveat: Record<string, unknown>;
   };

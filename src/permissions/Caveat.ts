@@ -1,7 +1,7 @@
 import { Json } from '@metamask/types';
 import { hasProperty } from '../util';
 import {
-  CaveatSpecificationMismatch,
+  CaveatSpecificationMismatchError,
   UnrecognizedCaveatTypeError,
 } from './errors';
 import {
@@ -286,7 +286,7 @@ export function decorateWithCaveats<
     }
 
     if (!isRestrictedMethodCaveatSpecification(specification)) {
-      throw new CaveatSpecificationMismatch(caveat);
+      throw new CaveatSpecificationMismatchError(caveat);
     }
     decorated = specification.decorator(decorated, caveat);
   }

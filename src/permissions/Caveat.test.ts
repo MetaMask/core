@@ -158,7 +158,7 @@ describe('decorateWithCaveats', () => {
         caveatSpecifications,
       ),
     ).toThrow(
-      new errors.CaveatSpecificationMismatch(caveatSpecifications.reverse),
+      new errors.CaveatSpecificationMismatchError(caveatSpecifications.reverse),
     );
   });
 });
