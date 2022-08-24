@@ -552,11 +552,7 @@ export class TokensController extends BaseController<
     abi: string,
     ethersProvider: any,
   ): Contract {
-    const tokenContract = new Contract(
-      tokenAddress,
-      abi,
-      ethersProvider,
-    );
+    const tokenContract = new Contract(tokenAddress, abi, ethersProvider);
     return tokenContract;
   }
 
