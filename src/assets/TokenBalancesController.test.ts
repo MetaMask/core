@@ -2,6 +2,7 @@ import sinon from 'sinon';
 import { BN } from 'ethereumjs-util';
 import { NetworkController } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
+import stubCreateEthers from '../../tests/mocks/stubCreateEthers';
 import { TokensController } from './TokensController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
@@ -197,13 +198,7 @@ describe('TokenBalancesController', () => {
       onNetworkStateChange: (listener) => network.subscribe(listener),
     });
 
-    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-
-    sinon
-      .stub(tokensController, '_createEthersContract')
-      .callsFake(() =>
-        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-      );
+    const stub = stubCreateEthers(tokensController, false);
 
     const tokenBalances = new TokenBalancesController(
       {
@@ -220,6 +215,8 @@ describe('TokenBalancesController', () => {
     const found = tokens.filter((token: Token) => token.address === '0x00');
     expect(found.length > 0).toBe(true);
     expect(updateBalances.called).toBe(true);
+
+    stub.mockRestore();
   });
 
   it('should update token balances when detected tokens are added', async () => {
@@ -241,7 +238,7 @@ describe('TokenBalancesController', () => {
     expect(tokenBalances.state.contractBalances).toStrictEqual({});
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
+    tokenStateChangeListener!({
       detectedTokens: [
         {
           address: '0x02',
