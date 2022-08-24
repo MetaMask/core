@@ -32,6 +32,7 @@
     "prepack": "./scripts/prepack.sh",
     "setup": "yarn install",
     "test": "jest",
+    "test:debug": "yarn run --inspect-brk jest --runInBand",
     "test:watch": "jest --watch"
   },
   "dependencies": {
