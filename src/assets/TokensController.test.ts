@@ -17,7 +17,8 @@ describe('TokensController', () => {
   let preferences: PreferencesController;
   let network: NetworkController;
 
-  let instEthProvStub: any;
+  let instEthProvStub: sinon.SinonStub;
+
   beforeEach(() => {
     preferences = new PreferencesController();
     network = new NetworkController();
@@ -72,7 +73,7 @@ describe('TokensController', () => {
       isERC721: false,
       aggregators: [],
     });
-    stub.mockRestore();
+    stub.restore();
   });
 
   it('should add tokens', async () => {
@@ -130,7 +131,7 @@ describe('TokensController', () => {
       aggregators: [],
     });
 
-    stub.mockRestore();
+    stub.restore();
   });
 
   it('should add detected tokens', async () => {
@@ -194,7 +195,7 @@ describe('TokensController', () => {
       isERC721: undefined,
     });
 
-    stub.mockRestore();
+    stub.restore();
   });
 
   it('should add token by selected address', async () => {
@@ -218,7 +219,7 @@ describe('TokensController', () => {
       aggregators: [],
     });
 
-    stub.mockRestore();
+    stub.restore();
   });
 
   it('should add token by network', async () => {
@@ -257,7 +258,7 @@ describe('TokensController', () => {
       aggregators: [],
     });
 
-    stub.mockRestore();
+    stub.restore();
   });
 
   it('should remove token', async () => {
@@ -265,7 +266,7 @@ describe('TokensController', () => {
     await tokensController.addToken('0x01', 'bar', 2);
     tokensController.ignoreTokens(['0x01']);
     expect(tokensController.state.tokens).toHaveLength(0);
-    stub.mockRestore();
+    stub.restore();
   });
 
   it('should remove token by selected address', async () => {
@@ -288,7 +289,7 @@ describe('TokensController', () => {
       isERC721: false,
       aggregators: [],
     });
-    stub.mockRestore();
+    stub.restore();
   });
 
   it('should remove token by provider type', async () => {
@@ -327,7 +328,7 @@ describe('TokensController', () => {
       isERC721: false,
       aggregators: [],
     });
-    stub.mockRestore();
+    stub.restore();
   });
 
   it('should subscribe to new sibling preference controllers', async () => {
@@ -346,7 +347,7 @@ describe('TokensController', () => {
     const defaultSelectedChainID = NetworksChainId.rinkeby;
     const defaultSelectedAddress = '0x0001';
 
-    let createEthersStub: any;
+    let createEthersStub: sinon.SinonStub;
     beforeEach(() => {
       preferences.setSelectedAddress(defaultSelectedAddress);
       network.update({
@@ -360,7 +361,7 @@ describe('TokensController', () => {
     });
 
     afterEach(() => {
-      createEthersStub.mockRestore();
+      createEthersStub.restore();
     });
 
     it('should remove token from ignoredTokens/allIgnoredTokens lists if added back via addToken', async () => {
@@ -504,7 +505,7 @@ describe('TokensController', () => {
 
     tokensController.ignoreTokens(['0x01', '0x02']);
     expect(tokensController.state.tokens).toStrictEqual([]);
-    stub.mockRestore();
+    stub.restore();
   });
 
   describe('isERC721 flag', function () {
@@ -553,7 +554,7 @@ describe('TokensController', () => {
         const result = await tokensController.updateTokenType(tokenAddress);
 
         expect(result.isERC721).toBe(true);
-        stub.mockRestore();
+        stub.restore();
       });
 
       it('should add isERC721 = false to token object already in state when token is not a collectible and not in our contract-metadata repo', async function () {
@@ -572,7 +573,7 @@ describe('TokensController', () => {
         const result = await tokensController.updateTokenType(tokenAddress);
 
         expect(result.isERC721).toBe(false);
-        stub.mockRestore();
+        stub.restore();
       });
     });
 
@@ -617,7 +618,7 @@ describe('TokensController', () => {
           },
         ]);
 
-        stub.mockRestore();
+        stub.restore();
       });
 
       it('should add isERC721 = false to token object already in state when token is not a collectible and in our contract-metadata repo', async function () {
@@ -661,7 +662,7 @@ describe('TokensController', () => {
           },
         ]);
 
-        stub.mockRestore();
+        stub.restore();
       });
 
       it('should throw error if switching networks while adding token', async function () {
@@ -729,7 +730,7 @@ describe('TokensController', () => {
       expect(tokensController.state.detectedTokens).toStrictEqual([]);
       expect(tokensController.state.tokens).toStrictEqual([dummyAddedToken]);
 
-      stub.mockRestore();
+      stub.restore();
     });
   });
 
@@ -837,7 +838,7 @@ describe('TokensController', () => {
   describe('on watchAsset', function () {
     let asset: any, type: any;
 
-    let createEthersStub: any;
+    let createEthersStub: sinon.SinonStub;
     beforeEach(function () {
       type = 'ERC20';
       asset = {
@@ -850,7 +851,7 @@ describe('TokensController', () => {
     });
 
     afterEach(() => {
-      createEthersStub.mockRestore();
+      createEthersStub.restore();
     });
 
     it('should error if passed no type', async function () {
@@ -1092,7 +1093,7 @@ describe('TokensController', () => {
         },
       ]);
 
-      stub.mockRestore();
+      stub.restore();
     });
   });
 
@@ -1187,7 +1188,7 @@ describe('TokensController', () => {
 
       expect(initialTokensSecond).toStrictEqual(tokensController.state.tokens);
 
-      stub.mockRestore();
+      stub.restore();
     });
   });
 });

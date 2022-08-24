@@ -1,11 +1,13 @@
 import { TokensController } from '../../src/assets/TokensController';
+import sinon from 'sinon';
 
 const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
-  return jest.spyOn(ctrl, '_createEthersContract').mockImplementation(() => {
-    return {
-      supportsInterface: jest.fn().mockResolvedValue(res),
-    } as any;
-  });
+  return sinon.stub(ctrl, '_createEthersContract')
+    .callsFake(() => {
+      return {
+        supportsInterface: sinon.stub().returns(res),
+      } as any;
+    });
 };
 
 export default stubCreateEthers;

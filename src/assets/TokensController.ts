@@ -3,7 +3,7 @@ import contractsMap from '@metamask/contract-metadata';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
-import { ethers } from 'ethers';
+import { ethers, Contract } from 'ethers';
 import { AbortController } from 'abort-controller';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
@@ -551,8 +551,8 @@ export class TokensController extends BaseController<
     tokenAddress: string,
     abi: string,
     ethersProvider: any,
-  ): ethers.Contract {
-    const tokenContract = new ethers.Contract(
+  ): Contract {
+    const tokenContract = new Contract(
       tokenAddress,
       abi,
       ethersProvider,

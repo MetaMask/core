@@ -216,7 +216,7 @@ describe('TokenBalancesController', () => {
     expect(found.length > 0).toBe(true);
     expect(updateBalances.called).toBe(true);
 
-    stub.mockRestore();
+    stub.restore();
   });
 
   it('should update token balances when detected tokens are added', async () => {
