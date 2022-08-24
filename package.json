@@ -30,10 +30,13 @@
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore",
     "prepack": "./scripts/prepack.sh",
-    "setup": "yarn install",
+    "setup": "yarn install && yarn simple-git-hooks",
     "test": "jest",
     "test:debug": "yarn run --inspect-brk jest --runInBand",
     "test:watch": "jest --watch"
+  },
+  "simple-git-hooks": {
+    "pre-push": "yarn lint"
   },
   "dependencies": {
     "@ethereumjs/common": "^2.3.1",
@@ -105,6 +108,7 @@
     "prettier": "^2.6.2",
     "prettier-plugin-packagejson": "^2.2.17",
     "rimraf": "^3.0.2",
+    "simple-git-hooks": "^2.8.0",
     "sinon": "^9.2.4",
     "ts-jest": "^26.5.2",
     "typedoc": "^0.22.15",
@@ -126,9 +130,10 @@
       "babel-runtime>core-js": false,
       "eth-sig-util>ethereumjs-abi>ethereumjs-util>keccakjs>sha3": true,
       "eth-sig-util>ethereumjs-util>keccak": true,
-      "eth-sig-util>ethereumjs-util>secp256k1": true,
-      "ethereumjs-util>ethereum-cryptography>keccak": true,
-      "ethereumjs-util>ethereum-cryptography>secp256k1": true
+      "eth-sig-util>ethereumjs-util>secp256k1": false,
+      "ethereumjs-util>ethereum-cryptography>keccak": false,
+      "ethereumjs-util>ethereum-cryptography>secp256k1": false,
+      "simple-git-hooks": false
     }
   }
 }
