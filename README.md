@@ -260,7 +260,7 @@ console.log(datamodel.flatState); // {infura: {...}, contractExchangeRates: [...
 - Install [Node.js](https://nodejs.org) version 14
   - If you are using [nvm](https://github.com/creationix/nvm#installation) (recommended) running `nvm use` will automatically choose the right node version for you.
 - Install [Yarn v3](https://yarnpkg.com/getting-started/install)
-- Run `yarn setup` to install dependencies and run any required post-install scripts.
+- Run `yarn install` to install dependencies and run any required post-install scripts
 - (Optional) Run `yarn simple-git-hooks` to set up a Git hook that will ensure that all files pass the linter before you push a branch.
 
 ### Testing and Linting
