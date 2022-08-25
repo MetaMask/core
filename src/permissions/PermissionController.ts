@@ -48,7 +48,6 @@ import {
   InvalidSubjectIdentifierError,
   methodNotFound,
   PermissionDoesNotExistError,
-  PermissionsRequestNotFoundError,
   unauthorized,
   UnrecognizedCaveatTypeError,
   UnrecognizedSubjectError,
