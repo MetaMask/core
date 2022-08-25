@@ -386,7 +386,7 @@ export class ApprovalController extends BaseController<
    * @param value - The value to resolve the approval promise with.
    */
   accept(id: string, value?: unknown): void {
-    this._deleteApprovalAndGetCallbacks(id).resolve(value);
+    this._deleteApprovalAndGetCallbacks(id)?.resolve(value);
   }
 
   /**
@@ -397,7 +397,7 @@ export class ApprovalController extends BaseController<
    * @param error - The error to reject the approval promise with.
    */
   reject(id: string, error: unknown): void {
-    this._deleteApprovalAndGetCallbacks(id).reject(error);
+    this._deleteApprovalAndGetCallbacks(id)?.reject(error);
   }
 
   /**
@@ -565,10 +565,12 @@ export class ApprovalController extends BaseController<
    * @param id - The id of the approval request.
    * @returns The promise callbacks associated with the approval request.
    */
-  private _deleteApprovalAndGetCallbacks(id: string): ApprovalCallbacks {
+  private _deleteApprovalAndGetCallbacks(
+    id: string,
+  ): ApprovalCallbacks | undefined {
     const callbacks = this._approvals.get(id);
     if (!callbacks) {
-      throw new Error(`Approval request with id '${id}' not found.`);
+      return undefined;
     }
 
     this._delete(id);

@@ -974,7 +974,7 @@ export class PermissionController<
         subjectsAndPermissions[origin].forEach((target) => {
           const { permissions } = draftState.subjects[origin];
           if (!hasProperty(permissions as Record<string, unknown>, target)) {
-            throw new PermissionDoesNotExistError(origin, target);
+            return;
           }
 
           this.deletePermission(draftState.subjects, origin, target);
@@ -2040,7 +2040,7 @@ export class PermissionController<
     const { id } = request.metadata;
 
     if (!this.hasApprovalRequest({ id })) {
-      throw new PermissionsRequestNotFoundError(id);
+      return;
     }
 
     if (Object.keys(request.permissions).length === 0) {
@@ -2075,7 +2075,7 @@ export class PermissionController<
    */
   async rejectPermissionsRequest(id: string): Promise<void> {
     if (!this.hasApprovalRequest({ id })) {
-      throw new PermissionsRequestNotFoundError(id);
+      return;
     }
 
     this._rejectPermissionsRequest(id, userRejectedRequest());

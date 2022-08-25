@@ -1124,18 +1124,13 @@ describe('PermissionController', () => {
       ).toThrow(new errors.UnrecognizedSubjectError('foo'));
     });
 
-    it('throws an error if the requested subject does not have the specified permission', () => {
+    it('does not throws an error if the requested subject does not have the specified permission', () => {
       const controller = getDefaultPermissionControllerWithState();
       expect(() =>
         controller.revokePermissions({
           'metamask.io': [PermissionNames.wallet_getSecretObject],
         }),
-      ).toThrow(
-        new errors.PermissionDoesNotExistError(
-          'metamask.io',
-          PermissionNames.wallet_getSecretObject,
-        ),
-      );
+      ).not.toThrow();
     });
   });
 
@@ -3911,7 +3906,7 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if the request does not exist', async () => {
+    it('does not call ApprovalController:acceptRequest if the request does not exist', async () => {
       const options = getPermissionControllerOptions();
       const { messenger } = options;
       const origin = 'metamask.io';
@@ -3923,15 +3918,12 @@ describe('PermissionController', () => {
 
       const controller = getDefaultPermissionController(options);
 
-      await expect(
-        async () =>
-          await controller.acceptPermissionsRequest({
-            metadata: { id, origin },
-            permissions: {
-              [PermissionNames.wallet_getSecretArray]: {},
-            },
-          }),
-      ).rejects.toThrow(new errors.PermissionsRequestNotFoundError(id));
+      await controller.acceptPermissionsRequest({
+        metadata: { id, origin },
+        permissions: {
+          [PermissionNames.wallet_getSecretArray]: {},
+        },
+      });
 
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenNthCalledWith(
@@ -4031,7 +4023,7 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if the request does not exist', async () => {
+    it('does not call ApprovalController:rejectRequest if the request does not exist', async () => {
       const options = getPermissionControllerOptions();
       const { messenger } = options;
       const id = 'foobar';
@@ -4042,9 +4034,7 @@ describe('PermissionController', () => {
 
       const controller = getDefaultPermissionController(options);
 
-      await expect(
-        async () => await controller.rejectPermissionsRequest(id),
-      ).rejects.toThrow(new errors.PermissionsRequestNotFoundError(id));
+      await controller.rejectPermissionsRequest(id);
 
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenNthCalledWith(
