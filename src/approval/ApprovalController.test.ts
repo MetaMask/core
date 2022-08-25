@@ -705,16 +705,6 @@ function getOriginTypeCollisionError(origin: string, type = TYPE) {
 }
 
 /**
- * Get an "ID not found" error.
- *
- * @param id - The ID that was not found.
- * @returns An "ID not found" error.
- */
-function getIdNotFoundError(id: string) {
-  return getError(`Approval request with id '${id}' not found.`);
-}
-
-/**
  * Get an error.
  *
  * @param message - The error message.
