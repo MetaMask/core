@@ -126,13 +126,13 @@
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
-      "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
+      "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": false,
       "babel-runtime>core-js": false,
       "eth-sig-util>ethereumjs-abi>ethereumjs-util>keccakjs>sha3": true,
-      "eth-sig-util>ethereumjs-util>keccak": true,
-      "eth-sig-util>ethereumjs-util>secp256k1": false,
-      "ethereumjs-util>ethereum-cryptography>keccak": false,
-      "ethereumjs-util>ethereum-cryptography>secp256k1": false,
+      "eth-sig-util>ethereumjs-util>keccak": false,
+      "eth-sig-util>ethereumjs-util>secp256k1": true,
+      "ethereumjs-util>ethereum-cryptography>keccak": true,
+      "ethereumjs-util>ethereum-cryptography>secp256k1": true,
       "simple-git-hooks": false
     }
   }
