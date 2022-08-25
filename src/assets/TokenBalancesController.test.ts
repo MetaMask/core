@@ -2,7 +2,6 @@ import sinon from 'sinon';
 import { BN } from 'ethereumjs-util';
 import { NetworkController } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
-import stubCreateEthers from '../../tests/mocks/stubCreateEthers';
 import { TokensController } from './TokensController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';
@@ -10,6 +9,14 @@ import {
   BN as exportedBn,
   TokenBalancesController,
 } from './TokenBalancesController';
+
+const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
+  return sinon.stub(ctrl, '_createEthersContract').callsFake(() => {
+    return {
+      supportsInterface: sinon.stub().returns(res),
+    } as any;
+  });
+};
 
 describe('TokenBalancesController', () => {
   const getToken = (

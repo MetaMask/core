@@ -8,9 +8,16 @@ import {
   NetworksChainId,
   NetworkType,
 } from '../network/NetworkController';
-import stubCreateEthers from '../../tests/mocks/stubCreateEthers';
 import { TokensController } from './TokensController';
 import { Token } from './TokenRatesController';
+
+const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
+  return sinon.stub(ctrl, '_createEthersContract').callsFake(() => {
+    return {
+      supportsInterface: sinon.stub().returns(res),
+    } as any;
+  });
+};
 
 describe('TokensController', () => {
   let tokensController: TokensController;
