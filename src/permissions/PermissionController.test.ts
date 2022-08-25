@@ -1000,19 +1000,14 @@ describe('PermissionController', () => {
       ).toThrow(new errors.UnrecognizedSubjectError('metamask.io'));
     });
 
-    it('throws an error if the requested subject does not have the specified permission', () => {
+    it('does not throws an error if the requested subject does not have the specified permission', () => {
       const controller = getDefaultPermissionControllerWithState();
       expect(() =>
         controller.revokePermission(
           'metamask.io',
           PermissionNames.wallet_getSecretObject,
         ),
-      ).toThrow(
-        new errors.PermissionDoesNotExistError(
-          'metamask.io',
-          PermissionNames.wallet_getSecretObject,
-        ),
-      );
+      ).not.toThrow();
     });
   });
 
