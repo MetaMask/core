@@ -3920,6 +3920,7 @@ describe('PermissionController', () => {
         },
       });
 
+      // Method is called only once
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenNthCalledWith(
         1,
@@ -4031,6 +4032,7 @@ describe('PermissionController', () => {
 
       await controller.rejectPermissionsRequest(id);
 
+      // Method is called only once
       expect(callActionSpy).toHaveBeenCalledTimes(1);
       expect(callActionSpy).toHaveBeenNthCalledWith(
         1,
