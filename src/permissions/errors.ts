@@ -1,4 +1,5 @@
 import { errorCodes, ethErrors, EthereumRpcError } from 'eth-rpc-errors';
+import { PermissionType } from './Permission';
 
 type UnauthorizedArg = {
   data?: Record<string, unknown>;
@@ -275,6 +276,23 @@ export class DuplicateCaveatError extends Error {
       `Permissions for target "${targetName}" contains multiple caveats of type "${caveatType}".`,
     );
     this.data = { caveatType, origin, target: targetName };
+  }
+}
+
+export class CaveatSpecificationMismatchError extends Error {
+  public data: {
+    caveatSpec: Record<string, unknown>;
+    permissionType: PermissionType;
+  };
+
+  constructor(
+    caveatSpec: Record<string, unknown>,
+    permissionType: PermissionType,
+  ) {
+    super(
+      `Caveat specification uses a mismatched type. Expected caveats for ${permissionType}`,
+    );
+    this.data = { caveatSpec, permissionType };
   }
 }
 

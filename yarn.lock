@@ -10501,12 +10501,12 @@ __metadata:
   linkType: hard
 
 "sha3@npm:^1.2.2":
-  version: 1.2.3
-  resolution: "sha3@npm:1.2.3"
+  version: 1.2.6
+  resolution: "sha3@npm:1.2.6"
   dependencies:
     nan: 2.13.2
     node-gyp: latest
-  checksum: 089ee3b560b7725527245142a9f7ca2fde52792292076df26bc18c9fc333929b94531a64d67317fcfba6442b8b9ae7a76f25c563c8b19944794629d2e1084acb
+  checksum: b625be6fb36c1b1fc34f5d133d579dba7469a4544205d25a2a6942b2747aef3e16fe777cb90ac602fcf50345e65b54db2372f22d322f52c21340af1a25495796
   languageName: node
   linkType: hard
 
