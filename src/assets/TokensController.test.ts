@@ -595,15 +595,12 @@ describe('TokensController', () => {
         await tokensController.addToken(address, symbol, decimals);
 
         expect(tokensController.state.tokens).toStrictEqual([
-          {
+          expect.objectContaining({
             address,
             symbol,
             isERC721: true,
-            image:
-              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03.png',
             decimals,
-            aggregators: ['Dynamic'],
-          },
+          }),
         ]);
       });
 
@@ -639,15 +636,12 @@ describe('TokensController', () => {
         await tokensController.addToken(address, symbol, decimals);
 
         expect(tokensController.state.tokens).toStrictEqual([
-          {
+          expect.objectContaining({
             address,
             symbol,
             isERC721: false,
-            image:
-              'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x5afe3855358e112b5647b952709e6165e1c1eeee.png',
             decimals,
-            aggregators: ['Dynamic'],
-          },
+          }),
         ]);
       });
 
