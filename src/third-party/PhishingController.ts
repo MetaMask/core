@@ -95,7 +95,7 @@ export class PhishingController extends BaseController<
 
   private detector: any;
 
-  public lastFetched = 0;
+  private lastFetched = 0;
 
   /**
    * Name of this controller used during composition
@@ -140,7 +140,6 @@ export class PhishingController extends BaseController<
 
   /**
    * Set the interval at which the phishing list will be refetched. Fetching will only occur on the next call to test/bypass. For immediate update to the phishing list, call updatePhishingLists directly.
-   * last this.lastFetched.
    *
    * @param interval - the new interval, in ms
    */
@@ -153,16 +152,13 @@ export class PhishingController extends BaseController<
    *
    * @returns Promise<void> when finished fetching phishing lists or when fetching in not necessary.
    */
-  private async fetchIfNecessary(): Promise<boolean> {
+  private async fetchIfNecessary(): Promise<void> {
     const outOfDate =
       Date.now() - this.lastFetched >= this.config.refreshInterval;
 
-    if (this.lastFetched === 0 || outOfDate) {
-      await safelyExecute(() => this.updatePhishingLists());
-      this.lastFetched = Date.now();
-      return true;
+    if (outOfDate) {
+      await this.updatePhishingLists();
     }
-    return false;
   }
 
   /**
@@ -202,7 +198,6 @@ export class PhishingController extends BaseController<
    * Updates lists of approved and unapproved website origins.
    */
   async updatePhishingLists() {
-    this.lastFetched = Date.now();
     if (this.disabled) {
       return;
     }
@@ -251,6 +246,8 @@ export class PhishingController extends BaseController<
     this.update({
       phishing: configs,
     });
+
+    this.lastFetched = Date.now();
   }
 
   private async queryConfig<ResponseType>(

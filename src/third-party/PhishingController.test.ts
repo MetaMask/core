@@ -29,66 +29,73 @@ describe('PhishingController', () => {
     expect(controller.config).toStrictEqual({ refreshInterval: 3600000 });
   });
 
-  it('does not fetch or do anything async upon construction', async () => {
-    const mock = sinon.stub(
+  it('does not call updatePhishingList upon construction', async () => {
+    const mock = sinon.spy(
       PhishingController.prototype,
       'updatePhishingLists',
     );
     new PhishingController({});
     expect(mock.called).toBe(false);
+    mock.restore();
   });
 
   it('fetches the first time test is used', async () => {
-    const mock = sinon.stub(
+    const mock = sinon.spy(
       PhishingController.prototype,
       'updatePhishingLists',
     );
-    const ctrl = new PhishingController({});
+    const controller = new PhishingController({});
     expect(mock.called).toBe(false);
-    await ctrl.test('metamask.io');
+    await controller.test('metamask.io');
     expect(mock.called).toBe(true);
+    mock.restore();
   });
 
-  it('does not fetch the second time test is used in shorter time than the refreshInterval', async () => {
-    const mock = sinon.stub(
+  it('does not call fetch twice if the second call is inside of the refreshInterval', async () => {
+    const mock = sinon.spy(
       PhishingController.prototype,
       'updatePhishingLists',
     );
-    const ctrl = new PhishingController({});
+    const controller = new PhishingController({});
     expect(mock.callCount).toBe(0);
-    await ctrl.test('metamask.io');
+    await controller.test('metamask.io');
     expect(mock.callCount).toBe(1);
-    await ctrl.test('metamask.io');
+    await controller.test('metamask.io');
     expect(mock.callCount).toBe(1);
+    mock.restore();
   });
 
-  it('fetch the second time test is used in longer time than the refreshInterval', async () => {
-    const mock = sinon.stub(
+  it('should call fetch twice if the second call is outside the refreshInterval', async () => {
+    const clock = sinon.useFakeTimers(Date.now());
+    const mock = sinon.spy(
       PhishingController.prototype,
       'updatePhishingLists',
     );
-    const ctrl = new PhishingController({});
+    const controller = new PhishingController({refreshInterval: 1});
     expect(mock.callCount).toBe(0);
-    await ctrl.test('metamask.io');
+    await controller.test('metamask.io');
     expect(mock.callCount).toBe(1);
-    ctrl.lastFetched = 1;
-    await ctrl.test('metamask.io');
+    await clock.tickAsync(2);
+    await controller.test('metamask.io');
     expect(mock.callCount).toBe(2);
+    clock.restore();
+    mock.restore();
   });
 
   it('should be able to change the refreshInterval', async () => {
-    const mock = sinon.stub(
+    const mock = sinon.spy(
       PhishingController.prototype,
       'updatePhishingLists',
     );
-    const ctrl = new PhishingController({});
-    ctrl.setRefreshInterval(0);
+    const controller = new PhishingController({});
+    controller.setRefreshInterval(0);
 
-    await ctrl.test('metamask.io');
-    await ctrl.test('metamask.io');
-    await ctrl.test('metamask.io');
+    await controller.test('metamask.io');
+    await controller.test('metamask.io');
+    await controller.test('metamask.io');
 
     expect(mock.callCount).toBe(3);
+    mock.restore();
   });
 
   it('should update lists', async () => {
