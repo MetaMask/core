@@ -464,7 +464,7 @@ describe('approval controller', () => {
       expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
 
-    it('does not throws on unknown id', () => {
+    it('does not throw on unknown id', () => {
       expect(() => approvalController.accept('foo')).not.toThrow();
       expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
@@ -518,7 +518,7 @@ describe('approval controller', () => {
       expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
 
-    it('does not throws on unknown id', () => {
+    it('does not throw on unknown id', () => {
       expect(() =>
         approvalController.reject('foo', new Error('bar')),
       ).not.toThrow();

@@ -1000,7 +1000,7 @@ describe('PermissionController', () => {
       ).toThrow(new errors.UnrecognizedSubjectError('metamask.io'));
     });
 
-    it('does not throws an error if the requested subject does not have the specified permission', () => {
+    it('does not throw an error if the requested subject does not have the specified permission', () => {
       const controller = getDefaultPermissionControllerWithState();
       expect(() =>
         controller.revokePermission(
@@ -1119,7 +1119,7 @@ describe('PermissionController', () => {
       ).toThrow(new errors.UnrecognizedSubjectError('foo'));
     });
 
-    it('does not throws an error if the requested subject does not have the specified permission', () => {
+    it('does not throw an error if the requested subject does not have the specified permission', () => {
       const controller = getDefaultPermissionControllerWithState();
       expect(() =>
         controller.revokePermissions({
