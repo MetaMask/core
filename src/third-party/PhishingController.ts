@@ -180,11 +180,8 @@ export class PhishingController extends BaseController<
    * Temporarily marks a given origin as approved.
    *
    * @param origin - The origin to mark as approved.
-   * @returns Promise<void> when completed adding the origin to the whitelist
    */
-  async bypass(origin: string) {
-    await this.fetchIfNecessary();
-
+  bypass(origin: string) {
     const punycodeOrigin = toASCII(origin);
     const { whitelist } = this.state;
     if (whitelist.indexOf(punycodeOrigin) !== -1) {

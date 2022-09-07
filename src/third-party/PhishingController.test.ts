@@ -352,7 +352,7 @@ describe('PhishingController', () => {
       true,
       'Example unsafe domain seems to be safe',
     );
-    await controller.bypass(unsafeDomain);
+    controller.bypass(unsafeDomain);
     expect(
       await controller.test(unsafeDomain),
     ).toMatchObject<EthPhishingDetectResult>({
@@ -369,8 +369,8 @@ describe('PhishingController', () => {
       true,
       'Example unsafe domain seems to be safe',
     );
-    await controller.bypass(unsafeDomain);
-    await controller.bypass(unsafeDomain);
+    controller.bypass(unsafeDomain);
+    controller.bypass(unsafeDomain);
     expect(
       await controller.test(unsafeDomain),
     ).toMatchObject<EthPhishingDetectResult>({
@@ -387,7 +387,7 @@ describe('PhishingController', () => {
       true,
       'Example unsafe domain seems to be safe',
     );
-    await controller.bypass(unsafeDomain);
+    controller.bypass(unsafeDomain);
     expect(
       await controller.test(unsafeDomain),
     ).toMatchObject<EthPhishingDetectResult>({
@@ -404,7 +404,7 @@ describe('PhishingController', () => {
       true,
       'Example unsafe domain seems to be safe',
     );
-    await controller.bypass(unsafeDomain);
+    controller.bypass(unsafeDomain);
     expect(
       await controller.test(unsafeDomain),
     ).toMatchObject<EthPhishingDetectResult>({
