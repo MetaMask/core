@@ -30,20 +30,14 @@ describe('PhishingController', () => {
   });
 
   it('does not call updatePhishingList upon construction', async () => {
-    const mock = sinon.spy(
-      PhishingController.prototype,
-      'updatePhishingLists',
-    );
+    const mock = sinon.spy(PhishingController.prototype, 'updatePhishingLists');
     new PhishingController({});
     expect(mock.called).toBe(false);
     mock.restore();
   });
 
   it('fetches the first time test is used', async () => {
-    const mock = sinon.spy(
-      PhishingController.prototype,
-      'updatePhishingLists',
-    );
+    const mock = sinon.spy(PhishingController.prototype, 'updatePhishingLists');
     const controller = new PhishingController({});
     expect(mock.called).toBe(false);
     await controller.test('metamask.io');
@@ -52,10 +46,7 @@ describe('PhishingController', () => {
   });
 
   it('does not call fetch twice if the second call is inside of the refreshInterval', async () => {
-    const mock = sinon.spy(
-      PhishingController.prototype,
-      'updatePhishingLists',
-    );
+    const mock = sinon.spy(PhishingController.prototype, 'updatePhishingLists');
     const controller = new PhishingController({});
     expect(mock.callCount).toBe(0);
     await controller.test('metamask.io');
@@ -67,11 +58,8 @@ describe('PhishingController', () => {
 
   it('should call fetch twice if the second call is outside the refreshInterval', async () => {
     const clock = sinon.useFakeTimers(Date.now());
-    const mock = sinon.spy(
-      PhishingController.prototype,
-      'updatePhishingLists',
-    );
-    const controller = new PhishingController({refreshInterval: 1});
+    const mock = sinon.spy(PhishingController.prototype, 'updatePhishingLists');
+    const controller = new PhishingController({ refreshInterval: 1 });
     expect(mock.callCount).toBe(0);
     await controller.test('metamask.io');
     expect(mock.callCount).toBe(1);
@@ -83,10 +71,7 @@ describe('PhishingController', () => {
   });
 
   it('should be able to change the refreshInterval', async () => {
-    const mock = sinon.spy(
-      PhishingController.prototype,
-      'updatePhishingLists',
-    );
+    const mock = sinon.spy(PhishingController.prototype, 'updatePhishingLists');
     const controller = new PhishingController({});
     controller.setRefreshInterval(0);
 
