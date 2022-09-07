@@ -463,7 +463,26 @@ describe('approval controller', () => {
       expect(result).toStrictEqual('success1');
       expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
+  });
 
+  describe('resolve (idempotent tests)', () => {
+    let approvalController: ApprovalController;
+    let numDeletions: number;
+    let deleteSpy: sinon.SinonSpy;
+
+    beforeEach(() => {
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
+      // TODO: Stop using private methods in tests
+      deleteSpy = sinon.spy(approvalController as any, '_delete');
+      numDeletions = 0;
+    });
+
+    // If already is already resolved the method should not throw error
+    // This is to make the method idempotent and multiple calls with same parameters will
+    // leave controller in same state and function will not throw error.
     it('does not throw on unknown id', () => {
       expect(() => approvalController.accept('foo')).not.toThrow();
       expect(deleteSpy.callCount).toStrictEqual(numDeletions);
@@ -517,7 +536,26 @@ describe('approval controller', () => {
       await expect(rejectionPromise1).rejects.toThrow('failure1');
       expect(deleteSpy.callCount).toStrictEqual(numDeletions);
     });
+  });
 
+  describe('reject (idempotent tests)', () => {
+    let approvalController: ApprovalController;
+    let numDeletions: number;
+    let deleteSpy: sinon.SinonSpy;
+
+    beforeEach(() => {
+      approvalController = new ApprovalController({
+        messenger: getRestrictedMessenger(),
+        showApprovalRequest: sinon.spy(),
+      });
+      // TODO: Stop using private methods in tests
+      deleteSpy = sinon.spy(approvalController as any, '_delete');
+      numDeletions = 0;
+    });
+
+    // If already is already rejected the method should not throw error
+    // This is to make the method idempotent and multiple calls with same parameters will
+    // leave controller in same state and function will not throw error.
     it('does not throw on unknown id', () => {
       expect(() =>
         approvalController.reject('foo', new Error('bar')),

@@ -999,7 +999,9 @@ describe('PermissionController', () => {
         ),
       ).toThrow(new errors.UnrecognizedSubjectError('metamask.io'));
     });
+  });
 
+  describe('revokePermission (Itempotent Tests)', () => {
     it('does not throw an error if the requested subject does not have the specified permission', () => {
       const controller = getDefaultPermissionControllerWithState();
       expect(() =>
@@ -1118,7 +1120,12 @@ describe('PermissionController', () => {
         }),
       ).toThrow(new errors.UnrecognizedSubjectError('foo'));
     });
+  });
 
+  describe('revokePermissions (idempotent tests)', () => {
+    // If permission is already revoked the method should not throw error
+    // This is to make the method idempotent and multiple calls with same parameters will
+    // leave controller in same state and function will not throw error.
     it('does not throw an error if the requested subject does not have the specified permission', () => {
       const controller = getDefaultPermissionControllerWithState();
       expect(() =>
@@ -3901,36 +3908,6 @@ describe('PermissionController', () => {
       );
     });
 
-    it('does not call ApprovalController:acceptRequest if the request does not exist', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-      const id = 'foobar';
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        .mockImplementationOnce((..._args: any) => false);
-
-      const controller = getDefaultPermissionController(options);
-
-      await controller.acceptPermissionsRequest({
-        metadata: { id, origin },
-        permissions: {
-          [PermissionNames.wallet_getSecretArray]: {},
-        },
-      });
-
-      // Method is called only once
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenNthCalledWith(
-        1,
-        'ApprovalController:hasRequest',
-        {
-          id,
-        },
-      );
-    });
-
     it('rejects the request and throws if accepting the request throws', async () => {
       const options = getPermissionControllerOptions();
       const { messenger } = options;
@@ -3987,6 +3964,58 @@ describe('PermissionController', () => {
     });
   });
 
+  // If permission is already accepted the method should not throw error and also should not call ApprovalController:acceptRequest
+  // This is to make the method idempotent and multiple calls with same parameters will
+  // leave controller in same state and function will not throw error.
+  describe('acceptPermissionsRequest (idempotent tests)', () => {
+    it('does not throw error if the request does not exist', async () => {
+      const options = getPermissionControllerOptions();
+      const origin = 'metamask.io';
+      const id = 'foobar';
+
+      const controller = getDefaultPermissionController(options);
+
+      expect(async () => {
+        await controller.acceptPermissionsRequest({
+          metadata: { id, origin },
+          permissions: {
+            [PermissionNames.wallet_getSecretArray]: {},
+          },
+        });
+      }).not.toThrow();
+    });
+
+    it('does not call ApprovalController:acceptRequest if the request does not exist', async () => {
+      const options = getPermissionControllerOptions();
+      const { messenger } = options;
+      const origin = 'metamask.io';
+      const id = 'foobar';
+
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockImplementationOnce((..._args: any) => false);
+
+      const controller = getDefaultPermissionController(options);
+
+      await controller.acceptPermissionsRequest({
+        metadata: { id, origin },
+        permissions: {
+          [PermissionNames.wallet_getSecretArray]: {},
+        },
+      });
+
+      // Method is called only once
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        1,
+        'ApprovalController:hasRequest',
+        {
+          id,
+        },
+      );
+    });
+  });
+
   describe('rejectPermissionsRequest', () => {
     it('rejects a permissions request', async () => {
       const options = getPermissionControllerOptions();
@@ -4017,6 +4046,22 @@ describe('PermissionController', () => {
         id,
         errors.userRejectedRequest(),
       );
+    });
+  });
+
+  // If permission is already rejected the method should not throw error and also should not call ApprovalController:rejectRequest
+  // This is to make the method idempotent and multiple calls with same parameters will
+  // leave controller in same state and function will not throw error.
+  describe('rejectPermissionsRequest (idempotent tests)', () => {
+    it('does not throw error if the request does not exist', async () => {
+      const options = getPermissionControllerOptions();
+      const id = 'foobar';
+
+      const controller = getDefaultPermissionController(options);
+
+      expect(async () => {
+        await controller.rejectPermissionsRequest(id);
+      }).not.toThrow();
     });
 
     it('does not call ApprovalController:rejectRequest if the request does not exist', async () => {
