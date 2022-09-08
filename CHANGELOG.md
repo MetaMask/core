@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [31.0.0]
+### Uncategorized
+- Fixed brittle TokenListController test ([#905](https://github.com/MetaMask/controllers/pull/905))
+- Fixed tests to be deterministic ([#901](https://github.com/MetaMask/controllers/pull/901))
+- Changed TokenController._createEthersContract to no longer be async ([#895](https://github.com/MetaMask/controllers/pull/895))
+- Added debug mode for testing with debuggers ([#894](https://github.com/MetaMask/controllers/pull/894))
+- BREAKING: Bump to Node 14 ([#893](https://github.com/MetaMask/controllers/pull/893))
+- Support caveats on endowment permissions ([#878](https://github.com/MetaMask/controllers/pull/878))
+
 ## [30.3.0]
 ### Added
 - Add new functionality to the CollectiblesController to verify the transaction state of a collectible ([#762](https://github.com/MetaMask/controllers/pull/762)).
@@ -647,7 +656,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v30.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v31.0.0...HEAD
+[31.0.0]: https://github.com/MetaMask/controllers/compare/v30.3.0...v31.0.0
 [30.3.0]: https://github.com/MetaMask/controllers/compare/v30.2.0...v30.3.0
 [30.2.0]: https://github.com/MetaMask/controllers/compare/v30.1.0...v30.2.0
 [30.1.0]: https://github.com/MetaMask/controllers/compare/v30.0.2...v30.1.0
