@@ -1,6 +1,6 @@
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { BN, toUtf8 } from 'ethereumjs-util';
-import { AbiCoder } from 'ethers/lib/utils';
+import { AbiCoder } from '@ethersproject/abi';
 import { ERC20 } from '../../constants';
 import { Web3 } from './standards-types';
 
