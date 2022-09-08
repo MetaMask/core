@@ -140,7 +140,7 @@ export class PhishingController extends BaseController<
   /**
    * Set the interval at which the phishing list will be refetched. Fetching will only occur on the next call to test/bypass. For immediate update to the phishing list, call updatePhishingLists directly.
    *
-   * @param interval - the new interval, in ms
+   * @param interval - the new interval, in ms.
    */
   setRefreshInterval(interval: number) {
     this.configure({ refreshInterval: interval }, false, false);
