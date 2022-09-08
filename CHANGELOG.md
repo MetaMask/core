@@ -7,13 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [31.0.0]
-### Uncategorized
-- Fixed brittle TokenListController test ([#905](https://github.com/MetaMask/controllers/pull/905))
-- Fixed tests to be deterministic ([#901](https://github.com/MetaMask/controllers/pull/901))
+### Added
+- Add support for caveats on endowment permissions ([#878](https://github.com/MetaMask/controllers/pull/878))
+
+### Changed
+- **BREAKING:** Bump to Node 14 ([#893](https://github.com/MetaMask/controllers/pull/893))
 - Changed TokenController._createEthersContract to no longer be async ([#895](https://github.com/MetaMask/controllers/pull/895))
-- Added debug mode for testing with debuggers ([#894](https://github.com/MetaMask/controllers/pull/894))
-- BREAKING: Bump to Node 14 ([#893](https://github.com/MetaMask/controllers/pull/893))
-- Support caveats on endowment permissions ([#878](https://github.com/MetaMask/controllers/pull/878))
 
 ## [30.3.0]
 ### Added
