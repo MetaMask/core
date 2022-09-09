@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **BREAKING:** Bump to Node 14 ([#893](https://github.com/MetaMask/controllers/pull/893))
+- **BREAKING:** PhishingController is now async ([#897](https://github.com/MetaMask/controllers/pull/897))
+  - `PhishingController.test` now returns a Promise
+  - `PhishingController.setRefreshInterval` should now be used to change the polling interval
 - Changed TokenController._createEthersContract to no longer be async ([#895](https://github.com/MetaMask/controllers/pull/895))
 
 ## [30.3.0]
