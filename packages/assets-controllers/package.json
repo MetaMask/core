@@ -27,6 +27,9 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@ethersproject/abi": "^5.7.0",
+    "@ethersproject/contracts": "^5.7.0",
+    "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "workspace:~",
     "@metamask/contract-metadata": "^1.35.0",
     "@metamask/controller-utils": "workspace:~",
@@ -40,7 +43,6 @@
     "eth-query": "^2.1.2",
     "eth-rpc-errors": "^4.0.0",
     "ethereumjs-util": "^7.0.10",
-    "ethers": "^5.4.1",
     "immer": "^9.0.6",
     "multiformats": "^9.5.2",
     "single-call-balance-checker-abi": "^1.0.0",

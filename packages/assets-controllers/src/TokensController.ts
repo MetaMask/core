@@ -3,7 +3,8 @@ import contractsMap from '@metamask/contract-metadata';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
-import { ethers, Contract } from 'ethers';
+import { Contract } from '@ethersproject/contracts';
+import { Web3Provider } from '@ethersproject/providers';
 import { AbortController } from 'abort-controller';
 import type { PreferencesState } from '@metamask/user-controllers';
 import {
@@ -254,7 +255,7 @@ export class TokensController extends BaseController<
   }
 
   _instantiateNewEthersProvider(): any {
-    return new ethers.providers.Web3Provider(this.config?.provider);
+    return new Web3Provider(this.config?.provider);
   }
 
   /**
