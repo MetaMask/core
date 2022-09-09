@@ -1,7 +1,7 @@
 import jsonDiffer from 'fast-json-patch';
 import _ from 'lodash';
 import { BigNumber } from 'bignumber.js';
-import { ethers } from 'ethers';
+import { hexlify } from '@ethersproject/bytes';
 import {
   APIType,
   SmartTransaction,
@@ -208,5 +208,5 @@ export const isSmartTransactionCancellable = (
 
 export const incrementNonceInHex = (nonceInHex: string): string => {
   const nonceInDec = new BigNumber(nonceInHex, 16).toString(10);
-  return ethers.utils.hexlify(Number(nonceInDec) + 1);
+  return hexlify(Number(nonceInDec) + 1);
 };

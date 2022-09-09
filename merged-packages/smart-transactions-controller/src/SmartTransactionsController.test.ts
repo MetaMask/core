@@ -8,27 +8,27 @@ import { SmartTransaction, SmartTransactionStatuses } from './types';
 
 const confirmExternalMock = jest.fn();
 
-jest.mock('ethers', () => ({
-  ethers: {
-    providers: {
-      Web3Provider: class Web3Provider {
-        getBalance = () => ({ toHexString: () => '0x1000' });
+jest.mock('@ethersproject/bytes', () => ({
+  hexlify: (str: string) => `0x${str}`,
+}));
 
-        getTransactionReceipt = jest.fn(() => ({ blockNumber: '123' }));
+jest.mock('@ethersproject/providers', () => ({
+  Web3Provider: class Web3Provider {
+    getBalance = () => ({ toHexString: () => '0x1000' });
 
-        getTransaction = jest.fn(() => ({
-          maxFeePerGas: { toHexString: () => '0x123' },
-          maxPriorityFeePerGas: { toHexString: () => '0x123' },
-        }));
+    getTransactionReceipt = jest.fn(() => ({ blockNumber: '123' }));
 
-        getBlock = jest.fn();
-      },
-    },
-    utils: {
-      hexlify: (str: string) => `0x${str}`,
-    },
-    BigNumber: class BigNumber {},
+    getTransaction = jest.fn(() => ({
+      maxFeePerGas: { toHexString: () => '0x123' },
+      maxPriorityFeePerGas: { toHexString: () => '0x123' },
+    }));
+
+    getBlock = jest.fn();
   },
+}));
+
+jest.mock('@ethersproject/bignumber', () => ({
+  BigNumber: class BigNumber {},
 }));
 
 const addressFrom = '0x268392a24B6b093127E8581eAfbD1DA228bAdAe3';

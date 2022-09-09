@@ -6,7 +6,9 @@ import {
   util,
 } from '@metamask/controllers';
 import { BigNumber } from 'bignumber.js';
-import { ethers } from 'ethers';
+import { BigNumber as ethersBigNumber } from '@ethersproject/bignumber';
+import { Web3Provider } from '@ethersproject/providers';
+import { hexlify } from '@ethersproject/bytes';
 import mapValues from 'lodash/mapValues';
 import cloneDeep from 'lodash/cloneDeep';
 import {
@@ -132,7 +134,7 @@ export default class SmartTransactionsController extends BaseController<
 
     this.getNonceLock = getNonceLock;
     this.getNetwork = getNetwork;
-    this.ethersProvider = new ethers.providers.Web3Provider(provider);
+    this.ethersProvider = new Web3Provider(provider);
     this.confirmExternalTransaction = confirmExternalTransaction;
     this.trackMetaMetricsEvent = trackMetaMetricsEvent;
 
@@ -144,7 +146,7 @@ export default class SmartTransactionsController extends BaseController<
       this.configure({ chainId });
       this.initializeSmartTransactionsForChainId();
       this.checkPoll(this.state);
-      this.ethersProvider = new ethers.providers.Web3Provider(provider);
+      this.ethersProvider = new Web3Provider(provider);
     });
 
     this.subscribe((currentState: any) => this.checkPoll(currentState));
@@ -366,7 +368,7 @@ export default class SmartTransactionsController extends BaseController<
         );
         const baseFeePerGas = blockData?.baseFeePerGas.toHexString();
         const txReceipt = mapValues(transactionReceipt, (value) => {
-          if (value instanceof ethers.BigNumber) {
+          if (value instanceof ethersBigNumber) {
             return value.toHexString();
           }
           return value;
@@ -566,7 +568,7 @@ export default class SmartTransactionsController extends BaseController<
       console.error('ethers error', e);
     }
     const nonceLock = await this.getNonceLock(txParams?.from);
-    const nonce = ethers.utils.hexlify(nonceLock.nextNonce);
+    const nonce = hexlify(nonceLock.nextNonce);
     if (txParams && !txParams?.nonce) {
       txParams.nonce = nonce;
     }

@@ -26,10 +26,12 @@
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd .."
   },
   "dependencies": {
+    "@ethersproject/bignumber": "^5.7.0",
+    "@ethersproject/bytes": "^5.7.0",
+    "@ethersproject/providers": "^5.7.0",
     "@metamask/controllers": "^30.0.0",
     "@types/lodash": "^4.14.176",
     "bignumber.js": "^9.0.1",
-    "ethers": "^5.5.1",
     "fast-json-patch": "^3.1.0",
     "isomorphic-fetch": "^3.0.0",
     "lodash": "^4.17.21"
