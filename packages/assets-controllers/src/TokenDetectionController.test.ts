@@ -3,11 +3,6 @@ import nock from 'nock';
 import { BN } from 'ethereumjs-util';
 import { PreferencesController } from '@metamask/user-controllers';
 import {
-  isTokenDetectionSupportedForNetwork,
-  SupportedTokenDetectionNetworks,
-  TOKEN_END_POINT_API,
-} from '@metamask/controller-utils';
-import {
   NetworkController,
   NetworksChainId,
 } from '@metamask/network-controller';
@@ -22,8 +17,13 @@ import {
   TokenListToken,
 } from './TokenListController';
 import { AssetsContractController } from './AssetsContractController';
-import { formatAggregatorNames } from './assetsUtil';
+import {
+  formatAggregatorNames,
+  isTokenDetectionSupportedForNetwork,
+  SupportedTokenDetectionNetworks,
+} from './assetsUtil';
 import { Token } from './TokenRatesController';
+import { TOKEN_END_POINT_API } from './token-service';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -135,6 +135,7 @@ describe('TokenDetectionController', () => {
     const messenger = getTokenListMessenger();
     tokenList = new TokenListController({
       chainId: NetworksChainId.mainnet,
+      preventPollingOnNetworkRestart: false,
       onNetworkStateChange: (listener) => network.subscribe(listener),
       messenger,
     });

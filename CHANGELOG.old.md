@@ -6,6 +6,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.3.0]
+### Added
+- Add new functionality to the CollectiblesController to verify the transaction state of a collectible ([#762](https://github.com/MetaMask/controllers/pull/762)).
+  - Add new method to the CollectiblesController to search a Collectible by smart contract address and token ID (`findCollectibleByAddressAndTokenId`).
+  - Add new method to the CollectiblesController to update the state of a Collectible (`updateCollectible`).
+  - Add new method to the CollectiblesController to reset the transaction status of a Collectible (`resetCollectibleTransactionStatusByTransactionId`).
+- Add new method `validatePassword` to KeyringController to validate the password ([#884](https://github.com/MetaMask/controllers/pull/884))
+- Add `formatIconUrlWithProxy` function for formatting iconUrl Proxy for tokens from Swaps API ([#889](https://github.com/MetaMask/controllers/pull/889))
+
+## [30.2.0]
+### Changed
+- Updated the Testnet Ticker string format to be prefixed with the network name (e.g. <network name>ETH) ([#868](https://github.com/MetaMask/controllers/pull/868))
+
+## [30.1.0]
+### Added
+- Allow clients to avoid third party tokenlist polling ([#861](https://github.com/MetaMask/controllers/pull/861)):
+  - Added a new configuration property `preventPollingOnNetworkRestart` is added to TokenListController.
+  - Added a method to update the new preventPollingOnNetworkRestart property value.
+  - Added a method to reset the `tokenList` and `tokensChainsCache` properties in state. 
+
+## [30.0.2]
+### Added
+- Adds method `isTokenListSupportedForNetwork` which returns `SupportedTokenDetectionNetworks` plus the local ganache network chainId. Then changes TokenListController to use this method to check whether or not to start polling, so that polling can occur on ganache networks to allow for e2e testing ([#855](https://github.com/MetaMask/controllers/pull/855))
+
 ## [30.0.1]
 ### Fixed
 - Change `formatIconUrlWithProxy` to accept hex strings for `chainId` ([#851](https://github.com/MetaMask/controllers/pull/851))
@@ -623,7 +647,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v30.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v30.3.0...HEAD
+[30.3.0]: https://github.com/MetaMask/controllers/compare/v30.2.0...v30.3.0
+[30.2.0]: https://github.com/MetaMask/controllers/compare/v30.1.0...v30.2.0
+[30.1.0]: https://github.com/MetaMask/controllers/compare/v30.0.2...v30.1.0
+[30.0.2]: https://github.com/MetaMask/controllers/compare/v30.0.1...v30.0.2
 [30.0.1]: https://github.com/MetaMask/controllers/compare/v30.0.0...v30.0.1
 [30.0.0]: https://github.com/MetaMask/controllers/compare/v29.0.1...v30.0.0
 [29.0.1]: https://github.com/MetaMask/controllers/compare/v29.0.0...v29.0.1

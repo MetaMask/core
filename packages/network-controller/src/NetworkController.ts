@@ -8,21 +8,12 @@ import {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import { MAINNET, RPC } from '@metamask/controller-utils';
-
-/**
- * Human-readable network name
- */
-export type NetworkType =
-  | 'kovan'
-  | 'localhost'
-  | 'mainnet'
-  | 'rinkeby'
-  | 'goerli'
-  | 'ropsten'
-  | 'rpc'
-  | 'optimism'
-  | 'optimismTest';
+import {
+  MAINNET,
+  RPC,
+  TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL,
+  NetworkType,
+} from '@metamask/controller-utils';
 
 export enum NetworksChainId {
   mainnet = '1',
@@ -286,10 +277,22 @@ export class NetworkController extends BaseController<
   setProviderType(type: NetworkType) {
     const { rpcTarget, chainId, nickname, ...providerState } =
       this.state.provider;
+
+    // If testnet the ticker symbol should use a testnet prefix
+    const ticker =
+      type in TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL &&
+      TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
+        ? TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type]
+        : 'ETH';
+
     this.update({
       provider: {
         ...providerState,
-        ...{ type, ticker: 'ETH', chainId: NetworksChainId[type] },
+        ...{
+          type,
+          ticker,
+          chainId: NetworksChainId[type],
+        },
       },
     });
     this.refreshNetwork();

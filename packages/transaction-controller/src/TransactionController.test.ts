@@ -1,10 +1,8 @@
+import * as crossFetchModule from 'cross-fetch';
 import sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
-import {
-  NetworksChainId,
-  NetworkType,
-  NetworkState,
-} from '@metamask/network-controller';
+import { NetworksChainId, NetworkState } from '@metamask/network-controller';
+import { NetworkType } from '@metamask/controller-utils';
 import {
   TransactionController,
   TransactionStatus,
@@ -19,7 +17,13 @@ import {
   txsInStateWithOutdatedStatusAndGasDataMock,
 } from './mocks/txsMock';
 
-const globalAny: any = global;
+jest.mock('cross-fetch', () => {
+  return {
+    __esModule: true,
+    ...jest.requireActual('cross-fetch'),
+    default: jest.fn(),
+  };
+});
 
 const mockFlags: { [key: string]: any } = {
   estimateGas: null,
@@ -91,28 +95,31 @@ jest.mock('eth-query', () =>
  * @param data - The mock data to return.
  * @returns The mock `fetch` implementation.
  */
-function mockFetch(data: any) {
-  return jest.fn().mockImplementation(() =>
-    Promise.resolve({
-      json: () => data,
-      ok: true,
-    }),
-  );
+function mockFetchWithStaticResponse(data: any) {
+  return jest
+    .spyOn(crossFetchModule, 'default')
+    .mockImplementation(() =>
+      Promise.resolve(new crossFetchModule.Response(JSON.stringify(data))),
+    );
 }
 
 /**
- * Create a mock implementation of `fetch` that returns different mock data for each URL.
+ * Mocks the global `fetch` to return the different mock data for each URL
+ * requested.
  *
- * @param data - A map of mock data, keyed by URL.
+ * @param dataForUrl - A map of mock data, keyed by URL.
  * @returns The mock `fetch` implementation.
  */
-function mockFetchs(data: any) {
-  return jest.fn().mockImplementation((key) =>
-    Promise.resolve({
-      json: () => data[key],
-      ok: true,
-    }),
-  );
+function mockFetchWithDynamicResponse(dataForUrl: any) {
+  return jest
+    .spyOn(crossFetchModule, 'default')
+    .mockImplementation((key) =>
+      Promise.resolve(
+        new crossFetchModule.Response(
+          JSON.stringify(dataForUrl[key.toString()]),
+        ),
+      ),
+    );
 }
 
 const MOCK_PRFERENCES = { state: { selectedAddress: 'foo' } };
@@ -813,7 +820,7 @@ describe('TransactionController', () => {
   });
 
   it('should fetch all the transactions from an address, including incoming transactions, in ropsten', async () => {
-    globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
       getNetworkState: () => MOCK_NETWORK.state,
       onNetworkStateChange: MOCK_NETWORK.subscribe,
@@ -830,7 +837,7 @@ describe('TransactionController', () => {
   });
 
   it('should fetch all the transactions from an address, including incoming token transactions, in mainnet', async () => {
-    globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
       getNetworkState: () => MOCK_MAINNET_NETWORK.state,
       onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
@@ -847,7 +854,7 @@ describe('TransactionController', () => {
   });
 
   it('should fetch all the transactions from an address, including incoming token transactions without modifying transactions that have the same data in local and remote', async () => {
-    globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
       getNetworkState: () => MOCK_MAINNET_NETWORK.state,
       onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
@@ -869,7 +876,7 @@ describe('TransactionController', () => {
   });
 
   it('should fetch all the transactions from an address, including incoming transactions, in mainnet from block', async () => {
-    globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
       getNetworkState: () => MOCK_MAINNET_NETWORK.state,
       onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
@@ -886,7 +893,7 @@ describe('TransactionController', () => {
   });
 
   it('should fetch and updated all transactions with outdated status regarding the data provided by the remote source in mainnet', async () => {
-    globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
       getNetworkState: () => MOCK_MAINNET_NETWORK.state,
       onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
@@ -912,7 +919,7 @@ describe('TransactionController', () => {
   });
 
   it('should fetch and updated all transactions with outdated gas data regarding the data provided by the remote source in mainnet', async () => {
-    globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
       getNetworkState: () => MOCK_MAINNET_NETWORK.state,
       onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
@@ -939,7 +946,7 @@ describe('TransactionController', () => {
   });
 
   it('should fetch and updated all transactions with outdated status and gas data regarding the data provided by the remote source in mainnet', async () => {
-    globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+    mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
     const controller = new TransactionController({
       getNetworkState: () => MOCK_MAINNET_NETWORK.state,
       onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
@@ -968,7 +975,7 @@ describe('TransactionController', () => {
   });
 
   it('should return', async () => {
-    globalAny.fetch = mockFetch(MOCK_FETCH_TX_HISTORY_DATA_ERROR);
+    mockFetchWithStaticResponse(MOCK_FETCH_TX_HISTORY_DATA_ERROR);
     const controller = new TransactionController({
       getNetworkState: () => MOCK_NETWORK.state,
       onNetworkStateChange: MOCK_NETWORK.subscribe,
@@ -1090,7 +1097,7 @@ describe('TransactionController', () => {
 
   it('should limit tx state to a length of 2', async () => {
     await new Promise(async (resolve) => {
-      globalAny.fetch = mockFetchs(MOCK_FETCH_TX_HISTORY_DATA_OK);
+      mockFetchWithDynamicResponse(MOCK_FETCH_TX_HISTORY_DATA_OK);
       const controller = new TransactionController(
         {
           getNetworkState: () => MOCK_NETWORK.state,

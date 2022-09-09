@@ -1,14 +1,12 @@
 import HttpProvider from 'ethjs-provider-http';
-import {
-  SupportedTokenDetectionNetworks,
-  IPFS_DEFAULT_GATEWAY_URL,
-} from '@metamask/controller-utils';
+import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/user-controllers';
 import { NetworkController } from '@metamask/network-controller';
 import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
 } from './AssetsContractController';
+import { SupportedTokenDetectionNetworks } from './assetsUtil';
 
 const MAINNET_PROVIDER = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',

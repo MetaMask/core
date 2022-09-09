@@ -3,17 +3,16 @@ import contractsMap from '@metamask/contract-metadata';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
-import { ethers } from 'ethers';
+import { ethers, Contract } from 'ethers';
 import { AbortController } from 'abort-controller';
 import type { PreferencesState } from '@metamask/user-controllers';
 import {
   toChecksumHexAddress,
   MAINNET,
   ERC721_INTERFACE_ID,
-  fetchTokenMetadata,
-  TOKEN_METADATA_NO_SUPPORT_ERROR,
+  NetworkType,
 } from '@metamask/controller-utils';
-import type { NetworkState, NetworkType } from '@metamask/network-controller';
+import type { NetworkState } from '@metamask/network-controller';
 import {
   BaseController,
   BaseConfig,
@@ -26,6 +25,10 @@ import {
   formatIconUrlWithProxy,
   validateTokenToWatch,
 } from './assetsUtil';
+import {
+  fetchTokenMetadata,
+  TOKEN_METADATA_NO_SUPPORT_ERROR,
+} from './token-service';
 
 /**
  * @type TokensConfig
@@ -540,7 +543,7 @@ export class TokensController extends BaseController<
       return Promise.resolve(false);
     }
 
-    const tokenContract = await this._createEthersContract(
+    const tokenContract = this._createEthersContract(
       tokenAddress,
       abiERC721,
       this.ethersProvider,
@@ -556,16 +559,12 @@ export class TokensController extends BaseController<
     }
   }
 
-  async _createEthersContract(
+  _createEthersContract(
     tokenAddress: string,
     abi: string,
     ethersProvider: any,
-  ): Promise<any> {
-    const tokenContract = await new ethers.Contract(
-      tokenAddress,
-      abi,
-      ethersProvider,
-    );
+  ): Contract {
+    const tokenContract = new Contract(tokenAddress, abi, ethersProvider);
     return tokenContract;
   }
 

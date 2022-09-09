@@ -7,14 +7,12 @@ import {
   BaseState,
 } from '@metamask/base-controller';
 import type { PreferencesState } from '@metamask/user-controllers';
-import {
-  IPFS_DEFAULT_GATEWAY_URL,
-  SupportedTokenDetectionNetworks,
-} from '@metamask/controller-utils';
+import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import { NetworkState } from '@metamask/network-controller';
 import { ERC721Standard } from './Standards/CollectibleStandards/ERC721/ERC721Standard';
 import { ERC1155Standard } from './Standards/CollectibleStandards/ERC1155/ERC1155Standard';
 import { ERC20Standard } from './Standards/ERC20Standard';
+import { SupportedTokenDetectionNetworks } from './assetsUtil';
 
 /**
  * Check if token detection is enabled for certain networks

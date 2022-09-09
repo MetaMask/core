@@ -3,8 +3,6 @@
  * https://jestjs.io/docs/configuration
  */
 
-const path = require('path');
-
 module.exports = {
   // All imported modules in your tests should be mocked automatically
   // automock: false,
@@ -144,7 +142,7 @@ module.exports = {
   // runner: "jest-runner",
 
   // The paths to modules that run some code to configure or set up the testing environment before each test
-  setupFiles: [path.resolve(__dirname, 'tests/setupTests.ts')],
+  // setupFiles: [],
 
   // A list of paths to modules that run some code to configure or set up the testing framework before each test
   // setupFilesAfterEnv: [],

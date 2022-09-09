@@ -2,17 +2,17 @@ import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
 import { AbortController } from 'abort-controller';
 import {
-  safelyExecute,
-  isTokenDetectionSupportedForNetwork,
-  fetchTokenList,
-} from '@metamask/controller-utils';
-import { NetworkState } from '@metamask/network-controller';
-import {
   BaseControllerV2 as BaseController,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-
-import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
+import { safelyExecute } from '@metamask/controller-utils';
+import { NetworkState } from '@metamask/network-controller';
+import {
+  isTokenListSupportedForNetwork,
+  formatAggregatorNames,
+  formatIconUrlWithProxy,
+} from './assetsUtil';
+import { fetchTokenList } from './token-service';
 
 const DEFAULT_INTERVAL = 24 * 60 * 60 * 1000;
 const DEFAULT_THRESHOLD = 24 * 60 * 60 * 1000;
@@ -42,6 +42,7 @@ type TokensChainsCache = {
 export type TokenListState = {
   tokenList: TokenListMap;
   tokensChainsCache: TokensChainsCache;
+  preventPollingOnNetworkRestart: boolean;
 };
 
 export type TokenListStateChange = {
@@ -65,11 +66,13 @@ type TokenListMessenger = RestrictedControllerMessenger<
 const metadata = {
   tokenList: { persist: true, anonymous: true },
   tokensChainsCache: { persist: true, anonymous: true },
+  preventPollingOnNetworkRestart: { persist: true, anonymous: true },
 };
 
 const defaultState: TokenListState = {
   tokenList: {},
   tokensChainsCache: {},
+  preventPollingOnNetworkRestart: false,
 };
 
 /**
@@ -102,9 +105,11 @@ export class TokenListController extends BaseController<
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
    * @param options.messenger - A restricted controller messenger.
    * @param options.state - Initial state to set on this controller.
+   * @param options.preventPollingOnNetworkRestart - Determines whether to prevent poilling on network restart in extension.
    */
   constructor({
     chainId,
+    preventPollingOnNetworkRestart = false,
     onNetworkStateChange,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
@@ -112,6 +117,7 @@ export class TokenListController extends BaseController<
     state,
   }: {
     chainId: string;
+    preventPollingOnNetworkRestart?: boolean;
     onNetworkStateChange: (
       listener: (networkState: NetworkState) => void,
     ) => void;
@@ -129,20 +135,25 @@ export class TokenListController extends BaseController<
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
+    this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.abortController = new AbortController();
     onNetworkStateChange(async (networkState) => {
       if (this.chainId !== networkState.provider.chainId) {
         this.abortController.abort();
         this.abortController = new AbortController();
         this.chainId = networkState.provider.chainId;
-        // Ensure tokenList is referencing data from correct network
-        this.update(() => {
-          return {
-            ...this.state,
-            tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
-          };
-        });
-        await this.restart();
+        if (this.state.preventPollingOnNetworkRestart) {
+          this.clearingTokenListData();
+        } else {
+          // Ensure tokenList is referencing data from correct network
+          this.update(() => {
+            return {
+              ...this.state,
+              tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
+            };
+          });
+          await this.restart();
+        }
       }
     });
   }
@@ -151,7 +162,7 @@ export class TokenListController extends BaseController<
    * Start polling for the token list.
    */
   async start() {
-    if (!isTokenDetectionSupportedForNetwork(this.chainId)) {
+    if (!isTokenListSupportedForNetwork(this.chainId)) {
       return;
     }
     await this.startPolling();
@@ -224,6 +235,7 @@ export class TokenListController extends BaseController<
 
           this.update(() => {
             return {
+              ...this.state,
               tokenList,
               tokensChainsCache,
             };
@@ -270,6 +282,7 @@ export class TokenListController extends BaseController<
       };
       this.update(() => {
         return {
+          ...this.state,
           tokenList,
           tokensChainsCache: updatedTokensChainsCache,
         };
@@ -297,6 +310,33 @@ export class TokenListController extends BaseController<
       return dataCache.data;
     }
     return null;
+  }
+
+  /**
+   * Clearing tokenList and tokensChainsCache explicitly.
+   */
+  clearingTokenListData(): void {
+    this.update(() => {
+      return {
+        ...this.state,
+        tokenList: {},
+        tokensChainsCache: {},
+      };
+    });
+  }
+
+  /**
+   * Updates preventPollingOnNetworkRestart from extension.
+   *
+   * @param shouldPreventPolling - Determine whether to prevent polling on network change
+   */
+  updatePreventPollingOnNetworkRestart(shouldPreventPolling: boolean): void {
+    this.update(() => {
+      return {
+        ...this.state,
+        preventPollingOnNetworkRestart: shouldPreventPolling,
+      };
+    });
   }
 }
 

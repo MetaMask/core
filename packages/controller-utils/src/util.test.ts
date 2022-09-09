@@ -2,17 +2,11 @@ import { BN } from 'ethereumjs-util';
 import nock from 'nock';
 import * as util from './util';
 
+const IFPS_GATEWAY = 'dweb.link';
+
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
-
-const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
-const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';
-const IPFS_CID_V0 = 'QmdfTbBqBPQ7VNxZEYEj14VmRuZBkqFbiwReogJgS1zR1n';
-const IPFS_CID_V1 =
-  'bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku';
-
-const IFPS_GATEWAY = 'dweb.link';
 
 describe('util', () => {
   beforeEach(() => {
@@ -545,6 +539,14 @@ describe('util', () => {
     it('should return zero when undefined', () => {
       expect(util.convertHexToDecimal(undefined)).toStrictEqual(0);
     });
+
+    it('should return a decimal string as the same decimal number', () => {
+      expect(util.convertHexToDecimal('1611')).toStrictEqual(1611);
+    });
+
+    it('should return 0 when passed an invalid hex string', () => {
+      expect(util.convertHexToDecimal('0x12398u12')).toStrictEqual(0);
+    });
   });
 
   describe('getIncreasedPriceHex', () => {
@@ -589,90 +591,6 @@ describe('util', () => {
     });
   });
 
-  describe('getFormattedIpfsUrl', () => {
-    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway without protocol prefix, no path and subdomainSupported argument set to true', () => {
-      expect(
-        util.getFormattedIpfsUrl(
-          IFPS_GATEWAY,
-          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`,
-          true,
-        ),
-      ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
-    });
-
-    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a cidv0 and no path and subdomainSupported argument set to true', () => {
-      expect(
-        util.getFormattedIpfsUrl(
-          `https://${IFPS_GATEWAY}`,
-          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
-          true,
-        ),
-      ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
-    });
-
-    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a path at the end of the url, and subdomainSupported argument set to true', () => {
-      expect(
-        util.getFormattedIpfsUrl(
-          `https://${IFPS_GATEWAY}`,
-          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
-          true,
-        ),
-      ).toStrictEqual(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}/test`);
-    });
-
-    it('should return a correctly formatted non-subdomained ipfs url when passed ipfsGateway with no "/ipfs/" appended, a path at the end of the url, and subdomainSupported argument set to false', () => {
-      expect(
-        util.getFormattedIpfsUrl(
-          `https://${IFPS_GATEWAY}`,
-          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
-          false,
-        ),
-      ).toStrictEqual(`https://${IFPS_GATEWAY}/ipfs/${IPFS_CID_V1}/test`);
-    });
-
-    it('should return a correctly formatted non-subdomained ipfs url when passed an ipfsGateway with "/ipfs/" appended, a path at the end of the url, subdomainSupported argument set to false', () => {
-      expect(
-        util.getFormattedIpfsUrl(
-          `https://${IFPS_GATEWAY}/ipfs/`,
-          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
-          false,
-        ),
-      ).toStrictEqual(`https://${IFPS_GATEWAY}/ipfs/${IPFS_CID_V1}/test`);
-    });
-  });
-
-  describe('removeIpfsProtocolPrefix', () => {
-    it('should return content identifier and path combined string from default ipfs url format', () => {
-      expect(
-        util.removeIpfsProtocolPrefix(
-          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}/test`,
-        ),
-      ).toStrictEqual(`${IPFS_CID_V0}/test`);
-    });
-
-    it('should return content identifier string from default ipfs url format if no path preset', () => {
-      expect(
-        util.removeIpfsProtocolPrefix(
-          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
-        ),
-      ).toStrictEqual(IPFS_CID_V0);
-    });
-
-    it('should return content identifier string from alternate ipfs url format', () => {
-      expect(
-        util.removeIpfsProtocolPrefix(
-          `${ALTERNATIVE_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
-        ),
-      ).toStrictEqual(IPFS_CID_V0);
-    });
-
-    it('should throw error if passed a non ipfs url', () => {
-      expect(() => util.removeIpfsProtocolPrefix(SOME_API)).toThrow(
-        'this method should not be used with non ipfs urls',
-      );
-    });
-  });
-
   describe('addUrlProtocolPrefix', () => {
     it('should return a URL with https:// prepended if input URL does not already have it', () => {
       expect(util.addUrlProtocolPrefix(IFPS_GATEWAY)).toStrictEqual(
@@ -685,115 +603,63 @@ describe('util', () => {
     });
   });
 
-  describe('getIpfsCIDv1AndPath', () => {
-    it('should return content identifier from default ipfs url format', () => {
-      expect(
-        util.getIpfsCIDv1AndPath(`${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`),
-      ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
+  describe('isPlainObject', () => {
+    it('returns false for null values', () => {
+      expect(util.isPlainObject(null)).toBe(false);
+      expect(util.isPlainObject(undefined)).toBe(false);
     });
 
-    it('should return content identifier from alternative ipfs url format', () => {
-      expect(
-        util.getIpfsCIDv1AndPath(
-          `${ALTERNATIVE_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
-        ),
-      ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
+    it('returns false for non objects', () => {
+      expect(util.isPlainObject(5)).toBe(false);
+      expect(util.isPlainObject('foo')).toBe(false);
     });
 
-    it('should return unchanged content identifier if already v1', () => {
-      expect(
-        util.getIpfsCIDv1AndPath(`${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`),
-      ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
+    it('returns false for arrays', () => {
+      expect(util.isPlainObject(['foo'])).toBe(false);
+      expect(util.isPlainObject([{}])).toBe(false);
     });
 
-    it('should return a path when url contains one', () => {
-      expect(
-        util.getIpfsCIDv1AndPath(
-          `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test/test/test`,
-        ),
-      ).toStrictEqual({ cid: IPFS_CID_V1, path: '/test/test/test' });
+    it('returns true for objects', () => {
+      expect(util.isPlainObject({ foo: 'bar' })).toBe(true);
+      expect(util.isPlainObject({ foo: 'bar', test: { num: 5 } })).toBe(true);
     });
   });
-});
 
-describe('isPlainObject', () => {
-  it('returns false for null values', () => {
-    expect(util.isPlainObject(null)).toBe(false);
-    expect(util.isPlainObject(undefined)).toBe(false);
+  describe('hasProperty', () => {
+    it('returns false for non existing properties', () => {
+      expect(util.hasProperty({ foo: 'bar' }, 'property')).toBe(false);
+    });
+
+    it('returns true for existing properties', () => {
+      expect(util.hasProperty({ foo: 'bar' }, 'foo')).toBe(true);
+    });
   });
 
-  it('returns false for non objects', () => {
-    expect(util.isPlainObject(5)).toBe(false);
-    expect(util.isPlainObject('foo')).toBe(false);
+  describe('isNonEmptyArray', () => {
+    it('returns false non arrays', () => {
+      // @ts-expect-error Invalid type for testing purposes
+      expect(util.isNonEmptyArray(null)).toBe(false);
+      // @ts-expect-error Invalid type for testing purposes
+      expect(util.isNonEmptyArray(undefined)).toBe(false);
+    });
+
+    it('returns false for empty array', () => {
+      expect(util.isNonEmptyArray([])).toBe(false);
+    });
+
+    it('returns true arrays with at least one item', () => {
+      expect(util.isNonEmptyArray([1])).toBe(true);
+      expect(util.isNonEmptyArray([1, 2, 3, 4])).toBe(true);
+    });
   });
 
-  it('returns false for arrays', () => {
-    expect(util.isPlainObject(['foo'])).toBe(false);
-    expect(util.isPlainObject([{}])).toBe(false);
-  });
+  describe('isValidJson', () => {
+    it('returns false for class instances', () => {
+      expect(util.isValidJson(new Map())).toBe(false);
+    });
 
-  it('returns true for objects', () => {
-    expect(util.isPlainObject({ foo: 'bar' })).toBe(true);
-    expect(util.isPlainObject({ foo: 'bar', test: { num: 5 } })).toBe(true);
-  });
-});
-
-describe('hasProperty', () => {
-  it('returns false for non existing properties', () => {
-    expect(util.hasProperty({ foo: 'bar' }, 'property')).toBe(false);
-  });
-
-  it('returns true for existing properties', () => {
-    expect(util.hasProperty({ foo: 'bar' }, 'foo')).toBe(true);
-  });
-});
-
-describe('isNonEmptyArray', () => {
-  it('returns false non arrays', () => {
-    // @ts-expect-error Invalid type for testing purposes
-    expect(util.isNonEmptyArray(null)).toBe(false);
-    // @ts-expect-error Invalid type for testing purposes
-    expect(util.isNonEmptyArray(undefined)).toBe(false);
-  });
-
-  it('returns false for empty array', () => {
-    expect(util.isNonEmptyArray([])).toBe(false);
-  });
-
-  it('returns true arrays with at least one item', () => {
-    expect(util.isNonEmptyArray([1])).toBe(true);
-    expect(util.isNonEmptyArray([1, 2, 3, 4])).toBe(true);
-  });
-});
-
-describe('isValidJson', () => {
-  it('returns false for class instances', () => {
-    expect(util.isValidJson(new Map())).toBe(false);
-  });
-
-  it('returns true for valid JSON', () => {
-    expect(util.isValidJson({ foo: 'bar', test: { num: 5 } })).toBe(true);
-  });
-});
-
-describe('isTokenDetectionSupportedForNetwork', () => {
-  it('returns true for Mainnet', () => {
-    expect(
-      util.isTokenDetectionSupportedForNetwork(
-        util.SupportedTokenDetectionNetworks.mainnet,
-      ),
-    ).toBe(true);
-  });
-
-  it('returns true for custom network such as BSC', () => {
-    expect(
-      util.isTokenDetectionSupportedForNetwork(
-        util.SupportedTokenDetectionNetworks.bsc,
-      ),
-    ).toBe(true);
-  });
-
-  it('returns false for testnets such as Ropsten', () => {
-    expect(util.isTokenDetectionSupportedForNetwork('3')).toBe(false);
+    it('returns true for valid JSON', () => {
+      expect(util.isValidJson({ foo: 'bar', test: { num: 5 } })).toBe(true);
+    });
   });
 });

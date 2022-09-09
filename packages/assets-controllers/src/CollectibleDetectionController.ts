@@ -3,7 +3,7 @@ import {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import type { NetworkState, NetworkType } from '@metamask/network-controller';
+import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/user-controllers';
 import {
   fetchWithErrorHandling,
@@ -11,6 +11,7 @@ import {
   MAINNET,
   OPENSEA_PROXY_URL,
   OPENSEA_API_URL,
+  NetworkType,
 } from '@metamask/controller-utils';
 import type {
   CollectiblesController,

@@ -2,7 +2,6 @@ import type { PreferencesState } from '@metamask/user-controllers';
 import {
   safelyExecute,
   toChecksumHexAddress,
-  isTokenDetectionSupportedForNetwork,
 } from '@metamask/controller-utils';
 import {
   BaseController,
@@ -14,6 +13,7 @@ import type { TokensController, TokensState } from './TokensController';
 import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
 import { TokenListState } from './TokenListController';
+import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 
 const DEFAULT_INTERVAL = 180000;
 

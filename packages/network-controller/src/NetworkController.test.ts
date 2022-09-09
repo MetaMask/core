@@ -1,10 +1,10 @@
 import sinon from 'sinon';
 import Web3ProviderEngine from 'web3-provider-engine';
+import { NetworkType } from '@metamask/controller-utils';
 import {
   NetworkController,
   NetworksChainId,
   ProviderConfig,
-  NetworkType,
 } from './NetworkController';
 
 const RPC_TARGET = 'http://foo';
@@ -144,6 +144,24 @@ describe('NetworkController', () => {
     const controller = new NetworkController();
     controller.setProviderType('localhost');
     expect(controller.state.provider.type).toBe('localhost');
+    expect(controller.state.isCustomNetwork).toBe(false);
+  });
+
+  it('should set new testnet provider type', () => {
+    const controller = new NetworkController();
+    controller.config.infuraProjectId = '0x0000';
+    controller.setProviderType('rinkeby' as NetworkType);
+    expect(controller.state.provider.type).toBe('rinkeby');
+    expect(controller.state.provider.ticker).toBe('RinkebyETH');
+    expect(controller.state.isCustomNetwork).toBe(false);
+  });
+
+  it('should set mainnet provider type', () => {
+    const controller = new NetworkController();
+    controller.config.infuraProjectId = '0x0000';
+    controller.setProviderType('mainnet' as NetworkType);
+    expect(controller.state.provider.type).toBe('mainnet');
+    expect(controller.state.provider.ticker).toBe('ETH');
     expect(controller.state.isCustomNetwork).toBe(false);
   });
 

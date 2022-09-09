@@ -1,12 +1,12 @@
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import {
-  getFormattedIpfsUrl,
   timeoutFetch,
   ERC721_INTERFACE_ID,
   ERC721_METADATA_INTERFACE_ID,
   ERC721_ENUMERABLE_INTERFACE_ID,
   ERC721,
 } from '@metamask/controller-utils';
+import { getFormattedIpfsUrl } from '../../../assetsUtil';
 
 import { Web3 } from '../../standards-types';
 

@@ -285,6 +285,16 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Method to validate a password against the password from the keyring.
+   *
+   * @param password - Password of the keyring.
+   * @returns Boolean indicating if input password is valid
+   */
+  validatePassword(password: string): boolean {
+    return this.#keyring.password === password;
+  }
+
+  /**
    * Returns the status of the vault.
    *
    * @returns Boolean returning true if the vault is unlocked.
@@ -300,7 +310,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the seed phrase.
    */
   exportSeedPhrase(password: string) {
-    if (this.#keyring.password === password) {
+    if (this.validatePassword(password)) {
       return this.#keyring.keyrings[0].mnemonic;
     }
     throw new Error('Invalid password');
@@ -314,7 +324,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the private key for an address.
    */
   exportAccount(password: string, address: string): Promise<string> {
-    if (this.#keyring.password === password) {
+    if (this.validatePassword(password)) {
       return this.#keyring.exportAccount(address);
     }
     throw new Error('Invalid password');

@@ -1,3 +1,4 @@
+import fetch from 'cross-fetch';
 import { toASCII } from 'punycode/';
 import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
 import PhishingDetector from 'eth-phishing-detect/src/detector';

@@ -1,17 +1,26 @@
 name: Publish Release
 
 on:
-  pull_request:
-    types: [closed]
+  push:
+    branches: [main]
 
 jobs:
+  is-release:
+    # release merge commits come from github-actions
+    if: startsWith(github.event.commits[0].author.name, 'github-actions')
+    outputs:
+      IS_RELEASE: ${{ steps.is-release.outputs.IS_RELEASE }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: MetaMask/action-is-release@v1.0
+        id: is-release
+
   publish-release:
     permissions:
       contents: write
-    if: |
-      github.event.pull_request.merged == true &&
-      startsWith(github.event.pull_request.head.ref, 'release/')
+    if: needs.is-release.outputs.IS_RELEASE == 'true'
     runs-on: ubuntu-latest
+    needs: is-release
     steps:
       - uses: actions/checkout@v2
         with:
@@ -19,13 +28,15 @@ jobs:
       - name: Get Node.js version
         id: nvm
         run: echo ::set-output name=NODE_VERSION::$(cat .nvmrc)
-      - uses: actions/setup-node@v2
+      - name: Setup Node
+        uses: actions/setup-node@v2
         with:
           node-version: ${{ steps.nvm.outputs.NODE_VERSION }}
-      - uses: MetaMask/action-publish-release@v1
+      - uses: MetaMask/action-publish-release@v2.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: |
+      - name: Install
+        run: |
           yarn install
           yarn build
       - uses: actions/cache@v3
@@ -51,6 +62,8 @@ jobs:
       - name: Dry Run Publish
         # omit npm-token token to perform dry run publish
         uses: MetaMask/action-npm-publish@v1.1.0
+        env:
+          SKIP_PREPACK: true
 
   publish-npm:
     environment: npm-publish
@@ -71,3 +84,5 @@ jobs:
         uses: MetaMask/action-npm-publish@v1.1.0
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
+        env:
+          SKIP_PREPACK: true

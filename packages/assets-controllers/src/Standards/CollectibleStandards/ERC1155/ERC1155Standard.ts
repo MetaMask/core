@@ -4,9 +4,9 @@ import {
   ERC1155_INTERFACE_ID,
   ERC1155_METADATA_URI_INTERFACE_ID,
   ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
-  getFormattedIpfsUrl,
   timeoutFetch,
 } from '@metamask/controller-utils';
+import { getFormattedIpfsUrl } from '../../../assetsUtil';
 
 import { Web3 } from '../../standards-types';
 

@@ -7,7 +7,7 @@
      * with ESM files, and these files will be used even if they ship with TS
      * definition files, if Jest is run using the `jsdom` environment and the
      * "browser" field for these packages points to the ESM version.
-     * This is paired with `transformIgnorePatterns` to explicit tell Jest not
+     * This is paired with `transformIgnorePatterns` to explicitly tell Jest not
      * to ignore these packages when transforming files.
      * See: <https://github.com/kulshekhar/ts-jest/issues/2629#issuecomment-1073200793>
      */

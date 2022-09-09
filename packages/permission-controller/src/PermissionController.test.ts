@@ -37,6 +37,7 @@ const CaveatTypes = {
   reverseArrayResponse: 'reverseArrayResponse',
   filterObjectResponse: 'filterObjectResponse',
   noopCaveat: 'noopCaveat',
+  endowmentCaveat: 'endowmentCaveat',
 } as const;
 
 type FilterArrayCaveat = Caveat<
@@ -149,6 +150,17 @@ function getDefaultCaveatSpecifications() {
         }
       },
     },
+    [CaveatTypes.endowmentCaveat]: {
+      type: CaveatTypes.endowmentCaveat,
+      validator: (caveat: {
+        type: typeof CaveatTypes.endowmentCaveat;
+        value: unknown;
+      }) => {
+        if (typeof caveat !== 'object') {
+          throw new Error('EndowmentCaveat value must be an object');
+        }
+      },
+    },
   } as const;
 }
 
@@ -170,6 +182,7 @@ const PermissionKeys = {
   wallet_noopWithFactory: 'wallet_noopWithFactory',
   'wallet_getSecret_*': 'wallet_getSecret_*',
   endowmentPermission1: 'endowmentPermission1',
+  endowmentPermission2: 'endowmentPermission2',
 } as const;
 
 // wallet_getSecret_*
@@ -199,6 +212,7 @@ const PermissionNames = {
   wallet_noopWithValidator: PermissionKeys.wallet_noopWithValidator,
   wallet_noopWithFactory: PermissionKeys.wallet_noopWithFactory,
   endowmentPermission1: PermissionKeys.endowmentPermission1,
+  endowmentPermission2: PermissionKeys.endowmentPermission2,
   wallet_getSecret_: (str: string) => `wallet_getSecret_${str}` as const,
 } as const;
 
@@ -336,6 +350,12 @@ function getDefaultPermissionSpecifications() {
       targetKey: PermissionKeys.endowmentPermission1,
       endowmentGetter: (_options: EndowmentGetterParams) => ['endowment1'],
       allowedCaveats: null,
+    },
+    [PermissionKeys.endowmentPermission2]: {
+      permissionType: PermissionType.Endowment,
+      targetKey: PermissionKeys.endowmentPermission2,
+      endowmentGetter: (_options: EndowmentGetterParams) => ['endowment2'],
+      allowedCaveats: [CaveatTypes.endowmentCaveat],
     },
   } as const;
 }
@@ -608,6 +628,57 @@ describe('PermissionController', () => {
             }),
           ),
       ).toThrow(new errors.UnrecognizedCaveatTypeError('foo'));
+    });
+
+    it('throws if a specified caveat has a type mismatch', () => {
+      const defaultCaveats = getDefaultCaveatSpecifications();
+      expect(
+        () =>
+          new PermissionController<
+            DefaultPermissionSpecifications,
+            DefaultCaveatSpecifications
+          >(
+            getPermissionControllerOptions({
+              permissionSpecifications: {
+                ...getDefaultPermissionSpecifications(),
+                foo: {
+                  permissionType: PermissionType.Endowment,
+                  targetKey: 'foo',
+                  allowedCaveats: [defaultCaveats.reverseArrayResponse.type],
+                },
+              },
+            }),
+          ),
+      ).toThrow(
+        new errors.CaveatSpecificationMismatchError(
+          defaultCaveats.reverseArrayResponse,
+          PermissionType.Endowment,
+        ),
+      );
+
+      expect(
+        () =>
+          new PermissionController<
+            DefaultPermissionSpecifications,
+            DefaultCaveatSpecifications
+          >(
+            getPermissionControllerOptions({
+              permissionSpecifications: {
+                ...getDefaultPermissionSpecifications(),
+                foo: {
+                  permissionType: PermissionType.RestrictedMethod,
+                  targetKey: 'foo',
+                  allowedCaveats: [defaultCaveats.endowmentCaveat.type],
+                },
+              },
+            }),
+          ),
+      ).toThrow(
+        new errors.CaveatSpecificationMismatchError(
+          defaultCaveats.endowmentCaveat,
+          PermissionType.RestrictedMethod,
+        ),
+      );
     });
   });
 
@@ -2300,6 +2371,50 @@ describe('PermissionController', () => {
                 parentCapability: 'wallet_getSecretArray',
                 caveats: null,
                 invoker: origin2,
+              }),
+            },
+          },
+        },
+      });
+    });
+
+    it('grants new permission (endowment with caveats)', () => {
+      const controller = getDefaultPermissionController();
+      const origin = 'metamask.io';
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          [PermissionNames.endowmentPermission2]: {
+            caveats: [
+              {
+                type: CaveatTypes.endowmentCaveat,
+                value: {
+                  namespaces: { eip155: { methods: ['eth_signTransaction'] } },
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: {
+              [PermissionNames.endowmentPermission2]: getPermissionMatcher({
+                parentCapability: PermissionNames.endowmentPermission2,
+                caveats: [
+                  {
+                    type: CaveatTypes.endowmentCaveat,
+                    value: {
+                      namespaces: {
+                        eip155: { methods: ['eth_signTransaction'] },
+                      },
+                    },
+                  },
+                ],
               }),
             },
           },
