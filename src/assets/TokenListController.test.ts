@@ -483,9 +483,10 @@ function getRestrictedMessenger() {
   const messenger = controllerMessenger.getRestricted<
     'TokenListController',
     never,
-    never
+    TokenListStateChange['type']
   >({
     name,
+    allowedEvents: ['TokenListController:stateChange'],
   });
   return messenger;
 }
@@ -1060,21 +1061,33 @@ describe('TokenListController', () => {
       preventPollingOnNetworkRestart: false,
     });
 
-    network.update({
-      provider: {
-        type: 'rpc',
-        chainId: '56',
-      },
+    await new Promise((resolve: any) => {
+      messenger.subscribe('TokenListController:stateChange', (_, patch) => {
+        const tokenListChanged = patch.find(
+          (p) => Object.keys(p.value.tokenList).length !== 0,
+        );
+        if (!tokenListChanged) {
+          return;
+        }
+
+        expect(controller.state.tokenList).toStrictEqual(
+          sampleTwoChainState.tokenList,
+        );
+
+        expect(controller.state.tokensChainsCache['56'].data).toStrictEqual(
+          sampleTwoChainState.tokensChainsCache['56'].data,
+        );
+        messenger.clearEventSubscriptions('TokenListController:stateChange');
+        controller.destroy();
+        resolve();
+      });
+
+      network.update({
+        provider: {
+          type: 'rpc',
+          chainId: '56',
+        },
+      });
     });
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 10));
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleTwoChainState.tokenList,
-    );
-
-    expect(controller.state.tokensChainsCache['56'].data).toStrictEqual(
-      sampleTwoChainState.tokensChainsCache['56'].data,
-    );
-
-    controller.destroy();
   });
 });
