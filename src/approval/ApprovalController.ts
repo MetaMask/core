@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 
 import { BaseController, Json } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
+import { ApprovalRequestNotFoundError } from './errors';
 
 const controllerName = 'ApprovalController';
 
@@ -568,7 +569,7 @@ export class ApprovalController extends BaseController<
   private _deleteApprovalAndGetCallbacks(id: string): ApprovalCallbacks {
     const callbacks = this._approvals.get(id);
     if (!callbacks) {
-      throw new Error(`Approval request with id '${id}' not found.`);
+      throw new ApprovalRequestNotFoundError(id);
     }
 
     this._delete(id);

@@ -4,7 +4,7 @@ import { formatIconUrlWithProxy } from './assets/assetsUtil';
 
 export * from './assets/AccountTrackerController';
 export * from './user/AddressBookController';
-export * from './approval/ApprovalController';
+export * from './approval';
 export * from './assets/AssetsContractController';
 export * from './BaseController';
 export {
