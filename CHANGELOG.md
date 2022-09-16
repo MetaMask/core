@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [31.1.0]
-### Uncategorized
+### Added
 - Adding new error types and exporting them from module ([#909](https://github.com/MetaMask/controllers/pull/909))
-- replace ethers with submodules ([#907](https://github.com/MetaMask/controllers/pull/907))
+- Replace ethers with submodules ([#907](https://github.com/MetaMask/controllers/pull/907))
 
 ## [31.0.0]
 ### Added
