@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [31.1.0]
+### Uncategorized
+- Adding new error types and exporting them from module ([#909](https://github.com/MetaMask/controllers/pull/909))
+- replace ethers with submodules ([#907](https://github.com/MetaMask/controllers/pull/907))
+
 ## [31.0.0]
 ### Added
 - Add support for caveats on endowment permissions ([#878](https://github.com/MetaMask/controllers/pull/878))
@@ -658,7 +663,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v31.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v31.1.0...HEAD
+[31.1.0]: https://github.com/MetaMask/controllers/compare/v31.0.0...v31.1.0
 [31.0.0]: https://github.com/MetaMask/controllers/compare/v30.3.0...v31.0.0
 [30.3.0]: https://github.com/MetaMask/controllers/compare/v30.2.0...v30.3.0
 [30.2.0]: https://github.com/MetaMask/controllers/compare/v30.1.0...v30.2.0
