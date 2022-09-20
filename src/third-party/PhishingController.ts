@@ -88,9 +88,9 @@ export class PhishingController extends BaseController<
   PhishingState
 > {
   private configUrlMetaMask =
-    'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
+    'https://static.metafi.codefi.network/api/v1/lists/eth_phishing_detect_config.json';
 
-  private configUrlPhishFortHotlist = `https://cdn.jsdelivr.net/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json`;
+  private configUrlPhishFortHotlist = `https://static.metafi.codefi.network/api/v1/lists/phishfort_hotlist.json`;
 
   private detector: any;
 
