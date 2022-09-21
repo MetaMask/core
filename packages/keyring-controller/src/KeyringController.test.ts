@@ -467,18 +467,9 @@ describe('KeyringController', () => {
 
   it('should sign typed message V3', async () => {
     const msgParams: TypedMessage<{
-      EIP712Domain: {
-        name: string;
-        type: string;
-      }[];
-      Mail: {
-        name: string;
-        type: string;
-      }[];
-      Person: {
-        name: string;
-        type: string;
-      }[];
+      EIP712Domain: MessageTypeProperty[];
+      Mail: MessageTypeProperty[];
+      Person: MessageTypeProperty[];
     }> = {
       domain: {
         chainId: 1,
@@ -530,22 +521,10 @@ describe('KeyringController', () => {
 
   it('should sign typed message V4', async () => {
     const msgParams: TypedMessage<{
-      EIP712Domain: {
-        name: string;
-        type: string;
-      }[];
-      Group: {
-        name: string;
-        type: string;
-      }[];
-      Mail: {
-        name: string;
-        type: string;
-      }[];
-      Person: {
-        name: string;
-        type: string;
-      }[];
+      EIP712Domain: MessageTypeProperty[];
+      Group: MessageTypeProperty[];
+      Mail: MessageTypeProperty[];
+      Person: MessageTypeProperty[];
     }> = {
       domain: {
         chainId: 1,
@@ -1320,22 +1299,10 @@ describe('KeyringController', () => {
 
     it('should sign typed data for V4 with Ledger Keyring', async () => {
       const msgParams: TypedMessage<{
-        EIP712Domain: {
-          name: string;
-          type: string;
-        }[];
-        Group: {
-          name: string;
-          type: string;
-        }[];
-        Mail: {
-          name: string;
-          type: string;
-        }[];
-        Person: {
-          name: string;
-          type: string;
-        }[];
+        EIP712Domain: MessageTypeProperty[];
+        Group: MessageTypeProperty[];
+        Mail: MessageTypeProperty[];
+        Person: MessageTypeProperty[];
       }> = {
         domain: {
           chainId: 1,
