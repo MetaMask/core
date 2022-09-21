@@ -12,6 +12,7 @@ import { TransactionFactory } from '@ethereumjs/tx';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import LedgerKeyring from '@ledgerhq/metamask-keyring';
+import Transport from '@ledgerhq/hw-transport';
 import * as uuid from 'uuid';
 import MockEncryptor from '../../tests/mocks/mockEncryptor';
 import { PreferencesController } from '../user/PreferencesController';
