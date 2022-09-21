@@ -25,6 +25,11 @@ import {
   SignTypedDataVersion,
 } from './KeyringController';
 
+interface MessageTypeProperty {
+  name: string;
+  type: string;
+}
+
 const input =
   '{"version":3,"id":"534e0199-53f6-41a9-a8fe-d504702ee5e8","address":"b97c80fab7a3793bbe746864db80d236f1345ea7",' +
   '"crypto":{"ciphertext":"974fec42023c2d6340d9710863aa82a2961aa03b9d7e5dd19aa77ab4aab1f344",' +
@@ -454,18 +459,9 @@ describe('KeyringController', () => {
 
   it('should sign typed message V3', async () => {
     const msgParams: TypedMessage<{
-      EIP712Domain: {
-        name: string;
-        type: string;
-      }[];
-      Mail: {
-        name: string;
-        type: string;
-      }[];
-      Person: {
-        name: string;
-        type: string;
-      }[];
+      EIP712Domain: MessageTypeProperty[];
+      Mail: MessageTypeProperty[];
+      Person: MessageTypeProperty[];
     }> = {
       domain: {
         chainId: 1,
@@ -517,22 +513,10 @@ describe('KeyringController', () => {
 
   it('should sign typed message V4', async () => {
     const msgParams: TypedMessage<{
-      EIP712Domain: {
-        name: string;
-        type: string;
-      }[];
-      Group: {
-        name: string;
-        type: string;
-      }[];
-      Mail: {
-        name: string;
-        type: string;
-      }[];
-      Person: {
-        name: string;
-        type: string;
-      }[];
+      EIP712Domain: MessageTypeProperty[];
+      Group: MessageTypeProperty[];
+      Mail: MessageTypeProperty[];
+      Person: MessageTypeProperty[];
     }> = {
       domain: {
         chainId: 1,
@@ -1307,22 +1291,10 @@ describe('KeyringController', () => {
 
     it('should sign typed data for V4 with Ledger Keyring', async () => {
       const msgParams: TypedMessage<{
-        EIP712Domain: {
-          name: string;
-          type: string;
-        }[];
-        Group: {
-          name: string;
-          type: string;
-        }[];
-        Mail: {
-          name: string;
-          type: string;
-        }[];
-        Person: {
-          name: string;
-          type: string;
-        }[];
+        EIP712Domain: MessageTypeProperty[];
+        Group: MessageTypeProperty[];
+        Mail: MessageTypeProperty[];
+        Person: MessageTypeProperty[];
       }> = {
         domain: {
           chainId: 1,
