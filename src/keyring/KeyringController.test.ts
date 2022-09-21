@@ -1449,5 +1449,12 @@ describe('KeyringController', () => {
       await keyringController.closeRunningAppOnLedger();
       expect(quitApp).toHaveBeenCalled();
     });
+
+    it('should retrieve the default account from the ledger keyring', async () => {
+      const { address, balance } =
+        await keyringController.unlockDefaultLedgerAccount();
+      expect(address).toBe(defaultAccount.address);
+      expect(balance).toBe(defaultAccount.balance);
+    });
   });
 });
