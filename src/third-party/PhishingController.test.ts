@@ -195,7 +195,7 @@ describe('PhishingController', () => {
     ]);
   });
 
-  it('should not update infura rate if disabled', async () => {
+  it('should not update phishing configuration if disabled', async () => {
     const controller = new PhishingController({ disabled: true });
     await controller.updatePhishingLists();
 
