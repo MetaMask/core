@@ -1491,6 +1491,7 @@ __metadata:
     prettier-plugin-packagejson: ^2.2.17
     punycode: ^2.1.1
     rimraf: ^3.0.2
+    simple-git-hooks: ^2.8.0
     single-call-balance-checker-abi: ^1.0.0
     sinon: ^9.2.4
     ts-jest: ^26.5.2
@@ -10238,6 +10239,15 @@ __metadata:
   version: 3.0.7
   resolution: "signal-exit@npm:3.0.7"
   checksum: a2f098f247adc367dffc27845853e9959b9e88b01cb301658cfe4194352d8d2bb32e18467c786a7fe15f1d44b233ea35633d076d5e737870b7139949d1ab6318
+  languageName: node
+  linkType: hard
+
+"simple-git-hooks@npm:^2.8.0":
+  version: 2.8.0
+  resolution: "simple-git-hooks@npm:2.8.0"
+  bin:
+    simple-git-hooks: cli.js
+  checksum: 2249177fd039c3841b6bc1ba63a8692a6aebf1820abe2cad0d41abfb7cec95e13de704efd3c60aff344919cc676ad87c492fa1c3a3cb391f6f6c28e5b66b7e26
   languageName: node
   linkType: hard
 
