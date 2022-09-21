@@ -119,16 +119,12 @@ export class PhishingController extends BaseController<
     this.defaultState = {
       phishing: [
         {
-          allowlist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
-            .whitelist,
-          blocklist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
-            .blacklist,
-          fuzzylist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
-            .fuzzylist,
-          tolerance: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
-            .tolerance,
+          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
+          blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
+          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
+          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
           name: `MetaMask`,
-          version: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).version,
+          version: DEFAULT_PHISHING_RESPONSE.version,
         },
       ],
       whitelist: [],
