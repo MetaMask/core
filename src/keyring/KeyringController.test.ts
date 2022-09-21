@@ -1433,5 +1433,25 @@ describe('KeyringController', () => {
       const keyring = await keyringController.getLedgerKeyring();
       expect(keyring).toBe(ledgerKeyring);
     });
+
+    it('should return the app name after connecting the Ledger hardware', async () => {
+      const transportMock = new Transport();
+      console.log(transportMock);
+      const deviceIdMock = '0000';
+      const getAppAndVersionStub = sinon.stub(
+        ledgerKeyring,
+        'getAppAndVersion',
+      );
+      const appNameAndVersion = {
+        appName: 'mock_app_name',
+        version: 'mock_version',
+      };
+      getAppAndVersionStub.resolves(appNameAndVersion);
+      const response = await keyringController.connectLedgerHardware(
+        transportMock,
+        deviceIdMock,
+      );
+      expect(response).toBe(appNameAndVersion.appName);
+    });
   });
 });
