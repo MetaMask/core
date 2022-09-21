@@ -1422,11 +1422,16 @@ describe('KeyringController', () => {
       expect(quitApp).toHaveBeenCalled();
     });
 
-    it('should retrieve the default account from the ledger keyring', async () => {
+    it('should retrieve the default account from the LedgerKeyring', async () => {
       const { address, balance } =
         await keyringController.unlockDefaultLedgerAccount();
       expect(address).toBe(defaultAccount.address);
       expect(balance).toBe(defaultAccount.balance);
+    });
+
+    it('should return the existing LedgerKeyring or create a new one', async () => {
+      const keyring = await keyringController.getLedgerKeyring();
+      expect(keyring).toBe(ledgerKeyring);
     });
   });
 });
