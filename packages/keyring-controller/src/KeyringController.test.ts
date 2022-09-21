@@ -1151,7 +1151,7 @@ describe('KeyringController', () => {
 
   describe('Ledger Keyring', () => {
     let ledgerKeyring: LedgerKeyring;
-    let defaultAccount: any;
+    let defaultAccount: { address: string; balance: string };
     preferences = new PreferencesController();
 
     beforeEach(async () => {
