@@ -1437,7 +1437,6 @@ describe('KeyringController', () => {
 
     it('should return the app name after connecting the Ledger hardware', async () => {
       const transportMock = new Transport();
-      console.log(transportMock);
       const deviceIdMock = '0000';
       const getAppAndVersionStub = sinon.stub(
         ledgerKeyring,
