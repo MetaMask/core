@@ -10,6 +10,14 @@ import {
   TokenBalancesController,
 } from './TokenBalancesController';
 
+const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
+  return sinon.stub(ctrl, '_createEthersContract').callsFake(() => {
+    return {
+      supportsInterface: sinon.stub().returns(res),
+    } as any;
+  });
+};
+
 describe('TokenBalancesController', () => {
   const getToken = (
     tokenBalances: TokenBalancesController,
@@ -197,13 +205,7 @@ describe('TokenBalancesController', () => {
       onNetworkStateChange: (listener) => network.subscribe(listener),
     });
 
-    const supportsInterfaceStub = sinon.stub().returns(Promise.resolve(false));
-
-    sinon
-      .stub(tokensController, '_createEthersContract')
-      .callsFake(() =>
-        Promise.resolve({ supportsInterface: supportsInterfaceStub }),
-      );
+    const stub = stubCreateEthers(tokensController, false);
 
     const tokenBalances = new TokenBalancesController(
       {
@@ -220,6 +222,8 @@ describe('TokenBalancesController', () => {
     const found = tokens.filter((token: Token) => token.address === '0x00');
     expect(found.length > 0).toBe(true);
     expect(updateBalances.called).toBe(true);
+
+    stub.restore();
   });
 
   it('should update token balances when detected tokens are added', async () => {
@@ -241,7 +245,7 @@ describe('TokenBalancesController', () => {
     expect(tokenBalances.state.contractBalances).toStrictEqual({});
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
+    tokenStateChangeListener!({
       detectedTokens: [
         {
           address: '0x02',

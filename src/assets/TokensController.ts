@@ -3,7 +3,8 @@ import contractsMap from '@metamask/contract-metadata';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
-import { ethers } from 'ethers';
+import { Contract } from '@ethersproject/contracts';
+import { Web3Provider } from '@ethersproject/providers';
 import { AbortController } from 'abort-controller';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
@@ -242,7 +243,7 @@ export class TokensController extends BaseController<
   }
 
   _instantiateNewEthersProvider(): any {
-    return new ethers.providers.Web3Provider(this.config?.provider);
+    return new Web3Provider(this.config?.provider);
   }
 
   /**
@@ -531,7 +532,7 @@ export class TokensController extends BaseController<
       return Promise.resolve(false);
     }
 
-    const tokenContract = await this._createEthersContract(
+    const tokenContract = this._createEthersContract(
       tokenAddress,
       abiERC721,
       this.ethersProvider,
@@ -547,16 +548,12 @@ export class TokensController extends BaseController<
     }
   }
 
-  async _createEthersContract(
+  _createEthersContract(
     tokenAddress: string,
     abi: string,
     ethersProvider: any,
-  ): Promise<any> {
-    const tokenContract = await new ethers.Contract(
-      tokenAddress,
-      abi,
-      ethersProvider,
-    );
+  ): Contract {
+    const tokenContract = new Contract(tokenAddress, abi, ethersProvider);
     return tokenContract;
   }
 

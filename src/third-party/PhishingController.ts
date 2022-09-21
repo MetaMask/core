@@ -2,7 +2,6 @@ import { toASCII } from 'punycode/';
 import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
 import PhishingDetector from 'eth-phishing-detect/src/detector';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
-import { safelyExecute } from '../util';
 
 /**
  * @type EthPhishingResponse
@@ -66,7 +65,7 @@ export interface EthPhishingDetectResult {
  * @property interval - Polling interval used to fetch new block / approve lists
  */
 export interface PhishingConfig extends BaseConfig {
-  interval: number;
+  refreshInterval: number;
 }
 
 /**
@@ -95,7 +94,7 @@ export class PhishingController extends BaseController<
 
   private detector: any;
 
-  private handle?: NodeJS.Timer;
+  private lastFetched = 0;
 
   /**
    * Name of this controller used during composition
@@ -113,50 +112,59 @@ export class PhishingController extends BaseController<
     state?: Partial<PhishingState>,
   ) {
     super(config, state);
-    this.defaultConfig = { interval: 60 * 60 * 1000 };
+    this.defaultConfig = {
+      refreshInterval: 60 * 60 * 1000,
+    };
+
     this.defaultState = {
       phishing: [
         {
-          allowlist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
-            .whitelist,
-          blocklist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
-            .blacklist,
-          fuzzylist: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
-            .fuzzylist,
-          tolerance: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse)
-            .tolerance,
+          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
+          blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
+          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
+          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
           name: `MetaMask`,
-          version: (DEFAULT_PHISHING_RESPONSE as EthPhishingResponse).version,
+          version: DEFAULT_PHISHING_RESPONSE.version,
         },
       ],
       whitelist: [],
     };
     this.detector = new PhishingDetector(this.defaultState.phishing);
     this.initialize();
-    this.poll();
   }
 
   /**
-   * Starts a new polling interval.
+   * Set the interval at which the phishing list will be refetched. Fetching will only occur on the next call to test/bypass. For immediate update to the phishing list, call updatePhishingLists directly.
    *
-   * @param interval - Polling interval used to fetch new approval lists.
+   * @param interval - the new interval, in ms.
    */
-  async poll(interval?: number): Promise<void> {
-    interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
-    await safelyExecute(() => this.updatePhishingLists());
-    this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
-    }, this.config.interval);
+  setRefreshInterval(interval: number) {
+    this.configure({ refreshInterval: interval }, false, false);
+  }
+
+  /**
+   * Calls this.updatePhishingLists if this.refreshInterval has passed since last this.lastFetched.
+   *
+   * @returns Promise<void> when finished fetching phishing lists or when fetching in not necessary.
+   */
+  private async fetchIfNecessary(): Promise<void> {
+    const outOfDate =
+      Date.now() - this.lastFetched >= this.config.refreshInterval;
+
+    if (outOfDate) {
+      await this.updatePhishingLists();
+    }
   }
 
   /**
    * Determines if a given origin is unapproved.
    *
    * @param origin - Domain origin of a website.
-   * @returns Whether the origin is an unapproved origin.
+   * @returns Promise<EthPhishingDetectResult> Whether the origin is an unapproved origin.
    */
-  test(origin: string): EthPhishingDetectResult {
+  async test(origin: string): Promise<EthPhishingDetectResult> {
+    await this.fetchIfNecessary();
+
     const punycodeOrigin = toASCII(origin);
     if (this.state.whitelist.indexOf(punycodeOrigin) !== -1) {
       return { result: false, type: 'all' }; // Same as whitelisted match returned by detector.check(...).
@@ -230,6 +238,8 @@ export class PhishingController extends BaseController<
     this.update({
       phishing: configs,
     });
+
+    this.lastFetched = Date.now();
   }
 
   private async queryConfig<ResponseType>(
