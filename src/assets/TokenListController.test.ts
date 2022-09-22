@@ -4,7 +4,6 @@ import { TOKEN_END_POINT_API } from '../apis/token-service';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
   NetworkController,
-  NetworkControllerMessenger,
   NetworkControllerProviderChangeEvent,
   NetworksChainId,
 } from '../network/NetworkController';

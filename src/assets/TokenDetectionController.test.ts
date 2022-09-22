@@ -4,6 +4,7 @@ import { BN } from 'ethereumjs-util';
 import {
   NetworkController,
   NetworkControllerMessenger,
+  NetworkControllerProviderChangeEvent,
   NetworkControllerStateChangeEvent,
   NetworksChainId,
 } from '../network/NetworkController';
@@ -82,46 +83,47 @@ const sampleTokenB: Token = {
   aggregators: formattedSampleAggregators,
 };
 
-/**
- * Constructs a restricted controller messenger for TokenList.
- *
- * @returns A restricted controller messenger.
- */
-function getTokenListMessenger() {
-  const controllerMessenger = new ControllerMessenger<
-    GetTokenListState,
-    TokenListStateChange
-  >();
-  const messenger = controllerMessenger.getRestricted<
-    'TokenListController',
-    never,
-    TokenListStateChange['type']
-  >({
-    name: 'TokenListController',
-    allowedEvents: ['TokenListController:stateChange'],
-  });
-  return messenger;
-}
+type MainControllerMessenger = ControllerMessenger<GetTokenListState, TokenListStateChange | NetworkControllerProviderChangeEvent | NetworkControllerStateChangeEvent>;
 
-/**
- * Constructs a restricted controller messenger for NetworkController.
- *
- * @returns A restricted controller messenger.
- */
-function getNetworkMessenger() {
-  const controllerMessenger = new ControllerMessenger<
-    never,
-    NetworkControllerStateChangeEvent
-  >();
-  const messenger = controllerMessenger.getRestricted<
-    'NetworkController',
-    never,
-    NetworkControllerStateChangeEvent['type']
-  >({
+const getControllerMessenger = (): MainControllerMessenger => {
+  return new ControllerMessenger();
+};
+
+const setupNetworkController = (controllerMessenger: MainControllerMessenger) => {
+  const networkMessenger = controllerMessenger.getRestricted({
     name: 'NetworkController',
-    allowedEvents: ['NetworkController:stateChange'],
+    allowedEvents: [
+      'NetworkController:providerChange',
+      'NetworkController:stateChange',
+    ],
+    allowedActions: [],
   });
-  return messenger;
+
+  const network = new NetworkController({
+    messenger: networkMessenger,
+    infuraProjectId: '123',
+  });
+
+  return { network, networkMessenger };
+};
+
+const setupTokenListController = (controllerMessenger: MainControllerMessenger) =>{
+  const tokenListMessenger = controllerMessenger.getRestricted({
+    name: 'TokenListController',
+    allowedActions: [],
+    allowedEvents: [
+      'TokenListController:stateChange',
+      'NetworkController:providerChange'
+    ],
+  });
+
+  const tokenList = new TokenListController({
+    chainId: NetworksChainId.mainnet,
+    preventPollingOnNetworkRestart: false,
+    messenger: tokenListMessenger,
+  });
+
+  return { tokenList, tokenListMessenger };
 }
 
 describe('TokenDetectionController', () => {
@@ -131,6 +133,7 @@ describe('TokenDetectionController', () => {
   let networkMessenger: NetworkControllerMessenger;
   let tokensController: TokensController;
   let tokenList: TokenListController;
+  let controllerMessenger: MainControllerMessenger;
   let getBalancesInSingleCall: sinon.SinonStub<
     Parameters<AssetsContractController['getBalancesInSingleCall']>,
     ReturnType<AssetsContractController['getBalancesInSingleCall']>
@@ -151,25 +154,17 @@ describe('TokenDetectionController', () => {
       .persist();
 
     preferences = new PreferencesController({}, { useTokenDetection: true });
-    networkMessenger = getNetworkMessenger();
-    network = new NetworkController({
-      messenger: networkMessenger,
-      infuraProjectId: '123',
-    });
-
+    controllerMessenger = getControllerMessenger();
+    const networkSetup = setupNetworkController(controllerMessenger);
+    network = networkSetup.network;
+    networkMessenger = networkSetup.networkMessenger;
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         networkMessenger.subscribe('NetworkController:stateChange', listener),
     });
-    const messenger = getTokenListMessenger();
-    tokenList = new TokenListController({
-      chainId: NetworksChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
-      onNetworkStateChange: (listener) =>
-        networkMessenger.subscribe('NetworkController:stateChange', listener),
-      messenger,
-    });
+    const tokenListSetup = setupTokenListController(controllerMessenger);
+    tokenList = tokenListSetup.tokenList;
     await tokenList.start();
     getBalancesInSingleCall = sinon.stub();
     tokenDetection = new TokenDetectionController({
@@ -177,7 +172,7 @@ describe('TokenDetectionController', () => {
       onNetworkStateChange: (listener) =>
         networkMessenger.subscribe('NetworkController:stateChange', listener),
       onTokenListStateChange: (listener) =>
-        messenger.subscribe(`TokenListController:stateChange`, listener),
+        tokenListSetup.tokenListMessenger.subscribe(`TokenListController:stateChange`, listener),
       getBalancesInSingleCall:
         getBalancesInSingleCall as unknown as AssetsContractController['getBalancesInSingleCall'],
       addDetectedTokens:
@@ -198,7 +193,7 @@ describe('TokenDetectionController', () => {
     sinon.restore();
     tokenDetection.stop();
     tokenList.destroy();
-    networkMessenger.clearEventSubscriptions('NetworkController:stateChange');
+    controllerMessenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should set default config', () => {
