@@ -22,8 +22,6 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
   });
 };
 
-const INFURA_PROJECT_ID = 'ad3a368836ff4596becc3be8e2f137ac';
-
 describe('TokenBalancesController', () => {
   const getToken = (
     tokenBalances: TokenBalancesController,
@@ -133,7 +131,7 @@ describe('TokenBalancesController', () => {
 
       new NetworkController({
         messenger,
-        infuraProjectId: INFURA_PROJECT_ID,
+        infuraProjectId: 'potato',
       });
       preferences = new PreferencesController();
     });
