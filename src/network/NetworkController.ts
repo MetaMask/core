@@ -20,9 +20,7 @@ export type NetworkType =
   | 'rinkeby'
   | 'goerli'
   | 'ropsten'
-  | 'rpc'
-  | 'optimism'
-  | 'optimismTest';
+  | 'rpc';
 
 export enum NetworksChainId {
   mainnet = '1',
@@ -32,8 +30,6 @@ export enum NetworksChainId {
   ropsten = '3',
   localhost = '',
   rpc = '',
-  optimism = '10',
-  optimismTest = '69',
 }
 
 /**
@@ -117,8 +113,6 @@ export class NetworkController extends BaseController<
       case MAINNET:
       case 'rinkeby':
       case 'goerli':
-      case 'optimism':
-      case 'optimismTest':
       case 'ropsten':
         this.setupInfuraProvider(type);
         break;

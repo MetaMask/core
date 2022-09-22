@@ -76,7 +76,11 @@ describe('NetworkController', () => {
     };
     const controller = new NetworkController(testConfig, {
       network: '10',
-      provider: { type: 'optimism', chainId: NetworksChainId.optimism },
+      provider: {
+        rpcTarget: RPC_TARGET,
+        type: 'rpc',
+        chainId: '10',
+      },
     });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
