@@ -86,7 +86,7 @@ export type NetworkControllerStateChangeEvent = {
 
 export type NetworkControllerProviderChangeEvent = {
   type: `NetworkController:providerChange`;
-  payload: [any]; // 'any' is actually 'new NetworkController().provider'
+  payload: [ProviderConfig]; // 'any' is actually 'new NetworkController().provider'
 };
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
@@ -301,16 +301,16 @@ export class NetworkController extends BaseController<
     this.ethQuery.sendAsync(
       { method: 'net_version' },
       (error: Error, network: string) => {
+        if (this.state.network === network) { return; }
         this.update((state: any) => {
           state.network = error ? /* istanbul ignore next*/ 'loading' : network;
         });
 
-        if (!error) {
-          this.messagingSystem.publish(
-            `${this.name}:providerChange`,
-            this.provider,
-          );
-        }
+        this.messagingSystem.publish(
+          `NetworkController:providerChange`,
+          this.state.provider,
+        );
+
         releaseLock();
       },
     );
