@@ -135,8 +135,8 @@ const MOCK_NETWORK_CUSTOM = {
     isCustomNetwork: true,
     properties: { isEIP1559Compatible: false },
     provider: {
-      type: 'optimism' as NetworkType,
-      chainId: NetworksChainId.optimism,
+      type: 'rpc' as NetworkType,
+      chainId: '10',
     },
   },
   subscribe: () => undefined,
