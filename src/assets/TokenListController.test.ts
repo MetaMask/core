@@ -471,18 +471,21 @@ const expiredCacheExistingState: TokenListState = {
   preventPollingOnNetworkRestart: false,
 };
 
-type MainControllerMessenger = ControllerMessenger<GetTokenListState, TokenListStateChange | NetworkControllerProviderChangeEvent>;
+type MainControllerMessenger = ControllerMessenger<
+  GetTokenListState,
+  TokenListStateChange | NetworkControllerProviderChangeEvent
+>;
 
 const getControllerMessenger = (): MainControllerMessenger => {
   return new ControllerMessenger();
 };
 
-const setupNetworkController = (controllerMessenger: MainControllerMessenger) => {
+const setupNetworkController = (
+  controllerMessenger: MainControllerMessenger,
+) => {
   const networkMessenger = controllerMessenger.getRestricted({
     name: 'NetworkController',
-    allowedEvents: [
-      'NetworkController:providerChange',
-    ],
+    allowedEvents: ['NetworkController:providerChange'],
     allowedActions: [],
   });
 
@@ -494,23 +497,20 @@ const setupNetworkController = (controllerMessenger: MainControllerMessenger) =>
   return { network, networkMessenger };
 };
 
-/**
- * Get a TokenListController restricted controller messenger.
- *
- * @returns A restricted controller messenger for the TokenListController.
- */
-function getRestrictedMessenger(controllerMessenger: MainControllerMessenger) {
+const getRestrictedMessenger = (
+  controllerMessenger: MainControllerMessenger,
+) => {
   const messenger = controllerMessenger.getRestricted({
     name,
     allowedActions: [],
     allowedEvents: [
       'TokenListController:stateChange',
-      'NetworkController:providerChange'
+      'NetworkController:providerChange',
     ],
   });
 
   return messenger;
-}
+};
 
 describe('TokenListController', () => {
   afterEach(() => {
@@ -535,7 +535,9 @@ describe('TokenListController', () => {
     });
 
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should initialize with initial state', () => {
@@ -583,7 +585,9 @@ describe('TokenListController', () => {
     });
 
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should initiate without preventPollingOnNetworkRestart', async () => {
@@ -602,7 +606,9 @@ describe('TokenListController', () => {
     });
 
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should not poll before being started', async () => {
@@ -620,7 +626,9 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual({});
 
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should poll and update rate in the right interval', async () => {
@@ -647,7 +655,9 @@ describe('TokenListController', () => {
     expect(tokenListMock.calledTwice).toBe(true);
 
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should not poll after being stopped', async () => {
@@ -676,7 +686,9 @@ describe('TokenListController', () => {
     expect(tokenListMock.calledTwice).toBe(false);
 
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should poll correctly after being started, stopped, and started again', async () => {
@@ -709,7 +721,9 @@ describe('TokenListController', () => {
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     expect(tokenListMock.calledThrice).toBe(true);
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should call fetchTokenList on network that supports token detection', async () => {
@@ -733,7 +747,9 @@ describe('TokenListController', () => {
     // called once upon initial start
     expect(tokenListMock.called).toBe(true);
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should not call fetchTokenList on network that does not support token detection', async () => {
@@ -759,7 +775,9 @@ describe('TokenListController', () => {
 
     controller.destroy();
     tokenListMock.restore();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should update token list from api', async () => {
@@ -794,7 +812,9 @@ describe('TokenListController', () => {
         .timestamp,
     );
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should update the cache before threshold time if the current data is undefined', async () => {
@@ -829,7 +849,9 @@ describe('TokenListController', () => {
       sampleSingleChainState.tokensChainsCache['1'].data,
     );
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should update token list from cache before reaching the threshold time', async () => {
@@ -854,7 +876,9 @@ describe('TokenListController', () => {
       sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should update token list after removing data with duplicate symbols', async () => {
@@ -899,7 +923,9 @@ describe('TokenListController', () => {
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(sampleWithDuplicateSymbolsTokensChainsCache);
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should update token list after removing data less than 3 occurrences', async () => {
@@ -925,7 +951,9 @@ describe('TokenListController', () => {
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(sampleWith3OrMoreOccurrences);
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should update token list when the token property changes', async () => {
@@ -955,7 +983,9 @@ describe('TokenListController', () => {
       sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should update the cache when the timestamp expires', async () => {
@@ -988,7 +1018,9 @@ describe('TokenListController', () => {
       sampleSingleChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should update token list when the chainId change', async () => {
@@ -1052,7 +1084,9 @@ describe('TokenListController', () => {
     );
 
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should clear the tokenList and tokensChainsCache', async () => {
@@ -1072,7 +1106,9 @@ describe('TokenListController', () => {
     expect(controller.state.tokensChainsCache).toStrictEqual({});
 
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
   });
 
   it('should update preventPollingOnNetworkRestart and restart the polling on network restart', async () => {
@@ -1127,7 +1163,9 @@ describe('TokenListController', () => {
         );
         messenger.clearEventSubscriptions('TokenListController:stateChange');
         controller.destroy();
-        controllerMessenger.clearEventSubscriptions('NetworkController:providerChange');
+        controllerMessenger.clearEventSubscriptions(
+          'NetworkController:providerChange',
+        );
         resolve();
       });
 

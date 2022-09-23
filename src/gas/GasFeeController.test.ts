@@ -2,6 +2,12 @@ import sinon, { SinonFakeTimers } from 'sinon';
 import { mocked } from 'ts-jest/utils';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
+  NetworkController,
+  NetworkControllerGetEthQuery,
+  NetworkControllerGetProviderConfig,
+  NetworkControllerProviderChangeEvent,
+} from '../network/NetworkController';
+import {
   GAS_ESTIMATE_TYPES,
   GasFeeController,
   GasFeeState,
@@ -22,25 +28,51 @@ const mockedDetermineGasFeeCalculations = mocked(
 
 const name = 'GasFeeController';
 
-/**
- * Constructs a restricted controller messenger.
- *
- * @returns A restricted controller messenger.
- */
-function getRestrictedMessenger() {
-  const controllerMessenger = new ControllerMessenger<
-    GetGasFeeState,
-    GasFeeStateChange
-  >();
-  const messenger = controllerMessenger.getRestricted<
-    typeof name,
-    never,
-    never
-  >({
-    name,
+type MainControllerMessenger = ControllerMessenger<
+  | GetGasFeeState
+  | NetworkControllerGetProviderConfig
+  | NetworkControllerGetEthQuery,
+  GasFeeStateChange | NetworkControllerProviderChangeEvent
+>;
+
+const getControllerMessenger = (): MainControllerMessenger => {
+  return new ControllerMessenger();
+};
+
+const setupNetworkController = (
+  controllerMessenger: MainControllerMessenger,
+) => {
+  const networkMessenger = controllerMessenger.getRestricted({
+    name: 'NetworkController',
+    allowedEvents: ['NetworkController:providerChange'],
+    allowedActions: [
+      'NetworkController:getProviderConfig',
+      'NetworkController:getEthQuery',
+    ],
   });
+
+  const network = new NetworkController({
+    messenger: networkMessenger,
+    infuraProjectId: '123',
+  });
+
+  return { network, networkMessenger };
+};
+
+const getRestrictedMessenger = (
+  controllerMessenger: MainControllerMessenger,
+) => {
+  const messenger = controllerMessenger.getRestricted({
+    name,
+    allowedActions: [
+      'NetworkController:getProviderConfig',
+      'NetworkController:getEthQuery',
+    ],
+    allowedEvents: ['NetworkController:providerChange'],
+  });
+
   return messenger;
-}
+};
 
 /**
  * Builds mock gas fee state that would typically be generated for an EIP-1559-compatible network.
@@ -160,7 +192,6 @@ describe('GasFeeController', () => {
    * @param options.clientId - Sets clientId on the GasFeeController.
    */
   function setupGasFeeController({
-    getChainId = jest.fn().mockReturnValue('0x1'),
     getIsEIP1559Compatible = jest.fn().mockResolvedValue(true),
     getCurrentNetworkLegacyGasAPICompatibility = jest
       .fn()
@@ -176,11 +207,11 @@ describe('GasFeeController', () => {
     EIP1559APIEndpoint?: string;
     clientId?: string;
   } = {}) {
+    const controllerMessenger = getControllerMessenger();
+    setupNetworkController(controllerMessenger);
+    const messenger = getRestrictedMessenger(controllerMessenger);
     gasFeeController = new GasFeeController({
-      messenger: getRestrictedMessenger(),
-      getProvider: jest.fn(),
-      getChainId,
-      onNetworkStateChange: jest.fn(),
+      messenger,
       getCurrentNetworkLegacyGasAPICompatibility,
       getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkController.state.properties.isEIP1559Compatible ???
       legacyAPIEndpoint,

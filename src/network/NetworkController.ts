@@ -89,9 +89,19 @@ export type NetworkControllerProviderChangeEvent = {
   payload: [ProviderConfig]; // 'any' is actually 'new NetworkController().provider'
 };
 
+export type NetworkControllerGetProviderConfig = {
+  type: `NetworkController:getProviderConfig`;
+  handler: () => ProviderConfig;
+};
+
+export type NetworkControllerGetEthQuery = {
+  type: `NetworkController:getEthQuery`;
+  handler: () => any; // EthQuery;
+};
+
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
-  any,
+  NetworkControllerGetProviderConfig | NetworkControllerGetEthQuery,
   NetworkControllerStateChangeEvent | NetworkControllerProviderChangeEvent,
   string,
   string
@@ -151,6 +161,19 @@ export class NetworkController extends BaseController<
       state: { ...defaultState, ...state },
     });
     this._infuraProjectId = infuraProjectId;
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getProviderConfig`,
+      () => {
+        return this.state.provider;
+      },
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getEthQuery`,
+      () => {
+        return this.ethQuery;
+      },
+    );
   }
 
   private initializeProvider(
@@ -301,7 +324,10 @@ export class NetworkController extends BaseController<
     this.ethQuery.sendAsync(
       { method: 'net_version' },
       (error: Error, network: string) => {
-        if (this.state.network === network) { return; }
+        if (this.state.network === network) {
+          return;
+        }
+
         this.update((state: any) => {
           state.network = error ? /* istanbul ignore next*/ 'loading' : network;
         });

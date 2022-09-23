@@ -89,7 +89,7 @@ describe('NetworkController', () => {
         provider: {
           rpcTarget: RPC_TARGET,
           type: 'rpc',
-          chainId: '10'
+          chainId: '10',
         },
         properties: { isEIP1559Compatible: false },
       },

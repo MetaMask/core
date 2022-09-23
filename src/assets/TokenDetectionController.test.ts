@@ -83,13 +83,20 @@ const sampleTokenB: Token = {
   aggregators: formattedSampleAggregators,
 };
 
-type MainControllerMessenger = ControllerMessenger<GetTokenListState, TokenListStateChange | NetworkControllerProviderChangeEvent | NetworkControllerStateChangeEvent>;
+type MainControllerMessenger = ControllerMessenger<
+  GetTokenListState,
+  | TokenListStateChange
+  | NetworkControllerProviderChangeEvent
+  | NetworkControllerStateChangeEvent
+>;
 
 const getControllerMessenger = (): MainControllerMessenger => {
   return new ControllerMessenger();
 };
 
-const setupNetworkController = (controllerMessenger: MainControllerMessenger) => {
+const setupNetworkController = (
+  controllerMessenger: MainControllerMessenger,
+) => {
   const networkMessenger = controllerMessenger.getRestricted({
     name: 'NetworkController',
     allowedEvents: [
@@ -107,13 +114,15 @@ const setupNetworkController = (controllerMessenger: MainControllerMessenger) =>
   return { network, networkMessenger };
 };
 
-const setupTokenListController = (controllerMessenger: MainControllerMessenger) =>{
+const setupTokenListController = (
+  controllerMessenger: MainControllerMessenger,
+) => {
   const tokenListMessenger = controllerMessenger.getRestricted({
     name: 'TokenListController',
     allowedActions: [],
     allowedEvents: [
       'TokenListController:stateChange',
-      'NetworkController:providerChange'
+      'NetworkController:providerChange',
     ],
   });
 
@@ -124,7 +133,7 @@ const setupTokenListController = (controllerMessenger: MainControllerMessenger) 
   });
 
   return { tokenList, tokenListMessenger };
-}
+};
 
 describe('TokenDetectionController', () => {
   let tokenDetection: TokenDetectionController;
@@ -172,7 +181,10 @@ describe('TokenDetectionController', () => {
       onNetworkStateChange: (listener) =>
         networkMessenger.subscribe('NetworkController:stateChange', listener),
       onTokenListStateChange: (listener) =>
-        tokenListSetup.tokenListMessenger.subscribe(`TokenListController:stateChange`, listener),
+        tokenListSetup.tokenListMessenger.subscribe(
+          `TokenListController:stateChange`,
+          listener,
+        ),
       getBalancesInSingleCall:
         getBalancesInSingleCall as unknown as AssetsContractController['getBalancesInSingleCall'],
       addDetectedTokens:
@@ -193,7 +205,9 @@ describe('TokenDetectionController', () => {
     sinon.restore();
     tokenDetection.stop();
     tokenList.destroy();
-    controllerMessenger.clearEventSubscriptions('NetworkController:stateChange');
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:stateChange',
+    );
   });
 
   it('should set default config', () => {
