@@ -88,7 +88,7 @@ class BarController extends BaseController<never, BarControllerState> {
 }
 
 const setupControllers = () => {
-  const mainMessenger = new ControllerMessenger();
+  const mainMessenger: any = new ControllerMessenger();
   const messenger: NetworkControllerMessenger = mainMessenger.getRestricted({
     name: 'NetworkController',
     allowedEvents: ['NetworkController:stateChange'],
@@ -97,7 +97,7 @@ const setupControllers = () => {
 
   const composableMessenger = mainMessenger.getRestricted({
     name: 'ComposableController',
-    allowedEvents: [],
+    allowedEvents: ['NetworkController:stateChange'],
     allowedActions: [],
   });
 
