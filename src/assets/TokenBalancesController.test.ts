@@ -119,136 +119,137 @@ describe('TokenBalancesController', () => {
     });
   });
 
-  describe('with network controller', () => {
-    let messenger: NetworkControllerMessenger;
-    let preferences: PreferencesController;
-    beforeEach(() => {
-      messenger = new ControllerMessenger().getRestricted({
+  const setupControllers = () => {
+    const messenger: NetworkControllerMessenger =
+      new ControllerMessenger().getRestricted({
         name: 'NetworkController',
         allowedEvents: ['NetworkController:stateChange'],
         allowedActions: [],
       });
 
-      new NetworkController({
-        messenger,
-        infuraProjectId: 'potato',
-      });
-      preferences = new PreferencesController();
+    new NetworkController({
+      messenger,
+      infuraProjectId: 'potato',
+    });
+    const preferences = new PreferencesController();
+    return { messenger, preferences };
+  };
+
+  it('should update all balances', async () => {
+    const { messenger, preferences } = setupControllers();
+    const assets = new TokensController({
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        messenger.subscribe('NetworkController:stateChange', listener),
+    });
+    const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
+    const tokenBalances = new TokenBalancesController(
+      {
+        onTokensStateChange: (listener) => assets.subscribe(listener),
+        getSelectedAddress: () => preferences.state.selectedAddress,
+        getERC20BalanceOf: sinon.stub().returns(new BN(1)),
+      },
+      {
+        interval: 1337,
+        tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      },
+    );
+    expect(tokenBalances.state.contractBalances).toStrictEqual({});
+
+    await tokenBalances.updateBalances();
+    const mytoken = getToken(tokenBalances, address);
+    expect(mytoken?.balanceError).toBeNull();
+    expect(Object.keys(tokenBalances.state.contractBalances)).toContain(
+      address,
+    );
+
+    expect(
+      tokenBalances.state.contractBalances[address].toNumber(),
+    ).toBeGreaterThan(0);
+
+    messenger.clearEventSubscriptions('NetworkController:stateChange');
+  });
+
+  it('should handle `getERC20BalanceOf` error case', async () => {
+    const { messenger, preferences } = setupControllers();
+    const assets = new TokensController({
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        messenger.subscribe('NetworkController:stateChange', listener),
+    });
+    const errorMsg = 'Failed to get balance';
+    const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
+    const getERC20BalanceOfStub = sinon
+      .stub()
+      .returns(Promise.reject(new Error(errorMsg)));
+    const tokenBalances = new TokenBalancesController(
+      {
+        onTokensStateChange: (listener) => assets.subscribe(listener),
+        getSelectedAddress: () => preferences.state.selectedAddress,
+        getERC20BalanceOf: getERC20BalanceOfStub,
+      },
+      {
+        interval: 1337,
+        tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+      },
+    );
+
+    expect(tokenBalances.state.contractBalances).toStrictEqual({});
+    await tokenBalances.updateBalances();
+    const mytoken = getToken(tokenBalances, address);
+    expect(mytoken?.balanceError).toBeInstanceOf(Error);
+    expect(mytoken?.balanceError).toHaveProperty('message', errorMsg);
+    expect(
+      tokenBalances.state.contractBalances[address].toNumber(),
+    ).toStrictEqual(0);
+
+    getERC20BalanceOfStub.returns(new BN(1));
+    await tokenBalances.updateBalances();
+    expect(mytoken?.balanceError).toBeNull();
+    expect(Object.keys(tokenBalances.state.contractBalances)).toContain(
+      address,
+    );
+
+    expect(
+      tokenBalances.state.contractBalances[address].toNumber(),
+    ).toBeGreaterThan(0);
+
+    messenger.clearEventSubscriptions('NetworkController:stateChange');
+  });
+
+  it('should subscribe to new sibling assets controllers', async () => {
+    const { messenger, preferences } = setupControllers();
+    const assetsContract = new AssetsContractController({
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        messenger.subscribe('NetworkController:stateChange', listener),
+    });
+    const tokensController = new TokensController({
+      onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        messenger.subscribe('NetworkController:stateChange', listener),
     });
 
-    afterEach(() => {
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
-    });
+    const stub = stubCreateEthers(tokensController, false);
 
-    it('should update all balances', async () => {
-      const assets = new TokensController({
-        onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-        onNetworkStateChange: (listener) =>
-          messenger.subscribe('NetworkController:stateChange', listener),
-      });
-      const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-      const tokenBalances = new TokenBalancesController(
-        {
-          onTokensStateChange: (listener) => assets.subscribe(listener),
-          getSelectedAddress: () => preferences.state.selectedAddress,
-          getERC20BalanceOf: sinon.stub().returns(new BN(1)),
-        },
-        {
-          interval: 1337,
-          tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
-        },
-      );
-      expect(tokenBalances.state.contractBalances).toStrictEqual({});
+    const tokenBalances = new TokenBalancesController(
+      {
+        onTokensStateChange: (listener) => tokensController.subscribe(listener), // needs to be unsubbed?
+        getSelectedAddress: () => preferences.state.selectedAddress,
+        getERC20BalanceOf:
+          assetsContract.getERC20BalanceOf.bind(assetsContract),
+      },
+      { interval: 1337 },
+    );
+    const updateBalances = sinon.stub(tokenBalances, 'updateBalances');
+    await tokensController.addToken('0x00', 'FOO', 18);
+    const { tokens } = tokensController.state;
+    const found = tokens.filter((token: Token) => token.address === '0x00');
+    expect(found.length > 0).toBe(true);
+    expect(updateBalances.called).toBe(true);
 
-      await tokenBalances.updateBalances();
-      const mytoken = getToken(tokenBalances, address);
-      expect(mytoken?.balanceError).toBeNull();
-      expect(Object.keys(tokenBalances.state.contractBalances)).toContain(
-        address,
-      );
-
-      expect(
-        tokenBalances.state.contractBalances[address].toNumber(),
-      ).toBeGreaterThan(0);
-    });
-
-    it('should handle `getERC20BalanceOf` error case', async () => {
-      const assets = new TokensController({
-        onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-        onNetworkStateChange: (listener) =>
-          messenger.subscribe('NetworkController:stateChange', listener),
-      });
-      const errorMsg = 'Failed to get balance';
-      const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-      const getERC20BalanceOfStub = sinon
-        .stub()
-        .returns(Promise.reject(new Error(errorMsg)));
-      const tokenBalances = new TokenBalancesController(
-        {
-          onTokensStateChange: (listener) => assets.subscribe(listener),
-          getSelectedAddress: () => preferences.state.selectedAddress,
-          getERC20BalanceOf: getERC20BalanceOfStub,
-        },
-        {
-          interval: 1337,
-          tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
-        },
-      );
-
-      expect(tokenBalances.state.contractBalances).toStrictEqual({});
-      await tokenBalances.updateBalances();
-      const mytoken = getToken(tokenBalances, address);
-      expect(mytoken?.balanceError).toBeInstanceOf(Error);
-      expect(mytoken?.balanceError).toHaveProperty('message', errorMsg);
-      expect(
-        tokenBalances.state.contractBalances[address].toNumber(),
-      ).toStrictEqual(0);
-
-      getERC20BalanceOfStub.returns(new BN(1));
-      await tokenBalances.updateBalances();
-      expect(mytoken?.balanceError).toBeNull();
-      expect(Object.keys(tokenBalances.state.contractBalances)).toContain(
-        address,
-      );
-
-      expect(
-        tokenBalances.state.contractBalances[address].toNumber(),
-      ).toBeGreaterThan(0);
-    });
-
-    it('should subscribe to new sibling assets controllers', async () => {
-      const assetsContract = new AssetsContractController({
-        onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-        onNetworkStateChange: (listener) =>
-          messenger.subscribe('NetworkController:stateChange', listener),
-      });
-      const tokensController = new TokensController({
-        onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-        onNetworkStateChange: (listener) =>
-          messenger.subscribe('NetworkController:stateChange', listener),
-      });
-
-      const stub = stubCreateEthers(tokensController, false);
-
-      const tokenBalances = new TokenBalancesController(
-        {
-          onTokensStateChange: (listener) =>
-            tokensController.subscribe(listener), // needs to be unsubbed?
-          getSelectedAddress: () => preferences.state.selectedAddress,
-          getERC20BalanceOf:
-            assetsContract.getERC20BalanceOf.bind(assetsContract),
-        },
-        { interval: 1337 },
-      );
-      const updateBalances = sinon.stub(tokenBalances, 'updateBalances');
-      await tokensController.addToken('0x00', 'FOO', 18);
-      const { tokens } = tokensController.state;
-      const found = tokens.filter((token: Token) => token.address === '0x00');
-      expect(found.length > 0).toBe(true);
-      expect(updateBalances.called).toBe(true);
-
-      stub.restore();
-    });
+    stub.restore();
+    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should update token balances when detected tokens are added', async () => {
