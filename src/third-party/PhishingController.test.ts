@@ -2,7 +2,12 @@ import { strict as assert } from 'assert';
 import sinon from 'sinon';
 import nock from 'nock';
 import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
-import { PhishingController } from './PhishingController';
+import {
+  METAMASK_CONFIG_FILE,
+  PHISHFORT_HOTLIST_FILE,
+  PhishingController,
+  PHISHING_CONFIG_BASE_URL,
+} from './PhishingController';
 
 const defaultRefreshInterval = 3600000;
 
@@ -47,8 +52,8 @@ describe('PhishingController', () => {
   });
 
   it('does not call updatePhishingList upon construction', async () => {
-    const nockScope = nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: [],
         fuzzylist: [],
@@ -56,7 +61,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     new PhishingController({});
@@ -65,8 +70,8 @@ describe('PhishingController', () => {
   });
 
   it('fetches the first time test is used', async () => {
-    const nockScope = nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: [],
         fuzzylist: [],
@@ -74,7 +79,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController({});
@@ -84,8 +89,8 @@ describe('PhishingController', () => {
   });
 
   it('does not call fetch twice if the second call is inside of the refreshInterval', async () => {
-    const nockScope = nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: [],
         fuzzylist: [],
@@ -93,7 +98,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController({});
@@ -111,8 +116,8 @@ describe('PhishingController', () => {
 
   it('should call fetch twice if the second call is outside the refreshInterval', async () => {
     const clock = sinon.useFakeTimers(Date.now());
-    const nockScope = nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .times(2)
       .reply(200, {
         blacklist: [],
@@ -121,7 +126,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .times(2)
       .reply(200, []);
 
@@ -134,8 +139,8 @@ describe('PhishingController', () => {
   });
 
   it('should be able to change the refreshInterval', async () => {
-    const nockScope = nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .times(3)
       .reply(200, {
         blacklist: [],
@@ -144,7 +149,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .times(3)
       .reply(200, []);
 
@@ -160,8 +165,8 @@ describe('PhishingController', () => {
   it('should update lists', async () => {
     const mockPhishingBlocklist = ['https://example-blocked-website.com'];
     const phishfortHotlist = ['https://another-example-blocked-website.com'];
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: mockPhishingBlocklist,
         fuzzylist: [],
@@ -169,7 +174,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, phishfortHotlist);
 
     const controller = new PhishingController();
@@ -213,10 +218,10 @@ describe('PhishingController', () => {
 
   it('should return negative result for safe domain from default config', async () => {
     // Return API failure to ensure default config is not overwritten
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(500)
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();
@@ -229,10 +234,10 @@ describe('PhishingController', () => {
 
   it('should return negative result for safe unicode domain from default config', async () => {
     // Return API failure to ensure default config is not overwritten
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(500)
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();
@@ -244,10 +249,10 @@ describe('PhishingController', () => {
 
   it('should return negative result for safe punycode domain from default config', async () => {
     // Return API failure to ensure default config is not overwritten
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(500)
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();
@@ -259,10 +264,10 @@ describe('PhishingController', () => {
 
   it('should return positive result for unsafe domain from default config', async () => {
     // Return API failure to ensure default config is not overwritten
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(500)
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();
@@ -275,10 +280,10 @@ describe('PhishingController', () => {
 
   it('should return positive result for unsafe unicode domain from default config', async () => {
     // Return API failure to ensure default config is not overwritten
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(500)
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();
@@ -291,10 +296,10 @@ describe('PhishingController', () => {
 
   it('should return positive result for unsafe punycode domain from default config', async () => {
     // Return API failure to ensure default config is not overwritten
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(500)
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();
@@ -306,8 +311,8 @@ describe('PhishingController', () => {
   });
 
   it('should return negative result for safe domain from MetaMask config', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: [],
         fuzzylist: [],
@@ -315,7 +320,7 @@ describe('PhishingController', () => {
         whitelist: ['metamask.io'],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -328,8 +333,8 @@ describe('PhishingController', () => {
   });
 
   it('should return negative result for safe unicode domain from MetaMask config', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: [],
         fuzzylist: [],
@@ -337,7 +342,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -349,8 +354,8 @@ describe('PhishingController', () => {
   });
 
   it('should return negative result for safe punycode domain from MetaMask config', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: [],
         fuzzylist: [],
@@ -358,7 +363,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -370,8 +375,8 @@ describe('PhishingController', () => {
   });
 
   it('should return positive result for unsafe domain from MetaMask config', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: ['etnerscan.io'],
         fuzzylist: [],
@@ -379,7 +384,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -392,8 +397,8 @@ describe('PhishingController', () => {
   });
 
   it('should return positive result for unsafe unicode domain from MetaMask config', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: ['xn--myetherallet-4k5fwn.com'],
         fuzzylist: [],
@@ -401,7 +406,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -414,10 +419,10 @@ describe('PhishingController', () => {
   });
 
   it('should return negative result for unsafe unicode domain if the MetaMask config returns 500', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(500)
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -429,8 +434,8 @@ describe('PhishingController', () => {
   });
 
   it('should return positive result for unsafe punycode domain from MetaMask config', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: ['xn--myetherallet-4k5fwn.com'],
         fuzzylist: [],
@@ -438,7 +443,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -451,8 +456,8 @@ describe('PhishingController', () => {
   });
 
   it('should return positive result for unsafe unicode domain from the PhishFort hotlist (blocklist)', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: [],
         fuzzylist: [],
@@ -460,7 +465,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, ['e4d600ab9141b7a9859511c77e63b9b3.com']);
 
     const controller = new PhishingController();
@@ -475,8 +480,8 @@ describe('PhishingController', () => {
   });
 
   it('should return negative result for unsafe unicode domain if the PhishFort hotlist (blocklist) returns 500', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: [],
         fuzzylist: [],
@@ -484,7 +489,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();
@@ -498,8 +503,8 @@ describe('PhishingController', () => {
   });
 
   it('should return negative result for safe fuzzylist domain from MetaMask config', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: [],
         fuzzylist: [],
@@ -507,7 +512,7 @@ describe('PhishingController', () => {
         whitelist: ['opensea.io'],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -520,8 +525,8 @@ describe('PhishingController', () => {
   });
 
   it('should return positive result for domain very close to fuzzylist from MetaMask config', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: [],
         fuzzylist: ['opensea.io'],
@@ -529,7 +534,7 @@ describe('PhishingController', () => {
         whitelist: ['opensea.io'],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -542,10 +547,10 @@ describe('PhishingController', () => {
   });
 
   it('should return negative result for domain very close to fuzzylist if MetaMask config returns 500', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(500)
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -557,8 +562,8 @@ describe('PhishingController', () => {
   });
 
   it('should return negative result for domain not very close to fuzzylist from MetaMask config', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: [],
         fuzzylist: ['opensea.io'],
@@ -566,7 +571,7 @@ describe('PhishingController', () => {
         whitelist: ['opensea.io'],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -580,8 +585,8 @@ describe('PhishingController', () => {
   });
 
   it('should bypass a given domain, and return a negative result', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: ['electrum.mx'],
         fuzzylist: [],
@@ -589,7 +594,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -607,8 +612,8 @@ describe('PhishingController', () => {
   });
 
   it('should ignore second attempt to bypass a domain, and still return a negative result', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: ['electrum.mx'],
         fuzzylist: [],
@@ -616,7 +621,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -635,8 +640,8 @@ describe('PhishingController', () => {
   });
 
   it('should bypass a given unicode domain, and return a negative result', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: ['xn--myetherallet-4k5fwn.com'],
         fuzzylist: [],
@@ -644,7 +649,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -662,8 +667,8 @@ describe('PhishingController', () => {
   });
 
   it('should bypass a given punycode domain, and return a negative result', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(200, {
         blacklist: ['xn--myetherallet-4k5fwn.com'],
         fuzzylist: [],
@@ -671,7 +676,7 @@ describe('PhishingController', () => {
         whitelist: [],
         version: 0,
       })
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
     const controller = new PhishingController();
@@ -689,10 +694,10 @@ describe('PhishingController', () => {
   });
 
   it('should not update phishing lists if fetch returns 304', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(304)
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(304);
 
     const controller = new PhishingController();
@@ -711,10 +716,10 @@ describe('PhishingController', () => {
   });
 
   it('should not update phishing lists if fetch returns 500', async () => {
-    nock('https://cdn.jsdelivr.net')
-      .get('/gh/MetaMask/eth-phishing-detect@master/src/config.json')
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
       .reply(500)
-      .get('/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json')
+      .get(PHISHFORT_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();

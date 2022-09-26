@@ -80,6 +80,16 @@ export interface PhishingState extends BaseState {
   whitelist: string[];
 }
 
+export const PHISHING_CONFIG_BASE_URL =
+  'https://static.metafi.codefi.network/api/v1/lists';
+
+export const METAMASK_CONFIG_FILE = '/eth_phishing_detect_config.json';
+
+export const PHISHFORT_HOTLIST_FILE = '/phishfort_hotlist.json';
+
+export const METAMASK_CONFIG_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_CONFIG_FILE}`;
+export const PHISHFORT_HOTLIST_URL = `${PHISHING_CONFIG_BASE_URL}${PHISHFORT_HOTLIST_FILE}`;
+
 /**
  * Controller that passively polls on a set interval for approved and unapproved website origins
  */
@@ -87,11 +97,6 @@ export class PhishingController extends BaseController<
   PhishingConfig,
   PhishingState
 > {
-  private configUrlMetaMask =
-    'https://static.metafi.codefi.network/api/v1/lists/eth_phishing_detect_config.json';
-
-  private configUrlPhishFortHotlist = `https://static.metafi.codefi.network/api/v1/lists/phishfort_hotlist.json`;
-
   private detector: any;
 
   private lastFetched = 0;
@@ -197,8 +202,8 @@ export class PhishingController extends BaseController<
     const configs: EthPhishingDetectConfig[] = [];
 
     const [metamaskConfigLegacy, phishfortHotlist] = await Promise.all([
-      await this.queryConfig<EthPhishingResponse>(this.configUrlMetaMask),
-      await this.queryConfig<string[]>(this.configUrlPhishFortHotlist),
+      await this.queryConfig<EthPhishingResponse>(METAMASK_CONFIG_URL),
+      await this.queryConfig<string[]>(PHISHFORT_HOTLIST_URL),
     ]);
 
     // Correctly shaping MetaMask config.
