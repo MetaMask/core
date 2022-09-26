@@ -1,5 +1,5 @@
 import { abiERC1155 } from '@metamask/metamask-eth-abis';
-import { Contract } from 'ethers';
+import { Contract } from '@ethersproject/contracts';
 import { BN } from 'ethereumjs-util';
 import {
   ERC1155,
