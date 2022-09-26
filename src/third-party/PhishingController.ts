@@ -2,6 +2,7 @@ import { toASCII } from 'punycode/';
 import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
 import PhishingDetector from 'eth-phishing-detect/src/detector';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import { safelyExecute } from '../util';
 
 /**
  * @type EthPhishingResponse
@@ -199,6 +200,8 @@ export class PhishingController extends BaseController<
       return;
     }
 
+    this.lastFetched = Date.now();
+
     const configs: EthPhishingDetectConfig[] = [];
 
     const [metamaskConfigLegacy, phishfortHotlist] = await Promise.all([
@@ -243,16 +246,17 @@ export class PhishingController extends BaseController<
     this.update({
       phishing: configs,
     });
-
-    this.lastFetched = Date.now();
   }
 
   private async queryConfig<ResponseType>(
     input: RequestInfo,
   ): Promise<ResponseType | null> {
-    const response = await fetch(input, { cache: 'no-cache' });
+    // We ignore network failures here instead of bubbling them up
+    const response = await safelyExecute(() =>
+      fetch(input, { cache: 'no-cache' }),
+    );
 
-    switch (response.status) {
+    switch (response?.status) {
       case 200: {
         return await response.json();
       }

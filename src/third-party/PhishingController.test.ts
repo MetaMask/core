@@ -200,6 +200,21 @@ describe('PhishingController', () => {
     ]);
   });
 
+  it('should not bubble up connection errors', async () => {
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
+      .replyWithError({ code: 'ETIMEDOUT' })
+      .get(PHISHFORT_HOTLIST_FILE)
+      .replyWithError({ code: 'ETIMEDOUT' });
+
+    const controller = new PhishingController();
+    expect(await controller.test('metamask.io')).toMatchObject({
+      result: false,
+      type: 'allowlist',
+      name: 'MetaMask',
+    });
+  });
+
   it('should not update phishing configuration if disabled', async () => {
     const controller = new PhishingController({ disabled: true });
     await controller.updatePhishingLists();
