@@ -119,9 +119,14 @@ export const JsonRpcRequestStruct = object({
 export type InferWithParams<
   Type extends Struct<any, unknown>,
   Params extends JsonRpcParams
-> = Omit<Infer<Type>, 'params'> & {
-  params: Params;
-};
+> = Omit<Infer<Type>, 'params'> &
+  (keyof Params extends undefined
+    ? {
+        params?: Params;
+      }
+    : {
+        params: Params;
+      });
 
 /**
  * A JSON-RPC request object.
