@@ -5,6 +5,7 @@ import {
   NetworkType,
   NetworkState,
 } from '../network/NetworkController';
+import { ESTIMATE_GAS_ERROR } from '../constants';
 import {
   TransactionController,
   TransactionStatus,
@@ -590,20 +591,20 @@ describe('TransactionController', () => {
     await expect(result).rejects.toThrow('foo');
   });
 
-  it('should fail transaction if gas calculation fails', async () => {
+  it('should not fail transaction if gas calculation fails', async () => {
     const controller = new TransactionController({
       getNetworkState: () => MOCK_NETWORK.state,
       onNetworkStateChange: MOCK_NETWORK.subscribe,
       getProvider: MOCK_NETWORK.getProvider,
     });
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    mockFlags.estimateGas = 'Uh oh';
+
     await expect(
-      controller.addTransaction({
+      await controller.estimateGas({
         from,
         to: from,
       }),
-    ).rejects.toThrow('Uh oh');
+    ).toStrictEqual({ gas: '0x0', gasPrice: '0x0' });
   });
 
   it('should fail if no sign method defined', async () => {
