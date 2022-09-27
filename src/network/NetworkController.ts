@@ -79,6 +79,8 @@ const LOCALHOST_RPC_URL = 'http://localhost:8545';
 
 const name = 'NetworkController';
 
+export type EthQuery = any;
+
 export type NetworkControllerStateChangeEvent = {
   type: `NetworkController:stateChange`;
   payload: [NetworkState, Patch[]];
@@ -86,7 +88,7 @@ export type NetworkControllerStateChangeEvent = {
 
 export type NetworkControllerProviderChangeEvent = {
   type: `NetworkController:providerChange`;
-  payload: [ProviderConfig]; // 'any' is actually 'new NetworkController().provider'
+  payload: [ProviderConfig];
 };
 
 export type NetworkControllerGetProviderConfig = {
@@ -96,7 +98,7 @@ export type NetworkControllerGetProviderConfig = {
 
 export type NetworkControllerGetEthQuery = {
   type: `NetworkController:getEthQuery`;
-  handler: () => any; // EthQuery;
+  handler: () => EthQuery;
 };
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
@@ -128,7 +130,7 @@ export class NetworkController extends BaseController<
   NetworkState,
   NetworkControllerMessenger
 > {
-  private ethQuery: any;
+  private ethQuery: EthQuery;
 
   private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 
@@ -183,7 +185,7 @@ export class NetworkController extends BaseController<
     ticker?: string,
     nickname?: string,
   ) {
-    this.update((state: NetworkState) => {
+    this.update((state) => {
       state.isCustomNetwork = this.getIsCustomNetwork(chainId);
     });
 
@@ -209,7 +211,7 @@ export class NetworkController extends BaseController<
   }
 
   private refreshNetwork() {
-    this.update((state: NetworkState) => {
+    this.update((state) => {
       state.network = 'loading';
       state.properties = {};
     });
@@ -328,7 +330,7 @@ export class NetworkController extends BaseController<
           return;
         }
 
-        this.update((state: NetworkState) => {
+        this.update((state) => {
           state.network = error ? /* istanbul ignore next*/ 'loading' : network;
         });
 
@@ -355,7 +357,7 @@ export class NetworkController extends BaseController<
         ? TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type]
         : 'ETH';
 
-    this.update((state: NetworkState) => {
+    this.update((state) => {
       state.provider.type = type;
       state.provider.ticker = ticker;
       state.provider.chainId = NetworksChainId[type];
@@ -377,7 +379,7 @@ export class NetworkController extends BaseController<
     ticker?: string,
     nickname?: string,
   ) {
-    this.update((state: NetworkState) => {
+    this.update((state) => {
       state.provider.type = RPC;
       state.provider.rpcTarget = rpcTarget;
       state.provider.chainId = chainId;
@@ -404,7 +406,7 @@ export class NetworkController extends BaseController<
               const isEIP1559Compatible =
                 typeof block.baseFeePerGas !== 'undefined';
               if (properties.isEIP1559Compatible !== isEIP1559Compatible) {
-                this.update((state: NetworkState) => {
+                this.update((state) => {
                   if (state.properties === undefined) {
                     state.properties = {};
                   }

@@ -17,8 +17,8 @@ const COINGECKO_ASSETS_PATH = '/asset_platforms';
 const COINGECKO_SUPPORTED_CURRENCIES = '/simple/supported_vs_currencies';
 const ADDRESS = '0x01';
 
-let messenger: NetworkControllerMessenger;
 describe('TokenRatesController', () => {
+  let messenger: NetworkControllerMessenger;
   beforeEach(() => {
     nock(COINGECKO_API)
       .get(COINGECKO_ASSETS_PATH)

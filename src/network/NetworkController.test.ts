@@ -12,6 +12,29 @@ import {
 
 const RPC_TARGET = 'http://foo';
 
+const checkNetwork = (
+  pType: NetworkType,
+  messenger: NetworkControllerMessenger,
+  expectIsCustomNetwork = false,
+) => {
+  const networkControllerOpts: NetworkControllerOptions = {
+    infuraProjectId: 'foo',
+    state: {
+      network: '0',
+      provider: {
+        type: pType,
+        chainId: NetworksChainId[pType],
+      },
+      properties: { isEIP1559Compatible: false },
+    },
+    messenger,
+  };
+  const controller = new NetworkController(networkControllerOpts);
+  controller.providerConfig = {} as ProviderConfig;
+  expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
+  expect(controller.state.isCustomNetwork).toBe(expectIsCustomNetwork);
+};
+
 describe('NetworkController', () => {
   let messenger: NetworkControllerMessenger;
 
@@ -54,30 +77,11 @@ describe('NetworkController', () => {
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
 
-  const checkNetwork = (pType: NetworkType, expectIsCustomNetwork = false) => {
-    const networkControllerOpts: NetworkControllerOptions = {
-      infuraProjectId: 'foo',
-      state: {
-        network: '0',
-        provider: {
-          type: pType,
-          chainId: NetworksChainId[pType],
-        },
-        properties: { isEIP1559Compatible: false },
-      },
-      messenger,
-    };
-    const controller = new NetworkController(networkControllerOpts);
-    controller.providerConfig = {} as ProviderConfig;
-    expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
-    expect(controller.state.isCustomNetwork).toBe(expectIsCustomNetwork);
-  };
-
   (
     ['kovan', 'rinkeby', 'ropsten', 'mainnet', 'localhost'] as NetworkType[]
   ).forEach((n) => {
     it(`should create a provider instance for ${n} infura network`, () => {
-      checkNetwork(n);
+      checkNetwork(n, messenger);
     });
   });
 
