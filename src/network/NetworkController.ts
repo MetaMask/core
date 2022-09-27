@@ -183,7 +183,7 @@ export class NetworkController extends BaseController<
     ticker?: string,
     nickname?: string,
   ) {
-    this.update((state: any) => {
+    this.update((state: NetworkState) => {
       state.isCustomNetwork = this.getIsCustomNetwork(chainId);
     });
 
@@ -209,7 +209,7 @@ export class NetworkController extends BaseController<
   }
 
   private refreshNetwork() {
-    this.update((state: any) => {
+    this.update((state: NetworkState) => {
       state.network = 'loading';
       state.properties = {};
     });
@@ -328,7 +328,7 @@ export class NetworkController extends BaseController<
           return;
         }
 
-        this.update((state: any) => {
+        this.update((state: NetworkState) => {
           state.network = error ? /* istanbul ignore next*/ 'loading' : network;
         });
 
@@ -355,7 +355,7 @@ export class NetworkController extends BaseController<
         ? TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type]
         : 'ETH';
 
-    this.update((state: any) => {
+    this.update((state: NetworkState) => {
       state.provider.type = type;
       state.provider.ticker = ticker;
       state.provider.chainId = NetworksChainId[type];
@@ -377,7 +377,7 @@ export class NetworkController extends BaseController<
     ticker?: string,
     nickname?: string,
   ) {
-    this.update((state: any) => {
+    this.update((state: NetworkState) => {
       state.provider.type = RPC;
       state.provider.rpcTarget = rpcTarget;
       state.provider.chainId = chainId;
@@ -404,7 +404,10 @@ export class NetworkController extends BaseController<
               const isEIP1559Compatible =
                 typeof block.baseFeePerGas !== 'undefined';
               if (properties.isEIP1559Compatible !== isEIP1559Compatible) {
-                this.update((state: any) => {
+                this.update((state: NetworkState) => {
+                  if (state.properties === undefined) {
+                    state.properties = {};
+                  }
                   state.properties.isEIP1559Compatible = isEIP1559Compatible;
                 });
               }
