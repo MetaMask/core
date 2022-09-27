@@ -1,4 +1,4 @@
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 import type { Patch } from 'immer';
 import {
   TokensController,

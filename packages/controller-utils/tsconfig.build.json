@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "lib": ["ES2017"],
+    "lib": ["ES2017", "DOM"],
     "outDir": "./dist",
     "rootDir": "./src"
   },

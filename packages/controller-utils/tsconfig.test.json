@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.packages.test.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "lib": ["ES2017"]
+    "lib": ["ES2017", "DOM"]
   },
   "references": [
     {

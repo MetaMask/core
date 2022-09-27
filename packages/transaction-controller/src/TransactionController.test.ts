@@ -1,5 +1,5 @@
 import * as crossFetchModule from 'cross-fetch';
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
 import { NetworkType, NetworksChainId } from '@metamask/controller-utils';
 import { NetworkState } from '@metamask/network-controller';

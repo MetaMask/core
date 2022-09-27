@@ -5,7 +5,7 @@ import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import { AbortController } from 'abort-controller';
+import { AbortController as WhatwgAbortController } from 'abort-controller';
 import type { PreferencesState } from '@metamask/user-controllers';
 import {
   toChecksumHexAddress,
@@ -125,7 +125,7 @@ export class TokensController extends BaseController<
 
   private ethersProvider: any;
 
-  private abortController: AbortController;
+  private abortController: WhatwgAbortController;
 
   private failSuggestedAsset(
     suggestedAssetMeta: SuggestedAssetMeta,
@@ -225,7 +225,7 @@ export class TokensController extends BaseController<
     };
 
     this.initialize();
-    this.abortController = new AbortController();
+    this.abortController = new WhatwgAbortController();
 
     onPreferencesStateChange(({ selectedAddress }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
@@ -243,7 +243,7 @@ export class TokensController extends BaseController<
       const { selectedAddress } = this.config;
       const { chainId } = provider;
       this.abortController.abort();
-      this.abortController = new AbortController();
+      this.abortController = new WhatwgAbortController();
       this.configure({ chainId });
       this.ethersProvider = this._instantiateNewEthersProvider();
       this.update({

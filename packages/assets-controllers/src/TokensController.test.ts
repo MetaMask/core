@@ -1,4 +1,4 @@
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 import nock from 'nock';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/user-controllers';
@@ -979,23 +979,16 @@ describe('TokensController', () => {
     });
 
     it('should fail an invalid type suggested asset via watchAsset', async () => {
-      await new Promise(async (resolve) => {
-        await tokensController
-          .watchAsset(
-            {
-              address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
-              decimals: 18,
-              symbol: 'TKN',
-            },
-            'ERC721',
-          )
-          .catch((error) => {
-            expect(error.message).toContain(
-              'Asset of type ERC721 not supported',
-            );
-            resolve('');
-          });
-      });
+      await expect(
+        tokensController.watchAsset(
+          {
+            address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
+            decimals: 18,
+            symbol: 'TKN',
+          },
+          'ERC721',
+        ),
+      ).rejects.toThrow('Asset of type ERC721 not supported');
     });
 
     it('should reject a valid suggested asset via watchAsset', async () => {

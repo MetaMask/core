@@ -5,7 +5,7 @@ import {
   recoverTypedSignature_v4,
   recoverTypedSignatureLegacy,
 } from 'eth-sig-util';
-import sinon, { SinonStub } from 'sinon';
+import * as sinon from 'sinon';
 import Common from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
@@ -729,8 +729,8 @@ describe('KeyringController', () => {
     let signProcessKeyringController: KeyringController;
     preferences = new PreferencesController();
 
-    let requestSignatureStub: SinonStub;
-    let readAccountSub: SinonStub;
+    let requestSignatureStub: sinon.SinonStub;
+    let readAccountSub: sinon.SinonStub;
 
     const setupQRKeyring = async () => {
       readAccountSub.resolves(

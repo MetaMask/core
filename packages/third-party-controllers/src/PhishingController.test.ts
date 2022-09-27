@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 import nock from 'nock';
 import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
 import { PhishingController } from './PhishingController';

@@ -1,4 +1,4 @@
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 import { BaseController, BaseConfig, BaseState } from './BaseController';
 
 const STATE = { name: 'foo' };

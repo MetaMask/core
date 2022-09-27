@@ -1,5 +1,5 @@
 import { errorCodes, EthereumRpcError } from 'eth-rpc-errors';
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   ApprovalController,

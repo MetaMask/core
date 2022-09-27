@@ -1,4 +1,4 @@
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 import nock from 'nock';
 import { PreferencesController } from '@metamask/user-controllers';
 import { NetworkController } from '@metamask/network-controller';

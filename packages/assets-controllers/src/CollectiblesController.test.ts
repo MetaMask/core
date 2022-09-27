@@ -1,4 +1,4 @@
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 import nock from 'nock';
 import HttpProvider from 'ethjs-provider-http';
 import { PreferencesController } from '@metamask/user-controllers';

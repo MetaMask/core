@@ -1,4 +1,4 @@
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 import { BN } from 'ethereumjs-util';
 import { PreferencesController } from '@metamask/user-controllers';
 import { NetworkController } from '@metamask/network-controller';

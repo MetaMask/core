@@ -1,4 +1,4 @@
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 import Web3ProviderEngine from 'web3-provider-engine';
 import { NetworkType, NetworksChainId } from '@metamask/controller-utils';
 import { NetworkController, ProviderConfig } from './NetworkController';

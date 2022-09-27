@@ -1,6 +1,6 @@
 import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
-import { AbortController } from 'abort-controller';
+import { AbortController as WhatwgAbortController } from 'abort-controller';
 import {
   BaseControllerV2 as BaseController,
   RestrictedControllerMessenger,
@@ -93,7 +93,7 @@ export class TokenListController extends BaseController<
 
   private chainId: string;
 
-  private abortController: AbortController;
+  private abortController: WhatwgAbortController;
 
   /**
    * Creates a TokenListController instance.
@@ -136,11 +136,11 @@ export class TokenListController extends BaseController<
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
-    this.abortController = new AbortController();
+    this.abortController = new WhatwgAbortController();
     onNetworkStateChange(async (networkState) => {
       if (this.chainId !== networkState.provider.chainId) {
         this.abortController.abort();
-        this.abortController = new AbortController();
+        this.abortController = new WhatwgAbortController();
         this.chainId = networkState.provider.chainId;
         if (this.state.preventPollingOnNetworkRestart) {
           this.clearingTokenListData();

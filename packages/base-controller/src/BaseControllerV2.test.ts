@@ -1,5 +1,5 @@
 import type { Draft, Patch } from 'immer';
-import sinon from 'sinon';
+import * as sinon from 'sinon';
 import {
   ControllerMessenger,
   RestrictedControllerMessenger,

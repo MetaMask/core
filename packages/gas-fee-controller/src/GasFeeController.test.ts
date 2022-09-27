@@ -1,4 +1,4 @@
-import sinon, { SinonFakeTimers } from 'sinon';
+import * as sinon from 'sinon';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   GAS_ESTIMATE_TYPES,
@@ -142,7 +142,7 @@ function buildMockGasFeeStateEthGasPrice({
 }
 
 describe('GasFeeController', () => {
-  let clock: SinonFakeTimers;
+  let clock: sinon.SinonFakeTimers;
   let gasFeeController: GasFeeController;
 
   /**
