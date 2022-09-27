@@ -27,7 +27,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@keystonehq/metamask-airgapped-keyring": "^0.3.0",
+    "@keystonehq/metamask-airgapped-keyring": "^0.6.1",
     "@metamask/base-controller": "workspace:~",
     "@metamask/controller-utils": "workspace:~",
     "@metamask/message-manager": "workspace:~",

@@ -17,11 +17,8 @@ import {
   ControllerMessenger,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import {
-  NetworkController,
-  NetworksChainId,
-} from '@metamask/network-controller';
-
+import { NetworkController } from '@metamask/network-controller';
+import { NetworksChainId } from '@metamask/controller-utils';
 import { ComposableController } from './ComposableController';
 
 // Mock BaseControllerV2 classes

@@ -8,6 +8,14 @@ export type NetworkType =
   | 'rinkeby'
   | 'goerli'
   | 'ropsten'
-  | 'rpc'
-  | 'optimism'
-  | 'optimismTest';
+  | 'rpc';
+
+export enum NetworksChainId {
+  mainnet = '1',
+  kovan = '42',
+  rinkeby = '4',
+  goerli = '5',
+  ropsten = '3',
+  localhost = '',
+  rpc = '',
+}

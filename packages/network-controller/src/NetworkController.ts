@@ -13,19 +13,8 @@ import {
   RPC,
   TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL,
   NetworkType,
+  NetworksChainId,
 } from '@metamask/controller-utils';
-
-export enum NetworksChainId {
-  mainnet = '1',
-  kovan = '42',
-  rinkeby = '4',
-  goerli = '5',
-  ropsten = '3',
-  localhost = '',
-  rpc = '',
-  optimism = '10',
-  optimismTest = '69',
-}
 
 /**
  * @type ProviderConfig
@@ -108,8 +97,6 @@ export class NetworkController extends BaseController<
       case MAINNET:
       case 'rinkeby':
       case 'goerli':
-      case 'optimism':
-      case 'optimismTest':
       case 'ropsten':
         this.setupInfuraProvider(type);
         break;

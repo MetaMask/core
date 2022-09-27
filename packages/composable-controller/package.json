@@ -30,6 +30,7 @@
     "@metamask/assets-controllers": "workspace:~",
     "@metamask/auto-changelog": "^2.6.0",
     "@metamask/base-controller": "workspace:~",
+    "@metamask/controller-utils": "workspace:~",
     "@metamask/network-controller": "workspace:~",
     "@metamask/third-party-controllers": "workspace:~",
     "@metamask/user-controllers": "workspace:~",

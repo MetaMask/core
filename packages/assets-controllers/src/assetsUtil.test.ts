@@ -1,5 +1,4 @@
-import { NetworksChainId } from '@metamask/network-controller';
-import { GANACHE_CHAIN_ID } from '@metamask/controller-utils';
+import { GANACHE_CHAIN_ID, NetworksChainId } from '@metamask/controller-utils';
 import * as assetsUtil from './assetsUtil';
 import { Collectible, CollectibleMetadata } from './CollectiblesController';
 

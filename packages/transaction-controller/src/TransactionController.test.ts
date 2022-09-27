@@ -1,8 +1,8 @@
 import * as crossFetchModule from 'cross-fetch';
 import sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
-import { NetworksChainId, NetworkState } from '@metamask/network-controller';
-import { NetworkType } from '@metamask/controller-utils';
+import { NetworkType, NetworksChainId } from '@metamask/controller-utils';
+import { NetworkState } from '@metamask/network-controller';
 import {
   TransactionController,
   TransactionStatus,
@@ -149,8 +149,8 @@ const MOCK_NETWORK_CUSTOM = {
     isCustomNetwork: true,
     properties: { isEIP1559Compatible: false },
     provider: {
-      type: 'optimism' as NetworkType,
-      chainId: NetworksChainId.optimism,
+      type: 'rpc' as NetworkType,
+      chainId: '10',
     },
   },
   subscribe: () => undefined,

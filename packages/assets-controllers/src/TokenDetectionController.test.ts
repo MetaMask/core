@@ -2,12 +2,9 @@ import sinon from 'sinon';
 import nock from 'nock';
 import { BN } from 'ethereumjs-util';
 import { PreferencesController } from '@metamask/user-controllers';
-import {
-  NetworkController,
-  NetworksChainId,
-} from '@metamask/network-controller';
+import { NetworkController } from '@metamask/network-controller';
+import { NetworksChainId } from '@metamask/controller-utils';
 import { ControllerMessenger } from '@metamask/base-controller';
-
 import { TokensController } from './TokensController';
 import { TokenDetectionController } from './TokenDetectionController';
 import {

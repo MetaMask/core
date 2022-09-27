@@ -2,18 +2,15 @@ import sinon from 'sinon';
 import nock from 'nock';
 import HttpProvider from 'ethjs-provider-http';
 import { PreferencesController } from '@metamask/user-controllers';
-import {
-  NetworkController,
-  NetworksChainId,
-} from '@metamask/network-controller';
+import { NetworkController } from '@metamask/network-controller';
 import {
   OPENSEA_PROXY_URL,
   IPFS_DEFAULT_GATEWAY_URL,
   ERC1155,
   OPENSEA_API_URL,
   ERC721,
+  NetworksChainId,
 } from '@metamask/controller-utils';
-
 import { AssetsContractController } from './AssetsContractController';
 import { CollectiblesController } from './CollectiblesController';
 import { getFormattedIpfsUrl } from './assetsUtil';

@@ -18,10 +18,11 @@ Please refer to the READMEs for the following packages for installation and usag
 
 ### Setup
 
-- Install [Node.js](https://nodejs.org) version 12
+- Install [Node.js](https://nodejs.org) version 14.
   - If you are using [nvm](https://github.com/creationix/nvm#installation) (recommended) running `nvm use` will automatically choose the right node version for you.
-- Install [Yarn v3](https://yarnpkg.com/getting-started/install)
-- Run `yarn install` to install dependencies and run any required post-install scripts
+- Install [Yarn v3](https://yarnpkg.com/getting-started/install).
+- Run `yarn install` to install dependencies and run any required post-install scripts.
+- Run `yarn simple-git-hooks` to add a [Git hook](https://github.com/toplenboren/simple-git-hooks#what-is-a-git-hook) which will ensure that all files pass the linter before you push a branch.
 
 ### Testing and Linting
 

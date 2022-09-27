@@ -1,11 +1,7 @@
 import sinon from 'sinon';
 import Web3ProviderEngine from 'web3-provider-engine';
-import { NetworkType } from '@metamask/controller-utils';
-import {
-  NetworkController,
-  NetworksChainId,
-  ProviderConfig,
-} from './NetworkController';
+import { NetworkType, NetworksChainId } from '@metamask/controller-utils';
+import { NetworkController, ProviderConfig } from './NetworkController';
 
 const RPC_TARGET = 'http://foo';
 
@@ -76,7 +72,11 @@ describe('NetworkController', () => {
     };
     const controller = new NetworkController(testConfig, {
       network: '10',
-      provider: { type: 'optimism', chainId: NetworksChainId.optimism },
+      provider: {
+        rpcTarget: RPC_TARGET,
+        type: 'rpc',
+        chainId: '10',
+      },
     });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);

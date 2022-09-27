@@ -2,11 +2,8 @@ import sinon from 'sinon';
 import nock from 'nock';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/user-controllers';
-import {
-  NetworkController,
-  NetworksChainId,
-} from '@metamask/network-controller';
-import { NetworkType } from '@metamask/controller-utils';
+import { NetworkController } from '@metamask/network-controller';
+import { NetworkType, NetworksChainId } from '@metamask/controller-utils';
 import { TokensController } from './TokensController';
 import { Token } from './TokenRatesController';
 import { TOKEN_END_POINT_API } from './token-service';
