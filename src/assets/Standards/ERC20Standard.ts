@@ -1,5 +1,6 @@
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { BN } from 'ethereumjs-util';
+import { BN, toUtf8 } from 'ethereumjs-util';
+import { AbiCoder } from '@ethersproject/abi';
 import { ERC20 } from '../../constants';
 import { Web3 } from './standards-types';
 
@@ -40,13 +41,13 @@ export class ERC20Standard {
   async getTokenDecimals(address: string): Promise<string> {
     const contract = this.web3.eth.contract(abiERC20).at(address);
     return new Promise<string>((resolve, reject) => {
-      contract.decimals((error: Error, result: string) => {
+      contract.decimals((error: Error, result: BN | string) => {
         /* istanbul ignore if */
         if (error) {
           reject(error);
           return;
         }
-        resolve(result);
+        resolve(result.toString());
       });
     });
   }
@@ -58,15 +59,39 @@ export class ERC20Standard {
    * @returns Promise resolving to the 'symbol'.
    */
   async getTokenSymbol(address: string): Promise<string> {
-    const contract = this.web3.eth.contract(abiERC20).at(address);
+    // Signature for calling `symbol()`
+    const payload = { to: address, data: '0x95d89b41' };
     return new Promise<string>((resolve, reject) => {
-      contract.symbol((error: Error, result: string) => {
+      this.web3.eth.call(payload, undefined, (error: Error, result: string) => {
         /* istanbul ignore if */
         if (error) {
           reject(error);
           return;
         }
-        resolve(result);
+
+        const abiCoder = new AbiCoder();
+
+        // Parse as string
+        try {
+          const decoded = abiCoder.decode(['string'], result)[0];
+          if (decoded) {
+            resolve(decoded);
+            return;
+          }
+        } catch {
+          // Ignore error
+        }
+
+        // Parse as bytes
+        try {
+          const utf8 = toUtf8(result);
+          resolve(utf8);
+          return;
+        } catch {
+          // Ignore error
+        }
+
+        reject(new Error('Failed to parse token symbol'));
       });
     });
   }

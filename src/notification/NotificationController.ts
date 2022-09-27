@@ -1,106 +1,176 @@
-import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import type { Patch } from 'immer';
+import { nanoid } from 'nanoid';
 
-interface viewedNotification {
-  [id: number]: boolean;
-}
+import { hasProperty } from '../util';
+import { BaseController } from '../BaseControllerV2';
 
-interface Notification {
-  id: number;
-  date: string;
-}
-
-interface StateNotification extends Notification {
-  isShown: boolean;
-}
+import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 
 /**
- * A map of notification ids to Notification objects
+ * @typedef NotificationControllerState
+ * @property notifications - Stores existing notifications to be shown in the UI
  */
-interface NotificationMap {
-  [id: number]: Notification;
-}
+export type NotificationControllerState = {
+  notifications: Record<string, Notification>;
+};
 
 /**
- * A map of notification ids to StateNotification objects
+ * @typedef Notification - Stores information about in-app notifications, to be shown in the UI
+ * @property id - A UUID that identifies the notification
+ * @property origin - The origin that requested the notification
+ * @property createdDate - The notification creation date in milliseconds elapsed since the UNIX epoch
+ * @property readDate - The notification read date in milliseconds elapsed since the UNIX epoch or null if unread
+ * @property message - The notification message
  */
-export interface StateNotificationMap {
-  [id: number]: StateNotification;
-}
+export type Notification = {
+  id: string;
+  origin: string;
+  createdDate: number;
+  readDate: number | null;
+  message: string;
+};
 
-/**
- * NotitificationConfig will hold the active notifications
- */
-export interface NotificationConfig extends BaseConfig {
-  allNotifications: NotificationMap;
-}
+const name = 'NotificationController';
 
-/**
- * Notification state will hold all the seen and unseen notifications
- * that are still active
- */
-export interface NotificationState extends BaseState {
-  notifications: StateNotificationMap;
-}
+export type NotificationControllerStateChange = {
+  type: `${typeof name}:stateChange`;
+  payload: [NotificationControllerState, Patch[]];
+};
+
+export type GetNotificationControllerState = {
+  type: `${typeof name}:getState`;
+  handler: () => NotificationControllerState;
+};
+
+export type ShowNotification = {
+  type: `${typeof name}:show`;
+  handler: NotificationController['show'];
+};
+
+export type DismissNotification = {
+  type: `${typeof name}:dismiss`;
+  handler: NotificationController['dismiss'];
+};
+
+export type MarkNotificationRead = {
+  type: `${typeof name}:markRead`;
+  handler: NotificationController['markRead'];
+};
+
+export type NotificationControllerActions =
+  | GetNotificationControllerState
+  | ShowNotification
+  | DismissNotification
+  | MarkNotificationRead;
+
+export type NotificationControllerMessenger = RestrictedControllerMessenger<
+  typeof name,
+  NotificationControllerActions,
+  NotificationControllerStateChange,
+  never,
+  never
+>;
+
+const metadata = {
+  notifications: { persist: true, anonymous: false },
+};
 
 const defaultState = {
   notifications: {},
 };
 
 /**
- * Controller for managing in-app announcement notifications.
+ * Controller that handles storing notifications and showing them to the user
  */
 export class NotificationController extends BaseController<
-  NotificationConfig,
-  NotificationState
+  typeof name,
+  NotificationControllerState,
+  NotificationControllerMessenger
 > {
   /**
    * Creates a NotificationController instance.
    *
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param options - Constructor options.
+   * @param options.messenger - A reference to the messaging system.
+   * @param options.state - Initial state to set on this controller.
    */
-  constructor(config: NotificationConfig, state?: NotificationState) {
-    super(config, state || defaultState);
-    this.initialize();
-    this._addNotifications();
-  }
+  constructor({
+    messenger,
+    state,
+  }: {
+    messenger: NotificationControllerMessenger;
+    state?: Partial<NotificationControllerState>;
+  }) {
+    super({
+      name,
+      metadata,
+      messenger,
+      state: { ...defaultState, ...state },
+    });
 
-  /**
-   * Compares the notifications in state with the notifications from file
-   * to check if there are any new notifications/announcements
-   * if yes, the new notification will be added to the state with a flag indicating
-   * that the notification is not seen by the user.
-   */
-  private _addNotifications(): void {
-    const newNotifications: StateNotificationMap = {};
-    const { allNotifications } = this.config;
-    Object.values(allNotifications).forEach(
-      (notification: StateNotification) => {
-        newNotifications[notification.id] = this.state.notifications[
-          notification.id
-        ]
-          ? this.state.notifications[notification.id]
-          : {
-              ...notification,
-              isShown: false,
-            };
-      },
+    this.messagingSystem.registerActionHandler(
+      `${name}:show` as const,
+      (origin: string, message: string) => this.show(origin, message),
     );
-    this.update({ notifications: newNotifications });
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:dismiss` as const,
+      (ids: string[]) => this.dismiss(ids),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:markRead` as const,
+      (ids: string[]) => this.markRead(ids),
+    );
   }
 
   /**
-   * Updates the status of the status of the specified notifications
-   * once it is read by the user.
+   * Shows a notification.
    *
-   * @param viewedIds - The notification IDs to mark as viewed.
+   * @param origin - The origin trying to send a notification
+   * @param message - A message to show on the notification
    */
-  updateViewed(viewedIds: viewedNotification): void {
-    const stateNotifications = this.state.notifications;
+  show(origin: string, message: string) {
+    const id = nanoid();
+    const notification = {
+      id,
+      origin,
+      createdDate: Date.now(),
+      readDate: null,
+      message,
+    };
+    this.update((state) => {
+      state.notifications[id] = notification;
+    });
+  }
 
-    for (const id of Object.keys(viewedIds).map(Number)) {
-      stateNotifications[id].isShown = viewedIds[id];
-    }
-    this.update({ notifications: stateNotifications }, true);
+  /**
+   * Dimisses a list of notifications.
+   *
+   * @param ids - A list of notification IDs
+   */
+  dismiss(ids: string[]) {
+    this.update((state) => {
+      for (const id of ids) {
+        if (hasProperty(state.notifications, id)) {
+          delete state.notifications[id];
+        }
+      }
+    });
+  }
+
+  /**
+   * Marks a list of notifications as read.
+   *
+   * @param ids - A list of notification IDs
+   */
+  markRead(ids: string[]) {
+    this.update((state) => {
+      for (const id of ids) {
+        if (hasProperty(state.notifications, id)) {
+          state.notifications[id].readDate = Date.now();
+        }
+      }
+    });
   }
 }

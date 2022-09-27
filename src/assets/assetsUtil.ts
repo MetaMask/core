@@ -1,3 +1,4 @@
+import { convertHexToDecimal } from '../util';
 import { Collectible, CollectibleMetadata } from './CollectiblesController';
 
 /**
@@ -34,3 +35,65 @@ export function compareCollectiblesMetadata(
   }, 0);
   return differentValues > 0;
 }
+
+const aggregatorNameByKey: Record<string, string> = {
+  aave: 'Aave',
+  bancor: 'Bancor',
+  cmc: 'CMC',
+  cryptocom: 'Crypto.com',
+  coinGecko: 'CoinGecko',
+  oneInch: '1inch',
+  paraswap: 'Paraswap',
+  pmm: 'PMM',
+  zapper: 'Zapper',
+  zerion: 'Zerion',
+  zeroEx: '0x',
+  synthetix: 'Synthetix',
+  yearn: 'Yearn',
+  apeswap: 'ApeSwap',
+  binanceDex: 'BinanceDex',
+  pancakeTop100: 'PancakeTop100',
+  pancakeExtended: 'PancakeExtended',
+  balancer: 'Balancer',
+  quickswap: 'QuickSwap',
+  matcha: 'Matcha',
+  pangolinDex: 'PangolinDex',
+  pangolinDexStableCoin: 'PangolinDexStableCoin',
+  pangolinDexAvaxBridge: 'PangolinDexAvaxBridge',
+  traderJoe: 'TraderJoe',
+  airswapLight: 'AirswapLight',
+  kleros: 'Kleros',
+};
+
+/**
+ * Formats aggregator names to presentable format.
+ *
+ * @param aggregators - List of token list names in camelcase.
+ * @returns Formatted aggregator names.
+ */
+export const formatAggregatorNames = (aggregators: string[]) => {
+  return aggregators.map(
+    (key) =>
+      aggregatorNameByKey[key] ||
+      `${key[0].toUpperCase()}${key.substring(1, key.length)}`,
+  );
+};
+
+/**
+ * Format token list assets to use image proxy from Codefi.
+ *
+ * @param params - Object that contains chainID and tokenAddress.
+ * @param params.chainId - ChainID of network in decimal or hexadecimal format.
+ * @param params.tokenAddress - Address of token in mixed or lowercase.
+ * @returns Formatted image url
+ */
+export const formatIconUrlWithProxy = ({
+  chainId,
+  tokenAddress,
+}: {
+  chainId: string;
+  tokenAddress: string;
+}) => {
+  const chainIdDecimal = convertHexToDecimal(chainId).toString();
+  return `https://static.metaswap.codefi.network/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
+};

@@ -257,15 +257,22 @@ console.log(datamodel.flatState); // {infura: {...}, contractExchangeRates: [...
 
 ### Setup
 
-- Install [Node.js](https://nodejs.org) version 12
+- Install [Node.js](https://nodejs.org) version 14.
   - If you are using [nvm](https://github.com/creationix/nvm#installation) (recommended) running `nvm use` will automatically choose the right node version for you.
-- Install [Yarn v1](https://yarnpkg.com/en/docs/install)
-- Run `yarn setup` to install dependencies and run any requried post-install scripts
-  - **Warning:** Do not use the `yarn` / `yarn install` command directly. Use `yarn setup` instead. The normal install command will skip required post-install scripts, leaving your development environment in an invalid state.
+- Install [Yarn v3](https://yarnpkg.com/getting-started/install).
+- Run `yarn install` to install dependencies and run any required post-install scripts.
+- Run `yarn simple-git-hooks` to add a [Git hook](https://github.com/toplenboren/simple-git-hooks#what-is-a-git-hook) which will ensure that all files pass the linter before you push a branch.
 
 ### Testing and Linting
 
 Run `yarn test` to run the tests once. To run tests on file changes, run `yarn test:watch`.
+
+To enable debugger [via Chrome DevTools](https://jestjs.io/docs/troubleshooting#tests-are-failing-and-you-dont-know-why):
+
+1.  run `yarn test:debug`
+2.  navigate to `chrome://inspect`
+3.  click "Open Dedicated DevTools for Node". Keep the DevTools window open
+4.  stop/rerun the tests as needed
 
 Run `yarn lint` to run the linter, or run `yarn lint:fix` to run the linter and fix any automatically fixable issues.
 
@@ -309,6 +316,6 @@ The project follows the same release process as the other libraries in the MetaM
 
 7. Publish the release on npm.
 
-   - Be very careful to use a clean local environment to publish the release, and follow exactly the same steps used during CI.
-   - Use `npm publish --dry-run` to examine the release contents to ensure the correct files are included. Compare to previous releases if necessary (e.g. using `https://unpkg.com/browse/[package name]@[package version]/`).
-   - Once you are confident the release contents are correct, publish the release using `npm publish`.
+   - Wait for the `publish-release` GitHub Action workflow to finish. This should trigger a second job (`publish-npm`), which will wait for a run approval by the [`npm publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team.
+   - Approve the `publish-npm` job (or ask somebody on the npm publishers team to approve it for you).
+   - Once the `publish-npm` job has finished, check npm to verify that it has been published.

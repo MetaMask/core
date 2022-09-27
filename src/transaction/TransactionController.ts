@@ -389,7 +389,7 @@ export class TransactionController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'TransactionController';
+  override name = 'TransactionController';
 
   /**
    * Method used to sign transactions
@@ -816,7 +816,7 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Attemps to speed up a transaction increasing transaction gasPrice by ten percent.
+   * Attempts to speed up a transaction increasing transaction gasPrice by ten percent.
    *
    * @param transactionID - The ID of the transaction to speed up.
    * @param gasValues - The gas values to use for the speed up transation.
@@ -1036,10 +1036,8 @@ export class TransactionController extends BaseController<
             (!meta.chainId && meta.networkID === currentNetworkID);
 
           if (!meta.verifiedOnBlockchain && txBelongsToCurrentChain) {
-            const [
-              reconciledTx,
-              updateRequired,
-            ] = await this.blockchainTransactionStateReconciler(meta);
+            const [reconciledTx, updateRequired] =
+              await this.blockchainTransactionStateReconciler(meta);
             if (updateRequired) {
               transactions[index] = reconciledTx;
               gotUpdates = updateRequired;
@@ -1125,15 +1123,13 @@ export class TransactionController extends BaseController<
       return undefined;
     }
 
-    const [
-      etherscanTxResponse,
-      etherscanTokenResponse,
-    ] = await handleTransactionFetch(
-      networkType,
-      address,
-      this.config.txHistoryLimit,
-      opt,
-    );
+    const [etherscanTxResponse, etherscanTokenResponse] =
+      await handleTransactionFetch(
+        networkType,
+        address,
+        this.config.txHistoryLimit,
+        opt,
+      );
 
     const normalizedTxs = etherscanTxResponse.result.map(
       (tx: EtherscanTransactionMeta) =>
@@ -1291,9 +1287,8 @@ export class TransactionController extends BaseController<
         ]);
 
         if (!txObj) {
-          const receiptShowsFailedStatus = await this.checkTxReceiptStatusIsFailed(
-            transactionHash,
-          );
+          const receiptShowsFailedStatus =
+            await this.checkTxReceiptStatusIsFailed(transactionHash);
 
           // Case the txObj is evaluated as false, a second check will
           // determine if the tx failed or it is pending or confirmed

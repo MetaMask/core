@@ -2,7 +2,6 @@ import { toASCII } from 'punycode/';
 import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
 import PhishingDetector from 'eth-phishing-detect/src/detector';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
-import { safelyExecute } from '../util';
 
 /**
  * @type EthPhishingResponse
@@ -24,13 +23,49 @@ export interface EthPhishingResponse {
 }
 
 /**
+ * @type EthPhishingDetectConfig
+ *
+ * Interface defining expected input to PhishingDetector.
+ * @property allowlist - List of approved origins (legacy naming "whitelist")
+ * @property blocklist - List of unapproved origins (legacy naming "blacklist")
+ * @property fuzzylist - List of fuzzy-matched unapproved origins
+ * @property tolerance - Fuzzy match tolerance level
+ */
+export interface EthPhishingDetectConfig {
+  allowlist: string[];
+  blocklist: string[];
+  fuzzylist: string[];
+  tolerance: number;
+  name: string;
+  version: number;
+}
+
+/**
+ * @type EthPhishingDetectResult
+ *
+ * Interface that describes the result of the `test` method.
+ * @property name - Name of the config on which a match was found.
+ * @property version - Version of the config on which a match was found.
+ * @property result - Whether a domain was detected as a phishing domain. True means an unsafe domain.
+ * @property match - The matching fuzzylist origin when a fuzzylist match is found. Returned as undefined for non-fuzzy true results.
+ * @property type - The field of the config on which a match was found.
+ */
+export interface EthPhishingDetectResult {
+  name?: string;
+  version?: string;
+  result: boolean;
+  match?: string; // Returned as undefined for non-fuzzy true results.
+  type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist';
+}
+
+/**
  * @type PhishingConfig
  *
  * Phishing controller configuration
  * @property interval - Polling interval used to fetch new block / approve lists
  */
 export interface PhishingConfig extends BaseConfig {
-  interval: number;
+  refreshInterval: number;
 }
 
 /**
@@ -41,7 +76,7 @@ export interface PhishingConfig extends BaseConfig {
  * @property whitelist - array of temporarily-approved origins
  */
 export interface PhishingState extends BaseState {
-  phishing: EthPhishingResponse;
+  phishing: EthPhishingDetectConfig[];
   whitelist: string[];
 }
 
@@ -52,17 +87,19 @@ export class PhishingController extends BaseController<
   PhishingConfig,
   PhishingState
 > {
-  private configUrl =
+  private configUrlMetaMask =
     'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
+
+  private configUrlPhishFortHotlist = `https://cdn.jsdelivr.net/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json`;
 
   private detector: any;
 
-  private handle?: NodeJS.Timer;
+  private lastFetched = 0;
 
   /**
    * Name of this controller used during composition
    */
-  name = 'PhishingController';
+  override name = 'PhishingController';
 
   /**
    * Creates a PhishingController instance.
@@ -75,42 +112,64 @@ export class PhishingController extends BaseController<
     state?: Partial<PhishingState>,
   ) {
     super(config, state);
-    this.defaultConfig = { interval: 60 * 60 * 1000 };
+    this.defaultConfig = {
+      refreshInterval: 60 * 60 * 1000,
+    };
+
     this.defaultState = {
-      phishing: DEFAULT_PHISHING_RESPONSE,
+      phishing: [
+        {
+          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
+          blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
+          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
+          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
+          name: `MetaMask`,
+          version: DEFAULT_PHISHING_RESPONSE.version,
+        },
+      ],
       whitelist: [],
     };
     this.detector = new PhishingDetector(this.defaultState.phishing);
     this.initialize();
-    this.poll();
   }
 
   /**
-   * Starts a new polling interval.
+   * Set the interval at which the phishing list will be refetched. Fetching will only occur on the next call to test/bypass. For immediate update to the phishing list, call updatePhishingLists directly.
    *
-   * @param interval - Polling interval used to fetch new approval lists.
+   * @param interval - the new interval, in ms.
    */
-  async poll(interval?: number): Promise<void> {
-    interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
-    await safelyExecute(() => this.updatePhishingLists());
-    this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
-    }, this.config.interval);
+  setRefreshInterval(interval: number) {
+    this.configure({ refreshInterval: interval }, false, false);
+  }
+
+  /**
+   * Calls this.updatePhishingLists if this.refreshInterval has passed since last this.lastFetched.
+   *
+   * @returns Promise<void> when finished fetching phishing lists or when fetching in not necessary.
+   */
+  private async fetchIfNecessary(): Promise<void> {
+    const outOfDate =
+      Date.now() - this.lastFetched >= this.config.refreshInterval;
+
+    if (outOfDate) {
+      await this.updatePhishingLists();
+    }
   }
 
   /**
    * Determines if a given origin is unapproved.
    *
    * @param origin - Domain origin of a website.
-   * @returns Whether the origin is an unapproved origin.
+   * @returns Promise<EthPhishingDetectResult> Whether the origin is an unapproved origin.
    */
-  test(origin: string): boolean {
+  async test(origin: string): Promise<EthPhishingDetectResult> {
+    await this.fetchIfNecessary();
+
     const punycodeOrigin = toASCII(origin);
     if (this.state.whitelist.indexOf(punycodeOrigin) !== -1) {
-      return false;
+      return { result: false, type: 'all' }; // Same as whitelisted match returned by detector.check(...).
     }
-    return this.detector.check(punycodeOrigin).result;
+    return this.detector.check(punycodeOrigin);
   }
 
   /**
@@ -135,33 +194,66 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    const phishingOpts = await this.queryConfig(this.configUrl);
-    if (phishingOpts) {
-      this.detector = new PhishingDetector(phishingOpts);
-      this.update({
-        phishing: phishingOpts,
-      });
+    const configs: EthPhishingDetectConfig[] = [];
+
+    const [metamaskConfigLegacy, phishfortHotlist] = await Promise.all([
+      await this.queryConfig<EthPhishingResponse>(this.configUrlMetaMask),
+      await this.queryConfig<string[]>(this.configUrlPhishFortHotlist),
+    ]);
+
+    // Correctly shaping MetaMask config.
+    const metamaskConfig: EthPhishingDetectConfig = {
+      allowlist: metamaskConfigLegacy ? metamaskConfigLegacy.whitelist : [],
+      blocklist: metamaskConfigLegacy ? metamaskConfigLegacy.blacklist : [],
+      fuzzylist: metamaskConfigLegacy ? metamaskConfigLegacy.fuzzylist : [],
+      tolerance: metamaskConfigLegacy ? metamaskConfigLegacy.tolerance : 0,
+      name: `MetaMask`,
+      version: metamaskConfigLegacy ? metamaskConfigLegacy.version : 0,
+    };
+    if (metamaskConfigLegacy) {
+      configs.push(metamaskConfig);
     }
+
+    // Correctly shaping PhishFort config.
+    const phishfortConfig: EthPhishingDetectConfig = {
+      allowlist: [],
+      blocklist: (phishfortHotlist || []).filter(
+        (i) => !metamaskConfig.blocklist.includes(i),
+      ), // Removal of duplicates.
+      fuzzylist: [],
+      tolerance: 0,
+      name: `PhishFort`,
+      version: 1,
+    };
+    if (phishfortHotlist) {
+      configs.push(phishfortConfig);
+    }
+
+    // Do not update if all configs are unavailable.
+    if (!configs.length) {
+      return;
+    }
+
+    this.detector = new PhishingDetector(configs);
+    this.update({
+      phishing: configs,
+    });
+
+    this.lastFetched = Date.now();
   }
 
-  private async queryConfig(
+  private async queryConfig<ResponseType>(
     input: RequestInfo,
-  ): Promise<EthPhishingResponse | null> {
+  ): Promise<ResponseType | null> {
     const response = await fetch(input, { cache: 'no-cache' });
 
     switch (response.status) {
       case 200: {
         return await response.json();
       }
-      case 304:
-      case 403: {
-        return null;
-      }
 
       default: {
-        throw new Error(
-          `Fetch failed with status '${response.status}' for request '${input}'`,
-        );
+        return null;
       }
     }
   }

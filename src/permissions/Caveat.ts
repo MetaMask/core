@@ -1,10 +1,15 @@
 import { Json } from '@metamask/types';
-import { UnrecognizedCaveatTypeError } from './errors';
+import { hasProperty } from '../util';
+import {
+  CaveatSpecificationMismatchError,
+  UnrecognizedCaveatTypeError,
+} from './errors';
 import {
   AsyncRestrictedMethod,
   RestrictedMethod,
   PermissionConstraint,
   RestrictedMethodParameters,
+  PermissionType,
 } from './Permission';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { PermissionController } from './PermissionController';
@@ -76,16 +81,15 @@ export type CaveatDecorator<ParentCaveat extends CaveatConstraint> = (
  * @template Decorator - The {@link CaveatDecorator} to extract a caveat value
  * type from.
  */
-type ExtractCaveatValueFromDecorator<
-  Decorator extends CaveatDecorator<any>
-> = Decorator extends (
-  decorated: any,
-  caveat: infer ParentCaveat,
-) => AsyncRestrictedMethod<any, any>
-  ? ParentCaveat extends CaveatConstraint
-    ? ParentCaveat['value']
-    : never
-  : never;
+type ExtractCaveatValueFromDecorator<Decorator extends CaveatDecorator<any>> =
+  Decorator extends (
+    decorated: any,
+    caveat: infer ParentCaveat,
+  ) => AsyncRestrictedMethod<any, any>
+    ? ParentCaveat extends CaveatConstraint
+      ? ParentCaveat['value']
+      : never
+    : never;
 
 /**
  * A function for validating caveats of a particular type.
@@ -101,27 +105,11 @@ export type CaveatValidator<ParentCaveat extends CaveatConstraint> = (
   target?: string,
 ) => void;
 
-/**
- * The constraint for caveat specification objects. Every {@link Caveat}
- * supported by a {@link PermissionController} must have an associated
- * specification, which is the source of truth for all caveat-related types.
- * In addition, a caveat specification includes the decorator function used
- * to apply the caveat's attenuation to a restricted method, and any validator
- * function specified by the consumer.
- *
- * See the README for more details.
- */
-export type CaveatSpecificationConstraint = {
+export type CaveatSpecificationBase = {
   /**
    * The string type of the caveat.
    */
   type: string;
-
-  /**
-   * The decorator function used to apply the caveat to restricted method
-   * requests.
-   */
-  decorator: CaveatDecorator<any>;
 
   /**
    * The validator function used to validate caveats of the associated type
@@ -137,12 +125,37 @@ export type CaveatSpecificationConstraint = {
   validator?: CaveatValidator<any>;
 };
 
+export type RestrictedMethodCaveatSpecificationConstraint =
+  CaveatSpecificationBase & {
+    /**
+     * The decorator function used to apply the caveat to restricted method
+     * requests.
+     */
+    decorator: CaveatDecorator<any>;
+  };
+
+export type EndowmentCaveatSpecificationConstraint = CaveatSpecificationBase;
+
+/**
+ * The constraint for caveat specification objects. Every {@link Caveat}
+ * supported by a {@link PermissionController} must have an associated
+ * specification, which is the source of truth for all caveat-related types.
+ * In addition, a caveat specification may include a decorator function used
+ * to apply the caveat's attenuation to a restricted method. It may also include
+ * a validator function specified by the consumer.
+ *
+ * See the README for more details.
+ */
+export type CaveatSpecificationConstraint =
+  | RestrictedMethodCaveatSpecificationConstraint
+  | EndowmentCaveatSpecificationConstraint;
+
 /**
  * Options for {@link CaveatSpecificationBuilder} functions.
  */
 type CaveatSpecificationBuilderOptions<
   DecoratorHooks extends Record<string, unknown>,
-  ValidatorHooks extends Record<string, unknown>
+  ValidatorHooks extends Record<string, unknown>,
 > = {
   type?: string;
   decoratorHooks?: DecoratorHooks;
@@ -157,7 +170,7 @@ type CaveatSpecificationBuilderOptions<
  */
 export type CaveatSpecificationBuilder<
   Options extends CaveatSpecificationBuilderOptions<any, any>,
-  Specification extends CaveatSpecificationConstraint
+  Specification extends CaveatSpecificationConstraint,
 > = (options: Options) => Specification;
 
 /**
@@ -180,7 +193,7 @@ export type CaveatSpecificationBuilderExportConstraint = {
  * @template Specifications - The union of all {@link CaveatSpecificationConstraint} types.
  */
 export type CaveatSpecificationMap<
-  CaveatSpecification extends CaveatSpecificationConstraint
+  CaveatSpecification extends CaveatSpecificationConstraint,
 > = Record<CaveatSpecification['type'], CaveatSpecification>;
 
 /**
@@ -191,12 +204,16 @@ export type CaveatSpecificationMap<
  * caveat type union from.
  */
 export type ExtractCaveats<
-  CaveatSpecification extends CaveatSpecificationConstraint
+  CaveatSpecification extends CaveatSpecificationConstraint,
 > = CaveatSpecification extends any
-  ? Caveat<
-      CaveatSpecification['type'],
-      ExtractCaveatValueFromDecorator<CaveatSpecification['decorator']>
-    >
+  ? CaveatSpecification extends RestrictedMethodCaveatSpecificationConstraint
+    ? Caveat<
+        CaveatSpecification['type'],
+        ExtractCaveatValueFromDecorator<
+          RestrictedMethodCaveatSpecificationConstraint['decorator']
+        >
+      >
+    : Caveat<CaveatSpecification['type'], Json>
   : never;
 
 /**
@@ -208,7 +225,7 @@ export type ExtractCaveats<
  */
 export type ExtractCaveat<
   CaveatSpecifications extends CaveatSpecificationConstraint,
-  CaveatType extends string
+  CaveatType extends string,
 > = Extract<ExtractCaveats<CaveatSpecifications>, { type: CaveatType }>;
 
 /**
@@ -220,8 +237,20 @@ export type ExtractCaveat<
  */
 export type ExtractCaveatValue<
   CaveatSpecifications extends CaveatSpecificationConstraint,
-  CaveatType extends string
+  CaveatType extends string,
 > = ExtractCaveat<CaveatSpecifications, CaveatType>['value'];
+
+/**
+ * Determines whether a caveat specification is a restricted method caveat specification.
+ *
+ * @param specification - The caveat specification.
+ * @returns True if the caveat specification is a restricted method caveat specification, otherwise false.
+ */
+export function isRestrictedMethodCaveatSpecification(
+  specification: CaveatSpecificationConstraint,
+): specification is RestrictedMethodCaveatSpecificationConstraint {
+  return hasProperty(specification, 'decorator');
+}
 
 /**
  * Decorate a restricted method implementation with its caveats.
@@ -235,7 +264,7 @@ export type ExtractCaveatValue<
  * @returns The decorated method implementation
  */
 export function decorateWithCaveats<
-  CaveatSpecifications extends CaveatSpecificationConstraint
+  CaveatSpecifications extends CaveatSpecificationConstraint,
 >(
   methodImplementation: RestrictedMethod<RestrictedMethodParameters, Json>,
   permission: Readonly<PermissionConstraint>, // bound to the requesting origin
@@ -257,6 +286,12 @@ export function decorateWithCaveats<
       throw new UnrecognizedCaveatTypeError(caveat.type);
     }
 
+    if (!isRestrictedMethodCaveatSpecification(specification)) {
+      throw new CaveatSpecificationMismatchError(
+        specification,
+        PermissionType.RestrictedMethod,
+      );
+    }
     decorated = specification.decorator(decorated, caveat);
   }
 

@@ -10,6 +10,8 @@ const MAINNET_PROVIDER = new HttpProvider(
 const ERC721_GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
 const CRYPTO_KITTIES_ADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
 const ERC721_ENSADDRESS = '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85';
+const ERC721_DECENTRALAND_ADDRESS =
+  '0xF87E31492Faf9A91B02Ee0dEAAd50d51d56D5d4d';
 
 describe('ERC721Standard', () => {
   let erc721Standard: ERC721Standard;
@@ -34,8 +36,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
-            data:
-              '0x01ffc9a7780e9d6300000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a7780e9d6300000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -53,8 +54,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0x01ffc9a7780e9d6300000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a7780e9d6300000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -66,12 +66,14 @@ describe('ERC721Standard', () => {
           '0x0000000000000000000000000000000000000000000000000000000000000001',
       });
 
-    const CKSupportsEnumerable = await erc721Standard.contractSupportsEnumerableInterface(
-      CRYPTO_KITTIES_ADDRESS,
-    );
-    const GODSSupportsEnumerable = await erc721Standard.contractSupportsEnumerableInterface(
-      ERC721_GODSADDRESS,
-    );
+    const CKSupportsEnumerable =
+      await erc721Standard.contractSupportsEnumerableInterface(
+        CRYPTO_KITTIES_ADDRESS,
+      );
+    const GODSSupportsEnumerable =
+      await erc721Standard.contractSupportsEnumerableInterface(
+        ERC721_GODSADDRESS,
+      );
     expect(CKSupportsEnumerable).toBe(false);
     expect(GODSSupportsEnumerable).toBe(true);
   });
@@ -85,8 +87,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
@@ -104,8 +105,7 @@ describe('ERC721Standard', () => {
         params: [
           {
             to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            data: '0x95d89b41',
           },
           'latest',
         ],
@@ -114,29 +114,11 @@ describe('ERC721Standard', () => {
         jsonrpc: '2.0',
         id: 4,
         result:
-          '0x0000000000000000000000000000000000000000000000000000000000000001',
-      })
-      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
-        jsonrpc: '2.0',
-        id: 5,
-        method: 'eth_call',
-        params: [
-          {
-            to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data: '0x95d89b41',
-          },
-          'latest',
-        ],
-      })
-      .reply(200, {
-        jsonrpc: '2.0',
-        id: 5,
-        result:
           '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000004474f445300000000000000000000000000000000000000000000000000000000',
       })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 6,
+        id: 5,
         method: 'eth_call',
         params: [
           {
@@ -148,10 +130,11 @@ describe('ERC721Standard', () => {
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 6,
+        id: 5,
         result:
           '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000e476f647320556e636861696e6564000000000000000000000000000000000000',
       });
+
     const expectedResult = {
       name: 'Gods Unchained',
       standard: 'ERC721',
@@ -169,45 +152,25 @@ describe('ERC721Standard', () => {
     nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 7,
+        id: 6,
         method: 'eth_call',
         params: [
           {
             to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
       })
       .reply(200, {
         jsonrpc: '2.0',
+        id: 6,
+        result:
+          '0x0000000000000000000000000000000000000000000000000000000000000001',
+      })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
         id: 7,
-        result:
-          '0x0000000000000000000000000000000000000000000000000000000000000001',
-      })
-      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
-        jsonrpc: '2.0',
-        id: 8,
-        method: 'eth_call',
-        params: [
-          {
-            to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
-          },
-          'latest',
-        ],
-      })
-      .reply(200, {
-        jsonrpc: '2.0',
-        id: 8,
-        result:
-          '0x0000000000000000000000000000000000000000000000000000000000000001',
-      })
-      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
-        jsonrpc: '2.0',
-        id: 9,
         method: 'eth_call',
         params: [
           {
@@ -219,13 +182,15 @@ describe('ERC721Standard', () => {
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 9,
+        id: 7,
         result:
           '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000004474f445300000000000000000000000000000000000000000000000000000000',
-      })
+      });
+
+    nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 10,
+        id: 8,
         method: 'eth_call',
         params: [
           {
@@ -237,45 +202,43 @@ describe('ERC721Standard', () => {
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 10,
+        id: 8,
         result:
           '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000e476f647320556e636861696e6564000000000000000000000000000000000000',
       })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 11,
+        id: 9,
         method: 'eth_call',
         params: [
           {
             to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 11,
+        id: 9,
         result:
           '0x0000000000000000000000000000000000000000000000000000000000000001',
       })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 12,
+        id: 10,
         method: 'eth_call',
         params: [
           {
             to: '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
-            data:
-              '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000004',
+            data: '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000004',
           },
           'latest',
         ],
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 12,
+        id: 10,
         result:
           '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002468747470733a2f2f6170692e676f6473756e636861696e65642e636f6d2f636172642f3400000000000000000000000000000000000000000000000000000000',
       });
@@ -308,45 +271,25 @@ describe('ERC721Standard', () => {
     nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 14,
+        id: 11,
         method: 'eth_call',
         params: [
           {
             to: '0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 14,
+        id: 11,
         result:
           '0x0000000000000000000000000000000000000000000000000000000000000001',
       })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 13,
-        method: 'eth_call',
-        params: [
-          {
-            to: '0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D',
-            data:
-              '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
-          },
-          'latest',
-        ],
-      })
-      .reply(200, {
-        jsonrpc: '2.0',
-        id: 13,
-        result:
-          '0x0000000000000000000000000000000000000000000000000000000000000001',
-      })
-      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
-        jsonrpc: '2.0',
-        id: 15,
+        id: 12,
         method: 'eth_call',
         params: [
           {
@@ -358,13 +301,13 @@ describe('ERC721Standard', () => {
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 15,
+        id: 12,
         result:
           '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000044241594300000000000000000000000000000000000000000000000000000000',
       })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 16,
+        id: 13,
         method: 'eth_call',
         params: [
           {
@@ -376,26 +319,25 @@ describe('ERC721Standard', () => {
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 16,
+        id: 13,
         result:
           '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000011426f7265644170655961636874436c7562000000000000000000000000000000',
       })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 17,
+        id: 14,
         method: 'eth_call',
         params: [
           {
             to: '0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 17,
+        id: 14,
         result:
           '0x0000000000000000000000000000000000000000000000000000000000000001',
       });
@@ -403,20 +345,19 @@ describe('ERC721Standard', () => {
     nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 18,
+        id: 15,
         method: 'eth_call',
         params: [
           {
             to: '0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D',
-            data:
-              '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000003',
+            data: '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000003',
           },
           'latest',
         ],
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 18,
+        id: 15,
         result:
           '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000037697066733a2f2f516d65536a53696e4870506e6d586d73704d6a776958794e367a533445397a63636172694752336a7863615774712f33000000000000000000',
       });
@@ -454,41 +395,38 @@ describe('ERC721Standard', () => {
     nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 19,
+        id: 16,
         method: 'eth_call',
         params: [
           {
             to: '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85',
-            data:
-              '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 19,
+        id: 16,
         result:
           '0x0000000000000000000000000000000000000000000000000000000000000001',
       })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 20,
+        id: 17,
         method: 'eth_call',
         params: [
           {
             to: '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
+            data: '0x06fdde03',
           },
           'latest',
         ],
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 20,
-        result:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
+        id: 17,
+        error: { code: -32000, message: 'execution reverted' },
       });
 
     const expectedResult = {
@@ -509,39 +447,19 @@ describe('ERC721Standard', () => {
     nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
       .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
         jsonrpc: '2.0',
-        id: 21,
+        id: 20,
         method: 'eth_call',
         params: [
           {
             to: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
-            data:
-              '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+            data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
           },
           'latest',
         ],
       })
       .reply(200, {
         jsonrpc: '2.0',
-        id: 21,
-        result:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-      })
-      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
-        jsonrpc: '2.0',
-        id: 22,
-        method: 'eth_call',
-        params: [
-          {
-            to: '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
-            data:
-              '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
-          },
-          'latest',
-        ],
-      })
-      .reply(200, {
-        jsonrpc: '2.0',
-        id: 22,
+        id: 20,
         result:
           '0x0000000000000000000000000000000000000000000000000000000000000000',
       });
@@ -550,5 +468,75 @@ describe('ERC721Standard', () => {
       await erc721Standard.getDetails(CRYPTO_KITTIES_ADDRESS, '4');
     };
     await expect(result).rejects.toThrow("This isn't a valid ERC721 contract");
+  });
+
+  it('should return an object with any or all of name, tokenURI or symbol for a given contract that supports these methods even if it does not support the metadata interface', async () => {
+    nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 21,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0xF87E31492Faf9A91B02Ee0dEAAd50d51d56D5d4d',
+            data: '0x01ffc9a780ac58cd00000000000000000000000000000000000000000000000000000000',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 21,
+        result:
+          '0x0000000000000000000000000000000000000000000000000000000000000001',
+      })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 22,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0xF87E31492Faf9A91B02Ee0dEAAd50d51d56D5d4d',
+            data: '0x95d89b41',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 22,
+        result:
+          '0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000044c414e4400000000000000000000000000000000000000000000000000000000',
+      })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 23,
+        method: 'eth_call',
+        params: [
+          {
+            to: '0xF87E31492Faf9A91B02Ee0dEAAd50d51d56D5d4d',
+            data: '0x06fdde03',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, {
+        jsonrpc: '2.0',
+        id: 23,
+        result:
+          '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000011446563656e7472616c616e64204c414e44000000000000000000000000000000',
+      });
+    const expectedResult = {
+      name: 'Decentraland LAND',
+      standard: 'ERC721',
+      symbol: 'LAND',
+      tokenURI: undefined,
+    };
+    const details = await erc721Standard.getDetails(
+      ERC721_DECENTRALAND_ADDRESS,
+      IPFS_DEFAULT_GATEWAY_URL,
+      '2381976568446569244243622252022377480050',
+    );
+    expect(details).toMatchObject(expectedResult);
   });
 });

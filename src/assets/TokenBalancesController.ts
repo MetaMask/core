@@ -44,7 +44,7 @@ export class TokenBalancesController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'TokenBalancesController';
+  override name = 'TokenBalancesController';
 
   private getSelectedAddress: () => PreferencesState['selectedAddress'];
 
@@ -82,8 +82,8 @@ export class TokenBalancesController extends BaseController<
     };
     this.defaultState = { contractBalances: {} };
     this.initialize();
-    onTokensStateChange(({ tokens }) => {
-      this.configure({ tokens });
+    onTokensStateChange(({ tokens, detectedTokens }) => {
+      this.configure({ tokens: [...tokens, ...detectedTokens] });
       this.updateBalances();
     });
     this.getSelectedAddress = getSelectedAddress;

@@ -1,4 +1,4 @@
-import { stub } from 'sinon';
+import sinon from 'sinon';
 import Web3ProviderEngine from 'web3-provider-engine';
 import {
   NetworkController,
@@ -10,6 +10,10 @@ import {
 const RPC_TARGET = 'http://foo';
 
 describe('NetworkController', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
   it('should set default state', () => {
     const controller = new NetworkController();
     expect(controller.state).toStrictEqual({
@@ -72,7 +76,11 @@ describe('NetworkController', () => {
     };
     const controller = new NetworkController(testConfig, {
       network: '10',
-      provider: { type: 'optimism', chainId: NetworksChainId.optimism },
+      provider: {
+        rpcTarget: RPC_TARGET,
+        type: 'rpc',
+        chainId: '10',
+      },
     });
     controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
@@ -143,6 +151,24 @@ describe('NetworkController', () => {
     expect(controller.state.isCustomNetwork).toBe(false);
   });
 
+  it('should set new testnet provider type', () => {
+    const controller = new NetworkController();
+    controller.config.infuraProjectId = '0x0000';
+    controller.setProviderType('rinkeby' as NetworkType);
+    expect(controller.state.provider.type).toBe('rinkeby');
+    expect(controller.state.provider.ticker).toBe('RinkebyETH');
+    expect(controller.state.isCustomNetwork).toBe(false);
+  });
+
+  it('should set mainnet provider type', () => {
+    const controller = new NetworkController();
+    controller.config.infuraProjectId = '0x0000';
+    controller.setProviderType('mainnet' as NetworkType);
+    expect(controller.state.provider.type).toBe('mainnet');
+    expect(controller.state.provider.ticker).toBe('ETH');
+    expect(controller.state.isCustomNetwork).toBe(false);
+  });
+
   it('should throw when setting an unrecognized provider type', () => {
     const controller = new NetworkController();
     expect(() => controller.setProviderType('junk' as NetworkType)).toThrow(
@@ -158,7 +184,7 @@ describe('NetworkController', () => {
       network: 'loading',
     });
     controller.providerConfig = {} as ProviderConfig;
-    controller.lookupNetwork = stub();
+    controller.lookupNetwork = sinon.stub();
     controller.provider.emit('error', {});
     expect((controller.lookupNetwork as any).called).toBe(true);
   });

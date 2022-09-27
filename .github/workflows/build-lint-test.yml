@@ -11,8 +11,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        # TODO: Test on more recent LTS versions
-        node-version: [12.x]
+        node-version: [14.x, 16.x]
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node-version }}
@@ -20,7 +19,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - name: Get Yarn cache directory
-        run: echo "::set-output name=YARN_CACHE_DIR::$(yarn cache dir)"
+        run: echo "::set-output name=YARN_CACHE_DIR::$(yarn config get cacheFolder)"
         id: yarn-cache-dir
       - name: Get Yarn version
         run: echo "::set-output name=YARN_VERSION::$(yarn --version)"
@@ -30,8 +29,7 @@ jobs:
         with:
           path: ${{ steps.yarn-cache-dir.outputs.YARN_CACHE_DIR }}
           key: yarn-cache-${{ runner.os }}-${{ steps.yarn-version.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}
-      - run: yarn --frozen-lockfile
-      - run: yarn allow-scripts
+      - run: yarn --immutable
       - run: yarn build
       - run: yarn lint
       - run: yarn test --maxWorkers=1

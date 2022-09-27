@@ -82,7 +82,7 @@ export type PermissionConstraint = {
  */
 export type ValidPermission<
   TargetKey extends TargetName,
-  AllowedCaveat extends CaveatConstraint
+  AllowedCaveat extends CaveatConstraint,
 > = PermissionConstraint & {
   // TODO:TS4.4 Make optional
   /**
@@ -134,7 +134,7 @@ export type ExtractPermissionTargetNames<Key extends string> = ValidTargetName<
  */
 type KeyOfTargetName<
   Key extends string,
-  Name extends string
+  Name extends string,
 > = Name extends ExtractPermissionTargetNames<Key> ? Key : never;
 
 /**
@@ -148,7 +148,7 @@ type KeyOfTargetName<
  */
 export type ExtractPermissionTargetKey<
   Key extends string,
-  Name extends string
+  Name extends string,
 > = Key extends Name ? Key : Extract<Key, KeyOfTargetName<Key, Name>>;
 
 /**
@@ -172,7 +172,7 @@ type ExtractArrayMembers<ArrayType> = ArrayType extends []
  * extract valid caveat types from.
  */
 export type ExtractAllowedCaveatTypes<
-  PermissionSpecification extends PermissionSpecificationConstraint
+  PermissionSpecification extends PermissionSpecificationConstraint,
 > = ExtractArrayMembers<PermissionSpecification['allowedCaveats']>;
 
 /**
@@ -204,7 +204,7 @@ export type PermissionOptions<TargetPermission extends PermissionConstraint> = {
  * @returns The new permission object.
  */
 export function constructPermission<
-  TargetPermission extends PermissionConstraint
+  TargetPermission extends PermissionConstraint,
 >(options: PermissionOptions<TargetPermission>): TargetPermission {
   const { caveats = null, invoker, target } = options;
 
@@ -259,13 +259,12 @@ export type RestrictedMethodParameters = Json[] | Record<string, Json> | void;
  *
  * @template Params - The JSON-RPC parameters of the restricted method.
  */
-export type RestrictedMethodOptions<
-  Params extends RestrictedMethodParameters
-> = {
-  method: TargetName;
-  params?: Params;
-  context: RestrictedMethodContext;
-};
+export type RestrictedMethodOptions<Params extends RestrictedMethodParameters> =
+  {
+    method: TargetName;
+    params?: Params;
+    context: RestrictedMethodContext;
+  };
 
 /**
  * A synchronous restricted method implementation.
@@ -275,7 +274,7 @@ export type RestrictedMethodOptions<
  */
 export type SyncRestrictedMethod<
   Params extends RestrictedMethodParameters,
-  Result extends Json
+  Result extends Json,
 > = (args: RestrictedMethodOptions<Params>) => Result;
 
 /**
@@ -286,7 +285,7 @@ export type SyncRestrictedMethod<
  */
 export type AsyncRestrictedMethod<
   Params extends RestrictedMethodParameters,
-  Result extends Json
+  Result extends Json,
 > = (args: RestrictedMethodOptions<Params>) => Promise<Result>;
 
 /**
@@ -297,13 +296,13 @@ export type AsyncRestrictedMethod<
  */
 export type RestrictedMethod<
   Params extends RestrictedMethodParameters,
-  Result extends Json
+  Result extends Json,
 > =
   | SyncRestrictedMethod<Params, Result>
   | AsyncRestrictedMethod<Params, Result>;
 
 export type ValidRestrictedMethod<
-  MethodImplementation extends RestrictedMethod<any, any>
+  MethodImplementation extends RestrictedMethod<any, any>,
 > = MethodImplementation extends (args: infer Options) => Json | Promise<Json>
   ? Options extends RestrictedMethodOptions<RestrictedMethodParameters>
     ? MethodImplementation
@@ -338,7 +337,7 @@ export type EndowmentGetter<Endowments extends Json> = (
 
 export type PermissionFactory<
   TargetPermission extends PermissionConstraint,
-  RequestData extends Record<string, unknown>
+  RequestData extends Record<string, unknown>,
 > = (
   options: PermissionOptions<TargetPermission>,
   requestData?: RequestData,
@@ -442,13 +441,14 @@ type PermissionSpecificationBase<Type extends PermissionType> = {
  *
  * See the README for more details.
  */
-export type RestrictedMethodSpecificationConstraint = PermissionSpecificationBase<PermissionType.RestrictedMethod> & {
-  /**
-   * The implementation of the restricted method that the permission
-   * corresponds to.
-   */
-  methodImplementation: RestrictedMethod<any, any>;
-};
+export type RestrictedMethodSpecificationConstraint =
+  PermissionSpecificationBase<PermissionType.RestrictedMethod> & {
+    /**
+     * The implementation of the restricted method that the permission
+     * corresponds to.
+     */
+    methodImplementation: RestrictedMethod<any, any>;
+  };
 
 /**
  * The constraint for endowment permission specification objects. Permissions
@@ -457,20 +457,16 @@ export type RestrictedMethodSpecificationConstraint = PermissionSpecificationBas
  *
  * See the README for more details.
  */
-export type EndowmentSpecificationConstraint = PermissionSpecificationBase<PermissionType.Endowment> & {
-  /**
-   * Endowment permissions do not support caveats.
-   */
-  allowedCaveats: null;
-
-  /**
-   * The {@link EndowmentGetter} function for the permission. This function
-   * will be called by the {@link PermissionController} whenever the
-   * permission is invoked, after which the host can apply the endowments to
-   * the requesting subject in the intended manner.
-   */
-  endowmentGetter: EndowmentGetter<any>;
-};
+export type EndowmentSpecificationConstraint =
+  PermissionSpecificationBase<PermissionType.Endowment> & {
+    /**
+     * The {@link EndowmentGetter} function for the permission. This function
+     * will be called by the {@link PermissionController} whenever the
+     * permission is invoked, after which the host can apply the endowments to
+     * the requesting subject in the intended manner.
+     */
+    endowmentGetter: EndowmentGetter<any>;
+  };
 
 /**
  * The constraint for permission specification objects. Every {@link Permission}
@@ -492,7 +488,7 @@ export type PermissionSpecificationConstraint =
 type PermissionSpecificationBuilderOptions<
   FactoryHooks extends Record<string, unknown>,
   MethodHooks extends Record<string, unknown>,
-  ValidatorHooks extends Record<string, unknown>
+  ValidatorHooks extends Record<string, unknown>,
 > = {
   targetKey?: string;
   allowedCaveats?: Readonly<NonEmptyArray<string>> | null;
@@ -512,7 +508,7 @@ export type PermissionSpecificationBuilder<
   Options extends PermissionSpecificationBuilderOptions<any, any, any>,
   Specification extends PermissionSpecificationConstraint & {
     permissionType: Type;
-  }
+  },
 > = (options: Options) => Specification;
 
 /**
@@ -532,7 +528,7 @@ export type PermissionSpecificationBuilderExportConstraint = {
 };
 
 type ValidRestrictedMethodSpecification<
-  Specification extends RestrictedMethodSpecificationConstraint
+  Specification extends RestrictedMethodSpecificationConstraint,
 > = Specification['methodImplementation'] extends ValidRestrictedMethod<
   Specification['methodImplementation']
 >
@@ -546,7 +542,7 @@ type ValidRestrictedMethodSpecification<
  * @template Specification - The permission specification to validate.
  */
 export type ValidPermissionSpecification<
-  Specification extends PermissionSpecificationConstraint
+  Specification extends PermissionSpecificationConstraint,
 > = Specification['targetKey'] extends ValidTargetKey<
   Specification['targetKey']
 >
@@ -570,7 +566,7 @@ export type ValidPermissionSpecification<
  */
 export function hasSpecificationType<
   Specification extends PermissionSpecificationConstraint,
-  Type extends PermissionType
+  Type extends PermissionType,
 >(
   specification: Specification,
   expectedType: Type,
@@ -587,7 +583,7 @@ export function hasSpecificationType<
  * @template Specifications - The union of all {@link PermissionSpecificationConstraint} types.
  */
 export type PermissionSpecificationMap<
-  Specification extends PermissionSpecificationConstraint
+  Specification extends PermissionSpecificationConstraint,
 > = {
   [TargetKey in Specification['targetKey']]: Specification extends {
     targetKey: TargetKey;
@@ -605,7 +601,7 @@ export type PermissionSpecificationMap<
  */
 export type ExtractPermissionSpecification<
   Specification extends PermissionSpecificationConstraint,
-  TargetKey extends Specification['targetKey']
+  TargetKey extends Specification['targetKey'],
 > = Specification extends {
   targetKey: TargetKey;
 }

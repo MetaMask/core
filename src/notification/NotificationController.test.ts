@@ -1,97 +1,113 @@
+import { ControllerMessenger } from '../ControllerMessenger';
 import {
-  NotificationConfig,
-  NotificationState,
+  NotificationControllerActions,
   NotificationController,
-  StateNotificationMap,
+  NotificationControllerStateChange,
 } from './NotificationController';
 
-const config1: NotificationConfig = {
-  allNotifications: {
-    1: {
-      id: 1,
-      date: '12/8/2020',
-    },
-    2: {
-      id: 2,
-      date: '12/8/2020',
-    },
-  },
-};
+const name = 'NotificationController';
 
-const config2: NotificationConfig = {
-  allNotifications: {
-    1: {
-      id: 1,
-      date: '12/8/2020',
-    },
-    2: {
-      id: 2,
-      date: '12/8/2020',
-    },
-    3: {
-      id: 3,
-      date: '12/8/2020',
-    },
-  },
-};
+/**
+ * Constructs a unrestricted controller messenger.
+ *
+ * @returns A unrestricted controller messenger.
+ */
+function getUnrestrictedMessenger() {
+  return new ControllerMessenger<
+    NotificationControllerActions,
+    NotificationControllerStateChange
+  >();
+}
 
-const state1: NotificationState = {
-  notifications: {
-    1: {
-      id: 1,
-      date: '12/8/2020',
-      isShown: true,
-    },
-    2: {
-      id: 2,
-      date: '12/8/2020',
-      isShown: true,
-    },
-  },
-};
-
-describe('notification controller', () => {
-  it('should add notifications to state', () => {
-    const controller = new NotificationController(config1);
-    expect(Object.keys(controller.state.notifications)).toHaveLength(2);
-    const expectedStateNotifications: StateNotificationMap = {
-      1: {
-        ...config1.allNotifications[1],
-        isShown: false,
-      },
-      2: {
-        ...config1.allNotifications[2],
-        isShown: false,
-      },
-    };
-    expect(controller.state.notifications).toStrictEqual(
-      expectedStateNotifications,
-    );
+/**
+ * Constructs a restricted controller messenger.
+ *
+ * @param controllerMessenger - An optional unrestricted messenger
+ * @returns A restricted controller messenger.
+ */
+function getRestrictedMessenger(
+  controllerMessenger = getUnrestrictedMessenger(),
+) {
+  return controllerMessenger.getRestricted<typeof name, never, never>({
+    name,
   });
+}
 
-  it('should add new notifcation to state', () => {
-    const controller = new NotificationController(config2, state1);
-    expect(Object.keys(controller.state.notifications)).toHaveLength(3);
-    expect(controller.state.notifications[1].isShown).toBe(true);
-    expect(controller.state.notifications[2].isShown).toBe(true);
-    expect(controller.state.notifications[3].isShown).toBe(false);
-  });
+const origin = 'snap_test';
+const message = 'foo';
 
-  describe('update viewed notifications', () => {
-    it('should update isShown status', () => {
-      const controller = new NotificationController(config2);
-      controller.updateViewed({ 1: true });
-      expect(controller.state.notifications[1].isShown).toBe(true);
-      expect(controller.state.notifications[2].isShown).toBe(false);
-      expect(controller.state.notifications[3].isShown).toBe(false);
+describe('NotificationController', () => {
+  it('action: NotificationController:show', async () => {
+    const unrestricted = getUnrestrictedMessenger();
+    const messenger = getRestrictedMessenger(unrestricted);
+
+    const controller = new NotificationController({
+      messenger,
     });
 
-    it('should update isShown of more than one notifications', () => {
-      const controller = new NotificationController(config2);
-      controller.updateViewed({ 2: true, 3: true });
-      expect(controller.state.notifications[1].isShown).toBe(false);
-      expect(controller.state.notifications[2].isShown).toBe(true);
-      expect(controller.state.notifications[3].isShown).toBe(true);
+    expect(
+      await unrestricted.call('NotificationController:show', origin, message),
+    ).toBeUndefined();
+    const notifications = Object.values(controller.state.notifications);
+    expect(notifications).toHaveLength(1);
+    expect(notifications).toContainEqual({
+      createdDate: expect.any(Number),
+      id: expect.any(String),
+      message,
+      origin,
+      readDate: null,
     });
+  });
+
+  it('action: NotificationController:markViewed', async () => {
+    const unrestricted = getUnrestrictedMessenger();
+    const messenger = getRestrictedMessenger(unrestricted);
+
+    const controller = new NotificationController({
+      messenger,
+    });
+
+    expect(
+      await unrestricted.call('NotificationController:show', origin, message),
+    ).toBeUndefined();
+    const notifications = Object.values(controller.state.notifications);
+    expect(notifications).toHaveLength(1);
+    expect(
+      await unrestricted.call('NotificationController:markRead', [
+        notifications[0].id,
+        'foo',
+      ]),
+    ).toBeUndefined();
+
+    const newNotifications = Object.values(controller.state.notifications);
+    expect(newNotifications).toContainEqual({
+      ...notifications[0],
+      readDate: expect.any(Number),
+    });
+
+    expect(newNotifications).toHaveLength(1);
+  });
+
+  it('action: NotificationController:dismiss', async () => {
+    const unrestricted = getUnrestrictedMessenger();
+    const messenger = getRestrictedMessenger(unrestricted);
+
+    const controller = new NotificationController({
+      messenger,
+    });
+
+    expect(
+      await unrestricted.call('NotificationController:show', origin, message),
+    ).toBeUndefined();
+    const notifications = Object.values(controller.state.notifications);
+    expect(notifications).toHaveLength(1);
+    expect(
+      await unrestricted.call('NotificationController:dismiss', [
+        notifications[0].id,
+        'foo',
+      ]),
+    ).toBeUndefined();
+
+    expect(Object.values(controller.state.notifications)).toHaveLength(0);
   });
 });

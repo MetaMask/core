@@ -1,12 +1,14 @@
 import 'isomorphic-fetch';
 import { BN } from 'ethereumjs-util';
 import nock from 'nock';
+import { GANACHE_CHAIN_ID } from './constants';
 import * as util from './util';
 import {
   Transaction,
   GasPriceValue,
   FeeMarketEIP1559Values,
 } from './transaction/TransactionController';
+import { NetworksChainId } from './network/NetworkController';
 
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
@@ -290,20 +292,6 @@ describe('util', () => {
           throw new Error('ahh');
         }),
       ).toBeUndefined();
-    });
-
-    it('should call retry function', async () => {
-      const mockRetry = jest.fn();
-      new Promise(() => {
-        util.safelyExecute(
-          () => {
-            throw new Error('ahh');
-          },
-          false,
-          mockRetry,
-        );
-      });
-      expect(mockRetry).toHaveBeenCalledWith(new Error('ahh'));
     });
   });
 
@@ -823,14 +811,7 @@ describe('util', () => {
     });
 
     it('should throw error for an unsuccessful fetch', async () => {
-      let error;
-      try {
-        await util.successfulFetch(SOME_FAILING_API);
-      } catch (e) {
-        error = e;
-      }
-
-      expect(error.message).toBe(
+      await expect(util.successfulFetch(SOME_FAILING_API)).rejects.toThrow(
         `Fetch failed with status '500' for request '${SOME_FAILING_API}'`,
       );
     });
@@ -848,13 +829,9 @@ describe('util', () => {
     });
 
     it('should fail fetch with timeout', async () => {
-      let error;
-      try {
-        await util.timeoutFetch(SOME_API, {}, 100);
-      } catch (e) {
-        error = e;
-      }
-      expect(error.message).toBe('timeout');
+      await expect(util.timeoutFetch(SOME_API, {}, 100)).rejects.toThrow(
+        'timeout',
+      );
     });
   });
 
@@ -987,15 +964,21 @@ describe('util', () => {
     });
   });
 
-  describe('convertPriceToDecimal', () => {
+  describe('convertHexToDecimal', () => {
     it('should convert hex price to decimal', () => {
-      expect(util.convertPriceToDecimal('0x50fd51da')).toStrictEqual(
-        1358778842,
-      );
+      expect(util.convertHexToDecimal('0x50fd51da')).toStrictEqual(1358778842);
     });
 
     it('should return zero when undefined', () => {
-      expect(util.convertPriceToDecimal(undefined)).toStrictEqual(0);
+      expect(util.convertHexToDecimal(undefined)).toStrictEqual(0);
+    });
+
+    it('should return a decimal string as the same decimal number', () => {
+      expect(util.convertHexToDecimal('1611')).toStrictEqual(1611);
+    });
+
+    it('should return 0 when passed an invalid hex string', () => {
+      expect(util.convertHexToDecimal('0x12398u12')).toStrictEqual(0);
     });
   });
 
@@ -1290,5 +1273,61 @@ describe('isValidJson', () => {
 
   it('returns true for valid JSON', () => {
     expect(util.isValidJson({ foo: 'bar', test: { num: 5 } })).toBe(true);
+  });
+});
+
+describe('isTokenDetectionSupportedForNetwork', () => {
+  it('returns true for Mainnet', () => {
+    expect(
+      util.isTokenDetectionSupportedForNetwork(
+        util.SupportedTokenDetectionNetworks.mainnet,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns true for custom network such as BSC', () => {
+    expect(
+      util.isTokenDetectionSupportedForNetwork(
+        util.SupportedTokenDetectionNetworks.bsc,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns false for testnets such as Ropsten', () => {
+    expect(
+      util.isTokenDetectionSupportedForNetwork(NetworksChainId.ropsten),
+    ).toBe(false);
+  });
+});
+
+describe('isTokenListSupportedForNetwork', () => {
+  it('returns true for Mainnet when chainId is passed as a decimal string', () => {
+    expect(
+      util.isTokenListSupportedForNetwork(
+        util.SupportedTokenDetectionNetworks.mainnet,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns true for Mainnet when chainId is passed as a hexadecimal string', () => {
+    expect(util.isTokenListSupportedForNetwork('0x1')).toBe(true);
+  });
+
+  it('returns true for ganache local network', () => {
+    expect(util.isTokenListSupportedForNetwork(GANACHE_CHAIN_ID)).toBe(true);
+  });
+
+  it('returns true for custom network such as Polygon', () => {
+    expect(
+      util.isTokenListSupportedForNetwork(
+        util.SupportedTokenDetectionNetworks.polygon,
+      ),
+    ).toBe(true);
+  });
+
+  it('returns false for testnets such as Ropsten', () => {
+    expect(util.isTokenListSupportedForNetwork(NetworksChainId.ropsten)).toBe(
+      false,
+    );
   });
 });

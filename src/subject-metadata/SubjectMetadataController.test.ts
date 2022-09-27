@@ -76,10 +76,8 @@ describe('SubjectMetadataController', () => {
     });
 
     it('trims subject metadata state on startup', () => {
-      const [
-        messenger,
-        hasPermissionsSpy,
-      ] = getSubjectMetadataControllerMessenger();
+      const [messenger, hasPermissionsSpy] =
+        getSubjectMetadataControllerMessenger();
       hasPermissionsSpy.mockImplementationOnce(() => false);
       hasPermissionsSpy.mockImplementationOnce(() => true);
 
@@ -116,10 +114,8 @@ describe('SubjectMetadataController', () => {
 
   describe('clearState', () => {
     it('clears the controller state, and continues to function normally afterwards', () => {
-      const [
-        messenger,
-        hasPermissionsSpy,
-      ] = getSubjectMetadataControllerMessenger();
+      const [messenger, hasPermissionsSpy] =
+        getSubjectMetadataControllerMessenger();
       const controller = new SubjectMetadataController({
         messenger,
         subjectCacheLimit: 3,
@@ -179,10 +175,8 @@ describe('SubjectMetadataController', () => {
     });
 
     it('does not delete metadata for subjects with permissions if cache size is exceeded', () => {
-      const [
-        messenger,
-        hasPermissionsSpy,
-      ] = getSubjectMetadataControllerMessenger();
+      const [messenger, hasPermissionsSpy] =
+        getSubjectMetadataControllerMessenger();
       const controller = new SubjectMetadataController({
         messenger,
         subjectCacheLimit: 1,
@@ -200,10 +194,8 @@ describe('SubjectMetadataController', () => {
     });
 
     it('deletes metadata for subjects without permissions if cache size is exceeded', () => {
-      const [
-        messenger,
-        hasPermissionsSpy,
-      ] = getSubjectMetadataControllerMessenger();
+      const [messenger, hasPermissionsSpy] =
+        getSubjectMetadataControllerMessenger();
       const controller = new SubjectMetadataController({
         messenger,
         subjectCacheLimit: 1,
@@ -222,10 +214,8 @@ describe('SubjectMetadataController', () => {
 
   describe('trimMetadataState', () => {
     it('deletes all subjects without permissions from state', () => {
-      const [
-        messenger,
-        hasPermissionsSpy,
-      ] = getSubjectMetadataControllerMessenger();
+      const [messenger, hasPermissionsSpy] =
+        getSubjectMetadataControllerMessenger();
       const controller = new SubjectMetadataController({
         messenger,
         subjectCacheLimit: 4,

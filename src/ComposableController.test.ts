@@ -1,4 +1,4 @@
-import { stub } from 'sinon';
+import sinon from 'sinon';
 import type { Patch } from 'immer';
 import { TokensController } from './assets/TokensController';
 import { CollectiblesController } from './assets/CollectiblesController';
@@ -74,7 +74,7 @@ class BarController extends BaseController<never, BarControllerState> {
     bar: 'bar',
   };
 
-  name = 'BarController';
+  override name = 'BarController';
 
   constructor() {
     super();
@@ -87,6 +87,10 @@ class BarController extends BaseController<never, BarControllerState> {
 }
 
 describe('ComposableController', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
   describe('BaseController', () => {
     it('should compose controller state', () => {
       const preferencesController = new PreferencesController();
@@ -94,6 +98,8 @@ describe('ComposableController', () => {
       const assetContractController = new AssetsContractController({
         onPreferencesStateChange: (listener) =>
           preferencesController.subscribe(listener),
+        onNetworkStateChange: (listener) =>
+          networkController.subscribe(listener),
       });
       const collectiblesController = new CollectiblesController({
         onPreferencesStateChange: (listener) =>
@@ -118,6 +124,7 @@ describe('ComposableController', () => {
         getERC1155TokenURI: assetContractController.getERC1155TokenURI.bind(
           assetContractController,
         ),
+        onCollectibleAdded: jest.fn(),
       });
       const tokensController = new TokensController({
         onPreferencesStateChange: (listener) =>
@@ -148,6 +155,8 @@ describe('ComposableController', () => {
           allIgnoredTokens: {},
           suggestedAssets: [],
           tokens: [],
+          detectedTokens: [],
+          allDetectedTokens: {},
         },
         EnsController: {
           ensEntries: {},
@@ -165,7 +174,7 @@ describe('ComposableController', () => {
           ipfsGateway: 'https://ipfs.io/ipfs/',
           lostIdentities: {},
           selectedAddress: '',
-          useStaticTokenList: false,
+          useTokenDetection: true,
           useCollectibleDetection: false,
           openSeaEnabled: false,
         },
@@ -178,6 +187,8 @@ describe('ComposableController', () => {
       const assetContractController = new AssetsContractController({
         onPreferencesStateChange: (listener) =>
           preferencesController.subscribe(listener),
+        onNetworkStateChange: (listener) =>
+          networkController.subscribe(listener),
       });
       const collectiblesController = new CollectiblesController({
         onPreferencesStateChange: (listener) =>
@@ -202,6 +213,7 @@ describe('ComposableController', () => {
         getERC1155TokenURI: assetContractController.getERC1155TokenURI.bind(
           assetContractController,
         ),
+        onCollectibleAdded: jest.fn(),
       });
       const tokensController = new TokensController({
         onPreferencesStateChange: (listener) =>
@@ -230,6 +242,8 @@ describe('ComposableController', () => {
         ignoredCollectibles: [],
         ignoredTokens: [],
         allIgnoredTokens: {},
+        detectedTokens: [],
+        allDetectedTokens: {},
         ipfsGateway: 'https://ipfs.io/ipfs/',
         lostIdentities: {},
         network: 'loading',
@@ -237,7 +251,7 @@ describe('ComposableController', () => {
         properties: { isEIP1559Compatible: false },
         provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
         selectedAddress: '',
-        useStaticTokenList: false,
+        useTokenDetection: true,
         useCollectibleDetection: false,
         openSeaEnabled: false,
         suggestedAssets: [],
@@ -268,7 +282,7 @@ describe('ComposableController', () => {
     it('should notify listeners of nested state change', () => {
       const addressBookController = new AddressBookController();
       const controller = new ComposableController([addressBookController]);
-      const listener = stub();
+      const listener = sinon.stub();
       controller.subscribe(listener);
       addressBookController.set(
         '0x32Be343B94f860124dC4fEe278FDCBD38C102D88',
@@ -381,7 +395,7 @@ describe('ComposableController', () => {
         composableControllerMessenger,
       );
 
-      const listener = stub();
+      const listener = sinon.stub();
       composableController.subscribe(listener);
       fooController.updateFoo('bar');
 
@@ -486,7 +500,7 @@ describe('ComposableController', () => {
         composableControllerMessenger,
       );
 
-      const listener = stub();
+      const listener = sinon.stub();
       composableController.subscribe(listener);
       barController.updateBar('foo');
 
@@ -528,7 +542,7 @@ describe('ComposableController', () => {
         composableControllerMessenger,
       );
 
-      const listener = stub();
+      const listener = sinon.stub();
       composableController.subscribe(listener);
       fooController.updateFoo('bar');
 

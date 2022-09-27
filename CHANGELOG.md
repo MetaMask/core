@@ -6,6 +6,133 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [31.1.0]
+### Added
+- Add new error type - `ApprovalRequestNotFoundError` ([#909](https://github.com/MetaMask/controllers/pull/909))
+
+### Changed
+- Replace `ethers` with submodules (`@ethersproject/**`) ([#907](https://github.com/MetaMask/controllers/pull/907))
+
+## [31.0.0]
+### Added
+- Add support for caveats on endowment permissions ([#878](https://github.com/MetaMask/controllers/pull/878))
+
+### Changed
+- **BREAKING:** Bump to Node 14 ([#893](https://github.com/MetaMask/controllers/pull/893))
+- **BREAKING:** PhishingController is now async ([#897](https://github.com/MetaMask/controllers/pull/897))
+  - `PhishingController.test` now returns a Promise
+  - `PhishingController.setRefreshInterval` should now be used to change the polling interval
+- Changed TokenController._createEthersContract to no longer be async ([#895](https://github.com/MetaMask/controllers/pull/895))
+
+## [30.3.0]
+### Added
+- Add new functionality to the CollectiblesController to verify the transaction state of a collectible ([#762](https://github.com/MetaMask/controllers/pull/762)).
+  - Add new method to the CollectiblesController to search a Collectible by smart contract address and token ID (`findCollectibleByAddressAndTokenId`).
+  - Add new method to the CollectiblesController to update the state of a Collectible (`updateCollectible`).
+  - Add new method to the CollectiblesController to reset the transaction status of a Collectible (`resetCollectibleTransactionStatusByTransactionId`).
+- Add new method `validatePassword` to KeyringController to validate the password ([#884](https://github.com/MetaMask/controllers/pull/884))
+- Add `formatIconUrlWithProxy` function for formatting iconUrl Proxy for tokens from Swaps API ([#889](https://github.com/MetaMask/controllers/pull/889))
+
+## [30.2.0]
+### Changed
+- Updated the Testnet Ticker string format to be prefixed with the network name (e.g. <network name>ETH) ([#868](https://github.com/MetaMask/controllers/pull/868))
+
+## [30.1.0]
+### Added
+- Allow clients to avoid third party tokenlist polling ([#861](https://github.com/MetaMask/controllers/pull/861)):
+  - Added a new configuration property `preventPollingOnNetworkRestart` is added to TokenListController.
+  - Added a method to update the new preventPollingOnNetworkRestart property value.
+  - Added a method to reset the `tokenList` and `tokensChainsCache` properties in state. 
+
+## [30.0.2]
+### Added
+- Adds method `isTokenListSupportedForNetwork` which returns `SupportedTokenDetectionNetworks` plus the local ganache network chainId. Then changes TokenListController to use this method to check whether or not to start polling, so that polling can occur on ganache networks to allow for e2e testing ([#855](https://github.com/MetaMask/controllers/pull/855))
+
+## [30.0.1]
+### Fixed
+- Change `formatIconUrlWithProxy` to accept hex strings for `chainId` ([#851](https://github.com/MetaMask/controllers/pull/851))
+ - This change fixes an issue introduced in v30.0.0 for metamask-extension where the `chainId` is currently represented as a hexadecimal in the TokensController and was, as a result, getting invalid URL responses from `formatIconUrlWithProxy` which previously expected its `chainId` argument to be in decimal format.
+
+## [30.0.0]
+### Added
+- **BREAKING:** Introduce `getNetworkState`, `getPreferencesState`, and `onTokenListStateChange` to the TokenDetectionController constructor options object ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - `getPreferencesState` provides the default value for `useTokenDetection` from the PreferencesController state.
+  - `getNetworkState` provides the default value for `chainId` from the NetworkController state.
+  - `onTokenListStateChange` listener triggers a detect action whenever the TokenListController finishes fetching a token list.
+- **BREAKING:** Update AssetsContractController to keep track of the current network (accessible via config.chainId) as well as whether the network supports token detection ([#809](https://github.com/MetaMask/controllers/pull/809))
+  - Consumers will need to pass listener method `onNetworkStateChange` in AssetsContractController constructor options object. This method should be called with network/provider details when network changes occur.
+- Add `onCollectibleAdded` event handler to the CollectiblesController constructor ([#814](https://github.com/MetaMask/controllers/pull/814))
+  - This event handler was added to allow us to capture metrics.
+
+### Changed
+- **BREAKING:** Rename `addTokens` on the TokenDetectionController constructor options object to `addDetectedTokens` ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - We are no longer automatically adding detected tokens to the wallet. This will provide users with the ability to manually import or ignore detected tokens.
+- **BREAKING:** Rename `useStaticTokenList` to `useTokenDetection` on the PreferencesController constructor options object and set the value to be true by default ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - Token detection will now be enabled by default.
+- **BREAKING:** Append phishfort blocklist to list used by PhishingController ([#715](https://github.com/MetaMask/controllers/pull/715))
+  - The `test` method on `PhishingController` no longer returns a boolean, it now returns an object matching the `EthPhishingDetectResult` interface (defined in `PhishingController.ts`).
+  - Designs may need to be updated to account for the fact that sites may now be blocked by Phishfort. We should ensure users are not directed to the `eth-phishing-detect` repository to dispute Phishfort blocks, because we will not be able to help them.
+- **BREAKING:** Rename `convertPriceToDecimal` function name to `convertHexToDecimal` ([#808](https://github.com/MetaMask/controllers/pull/808))
+- Rename `fetchFromDynamicTokenList` to `fetchTokenList` ([#806](https://github.com/MetaMask/controllers/pull/806))
+  - No need to mention dynamic in the naming since there is only one way to fetch the token list.
+- Update `fetchFromCache` in TokenListController to return `TokenListMap | null` instead of `TokenListToken[] | null` ([#806](https://github.com/MetaMask/controllers/pull/806))
+  - This allows us to remove some unnecessary mapping when working with cached tokens and token list.
+- Update `TokenListToken` in TokenListController to include `aggregators` property ([#806](https://github.com/MetaMask/controllers/pull/806))
+  - This allows us to show the aggregator names for a token.
+- Update TokensController to support detected tokens ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - Introduce `detectedTokens` to the config object to track detected tokens, which is updated by calling `addDetectedTokens` whenever TokenDetectionController detects new tokens.
+  - Added `fetchTokenMetadata` private method to fetch token metadata whenever adding individual tokens. This is currently used to populate aggregator information.
+- Append `detectedTokens` to both TokenBalancesController & TokenRatesController `tokens` config object within their `onTokensStateChange` listener methods ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - This change ensures that we are populating both balances and rates for detected tokens.
+- Update CollectibleDetectionController to place a proxy API (provided by Codefi) in front of OpenSea requests ([#805](https://github.com/MetaMask/controllers/pull/805))
+  - All NFT related queries that were routed to OpenSea will now first route to a proxy server owened by Codefi. If this first request fails, and an OpenSea API key has been set, the query will re-route to OpenSea as a fallback.
+- Update CurrencyRateController to use ETH exchange rate for preloaded testnets native currency (Rinkeby, Ropsten, Goerli, Kovan) ([#816](https://github.com/MetaMask/controllers/pull/816))
+- Update ERC721Standard to query for name and symbol values on ERC721 contracts even when the contract does not support the metadata interface ([#834](https://github.com/MetaMask/controllers/pull/834))
+- Increase polling interval for TokenListController and require minimum of 3 occurrences across our aggregated public token lists for use in the dynamic token list ([#836](https://github.com/MetaMask/controllers/pull/836))
+
+### Removed
+- **BREAKING:** Remove `removeAndIgnoreToken` from TokensController ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - The logic for removing token(s) is now consolidated in a new method named `ignoredTokens`. Consumers will need to update instances of `removeAndIgnoreToken` to use `ignoredTokens` instead.
+- **BREAKING:** Remove `onTokensStateChange` from the TokenDetectionController constructor options object ([#808](https://github.com/MetaMask/controllers/pull/808))
+  - This was previously used to update the `tokens` property in the controller's configuration object. This is not needed since those tokens are managed by the TokensController.
+- **BREAKING:** Remove `useStaticTokenList` and `onPreferencesStateChange` from TokenListController constructor options object ([#806](https://github.com/MetaMask/controllers/pull/806))
+  - `useStaticTokenList` was previously used to determined if this controller fetched against a static vs dynamic token list and `onPreferencesStateChange` was used to update `useStaticTokenList`.
+  - The controller now always fetches from a dynamic token list.
+- **BREAKING:** Remove snap-specific network-access endowment ([#820](https://github.com/MetaMask/controllers/pull/820))
+  - Consumers who still require this endowment should import from `@metamask/snap-controllers` minimum version 0.13.0.
+
+### Fixed
+- Update AssetsContractController to fix issues parsing non-standard ERC-20 responses ([#830](https://github.com/MetaMask/controllers/pull/830))
+ - Now correctly reads token contract values for decimals and symbol with solidity return type `bytes32`.
+
+## [29.0.1]
+### Added
+- Add SupportedTokenDetectionNetworks enum and util for token detection support. ([#811](https://github.com/MetaMask/controllers/pull/811))
+
+### Fixed
+- Fix bug introduced in v29.0.0 where `createNewVaultAndRestore` would crash with a validation failure. ([#819](https://github.com/MetaMask/controllers/pull/819))
+
+
+## [29.0.0]
+### Added
+- Reintroduce NotificationController for in-app notifications ([#709](https://github.com/MetaMask/controllers/pull/709))
+- Add optional token service timeout parameter([#793](https://github.com/MetaMask/controllers/pull/793))
+
+### Changed
+- **BREAKING**: Bump eth-keyring-controller to 7.0.1 ([#802](https://github.com/MetaMask/controllers/pull/802))
+  - Mnemonics in keyrings of type `HD Key Tree` are always serialized as arrays of numbers. `exportSeedPhrase` now returns a buffer rather than a string, consumers will need to adapt to this new return type accordingly.
+
+## [28.0.0]
+### Added
+- Add GrantPermissions action to PermissionsController ([#780](https://github.com/MetaMask/controllers/pull/780))
+- Add `PermissionController.revokePermissionForAllSubjects` action ([#764](https://github.com/MetaMask/controllers/pull/764))
+
+### Changed
+- **BREAKING:** Rename NotificationController to AnnouncementController ([#697](https://github.com/MetaMask/controllers/pull/697))
+  - The `NotificationController` class is now `AnnouncementController`.
+  - The controller `notifications` state has been renamed to `announcements`.
+  - All other exported types including the word "notification" have been updated to use the word "announcement" instead.
+
 ## [27.1.1]
 ### Fixed
 - Move `@keystonehq/metamask-airgapped-keyring` to dependencies ([#757](https://github.com/MetaMask/controllers/pull/757))
@@ -538,7 +665,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v27.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v31.1.0...HEAD
+[31.1.0]: https://github.com/MetaMask/controllers/compare/v31.0.0...v31.1.0
+[31.0.0]: https://github.com/MetaMask/controllers/compare/v30.3.0...v31.0.0
+[30.3.0]: https://github.com/MetaMask/controllers/compare/v30.2.0...v30.3.0
+[30.2.0]: https://github.com/MetaMask/controllers/compare/v30.1.0...v30.2.0
+[30.1.0]: https://github.com/MetaMask/controllers/compare/v30.0.2...v30.1.0
+[30.0.2]: https://github.com/MetaMask/controllers/compare/v30.0.1...v30.0.2
+[30.0.1]: https://github.com/MetaMask/controllers/compare/v30.0.0...v30.0.1
+[30.0.0]: https://github.com/MetaMask/controllers/compare/v29.0.1...v30.0.0
+[29.0.1]: https://github.com/MetaMask/controllers/compare/v29.0.0...v29.0.1
+[29.0.0]: https://github.com/MetaMask/controllers/compare/v28.0.0...v29.0.0
+[28.0.0]: https://github.com/MetaMask/controllers/compare/v27.1.1...v28.0.0
 [27.1.1]: https://github.com/MetaMask/controllers/compare/v27.1.0...v27.1.1
 [27.1.0]: https://github.com/MetaMask/controllers/compare/v27.0.0...v27.1.0
 [27.0.0]: https://github.com/MetaMask/controllers/compare/v26.0.0...v27.0.0

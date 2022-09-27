@@ -3,13 +3,21 @@ import contractsMap from '@metamask/contract-metadata';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { v1 as random } from 'uuid';
 import { Mutex } from 'async-mutex';
-import { ethers } from 'ethers';
+import { Contract } from '@ethersproject/contracts';
+import { Web3Provider } from '@ethersproject/providers';
+import { AbortController } from 'abort-controller';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import type { NetworkState, NetworkType } from '../network/NetworkController';
 import { validateTokenToWatch, toChecksumHexAddress } from '../util';
 import { MAINNET, ERC721_INTERFACE_ID } from '../constants';
+import {
+  fetchTokenMetadata,
+  TOKEN_METADATA_NO_SUPPORT_ERROR,
+} from '../apis/token-service';
 import type { Token } from './TokenRatesController';
+import { TokenListToken } from './TokenListController';
+import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
 
 /**
  * @type TokensConfig
@@ -76,18 +84,22 @@ export type SuggestedAssetMeta =
  * @type TokensState
  *
  * Assets controller state
- * @property allTokens - Object containing tokens by network and account
- * @property suggestedAssets - List of pending suggested assets to be added or canceled
  * @property tokens - List of tokens associated with the active network and address pair
  * @property ignoredTokens - List of ignoredTokens associated with the active network and address pair
+ * @property detectedTokens - List of detected tokens associated with the active network and address pair
+ * @property allTokens - Object containing tokens by network and account
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
+ * @property allDetectedTokens - Object containing tokens detected with non-zero balances
+ * @property suggestedAssets - List of pending suggested assets to be added or canceled
  */
 export interface TokensState extends BaseState {
+  tokens: Token[];
+  ignoredTokens: string[];
+  detectedTokens: Token[];
   allTokens: { [key: string]: { [key: string]: Token[] } };
   allIgnoredTokens: { [key: string]: { [key: string]: string[] } };
-  ignoredTokens: string[];
+  allDetectedTokens: { [key: string]: { [key: string]: Token[] } };
   suggestedAssets: SuggestedAssetMeta[];
-  tokens: Token[];
 }
 
 /**
@@ -101,9 +113,11 @@ export class TokensController extends BaseController<
 
   private ethersProvider: any;
 
+  private abortController: AbortController;
+
   private failSuggestedAsset(
     suggestedAssetMeta: SuggestedAssetMeta,
-    error: Error,
+    error: unknown,
   ) {
     const failedSuggestedAssetMeta = {
       ...suggestedAssetMeta,
@@ -117,6 +131,33 @@ export class TokensController extends BaseController<
   }
 
   /**
+   * Fetch metadata for a token.
+   *
+   * @param tokenAddress - The address of the token.
+   * @returns The token metadata.
+   */
+  private async fetchTokenMetadata(
+    tokenAddress: string,
+  ): Promise<TokenListToken | undefined> {
+    try {
+      const token = await fetchTokenMetadata<TokenListToken>(
+        this.config.chainId,
+        tokenAddress,
+        this.abortController.signal,
+      );
+      return token;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes(TOKEN_METADATA_NO_SUPPORT_ERROR)
+      ) {
+        return undefined;
+      }
+      throw error;
+    }
+  }
+
+  /**
    * EventEmitter instance used to listen to specific EIP747 events
    */
   hub = new EventEmitter();
@@ -124,7 +165,7 @@ export class TokensController extends BaseController<
   /**
    * Name of this controller used during composition
    */
-  name = 'TokensController';
+  override name = 'TokensController';
 
   /**
    * Creates a TokensController instance.
@@ -161,41 +202,48 @@ export class TokensController extends BaseController<
     };
 
     this.defaultState = {
+      tokens: [],
+      ignoredTokens: [],
+      detectedTokens: [],
       allTokens: {},
       allIgnoredTokens: {},
-      ignoredTokens: [],
+      allDetectedTokens: {},
       suggestedAssets: [],
-      tokens: [],
       ...state,
     };
 
     this.initialize();
+    this.abortController = new AbortController();
 
     onPreferencesStateChange(({ selectedAddress }) => {
-      const { allTokens, allIgnoredTokens } = this.state;
+      const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
       const { chainId } = this.config;
       this.configure({ selectedAddress });
       this.update({
         tokens: allTokens[chainId]?.[selectedAddress] || [],
         ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] || [],
+        detectedTokens: allDetectedTokens[chainId]?.[selectedAddress] || [],
       });
     });
 
     onNetworkStateChange(({ provider }) => {
-      const { allTokens, allIgnoredTokens } = this.state;
+      const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
       const { selectedAddress } = this.config;
       const { chainId } = provider;
+      this.abortController.abort();
+      this.abortController = new AbortController();
       this.configure({ chainId });
       this.ethersProvider = this._instantiateNewEthersProvider();
       this.update({
         tokens: allTokens[chainId]?.[selectedAddress] || [],
         ignoredTokens: allIgnoredTokens[chainId]?.[selectedAddress] || [],
+        detectedTokens: allDetectedTokens[chainId]?.[selectedAddress] || [],
       });
     });
   }
 
   _instantiateNewEthersProvider(): any {
-    return new ethers.providers.Web3Provider(this.config?.provider);
+    return new Web3Provider(this.config?.provider);
   }
 
   /**
@@ -213,64 +261,185 @@ export class TokensController extends BaseController<
     decimals: number,
     image?: string,
   ): Promise<Token[]> {
+    const currentChainId = this.config.chainId;
     const releaseLock = await this.mutex.acquire();
     try {
       address = toChecksumHexAddress(address);
-      const { tokens, ignoredTokens } = this.state;
-      const isERC721 = await this._detectIsERC721(address);
-      const newEntry: Token = { address, symbol, decimals, image, isERC721 };
-      const previousEntry = tokens.find(
+      const { tokens, ignoredTokens, detectedTokens } = this.state;
+      const newTokens: Token[] = [...tokens];
+      const [isERC721, tokenMetadata] = await Promise.all([
+        this._detectIsERC721(address),
+        this.fetchTokenMetadata(address),
+      ]);
+      if (currentChainId !== this.config.chainId) {
+        throw new Error(
+          'TokensController Error: Switched networks while adding token',
+        );
+      }
+      const newEntry: Token = {
+        address,
+        symbol,
+        decimals,
+        image:
+          image ||
+          formatIconUrlWithProxy({
+            chainId: this.config.chainId,
+            tokenAddress: address,
+          }),
+        isERC721,
+        aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
+      };
+      const previousEntry = newTokens.find(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
       );
       if (previousEntry) {
-        const previousIndex = tokens.indexOf(previousEntry);
-        tokens[previousIndex] = newEntry;
+        const previousIndex = newTokens.indexOf(previousEntry);
+        newTokens[previousIndex] = newEntry;
       } else {
-        tokens.push(newEntry);
+        newTokens.push(newEntry);
       }
 
       const newIgnoredTokens = ignoredTokens.filter(
         (tokenAddress) => tokenAddress.toLowerCase() !== address.toLowerCase(),
       );
-      const { newAllTokens, newAllIgnoredTokens } = this._getNewAllTokensState(
-        tokens,
-        newIgnoredTokens,
+      const newDetectedTokens = detectedTokens.filter(
+        (token) => token.address.toLowerCase() !== address.toLowerCase(),
       );
+      const { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens } =
+        this._getNewAllTokensState({
+          newTokens,
+          newIgnoredTokens,
+          newDetectedTokens,
+        });
 
       this.update({
-        allTokens: newAllTokens,
-        tokens,
-        allIgnoredTokens: newAllIgnoredTokens,
+        tokens: newTokens,
         ignoredTokens: newIgnoredTokens,
+        detectedTokens: newDetectedTokens,
+        allTokens: newAllTokens,
+        allIgnoredTokens: newAllIgnoredTokens,
+        allDetectedTokens: newAllDetectedTokens,
       });
-      return tokens;
+      return newTokens;
     } finally {
       releaseLock();
     }
   }
 
   /**
-   * Adds a batch of tokens to the stored token list.
+   * Add a batch of tokens.
    *
-   * @param tokensToAdd - Array of Tokens to be added or updated.
-   * @returns Current token list.
+   * @param tokensToImport - Array of tokens to import.
    */
-  async addTokens(tokensToAdd: Token[]): Promise<Token[]> {
+  async addTokens(tokensToImport: Token[]) {
     const releaseLock = await this.mutex.acquire();
-    const { tokens, ignoredTokens } = this.state;
+    const { tokens, detectedTokens, ignoredTokens } = this.state;
+    const importedTokensMap: { [key: string]: true } = {};
+    // Used later to dedupe imported tokens
+    const newTokensMap = tokens.reduce((output, current) => {
+      output[current.address] = current;
+      return output;
+    }, {} as { [address: string]: Token });
 
     try {
-      tokensToAdd = await Promise.all(
-        tokensToAdd.map(async (token) => {
-          token.isERC721 = await this._detectIsERC721(token.address);
-          return token;
-        }),
+      tokensToImport.forEach((tokenToAdd) => {
+        const { address, symbol, decimals, image, aggregators } = tokenToAdd;
+        const checksumAddress = toChecksumHexAddress(address);
+        const formattedToken: Token = {
+          address: checksumAddress,
+          symbol,
+          decimals,
+          image,
+          aggregators,
+        };
+        newTokensMap[address] = formattedToken;
+        importedTokensMap[address.toLowerCase()] = true;
+        return formattedToken;
+      });
+      const newTokens = Object.values(newTokensMap);
+
+      const newDetectedTokens = detectedTokens.filter(
+        (token) => !importedTokensMap[token.address.toLowerCase()],
+      );
+      const newIgnoredTokens = ignoredTokens.filter(
+        (tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()],
       );
 
-      let newIgnoredTokens = ignoredTokens;
+      const { newAllTokens, newAllDetectedTokens, newAllIgnoredTokens } =
+        this._getNewAllTokensState({
+          newTokens,
+          newDetectedTokens,
+          newIgnoredTokens,
+        });
 
-      tokensToAdd.forEach((tokenToAdd) => {
-        const { address, symbol, decimals, image, isERC721 } = tokenToAdd;
+      this.update({
+        tokens: newTokens,
+        allTokens: newAllTokens,
+        detectedTokens: newDetectedTokens,
+        allDetectedTokens: newAllDetectedTokens,
+        ignoredTokens: newIgnoredTokens,
+        allIgnoredTokens: newAllIgnoredTokens,
+      });
+    } finally {
+      releaseLock();
+    }
+  }
+
+  /**
+   * Ignore a batch of tokens.
+   *
+   * @param tokenAddressesToIgnore - Array of token addresses to ignore.
+   */
+  ignoreTokens(tokenAddressesToIgnore: string[]) {
+    const { ignoredTokens, detectedTokens, tokens } = this.state;
+    const ignoredTokensMap: { [key: string]: true } = {};
+    let newIgnoredTokens: string[] = [...ignoredTokens];
+
+    const checksummedTokenAddresses = tokenAddressesToIgnore.map((address) => {
+      const checksumAddress = toChecksumHexAddress(address);
+      ignoredTokensMap[address.toLowerCase()] = true;
+      return checksumAddress;
+    });
+    newIgnoredTokens = [...ignoredTokens, ...checksummedTokenAddresses];
+    const newDetectedTokens = detectedTokens.filter(
+      (token) => !ignoredTokensMap[token.address.toLowerCase()],
+    );
+    const newTokens = tokens.filter(
+      (token) => !ignoredTokensMap[token.address.toLowerCase()],
+    );
+
+    const { newAllIgnoredTokens, newAllDetectedTokens, newAllTokens } =
+      this._getNewAllTokensState({
+        newIgnoredTokens,
+        newDetectedTokens,
+        newTokens,
+      });
+
+    this.update({
+      ignoredTokens: newIgnoredTokens,
+      tokens: newTokens,
+      detectedTokens: newDetectedTokens,
+      allIgnoredTokens: newAllIgnoredTokens,
+      allDetectedTokens: newAllDetectedTokens,
+      allTokens: newAllTokens,
+    });
+  }
+
+  /**
+   * Adds a batch of detected tokens to the stored token list.
+   *
+   * @param incomingDetectedTokens - Array of detected tokens to be added or updated.
+   */
+  async addDetectedTokens(incomingDetectedTokens: Token[]) {
+    const releaseLock = await this.mutex.acquire();
+    const { tokens, detectedTokens, ignoredTokens } = this.state;
+    const newTokens: Token[] = [...tokens];
+    const newDetectedTokens: Token[] = [...detectedTokens];
+
+    try {
+      incomingDetectedTokens.forEach((tokenToAdd) => {
+        const { address, symbol, decimals, image, aggregators, isERC721 } =
+          tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const newEntry: Token = {
           address: checksumAddress,
@@ -278,37 +447,51 @@ export class TokensController extends BaseController<
           decimals,
           image,
           isERC721,
+          aggregators,
         };
-        const previousEntry = tokens.find(
+        const previousImportedEntry = newTokens.find(
           (token) =>
             token.address.toLowerCase() === checksumAddress.toLowerCase(),
         );
-        if (previousEntry) {
-          const previousIndex = tokens.indexOf(previousEntry);
-          tokens[previousIndex] = newEntry;
+        if (previousImportedEntry) {
+          // Update existing data of imported token
+          const previousImportedIndex = newTokens.indexOf(
+            previousImportedEntry,
+          );
+          newTokens[previousImportedIndex] = newEntry;
         } else {
-          tokens.push(newEntry);
+          const ignoredTokenIndex = ignoredTokens.indexOf(address);
+          if (ignoredTokenIndex === -1) {
+            // Add detected token
+            const previousDetectedEntry = newDetectedTokens.find(
+              (token) =>
+                token.address.toLowerCase() === checksumAddress.toLowerCase(),
+            );
+            if (previousDetectedEntry) {
+              const previousDetectedIndex = newDetectedTokens.indexOf(
+                previousDetectedEntry,
+              );
+              newDetectedTokens[previousDetectedIndex] = newEntry;
+            } else {
+              newDetectedTokens.push(newEntry);
+            }
+          }
         }
-
-        newIgnoredTokens = newIgnoredTokens.filter(
-          (tokenAddress) =>
-            tokenAddress.toLowerCase() !== address.toLowerCase(),
-        );
       });
 
-      const { newAllTokens, newAllIgnoredTokens } = this._getNewAllTokensState(
-        tokens,
-        newIgnoredTokens,
+      const { newAllTokens, newAllDetectedTokens } = this._getNewAllTokensState(
+        {
+          newTokens,
+          newDetectedTokens,
+        },
       );
 
       this.update({
-        tokens,
+        tokens: newTokens,
         allTokens: newAllTokens,
-        allIgnoredTokens: newAllIgnoredTokens,
-        ignoredTokens: newIgnoredTokens,
+        detectedTokens: newDetectedTokens,
+        allDetectedTokens: newAllDetectedTokens,
       });
-
-      return tokens;
     } finally {
       releaseLock();
     }
@@ -349,7 +532,7 @@ export class TokensController extends BaseController<
       return Promise.resolve(false);
     }
 
-    const tokenContract = await this._createEthersContract(
+    const tokenContract = this._createEthersContract(
       tokenAddress,
       abiERC721,
       this.ethersProvider,
@@ -365,16 +548,12 @@ export class TokensController extends BaseController<
     }
   }
 
-  async _createEthersContract(
+  _createEthersContract(
     tokenAddress: string,
     abi: string,
     ethersProvider: any,
-  ): Promise<any> {
-    const tokenContract = await new ethers.Contract(
-      tokenAddress,
-      abi,
-      ethersProvider,
-    );
+  ): Contract {
+    const tokenContract = new Contract(tokenAddress, abi, ethersProvider);
     return tokenContract;
   }
 
@@ -499,72 +678,63 @@ export class TokensController extends BaseController<
   }
 
   /**
-   * Removes a token from the stored token list and saves it in ignored tokens list.
-   *
-   * @param address - The hex address of the token contract.
-   */
-  removeAndIgnoreToken(address: string) {
-    address = toChecksumHexAddress(address);
-    const { tokens, ignoredTokens } = this.state;
-
-    const alreadyIgnored = ignoredTokens.find(
-      (tokenAddress) => tokenAddress.toLowerCase() === address.toLowerCase(),
-    );
-
-    const newTokens = tokens.filter((token) => {
-      if (token.address.toLowerCase() === address.toLowerCase()) {
-        !alreadyIgnored && ignoredTokens.push(address);
-        return false;
-      }
-      return true;
-    });
-
-    const { newAllTokens, newAllIgnoredTokens } = this._getNewAllTokensState(
-      newTokens,
-      ignoredTokens,
-    );
-
-    this.update({
-      allTokens: newAllTokens,
-      tokens: newTokens,
-      allIgnoredTokens: newAllIgnoredTokens,
-      ignoredTokens,
-    });
-  }
-
-  /**
    * Takes a new tokens and ignoredTokens array for the current network/account combination
    * and returns new allTokens and allIgnoredTokens state to update to.
    *
-   * @param newTokens - The new tokens to set for the current network and selected account.
-   * @param newIgnoredTokens - The new ignored tokens to set for the current network and selected account.
+   * @param params - Object that holds token params.
+   * @param params.newTokens - The new tokens to set for the current network and selected account.
+   * @param params.newIgnoredTokens - The new ignored tokens to set for the current network and selected account.
+   * @param params.newDetectedTokens - The new detected tokens to set for the current network and selected account.
    * @returns The updated `allTokens` and `allIgnoredTokens` state.
    */
-  _getNewAllTokensState(newTokens: Token[], newIgnoredTokens: string[]) {
-    const { allTokens, allIgnoredTokens } = this.state;
+  _getNewAllTokensState(params: {
+    newTokens?: Token[];
+    newIgnoredTokens?: string[];
+    newDetectedTokens?: Token[];
+  }) {
+    const { newTokens, newIgnoredTokens, newDetectedTokens } = params;
+    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const { chainId, selectedAddress } = this.config;
-    const networkTokens = allTokens[chainId];
-    const networkIgnoredTokens = allIgnoredTokens[chainId];
 
-    const newNetworkTokens = {
-      ...networkTokens,
-      ...{ [selectedAddress]: newTokens },
-    };
-    const newIgnoredNetworkTokens = {
-      ...networkIgnoredTokens,
-      ...{ [selectedAddress]: newIgnoredTokens },
-    };
+    let newAllTokens = allTokens;
+    if (newTokens) {
+      const networkTokens = allTokens[chainId];
+      const newNetworkTokens = {
+        ...networkTokens,
+        ...{ [selectedAddress]: newTokens },
+      };
+      newAllTokens = {
+        ...allTokens,
+        ...{ [chainId]: newNetworkTokens },
+      };
+    }
 
-    const newAllTokens = {
-      ...allTokens,
-      ...{ [chainId]: newNetworkTokens },
-    };
+    let newAllIgnoredTokens = allIgnoredTokens;
+    if (newIgnoredTokens) {
+      const networkIgnoredTokens = allIgnoredTokens[chainId];
+      const newIgnoredNetworkTokens = {
+        ...networkIgnoredTokens,
+        ...{ [selectedAddress]: newIgnoredTokens },
+      };
+      newAllIgnoredTokens = {
+        ...allIgnoredTokens,
+        ...{ [chainId]: newIgnoredNetworkTokens },
+      };
+    }
 
-    const newAllIgnoredTokens = {
-      ...allIgnoredTokens,
-      ...{ [chainId]: newIgnoredNetworkTokens },
-    };
-    return { newAllTokens, newAllIgnoredTokens };
+    let newAllDetectedTokens = allDetectedTokens;
+    if (newDetectedTokens) {
+      const networkDetectedTokens = allDetectedTokens[chainId];
+      const newDetectedNetworkTokens = {
+        ...networkDetectedTokens,
+        ...{ [selectedAddress]: newDetectedTokens },
+      };
+      newAllDetectedTokens = {
+        ...allDetectedTokens,
+        ...{ [chainId]: newDetectedNetworkTokens },
+      };
+    }
+    return { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens };
   }
 
   /**

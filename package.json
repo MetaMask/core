@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers",
-  "version": "27.1.1",
+  "version": "31.1.0",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "keywords": [
     "MetaMask",
@@ -21,24 +21,31 @@
     "dist/"
   ],
   "scripts": {
-    "setup": "yarn install && yarn allow-scripts",
-    "prepublishOnly": "yarn build",
-    "lint:eslint": "eslint . --cache --ext js,ts",
-    "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' --ignore-path .gitignore",
-    "lint": "yarn lint:eslint && yarn lint:misc --check",
-    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "build": "rimraf dist && tsc --project .",
-    "build:watch": "yarn build --watch",
+    "build": "rimraf dist && tsc --project tsconfig.build.json",
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
-    "doc": "typedoc && touch docs/.nojekyll"
+    "build:watch": "yarn build --watch",
+    "doc": "typedoc && touch docs/.nojekyll",
+    "lint": "yarn lint:eslint && yarn lint:misc --check",
+    "lint:eslint": "eslint . --cache --ext js,ts",
+    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
+    "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore",
+    "prepack": "./scripts/prepack.sh",
+    "setup": "yarn install",
+    "test": "jest",
+    "test:debug": "yarn run --inspect-brk jest --runInBand",
+    "test:watch": "jest --watch"
+  },
+  "simple-git-hooks": {
+    "pre-push": "yarn lint"
   },
   "dependencies": {
     "@ethereumjs/common": "^2.3.1",
     "@ethereumjs/tx": "^3.2.1",
-    "@keystonehq/metamask-airgapped-keyring": "^0.3.0",
-    "@metamask/contract-metadata": "^1.33.0",
+    "@ethersproject/abi": "^5.7.0",
+    "@ethersproject/contracts": "^5.7.0",
+    "@ethersproject/providers": "^5.7.0",
+    "@keystonehq/metamask-airgapped-keyring": "^0.6.1",
+    "@metamask/contract-metadata": "^1.35.0",
     "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/types": "^1.1.0",
     "@types/uuid": "^8.3.0",
@@ -48,15 +55,14 @@
     "deep-freeze-strict": "^1.1.1",
     "eth-ens-namehash": "^2.0.8",
     "eth-json-rpc-infura": "^5.1.0",
-    "eth-keyring-controller": "^6.2.1",
+    "eth-keyring-controller": "^7.0.2",
     "eth-method-registry": "1.1.0",
-    "eth-phishing-detect": "^1.1.16",
+    "eth-phishing-detect": "^1.2.0",
     "eth-query": "^2.1.2",
     "eth-rpc-errors": "^4.0.0",
     "eth-sig-util": "^3.0.0",
     "ethereumjs-util": "^7.0.10",
     "ethereumjs-wallet": "^1.0.1",
-    "ethers": "^5.4.1",
     "ethjs-unit": "^0.1.6",
     "fast-deep-equal": "^3.1.3",
     "immer": "^9.0.6",
@@ -73,8 +79,8 @@
   },
   "devDependencies": {
     "@keystonehq/bc-ur-registry-eth": "^0.9.0",
-    "@lavamoat/allow-scripts": "^1.0.6",
-    "@metamask/auto-changelog": "^2.5.0",
+    "@lavamoat/allow-scripts": "^2.0.2",
+    "@metamask/auto-changelog": "^2.6.0",
     "@metamask/eslint-config": "^9.0.0",
     "@metamask/eslint-config-jest": "^9.0.0",
     "@metamask/eslint-config-nodejs": "^9.0.0",
@@ -86,31 +92,34 @@
     "@types/punycode": "^2.1.0",
     "@types/sinon": "^9.0.10",
     "@types/web3": "^1.0.6",
-    "@typescript-eslint/eslint-plugin": "^4.22.0",
-    "@typescript-eslint/parser": "^4.22.0",
+    "@typescript-eslint/eslint-plugin": "^4.33.0",
+    "@typescript-eslint/parser": "^4.33.0",
     "eslint": "^7.24.0",
-    "eslint-config-prettier": "^8.1.0",
+    "eslint-config-prettier": "^8.5.0",
     "eslint-import-resolver-typescript": "^2.4.0",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-jest": "^24.1.5",
     "eslint-plugin-jsdoc": "^36.1.0",
     "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-prettier": "^3.3.1",
+    "eslint-plugin-prettier": "^3.4.1",
     "ethjs-provider-http": "^0.1.6",
     "jest": "^26.4.2",
     "jest-environment-jsdom": "^25.0.0",
     "jest-when": "^3.4.2",
     "nock": "^13.0.7",
-    "prettier": "^2.2.1",
-    "prettier-plugin-packagejson": "^2.2.11",
+    "prettier": "^2.6.2",
+    "prettier-plugin-packagejson": "^2.2.17",
     "rimraf": "^3.0.2",
+    "simple-git-hooks": "^2.8.0",
     "sinon": "^9.2.4",
     "ts-jest": "^26.5.2",
-    "typedoc": "^0.20.32",
-    "typescript": "~4.2.2"
+    "typedoc": "^0.22.15",
+    "typedoc-plugin-missing-exports": "^0.22.6",
+    "typescript": "~4.6.3"
   },
+  "packageManager": "yarn@3.2.1",
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=14.0.0"
   },
   "publishConfig": {
     "access": "public",
@@ -119,10 +128,14 @@
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,
-      "core-js": false,
-      "keccak": true,
-      "secp256k1": true,
-      "sha3": true
+      "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
+      "babel-runtime>core-js": false,
+      "eth-sig-util>ethereumjs-abi>ethereumjs-util>keccakjs>sha3": true,
+      "eth-sig-util>ethereumjs-util>keccak": true,
+      "eth-sig-util>ethereumjs-util>secp256k1": true,
+      "ethereumjs-util>ethereum-cryptography>keccak": true,
+      "ethereumjs-util>ethereum-cryptography>secp256k1": true,
+      "simple-git-hooks": false
     }
   }
 }

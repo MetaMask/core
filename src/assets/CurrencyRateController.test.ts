@@ -1,6 +1,7 @@
-import { stub } from 'sinon';
+import sinon from 'sinon';
 import nock from 'nock';
 import { ControllerMessenger } from '../ControllerMessenger';
+import { TESTNET_TICKER_SYMBOLS } from '../constants';
 import {
   CurrencyRateController,
   CurrencyRateStateChange,
@@ -34,14 +35,13 @@ const getStubbedDate = () => {
 };
 
 describe('CurrencyRateController', () => {
-  const realDate = Date.now;
   afterEach(() => {
     nock.cleanAll();
-    global.Date.now = realDate;
+    sinon.restore();
   });
 
   it('should set default state', () => {
-    const fetchExchangeRateStub = stub();
+    const fetchExchangeRateStub = sinon.stub();
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       fetchExchangeRate: fetchExchangeRateStub,
@@ -61,7 +61,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should initialize with initial state', () => {
-    const fetchExchangeRateStub = stub();
+    const fetchExchangeRateStub = sinon.stub();
     const messenger = getRestrictedMessenger();
     const existingState = { currentCurrency: 'rep' };
     const controller = new CurrencyRateController({
@@ -83,7 +83,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should not poll before being started', async () => {
-    const fetchExchangeRateStub = stub();
+    const fetchExchangeRateStub = sinon.stub();
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
@@ -98,7 +98,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should poll and update rate in the right interval', async () => {
-    const fetchExchangeRateStub = stub();
+    const fetchExchangeRateStub = sinon.stub();
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
@@ -117,7 +117,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should not poll after being stopped', async () => {
-    const fetchExchangeRateStub = stub();
+    const fetchExchangeRateStub = sinon.stub();
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
@@ -138,7 +138,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should poll correctly after being started, stopped, and started again', async () => {
-    const fetchExchangeRateStub = stub();
+    const fetchExchangeRateStub = sinon.stub();
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
@@ -162,7 +162,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should update exchange rate', async () => {
-    const fetchExchangeRateStub = stub().resolves({ conversionRate: 10 });
+    const fetchExchangeRateStub = sinon.stub().resolves({ conversionRate: 10 });
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 10,
@@ -176,8 +176,41 @@ describe('CurrencyRateController', () => {
     controller.destroy();
   });
 
+  it('should update exchange rate to ETH conversion rate when native currency is testnet ETH', async () => {
+    const fetchExchangeRateStub = jest
+      .fn()
+      .mockImplementation((_, nativeCurrency) => {
+        if (nativeCurrency === 'ETH') {
+          return {
+            conversionRate: 10,
+          };
+        } else if (nativeCurrency === 'DAI') {
+          return {
+            conversionRate: 1,
+          };
+        }
+        return {
+          conversionRate: 0,
+        };
+      });
+    const messenger = getRestrictedMessenger();
+    const controller = new CurrencyRateController({
+      fetchExchangeRate: fetchExchangeRateStub,
+      messenger,
+    });
+
+    await controller.setNativeCurrency('DAI');
+    await controller.updateExchangeRate();
+    expect(controller.state.conversionRate).toStrictEqual(1);
+    await controller.updateExchangeRate();
+    await controller.setNativeCurrency(TESTNET_TICKER_SYMBOLS.RINKEBY);
+    expect(controller.state.conversionRate).toStrictEqual(10);
+
+    controller.destroy();
+  });
+
   it('should update current currency', async () => {
-    const fetchExchangeRateStub = stub().resolves({ conversionRate: 10 });
+    const fetchExchangeRateStub = sinon.stub().resolves({ conversionRate: 10 });
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 10,
@@ -192,7 +225,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should update native currency', async () => {
-    const fetchExchangeRateStub = stub().resolves({ conversionRate: 10 });
+    const fetchExchangeRateStub = sinon.stub().resolves({ conversionRate: 10 });
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 10,
@@ -207,7 +240,7 @@ describe('CurrencyRateController', () => {
   });
 
   it('should add usd rate to state when includeUsdRate is configured true', async () => {
-    const fetchExchangeRateStub = stub().resolves({});
+    const fetchExchangeRateStub = sinon.stub().resolves({});
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       includeUsdRate: true,

@@ -1,4 +1,4 @@
-import { stub, spy } from 'sinon';
+import sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
 import type { ContactEntry } from '../user/AddressBookController';
 import { PreferencesController } from '../user/PreferencesController';
@@ -10,9 +10,13 @@ const provider = new HttpProvider(
 );
 
 describe('AccountTrackerController', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
+
   it('should set default state', () => {
     const controller = new AccountTrackerController({
-      onPreferencesStateChange: stub(),
+      onPreferencesStateChange: sinon.stub(),
       getIdentities: () => ({}),
     });
     expect(controller.state).toStrictEqual({
@@ -22,7 +26,7 @@ describe('AccountTrackerController', () => {
 
   it('should throw when provider property is accessed', () => {
     const controller = new AccountTrackerController({
-      onPreferencesStateChange: stub(),
+      onPreferencesStateChange: sinon.stub(),
       getIdentities: () => ({}),
     });
     expect(() => console.log(controller.provider)).toThrow(
@@ -34,7 +38,7 @@ describe('AccountTrackerController', () => {
     const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     const controller = new AccountTrackerController(
       {
-        onPreferencesStateChange: stub(),
+        onPreferencesStateChange: sinon.stub(),
         getIdentities: () => {
           return { [address]: {} as ContactEntry };
         },
@@ -47,10 +51,10 @@ describe('AccountTrackerController', () => {
 
   it('should sync balance with addresses', async () => {
     const address = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
-    const queryStub = stub(utils, 'query');
+    const queryStub = sinon.stub(utils, 'query');
     const controller = new AccountTrackerController(
       {
-        onPreferencesStateChange: stub(),
+        onPreferencesStateChange: sinon.stub(),
         getIdentities: () => {
           return {};
         },
@@ -65,7 +69,7 @@ describe('AccountTrackerController', () => {
   it('should sync addresses', () => {
     const controller = new AccountTrackerController(
       {
-        onPreferencesStateChange: stub(),
+        onPreferencesStateChange: sinon.stub(),
         getIdentities: () => {
           return { baz: {} as ContactEntry };
         },
@@ -93,7 +97,7 @@ describe('AccountTrackerController', () => {
       },
       { provider },
     );
-    controller.refresh = stub();
+    controller.refresh = sinon.stub();
 
     preferences.setFeatureFlag('foo', true);
     expect((controller.refresh as any).called).toBe(true);
@@ -102,7 +106,7 @@ describe('AccountTrackerController', () => {
   it('should call refresh every ten seconds', async () => {
     await new Promise<void>((resolve) => {
       const preferences = new PreferencesController();
-      const poll = spy(AccountTrackerController.prototype, 'poll');
+      const poll = sinon.spy(AccountTrackerController.prototype, 'poll');
       const controller = new AccountTrackerController(
         {
           onPreferencesStateChange: (listener) =>
@@ -111,7 +115,7 @@ describe('AccountTrackerController', () => {
         },
         { provider, interval: 100 },
       );
-      stub(controller, 'refresh');
+      sinon.stub(controller, 'refresh');
 
       expect(poll.called).toBe(true);
       expect(poll.calledTwice).toBe(false);
