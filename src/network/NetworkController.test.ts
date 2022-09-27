@@ -133,9 +133,9 @@ describe('NetworkController', () => {
     expect(controller.state.isCustomNetwork).toBe(false);
   });
 
-  it('should set new provider type', () => {
+  it('should set new provider type', async () => {
     const controller = new NetworkController({ messenger });
-    controller.setProviderType('localhost');
+    await controller.setProviderType('localhost');
     expect(controller.state.provider.type).toBe('localhost');
     expect(controller.state.isCustomNetwork).toBe(false);
   });
@@ -151,22 +151,21 @@ describe('NetworkController', () => {
     expect(controller.state.isCustomNetwork).toBe(false);
   });
 
-  it('should set mainnet provider type', () => {
+  it.only('should set mainnet provider type', async () => {
     const controller = new NetworkController({
       messenger,
       infuraProjectId: '123',
     });
-    controller.setProviderType('mainnet' as NetworkType);
+    await controller.setProviderType('mainnet' as NetworkType);
     expect(controller.state.provider.type).toBe('mainnet');
     expect(controller.state.provider.ticker).toBe('ETH');
     expect(controller.state.isCustomNetwork).toBe(false);
   });
 
-  it('should throw when setting an unrecognized provider type', () => {
+  it('should throw when setting an unrecognized provider type', async () => {
+    expect.assertions(1);
     const controller = new NetworkController({ messenger });
-    expect(() => controller.setProviderType('junk' as NetworkType)).toThrow(
-      "Unrecognized network type: 'junk'",
-    );
+    await expect(controller.setProviderType('junk' as NetworkType)).rejects.toThrow("Unrecognized network type: 'junk'");
   });
 
   it('should verify the network on an error', async () => {
