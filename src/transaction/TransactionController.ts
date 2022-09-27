@@ -518,7 +518,7 @@ export class TransactionController extends BaseController<
     };
 
     try {
-      const { gas,estimateGasError } = await this.estimateGas(transaction);
+      const { gas, estimateGasError } = await this.estimateGas(transaction);
       transaction.gas = gas;
       transaction.estimateGasError = estimateGasError;
     } catch (error: any) {
@@ -992,12 +992,12 @@ export class TransactionController extends BaseController<
     estimatedTransaction.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
 
     let gasHex;
-    let estimateGasError
-    try{
-     gasHex = await query(this.ethQuery, 'estimateGas', [
-      estimatedTransaction,
-    ]);
-    }catch(error){
+    let estimateGasError;
+    try {
+      gasHex = await query(this.ethQuery, 'estimateGas', [
+        estimatedTransaction,
+      ]);
+    } catch (error) {
       estimateGasError = ESTIMATE_GAS_ERROR;
     }
     // 4. Pad estimated gas without exceeding the most recent block gasLimit. If the network is a
@@ -1012,7 +1012,11 @@ export class TransactionController extends BaseController<
 
     /* istanbul ignore next */
     if (paddedGasBN.lt(maxGasBN)) {
-      return { gas: addHexPrefix(BNToHex(paddedGasBN)), gasPrice, estimateGasError };
+      return {
+        gas: addHexPrefix(BNToHex(paddedGasBN)),
+        gasPrice,
+        estimateGasError,
+      };
     }
     return { gas: addHexPrefix(BNToHex(maxGasBN)), gasPrice };
   }
