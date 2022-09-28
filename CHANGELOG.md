@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [31.2.0]
-### Uncategorized
-- Update phishing endpoints and fix issues with new implementation ([#915](https://github.com/MetaMask/controllers/pull/915))
-- [FIX] - Allow Optimism & Optimism Testnet to be added via wallet_addEthereumChain ([#910](https://github.com/MetaMask/controllers/pull/910))
-- bump @keystonehq/metamask-airgapped-keyring to latest version ([#913](https://github.com/MetaMask/controllers/pull/913))
-- Improve PhishingController tests ([#916](https://github.com/MetaMask/controllers/pull/916))
-- Add Git hook to run linter before pushing ([#898](https://github.com/MetaMask/controllers/pull/898))
+### Changed
+- Update phishing configuration update URL to reduce cache delay ([#915](https://github.com/MetaMask/controllers/pull/915))
+- Update `@keystonehq/metamask-airgapped-keyring` from `^0.3.0` to `^0.6.1` ([#913](https://github.com/MetaMask/controllers/pull/913))
+
+### Fixed
+- Allow Optimism & Optimism Testnet to be added via `wallet_addEthereumChain` ([#910](https://github.com/MetaMask/controllers/pull/910))
+- Fix regression where a phishing configuration update network failure would cause the `test` method to fail ([#915](https://github.com/MetaMask/controllers/pull/915))
+- Prevent duplicate phishing configuration update network requests ([#915](https://github.com/MetaMask/controllers/pull/915))
 
 ## [31.1.0]
 ### Added
