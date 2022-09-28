@@ -320,10 +320,10 @@ export function normalizeTransaction(transaction: Transaction) {
  * @param logError - Determines if the error should be logged.
  * @returns Promise resolving to the result of the async operation.
  */
-export async function safelyExecute<T>(
-  operation: () => Promise<T>,
+export async function safelyExecute(
+  operation: () => Promise<any>,
   logError = false,
-): Promise<T | undefined> {
+) {
   try {
     return await operation();
   } catch (error: any) {
