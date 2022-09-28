@@ -206,10 +206,8 @@ export class PhishingController extends BaseController<
 
     // We ignore network failures here instead of bubbling them up
     const [metamaskConfigLegacy, phishfortHotlist] = await Promise.all([
-      safelyExecute(() =>
-        this.queryConfig<EthPhishingResponse>(METAMASK_CONFIG_URL),
-      ),
-      safelyExecute(() => this.queryConfig<string[]>(PHISHFORT_HOTLIST_URL)),
+      this.queryConfig<EthPhishingResponse>(METAMASK_CONFIG_URL),
+      this.queryConfig<string[]>(PHISHFORT_HOTLIST_URL),
     ]);
 
     // Correctly shaping MetaMask config.
@@ -254,7 +252,10 @@ export class PhishingController extends BaseController<
   private async queryConfig<ResponseType>(
     input: RequestInfo,
   ): Promise<ResponseType | null> {
-    const response = await fetch(input, { cache: 'no-cache' });
+    const response = await safelyExecute(
+      () => fetch(input, { cache: 'no-cache' }),
+      true,
+    );
 
     switch (response?.status) {
       case 200: {
