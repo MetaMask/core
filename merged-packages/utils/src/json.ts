@@ -101,9 +101,24 @@ export const JsonRpcErrorStruct = object({
 });
 
 /**
- * A JSON-RPC error object.
+ * Mark a certain key of a type as optional.
  */
-export type JsonRpcError = Infer<typeof JsonRpcErrorStruct>;
+export type OptionalField<
+  Type extends Record<string, unknown>,
+  Key extends keyof Type
+> = Omit<Type, Key> & Partial<Pick<Type, Key>>;
+
+/**
+ * A JSON-RPC error object.
+ *
+ * Note that TypeScript infers `unknown | undefined` as `unknown`, meaning that
+ * the `data` field is not optional. To make it optional, we use the
+ * `OptionalField` helper, to explicitly make it optional.
+ */
+export type JsonRpcError = OptionalField<
+  Infer<typeof JsonRpcErrorStruct>,
+  'data'
+>;
 
 export const JsonRpcParamsStruct = optional(union([object(), array()]));
 
@@ -224,7 +239,7 @@ export type JsonRpcSuccess<Result extends Json> = Omit<
 export const JsonRpcFailureStruct = object({
   id: JsonRpcIdStruct,
   jsonrpc: JsonRpcVersionStruct,
-  error: JsonRpcErrorStruct,
+  error: JsonRpcErrorStruct as Struct<JsonRpcError>,
 });
 
 /**
