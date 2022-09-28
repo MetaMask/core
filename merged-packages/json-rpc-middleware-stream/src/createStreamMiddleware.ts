@@ -20,16 +20,21 @@ interface IdMap {
   [requestId: string]: IdMapValue;
 }
 
+interface Options {
+  retryOnMessage?: string;
+}
+
 /**
  * Creates a JsonRpcEngine middleware with an associated Duplex stream and
  * EventEmitter. The middleware, and by extension stream, assume that middleware
  * parameters are properly formatted. No runtime type checking or validation is
  * performed.
  *
+ * @param options - Configuration options for middleware.
  * @returns The event emitter, middleware, and stream.
  */
-export default function createStreamMiddleware() {
-  const idMap: IdMap = {};
+export default function createStreamMiddleware(options: Options = {}) {
+  const idMap: IdMap = {}; // TODO: replace with actual Map
   const stream = new Duplex({
     objectMode: true,
     read: () => undefined,
@@ -45,12 +50,22 @@ export default function createStreamMiddleware() {
     end,
   ) => {
     // write req to stream
-    stream.push(req);
+    sendToStream(req);
     // register request on id map
     idMap[req.id as unknown as string] = { req, res, next, end };
   };
 
   return { events, middleware, stream };
+
+  /**
+   * Forwards JSON-RPC request to the stream.
+   *
+   * @param req - The JSON-RPC request object.
+   */
+  function sendToStream(req: JsonRpcRequest<unknown>) {
+    // TODO: limiting retries could be implemented here
+    stream.push(req);
+  }
 
   /**
    * Writes a JSON-RPC object to the stream.
@@ -104,6 +119,19 @@ export default function createStreamMiddleware() {
    * @param notif - The notification to process.
    */
   function processNotification(notif: JsonRpcNotification<unknown>) {
+    if (options?.retryOnMessage && notif.method === options.retryOnMessage) {
+      retryStuckRequests();
+    }
     events.emit('notification', notif);
+  }
+
+  /**
+   * Retry pending requests.
+   */
+  function retryStuckRequests() {
+    Object.values(idMap).forEach(({ req }) => {
+      // TODO: limiting retries could be implemented here
+      sendToStream(req);
+    });
   }
 }
