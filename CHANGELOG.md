@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [31.2.0]
+### Changed
+- Update phishing configuration update URL to reduce cache delay ([#915](https://github.com/MetaMask/controllers/pull/915))
+- Update `@keystonehq/metamask-airgapped-keyring` from `^0.3.0` to `^0.6.1` ([#913](https://github.com/MetaMask/controllers/pull/913))
+
+### Fixed
+- Allow Optimism & Optimism Testnet to be added via `wallet_addEthereumChain` ([#910](https://github.com/MetaMask/controllers/pull/910))
+- Fix regression where a phishing configuration update network failure would cause the `test` method to fail ([#915](https://github.com/MetaMask/controllers/pull/915))
+- Prevent duplicate phishing configuration update network requests ([#915](https://github.com/MetaMask/controllers/pull/915))
+
 ## [31.1.0]
 ### Added
 - Add new error type - `ApprovalRequestNotFoundError` ([#909](https://github.com/MetaMask/controllers/pull/909))
@@ -665,7 +675,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v31.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v31.2.0...HEAD
+[31.2.0]: https://github.com/MetaMask/controllers/compare/v31.1.0...v31.2.0
 [31.1.0]: https://github.com/MetaMask/controllers/compare/v31.0.0...v31.1.0
 [31.0.0]: https://github.com/MetaMask/controllers/compare/v30.3.0...v31.0.0
 [30.3.0]: https://github.com/MetaMask/controllers/compare/v30.2.0...v30.3.0
