@@ -12,10 +12,9 @@ import {
 
 const RPC_TARGET = 'http://foo';
 
-const checkNetwork = (
+const setupController = (
   pType: NetworkType,
   messenger: NetworkControllerMessenger,
-  expectIsCustomNetwork = false,
 ) => {
   const networkControllerOpts: NetworkControllerOptions = {
     infuraProjectId: 'foo',
@@ -31,8 +30,7 @@ const checkNetwork = (
   };
   const controller = new NetworkController(networkControllerOpts);
   controller.providerConfig = {} as ProviderConfig;
-  expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
-  expect(controller.state.isCustomNetwork).toBe(expectIsCustomNetwork);
+  return controller;
 };
 
 describe('NetworkController', () => {
@@ -81,7 +79,11 @@ describe('NetworkController', () => {
     ['kovan', 'rinkeby', 'ropsten', 'mainnet', 'localhost'] as NetworkType[]
   ).forEach((n) => {
     it(`should create a provider instance for ${n} infura network`, () => {
-      checkNetwork(n, messenger);
+      const networkController = setupController(n, messenger);
+      expect(networkController.provider instanceof Web3ProviderEngine).toBe(
+        true,
+      );
+      expect(networkController.state.isCustomNetwork).toBe(false);
     });
   });
 
