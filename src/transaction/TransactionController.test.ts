@@ -5,7 +5,6 @@ import {
   NetworkType,
   NetworkState,
 } from '../network/NetworkController';
-import { ESTIMATE_GAS_ERROR } from '../constants';
 import {
   TransactionController,
   TransactionStatus,
