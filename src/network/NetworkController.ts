@@ -91,19 +91,19 @@ export type NetworkControllerProviderChangeEvent = {
   payload: [ProviderConfig];
 };
 
-export type NetworkControllerGetProviderConfig = {
+export type NetworkControllerGetProviderConfigAction = {
   type: `NetworkController:getProviderConfig`;
   handler: () => ProviderConfig;
 };
 
-export type NetworkControllerGetEthQuery = {
+export type NetworkControllerGetEthQueryAction = {
   type: `NetworkController:getEthQuery`;
   handler: () => EthQuery;
 };
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
-  NetworkControllerGetProviderConfig | NetworkControllerGetEthQuery,
+  NetworkControllerGetProviderConfigAction | NetworkControllerGetEthQueryAction,
   NetworkControllerStateChangeEvent | NetworkControllerProviderChangeEvent,
   string,
   string

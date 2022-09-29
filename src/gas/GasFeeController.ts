@@ -6,8 +6,8 @@ import { BaseController } from '../BaseControllerV2';
 import { safelyExecute } from '../util';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import type {
-  NetworkControllerGetEthQuery,
-  NetworkControllerGetProviderConfig,
+  NetworkControllerGetEthQueryAction,
+  NetworkControllerGetProviderConfigAction,
   NetworkControllerProviderChangeEvent,
 } from '../network/NetworkController';
 import {
@@ -210,11 +210,11 @@ export type GetGasFeeState = {
 type GasFeeMessenger = RestrictedControllerMessenger<
   typeof name,
   | GetGasFeeState
-  | NetworkControllerGetProviderConfig
-  | NetworkControllerGetEthQuery,
+  | NetworkControllerGetProviderConfigAction
+  | NetworkControllerGetEthQueryAction,
   GasFeeStateChange | NetworkControllerProviderChangeEvent,
-  | NetworkControllerGetProviderConfig['type']
-  | NetworkControllerGetEthQuery['type'],
+  | NetworkControllerGetProviderConfigAction['type']
+  | NetworkControllerGetEthQueryAction['type'],
   NetworkControllerProviderChangeEvent['type']
 >;
 

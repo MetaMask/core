@@ -3,8 +3,8 @@ import { mocked } from 'ts-jest/utils';
 import { ControllerMessenger } from '../ControllerMessenger';
 import {
   NetworkController,
-  NetworkControllerGetEthQuery,
-  NetworkControllerGetProviderConfig,
+  NetworkControllerGetEthQueryAction,
+  NetworkControllerGetProviderConfigAction,
   NetworkControllerProviderChangeEvent,
 } from '../network/NetworkController';
 import {
@@ -30,8 +30,8 @@ const name = 'GasFeeController';
 
 type MainControllerMessenger = ControllerMessenger<
   | GetGasFeeState
-  | NetworkControllerGetProviderConfig
-  | NetworkControllerGetEthQuery,
+  | NetworkControllerGetProviderConfigAction
+  | NetworkControllerGetEthQueryAction,
   GasFeeStateChange | NetworkControllerProviderChangeEvent
 >;
 
