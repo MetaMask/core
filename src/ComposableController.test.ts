@@ -15,6 +15,7 @@ import { PreferencesController } from './user/PreferencesController';
 import {
   NetworkController,
   NetworkControllerMessenger,
+  NetworkControllerStateChangeEvent,
   NetworksChainId,
 } from './network/NetworkController';
 import { AssetsContractController } from './assets/AssetsContractController';
@@ -88,7 +89,10 @@ class BarController extends BaseController<never, BarControllerState> {
 }
 
 const setupControllers = () => {
-  const mainMessenger: any = new ControllerMessenger();
+  const mainMessenger = new ControllerMessenger<
+    never,
+    NetworkControllerStateChangeEvent
+  >();
   const messenger: NetworkControllerMessenger = mainMessenger.getRestricted({
     name: 'NetworkController',
     allowedEvents: ['NetworkController:stateChange'],
