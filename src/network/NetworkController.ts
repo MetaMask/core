@@ -70,9 +70,9 @@ export type NetworkProperties = {
  */
 export type NetworkState = {
   network: string;
-  isCustomNetwork?: boolean;
+  isCustomNetwork: boolean;
   provider: ProviderConfig;
-  properties?: NetworkProperties;
+  properties: NetworkProperties;
 };
 
 const LOCALHOST_RPC_URL = 'http://localhost:8545';
@@ -407,9 +407,6 @@ export class NetworkController extends BaseController<
                 typeof block.baseFeePerGas !== 'undefined';
               if (properties.isEIP1559Compatible !== isEIP1559Compatible) {
                 this.update((state) => {
-                  if (state.properties === undefined) {
-                    state.properties = {};
-                  }
                   state.properties.isEIP1559Compatible = isEIP1559Compatible;
                 });
               }
