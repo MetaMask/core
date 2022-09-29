@@ -1,4 +1,4 @@
-import { createFetchConfigFromReq, PayloadWithOrigin } from '../src';
+import { createFetchConfigFromReq, PayloadWithOrigin } from '.';
 
 describe('fetch', () => {
   it('should create a fetch config from a request', async () => {
@@ -8,7 +8,7 @@ describe('fetch', () => {
     };
     const rpcUrl = 'http://www.xyz.io/rabbit:3456?id=100';
     const { fetchUrl, fetchParams } = createFetchConfigFromReq({ req, rpcUrl });
-    expect(fetchUrl).toEqual(rpcUrl);
+    expect(fetchUrl).toStrictEqual(rpcUrl);
     expect(fetchParams).toStrictEqual({
       method: 'POST',
       headers: {
@@ -34,7 +34,7 @@ describe('fetch', () => {
       rpcUrl,
       originHttpHeaderKey,
     });
-    expect(fetchUrl).toEqual(rpcUrl);
+    expect(fetchUrl).toStrictEqual(rpcUrl);
     expect(fetchParams).toStrictEqual({
       method: 'POST',
       headers: {

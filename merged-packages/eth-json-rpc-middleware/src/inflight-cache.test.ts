@@ -1,6 +1,6 @@
 import { JsonRpcEngine } from 'json-rpc-engine';
 import pify from 'pify';
-import { createInflightCacheMiddleware } from '../src';
+import { createInflightCacheMiddleware } from '.';
 
 function createTestSetup() {
   // raw data source
@@ -42,9 +42,9 @@ describe('inflight cache', () => {
       }),
     ]);
 
-    expect(results[0].result).toEqual(true);
-    expect(results[1].result).toEqual(true);
+    expect(results[0].result).toBe(true);
+    expect(results[1].result).toBe(true);
     expect(results[0]).not.toStrictEqual(results[1]); // make sure they are unique responses
-    expect(hitCount).toEqual(1); // check result handler was only hit once
+    expect(hitCount).toBe(1); // check result handler was only hit once
   });
 });

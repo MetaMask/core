@@ -1,8 +1,8 @@
 import { PollingBlockTracker, Provider } from 'eth-block-tracker';
 import { JsonRpcEngine } from 'json-rpc-engine';
 import pify from 'pify';
-import { providerFromEngine, createBlockCacheMiddleware } from '../src';
-import createHitTrackerMiddleware from './util/createHitTrackerMiddleware';
+import createHitTrackerMiddleware from '../test/util/createHitTrackerMiddleware';
+import { providerFromEngine, createBlockCacheMiddleware } from '.';
 
 function createTestSetup() {
   // raw data source
@@ -50,10 +50,10 @@ describe('block cache', () => {
       method: 'eth_getBalance',
       params: ['0x1234'],
     });
-    expect(hitCountMiddleware.getHits('eth_getBalance').length).toEqual(2);
-    expect(hitCount).toEqual(1);
-    expect(response.result).toEqual('0x0');
-    expect(response2.result).toEqual('0x0');
+    expect(hitCountMiddleware.getHits('eth_getBalance')).toHaveLength(2);
+    expect(hitCount).toBe(1);
+    expect(response.result).toStrictEqual('0x0');
+    expect(response2.result).toStrictEqual('0x0');
     expect(spy).toHaveBeenCalled();
   });
 });

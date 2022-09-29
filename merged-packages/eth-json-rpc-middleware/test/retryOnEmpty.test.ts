@@ -242,7 +242,7 @@ describe('createRetryOnEmptyMiddleware', () => {
         });
 
         describe('if the block number in the request params is higher than the latest block number reported by the block tracker', () => {
-          it('does not make a request to the provider ', async () => {
+          it('does not make a request to the provider', async () => {
             await withTestSetup(async ({ engine, provider }) => {
               const request: JsonRpcRequest<string[]> = {
                 id: 1,

@@ -1,12 +1,11 @@
 import { JsonRpcEngine } from 'json-rpc-engine';
 import pify from 'pify';
-
 import {
   providerFromEngine,
   createWalletMiddleware,
   TransactionParams,
   MessageParams,
-} from '../src';
+} from '.';
 
 const testAddresses = [
   '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
@@ -34,7 +33,7 @@ describe('wallet', () => {
       const coinbaseResult = await pify(engine.handle).call(engine, {
         method: 'eth_coinbase',
       });
-      expect(coinbaseResult.result).toEqual(null);
+      expect(coinbaseResult.result).toBeNull();
     });
 
     it('should return the correct value from getAccounts', async () => {
@@ -44,7 +43,7 @@ describe('wallet', () => {
       const coinbaseResult = await pify(engine.handle).call(engine, {
         method: 'eth_coinbase',
       });
-      expect(coinbaseResult.result).toEqual(testAddresses[0]);
+      expect(coinbaseResult.result).toStrictEqual(testAddresses[0]);
     });
 
     it('should return the correct value from getAccounts with multiple accounts', async () => {
@@ -54,7 +53,7 @@ describe('wallet', () => {
       const coinbaseResult = await pify(engine.handle).call(engine, {
         method: 'eth_coinbase',
       });
-      expect(coinbaseResult.result).toEqual(testAddresses[0]);
+      expect(coinbaseResult.result).toStrictEqual(testAddresses[0]);
     });
   });
 
@@ -76,8 +75,8 @@ describe('wallet', () => {
       const sendTxResponse = await pify(engine.handle).call(engine, payload);
       const sendTxResult = sendTxResponse.result;
       expect(sendTxResult).toBeDefined();
-      expect(sendTxResult).toEqual(testTxHash);
-      expect(witnessedTxParams.length).toEqual(1);
+      expect(sendTxResult).toStrictEqual(testTxHash);
+      expect(witnessedTxParams).toHaveLength(1);
       expect(witnessedTxParams[0]).toStrictEqual(txParams);
     });
 
@@ -95,13 +94,9 @@ describe('wallet', () => {
       };
 
       const payload = { method: 'eth_sendTransaction', params: [txParams] };
-      try {
-        await pify(engine.handle).call(engine, payload);
-      } catch (e: any) {
-        expect(e.message).toEqual(
-          'Invalid parameters: must provide an Ethereum address.',
-        );
-      }
+      await expect(pify(engine.handle).call(engine, payload)).rejects.toThrow(
+        new Error('Invalid parameters: must provide an Ethereum address.'),
+      );
     });
 
     it('throws unauthorized for unknown addresses', async () => {
@@ -146,8 +141,8 @@ describe('wallet', () => {
       const sendTxResponse = await pify(engine.handle).call(engine, payload);
       const sendTxResult = sendTxResponse.result;
       expect(sendTxResult).toBeDefined();
-      expect(sendTxResult).toEqual(testTxHash);
-      expect(witnessedTxParams.length).toEqual(1);
+      expect(sendTxResult).toStrictEqual(testTxHash);
+      expect(witnessedTxParams).toHaveLength(1);
       expect(witnessedTxParams[0]).toStrictEqual(txParams);
     });
 
@@ -168,13 +163,9 @@ describe('wallet', () => {
       };
 
       const payload = { method: 'eth_signTransaction', params: [txParams] };
-      try {
-        await pify(engine.handle).call(engine, payload);
-      } catch (e: any) {
-        expect(e.message).toEqual(
-          'Invalid parameters: must provide an Ethereum address.',
-        );
-      }
+      await expect(pify(engine.handle).call(engine, payload)).rejects.toThrow(
+        new Error('Invalid parameters: must provide an Ethereum address.'),
+      );
     });
 
     it('should throw when provided unknown address', async () => {
@@ -228,8 +219,8 @@ describe('wallet', () => {
       const signMsgResult = signMsgResponse.result;
 
       expect(signMsgResult).toBeDefined();
-      expect(signMsgResult).toEqual(testMsgSig);
-      expect(witnessedMsgParams.length).toEqual(1);
+      expect(signMsgResult).toStrictEqual(testMsgSig);
+      expect(witnessedMsgParams).toHaveLength(1);
       expect(witnessedMsgParams[0]).toStrictEqual({
         from: testAddresses[0],
         data: message,
@@ -258,13 +249,9 @@ describe('wallet', () => {
         method: 'eth_signTypedData',
         params: [message, '0x3d'],
       };
-      try {
-        await pify(engine.handle).call(engine, payload);
-      } catch (e: any) {
-        expect(e.message).toEqual(
-          'Invalid parameters: must provide an Ethereum address.',
-        );
-      }
+      await expect(pify(engine.handle).call(engine, payload)).rejects.toThrow(
+        new Error('Invalid parameters: must provide an Ethereum address.'),
+      );
     });
 
     it('should throw with unknown address', async () => {
@@ -319,8 +306,8 @@ describe('wallet', () => {
       const signMsgResult = signMsgResponse.result;
 
       expect(signMsgResult).toBeDefined();
-      expect(signMsgResult).toEqual(testMsgSig);
-      expect(witnessedMsgParams.length).toEqual(1);
+      expect(signMsgResult).toStrictEqual(testMsgSig);
+      expect(witnessedMsgParams).toHaveLength(1);
       expect(witnessedMsgParams[0]).toStrictEqual({
         data: message,
         from: testAddresses[0],
@@ -346,13 +333,9 @@ describe('wallet', () => {
         params: [message, '0x3d'],
       };
 
-      try {
-        await pify(engine.handle).call(engine, payload);
-      } catch (e: any) {
-        expect(e.message).toEqual(
-          'Invalid parameters: must provide an Ethereum address.',
-        );
-      }
+      await expect(pify(engine.handle).call(engine, payload)).rejects.toThrow(
+        new Error('Invalid parameters: must provide an Ethereum address.'),
+      );
     });
 
     it('should error when provided unknown address', async () => {
@@ -403,7 +386,7 @@ describe('wallet', () => {
       const ecrecoverResponse = await pify(engine.handle).call(engine, payload);
       const ecrecoverResult = ecrecoverResponse.result;
       expect(ecrecoverResult).toBeDefined();
-      expect(ecrecoverResult).toEqual(signParams.addressHex);
+      expect(ecrecoverResult).toStrictEqual(signParams.addressHex);
     });
 
     it('should recover with "geth kumavis manual recover II"', async () => {
@@ -429,7 +412,7 @@ describe('wallet', () => {
       const ecrecoverResponse = await pify(engine.handle).call(engine, payload);
       const ecrecoverResult = ecrecoverResponse.result;
       expect(ecrecoverResult).toBeDefined();
-      expect(ecrecoverResult).toEqual(signParams.addressHex);
+      expect(ecrecoverResult).toStrictEqual(signParams.addressHex);
     });
   });
 });

@@ -1,7 +1,7 @@
 import { PollingBlockTracker, Provider } from 'eth-block-tracker';
 import { JsonRpcEngine } from 'json-rpc-engine';
 import pify from 'pify';
-import { providerFromEngine, createBlockRefMiddleware } from '../src';
+import { providerFromEngine, createBlockRefMiddleware } from '.';
 
 const testAddresses = [
   '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
@@ -53,7 +53,7 @@ describe('block ref', () => {
       params: [testAddresses[0], 'latest'],
     });
 
-    expect(providerReqs[1].params[1]).toEqual('0x0');
+    expect(providerReqs[1].params[1]).toStrictEqual('0x0');
     expect(spy).toHaveBeenCalled();
   });
 });

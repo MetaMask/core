@@ -1,17 +1,14 @@
 {
   "compilerOptions": {
-    "declaration": true,
     "esModuleInterop": true,
-    "inlineSources": true,
-    "lib": ["DOM", "ES2020"],
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["ES2020", "DOM"],
     "module": "CommonJS",
-    "moduleResolution": "Node",
-    "outDir": "dist",
-    "rootDir": "src",
-    "sourceMap": true,
+    "moduleResolution": "node",
+    "noEmit": true,
+    "noErrorTruncation": true,
     "strict": true,
-    "target": "ES2017"
+    "target": "es2017"
   },
-  "exclude": ["./test"],
-  "include": ["./src/**/*.ts"]
+  "exclude": ["./dist/**/*"]
 }
