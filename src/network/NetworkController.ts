@@ -134,7 +134,7 @@ export class NetworkController extends BaseController<
 
   private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 
-  private _infuraProjectId: string | undefined;
+  private infuraProjectId: string | undefined;
 
   private mutex = new Mutex();
 
@@ -162,7 +162,7 @@ export class NetworkController extends BaseController<
       messenger,
       state: { ...defaultState, ...state },
     });
-    this._infuraProjectId = infuraProjectId;
+    this.infuraProjectId = infuraProjectId;
     this.messagingSystem.registerActionHandler(
       `${this.name}:getProviderConfig`,
       () => {
@@ -228,7 +228,7 @@ export class NetworkController extends BaseController<
   private setupInfuraProvider(type: NetworkType) {
     const infuraProvider = createInfuraProvider({
       network: type,
-      projectId: this._infuraProjectId,
+      projectId: this.infuraProjectId,
     });
     const infuraSubprovider = new Subprovider(infuraProvider);
     const config = {
