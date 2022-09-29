@@ -4,7 +4,10 @@ import { TokensController } from './assets/TokensController';
 import { CollectiblesController } from './assets/CollectiblesController';
 import { AddressBookController } from './user/AddressBookController';
 import { EnsController } from './third-party/EnsController';
-import { ComposableController } from './ComposableController';
+import {
+  ComposableController,
+  ComposableControllerRestrictedMessenger,
+} from './ComposableController';
 import { BaseController, BaseState } from './BaseController';
 import { BaseController as BaseControllerV2 } from './BaseControllerV2';
 import {
@@ -93,17 +96,19 @@ const setupControllers = () => {
     never,
     NetworkControllerStateChangeEvent
   >();
+
   const messenger: NetworkControllerMessenger = mainMessenger.getRestricted({
     name: 'NetworkController',
     allowedEvents: ['NetworkController:stateChange'],
     allowedActions: [],
   });
 
-  const composableMessenger = mainMessenger.getRestricted({
-    name: 'ComposableController',
-    allowedEvents: ['NetworkController:stateChange'],
-    allowedActions: [],
-  });
+  const composableMessenger: ComposableControllerRestrictedMessenger =
+    mainMessenger.getRestricted({
+      name: 'ComposableController',
+      allowedEvents: ['NetworkController:stateChange'],
+      allowedActions: [],
+    });
 
   const networkController = new NetworkController({
     messenger,
