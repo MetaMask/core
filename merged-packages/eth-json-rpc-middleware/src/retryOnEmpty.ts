@@ -86,7 +86,7 @@ export function createRetryOnEmptyMiddleware({
     }
 
     log(
-      'Requested block number %o is not higher than latest block number %o, retrying request until non-empty response is received',
+      'Requested block number %o is not higher than latest block number %o, trying request until non-empty response is received',
       blockRefNumber,
       latestBlockNumber,
     );
@@ -97,13 +97,13 @@ export function createRetryOnEmptyMiddleware({
     const childResponse: PendingJsonRpcResponse<Block> = await retry(
       10,
       async () => {
-        log('Performing another request %o', childRequest);
+        log('Performing request %o', childRequest);
         const attemptResponse: PendingJsonRpcResponse<Block> = await pify(
           (provider as SafeEventEmitterProvider).sendAsync,
         ).call(provider, childRequest);
         log('Response is %o', attemptResponse);
         // verify result
-        if (emptyValues.includes(attemptResponse as any)) {
+        if (emptyValues.includes(attemptResponse.result as any)) {
           throw new Error(
             `RetryOnEmptyMiddleware - empty response "${JSON.stringify(
               attemptResponse,
@@ -113,10 +113,15 @@ export function createRetryOnEmptyMiddleware({
         return attemptResponse;
       },
     );
+    log(
+      'Copying result %o and error %o',
+      childResponse.result,
+      childResponse.error,
+    );
     // copy child response onto original response
     res.result = childResponse.result;
     res.error = childResponse.error;
-    return next();
+    return undefined;
   });
 }
 
@@ -128,9 +133,11 @@ async function retry(
     try {
       return await asyncFn();
     } catch (err) {
+      log('(call %i) Request failed, waiting 1s to retry again...', index + 1);
       await timeout(1000);
     }
   }
+  log('Retries exhausted');
   throw new Error('RetryOnEmptyMiddleware - retries exhausted');
 }
 
