@@ -88,8 +88,11 @@ export const METAMASK_CONFIG_FILE = '/eth_phishing_detect_config.json';
 
 export const PHISHFORT_HOTLIST_FILE = '/phishfort_hotlist.json';
 
+export const PARADIGM_HOTLIST_FILE = '/paradigm_hotlist.json';
+
 export const METAMASK_CONFIG_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_CONFIG_FILE}`;
 export const PHISHFORT_HOTLIST_URL = `${PHISHING_CONFIG_BASE_URL}${PHISHFORT_HOTLIST_FILE}`;
+export const PARADIGM_HOTLIST_URL = `${PHISHING_CONFIG_BASE_URL}${PARADIGM_HOTLIST_FILE}`;
 
 /**
  * Controller that passively polls on a set interval for approved and unapproved website origins
@@ -205,9 +208,10 @@ export class PhishingController extends BaseController<
     const configs: EthPhishingDetectConfig[] = [];
 
     // We ignore network failures here instead of bubbling them up
-    const [metamaskConfigLegacy, phishfortHotlist] = await Promise.all([
+    const [metamaskConfigLegacy, phishfortHotlist, paradigmHotlist] = await Promise.all([
       this.queryConfig<EthPhishingResponse>(METAMASK_CONFIG_URL),
       this.queryConfig<string[]>(PHISHFORT_HOTLIST_URL),
+      this.queryConfig<EthPhishingResponse>(PARADIGM_HOTLIST_URL),
     ]);
 
     // Correctly shaping MetaMask config.
@@ -236,6 +240,25 @@ export class PhishingController extends BaseController<
     };
     if (phishfortHotlist) {
       configs.push(phishfortConfig);
+    }
+
+    // Correctly shaping Paradigm config.
+    const paradigmConfig: EthPhishingDetectConfig = {
+      allowlist: (paradigmHotlist ? paradigmHotlist.whitelist : []).filter(
+        (i) => !metamaskConfig.allowlist.includes(i)
+      ),
+      blocklist: (paradigmHotlist ? paradigmHotlist.blacklist : []).filter(
+        (i) => !metamaskConfig.blocklist.includes(i) && !phishfortConfig.blocklist.includes(i)
+      ),
+      fuzzylist: (paradigmHotlist ? paradigmHotlist.fuzzylist : []).filter(
+        (i) => !metamaskConfig.fuzzylist.includes(i)
+      ),
+      tolerance: paradigmHotlist ? paradigmHotlist.tolerance : 0,
+      name: `Paradigm`,
+      version: paradigmHotlist ? paradigmHotlist.version : 0,
+    };
+    if (paradigmHotlist) {
+      configs.push(paradigmConfig);
     }
 
     // Do not update if all configs are unavailable.
