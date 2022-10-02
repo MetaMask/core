@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: ${{ steps.nvm.outputs.NODE_VERSION }}
       - name: Get Yarn cache directory
-        run: echo "::set-output name=YARN_CACHE_DIR::$(yarn cache dir)"
+        run: echo "::set-output name=YARN_CACHE_DIR::$(yarn config get cacheFolder)"
         id: yarn-cache-dir
       - name: Get Yarn version
         run: echo "::set-output name=YARN_VERSION::$(yarn --version)"
@@ -31,9 +31,7 @@ jobs:
           path: ${{ steps.yarn-cache-dir.outputs.YARN_CACHE_DIR }}
           key: yarn-cache-${{ runner.os }}-${{ steps.yarn-version.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}
       - name: Install npm dependencies
-        run: yarn --frozen-lockfile
-      - name: Run allowed npm lifecycle scripts
-        run: yarn allow-scripts
+        run: yarn --immutable
       - name: Run docs build
         run: yarn docs:publish
       - name: Deploy to root directory of `gh-pages` branch

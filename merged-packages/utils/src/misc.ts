@@ -10,13 +10,12 @@
  */
 export type Mutable<
   ObjectValue extends Record<string, unknown>,
-  TargetKey extends keyof ObjectValue
+  TargetKey extends keyof ObjectValue,
 > = {
   -readonly [Key in keyof Pick<ObjectValue, TargetKey>]: ObjectValue[Key];
-} &
-  {
-    [Key in keyof Omit<ObjectValue, TargetKey>]: ObjectValue[Key];
-  };
+} & {
+  [Key in keyof Omit<ObjectValue, TargetKey>]: ObjectValue[Key];
+};
 
 /**
  * Useful for representing some value that _might_ be present and / or complete.
@@ -106,6 +105,7 @@ export enum JsonSize {
   False = 5,
   Quote = 1,
   Colon = 1,
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   Date = 24,
 }
 

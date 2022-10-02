@@ -693,14 +693,8 @@ export const COMPLEX_OBJECT = {
     },
     moreComplexity: {
       numbers: [
-        -5e-11,
-        5e-9,
-        0.000000000001,
-        -0.00000000009,
-        100000.00000008,
-        -100.88888,
-        0.333,
-        1000000000000,
+        -5e-11, 5e-9, 0.000000000001, -0.00000000009, 100000.00000008,
+        -100.88888, 0.333, 1000000000000,
       ],
       moreNestedObjects: {
         nestedAgain: {
@@ -773,14 +767,8 @@ export const NON_SERIALIZABLE_NESTED_OBJECT = {
 };
 
 export const ARRAY_OF_DIFFRENT_KINDS_OF_NUMBERS = [
-  -5e-11,
-  5e-9,
-  0.000000000001,
-  -0.00000000009,
-  100000.00000008,
-  -100.88888,
-  0.333,
-  1000000000000,
+  -5e-11, 5e-9, 0.000000000001, -0.00000000009, 100000.00000008, -100.88888,
+  0.333, 1000000000000,
 ];
 
 export const ARRAY_OF_MIXED_SPECIAL_OBJECTS = [

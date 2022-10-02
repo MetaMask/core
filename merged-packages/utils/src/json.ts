@@ -105,7 +105,7 @@ export const JsonRpcErrorStruct = object({
  */
 export type OptionalField<
   Type extends Record<string, unknown>,
-  Key extends keyof Type
+  Key extends keyof Type,
 > = Omit<Type, Key> & Partial<Pick<Type, Key>>;
 
 /**
@@ -133,7 +133,7 @@ export const JsonRpcRequestStruct = object({
 
 export type InferWithParams<
   Type extends Struct<any, unknown>,
-  Params extends JsonRpcParams
+  Params extends JsonRpcParams,
 > = Omit<Infer<Type>, 'params'> &
   (keyof Params extends undefined
     ? {

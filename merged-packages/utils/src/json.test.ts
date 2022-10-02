@@ -837,7 +837,9 @@ describe('json', () => {
           },
         },
       };
-      circularStructure.levelOne.levelTwo.levelThree.levelFour.levelFive = circularStructure;
+      circularStructure.levelOne.levelTwo.levelThree.levelFour.levelFive =
+        circularStructure;
+
       expect(validateJsonAndGetSize(circularStructure, false)).toStrictEqual([
         false,
         0,
@@ -862,9 +864,12 @@ describe('json', () => {
           },
         },
       };
-      circularStructure.levelOne.levelTwo.levelThree.levelFour.levelFive = circularStructure;
+      circularStructure.levelOne.levelTwo.levelThree.levelFour.levelFive =
+        circularStructure;
       circularStructure.anotherOne = circularStructure;
-      circularStructure.justAnotherOne.toAnotherOne.andAnotherOne = circularStructure;
+      circularStructure.justAnotherOne.toAnotherOne.andAnotherOne =
+        circularStructure;
+
       expect(validateJsonAndGetSize(circularStructure)).toStrictEqual([
         false,
         0,

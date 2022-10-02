@@ -80,34 +80,40 @@ describe('miscellaneous', () => {
     };
 
     it('returns `true` for enumerable properties', () => {
-      ([
-        [{ a: 1 }, 'a'],
-        [{ [symbol]: 1 }, symbol],
-        [{ 2: 'b' }, 2],
-        [{ a: 1, 2: 'b', c: 'x' }, 'c'],
-      ] as const).forEach(([objectValue, property]) => {
+      (
+        [
+          [{ a: 1 }, 'a'],
+          [{ [symbol]: 1 }, symbol],
+          [{ 2: 'b' }, 2],
+          [{ a: 1, 2: 'b', c: 'x' }, 'c'],
+        ] as const
+      ).forEach(([objectValue, property]) => {
         expect(hasProperty(objectValue, property)).toBe(true);
       });
     });
 
     it('returns `true` for non-enumerable properties', () => {
-      ([
-        [getNonEnumerable('a'), 'a'],
-        [getNonEnumerable(symbol), symbol],
-        [getNonEnumerable(2), 2],
-      ] as const).forEach(([objectValue, property]) => {
+      (
+        [
+          [getNonEnumerable('a'), 'a'],
+          [getNonEnumerable(symbol), symbol],
+          [getNonEnumerable(2), 2],
+        ] as const
+      ).forEach(([objectValue, property]) => {
         expect(hasProperty(objectValue, property)).toBe(true);
       });
     });
 
     it('returns `false` for missing properties', () => {
-      ([
-        [{}, 'a'],
-        [{ a: 1 }, 'b'],
-        // Object.hasOwnProperty does not work for arrays
-        // [['foo'], 0],
-        // [['foo'], '0'],
-      ] as any[]).forEach(([objectValue, property]) => {
+      (
+        [
+          [{}, 'a'],
+          [{ a: 1 }, 'b'],
+          // Object.hasOwnProperty does not work for arrays
+          // [['foo'], 0],
+          // [['foo'], '0'],
+        ] as any[]
+      ).forEach(([objectValue, property]) => {
         expect(hasProperty(objectValue, property)).toBe(false);
       });
     });
