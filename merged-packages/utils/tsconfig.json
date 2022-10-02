@@ -3,7 +3,7 @@
     "declaration": true,
     "esModuleInterop": true,
     "inlineSources": true,
-    "lib": ["ES2020"],
+    "lib": ["ES2020", "dom"],
     "module": "CommonJS",
     "moduleResolution": "Node",
     "outDir": "dist",
