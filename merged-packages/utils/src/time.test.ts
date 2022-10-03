@@ -58,7 +58,7 @@ describe('time utilities', () => {
         [1, 9],
         [0, 10],
       ].forEach(([input, expected]) => {
-        expect(timeSince(input)).toBe(expected);
+        expect(timeSince(input as number)).toBe(expected);
       });
     });
   });

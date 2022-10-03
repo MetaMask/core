@@ -81,7 +81,8 @@ export function bytesToHex(bytes: Uint8Array): string {
   const hex = new Array(bytes.length);
 
   for (let i = 0; i < bytes.length; i++) {
-    hex[i] = lookupTable[bytes[i]];
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    hex[i] = lookupTable[bytes[i]!];
   }
 
   return add0x(hex.join(''));
@@ -360,7 +361,8 @@ export function concatBytes(values: Bytes[]): Uint8Array {
   let byteLength = 0;
 
   for (let i = 0; i < values.length; i++) {
-    const value = valueToBytes(values[i]);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const value = valueToBytes(values[i]!);
 
     normalizedValues[i] = value;
     byteLength += value.length;

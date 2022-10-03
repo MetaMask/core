@@ -13,7 +13,7 @@
     "dist/"
   ],
   "scripts": {
-    "build": "tsc --project .",
+    "build": "tsc --project tsconfig.build.json",
     "build:clean": "rimraf dist && yarn build",
     "docs": "typedoc",
     "docs:publish": "typedoc --cleanOutputDir false --gitRevision \"v$(jq -r .version < ./package.json)\"",
