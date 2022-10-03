@@ -122,8 +122,6 @@ const defaultState: NetworkState = {
   properties: { isEIP1559Compatible: false },
 };
 
-export type TEthQuery = any;
-
 /**
  * Controller that creates and manages an Ethereum network provider
  */
@@ -132,7 +130,7 @@ export class NetworkController extends BaseController<
   NetworkState,
   NetworkControllerMessenger
 > {
-  private ethQuery: EthQuery;
+  public ethQuery: EthQuery;
 
   private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 
@@ -210,12 +208,12 @@ export class NetworkController extends BaseController<
         throw new Error(`Unrecognized network type: '${type}'`);
     }
 
-    await this.lookupNetwork();
-    await this.getEIP1559Compatibility();
+
+    await Promise.all([this.lookupNetwork(), this.getEIP1559Compatibility()]);
 
     this.messagingSystem.publish(
       `NetworkController:providerChange`,
-      this.state.provider,
+      this.state.provider, // should be this.provider.
     );
   }
 
@@ -280,7 +278,6 @@ export class NetworkController extends BaseController<
   private updateProvider(provider: any) {
     this.safelyStopProvider(this.provider);
     this.provider = provider;
-    //this.provider.on('error', this.verifyNetwork.bind(this));
     this.ethQuery = new EthQuery(this.provider);
   }
 
@@ -288,11 +285,6 @@ export class NetworkController extends BaseController<
     setTimeout(() => {
       provider?.stop();
     }, 500);
-  }
-
-  private verifyNetwork() {
-    console.log('verify network derp');
-    this.state.network === 'loading' && this.lookupNetwork();
   }
 
   /**
@@ -312,23 +304,6 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Sets a new configuration for web3-provider-engine.
-   *
-   * TODO: Replace this wth a method.
-   *
-   * @param providerConfig - The web3-provider-engine configuration.
-   */
-  set providerConfig(providerConfig: ProviderConfig) {
-    this.internalProviderConfig = providerConfig;
-    const { type, rpcTarget, chainId, ticker, nickname } = this.state.provider;
-    this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
-  }
-
-  get providerConfig() {
-    throw new Error('Property only used for setting');
-  }
-
-  /**
    * Refreshes the current network code.
    */
   async lookupNetwork(): Promise<void> {
@@ -338,7 +313,7 @@ export class NetworkController extends BaseController<
     }
     const releaseLock = await this.mutex.acquire();
     try {
-      const networkId = await new Promise((resolve, reject) => {
+      const networkId: string = await new Promise((resolve, reject) => {
         this.ethQuery.sendAsync(
           { method: 'net_version' },
           (error: Error, network: string) => {
@@ -352,7 +327,7 @@ export class NetworkController extends BaseController<
         return;
       }
 
-      this.update((state: NetworkState) => {
+      this.update((state) => {
         state.network = networkId;
       });
 
@@ -361,6 +336,7 @@ export class NetworkController extends BaseController<
         this.state.provider,
       );
     } catch (e) {
+      // should publish an event about this error
       this.update((state: NetworkState) => {
         state.network = 'loading';
       });
@@ -434,10 +410,7 @@ export class NetworkController extends BaseController<
 
       const usesBaseFee = typeof latestBlock.baseFeePerGas !== 'undefined';
       if (properties.isEIP1559Compatible !== usesBaseFee) {
-        this.update((state: NetworkState) => {
-          if (state.properties === undefined) {
-            state.properties = {};
-          }
+        this.update((state) => {
           state.properties.isEIP1559Compatible = usesBaseFee;
         });
       }

@@ -29,7 +29,6 @@ const setupController = (
     messenger,
   };
   const controller = new NetworkController(networkControllerOpts);
-  controller.providerConfig = {} as ProviderConfig;
   return controller;
 };
 
@@ -71,7 +70,6 @@ describe('NetworkController', () => {
       messenger,
     };
     const controller = new NetworkController(networkControllerOpts);
-    controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
 
@@ -102,7 +100,6 @@ describe('NetworkController', () => {
       messenger,
     };
     const controller = new NetworkController(networkControllerOpts);
-    controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
     expect(controller.state.isCustomNetwork).toBe(true);
   });
@@ -121,7 +118,6 @@ describe('NetworkController', () => {
       messenger,
     };
     const controller = new NetworkController(networkControllerOpts);
-    controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
     expect(controller.state.isCustomNetwork).toBe(false);
   });
@@ -156,6 +152,10 @@ describe('NetworkController', () => {
       messenger,
       infuraProjectId: '123',
     });
+    // controller.ethQuery = sinon
+    //   .stub(controller.ethQuery, 'sendAsync')
+    //   .callsFake((_, cb) => cb(null, '0x1'));
+
     await controller.setProviderType('mainnet' as NetworkType);
     expect(controller.state.provider.type).toBe('mainnet');
     expect(controller.state.provider.ticker).toBe('ETH');
@@ -176,7 +176,6 @@ describe('NetworkController', () => {
         network: 'loading',
       },
     });
-    controller.providerConfig = {} as ProviderConfig;
     controller.lookupNetwork = sinon.stub();
     controller.provider.emit('error', {});
     expect((controller.lookupNetwork as any).called).toBe(true);
@@ -199,8 +198,6 @@ describe('NetworkController', () => {
         resolve('');
       };
       messenger.subscribe(event, handleProviderChange);
-
-      controller.providerConfig = {} as ProviderConfig;
     });
   });
 });
