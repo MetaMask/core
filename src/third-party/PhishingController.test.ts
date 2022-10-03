@@ -4,6 +4,7 @@ import nock from 'nock';
 import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
 import {
   METAMASK_CONFIG_FILE,
+  PARADIGM_HOTLIST_FILE,
   PHISHFORT_HOTLIST_FILE,
   PhishingController,
   PHISHING_CONFIG_BASE_URL,
@@ -62,7 +63,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     new PhishingController({});
 
@@ -80,7 +89,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController({});
     await controller.test('metamask.io');
@@ -99,7 +116,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController({});
     await controller.test('metamask.io');
@@ -128,7 +153,16 @@ describe('PhishingController', () => {
       })
       .get(PHISHFORT_HOTLIST_FILE)
       .times(2)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .times(2)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.test('metamask.io');
@@ -151,7 +185,16 @@ describe('PhishingController', () => {
       })
       .get(PHISHFORT_HOTLIST_FILE)
       .times(3)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .times(3)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController({ refreshInterval: 1 });
     controller.setRefreshInterval(0);
@@ -165,6 +208,7 @@ describe('PhishingController', () => {
   it('should update lists', async () => {
     const mockPhishingBlocklist = ['https://example-blocked-website.com'];
     const phishfortHotlist = ['https://another-example-blocked-website.com'];
+    const mockParamdigmBlocklist = ['https://one-more-blocked-website.com'];
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_CONFIG_FILE)
       .reply(200, {
@@ -175,7 +219,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, phishfortHotlist);
+      .reply(200, phishfortHotlist)
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: mockParamdigmBlocklist,
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -197,6 +249,14 @@ describe('PhishingController', () => {
         name: 'PhishFort',
         version: 1,
       },
+      {
+        allowlist: [],
+        blocklist: mockParamdigmBlocklist,
+        fuzzylist: [],
+        tolerance: 0,
+        name: 'Paradigm',
+        version: 0,
+      },
     ]);
   });
 
@@ -205,6 +265,8 @@ describe('PhishingController', () => {
       .get(METAMASK_CONFIG_FILE)
       .replyWithError({ code: 'ETIMEDOUT' })
       .get(PHISHFORT_HOTLIST_FILE)
+      .replyWithError({ code: 'ETIMEDOUT' })
+      .get(PARADIGM_HOTLIST_FILE)
       .replyWithError({ code: 'ETIMEDOUT' });
 
     const controller = new PhishingController();
@@ -237,6 +299,8 @@ describe('PhishingController', () => {
       .get(METAMASK_CONFIG_FILE)
       .reply(500)
       .get(PHISHFORT_HOTLIST_FILE)
+      .reply(500)
+      .get(PARADIGM_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();
@@ -253,6 +317,8 @@ describe('PhishingController', () => {
       .get(METAMASK_CONFIG_FILE)
       .reply(500)
       .get(PHISHFORT_HOTLIST_FILE)
+      .reply(500)
+      .get(PARADIGM_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();
@@ -268,6 +334,8 @@ describe('PhishingController', () => {
       .get(METAMASK_CONFIG_FILE)
       .reply(500)
       .get(PHISHFORT_HOTLIST_FILE)
+      .reply(500)
+      .get(PARADIGM_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();
@@ -283,6 +351,8 @@ describe('PhishingController', () => {
       .get(METAMASK_CONFIG_FILE)
       .reply(500)
       .get(PHISHFORT_HOTLIST_FILE)
+      .reply(500)
+      .get(PARADIGM_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();
@@ -299,6 +369,8 @@ describe('PhishingController', () => {
       .get(METAMASK_CONFIG_FILE)
       .reply(500)
       .get(PHISHFORT_HOTLIST_FILE)
+      .reply(500)
+      .get(PARADIGM_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();
@@ -315,6 +387,8 @@ describe('PhishingController', () => {
       .get(METAMASK_CONFIG_FILE)
       .reply(500)
       .get(PHISHFORT_HOTLIST_FILE)
+      .reply(500)
+      .get(PARADIGM_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();
@@ -336,7 +410,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -358,7 +440,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -379,7 +469,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -400,7 +498,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -422,7 +528,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -438,7 +552,15 @@ describe('PhishingController', () => {
       .get(METAMASK_CONFIG_FILE)
       .reply(500)
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -459,7 +581,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -481,7 +611,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, ['e4d600ab9141b7a9859511c77e63b9b3.com']);
+      .reply(200, ['e4d600ab9141b7a9859511c77e63b9b3.com'])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -505,7 +643,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(500);
+      .reply(500)
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -528,7 +674,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -550,7 +704,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -566,7 +728,15 @@ describe('PhishingController', () => {
       .get(METAMASK_CONFIG_FILE)
       .reply(500)
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -587,7 +757,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
@@ -596,6 +774,96 @@ describe('PhishingController', () => {
     ).toMatchObject({
       result: false,
       type: 'all',
+    });
+  });
+
+  it('should return positive result for unsafe domain from Paradigm config', async () => {
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      })
+      .get(PHISHFORT_HOTLIST_FILE)
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: ['etnerscan.io'],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
+
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(await controller.test('etnerscan.io')).toMatchObject({
+      result: true,
+      type: 'blocklist',
+      name: 'Paradigm',
+    });
+  });
+
+  it('should return positive result for domain very close to fuzzylist from Paradigm config', async () => {
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      })
+      .get(PHISHFORT_HOTLIST_FILE)
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: ['opensea.io'],
+        tolerance: 2,
+        whitelist: ['opensea.io'],
+        version: 0,
+      });
+
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(await controller.test('ohpensea.io')).toMatchObject({
+      result: true,
+      type: 'fuzzy',
+      name: 'Paradigm',
+    });
+  });
+
+  it('should filter out existing blocked domains from paradigm config', async () => {
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_CONFIG_FILE)
+      .reply(200, {
+        blacklist: ['etnerscan.io'],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      })
+      .get(PHISHFORT_HOTLIST_FILE)
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: ['etnerscan.io'],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
+
+    const controller = new PhishingController();
+    await controller.updatePhishingLists();
+    expect(await controller.test('etnerscan.io')).toMatchObject({
+      result: true,
+      type: 'blocklist',
+      name: 'MetaMask',
     });
   });
 
@@ -610,7 +878,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     const unsafeDomain = 'electrum.mx';
@@ -637,7 +913,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     const unsafeDomain = 'electrum.mx';
@@ -665,7 +949,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     const unsafeDomain = 'myetherẉalletṭ.com';
@@ -692,7 +984,15 @@ describe('PhishingController', () => {
         version: 0,
       })
       .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      .reply(200, [])
+      .get(PARADIGM_HOTLIST_FILE)
+      .reply(200, {
+        blacklist: [],
+        fuzzylist: [],
+        tolerance: 0,
+        whitelist: [],
+        version: 0,
+      });
 
     const controller = new PhishingController();
     const unsafeDomain = 'xn--myetherallet-4k5fwn.com';
@@ -713,6 +1013,8 @@ describe('PhishingController', () => {
       .get(METAMASK_CONFIG_FILE)
       .reply(304)
       .get(PHISHFORT_HOTLIST_FILE)
+      .reply(304)
+      .get(PARADIGM_HOTLIST_FILE)
       .reply(304);
 
     const controller = new PhishingController();
@@ -735,6 +1037,8 @@ describe('PhishingController', () => {
       .get(METAMASK_CONFIG_FILE)
       .reply(500)
       .get(PHISHFORT_HOTLIST_FILE)
+      .reply(500)
+      .get(PARADIGM_HOTLIST_FILE)
       .reply(500);
 
     const controller = new PhishingController();

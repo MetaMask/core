@@ -208,11 +208,12 @@ export class PhishingController extends BaseController<
     const configs: EthPhishingDetectConfig[] = [];
 
     // We ignore network failures here instead of bubbling them up
-    const [metamaskConfigLegacy, phishfortHotlist, paradigmHotlist] = await Promise.all([
-      this.queryConfig<EthPhishingResponse>(METAMASK_CONFIG_URL),
-      this.queryConfig<string[]>(PHISHFORT_HOTLIST_URL),
-      this.queryConfig<EthPhishingResponse>(PARADIGM_HOTLIST_URL),
-    ]);
+    const [metamaskConfigLegacy, phishfortHotlist, paradigmHotlist] =
+      await Promise.all([
+        this.queryConfig<EthPhishingResponse>(METAMASK_CONFIG_URL),
+        this.queryConfig<string[]>(PHISHFORT_HOTLIST_URL),
+        this.queryConfig<EthPhishingResponse>(PARADIGM_HOTLIST_URL),
+      ]);
 
     // Correctly shaping MetaMask config.
     const metamaskConfig: EthPhishingDetectConfig = {
@@ -245,13 +246,15 @@ export class PhishingController extends BaseController<
     // Correctly shaping Paradigm config.
     const paradigmConfig: EthPhishingDetectConfig = {
       allowlist: (paradigmHotlist ? paradigmHotlist.whitelist : []).filter(
-        (i) => !metamaskConfig.allowlist.includes(i)
+        (i) => !metamaskConfig.allowlist.includes(i),
       ),
       blocklist: (paradigmHotlist ? paradigmHotlist.blacklist : []).filter(
-        (i) => !metamaskConfig.blocklist.includes(i) && !phishfortConfig.blocklist.includes(i)
+        (i) =>
+          !metamaskConfig.blocklist.includes(i) &&
+          !phishfortConfig.blocklist.includes(i),
       ),
       fuzzylist: (paradigmHotlist ? paradigmHotlist.fuzzylist : []).filter(
-        (i) => !metamaskConfig.fuzzylist.includes(i)
+        (i) => !metamaskConfig.fuzzylist.includes(i),
       ),
       tolerance: paradigmHotlist ? paradigmHotlist.tolerance : 0,
       name: `Paradigm`,
