@@ -5,6 +5,7 @@ import { PreferencesController } from '../user/PreferencesController';
 import {
   NetworkController,
   NetworksChainId,
+  NetworkControllerMessenger,
 } from '../network/NetworkController';
 import { getFormattedIpfsUrl } from '../util';
 import {
@@ -14,7 +15,7 @@ import {
   OPENSEA_API_URL,
   ERC721,
 } from '../constants';
-
+import { ControllerMessenger } from '../ControllerMessenger';
 import { AssetsContractController } from './AssetsContractController';
 import { CollectiblesController } from './CollectiblesController';
 
@@ -55,11 +56,21 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
 function setupController({
   includeOnCollectibleAdded = false,
 }: { includeOnCollectibleAdded?: boolean } = {}) {
+  const messenger: NetworkControllerMessenger =
+    new ControllerMessenger().getRestricted({
+      name: 'NetworkController',
+      allowedEvents: ['NetworkController:stateChange'],
+      allowedActions: [],
+    });
   const preferences = new PreferencesController();
-  const network = new NetworkController();
+  const network = new NetworkController({
+    messenger,
+    infuraProjectId: 'potato',
+  });
   const assetsContract = new AssetsContractController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-    onNetworkStateChange: (listener) => network.subscribe(listener),
+    onNetworkStateChange: (listener) =>
+      messenger.subscribe('NetworkController:stateChange', listener),
   });
   const onCollectibleAddedSpy = includeOnCollectibleAdded
     ? jest.fn()
@@ -67,7 +78,8 @@ function setupController({
 
   const collectiblesController = new CollectiblesController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-    onNetworkStateChange: (listener) => network.subscribe(listener),
+    onNetworkStateChange: (listener) =>
+      messenger.subscribe('NetworkController:stateChange', listener),
     getERC721AssetName: assetsContract.getERC721AssetName.bind(assetsContract),
     getERC721AssetSymbol:
       assetsContract.getERC721AssetSymbol.bind(assetsContract),
@@ -90,6 +102,7 @@ function setupController({
     network,
     onCollectibleAddedSpy,
     preferences,
+    messenger,
   };
 }
 
@@ -165,18 +178,19 @@ describe('CollectiblesController', () => {
   });
 
   it('should set default state', () => {
-    const { collectiblesController } = setupController();
+    const { collectiblesController, messenger } = setupController();
 
     expect(collectiblesController.state).toStrictEqual({
       allCollectibleContracts: {},
       allCollectibles: {},
       ignoredCollectibles: [],
     });
+    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   describe('addCollectible', () => {
     it('should add collectible and collectible contract', async () => {
-      const { collectiblesController } = setupController();
+      const { collectiblesController, messenger } = setupController();
 
       const { selectedAddress, chainId } = collectiblesController.config;
       await collectiblesController.addCollectible('0x01', '1', {
@@ -214,12 +228,13 @@ describe('CollectiblesController', () => {
         symbol: 'FOO',
         totalSupply: 0,
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should call onCollectibleAdded callback correctly when collectible is manually added', async () => {
-      const { collectiblesController, onCollectibleAddedSpy } = setupController(
-        { includeOnCollectibleAdded: true },
-      );
+      const { collectiblesController, onCollectibleAddedSpy, messenger } =
+        setupController({ includeOnCollectibleAdded: true });
 
       await collectiblesController.addCollectible('0x01', '1', {
         name: 'name',
@@ -236,12 +251,13 @@ describe('CollectiblesController', () => {
         standard: 'ERC1155',
         symbol: 'FOO',
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should call onCollectibleAdded callback correctly when collectible is added via detection', async () => {
-      const { collectiblesController, onCollectibleAddedSpy } = setupController(
-        { includeOnCollectibleAdded: true },
-      );
+      const { collectiblesController, onCollectibleAddedSpy, messenger } =
+        setupController({ includeOnCollectibleAdded: true });
 
       const detectedUserAddress = '0x123';
       await collectiblesController.addCollectible(
@@ -265,10 +281,13 @@ describe('CollectiblesController', () => {
         standard: 'ERC721',
         symbol: 'FOO',
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add collectible by selected address', async () => {
-      const { collectiblesController, preferences } = setupController();
+      const { collectiblesController, preferences, messenger } =
+        setupController();
       const { chainId } = collectiblesController.config;
       const firstAddress = '0x123';
       const secondAddress = '0x321';
@@ -292,10 +311,12 @@ describe('CollectiblesController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should update collectible if image is different', async () => {
-      const { collectiblesController } = setupController();
+      const { collectiblesController, messenger } = setupController();
       const { selectedAddress, chainId } = collectiblesController.config;
 
       await collectiblesController.addCollectible('0x01', '1', {
@@ -343,10 +364,12 @@ describe('CollectiblesController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should not duplicate collectible nor collectible contract if already added', async () => {
-      const { collectiblesController } = setupController();
+      const { collectiblesController, messenger } = setupController();
       const { selectedAddress, chainId } = collectiblesController.config;
       await collectiblesController.addCollectible('0x01', '1', {
         name: 'name',
@@ -373,10 +396,12 @@ describe('CollectiblesController', () => {
           chainId
         ],
       ).toHaveLength(1);
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add collectible and get information from OpenSea', async () => {
-      const { collectiblesController } = setupController();
+      const { collectiblesController, messenger } = setupController();
 
       const { selectedAddress, chainId } = collectiblesController.config;
       await collectiblesController.addCollectible('0x01', '1');
@@ -395,10 +420,13 @@ describe('CollectiblesController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add collectible erc721 and aggregate collectible data from both contract and OpenSea', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       nock(OPENSEA_PROXY_URL)
         .get(`/asset/${ERC721_KUDOSADDRESS}/${ERC721_KUDOS_TOKEN_ID}`)
         .reply(200, {
@@ -541,10 +569,13 @@ describe('CollectiblesController', () => {
         name: 'KudosToken',
         symbol: 'KDO',
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add collectible erc1155 and get collectible information from contract when OpenSea Proxy API fails to fetch and no OpenSeaAPI key is set', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
@@ -662,10 +693,13 @@ describe('CollectiblesController', () => {
         imageOriginal: 'image.uri',
         numberOfSales: 1,
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add collectible erc721 and get collectible information only from contract', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       nock('https://ipfs.gitcoin.co:443')
         .get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov')
         .reply(200, {
@@ -790,10 +824,12 @@ describe('CollectiblesController', () => {
         name: 'KudosToken',
         symbol: 'KDO',
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add collectible by provider type', async () => {
-      const { collectiblesController, network } = setupController();
+      const { collectiblesController, network, messenger } = setupController();
       const firstNetworkType = 'rinkeby';
       const secondNetworkType = 'ropsten';
       const { selectedAddress } = collectiblesController.config;
@@ -801,26 +837,10 @@ describe('CollectiblesController', () => {
         .stub(collectiblesController, 'getCollectibleInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
 
-      network.update({
-        provider: {
-          type: firstNetworkType,
-          chainId: NetworksChainId[firstNetworkType],
-        },
-      });
+      network.setProviderType(firstNetworkType);
       await collectiblesController.addCollectible('0x01', '1234');
-      network.update({
-        provider: {
-          type: secondNetworkType,
-          chainId: NetworksChainId[secondNetworkType],
-        },
-      });
-
-      network.update({
-        provider: {
-          type: firstNetworkType,
-          chainId: NetworksChainId[firstNetworkType],
-        },
-      });
+      network.setProviderType(secondNetworkType);
+      network.setProviderType(firstNetworkType);
 
       expect(
         collectiblesController.state.allCollectibles[selectedAddress]?.[
@@ -841,10 +861,12 @@ describe('CollectiblesController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should not add collectibles with no contract information when auto detecting', async () => {
-      const { collectiblesController } = setupController();
+      const { collectiblesController, messenger } = setupController();
       nock(OPENSEA_PROXY_URL)
         .get(`/asset/${ERC721_KUDOSADDRESS}/${ERC721_KUDOS_TOKEN_ID}`)
         .reply(200, {
@@ -929,10 +951,12 @@ describe('CollectiblesController', () => {
           totalSupply: 10,
         },
       ]);
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should not add duplicate collectibles to the ignoredCollectibles list', async () => {
-      const { collectiblesController } = setupController();
+      const { collectiblesController, messenger } = setupController();
       const { selectedAddress, chainId } = collectiblesController.config;
 
       await collectiblesController.addCollectible('0x01', '1', {
@@ -977,10 +1001,13 @@ describe('CollectiblesController', () => {
         collectiblesController.state.allCollectibles[selectedAddress][chainId],
       ).toHaveLength(1);
       expect(collectiblesController.state.ignoredCollectibles).toHaveLength(1);
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add collectible with metadata hosted in IPFS', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
@@ -1091,10 +1118,13 @@ describe('CollectiblesController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should add collectible erc721 and get collectible information directly from OpenSea API when OpenSeaAPIkey is set and queries to OpenSea proxy fail', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       nock(OPENSEA_PROXY_URL)
         .get(`/asset_contract/${ERC721_COLLECTIBLE_ADDRESS}`)
         .replyWithError(new Error('Failed to fetch'))
@@ -1236,12 +1266,15 @@ describe('CollectiblesController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
   });
 
   describe('addCollectibleVerifyOwnership', () => {
     it('should verify ownership by selected address and add collectible', async () => {
-      const { collectiblesController, preferences } = setupController();
+      const { collectiblesController, preferences, messenger } =
+        setupController();
       const firstAddress = '0x123';
       const secondAddress = '0x321';
       const { chainId } = collectiblesController.config;
@@ -1275,10 +1308,13 @@ describe('CollectiblesController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should throw an error if selected address is not owner of input collectible', async () => {
-      const { collectiblesController, preferences } = setupController();
+      const { collectiblesController, preferences, messenger } =
+        setupController();
       sinon
         .stub(collectiblesController, 'isCollectibleOwner' as any)
         .returns(false);
@@ -1291,12 +1327,14 @@ describe('CollectiblesController', () => {
         );
       const error = 'This collectible is not owned by the user';
       await expect(result).rejects.toThrow(error);
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
   });
 
   describe('removeCollectible', () => {
     it('should remove collectible and collectible contract', async () => {
-      const { collectiblesController } = setupController();
+      const { collectiblesController, messenger } = setupController();
       const { selectedAddress, chainId } = collectiblesController.config;
 
       await collectiblesController.addCollectible('0x01', '1', {
@@ -1315,10 +1353,12 @@ describe('CollectiblesController', () => {
           chainId
         ],
       ).toHaveLength(0);
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should not remove collectible contract if collectible still exists', async () => {
-      const { collectiblesController } = setupController();
+      const { collectiblesController, messenger } = setupController();
       const { selectedAddress, chainId } = collectiblesController.config;
 
       await collectiblesController.addCollectible('0x01', '1', {
@@ -1344,10 +1384,13 @@ describe('CollectiblesController', () => {
           chainId
         ],
       ).toHaveLength(1);
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should remove collectible by selected address', async () => {
-      const { collectiblesController, preferences } = setupController();
+      const { collectiblesController, preferences, messenger } =
+        setupController();
       const { chainId } = collectiblesController.config;
       sinon
         .stub(collectiblesController, 'getCollectibleInformation' as any)
@@ -1374,10 +1417,12 @@ describe('CollectiblesController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should remove collectible by provider type', async () => {
-      const { collectiblesController, network } = setupController();
+      const { collectiblesController, network, messenger } = setupController();
       const { selectedAddress } = collectiblesController.config;
 
       sinon
@@ -1385,19 +1430,9 @@ describe('CollectiblesController', () => {
         .returns({ name: 'name', image: 'url', description: 'description' });
       const firstNetworkType = 'rinkeby';
       const secondNetworkType = 'ropsten';
-      network.update({
-        provider: {
-          type: firstNetworkType,
-          chainId: NetworksChainId[firstNetworkType],
-        },
-      });
+      network.setProviderType(firstNetworkType);
       await collectiblesController.addCollectible('0x02', '4321');
-      network.update({
-        provider: {
-          type: secondNetworkType,
-          chainId: NetworksChainId[secondNetworkType],
-        },
-      });
+      network.setProviderType(secondNetworkType);
       await collectiblesController.addCollectible('0x01', '1234');
       // collectiblesController.removeToken('0x01');
       collectiblesController.removeCollectible('0x01', '1234');
@@ -1407,12 +1442,7 @@ describe('CollectiblesController', () => {
         ],
       ).toHaveLength(0);
 
-      network.update({
-        provider: {
-          type: firstNetworkType,
-          chainId: NetworksChainId[firstNetworkType],
-        },
-      });
+      network.setProviderType(firstNetworkType);
 
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][
@@ -1427,11 +1457,13 @@ describe('CollectiblesController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
   });
 
   it('should be able to clear the ignoredCollectibles list', async () => {
-    const { collectiblesController } = setupController();
+    const { collectiblesController, messenger } = setupController();
     const { selectedAddress, chainId } = collectiblesController.config;
 
     await collectiblesController.addCollectible('0x02', '1', {
@@ -1455,17 +1487,21 @@ describe('CollectiblesController', () => {
 
     collectiblesController.clearIgnoredCollectibles();
     expect(collectiblesController.state.ignoredCollectibles).toHaveLength(0);
+
+    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should set api key correctly', () => {
-    const { collectiblesController } = setupController();
+    const { collectiblesController, messenger } = setupController();
     collectiblesController.setApiKey('new-api-key');
     expect(collectiblesController.openSeaApiKey).toBe('new-api-key');
+    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   describe('isCollectibleOwner', () => {
     it('should verify the ownership of an ERC-721 collectible with the correct owner address', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
@@ -1493,10 +1529,13 @@ describe('CollectiblesController', () => {
         String(ERC721_COLLECTIBLE_ID),
       );
       expect(isOwner).toBe(true);
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should not verify the ownership of an ERC-721 collectible with the wrong owner address', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
@@ -1524,10 +1563,13 @@ describe('CollectiblesController', () => {
         String(ERC721_COLLECTIBLE_ID),
       );
       expect(isOwner).toBe(false);
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should verify the ownership of an ERC-1155 collectible with the correct owner address', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
@@ -1571,10 +1613,13 @@ describe('CollectiblesController', () => {
         ERC1155_COLLECTIBLE_ID,
       );
       expect(isOwner).toBe(true);
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should not verify the ownership of an ERC-1155 collectible with the wrong owner address', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
         .post('/v3/ad3a368836ff4596becc3be8e2f137ac', {
           jsonrpc: '2.0',
@@ -1619,10 +1664,13 @@ describe('CollectiblesController', () => {
         ERC1155_COLLECTIBLE_ID,
       );
       expect(isOwner).toBe(false);
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should throw an error for an unsupported standard', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const error =
         'Unable to verify ownership. Probably because the standard is not supported or the chain is incorrect';
@@ -1634,12 +1682,15 @@ describe('CollectiblesController', () => {
         );
       };
       await expect(result).rejects.toThrow(error);
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
   });
 
   describe('updateCollectibleFavoriteStatus', () => {
     it('should set collectible as favorite', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = collectiblesController.config;
       await collectiblesController.addCollectible(
@@ -1664,10 +1715,13 @@ describe('CollectiblesController', () => {
           favorite: true,
         }),
       );
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should set collectible as favorite and then unset it', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = collectiblesController.config;
       await collectiblesController.addCollectible(
@@ -1710,10 +1764,13 @@ describe('CollectiblesController', () => {
           favorite: false,
         }),
       );
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should keep the favorite status as true after updating metadata', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = collectiblesController.config;
       await collectiblesController.addCollectible(
@@ -1769,10 +1826,13 @@ describe('CollectiblesController', () => {
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][chainId],
       ).toHaveLength(1);
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should keep the favorite status as false after updating metadata', async () => {
-      const { assetsContract, collectiblesController } = setupController();
+      const { assetsContract, collectiblesController, messenger } =
+        setupController();
       assetsContract.configure({ provider: MAINNET_PROVIDER });
       const { selectedAddress, chainId } = collectiblesController.config;
       await collectiblesController.addCollectible(
@@ -1822,12 +1882,14 @@ describe('CollectiblesController', () => {
       expect(
         collectiblesController.state.allCollectibles[selectedAddress][chainId],
       ).toHaveLength(1);
+
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     describe('checkAndUpdateCollectiblesOwnershipStatus', () => {
       describe('checkAndUpdateAllCollectiblesOwnershipStatus', () => {
         it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and update the isCurrentlyOwned value to false when collectible is not still owned', async () => {
-          const { collectiblesController } = setupController();
+          const { collectiblesController, messenger } = setupController();
           sinon
             .stub(collectiblesController, 'isCollectibleOwner' as any)
             .returns(false);
@@ -1853,11 +1915,13 @@ describe('CollectiblesController', () => {
               chainId
             ][0].isCurrentlyOwned,
           ).toBe(false);
+
+          messenger.clearEventSubscriptions('NetworkController:stateChange');
         });
       });
 
       it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave/set the isCurrentlyOwned value to true when collectible is still owned', async () => {
-        const { collectiblesController } = setupController();
+        const { collectiblesController, messenger } = setupController();
         sinon
           .stub(collectiblesController, 'isCollectibleOwner' as any)
           .returns(true);
@@ -1883,10 +1947,12 @@ describe('CollectiblesController', () => {
             chainId
           ][0].isCurrentlyOwned,
         ).toBe(true);
+
+        messenger.clearEventSubscriptions('NetworkController:stateChange');
       });
 
       it('should check whether collectibles for the current selectedAddress/chainId combination are still owned by the selectedAddress and leave the isCurrentlyOwned value as is when collectible ownership check fails', async () => {
-        const { collectiblesController } = setupController();
+        const { collectiblesController, messenger } = setupController();
         sinon
           .stub(collectiblesController, 'isCollectibleOwner' as any)
           .throws(new Error('Unable to verify ownership'));
@@ -1912,11 +1978,13 @@ describe('CollectiblesController', () => {
             chainId
           ][0].isCurrentlyOwned,
         ).toBe(true);
+
+        messenger.clearEventSubscriptions('NetworkController:stateChange');
       });
 
       describe('checkAndUpdateSingleCollectibleOwnershipStatus', () => {
         it('should check whether the passed collectible is still owned by the the current selectedAddress/chainId combination and update its isCurrentlyOwned property in state if batch is false and isCollectibleOwner returns false', async () => {
-          const { collectiblesController } = setupController();
+          const { collectiblesController, messenger } = setupController();
           const { selectedAddress, chainId } = collectiblesController.config;
           const collectible = {
             address: '0x02',
@@ -1954,11 +2022,13 @@ describe('CollectiblesController', () => {
               chainId
             ][0].isCurrentlyOwned,
           ).toBe(false);
+
+          messenger.clearEventSubscriptions('NetworkController:stateChange');
         });
       });
 
       it('should check whether the passed collectible is still owned by the the current selectedAddress/chainId combination and return the updated collectible object without updating state if batch is true', async () => {
-        const { collectiblesController } = setupController();
+        const { collectiblesController, messenger } = setupController();
         const { selectedAddress, chainId } = collectiblesController.config;
         const collectible = {
           address: '0x02',
@@ -1999,21 +2069,18 @@ describe('CollectiblesController', () => {
         ).toBe(true);
 
         expect(updatedCollectible.isCurrentlyOwned).toBe(false);
+
+        messenger.clearEventSubscriptions('NetworkController:stateChange');
       });
 
       it('should check whether the passed collectible is still owned by the the selectedAddress/chainId combination passed in the accountParams argument and update its isCurrentlyOwned property in state, when the currently configured selectedAddress/chainId are different from those passed', async () => {
-        const { collectiblesController, network, preferences } =
+        const { collectiblesController, network, preferences, messenger } =
           setupController();
         const firstNetworkType = 'rinkeby';
         const secondNetworkType = 'ropsten';
 
         preferences.update({ selectedAddress: OWNER_ADDRESS });
-        network.update({
-          provider: {
-            type: firstNetworkType,
-            chainId: NetworksChainId[firstNetworkType],
-          },
-        });
+        network.setProviderType(firstNetworkType);
 
         const { selectedAddress, chainId } = collectiblesController.config;
         const collectible = {
@@ -2043,12 +2110,7 @@ describe('CollectiblesController', () => {
           .returns(false);
 
         preferences.update({ selectedAddress: SECOND_OWNER_ADDRESS });
-        network.update({
-          provider: {
-            type: secondNetworkType,
-            chainId: NetworksChainId[secondNetworkType],
-          },
-        });
+        network.setProviderType(secondNetworkType);
 
         await collectiblesController.checkAndUpdateSingleCollectibleOwnershipStatus(
           collectible,
@@ -2064,6 +2126,8 @@ describe('CollectiblesController', () => {
             NetworksChainId[firstNetworkType]
           ][0].isCurrentlyOwned,
         ).toBe(false);
+
+        messenger.clearEventSubscriptions('NetworkController:stateChange');
       });
     });
   });
@@ -2078,8 +2142,12 @@ describe('CollectiblesController', () => {
       standard: 'standard',
       favorite: false,
     };
-    const { collectiblesController } = setupController();
+    const { collectiblesController, messenger } = setupController();
     const { selectedAddress, chainId } = collectiblesController.config;
+
+    afterAll(() => {
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
+    });
 
     it('should return null if the collectible does not exist in the state', async () => {
       expect(
@@ -2109,7 +2177,7 @@ describe('CollectiblesController', () => {
   });
 
   describe('updateCollectibleByAddressAndTokenId', () => {
-    const { collectiblesController } = setupController();
+    const { collectiblesController, messenger } = setupController();
 
     const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
     const mockCollectible = {
@@ -2134,6 +2202,11 @@ describe('CollectiblesController', () => {
     };
 
     const { selectedAddress, chainId } = collectiblesController.config;
+
+    afterAll(() => {
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
+    });
+
     it('should update the collectible if the collectible exist', async () => {
       collectiblesController.state.allCollectibles = {
         [selectedAddress]: { [chainId]: [mockCollectible] },
@@ -2170,7 +2243,7 @@ describe('CollectiblesController', () => {
   });
 
   describe('resetCollectibleTransactionStatusByTransactionId', () => {
-    const { collectiblesController } = setupController();
+    const { collectiblesController, messenger } = setupController();
 
     const mockTransactionId = '60d36710-b150-11ec-8a49-c377fbd05e27';
     const nonExistTransactionId = '0123';
@@ -2187,6 +2260,10 @@ describe('CollectiblesController', () => {
     };
 
     const { selectedAddress, chainId } = collectiblesController.config;
+
+    afterAll(() => {
+      messenger.clearEventSubscriptions('NetworkController:stateChange');
+    });
 
     it('should not update any collectible state and should return false when passed a transaction id that does not match that of any collectible', async () => {
       expect(
