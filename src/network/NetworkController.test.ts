@@ -42,6 +42,7 @@ describe('NetworkController', () => {
       name: 'NetworkController',
       allowedEvents: [
         'NetworkController:providerChange',
+        'NetworkController:providerConfigChange',
         'NetworkController:networkIdChange',
         'NetworkController:eip1559CompatibilityChange',
       ],
@@ -264,6 +265,52 @@ describe('NetworkController', () => {
 
       const controller = new NetworkController(testConfig);
       controller.providerConfig = {} as ProviderConfig;
+    });
+  });
+
+  describe('providerConfigChange event', () => {
+    it('fires when setRpcTarget is called', async () => {
+      expect.assertions(1);
+
+      await new Promise((resolve, _) => {
+        const testConfig = {
+          infuraProjectId: 'foo',
+          messenger,
+        };
+
+        const event = 'NetworkController:providerConfigChange';
+        const handle = (providerConfig: ProviderConfig) => {
+          messenger.unsubscribe(event, handle);
+          expect(providerConfig.type).toBe('rpc');
+          resolve('');
+        };
+        messenger.subscribe(event, handle);
+
+        const controller = new NetworkController(testConfig);
+        controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
+      });
+    });
+
+    it('fires when setProviderType is called', async () => {
+      expect.assertions(1);
+
+      await new Promise((resolve, _) => {
+        const testConfig = {
+          infuraProjectId: 'foo',
+          messenger,
+        };
+
+        const event = 'NetworkController:providerConfigChange';
+        const handle = (providerConfig: ProviderConfig) => {
+          messenger.unsubscribe(event, handle);
+          expect(providerConfig.type).toBe('rpc');
+          resolve('');
+        };
+        messenger.subscribe(event, handle);
+
+        const controller = new NetworkController(testConfig);
+        controller.setProviderType('rpc');
+      });
     });
   });
 });
