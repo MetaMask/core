@@ -5,7 +5,7 @@ import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
 import { IPFS_DEFAULT_GATEWAY_URL } from '../constants';
 import { SupportedTokenDetectionNetworks } from '../util';
-import { NetworkState } from '../network/NetworkController';
+import { ProviderConfig } from '../network/NetworkController';
 import { ERC721Standard } from './Standards/CollectibleStandards/ERC721/ERC721Standard';
 import { ERC1155Standard } from './Standards/CollectibleStandards/ERC1155/ERC1155Standard';
 import { ERC20Standard } from './Standards/ERC20Standard';
@@ -77,20 +77,20 @@ export class AssetsContractController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onNetworkProviderConfigChange - Allows subscribing to network controller ProviderConfig changes.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
   constructor(
     {
       onPreferencesStateChange,
-      onNetworkStateChange,
+      onNetworkProviderConfigChange,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
-      onNetworkStateChange: (
-        listener: (networkState: NetworkState) => void,
+      onNetworkProviderConfigChange: (
+        listener: (providerConfig: ProviderConfig) => void,
       ) => void;
     },
     config?: Partial<AssetsContractConfig>,
@@ -108,10 +108,10 @@ export class AssetsContractController extends BaseController<
       this.configure({ ipfsGateway });
     });
 
-    onNetworkStateChange((networkState) => {
-      if (this.config.chainId !== networkState.provider.chainId) {
+    onNetworkProviderConfigChange((providerConfig: ProviderConfig) => {
+      if (this.config.chainId !== providerConfig.chainId) {
         this.configure({
-          chainId: networkState.provider.chainId,
+          chainId: providerConfig.chainId,
         });
       }
     });

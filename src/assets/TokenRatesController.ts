@@ -1,7 +1,7 @@
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import { safelyExecute, handleFetch, toChecksumHexAddress } from '../util';
 
-import type { NetworkState } from '../network/NetworkController';
+import type { ProviderConfig } from '../network/NetworkController';
 import { FALL_BACK_VS_CURRENCY } from '../constants';
 import { fetchExchangeRate as fetchNativeExchangeRate } from '../apis/crypto-compare';
 import type { TokensState } from './TokensController';
@@ -159,7 +159,7 @@ export class TokenRatesController extends BaseController<
    * @param options - The controller options.
    * @param options.onTokensStateChange - Allows subscribing to token controller state changes.
    * @param options.onCurrencyRateStateChange - Allows subscribing to currency rate controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network state changes.
+   * @param options.onNetworkProviderConfigChange - Allows subscribing to network controller ProviderConfig changes.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -167,7 +167,7 @@ export class TokenRatesController extends BaseController<
     {
       onTokensStateChange,
       onCurrencyRateStateChange,
-      onNetworkStateChange,
+      onNetworkProviderConfigChange,
     }: {
       onTokensStateChange: (
         listener: (tokensState: TokensState) => void,
@@ -175,8 +175,8 @@ export class TokenRatesController extends BaseController<
       onCurrencyRateStateChange: (
         listener: (currencyRateState: CurrencyRateState) => void,
       ) => void;
-      onNetworkStateChange: (
-        listener: (networkState: NetworkState) => void,
+      onNetworkProviderConfigChange: (
+        listener: (providerConfig: ProviderConfig) => void,
       ) => void;
     },
     config?: Partial<TokenRatesConfig>,
@@ -205,8 +205,8 @@ export class TokenRatesController extends BaseController<
       this.configure({ nativeCurrency: currencyRateState.nativeCurrency });
     });
 
-    onNetworkStateChange(({ provider }) => {
-      const { chainId } = provider;
+    onNetworkProviderConfigChange((providerConfig) => {
+      const { chainId } = providerConfig;
       this.update({ contractExchangeRates: {} });
       this.configure({ chainId });
     });

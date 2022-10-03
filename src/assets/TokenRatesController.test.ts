@@ -4,6 +4,7 @@ import { PreferencesController } from '../user/PreferencesController';
 import {
   NetworkController,
   NetworkControllerMessenger,
+  ProviderConfig,
 } from '../network/NetworkController';
 import { ControllerMessenger } from '../ControllerMessenger';
 import { TokenRatesController } from './TokenRatesController';
@@ -102,7 +103,10 @@ describe('TokenRatesController', () => {
 
     messenger = new ControllerMessenger().getRestricted({
       name: 'NetworkController',
-      allowedEvents: ['NetworkController:stateChange'],
+      allowedEvents: [
+        'NetworkController:stateChange',
+        'NetworkController:providerConfigChange',
+      ],
       allowedActions: [],
     });
   });
@@ -111,13 +115,14 @@ describe('TokenRatesController', () => {
     nock.cleanAll();
     sinon.restore();
     messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should set default state', () => {
     const controller = new TokenRatesController({
       onTokensStateChange: sinon.stub(),
       onCurrencyRateStateChange: sinon.stub(),
-      onNetworkStateChange: sinon.stub(),
+      onNetworkProviderConfigChange: sinon.stub(),
     });
     expect(controller.state).toStrictEqual({
       contractExchangeRates: {},
@@ -128,7 +133,7 @@ describe('TokenRatesController', () => {
     const controller = new TokenRatesController({
       onTokensStateChange: sinon.stub(),
       onCurrencyRateStateChange: sinon.stub(),
-      onNetworkStateChange: sinon.stub(),
+      onNetworkProviderConfigChange: sinon.stub(),
     });
     expect(controller.config).toStrictEqual({
       disabled: false,
@@ -144,7 +149,7 @@ describe('TokenRatesController', () => {
     const controller = new TokenRatesController({
       onTokensStateChange: sinon.stub(),
       onCurrencyRateStateChange: sinon.stub(),
-      onNetworkStateChange: sinon.stub(),
+      onNetworkProviderConfigChange: sinon.stub(),
     });
     expect(() => console.log(controller.tokens)).toThrow(
       'Property only used for setting',
@@ -159,7 +164,7 @@ describe('TokenRatesController', () => {
       {
         onTokensStateChange: jest.fn(),
         onCurrencyRateStateChange: jest.fn(),
-        onNetworkStateChange: jest.fn(),
+        onNetworkProviderConfigChange: sinon.stub(),
       },
       {
         interval,
@@ -181,7 +186,7 @@ describe('TokenRatesController', () => {
       {
         onTokensStateChange: sinon.stub(),
         onCurrencyRateStateChange: sinon.stub(),
-        onNetworkStateChange: sinon.stub(),
+        onNetworkProviderConfigChange: sinon.stub(),
       },
       {
         interval: 10,
@@ -199,7 +204,7 @@ describe('TokenRatesController', () => {
       {
         onTokensStateChange: sinon.stub(),
         onCurrencyRateStateChange: sinon.stub(),
-        onNetworkStateChange: sinon.stub(),
+        onNetworkProviderConfigChange: sinon.stub(),
       },
       { interval: 1337 },
     );
@@ -217,15 +222,18 @@ describe('TokenRatesController', () => {
     const preferences = new PreferencesController();
     const tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkProviderConfigChange: (listener) =>
+        messenger.subscribe('NetworkController:providerConfigChange', listener),
     });
     const controller = new TokenRatesController(
       {
         onTokensStateChange: (listener) => tokensController.subscribe(listener),
         onCurrencyRateStateChange: sinon.stub(),
-        onNetworkStateChange: (listener) =>
-          messenger.subscribe('NetworkController:stateChange', listener),
+        onNetworkProviderConfigChange: (listener) =>
+          messenger.subscribe(
+            'NetworkController:providerConfigChange',
+            listener,
+          ),
       },
       { interval: 10, chainId: '1' },
     );
@@ -251,7 +259,7 @@ describe('TokenRatesController', () => {
       {
         onTokensStateChange: sinon.stub(),
         onCurrencyRateStateChange: sinon.stub(),
-        onNetworkStateChange: sinon.stub(),
+        onNetworkProviderConfigChange: sinon.stub(),
       },
       { interval: 10 },
     );
@@ -274,12 +282,12 @@ describe('TokenRatesController', () => {
       tokenStateChangeListener = listener;
     });
     const onCurrencyRateStateChange = sinon.stub();
-    const onNetworkStateChange = sinon.stub();
+    const onNetworkProviderConfigChange = sinon.stub();
     const controller = new TokenRatesController(
       {
         onTokensStateChange,
         onCurrencyRateStateChange,
-        onNetworkStateChange,
+        onNetworkProviderConfigChange,
       },
       { interval: 10 },
     );
@@ -300,12 +308,12 @@ describe('TokenRatesController', () => {
     const onCurrencyRateStateChange = sinon.stub().callsFake((listener) => {
       currencyRateStateChangeListener = listener;
     });
-    const onNetworkStateChange = sinon.stub();
+    const onNetworkProviderConfigChange = sinon.stub();
     const controller = new TokenRatesController(
       {
         onTokensStateChange,
         onCurrencyRateStateChange,
-        onNetworkStateChange,
+        onNetworkProviderConfigChange,
       },
       { interval: 10 },
     );
@@ -349,12 +357,12 @@ describe('TokenRatesController', () => {
       tokenStateChangeListener = listener;
     });
 
-    const onNetworkStateChange = sinon.stub();
+    const onNetworkProviderConfigChange = sinon.stub();
     const controller = new TokenRatesController(
       {
         onTokensStateChange,
         onCurrencyRateStateChange: sinon.stub(),
-        onNetworkStateChange,
+        onNetworkProviderConfigChange,
       },
       { interval: 10 },
     );
@@ -402,8 +410,8 @@ describe('TokenRatesController', () => {
       })
       .persist();
 
-    let networkChangeListener: (state: any) => void;
-    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
+    let networkChangeListener: (provider: ProviderConfig) => void;
+    const onNetworkProviderConfigChange = sinon.stub().callsFake((listener) => {
       networkChangeListener = listener;
     });
 
@@ -415,7 +423,7 @@ describe('TokenRatesController', () => {
     const controller = new TokenRatesController(
       {
         onTokensStateChange,
-        onNetworkStateChange,
+        onNetworkProviderConfigChange,
         onCurrencyRateStateChange: sinon.stub(),
       },
       { interval: 10 },
@@ -452,9 +460,7 @@ describe('TokenRatesController', () => {
     });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await networkChangeListener!({
-      provider: { chainId: '4' },
-    });
+    await networkChangeListener!({ chainId: '4', type: 'rpc' });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await tokenStateChangeListener!({
@@ -487,7 +493,7 @@ describe('TokenRatesController', () => {
     const controller = new TokenRatesController(
       {
         onTokensStateChange,
-        onNetworkStateChange: sinon.stub(),
+        onNetworkProviderConfigChange: sinon.stub(),
         onCurrencyRateStateChange: sinon.stub(),
       },
       { interval: 10, chainId: '1', nativeCurrency: 'ETH' },

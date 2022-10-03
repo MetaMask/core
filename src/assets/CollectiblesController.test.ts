@@ -59,7 +59,7 @@ function setupController({
   const messenger: NetworkControllerMessenger =
     new ControllerMessenger().getRestricted({
       name: 'NetworkController',
-      allowedEvents: ['NetworkController:stateChange'],
+      allowedEvents: ['NetworkController:providerConfigChange'],
       allowedActions: [],
     });
   const preferences = new PreferencesController();
@@ -69,8 +69,8 @@ function setupController({
   });
   const assetsContract = new AssetsContractController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-    onNetworkStateChange: (listener) =>
-      messenger.subscribe('NetworkController:stateChange', listener),
+    onNetworkProviderConfigChange: (listener) =>
+      messenger.subscribe('NetworkController:providerConfigChange', listener),
   });
   const onCollectibleAddedSpy = includeOnCollectibleAdded
     ? jest.fn()
@@ -78,8 +78,8 @@ function setupController({
 
   const collectiblesController = new CollectiblesController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-    onNetworkStateChange: (listener) =>
-      messenger.subscribe('NetworkController:stateChange', listener),
+    onNetworkProviderConfigChange: (listener) =>
+      messenger.subscribe('NetworkController:providerConfigChange', listener),
     getERC721AssetName: assetsContract.getERC721AssetName.bind(assetsContract),
     getERC721AssetSymbol:
       assetsContract.getERC721AssetSymbol.bind(assetsContract),

@@ -30,7 +30,7 @@ const setupControllers = () => {
   const messenger: NetworkControllerMessenger =
     new ControllerMessenger().getRestricted({
       name: 'NetworkController',
-      allowedEvents: ['NetworkController:stateChange'],
+      allowedEvents: ['NetworkController:providerConfigChange'],
       allowedActions: [],
     });
   const network = new NetworkController({
@@ -39,8 +39,8 @@ const setupControllers = () => {
   const preferences = new PreferencesController();
   const assetsContract = new AssetsContractController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-    onNetworkStateChange: (listener) =>
-      messenger.subscribe('NetworkController:stateChange', listener),
+    onNetworkProviderConfigChange: (listener) =>
+      messenger.subscribe('NetworkController:providerConfigChange', listener),
   });
 
   return { messenger, network, preferences, assetsContract };
@@ -54,7 +54,7 @@ describe('AssetsContractController', () => {
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       provider: undefined,
     });
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should update the ipfsGateWay config value when this value is changed in the preferences controller', () => {
@@ -72,7 +72,7 @@ describe('AssetsContractController', () => {
       provider: undefined,
     });
 
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should throw when provider property is accessed', () => {
@@ -80,7 +80,7 @@ describe('AssetsContractController', () => {
     expect(() => console.log(assetsContract.provider)).toThrow(
       'Property only used for setting',
     );
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should throw missing provider error when getting ERC-20 token balance when missing provider', async () => {
@@ -92,7 +92,7 @@ describe('AssetsContractController', () => {
         TEST_ACCOUNT_PUBLIC_ADDRESS,
       ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should throw missing provider error when getting ERC-20 token decimal when missing provider', async () => {
@@ -101,7 +101,7 @@ describe('AssetsContractController', () => {
     await expect(
       assetsContract.getERC20TokenDecimals(ERC20_UNI_ADDRESS),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should get balance of ERC-20 token contract correctly', async () => {
@@ -117,7 +117,7 @@ describe('AssetsContractController', () => {
     );
     expect(UNIBalance.toNumber()).not.toStrictEqual(0);
     expect(UNINoBalance.toNumber()).toStrictEqual(0);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should get ERC-721 collectible tokenId correctly', async () => {
@@ -129,7 +129,7 @@ describe('AssetsContractController', () => {
       0,
     );
     expect(tokenId).not.toStrictEqual(0);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should throw missing provider error when getting ERC-721 token standard and details when missing provider', async () => {
@@ -141,7 +141,7 @@ describe('AssetsContractController', () => {
         TEST_ACCOUNT_PUBLIC_ADDRESS,
       ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should throw contract standard error when getting ERC-20 token standard and details when provided with invalid ERC-20 address', async () => {
@@ -154,7 +154,7 @@ describe('AssetsContractController', () => {
         TEST_ACCOUNT_PUBLIC_ADDRESS,
       ),
     ).rejects.toThrow(error);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should get ERC-721 token standard and details', async () => {
@@ -165,7 +165,7 @@ describe('AssetsContractController', () => {
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
     expect(standardAndDetails.standard).toStrictEqual('ERC721');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should get ERC-1155 token standard and details', async () => {
@@ -176,7 +176,7 @@ describe('AssetsContractController', () => {
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
     expect(standardAndDetails.standard).toStrictEqual('ERC1155');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should get ERC-20 token standard and details', async () => {
@@ -187,7 +187,7 @@ describe('AssetsContractController', () => {
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
     expect(standardAndDetails.standard).toStrictEqual('ERC20');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should get ERC-721 collectible tokenURI correctly', async () => {
@@ -198,7 +198,7 @@ describe('AssetsContractController', () => {
       '0',
     );
     expect(tokenId).toStrictEqual('https://api.godsunchained.com/card/0');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should throw an error when address given is not an ERC-721 collectible', async () => {
@@ -213,7 +213,7 @@ describe('AssetsContractController', () => {
 
     const error = 'Contract does not support ERC721 metadata interface.';
     await expect(result).rejects.toThrow(error);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should get ERC-721 collectible name', async () => {
@@ -221,7 +221,7 @@ describe('AssetsContractController', () => {
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const name = await assetsContract.getERC721AssetName(ERC721_GODS_ADDRESS);
     expect(name).toStrictEqual('Gods Unchained');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should get ERC-721 collectible symbol', async () => {
@@ -231,7 +231,7 @@ describe('AssetsContractController', () => {
       ERC721_GODS_ADDRESS,
     );
     expect(symbol).toStrictEqual('GODS');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should throw missing provider error when getting ERC-721 collectible symbol when missing provider', async () => {
@@ -239,7 +239,7 @@ describe('AssetsContractController', () => {
     await expect(
       assetsContract.getERC721AssetSymbol(ERC721_GODS_ADDRESS),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should get ERC-20 token decimals', async () => {
@@ -249,7 +249,7 @@ describe('AssetsContractController', () => {
       ERC20_DAI_ADDRESS,
     );
     expect(Number(decimals)).toStrictEqual(18);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should get ERC-721 collectible ownership', async () => {
@@ -260,7 +260,7 @@ describe('AssetsContractController', () => {
       '148332',
     );
     expect(tokenId).not.toStrictEqual('');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should throw missing provider error when getting ERC-721 collectible ownership', async () => {
@@ -268,7 +268,7 @@ describe('AssetsContractController', () => {
     await expect(
       assetsContract.getERC721OwnerOf(ERC721_GODS_ADDRESS, '148332'),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should get balance of ERC-20 token in a single call on network with token detection support', async () => {
@@ -279,7 +279,7 @@ describe('AssetsContractController', () => {
       [ERC20_DAI_ADDRESS],
     );
     expect(balances[ERC20_DAI_ADDRESS]).not.toBeUndefined();
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should not have balance in a single call after switching to network without token detection support', async () => {
@@ -301,7 +301,7 @@ describe('AssetsContractController', () => {
       [ERC20_DAI_ADDRESS],
     );
     expect(noBalances).toStrictEqual({});
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should throw missing provider error when transfering single ERC-1155 when missing provider', async () => {
@@ -316,7 +316,7 @@ describe('AssetsContractController', () => {
         '1',
       ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should get the balance of a ERC-1155 collectible for a given address', async () => {
@@ -328,7 +328,7 @@ describe('AssetsContractController', () => {
       ERC1155_ID,
     );
     expect(Number(balance)).toBeGreaterThan(0);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should throw missing provider error when getting the balance of a ERC-1155 collectible when missing provider', async () => {
@@ -340,7 +340,7 @@ describe('AssetsContractController', () => {
         ERC1155_ID,
       ),
     ).rejects.toThrow(MISSING_PROVIDER_ERROR);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should get the URI of a ERC-1155 collectible', async () => {
@@ -352,6 +352,6 @@ describe('AssetsContractController', () => {
       ERC1155_ID,
     );
     expect(uri.toLowerCase()).toStrictEqual(expectedUri);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 });

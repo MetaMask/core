@@ -1,5 +1,5 @@
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
-import type { NetworkState } from '../network/NetworkController';
+import type { ProviderConfig } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
 import {
   safelyExecute,
@@ -58,13 +58,13 @@ export class TokenDetectionController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onNetworkProviderConfigChange - Allows subscribing to network controller ProviderConfig changes.
    * @param options.onTokenListStateChange - Allows subscribing to token list controller state changes.
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.addDetectedTokens - Add a list of detected tokens.
    * @param options.getTokenListState - Gets the current state of the TokenList controller.
    * @param options.getTokensState - Gets the current state of the Tokens controller.
-   * @param options.getNetworkState - Gets the state of the network controller.
+   * @param options.getNetworkProviderConfig - Gets the ProviderConfig the network controller.
    * @param options.getPreferencesState - Gets the state of the preferences controller.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
@@ -72,20 +72,20 @@ export class TokenDetectionController extends BaseController<
   constructor(
     {
       onPreferencesStateChange,
-      onNetworkStateChange,
+      onNetworkProviderConfigChange,
       onTokenListStateChange,
       getBalancesInSingleCall,
       addDetectedTokens,
       getTokenListState,
       getTokensState,
-      getNetworkState,
+      getNetworkProviderConfig,
       getPreferencesState,
     }: {
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
-      onNetworkStateChange: (
-        listener: (networkState: NetworkState) => void,
+      onNetworkProviderConfigChange: (
+        listener: (providerConfig: ProviderConfig) => void,
       ) => void;
       onTokenListStateChange: (
         listener: (tokenListState: TokenListState) => void,
@@ -94,15 +94,13 @@ export class TokenDetectionController extends BaseController<
       addDetectedTokens: TokensController['addDetectedTokens'];
       getTokenListState: () => TokenListState;
       getTokensState: () => TokensState;
-      getNetworkState: () => NetworkState;
+      getNetworkProviderConfig: () => ProviderConfig;
       getPreferencesState: () => PreferencesState;
     },
     config?: Partial<TokenDetectionConfig>,
     state?: Partial<BaseState>,
   ) {
-    const {
-      provider: { chainId: defaultChainId },
-    } = getNetworkState();
+    const { chainId: defaultChainId } = getNetworkProviderConfig();
     const { useTokenDetection: defaultUseTokenDetection } =
       getPreferencesState();
 
@@ -155,8 +153,10 @@ export class TokenDetectionController extends BaseController<
       }
     });
 
-    onNetworkStateChange(({ provider: { chainId } }) => {
+    onNetworkProviderConfigChange((providerConfig: ProviderConfig) => {
       const { chainId: currentChainId } = this.config;
+      const { chainId } = providerConfig;
+
       const isDetectionEnabledForNetwork =
         isTokenDetectionSupportedForNetwork(chainId);
       const isChainIdChanged = currentChainId !== chainId;

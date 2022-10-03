@@ -34,7 +34,7 @@ describe('CollectibleDetectionController', () => {
   beforeEach(async () => {
     messenger = new ControllerMessenger().getRestricted({
       name: 'NetworkController',
-      allowedEvents: ['NetworkController:stateChange'],
+      allowedEvents: ['NetworkController:providerConfigChange'],
       allowedActions: [],
     });
 
@@ -45,14 +45,14 @@ describe('CollectibleDetectionController', () => {
     preferences = new PreferencesController();
     assetsContract = new AssetsContractController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkProviderConfigChange: (listener) =>
+        messenger.subscribe('NetworkController:providerConfigChange', listener),
     });
 
     collectiblesController = new CollectiblesController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkProviderConfigChange: (listener) =>
+        messenger.subscribe('NetworkController:providerConfigChange', listener),
       getERC721AssetName:
         assetsContract.getERC721AssetName.bind(assetsContract),
       getERC721AssetSymbol:
@@ -70,8 +70,8 @@ describe('CollectibleDetectionController', () => {
       onCollectiblesStateChange: (listener) =>
         collectiblesController.subscribe(listener),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkProviderConfigChange: (listener) =>
+        messenger.subscribe('NetworkController:providerConfigChange', listener),
       getOpenSeaApiKey: getOpenSeaApiKeyStub,
       addCollectible: collectiblesController.addCollectible.bind(
         collectiblesController,
@@ -242,8 +242,11 @@ describe('CollectibleDetectionController', () => {
               collectiblesController.subscribe(listener),
             onPreferencesStateChange: (listener) =>
               preferences.subscribe(listener),
-            onNetworkStateChange: (listener) =>
-              messenger.subscribe('NetworkController:stateChange', listener),
+            onNetworkProviderConfigChange: (listener) =>
+              messenger.subscribe(
+                'NetworkController:providerConfigChange',
+                listener,
+              ),
             getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
             addCollectible: collectiblesController.addCollectible.bind(
               collectiblesController,
@@ -281,8 +284,11 @@ describe('CollectibleDetectionController', () => {
             collectiblesController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
-          onNetworkStateChange: (listener) =>
-            messenger.subscribe('NetworkController:stateChange', listener),
+          onNetworkProviderConfigChange: (listener) =>
+            messenger.subscribe(
+              'NetworkController:providerConfigChange',
+              listener,
+            ),
           getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
           addCollectible: collectiblesController.addCollectible.bind(
             collectiblesController,

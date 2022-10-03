@@ -123,7 +123,10 @@ describe('TokenBalancesController', () => {
     const messenger: NetworkControllerMessenger =
       new ControllerMessenger().getRestricted({
         name: 'NetworkController',
-        allowedEvents: ['NetworkController:stateChange'],
+        allowedEvents: [
+          'NetworkController:stateChange',
+          'NetworkController:providerConfigChange',
+        ],
         allowedActions: [],
       });
 
@@ -139,8 +142,8 @@ describe('TokenBalancesController', () => {
     const { messenger, preferences } = setupControllers();
     const assets = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkProviderConfigChange: (listener) =>
+        messenger.subscribe('NetworkController:providerConfigChange', listener),
     });
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     const tokenBalances = new TokenBalancesController(
@@ -174,8 +177,8 @@ describe('TokenBalancesController', () => {
     const { messenger, preferences } = setupControllers();
     const assets = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkProviderConfigChange: (listener) =>
+        messenger.subscribe('NetworkController:providerConfigChange', listener),
     });
     const errorMsg = 'Failed to get balance';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
@@ -214,20 +217,20 @@ describe('TokenBalancesController', () => {
       tokenBalances.state.contractBalances[address].toNumber(),
     ).toBeGreaterThan(0);
 
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should subscribe to new sibling assets controllers', async () => {
     const { messenger, preferences } = setupControllers();
     const assetsContract = new AssetsContractController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkProviderConfigChange: (listener) =>
+        messenger.subscribe('NetworkController:providerConfigChange', listener),
     });
     const tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkProviderConfigChange: (listener) =>
+        messenger.subscribe('NetworkController:providerConfigChange', listener),
     });
 
     const stub = stubCreateEthers(tokensController, false);
@@ -250,6 +253,7 @@ describe('TokenBalancesController', () => {
 
     stub.restore();
     messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should update token balances when detected tokens are added', async () => {

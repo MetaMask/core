@@ -1,3 +1,4 @@
+import EthQuery from 'eth-query';
 import sinon from 'sinon';
 import Web3ProviderEngine from 'web3-provider-engine';
 import { ControllerMessenger } from '../ControllerMessenger';
@@ -39,8 +40,16 @@ describe('NetworkController', () => {
   beforeEach(() => {
     messenger = new ControllerMessenger().getRestricted({
       name: 'NetworkController',
-      allowedEvents: ['NetworkController:providerChange'],
-      allowedActions: [],
+      allowedEvents: [
+        'NetworkController:providerChange',
+        'NetworkController:networkIdChange',
+        'NetworkController:eip1559CompatibilityChange',
+      ],
+      allowedActions: [
+        'NetworkController:getProvider',
+        'NetworkController:getProviderConfig',
+        'NetworkController:getEthQuery',
+      ],
     });
   });
 
@@ -63,6 +72,34 @@ describe('NetworkController', () => {
         chainId: '1',
       },
     });
+  });
+
+  it('should have an action to get the providerConfig', () => {
+    new NetworkController({ messenger, infuraProjectId: 'potate' });
+    const providerConfig = messenger.call(
+      'NetworkController:getProviderConfig',
+    );
+    expect(providerConfig.type).toBe('mainnet');
+  });
+
+  it('should have an action to get a provider', () => {
+    const controller = new NetworkController({
+      messenger,
+      infuraProjectId: 'potate',
+    });
+    controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
+    const provider = messenger.call('NetworkController:getProvider');
+    expect(provider).toBeInstanceOf(Web3ProviderEngine);
+  });
+
+  it('should have an action to get an EthQuery instance', () => {
+    const controller = new NetworkController({
+      messenger,
+      infuraProjectId: 'potate',
+    });
+    controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
+    const ethQuery = messenger.call('NetworkController:getEthQuery');
+    expect(ethQuery).toBeInstanceOf(EthQuery);
   });
 
   it('should create a provider instance for default infura network', () => {
@@ -184,16 +221,17 @@ describe('NetworkController', () => {
   });
 
   it('should look up the network', async () => {
-    const testConfig = {
-      // This test needs a real project ID as it makes a test
-      // `eth_version` call; https://github.com/MetaMask/controllers/issues/1
-      infuraProjectId: '341eacb578dd44a1a049cbc5f6fd4035',
-      messenger,
-    };
-    const event = 'NetworkController:providerChange';
-    const controller = new NetworkController(testConfig);
-
+    expect.assertions(1);
     await new Promise((resolve) => {
+      const testConfig = {
+        // This test needs a real project ID as it makes a test
+        // `eth_version` call; https://github.com/MetaMask/controllers/issues/1
+        infuraProjectId: '341eacb578dd44a1a049cbc5f6fd4035',
+        messenger,
+      };
+      const event = 'NetworkController:networkIdChange';
+      const controller = new NetworkController(testConfig);
+
       const handleProviderChange = () => {
         expect(controller.state.network !== 'loading').toBe(true);
         messenger.unsubscribe(event, handleProviderChange);
@@ -201,6 +239,30 @@ describe('NetworkController', () => {
       };
       messenger.subscribe(event, handleProviderChange);
 
+      controller.providerConfig = {} as ProviderConfig;
+    });
+  });
+
+  it('should check eip1559 compatibility', async () => {
+    expect.assertions(1);
+
+    await new Promise((resolve, _) => {
+      const testConfig = {
+        // This test needs a real project ID as it makes a test
+        // `eth_version` call; https://github.com/MetaMask/controllers/issues/1
+        infuraProjectId: '341eacb578dd44a1a049cbc5f6fd4035',
+        messenger,
+      };
+
+      const event = 'NetworkController:eip1559CompatibilityChange';
+      const handleEip1559Change = (isSupported: boolean) => {
+        messenger.unsubscribe(event, handleEip1559Change);
+        expect(isSupported).toBe(true);
+        resolve('');
+      };
+      messenger.subscribe(event, handleEip1559Change);
+
+      const controller = new NetworkController(testConfig);
       controller.providerConfig = {} as ProviderConfig;
     });
   });

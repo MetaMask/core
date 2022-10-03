@@ -18,6 +18,7 @@ import { PreferencesController } from './user/PreferencesController';
 import {
   NetworkController,
   NetworkControllerMessenger,
+  NetworkControllerProviderConfigChangeEvent,
   NetworkControllerStateChangeEvent,
   NetworksChainId,
 } from './network/NetworkController';
@@ -94,19 +95,26 @@ class BarController extends BaseController<never, BarControllerState> {
 const setupControllers = () => {
   const mainMessenger = new ControllerMessenger<
     never,
-    NetworkControllerStateChangeEvent
+    | NetworkControllerStateChangeEvent
+    | NetworkControllerProviderConfigChangeEvent
   >();
 
   const messenger: NetworkControllerMessenger = mainMessenger.getRestricted({
     name: 'NetworkController',
-    allowedEvents: ['NetworkController:stateChange'],
+    allowedEvents: [
+      'NetworkController:stateChange',
+      'NetworkController:providerConfigChange',
+    ],
     allowedActions: [],
   });
 
   const composableMessenger: ComposableControllerRestrictedMessenger =
     mainMessenger.getRestricted({
       name: 'ComposableController',
-      allowedEvents: ['NetworkController:stateChange'],
+      allowedEvents: [
+        'NetworkController:stateChange',
+        'NetworkController:providerConfigChange',
+      ],
       allowedActions: [],
     });
 
@@ -119,15 +127,15 @@ const setupControllers = () => {
   const assetContractController = new AssetsContractController({
     onPreferencesStateChange: (listener) =>
       preferencesController.subscribe(listener),
-    onNetworkStateChange: (listener) =>
-      messenger.subscribe('NetworkController:stateChange', listener),
+    onNetworkProviderConfigChange: (listener) =>
+      messenger.subscribe('NetworkController:providerConfigChange', listener),
   });
 
   const collectiblesController = new CollectiblesController({
     onPreferencesStateChange: (listener) =>
       preferencesController.subscribe(listener),
-    onNetworkStateChange: (listener) =>
-      messenger.subscribe('NetworkController:stateChange', listener),
+    onNetworkProviderConfigChange: (listener) =>
+      messenger.subscribe('NetworkController:providerConfigChange', listener),
     getERC721AssetName: assetContractController.getERC721AssetName.bind(
       assetContractController,
     ),
@@ -152,8 +160,8 @@ const setupControllers = () => {
   const tokensController = new TokensController({
     onPreferencesStateChange: (listener) =>
       preferencesController.subscribe(listener),
-    onNetworkStateChange: (listener) =>
-      messenger.subscribe('NetworkController:stateChange', listener),
+    onNetworkProviderConfigChange: (listener) =>
+      messenger.subscribe('NetworkController:providerConfigChange', listener),
   });
 
   return {
@@ -237,6 +245,9 @@ describe('ComposableController', () => {
       });
 
       messenger.clearEventSubscriptions('NetworkController:stateChange');
+      messenger.clearEventSubscriptions(
+        'NetworkController:providerConfigChange',
+      );
     });
 
     it('should compose flat controller state', () => {
@@ -291,6 +302,9 @@ describe('ComposableController', () => {
       });
 
       messenger.clearEventSubscriptions('NetworkController:stateChange');
+      messenger.clearEventSubscriptions(
+        'NetworkController:providerConfigChange',
+      );
     });
 
     it('should set initial state', () => {

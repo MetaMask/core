@@ -8,7 +8,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import { AbortController } from 'abort-controller';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
-import type { NetworkState, NetworkType } from '../network/NetworkController';
+import type { ProviderConfig, NetworkType } from '../network/NetworkController';
 import { validateTokenToWatch, toChecksumHexAddress } from '../util';
 import { MAINNET, ERC721_INTERFACE_ID } from '../constants';
 import {
@@ -172,21 +172,21 @@ export class TokensController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onNetworkProviderConfigChange - Allows subscribing to network controller ProviderConfig changes.
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
    */
   constructor({
     onPreferencesStateChange,
-    onNetworkStateChange,
+    onNetworkProviderConfigChange,
     config,
     state,
   }: {
     onPreferencesStateChange: (
       listener: (preferencesState: PreferencesState) => void,
     ) => void;
-    onNetworkStateChange: (
-      listener: (networkState: NetworkState) => void,
+    onNetworkProviderConfigChange: (
+      listener: (providerConfig: ProviderConfig) => void,
     ) => void;
     config?: Partial<TokensConfig>;
     state?: Partial<TokensState>;
@@ -226,10 +226,10 @@ export class TokensController extends BaseController<
       });
     });
 
-    onNetworkStateChange(({ provider }) => {
+    onNetworkProviderConfigChange((providerConfig) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
       const { selectedAddress } = this.config;
-      const { chainId } = provider;
+      const { chainId } = providerConfig;
       this.abortController.abort();
       this.abortController = new AbortController();
       this.configure({ chainId });

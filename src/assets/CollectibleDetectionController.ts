@@ -1,5 +1,5 @@
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
-import type { NetworkState, NetworkType } from '../network/NetworkController';
+import type { NetworkType, ProviderConfig } from '../network/NetworkController';
 import type { PreferencesState } from '../user/PreferencesController';
 import { fetchWithErrorHandling, toChecksumHexAddress } from '../util';
 import { MAINNET, OPENSEA_PROXY_URL, OPENSEA_API_URL } from '../constants';
@@ -203,7 +203,7 @@ export class CollectibleDetectionController extends BaseController<
    * @param options - The controller options.
    * @param options.onCollectiblesStateChange - Allows subscribing to assets controller state changes.
    * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onNetworkProviderConfigChange - Allows subscribing to network controller ProviderConfig changes.
    * @param options.getOpenSeaApiKey - Gets the OpenSea API key, if one is set.
    * @param options.addCollectible - Add a collectible.
    * @param options.getCollectiblesState - Gets the current state of the Assets controller.
@@ -213,7 +213,7 @@ export class CollectibleDetectionController extends BaseController<
   constructor(
     {
       onPreferencesStateChange,
-      onNetworkStateChange,
+      onNetworkProviderConfigChange,
       getOpenSeaApiKey,
       addCollectible,
       getCollectiblesState,
@@ -224,8 +224,8 @@ export class CollectibleDetectionController extends BaseController<
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
-      onNetworkStateChange: (
-        listener: (networkState: NetworkState) => void,
+      onNetworkProviderConfigChange: (
+        listener: (providerConfig: ProviderConfig) => void,
       ) => void;
       getOpenSeaApiKey: () => string | undefined;
       addCollectible: CollectiblesController['addCollectible'];
@@ -264,10 +264,11 @@ export class CollectibleDetectionController extends BaseController<
       }
     });
 
-    onNetworkStateChange(({ provider }) => {
+    onNetworkProviderConfigChange((providerConfig: ProviderConfig) => {
       this.configure({
-        networkType: provider.type,
-        chainId: provider.chainId as CollectibleDetectionConfig['chainId'],
+        networkType: providerConfig.type,
+        chainId:
+          providerConfig.chainId as CollectibleDetectionConfig['chainId'],
       });
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;

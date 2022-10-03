@@ -3,10 +3,11 @@ import nock from 'nock';
 import { BN } from 'ethereumjs-util';
 import {
   NetworkController,
+  NetworkControllerGetProviderConfigAction,
   NetworkControllerMessenger,
-  NetworkControllerProviderChangeEvent,
-  NetworkControllerStateChangeEvent,
+  NetworkControllerProviderConfigChangeEvent,
   NetworksChainId,
+  ProviderConfig,
 } from '../network/NetworkController';
 import { PreferencesController } from '../user/PreferencesController';
 import { ControllerMessenger } from '../ControllerMessenger';
@@ -84,10 +85,8 @@ const sampleTokenB: Token = {
 };
 
 type MainControllerMessenger = ControllerMessenger<
-  GetTokenListState,
-  | TokenListStateChange
-  | NetworkControllerProviderChangeEvent
-  | NetworkControllerStateChangeEvent
+  GetTokenListState | NetworkControllerGetProviderConfigAction,
+  TokenListStateChange | NetworkControllerProviderConfigChangeEvent
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {
@@ -99,11 +98,8 @@ const setupNetworkController = (
 ) => {
   const networkMessenger = controllerMessenger.getRestricted({
     name: 'NetworkController',
-    allowedEvents: [
-      'NetworkController:providerChange',
-      'NetworkController:stateChange',
-    ],
-    allowedActions: [],
+    allowedEvents: ['NetworkController:providerConfigChange'],
+    allowedActions: ['NetworkController:getProviderConfig'],
   });
 
   const network = new NetworkController({
@@ -119,15 +115,14 @@ const setupTokenListController = (
 ) => {
   const tokenListMessenger = controllerMessenger.getRestricted({
     name: 'TokenListController',
-    allowedActions: [],
+    allowedActions: ['NetworkController:getProviderConfig'],
     allowedEvents: [
       'TokenListController:stateChange',
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     ],
   });
 
   const tokenList = new TokenListController({
-    chainId: NetworksChainId.mainnet,
     preventPollingOnNetworkRestart: false,
     messenger: tokenListMessenger,
   });
@@ -169,8 +164,11 @@ describe('TokenDetectionController', () => {
     networkMessenger = networkSetup.networkMessenger;
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        networkMessenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkProviderConfigChange: (listener) =>
+        networkMessenger.subscribe(
+          'NetworkController:providerConfigChange',
+          listener,
+        ),
     });
     const tokenListSetup = setupTokenListController(controllerMessenger);
     tokenList = tokenListSetup.tokenList;
@@ -178,8 +176,11 @@ describe('TokenDetectionController', () => {
     getBalancesInSingleCall = sinon.stub();
     tokenDetection = new TokenDetectionController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        networkMessenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkProviderConfigChange: (listener) =>
+        networkMessenger.subscribe(
+          'NetworkController:providerConfigChange',
+          listener,
+        ),
       onTokenListStateChange: (listener) =>
         tokenListSetup.tokenListMessenger.subscribe(
           `TokenListController:stateChange`,
@@ -191,7 +192,8 @@ describe('TokenDetectionController', () => {
         tokensController.addDetectedTokens.bind(tokensController),
       getTokensState: () => tokensController.state,
       getTokenListState: () => tokenList.state,
-      getNetworkState: () => network.state,
+      getNetworkProviderConfig: () =>
+        networkMessenger.call('NetworkController:getProviderConfig'),
       getPreferencesState: () => preferences.state,
     });
 
@@ -206,7 +208,7 @@ describe('TokenDetectionController', () => {
     tokenDetection.stop();
     tokenList.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:stateChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -425,21 +427,24 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
     const stub = sinon.stub();
     const getBalancesInSingleCallMock = sinon.stub();
-    let networkStateChangeListener: (state: any) => void;
-    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
-      networkStateChangeListener = listener;
+    let networkProviderConfigChangeListener: (
+      providerConfig: ProviderConfig,
+    ) => void;
+    const onNetworkProviderConfigChange = sinon.stub().callsFake((listener) => {
+      networkProviderConfigChangeListener = listener;
     });
 
     tokenDetection = new TokenDetectionController(
       {
         onTokenListStateChange: stub,
         onPreferencesStateChange: stub,
-        onNetworkStateChange,
+        onNetworkProviderConfigChange,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
         getTokensState: () => tokensController.state,
         getTokenListState: () => tokenList.state,
-        getNetworkState: () => network.state,
+        getNetworkProviderConfig: () =>
+          networkMessenger.call('NetworkController:getProviderConfig'),
         getPreferencesState: () => preferences.state,
       },
       {
@@ -458,8 +463,9 @@ describe('TokenDetectionController', () => {
 
     tokenDetection.stop();
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await networkStateChangeListener!({
-      provider: { chainId: polygonDecimalChainId },
+    networkProviderConfigChangeListener!({
+      chainId: polygonDecimalChainId,
+      type: 'rpc',
     });
 
     expect(getBalancesInSingleCallMock.called).toBe(false);
@@ -476,12 +482,13 @@ describe('TokenDetectionController', () => {
       {
         onTokenListStateChange,
         onPreferencesStateChange: stub,
-        onNetworkStateChange: stub,
+        onNetworkProviderConfigChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
         getTokensState: stub,
         getTokenListState: stub,
-        getNetworkState: () => network.state,
+        getNetworkProviderConfig: () =>
+          networkMessenger.call('NetworkController:getProviderConfig'),
         getPreferencesState: () => preferences.state,
       },
       {
@@ -492,7 +499,7 @@ describe('TokenDetectionController', () => {
     );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenListStateChangeListener!({ tokenList: {} });
+    tokenListStateChangeListener!({ tokenList: {} });
 
     expect(getBalancesInSingleCallMock.called).toBe(false);
   });
@@ -508,12 +515,13 @@ describe('TokenDetectionController', () => {
       {
         onPreferencesStateChange,
         onTokenListStateChange: stub,
-        onNetworkStateChange: stub,
+        onNetworkProviderConfigChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
         getTokensState: () => tokensController.state,
         getTokenListState: () => tokenList.state,
-        getNetworkState: () => network.state,
+        getNetworkProviderConfig: () =>
+          networkMessenger.call('NetworkController:getProviderConfig'),
         getPreferencesState: () => preferences.state,
       },
       {
@@ -525,7 +533,7 @@ describe('TokenDetectionController', () => {
     );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await preferencesStateChangeListener!({
+    preferencesStateChangeListener!({
       selectedAddress: '0x1',
       useTokenDetection: true,
     });
@@ -536,20 +544,23 @@ describe('TokenDetectionController', () => {
   it('should call getBalancesInSingleCall if onNetworkStateChange is called with a chainId that supports token detection and is changed', async () => {
     const stub = sinon.stub();
     const getBalancesInSingleCallMock = sinon.stub();
-    let networkStateChangeListener: (state: any) => void;
-    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
-      networkStateChangeListener = listener;
+    let networkProviderConfigChangeListener: (
+      providerConfig: ProviderConfig,
+    ) => void;
+    const onNetworkProviderConfigChange = sinon.stub().callsFake((listener) => {
+      networkProviderConfigChangeListener = listener;
     });
     tokenDetection = new TokenDetectionController(
       {
-        onNetworkStateChange,
+        onNetworkProviderConfigChange,
         onTokenListStateChange: stub,
         onPreferencesStateChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
         getTokensState: () => tokensController.state,
         getTokenListState: () => tokenList.state,
-        getNetworkState: () => network.state,
+        getNetworkProviderConfig: () =>
+          networkMessenger.call('NetworkController:getProviderConfig'),
         getPreferencesState: () => preferences.state,
       },
       {
@@ -562,8 +573,9 @@ describe('TokenDetectionController', () => {
     );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await networkStateChangeListener!({
-      provider: { chainId: NetworksChainId.mainnet },
+    networkProviderConfigChangeListener!({
+      chainId: NetworksChainId.mainnet,
+      type: 'mainnet',
     });
 
     expect(getBalancesInSingleCallMock.called).toBe(true);

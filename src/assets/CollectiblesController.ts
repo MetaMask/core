@@ -4,7 +4,7 @@ import { Mutex } from 'async-mutex';
 
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
 import type { PreferencesState } from '../user/PreferencesController';
-import type { NetworkState, NetworkType } from '../network/NetworkController';
+import type { NetworkType, ProviderConfig } from '../network/NetworkController';
 import {
   safelyExecute,
   handleFetch,
@@ -914,7 +914,7 @@ export class CollectiblesController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.onNetworkProviderConfigChange - Allows subscribing to network controller ProviderConfig changes.
    * @param options.getERC721AssetName - Gets the name of the asset at the given address.
    * @param options.getERC721AssetSymbol - Gets the symbol of the asset at the given address.
    * @param options.getERC721TokenURI - Gets the URI of the ERC721 token at the given address, with the given ID.
@@ -929,7 +929,7 @@ export class CollectiblesController extends BaseController<
   constructor(
     {
       onPreferencesStateChange,
-      onNetworkStateChange,
+      onNetworkProviderConfigChange,
       getERC721AssetName,
       getERC721AssetSymbol,
       getERC721TokenURI,
@@ -941,8 +941,8 @@ export class CollectiblesController extends BaseController<
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
-      onNetworkStateChange: (
-        listener: (networkState: NetworkState) => void,
+      onNetworkProviderConfigChange: (
+        listener: (providerConfig: ProviderConfig) => void,
       ) => void;
       getERC721AssetName: AssetsContractController['getERC721AssetName'];
       getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
@@ -991,8 +991,8 @@ export class CollectiblesController extends BaseController<
       },
     );
 
-    onNetworkStateChange(({ provider }) => {
-      const { chainId } = provider;
+    onNetworkProviderConfigChange((providerConfig: ProviderConfig) => {
+      const { chainId } = providerConfig;
       this.configure({ chainId });
     });
   }

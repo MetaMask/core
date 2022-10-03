@@ -5,7 +5,10 @@ import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { safelyExecute, isTokenListSupportedForNetwork } from '../util';
 import { fetchTokenList } from '../apis/token-service';
-import { NetworkControllerProviderChangeEvent } from '../network/NetworkController';
+import {
+  NetworkControllerGetProviderConfigAction,
+  NetworkControllerProviderConfigChangeEvent,
+} from '../network/NetworkController';
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
 
 const DEFAULT_INTERVAL = 24 * 60 * 60 * 1000;
@@ -51,10 +54,11 @@ export type GetTokenListState = {
 
 type TokenListMessenger = RestrictedControllerMessenger<
   typeof name,
-  GetTokenListState,
-  TokenListStateChange | NetworkControllerProviderChangeEvent,
-  never,
-  TokenListStateChange['type'] | NetworkControllerProviderChangeEvent['type']
+  GetTokenListState | NetworkControllerGetProviderConfigAction,
+  TokenListStateChange | NetworkControllerProviderConfigChangeEvent,
+  NetworkControllerGetProviderConfigAction['type'],
+  | TokenListStateChange['type']
+  | NetworkControllerProviderConfigChangeEvent['type']
 >;
 
 const metadata = {
@@ -93,7 +97,6 @@ export class TokenListController extends BaseController<
    * Creates a TokenListController instance.
    *
    * @param options - The controller options.
-   * @param options.chainId - The chain ID of the current network.
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
    * @param options.messenger - A restricted controller messenger.
@@ -101,14 +104,12 @@ export class TokenListController extends BaseController<
    * @param options.preventPollingOnNetworkRestart - Determines whether to prevent poilling on network restart in extension.
    */
   constructor({
-    chainId,
     preventPollingOnNetworkRestart = false,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
     messenger,
     state,
   }: {
-    chainId: string;
     preventPollingOnNetworkRestart?: boolean;
     interval?: number;
     cacheRefreshThreshold?: number;
@@ -123,11 +124,13 @@ export class TokenListController extends BaseController<
     });
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
-    this.chainId = chainId;
+    this.chainId = this.messagingSystem.call(
+      'NetworkController:getProviderConfig',
+    ).chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.abortController = new AbortController();
     this.messagingSystem.subscribe(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
       async (providerConfig) => {
         if (this.chainId !== providerConfig.chainId) {
           this.abortController.abort();

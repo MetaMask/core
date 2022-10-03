@@ -32,10 +32,7 @@ describe('TokensController', () => {
   beforeEach(() => {
     messenger = new ControllerMessenger().getRestricted({
       name: 'NetworkController',
-      allowedEvents: [
-        'NetworkController:stateChange',
-        'NetworkController:providerChange',
-      ],
+      allowedEvents: ['NetworkController:providerConfigChange'],
       allowedActions: [],
     });
     preferences = new PreferencesController();
@@ -46,15 +43,8 @@ describe('TokensController', () => {
 
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', (state, patch) => {
-          const touchesProviderConfig = patch.find(
-            (p) => p.path[0] === 'provider',
-          );
-          if (touchesProviderConfig) {
-            listener(state);
-          }
-        }),
+      onNetworkProviderConfigChange: (listener) =>
+        messenger.subscribe('NetworkController:providerConfigChange', listener),
       config: {
         chainId: NetworksChainId.mainnet,
       },
@@ -67,7 +57,7 @@ describe('TokensController', () => {
 
   afterEach(() => {
     instEthProvStub.restore();
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:providerConfigChange');
   });
 
   it('should set default state', () => {

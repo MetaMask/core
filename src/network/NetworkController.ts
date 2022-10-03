@@ -80,6 +80,7 @@ const LOCALHOST_RPC_URL = 'http://localhost:8545';
 const name = 'NetworkController';
 
 export type EthQuery = any;
+export type Provider = any;
 
 export type NetworkControllerStateChangeEvent = {
   type: `NetworkController:stateChange`;
@@ -88,7 +89,27 @@ export type NetworkControllerStateChangeEvent = {
 
 export type NetworkControllerProviderChangeEvent = {
   type: `NetworkController:providerChange`;
+  payload: [Provider];
+};
+
+export type NetworkControllerProviderConfigChangeEvent = {
+  type: `NetworkController:providerConfigChange`;
   payload: [ProviderConfig];
+};
+
+export type NetworkControllerEthQueryChangeEvent = {
+  type: `NetworkController:ethQueryChange`;
+  payload: [EthQuery];
+};
+
+export type NetworkControllerNetworkIdChangeEvent = {
+  type: `NetworkController:networkIdChange`;
+  payload: [string];
+};
+
+export type NetworkControllerEip1559CompatibilityChangeEvent = {
+  type: `NetworkController:eip1559CompatibilityChange`;
+  payload: [boolean];
 };
 
 export type NetworkControllerGetProviderConfigAction = {
@@ -101,10 +122,27 @@ export type NetworkControllerGetEthQueryAction = {
   handler: () => EthQuery;
 };
 
+export type NetworkControllerGetProviderAction = {
+  type: `NetworkController:getProvider`;
+  handler: () => Provider;
+};
+
+export type NetworkControllerActions =
+  | NetworkControllerGetProviderConfigAction
+  | NetworkControllerGetEthQueryAction
+  | NetworkControllerGetProviderAction;
+export type NetworkControllerEvents =
+  | NetworkControllerStateChangeEvent
+  | NetworkControllerProviderChangeEvent
+  | NetworkControllerNetworkIdChangeEvent
+  | NetworkControllerProviderConfigChangeEvent
+  | NetworkControllerEthQueryChangeEvent
+  | NetworkControllerEip1559CompatibilityChangeEvent;
+
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
-  NetworkControllerGetProviderConfigAction | NetworkControllerGetEthQueryAction,
-  NetworkControllerStateChangeEvent | NetworkControllerProviderChangeEvent,
+  NetworkControllerActions,
+  NetworkControllerEvents,
   string,
   string
 >;
@@ -171,6 +209,13 @@ export class NetworkController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
+      `${this.name}:getProvider`,
+      () => {
+        return this.provider;
+      },
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${this.name}:getEthQuery`,
       () => {
         return this.ethQuery;
@@ -223,6 +268,10 @@ export class NetworkController extends BaseController<
   private registerProvider() {
     this.provider.on('error', this.verifyNetwork.bind(this));
     this.ethQuery = new EthQuery(this.provider);
+    this.messagingSystem.publish(
+      `NetworkController:ethQueryChange`,
+      this.ethQuery,
+    );
   }
 
   private setupInfuraProvider(type: NetworkType) {
@@ -277,6 +326,10 @@ export class NetworkController extends BaseController<
   private updateProvider(provider: any) {
     this.safelyStopProvider(this.provider);
     this.provider = provider;
+    this.messagingSystem.publish(
+      `NetworkController:providerChange`,
+      this.provider,
+    );
     this.registerProvider();
   }
 
@@ -335,8 +388,8 @@ export class NetworkController extends BaseController<
         });
 
         this.messagingSystem.publish(
-          `NetworkController:providerChange`,
-          this.state.provider,
+          `NetworkController:networkIdChange`,
+          network,
         );
 
         releaseLock();
@@ -362,6 +415,11 @@ export class NetworkController extends BaseController<
       state.provider.ticker = ticker;
       state.provider.chainId = NetworksChainId[type];
     });
+
+    this.messagingSystem.publish(
+      `NetworkController:providerConfigChange`,
+      this.state.provider,
+    );
     this.refreshNetwork();
   }
 
@@ -386,6 +444,11 @@ export class NetworkController extends BaseController<
       state.provider.ticker = ticker;
       state.provider.nickname = nickname;
     });
+
+    this.messagingSystem.publish(
+      `NetworkController:providerConfigChange`,
+      this.state.provider,
+    );
     this.refreshNetwork();
   }
 
@@ -409,6 +472,11 @@ export class NetworkController extends BaseController<
                 this.update((state) => {
                   state.properties.isEIP1559Compatible = isEIP1559Compatible;
                 });
+
+                this.messagingSystem.publish(
+                  `NetworkController:eip1559CompatibilityChange`,
+                  isEIP1559Compatible,
+                );
               }
               resolve(isEIP1559Compatible);
             }
