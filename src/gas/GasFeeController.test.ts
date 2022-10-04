@@ -16,6 +16,8 @@ import {
   GasFeeStateFeeMarket,
   GasFeeStateLegacy,
   GetGasFeeState,
+  GasFeeControllerActions,
+  GasFeeControllerEvents,
 } from './GasFeeController';
 import determineGasFeeCalculations from './determineGasFeeCalculations';
 
@@ -29,10 +31,8 @@ const mockedDetermineGasFeeCalculations = mocked(
 const name = 'GasFeeController';
 
 type MainControllerMessenger = ControllerMessenger<
-  | GetGasFeeState
-  | NetworkControllerGetProviderConfigAction
-  | NetworkControllerGetEthQueryAction,
-  GasFeeStateChange | NetworkControllerProviderChangeEvent
+  GasFeeControllerActions,
+  GasFeeControllerEvents
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {
@@ -44,10 +44,13 @@ const setupNetworkController = (
 ) => {
   const networkMessenger = controllerMessenger.getRestricted({
     name: 'NetworkController',
-    allowedEvents: ['NetworkController:providerChange'],
+    allowedEvents: [
+      'NetworkController:providerConfigChange',
+      'NetworkController:ethQueryChange'
+    ],
     allowedActions: [
       'NetworkController:getProviderConfig',
-      'NetworkController:getEthQuery',
+      'NetworkController:getEthQuery'
     ],
   });
 
@@ -64,11 +67,14 @@ const getRestrictedMessenger = (
 ) => {
   const messenger = controllerMessenger.getRestricted({
     name,
+    allowedEvents: [
+      'NetworkController:providerConfigChange',
+      'NetworkController:ethQueryChange'
+    ],
     allowedActions: [
       'NetworkController:getProviderConfig',
-      'NetworkController:getEthQuery',
+      'NetworkController:getEthQuery'
     ],
-    allowedEvents: ['NetworkController:providerChange'],
   });
 
   return messenger;

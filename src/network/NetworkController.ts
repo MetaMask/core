@@ -221,6 +221,10 @@ export class NetworkController extends BaseController<
         return this.ethQuery;
       },
     );
+
+    if (this.infuraProjectId || this.state.provider.type === 'rpc' ||  this.state.provider.type === 'localhost') {
+      this.refreshNetwork();
+    }
   }
 
   private initializeProvider(
@@ -253,16 +257,16 @@ export class NetworkController extends BaseController<
         throw new Error(`Unrecognized network type: '${type}'`);
     }
     this.getEIP1559Compatibility();
+    this.lookupNetwork();
   }
 
   private refreshNetwork() {
     this.update((state) => {
       state.network = 'loading';
-      state.properties = {};
+      state.properties = { ...defaultState.properties };
     });
     const { rpcTarget, type, chainId, ticker } = this.state.provider;
     this.initializeProvider(type, rpcTarget, chainId, ticker);
-    this.lookupNetwork();
   }
 
   private registerProvider() {
@@ -347,25 +351,6 @@ export class NetworkController extends BaseController<
    * Ethereum provider object for the current network
    */
   provider: any;
-
-  /**
-   * Sets a new configuration for web3-provider-engine.
-   *
-   * TODO: Replace this wth a method.
-   *
-   * @param providerConfig - The web3-provider-engine configuration.
-   */
-  set providerConfig(providerConfig: ProviderConfig) {
-    this.internalProviderConfig = providerConfig;
-    const { type, rpcTarget, chainId, ticker, nickname } = this.state.provider;
-    this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
-    this.registerProvider();
-    this.lookupNetwork();
-  }
-
-  get providerConfig() {
-    throw new Error('Property only used for setting');
-  }
 
   /**
    * Refreshes the current network code.

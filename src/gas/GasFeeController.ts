@@ -6,9 +6,10 @@ import { BaseController } from '../BaseControllerV2';
 import { safelyExecute } from '../util';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import type {
+  NetworkControllerEthQueryChangeEvent,
   NetworkControllerGetEthQueryAction,
   NetworkControllerGetProviderConfigAction,
-  NetworkControllerProviderChangeEvent,
+  NetworkControllerProviderConfigChangeEvent,
 } from '../network/NetworkController';
 import {
   fetchGasEstimates,
@@ -207,15 +208,25 @@ export type GetGasFeeState = {
   handler: () => GasFeeState;
 };
 
-type GasFeeMessenger = RestrictedControllerMessenger<
-  typeof name,
+
+export type GasFeeControllerActions =
   | GetGasFeeState
   | NetworkControllerGetProviderConfigAction
-  | NetworkControllerGetEthQueryAction,
-  GasFeeStateChange | NetworkControllerProviderChangeEvent,
-  | NetworkControllerGetProviderConfigAction['type']
+  | NetworkControllerGetEthQueryAction;
+
+export type GasFeeControllerEvents =
+  GasFeeStateChange |
+  NetworkControllerProviderConfigChangeEvent |
+  NetworkControllerEthQueryChangeEvent;
+
+type GasFeeMessenger = RestrictedControllerMessenger<
+  typeof name,
+GasFeeControllerActions,
+GasFeeControllerEvents,
+NetworkControllerGetProviderConfigAction['type']
   | NetworkControllerGetEthQueryAction['type'],
-  NetworkControllerProviderChangeEvent['type']
+NetworkControllerProviderConfigChangeEvent['type']
+  | NetworkControllerEthQueryChangeEvent['type']
 >;
 
 const defaultState: GasFeeState = {
@@ -321,15 +332,19 @@ export class GasFeeController extends BaseController<
     this.currentChainId = providerConfig.chainId;
     this.ethQuery = this.messagingSystem.call('NetworkController:getEthQuery');
     this.clientId = clientId;
-    this.messagingSystem.subscribe(
-      'NetworkController:providerChange',
-      async (provider) => {
-        this.ethQuery = this.messagingSystem.call(
-          'NetworkController:getEthQuery',
-        );
 
-        if (this.currentChainId !== provider.chainId) {
-          this.currentChainId = provider.chainId;
+    this.messagingSystem.subscribe(
+      'NetworkController:ethQueryChange',
+      (ethQuery) => {
+        this.ethQuery = ethQuery;
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'NetworkController:providerConfigChange',
+      async (providerConfig) => {
+        if (this.currentChainId !== providerConfig.chainId) {
+          this.currentChainId = providerConfig.chainId;
           await this.resetPolling();
         }
       },

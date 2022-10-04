@@ -30,7 +30,6 @@ const setupController = (
     messenger,
   };
   const controller = new NetworkController(networkControllerOpts);
-  controller.providerConfig = {} as ProviderConfig;
   return controller;
 };
 
@@ -109,7 +108,6 @@ describe('NetworkController', () => {
       messenger,
     };
     const controller = new NetworkController(networkControllerOpts);
-    controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
   });
 
@@ -127,7 +125,6 @@ describe('NetworkController', () => {
 
   it('should create a provider instance for optimism network', () => {
     const networkControllerOpts: NetworkControllerOptions = {
-      infuraProjectId: 'foo',
       state: {
         network: '0',
         provider: {
@@ -140,14 +137,12 @@ describe('NetworkController', () => {
       messenger,
     };
     const controller = new NetworkController(networkControllerOpts);
-    controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
     expect(controller.state.isCustomNetwork).toBe(true);
   });
 
   it('should create a provider instance for rpc network', () => {
     const networkControllerOpts: NetworkControllerOptions = {
-      infuraProjectId: 'foo',
       state: {
         network: '0',
         provider: {
@@ -159,20 +154,19 @@ describe('NetworkController', () => {
       messenger,
     };
     const controller = new NetworkController(networkControllerOpts);
-    controller.providerConfig = {} as ProviderConfig;
     expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
     expect(controller.state.isCustomNetwork).toBe(false);
   });
 
   it('should set new RPC target', () => {
-    const controller = new NetworkController({ messenger });
+    const controller = new NetworkController({messenger});
     controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
     expect(controller.state.provider.rpcTarget).toBe(RPC_TARGET);
     expect(controller.state.isCustomNetwork).toBe(false);
   });
 
   it('should set new provider type', () => {
-    const controller = new NetworkController({ messenger });
+    const controller = new NetworkController({messenger});
     controller.setProviderType('localhost');
     expect(controller.state.provider.type).toBe('localhost');
     expect(controller.state.isCustomNetwork).toBe(false);
@@ -201,7 +195,10 @@ describe('NetworkController', () => {
   });
 
   it('should throw when setting an unrecognized provider type', () => {
-    const controller = new NetworkController({ messenger });
+    const controller = new NetworkController({
+      messenger,
+      infuraProjectId: 'foo'
+    });
     expect(() => controller.setProviderType('junk' as NetworkType)).toThrow(
       "Unrecognized network type: 'junk'",
     );
@@ -215,7 +212,6 @@ describe('NetworkController', () => {
         network: 'loading',
       },
     });
-    controller.providerConfig = {} as ProviderConfig;
     controller.lookupNetwork = sinon.stub();
     controller.provider.emit('error', {});
     expect((controller.lookupNetwork as any).called).toBe(true);
@@ -240,7 +236,7 @@ describe('NetworkController', () => {
       };
       messenger.subscribe(event, handleProviderChange);
 
-      controller.providerConfig = {} as ProviderConfig;
+      controller.setProviderType('mainnet');
     });
   });
 
@@ -264,7 +260,7 @@ describe('NetworkController', () => {
       messenger.subscribe(event, handleEip1559Change);
 
       const controller = new NetworkController(testConfig);
-      controller.providerConfig = {} as ProviderConfig;
+      controller.setProviderType('mainnet');
     });
   });
 
