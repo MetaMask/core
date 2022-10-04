@@ -5,6 +5,7 @@ import {
   NetworkType,
   NetworkState,
 } from '../network/NetworkController';
+import { ESTIMATE_GAS_ERROR } from '../constants';
 import {
   TransactionController,
   TransactionStatus,
@@ -590,20 +591,50 @@ describe('TransactionController', () => {
     await expect(result).rejects.toThrow('foo');
   });
 
-  it('should not fail transaction if gas calculation fails', async () => {
+  it('should have gasEstimatedError variable on transaction object if gas calculation fails', async () => {
     const controller = new TransactionController({
-      getNetworkState: () => MOCK_NETWORK.state,
-      onNetworkStateChange: MOCK_NETWORK.subscribe,
-      getProvider: MOCK_NETWORK.getProvider,
+      getNetworkState: () => MOCK_MAINNET_NETWORK.state,
+      onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
+      getProvider: MOCK_MAINNET_NETWORK.getProvider,
     });
+    mockFlags.estimateGas = ESTIMATE_GAS_ERROR;
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    await controller.addTransaction({
+      from,
+      to: from,
+    });
 
-    await expect(
-      await controller.estimateGas({
-        from,
-        to: from,
-      }),
-    ).toStrictEqual({ gas: '0x0', gasPrice: '0x0' });
+    controller.hub.once(
+      `${controller.state.transactions[0].id}:finished`,
+      () => {
+        const { transaction, status } = controller.state.transactions[0];
+        expect(transaction.estimateGasError).toBe(ESTIMATE_GAS_ERROR);
+        expect(status).toBe(TransactionStatus.submitted);
+      },
+    );
+  });
+
+  it('should have gasEstimatedError variable on transaction object on custom network if gas calculation fails', async () => {
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_CUSTOM_NETWORK.state,
+      onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
+      getProvider: MOCK_CUSTOM_NETWORK.getProvider,
+    });
+    mockFlags.estimateGas = ESTIMATE_GAS_ERROR;
+    const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+    await controller.addTransaction({
+      from,
+      to: from,
+    });
+
+    controller.hub.once(
+      `${controller.state.transactions[0].id}:finished`,
+      () => {
+        const { transaction, status } = controller.state.transactions[0];
+        expect(transaction.estimateGasError).toBe(ESTIMATE_GAS_ERROR);
+        expect(status).toBe(TransactionStatus.submitted);
+      },
+    );
   });
 
   it('should fail if no sign method defined', async () => {
