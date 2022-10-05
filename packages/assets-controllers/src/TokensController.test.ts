@@ -1,8 +1,12 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
 import contractMaps from '@metamask/contract-metadata';
+import { ControllerMessenger } from '@metamask/base-controller';
 import { PreferencesController } from '@metamask/user-controllers';
-import { NetworkController } from '@metamask/network-controller';
+import {
+  NetworkController,
+  NetworkControllerMessenger,
+} from '@metamask/network-controller';
 import { NetworkType, NetworksChainId } from '@metamask/controller-utils';
 import { TokensController } from './TokensController';
 import { Token } from './TokenRatesController';
@@ -27,15 +31,36 @@ describe('TokensController', () => {
   let tokensController: TokensController;
   let preferences: PreferencesController;
   let network: NetworkController;
+  let messenger: NetworkControllerMessenger;
 
   let instEthProvStub: sinon.SinonStub;
 
   beforeEach(() => {
+    messenger = new ControllerMessenger().getRestricted({
+      name: 'NetworkController',
+      allowedEvents: [
+        'NetworkController:stateChange',
+        'NetworkController:providerChange',
+      ],
+      allowedActions: [],
+    });
     preferences = new PreferencesController();
-    network = new NetworkController();
+    network = new NetworkController({
+      messenger,
+      infuraProjectId: 'potato',
+    });
+
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        messenger.subscribe('NetworkController:stateChange', (state, patch) => {
+          const touchesProviderConfig = patch.find(
+            (p) => p.path[0] === 'provider',
+          );
+          if (touchesProviderConfig) {
+            listener(state);
+          }
+        }),
       config: {
         chainId: NetworksChainId.mainnet,
       },
@@ -48,6 +73,7 @@ describe('TokensController', () => {
 
   afterEach(() => {
     instEthProvStub.restore();
+    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should set default state', () => {
@@ -238,26 +264,12 @@ describe('TokensController', () => {
 
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'ropsten';
-    network.update({
-      provider: {
-        type: firstNetworkType,
-        chainId: NetworksChainId[firstNetworkType],
-      },
-    });
+    network.setProviderType(firstNetworkType);
     await tokensController.addToken('0x01', 'bar', 2);
-    network.update({
-      provider: {
-        type: secondNetworkType,
-        chainId: NetworksChainId[secondNetworkType],
-      },
-    });
+    network.setProviderType(secondNetworkType);
     expect(tokensController.state.tokens).toHaveLength(0);
-    network.update({
-      provider: {
-        type: firstNetworkType,
-        chainId: NetworksChainId[firstNetworkType],
-      },
-    });
+
+    network.setProviderType(firstNetworkType);
 
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
@@ -307,28 +319,14 @@ describe('TokensController', () => {
     const stub = stubCreateEthers(tokensController, false);
     const firstNetworkType = 'rinkeby';
     const secondNetworkType = 'ropsten';
-    network.update({
-      provider: {
-        type: firstNetworkType,
-        chainId: NetworksChainId[firstNetworkType],
-      },
-    });
+
+    network.setProviderType(firstNetworkType);
     await tokensController.addToken('0x02', 'baz', 2);
-    network.update({
-      provider: {
-        type: secondNetworkType,
-        chainId: NetworksChainId[secondNetworkType],
-      },
-    });
+    network.setProviderType(secondNetworkType);
     await tokensController.addToken('0x01', 'bar', 2);
     tokensController.ignoreTokens(['0x01']);
     expect(tokensController.state.tokens).toHaveLength(0);
-    network.update({
-      provider: {
-        type: firstNetworkType,
-        chainId: NetworksChainId[firstNetworkType],
-      },
-    });
+    network.setProviderType(firstNetworkType);
 
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x02',
@@ -347,26 +345,18 @@ describe('TokensController', () => {
     const address = '0x123';
     preferences.update({ selectedAddress: address });
     expect(preferences.state.selectedAddress).toStrictEqual(address);
-    network.update({
-      provider: { type: networkType, chainId: NetworksChainId[networkType] },
-    });
+    network.setProviderType(networkType);
     expect(network.state.provider.type).toStrictEqual(networkType);
   });
 
   describe('ignoredTokens', () => {
     const defaultSelectedNetwork: NetworkType = 'rinkeby';
-    const defaultSelectedChainID = NetworksChainId.rinkeby;
     const defaultSelectedAddress = '0x0001';
 
     let createEthersStub: sinon.SinonStub;
     beforeEach(() => {
       preferences.setSelectedAddress(defaultSelectedAddress);
-      network.update({
-        provider: {
-          type: defaultSelectedNetwork,
-          chainId: defaultSelectedChainID,
-        },
-      });
+      network.setProviderType(defaultSelectedNetwork);
 
       createEthersStub = stubCreateEthers(tokensController, false);
     });
@@ -376,14 +366,14 @@ describe('TokensController', () => {
     });
 
     it('should remove token from ignoredTokens/allIgnoredTokens lists if added back via addToken', async () => {
-      await tokensController.addToken('0x01', 'bar', 2);
+      await tokensController.addToken('0x01', 'foo', 2);
       await tokensController.addToken('0xFAa', 'bar', 3);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       expect(tokensController.state.tokens).toHaveLength(2);
       tokensController.ignoreTokens(['0x01']);
       expect(tokensController.state.tokens).toHaveLength(1);
       expect(tokensController.state.ignoredTokens).toHaveLength(1);
-      await tokensController.addToken('0x01', 'bar', 2);
+      await tokensController.addToken('0x01', 'baz', 2);
       expect(tokensController.state.tokens).toHaveLength(2);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
     });
@@ -392,13 +382,7 @@ describe('TokensController', () => {
       const selectedAddress = '0x0001';
       const chain = 'rinkeby';
       preferences.setSelectedAddress(selectedAddress);
-      network.update({
-        provider: {
-          type: chain,
-          chainId: NetworksChainId[chain],
-        },
-      });
-
+      network.setProviderType(chain);
       await tokensController.addToken('0x01', 'bar', 2);
       await tokensController.addToken('0xFAa', 'bar', 3);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
@@ -445,12 +429,7 @@ describe('TokensController', () => {
       const chain2 = 'ropsten';
 
       preferences.setSelectedAddress(selectedAddress1);
-      network.update({
-        provider: {
-          type: chain1,
-          chainId: NetworksChainId[chain1],
-        },
-      });
+      network.setProviderType(chain1);
 
       await tokensController.addToken('0x01', 'bar', 2);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
@@ -458,13 +437,7 @@ describe('TokensController', () => {
       expect(tokensController.state.tokens).toHaveLength(0);
 
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x01']);
-
-      network.update({
-        provider: {
-          type: chain2,
-          chainId: NetworksChainId[chain2],
-        },
-      });
+      network.setProviderType(chain2);
 
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       await tokensController.addToken('0x02', 'bazz', 3);
@@ -677,12 +650,8 @@ describe('TokensController', () => {
           'LINK',
           18,
         );
-        network.update({
-          provider: {
-            type: 'goerli',
-            chainId: NetworksChainId.goerli,
-          },
-        });
+
+        network.setProviderType('goerli');
 
         await expect(addTokenPromise).rejects.toThrow(
           'TokensController Error: Switched networks while adding token',
@@ -793,7 +762,7 @@ describe('TokensController', () => {
       },
     ];
 
-    it('should nest newTokens under chain ID and selected address when provided with newTokens as input', async () => {
+    it('should nest newTokens under chain ID and selected address when provided with newTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
         chainId: NetworksChainId.mainnet,
@@ -808,7 +777,7 @@ describe('TokensController', () => {
       ).toStrictEqual(dummyTokens);
     });
 
-    it('should nest detectedTokens under chain ID and selected address when provided with detectedTokens as input', async () => {
+    it('should nest detectedTokens under chain ID and selected address when provided with detectedTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
         chainId: NetworksChainId.mainnet,
@@ -823,7 +792,7 @@ describe('TokensController', () => {
       ).toStrictEqual(dummyTokens);
     });
 
-    it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', async () => {
+    it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
         chainId: NetworksChainId.mainnet,
@@ -1101,23 +1070,13 @@ describe('TokensController', () => {
 
       const firstNetworkType = 'rinkeby';
       const secondNetworkType = 'ropsten';
-      network.update({
-        provider: {
-          type: firstNetworkType,
-          chainId: NetworksChainId[firstNetworkType],
-        },
-      });
+      network.setProviderType(firstNetworkType);
 
       await tokensController.addToken('0x01', 'A', 4);
       await tokensController.addToken('0x02', 'B', 5);
       const initialTokensFirst = tokensController.state.tokens;
 
-      network.update({
-        provider: {
-          type: secondNetworkType,
-          chainId: NetworksChainId[secondNetworkType],
-        },
-      });
+      network.setProviderType(secondNetworkType);
 
       await tokensController.addToken('0x03', 'C', 4);
       await tokensController.addToken('0x04', 'D', 5);
@@ -1168,22 +1127,9 @@ describe('TokensController', () => {
         },
       ]);
 
-      network.update({
-        provider: {
-          type: firstNetworkType,
-          chainId: NetworksChainId[firstNetworkType],
-        },
-      });
-
+      network.setProviderType(firstNetworkType);
       expect(initialTokensFirst).toStrictEqual(tokensController.state.tokens);
-
-      network.update({
-        provider: {
-          type: secondNetworkType,
-          chainId: NetworksChainId[secondNetworkType],
-        },
-      });
-
+      network.setProviderType(secondNetworkType);
       expect(initialTokensSecond).toStrictEqual(tokensController.state.tokens);
 
       stub.restore();

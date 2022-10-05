@@ -1429,11 +1429,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
-    "@metamask/assets-controllers": "workspace:~"
     "@metamask/auto-changelog": ^2.6.0
     "@metamask/base-controller": "workspace:~"
-    "@metamask/message-manager": "workspace:~"
-    "@metamask/transaction-controller": "workspace:~"
     "@types/jest": ^26.0.22
     abort-controller: ^3.0.0
     cross-fetch: ^3.1.5
@@ -1656,6 +1653,7 @@ __metadata:
     deepmerge: ^4.2.2
     eth-json-rpc-infura: ^5.1.0
     eth-query: ^2.1.2
+    immer: ^9.0.6
     jest: ^26.4.2
     jest-it-up: ^2.0.2
     sinon: ^9.2.4
@@ -1794,7 +1792,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/transaction-controller@workspace:packages/transaction-controller, @metamask/transaction-controller@workspace:~":
+"@metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:

@@ -6,7 +6,7 @@ import {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
-import { NetworkState } from '@metamask/network-controller';
+import { NetworkControllerProviderChangeEvent } from '@metamask/network-controller';
 import {
   isTokenListSupportedForNetwork,
   formatAggregatorNames,
@@ -58,9 +58,9 @@ export type GetTokenListState = {
 type TokenListMessenger = RestrictedControllerMessenger<
   typeof name,
   GetTokenListState,
-  TokenListStateChange,
+  TokenListStateChange | NetworkControllerProviderChangeEvent,
   never,
-  TokenListStateChange['type']
+  TokenListStateChange['type'] | NetworkControllerProviderChangeEvent['type']
 >;
 
 const metadata = {
@@ -100,7 +100,6 @@ export class TokenListController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
-   * @param options.onNetworkStateChange - A function for registering an event handler for network state changes.
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
    * @param options.messenger - A restricted controller messenger.
@@ -110,7 +109,6 @@ export class TokenListController extends BaseController<
   constructor({
     chainId,
     preventPollingOnNetworkRestart = false,
-    onNetworkStateChange,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
     messenger,
@@ -118,9 +116,6 @@ export class TokenListController extends BaseController<
   }: {
     chainId: string;
     preventPollingOnNetworkRestart?: boolean;
-    onNetworkStateChange: (
-      listener: (networkState: NetworkState) => void,
-    ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
     messenger: TokenListMessenger;
@@ -137,25 +132,29 @@ export class TokenListController extends BaseController<
     this.chainId = chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.abortController = new WhatwgAbortController();
-    onNetworkStateChange(async (networkState) => {
-      if (this.chainId !== networkState.provider.chainId) {
-        this.abortController.abort();
-        this.abortController = new WhatwgAbortController();
-        this.chainId = networkState.provider.chainId;
-        if (this.state.preventPollingOnNetworkRestart) {
-          this.clearingTokenListData();
-        } else {
-          // Ensure tokenList is referencing data from correct network
-          this.update(() => {
-            return {
-              ...this.state,
-              tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
-            };
-          });
-          await this.restart();
+    this.messagingSystem.subscribe(
+      'NetworkController:providerChange',
+      async (providerConfig) => {
+        if (this.chainId !== providerConfig.chainId) {
+          this.abortController.abort();
+          this.abortController = new WhatwgAbortController();
+          this.chainId = providerConfig.chainId;
+          if (this.state.preventPollingOnNetworkRestart) {
+            this.clearingTokenListData();
+          } else {
+            // Ensure tokenList is referencing data from correct network
+            this.update(() => {
+              return {
+                ...this.state,
+                tokenList:
+                  this.state.tokensChainsCache[this.chainId]?.data || {},
+              };
+            });
+            await this.restart();
+          }
         }
-      }
-    });
+      },
+    );
   }
 
   /**

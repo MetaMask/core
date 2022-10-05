@@ -1,6 +1,10 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
-import { NetworkController } from '@metamask/network-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
+import {
+  NetworkController,
+  NetworkControllerMessenger,
+} from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/user-controllers';
 import { OPENSEA_PROXY_URL } from '@metamask/controller-utils';
 import { CollectiblesController } from './CollectiblesController';
@@ -14,9 +18,9 @@ const ROPSTEN = 'ropsten';
 describe('CollectibleDetectionController', () => {
   let collectibleDetection: CollectibleDetectionController;
   let preferences: PreferencesController;
-  let network: NetworkController;
   let collectiblesController: CollectiblesController;
   let assetsContract: AssetsContractController;
+  let messenger: NetworkControllerMessenger;
 
   const getOpenSeaApiKeyStub = jest.fn();
   beforeAll(() => {
@@ -28,16 +32,27 @@ describe('CollectibleDetectionController', () => {
   });
 
   beforeEach(async () => {
+    messenger = new ControllerMessenger().getRestricted({
+      name: 'NetworkController',
+      allowedEvents: ['NetworkController:stateChange'],
+      allowedActions: [],
+    });
+
+    new NetworkController({
+      messenger,
+      infuraProjectId: 'potato',
+    });
     preferences = new PreferencesController();
-    network = new NetworkController();
     assetsContract = new AssetsContractController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        messenger.subscribe('NetworkController:stateChange', listener),
     });
 
     collectiblesController = new CollectiblesController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        messenger.subscribe('NetworkController:stateChange', listener),
       getERC721AssetName:
         assetsContract.getERC721AssetName.bind(assetsContract),
       getERC721AssetSymbol:
@@ -55,7 +70,8 @@ describe('CollectibleDetectionController', () => {
       onCollectiblesStateChange: (listener) =>
         collectiblesController.subscribe(listener),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        messenger.subscribe('NetworkController:stateChange', listener),
       getOpenSeaApiKey: getOpenSeaApiKeyStub,
       addCollectible: collectiblesController.addCollectible.bind(
         collectiblesController,
@@ -226,7 +242,8 @@ describe('CollectibleDetectionController', () => {
               collectiblesController.subscribe(listener),
             onPreferencesStateChange: (listener) =>
               preferences.subscribe(listener),
-            onNetworkStateChange: (listener) => network.subscribe(listener),
+            onNetworkStateChange: (listener) =>
+              messenger.subscribe('NetworkController:stateChange', listener),
             getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
             addCollectible: collectiblesController.addCollectible.bind(
               collectiblesController,
@@ -264,7 +281,8 @@ describe('CollectibleDetectionController', () => {
             collectiblesController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
-          onNetworkStateChange: (listener) => network.subscribe(listener),
+          onNetworkStateChange: (listener) =>
+            messenger.subscribe('NetworkController:stateChange', listener),
           getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
           addCollectible: collectiblesController.addCollectible.bind(
             collectiblesController,

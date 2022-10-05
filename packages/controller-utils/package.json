@@ -27,10 +27,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/assets-controllers": "workspace:~",
     "@metamask/base-controller": "workspace:~",
-    "@metamask/message-manager": "workspace:~",
-    "@metamask/transaction-controller": "workspace:~",
     "cross-fetch": "^3.1.5",
     "eth-ens-namehash": "^2.0.8",
     "eth-rpc-errors": "^4.0.0",

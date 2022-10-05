@@ -17,19 +17,16 @@ export type ControllerList = (
   | { name: string; state: Record<string, unknown> }
 )[];
 
+export type ComposableControllerRestrictedMessenger =
+  RestrictedControllerMessenger<'ComposableController', never, any, never, any>;
+
 /**
  * Controller that can be used to compose multiple controllers together
  */
 export class ComposableController extends BaseController<never, any> {
   private controllers: ControllerList = [];
 
-  private messagingSystem?: RestrictedControllerMessenger<
-    'ComposableController',
-    never,
-    any,
-    never,
-    any
-  >;
+  private messagingSystem?: ComposableControllerRestrictedMessenger;
 
   /**
    * Name of this controller used during composition
@@ -44,13 +41,7 @@ export class ComposableController extends BaseController<never, any> {
    */
   constructor(
     controllers: ControllerList,
-    messenger?: RestrictedControllerMessenger<
-      'ComposableController',
-      never,
-      any,
-      never,
-      any
-    >,
+    messenger?: ComposableControllerRestrictedMessenger,
   ) {
     super(
       undefined,

@@ -2,7 +2,12 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import { BN } from 'ethereumjs-util';
 import { PreferencesController } from '@metamask/user-controllers';
-import { NetworkController } from '@metamask/network-controller';
+import {
+  NetworkController,
+  NetworkControllerMessenger,
+  NetworkControllerProviderChangeEvent,
+  NetworkControllerStateChangeEvent,
+} from '@metamask/network-controller';
 import { NetworksChainId } from '@metamask/controller-utils';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { TokensController } from './TokensController';
@@ -78,33 +83,66 @@ const sampleTokenB: Token = {
   aggregators: formattedSampleAggregators,
 };
 
-/**
- * Constructs a restricted controller messenger.
- *
- * @returns A restricted controller messenger.
- */
-function getTokenListMessenger() {
-  const controllerMessenger = new ControllerMessenger<
-    GetTokenListState,
-    TokenListStateChange
-  >();
-  const messenger = controllerMessenger.getRestricted<
-    'TokenListController',
-    never,
-    TokenListStateChange['type']
-  >({
-    name: 'TokenListController',
-    allowedEvents: ['TokenListController:stateChange'],
+type MainControllerMessenger = ControllerMessenger<
+  GetTokenListState,
+  | TokenListStateChange
+  | NetworkControllerProviderChangeEvent
+  | NetworkControllerStateChangeEvent
+>;
+
+const getControllerMessenger = (): MainControllerMessenger => {
+  return new ControllerMessenger();
+};
+
+const setupNetworkController = (
+  controllerMessenger: MainControllerMessenger,
+) => {
+  const networkMessenger = controllerMessenger.getRestricted({
+    name: 'NetworkController',
+    allowedEvents: [
+      'NetworkController:providerChange',
+      'NetworkController:stateChange',
+    ],
+    allowedActions: [],
   });
-  return messenger;
-}
+
+  const network = new NetworkController({
+    messenger: networkMessenger,
+    infuraProjectId: '123',
+  });
+
+  return { network, networkMessenger };
+};
+
+const setupTokenListController = (
+  controllerMessenger: MainControllerMessenger,
+) => {
+  const tokenListMessenger = controllerMessenger.getRestricted({
+    name: 'TokenListController',
+    allowedActions: [],
+    allowedEvents: [
+      'TokenListController:stateChange',
+      'NetworkController:providerChange',
+    ],
+  });
+
+  const tokenList = new TokenListController({
+    chainId: NetworksChainId.mainnet,
+    preventPollingOnNetworkRestart: false,
+    messenger: tokenListMessenger,
+  });
+
+  return { tokenList, tokenListMessenger };
+};
 
 describe('TokenDetectionController', () => {
   let tokenDetection: TokenDetectionController;
   let preferences: PreferencesController;
   let network: NetworkController;
+  let networkMessenger: NetworkControllerMessenger;
   let tokensController: TokensController;
   let tokenList: TokenListController;
+  let controllerMessenger: MainControllerMessenger;
   let getBalancesInSingleCall: sinon.SinonStub<
     Parameters<AssetsContractController['getBalancesInSingleCall']>,
     ReturnType<AssetsContractController['getBalancesInSingleCall']>
@@ -123,26 +161,30 @@ describe('TokenDetectionController', () => {
       )
       .reply(200, tokenBFromList)
       .persist();
+
     preferences = new PreferencesController({}, { useTokenDetection: true });
-    network = new NetworkController();
+    controllerMessenger = getControllerMessenger();
+    const networkSetup = setupNetworkController(controllerMessenger);
+    network = networkSetup.network;
+    networkMessenger = networkSetup.networkMessenger;
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        networkMessenger.subscribe('NetworkController:stateChange', listener),
     });
-    const messenger = getTokenListMessenger();
-    tokenList = new TokenListController({
-      chainId: NetworksChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
-      onNetworkStateChange: (listener) => network.subscribe(listener),
-      messenger,
-    });
+    const tokenListSetup = setupTokenListController(controllerMessenger);
+    tokenList = tokenListSetup.tokenList;
     await tokenList.start();
     getBalancesInSingleCall = sinon.stub();
     tokenDetection = new TokenDetectionController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) => network.subscribe(listener),
+      onNetworkStateChange: (listener) =>
+        networkMessenger.subscribe('NetworkController:stateChange', listener),
       onTokenListStateChange: (listener) =>
-        messenger.subscribe(`TokenListController:stateChange`, listener),
+        tokenListSetup.tokenListMessenger.subscribe(
+          `TokenListController:stateChange`,
+          listener,
+        ),
       getBalancesInSingleCall:
         getBalancesInSingleCall as unknown as AssetsContractController['getBalancesInSingleCall'],
       addDetectedTokens:
@@ -163,6 +205,9 @@ describe('TokenDetectionController', () => {
     sinon.restore();
     tokenDetection.stop();
     tokenList.destroy();
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:stateChange',
+    );
   });
 
   it('should set default config', () => {
@@ -267,12 +312,8 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     preferences.setSelectedAddress('0x0001');
-    network.update({
-      provider: {
-        type: 'mainnet',
-        chainId: NetworksChainId.mainnet,
-      },
-    });
+
+    network.setProviderType('mainnet');
 
     await tokenDetection.start();
 
@@ -307,12 +348,7 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     preferences.setSelectedAddress('0x0001');
-    network.update({
-      provider: {
-        type: 'mainnet',
-        chainId: NetworksChainId.mainnet,
-      },
-    });
+    network.setProviderType('mainnet');
 
     await tokenDetection.start();
 

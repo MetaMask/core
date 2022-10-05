@@ -7,6 +7,7 @@ import {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
+import { safelyExecute } from '@metamask/controller-utils';
 
 /**
  * @type EthPhishingResponse
@@ -85,6 +86,16 @@ export interface PhishingState extends BaseState {
   whitelist: string[];
 }
 
+export const PHISHING_CONFIG_BASE_URL =
+  'https://static.metafi.codefi.network/api/v1/lists';
+
+export const METAMASK_CONFIG_FILE = '/eth_phishing_detect_config.json';
+
+export const PHISHFORT_HOTLIST_FILE = '/phishfort_hotlist.json';
+
+export const METAMASK_CONFIG_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_CONFIG_FILE}`;
+export const PHISHFORT_HOTLIST_URL = `${PHISHING_CONFIG_BASE_URL}${PHISHFORT_HOTLIST_FILE}`;
+
 /**
  * Controller that passively polls on a set interval for approved and unapproved website origins
  */
@@ -92,11 +103,6 @@ export class PhishingController extends BaseController<
   PhishingConfig,
   PhishingState
 > {
-  private configUrlMetaMask =
-    'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
-
-  private configUrlPhishFortHotlist = `https://cdn.jsdelivr.net/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json`;
-
   private detector: any;
 
   private lastFetched = 0;
@@ -199,11 +205,14 @@ export class PhishingController extends BaseController<
       return;
     }
 
+    this.lastFetched = Date.now();
+
     const configs: EthPhishingDetectConfig[] = [];
 
+    // We ignore network failures here instead of bubbling them up
     const [metamaskConfigLegacy, phishfortHotlist] = await Promise.all([
-      await this.queryConfig<EthPhishingResponse>(this.configUrlMetaMask),
-      await this.queryConfig<string[]>(this.configUrlPhishFortHotlist),
+      this.queryConfig<EthPhishingResponse>(METAMASK_CONFIG_URL),
+      this.queryConfig<string[]>(PHISHFORT_HOTLIST_URL),
     ]);
 
     // Correctly shaping MetaMask config.
@@ -243,16 +252,17 @@ export class PhishingController extends BaseController<
     this.update({
       phishing: configs,
     });
-
-    this.lastFetched = Date.now();
   }
 
   private async queryConfig<ResponseType>(
     input: RequestInfo,
   ): Promise<ResponseType | null> {
-    const response = await crossFetch(input, { cache: 'no-cache' });
+    const response = await safelyExecute(
+      () => crossFetch(input, { cache: 'no-cache' }),
+      true,
+    );
 
-    switch (response.status) {
+    switch (response?.status) {
       case 200: {
         return await response.json();
       }
