@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.1]
+### Changed
+- Update `@metamask/eth-sig-util` from v3 to v5 ([#133](https://github.com/MetaMask/eth-json-rpc-middleware/pull/133), [#150](https://github.com/MetaMask/eth-json-rpc-middleware/pull/150))
+- Remove unused dependencies ([#133](https://github.com/MetaMask/eth-json-rpc-middleware/pull/133))
+
+### Fixed
+- Fix `block-ref` middleware, and prevent it from making a duplicate request ([#151](https://github.com/MetaMask/eth-json-rpc-middleware/pull/151))
+- Fix `retryOnEmpty` middleware and prevent it from making duplicate requests ([#147](https://github.com/MetaMask/eth-json-rpc-middleware/pull/147))
+
 ## [9.0.0]
 ### Added
 - Add logging ([#140](https://github.com/MetaMask/eth-json-rpc-middleware/pull/140))
@@ -84,7 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v9.0.1...HEAD
+[9.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v9.0.0...v9.0.1
 [9.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v8.1.0...v9.0.0
 [8.1.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v8.0.2...v8.1.0
 [8.0.2]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v8.0.1...v8.0.2

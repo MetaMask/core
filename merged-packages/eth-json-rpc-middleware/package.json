@@ -1,6 +1,6 @@
 {
   "name": "eth-json-rpc-middleware",
-  "version": "9.0.0",
+  "version": "9.0.1",
   "description": "Ethereum-related json-rpc-engine middleware.",
   "repository": {
     "type": "git",
