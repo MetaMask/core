@@ -70,6 +70,10 @@ describe('bytesToHex', () => {
     expect(bytesToHex(new Uint8Array([0, 1, 2])).startsWith('0x')).toBe(true);
   });
 
+  it('returns 0x for an empty byte array', () => {
+    expect(bytesToHex(new Uint8Array())).toBe('0x');
+  });
+
   it.each(INVALID_BYTES_FIXTURES)(
     'throws an error for invalid byte arrays',
     (value) => {
@@ -191,7 +195,11 @@ describe('hexToBytes', () => {
     expect(hexToBytes('abc')).toStrictEqual(new Uint8Array([10, 188]));
   });
 
-  it.each([true, false, null, undefined, 0, 1, '', '0x', [], {}])(
+  it('returns an empty byte array for 0x', () => {
+    expect(hexToBytes('0x')).toStrictEqual(new Uint8Array());
+  });
+
+  it.each([true, false, null, undefined, 0, 1, '', [], {}])(
     'throws an error for invalid hex strings',
     (value) => {
       // @ts-expect-error Invalid type.

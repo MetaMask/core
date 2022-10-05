@@ -1,5 +1,6 @@
 export * from './assert';
 export * from './bytes';
+export * from './coercers';
 export * from './collections';
 export * from './hex';
 export * from './json';

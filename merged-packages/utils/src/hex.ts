@@ -1,7 +1,13 @@
-import { is, pattern, string } from 'superstruct';
+import { is, pattern, string, Struct } from 'superstruct';
 import { assert } from './assert';
 
-const HexStruct = pattern(string(), /^(?:0x)?[0-9a-f]+$/iu);
+export type Hex = `0x${string}`;
+
+export const HexStruct = pattern(string(), /^(?:0x)?[0-9a-f]+$/iu);
+export const StrictHexStruct = pattern(string(), /^0x[0-9a-f]+$/iu) as Struct<
+  Hex,
+  null
+>;
 
 /**
  * Check if a string is a valid hex string.
@@ -11,6 +17,17 @@ const HexStruct = pattern(string(), /^(?:0x)?[0-9a-f]+$/iu);
  */
 export function isHexString(value: unknown): value is string {
   return is(value, HexStruct);
+}
+
+/**
+ * Strictly check if a string is a valid hex string. A valid hex string must
+ * start with the "0x"-prefix.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is a valid hex string.
+ */
+export function isStrictHexString(value: unknown): value is Hex {
+  return is(value, StrictHexStruct);
 }
 
 /**
@@ -24,15 +41,33 @@ export function assertIsHexString(value: unknown): asserts value is string {
 }
 
 /**
+ * Assert that a value is a valid hex string. A valid hex string must start with
+ * the "0x"-prefix.
+ *
+ * @param value - The value to check.
+ * @throws If the value is not a valid hex string.
+ */
+export function assertIsStrictHexString(value: unknown): asserts value is Hex {
+  assert(
+    isStrictHexString(value),
+    'Value must be a hexadecimal string, starting with "0x".',
+  );
+}
+
+/**
  * Add the `0x`-prefix to a hexadecimal string. If the string already has the
  * prefix, it is returned as-is.
  *
  * @param hex - The hexadecimal string to add the prefix to.
  * @returns The prefixed hexadecimal string.
  */
-export function add0x(hex: string): string {
-  if (hex.startsWith('0x') || hex.startsWith('0X')) {
-    return hex;
+export function add0x(hex: string): Hex {
+  if (hex.startsWith('0x')) {
+    return hex as Hex;
+  }
+
+  if (hex.startsWith('0X')) {
+    return `0x${hex.substring(2)}`;
   }
 
   return `0x${hex}`;
