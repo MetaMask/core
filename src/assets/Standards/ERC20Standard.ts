@@ -47,7 +47,13 @@ export class ERC20Standard {
           reject(error);
           return;
         }
-        resolve(result.toString());
+
+        const resultString = result.toString();
+        if (resultString.length > 0 && resultString !== '0') {
+          resolve(resultString);
+        }
+
+        reject(new Error('Failed to parse token decimals'));
       });
     });
   }
@@ -74,7 +80,7 @@ export class ERC20Standard {
         // Parse as string
         try {
           const decoded = abiCoder.decode(['string'], result)[0];
-          if (decoded) {
+          if (decoded?.length > 0) {
             resolve(decoded);
             return;
           }
@@ -85,8 +91,10 @@ export class ERC20Standard {
         // Parse as bytes
         try {
           const utf8 = toUtf8(result);
-          resolve(utf8);
-          return;
+          if (utf8.length > 0) {
+            resolve(utf8);
+            return;
+          }
         } catch {
           // Ignore error
         }
