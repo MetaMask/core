@@ -78,7 +78,7 @@ export class ERC20Standard {
 
         const abiCoder = new AbiCoder();
 
-        // Parse as string
+        // Parse as string - treat empty string as failure
         try {
           const decoded = abiCoder.decode(['string'], result)[0];
           if (decoded?.length > 0) {
@@ -89,7 +89,7 @@ export class ERC20Standard {
           // Ignore error
         }
 
-        // Parse as bytes
+        // Parse as bytes - treat empty string as failure
         try {
           const utf8 = toUtf8(result);
           if (utf8.length > 0) {
