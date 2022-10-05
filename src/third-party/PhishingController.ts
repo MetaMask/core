@@ -245,18 +245,14 @@ export class PhishingController extends BaseController<
 
     // Correctly shaping Paradigm config.
     const paradigmConfig: EthPhishingDetectConfig = {
-      allowlist: (paradigmHotlist ? paradigmHotlist.whitelist : []).filter(
-        (i) => !metamaskConfig.allowlist.includes(i),
-      ),
+      allowlist: [],
       blocklist: (paradigmHotlist ? paradigmHotlist.blacklist : []).filter(
         (i) =>
           !metamaskConfig.blocklist.includes(i) &&
           !phishfortConfig.blocklist.includes(i),
       ),
-      fuzzylist: (paradigmHotlist ? paradigmHotlist.fuzzylist : []).filter(
-        (i) => !metamaskConfig.fuzzylist.includes(i),
-      ),
-      tolerance: paradigmHotlist ? paradigmHotlist.tolerance : 0,
+      fuzzylist: [],
+      tolerance: 0,
       name: `Paradigm`,
       version: paradigmHotlist ? paradigmHotlist.version : 0,
     };

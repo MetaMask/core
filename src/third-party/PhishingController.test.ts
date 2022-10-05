@@ -807,36 +807,6 @@ describe('PhishingController', () => {
     });
   });
 
-  it('should return positive result for domain very close to fuzzylist from Paradigm config', async () => {
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .reply(200, {
-        blacklist: [],
-        fuzzylist: [],
-        tolerance: 0,
-        whitelist: [],
-        version: 0,
-      })
-      .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, [])
-      .get(PARADIGM_HOTLIST_FILE)
-      .reply(200, {
-        blacklist: [],
-        fuzzylist: ['opensea.io'],
-        tolerance: 2,
-        whitelist: ['opensea.io'],
-        version: 0,
-      });
-
-    const controller = new PhishingController();
-    await controller.updatePhishingLists();
-    expect(await controller.test('ohpensea.io')).toMatchObject({
-      result: true,
-      type: 'fuzzy',
-      name: 'Paradigm',
-    });
-  });
-
   it('should filter out existing blocked domains from paradigm config', async () => {
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_CONFIG_FILE)
