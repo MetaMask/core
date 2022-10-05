@@ -49,6 +49,7 @@ export class ERC20Standard {
         }
 
         const resultString = result.toString();
+        // We treat empty string or 0 as invalid
         if (resultString.length > 0 && resultString !== '0') {
           resolve(resultString);
         }
