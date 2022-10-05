@@ -4,15 +4,25 @@ A collection of platform-agnostic modules for creating secure data models for cr
 
 ## Modules
 
-Please refer to the READMEs for the following packages for installation and usage instructions:
+This is a monorepo that houses the following packages. Please refer to the READMEs for these packages for installation and usage instructions:
 
+- [`@metamask/announcement-controller`](packages/announcement-controller)
+- [`@metamask/approval-controller`](packages/approval-controller)
+- [`@metamask/assets-controller`](packages/assets-controller)
 - [`@metamask/base-controller`](packages/base-controller)
+- [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
-- [`@metamask/ens-controller`](packages/ens-controller)
-
-## Usage
-
-(TODO: Fill this out. Maybe keep the big picture stuff here and more details in the READMEs for packages?)
+- [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
+- [`@metamask/keyring-controller`](packages/keyring-controller)
+- [`@metamask/message-manager`](packages/message-manager)
+- [`@metamask/network-controller`](packages/network-controller)
+- [`@metamask/notification-controller`](packages/notification-controller)
+- [`@metamask/permission-controller`](packages/permission-controller)
+- [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
+- [`@metamask/subject-metadata-controller`](packages/subject-metadata-controller)
+- [`@metamask/third-party-controllers`](packages/third-party-controllers)
+- [`@metamask/transaction-controller`](packages/transaction-controller)
+- [`@metamask/user-controllers`](packages/user-controllers)
 
 ## Contributing
 
@@ -28,15 +38,12 @@ Please refer to the READMEs for the following packages for installation and usag
 
 Run `yarn test` to run the tests once. To run tests on file changes, run `yarn test:watch`.
 
-To enable debugger [via Chrome DevTools](https://jestjs.io/docs/troubleshooting#tests-are-failing-and-you-dont-know-why):
-
-1.  run `yarn test:debug`
-2.  navigate to `chrome://inspect`
-3.  click "Open Dedicated DevTools for Node". Keep the DevTools window open
-4.  stop/rerun the tests as needed
-
-Run `yarn lint` to run the linter, or run `yarn lint:fix` to run the linter and fix any automatically fixable issues.
+Run `yarn lint` to run the linter, or run `yarn lint:fix` to fix any automatically fixable issues encountered by the linter.
 
 ### Release & Publishing
 
-The project, being a monorepo, follows a specific release process. This section will be updated appropriately once that process is crystallized.
+When you are ready to release one or more packages within this monorepo, you use the `create-release-branch` tool, which automates the task of bumping versions and updating changelogs across the monorepo, then creates a new branch for you to share as a pull request. You can learn more about how to use this tool by reading through its [documentation][create-release-branch-docs].
+
+This monorepo is following an **independent** versioning strategy, where the version of each package may be changed without needing to synchronize that version across any other packages.
+
+[create-release-branch-docs]: https://github.com/MetaMask/create-release-branch/blob/main/docs/usage-monorepo-independent.md
