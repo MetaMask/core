@@ -12,8 +12,8 @@
   ],
   "scripts": {
     "build": "tsc --build tsconfig.build.json --verbose",
-    "build:clean": "yarn rimraf './**/*.tsbuildinfo' './dist'",
-    "build:watch": "yarn build --watch",
+    "build:clean": "rimraf './**/*.tsbuildinfo' './dist'",
+    "build:watch": "yarn run build --watch",
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
     "doc": "yarn workspaces foreach --parallel --interlaced --verbose run doc",
     "lint": "yarn lint:eslint && yarn lint:misc --check",

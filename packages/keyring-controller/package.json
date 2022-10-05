@@ -21,10 +21,10 @@
     "dist/"
   ],
   "scripts": {
-    "changelog:validate": "./scripts/validate-changelog.sh",
-    "doc": "typedoc && touch docs/.nojekyll",
-    "test": "./scripts/test.sh",
-    "test:watch": "jest --watch"
+    "changelog:validate": "../../scripts/validate-changelog.sh",
+    "doc": "../../scripts/doc.sh",
+    "test": "../../scripts/test.sh",
+    "test:watch": "../../scripts/test-watch.sh"
   },
   "dependencies": {
     "@keystonehq/metamask-airgapped-keyring": "^0.6.1",
