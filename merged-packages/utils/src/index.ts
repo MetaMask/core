@@ -6,4 +6,5 @@ export * from './hex';
 export * from './json';
 export * from './logging';
 export * from './misc';
+export * from './number';
 export * from './time';
