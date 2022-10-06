@@ -162,8 +162,8 @@ export type JsonRpcNotification<Params extends JsonRpcParams> = InferWithParams<
 >;
 
 /**
- * Type guard to narrow a JSON-RPC request or notification object to a
- * notification.
+ * Type guard to narrow a {@link JsonRpcRequest} or
+ * {@link JsonRpcNotification} object to a {@link JsonRpcNotification}.
  *
  * @param requestOrNotification - The JSON-RPC request or notification to check.
  * @returns Whether the specified JSON-RPC message is a notification.
@@ -175,8 +175,8 @@ export function isJsonRpcNotification(
 }
 
 /**
- * Assertion type guard to narrow a JSON-RPC request or notification object to a
- * notification.
+ * Assertion type guard to narrow a {@link JsonRpcRequest} or
+ * {@link JsonRpcNotification} object to a {@link JsonRpcNotification}.
  *
  * @param requestOrNotification - The JSON-RPC request or notification to check.
  */
@@ -192,7 +192,8 @@ export function assertIsJsonRpcNotification(
 }
 
 /**
- * Type guard to narrow a JSON-RPC request or notification object to a request.
+ * Type guard to narrow a {@link JsonRpcRequest} or @link JsonRpcNotification}
+ * object to a {@link JsonRpcRequest}.
  *
  * @param requestOrNotification - The JSON-RPC request or notification to check.
  * @returns Whether the specified JSON-RPC message is a request.
@@ -204,8 +205,8 @@ export function isJsonRpcRequest(
 }
 
 /**
- * Assertion type guard to narrow a JSON-RPC request or notification object to a
- * request.
+ * Assertion type guard to narrow a {@link JsonRpcRequest} or
+ * {@link JsonRpcNotification} object to a {@link JsonRpcRequest}.
  *
  * @param requestOrNotification - The JSON-RPC request or notification to check.
  */
@@ -219,6 +220,23 @@ export function assertIsJsonRpcRequest(
     throw new Error(`Not a JSON-RPC request: ${message}.`);
   }
 }
+
+export const PendingJsonRpcResponseStruct = object({
+  id: JsonRpcIdStruct,
+  jsonrpc: JsonRpcVersionStruct,
+  result: optional(unknown()),
+  error: optional(JsonRpcErrorStruct),
+});
+
+/**
+ * A JSON-RPC response object that has not yet been resolved.
+ */
+export type PendingJsonRpcResponse<Result extends Json> = Omit<
+  Infer<typeof PendingJsonRpcResponseStruct>,
+  'result'
+> & {
+  result?: Result;
+};
 
 export const JsonRpcSuccessStruct = object({
   id: JsonRpcIdStruct,
@@ -263,7 +281,38 @@ export type JsonRpcResponse<Result extends Json> =
   | JsonRpcFailure;
 
 /**
- * Type guard to check if a value is a JsonRpcResponse.
+ * Type guard to check whether specified JSON-RPC response is a
+ * {@link PendingJsonRpcResponse}.
+ *
+ * @param response - The JSON-RPC response to check.
+ * @returns Whether the specified JSON-RPC response is pending.
+ */
+export function isPendingJsonRpcResponse(
+  response: unknown,
+): response is PendingJsonRpcResponse<Json> {
+  return is(response, PendingJsonRpcResponseStruct);
+}
+
+/**
+ * Assert that the specified JSON-RPC response is a
+ * {@link PendingJsonRpcResponse}.
+ *
+ * @param response - The JSON-RPC response to check.
+ * @throws If the specified JSON-RPC response is not pending.
+ */
+export function assertIsPendingJsonRpcResponse(
+  response: unknown,
+): asserts response is PendingJsonRpcResponse<Json> {
+  try {
+    assert(response, PendingJsonRpcResponseStruct);
+  } catch (error) {
+    const message = isErrorWithMessage(error) ? error.message : error;
+    throw new Error(`Not a pending JSON-RPC response: ${message}.`);
+  }
+}
+
+/**
+ * Type guard to check if a value is a {@link JsonRpcResponse}.
  *
  * @param response - The object to check.
  * @returns Whether the object is a JsonRpcResponse.
@@ -275,7 +324,7 @@ export function isJsonRpcResponse(
 }
 
 /**
- * Type assertion to check if a value is a JsonRpcResponse.
+ * Type assertion to check if a value is a {@link JsonRpcResponse}.
  *
  * @param response - The response to check.
  */
@@ -291,7 +340,8 @@ export function assertIsJsonRpcResponse(
 }
 
 /**
- * Type guard to narrow a JsonRpcResponse object to a success (or failure).
+ * Type guard to narrow a {@link JsonRpcResponse} object to a success
+ * (or failure).
  *
  * @param response - The response object to check.
  * @returns Whether the response object is a success.
@@ -303,7 +353,8 @@ export function isJsonRpcSuccess(
 }
 
 /**
- * Type assertion to narrow a JsonRpcResponse object to a success (or failure).
+ * Type assertion to narrow a {@link JsonRpcResponse} object to a success
+ * (or failure).
  *
  * @param response - The response object to check.
  */
@@ -319,7 +370,8 @@ export function assertIsJsonRpcSuccess(
 }
 
 /**
- * Type guard to narrow a JsonRpcResponse object to a failure (or success).
+ * Type guard to narrow a {@link JsonRpcResponse} object to a failure
+ * (or success).
  *
  * @param response - The response object to check.
  * @returns Whether the response object is a failure, i.e. has an `error`
@@ -332,7 +384,8 @@ export function isJsonRpcFailure(
 }
 
 /**
- * Type assertion to narrow a JsonRpcResponse object to a failure (or success).
+ * Type assertion to narrow a {@link JsonRpcResponse} object to a failure
+ * (or success).
  *
  * @param response - The response object to check.
  */

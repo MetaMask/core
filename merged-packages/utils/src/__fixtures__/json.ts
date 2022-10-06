@@ -671,6 +671,325 @@ export const JSON_RPC_RESPONSE_FIXTURES = {
   ],
 };
 
+export const JSON_RPC_PENDING_RESPONSE_FIXTURES = {
+  valid: [
+    ...JSON_RPC_SUCCESS_FIXTURES.valid,
+    ...JSON_RPC_FAILURE_FIXTURES.valid,
+    {
+      id: 1,
+      jsonrpc: '2.0',
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: undefined,
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      result: undefined,
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      result: undefined,
+      error: undefined,
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      result: {
+        foo: 'bar',
+      },
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+  ],
+  invalid: [
+    {},
+    [],
+    true,
+    false,
+    null,
+    undefined,
+    1,
+    'foo',
+    {
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: {},
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: [],
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: true,
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: false,
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: undefined,
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '1.0',
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: 2.0,
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: {},
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: [],
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: true,
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: false,
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: null,
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: undefined,
+      error: {
+        code: -32000,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: [],
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {},
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: true,
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: false,
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: null,
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: 'foo',
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: 1,
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: {},
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: [],
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: true,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: false,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: null,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: undefined,
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: 'foo',
+        message: 'Internal error',
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: {},
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: [],
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: true,
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: false,
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: null,
+      },
+    },
+    {
+      id: 1,
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: undefined,
+      },
+    },
+  ],
+};
+
 export const COMPLEX_OBJECT = {
   data: {
     account: {

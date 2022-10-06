@@ -6,6 +6,7 @@ import {
   JSON_FIXTURES,
   JSON_RPC_FAILURE_FIXTURES,
   JSON_RPC_NOTIFICATION_FIXTURES,
+  JSON_RPC_PENDING_RESPONSE_FIXTURES,
   JSON_RPC_REQUEST_FIXTURES,
   JSON_RPC_RESPONSE_FIXTURES,
   JSON_RPC_SUCCESS_FIXTURES,
@@ -18,12 +19,14 @@ import {
   assertIsJsonRpcRequest,
   assertIsJsonRpcResponse,
   assertIsJsonRpcSuccess,
+  assertIsPendingJsonRpcResponse,
   getJsonRpcIdValidator,
   isJsonRpcFailure,
   isJsonRpcNotification,
   isJsonRpcRequest,
   isJsonRpcResponse,
   isJsonRpcSuccess,
+  isPendingJsonRpcResponse,
   isValidJson,
   validateJsonAndGetSize,
 } from '.';
@@ -251,6 +254,50 @@ describe('json', () => {
       expect(() =>
         assertIsJsonRpcFailure(JSON_RPC_FAILURE_FIXTURES.invalid[0]),
       ).toThrow('Not a failed JSON-RPC response: oops');
+    });
+  });
+
+  describe('isPendingJsonRpcResponse', () => {
+    it.each(JSON_RPC_PENDING_RESPONSE_FIXTURES.valid)(
+      'returns true for a valid pending JSON-RPC response',
+      (response) => {
+        expect(isPendingJsonRpcResponse(response)).toBe(true);
+      },
+    );
+
+    it.each(JSON_RPC_PENDING_RESPONSE_FIXTURES.invalid)(
+      'returns false for an invalid pending JSON-RPC response',
+      (response) => {
+        expect(isPendingJsonRpcResponse(response)).toBe(false);
+      },
+    );
+  });
+
+  describe('assertIsPendingJsonRpcResponse', () => {
+    it.each(JSON_RPC_PENDING_RESPONSE_FIXTURES.valid)(
+      'does not throw for a valid pending JSON-RPC response',
+      (response) => {
+        expect(() => assertIsPendingJsonRpcResponse(response)).not.toThrow();
+      },
+    );
+
+    it.each(JSON_RPC_PENDING_RESPONSE_FIXTURES.invalid)(
+      'throws for an invalid pending JSON-RPC response',
+      (response) => {
+        expect(() => assertIsPendingJsonRpcResponse(response)).toThrow(
+          'Not a pending JSON-RPC response',
+        );
+      },
+    );
+
+    it('includes the value thrown in the message if it is not an error', () => {
+      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        throw 'oops';
+      });
+
+      expect(() =>
+        assertIsPendingJsonRpcResponse(JSON_RPC_FAILURE_FIXTURES.invalid[0]),
+      ).toThrow('Not a pending JSON-RPC response: oops');
     });
   });
 
