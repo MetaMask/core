@@ -366,7 +366,7 @@ describe('TransactionController', () => {
     });
   });
 
-  it('should on eth_estimateGas succeed when gasBn it is greater than maxGaxBN', async () => {
+  it('should on eth_estimateGas succeed when gasBn it is greater than maxGasBN', async () => {
     const controller = new TransactionController({
       getNetworkState: () => MOCK_NETWORK.state,
       onNetworkStateChange: MOCK_NETWORK.subscribe,
@@ -379,7 +379,7 @@ describe('TransactionController', () => {
     expect(result.estimateGasError).toBeUndefined();
   });
 
-  it('should on Mainnet eth_estimateGas succeed when gasBn it is hight than maxGaxBN', async () => {
+  it('should on Mainnet eth_estimateGas succeed when gasBn it is higher than maxGasBN', async () => {
     const controller = new TransactionController({
       getNetworkState: () => MOCK_NETWORK.state,
       onNetworkStateChange: MOCK_NETWORK.subscribe,
@@ -394,7 +394,7 @@ describe('TransactionController', () => {
     expect(result.estimateGasError).toBeUndefined();
   });
 
-  it('should on Custom Network eth_estimateGas succeed when gasBN  is equal to maxGaxBN', async () => {
+  it('should on Custom Network eth_estimateGas succeed when gasBN  is equal to maxGasBN', async () => {
     const controller = new TransactionController({
       getNetworkState: () => MOCK_CUSTOM_NETWORK.state,
       onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
@@ -405,7 +405,7 @@ describe('TransactionController', () => {
     expect(result.estimateGasError).toBeUndefined();
   });
 
-  it('should on Custom Network eth_estimateGas fail when gasBN  is equal to maxGaxBN', async () => {
+  it('should on Custom Network eth_estimateGas fail when gasBN  is equal to maxGasBN', async () => {
     const controller = new TransactionController({
       getNetworkState: () => MOCK_CUSTOM_NETWORK.state,
       onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
@@ -417,7 +417,7 @@ describe('TransactionController', () => {
     expect(result.estimateGasError).toBe(ESTIMATE_GAS_ERROR);
   });
 
-  it('should on Custom Network eth_estimateGas succeed when gasBN  is less than maxGaxBN', async () => {
+  it('should on Custom Network eth_estimateGas succeed when gasBN  is less than maxGasBN', async () => {
     const controller = new TransactionController({
       getNetworkState: () => MOCK_CUSTOM_NETWORK.state,
       onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
@@ -431,7 +431,7 @@ describe('TransactionController', () => {
     expect(result.estimateGasError).toBeUndefined();
   });
 
-  it('should on Custom Network eth_estimateGas fail when gasBN  is less than maxGaxBN', async () => {
+  it('should on Custom Network eth_estimateGas fail when gasBN  is less than maxGasBN', async () => {
     const controller = new TransactionController({
       getNetworkState: () => MOCK_CUSTOM_NETWORK.state,
       onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
@@ -447,7 +447,7 @@ describe('TransactionController', () => {
     expect(result.estimateGasError).toBe(ESTIMATE_GAS_ERROR);
   });
 
-  it('should eth_estimateGas succeed when gasBN  is less than maxGaxBN and paddedGasGB is less than MaxGasBN', async () => {
+  it('should eth_estimateGas succeed when gasBN  is less than maxGasBN and paddedGasBN is less than MaxGasBN', async () => {
     const controller = new TransactionController({
       getNetworkState: () => MOCK_NETWORK.state,
       onNetworkStateChange: MOCK_NETWORK.subscribe,
@@ -462,7 +462,7 @@ describe('TransactionController', () => {
     expect(result.estimateGasError).toBeUndefined();
   });
 
-  it('should eth_estimateGas fail when gasBN  is less than maxGaxBN and paddedGasGB is less than MaxGasBN', async () => {
+  it('should eth_estimateGas fail when gasBN  is less than maxGasBN and paddedGasBN is less than MaxGasBN', async () => {
     const controller = new TransactionController({
       getNetworkState: () => MOCK_NETWORK.state,
       onNetworkStateChange: MOCK_NETWORK.subscribe,
