@@ -75,7 +75,7 @@ jobs:
         with:
           # metamask-dev channel-id
           channel-id: 'G1L7H42BT'
-          slack-message: "A deployment is awaiting review and deployment at: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/"
+          slack-message: 'A deployment is awaiting review and deployment at: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/'
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
