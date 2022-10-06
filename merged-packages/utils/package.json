@@ -22,7 +22,9 @@
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' --ignore-path .gitignore",
     "prepublishOnly": "yarn build:clean && yarn lint && yarn test",
-    "test": "jest",
+    "test": "yarn test:source && yarn test:types",
+    "test:source": "jest",
+    "test:types": "tsd",
     "test:watch": "jest --watch"
   },
   "resolutions": {
@@ -58,6 +60,7 @@
     "rimraf": "^3.0.2",
     "stdio-mock": "^1.2.0",
     "ts-jest": "^28.0.8",
+    "tsd": "^0.24.1",
     "typedoc": "^0.23.10",
     "typescript": "~4.7.4"
   },
@@ -73,5 +76,8 @@
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false
     }
+  },
+  "tsd": {
+    "directory": "src"
   }
 }

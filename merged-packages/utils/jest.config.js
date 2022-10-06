@@ -2,7 +2,11 @@ module.exports = {
   collectCoverage: true,
   // Ensures that we collect coverage from all source files, not just tested
   // ones.
-  collectCoverageFrom: ['./src/**/*.ts', '!./src/__fixtures__/**/*'],
+  collectCoverageFrom: [
+    './src/**/*.ts',
+    '!./src/__fixtures__/**/*',
+    '!./src/**/*.test-d.ts',
+  ],
   coverageReporters: ['text', 'html'],
   coverageThreshold: {
     global: {
