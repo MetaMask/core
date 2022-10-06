@@ -24,6 +24,8 @@ const globalAny: any = global;
 
 const mockFlags: { [key: string]: any } = {
   estimateGas: null,
+  estimateGasValue: null,
+  getBlockByNumberValue: null,
 };
 
 jest.mock('eth-query', () =>
@@ -32,6 +34,11 @@ jest.mock('eth-query', () =>
       estimateGas: (_transaction: any, callback: any) => {
         if (mockFlags.estimateGas) {
           callback(new Error(mockFlags.estimateGas));
+          return;
+        }
+
+        if (mockFlags.estimateGasValue) {
+          callback(undefined, mockFlags.estimateGasValue);
           return;
         }
         callback(undefined, '0x0');
@@ -44,6 +51,10 @@ jest.mock('eth-query', () =>
         _fetchTxs: boolean,
         callback: any,
       ) => {
+        if (mockFlags.getBlockByNumberValue) {
+          callback(undefined, { gasLimit: '0x12a05f200' });
+          return;
+        }
         callback(undefined, { gasLimit: '0x0' });
       },
       getCode: (_to: any, callback: any) => {
@@ -353,6 +364,118 @@ describe('TransactionController', () => {
         resolve('');
       }, 20);
     });
+  });
+
+  it('should on eth_estimateGas succeed when gasBn it is greater than maxGaxBN', async () => {
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
+    mockFlags.estimateGasValue = '0x12a05f200';
+    const from = '0x4579d0ad79bfbdf4539a1ddf5f10b378d724a34c';
+    const result = await controller.estimateGas({ from, to: from });
+
+    expect(result.estimateGasError).toBeUndefined();
+  });
+
+  it('should on Mainnet eth_estimateGas succeed when gasBn it is hight than maxGaxBN', async () => {
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
+    mockFlags.estimateGasValue = '0x12a05f200';
+    mockFlags.estimateGas = ESTIMATE_GAS_ERROR;
+
+    const from = '0x4579d0ad79bfbdf4539a1ddf5f10b378d724a34c';
+    const result = await controller.estimateGas({ from, to: from });
+
+    expect(result.estimateGasError).toBeUndefined();
+  });
+
+  it('should on Custom Network eth_estimateGas succeed when gasBN  is equal to maxGaxBN', async () => {
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_CUSTOM_NETWORK.state,
+      onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
+      getProvider: MOCK_CUSTOM_NETWORK.getProvider,
+    });
+    const from = '0x4579d0ad79bfbdf4539a1ddf5f10b378d724a34c';
+    const result = await controller.estimateGas({ from, to: from });
+    expect(result.estimateGasError).toBeUndefined();
+  });
+
+  it('should on Custom Network eth_estimateGas fail when gasBN  is equal to maxGaxBN', async () => {
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_CUSTOM_NETWORK.state,
+      onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
+      getProvider: MOCK_CUSTOM_NETWORK.getProvider,
+    });
+    mockFlags.estimateGas = ESTIMATE_GAS_ERROR;
+    const from = '0x4579d0ad79bfbdf4539a1ddf5f10b378d724a34c';
+    const result = await controller.estimateGas({ from, to: from });
+    expect(result.estimateGasError).toBe(ESTIMATE_GAS_ERROR);
+  });
+
+  it('should on Custom Network eth_estimateGas succeed when gasBN  is less than maxGaxBN', async () => {
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_CUSTOM_NETWORK.state,
+      onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
+      getProvider: MOCK_CUSTOM_NETWORK.getProvider,
+    });
+
+    mockFlags.getBlockByNumberValue = '0x12a05f200';
+
+    const from = '0x4579d0ad79bfbdf4539a1ddf5f10b378d724a34c';
+    const result = await controller.estimateGas({ from, to: from });
+    expect(result.estimateGasError).toBeUndefined();
+  });
+
+  it('should on Custom Network eth_estimateGas fail when gasBN  is less than maxGaxBN', async () => {
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_CUSTOM_NETWORK.state,
+      onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
+      getProvider: MOCK_CUSTOM_NETWORK.getProvider,
+    });
+
+    mockFlags.getBlockByNumberValue = '0x12a05f200';
+
+    mockFlags.estimateGas = ESTIMATE_GAS_ERROR;
+    const from = '0x4579d0ad79bfbdf4539a1ddf5f10b378d724a34c';
+    const result = await controller.estimateGas({ from, to: from });
+
+    expect(result.estimateGasError).toBe(ESTIMATE_GAS_ERROR);
+  });
+
+  it('should eth_estimateGas succeed when gasBN  is less than maxGaxBN and paddedGasGB is less than MaxGasBN', async () => {
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
+
+    mockFlags.getBlockByNumberValue = '0x12a05f200';
+
+    const from = '0x4579d0ad79bfbdf4539a1ddf5f10b378d724a34c';
+    const result = await controller.estimateGas({ from, to: from });
+
+    expect(result.estimateGasError).toBeUndefined();
+  });
+
+  it('should eth_estimateGas fail when gasBN  is less than maxGaxBN and paddedGasGB is less than MaxGasBN', async () => {
+    const controller = new TransactionController({
+      getNetworkState: () => MOCK_NETWORK.state,
+      onNetworkStateChange: MOCK_NETWORK.subscribe,
+      getProvider: MOCK_NETWORK.getProvider,
+    });
+
+    mockFlags.getBlockByNumberValue = '0x12a05f200';
+    mockFlags.estimateGas = ESTIMATE_GAS_ERROR;
+
+    const from = '0x4579d0ad79bfbdf4539a1ddf5f10b378d724a34c';
+    const result = await controller.estimateGas({ from, to: from });
+
+    expect(result.estimateGasError).toBe(ESTIMATE_GAS_ERROR);
   });
 
   it('should throw when adding invalid transaction', async () => {
