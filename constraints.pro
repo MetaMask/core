@@ -7,13 +7,9 @@
 % "repository.type" must be "git" for all workspaces (including the root).
 gen_enforced_field(WorkspaceCwd, 'repository.type', 'git').
 
-% "repository.type" must start with "git@github.com:mcmire/" for all workspaces
-% (including the root).
-% TODO: Figure this out
-%atom_starts_with(Atom, Prefix) :-
-  %sub_atom(Atom, _, _, _, Prefix).
-%gen_enforced_field(WorkspaceCwd, 'repository.url', RepoUrl) :-
-  %atom_starts_with(RepoUrl, 'git@github.com:mcmire/').
+% "repository.url" must be "https://github.com/MetaMask/controllers.git" for all
+% workspaces (including the root).
+gen_enforced_field(WorkspaceCwd, 'repository.url', 'https://github.com/MetaMask/controllers.git').
 
 % "license" must be "MIT" for all publishable workspaces and unset for the
 % root.
@@ -42,8 +38,8 @@ gen_enforced_field(WorkspaceCwd, 'files', ['dist/']) :-
 gen_enforced_field(WorkspaceCwd, 'files', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
-% "engines.node" must be ">=12.0.0" for all workspaces.
-gen_enforced_field(WorkspaceCwd, 'engines.node', '>=12.0.0').
+% "engines.node" must be ">=14.0.0" for all workspaces.
+gen_enforced_field(WorkspaceCwd, 'engines.node', '>=14.0.0').
 
 % "publishConfig.access" must be "public" for publishable workspaces and unset
 % for the root.
@@ -59,9 +55,19 @@ gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', 'https://registry.npm
 gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
-% The version of Jest used in the root must be synchronized across all packages
-% that list Jest.
-gen_enforced_dependency(WorkspaceCwd, 'jest', DependencyRange, DependencyType) :-
-  workspace_has_dependency('.', 'jest', DependencyRange, DependencyType),
-  workspace_has_dependency(WorkspaceCwd, 'jest', _, DependencyType),
-  WorkspaceCwd \= '.'.
+% All dependency ranges must be synchronized across the monorepo (the highest
+% one wins).
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, DependencyRange2, DependencyType1) :-
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange1, DependencyType1),
+  workspace_has_dependency(OtherWorkspaceCwd, DependencyIdent, DependencyRange2, DependencyType2),
+  DependencyRange1 @< DependencyRange2.
+
+% If a dependency is listed under "dependencies", it should not be listed under
+% any other "*dependencies" lists. We match on the same dependency range so that
+% if a dependency is listed twice in the same manifest, their versions are
+% synchronized and then this constraint will apply and remove the "right"
+% duplicate.
+gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, DependencyType) :-
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
+  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
+  DependencyType \= 'dependencies'.

@@ -42,7 +42,7 @@
     "async-mutex": "^0.2.6",
     "eth-query": "^2.1.2",
     "eth-rpc-errors": "^4.0.0",
-    "ethereumjs-util": "^7.0.10",
+    "ethereumjs-util": "^7.1.4",
     "immer": "^9.0.6",
     "multiformats": "^9.5.2",
     "single-call-balance-checker-abi": "^1.0.0",
@@ -65,7 +65,7 @@
     "typescript": "~4.6.3"
   },
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=14.0.0"
   },
   "publishConfig": {
     "access": "public",
