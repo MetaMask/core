@@ -23,7 +23,7 @@ import {
 const globalAny: any = global;
 
 const mockFlags: { [key: string]: any } = {
-  estimateGas: null,
+  estimateGasError: null,
   estimateGasValue: null,
   getBlockByNumberValue: null,
 };
@@ -32,8 +32,8 @@ jest.mock('eth-query', () =>
   jest.fn().mockImplementation(() => {
     return {
       estimateGas: (_transaction: any, callback: any) => {
-        if (mockFlags.estimateGas) {
-          callback(new Error(mockFlags.estimateGas));
+        if (mockFlags.estimateGasError) {
+          callback(new Error(mockFlags.estimateGasError));
           return;
         }
 
@@ -386,7 +386,7 @@ describe('TransactionController', () => {
       getProvider: MOCK_NETWORK.getProvider,
     });
     mockFlags.estimateGasValue = '0x12a05f200';
-    mockFlags.estimateGas = ESTIMATE_GAS_ERROR;
+    mockFlags.estimateGasError = ESTIMATE_GAS_ERROR;
 
     const from = '0x4579d0ad79bfbdf4539a1ddf5f10b378d724a34c';
     const result = await controller.estimateGas({ from, to: from });
@@ -411,7 +411,7 @@ describe('TransactionController', () => {
       onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
       getProvider: MOCK_CUSTOM_NETWORK.getProvider,
     });
-    mockFlags.estimateGas = ESTIMATE_GAS_ERROR;
+    mockFlags.estimateGasError = ESTIMATE_GAS_ERROR;
     const from = '0x4579d0ad79bfbdf4539a1ddf5f10b378d724a34c';
     const result = await controller.estimateGas({ from, to: from });
     expect(result.estimateGasError).toBe(ESTIMATE_GAS_ERROR);
@@ -440,7 +440,7 @@ describe('TransactionController', () => {
 
     mockFlags.getBlockByNumberValue = '0x12a05f200';
 
-    mockFlags.estimateGas = ESTIMATE_GAS_ERROR;
+    mockFlags.estimateGasError = ESTIMATE_GAS_ERROR;
     const from = '0x4579d0ad79bfbdf4539a1ddf5f10b378d724a34c';
     const result = await controller.estimateGas({ from, to: from });
 
@@ -470,7 +470,7 @@ describe('TransactionController', () => {
     });
 
     mockFlags.getBlockByNumberValue = '0x12a05f200';
-    mockFlags.estimateGas = ESTIMATE_GAS_ERROR;
+    mockFlags.estimateGasError = ESTIMATE_GAS_ERROR;
 
     const from = '0x4579d0ad79bfbdf4539a1ddf5f10b378d724a34c';
     const result = await controller.estimateGas({ from, to: from });
@@ -720,7 +720,7 @@ describe('TransactionController', () => {
       onNetworkStateChange: MOCK_MAINNET_NETWORK.subscribe,
       getProvider: MOCK_MAINNET_NETWORK.getProvider,
     });
-    mockFlags.estimateGas = ESTIMATE_GAS_ERROR;
+    mockFlags.estimateGasError = ESTIMATE_GAS_ERROR;
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     await controller.addTransaction({
       from,
@@ -743,7 +743,7 @@ describe('TransactionController', () => {
       onNetworkStateChange: MOCK_CUSTOM_NETWORK.subscribe,
       getProvider: MOCK_CUSTOM_NETWORK.getProvider,
     });
-    mockFlags.estimateGas = ESTIMATE_GAS_ERROR;
+    mockFlags.estimateGasError = ESTIMATE_GAS_ERROR;
     const from = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
     await controller.addTransaction({
       from,
