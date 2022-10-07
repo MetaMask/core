@@ -1,14 +1,14 @@
 import type { Patch } from 'immer';
 
-import EthQuery from 'eth-query';
 import { v1 as random } from 'uuid';
 import { isHexString } from 'ethereumjs-util';
 import { BaseController } from '../BaseControllerV2';
 import { safelyExecute } from '../util';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import type {
-  NetworkController,
-  NetworkState,
+  NetworkControllerGetEthQueryAction,
+  NetworkControllerGetProviderConfigAction,
+  NetworkControllerProviderChangeEvent,
 } from '../network/NetworkController';
 import {
   fetchGasEstimates,
@@ -102,7 +102,6 @@ export type LegacyGasPriceEstimate = {
  * @property suggestedMaxPriorityFeePerGas - A suggested "tip", a GWEI hex number
  * @property suggestedMaxFeePerGas - A suggested max fee, the most a user will pay. a GWEI hex number
  */
-
 export type Eip1559GasFee = {
   minWaitTimeEstimate: number; // a time duration in milliseconds
   maxWaitTimeEstimate: number; // a time duration in milliseconds
@@ -121,7 +120,6 @@ export type Eip1559GasFee = {
  * @property networkCongestion - A normalized number that can be used to gauge the congestion
  * level of the network, with 0 meaning not congested and 1 meaning extremely congested
  */
-
 export type GasFeeEstimates = SourcedGasFeeEstimates | FallbackGasFeeEstimates;
 
 type SourcedGasFeeEstimates = {
@@ -211,10 +209,13 @@ export type GetGasFeeState = {
 
 type GasFeeMessenger = RestrictedControllerMessenger<
   typeof name,
-  GetGasFeeState,
-  GasFeeStateChange,
-  never,
-  never
+  | GetGasFeeState
+  | NetworkControllerGetProviderConfigAction
+  | NetworkControllerGetEthQueryAction,
+  GasFeeStateChange | NetworkControllerProviderChangeEvent,
+  | NetworkControllerGetProviderConfigAction['type']
+  | NetworkControllerGetEthQueryAction['type'],
+  NetworkControllerProviderChangeEvent['type']
 >;
 
 const defaultState: GasFeeState = {
@@ -222,6 +223,8 @@ const defaultState: GasFeeState = {
   estimatedGasFeeTimeBounds: {},
   gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
 };
+
+export type ChainID = `0x${string}` | `${number}` | number;
 
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
@@ -247,8 +250,6 @@ export class GasFeeController extends BaseController<
 
   private getCurrentAccountEIP1559Compatibility;
 
-  private getChainId;
-
   private currentChainId;
 
   private ethQuery: any;
@@ -268,10 +269,6 @@ export class GasFeeController extends BaseController<
    * current network is compatible with the legacy gas price API.
    * @param options.getCurrentAccountEIP1559Compatibility - Determines whether or not the current
    * account is EIP-1559 compatible.
-   * @param options.getChainId - Returns the current chain ID.
-   * @param options.getProvider - Returns a network provider for the current network.
-   * @param options.onNetworkStateChange - A function for registering an event handler for the
-   * network state change event.
    * @param options.legacyAPIEndpoint - The legacy gas price API URL. This option is primarily for
    * testing purposes.
    * @param options.EIP1559APIEndpoint - The EIP-1559 gas price API URL. This option is primarily
@@ -285,10 +282,7 @@ export class GasFeeController extends BaseController<
     state,
     getCurrentNetworkEIP1559Compatibility,
     getCurrentAccountEIP1559Compatibility,
-    getChainId,
     getCurrentNetworkLegacyGasAPICompatibility,
-    getProvider,
-    onNetworkStateChange,
     legacyAPIEndpoint = LEGACY_GAS_PRICES_API_URL,
     EIP1559APIEndpoint = GAS_FEE_API,
     clientId,
@@ -299,9 +293,6 @@ export class GasFeeController extends BaseController<
     getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
     getCurrentNetworkLegacyGasAPICompatibility: () => boolean;
     getCurrentAccountEIP1559Compatibility?: () => boolean;
-    getChainId: () => `0x${string}` | `${number}` | number;
-    getProvider: () => NetworkController['provider'];
-    onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
     EIP1559APIEndpoint?: string;
     clientId?: string;
@@ -324,20 +315,25 @@ export class GasFeeController extends BaseController<
       getCurrentAccountEIP1559Compatibility;
     this.EIP1559APIEndpoint = EIP1559APIEndpoint;
     this.legacyAPIEndpoint = legacyAPIEndpoint;
-    this.getChainId = getChainId;
-    this.currentChainId = this.getChainId();
-    const provider = getProvider();
-    this.ethQuery = new EthQuery(provider);
+    const providerConfig = this.messagingSystem.call(
+      'NetworkController:getProviderConfig',
+    );
+    this.currentChainId = providerConfig.chainId;
+    this.ethQuery = this.messagingSystem.call('NetworkController:getEthQuery');
     this.clientId = clientId;
-    onNetworkStateChange(async () => {
-      const newProvider = getProvider();
-      const newChainId = this.getChainId();
-      this.ethQuery = new EthQuery(newProvider);
-      if (this.currentChainId !== newChainId) {
-        this.currentChainId = newChainId;
-        await this.resetPolling();
-      }
-    });
+    this.messagingSystem.subscribe(
+      'NetworkController:providerChange',
+      async (provider) => {
+        this.ethQuery = this.messagingSystem.call(
+          'NetworkController:getEthQuery',
+        );
+
+        if (this.currentChainId !== provider.chainId) {
+          this.currentChainId = provider.chainId;
+          await this.resetPolling();
+        }
+      },
+    );
   }
 
   async resetPolling() {
@@ -386,9 +382,15 @@ export class GasFeeController extends BaseController<
     const isLegacyGasAPICompatible =
       this.getCurrentNetworkLegacyGasAPICompatibility();
 
-    let chainId = this.getChainId();
-    if (typeof chainId === 'string' && isHexString(chainId)) {
-      chainId = parseInt(chainId, 16);
+    let chainId: number;
+    if (typeof this.currentChainId === 'string') {
+      if (isHexString(this.currentChainId)) {
+        chainId = parseInt(this.currentChainId, 16);
+      } else {
+        chainId = parseInt(this.currentChainId, 10);
+      }
+    } else {
+      chainId = this.currentChainId;
     }
 
     try {
