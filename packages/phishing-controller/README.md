@@ -1,14 +1,14 @@
-# `@metamask/third-party-controllers`
+# `@metamask/phishing-controller`
 
 (TODO)
 
 ## Installation
 
-`yarn add @metamask/third-party-controllers`
+`yarn add @metamask/phishing-controller`
 
 or
 
-`npm install @metamask/third-party-controllers`
+`npm install @metamask/phishing-controller`
 
 ## Contributing
 

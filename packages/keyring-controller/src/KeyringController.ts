@@ -24,7 +24,7 @@ import {
   BaseState,
   Listener,
 } from '@metamask/base-controller';
-import { PreferencesController } from '@metamask/user-controllers';
+import { PreferencesController } from '@metamask/preferences-controller';
 import {
   PersonalMessageParams,
   TypedMessageParams,

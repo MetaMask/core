@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/keyring-controller",
+  "name": "@metamask/ens-controller",
   "version": "0.1.0",
   "description": "TODO",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/keyring-controller#readme",
+  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/ens-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/controllers/issues"
   },
@@ -27,32 +27,19 @@
     "test:watch": "../../scripts/test-watch.sh"
   },
   "dependencies": {
-    "@keystonehq/metamask-airgapped-keyring": "^0.6.1",
     "@metamask/base-controller": "workspace:~",
-    "@metamask/controller-utils": "workspace:~",
-    "@metamask/message-manager": "workspace:~",
-    "@metamask/preferences-controller": "workspace:~",
-    "async-mutex": "^0.2.6",
-    "eth-keyring-controller": "^7.0.2",
-    "eth-sig-util": "^3.0.0",
-    "ethereumjs-util": "^7.0.10",
-    "ethereumjs-wallet": "^1.0.1"
+    "@metamask/controller-utils": "workspace:~"
   },
   "devDependencies": {
-    "@ethereumjs/common": "^2.6.4",
-    "@ethereumjs/tx": "^3.5.2",
-    "@keystonehq/bc-ur-registry-eth": "^0.9.0",
     "@metamask/auto-changelog": "^2.6.0",
     "@types/jest": "^26.0.22",
     "deepmerge": "^4.2.2",
     "jest": "^26.4.2",
     "jest-it-up": "^2.0.2",
-    "sinon": "^9.2.4",
     "ts-jest": "^26.5.2",
     "typedoc": "^0.22.15",
     "typedoc-plugin-missing-exports": "^0.22.6",
-    "typescript": "~4.6.3",
-    "uuid": "^8.3.2"
+    "typescript": "~4.6.3"
   },
   "engines": {
     "node": ">=14.0.0"

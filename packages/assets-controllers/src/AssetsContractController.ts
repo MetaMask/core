@@ -6,7 +6,7 @@ import {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import type { PreferencesState } from '@metamask/user-controllers';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import { NetworkState } from '@metamask/network-controller';
 import { ERC721Standard } from './Standards/CollectibleStandards/ERC721/ERC721Standard';

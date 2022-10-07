@@ -1,7 +1,7 @@
 import HttpProvider from 'ethjs-provider-http';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { PreferencesController } from '@metamask/user-controllers';
+import { PreferencesController } from '@metamask/preferences-controller';
 import {
   NetworkController,
   NetworkControllerMessenger,

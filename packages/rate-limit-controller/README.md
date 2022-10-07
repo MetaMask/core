@@ -1,6 +1,6 @@
 # `@metamask/rate-limit-controller`
 
-Contains logic for rate-limiting API endpoints per requesting origin.
+Contains logic for rate-limiting API endpoints by requesting origin.
 
 ## Installation
 

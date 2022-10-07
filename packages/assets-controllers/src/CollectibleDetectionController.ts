@@ -4,7 +4,7 @@ import {
   BaseState,
 } from '@metamask/base-controller';
 import type { NetworkState } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/user-controllers';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import {
   fetchWithErrorHandling,
   toChecksumHexAddress,

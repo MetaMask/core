@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/third-party-controllers",
+  "name": "@metamask/phishing-controller",
   "version": "0.1.0",
   "description": "TODO",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/third-party-controllers#readme",
+  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/phishing-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/controllers/issues"
   },
@@ -38,7 +38,6 @@
     "@metamask/auto-changelog": "^2.6.0",
     "@types/jest": "^26.0.22",
     "deepmerge": "^4.2.2",
-    "ethereumjs-util": "^7.1.4",
     "jest": "^26.4.2",
     "jest-it-up": "^2.0.2",
     "nock": "^13.0.7",

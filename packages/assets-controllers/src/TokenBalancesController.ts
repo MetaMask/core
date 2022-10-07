@@ -1,6 +1,6 @@
 import { BN } from 'ethereumjs-util';
 import { safelyExecute } from '@metamask/controller-utils';
-import type { PreferencesState } from '@metamask/user-controllers';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import {
   BaseController,
   BaseConfig,

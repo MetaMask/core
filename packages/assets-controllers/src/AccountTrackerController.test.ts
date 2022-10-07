@@ -1,7 +1,9 @@
 import * as sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
-import type { ContactEntry } from '@metamask/user-controllers';
-import { PreferencesController } from '@metamask/user-controllers';
+import {
+  PreferencesController,
+  ContactEntry,
+} from '@metamask/preferences-controller';
 import { query } from '@metamask/controller-utils';
 import { AccountTrackerController } from './AccountTrackerController';
 

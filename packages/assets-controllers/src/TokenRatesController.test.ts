@@ -1,7 +1,7 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { PreferencesController } from '@metamask/user-controllers';
+import { PreferencesController } from '@metamask/preferences-controller';
 import {
   NetworkController,
   NetworkControllerMessenger,

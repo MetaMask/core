@@ -4,7 +4,20 @@ import {
   BaseState,
 } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
-import { ContactEntry } from './AddressBookController';
+
+/**
+ * @type ContactEntry
+ *
+ * ContactEntry representation
+ * @property address - Hex address of a recipient account
+ * @property name - Nickname associated with this address
+ * @property importTime - Data time when an account as created/imported
+ */
+export interface ContactEntry {
+  address: string;
+  name: string;
+  importTime?: number;
+}
 
 /**
  * Custom RPC network information

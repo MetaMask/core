@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/user-controllers",
+  "name": "@metamask/address-book-controller",
   "version": "0.1.0",
   "description": "TODO",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/user-controllers#readme",
+  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/address-book-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/controllers/issues"
   },

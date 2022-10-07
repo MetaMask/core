@@ -27,13 +27,14 @@
     "test:watch": "../../scripts/test-watch.sh"
   },
   "devDependencies": {
+    "@metamask/address-book-controller": "workspace:~",
     "@metamask/assets-controllers": "workspace:~",
     "@metamask/auto-changelog": "^2.6.0",
     "@metamask/base-controller": "workspace:~",
     "@metamask/controller-utils": "workspace:~",
+    "@metamask/ens-controller": "workspace:~",
     "@metamask/network-controller": "workspace:~",
-    "@metamask/third-party-controllers": "workspace:~",
-    "@metamask/user-controllers": "workspace:~",
+    "@metamask/preferences-controller": "workspace:~",
     "@types/jest": "^26.0.22",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",

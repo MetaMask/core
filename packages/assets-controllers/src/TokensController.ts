@@ -6,7 +6,7 @@ import { Mutex } from 'async-mutex';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
-import type { PreferencesState } from '@metamask/user-controllers';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import {
   toChecksumHexAddress,
   MAINNET,

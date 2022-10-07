@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { Mutex } from 'async-mutex';
-import type { PreferencesState } from '@metamask/user-controllers';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import {
   safelyExecute,
   handleFetch,

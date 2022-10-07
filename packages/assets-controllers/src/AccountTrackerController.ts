@@ -5,7 +5,7 @@ import {
   BaseController,
   BaseState,
 } from '@metamask/base-controller';
-import { PreferencesState } from '@metamask/user-controllers';
+import { PreferencesState } from '@metamask/preferences-controller';
 import {
   BNToHex,
   query,

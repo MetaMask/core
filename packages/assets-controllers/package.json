@@ -35,7 +35,7 @@
     "@metamask/controller-utils": "workspace:~",
     "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/network-controller": "workspace:~",
-    "@metamask/user-controllers": "workspace:~",
+    "@metamask/preferences-controller": "workspace:~",
     "@types/uuid": "^8.3.4",
     "@types/web3": "^1.0.6",
     "abort-controller": "^3.0.0",

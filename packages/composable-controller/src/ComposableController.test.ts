@@ -5,11 +5,9 @@ import {
   CollectiblesController,
   AssetsContractController,
 } from '@metamask/assets-controllers';
-import {
-  AddressBookController,
-  PreferencesController,
-} from '@metamask/user-controllers';
-import { EnsController } from '@metamask/third-party-controllers';
+import { AddressBookController } from '@metamask/address-book-controller';
+import { PreferencesController } from '@metamask/preferences-controller';
+import { EnsController } from '@metamask/ens-controller';
 import {
   BaseController,
   BaseState,

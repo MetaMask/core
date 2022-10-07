@@ -1271,6 +1271,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/address-book-controller@workspace:packages/address-book-controller, @metamask/address-book-controller@workspace:~":
+  version: 0.0.0-use.local
+  resolution: "@metamask/address-book-controller@workspace:packages/address-book-controller"
+  dependencies:
+    "@metamask/auto-changelog": ^2.6.0
+    "@metamask/base-controller": "workspace:~"
+    "@metamask/controller-utils": "workspace:~"
+    "@types/jest": ^26.0.22
+    deepmerge: ^4.2.2
+    jest: ^26.4.2
+    jest-it-up: ^2.0.2
+    ts-jest: ^26.5.2
+    typedoc: ^0.22.15
+    typedoc-plugin-missing-exports: ^0.22.6
+    typescript: ~4.6.3
+  languageName: unknown
+  linkType: soft
+
 "@metamask/announcement-controller@workspace:packages/announcement-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/announcement-controller@workspace:packages/announcement-controller"
@@ -1322,7 +1340,7 @@ __metadata:
     "@metamask/controller-utils": "workspace:~"
     "@metamask/metamask-eth-abis": 3.0.0
     "@metamask/network-controller": "workspace:~"
-    "@metamask/user-controllers": "workspace:~"
+    "@metamask/preferences-controller": "workspace:~"
     "@types/jest": ^26.0.22
     "@types/uuid": ^8.3.4
     "@types/web3": ^1.0.6
@@ -1398,13 +1416,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/composable-controller@workspace:packages/composable-controller"
   dependencies:
+    "@metamask/address-book-controller": "workspace:~"
     "@metamask/assets-controllers": "workspace:~"
     "@metamask/auto-changelog": ^2.6.0
     "@metamask/base-controller": "workspace:~"
     "@metamask/controller-utils": "workspace:~"
+    "@metamask/ens-controller": "workspace:~"
     "@metamask/network-controller": "workspace:~"
-    "@metamask/third-party-controllers": "workspace:~"
-    "@metamask/user-controllers": "workspace:~"
+    "@metamask/preferences-controller": "workspace:~"
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     immer: ^9.0.6
@@ -1473,6 +1492,24 @@ __metadata:
     prettier-plugin-packagejson: ^2.2.17
     rimraf: ^3.0.2
     simple-git-hooks: ^2.8.0
+    typescript: ~4.6.3
+  languageName: unknown
+  linkType: soft
+
+"@metamask/ens-controller@workspace:packages/ens-controller, @metamask/ens-controller@workspace:~":
+  version: 0.0.0-use.local
+  resolution: "@metamask/ens-controller@workspace:packages/ens-controller"
+  dependencies:
+    "@metamask/auto-changelog": ^2.6.0
+    "@metamask/base-controller": "workspace:~"
+    "@metamask/controller-utils": "workspace:~"
+    "@types/jest": ^26.0.22
+    deepmerge: ^4.2.2
+    jest: ^26.4.2
+    jest-it-up: ^2.0.2
+    ts-jest: ^26.5.2
+    typedoc: ^0.22.15
+    typedoc-plugin-missing-exports: ^0.22.6
     typescript: ~4.6.3
   languageName: unknown
   linkType: soft
@@ -1593,7 +1630,7 @@ __metadata:
     "@metamask/base-controller": "workspace:~"
     "@metamask/controller-utils": "workspace:~"
     "@metamask/message-manager": "workspace:~"
-    "@metamask/user-controllers": "workspace:~"
+    "@metamask/preferences-controller": "workspace:~"
     "@types/jest": ^26.0.22
     async-mutex: ^0.2.6
     deepmerge: ^4.2.2
@@ -1721,6 +1758,48 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/phishing-controller@workspace:packages/phishing-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
+  dependencies:
+    "@metamask/auto-changelog": ^2.6.0
+    "@metamask/base-controller": "workspace:~"
+    "@metamask/controller-utils": "workspace:~"
+    "@types/jest": ^26.0.22
+    "@types/punycode": ^2.1.0
+    cross-fetch: ^3.1.5
+    deepmerge: ^4.2.2
+    eth-phishing-detect: ^1.2.0
+    jest: ^26.4.2
+    jest-it-up: ^2.0.2
+    nock: ^13.0.7
+    punycode: ^2.1.1
+    sinon: ^9.2.4
+    ts-jest: ^26.5.2
+    typedoc: ^0.22.15
+    typedoc-plugin-missing-exports: ^0.22.6
+    typescript: ~4.6.3
+  languageName: unknown
+  linkType: soft
+
+"@metamask/preferences-controller@workspace:packages/preferences-controller, @metamask/preferences-controller@workspace:~":
+  version: 0.0.0-use.local
+  resolution: "@metamask/preferences-controller@workspace:packages/preferences-controller"
+  dependencies:
+    "@metamask/auto-changelog": ^2.6.0
+    "@metamask/base-controller": "workspace:~"
+    "@metamask/controller-utils": "workspace:~"
+    "@types/jest": ^26.0.22
+    deepmerge: ^4.2.2
+    jest: ^26.4.2
+    jest-it-up: ^2.0.2
+    ts-jest: ^26.5.2
+    typedoc: ^0.22.15
+    typedoc-plugin-missing-exports: ^0.22.6
+    typescript: ~4.6.3
+  languageName: unknown
+  linkType: soft
+
 "@metamask/rate-limit-controller@workspace:packages/rate-limit-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/rate-limit-controller@workspace:packages/rate-limit-controller"
@@ -1767,31 +1846,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/third-party-controllers@workspace:packages/third-party-controllers, @metamask/third-party-controllers@workspace:~":
-  version: 0.0.0-use.local
-  resolution: "@metamask/third-party-controllers@workspace:packages/third-party-controllers"
-  dependencies:
-    "@metamask/auto-changelog": ^2.6.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
-    "@types/jest": ^26.0.22
-    "@types/punycode": ^2.1.0
-    cross-fetch: ^3.1.5
-    deepmerge: ^4.2.2
-    eth-phishing-detect: ^1.2.0
-    ethereumjs-util: ^7.1.4
-    jest: ^26.4.2
-    jest-it-up: ^2.0.2
-    nock: ^13.0.7
-    punycode: ^2.1.1
-    sinon: ^9.2.4
-    ts-jest: ^26.5.2
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
-  languageName: unknown
-  linkType: soft
-
 "@metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
@@ -1829,24 +1883,6 @@ __metadata:
   checksum: 500e8c076a2b0a6d688c8c465101256f090547d99c9a5585efe3d1db7a494b6b2712b127043fb316912caffc4fff78976b9a7780780abb68305e8a3bf812689c
   languageName: node
   linkType: hard
-
-"@metamask/user-controllers@workspace:packages/user-controllers, @metamask/user-controllers@workspace:~":
-  version: 0.0.0-use.local
-  resolution: "@metamask/user-controllers@workspace:packages/user-controllers"
-  dependencies:
-    "@metamask/auto-changelog": ^2.6.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
-    "@types/jest": ^26.0.22
-    deepmerge: ^4.2.2
-    jest: ^26.4.2
-    jest-it-up: ^2.0.2
-    ts-jest: ^26.5.2
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
-  languageName: unknown
-  linkType: soft
 
 "@ngraveio/bc-ur@npm:^1.1.5":
   version: 1.1.6

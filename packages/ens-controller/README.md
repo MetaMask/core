@@ -1,14 +1,14 @@
-# `@metamask/user-controllers`
+# `@metamask/ens-controller`
 
 (TODO)
 
 ## Installation
 
-`yarn add @metamask/user-controllers`
+`yarn add @metamask/ens-controller`
 
 or
 
-`npm install @metamask/user-controllers`
+`npm install @metamask/ens-controller`
 
 ## Contributing
 

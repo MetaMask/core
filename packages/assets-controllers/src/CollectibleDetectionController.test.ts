@@ -5,7 +5,7 @@ import {
   NetworkController,
   NetworkControllerMessenger,
 } from '@metamask/network-controller';
-import { PreferencesController } from '@metamask/user-controllers';
+import { PreferencesController } from '@metamask/preferences-controller';
 import { OPENSEA_PROXY_URL } from '@metamask/controller-utils';
 import { CollectiblesController } from './CollectiblesController';
 import { AssetsContractController } from './AssetsContractController';

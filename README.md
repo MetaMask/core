@@ -6,23 +6,25 @@ A collection of platform-agnostic modules for creating secure data models for cr
 
 This is a monorepo that houses the following packages. Please refer to the READMEs for these packages for installation and usage instructions:
 
+- [`@metamask/address-book-controller`](packages/address-book-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
 - [`@metamask/assets-controller`](packages/assets-controller)
 - [`@metamask/base-controller`](packages/base-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
+- [`@metamask/ens-controller`](packages/ens-controller)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/notification-controller`](packages/notification-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
+- [`@metamask/phishing-controller`](packages/phishing-controller)
+- [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
 - [`@metamask/subject-metadata-controller`](packages/subject-metadata-controller)
-- [`@metamask/third-party-controllers`](packages/third-party-controllers)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
-- [`@metamask/user-controllers`](packages/user-controllers)
 
 ## Contributing
 
