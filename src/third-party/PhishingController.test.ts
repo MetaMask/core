@@ -69,186 +69,123 @@ describe('PhishingController', () => {
     expect(nockScope.isDone()).toBe(false);
   });
 
-  it('fetches the first time test is used', async () => {
-    const nockScope = nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .reply(200, {
-        blacklist: [],
-        fuzzylist: [],
-        tolerance: 0,
-        whitelist: [],
-        version: 0,
-      })
-      .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+  describe('isOutOfDate', () => {
+    it('should not be out of date upon construction', () => {
+      sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
 
-    const controller = new PhishingController({});
-    await controller.test('metamask.io');
+      expect(controller.isOutOfDate()).toBe(false);
+    });
 
-    expect(nockScope.isDone()).toBe(true);
-  });
+    it('should not be out of date after some of the refresh interval has passed', () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      clock.tick(5);
 
-  it('does not call fetch twice if the second call is inside of the refreshInterval', async () => {
-    const nockScope = nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .reply(200, {
-        blacklist: [],
-        fuzzylist: [],
-        tolerance: 0,
-        whitelist: [],
-        version: 0,
-      })
-      .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, []);
+      expect(controller.isOutOfDate()).toBe(false);
+    });
 
-    const controller = new PhishingController({});
-    await controller.test('metamask.io');
+    it('should be out of date after the refresh interval has passed', () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      clock.tick(10);
 
-    expect(nockScope.isDone()).toBe(true);
-    // The nock handlers were not created with `persist()`, so they will only
-    // be used once. The next `fetch` will throw, so this expectation shows
-    // that no `fetch` has occurred.
-    expect(await controller.test('metamask.io')).toStrictEqual({
-      result: false,
-      type: 'all',
+      expect(controller.isOutOfDate()).toBe(true);
+    });
+
+    it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      clock.tick(10);
+      const pendingUpdate = controller.updatePhishingLists();
+
+      expect(controller.isOutOfDate()).toBe(true);
+
+      // Cleanup pending operations
+      await pendingUpdate;
+    });
+
+    it('should not be out of date if the configuration was just updated', async () => {
+      sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      await controller.updatePhishingLists();
+
+      expect(controller.isOutOfDate()).toBe(false);
+    });
+
+    it('should not be out of date if the configuration was recently updated', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      await controller.updatePhishingLists();
+      await clock.tick(5);
+
+      expect(controller.isOutOfDate()).toBe(false);
+    });
+
+    it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      await controller.updatePhishingLists();
+      clock.tick(10);
+
+      expect(controller.isOutOfDate()).toBe(true);
     });
   });
 
-  it('should call fetch twice if the second call is outside the refreshInterval', async () => {
-    const clock = sinon.useFakeTimers(Date.now());
-    const nockScope = nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .times(2)
-      .reply(200, {
-        blacklist: [],
-        fuzzylist: [],
-        tolerance: 0,
-        whitelist: [],
-        version: 0,
-      })
-      .get(PHISHFORT_HOTLIST_FILE)
-      .times(2)
-      .reply(200, []);
-
-    const controller = new PhishingController();
-    await controller.test('metamask.io');
-    await clock.tickAsync(defaultRefreshInterval);
-    await controller.test('metamask.io');
-
-    expect(nockScope.isDone()).toBe(true);
-  });
-
   it('should be able to change the refreshInterval', async () => {
-    const nockScope = nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .times(3)
-      .reply(200, {
-        blacklist: [],
-        fuzzylist: [],
-        tolerance: 0,
-        whitelist: [],
-        version: 0,
-      })
-      .get(PHISHFORT_HOTLIST_FILE)
-      .times(3)
-      .reply(200, []);
-
-    const controller = new PhishingController({ refreshInterval: 1 });
+    sinon.useFakeTimers();
+    const controller = new PhishingController({ refreshInterval: 10 });
     controller.setRefreshInterval(0);
-    await controller.test('metamask.io');
-    await controller.test('metamask.io');
-    await controller.test('metamask.io');
 
-    expect(nockScope.isDone()).toBe(true);
+    expect(controller.isOutOfDate()).toBe(true);
   });
 
-  it('should not bubble up connection errors', async () => {
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .replyWithError({ code: 'ETIMEDOUT' })
-      .get(PHISHFORT_HOTLIST_FILE)
-      .replyWithError({ code: 'ETIMEDOUT' });
-
+  it('should return negative result for safe domain from default config', () => {
     const controller = new PhishingController();
-    expect(await controller.test('metamask.io')).toMatchObject({
+    expect(controller.test('metamask.io')).toMatchObject({
       result: false,
       type: 'allowlist',
       name: 'MetaMask',
     });
   });
 
-  it('should return negative result for safe unicode domain from default config', async () => {
-    // Return API failure to ensure default config is not overwritten
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .reply(500)
-      .get(PHISHFORT_HOTLIST_FILE)
-      .reply(500);
-
+  it('should return negative result for safe unicode domain from default config', () => {
     const controller = new PhishingController();
-    expect(await controller.test('i❤.ws')).toMatchObject({
+    expect(controller.test('i❤.ws')).toMatchObject({
       result: false,
       type: 'all',
     });
   });
 
-  it('should return negative result for safe punycode domain from default config', async () => {
-    // Return API failure to ensure default config is not overwritten
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .reply(500)
-      .get(PHISHFORT_HOTLIST_FILE)
-      .reply(500);
-
+  it('should return negative result for safe punycode domain from default config', () => {
     const controller = new PhishingController();
-    expect(await controller.test('xn--i-7iq.ws')).toMatchObject({
+    expect(controller.test('xn--i-7iq.ws')).toMatchObject({
       result: false,
       type: 'all',
     });
   });
 
-  it('should return positive result for unsafe domain from default config', async () => {
-    // Return API failure to ensure default config is not overwritten
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .reply(500)
-      .get(PHISHFORT_HOTLIST_FILE)
-      .reply(500);
-
+  it('should return positive result for unsafe domain from default config', () => {
     const controller = new PhishingController();
-    expect(await controller.test('etnerscan.io')).toMatchObject({
+    expect(controller.test('etnerscan.io')).toMatchObject({
       result: true,
       type: 'blocklist',
       name: 'MetaMask',
     });
   });
 
-  it('should return positive result for unsafe unicode domain from default config', async () => {
-    // Return API failure to ensure default config is not overwritten
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .reply(500)
-      .get(PHISHFORT_HOTLIST_FILE)
-      .reply(500);
-
+  it('should return positive result for unsafe unicode domain from default config', () => {
     const controller = new PhishingController();
-    expect(await controller.test('myetherẉalletṭ.com')).toMatchObject({
+    expect(controller.test('myetherẉalletṭ.com')).toMatchObject({
       result: true,
       type: 'blocklist',
       name: 'MetaMask',
     });
   });
 
-  it('should return positive result for unsafe punycode domain from default config', async () => {
-    // Return API failure to ensure default config is not overwritten
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .reply(500)
-      .get(PHISHFORT_HOTLIST_FILE)
-      .reply(500);
-
+  it('should return positive result for unsafe punycode domain from default config', () => {
     const controller = new PhishingController();
-    expect(await controller.test('xn--myetherallet-4k5fwn.com')).toMatchObject({
+    expect(controller.test('xn--myetherallet-4k5fwn.com')).toMatchObject({
       result: true,
       type: 'blocklist',
       name: `MetaMask`,
@@ -270,7 +207,7 @@ describe('PhishingController', () => {
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
-    expect(await controller.test('metamask.io')).toMatchObject({
+    expect(controller.test('metamask.io')).toMatchObject({
       result: false,
       type: 'allowlist',
       name: 'MetaMask',
@@ -292,7 +229,7 @@ describe('PhishingController', () => {
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
-    expect(await controller.test('i❤.ws')).toMatchObject({
+    expect(controller.test('i❤.ws')).toMatchObject({
       result: false,
       type: 'all',
     });
@@ -313,7 +250,7 @@ describe('PhishingController', () => {
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
-    expect(await controller.test('xn--i-7iq.ws')).toMatchObject({
+    expect(controller.test('xn--i-7iq.ws')).toMatchObject({
       result: false,
       type: 'all',
     });
@@ -334,7 +271,7 @@ describe('PhishingController', () => {
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
-    expect(await controller.test('etnerscan.io')).toMatchObject({
+    expect(controller.test('etnerscan.io')).toMatchObject({
       result: true,
       type: 'blocklist',
       name: 'MetaMask',
@@ -356,7 +293,7 @@ describe('PhishingController', () => {
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
-    expect(await controller.test('myetherẉalletṭ.com')).toMatchObject({
+    expect(controller.test('myetherẉalletṭ.com')).toMatchObject({
       result: true,
       type: 'blocklist',
       name: 'MetaMask',
@@ -372,7 +309,7 @@ describe('PhishingController', () => {
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
-    expect(await controller.test('myetherẉalletṭ.com')).toMatchObject({
+    expect(controller.test('myetherẉalletṭ.com')).toMatchObject({
       result: false,
       type: 'all',
     });
@@ -393,7 +330,7 @@ describe('PhishingController', () => {
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
-    expect(await controller.test('xn--myetherallet-4k5fwn.com')).toMatchObject({
+    expect(controller.test('xn--myetherallet-4k5fwn.com')).toMatchObject({
       result: true,
       type: 'blocklist',
       name: 'MetaMask',
@@ -416,7 +353,7 @@ describe('PhishingController', () => {
     const controller = new PhishingController();
     await controller.updatePhishingLists();
     expect(
-      await controller.test('e4d600ab9141b7a9859511c77e63b9b3.com'),
+      controller.test('e4d600ab9141b7a9859511c77e63b9b3.com'),
     ).toMatchObject({
       result: true,
       type: 'blocklist',
@@ -440,7 +377,7 @@ describe('PhishingController', () => {
     const controller = new PhishingController();
     await controller.updatePhishingLists();
     expect(
-      await controller.test('e4d600ab9141b7a9859511c77e63b9b3.com'),
+      controller.test('e4d600ab9141b7a9859511c77e63b9b3.com'),
     ).toMatchObject({
       result: false,
       type: 'all',
@@ -462,7 +399,7 @@ describe('PhishingController', () => {
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
-    expect(await controller.test('opensea.io')).toMatchObject({
+    expect(controller.test('opensea.io')).toMatchObject({
       result: false,
       type: 'allowlist',
       name: 'MetaMask',
@@ -484,7 +421,7 @@ describe('PhishingController', () => {
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
-    expect(await controller.test('ohpensea.io')).toMatchObject({
+    expect(controller.test('ohpensea.io')).toMatchObject({
       result: true,
       type: 'fuzzy',
       name: 'MetaMask',
@@ -500,7 +437,7 @@ describe('PhishingController', () => {
 
     const controller = new PhishingController();
     await controller.updatePhishingLists();
-    expect(await controller.test('ohpensea.io')).toMatchObject({
+    expect(controller.test('ohpensea.io')).toMatchObject({
       result: false,
       type: 'all',
     });
@@ -522,14 +459,14 @@ describe('PhishingController', () => {
     const controller = new PhishingController();
     await controller.updatePhishingLists();
     expect(
-      await controller.test('this-is-the-official-website-of-opensea.io'),
+      controller.test('this-is-the-official-website-of-opensea.io'),
     ).toMatchObject({
       result: false,
       type: 'all',
     });
   });
 
-  it('should bypass a given domain, and return a negative result', async () => {
+  it('should bypass a given domain, and return a negative result', () => {
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_CONFIG_FILE)
       .reply(200, {
@@ -545,18 +482,18 @@ describe('PhishingController', () => {
     const controller = new PhishingController();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
-      (await controller.test(unsafeDomain)).result,
+      controller.test(unsafeDomain).result,
       true,
       'Example unsafe domain seems to be safe',
     );
     controller.bypass(unsafeDomain);
-    expect(await controller.test(unsafeDomain)).toMatchObject({
+    expect(controller.test(unsafeDomain)).toMatchObject({
       result: false,
       type: 'all',
     });
   });
 
-  it('should ignore second attempt to bypass a domain, and still return a negative result', async () => {
+  it('should ignore second attempt to bypass a domain, and still return a negative result', () => {
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_CONFIG_FILE)
       .reply(200, {
@@ -572,19 +509,19 @@ describe('PhishingController', () => {
     const controller = new PhishingController();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
-      (await controller.test(unsafeDomain)).result,
+      controller.test(unsafeDomain).result,
       true,
       'Example unsafe domain seems to be safe',
     );
     controller.bypass(unsafeDomain);
     controller.bypass(unsafeDomain);
-    expect(await controller.test(unsafeDomain)).toMatchObject({
+    expect(controller.test(unsafeDomain)).toMatchObject({
       result: false,
       type: 'all',
     });
   });
 
-  it('should bypass a given unicode domain, and return a negative result', async () => {
+  it('should bypass a given unicode domain, and return a negative result', () => {
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_CONFIG_FILE)
       .reply(200, {
@@ -600,18 +537,18 @@ describe('PhishingController', () => {
     const controller = new PhishingController();
     const unsafeDomain = 'myetherẉalletṭ.com';
     assert.equal(
-      (await controller.test(unsafeDomain)).result,
+      controller.test(unsafeDomain).result,
       true,
       'Example unsafe domain seems to be safe',
     );
     controller.bypass(unsafeDomain);
-    expect(await controller.test(unsafeDomain)).toMatchObject({
+    expect(controller.test(unsafeDomain)).toMatchObject({
       result: false,
       type: 'all',
     });
   });
 
-  it('should bypass a given punycode domain, and return a negative result', async () => {
+  it('should bypass a given punycode domain, and return a negative result', () => {
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_CONFIG_FILE)
       .reply(200, {
@@ -627,12 +564,12 @@ describe('PhishingController', () => {
     const controller = new PhishingController();
     const unsafeDomain = 'xn--myetherallet-4k5fwn.com';
     assert.equal(
-      (await controller.test(unsafeDomain)).result,
+      controller.test(unsafeDomain).result,
       true,
       'Example unsafe domain seems to be safe',
     );
     controller.bypass(unsafeDomain);
-    expect(await controller.test(unsafeDomain)).toMatchObject({
+    expect(controller.test(unsafeDomain)).toMatchObject({
       result: false,
       type: 'all',
     });
@@ -693,22 +630,6 @@ describe('PhishingController', () => {
       ]);
     });
 
-    it('should return negative result for safe domain from default config', async () => {
-      // Return API failure to ensure default config is not overwritten
-      nock(PHISHING_CONFIG_BASE_URL)
-        .get(METAMASK_CONFIG_FILE)
-        .reply(500)
-        .get(PHISHFORT_HOTLIST_FILE)
-        .reply(500);
-
-      const controller = new PhishingController();
-      expect(await controller.test('metamask.io')).toMatchObject({
-        result: false,
-        type: 'allowlist',
-        name: 'MetaMask',
-      });
-    });
-
     it('should not update phishing lists if fetch returns 304', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_CONFIG_FILE)
@@ -751,6 +672,18 @@ describe('PhishingController', () => {
           version: DEFAULT_PHISHING_RESPONSE.version,
         },
       ]);
+    });
+
+    it('should not throw when there is a network error', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_CONFIG_FILE)
+        .replyWithError('network error')
+        .get(PHISHFORT_HOTLIST_FILE)
+        .replyWithError('network error');
+
+      const controller = new PhishingController();
+
+      expect(await controller.updatePhishingLists()).toBeUndefined();
     });
 
     describe('an update is in progress', () => {
