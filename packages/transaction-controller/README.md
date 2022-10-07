@@ -1,6 +1,6 @@
 # `@metamask/transaction-controller`
 
-(TODO)
+Stores transactions, keeping track of statuses on a periodic basis, and manages interactions such as approval and cancellation.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/transaction-controller`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 

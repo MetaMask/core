@@ -1,6 +1,6 @@
 # `@metamask/approval-controller`
 
-(TODO)
+Manages requests that require user approval.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/approval-controller`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 

@@ -1,6 +1,6 @@
 # `@metamask/keyring-controller`
 
-(TODO)
+Stores identities seen in the wallet and manages interactions such as signing.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/keyring-controller`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 

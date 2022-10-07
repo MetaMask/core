@@ -461,7 +461,7 @@ export type PermissionControllerOptions<
 };
 
 /**
- * The permission controller. See the README for details.
+ * The permission controller. See [the README](../ARCHITECTURE.md) for details.
  *
  * Assumes the existence of an {@link ApprovalController} reachable via the
  * {@link ControllerMessenger}.

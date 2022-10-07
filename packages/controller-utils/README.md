@@ -1,6 +1,6 @@
 # `@metamask/controller-utils`
 
-(TODO)
+Data and convenience functions shared by multiple packages.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/controller-utils`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 

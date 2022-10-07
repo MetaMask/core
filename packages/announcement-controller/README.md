@@ -1,6 +1,6 @@
 # `@metamask/announcement-controller`
 
-(TODO)
+Manages in-app announcements.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/announcement-controller`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 

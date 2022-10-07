@@ -1,4 +1,4 @@
-# PermissionController
+# Architecture
 
 The `PermissionController` is the heart of an object capability-inspired permission system.
 It is the successor of the original MetaMask permission system, [`rpc-cap`](https://github.com/MetaMask/rpc-cap).

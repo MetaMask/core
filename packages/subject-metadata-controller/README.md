@@ -1,6 +1,6 @@
 # `@metamask/subject-metadata-controller`
 
-(TODO)
+Caches metadata associated with permission subjects.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/subject-metadata-controller`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 

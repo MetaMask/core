@@ -1,6 +1,6 @@
 # `@metamask/rate-limit-controller`
 
-(TODO)
+Contains logic for rate-limiting API endpoints per requesting origin.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/rate-limit-controller`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 

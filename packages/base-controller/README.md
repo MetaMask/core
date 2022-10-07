@@ -1,6 +1,6 @@
 # `@metamask/base-controller`
 
-(TODO)
+Provides scaffolding for controllers as well a communication system for all controllers.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/base-controller`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 

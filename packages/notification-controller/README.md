@@ -1,6 +1,6 @@
 # `@metamask/notification-controller`
 
-(TODO)
+Manages display of the "What's New" messages in MetaMask.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/notification-controller`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 

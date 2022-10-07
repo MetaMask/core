@@ -1,6 +1,6 @@
 # `@metamask/permission-controller`
 
-(TODO)
+Mediates access to JSON-RPC methods, used to interact with pieces of the MetaMask stack, via middleware for `json-rpc-engine`.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/permission-controller`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 

@@ -1,6 +1,6 @@
 # `@metamask/network-controller`
 
-(TODO)
+Provides an interface to the currently selected network via a MetaMask-compatible provider object.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/network-controller`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 

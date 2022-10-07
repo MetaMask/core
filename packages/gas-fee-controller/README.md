@@ -1,6 +1,6 @@
 # `@metamask/gas-fee-controller`
 
-(TODO)
+Periodically calculates gas fee estimates for various gas limits and other data displayed on transaction confirm screens.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/gas-fee-controller`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 
