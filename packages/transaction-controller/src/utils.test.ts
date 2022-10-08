@@ -12,6 +12,44 @@ const FAIL = 'lol';
 const PASS = '0x1';
 
 describe('utils', () => {
+  describe('getEtherscanApiUrl', () => {
+    const networkType = 'mainnet';
+    const address = '0xC7D3BFDeA106B446Cf9f2Db354D496e6Dd8b2525';
+    const action = 'txlist';
+
+    it('should return a correctly structured url', () => {
+      const url = util.getEtherscanApiUrl(networkType, { address, action });
+      expect(url.indexOf(`&action=${action}`)).toBeGreaterThan(0);
+    });
+
+    it('should return a correctly structured url with from block', () => {
+      const fromBlock = 'xxxxxx';
+      const url = util.getEtherscanApiUrl(networkType, {
+        address,
+        action,
+        startBlock: fromBlock,
+      });
+      expect(url.indexOf(`&startBlock=${fromBlock}`)).toBeGreaterThan(0);
+    });
+
+    it('should return a correctly structured url with testnet subdomain', () => {
+      const ropsten = 'ropsten';
+      const url = util.getEtherscanApiUrl(ropsten, { address, action });
+      expect(url.indexOf(`https://api-${ropsten}`)).toBe(0);
+    });
+
+    it('should return a correctly structured url with apiKey', () => {
+      const apiKey = 'xxxxxx';
+      const url = util.getEtherscanApiUrl(networkType, {
+        address,
+        action,
+        startBlock: 'xxxxxx',
+        apikey: apiKey,
+      });
+      expect(url.indexOf(`&apikey=${apiKey}`)).toBeGreaterThan(0);
+    });
+  });
+
   it('normalizeTransaction', () => {
     const normalized = util.normalizeTransaction({
       data: 'data',
@@ -199,6 +237,48 @@ describe('utils', () => {
       };
       expect(util.isGasPriceValue(gasValues)).toBe(true);
       expect(util.isFeeMarketEIP1559Values(gasValues)).toBe(false);
+    });
+  });
+
+  describe('getIncreasedPriceHex', () => {
+    it('should get increased price from number as hex', () => {
+      expect(util.getIncreasedPriceHex(1358778842, 1.1)).toStrictEqual(
+        '0x5916a6d6',
+      );
+    });
+  });
+
+  describe('getIncreasedPriceFromExisting', () => {
+    it('should get increased price from hex as hex', () => {
+      expect(
+        util.getIncreasedPriceFromExisting('0x50fd51da', 1.1),
+      ).toStrictEqual('0x5916a6d6');
+    });
+  });
+
+  describe('validateMinimumIncrease', () => {
+    it('should throw if increase does not meet minimum requirement', () => {
+      expect(() =>
+        util.validateMinimumIncrease('0x50fd51da', '0x5916a6d6'),
+      ).toThrow(Error);
+
+      expect(() =>
+        util.validateMinimumIncrease('0x50fd51da', '0x5916a6d6'),
+      ).toThrow(
+        'The proposed value: 1358778842 should meet or exceed the minimum value: 1494656726',
+      );
+    });
+
+    it('should not throw if increase meets minimum requirement', () => {
+      expect(() =>
+        util.validateMinimumIncrease('0x5916a6d6', '0x5916a6d6'),
+      ).not.toThrow(Error);
+    });
+
+    it('should not throw if increase exceeds minimum requirement', () => {
+      expect(() =>
+        util.validateMinimumIncrease('0x7162a5ca', '0x5916a6d6'),
+      ).not.toThrow(Error);
     });
   });
 });

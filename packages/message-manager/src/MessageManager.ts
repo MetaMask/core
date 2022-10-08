@@ -1,5 +1,4 @@
 import { v1 as random } from 'uuid';
-import { normalizeMessageData } from '@metamask/controller-utils';
 import {
   AbstractMessageManager,
   AbstractMessage,
@@ -7,7 +6,7 @@ import {
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
-import { validateSignMessageData } from './utils';
+import { normalizeMessageData, validateSignMessageData } from './utils';
 
 /**
  * @type Message

@@ -31,6 +31,7 @@
     "@metamask/controller-utils": "workspace:~",
     "@types/uuid": "^8.3.4",
     "eth-sig-util": "^3.0.0",
+    "ethereumjs-util": "^7.1.4",
     "jsonschema": "^1.2.4",
     "uuid": "^8.3.2"
   },

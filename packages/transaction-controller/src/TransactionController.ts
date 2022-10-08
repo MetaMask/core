@@ -23,8 +23,6 @@ import {
   safelyExecute,
   isSmartContractCode,
   query,
-  getIncreasedPriceFromExisting,
-  validateMinimumIncrease,
   MAINNET,
   RPC,
 } from '@metamask/controller-utils';
@@ -36,6 +34,8 @@ import {
   isGasPriceValue,
   isFeeMarketEIP1559Values,
   validateGasValues,
+  getIncreasedPriceFromExisting,
+  validateMinimumIncrease,
 } from './utils';
 
 const HARDFORK = 'london';

@@ -429,4 +429,16 @@ describe('assetsUtil', () => {
       ).toStrictEqual(`https://${IFPS_GATEWAY}/ipfs/${IPFS_CID_V1}/test`);
     });
   });
+
+  describe('addUrlProtocolPrefix', () => {
+    it('should return a URL with https:// prepended if input URL does not already have it', () => {
+      expect(assetsUtil.addUrlProtocolPrefix(IFPS_GATEWAY)).toStrictEqual(
+        `https://${IFPS_GATEWAY}`,
+      );
+    });
+
+    it('should return a URL as is if https:// is already prepended', () => {
+      expect(assetsUtil.addUrlProtocolPrefix(SOME_API)).toStrictEqual(SOME_API);
+    });
+  });
 });

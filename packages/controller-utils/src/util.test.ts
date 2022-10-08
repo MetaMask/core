@@ -2,8 +2,6 @@ import { BN } from 'ethereumjs-util';
 import nock from 'nock';
 import * as util from './util';
 
-const IFPS_GATEWAY = 'dweb.link';
-
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
 const SOME_FAILING_API = 'https://somefailingapi.com';
@@ -273,44 +271,6 @@ describe('util', () => {
     });
   });
 
-  describe('getEtherscanApiUrl', () => {
-    const networkType = 'mainnet';
-    const address = '0xC7D3BFDeA106B446Cf9f2Db354D496e6Dd8b2525';
-    const action = 'txlist';
-
-    it('should return a correctly structured url', () => {
-      const url = util.getEtherscanApiUrl(networkType, { address, action });
-      expect(url.indexOf(`&action=${action}`)).toBeGreaterThan(0);
-    });
-
-    it('should return a correctly structured url with from block', () => {
-      const fromBlock = 'xxxxxx';
-      const url = util.getEtherscanApiUrl(networkType, {
-        address,
-        action,
-        startBlock: fromBlock,
-      });
-      expect(url.indexOf(`&startBlock=${fromBlock}`)).toBeGreaterThan(0);
-    });
-
-    it('should return a correctly structured url with testnet subdomain', () => {
-      const ropsten = 'ropsten';
-      const url = util.getEtherscanApiUrl(ropsten, { address, action });
-      expect(url.indexOf(`https://api-${ropsten}`)).toBe(0);
-    });
-
-    it('should return a correctly structured url with apiKey', () => {
-      const apiKey = 'xxxxxx';
-      const url = util.getEtherscanApiUrl(networkType, {
-        address,
-        action,
-        startBlock: 'xxxxxx',
-        apikey: apiKey,
-      });
-      expect(url.indexOf(`&apikey=${apiKey}`)).toBeGreaterThan(0);
-    });
-  });
-
   describe('toChecksumHexAddress', () => {
     const fullAddress = `0x${VALID}`;
     it('should return address for valid address', () => {
@@ -336,17 +296,6 @@ describe('util', () => {
         false,
       );
     });
-  });
-
-  it('normalizeMessageData', () => {
-    const firstNormalized = util.normalizeMessageData(
-      '879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
-    );
-    const secondNormalized = util.normalizeMessageData('somedata');
-    expect(firstNormalized).toStrictEqual(
-      '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
-    );
-    expect(secondNormalized).toStrictEqual('0x736f6d6564617461');
   });
 
   it('messageHexToString', () => {
@@ -546,60 +495,6 @@ describe('util', () => {
 
     it('should return 0 when passed an invalid hex string', () => {
       expect(util.convertHexToDecimal('0x12398u12')).toStrictEqual(0);
-    });
-  });
-
-  describe('getIncreasedPriceHex', () => {
-    it('should get increased price from number as hex', () => {
-      expect(util.getIncreasedPriceHex(1358778842, 1.1)).toStrictEqual(
-        '0x5916a6d6',
-      );
-    });
-  });
-
-  describe('getIncreasedPriceFromExisting', () => {
-    it('should get increased price from hex as hex', () => {
-      expect(
-        util.getIncreasedPriceFromExisting('0x50fd51da', 1.1),
-      ).toStrictEqual('0x5916a6d6');
-    });
-  });
-
-  describe('validateMinimumIncrease', () => {
-    it('should throw if increase does not meet minimum requirement', () => {
-      expect(() =>
-        util.validateMinimumIncrease('0x50fd51da', '0x5916a6d6'),
-      ).toThrow(Error);
-
-      expect(() =>
-        util.validateMinimumIncrease('0x50fd51da', '0x5916a6d6'),
-      ).toThrow(
-        'The proposed value: 1358778842 should meet or exceed the minimum value: 1494656726',
-      );
-    });
-
-    it('should not throw if increase meets minimum requirement', () => {
-      expect(() =>
-        util.validateMinimumIncrease('0x5916a6d6', '0x5916a6d6'),
-      ).not.toThrow(Error);
-    });
-
-    it('should not throw if increase exceeds minimum requirement', () => {
-      expect(() =>
-        util.validateMinimumIncrease('0x7162a5ca', '0x5916a6d6'),
-      ).not.toThrow(Error);
-    });
-  });
-
-  describe('addUrlProtocolPrefix', () => {
-    it('should return a URL with https:// prepended if input URL does not already have it', () => {
-      expect(util.addUrlProtocolPrefix(IFPS_GATEWAY)).toStrictEqual(
-        `https://${IFPS_GATEWAY}`,
-      );
-    });
-
-    it('should return a URL as is if https:// is already prepended', () => {
-      expect(util.addUrlProtocolPrefix(SOME_API)).toStrictEqual(SOME_API);
     });
   });
 

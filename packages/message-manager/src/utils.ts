@@ -1,9 +1,31 @@
+import { addHexPrefix, bufferToHex, stripHexPrefix } from 'ethereumjs-util';
 import { TYPED_MESSAGE_SCHEMA, typedSignatureHash } from 'eth-sig-util';
 import { validate } from 'jsonschema';
 import { isValidHexAddress } from '@metamask/controller-utils';
 import { MessageParams } from './MessageManager';
 import { PersonalMessageParams } from './PersonalMessageManager';
 import { TypedMessageParams } from './TypedMessageManager';
+
+const hexRe = /^[0-9A-Fa-f]+$/gu;
+
+/**
+ * A helper function that converts rawmessageData buffer data to a hex, or just returns the data if
+ * it is already formatted as a hex.
+ *
+ * @param data - The buffer data to convert to a hex.
+ * @returns A hex string conversion of the buffer data.
+ */
+export function normalizeMessageData(data: string) {
+  try {
+    const stripped = stripHexPrefix(data);
+    if (stripped.match(hexRe)) {
+      return addHexPrefix(stripped);
+    }
+  } catch (e) {
+    /* istanbul ignore next */
+  }
+  return bufferToHex(Buffer.from(data, 'utf8'));
+}
 
 /**
  * Validates a PersonalMessageParams and MessageParams objects for required properties and throws in

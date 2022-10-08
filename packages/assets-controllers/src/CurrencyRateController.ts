@@ -4,12 +4,12 @@ import {
   safelyExecute,
   TESTNET_TICKER_SYMBOLS,
   FALL_BACK_VS_CURRENCY,
-  fetchExchangeRate as defaultFetchExchangeRate,
 } from '@metamask/controller-utils';
 import {
   BaseControllerV2 as BaseController,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
+import { fetchExchangeRate as defaultFetchExchangeRate } from './crypto-compare';
 
 /**
  * @type CurrencyRateState

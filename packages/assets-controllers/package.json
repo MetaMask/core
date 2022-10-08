@@ -53,7 +53,6 @@
     "@metamask/auto-changelog": "^2.6.0",
     "@types/jest": "^26.0.22",
     "deepmerge": "^4.2.2",
-    "ethereumjs-util": "^7.1.4",
     "ethjs-provider-http": "^0.1.6",
     "jest": "^26.4.2",
     "jest-it-up": "^2.0.2",

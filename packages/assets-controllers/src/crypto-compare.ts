@@ -1,4 +1,4 @@
-import { handleFetch } from './util';
+import { handleFetch } from '@metamask/controller-utils';
 
 /**
  * Get the CryptoCompare API URL for getting the conversion rate from the given native currency to

@@ -1,8 +1,9 @@
 import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import {
+  MAINNET,
+  convertHexToDecimal,
   handleFetch,
   isValidHexAddress,
-  getEtherscanApiUrl,
 } from '@metamask/controller-utils';
 import {
   Transaction,
@@ -25,6 +26,33 @@ const NORMALIZERS: { [param in keyof Transaction]: any } = {
   estimatedBaseFee: (maxPriorityFeePerGas: string) =>
     addHexPrefix(maxPriorityFeePerGas),
 };
+
+/**
+ * Return a URL that can be used to fetch ETH transactions.
+ *
+ * @param networkType - Network type of desired network.
+ * @param urlParams - The parameters used to construct the URL.
+ * @returns URL to fetch the access the endpoint.
+ */
+export function getEtherscanApiUrl(
+  networkType: string,
+  urlParams: any,
+): string {
+  let etherscanSubdomain = 'api';
+  if (networkType !== MAINNET) {
+    etherscanSubdomain = `api-${networkType}`;
+  }
+  const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
+  let url = `${apiUrl}/api?`;
+
+  for (const paramKey in urlParams) {
+    if (urlParams[paramKey]) {
+      url += `${paramKey}=${urlParams[paramKey]}&`;
+    }
+  }
+  url += 'tag=latest&page=1';
+  return url;
+}
 
 /**
  * Normalizes properties on a Transaction object.
@@ -203,3 +231,31 @@ export const isGasPriceValue = (
   gasValues?: GasPriceValue | FeeMarketEIP1559Values,
 ): gasValues is GasPriceValue =>
   (gasValues as GasPriceValue)?.gasPrice !== undefined;
+
+export const getIncreasedPriceHex = (value: number, rate: number): string =>
+  addHexPrefix(`${parseInt(`${value * rate}`, 10).toString(16)}`);
+
+export const getIncreasedPriceFromExisting = (
+  value: string | undefined,
+  rate: number,
+): string => {
+  return getIncreasedPriceHex(convertHexToDecimal(value), rate);
+};
+
+/**
+ * Validates that the proposed value is greater than or equal to the minimum value.
+ *
+ * @param proposed - The proposed value.
+ * @param min - The minimum value.
+ * @returns The proposed value.
+ * @throws Will throw if the proposed value is too low.
+ */
+export function validateMinimumIncrease(proposed: string, min: string) {
+  const proposedDecimal = convertHexToDecimal(proposed);
+  const minDecimal = convertHexToDecimal(min);
+  if (proposedDecimal >= minDecimal) {
+    return proposed;
+  }
+  const errorMsg = `The proposed value: ${proposedDecimal} should meet or exceed the minimum value: ${minDecimal}`;
+  throw new Error(errorMsg);
+}

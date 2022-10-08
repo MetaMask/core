@@ -32,7 +32,7 @@
     "@metamask/network-controller": "workspace:~",
     "@types/uuid": "^8.3.4",
     "eth-query": "^2.1.2",
-    "ethereumjs-util": "^7.0.10",
+    "ethereumjs-util": "^7.1.4",
     "ethjs-unit": "^0.1.6",
     "immer": "^9.0.6",
     "uuid": "^8.3.2"

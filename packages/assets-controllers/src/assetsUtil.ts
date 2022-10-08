@@ -4,7 +4,6 @@ import {
   convertHexToDecimal,
   isValidHexAddress,
   GANACHE_CHAIN_ID,
-  addUrlProtocolPrefix,
 } from '@metamask/controller-utils';
 import { Collectible, CollectibleMetadata } from './CollectiblesController';
 import { Token } from './TokenRatesController';
@@ -241,4 +240,17 @@ export function getFormattedIpfsUrl(
   }
   const cidAndPath = removeIpfsProtocolPrefix(ipfsUrl);
   return `${origin}/ipfs/${cidAndPath}`;
+}
+
+/**
+ * Adds URL protocol prefix to input URL string if missing.
+ *
+ * @param urlString - An IPFS URL.
+ * @returns A URL with a https:// prepended.
+ */
+export function addUrlProtocolPrefix(urlString: string): string {
+  if (!urlString.match(/(^http:\/\/)|(^https:\/\/)/u)) {
+    return `https://${urlString}`;
+  }
+  return urlString;
 }

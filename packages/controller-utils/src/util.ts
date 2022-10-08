@@ -3,7 +3,6 @@ import {
   addHexPrefix,
   isValidAddress,
   isHexString,
-  bufferToHex,
   BN,
   toChecksumAddress,
   stripHexPrefix,
@@ -12,11 +11,8 @@ import { fromWei, toWei } from 'ethjs-unit';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
 import { Json } from '@metamask/base-controller';
-import { MAINNET } from './constants';
 
 const TIMEOUT_ERROR = new Error('timeout');
-
-const hexRe = /^[0-9A-Fa-f]+$/gu;
 
 /**
  * Converts a BN object to a hex string with a '0x' prefix.
@@ -120,33 +116,6 @@ export function getBuyURL(
     default:
       return undefined;
   }
-}
-
-/**
- * Return a URL that can be used to fetch ETH transactions.
- *
- * @param networkType - Network type of desired network.
- * @param urlParams - The parameters used to construct the URL.
- * @returns URL to fetch the access the endpoint.
- */
-export function getEtherscanApiUrl(
-  networkType: string,
-  urlParams: any,
-): string {
-  let etherscanSubdomain = 'api';
-  if (networkType !== MAINNET) {
-    etherscanSubdomain = `api-${networkType}`;
-  }
-  const apiUrl = `https://${etherscanSubdomain}.etherscan.io`;
-  let url = `${apiUrl}/api?`;
-
-  for (const paramKey in urlParams) {
-    if (urlParams[paramKey]) {
-      url += `${paramKey}=${urlParams[paramKey]}&`;
-    }
-  }
-  url += 'tag=latest&page=1';
-  return url;
 }
 
 /**
@@ -303,25 +272,6 @@ export function isValidHexAddress(
   }
 
   return isValidAddress(addressToCheck);
-}
-
-/**
- * A helper function that converts rawmessageData buffer data to a hex, or just returns the data if
- * it is already formatted as a hex.
- *
- * @param data - The buffer data to convert to a hex.
- * @returns A hex string conversion of the buffer data.
- */
-export function normalizeMessageData(data: string) {
-  try {
-    const stripped = stripHexPrefix(data);
-    if (stripped.match(hexRe)) {
-      return addHexPrefix(stripped);
-    }
-  } catch (e) {
-    /* istanbul ignore next */
-  }
-  return bufferToHex(Buffer.from(data, 'utf8'));
 }
 
 /**
@@ -501,47 +451,6 @@ export const convertHexToDecimal = (
 
   return Number(value) ? Number(value) : 0;
 };
-
-export const getIncreasedPriceHex = (value: number, rate: number): string =>
-  addHexPrefix(`${parseInt(`${value * rate}`, 10).toString(16)}`);
-
-export const getIncreasedPriceFromExisting = (
-  value: string | undefined,
-  rate: number,
-): string => {
-  return getIncreasedPriceHex(convertHexToDecimal(value), rate);
-};
-
-/**
- * Validates that the proposed value is greater than or equal to the minimum value.
- *
- * @param proposed - The proposed value.
- * @param min - The minimum value.
- * @returns The proposed value.
- * @throws Will throw if the proposed value is too low.
- */
-export function validateMinimumIncrease(proposed: string, min: string) {
-  const proposedDecimal = convertHexToDecimal(proposed);
-  const minDecimal = convertHexToDecimal(min);
-  if (proposedDecimal >= minDecimal) {
-    return proposed;
-  }
-  const errorMsg = `The proposed value: ${proposedDecimal} should meet or exceed the minimum value: ${minDecimal}`;
-  throw new Error(errorMsg);
-}
-
-/**
- * Adds URL protocol prefix to input URL string if missing.
- *
- * @param urlString - An IPFS URL.
- * @returns A URL with a https:// prepended.
- */
-export function addUrlProtocolPrefix(urlString: string): string {
-  if (!urlString.match(/(^http:\/\/)|(^https:\/\/)/u)) {
-    return `https://${urlString}`;
-  }
-  return urlString;
-}
 
 type PlainObject = Record<number | string | symbol, unknown>;
 

@@ -3,7 +3,6 @@ import {
   handleFetch,
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
-  fetchExchangeRate as fetchNativeExchangeRate,
 } from '@metamask/controller-utils';
 import {
   BaseController,
@@ -11,6 +10,7 @@ import {
   BaseState,
 } from '@metamask/base-controller';
 import type { NetworkState } from '@metamask/network-controller';
+import { fetchExchangeRate as fetchNativeExchangeRate } from './crypto-compare';
 import type { TokensState } from './TokensController';
 import type { CurrencyRateState } from './CurrencyRateController';
 
