@@ -45,7 +45,6 @@ parse_version_range(VersionRange, Modifier, Major, Minor, Patch) :-
   atom_to_number(MinorAtom, Minor),
   atom_to_number(PatchAtom, Patch).
 
-%npm_version_range_out_of_sync(VersionRange1, VersionRange2, VersionRange1Modifier, VersionRange2Modifier, VersionRange1Major, VersionRange1Minor, VersionRange1Patch, VersionRange2Major, VersionRange2Minor, VersionRange2Patch) :-
 npm_version_range_out_of_sync(VersionRange1, VersionRange2) :-
   parse_version_range(VersionRange1, VersionRange1Modifier, VersionRange1Major, VersionRange1Minor, VersionRange1Patch),
   parse_version_range(VersionRange2, VersionRange2Modifier, VersionRange2Major, VersionRange2Minor, VersionRange2Patch),
