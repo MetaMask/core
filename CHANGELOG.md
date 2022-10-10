@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.0.0]
+### Uncategorized
+- Make the PhishingController `test` synchronous ([#929](https://github.com/MetaMask/controllers/pull/929))
+- Prevent parallel phishing configuration updates ([#930](https://github.com/MetaMask/controllers/pull/930))
+- Fix issues with empty responses in ERC20Standard ([#927](https://github.com/MetaMask/controllers/pull/927))
+- Refactor NetworkController to BaseControllerV2 ([#903](https://github.com/MetaMask/controllers/pull/903))
+
 ## [31.2.0]
 ### Changed
 - Update phishing configuration update URL to reduce cache delay ([#915](https://github.com/MetaMask/controllers/pull/915))
@@ -675,7 +682,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v31.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v32.0.0...HEAD
+[32.0.0]: https://github.com/MetaMask/controllers/compare/v31.2.0...v32.0.0
 [31.2.0]: https://github.com/MetaMask/controllers/compare/v31.1.0...v31.2.0
 [31.1.0]: https://github.com/MetaMask/controllers/compare/v31.0.0...v31.1.0
 [31.0.0]: https://github.com/MetaMask/controllers/compare/v30.3.0...v31.0.0
