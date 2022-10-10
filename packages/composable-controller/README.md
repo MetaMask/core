@@ -1,6 +1,6 @@
 # `@metamask/composable-controller`
 
-(TODO)
+Composes multiple controllers together.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/composable-controller`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 

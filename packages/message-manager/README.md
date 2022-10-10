@@ -1,6 +1,6 @@
 # `@metamask/message-manager`
 
-(TODO)
+Stores and manages interactions with signing requests.
 
 ## Installation
 
@@ -9,10 +9,6 @@
 or
 
 `npm install @metamask/message-manager`
-
-## Usage
-
-(TODO)
 
 ## Contributing
 
