@@ -102,6 +102,8 @@ export class PhishingController extends BaseController<
 
   private lastFetched = 0;
 
+  #inProgressUpdate: Promise<void> | undefined;
+
   /**
    * Name of this controller used during composition
    */
@@ -193,9 +195,32 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Updates lists of approved and unapproved website origins.
+   * Update the phishing configuration.
+   *
+   * If an update is in progress, no additional update will be made. Instead this will wait until
+   * the in-progress update has finished.
    */
   async updatePhishingLists() {
+    if (this.#inProgressUpdate) {
+      await this.#inProgressUpdate;
+      return;
+    }
+
+    try {
+      this.#inProgressUpdate = this.#updatePhishingLists();
+      await this.#inProgressUpdate;
+    } finally {
+      this.#inProgressUpdate = undefined;
+    }
+  }
+
+  /**
+   * Update the phishing configuration.
+   *
+   * This should only be called from the `updatePhishingLists` function, which is a wrapper around
+   * this function that prevents redundant configuration updates.
+   */
+  async #updatePhishingLists() {
     if (this.disabled) {
       return;
     }
