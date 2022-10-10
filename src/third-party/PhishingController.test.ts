@@ -25,7 +25,7 @@ describe('PhishingController', () => {
     sinon.restore();
   });
 
-  it('should set default state to the package phishing configuration', () => {
+  it('should set default state to the package phishing lists', () => {
     const controller = new PhishingController();
     expect(controller.state.phishing).toStrictEqual([
       {
@@ -105,7 +105,7 @@ describe('PhishingController', () => {
       await pendingUpdate;
     });
 
-    it('should not be out of date if the configuration was just updated', async () => {
+    it('should not be out of date if the phishing lists were just updated', async () => {
       sinon.useFakeTimers();
       const controller = new PhishingController({ refreshInterval: 10 });
       await controller.updatePhishingLists();
@@ -113,7 +113,7 @@ describe('PhishingController', () => {
       expect(controller.isOutOfDate()).toBe(false);
     });
 
-    it('should not be out of date if the configuration was recently updated', async () => {
+    it('should not be out of date if the phishing lists were recently updated', async () => {
       const clock = sinon.useFakeTimers();
       const controller = new PhishingController({ refreshInterval: 10 });
       await controller.updatePhishingLists();
@@ -614,7 +614,7 @@ describe('PhishingController', () => {
       ]);
     });
 
-    it('should not update phishing configuration if disabled', async () => {
+    it('should not update phishing lists if disabled', async () => {
       const controller = new PhishingController({ disabled: true });
       await controller.updatePhishingLists();
 
@@ -687,7 +687,7 @@ describe('PhishingController', () => {
     });
 
     describe('an update is in progress', () => {
-      it('should not fetch configuration again', async () => {
+      it('should not fetch phishing lists again', async () => {
         const clock = sinon.useFakeTimers();
         const nockScope = nock(PHISHING_CONFIG_BASE_URL)
           .get(METAMASK_CONFIG_FILE)
