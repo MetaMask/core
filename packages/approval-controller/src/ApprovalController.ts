@@ -2,9 +2,9 @@ import type { Patch } from 'immer';
 import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
 import { nanoid } from 'nanoid';
 import {
-  BaseControllerV2 as BaseController,
-  Json,
+  BaseControllerV2,
   RestrictedControllerMessenger,
+  Json,
 } from '@metamask/base-controller';
 import { ApprovalRequestNotFoundError } from './errors';
 
@@ -148,7 +148,7 @@ type ApprovalControllerOptions = {
  * Adding a request returns a promise that resolves or rejects when the request
  * is approved or denied, respectively.
  */
-export class ApprovalController extends BaseController<
+export class ApprovalController extends BaseControllerV2<
   typeof controllerName,
   ApprovalControllerState,
   ApprovalControllerMessenger

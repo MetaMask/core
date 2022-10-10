@@ -1,11 +1,11 @@
 import * as sinon from 'sinon';
 import { BN } from 'ethereumjs-util';
-import { ControllerMessenger } from '@metamask/base-controller';
-import { PreferencesController } from '@metamask/preferences-controller';
 import {
   NetworkController,
   NetworkControllerMessenger,
 } from '@metamask/network-controller';
+import { PreferencesController } from '@metamask/preferences-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
 import { TokensController } from './TokensController';
 import { Token } from './TokenRatesController';
 import { AssetsContractController } from './AssetsContractController';

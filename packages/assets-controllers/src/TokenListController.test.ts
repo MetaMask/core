@@ -1,10 +1,10 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
+import { ControllerMessenger } from '@metamask/base-controller';
 import {
   NetworkController,
   NetworkControllerProviderChangeEvent,
 } from '@metamask/network-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
 import { NetworksChainId } from '@metamask/controller-utils';
 import {
   TokenListController,

@@ -6,19 +6,19 @@ import { Mutex } from 'async-mutex';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
-import {
-  toChecksumHexAddress,
-  MAINNET,
-  ERC721_INTERFACE_ID,
-  NetworkType,
-} from '@metamask/controller-utils';
-import type { NetworkState } from '@metamask/network-controller';
 import {
   BaseController,
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import type { NetworkState } from '@metamask/network-controller';
+import {
+  NetworkType,
+  toChecksumHexAddress,
+  MAINNET,
+  ERC721_INTERFACE_ID,
+} from '@metamask/controller-utils';
 import type { Token } from './TokenRatesController';
 import { TokenListToken } from './TokenListController';
 import {

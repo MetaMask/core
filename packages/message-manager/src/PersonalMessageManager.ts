@@ -1,4 +1,5 @@
 import { v1 as random } from 'uuid';
+import { normalizeMessageData, validateSignMessageData } from './utils';
 import {
   AbstractMessageManager,
   AbstractMessage,
@@ -6,7 +7,6 @@ import {
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
-import { normalizeMessageData, validateSignMessageData } from './utils';
 
 /**
  * @type Message

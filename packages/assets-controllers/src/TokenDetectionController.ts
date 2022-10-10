@@ -1,19 +1,19 @@
-import type { PreferencesState } from '@metamask/preferences-controller';
-import {
-  safelyExecute,
-  toChecksumHexAddress,
-} from '@metamask/controller-utils';
 import {
   BaseController,
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
 import type { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import {
+  safelyExecute,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
+import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import type { TokensController, TokensState } from './TokensController';
 import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
 import { TokenListState } from './TokenListController';
-import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 
 const DEFAULT_INTERVAL = 180000;
 

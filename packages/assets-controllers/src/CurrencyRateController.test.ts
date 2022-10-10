@@ -1,7 +1,7 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
-import { TESTNET_TICKER_SYMBOLS } from '@metamask/controller-utils';
 import { ControllerMessenger } from '@metamask/base-controller';
+import { TESTNET_TICKER_SYMBOLS } from '@metamask/controller-utils';
 import {
   CurrencyRateController,
   CurrencyRateStateChange,

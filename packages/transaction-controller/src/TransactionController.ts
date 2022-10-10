@@ -30,11 +30,11 @@ import {
   normalizeTransaction,
   validateTransaction,
   handleTransactionFetch,
+  getIncreasedPriceFromExisting,
   isEIP1559Transaction,
   isGasPriceValue,
   isFeeMarketEIP1559Values,
   validateGasValues,
-  getIncreasedPriceFromExisting,
   validateMinimumIncrease,
 } from './utils';
 

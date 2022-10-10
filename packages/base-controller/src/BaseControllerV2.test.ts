@@ -1,14 +1,14 @@
 import type { Draft, Patch } from 'immer';
 import * as sinon from 'sinon';
 import {
-  ControllerMessenger,
-  RestrictedControllerMessenger,
-} from './ControllerMessenger';
-import {
   BaseController,
   getAnonymizedState,
   getPersistentState,
 } from './BaseControllerV2';
+import {
+  ControllerMessenger,
+  RestrictedControllerMessenger,
+} from './ControllerMessenger';
 
 const countControllerName = 'CountController';
 

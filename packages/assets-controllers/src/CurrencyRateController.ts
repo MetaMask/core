@@ -1,14 +1,14 @@
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 import {
-  safelyExecute,
-  TESTNET_TICKER_SYMBOLS,
-  FALL_BACK_VS_CURRENCY,
-} from '@metamask/controller-utils';
-import {
-  BaseControllerV2 as BaseController,
+  BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
+import {
+  TESTNET_TICKER_SYMBOLS,
+  FALL_BACK_VS_CURRENCY,
+  safelyExecute,
+} from '@metamask/controller-utils';
 import { fetchExchangeRate as defaultFetchExchangeRate } from './crypto-compare';
 
 /**
@@ -75,7 +75,7 @@ const defaultState = {
  * Controller that passively polls on a set interval for an exchange rate from the current base
  * asset to the current currency
  */
-export class CurrencyRateController extends BaseController<
+export class CurrencyRateController extends BaseControllerV2<
   typeof name,
   CurrencyRateState,
   CurrencyRateMessenger

@@ -2,7 +2,7 @@ import type { Patch } from 'immer';
 import { nanoid } from 'nanoid';
 import { hasProperty } from '@metamask/controller-utils';
 import {
-  BaseControllerV2 as BaseController,
+  BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 
@@ -82,7 +82,7 @@ const defaultState = {
 /**
  * Controller that handles storing notifications and showing them to the user
  */
-export class NotificationController extends BaseController<
+export class NotificationController extends BaseControllerV2<
   typeof name,
   NotificationControllerState,
   NotificationControllerMessenger

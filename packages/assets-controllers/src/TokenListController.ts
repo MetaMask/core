@@ -2,7 +2,7 @@ import type { Patch } from 'immer';
 import { Mutex } from 'async-mutex';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
 import {
-  BaseControllerV2 as BaseController,
+  BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
@@ -78,7 +78,7 @@ const defaultState: TokenListState = {
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
  */
-export class TokenListController extends BaseController<
+export class TokenListController extends BaseControllerV2<
   typeof name,
   TokenListState,
   TokenListMessenger

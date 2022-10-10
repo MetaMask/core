@@ -1,14 +1,14 @@
 import {
+  BaseController,
+  BaseConfig,
+  BaseState,
+} from '@metamask/base-controller';
+import {
   safelyExecute,
   handleFetch,
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
 } from '@metamask/controller-utils';
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
 import type { NetworkState } from '@metamask/network-controller';
 import { fetchExchangeRate as fetchNativeExchangeRate } from './crypto-compare';
 import type { TokensState } from './TokensController';

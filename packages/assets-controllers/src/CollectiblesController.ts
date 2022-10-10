@@ -1,7 +1,13 @@
 import { EventEmitter } from 'events';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { Mutex } from 'async-mutex';
+import {
+  BaseController,
+  BaseConfig,
+  BaseState,
+} from '@metamask/base-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
+import type { NetworkState } from '@metamask/network-controller';
 import {
   safelyExecute,
   handleFetch,
@@ -18,12 +24,6 @@ import {
   OPENSEA_TEST_API_URL,
   NetworkType,
 } from '@metamask/controller-utils';
-import type { NetworkState } from '@metamask/network-controller';
-import {
-  BaseController,
-  BaseConfig,
-  BaseState,
-} from '@metamask/base-controller';
 import type {
   ApiCollectible,
   ApiCollectibleCreator,

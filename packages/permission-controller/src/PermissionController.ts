@@ -11,12 +11,11 @@ import {
   RejectRequest as RejectApprovalRequest,
 } from '@metamask/approval-controller';
 import {
-  BaseControllerV2 as BaseController,
+  BaseControllerV2,
   Json,
   StateMetadata,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-
 import {
   hasProperty,
   isNonEmptyArray,
@@ -475,7 +474,7 @@ export type PermissionControllerOptions<
 export class PermissionController<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
   ControllerCaveatSpecification extends CaveatSpecificationConstraint,
-> extends BaseController<
+> extends BaseControllerV2<
   typeof controllerName,
   PermissionControllerState<
     ExtractPermission<
@@ -529,7 +528,7 @@ export class PermissionController<
    * @param options.unrestrictedMethods - The callable names of all JSON-RPC
    * methods ignored by the new controller.
    * @param options.messenger - The controller messenger. See
-   * {@link BaseController} for more information.
+   * {@link BaseControllerV2} for more information.
    * @param options.state - Existing state to hydrate the controller with at
    * initialization.
    */

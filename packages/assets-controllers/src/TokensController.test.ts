@@ -1,13 +1,13 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
 import contractMaps from '@metamask/contract-metadata';
-import { ControllerMessenger } from '@metamask/base-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
 import {
   NetworkController,
   NetworkControllerMessenger,
 } from '@metamask/network-controller';
-import { NetworkType, NetworksChainId } from '@metamask/controller-utils';
+import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
+import { ControllerMessenger } from '@metamask/base-controller';
 import { TokensController } from './TokensController';
 import { Token } from './TokenRatesController';
 import { TOKEN_END_POINT_API } from './token-service';

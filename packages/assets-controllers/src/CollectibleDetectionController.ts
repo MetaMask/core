@@ -6,12 +6,12 @@ import {
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import {
-  fetchWithErrorHandling,
-  toChecksumHexAddress,
   MAINNET,
   OPENSEA_PROXY_URL,
   OPENSEA_API_URL,
   NetworkType,
+  fetchWithErrorHandling,
+  toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type {
   CollectiblesController,

@@ -1,7 +1,6 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
 import HttpProvider from 'ethjs-provider-http';
-import { ControllerMessenger } from '@metamask/base-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
 import {
   NetworkController,
@@ -15,6 +14,7 @@ import {
   ERC721,
   NetworksChainId,
 } from '@metamask/controller-utils';
+import { ControllerMessenger } from '@metamask/base-controller';
 import { AssetsContractController } from './AssetsContractController';
 import { CollectiblesController } from './CollectiblesController';
 import { getFormattedIpfsUrl } from './assetsUtil';

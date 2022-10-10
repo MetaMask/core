@@ -1,11 +1,11 @@
 import * as sinon from 'sinon';
 import nock from 'nock';
-import { ControllerMessenger } from '@metamask/base-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
 import {
   NetworkController,
   NetworkControllerMessenger,
 } from '@metamask/network-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
 import { TokenRatesController } from './TokenRatesController';
 import { TokensController } from './TokensController';
 

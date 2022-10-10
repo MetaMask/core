@@ -1,7 +1,7 @@
 import type { Patch } from 'immer';
 import { Json } from '@metamask/types';
 import {
-  BaseControllerV2 as BaseController,
+  BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import type {
@@ -74,7 +74,7 @@ type SubjectMetadataControllerOptions = {
  * A controller for storing metadata associated with permission subjects. More
  * or less, a cache.
  */
-export class SubjectMetadataController extends BaseController<
+export class SubjectMetadataController extends BaseControllerV2<
   typeof controllerName,
   SubjectMetadataControllerState,
   SubjectMetadataControllerMessenger

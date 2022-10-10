@@ -7,7 +7,6 @@ import {
   ERC721,
 } from '@metamask/controller-utils';
 import { getFormattedIpfsUrl } from '../../../assetsUtil';
-
 import { Web3 } from '../../standards-types';
 
 export class ERC721Standard {

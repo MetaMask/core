@@ -6,7 +6,6 @@ import {
   AssetsContractController,
 } from '@metamask/assets-controllers';
 import { AddressBookController } from '@metamask/address-book-controller';
-import { PreferencesController } from '@metamask/preferences-controller';
 import { EnsController } from '@metamask/ens-controller';
 import {
   BaseController,
@@ -15,6 +14,7 @@ import {
   ControllerMessenger,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
+import { PreferencesController } from '@metamask/preferences-controller';
 import {
   NetworkController,
   NetworkControllerMessenger,

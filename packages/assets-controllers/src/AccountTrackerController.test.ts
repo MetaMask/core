@@ -1,8 +1,8 @@
 import * as sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
 import {
-  PreferencesController,
   ContactEntry,
+  PreferencesController,
 } from '@metamask/preferences-controller';
 import { query } from '@metamask/controller-utils';
 import { AccountTrackerController } from './AccountTrackerController';

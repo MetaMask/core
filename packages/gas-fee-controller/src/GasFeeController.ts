@@ -2,7 +2,7 @@ import type { Patch } from 'immer';
 import { v1 as random } from 'uuid';
 import { isHexString } from 'ethereumjs-util';
 import {
-  BaseControllerV2 as BaseController,
+  BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
@@ -230,7 +230,7 @@ export type ChainID = `0x${string}` | `${number}` | number;
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
  */
-export class GasFeeController extends BaseController<
+export class GasFeeController extends BaseControllerV2<
   typeof name,
   GasFeeState,
   GasFeeMessenger
