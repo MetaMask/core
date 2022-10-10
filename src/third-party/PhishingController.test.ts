@@ -807,6 +807,7 @@ describe('PhishingController', () => {
 
         expect(secondPromise).toNeverResolve();
 
+        // Cleanup pending operations
         await firstPromise;
         await secondPromise;
       });
