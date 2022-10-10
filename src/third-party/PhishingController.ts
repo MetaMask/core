@@ -151,28 +151,25 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Calls this.updatePhishingLists if this.refreshInterval has passed since last this.lastFetched.
+   * Determine if an update to the phishing configuration is needed.
    *
-   * @returns Promise<void> when finished fetching phishing lists or when fetching in not necessary.
+   * @returns Whether an update is needed
    */
-  private async fetchIfNecessary(): Promise<void> {
-    const outOfDate =
-      Date.now() - this.lastFetched >= this.config.refreshInterval;
-
-    if (outOfDate) {
-      await this.updatePhishingLists();
-    }
+  isOutOfDate() {
+    return Date.now() - this.lastFetched >= this.config.refreshInterval;
   }
 
   /**
    * Determines if a given origin is unapproved.
    *
+   * It is strongly recommended that you call {@link isOutOfDate} before calling this,
+   * to check whether the phishing configuration is up-to-date. It can be
+   * updated by calling {@link updatePhishingLists}.
+   *
    * @param origin - Domain origin of a website.
-   * @returns Promise<EthPhishingDetectResult> Whether the origin is an unapproved origin.
+   * @returns Whether the origin is an unapproved origin.
    */
-  async test(origin: string): Promise<EthPhishingDetectResult> {
-    await this.fetchIfNecessary();
-
+  test(origin: string): EthPhishingDetectResult {
     const punycodeOrigin = toASCII(origin);
     if (this.state.whitelist.indexOf(punycodeOrigin) !== -1) {
       return { result: false, type: 'all' }; // Same as whitelisted match returned by detector.check(...).
@@ -225,15 +222,20 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    this.lastFetched = Date.now();
-
     const configs: EthPhishingDetectConfig[] = [];
 
-    // We ignore network failures here instead of bubbling them up
-    const [metamaskConfigLegacy, phishfortHotlist] = await Promise.all([
-      this.queryConfig<EthPhishingResponse>(METAMASK_CONFIG_URL),
-      this.queryConfig<string[]>(PHISHFORT_HOTLIST_URL),
-    ]);
+    let metamaskConfigLegacy;
+    let phishfortHotlist;
+    try {
+      [metamaskConfigLegacy, phishfortHotlist] = await Promise.all([
+        this.queryConfig<EthPhishingResponse>(METAMASK_CONFIG_URL),
+        this.queryConfig<string[]>(PHISHFORT_HOTLIST_URL),
+      ]);
+    } finally {
+      // Set `lastFetched` even for failed requests to prevent server from being overwhelmed with
+      // traffic after a network disruption.
+      this.lastFetched = Date.now();
+    }
 
     // Correctly shaping MetaMask config.
     const metamaskConfig: EthPhishingDetectConfig = {
