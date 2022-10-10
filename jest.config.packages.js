@@ -57,11 +57,7 @@ module.exports = {
   // globalTeardown: undefined,
 
   // A set of global variables that need to be available in all test environments
-  globals: {
-    'ts-jest': {
-      tsconfig: '<rootDir>/tsconfig.test.json',
-    },
-  },
+  // globals: {},
 
   // The maximum amount of workers used to run your tests. Can be specified as % or a number. E.g. maxWorkers: 10% will use 10% of your CPU amount + 1 as the maximum worker number. maxWorkers: 2 will use a maximum of 2 workers.
   // maxWorkers: "50%",
@@ -106,7 +102,7 @@ module.exports = {
   // Here we're telling ts-jest to run JavaScript code through TypeScript
   // because some of our dependencies (e.g. multiformats, ethjs-*) ship with
   // uncompiled JavaScript or JavaScript that uses ESM format.
-  preset: 'ts-jest/presets/js-with-ts',
+  preset: 'ts-jest',
 
   // Run tests from one or more projects
   // projects: undefined
@@ -157,7 +153,9 @@ module.exports = {
   testEnvironment: 'node',
 
   // Options that will be passed to the testEnvironment
-  // testEnvironmentOptions: {},
+  testEnvironmentOptions: {
+    customExportConditions: ['node', 'node-addons'],
+  },
 
   // Adds a location field to test results
   // testLocationInResults: false,
