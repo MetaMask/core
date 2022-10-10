@@ -162,82 +162,12 @@ describe('PhishingController', () => {
     expect(nockScope.isDone()).toBe(true);
   });
 
-  it('should update lists', async () => {
-    const mockPhishingBlocklist = ['https://example-blocked-website.com'];
-    const phishfortHotlist = ['https://another-example-blocked-website.com'];
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .reply(200, {
-        blacklist: mockPhishingBlocklist,
-        fuzzylist: [],
-        tolerance: 0,
-        whitelist: [],
-        version: 0,
-      })
-      .get(PHISHFORT_HOTLIST_FILE)
-      .reply(200, phishfortHotlist);
-
-    const controller = new PhishingController();
-    await controller.updatePhishingLists();
-
-    expect(controller.state.phishing).toStrictEqual([
-      {
-        allowlist: [],
-        blocklist: mockPhishingBlocklist,
-        fuzzylist: [],
-        tolerance: 0,
-        name: 'MetaMask',
-        version: 0,
-      },
-      {
-        allowlist: [],
-        blocklist: phishfortHotlist,
-        fuzzylist: [],
-        tolerance: 0,
-        name: 'PhishFort',
-        version: 1,
-      },
-    ]);
-  });
-
   it('should not bubble up connection errors', async () => {
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_CONFIG_FILE)
       .replyWithError({ code: 'ETIMEDOUT' })
       .get(PHISHFORT_HOTLIST_FILE)
       .replyWithError({ code: 'ETIMEDOUT' });
-
-    const controller = new PhishingController();
-    expect(await controller.test('metamask.io')).toMatchObject({
-      result: false,
-      type: 'allowlist',
-      name: 'MetaMask',
-    });
-  });
-
-  it('should not update phishing configuration if disabled', async () => {
-    const controller = new PhishingController({ disabled: true });
-    await controller.updatePhishingLists();
-
-    expect(controller.state.phishing).toStrictEqual([
-      {
-        allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
-        blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
-        fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
-        tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-        name: `MetaMask`,
-        version: DEFAULT_PHISHING_RESPONSE.version,
-      },
-    ]);
-  });
-
-  it('should return negative result for safe domain from default config', async () => {
-    // Return API failure to ensure default config is not overwritten
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .reply(500)
-      .get(PHISHFORT_HOTLIST_FILE)
-      .reply(500);
 
     const controller = new PhishingController();
     expect(await controller.test('metamask.io')).toMatchObject({
@@ -708,47 +638,178 @@ describe('PhishingController', () => {
     });
   });
 
-  it('should not update phishing lists if fetch returns 304', async () => {
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .reply(304)
-      .get(PHISHFORT_HOTLIST_FILE)
-      .reply(304);
+  describe('updatePhishingLists', () => {
+    it('should update lists', async () => {
+      const mockPhishingBlocklist = ['https://example-blocked-website.com'];
+      const phishfortHotlist = ['https://another-example-blocked-website.com'];
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_CONFIG_FILE)
+        .reply(200, {
+          blacklist: mockPhishingBlocklist,
+          fuzzylist: [],
+          tolerance: 0,
+          whitelist: [],
+          version: 0,
+        })
+        .get(PHISHFORT_HOTLIST_FILE)
+        .reply(200, phishfortHotlist);
 
-    const controller = new PhishingController();
-    await controller.updatePhishingLists();
+      const controller = new PhishingController();
+      await controller.updatePhishingLists();
 
-    expect(controller.state.phishing).toStrictEqual([
-      {
-        allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
-        blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
-        fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
-        tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-        name: `MetaMask`,
-        version: DEFAULT_PHISHING_RESPONSE.version,
-      },
-    ]);
-  });
+      expect(controller.state.phishing).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: mockPhishingBlocklist,
+          fuzzylist: [],
+          tolerance: 0,
+          name: 'MetaMask',
+          version: 0,
+        },
+        {
+          allowlist: [],
+          blocklist: phishfortHotlist,
+          fuzzylist: [],
+          tolerance: 0,
+          name: 'PhishFort',
+          version: 1,
+        },
+      ]);
+    });
 
-  it('should not update phishing lists if fetch returns 500', async () => {
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_CONFIG_FILE)
-      .reply(500)
-      .get(PHISHFORT_HOTLIST_FILE)
-      .reply(500);
+    it('should not update phishing configuration if disabled', async () => {
+      const controller = new PhishingController({ disabled: true });
+      await controller.updatePhishingLists();
 
-    const controller = new PhishingController();
-    await controller.updatePhishingLists();
+      expect(controller.state.phishing).toStrictEqual([
+        {
+          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
+          blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
+          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
+          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
+          name: `MetaMask`,
+          version: DEFAULT_PHISHING_RESPONSE.version,
+        },
+      ]);
+    });
 
-    expect(controller.state.phishing).toStrictEqual([
-      {
-        allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
-        blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
-        fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
-        tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
-        name: `MetaMask`,
-        version: DEFAULT_PHISHING_RESPONSE.version,
-      },
-    ]);
+    it('should return negative result for safe domain from default config', async () => {
+      // Return API failure to ensure default config is not overwritten
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_CONFIG_FILE)
+        .reply(500)
+        .get(PHISHFORT_HOTLIST_FILE)
+        .reply(500);
+
+      const controller = new PhishingController();
+      expect(await controller.test('metamask.io')).toMatchObject({
+        result: false,
+        type: 'allowlist',
+        name: 'MetaMask',
+      });
+    });
+
+    it('should not update phishing lists if fetch returns 304', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_CONFIG_FILE)
+        .reply(304)
+        .get(PHISHFORT_HOTLIST_FILE)
+        .reply(304);
+
+      const controller = new PhishingController();
+      await controller.updatePhishingLists();
+
+      expect(controller.state.phishing).toStrictEqual([
+        {
+          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
+          blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
+          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
+          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
+          name: `MetaMask`,
+          version: DEFAULT_PHISHING_RESPONSE.version,
+        },
+      ]);
+    });
+
+    it('should not update phishing lists if fetch returns 500', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_CONFIG_FILE)
+        .reply(500)
+        .get(PHISHFORT_HOTLIST_FILE)
+        .reply(500);
+
+      const controller = new PhishingController();
+      await controller.updatePhishingLists();
+
+      expect(controller.state.phishing).toStrictEqual([
+        {
+          allowlist: DEFAULT_PHISHING_RESPONSE.whitelist,
+          blocklist: DEFAULT_PHISHING_RESPONSE.blacklist,
+          fuzzylist: DEFAULT_PHISHING_RESPONSE.fuzzylist,
+          tolerance: DEFAULT_PHISHING_RESPONSE.tolerance,
+          name: `MetaMask`,
+          version: DEFAULT_PHISHING_RESPONSE.version,
+        },
+      ]);
+    });
+
+    describe('an update is in progress', () => {
+      it('should not fetch configuration again', async () => {
+        const clock = sinon.useFakeTimers();
+        const nockScope = nock(PHISHING_CONFIG_BASE_URL)
+          .get(METAMASK_CONFIG_FILE)
+          .delay(100)
+          .reply(200, {
+            blacklist: [],
+            fuzzylist: [],
+            tolerance: 0,
+            whitelist: [],
+            version: 0,
+          })
+          .get(PHISHFORT_HOTLIST_FILE)
+          .delay(100)
+          .reply(200, []);
+
+        const controller = new PhishingController();
+        const firstPromise = controller.updatePhishingLists();
+        const secondPromise = controller.updatePhishingLists();
+
+        clock.tick(100);
+
+        await firstPromise;
+        await secondPromise;
+
+        // This second update would throw if it fetched, because the
+        // nock interceptor was not persisted.
+        expect(nockScope.isDone()).toBe(true);
+      });
+
+      it('should wait until the in-progress update has completed', async () => {
+        const clock = sinon.useFakeTimers();
+        nock(PHISHING_CONFIG_BASE_URL)
+          .get(METAMASK_CONFIG_FILE)
+          .delay(100)
+          .reply(200, {
+            blacklist: [],
+            fuzzylist: [],
+            tolerance: 0,
+            whitelist: [],
+            version: 0,
+          })
+          .get(PHISHFORT_HOTLIST_FILE)
+          .delay(100)
+          .reply(200, []);
+
+        const controller = new PhishingController();
+        const firstPromise = controller.updatePhishingLists();
+        const secondPromise = controller.updatePhishingLists();
+        clock.tick(99);
+
+        expect(secondPromise).toNeverResolve();
+
+        await firstPromise;
+        await secondPromise;
+      });
+    });
   });
 });
