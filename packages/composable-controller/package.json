@@ -1,6 +1,6 @@
 {
   "name": "@metamask/composable-controller",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Consolidates the state from multiple controllers into one",
   "keywords": [
     "MetaMask",

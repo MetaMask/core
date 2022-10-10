@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-controller",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Manages display of the \"What's New\" messages in MetaMask",
   "keywords": [
     "MetaMask",

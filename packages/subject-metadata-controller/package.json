@@ -1,6 +1,6 @@
 {
   "name": "@metamask/subject-metadata-controller",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Caches metadata associated with permission subjects",
   "keywords": [
     "MetaMask",
