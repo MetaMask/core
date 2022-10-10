@@ -1,6 +1,6 @@
 export {
   BaseConfig,
-  default as BaseController,
+  BaseController,
   BaseState,
   Listener,
 } from './BaseController';

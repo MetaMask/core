@@ -8,3 +8,4 @@ export * from './TokenDetectionController';
 export * from './TokenListController';
 export * from './TokenRatesController';
 export * from './TokensController';
+export { formatIconUrlWithProxy } from './assetsUtil';
