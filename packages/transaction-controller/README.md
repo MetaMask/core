@@ -1,6 +1,6 @@
 # `@metamask/transaction-controller`
 
-Stores transactions, keeping track of statuses on a periodic basis, and manages interactions such as approval and cancellation.
+Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation.
 
 ## Installation
 

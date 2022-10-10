@@ -1,7 +1,7 @@
 {
   "name": "@metamask/preferences-controller",
   "version": "0.1.0",
-  "description": "TODO",
+  "description": "Manages user-configurable settings for MetaMask",
   "keywords": [
     "MetaMask",
     "Ethereum"

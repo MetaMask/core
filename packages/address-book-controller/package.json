@@ -1,7 +1,7 @@
 {
   "name": "@metamask/address-book-controller",
   "version": "0.1.0",
-  "description": "TODO",
+  "description": "Manages a list of recipient addresses associated with nicknames",
   "keywords": [
     "MetaMask",
     "Ethereum"

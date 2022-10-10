@@ -1,6 +1,6 @@
 # `@metamask/phishing-controller`
 
-(TODO)
+Maintains a periodically updated list of approved and unapproved website origins.
 
 ## Installation
 

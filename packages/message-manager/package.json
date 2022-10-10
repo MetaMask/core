@@ -1,7 +1,7 @@
 {
   "name": "@metamask/message-manager",
   "version": "0.1.0",
-  "description": "TODO",
+  "description": "Stores and manages interactions with signing requests",
   "keywords": [
     "MetaMask",
     "Ethereum"

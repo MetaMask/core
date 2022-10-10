@@ -1,6 +1,6 @@
 # `@metamask/composable-controller`
 
-Composes multiple controllers together.
+Consolidates the state from multiple controllers into one.
 
 ## Installation
 

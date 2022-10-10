@@ -1,7 +1,7 @@
 {
   "name": "@metamask/network-controller",
   "version": "0.1.0",
-  "description": "TODO",
+  "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
     "Ethereum"

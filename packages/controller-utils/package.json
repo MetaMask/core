@@ -1,7 +1,7 @@
 {
   "name": "@metamask/controller-utils",
   "version": "0.1.0",
-  "description": "TODO",
+  "description": "Data and convenience functions shared by multiple packages",
   "keywords": [
     "MetaMask",
     "Ethereum"

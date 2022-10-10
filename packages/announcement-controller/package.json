@@ -1,7 +1,7 @@
 {
   "name": "@metamask/announcement-controller",
   "version": "0.1.0",
-  "description": "TODO",
+  "description": "Manages in-app announcements",
   "keywords": [
     "MetaMask",
     "Ethereum"

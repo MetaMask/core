@@ -1,6 +1,6 @@
 # `@metamask/ens-controller`
 
-(TODO)
+Maps ENS names to their resolved addresses by chain id.
 
 ## Installation
 

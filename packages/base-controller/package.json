@@ -1,7 +1,7 @@
 {
   "name": "@metamask/base-controller",
   "version": "0.1.0",
-  "description": "TODO",
+  "description": "Provides scaffolding for controllers as well a communication system for all controllers",
   "keywords": [
     "MetaMask",
     "Ethereum"

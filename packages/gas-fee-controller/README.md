@@ -1,6 +1,6 @@
 # `@metamask/gas-fee-controller`
 
-Periodically calculates gas fee estimates for various gas limits and other data displayed on transaction confirm screens.
+Periodically calculates gas fee estimates based on various gas limits as well as other data displayed on transaction confirm screens.
 
 ## Installation
 
