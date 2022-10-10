@@ -805,7 +805,7 @@ describe('PhishingController', () => {
         const secondPromise = controller.updatePhishingLists();
         clock.tick(99);
 
-        expect(secondPromise).toNeverResolve();
+        await expect(secondPromise).toNeverResolve();
 
         // Cleanup pending operations
         await firstPromise;
