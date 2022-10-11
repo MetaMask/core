@@ -351,6 +351,7 @@ export class GasFeeController extends BaseController<
       this.ethQuery = this.messagingSystem.call(
         'NetworkController:getEthQuery',
       );
+
       this.messagingSystem.subscribe(
         'NetworkController:providerChange',
         async (provider) => {

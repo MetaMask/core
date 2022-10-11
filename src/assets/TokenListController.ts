@@ -150,7 +150,8 @@ export class TokenListController extends BaseController<
   }
 
   /**
-   * Updates tokenList state and restart polling when updates are received through NetworkController subscription
+   * Updates state and restart polling when updates are received through NetworkController subscription.
+   *
    * @param providerConfig - the configuration for a provider containing critical network info.
    */
   async #onNetworkStateChangeCallback(providerConfig: ProviderConfig) {
