@@ -137,19 +137,23 @@ export class TokenListController extends BaseController<
     this.abortController = new AbortController();
     if (onNetworkStateChange) {
       onNetworkStateChange(async ({ provider }) => {
-        await this.onNetworkStateChangeCallback(provider);
+        await this.#onNetworkStateChangeCallback(provider);
       });
     } else {
       this.messagingSystem.subscribe(
         'NetworkController:providerChange',
         async (providerConfig) => {
-          await this.onNetworkStateChangeCallback(providerConfig);
+          await this.#onNetworkStateChangeCallback(providerConfig);
         },
       );
     }
   }
 
-  async onNetworkStateChangeCallback(providerConfig: ProviderConfig) {
+  /**
+   * Updates tokenList state and restart polling when updates are received through NetworkController subscription
+   * @param providerConfig - the configuration for a provider containing critical network info.
+   */
+  async #onNetworkStateChangeCallback(providerConfig: ProviderConfig) {
     if (this.chainId !== providerConfig.chainId) {
       this.abortController.abort();
       this.abortController = new AbortController();
