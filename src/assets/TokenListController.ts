@@ -5,7 +5,11 @@ import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { safelyExecute, isTokenListSupportedForNetwork } from '../util';
 import { fetchTokenList } from '../apis/token-service';
-import { NetworkState } from '../network/NetworkController';
+import {
+  NetworkControllerProviderChangeEvent,
+  NetworkState,
+  ProviderConfig,
+} from '../network/NetworkController';
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
 
 const DEFAULT_INTERVAL = 24 * 60 * 60 * 1000;
@@ -52,9 +56,9 @@ export type GetTokenListState = {
 type TokenListMessenger = RestrictedControllerMessenger<
   typeof name,
   GetTokenListState,
-  TokenListStateChange,
+  TokenListStateChange | NetworkControllerProviderChangeEvent,
   never,
-  TokenListStateChange['type']
+  TokenListStateChange['type'] | NetworkControllerProviderChangeEvent['type']
 >;
 
 const metadata = {
@@ -112,7 +116,7 @@ export class TokenListController extends BaseController<
   }: {
     chainId: string;
     preventPollingOnNetworkRestart?: boolean;
-    onNetworkStateChange: (
+    onNetworkStateChange?: (
       listener: (networkState: NetworkState) => void,
     ) => void;
     interval?: number;
@@ -131,25 +135,38 @@ export class TokenListController extends BaseController<
     this.chainId = chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.abortController = new AbortController();
-    onNetworkStateChange(async (networkState) => {
-      if (this.chainId !== networkState.provider.chainId) {
-        this.abortController.abort();
-        this.abortController = new AbortController();
-        this.chainId = networkState.provider.chainId;
-        if (this.state.preventPollingOnNetworkRestart) {
-          this.clearingTokenListData();
-        } else {
-          // Ensure tokenList is referencing data from correct network
-          this.update(() => {
-            return {
-              ...this.state,
-              tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
-            };
-          });
-          await this.restart();
-        }
+    if (onNetworkStateChange) {
+      onNetworkStateChange(async ({ provider }) => {
+        await this.onNetworkStateChangeCb(provider);
+      });
+    } else {
+      this.messagingSystem.subscribe(
+        'NetworkController:providerChange',
+        async (providerConfig) => {
+          await this.onNetworkStateChangeCb(providerConfig);
+        },
+      );
+    }
+  }
+
+  async onNetworkStateChangeCb(providerConfig: ProviderConfig) {
+    if (this.chainId !== providerConfig.chainId) {
+      this.abortController.abort();
+      this.abortController = new AbortController();
+      this.chainId = providerConfig.chainId;
+      if (this.state.preventPollingOnNetworkRestart) {
+        this.clearingTokenListData();
+      } else {
+        // Ensure tokenList is referencing data from correct network
+        this.update(() => {
+          return {
+            ...this.state,
+            tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
+          };
+        });
+        await this.restart();
       }
-    });
+    }
   }
 
   /**
