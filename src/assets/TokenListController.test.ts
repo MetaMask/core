@@ -631,6 +631,43 @@ describe('TokenListController', () => {
     );
   });
 
+  it('should update tokenList state when network updates are passed via onNetworkStateChange callback', async () => {
+    nock(TOKEN_END_POINT_API)
+      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .reply(200, sampleMainnetTokenList)
+      .persist();
+
+    const controllerMessenger = getControllerMessenger();
+    const { network } = setupNetworkController(controllerMessenger);
+    const messenger = getRestrictedMessenger(controllerMessenger);
+
+    const controller = new TokenListController({
+      chainId: NetworksChainId.mainnet,
+      onNetworkStateChange: (callback) =>
+        controllerMessenger.subscribe(
+          'NetworkController:providerChange',
+          callback,
+        ),
+      preventPollingOnNetworkRestart: false,
+      interval: 100,
+      messenger,
+    });
+    controller.start();
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
+    // expect(controller.state.tokenList).toStrictEqual(sampleMainnetTokenList)
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleSingleChainState.tokenList,
+    );
+    network.setProviderType('goerli');
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
+
+    expect(controller.state.tokenList).toStrictEqual({});
+    controller.destroy();
+    controllerMessenger.clearEventSubscriptions(
+      'NetworkController:providerChange',
+    );
+  });
+
   it('should poll and update rate in the right interval', async () => {
     const tokenListMock = sinon.stub(
       TokenListController.prototype,

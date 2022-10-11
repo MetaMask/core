@@ -117,7 +117,7 @@ export class TokenListController extends BaseController<
     chainId: string;
     preventPollingOnNetworkRestart?: boolean;
     onNetworkStateChange?: (
-      listener: (networkState: NetworkState) => void,
+      listener: (networkState: NetworkState | ProviderConfig) => void,
     ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
@@ -136,8 +136,23 @@ export class TokenListController extends BaseController<
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.abortController = new AbortController();
     if (onNetworkStateChange) {
-      onNetworkStateChange(async ({ provider }) => {
-        await this.#onNetworkStateChangeCallback(provider);
+      onNetworkStateChange(async (networkStateOrProviderConfig) => {
+        // for testing purposes, since in the extension this callback will receive an object typed as NetworkState
+        // but within repo we can only simulate as if the callback receives an object typed as ProviderConfig
+        if ('provider' in networkStateOrProviderConfig) {
+          console.log(
+            'networkStateOrProviderConfig',
+            networkStateOrProviderConfig,
+          );
+
+          await this.#onNetworkStateChangeCallback(
+            networkStateOrProviderConfig.provider,
+          );
+        } else {
+          await this.#onNetworkStateChangeCallback(
+            networkStateOrProviderConfig,
+          );
+        }
       });
     } else {
       this.messagingSystem.subscribe(
