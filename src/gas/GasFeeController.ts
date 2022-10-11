@@ -253,8 +253,6 @@ export class GasFeeController extends BaseController<
 
   private getCurrentAccountEIP1559Compatibility;
 
-  private getChainId;
-
   private currentChainId;
 
   private ethQuery: any;
@@ -331,12 +329,11 @@ export class GasFeeController extends BaseController<
     this.EIP1559APIEndpoint = EIP1559APIEndpoint;
     this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.clientId = clientId;
-    this.getChainId = getChainId;
-    if (onNetworkStateChange) {
-      this.currentChainId = this.getChainId();
+    if (onNetworkStateChange && getChainId && getProvider) {
+      this.currentChainId = getChainId();
       onNetworkStateChange(async () => {
         const newProvider = getProvider();
-        const newChainId = this.getChainId();
+        const newChainId = getChainId();
         this.ethQuery = new EthQuery(newProvider);
         if (this.currentChainId !== newChainId) {
           this.currentChainId = newChainId;
