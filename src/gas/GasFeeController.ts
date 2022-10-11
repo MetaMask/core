@@ -305,8 +305,8 @@ export class GasFeeController extends BaseController<
     getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
     getCurrentNetworkLegacyGasAPICompatibility: () => boolean;
     getCurrentAccountEIP1559Compatibility?: () => boolean;
-    getChainId: () => `0x${string}` | `${number}` | number;
-    getProvider: () => NetworkController['provider'];
+    getChainId?: () => `0x${string}` | `${number}` | number;
+    getProvider?: () => NetworkController['provider'];
     onNetworkStateChange?: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
     EIP1559APIEndpoint?: string;
