@@ -152,14 +152,14 @@ gen_enforced_field(WorkspaceCwd, 'license', 'MIT') :-
 gen_enforced_field(WorkspaceCwd, 'license', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
-% "main" must be "dist/index.js" for workspace workspaces and unset for the
+% "main" must be "dist/index.js" for workspace packages and unset for the
 % root.
 gen_enforced_field(WorkspaceCwd, 'main', './dist/index.js') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 gen_enforced_field(WorkspaceCwd, 'main', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
-% "types" must be "dist/index.d.ts" for workspace workspaces and unset for the
+% "types" must be "dist/index.d.ts" for workspace packages and unset for the
 % root.
 gen_enforced_field(WorkspaceCwd, 'types', './dist/index.d.ts') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
