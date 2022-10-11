@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Prevent parallel phishing configuration updates ([#930](https://github.com/MetaMask/controllers/pull/930))
 - Fix issues with empty responses in ERC20Standard ([#927](https://github.com/MetaMask/controllers/pull/927))
+  - Calling `getTokenSymbol` and `getTokenDecimals` on contracts that return empty values (`0x`) for `symbol()` and `decimals()` will now throw an error.
 
 ## [31.2.0]
 ### Changed
