@@ -32,7 +32,7 @@ export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 export const ASSET_TYPES = {
   NATIVE: 'NATIVE',
   TOKEN: 'TOKEN',
-  COLLECTIBLE: 'COLLECTIBLE',
+  NFT: 'NFT',
   UNKNOWN: 'UNKNOWN',
 };
 

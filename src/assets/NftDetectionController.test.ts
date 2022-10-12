@@ -7,18 +7,18 @@ import {
 import { PreferencesController } from '../user/PreferencesController';
 import { OPENSEA_PROXY_URL } from '../constants';
 import { ControllerMessenger } from '../ControllerMessenger';
-import { CollectiblesController } from './CollectiblesController';
+import { NftController } from './NftController';
 import { AssetsContractController } from './AssetsContractController';
-import { CollectibleDetectionController } from './CollectibleDetectionController';
+import { NftDetectionController } from './NftDetectionController';
 
 const DEFAULT_INTERVAL = 180000;
 const MAINNET = 'mainnet';
 const ROPSTEN = 'ropsten';
 
-describe('CollectibleDetectionController', () => {
-  let collectibleDetection: CollectibleDetectionController;
+describe('NftDetectionController', () => {
+  let nftDetection: NftDetectionController;
   let preferences: PreferencesController;
-  let collectiblesController: CollectiblesController;
+  let nftController: NftController;
   let assetsContract: AssetsContractController;
   let messenger: NetworkControllerMessenger;
 
@@ -49,7 +49,7 @@ describe('CollectibleDetectionController', () => {
         messenger.subscribe('NetworkController:stateChange', listener),
     });
 
-    collectiblesController = new CollectiblesController({
+    nftController = new NftController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
@@ -63,25 +63,22 @@ describe('CollectibleDetectionController', () => {
         assetsContract.getERC1155BalanceOf.bind(assetsContract),
       getERC1155TokenURI:
         assetsContract.getERC1155TokenURI.bind(assetsContract),
-      onCollectibleAdded: jest.fn(),
+      onNftAdded: jest.fn(),
     });
 
-    collectibleDetection = new CollectibleDetectionController({
-      onCollectiblesStateChange: (listener) =>
-        collectiblesController.subscribe(listener),
+    nftDetection = new NftDetectionController({
+      onNftsStateChange: (listener) => nftController.subscribe(listener),
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', listener),
       getOpenSeaApiKey: getOpenSeaApiKeyStub,
-      addCollectible: collectiblesController.addCollectible.bind(
-        collectiblesController,
-      ),
-      getCollectiblesState: () => collectiblesController.state,
+      addNft: nftController.addNft.bind(nftController),
+      getNftState: () => nftController.state,
     });
 
-    collectiblesController.configure({ chainId: '1', selectedAddress: '0x1' });
+    nftController.configure({ chainId: '1', selectedAddress: '0x1' });
     preferences.setOpenSeaEnabled(true);
-    preferences.setUseCollectibleDetection(true);
+    preferences.setUseNftDetection(true);
 
     nock(OPENSEA_PROXY_URL)
       .get(`/assets?owner=0x2&offset=0&limit=50`)
@@ -219,8 +216,8 @@ describe('CollectibleDetectionController', () => {
   });
 
   it('should set default config', () => {
-    preferences.setUseCollectibleDetection(false);
-    expect(collectibleDetection.config).toStrictEqual({
+    preferences.setUseNftDetection(false);
+    expect(nftDetection.config).toStrictEqual({
       interval: DEFAULT_INTERVAL,
       networkType: 'mainnet',
       chainId: '1',
@@ -229,92 +226,84 @@ describe('CollectibleDetectionController', () => {
     });
   });
 
-  it('should poll and detect collectibles on interval while on mainnet', async () => {
+  it('should poll and detect NFTs on interval while on mainnet', async () => {
     await new Promise((resolve) => {
-      const mockCollectibles = sinon.stub(
-        CollectibleDetectionController.prototype,
-        'detectCollectibles',
+      const mockNfts = sinon.stub(
+        NftDetectionController.prototype,
+        'detectNfts',
       );
-      const collectiblesDetectionController =
-        new CollectibleDetectionController(
-          {
-            onCollectiblesStateChange: (listener) =>
-              collectiblesController.subscribe(listener),
-            onPreferencesStateChange: (listener) =>
-              preferences.subscribe(listener),
-            onNetworkStateChange: (listener) =>
-              messenger.subscribe('NetworkController:stateChange', listener),
-            getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
-            addCollectible: collectiblesController.addCollectible.bind(
-              collectiblesController,
-            ),
-            getCollectiblesState: () => collectiblesController.state,
-          },
-          { interval: 10 },
-        );
-      collectiblesDetectionController.configure({ disabled: false });
-      collectiblesDetectionController.start();
-      expect(mockCollectibles.calledOnce).toBe(true);
+      const nftsDetectionController = new NftDetectionController(
+        {
+          onNftsStateChange: (listener) => nftController.subscribe(listener),
+          onPreferencesStateChange: (listener) =>
+            preferences.subscribe(listener),
+          onNetworkStateChange: (listener) =>
+            messenger.subscribe('NetworkController:stateChange', listener),
+          getOpenSeaApiKey: () => nftController.openSeaApiKey,
+          addNft: nftController.addNft.bind(nftController),
+          getNftState: () => nftController.state,
+        },
+        { interval: 10 },
+      );
+      nftsDetectionController.configure({ disabled: false });
+      nftsDetectionController.start();
+      expect(mockNfts.calledOnce).toBe(true);
       setTimeout(() => {
-        expect(mockCollectibles.calledTwice).toBe(true);
+        expect(mockNfts.calledTwice).toBe(true);
         resolve('');
       }, 15);
     });
   });
 
   it('should detect mainnet correctly', () => {
-    collectibleDetection.configure({ networkType: MAINNET });
-    expect(collectibleDetection.isMainnet()).toStrictEqual(true);
-    collectibleDetection.configure({ networkType: ROPSTEN });
-    expect(collectibleDetection.isMainnet()).toStrictEqual(false);
+    nftDetection.configure({ networkType: MAINNET });
+    expect(nftDetection.isMainnet()).toStrictEqual(true);
+    nftDetection.configure({ networkType: ROPSTEN });
+    expect(nftDetection.isMainnet()).toStrictEqual(false);
   });
 
   it('should not autodetect while not on mainnet', async () => {
     await new Promise((resolve) => {
-      const mockCollectibles = sinon.stub(
-        CollectibleDetectionController.prototype,
-        'detectCollectibles',
+      const mockNfts = sinon.stub(
+        NftDetectionController.prototype,
+        'detectNfts',
       );
-      new CollectibleDetectionController(
+      new NftDetectionController(
         {
-          onCollectiblesStateChange: (listener) =>
-            collectiblesController.subscribe(listener),
+          onNftsStateChange: (listener) => nftController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
             preferences.subscribe(listener),
           onNetworkStateChange: (listener) =>
             messenger.subscribe('NetworkController:stateChange', listener),
-          getOpenSeaApiKey: () => collectiblesController.openSeaApiKey,
-          addCollectible: collectiblesController.addCollectible.bind(
-            collectiblesController,
-          ),
-          getCollectiblesState: () => collectiblesController.state,
+          getOpenSeaApiKey: () => nftController.openSeaApiKey,
+          addNft: nftController.addNft.bind(nftController),
+          getNftState: () => nftController.state,
         },
         { interval: 10, networkType: ROPSTEN },
       );
-      expect(mockCollectibles.called).toBe(false);
+      expect(mockNfts.called).toBe(false);
       resolve('');
     });
   });
 
-  it('should detect and add collectibles correctly', async () => {
+  it('should detect and add NFTs correctly', async () => {
     const selectedAddress = '0x1';
 
-    collectibleDetection.configure({
+    nftDetection.configure({
       networkType: MAINNET,
       selectedAddress,
     });
 
-    collectiblesController.configure({
+    nftController.configure({
       networkType: MAINNET,
       selectedAddress,
     });
-    const { chainId } = collectibleDetection.config;
+    const { chainId } = nftDetection.config;
 
-    await collectibleDetection.detectCollectibles();
+    await nftDetection.detectNfts();
 
-    const collectibles =
-      collectiblesController.state.allCollectibles[selectedAddress][chainId];
-    expect(collectibles).toStrictEqual([
+    const nfts = nftController.state.allNfts[selectedAddress][chainId];
+    expect(nfts).toStrictEqual([
       {
         address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
         description: 'Description 2574',
@@ -328,17 +317,17 @@ describe('CollectibleDetectionController', () => {
     ]);
   });
 
-  it('should detect, add collectibles and do nor remove not detected collectibles correctly', async () => {
+  it('should detect, add NFTs and do nor remove not detected NFTs correctly', async () => {
     const selectedAddress = '0x1';
-    collectibleDetection.configure({
+    nftDetection.configure({
       networkType: MAINNET,
       selectedAddress,
     });
-    collectiblesController.configure({ selectedAddress });
+    nftController.configure({ selectedAddress });
 
-    const { chainId } = collectibleDetection.config;
+    const { chainId } = nftDetection.config;
 
-    await collectiblesController.addCollectible(
+    await nftController.addNft(
       '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       '2573',
       {
@@ -349,12 +338,11 @@ describe('CollectibleDetectionController', () => {
       },
     );
 
-    await collectibleDetection.detectCollectibles();
+    await nftDetection.detectNfts();
 
-    const collectibles =
-      collectiblesController.state.allCollectibles[selectedAddress][chainId];
+    const nfts = nftController.state.allNfts[selectedAddress][chainId];
 
-    expect(collectibles).toStrictEqual([
+    expect(nfts).toStrictEqual([
       {
         address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
         description: 'Description 2573',
@@ -378,96 +366,96 @@ describe('CollectibleDetectionController', () => {
     ]);
   });
 
-  it('should not autodetect collectibles that exist in the ignoreList', async () => {
+  it('should not autodetect NFTs that exist in the ignoreList', async () => {
     const selectedAddress = '0x2';
-    collectibleDetection.configure({
+    nftDetection.configure({
       networkType: MAINNET,
       selectedAddress: '0x2',
     });
-    collectiblesController.configure({ selectedAddress });
+    nftController.configure({ selectedAddress });
 
-    const { chainId } = collectibleDetection.config;
+    const { chainId } = nftDetection.config;
 
-    await collectibleDetection.detectCollectibles();
-    expect(
-      collectiblesController.state.allCollectibles[selectedAddress][chainId],
-    ).toHaveLength(1);
-    expect(collectiblesController.state.ignoredCollectibles).toHaveLength(0);
-    collectiblesController.removeAndIgnoreCollectible(
+    await nftDetection.detectNfts();
+    expect(nftController.state.allNfts[selectedAddress][chainId]).toHaveLength(
+      1,
+    );
+    expect(nftController.state.ignoredNfts).toHaveLength(0);
+    nftController.removeAndIgnoreNft(
       '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
       '2577',
     );
 
-    expect(collectiblesController.state.ignoredCollectibles).toHaveLength(1);
-    await collectibleDetection.detectCollectibles();
-    expect(
-      collectiblesController.state.allCollectibles[selectedAddress][chainId],
-    ).toHaveLength(0);
+    expect(nftController.state.ignoredNfts).toHaveLength(1);
+    await nftDetection.detectNfts();
+    expect(nftController.state.allNfts[selectedAddress][chainId]).toHaveLength(
+      0,
+    );
   });
 
-  it('should not detect and add collectibles if there is no selectedAddress', async () => {
+  it('should not detect and add NFTs if there is no selectedAddress', async () => {
     const selectedAddress = '';
-    collectibleDetection.configure({
+    nftDetection.configure({
       networkType: MAINNET,
       selectedAddress,
     });
-    const { chainId } = collectibleDetection.config;
-    await collectibleDetection.detectCollectibles();
-    const { allCollectibles } = collectiblesController.state;
-    expect(allCollectibles[selectedAddress]?.[chainId]).toBeUndefined();
+    const { chainId } = nftDetection.config;
+    await nftDetection.detectNfts();
+    const { allNfts } = nftController.state;
+    expect(allNfts[selectedAddress]?.[chainId]).toBeUndefined();
   });
 
-  it('should not detect and add collectibles to the wrong selectedAddress', async () => {
-    collectibleDetection.configure({
+  it('should not detect and add NFTs to the wrong selectedAddress', async () => {
+    nftDetection.configure({
       networkType: MAINNET,
       selectedAddress: '0x9',
     });
-    const { chainId } = collectibleDetection.config;
+    const { chainId } = nftDetection.config;
 
-    collectiblesController.configure({ selectedAddress: '0x9' });
-    collectibleDetection.detectCollectibles();
-    collectibleDetection.configure({ selectedAddress: '0x12' });
-    collectiblesController.configure({ selectedAddress: '0x12' });
+    nftController.configure({ selectedAddress: '0x9' });
+    nftDetection.detectNfts();
+    nftDetection.configure({ selectedAddress: '0x12' });
+    nftController.configure({ selectedAddress: '0x12' });
     await new Promise((res) => setTimeout(() => res(true), 1000));
-    expect(collectibleDetection.config.selectedAddress).toStrictEqual('0x12');
+    expect(nftDetection.config.selectedAddress).toStrictEqual('0x12');
 
     expect(
-      collectiblesController.state.allCollectibles[
-        collectibleDetection.config.selectedAddress
-      ]?.[chainId],
+      nftController.state.allNfts[nftDetection.config.selectedAddress]?.[
+        chainId
+      ],
     ).toBeUndefined();
   });
 
-  it('should not detect and add collectibles if preferences controller useCollectibleDetection is set to false', async () => {
-    preferences.setUseCollectibleDetection(false);
+  it('should not detect and add NFTs if preferences controller useNftDetection is set to false', async () => {
+    preferences.setUseNftDetection(false);
     const selectedAddress = '0x9';
-    collectibleDetection.configure({
+    nftDetection.configure({
       networkType: MAINNET,
       selectedAddress,
     });
-    const { chainId } = collectiblesController.config;
-    collectibleDetection.detectCollectibles();
+    const { chainId } = nftController.config;
+    nftDetection.detectNfts();
     expect(
-      collectiblesController.state.allCollectibles[selectedAddress]?.[chainId],
+      nftController.state.allNfts[selectedAddress]?.[chainId],
     ).toBeUndefined();
   });
 
-  it('should not detect and add collectibles if preferences controller openSeaEnabled is set to false', async () => {
+  it('should not detect and add NFTs if preferences controller openSeaEnabled is set to false', async () => {
     preferences.setOpenSeaEnabled(false);
     const selectedAddress = '0x9';
-    collectibleDetection.configure({
+    nftDetection.configure({
       networkType: MAINNET,
       selectedAddress,
     });
-    const { chainId } = collectiblesController.config;
-    collectibleDetection.detectCollectibles();
+    const { chainId } = nftController.config;
+    nftDetection.detectNfts();
     expect(
-      collectiblesController.state.allCollectibles[selectedAddress]?.[chainId],
+      nftController.state.allNfts[selectedAddress]?.[chainId],
     ).toBeUndefined();
   });
 
-  it('should not add collectible if collectible or collectible contract has no information to display', async () => {
-    const collectibleHH2574 = {
+  it('should not add NFT if NFT or NFT contract has no information to display', async () => {
+    const nftHH2574 = {
       address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       description: 'Description 2574',
       image: 'image/2574.png',
@@ -477,7 +465,7 @@ describe('CollectibleDetectionController', () => {
       favorite: false,
       isCurrentlyOwned: true,
     };
-    const collectibleGG2574 = {
+    const nftGG2574 = {
       address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
       description: 'Description 2574',
       image: 'image/2574.png',
@@ -487,7 +475,7 @@ describe('CollectibleDetectionController', () => {
       favorite: false,
       isCurrentlyOwned: true,
     };
-    const collectibleII2577 = {
+    const nftII2577 = {
       address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
       description: 'Description 2577',
       image: 'image/2577.png',
@@ -497,7 +485,7 @@ describe('CollectibleDetectionController', () => {
       favorite: false,
       isCurrentlyOwned: true,
     };
-    const collectibleContractHH = {
+    const nftContractHH = {
       address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
       description: 'Description HH',
       logo: 'url HH',
@@ -505,7 +493,7 @@ describe('CollectibleDetectionController', () => {
       symbol: 'HH',
       totalSupply: 10,
     };
-    const collectibleContractGG = {
+    const nftContractGG = {
       address: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
       description: 'Description GG',
       logo: 'url GG',
@@ -513,7 +501,7 @@ describe('CollectibleDetectionController', () => {
       symbol: 'GG',
       totalSupply: 10,
     };
-    const collectibleContractII = {
+    const nftContractII = {
       address: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
       description: 'Description II',
       logo: 'url II',
@@ -523,28 +511,26 @@ describe('CollectibleDetectionController', () => {
     };
 
     const selectedAddress = '0x1';
-    collectibleDetection.configure({
+    nftDetection.configure({
       selectedAddress,
       networkType: MAINNET,
     });
 
-    collectiblesController.configure({
+    nftController.configure({
       selectedAddress,
       networkType: MAINNET,
     });
 
-    const { chainId } = collectibleDetection.config;
-    await collectibleDetection.detectCollectibles();
+    const { chainId } = nftDetection.config;
+    await nftDetection.detectNfts();
     // First fetch to API, only gets information from contract ending in HH
-    expect(
-      collectiblesController.state.allCollectibles[selectedAddress][chainId],
-    ).toStrictEqual([collectibleHH2574]);
+    expect(nftController.state.allNfts[selectedAddress][chainId]).toStrictEqual(
+      [nftHH2574],
+    );
 
     expect(
-      collectiblesController.state.allCollectibleContracts[selectedAddress][
-        chainId
-      ],
-    ).toStrictEqual([collectibleContractHH]);
+      nftController.state.allNftContracts[selectedAddress][chainId],
+    ).toStrictEqual([nftContractHH]);
     // During next call of assets detection, API succeds returning contract ending in gg information
 
     nock(OPENSEA_PROXY_URL)
@@ -620,28 +606,22 @@ describe('CollectibleDetectionController', () => {
         assets: [],
       });
 
-    // Now user should have respective collectibles
-    await collectibleDetection.detectCollectibles();
+    // Now user should have respective NFTs
+    await nftDetection.detectNfts();
     expect(
-      collectiblesController.state.allCollectibleContracts[selectedAddress][
-        chainId
-      ],
-    ).toStrictEqual([
-      collectibleContractHH,
-      collectibleContractII,
-      collectibleContractGG,
-    ]);
+      nftController.state.allNftContracts[selectedAddress][chainId],
+    ).toStrictEqual([nftContractHH, nftContractII, nftContractGG]);
 
-    expect(
-      collectiblesController.state.allCollectibles[selectedAddress][chainId],
-    ).toStrictEqual([collectibleHH2574, collectibleII2577, collectibleGG2574]);
+    expect(nftController.state.allNfts[selectedAddress][chainId]).toStrictEqual(
+      [nftHH2574, nftII2577, nftGG2574],
+    );
   });
 
   it('should fallback to use OpenSea API directly when the OpenSea proxy server is down or responds with a failure', async () => {
     const selectedAddress = '0x3';
 
     getOpenSeaApiKeyStub.mockImplementation(() => 'FAKE API KEY');
-    collectiblesController.setApiKey('FAKE API KEY');
+    nftController.setApiKey('FAKE API KEY');
 
     nock('https://proxy.metaswap.codefi.network:443', {
       encodedQueryParams: true,
@@ -700,23 +680,22 @@ describe('CollectibleDetectionController', () => {
         },
       });
 
-    collectibleDetection.configure({
+    nftDetection.configure({
       networkType: MAINNET,
       selectedAddress,
     });
 
-    collectiblesController.configure({
+    nftController.configure({
       networkType: MAINNET,
       selectedAddress,
     });
 
-    const { chainId } = collectibleDetection.config;
+    const { chainId } = nftDetection.config;
 
-    await collectibleDetection.detectCollectibles();
+    await nftDetection.detectNfts();
 
-    const collectibles =
-      collectiblesController.state.allCollectibles[selectedAddress][chainId];
-    expect(collectibles).toStrictEqual([
+    const nfts = nftController.state.allNfts[selectedAddress][chainId];
+    expect(nfts).toStrictEqual([
       {
         address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
         description: 'DESCRIPTION: DIRECT FROM OPENSEA',
@@ -739,18 +718,18 @@ describe('CollectibleDetectionController', () => {
       .query({ owner: selectedAddress, offset: '0', limit: '50' })
       .replyWithError(new Error('UNEXPECTED ERROR'));
 
-    collectibleDetection.configure({
+    nftDetection.configure({
       networkType: MAINNET,
       selectedAddress,
     });
 
-    collectiblesController.configure({
+    nftController.configure({
       networkType: MAINNET,
       selectedAddress,
     });
 
-    await expect(() =>
-      collectibleDetection.detectCollectibles(),
-    ).rejects.toThrow('UNEXPECTED ERROR');
+    await expect(() => nftDetection.detectNfts()).rejects.toThrow(
+      'UNEXPECTED ERROR',
+    );
   });
 });
