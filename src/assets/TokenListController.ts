@@ -5,7 +5,11 @@ import { BaseController } from '../BaseControllerV2';
 import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 import { safelyExecute, isTokenListSupportedForNetwork } from '../util';
 import { fetchTokenList } from '../apis/token-service';
-import { NetworkControllerProviderChangeEvent } from '../network/NetworkController';
+import {
+  NetworkControllerProviderChangeEvent,
+  NetworkState,
+  ProviderConfig,
+} from '../network/NetworkController';
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
 
 const DEFAULT_INTERVAL = 24 * 60 * 60 * 1000;
@@ -94,6 +98,7 @@ export class TokenListController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
+   * @param options.onNetworkStateChange - A function for registering an event handler for network state changes.
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
    * @param options.messenger - A restricted controller messenger.
@@ -103,6 +108,7 @@ export class TokenListController extends BaseController<
   constructor({
     chainId,
     preventPollingOnNetworkRestart = false,
+    onNetworkStateChange,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
     messenger,
@@ -110,6 +116,9 @@ export class TokenListController extends BaseController<
   }: {
     chainId: string;
     preventPollingOnNetworkRestart?: boolean;
+    onNetworkStateChange?: (
+      listener: (networkState: NetworkState | ProviderConfig) => void,
+    ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
     messenger: TokenListMessenger;
@@ -126,29 +135,54 @@ export class TokenListController extends BaseController<
     this.chainId = chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.abortController = new AbortController();
-    this.messagingSystem.subscribe(
-      'NetworkController:providerChange',
-      async (providerConfig) => {
-        if (this.chainId !== providerConfig.chainId) {
-          this.abortController.abort();
-          this.abortController = new AbortController();
-          this.chainId = providerConfig.chainId;
-          if (this.state.preventPollingOnNetworkRestart) {
-            this.clearingTokenListData();
-          } else {
-            // Ensure tokenList is referencing data from correct network
-            this.update(() => {
-              return {
-                ...this.state,
-                tokenList:
-                  this.state.tokensChainsCache[this.chainId]?.data || {},
-              };
-            });
-            await this.restart();
-          }
+    if (onNetworkStateChange) {
+      onNetworkStateChange(async (networkStateOrProviderConfig) => {
+        // this check for "provider" is for testing purposes, since in the extension this callback will receive
+        // an object typed as NetworkState but within repo we can only simulate as if the callback receives an
+        // object typed as ProviderConfig
+        if ('provider' in networkStateOrProviderConfig) {
+          await this.#onNetworkStateChangeCallback(
+            networkStateOrProviderConfig.provider,
+          );
+        } else {
+          await this.#onNetworkStateChangeCallback(
+            networkStateOrProviderConfig,
+          );
         }
-      },
-    );
+      });
+    } else {
+      this.messagingSystem.subscribe(
+        'NetworkController:providerChange',
+        async (providerConfig) => {
+          await this.#onNetworkStateChangeCallback(providerConfig);
+        },
+      );
+    }
+  }
+
+  /**
+   * Updates state and restart polling when updates are received through NetworkController subscription.
+   *
+   * @param providerConfig - the configuration for a provider containing critical network info.
+   */
+  async #onNetworkStateChangeCallback(providerConfig: ProviderConfig) {
+    if (this.chainId !== providerConfig.chainId) {
+      this.abortController.abort();
+      this.abortController = new AbortController();
+      this.chainId = providerConfig.chainId;
+      if (this.state.preventPollingOnNetworkRestart) {
+        this.clearingTokenListData();
+      } else {
+        // Ensure tokenList is referencing data from correct network
+        this.update(() => {
+          return {
+            ...this.state,
+            tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
+          };
+        });
+        await this.restart();
+      }
+    }
   }
 
   /**
