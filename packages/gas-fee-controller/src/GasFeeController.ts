@@ -1,4 +1,5 @@
 import type { Patch } from 'immer';
+import EthQuery from 'eth-query';
 import { v1 as random } from 'uuid';
 import { isHexString } from 'ethereumjs-util';
 import {
@@ -10,6 +11,8 @@ import type {
   NetworkControllerGetEthQueryAction,
   NetworkControllerGetProviderConfigAction,
   NetworkControllerProviderChangeEvent,
+  NetworkController,
+  NetworkState,
 } from '@metamask/network-controller';
 import {
   fetchGasEstimates,
@@ -270,6 +273,10 @@ export class GasFeeController extends BaseControllerV2<
    * current network is compatible with the legacy gas price API.
    * @param options.getCurrentAccountEIP1559Compatibility - Determines whether or not the current
    * account is EIP-1559 compatible.
+   * @param options.getChainId - Returns the current chain ID.
+   * @param options.getProvider - Returns a network provider for the current network.
+   * @param options.onNetworkStateChange - A function for registering an event handler for the
+   * network state change event.
    * @param options.legacyAPIEndpoint - The legacy gas price API URL. This option is primarily for
    * testing purposes.
    * @param options.EIP1559APIEndpoint - The EIP-1559 gas price API URL. This option is primarily
@@ -283,7 +290,10 @@ export class GasFeeController extends BaseControllerV2<
     state,
     getCurrentNetworkEIP1559Compatibility,
     getCurrentAccountEIP1559Compatibility,
+    getChainId,
     getCurrentNetworkLegacyGasAPICompatibility,
+    getProvider,
+    onNetworkStateChange,
     legacyAPIEndpoint = LEGACY_GAS_PRICES_API_URL,
     EIP1559APIEndpoint = GAS_FEE_API,
     clientId,
@@ -294,6 +304,9 @@ export class GasFeeController extends BaseControllerV2<
     getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
     getCurrentNetworkLegacyGasAPICompatibility: () => boolean;
     getCurrentAccountEIP1559Compatibility?: () => boolean;
+    getChainId?: () => `0x${string}` | `${number}` | number;
+    getProvider?: () => NetworkController['provider'];
+    onNetworkStateChange?: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
     EIP1559APIEndpoint?: string;
     clientId?: string;
@@ -316,25 +329,41 @@ export class GasFeeController extends BaseControllerV2<
       getCurrentAccountEIP1559Compatibility;
     this.EIP1559APIEndpoint = EIP1559APIEndpoint;
     this.legacyAPIEndpoint = legacyAPIEndpoint;
-    const providerConfig = this.messagingSystem.call(
-      'NetworkController:getProviderConfig',
-    );
-    this.currentChainId = providerConfig.chainId;
-    this.ethQuery = this.messagingSystem.call('NetworkController:getEthQuery');
     this.clientId = clientId;
-    this.messagingSystem.subscribe(
-      'NetworkController:providerChange',
-      async (provider) => {
-        this.ethQuery = this.messagingSystem.call(
-          'NetworkController:getEthQuery',
-        );
-
-        if (this.currentChainId !== provider.chainId) {
-          this.currentChainId = provider.chainId;
+    if (onNetworkStateChange && getChainId && getProvider) {
+      this.currentChainId = getChainId();
+      onNetworkStateChange(async () => {
+        const newProvider = getProvider();
+        const newChainId = getChainId();
+        this.ethQuery = new EthQuery(newProvider);
+        if (this.currentChainId !== newChainId) {
+          this.currentChainId = newChainId;
           await this.resetPolling();
         }
-      },
-    );
+      });
+    } else {
+      const providerConfig = this.messagingSystem.call(
+        'NetworkController:getProviderConfig',
+      );
+      this.currentChainId = providerConfig.chainId;
+      this.ethQuery = this.messagingSystem.call(
+        'NetworkController:getEthQuery',
+      );
+
+      this.messagingSystem.subscribe(
+        'NetworkController:providerChange',
+        async (provider) => {
+          this.ethQuery = this.messagingSystem.call(
+            'NetworkController:getEthQuery',
+          );
+
+          if (this.currentChainId !== provider.chainId) {
+            this.currentChainId = provider.chainId;
+            await this.resetPolling();
+          }
+        },
+      );
+    }
   }
 
   async resetPolling() {

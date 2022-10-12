@@ -12,6 +12,8 @@ import {
   FeeMarketEIP1559Values,
 } from './TransactionController';
 
+export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
+
 const NORMALIZERS: { [param in keyof Transaction]: any } = {
   data: (data: string) => addHexPrefix(data),
   from: (from: string) => addHexPrefix(from).toLowerCase(),

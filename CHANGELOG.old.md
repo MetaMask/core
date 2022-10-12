@@ -6,6 +6,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.0.1]
+### Fixed
+- Make both callback and messaging system options for `TokenListController` & `GasFeeController` when listening to `NetworkController` ([#932](https://github.com/MetaMask/controllers/pull/932))
+- Add error handling when eth_estimateGas fails in TransactionController ([#920](https://github.com/MetaMask/controllers/pull/920))
+
+## [32.0.0]
+### Added
+- Add `isOutOfDate` to the PhishingController, for checking whether the phishing lists are out-of-date. ([#929](https://github.com/MetaMask/controllers/pull/929))
+
+### Changed
+- **BREAKING:** Make the PhishingController `test` synchronous ([#929](https://github.com/MetaMask/controllers/pull/929))
+  - Rather than being polled regularly (as it was pre-v31), or updated on fetch (as in v31), the phishing lists are no longer updated automatically at all. You will need to manually call `isOutOfDate` to check whether they are out-of-date, and then call `updatePhishingLists` to update them.
+- **BREAKING**: Migrate NetworkController to BaseControllerV2 ([#903](https://github.com/MetaMask/controllers/pull/903))
+  - There is no more "controller configuration" with BaseControllerV2. Instead configuration is set by constructor parameters.
+  - The constructor accepts a single "options" object rather than separate parameters. The initial state is now passed as part of this options object, via the `state` property.
+  - The constructor must be passed the `infuraProjectId` and `messenger` options. The messenger should be a restricted controller messenger.
+  - Controller subscriptions must be registered through the controller messenger, rather than through the controller directly.
+  - A `providerChange` event has been added. This is dispatched when the provider instance variable is updated.
+    - When there is a network switch, this is dispatched after the network has been fully initialized.
+  - A new `getEthQuery` action has been added, for obtaining an `EthQuery` instance that is already setup with the current provider
+    - Note that it will stop working when the provider changes, so you should call this again each time the `providerChange` event is dispatched.
+
+### Fixed
+- Prevent parallel phishing configuration updates ([#930](https://github.com/MetaMask/controllers/pull/930))
+- Fix issues with empty responses in ERC20Standard ([#927](https://github.com/MetaMask/controllers/pull/927))
+  - Calling `getTokenSymbol` and `getTokenDecimals` on contracts that return empty values (`0x`) for `symbol()` and `decimals()` will now throw an error.
+
 ## [31.2.0]
 ### Changed
 - Update phishing configuration update URL to reduce cache delay ([#915](https://github.com/MetaMask/controllers/pull/915))
@@ -675,7 +702,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v31.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v32.0.1...HEAD
+[32.0.1]: https://github.com/MetaMask/controllers/compare/v32.0.0...v32.0.1
+[32.0.0]: https://github.com/MetaMask/controllers/compare/v31.2.0...v32.0.0
 [31.2.0]: https://github.com/MetaMask/controllers/compare/v31.1.0...v31.2.0
 [31.1.0]: https://github.com/MetaMask/controllers/compare/v31.0.0...v31.1.0
 [31.0.0]: https://github.com/MetaMask/controllers/compare/v30.3.0...v31.0.0

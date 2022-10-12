@@ -36,6 +36,7 @@ import {
   isFeeMarketEIP1559Values,
   validateGasValues,
   validateMinimumIncrease,
+  ESTIMATE_GAS_ERROR,
 } from './utils';
 
 const HARDFORK = 'london';
@@ -87,6 +88,7 @@ export interface Transaction {
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
   estimatedBaseFee?: string;
+  estimateGasError?: string;
 }
 
 export interface GasPriceValue {
@@ -524,8 +526,9 @@ export class TransactionController extends BaseController<
     };
 
     try {
-      const { gas } = await this.estimateGas(transaction);
+      const { gas, estimateGasError } = await this.estimateGas(transaction);
       transaction.gas = gas;
+      transaction.estimateGasError = estimateGasError;
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
       return Promise.reject(error);
@@ -995,23 +998,33 @@ export class TransactionController extends BaseController<
       typeof value === 'undefined' ? '0x0' : /* istanbul ignore next */ value;
     const gasLimitBN = hexToBN(gasLimit);
     estimatedTransaction.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
-    const gasHex = await query(this.ethQuery, 'estimateGas', [
-      estimatedTransaction,
-    ]);
 
+    let gasHex;
+    let estimateGasError;
+    try {
+      gasHex = await query(this.ethQuery, 'estimateGas', [
+        estimatedTransaction,
+      ]);
+    } catch (error) {
+      estimateGasError = ESTIMATE_GAS_ERROR;
+    }
     // 4. Pad estimated gas without exceeding the most recent block gasLimit. If the network is a
     // a custom network then return the eth_estimateGas value.
-    const gasBN = hexToBN(gasHex);
+    const gasBN = gasHex === undefined ? hexToBN('0x0') : hexToBN(gasHex);
     const maxGasBN = gasLimitBN.muln(0.9);
-    const paddedGasBN = gasBN.muln(1.5);
+    const paddedGasBN = gasBN?.muln(1.5);
     /* istanbul ignore next */
     if (gasBN.gt(maxGasBN) || isCustomNetwork) {
-      return { gas: addHexPrefix(gasHex), gasPrice };
+      return { gas: addHexPrefix(gasHex), gasPrice, estimateGasError };
     }
 
     /* istanbul ignore next */
     if (paddedGasBN.lt(maxGasBN)) {
-      return { gas: addHexPrefix(BNToHex(paddedGasBN)), gasPrice };
+      return {
+        gas: addHexPrefix(BNToHex(paddedGasBN)),
+        gasPrice,
+        estimateGasError,
+      };
     }
     return { gas: addHexPrefix(BNToHex(maxGasBN)), gasPrice };
   }
