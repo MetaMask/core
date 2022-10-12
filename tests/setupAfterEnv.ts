@@ -1,15 +1,3 @@
-declare global {
-  // Using `namespace` here is okay because this is how the Jest types are
-  // defined.
-  /* eslint-disable-next-line @typescript-eslint/no-namespace */
-  namespace jest {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/ban-types
-    interface Matchers<R, T = {}> {
-      toNeverResolve(): Promise<R>;
-    }
-  }
-}
-
 const UNRESOLVED = Symbol('timedOut');
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
