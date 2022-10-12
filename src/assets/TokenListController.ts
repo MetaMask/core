@@ -137,14 +137,10 @@ export class TokenListController extends BaseController<
     this.abortController = new AbortController();
     if (onNetworkStateChange) {
       onNetworkStateChange(async (networkStateOrProviderConfig) => {
-        // for testing purposes, since in the extension this callback will receive an object typed as NetworkState
-        // but within repo we can only simulate as if the callback receives an object typed as ProviderConfig
+        // this check for "provider" is for testing purposes, since in the extension this callback will receive
+        // an object typed as NetworkState but within repo we can only simulate as if the callback receives an
+        // object typed as ProviderConfig
         if ('provider' in networkStateOrProviderConfig) {
-          console.log(
-            'networkStateOrProviderConfig',
-            networkStateOrProviderConfig,
-          );
-
           await this.#onNetworkStateChangeCallback(
             networkStateOrProviderConfig.provider,
           );
