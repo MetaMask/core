@@ -871,7 +871,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
   }) => void;
 
   /**
-   * Creates a NftController instance.
+   * Creates an NftController instance.
    *
    * @param options - The controller options.
    * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.

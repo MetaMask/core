@@ -194,7 +194,7 @@ export class NftDetectionController extends BaseController<
   private getNftState: () => NftState;
 
   /**
-   * Creates a NftDetectionController instance.
+   * Creates an NftDetectionController instance.
    *
    * @param options - The controller options.
    * @param options.onNftsStateChange - Allows subscribing to assets controller state changes.
