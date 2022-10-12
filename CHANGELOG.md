@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [32.0.1]
-### Uncategorized
+### Fixed
 - Make both callback and messaging system options for `TokenListController` & `GasFeeController` when listening to `NetworkController` ([#932](https://github.com/MetaMask/controllers/pull/932))
-- Handling the error when eth_estimateGas fails ([#920](https://github.com/MetaMask/controllers/pull/920))
+- Add error handling when eth_estimateGas fails in TransactionController ([#920](https://github.com/MetaMask/controllers/pull/920))
 
 ## [32.0.0]
 ### Added
