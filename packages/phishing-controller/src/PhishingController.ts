@@ -1,4 +1,3 @@
-import crossFetch from 'cross-fetch';
 import { toASCII } from 'punycode/';
 import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
 import PhishingDetector from 'eth-phishing-detect/src/detector';
@@ -285,7 +284,7 @@ export class PhishingController extends BaseController<
     input: RequestInfo,
   ): Promise<ResponseType | null> {
     const response = await safelyExecute(
-      () => crossFetch(input, { cache: 'no-cache' }),
+      () => fetch(input, { cache: 'no-cache' }),
       true,
     );
 

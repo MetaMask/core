@@ -1,4 +1,3 @@
-import crossFetch from 'cross-fetch';
 import {
   addHexPrefix,
   isValidAddress,
@@ -298,7 +297,7 @@ export function isSmartContractCode(code: string) {
  * @returns The fetch response.
  */
 export async function successfulFetch(request: string, options?: RequestInit) {
-  const response = await crossFetch(request, options);
+  const response = await fetch(request, options);
   if (!response.ok) {
     throw new Error(
       `Fetch failed with status '${response.status}' for request '${request}'`,

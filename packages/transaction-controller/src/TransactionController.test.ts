@@ -1,4 +1,3 @@
-import * as crossFetchModule from 'cross-fetch';
 import * as sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
@@ -17,14 +16,6 @@ import {
   txsInStateWithOutdatedGasDataMock,
   txsInStateWithOutdatedStatusAndGasDataMock,
 } from './mocks/txsMock';
-
-jest.mock('cross-fetch', () => {
-  return {
-    __esModule: true,
-    ...jest.requireActual('cross-fetch'),
-    default: jest.fn(),
-  };
-});
 
 jest.mock('uuid', () => {
   return {
@@ -109,9 +100,9 @@ jest.mock('eth-query', () =>
  */
 function mockFetchWithStaticResponse(data: any) {
   return jest
-    .spyOn(crossFetchModule, 'default')
+    .spyOn(global, 'fetch')
     .mockImplementation(() =>
-      Promise.resolve(new crossFetchModule.Response(JSON.stringify(data))),
+      Promise.resolve(new Response(JSON.stringify(data))),
     );
 }
 
@@ -124,13 +115,9 @@ function mockFetchWithStaticResponse(data: any) {
  */
 function mockFetchWithDynamicResponse(dataForUrl: any) {
   return jest
-    .spyOn(crossFetchModule, 'default')
+    .spyOn(global, 'fetch')
     .mockImplementation((key) =>
-      Promise.resolve(
-        new crossFetchModule.Response(
-          JSON.stringify(dataForUrl[key.toString()]),
-        ),
-      ),
+      Promise.resolve(new Response(JSON.stringify(dataForUrl[key.toString()]))),
     );
 }
 
