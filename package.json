@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controllers-monorepo",
-  "version": "32.0.1",
+  "version": "32.0.2",
   "private": true,
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "repository": {

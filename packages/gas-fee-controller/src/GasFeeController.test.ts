@@ -199,6 +199,7 @@ describe('GasFeeController', () => {
     legacyAPIEndpoint = 'http://legacy.endpoint/<chain_id>',
     EIP1559APIEndpoint = 'http://eip-1559.endpoint/<chain_id>',
     clientId,
+    getChainId,
   }: {
     getChainId?: jest.Mock<`0x${string}` | `${number}` | number>;
     getIsEIP1559Compatible?: jest.Mock<Promise<boolean>>;
@@ -211,6 +212,8 @@ describe('GasFeeController', () => {
     setupNetworkController(controllerMessenger);
     const messenger = getRestrictedMessenger(controllerMessenger);
     gasFeeController = new GasFeeController({
+      getProvider: jest.fn(),
+      getChainId,
       messenger,
       getCurrentNetworkLegacyGasAPICompatibility,
       getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkController.state.properties.isEIP1559Compatible ???
