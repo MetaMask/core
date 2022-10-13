@@ -329,8 +329,8 @@ export class GasFeeController extends BaseController<
     this.EIP1559APIEndpoint = EIP1559APIEndpoint;
     this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.clientId = clientId;
-    const initialProvider = getProvider();
     if (onNetworkStateChange && getChainId) {
+      const initialProvider = getProvider();
       this.ethQuery = new EthQuery(initialProvider);
       this.currentChainId = getChainId();
       onNetworkStateChange(async () => {
