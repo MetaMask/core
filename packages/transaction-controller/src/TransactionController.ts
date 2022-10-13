@@ -1012,7 +1012,7 @@ export class TransactionController extends BaseController<
     // a custom network then return the eth_estimateGas value.
     const gasBN = gasHex === undefined ? hexToBN('0x0') : hexToBN(gasHex);
     const maxGasBN = gasLimitBN.muln(0.9);
-    const paddedGasBN = gasBN?.muln(1.5);
+    const paddedGasBN = gasBN.muln(1.5);
     /* istanbul ignore next */
     if (gasBN.gt(maxGasBN) || isCustomNetwork) {
       return { gas: addHexPrefix(gasHex), gasPrice, estimateGasError };
