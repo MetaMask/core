@@ -62,10 +62,10 @@ export class ERC721Standard {
    *
    * @param address - ERC721 asset contract address.
    * @param selectedAddress - Current account public address.
-   * @param index - A collectible counter less than `balanceOf(selectedAddress)`.
+   * @param index - An NFT counter less than `balanceOf(selectedAddress)`.
    * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
    */
-  getCollectibleTokenId = async (
+  getNftTokenId = async (
     address: string,
     selectedAddress: string,
     index: number,
