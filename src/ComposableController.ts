@@ -19,7 +19,7 @@ export type ComposableControllerRestrictedMessenger =
   RestrictedControllerMessenger<'ComposableController', never, any, never, any>;
 
 /**
- * Controller that can be used to compose multiple controllers together
+ * Controller that can be used to compose multiple controllers together.
  */
 export class ComposableController extends BaseController<never, any> {
   private controllers: ControllerList = [];

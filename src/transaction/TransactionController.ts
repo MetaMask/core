@@ -254,7 +254,7 @@ export const CANCEL_RATE = 1.5;
 export const SPEED_UP_RATE = 1.1;
 
 /**
- * Controller responsible for submitting and managing transactions
+ * Controller responsible for submitting and managing transactions.
  */
 export class TransactionController extends BaseController<
   TransactionConfig,
