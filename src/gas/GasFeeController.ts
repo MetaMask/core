@@ -330,8 +330,8 @@ export class GasFeeController extends BaseController<
     this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.clientId = clientId;
     const initialProvider = getProvider();
-    this.ethQuery = new EthQuery(initialProvider);
     if (onNetworkStateChange && getChainId) {
+      this.ethQuery = new EthQuery(initialProvider);
       this.currentChainId = getChainId();
       onNetworkStateChange(async () => {
         const newProvider = getProvider();
