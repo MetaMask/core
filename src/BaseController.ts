@@ -24,7 +24,11 @@ export interface BaseState {
 }
 
 /**
- * Controller class that provides configuration, state management, and subscriptions
+ * Controller class that provides configuration, state management, and subscriptions.
+ *
+ * The core purpose of every controller is to maintain an internal data object
+ * called "state". Each controller is responsible for its own state, and all global wallet state
+ * is tracked in a controller as state.
  */
 export class BaseController<C extends BaseConfig, S extends BaseState> {
   /**
