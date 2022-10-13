@@ -304,7 +304,7 @@ export class GasFeeController extends BaseController<
     getCurrentNetworkLegacyGasAPICompatibility: () => boolean;
     getCurrentAccountEIP1559Compatibility?: () => boolean;
     getChainId?: () => `0x${string}` | `${number}` | number;
-    getProvider?: () => NetworkController['provider'];
+    getProvider: () => NetworkController['provider'];
     onNetworkStateChange?: (listener: (state: NetworkState) => void) => void;
     legacyAPIEndpoint?: string;
     EIP1559APIEndpoint?: string;
@@ -329,7 +329,9 @@ export class GasFeeController extends BaseController<
     this.EIP1559APIEndpoint = EIP1559APIEndpoint;
     this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.clientId = clientId;
-    if (onNetworkStateChange && getChainId && getProvider) {
+    if (onNetworkStateChange && getChainId) {
+      const initialProvider = getProvider();
+      this.ethQuery = new EthQuery(initialProvider);
       this.currentChainId = getChainId();
       onNetworkStateChange(async () => {
         const newProvider = getProvider();
