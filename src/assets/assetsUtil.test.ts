@@ -1,11 +1,11 @@
 import { NetworksChainId } from '../network/NetworkController';
 import * as assetsUtil from './assetsUtil';
-import { Collectible, CollectibleMetadata } from './CollectiblesController';
+import { Nft, NftMetadata } from './NftController';
 
 describe('assetsUtil', () => {
-  describe('compareCollectiblesMetadata', () => {
+  describe('compareNftMetadata', () => {
     it('should resolve true if any key is different', () => {
-      const collectibleMetadata: CollectibleMetadata = {
+      const nftMetadata: NftMetadata = {
         name: 'name',
         image: 'image',
         description: 'description',
@@ -18,7 +18,7 @@ describe('assetsUtil', () => {
         animationOriginal: 'animationOriginal',
         externalLink: 'externalLink-123',
       };
-      const collectible: Collectible = {
+      const nft: Nft = {
         address: 'address',
         tokenId: '123',
         name: 'name',
@@ -33,22 +33,19 @@ describe('assetsUtil', () => {
         animationOriginal: 'animationOriginal',
         externalLink: 'externalLink',
       };
-      const different = assetsUtil.compareCollectiblesMetadata(
-        collectibleMetadata,
-        collectible,
-      );
+      const different = assetsUtil.compareNftMetadata(nftMetadata, nft);
       expect(different).toStrictEqual(true);
     });
 
     it('should resolve true if any key is different as always as metadata is not undefined', () => {
-      const collectibleMetadata: CollectibleMetadata = {
+      const nftMetadata: NftMetadata = {
         name: 'name',
         image: 'image',
         description: 'description',
         standard: 'standard',
         externalLink: 'externalLink',
       };
-      const collectible: Collectible = {
+      const nft: Nft = {
         address: 'address',
         tokenId: '123',
         name: 'name',
@@ -58,15 +55,12 @@ describe('assetsUtil', () => {
         backgroundColor: 'backgroundColor',
         externalLink: 'externalLink',
       };
-      const different = assetsUtil.compareCollectiblesMetadata(
-        collectibleMetadata,
-        collectible,
-      );
+      const different = assetsUtil.compareNftMetadata(nftMetadata, nft);
       expect(different).toStrictEqual(false);
     });
 
     it('should resolve false if no key is different', () => {
-      const collectibleMetadata: CollectibleMetadata = {
+      const nftMetadata: NftMetadata = {
         name: 'name',
         image: 'image',
         description: 'description',
@@ -79,7 +73,7 @@ describe('assetsUtil', () => {
         animationOriginal: 'animationOriginal',
         externalLink: 'externalLink',
       };
-      const collectible: Collectible = {
+      const nft: Nft = {
         address: 'address',
         tokenId: '123',
         name: 'name',
@@ -94,10 +88,7 @@ describe('assetsUtil', () => {
         animationOriginal: 'animationOriginal',
         externalLink: 'externalLink',
       };
-      const different = assetsUtil.compareCollectiblesMetadata(
-        collectibleMetadata,
-        collectible,
-      );
+      const different = assetsUtil.compareNftMetadata(nftMetadata, nft);
       expect(different).toStrictEqual(false);
     });
 

@@ -1,20 +1,17 @@
 import { convertHexToDecimal } from '../util';
-import { Collectible, CollectibleMetadata } from './CollectiblesController';
+import { Nft, NftMetadata } from './NftController';
 
 /**
- * Compares collectible metadata entries to any collectible entry.
- * We need this method when comparing a new fetched collectible metadata, in case a entry changed to a defined value,
- * there's a need to update the collectible in state.
+ * Compares NFT metadata entries to any NFT entry.
+ * We need this method when comparing a new fetched NFT metadata, in case a entry changed to a defined value,
+ * there's a need to update the NFT in state.
  *
- * @param newCollectibleMetadata - Collectible metadata object.
- * @param collectible - Collectible object to compare with.
+ * @param newNftMetadata - NFT metadata object.
+ * @param nft - NFT object to compare with.
  * @returns Whether there are differences.
  */
-export function compareCollectiblesMetadata(
-  newCollectibleMetadata: CollectibleMetadata,
-  collectible: Collectible,
-) {
-  const keys: (keyof CollectibleMetadata)[] = [
+export function compareNftMetadata(newNftMetadata: NftMetadata, nft: Nft) {
+  const keys: (keyof NftMetadata)[] = [
     'image',
     'backgroundColor',
     'imagePreview',
@@ -25,10 +22,7 @@ export function compareCollectiblesMetadata(
     'externalLink',
   ];
   const differentValues = keys.reduce((value, key) => {
-    if (
-      newCollectibleMetadata[key] &&
-      newCollectibleMetadata[key] !== collectible[key]
-    ) {
+    if (newNftMetadata[key] && newNftMetadata[key] !== nft[key]) {
       return value + 1;
     }
     return value;
