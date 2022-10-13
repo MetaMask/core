@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  check-build-test:
+  lint-build-test:
     name: Lint, Build, and Test
     runs-on: ubuntu-20.04
     strategy:
