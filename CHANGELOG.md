@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.0.2]
+### Fixed
+- Fix issue introduced in v32.0.1 where EthQuery is not instantiated correctly on GasFeeController when constructed ([#936](https://github.com/MetaMask/controllers/pull/936))
+
 ## [32.0.1]
 ### Fixed
 - Make both callback and messaging system options for `TokenListController` & `GasFeeController` when listening to `NetworkController` ([#932](https://github.com/MetaMask/controllers/pull/932))
@@ -702,7 +706,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v32.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v32.0.2...HEAD
+[32.0.2]: https://github.com/MetaMask/controllers/compare/v32.0.1...v32.0.2
 [32.0.1]: https://github.com/MetaMask/controllers/compare/v32.0.0...v32.0.1
 [32.0.0]: https://github.com/MetaMask/controllers/compare/v31.2.0...v32.0.0
 [31.2.0]: https://github.com/MetaMask/controllers/compare/v31.1.0...v31.2.0
