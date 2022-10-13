@@ -7,9 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [32.0.2]
-### Uncategorized
-- fix issue where ethQuery is not instantiated correctly when GasFeeController is constructed ([#936](https://github.com/MetaMask/controllers/pull/936))
-- Fix occasional type errors when running tests ([#935](https://github.com/MetaMask/controllers/pull/935))
+### Fixed
+- Fix issue introduced in v32.0.1 where EthQuery is not instantiated correctly on GasFeeController when constructed ([#936](https://github.com/MetaMask/controllers/pull/936))
 
 ## [32.0.1]
 ### Fixed
