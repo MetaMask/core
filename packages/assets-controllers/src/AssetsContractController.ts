@@ -9,10 +9,10 @@ import {
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import { NetworkState } from '@metamask/network-controller';
+import { SupportedTokenDetectionNetworks } from './assetsUtil';
 import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC20Standard } from './Standards/ERC20Standard';
-import { SupportedTokenDetectionNetworks } from './assetsUtil';
 
 /**
  * Check if token detection is enabled for certain networks
