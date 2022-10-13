@@ -38,14 +38,14 @@ This is a monorepo that houses the following packages. Please refer to the READM
 
 ### Testing and Linting
 
-Run `yarn test` to run the tests once. To run tests on file changes, run `yarn test:watch`.
+Run `yarn test` to run tests for all packages. Run `yarn workspace <package-name> run test` to run tests for a single package.
 
-Run `yarn lint` to run the linter, or run `yarn lint:fix` to fix any automatically fixable issues encountered by the linter.
+Run `yarn lint` to lint all files and show possible violations, or run `yarn lint:fix` to fix any automatically fixable violations.
 
 ### Release & Publishing
 
-When you are ready to release one or more packages within this monorepo, you use the `create-release-branch` tool, which automates the task of bumping versions and updating changelogs across the monorepo, then creates a new branch for you to share as a pull request. You can learn more about how to use this tool by reading through its [documentation][create-release-branch-docs].
+When you are ready to release one or more packages within this monorepo, use the `create-release-branch` tool. This will automate the task of bumping versions and updating changelogs across the monorepo, then create a new branch for you to share as a pull request. You can learn more about how to use this tool by reading through its [documentation][create-release-branch-docs].
 
-This monorepo is following an **independent** versioning strategy, where the version of each package may be changed without needing to synchronize that version across any other packages.
+This monorepo is following an **independent** versioning strategy: each package has its own version and may be changed without needing to change any other package's version.
 
 [create-release-branch-docs]: https://github.com/MetaMask/create-release-branch/blob/main/docs/usage-monorepo-independent.md

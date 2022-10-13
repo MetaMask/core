@@ -494,7 +494,7 @@ describe('TokensController', () => {
 
   describe('isERC721 flag', function () {
     describe('updateTokenType method', function () {
-      it('should add isERC721 = true to token object already in state when token is collectible and in our contract-metadata repo', async function () {
+      it('should add isERC721 = true to token object already in state when token is NFT and in our contract-metadata repo', async function () {
         const contractAddresses = Object.keys(contractMaps);
         const erc721ContractAddresses = contractAddresses.filter(
           (contractAddress) => contractMaps[contractAddress].erc721 === true,
@@ -508,7 +508,7 @@ describe('TokensController', () => {
         expect(result.isERC721).toBe(true);
       });
 
-      it('should add isERC721 = false to token object already in state when token is not a collectible and is in our contract-metadata repo', async function () {
+      it('should add isERC721 = false to token object already in state when token is not an NFT and is in our contract-metadata repo', async function () {
         const contractAddresses = Object.keys(contractMaps);
         const erc20ContractAddresses = contractAddresses.filter(
           (contractAddress) => contractMaps[contractAddress].erc20 === true,
@@ -522,7 +522,7 @@ describe('TokensController', () => {
         expect(result.isERC721).toBe(false);
       });
 
-      it('should add isERC721 = true to token object already in state when token is collectible and is not in our contract-metadata repo', async function () {
+      it('should add isERC721 = true to token object already in state when token is NFT and is not in our contract-metadata repo', async function () {
         const stub = stubCreateEthers(tokensController, true);
         const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
         tokensController.update({
@@ -541,7 +541,7 @@ describe('TokensController', () => {
         stub.restore();
       });
 
-      it('should add isERC721 = false to token object already in state when token is not a collectible and not in our contract-metadata repo', async function () {
+      it('should add isERC721 = false to token object already in state when token is not an NFT and not in our contract-metadata repo', async function () {
         const stub = stubCreateEthers(tokensController, false);
         const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
         tokensController.update({
@@ -562,7 +562,7 @@ describe('TokensController', () => {
     });
 
     describe('addToken method', function () {
-      it('should add isERC721 = true when token is a collectible and is in our contract-metadata repo', async function () {
+      it('should add isERC721 = true when token is an NFT and is in our contract-metadata repo', async function () {
         const contractAddresses = Object.keys(contractMaps);
         const erc721ContractAddresses = contractAddresses.filter(
           (contractAddress) => contractMaps[contractAddress].erc721 === true,
@@ -581,7 +581,7 @@ describe('TokensController', () => {
         ]);
       });
 
-      it('should add isERC721 = true when the token is a collectible but not in our contract-metadata repo', async function () {
+      it('should add isERC721 = true when the token is an NFT but not in our contract-metadata repo', async function () {
         const stub = stubCreateEthers(tokensController, true);
         const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
 
@@ -602,7 +602,7 @@ describe('TokensController', () => {
         stub.restore();
       });
 
-      it('should add isERC721 = false to token object already in state when token is not a collectible and in our contract-metadata repo', async function () {
+      it('should add isERC721 = false to token object already in state when token is not an NFT and in our contract-metadata repo', async function () {
         const contractAddresses = Object.keys(contractMaps);
         const erc20ContractAddresses = contractAddresses.filter(
           (contractAddress) => contractMaps[contractAddress].erc20 === true,
@@ -622,7 +622,7 @@ describe('TokensController', () => {
         ]);
       });
 
-      it('should add isERC721 = false when the token is not a collectible and not in our contract-metadata repo', async function () {
+      it('should add isERC721 = false when the token is not an NFT and not in our contract-metadata repo', async function () {
         const stub = stubCreateEthers(tokensController, false);
         const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
 

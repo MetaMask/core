@@ -63,7 +63,7 @@ export interface PreferencesState extends BaseState {
   lostIdentities: { [address: string]: ContactEntry };
   selectedAddress: string;
   useTokenDetection: boolean;
-  useCollectibleDetection: boolean;
+  useNftDetection: boolean;
   openSeaEnabled: boolean;
 }
 
@@ -95,7 +95,7 @@ export class PreferencesController extends BaseController<
       lostIdentities: {},
       selectedAddress: '',
       useTokenDetection: true,
-      useCollectibleDetection: false,
+      useNftDetection: false,
       openSeaEnabled: false,
     };
     this.initialize();
@@ -315,17 +315,17 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * Toggle the collectible detection setting.
+   * Toggle the NFT detection setting.
    *
-   * @param useCollectibleDetection - Boolean indicating user preference on collectible detection.
+   * @param useNftDetection - Boolean indicating user preference on NFT detection.
    */
-  setUseCollectibleDetection(useCollectibleDetection: boolean) {
-    if (useCollectibleDetection && !this.state.openSeaEnabled) {
+  setUseNftDetection(useNftDetection: boolean) {
+    if (useNftDetection && !this.state.openSeaEnabled) {
       throw new Error(
-        'useCollectibleDetection cannot be enabled if openSeaEnabled is false',
+        'useNftDetection cannot be enabled if openSeaEnabled is false',
       );
     }
-    this.update({ useCollectibleDetection });
+    this.update({ useNftDetection });
   }
 
   /**
@@ -336,7 +336,7 @@ export class PreferencesController extends BaseController<
   setOpenSeaEnabled(openSeaEnabled: boolean) {
     this.update({ openSeaEnabled });
     if (!openSeaEnabled) {
-      this.update({ useCollectibleDetection: false });
+      this.update({ useNftDetection: false });
     }
   }
 }

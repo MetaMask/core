@@ -25,9 +25,6 @@ export const ERC1155_TOKEN_RECEIVER_INTERFACE_ID = '0x4e2312e0';
 // UNITS
 export const GWEI = 'gwei';
 
-// TRANSACTION CONTROLLER ERRORS
-export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
-
 // ASSET TYPES
 export const ASSET_TYPES = {
   NATIVE: 'NATIVE',

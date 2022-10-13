@@ -2,7 +2,7 @@ import * as sinon from 'sinon';
 import type { Patch } from 'immer';
 import {
   TokensController,
-  CollectiblesController,
+  NftController,
   AssetsContractController,
 } from '@metamask/assets-controllers';
 import { AddressBookController } from '@metamask/address-book-controller';
@@ -126,7 +126,7 @@ const setupControllers = () => {
       messenger.subscribe('NetworkController:stateChange', listener),
   });
 
-  const collectiblesController = new CollectiblesController({
+  const nftController = new NftController({
     onPreferencesStateChange: (listener) =>
       preferencesController.subscribe(listener),
     onNetworkStateChange: (listener) =>
@@ -149,7 +149,7 @@ const setupControllers = () => {
     getERC1155TokenURI: assetContractController.getERC1155TokenURI.bind(
       assetContractController,
     ),
-    onCollectibleAdded: jest.fn(),
+    onNftAdded: jest.fn(),
   });
 
   const tokensController = new TokensController({
@@ -165,7 +165,7 @@ const setupControllers = () => {
     networkController,
     preferencesController,
     assetContractController,
-    collectiblesController,
+    nftController,
     tokensController,
   };
 };
@@ -182,7 +182,7 @@ describe('ComposableController', () => {
         composableMessenger,
         networkController,
         assetContractController,
-        collectiblesController,
+        nftController,
         tokensController,
         preferencesController,
       } = setupControllers();
@@ -190,7 +190,7 @@ describe('ComposableController', () => {
       const controller = new ComposableController(
         [
           new AddressBookController(),
-          collectiblesController,
+          nftController,
           assetContractController,
           new EnsController(),
           networkController,
@@ -203,10 +203,10 @@ describe('ComposableController', () => {
       expect(controller.state).toStrictEqual({
         AddressBookController: { addressBook: {} },
         AssetsContractController: {},
-        CollectiblesController: {
-          allCollectibleContracts: {},
-          allCollectibles: {},
-          ignoredCollectibles: [],
+        NftController: {
+          allNftContracts: {},
+          allNfts: {},
+          ignoredNfts: [],
         },
         TokensController: {
           allTokens: {},
@@ -234,7 +234,7 @@ describe('ComposableController', () => {
           lostIdentities: {},
           selectedAddress: '',
           useTokenDetection: true,
-          useCollectibleDetection: false,
+          useNftDetection: false,
           openSeaEnabled: false,
         },
       });
@@ -248,7 +248,7 @@ describe('ComposableController', () => {
         composableMessenger,
         networkController,
         assetContractController,
-        collectiblesController,
+        nftController,
         tokensController,
         preferencesController,
       } = setupControllers();
@@ -256,7 +256,7 @@ describe('ComposableController', () => {
       const controller = new ComposableController(
         [
           new AddressBookController(),
-          collectiblesController,
+          nftController,
           assetContractController,
           new EnsController(),
           networkController,
@@ -267,14 +267,14 @@ describe('ComposableController', () => {
       );
       expect(controller.flatState).toStrictEqual({
         addressBook: {},
-        allCollectibleContracts: {},
-        allCollectibles: {},
+        allNftContracts: {},
+        allNfts: {},
         allTokens: {},
         ensEntries: {},
         featureFlags: {},
         frequentRpcList: [],
         identities: {},
-        ignoredCollectibles: [],
+        ignoredNfts: [],
         ignoredTokens: [],
         allIgnoredTokens: {},
         detectedTokens: [],
@@ -287,7 +287,7 @@ describe('ComposableController', () => {
         provider: { type: 'mainnet', chainId: NetworksChainId.mainnet },
         selectedAddress: '',
         useTokenDetection: true,
-        useCollectibleDetection: false,
+        useNftDetection: false,
         openSeaEnabled: false,
         suggestedAssets: [],
         tokens: [],

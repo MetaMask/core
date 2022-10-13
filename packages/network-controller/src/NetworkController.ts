@@ -105,7 +105,7 @@ const defaultState: NetworkState = {
 };
 
 /**
- * Controller that creates and manages an Ethereum network provider
+ * Controller that creates and manages an Ethereum network provider.
  */
 export class NetworkController extends BaseControllerV2<
   typeof name,

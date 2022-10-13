@@ -9,8 +9,8 @@ import {
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import { NetworkState } from '@metamask/network-controller';
-import { ERC721Standard } from './Standards/CollectibleStandards/ERC721/ERC721Standard';
-import { ERC1155Standard } from './Standards/CollectibleStandards/ERC1155/ERC1155Standard';
+import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
+import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
 
@@ -174,10 +174,10 @@ export class AssetsContractController extends BaseController<
    *
    * @param address - ERC721 asset contract address.
    * @param selectedAddress - Current account public address.
-   * @param index - A collectible counter less than `balanceOf(selectedAddress)`.
+   * @param index - An NFT counter less than `balanceOf(selectedAddress)`.
    * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
    */
-  getERC721CollectibleTokenId(
+  getERC721NftTokenId(
     address: string,
     selectedAddress: string,
     index: number,
@@ -185,11 +185,7 @@ export class AssetsContractController extends BaseController<
     if (this.erc721Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
-    return this.erc721Standard.getCollectibleTokenId(
-      address,
-      selectedAddress,
-      index,
-    );
+    return this.erc721Standard.getNftTokenId(address, selectedAddress, index);
   }
 
   /**
@@ -332,50 +328,50 @@ export class AssetsContractController extends BaseController<
    * Query for balance of a given ERC 1155 token.
    *
    * @param userAddress - Wallet public address.
-   * @param collectibleAddress - ERC1155 asset contract address.
-   * @param collectibleId - ERC1155 asset identifier.
+   * @param nftAddress - ERC1155 asset contract address.
+   * @param nftId - ERC1155 asset identifier.
    * @returns Promise resolving to the 'balanceOf'.
    */
   async getERC1155BalanceOf(
     userAddress: string,
-    collectibleAddress: string,
-    collectibleId: string,
+    nftAddress: string,
+    nftId: string,
   ): Promise<number> {
     if (this.erc1155Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
     return await this.erc1155Standard.getBalanceOf(
-      collectibleAddress,
+      nftAddress,
       userAddress,
-      collectibleId,
+      nftId,
     );
   }
 
   /**
    * Transfer single ERC1155 token.
    *
-   * @param collectibleAddress - ERC1155 token address.
+   * @param nftAddress - ERC1155 token address.
    * @param senderAddress - ERC1155 token sender.
    * @param recipientAddress - ERC1155 token recipient.
-   * @param collectibleId - ERC1155 token id.
+   * @param nftId - ERC1155 token id.
    * @param qty - Quantity of tokens to be sent.
    * @returns Promise resolving to the 'transferSingle' ERC1155 token.
    */
   async transferSingleERC1155(
-    collectibleAddress: string,
+    nftAddress: string,
     senderAddress: string,
     recipientAddress: string,
-    collectibleId: string,
+    nftId: string,
     qty: string,
   ): Promise<void> {
     if (this.erc1155Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
     return await this.erc1155Standard.transferSingle(
-      collectibleAddress,
+      nftAddress,
       senderAddress,
       recipientAddress,
-      collectibleId,
+      nftId,
       qty,
     );
   }

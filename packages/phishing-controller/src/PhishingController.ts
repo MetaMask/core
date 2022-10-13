@@ -96,7 +96,7 @@ export const METAMASK_CONFIG_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_CONFIG
 export const PHISHFORT_HOTLIST_URL = `${PHISHING_CONFIG_BASE_URL}${PHISHFORT_HOTLIST_FILE}`;
 
 /**
- * Controller that passively polls on a set interval for approved and unapproved website origins
+ * Controller that manages community-maintained lists of approved and unapproved website origins.
  */
 export class PhishingController extends BaseController<
   PhishingConfig,

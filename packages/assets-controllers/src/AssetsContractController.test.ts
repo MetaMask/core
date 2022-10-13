@@ -120,10 +120,10 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should get ERC-721 collectible tokenId correctly', async () => {
+  it('should get ERC-721 NFT tokenId correctly', async () => {
     const { assetsContract, messenger } = setupControllers();
     assetsContract.configure({ provider: MAINNET_PROVIDER });
-    const tokenId = await assetsContract.getERC721CollectibleTokenId(
+    const tokenId = await assetsContract.getERC721NftTokenId(
       ERC721_GODS_ADDRESS,
       '0x9a90bd8d1149a88b42a99cf62215ad955d6f498a',
       0,
@@ -190,7 +190,7 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should get ERC-721 collectible tokenURI correctly', async () => {
+  it('should get ERC-721 NFT tokenURI correctly', async () => {
     const { assetsContract, messenger } = setupControllers();
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const tokenId = await assetsContract.getERC721TokenURI(
@@ -201,7 +201,7 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should throw an error when address given is not an ERC-721 collectible', async () => {
+  it('should throw an error when address given is not an ERC-721 NFT', async () => {
     const { assetsContract, messenger } = setupControllers();
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const result = async () => {
@@ -216,7 +216,7 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should get ERC-721 collectible name', async () => {
+  it('should get ERC-721 NFT name', async () => {
     const { assetsContract, messenger } = setupControllers();
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const name = await assetsContract.getERC721AssetName(ERC721_GODS_ADDRESS);
@@ -224,7 +224,7 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should get ERC-721 collectible symbol', async () => {
+  it('should get ERC-721 NFT symbol', async () => {
     const { assetsContract, messenger } = setupControllers();
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const symbol = await assetsContract.getERC721AssetSymbol(
@@ -234,7 +234,7 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should throw missing provider error when getting ERC-721 collectible symbol when missing provider', async () => {
+  it('should throw missing provider error when getting ERC-721 NFT symbol when missing provider', async () => {
     const { assetsContract, messenger } = setupControllers();
     await expect(
       assetsContract.getERC721AssetSymbol(ERC721_GODS_ADDRESS),
@@ -252,7 +252,7 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should get ERC-721 collectible ownership', async () => {
+  it('should get ERC-721 NFT ownership', async () => {
     const { assetsContract, messenger } = setupControllers();
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const tokenId = await assetsContract.getERC721OwnerOf(
@@ -263,7 +263,7 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should throw missing provider error when getting ERC-721 collectible ownership', async () => {
+  it('should throw missing provider error when getting ERC-721 NFT ownership', async () => {
     const { assetsContract, messenger } = setupControllers();
     await expect(
       assetsContract.getERC721OwnerOf(ERC721_GODS_ADDRESS, '148332'),
@@ -319,7 +319,7 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should get the balance of a ERC-1155 collectible for a given address', async () => {
+  it('should get the balance of a ERC-1155 NFT for a given address', async () => {
     const { assetsContract, messenger } = setupControllers();
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const balance = await assetsContract.getERC1155BalanceOf(
@@ -331,7 +331,7 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should throw missing provider error when getting the balance of a ERC-1155 collectible when missing provider', async () => {
+  it('should throw missing provider error when getting the balance of a ERC-1155 NFT when missing provider', async () => {
     const { assetsContract, messenger } = setupControllers();
     await expect(
       assetsContract.getERC1155BalanceOf(
@@ -343,7 +343,7 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should get the URI of a ERC-1155 collectible', async () => {
+  it('should get the URI of a ERC-1155 NFT', async () => {
     const { assetsContract, messenger } = setupControllers();
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const expectedUri = `https://api.opensea.io/api/v1/metadata/${ERC1155_ADDRESS}/0x{id}`;

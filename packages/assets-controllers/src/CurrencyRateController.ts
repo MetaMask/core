@@ -72,8 +72,8 @@ const defaultState = {
 };
 
 /**
- * Controller that passively polls on a set interval for an exchange rate from the current base
- * asset to the current currency
+ * Controller that passively polls on a set interval for an exchange rate from the current network
+ * asset to the user's preferred currency.
  */
 export class CurrencyRateController extends BaseControllerV2<
   typeof name,

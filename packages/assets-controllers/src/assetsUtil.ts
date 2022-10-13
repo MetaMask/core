@@ -5,23 +5,20 @@ import {
   isValidHexAddress,
   GANACHE_CHAIN_ID,
 } from '@metamask/controller-utils';
-import { Collectible, CollectibleMetadata } from './CollectiblesController';
+import { Nft, NftMetadata } from './NftController';
 import { Token } from './TokenRatesController';
 
 /**
- * Compares collectible metadata entries to any collectible entry.
- * We need this method when comparing a new fetched collectible metadata, in case a entry changed to a defined value,
- * there's a need to update the collectible in state.
+ * Compares nft metadata entries to any nft entry.
+ * We need this method when comparing a new fetched nft metadata, in case a entry changed to a defined value,
+ * there's a need to update the nft in state.
  *
- * @param newCollectibleMetadata - Collectible metadata object.
- * @param collectible - Collectible object to compare with.
+ * @param newNftMetadata - Nft metadata object.
+ * @param nft - Nft object to compare with.
  * @returns Whether there are differences.
  */
-export function compareCollectiblesMetadata(
-  newCollectibleMetadata: CollectibleMetadata,
-  collectible: Collectible,
-) {
-  const keys: (keyof CollectibleMetadata)[] = [
+export function compareNftMetadata(newNftMetadata: NftMetadata, nft: Nft) {
+  const keys: (keyof NftMetadata)[] = [
     'image',
     'backgroundColor',
     'imagePreview',
@@ -32,10 +29,7 @@ export function compareCollectiblesMetadata(
     'externalLink',
   ];
   const differentValues = keys.reduce((value, key) => {
-    if (
-      newCollectibleMetadata[key] &&
-      newCollectibleMetadata[key] !== collectible[key]
-    ) {
+    if (newNftMetadata[key] && newNftMetadata[key] !== nft[key]) {
       return value + 1;
     }
     return value;
