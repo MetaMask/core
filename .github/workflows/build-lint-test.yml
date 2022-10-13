@@ -1,4 +1,4 @@
-name: Lint, Build, and Test
+name: Build, Lint, and Test
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  lint-build-test:
+  build-lint-test:
     name: Build, Lint, and Test
     runs-on: ubuntu-20.04
     strategy:
@@ -30,14 +30,14 @@ jobs:
           path: ${{ steps.yarn-cache-dir.outputs.YARN_CACHE_DIR }}
           key: yarn-cache-${{ runner.os }}-${{ steps.yarn-version.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}
       - run: yarn --immutable
-      - run: yarn lint
-      - run: yarn changelog:validate
       - run: yarn build
+      - run: yarn lint
       - run: yarn test --maxWorkers=1 --forceExit
+      - run: yarn changelog:validate
   all-jobs-pass:
     name: All jobs pass
     runs-on: ubuntu-20.04
     needs:
-      - lint-build-test
+      - build-lint-test
     steps:
       - run: echo "Great success!"
