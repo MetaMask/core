@@ -6,12 +6,12 @@ on:
   pull_request:
 
 jobs:
-  lint-build-test:
-    name: Lint, Build, and Test
+  prepare:
+    name: Prepare
     runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        node-version: [14.x, 16.x]
+    outputs:
+      YARN_CACHE_DIR: ${{ steps.yarn-version.outputs.YARN_CACHE_DIR }}
+      YARN_VERSION: ${{ steps.yarn-version.outputs.YARN_VERSION }}
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node-version }}
@@ -24,25 +24,82 @@ jobs:
       - name: Get Yarn version
         run: echo "::set-output name=YARN_VERSION::$(yarn --version)"
         id: yarn-version
-      - name: Cache yarn dependencies
+      - name: Cache Yarn dependencies
         uses: actions/cache@v2
         with:
           path: ${{ steps.yarn-cache-dir.outputs.YARN_CACHE_DIR }}
           key: yarn-cache-${{ runner.os }}-${{ steps.yarn-version.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}
-      - run: yarn --immutable
-      - run: yarn lint
+      - name: Install Yarn dependencies
+        run: yarn --immutable
+  lint:
+    name: Lint
+    runs-on: ubuntu-20.04
+    needs:
+      - prepare
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Restore Yarn dependencies
+        uses: actions/cache@v2
+        with:
+          path: ${{ needs.prepare.outputs.YARN_CACHE_DIR }}
+          key: yarn-cache-${{ runner.os }}-${{ needs.prepare.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}
+      - name: Lint
+        run: yarn lint
       - name: Validate RC changelog
         if: ${{ startsWith(github.ref, 'release/') }}
         run: yarn auto-changelog validate --rc
       - name: Validate changelog
         if: ${{ !startsWith(github.ref, 'release/') }}
         run: yarn auto-changelog validate
-      - run: yarn build
-      - run: yarn test --maxWorkers=1
+  build:
+    name: Build
+    runs-on: ubuntu-20.04
+    needs:
+      - prepare
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Restore Yarn dependencies
+        uses: actions/cache@v2
+        with:
+          path: ${{ needs.prepare.outputs.YARN_CACHE_DIR }}
+          key: yarn-cache-${{ runner.os }}-${{ needs.prepare.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}
+      - name: Build
+        run: yarn build
+  test:
+    name: Test
+    runs-on: ubuntu-20.04
+    needs:
+      - prepare
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Restore Yarn dependencies
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.yarn-cache-dir.outputs.YARN_CACHE_DIR }}
+          key: yarn-cache-${{ runner.os }}-${{ needs.prepare.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}
+      - name: Run tests
+        run: yarn test --maxWorkers=1
   all-jobs-pass:
     name: All jobs pass
     runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x]
     needs:
-      - lint-build-test
+      - lint
+      - build
+      - test
     steps:
       - run: echo "Great success!"
