@@ -30,7 +30,7 @@
     "@metamask/base-controller": "workspace:~",
     "@metamask/controller-utils": "workspace:~",
     "@metamask/network-controller": "workspace:~",
-    "@types/uuid": "^8.3.4",
+    "@types/uuid": "^8.3.0",
     "eth-query": "^2.1.2",
     "ethereumjs-util": "^7.1.4",
     "ethjs-unit": "^0.1.6",

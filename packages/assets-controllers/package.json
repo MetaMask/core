@@ -36,7 +36,7 @@
     "@metamask/metamask-eth-abis": "3.0.0",
     "@metamask/network-controller": "workspace:~",
     "@metamask/preferences-controller": "workspace:~",
-    "@types/uuid": "^8.3.4",
+    "@types/uuid": "^8.3.0",
     "@types/web3": "^1.0.6",
     "abort-controller": "^3.0.0",
     "async-mutex": "^0.2.6",
