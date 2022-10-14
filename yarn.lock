@@ -1357,6 +1357,7 @@ __metadata:
     "@metamask/network-controller": "workspace:~"
     "@metamask/preferences-controller": "workspace:~"
     "@types/jest": ^26.0.22
+    "@types/node": ^14.14.31
     "@types/uuid": ^8.3.4
     "@types/web3": ^1.0.6
     abort-controller: ^3.0.0
@@ -1859,6 +1860,7 @@ __metadata:
     "@metamask/controller-utils": "workspace:~"
     "@metamask/network-controller": "workspace:~"
     "@types/jest": ^26.0.22
+    "@types/node": ^14.14.31
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
@@ -2284,6 +2286,13 @@ __metadata:
   version: 11.11.6
   resolution: "@types/node@npm:11.11.6"
   checksum: 075f1c011cf568e49701419acbcb55c24906b3bb5a34d9412a3b88f228a7a78401a5ad4d3e1cd6855c99aaea5ef96e37fc86ca097e50f06da92cf822befc1fff
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^14.14.31":
+  version: 14.18.32
+  resolution: "@types/node@npm:14.18.32"
+  checksum: 45463114bf85d06dc12925d876dd90b7fff43d9ee10a40e48fd16aece3d0201c76426c128e41230b2818d386422be06c5be33b3d94d90ee924b6fa4d54574035
   languageName: node
   linkType: hard
 
