@@ -28,7 +28,6 @@ module.exports = {
   coverageDirectory: 'coverage',
 
   // An array of regexp pattern strings used to skip coverage collection
-  // TODO: Test index.ts
   coveragePathIgnorePatterns: ['./src/index.ts'],
 
   // Indicates which provider should be used to instrument code for coverage
@@ -99,9 +98,6 @@ module.exports = {
   // notifyMode: "failure-change",
 
   // A preset that is used as a base for Jest's configuration
-  // Here we're telling ts-jest to run JavaScript code through TypeScript
-  // because some of our dependencies (e.g. multiformats, ethjs-*) ship with
-  // uncompiled JavaScript or JavaScript that uses ESM format.
   preset: 'ts-jest',
 
   // Run tests from one or more projects
