@@ -23,8 +23,8 @@
   "scripts": {
     "changelog:validate": "../../scripts/validate-changelog.sh",
     "doc": "../../scripts/doc.sh",
-    "test": "../../scripts/test.sh",
-    "test:watch": "../../scripts/test-watch.sh"
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@ethereumjs/common": "^2.6.4",
@@ -47,7 +47,6 @@
     "ethjs-provider-http": "^0.1.6",
     "isomorphic-fetch": "^3.0.0",
     "jest": "^26.4.2",
-    "jest-it-up": "^2.0.2",
     "sinon": "^9.2.4",
     "ts-jest": "^26.5.2",
     "typedoc": "^0.22.15",

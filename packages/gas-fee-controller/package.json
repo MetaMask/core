@@ -23,8 +23,8 @@
   "scripts": {
     "changelog:validate": "../../scripts/validate-changelog.sh",
     "doc": "../../scripts/doc.sh",
-    "test": "../../scripts/test.sh",
-    "test:watch": "../../scripts/test-watch.sh"
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@metamask/base-controller": "workspace:~",
@@ -43,7 +43,6 @@
     "@types/jest-when": "^2.7.3",
     "deepmerge": "^4.2.2",
     "jest": "^26.4.2",
-    "jest-it-up": "^2.0.2",
     "jest-when": "^3.4.2",
     "nock": "^13.0.7",
     "sinon": "^9.2.4",

@@ -23,8 +23,8 @@
   "scripts": {
     "changelog:validate": "../../scripts/validate-changelog.sh",
     "doc": "../../scripts/doc.sh",
-    "test": "../../scripts/test.sh",
-    "test:watch": "../../scripts/test-watch.sh"
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@ethersproject/abi": "^5.7.0",
@@ -55,7 +55,6 @@
     "deepmerge": "^4.2.2",
     "ethjs-provider-http": "^0.1.6",
     "jest": "^26.4.2",
-    "jest-it-up": "^2.0.2",
     "nock": "^13.0.7",
     "sinon": "^9.2.4",
     "ts-jest": "^26.5.2",

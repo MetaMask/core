@@ -847,44 +847,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@inquirer/confirm@npm:^0.0.14-alpha.0":
-  version: 0.0.14-alpha.0
-  resolution: "@inquirer/confirm@npm:0.0.14-alpha.0"
-  dependencies:
-    "@inquirer/core": ^0.0.15-alpha.0
-    "@inquirer/input": ^0.0.15-alpha.0
-    chalk: ^4.1.1
-  checksum: 84daf47030318e0adf6eeef85388e341f6f68c0c06c0d1d329cb6185f6d21abf74c3124102bf62f4f42145c8dc9193d719209e3759987a1bdbcfb88139b9936c
-  languageName: node
-  linkType: hard
-
-"@inquirer/core@npm:^0.0.15-alpha.0":
-  version: 0.0.15-alpha.0
-  resolution: "@inquirer/core@npm:0.0.15-alpha.0"
-  dependencies:
-    ansi-escapes: ^4.2.1
-    chalk: ^4.1.1
-    cli-spinners: ^2.6.0
-    cli-width: ^3.0.0
-    lodash: ^4.17.21
-    mute-stream: ^0.0.8
-    run-async: ^2.3.0
-    string-width: ^4.1.0
-    strip-ansi: ^6.0.0
-  checksum: 26a94a8db80e57f926c889b5730c6c9a0f18d6bf1e6dbfb68eaa6bcda33550db66118ce6afd9e91130ea2e4da42b6d7236b94c16fbab931ed04b4f442b9a5c78
-  languageName: node
-  linkType: hard
-
-"@inquirer/input@npm:^0.0.15-alpha.0":
-  version: 0.0.15-alpha.0
-  resolution: "@inquirer/input@npm:0.0.15-alpha.0"
-  dependencies:
-    "@inquirer/core": ^0.0.15-alpha.0
-    chalk: ^4.1.1
-  checksum: c294b2fa100e2955e271b1b0590b5f360c65c560d653f39554cd381f145fdf13be9ea2c3c069d39a71f84fc3c8ba20d9d78a0b210f8cb5533d138567029e28ee
-  languageName: node
-  linkType: hard
-
 "@istanbuljs/load-nyc-config@npm:^1.0.0":
   version: 1.1.0
   resolution: "@istanbuljs/load-nyc-config@npm:1.1.0"
@@ -1281,7 +1243,6 @@ __metadata:
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
@@ -1298,7 +1259,6 @@ __metadata:
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
@@ -1317,7 +1277,6 @@ __metadata:
     eth-rpc-errors: ^4.0.0
     immer: ^9.0.6
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     nanoid: ^3.1.31
     sinon: ^9.2.4
     ts-jest: ^26.5.2
@@ -1353,7 +1312,6 @@ __metadata:
     ethjs-provider-http: ^0.1.6
     immer: ^9.0.6
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     multiformats: ^9.5.2
     nock: ^13.0.7
     single-call-balance-checker-abi: ^1.0.0
@@ -1391,7 +1349,6 @@ __metadata:
     deepmerge: ^4.2.2
     immer: ^9.0.6
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     sinon: ^9.2.4
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
@@ -1428,7 +1385,6 @@ __metadata:
     deepmerge: ^4.2.2
     immer: ^9.0.6
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     sinon: ^9.2.4
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
@@ -1460,7 +1416,6 @@ __metadata:
     fast-deep-equal: ^3.1.3
     isomorphic-fetch: ^3.0.0
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     nock: ^13.0.7
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
@@ -1507,7 +1462,6 @@ __metadata:
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
@@ -1607,7 +1561,6 @@ __metadata:
     ethjs-unit: ^0.1.6
     immer: ^9.0.6
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     jest-when: ^3.4.2
     nock: ^13.0.7
     sinon: ^9.2.4
@@ -1640,7 +1593,6 @@ __metadata:
     ethereumjs-util: ^7.1.4
     ethereumjs-wallet: ^1.0.1
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     sinon: ^9.2.4
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
@@ -1663,7 +1615,6 @@ __metadata:
     eth-sig-util: ^3.0.0
     ethereumjs-util: ^7.1.4
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     jsonschema: ^1.2.4
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
@@ -1694,7 +1645,6 @@ __metadata:
     eth-query: ^2.1.2
     immer: ^9.0.6
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     sinon: ^9.2.4
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
@@ -1715,7 +1665,6 @@ __metadata:
     deepmerge: ^4.2.2
     immer: ^9.0.6
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     nanoid: ^3.1.31
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
@@ -1750,7 +1699,6 @@ __metadata:
     eth-rpc-errors: ^4.0.0
     immer: ^9.0.6
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     json-rpc-engine: ^6.1.0
     nanoid: ^3.1.31
     ts-jest: ^26.5.2
@@ -1773,7 +1721,6 @@ __metadata:
     eth-phishing-detect: ^1.2.0
     isomorphic-fetch: ^3.0.0
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     nock: ^13.0.7
     punycode: ^2.1.1
     sinon: ^9.2.4
@@ -1794,7 +1741,6 @@ __metadata:
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
@@ -1813,7 +1759,6 @@ __metadata:
     eth-rpc-errors: ^4.0.0
     immer: ^9.0.6
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
@@ -1840,7 +1785,6 @@ __metadata:
     deepmerge: ^4.2.2
     immer: ^9.0.6
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
@@ -1869,7 +1813,6 @@ __metadata:
     ethjs-provider-http: ^0.1.6
     isomorphic-fetch: ^3.0.0
     jest: ^26.4.2
-    jest-it-up: ^2.0.2
     sinon: ^9.2.4
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
@@ -2606,7 +2549,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ansi-colors@npm:^4.1.0, ansi-colors@npm:^4.1.1":
+"ansi-colors@npm:^4.1.1":
   version: 4.1.3
   resolution: "ansi-colors@npm:4.1.3"
   checksum: a9c2ec842038a1fabc7db9ece7d3177e2fe1c5dc6f0c51ecfbf5f39911427b89c00b5dc6b8bd95f82a26e9b16aaae2e83d45f060e98070ce4d1333038edceb0e
@@ -3447,7 +3390,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chalk@npm:^4.0.0, chalk@npm:^4.1.1":
+"chalk@npm:^4.0.0":
   version: 4.1.2
   resolution: "chalk@npm:4.1.2"
   dependencies:
@@ -3527,20 +3470,6 @@ __metadata:
   version: 2.2.0
   resolution: "clean-stack@npm:2.2.0"
   checksum: 2ac8cd2b2f5ec986a3c743935ec85b07bc174d5421a5efc8017e1f146a1cf5f781ae962618f416352103b32c9cd7e203276e8c28241bbe946160cab16149fb68
-  languageName: node
-  linkType: hard
-
-"cli-spinners@npm:^2.6.0":
-  version: 2.7.0
-  resolution: "cli-spinners@npm:2.7.0"
-  checksum: a9afaf73f58d1f951fb23742f503631b3cf513f43f4c7acb1b640100eb76bfa16efbcd1994d149ffc6603a6d75dd3d4a516a76f125f90dce437de9b16fd0ee6f
-  languageName: node
-  linkType: hard
-
-"cli-width@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "cli-width@npm:3.0.0"
-  checksum: 4c94af3769367a70e11ed69aa6095f1c600c0ff510f3921ab4045af961820d57c0233acfa8b6396037391f31b4c397e1f614d234294f979ff61430a6c166c3f6
   languageName: node
   linkType: hard
 
@@ -3651,13 +3580,6 @@ __metadata:
   dependencies:
     delayed-stream: ~1.0.0
   checksum: 49fa4aeb4916567e33ea81d088f6584749fc90c7abec76fd516bf1c5aa5c79f3584b5ba3de6b86d26ddd64bae5329c4c7479343250cfe71c75bb366eae53bb7c
-  languageName: node
-  linkType: hard
-
-"commander@npm:^9.0.0":
-  version: 9.4.0
-  resolution: "commander@npm:9.4.0"
-  checksum: a322de584a6ccd1ea83c24f6a660e52d16ffbe2613fcfbb8d2cc68bc9dec637492456d754fe8bb5b039ad843ed8e04fb0b107e581a75f62cde9e1a0ab1546e09
   languageName: node
   linkType: hard
 
@@ -6883,19 +6805,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jest-it-up@npm:^2.0.2":
-  version: 2.0.2
-  resolution: "jest-it-up@npm:2.0.2"
-  dependencies:
-    "@inquirer/confirm": ^0.0.14-alpha.0
-    ansi-colors: ^4.1.0
-    commander: ^9.0.0
-  bin:
-    jest-it-up: bin/jest-it-up
-  checksum: 1482d8b9862331b6cc7d858fd1c05d95fb1bc2adbc37e243c20e6e10f259fecf600d3b1023dadf11acadb158ea171677f8f375969e058dff46002be81a49079b
-  languageName: node
-  linkType: hard
-
 "jest-jasmine2@npm:^26.6.3":
   version: 26.6.3
   resolution: "jest-jasmine2@npm:26.6.3"
@@ -8056,13 +7965,6 @@ __metadata:
   version: 9.9.0
   resolution: "multiformats@npm:9.9.0"
   checksum: d3e8c1be400c09a014f557ea02251a2710dbc9fca5aa32cc702ff29f636c5471e17979f30bdcb0a9cbb556f162a8591dc2e1219c24fc21394a56115b820bb84e
-  languageName: node
-  linkType: hard
-
-"mute-stream@npm:^0.0.8":
-  version: 0.0.8
-  resolution: "mute-stream@npm:0.0.8"
-  checksum: ff48d251fc3f827e5b1206cda0ffdaec885e56057ee86a3155e1951bc940fd5f33531774b1cc8414d7668c10a8907f863f6561875ee6e8768931a62121a531a1
   languageName: node
   linkType: hard
 
@@ -9272,13 +9174,6 @@ __metadata:
   version: 4.8.5
   resolution: "rsvp@npm:4.8.5"
   checksum: 2d8ef30d8febdf05bdf856ccca38001ae3647e41835ca196bc1225333f79b94ae44def733121ca549ccc36209c9b689f6586905e2a043873262609744da8efc1
-  languageName: node
-  linkType: hard
-
-"run-async@npm:^2.3.0":
-  version: 2.4.1
-  resolution: "run-async@npm:2.4.1"
-  checksum: a2c88aa15df176f091a2878eb840e68d0bdee319d8d97bbb89112223259cebecb94bc0defd735662b83c2f7a30bed8cddb7d1674eb48ae7322dc602b22d03797
   languageName: node
   linkType: hard
 
