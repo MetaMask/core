@@ -27,8 +27,8 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@ethereumjs/common": "^2.6.4",
-    "@ethereumjs/tx": "^3.5.2",
+    "@ethereumjs/common": "^2.3.1",
+    "@ethereumjs/tx": "^3.2.1",
     "@metamask/base-controller": "workspace:~",
     "@metamask/controller-utils": "workspace:~",
     "@metamask/network-controller": "workspace:~",
@@ -37,7 +37,7 @@
     "eth-method-registry": "1.1.0",
     "eth-query": "^2.1.2",
     "eth-rpc-errors": "^4.0.0",
-    "ethereumjs-util": "^7.1.4",
+    "ethereumjs-util": "^7.0.10",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

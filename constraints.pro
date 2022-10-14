@@ -56,30 +56,32 @@ parse_version_range(VersionRange, Modifier, Major, Minor, Patch) :-
   atom_to_number(MinorAtom, Minor),
   atom_to_number(PatchAtom, Patch).
 
-% True if and only if the first SemVer version range is less than the second
+% True if and only if the first SemVer version range is greater than the second
 % SemVer version range. Such a range must match "^MAJOR.MINOR.PATCH",
 % "~MAJOR.MINOR.PATCH", "MAJOR.MINOR.PATCH". If two ranges do not have the same
 % modifier ("^" or "~"), then they cannot be compared and the first cannot be
 % considered as less than the second.
+%
+% Borrowed from: <https://github.com/npm/node-semver/blob/a7b8722674e2eedfd89960b4155ffddd6a20ee21/classes/semver.js#L107>
 npm_version_range_out_of_sync(VersionRange1, VersionRange2) :-
   parse_version_range(VersionRange1, VersionRange1Modifier, VersionRange1Major, VersionRange1Minor, VersionRange1Patch),
   parse_version_range(VersionRange2, VersionRange2Modifier, VersionRange2Major, VersionRange2Minor, VersionRange2Patch),
   VersionRange1Modifier == VersionRange2Modifier,
   (
-    % 1.0.0 <= 2.0.0
-    % 1.1.0 <= 2.0.0
-    % 1.0.1 <= 2.0.0
-    VersionRange1Major @< VersionRange2Major ;
+    % 2.0.0 > 1.0.0
+    % 2.0.0 > 1.1.0
+    % 2.0.0 > 1.0.1
+    VersionRange1Major @> VersionRange2Major ;
     (
       VersionRange1Major == VersionRange2Major ,
       (
-        % 1.0.0 <= 1.1.0
-        % 1.0.1 <= 1.1.0
-        VersionRange1Minor @< VersionRange2Minor ;
+        % 1.1.0 > 1.0.0
+        % 1.1.0 > 1.0.1
+        VersionRange1Minor @> VersionRange2Minor ;
         (
-          % 1.0.0 <= 1.0.1
           VersionRange1Minor == VersionRange2Minor ,
-          VersionRange1Patch @< VersionRange2Patch
+          % 1.0.1 > 1.0.0
+          VersionRange1Patch @> VersionRange2Patch
         )
       )
     )
@@ -195,8 +197,8 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a range optionally start
   \+ is_valid_version_range(DependencyRange).
 
 % All dependency ranges for a package must be synchronized across the monorepo
-% (the highest one wins), regardless of which "*dependencies" the package
-% appears.
+% (the least version range wins), regardless of which "*dependencies" the
+% package appears.
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, OtherDependencyRange, DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   workspace_has_dependency(OtherWorkspaceCwd, DependencyIdent, OtherDependencyRange, OtherDependencyType),

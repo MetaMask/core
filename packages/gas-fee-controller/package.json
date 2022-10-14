@@ -33,7 +33,7 @@
     "@types/uuid": "^8.3.0",
     "babel-runtime": "^6.26.0",
     "eth-query": "^2.1.2",
-    "ethereumjs-util": "^7.1.4",
+    "ethereumjs-util": "^7.0.10",
     "ethjs-unit": "^0.1.6",
     "immer": "^9.0.6",
     "uuid": "^8.3.2"
