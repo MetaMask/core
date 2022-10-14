@@ -393,3 +393,38 @@ export function concatBytes(values: Bytes[]): Uint8Array {
 
   return bytes;
 }
+
+/**
+ * Create a {@link DataView} from a {@link Uint8Array}. This is a convenience
+ * function that avoids having to create a {@link DataView} manually, which
+ * requires passing the `byteOffset` and `byteLength` parameters every time.
+ *
+ * Not passing the `byteOffset` and `byteLength` parameters can result in
+ * unexpected behavior when the {@link Uint8Array} is a view of a larger
+ * {@link ArrayBuffer}, e.g., when using {@link Uint8Array.subarray}.
+ *
+ * This function also supports Node.js {@link Buffer}s.
+ *
+ * @example
+ * ```typescript
+ * const bytes = new Uint8Array([1, 2, 3]);
+ *
+ * // This is equivalent to:
+ * // const dataView = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+ * const dataView = createDataView(bytes);
+ * ```
+ * @param bytes - The bytes to create the {@link DataView} from.
+ * @returns The {@link DataView}.
+ */
+export function createDataView(bytes: Uint8Array): DataView {
+  if (typeof Buffer !== 'undefined' && bytes instanceof Buffer) {
+    const buffer = bytes.buffer.slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength,
+    );
+
+    return new DataView(buffer);
+  }
+
+  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+}

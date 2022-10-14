@@ -7,6 +7,7 @@ import {
   bytesToSignedBigInt,
   bytesToString,
   concatBytes,
+  createDataView,
   hexToBytes,
   isBytes,
   numberToBytes,
@@ -412,5 +413,85 @@ describe('concatBytes', () => {
     expect(
       concatBytes([new Uint8Array([1]), 2, BigInt(3), '4', '0x5']),
     ).toStrictEqual(Uint8Array.from([1, 2, 3, 52, 5]));
+  });
+});
+
+describe('createDataView', () => {
+  describe('Uint8Array', () => {
+    it('returns a DataView from a byte array', () => {
+      const dataView = createDataView(new Uint8Array([1, 2, 3]));
+
+      expect(dataView).toBeInstanceOf(DataView);
+      expect(dataView.getUint8(0)).toBe(1);
+      expect(dataView.getUint8(1)).toBe(2);
+      expect(dataView.getUint8(2)).toBe(3);
+    });
+
+    it('returns a DataView from a subarray of a byte array', () => {
+      const original = new Uint8Array([1, 2, 3, 4, 5]);
+      const subset = original.subarray(1, 4);
+
+      const dataView = createDataView(subset);
+
+      expect(dataView).toBeInstanceOf(DataView);
+      expect(dataView.byteOffset).toBe(1);
+      expect(dataView.byteLength).toBe(3);
+      expect(dataView.getUint8(0)).toBe(2);
+      expect(dataView.getUint8(1)).toBe(3);
+      expect(dataView.getUint8(2)).toBe(4);
+    });
+
+    it('returns a DataView from a slice of a byte array', () => {
+      const original = new Uint8Array([1, 2, 3, 4, 5]);
+      const subset = original.slice(1, 4);
+
+      const dataView = createDataView(subset);
+
+      expect(dataView).toBeInstanceOf(DataView);
+      expect(dataView.byteOffset).toBe(0);
+      expect(dataView.byteLength).toBe(3);
+      expect(dataView.getUint8(0)).toBe(2);
+      expect(dataView.getUint8(1)).toBe(3);
+      expect(dataView.getUint8(2)).toBe(4);
+    });
+  });
+
+  describe('Node.js Buffer', () => {
+    it('returns a DataView from a byte array', () => {
+      const dataView = createDataView(Buffer.from([1, 2, 3]));
+
+      expect(dataView).toBeInstanceOf(DataView);
+      expect(dataView.getUint8(0)).toBe(1);
+      expect(dataView.getUint8(1)).toBe(2);
+      expect(dataView.getUint8(2)).toBe(3);
+    });
+
+    it('returns a DataView from a subarray of a byte array', () => {
+      const original = Buffer.from([1, 2, 3, 4, 5]);
+      const subset = original.subarray(1, 4);
+
+      const dataView = createDataView(subset);
+
+      expect(dataView).toBeInstanceOf(DataView);
+      expect(dataView.byteOffset).toBe(0);
+      expect(dataView.byteLength).toBe(3);
+      expect(dataView.getUint8(0)).toBe(2);
+      expect(dataView.getUint8(1)).toBe(3);
+      expect(dataView.getUint8(2)).toBe(4);
+    });
+
+    it('returns a DataView from a slice of a byte array', () => {
+      const original = Buffer.from([1, 2, 3, 4, 5]);
+      const subset = original.slice(1, 4);
+
+      const dataView = createDataView(subset);
+
+      expect(dataView).toBeInstanceOf(DataView);
+      expect(dataView.byteOffset).toBe(0);
+      expect(dataView.byteLength).toBe(3);
+      expect(dataView.getUint8(0)).toBe(2);
+      expect(dataView.getUint8(1)).toBe(3);
+      expect(dataView.getUint8(2)).toBe(4);
+    });
   });
 });
