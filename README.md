@@ -44,8 +44,27 @@ Run `yarn lint` to lint all files and show possible violations, or run `yarn lin
 
 ### Release & Publishing
 
-When you are ready to release one or more packages within this monorepo, use the `create-release-branch` tool. This will automate the task of bumping versions and updating changelogs across the monorepo, then create a new branch for you to share as a pull request. You can learn more about how to use this tool by reading through its [documentation][create-release-branch-docs].
+This project follows a unique release process. The [`create-release-branch`](https://github.com/MetaMask/create-release-branch) tool and [`action-publish-release`](https://github.com/MetaMask/action-publish-release) GitHub action are used to automate the release process; see those repositories for more information about how they work.
 
-This monorepo is following an **independent** versioning strategy: each package has its own version and may be changed without needing to change any other package's version.
+1. To begin the release process, run `create-release-branch`, specifying the packages you want to release. This tool will bump versions and update changelogs across the monorepo automatically, then create a new branch for you.
 
-[create-release-branch-docs]: https://github.com/MetaMask/create-release-branch/blob/main/docs/usage-monorepo-independent.md
+2. Once you have a new release branch, review the set of package changelogs that the tool has updated. For each changelog, update it to move each change entry into the appropriate change category ([see here](https://keepachangelog.com/en/1.0.0/#types) for the full list of change categories and the correct ordering), and edit them to be more easily understood by users of the package.
+
+   - Generally any changes that don't affect consumers of the package (e.g. lockfile changes or development environment changes) are omitted. Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
+   - Try to explain each change in terms that users of the package would understand (e.g. avoid referencing internal variables/concepts).
+   - Consolidate related changes into one change entry if it makes it easier to explain.
+   - Run `yarn auto-changelog validate --rc` to check that the changelog is correctly formatted.
+
+3. Review and QA the release.
+
+   - If changes are made to the base branch, the release branch will need to be updated with these changes and review/QA will need to restart again. As such, it's probably best to avoid merging other PRs into the base branch while review is underway.
+
+4. Squash & Merge the release.
+
+   - This should trigger the [`action-publish-release`](https://github.com/MetaMask/action-publish-release) workflow to tag the final release commit and publish the release on GitHub.
+
+5. Publish the release on npm.
+
+   - Wait for the `publish-release` GitHub Action workflow to finish. This should trigger a second job (`publish-npm`), which will wait for a run approval by the [`npm publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team.
+   - Approve the `publish-npm` job (or ask somebody on the npm publishers team to approve it for you).
+   - Once the `publish-npm` job has finished, check npm to verify that it has been published.
