@@ -6,8 +6,6 @@ on:
 
 jobs:
   is-release:
-    # release merge commits come from github-actions
-    if: startsWith(github.event.commits[0].author.name, 'github-actions')
     outputs:
       IS_RELEASE: ${{ steps.is-release.outputs.IS_RELEASE }}
     runs-on: ubuntu-latest
@@ -42,7 +40,7 @@ jobs:
       - uses: actions/cache@v3
         id: restore-build
         with:
-          path: ./dist
+          path: ./packages/**/dist
           key: ${{ github.sha }}
 
   publish-npm-dry-run:
@@ -55,13 +53,13 @@ jobs:
       - uses: actions/cache@v3
         id: restore-build
         with:
-          path: ./dist
+          path: ./packages/**/dist
           key: ${{ github.sha }}
         # Set `ignore-scripts` to skip `prepublishOnly` because the release was built already in the previous job
       - run: npm config set ignore-scripts true
       - name: Dry Run Publish
         # omit npm-token token to perform dry run publish
-        uses: MetaMask/action-npm-publish@v1.1.0
+        uses: MetaMask/action-npm-publish@v1.2.0
         env:
           SKIP_PREPACK: true
 
@@ -76,12 +74,12 @@ jobs:
       - uses: actions/cache@v3
         id: restore-build
         with:
-          path: ./dist
+          path: ./packages/**/dist
           key: ${{ github.sha }}
         # Set `ignore-scripts` to skip `prepublishOnly` because the release was built already in the previous job
       - run: npm config set ignore-scripts true
       - name: Publish
-        uses: MetaMask/action-npm-publish@v1.1.0
+        uses: MetaMask/action-npm-publish@v1.2.0
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
         env:
