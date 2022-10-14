@@ -30,6 +30,7 @@
     "@metamask/base-controller": "workspace:~",
     "@metamask/controller-utils": "workspace:~",
     "async-mutex": "^0.2.6",
+    "babel-runtime": "^6.26.0",
     "eth-json-rpc-infura": "^5.1.0",
     "eth-query": "^2.1.2",
     "immer": "^9.0.6",

@@ -586,6 +586,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@ethereumjs/common@npm:^2.3.1":
+  version: 2.3.1
+  resolution: "@ethereumjs/common@npm:2.3.1"
+  dependencies:
+    crc-32: ^1.2.0
+    ethereumjs-util: ^7.0.10
+  checksum: 860d79c4c79684b532ba6cdc6f8f34d0c29e75d19edbf462b54f598615949d64aaea9d1e96a2b22da846677471d15b681675508bab3555db739e8276143f760a
+  languageName: node
+  linkType: hard
+
 "@ethereumjs/common@npm:^2.4.0":
   version: 2.4.0
   resolution: "@ethereumjs/common@npm:2.4.0"
@@ -622,6 +632,16 @@ __metadata:
     "@ethereumjs/common": ^2.6.3
     ethereumjs-util: ^7.1.4
   checksum: ed17780314592eca96f7aed392707b55af713964a9ac8e5a1ba5b1a0d7cd90ced80d3793bc24e2ce7a5b4852cefae31af8731c5cf54cece48ada16c5dcb2713b
+  languageName: node
+  linkType: hard
+
+"@ethereumjs/tx@npm:^3.2.1":
+  version: 3.2.1
+  resolution: "@ethereumjs/tx@npm:3.2.1"
+  dependencies:
+    "@ethereumjs/common": ^2.3.1
+    ethereumjs-util: ^7.0.10
+  checksum: 311404f0569fea03e5133c49d129ed9d814cc8baaca90bebb5fc8eae0d4cbc146cb66c2a2c3c54343d4699ff7e0475376bbe9bb9c38dc8dc1b2df0c6e2aaeb73
   languageName: node
   linkType: hard
 
@@ -1362,10 +1382,11 @@ __metadata:
     "@types/web3": ^1.0.6
     abort-controller: ^3.0.0
     async-mutex: ^0.2.6
+    babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
     eth-query: ^2.1.2
     eth-rpc-errors: ^4.0.0
-    ethereumjs-util: ^7.1.4
+    ethereumjs-util: ^7.0.10
     ethjs-provider-http: ^0.1.6
     immer: ^9.0.6
     jest: ^26.4.2
@@ -1612,6 +1633,7 @@ __metadata:
     "@types/jest": ^26.0.22
     "@types/jest-when": ^2.7.3
     "@types/uuid": ^8.3.0
+    babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
     eth-query: ^2.1.2
     ethereumjs-util: ^7.1.4
@@ -1633,8 +1655,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
-    "@ethereumjs/common": ^2.6.4
-    "@ethereumjs/tx": ^3.5.2
+    "@ethereumjs/common": ^2.3.1
+    "@ethereumjs/tx": ^3.2.1
     "@keystonehq/bc-ur-registry-eth": ^0.9.0
     "@keystonehq/metamask-airgapped-keyring": ^0.6.1
     "@metamask/auto-changelog": ^2.6.0
@@ -1697,6 +1719,7 @@ __metadata:
     "@metamask/controller-utils": "workspace:~"
     "@types/jest": ^26.0.22
     async-mutex: ^0.2.6
+    babel-runtime: ^6.26.0
     deepmerge: ^4.2.2
     eth-json-rpc-infura: ^5.1.0
     eth-query: ^2.1.2
@@ -5132,6 +5155,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ethereumjs-util@npm:^7.0.10, ethereumjs-util@npm:^7.0.9":
+  version: 7.0.10
+  resolution: "ethereumjs-util@npm:7.0.10"
+  dependencies:
+    "@types/bn.js": ^5.1.0
+    bn.js: ^5.1.2
+    create-hash: ^1.1.2
+    ethereum-cryptography: ^0.1.3
+    ethjs-util: 0.1.6
+    rlp: ^2.2.4
+  checksum: ee11997a463ebd7afbb23ff211723b95f84e2af73322226d5c0d1586fb58969d69bc5181955dbcc018ce6c13be62ba78d5a44c0f3f5f47b6417ff35438ed5495
+  languageName: node
+  linkType: hard
+
 "ethereumjs-util@npm:^7.0.2":
   version: 7.0.8
   resolution: "ethereumjs-util@npm:7.0.8"
@@ -5156,20 +5193,6 @@ __metadata:
     ethereum-cryptography: ^0.1.3
     rlp: ^2.2.4
   checksum: 6de7a32af05c7265c96163ecd15ad97327afab9deb36092ef26250616657a8c0b5df8e698328247c8193e7b87c643c967f64f0b3cff2b2937cafa870ff5fcb41
-  languageName: node
-  linkType: hard
-
-"ethereumjs-util@npm:^7.0.9":
-  version: 7.0.10
-  resolution: "ethereumjs-util@npm:7.0.10"
-  dependencies:
-    "@types/bn.js": ^5.1.0
-    bn.js: ^5.1.2
-    create-hash: ^1.1.2
-    ethereum-cryptography: ^0.1.3
-    ethjs-util: 0.1.6
-    rlp: ^2.2.4
-  checksum: ee11997a463ebd7afbb23ff211723b95f84e2af73322226d5c0d1586fb58969d69bc5181955dbcc018ce6c13be62ba78d5a44c0f3f5f47b6417ff35438ed5495
   languageName: node
   linkType: hard
 

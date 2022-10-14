@@ -26,11 +26,13 @@
     "test": "jest",
     "test:watch": "jest --watch"
   },
+  "dependencies": {
+    "@metamask/base-controller": "workspace:~"
+  },
   "devDependencies": {
     "@metamask/address-book-controller": "workspace:~",
     "@metamask/assets-controllers": "workspace:~",
     "@metamask/auto-changelog": "^2.6.0",
-    "@metamask/base-controller": "workspace:~",
     "@metamask/controller-utils": "workspace:~",
     "@metamask/ens-controller": "workspace:~",
     "@metamask/network-controller": "workspace:~",
