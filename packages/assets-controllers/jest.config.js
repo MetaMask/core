@@ -25,4 +25,5 @@ module.exports = merge(baseConfig, {
 
   // We rely on `window` to make requests
   testEnvironment: 'jsdom',
+  testEnvironmentOptions: {},
 });

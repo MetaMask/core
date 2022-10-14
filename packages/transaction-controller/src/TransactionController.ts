@@ -272,7 +272,7 @@ export class TransactionController extends BaseController<
 
   private registry: any;
 
-  private handle?: NodeJS.Timer;
+  private handle?: ReturnType<typeof setTimeout>;
 
   private mutex = new Mutex();
 
