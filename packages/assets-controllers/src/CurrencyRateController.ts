@@ -1,12 +1,14 @@
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
-import { BaseControllerV2 } from '@metamask/base-controller';
 import {
-  safelyExecute,
+  BaseControllerV2,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
+import {
   TESTNET_TICKER_SYMBOLS,
   FALL_BACK_VS_CURRENCY,
+  safelyExecute,
 } from '@metamask/controller-utils';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { fetchExchangeRate as defaultFetchExchangeRate } from './crypto-compare';
 
 /**
