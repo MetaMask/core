@@ -213,3 +213,8 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   DependencyType \= 'dependencies'.
+
+% eth-query has an unlisted dependency on babel-runtime, so that package needs
+% to be present if eth-query is present.
+gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', DependencyType) :-
+  workspace_has_dependency(WorkspaceCwd, 'eth-query', _, DependencyType).
