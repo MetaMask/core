@@ -8,7 +8,8 @@ const merge = require('deepmerge');
 const baseConfig = require('../../jest.config.packages');
 
 const displayName = path.basename(__dirname);
-const arrayMerge = (_destinationArray, sourceArray, _options) => sourceArray;
+const overwriteArrays = (_destinationArray, sourceArray, _options) =>
+  sourceArray;
 
 module.exports = merge(
   baseConfig,
@@ -31,5 +32,5 @@ module.exports = merge(
     testEnvironment: 'jsdom',
     testEnvironmentOptions: {},
   },
-  { arrayMerge },
+  { arrayMerge: overwriteArrays },
 );
