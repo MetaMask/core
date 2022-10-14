@@ -135,7 +135,7 @@ export class NftDetectionController extends BaseController<
   NftDetectionConfig,
   BaseState
 > {
-  private intervalId?: NodeJS.Timeout;
+  private intervalId?: ReturnType<typeof setTimeout>;
 
   private getOwnerNftApi({
     address,

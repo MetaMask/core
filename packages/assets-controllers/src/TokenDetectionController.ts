@@ -42,7 +42,7 @@ export class TokenDetectionController extends BaseController<
   TokenDetectionConfig,
   BaseState
 > {
-  private intervalId?: NodeJS.Timeout;
+  private intervalId?: ReturnType<typeof setTimeout>;
 
   /**
    * Name of this controller used during composition

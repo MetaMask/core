@@ -89,7 +89,7 @@ export class TokenListController extends BaseControllerV2<
 > {
   private mutex = new Mutex();
 
-  private intervalId?: NodeJS.Timeout;
+  private intervalId?: ReturnType<typeof setTimeout>;
 
   private intervalDelay: number;
 

@@ -238,7 +238,7 @@ export class GasFeeController extends BaseControllerV2<
   GasFeeState,
   GasFeeMessenger
 > {
-  private intervalId?: NodeJS.Timeout;
+  private intervalId?: ReturnType<typeof setTimeout>;
 
   private intervalDelay;
 
