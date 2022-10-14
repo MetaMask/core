@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@lavamoat/allow-scripts": "^2.0.2",
+    "@metamask/create-release-branch": "^1.0.0",
     "@metamask/eslint-config": "^9.0.0",
     "@metamask/eslint-config-jest": "^9.0.0",
     "@metamask/eslint-config-nodejs": "^9.0.0",
