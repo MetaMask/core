@@ -54,7 +54,7 @@ export class AccountTrackerController extends BaseController<
 
   private mutex = new Mutex();
 
-  private handle?: NodeJS.Timer;
+  private handle?: ReturnType<typeof setTimeout>;
 
   private syncAccounts() {
     const { accounts } = this.state;

@@ -43,7 +43,7 @@ export class TokenBalancesController extends BaseController<
   TokenBalancesConfig,
   TokenBalancesState
 > {
-  private handle?: NodeJS.Timer;
+  private handle?: ReturnType<typeof setTimeout>;
 
   /**
    * Name of this controller used during composition
