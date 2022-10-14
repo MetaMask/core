@@ -55,7 +55,7 @@ This project follows a unique release process. The [`create-release-branch`](htt
    - Consolidate related changes into one change entry if it makes it easier to explain.
    - Run `yarn auto-changelog validate --rc` to check that the changelog is correctly formatted.
 
-3. Review and QA the release.
+3. Submit a pull request for the release branch, so that it can be reviewed and tested.
 
    - If changes are made to the base branch, the release branch will need to be updated with these changes and review/QA will need to restart again. As such, it's probably best to avoid merging other PRs into the base branch while review is underway.
 
