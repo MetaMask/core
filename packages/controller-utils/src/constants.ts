@@ -29,7 +29,7 @@ export const GWEI = 'gwei';
 export const ASSET_TYPES = {
   NATIVE: 'NATIVE',
   TOKEN: 'TOKEN',
-  COLLECTIBLE: 'COLLECTIBLE',
+  NFT: 'NFT',
   UNKNOWN: 'UNKNOWN',
 };
 
