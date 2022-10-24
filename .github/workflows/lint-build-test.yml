@@ -19,10 +19,10 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - name: Get Yarn cache directory
-        run: echo "::set-output name=YARN_CACHE_DIR::$(yarn config get cacheFolder)"
+        run: echo "YARN_CACHE_DIR=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
         id: yarn-cache-dir
       - name: Get Yarn version
-        run: echo "::set-output name=YARN_VERSION::$(yarn --version)"
+        run: echo "YARN_VERSION=$(yarn --version)" >> $GITHUB_OUTPUT
         id: yarn-version
       - name: Cache yarn dependencies
         uses: actions/cache@v2
