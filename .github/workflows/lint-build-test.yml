@@ -25,7 +25,7 @@ jobs:
         run: echo "YARN_VERSION=$(yarn --version)" >> $GITHUB_OUTPUT
         id: yarn-version
       - name: Cache yarn dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ steps.yarn-cache-dir.outputs.YARN_CACHE_DIR }}
           key: yarn-cache-${{ runner.os }}-${{ steps.yarn-version.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}
