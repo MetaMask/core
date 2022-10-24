@@ -58,6 +58,8 @@ export type Block = {
 
 export type NetworkProperties = {
   isEIP1559Compatible?: boolean;
+  chainId: string;
+  networkId: string;
 };
 
 /**
@@ -65,12 +67,10 @@ export type NetworkProperties = {
  *
  * Network controller state
  * @property network - Network ID as per net_version
- * @property isCustomNetwork - Identifies if the network is a custom network
  * @property provider - RPC URL and network name provider settings
  */
 export type NetworkState = {
   network: string;
-  isCustomNetwork: boolean;
   provider: ProviderConfig;
   properties: NetworkProperties;
 };
@@ -154,10 +154,8 @@ export type NetworkControllerOptions = {
 };
 
 const defaultState: NetworkState = {
-  network: 'loading',
-  isCustomNetwork: false,
-  provider: { type: MAINNET, chainId: NetworksChainId.mainnet },
-  properties: { isEIP1559Compatible: false },
+  providerConfig: { type: MAINNET, chainId: NetworksChainId.mainnet },
+  properties: { isEIP1559Compatible: false, isCustomNetwork: false },
 };
 
 /**
@@ -168,10 +166,6 @@ export class NetworkController extends BaseController<
   NetworkState,
   NetworkControllerMessenger
 > {
-  private ethQuery: EthQuery;
-
-  private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
-
   private infuraProjectId: string | undefined;
 
   private mutex = new Mutex();

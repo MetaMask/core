@@ -349,6 +349,16 @@ export class GasFeeController extends BaseController<
         }
       },
     );
+
+    this.messagingSystem.subscribe(
+      'NetworkController:eip1559CompatibilityChange',
+      async (eip1559Compatible: boolean) => {
+        if (this.currentChainId !== providerConfig.chainId) {
+          this.currentChainId = providerConfig.chainId;
+          await this.resetPolling();
+        }
+      },
+    );
   }
 
   async resetPolling() {
