@@ -13,5 +13,5 @@ yarn test
 ## See Also
 
 - [`eth-json-rpc-filters`](https://github.com/MetaMask/eth-json-rpc-filters).
-- [`eth-json-rpc-infura`](https://github.com/MetaMask/json-rpc-infura).
+- [`eth-json-rpc-infura`](https://github.com/MetaMask/eth-json-rpc-infura).
 - [`json-rpc-engine`](https://github.com/MetaMask/json-rpc-engine).
