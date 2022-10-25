@@ -35,6 +35,12 @@ jobs:
       - uses: MetaMask/action-publish-release@v2.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get Yarn cache directory
+        run: echo "YARN_CACHE_DIR=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
+        id: yarn-cache-dir
+      - name: Get Yarn version
+        run: echo "YARN_VERSION=$(yarn --version)" >> $GITHUB_OUTPUT
+        id: yarn-version
       - name: Cache yarn dependencies
         uses: actions/cache@v3
         with:
