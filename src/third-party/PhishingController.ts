@@ -2,6 +2,7 @@ import { toASCII } from 'punycode/';
 import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
 import PhishingDetector from 'eth-phishing-detect/src/detector';
 import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import { safelyExecute } from '../util';
 
 /**
  * @type EthPhishingResponse
@@ -80,21 +81,28 @@ export interface PhishingState extends BaseState {
   whitelist: string[];
 }
 
+export const PHISHING_CONFIG_BASE_URL =
+  'https://static.metafi.codefi.network/api/v1/lists';
+
+export const METAMASK_CONFIG_FILE = '/eth_phishing_detect_config.json';
+
+export const PHISHFORT_HOTLIST_FILE = '/phishfort_hotlist.json';
+
+export const METAMASK_CONFIG_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_CONFIG_FILE}`;
+export const PHISHFORT_HOTLIST_URL = `${PHISHING_CONFIG_BASE_URL}${PHISHFORT_HOTLIST_FILE}`;
+
 /**
- * Controller that passively polls on a set interval for approved and unapproved website origins
+ * Controller that manages community-maintained lists of approved and unapproved website origins.
  */
 export class PhishingController extends BaseController<
   PhishingConfig,
   PhishingState
 > {
-  private configUrlMetaMask =
-    'https://cdn.jsdelivr.net/gh/MetaMask/eth-phishing-detect@master/src/config.json';
-
-  private configUrlPhishFortHotlist = `https://cdn.jsdelivr.net/gh/phishfort/phishfort-lists@master/blacklists/hotlist.json`;
-
   private detector: any;
 
   private lastFetched = 0;
+
+  #inProgressUpdate: Promise<void> | undefined;
 
   /**
    * Name of this controller used during composition
@@ -143,28 +151,25 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Calls this.updatePhishingLists if this.refreshInterval has passed since last this.lastFetched.
+   * Determine if an update to the phishing configuration is needed.
    *
-   * @returns Promise<void> when finished fetching phishing lists or when fetching in not necessary.
+   * @returns Whether an update is needed
    */
-  private async fetchIfNecessary(): Promise<void> {
-    const outOfDate =
-      Date.now() - this.lastFetched >= this.config.refreshInterval;
-
-    if (outOfDate) {
-      await this.updatePhishingLists();
-    }
+  isOutOfDate() {
+    return Date.now() - this.lastFetched >= this.config.refreshInterval;
   }
 
   /**
    * Determines if a given origin is unapproved.
    *
+   * It is strongly recommended that you call {@link isOutOfDate} before calling this,
+   * to check whether the phishing configuration is up-to-date. It can be
+   * updated by calling {@link updatePhishingLists}.
+   *
    * @param origin - Domain origin of a website.
-   * @returns Promise<EthPhishingDetectResult> Whether the origin is an unapproved origin.
+   * @returns Whether the origin is an unapproved origin.
    */
-  async test(origin: string): Promise<EthPhishingDetectResult> {
-    await this.fetchIfNecessary();
-
+  test(origin: string): EthPhishingDetectResult {
     const punycodeOrigin = toASCII(origin);
     if (this.state.whitelist.indexOf(punycodeOrigin) !== -1) {
       return { result: false, type: 'all' }; // Same as whitelisted match returned by detector.check(...).
@@ -187,19 +192,50 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Updates lists of approved and unapproved website origins.
+   * Update the phishing configuration.
+   *
+   * If an update is in progress, no additional update will be made. Instead this will wait until
+   * the in-progress update has finished.
    */
   async updatePhishingLists() {
+    if (this.#inProgressUpdate) {
+      await this.#inProgressUpdate;
+      return;
+    }
+
+    try {
+      this.#inProgressUpdate = this.#updatePhishingLists();
+      await this.#inProgressUpdate;
+    } finally {
+      this.#inProgressUpdate = undefined;
+    }
+  }
+
+  /**
+   * Update the phishing configuration.
+   *
+   * This should only be called from the `updatePhishingLists` function, which is a wrapper around
+   * this function that prevents redundant configuration updates.
+   */
+  async #updatePhishingLists() {
     if (this.disabled) {
       return;
     }
 
     const configs: EthPhishingDetectConfig[] = [];
 
-    const [metamaskConfigLegacy, phishfortHotlist] = await Promise.all([
-      await this.queryConfig<EthPhishingResponse>(this.configUrlMetaMask),
-      await this.queryConfig<string[]>(this.configUrlPhishFortHotlist),
-    ]);
+    let metamaskConfigLegacy;
+    let phishfortHotlist;
+    try {
+      [metamaskConfigLegacy, phishfortHotlist] = await Promise.all([
+        this.queryConfig<EthPhishingResponse>(METAMASK_CONFIG_URL),
+        this.queryConfig<string[]>(PHISHFORT_HOTLIST_URL),
+      ]);
+    } finally {
+      // Set `lastFetched` even for failed requests to prevent server from being overwhelmed with
+      // traffic after a network disruption.
+      this.lastFetched = Date.now();
+    }
 
     // Correctly shaping MetaMask config.
     const metamaskConfig: EthPhishingDetectConfig = {
@@ -238,16 +274,17 @@ export class PhishingController extends BaseController<
     this.update({
       phishing: configs,
     });
-
-    this.lastFetched = Date.now();
   }
 
   private async queryConfig<ResponseType>(
     input: RequestInfo,
   ): Promise<ResponseType | null> {
-    const response = await fetch(input, { cache: 'no-cache' });
+    const response = await safelyExecute(
+      () => fetch(input, { cache: 'no-cache' }),
+      true,
+    );
 
-    switch (response.status) {
+    switch (response?.status) {
       case 200: {
         return await response.json();
       }

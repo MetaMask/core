@@ -8,6 +8,7 @@ const MAINNET_PROVIDER = new HttpProvider(
 );
 const ERC20_MATIC_ADDRESS = '0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0';
 const MKR_ADDRESS = '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2';
+const AMBIRE_ADDRESS = '0xa07D75aacEFd11b425AF7181958F0F85c312f143';
 
 describe('ERC20Standard', () => {
   let erc20Standard: ERC20Standard;
@@ -115,5 +116,44 @@ describe('ERC20Standard', () => {
     const symbol = await erc20Standard.getTokenSymbol(MKR_ADDRESS);
     expect(decimals).toBe('18');
     expect(symbol).toBe('MKR');
+  });
+
+  it('should fail on on empty responses', async () => {
+    nock('https://mainnet.infura.io:443', { encodedQueryParams: true })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 5,
+        method: 'eth_call',
+        params: [
+          {
+            to: AMBIRE_ADDRESS,
+            data: '0x95d89b41',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, { jsonrpc: '2.0', id: 5, result: '0x' })
+      .post('/v3/341eacb578dd44a1a049cbc5f6fd4035', {
+        jsonrpc: '2.0',
+        id: 6,
+        method: 'eth_call',
+        params: [
+          {
+            to: AMBIRE_ADDRESS,
+            data: '0x313ce567',
+          },
+          'latest',
+        ],
+      })
+      .reply(200, { jsonrpc: '2.0', id: 6, result: '0x' });
+
+    // Some proxy contracts don't revert when requesting symbol() and decimals(), this test makes sure we handle those cases.
+    await expect(erc20Standard.getTokenSymbol(AMBIRE_ADDRESS)).rejects.toThrow(
+      'Failed to parse token symbol',
+    );
+
+    await expect(
+      erc20Standard.getTokenDecimals(AMBIRE_ADDRESS),
+    ).rejects.toThrow('Failed to parse token decimals');
   });
 });

@@ -36,7 +36,7 @@ export interface AccountTrackerState extends BaseState {
 }
 
 /**
- * Controller that tracks information for all accounts in the current keychain
+ * Controller that tracks the network balances for all user accounts.
  */
 export class AccountTrackerController extends BaseController<
   AccountTrackerConfig,

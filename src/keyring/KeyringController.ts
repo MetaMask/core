@@ -123,7 +123,13 @@ export enum SignTypedDataVersion {
 }
 
 /**
- * Controller responsible for establishing and managing user identity
+ * Controller responsible for establishing and managing user identity.
+ *
+ * This class is a wrapper around the `eth-keyring-controller` package. The
+ * `eth-keyring-controller` manages the "vault", which is an encrypted store of private keys, and
+ * it manages the wallet "lock" state. This wrapper class has convenience methods for interacting
+ * with the internal keyring controller and handling certain complex operations that involve the
+ * keyrings.
  */
 export class KeyringController extends BaseController<
   KeyringConfig,

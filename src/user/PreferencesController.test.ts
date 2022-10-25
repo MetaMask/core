@@ -11,7 +11,7 @@ describe('PreferencesController', () => {
       lostIdentities: {},
       selectedAddress: '',
       useTokenDetection: true,
-      useCollectibleDetection: false,
+      useNftDetection: false,
       openSeaEnabled: false,
     });
   });
@@ -219,10 +219,10 @@ describe('PreferencesController', () => {
     expect(controller.state.useTokenDetection).toStrictEqual(true);
   });
 
-  it('should set useCollectibleDetection', () => {
+  it('should set useNftDetection', () => {
     const controller = new PreferencesController();
     controller.setOpenSeaEnabled(true);
-    controller.setUseCollectibleDetection(true);
-    expect(controller.state.useCollectibleDetection).toStrictEqual(true);
+    controller.setUseNftDetection(true);
+    expect(controller.state.useNftDetection).toStrictEqual(true);
   });
 });

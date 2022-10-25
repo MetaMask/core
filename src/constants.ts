@@ -25,11 +25,14 @@ export const ERC1155_TOKEN_RECEIVER_INTERFACE_ID = '0x4e2312e0';
 // UNITS
 export const GWEI = 'gwei';
 
+// TRANSACTION CONTROLLER ERRORS
+export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
+
 // ASSET TYPES
 export const ASSET_TYPES = {
   NATIVE: 'NATIVE',
   TOKEN: 'TOKEN',
-  COLLECTIBLE: 'COLLECTIBLE',
+  NFT: 'NFT',
   UNKNOWN: 'UNKNOWN',
 };
 
@@ -40,7 +43,6 @@ export const TESTNET_TICKER_SYMBOLS = {
   ROPSTEN: 'RopstenETH',
   KOVAN: 'KovanETH',
 };
-
 // TYPED NetworkType TICKER SYMBOLS
 export const TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL: {
   [K in NetworkType]: string;
