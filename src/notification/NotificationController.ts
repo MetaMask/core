@@ -57,11 +57,17 @@ export type MarkNotificationRead = {
   handler: NotificationController['markRead'];
 };
 
+export type ClearNotifications = {
+  type: `${typeof name}:clear`;
+  handler: NotificationController['clear'];
+};
+
 export type NotificationControllerActions =
   | GetNotificationControllerState
   | ShowNotification
   | DismissNotification
-  | MarkNotificationRead;
+  | MarkNotificationRead
+  | ClearNotifications;
 
 export type NotificationControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -122,6 +128,10 @@ export class NotificationController extends BaseController<
       `${name}:markRead` as const,
       (ids: string[]) => this.markRead(ids),
     );
+
+    this.messagingSystem.registerActionHandler(`${name}:clear` as const, () =>
+      this.clear(),
+    );
   }
 
   /**
@@ -171,6 +181,16 @@ export class NotificationController extends BaseController<
           state.notifications[id].readDate = Date.now();
         }
       }
+    });
+  }
+
+  /**
+   * Clears the state of the controller, removing all notifications.
+   *
+   */
+  clear() {
+    this.update(() => {
+      return { ...defaultState };
     });
   }
 }
