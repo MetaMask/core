@@ -17,6 +17,14 @@ const DEFAULT_THRESHOLD = 24 * 60 * 60 * 1000;
 
 const name = 'TokenListController';
 
+export type Scheduler = {
+  schedule: (
+    duration: number,
+    fetchTokenListFn: () => Promise<void>,
+  ) => NodeJS.Timeout | undefined;
+  unschedule: (intervalId: NodeJS.Timeout | undefined) => void;
+};
+
 export type TokenListToken = {
   name: string;
   symbol: string;
@@ -91,6 +99,8 @@ export class TokenListController extends BaseController<
 
   private chainId: string;
 
+  private scheduler: Scheduler;
+
   private abortController: AbortController;
 
   /**
@@ -104,6 +114,7 @@ export class TokenListController extends BaseController<
    * @param options.messenger - A restricted controller messenger.
    * @param options.state - Initial state to set on this controller.
    * @param options.preventPollingOnNetworkRestart - Determines whether to prevent poilling on network restart in extension.
+   * @param options.scheduler - Schedule
    */
   constructor({
     chainId,
@@ -111,6 +122,7 @@ export class TokenListController extends BaseController<
     onNetworkStateChange,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
+    scheduler,
     messenger,
     state,
   }: {
@@ -121,6 +133,7 @@ export class TokenListController extends BaseController<
     ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
+    scheduler: Scheduler;
     messenger: TokenListMessenger;
     state?: Partial<TokenListState>;
   }) {
@@ -134,6 +147,7 @@ export class TokenListController extends BaseController<
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
+    this.scheduler = scheduler;
     this.abortController = new AbortController();
     if (onNetworkStateChange) {
       onNetworkStateChange(async (networkStateOrProviderConfig) => {
@@ -221,9 +235,7 @@ export class TokenListController extends BaseController<
   }
 
   private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-    }
+    this.scheduler.unschedule(this.intervalId);
   }
 
   /**
@@ -231,9 +243,9 @@ export class TokenListController extends BaseController<
    */
   private async startPolling(): Promise<void> {
     await safelyExecute(() => this.fetchTokenList());
-    this.intervalId = setInterval(async () => {
-      await safelyExecute(() => this.fetchTokenList());
-    }, this.intervalDelay);
+    this.intervalId = this.scheduler.schedule(this.intervalDelay, () =>
+      this.fetchTokenList(),
+    );
   }
 
   /**
