@@ -14,6 +14,7 @@ interface IdMapValue {
   res: PendingJsonRpcResponse<unknown>;
   next: JsonRpcEngineNextCallback;
   end: JsonRpcEngineEndCallback;
+  retryCount?: number;
 }
 
 interface IdMap {
@@ -129,8 +130,20 @@ export default function createStreamMiddleware(options: Options = {}) {
    * Retry pending requests.
    */
   function retryStuckRequests() {
-    Object.values(idMap).forEach(({ req }) => {
-      // TODO: limiting retries could be implemented here
+    Object.values(idMap).forEach(({ req, retryCount = 0 }) => {
+      // Avoid retrying requests without an id - they cannot have matching responses so retry logic doesn't apply
+      // Check for retry count below ensure that a request is not retried more than 3 times
+      if (!req.id) {
+        return;
+      }
+
+      if (retryCount >= 3) {
+        throw new Error(
+          `StreamMiddleware - Retry limit exceeded for request id "${req.id}"`,
+        );
+      }
+
+      idMap[req.id].retryCount = retryCount + 1;
       sendToStream(req);
     });
   }

@@ -109,17 +109,20 @@ describe('middleware and engine to stream', () => {
 
 const RECONNECTED = 'CONNECTED';
 describe('retry logic in middleware connected to a port', () => {
-  it('retries requests on reconnect message', async () => {
+  let engineA: JsonRpcEngine | undefined;
+  let messages: any[] = [];
+  let messageConsumer: any;
+  beforeEach(() => {
     // create guest
-    const engineA = new JsonRpcEngine();
+    engineA = new JsonRpcEngine();
     const jsonRpcConnection = createStreamMiddleware({
       retryOnMessage: RECONNECTED,
     });
     engineA.push(jsonRpcConnection.middleware);
 
     // create port
-    let messageConsumer = noop;
-    const messages: any[] = [];
+    messageConsumer = noop;
+    messages = [];
     const extensionPort = {
       onMessage: {
         addListener: (cb: any) => {
@@ -143,15 +146,17 @@ describe('retry logic in middleware connected to a port', () => {
     clientSideStream
       .pipe(connectionStream as unknown as Duplex)
       .pipe(clientSideStream);
+  });
 
+  it('retries requests on reconnect message', async () => {
     // request and expected result
     const req1 = { id: 1, jsonrpc, method: 'test' };
     const req2 = { id: 2, jsonrpc, method: 'test' };
     const res = { id: 1, jsonrpc, result: 'test' };
 
     // Initially sent once
-    const responsePromise1 = engineA.handle(req1);
-    engineA.handle(req2);
+    const responsePromise1 = engineA?.handle(req1);
+    engineA?.handle(req2);
     await artificialDelay();
 
     expect(messages).toHaveLength(2);
@@ -178,5 +183,60 @@ describe('retry logic in middleware connected to a port', () => {
     await artificialDelay();
 
     expect(messages).toHaveLength(5);
+  });
+
+  it('throw error when requests are retried more than 3 times', async () => {
+    // request and expected result
+    const req = { id: 1, jsonrpc, method: 'test' };
+
+    // Initially sent once, message count at 1
+    engineA?.handle(req);
+    await artificialDelay();
+    expect(messages).toHaveLength(1);
+
+    // Reconnected, gets sent again message count increased to 2
+    messageConsumer({
+      method: RECONNECTED,
+    });
+    await artificialDelay();
+    expect(messages).toHaveLength(2);
+
+    // Reconnected, gets sent again message count increased to 3
+    messageConsumer({
+      method: RECONNECTED,
+    });
+    await artificialDelay();
+    expect(messages).toHaveLength(3);
+
+    // Reconnected, gets sent again message count increased to 4
+    messageConsumer({
+      method: RECONNECTED,
+    });
+    await artificialDelay();
+    expect(messages).toHaveLength(4);
+
+    // Reconnected, error is thrrown when trying to resend request more that 3 times
+    expect(() => {
+      messageConsumer({
+        method: RECONNECTED,
+      });
+    }).toThrow('StreamMiddleware - Retry limit exceeded for request id');
+  });
+
+  it('does not retry if the request has no id', async () => {
+    // request and expected result
+    const req = { id: undefined, jsonrpc, method: 'test' };
+
+    // Initially sent once, message count at 1
+    engineA?.handle(req);
+    await artificialDelay();
+    expect(messages).toHaveLength(1);
+
+    // Reconnected, but request is not re-submitted
+    messageConsumer({
+      method: RECONNECTED,
+    });
+    await artificialDelay();
+    expect(messages).toHaveLength(1);
   });
 });
