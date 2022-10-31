@@ -12,7 +12,7 @@ jobs:
       IS_RELEASE: ${{ steps.is-release.outputs.IS_RELEASE }}
     runs-on: ubuntu-latest
     steps:
-      - uses: MetaMask/action-is-release@v1.0
+      - uses: MetaMask/action-is-release@v1.1
         id: is-release
 
   publish-release:
@@ -32,7 +32,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ steps.nvm.outputs.NODE_VERSION }}
-      - uses: MetaMask/action-publish-release@v2.0.0
+      - uses: MetaMask/action-publish-release@v2.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Get Yarn cache directory
