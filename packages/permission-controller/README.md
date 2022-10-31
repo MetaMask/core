@@ -12,7 +12,7 @@ or
 
 ## Understanding
 
-Please read the [Architecture][./ARCHITECTURE.md] document for more on how PermissionController works and how to use it.
+Please read the [Architecture][./architecture.md] document for more on how PermissionController works and how to use it.
 
 ## Contributing
 
