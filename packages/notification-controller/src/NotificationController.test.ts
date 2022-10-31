@@ -110,4 +110,24 @@ describe('NotificationController', () => {
 
     expect(Object.values(controller.state.notifications)).toHaveLength(0);
   });
+
+  it('action: NotificationController:clear', async () => {
+    const unrestricted = getUnrestrictedMessenger();
+    const messenger = getRestrictedMessenger(unrestricted);
+
+    const controller = new NotificationController({
+      messenger,
+    });
+
+    expect(
+      await unrestricted.call('NotificationController:show', origin, message),
+    ).toBeUndefined();
+    const notifications = Object.values(controller.state.notifications);
+    expect(notifications).toHaveLength(1);
+    expect(
+      await unrestricted.call('NotificationController:clear'),
+    ).toBeUndefined();
+
+    expect(Object.values(controller.state.notifications)).toHaveLength(0);
+  });
 });
