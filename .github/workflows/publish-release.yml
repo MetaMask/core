@@ -12,7 +12,7 @@ jobs:
       IS_RELEASE: ${{ steps.is-release.outputs.IS_RELEASE }}
     runs-on: ubuntu-latest
     steps:
-      - uses: MetaMask/action-is-release@v1.1
+      - uses: MetaMask/action-is-release@v1
         id: is-release
 
   publish-release:
@@ -32,7 +32,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ steps.nvm.outputs.NODE_VERSION }}
-      - uses: MetaMask/action-publish-release@v2.0.2
+      - uses: MetaMask/action-publish-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Get Yarn cache directory
@@ -70,7 +70,7 @@ jobs:
       - run: npm config set ignore-scripts true
       - name: Dry Run Publish
         # omit npm-token token to perform dry run publish
-        uses: MetaMask/action-npm-publish@v1.1.0
+        uses: MetaMask/action-npm-publish@v1
         env:
           SKIP_PREPACK: true
 
@@ -90,7 +90,7 @@ jobs:
         # Set `ignore-scripts` to skip `prepublishOnly` because the release was built already in the previous job
       - run: npm config set ignore-scripts true
       - name: Publish
-        uses: MetaMask/action-npm-publish@v1.1.0
+        uses: MetaMask/action-npm-publish@v1
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
         env:
