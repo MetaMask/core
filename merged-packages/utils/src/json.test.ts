@@ -4,6 +4,7 @@ import {
   ARRAY_OF_MIXED_SPECIAL_OBJECTS,
   COMPLEX_OBJECT,
   JSON_FIXTURES,
+  JSON_RPC_ERROR_FIXTURES,
   JSON_RPC_FAILURE_FIXTURES,
   JSON_RPC_NOTIFICATION_FIXTURES,
   JSON_RPC_PENDING_RESPONSE_FIXTURES,
@@ -29,6 +30,8 @@ import {
   isPendingJsonRpcResponse,
   isValidJson,
   validateJsonAndGetSize,
+  isJsonRpcError,
+  assertIsJsonRpcError,
 } from '.';
 
 describe('json', () => {
@@ -254,6 +257,58 @@ describe('json', () => {
       expect(() =>
         assertIsJsonRpcFailure(JSON_RPC_FAILURE_FIXTURES.invalid[0]),
       ).toThrow('Not a failed JSON-RPC response: oops');
+    });
+  });
+
+  describe('isJsonRpcError', () => {
+    it.each(JSON_RPC_ERROR_FIXTURES.valid)(
+      'returns true for a valid JSON-RPC error',
+      (error) => {
+        expect(isJsonRpcError(error)).toBe(true);
+      },
+    );
+
+    it.each(JSON_RPC_ERROR_FIXTURES.invalid)(
+      'returns false for an invalid JSON-RPC error',
+      (error) => {
+        expect(isJsonRpcError(error)).toBe(false);
+      },
+    );
+  });
+
+  describe('assertIsJsonRpcError', () => {
+    it.each(JSON_RPC_ERROR_FIXTURES.valid)(
+      'does not throw an error for valid JSON-RPC error',
+      (error) => {
+        expect(() => assertIsJsonRpcError(error)).not.toThrow();
+      },
+    );
+
+    it.each(JSON_RPC_ERROR_FIXTURES.invalid)(
+      'throws an error for invalid JSON-RPC error',
+      (error) => {
+        expect(() => assertIsJsonRpcError(error)).toThrow(
+          'Not a JSON-RPC error',
+        );
+      },
+    );
+
+    it('includes the reason in the error message', () => {
+      expect(() =>
+        assertIsJsonRpcError(JSON_RPC_ERROR_FIXTURES.invalid[0]),
+      ).toThrow(
+        'Not a JSON-RPC error: At path: code -- Expected an integer, but received: undefined.',
+      );
+    });
+
+    it('includes the value thrown in the message if it is not an error', () => {
+      jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        throw 'oops';
+      });
+
+      expect(() =>
+        assertIsJsonRpcError(JSON_RPC_ERROR_FIXTURES.invalid[0]),
+      ).toThrow('Not a JSON-RPC error: oops');
     });
   });
 

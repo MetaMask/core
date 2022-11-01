@@ -4,6 +4,7 @@ import {
   assert,
   boolean,
   Infer,
+  integer,
   is,
   lazy,
   literal,
@@ -94,9 +95,9 @@ export const JsonRpcIdStruct = nullable(union([number(), string()]));
 export type JsonRpcId = Infer<typeof JsonRpcIdStruct>;
 
 export const JsonRpcErrorStruct = object({
-  code: number(),
+  code: integer(),
   message: string(),
-  data: optional(unknown()),
+  data: optional(JsonStruct),
   stack: optional(string()),
 });
 
@@ -397,6 +398,32 @@ export function assertIsJsonRpcFailure(
   } catch (error) {
     const message = isErrorWithMessage(error) ? error.message : error;
     throw new Error(`Not a failed JSON-RPC response: ${message}.`);
+  }
+}
+
+/**
+ * Type guard to validate whether an object is a valid JSON-RPC error.
+ *
+ * @param value - The value object to check.
+ * @returns Whether the response object is a valid JSON-RPC error.
+ */
+export function isJsonRpcError(value: unknown): value is JsonRpcError {
+  return is(value, JsonRpcErrorStruct);
+}
+
+/**
+ * Type assertion to validate whether an object is a valid JSON-RPC error.
+ *
+ * @param value - The value object to check.
+ */
+export function assertIsJsonRpcError(
+  value: unknown,
+): asserts value is JsonRpcError {
+  try {
+    assert(value, JsonRpcErrorStruct);
+  } catch (error) {
+    const message = isErrorWithMessage(error) ? error.message : error;
+    throw new Error(`Not a JSON-RPC error: ${message}.`);
   }
 }
 

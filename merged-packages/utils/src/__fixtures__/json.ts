@@ -660,6 +660,76 @@ export const JSON_RPC_FAILURE_FIXTURES = {
   ],
 };
 
+export const JSON_RPC_ERROR_FIXTURES = {
+  valid: JSON_RPC_FAILURE_FIXTURES.valid.map((fixture) => fixture.error),
+  invalid: [
+    {},
+    [],
+    true,
+    false,
+    null,
+    undefined,
+    1,
+    'foo',
+    {
+      code: {},
+      message: 'Internal error',
+    },
+    {
+      code: [],
+      message: 'Internal error',
+    },
+    {
+      code: true,
+      message: 'Internal error',
+    },
+    {
+      code: false,
+      message: 'Internal error',
+    },
+    {
+      code: null,
+      message: 'Internal error',
+    },
+    {
+      code: undefined,
+      message: 'Internal error',
+    },
+    {
+      code: 'foo',
+      message: 'Internal error',
+    },
+    {
+      code: -32000,
+      message: {},
+    },
+    {
+      code: -32000,
+      message: [],
+    },
+    {
+      code: -32000,
+      message: true,
+    },
+    {
+      code: -32000,
+      message: false,
+    },
+    {
+      code: -32000,
+      message: null,
+    },
+    {
+      code: -32000,
+      message: undefined,
+    },
+    {
+      code: -32000.5,
+      message: undefined,
+    },
+  ],
+};
+
 export const JSON_RPC_RESPONSE_FIXTURES = {
   valid: [
     ...JSON_RPC_SUCCESS_FIXTURES.valid,
