@@ -1112,22 +1112,11 @@ export const COMPLEX_OBJECT = {
         t: [true, true, true],
         f: [false, false, false],
         nulls: [null, null, null],
-        undef: undefined,
-        mixed: [
-          null,
-          undefined,
-          null,
-          undefined,
-          null,
-          true,
-          null,
-          false,
-          null,
-          undefined,
-        ],
+        undef: null,
+        mixed: [null, null, null, null, null, true, null, false, null, null],
         inObject: {
           valueOne: null,
-          valueTwo: undefined,
+          valueTwo: null,
           t: true,
           f: false,
         },
@@ -1159,25 +1148,3 @@ export const ARRAY_OF_DIFFRENT_KINDS_OF_NUMBERS = [
   -5e-11, 5e-9, 0.000000000001, -0.00000000009, 100000.00000008, -100.88888,
   0.333, 1000000000000,
 ];
-
-export const ARRAY_OF_MIXED_SPECIAL_OBJECTS = [
-  null,
-  undefined,
-  null,
-  undefined,
-  undefined,
-  undefined,
-  null,
-  null,
-  null,
-  undefined,
-];
-
-export const OBJECT_MIXED_WITH_UNDEFINED_VALUES = {
-  a: undefined,
-  b: 'b',
-  c: undefined,
-  d: 'd',
-  e: undefined,
-  f: 'f',
-};

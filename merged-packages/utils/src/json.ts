@@ -1,19 +1,16 @@
-import deepEqual from 'fast-deep-equal';
 import {
   array,
   assert,
-  boolean,
+  define,
   Infer,
   integer,
   is,
-  lazy,
   literal,
   nullable,
   number,
   object,
   omit,
   optional,
-  record,
   string,
   Struct,
   union,
@@ -37,15 +34,10 @@ function isErrorWithMessage(error: unknown): error is { message: string } {
   return typeof error === 'object' && error !== null && 'message' in error;
 }
 
-// Note: This struct references itself, so TypeScript cannot infer the type.
-export const JsonStruct: Struct<Json> = union([
-  literal(null),
-  boolean(),
-  number(),
-  string(),
-  lazy(() => array(JsonStruct)),
-  lazy(() => record(string(), JsonStruct)),
-]);
+export const JsonStruct = define<Json>('Json', (value) => {
+  const [isValid] = validateJsonAndGetSize(value, true);
+  return isValid;
+});
 
 /**
  * Any JSON-compatible value.
@@ -65,11 +57,7 @@ export type Json =
  * @returns Whether the value is valid JSON.
  */
 export function isValidJson(value: unknown): value is Json {
-  try {
-    return deepEqual(value, JSON.parse(JSON.stringify(value)));
-  } catch (_) {
-    return false;
-  }
+  return is(value, JsonStruct);
 }
 
 /**
@@ -512,8 +500,7 @@ export function validateJsonAndGetSize(
     skipSizing: boolean,
   ): [isValid: boolean, plainTextSizeInBytes: number] {
     if (value === undefined) {
-      // Return zero for undefined, since these are omitted from JSON serialization
-      return [true, 0];
+      return [false, 0];
     } else if (value === null) {
       // Return already specified constant size for null (special object)
       return [true, skipSizing ? 0 : JsonSize.Null];
@@ -598,18 +585,6 @@ export function validateJsonAndGetSize(
 
             if (skipSizing) {
               return 0;
-            }
-
-            // If the size is 0, the value is undefined and undefined in an array
-            // when serialized will be replaced with null
-            if (size === 0 && Array.isArray(value)) {
-              size = JsonSize.Null;
-            }
-
-            // If the size is 0, that means the object is undefined and
-            // the rest of the object structure will be omitted
-            if (size === 0) {
-              return sum;
             }
 
             // Objects will have be serialized with "key": value,

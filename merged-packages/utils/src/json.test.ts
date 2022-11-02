@@ -1,7 +1,6 @@
 import * as superstructModule from 'superstruct';
 import {
   ARRAY_OF_DIFFRENT_KINDS_OF_NUMBERS,
-  ARRAY_OF_MIXED_SPECIAL_OBJECTS,
   COMPLEX_OBJECT,
   JSON_FIXTURES,
   JSON_RPC_ERROR_FIXTURES,
@@ -12,7 +11,6 @@ import {
   JSON_RPC_RESPONSE_FIXTURES,
   JSON_RPC_SUCCESS_FIXTURES,
   NON_SERIALIZABLE_NESTED_OBJECT,
-  OBJECT_MIXED_WITH_UNDEFINED_VALUES,
 } from './__fixtures__';
 import {
   assertIsJsonRpcFailure,
@@ -522,24 +520,15 @@ describe('json', () => {
       ]);
     });
 
-    it('should return true for serialization and 2 for a size when only one key with undefined value is provided', () => {
+    it('should return false for serialization and 0 for a size when only one key with undefined value is provided', () => {
       const valueToSerialize = {
         a: undefined,
       };
 
-      expect(validateJsonAndGetSize(valueToSerialize)).toStrictEqual([true, 2]);
-    });
-
-    it('should return true for serialization and 25 for a size when some of the values are undefined', () => {
-      expect(
-        validateJsonAndGetSize(OBJECT_MIXED_WITH_UNDEFINED_VALUES),
-      ).toStrictEqual([true, 25]);
-    });
-
-    it('should return true for serialization and 17 for a size with mixed null and undefined in an array', () => {
-      expect(
-        validateJsonAndGetSize(ARRAY_OF_MIXED_SPECIAL_OBJECTS),
-      ).toStrictEqual([true, 51]);
+      expect(validateJsonAndGetSize(valueToSerialize)).toStrictEqual([
+        false,
+        0,
+      ]);
     });
 
     it('should return true for serialization and 73 for a size, for an array of numbers', () => {
@@ -548,10 +537,10 @@ describe('json', () => {
       ).toStrictEqual([true, 73]);
     });
 
-    it('should return true for serialization and 1259 for a size of a complex nested object', () => {
+    it('should return true for serialization and 1288 for a size of a complex nested object', () => {
       expect(validateJsonAndGetSize(COMPLEX_OBJECT)).toStrictEqual([
         true,
-        1259,
+        1288,
       ]);
     });
 
@@ -609,6 +598,12 @@ describe('json', () => {
         false,
         0,
       ]);
+    });
+
+    it('returns true for serialization and 37 for a size when checking an array', () => {
+      expect(
+        validateJsonAndGetSize(['foo', 'bar', null, ['foo', 'bar', null]]),
+      ).toStrictEqual([true, 37]);
     });
 
     it('should return true or false for validity depending on the test scenario from ECMA TC39 (test262)', () => {
@@ -761,7 +756,7 @@ describe('json', () => {
       expect(validateJsonAndGetSize(false, true)).toStrictEqual([true, 0]);
       expect(validateJsonAndGetSize('str', true)).toStrictEqual([true, 0]);
       expect(validateJsonAndGetSize(123, true)).toStrictEqual([true, 0]);
-      expect(validateJsonAndGetSize(undefined, true)).toStrictEqual([true, 0]);
+      expect(validateJsonAndGetSize(undefined, true)).toStrictEqual([false, 0]);
 
       // Value: string escape ASCII
       const charToJson = {
