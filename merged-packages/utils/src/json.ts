@@ -1,6 +1,5 @@
 import {
   array,
-  assert,
   define,
   Infer,
   integer,
@@ -22,17 +21,7 @@ import {
   isPlainObject,
   JsonSize,
 } from './misc';
-
-/**
- * Type guard for determining whether the given value is an error object with a
- * `message` property, such as an instance of Error.
- *
- * @param error - The object to check.
- * @returns True or false, depending on the result.
- */
-function isErrorWithMessage(error: unknown): error is { message: string } {
-  return typeof error === 'object' && error !== null && 'message' in error;
-}
+import { AssertionErrorConstructor, assertStruct } from './assert';
 
 export const JsonStruct = define<Json>('Json', (value) => {
   const [isValid] = validateJsonAndGetSize(value, true);
@@ -51,10 +40,11 @@ export type Json =
   | { [prop: string]: Json };
 
 /**
- * Type guard for {@link Json}.
+ * Check if the given value is a valid {@link Json} value, i.e., a value that is
+ * serializable to JSON.
  *
  * @param value - The value to check.
- * @returns Whether the value is valid JSON.
+ * @returns Whether the value is a valid {@link Json} value.
  */
 export function isValidJson(value: unknown): value is Json {
   return is(value, JsonStruct);
@@ -151,63 +141,68 @@ export type JsonRpcNotification<Params extends JsonRpcParams> = InferWithParams<
 >;
 
 /**
- * Type guard to narrow a {@link JsonRpcRequest} or
- * {@link JsonRpcNotification} object to a {@link JsonRpcNotification}.
+ * Check if the given value is a valid {@link JsonRpcNotification} object.
  *
- * @param requestOrNotification - The JSON-RPC request or notification to check.
- * @returns Whether the specified JSON-RPC message is a notification.
+ * @param value - The value to check.
+ * @returns Whether the given value is a valid {@link JsonRpcNotification}
+ * object.
  */
 export function isJsonRpcNotification(
-  requestOrNotification: unknown,
-): requestOrNotification is JsonRpcNotification<JsonRpcParams> {
-  return is(requestOrNotification, JsonRpcNotificationStruct);
+  value: unknown,
+): value is JsonRpcNotification<JsonRpcParams> {
+  return is(value, JsonRpcNotificationStruct);
 }
 
 /**
- * Assertion type guard to narrow a {@link JsonRpcRequest} or
- * {@link JsonRpcNotification} object to a {@link JsonRpcNotification}.
+ * Assert that the given value is a valid {@link JsonRpcNotification} object.
  *
- * @param requestOrNotification - The JSON-RPC request or notification to check.
+ * @param value - The value to check.
+ * @param ErrorWrapper - The error class to throw if the assertion fails.
+ * Defaults to {@link AssertionError}.
+ * @throws If the given value is not a valid {@link JsonRpcNotification} object.
  */
 export function assertIsJsonRpcNotification(
-  requestOrNotification: unknown,
-): asserts requestOrNotification is JsonRpcNotification<JsonRpcParams> {
-  try {
-    assert(requestOrNotification, JsonRpcNotificationStruct);
-  } catch (error) {
-    const message = isErrorWithMessage(error) ? error.message : error;
-    throw new Error(`Not a JSON-RPC notification: ${message}.`);
-  }
+  value: unknown,
+  ErrorWrapper?: AssertionErrorConstructor,
+): asserts value is JsonRpcNotification<JsonRpcParams> {
+  assertStruct(
+    value,
+    JsonRpcNotificationStruct,
+    'Invalid JSON-RPC notification',
+    ErrorWrapper,
+  );
 }
 
 /**
- * Type guard to narrow a {@link JsonRpcRequest} or @link JsonRpcNotification}
- * object to a {@link JsonRpcRequest}.
+ * Check if the given value is a valid {@link JsonRpcRequest} object.
  *
- * @param requestOrNotification - The JSON-RPC request or notification to check.
- * @returns Whether the specified JSON-RPC message is a request.
+ * @param value - The value to check.
+ * @returns Whether the given value is a valid {@link JsonRpcRequest} object.
  */
 export function isJsonRpcRequest(
-  requestOrNotification: unknown,
-): requestOrNotification is JsonRpcRequest<JsonRpcParams> {
-  return is(requestOrNotification, JsonRpcRequestStruct);
+  value: unknown,
+): value is JsonRpcRequest<JsonRpcParams> {
+  return is(value, JsonRpcRequestStruct);
 }
 
 /**
- * Assertion type guard to narrow a {@link JsonRpcRequest} or
- * {@link JsonRpcNotification} object to a {@link JsonRpcRequest}.
+ * Assert that the given value is a valid {@link JsonRpcRequest} object.
  *
- * @param requestOrNotification - The JSON-RPC request or notification to check.
+ * @param value - The JSON-RPC request or notification to check.
+ * @param ErrorWrapper - The error class to throw if the assertion fails.
+ * Defaults to {@link AssertionError}.
+ * @throws If the given value is not a valid {@link JsonRpcRequest} object.
  */
 export function assertIsJsonRpcRequest(
-  requestOrNotification: unknown,
-): asserts requestOrNotification is JsonRpcRequest<JsonRpcParams> {
-  try {
-    assert(requestOrNotification, JsonRpcRequestStruct);
-  } catch (error) {
-    const message = isErrorWithMessage(error) ? error.message : error;
-    throw new Error(`Not a JSON-RPC request: ${message}.`);
-  }
+  value: unknown,
+  ErrorWrapper?: AssertionErrorConstructor,
+): asserts value is JsonRpcRequest<JsonRpcParams> {
+  assertStruct(
+    value,
+    JsonRpcRequestStruct,
+    'Invalid JSON-RPC request',
+    ErrorWrapper,
+  );
 }
 
 export const PendingJsonRpcResponseStruct = object({
@@ -283,21 +278,24 @@ export function isPendingJsonRpcResponse(
 }
 
 /**
- * Assert that the specified JSON-RPC response is a
- * {@link PendingJsonRpcResponse}.
+ * Assert that the given value is a valid {@link PendingJsonRpcResponse} object.
  *
  * @param response - The JSON-RPC response to check.
- * @throws If the specified JSON-RPC response is not pending.
+ * @param ErrorWrapper - The error class to throw if the assertion fails.
+ * Defaults to {@link AssertionError}.
+ * @throws If the given value is not a valid {@link PendingJsonRpcResponse}
+ * object.
  */
 export function assertIsPendingJsonRpcResponse(
   response: unknown,
+  ErrorWrapper?: AssertionErrorConstructor,
 ): asserts response is PendingJsonRpcResponse<Json> {
-  try {
-    assert(response, PendingJsonRpcResponseStruct);
-  } catch (error) {
-    const message = isErrorWithMessage(error) ? error.message : error;
-    throw new Error(`Not a pending JSON-RPC response: ${message}.`);
-  }
+  assertStruct(
+    response,
+    PendingJsonRpcResponseStruct,
+    'Invalid pending JSON-RPC response',
+    ErrorWrapper,
+  );
 }
 
 /**
@@ -313,106 +311,115 @@ export function isJsonRpcResponse(
 }
 
 /**
- * Type assertion to check if a value is a {@link JsonRpcResponse}.
+ * Assert that the given value is a valid {@link JsonRpcResponse} object.
  *
- * @param response - The response to check.
+ * @param value - The value to check.
+ * @param ErrorWrapper - The error class to throw if the assertion fails.
+ * Defaults to {@link AssertionError}.
+ * @throws If the given value is not a valid {@link JsonRpcResponse} object.
  */
 export function assertIsJsonRpcResponse(
-  response: unknown,
-): asserts response is JsonRpcResponse<Json> {
-  try {
-    assert(response, JsonRpcResponseStruct);
-  } catch (error) {
-    const message = isErrorWithMessage(error) ? error.message : error;
-    throw new Error(`Not a JSON-RPC response: ${message}.`);
-  }
+  value: unknown,
+  ErrorWrapper?: AssertionErrorConstructor,
+): asserts value is JsonRpcResponse<Json> {
+  assertStruct(
+    value,
+    JsonRpcResponseStruct,
+    'Invalid JSON-RPC response',
+    ErrorWrapper,
+  );
 }
 
 /**
- * Type guard to narrow a {@link JsonRpcResponse} object to a success
- * (or failure).
+ * Check if the given value is a valid {@link JsonRpcSuccess} object.
  *
- * @param response - The response object to check.
- * @returns Whether the response object is a success.
+ * @param value - The value to check.
+ * @returns Whether the given value is a valid {@link JsonRpcSuccess} object.
  */
 export function isJsonRpcSuccess(
-  response: unknown,
-): response is JsonRpcSuccess<Json> {
-  return is(response, JsonRpcSuccessStruct);
+  value: unknown,
+): value is JsonRpcSuccess<Json> {
+  return is(value, JsonRpcSuccessStruct);
 }
 
 /**
- * Type assertion to narrow a {@link JsonRpcResponse} object to a success
- * (or failure).
+ * Assert that the given value is a valid {@link JsonRpcSuccess} object.
  *
- * @param response - The response object to check.
+ * @param value - The value to check.
+ * @param ErrorWrapper - The error class to throw if the assertion fails.
+ * Defaults to {@link AssertionError}.
+ * @throws If the given value is not a valid {@link JsonRpcSuccess} object.
  */
 export function assertIsJsonRpcSuccess(
-  response: unknown,
-): asserts response is JsonRpcSuccess<Json> {
-  try {
-    assert(response, JsonRpcSuccessStruct);
-  } catch (error) {
-    const message = isErrorWithMessage(error) ? error.message : error;
-    throw new Error(`Not a successful JSON-RPC response: ${message}.`);
-  }
+  value: unknown,
+  ErrorWrapper?: AssertionErrorConstructor,
+): asserts value is JsonRpcSuccess<Json> {
+  assertStruct(
+    value,
+    JsonRpcSuccessStruct,
+    'Invalid JSON-RPC success response',
+    ErrorWrapper,
+  );
 }
 
 /**
- * Type guard to narrow a {@link JsonRpcResponse} object to a failure
- * (or success).
+ * Check if the given value is a valid {@link JsonRpcFailure} object.
  *
- * @param response - The response object to check.
- * @returns Whether the response object is a failure, i.e. has an `error`
- * property.
+ * @param value - The value to check.
+ * @returns Whether the given value is a valid {@link JsonRpcFailure} object.
  */
-export function isJsonRpcFailure(
-  response: unknown,
-): response is JsonRpcFailure {
-  return is(response, JsonRpcFailureStruct);
+export function isJsonRpcFailure(value: unknown): value is JsonRpcFailure {
+  return is(value, JsonRpcFailureStruct);
 }
 
 /**
- * Type assertion to narrow a {@link JsonRpcResponse} object to a failure
- * (or success).
+ * Assert that the given value is a valid {@link JsonRpcFailure} object.
  *
- * @param response - The response object to check.
+ * @param value - The value to check.
+ * @param ErrorWrapper - The error class to throw if the assertion fails.
+ * Defaults to {@link AssertionError}.
+ * @throws If the given value is not a valid {@link JsonRpcFailure} object.
  */
 export function assertIsJsonRpcFailure(
-  response: unknown,
-): asserts response is JsonRpcFailure {
-  try {
-    assert(response, JsonRpcFailureStruct);
-  } catch (error) {
-    const message = isErrorWithMessage(error) ? error.message : error;
-    throw new Error(`Not a failed JSON-RPC response: ${message}.`);
-  }
+  value: unknown,
+  ErrorWrapper?: AssertionErrorConstructor,
+): asserts value is JsonRpcFailure {
+  assertStruct(
+    value,
+    JsonRpcFailureStruct,
+    'Invalid JSON-RPC failure response',
+    ErrorWrapper,
+  );
 }
 
 /**
- * Type guard to validate whether an object is a valid JSON-RPC error.
+ * Check if the given value is a valid {@link JsonRpcError} object.
  *
- * @param value - The value object to check.
- * @returns Whether the response object is a valid JSON-RPC error.
+ * @param value - The value to check.
+ * @returns Whether the given value is a valid {@link JsonRpcError} object.
  */
 export function isJsonRpcError(value: unknown): value is JsonRpcError {
   return is(value, JsonRpcErrorStruct);
 }
 
 /**
- * Type assertion to validate whether an object is a valid JSON-RPC error.
+ * Assert that the given value is a valid {@link JsonRpcError} object.
  *
- * @param value - The value object to check.
+ * @param value - The value to check.
+ * @param ErrorWrapper - The error class to throw if the assertion fails.
+ * Defaults to {@link AssertionError}.
+ * @throws If the given value is not a valid {@link JsonRpcError} object.
  */
 export function assertIsJsonRpcError(
   value: unknown,
+  ErrorWrapper?: AssertionErrorConstructor,
 ): asserts value is JsonRpcError {
-  try {
-    assert(value, JsonRpcErrorStruct);
-  } catch (error) {
-    const message = isErrorWithMessage(error) ? error.message : error;
-    throw new Error(`Not a JSON-RPC error: ${message}.`);
-  }
+  assertStruct(
+    value,
+    JsonRpcErrorStruct,
+    'Invalid JSON-RPC error',
+    ErrorWrapper,
+  );
 }
 
 type JsonRpcValidatorOptions = {
