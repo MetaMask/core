@@ -103,7 +103,7 @@ export default function createStreamMiddleware(options: Options = {}) {
   function processResponse(res: PendingJsonRpcResponse<unknown>) {
     const context = idMap[res.id as unknown as string];
     if (!context) {
-      throw new Error(`StreamMiddleware - Unknown response id "${res.id}"`);
+      console.warn(`StreamMiddleware - Unknown response id "${res.id}"`);
     }
 
     delete idMap[res.id as unknown as string];
