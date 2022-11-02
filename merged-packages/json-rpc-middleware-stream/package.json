@@ -1,6 +1,6 @@
 {
   "name": "json-rpc-middleware-stream",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "description": "A small toolset for streaming JSON-RPC data and matching requests and responses.",
   "repository": {
     "type": "git",
