@@ -3,7 +3,8 @@ import {
   isValidHexAddress,
   toChecksumHexAddress,
 } from '../util';
-import { BaseController, BaseConfig, BaseState } from '../BaseController';
+import { BaseController } from '../BaseControllerV2';
+import type { RestrictedControllerMessenger } from '../ControllerMessenger';
 
 /**
  * @type ContactEntry
@@ -29,7 +30,7 @@ export interface ContactEntry {
  * @property memo - User's note about address
  * @property isEns - is the entry an ENS name
  */
-export interface AddressBookEntry {
+export type AddressBookEntry = {
   address: string;
   name: string;
   chainId: string;
@@ -43,41 +44,52 @@ export interface AddressBookEntry {
  * Address book controller state
  * @property addressBook - Array of contact entry objects
  */
-export interface AddressBookState extends BaseState {
+export type AddressBookState = {
   addressBook: { [chainId: string]: { [address: string]: AddressBookEntry } };
+}
+
+type AddressBookMessenger = RestrictedControllerMessenger<
+  typeof name,
+  never,
+  never,
+  never,
+  never
+>;
+
+
+const name =  'AddressBookController';
+
+const defaultState = { addressBook: {} };
+
+const metadata = {
+  addressBook: {
+    persist: true,
+    anonymous: false,
+  }
 }
 
 /**
  * Controller that manages a list of recipient addresses associated with nicknames.
  */
 export class AddressBookController extends BaseController<
-  BaseConfig,
-  AddressBookState
+  typeof name,
+  AddressBookState,
+  AddressBookMessenger
 > {
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'AddressBookController';
-
   /**
    * Creates an AddressBookController instance.
    *
-   * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
-  constructor(config?: Partial<BaseConfig>, state?: Partial<AddressBookState>) {
-    super(config, state);
-
-    this.defaultState = { addressBook: {} };
-
-    this.initialize();
+  constructor({ messenger, state }: { messenger: AddressBookMessenger, state?: AddressBookState }) {
+    super({ messenger, metadata, name, state: { ...defaultState, ...state} });
   }
 
   /**
    * Remove all contract entries.
    */
   clear() {
-    this.update({ addressBook: {} });
+    this.update(() => defaultState);
   }
 
   /**
@@ -97,14 +109,13 @@ export class AddressBookController extends BaseController<
       return false;
     }
 
-    const addressBook = Object.assign({}, this.state.addressBook);
-    delete addressBook[chainId][address];
+    this.update(({ addressBook }) => {
+      delete addressBook[chainId][address];
 
-    if (Object.keys(addressBook[chainId]).length === 0) {
-      delete addressBook[chainId];
-    }
-
-    this.update({ addressBook });
+      if (Object.keys(addressBook[chainId]).length === 0) {
+        delete addressBook[chainId];
+      }
+    });
     return true;
   }
 
@@ -137,14 +148,11 @@ export class AddressBookController extends BaseController<
       entry.isEns = true;
     }
 
-    this.update({
-      addressBook: {
-        ...this.state.addressBook,
-        [chainId]: {
-          ...this.state.addressBook[chainId],
-          [address]: entry,
-        },
-      },
+    this.update(({ addressBook }) => {
+      if (!addressBook.chainId) {
+        addressBook.chainId = {};
+      }
+      addressBook.chainId.address = entry;
     });
 
     return true;
