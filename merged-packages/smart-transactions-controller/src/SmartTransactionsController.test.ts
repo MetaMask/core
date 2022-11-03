@@ -9,6 +9,7 @@ import { SmartTransaction, SmartTransactionStatuses } from './types';
 const confirmExternalMock = jest.fn();
 
 jest.mock('@ethersproject/bytes', () => ({
+  ...jest.requireActual('@ethersproject/bytes'),
   hexlify: (str: string) => `0x${str}`,
 }));
 
@@ -25,10 +26,6 @@ jest.mock('@ethersproject/providers', () => ({
 
     getBlock = jest.fn();
   },
-}));
-
-jest.mock('@ethersproject/bignumber', () => ({
-  BigNumber: class BigNumber {},
 }));
 
 const addressFrom = '0x268392a24B6b093127E8581eAfbD1DA228bAdAe3';
