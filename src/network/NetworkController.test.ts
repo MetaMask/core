@@ -166,6 +166,20 @@ describe('NetworkController', () => {
     expect(controller.state.provider.nickname).toBeUndefined();
   });
 
+  it('should set rpcTarget and nickname props to undefined when set a provider type', () => {
+    const controller = new NetworkController({
+      messenger,
+      infuraProjectId: '123',
+    });
+    controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
+    controller.setProviderType('mainnet' as NetworkType);
+    expect(controller.state.provider.type).toBe('mainnet');
+    expect(controller.state.provider.ticker).toBe('ETH');
+    expect(controller.state.isCustomNetwork).toBe(false);
+    expect(controller.state.provider.rpcTarget).toBeUndefined();
+    expect(controller.state.provider.nickname).toBeUndefined();
+  });
+
   it('should throw when setting an unrecognized provider type', () => {
     const controller = new NetworkController({ messenger });
     expect(() => controller.setProviderType('junk' as NetworkType)).toThrow(
