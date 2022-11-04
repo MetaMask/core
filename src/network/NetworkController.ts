@@ -361,6 +361,8 @@ export class NetworkController extends BaseController<
       state.provider.type = type;
       state.provider.ticker = ticker;
       state.provider.chainId = NetworksChainId[type];
+      state.provider.rpcTarget = undefined;
+      state.provider.nickname = undefined;
     });
     this.refreshNetwork();
   }
