@@ -130,20 +130,16 @@ export type InferWithParams<
 /**
  * A JSON-RPC request object.
  */
-export type JsonRpcRequest<Params extends JsonRpcParams> = InferWithParams<
-  typeof JsonRpcRequestStruct,
-  Params
->;
+export type JsonRpcRequest<Params extends JsonRpcParams = JsonRpcParams> =
+  InferWithParams<typeof JsonRpcRequestStruct, Params>;
 
 export const JsonRpcNotificationStruct = omit(JsonRpcRequestStruct, ['id']);
 
 /**
  * A JSON-RPC notification object.
  */
-export type JsonRpcNotification<Params extends JsonRpcParams> = InferWithParams<
-  typeof JsonRpcNotificationStruct,
-  Params
->;
+export type JsonRpcNotification<Params extends JsonRpcParams = JsonRpcParams> =
+  InferWithParams<typeof JsonRpcNotificationStruct, Params>;
 
 /**
  * Check if the given value is a valid {@link JsonRpcNotification} object.
