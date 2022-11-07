@@ -1,4 +1,5 @@
 import * as superstructModule from 'superstruct';
+import { validate } from 'superstruct';
 import {
   ARRAY_OF_DIFFRENT_KINDS_OF_NUMBERS,
   COMPLEX_OBJECT,
@@ -13,6 +14,8 @@ import {
   NON_SERIALIZABLE_NESTED_OBJECT,
 } from './__fixtures__';
 import {
+  assert,
+  assertIsJsonRpcError,
   assertIsJsonRpcFailure,
   assertIsJsonRpcNotification,
   assertIsJsonRpcRequest,
@@ -20,6 +23,7 @@ import {
   assertIsJsonRpcSuccess,
   assertIsPendingJsonRpcResponse,
   getJsonRpcIdValidator,
+  isJsonRpcError,
   isJsonRpcFailure,
   isJsonRpcNotification,
   isJsonRpcRequest,
@@ -27,12 +31,21 @@ import {
   isJsonRpcSuccess,
   isPendingJsonRpcResponse,
   isValidJson,
+  JsonStruct,
   validateJsonAndGetSize,
-  isJsonRpcError,
-  assertIsJsonRpcError,
 } from '.';
 
 describe('json', () => {
+  describe('JsonStruct', () => {
+    it('returns error message', () => {
+      const [error] = validate(undefined, JsonStruct);
+      assert(error !== undefined);
+      expect(error.message).toStrictEqual(
+        'Expected a valid JSON-serializable value',
+      );
+    });
+  });
+
   // TODO: Make this test suite exhaustive.
   // The current implementation is guaranteed to be correct, but in the future
   // we may opt for a bespoke implementation that is more performant, but may
@@ -425,11 +438,11 @@ describe('json', () => {
     };
 
     const validateAll = (
-      validate: ReturnType<typeof getJsonRpcIdValidator>,
+      validator: ReturnType<typeof getJsonRpcIdValidator>,
       inputs: ReturnType<typeof getInputs>,
     ) => {
       for (const input of Object.values(inputs)) {
-        expect(validate(input.value)).toStrictEqual(input.expected);
+        expect(validator(input.value)).toStrictEqual(input.expected);
       }
     };
 

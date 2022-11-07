@@ -10,22 +10,26 @@ import {
   object,
   omit,
   optional,
+  record,
   string,
   Struct,
   union,
   unknown,
 } from 'superstruct';
+import { AssertionErrorConstructor, assertStruct } from './assert';
 import {
   calculateNumberSize,
   calculateStringSize,
   isPlainObject,
   JsonSize,
 } from './misc';
-import { AssertionErrorConstructor, assertStruct } from './assert';
 
 export const JsonStruct = define<Json>('Json', (value) => {
   const [isValid] = validateJsonAndGetSize(value, true);
-  return isValid;
+  if (!isValid) {
+    return 'Expected a valid JSON-serializable value';
+  }
+  return true;
 });
 
 /**
@@ -99,8 +103,9 @@ export type JsonRpcError = OptionalField<
   'data'
 >;
 
-export const JsonRpcParamsStruct = optional(union([object(), array()]));
-
+export const JsonRpcParamsStruct = optional(
+  union([record(string(), JsonStruct), array(JsonStruct)]),
+);
 export type JsonRpcParams = Infer<typeof JsonRpcParamsStruct>;
 
 export const JsonRpcRequestStruct = object({
