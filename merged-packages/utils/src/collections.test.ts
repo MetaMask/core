@@ -6,7 +6,7 @@ describe('FrozenMap', () => {
       // i.e., does not have 'delete', 'set', or 'clear'
       expect(Object.getOwnPropertyNames(FrozenMap.prototype))
         .toMatchInlineSnapshot(`
-        Array [
+        [
           "constructor",
           "size",
           "entries",
@@ -233,7 +233,7 @@ describe('FrozenSet', () => {
       // i.e., does not have 'delete', 'add', or 'clear'
       expect(Object.getOwnPropertyNames(FrozenSet.prototype))
         .toMatchInlineSnapshot(`
-        Array [
+        [
           "constructor",
           "size",
           "entries",

@@ -6,33 +6,85 @@ on:
   pull_request:
 
 jobs:
-  build-lint-test:
-    name: Build, Lint, and Test
-    runs-on: ubuntu-20.04
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    outputs:
+      YARN_CACHE_DIR: ${{ steps.yarn-cache-dir.outputs.YARN_CACHE_DIR }}
+      YARN_VERSION: ${{ steps.yarn-version.outputs.YARN_VERSION }}
     strategy:
       matrix:
-        node-version: [14.x, 16.x]
+        node-version: [14.x, 16.x, 18.x, 19.x]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
       - name: Get Yarn cache directory
-        run: echo "::set-output name=YARN_CACHE_DIR::$(yarn config get cacheFolder)"
+        run: echo "YARN_CACHE_DIR=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
         id: yarn-cache-dir
       - name: Get Yarn version
-        run: echo "::set-output name=YARN_VERSION::$(yarn --version)"
+        run: echo "YARN_VERSION=$(yarn --version)" >> "$GITHUB_OUTPUT"
         id: yarn-version
-      - name: Cache yarn dependencies
-        uses: actions/cache@v2
+      - name: Cache Yarn dependencies
+        uses: actions/cache@v3
         with:
           path: ${{ steps.yarn-cache-dir.outputs.YARN_CACHE_DIR }}
-          key: yarn-cache-${{ runner.os }}-${{ steps.yarn-version.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}
+          key: yarn-cache-${{ runner.os }}-${{ steps.yarn-version.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}-${{ matrix.node-version }}
+      - name: Install Yarn dependencies
+        run: yarn --immutable
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x, 18.x, 19.x]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Restore Yarn dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ needs.prepare.outputs.YARN_CACHE_DIR }}
+          key: yarn-cache-${{ runner.os }}-${{ needs.prepare.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}-${{ matrix.node-version }}
       - run: yarn --immutable
       - run: yarn build
+        # This step is dependent on the build output, so it's run here, rather than in the test job.
+      - run: yarn test:types
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x, 18.x, 19.x]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Restore Yarn dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ needs.prepare.outputs.YARN_CACHE_DIR }}
+          key: yarn-cache-${{ runner.os }}-${{ needs.prepare.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}-${{ matrix.node-version }}
+      - run: yarn --immutable
       - run: yarn lint
-      - run: yarn test
       - name: Validate RC changelog
         if: ${{ startsWith(github.head_ref, 'release/') }}
         run: yarn auto-changelog validate --rc
@@ -43,13 +95,56 @@ jobs:
         shell: bash
         run: |
           if ! git diff --exit-code; then
-            echo "Working tree dirty after building"
+            echo "Working tree dirty at end of job"
             exit 1
           fi
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x, 18.x, 19.x]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Restore Yarn dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ needs.prepare.outputs.YARN_CACHE_DIR }}
+          key: yarn-cache-${{ runner.os }}-${{ needs.prepare.outputs.YARN_VERSION }}-${{ hashFiles('yarn.lock') }}-${{ matrix.node-version }}
+      - run: yarn --immutable
+      - run: yarn test:source
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi
+  check-workflows:
+    name: Check workflows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download actionlint
+        id: download-actionlint
+        run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/7fdc9630cc360ea1a469eed64ac6d78caeda1234/scripts/download-actionlint.bash) 1.6.22
+        shell: bash
+      - name: Check workflow files
+        run: ${{ steps.download-actionlint.outputs.executable }} -color
+        shell: bash
   all-jobs-pass:
     name: All jobs pass
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs:
-      - build-lint-test
+      - build
+      - lint
+      - test
+      - check-workflows
     steps:
       - run: echo "Great success!"

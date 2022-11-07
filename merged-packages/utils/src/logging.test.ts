@@ -2,11 +2,11 @@ import { MockWritable } from 'stdio-mock';
 import { createProjectLogger, createModuleLogger } from './logging';
 
 describe('logging', () => {
-  beforeEach(() => {
-    jest.useFakeTimers({ now: new Date('2022-01-01') });
+  beforeAll(() => {
+    jest.useFakeTimers().setSystemTime(new Date('2022-01-01'));
   });
 
-  afterEach(() => {
+  afterAll(() => {
     jest.useRealTimers();
   });
 
