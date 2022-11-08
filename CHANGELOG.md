@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [33.0.0]
+### Uncategorized
+- Fix `lookupNetwork` deadlock ([#948](https://github.com/MetaMask/controllers/pull/948))
+- NetworkController setProviderType doesn't reset the rpcTarget and nickname ([#947](https://github.com/MetaMask/controllers/pull/947))
+- Bump actions ([#946](https://github.com/MetaMask/controllers/pull/946))
+- Use cached dependencies and immutable install during publish ([#942](https://github.com/MetaMask/controllers/pull/942))
+- Add clear function for NotificationController ([#943](https://github.com/MetaMask/controllers/pull/943))
+- Bump actions ([#944](https://github.com/MetaMask/controllers/pull/944))
+- Remove outdated sections from README ([#937](https://github.com/MetaMask/controllers/pull/937))
+- Rename "Collectible" to "NFT" ([#934](https://github.com/MetaMask/controllers/pull/934))
+- Lint, then build, then test ([#939](https://github.com/MetaMask/controllers/pull/939))
+- Keep indent size of 2 for Markdown files ([#938](https://github.com/MetaMask/controllers/pull/938))
+
 ## [32.0.2]
 ### Fixed
 - Fix issue introduced in v32.0.1 where EthQuery is not instantiated correctly on GasFeeController when constructed ([#936](https://github.com/MetaMask/controllers/pull/936))
@@ -706,7 +719,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v32.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v33.0.0...HEAD
+[33.0.0]: https://github.com/MetaMask/controllers/compare/v32.0.2...v33.0.0
 [32.0.2]: https://github.com/MetaMask/controllers/compare/v32.0.1...v32.0.2
 [32.0.1]: https://github.com/MetaMask/controllers/compare/v32.0.0...v32.0.1
 [32.0.0]: https://github.com/MetaMask/controllers/compare/v31.2.0...v32.0.0
