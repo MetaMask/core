@@ -308,20 +308,24 @@ export class NetworkController extends BaseControllerV2<
     this.ethQuery.sendAsync(
       { method: 'net_version' },
       (error: Error, network: string) => {
-        if (this.state.network === network) {
-          return;
+        try {
+          if (this.state.network === network) {
+            return;
+          }
+
+          this.update((state) => {
+            state.network = error
+              ? /* istanbul ignore next*/ 'loading'
+              : network;
+          });
+
+          this.messagingSystem.publish(
+            `NetworkController:providerChange`,
+            this.state.provider,
+          );
+        } finally {
+          releaseLock();
         }
-
-        this.update((state) => {
-          state.network = error ? /* istanbul ignore next*/ 'loading' : network;
-        });
-
-        this.messagingSystem.publish(
-          `NetworkController:providerChange`,
-          this.state.provider,
-        );
-
-        releaseLock();
       },
     );
   }
@@ -343,6 +347,8 @@ export class NetworkController extends BaseControllerV2<
       state.provider.type = type;
       state.provider.ticker = ticker;
       state.provider.chainId = NetworksChainId[type];
+      state.provider.rpcTarget = undefined;
+      state.provider.nickname = undefined;
     });
     this.refreshNetwork();
   }
