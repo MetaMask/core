@@ -587,10 +587,10 @@
   resolved "https://registry.yarnpkg.com/@lavamoat/preinstall-always-fail/-/preinstall-always-fail-1.0.0.tgz#e78a6e3d9e212a4fef869ec37d4f5fb498dea373"
   integrity sha512-vD2DcC0ffJj1w2y1Lu0OU39wHmlPEd2tCDW04Bm6Kf4LyRnCHCezTsS8yzeSJ+4so7XP+TITuR5FGJRWxPb+GA==
 
-"@metamask/auto-changelog@^2.3.0":
-  version "2.6.1"
-  resolved "https://registry.yarnpkg.com/@metamask/auto-changelog/-/auto-changelog-2.6.1.tgz#5a6291df6c1592f010bd54f1a97814a4570b1eaf"
-  integrity sha512-7VI4lftbQQHbZcxl1W+qFTWHxoeDGybL22Q70SNyYUVIBLlK5PirJHPh1zVYL4jEFmW0rItLLAXd/OZDuVG1Jg==
+"@metamask/auto-changelog@^3.0.0":
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/@metamask/auto-changelog/-/auto-changelog-3.0.0.tgz#ac55d9093179ab4a6c46323550436cc9d8a76dd6"
+  integrity sha512-yr2ZI7t8SZHcZ0lw1pc5d9mKPasyqIqJ+b9Q70Q7YMqDIc+jgy6j5WtLI/BxbnHkxdVHXQq0GMf5+k1aY4F5gg==
   dependencies:
     diff "^5.0.0"
     execa "^5.1.1"
