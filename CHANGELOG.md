@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [33.0.0]
+### Added
+- Add clear function for NotificationController ([#943](https://github.com/MetaMask/controllers/pull/943))
+
+### Changed
+- **BREAKING:** Rename "Collectible" to "NFT" ([#934](https://github.com/MetaMask/controllers/pull/934))
+  - Rename `CollectiblesController` to `NftController`, and rename all methods, controller properties, types, constants, and state properties to use the term "NFT" instead of "collectible".
+  - Rename `CollectibleDetectionController` to `NftDetectionController`, and rename all methods, controller properties, types, constants, and state properties to use the term "NFT" instead of "collectible".
+  - Rename `AssetsContractController` method `getERC721CollectibleTokenId` to `getERC721NftTokenId`.
+  - Rename `assetsUtil` method `compareCollectiblesMetadata` to `compareNftMetadata`.
+  - Rename constant `ASSET_TYPES.COLLECTIBLE` to `ASSET_TYPES.NFT`
+  - Rename `PreferencesController` state property `useCollectibleDetection` to `useNftDetection`
+  - Rename `PreferenceController` method `setUseCollectibleDetection` to `setUseNftDetection`
+
+### Fixed
+- Fix NetworkController `lookupNetwork` deadlock ([#948](https://github.com/MetaMask/controllers/pull/948))
+- Fix invalid `rpcTarget` and `nickname` network state after switching from custom network to Infura network using `setProviderType` ([#947](https://github.com/MetaMask/controllers/pull/947))
+
 ## [32.0.2]
 ### Fixed
 - Fix issue introduced in v32.0.1 where EthQuery is not instantiated correctly on GasFeeController when constructed ([#936](https://github.com/MetaMask/controllers/pull/936))
@@ -706,7 +724,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v32.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v33.0.0...HEAD
+[33.0.0]: https://github.com/MetaMask/controllers/compare/v32.0.2...v33.0.0
 [32.0.2]: https://github.com/MetaMask/controllers/compare/v32.0.1...v32.0.2
 [32.0.1]: https://github.com/MetaMask/controllers/compare/v32.0.0...v32.0.1
 [32.0.0]: https://github.com/MetaMask/controllers/compare/v31.2.0...v32.0.0
