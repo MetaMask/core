@@ -51,7 +51,9 @@ jobs:
       - uses: actions/cache@v3
         id: restore-build
         with:
-          path: ./dist
+          path: |
+            ./dist
+            ./node_modules/.yarn-state.yml
           key: ${{ github.sha }}
 
   publish-npm-dry-run:
@@ -64,13 +66,13 @@ jobs:
       - uses: actions/cache@v3
         id: restore-build
         with:
-          path: ./dist
+          path: |
+            ./dist
+            ./node_modules/.yarn-state.yml
           key: ${{ github.sha }}
-        # Set `ignore-scripts` to skip `prepublishOnly` because the release was built already in the previous job
-      - run: npm config set ignore-scripts true
       - name: Dry Run Publish
         # omit npm-token token to perform dry run publish
-        uses: MetaMask/action-npm-publish@v1
+        uses: MetaMask/action-npm-publish@a631ae55860a80431b99d547395827ca6015e6c7
         env:
           SKIP_PREPACK: true
 
@@ -85,12 +87,12 @@ jobs:
       - uses: actions/cache@v3
         id: restore-build
         with:
-          path: ./dist
+          path: |
+            ./dist
+            ./node_modules/.yarn-state.yml
           key: ${{ github.sha }}
-        # Set `ignore-scripts` to skip `prepublishOnly` because the release was built already in the previous job
-      - run: npm config set ignore-scripts true
       - name: Publish
-        uses: MetaMask/action-npm-publish@v1
+        uses: MetaMask/action-npm-publish@a631ae55860a80431b99d547395827ca6015e6c7
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
         env:
