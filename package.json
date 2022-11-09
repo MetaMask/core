@@ -1,6 +1,6 @@
 {
   "name": "@gudahtt/controllers",
-  "version": "33.0.0",
+  "version": "33.0.1",
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
   "keywords": [
     "MetaMask",

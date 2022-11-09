@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [33.0.1]
+### Changed
+- test
+
 ## [33.0.0]
 ### Added
 - Add clear function for NotificationController ([#943](https://github.com/MetaMask/controllers/pull/943))
@@ -724,7 +728,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove shapeshift controller (#209)
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/v33.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/v33.0.1...HEAD
+[33.0.1]: https://github.com/MetaMask/controllers/compare/v33.0.0...v33.0.1
 [33.0.0]: https://github.com/MetaMask/controllers/compare/v32.0.2...v33.0.0
 [32.0.2]: https://github.com/MetaMask/controllers/compare/v32.0.1...v32.0.2
 [32.0.1]: https://github.com/MetaMask/controllers/compare/v32.0.0...v32.0.1

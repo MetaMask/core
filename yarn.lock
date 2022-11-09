@@ -962,6 +962,88 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@gudahtt/controllers@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "@gudahtt/controllers@workspace:."
+  dependencies:
+    "@ethereumjs/common": ^2.3.1
+    "@ethereumjs/tx": ^3.2.1
+    "@ethersproject/abi": ^5.7.0
+    "@ethersproject/contracts": ^5.7.0
+    "@ethersproject/providers": ^5.7.0
+    "@keystonehq/bc-ur-registry-eth": ^0.9.0
+    "@keystonehq/metamask-airgapped-keyring": ^0.6.1
+    "@lavamoat/allow-scripts": ^2.0.2
+    "@metamask/auto-changelog": ^2.6.0
+    "@metamask/contract-metadata": ^1.35.0
+    "@metamask/eslint-config": ^9.0.0
+    "@metamask/eslint-config-jest": ^9.0.0
+    "@metamask/eslint-config-nodejs": ^9.0.0
+    "@metamask/eslint-config-typescript": ^9.0.1
+    "@metamask/metamask-eth-abis": 3.0.0
+    "@metamask/types": ^1.1.0
+    "@types/deep-freeze-strict": ^1.1.0
+    "@types/jest": ^26.0.22
+    "@types/jest-when": ^2.7.3
+    "@types/node": ^14.14.31
+    "@types/punycode": ^2.1.0
+    "@types/sinon": ^9.0.10
+    "@types/uuid": ^8.3.0
+    "@types/web3": ^1.0.6
+    "@typescript-eslint/eslint-plugin": ^4.33.0
+    "@typescript-eslint/parser": ^4.33.0
+    abort-controller: ^3.0.0
+    async-mutex: ^0.2.6
+    babel-runtime: ^6.26.0
+    deep-freeze-strict: ^1.1.1
+    eslint: ^7.24.0
+    eslint-config-prettier: ^8.5.0
+    eslint-import-resolver-typescript: ^2.4.0
+    eslint-plugin-import: ^2.22.1
+    eslint-plugin-jest: ^24.1.5
+    eslint-plugin-jsdoc: ^36.1.0
+    eslint-plugin-node: ^11.1.0
+    eslint-plugin-prettier: ^3.4.1
+    eth-ens-namehash: ^2.0.8
+    eth-json-rpc-infura: ^5.1.0
+    eth-keyring-controller: ^7.0.2
+    eth-method-registry: 1.1.0
+    eth-phishing-detect: ^1.2.0
+    eth-query: ^2.1.2
+    eth-rpc-errors: ^4.0.0
+    eth-sig-util: ^3.0.0
+    ethereumjs-util: ^7.0.10
+    ethereumjs-wallet: ^1.0.1
+    ethjs-provider-http: ^0.1.6
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    immer: ^9.0.6
+    isomorphic-fetch: ^3.0.0
+    jest: ^26.4.2
+    jest-environment-jsdom: ^25.0.0
+    jest-when: ^3.4.2
+    json-rpc-engine: ^6.1.0
+    jsonschema: ^1.2.4
+    multiformats: ^9.5.2
+    nanoid: ^3.1.31
+    nock: ^13.0.7
+    prettier: ^2.6.2
+    prettier-plugin-packagejson: ^2.2.17
+    punycode: ^2.1.1
+    rimraf: ^3.0.2
+    simple-git-hooks: ^2.8.0
+    single-call-balance-checker-abi: ^1.0.0
+    sinon: ^9.2.4
+    ts-jest: ^26.5.2
+    typedoc: ^0.22.15
+    typedoc-plugin-missing-exports: ^0.22.6
+    typescript: ~4.6.3
+    uuid: ^8.3.2
+    web3: ^0.20.7
+    web3-provider-engine: ^16.0.3
+  languageName: unknown
+  linkType: soft
+
 "@istanbuljs/load-nyc-config@npm:^1.0.0":
   version: 1.0.0
   resolution: "@istanbuljs/load-nyc-config@npm:1.0.0"
@@ -1355,88 +1437,6 @@ __metadata:
   checksum: d2bbb8bff2e2ebd4104512dbf4b2900fffd1f03125673b0d3ac58dac0e3b324402fec7170229dfdb601635d6d7074e0755f139149b3dc8640ee4703c17eb2383
   languageName: node
   linkType: hard
-
-"@metamask/controllers@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "@metamask/controllers@workspace:."
-  dependencies:
-    "@ethereumjs/common": ^2.3.1
-    "@ethereumjs/tx": ^3.2.1
-    "@ethersproject/abi": ^5.7.0
-    "@ethersproject/contracts": ^5.7.0
-    "@ethersproject/providers": ^5.7.0
-    "@keystonehq/bc-ur-registry-eth": ^0.9.0
-    "@keystonehq/metamask-airgapped-keyring": ^0.6.1
-    "@lavamoat/allow-scripts": ^2.0.2
-    "@metamask/auto-changelog": ^2.6.0
-    "@metamask/contract-metadata": ^1.35.0
-    "@metamask/eslint-config": ^9.0.0
-    "@metamask/eslint-config-jest": ^9.0.0
-    "@metamask/eslint-config-nodejs": ^9.0.0
-    "@metamask/eslint-config-typescript": ^9.0.1
-    "@metamask/metamask-eth-abis": 3.0.0
-    "@metamask/types": ^1.1.0
-    "@types/deep-freeze-strict": ^1.1.0
-    "@types/jest": ^26.0.22
-    "@types/jest-when": ^2.7.3
-    "@types/node": ^14.14.31
-    "@types/punycode": ^2.1.0
-    "@types/sinon": ^9.0.10
-    "@types/uuid": ^8.3.0
-    "@types/web3": ^1.0.6
-    "@typescript-eslint/eslint-plugin": ^4.33.0
-    "@typescript-eslint/parser": ^4.33.0
-    abort-controller: ^3.0.0
-    async-mutex: ^0.2.6
-    babel-runtime: ^6.26.0
-    deep-freeze-strict: ^1.1.1
-    eslint: ^7.24.0
-    eslint-config-prettier: ^8.5.0
-    eslint-import-resolver-typescript: ^2.4.0
-    eslint-plugin-import: ^2.22.1
-    eslint-plugin-jest: ^24.1.5
-    eslint-plugin-jsdoc: ^36.1.0
-    eslint-plugin-node: ^11.1.0
-    eslint-plugin-prettier: ^3.4.1
-    eth-ens-namehash: ^2.0.8
-    eth-json-rpc-infura: ^5.1.0
-    eth-keyring-controller: ^7.0.2
-    eth-method-registry: 1.1.0
-    eth-phishing-detect: ^1.2.0
-    eth-query: ^2.1.2
-    eth-rpc-errors: ^4.0.0
-    eth-sig-util: ^3.0.0
-    ethereumjs-util: ^7.0.10
-    ethereumjs-wallet: ^1.0.1
-    ethjs-provider-http: ^0.1.6
-    ethjs-unit: ^0.1.6
-    fast-deep-equal: ^3.1.3
-    immer: ^9.0.6
-    isomorphic-fetch: ^3.0.0
-    jest: ^26.4.2
-    jest-environment-jsdom: ^25.0.0
-    jest-when: ^3.4.2
-    json-rpc-engine: ^6.1.0
-    jsonschema: ^1.2.4
-    multiformats: ^9.5.2
-    nanoid: ^3.1.31
-    nock: ^13.0.7
-    prettier: ^2.6.2
-    prettier-plugin-packagejson: ^2.2.17
-    punycode: ^2.1.1
-    rimraf: ^3.0.2
-    simple-git-hooks: ^2.8.0
-    single-call-balance-checker-abi: ^1.0.0
-    sinon: ^9.2.4
-    ts-jest: ^26.5.2
-    typedoc: ^0.22.15
-    typedoc-plugin-missing-exports: ^0.22.6
-    typescript: ~4.6.3
-    uuid: ^8.3.2
-    web3: ^0.20.7
-    web3-provider-engine: ^16.0.3
-  languageName: unknown
-  linkType: soft
 
 "@metamask/eslint-config-jest@npm:^9.0.0":
   version: 9.0.0
