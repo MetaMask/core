@@ -6,6 +6,7 @@ import {
   SubjectMetadataControllerActions,
   SubjectMetadataControllerEvents,
   SubjectMetadataControllerMessenger,
+  SubjectType,
 } from './SubjectMetadataController';
 
 const controllerName = 'SubjectMetadataController';
@@ -48,17 +49,20 @@ function getSubjectMetadataControllerMessenger() {
  *
  * @param origin - The subject's origin
  * @param name - Optional subject name
+ * @param type - Optional subject type
  * @param opts - Optional extra options for the metadata
  * @returns The created metadata object
  */
 function getSubjectMetadata(
   origin: string,
-  name?: string,
+  name: string | null = null,
+  type: SubjectType | null = null,
   opts?: Record<string, Json>,
 ) {
   return {
     origin,
-    name: name ?? null,
+    name,
+    type,
     iconUrl: null,
     extensionId: null,
     ...opts,
@@ -209,6 +213,34 @@ describe('SubjectMetadataController', () => {
           'bar.io': getSubjectMetadata('bar.io', 'bar'),
         },
       });
+    });
+  });
+
+  describe('getSubjectMetadata', () => {
+    it('returns the subject metadata for the given origin', () => {
+      const [messenger, hasPermissionsSpy] =
+        getSubjectMetadataControllerMessenger();
+      const controller = new SubjectMetadataController({
+        messenger,
+        subjectCacheLimit: 1,
+      });
+      hasPermissionsSpy.mockImplementationOnce(() => true);
+
+      controller.addSubjectMetadata(
+        getSubjectMetadata('foo.com', 'foo', SubjectType.Snap),
+      );
+
+      controller.addSubjectMetadata(
+        getSubjectMetadata('bar.io', 'bar', SubjectType.Website),
+      );
+
+      expect(controller.getSubjectMetadata('foo.com')).toStrictEqual(
+        getSubjectMetadata('foo.com', 'foo', SubjectType.Snap),
+      );
+
+      expect(controller.getSubjectMetadata('bar.io')).toStrictEqual(
+        getSubjectMetadata('bar.io', 'bar', SubjectType.Website),
+      );
     });
   });
 

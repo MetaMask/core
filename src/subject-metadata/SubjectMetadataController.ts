@@ -13,16 +13,26 @@ const controllerName = 'SubjectMetadataController';
 
 type SubjectOrigin = string;
 
+export enum SubjectType {
+  Extension = 'extension',
+  Internal = 'internal',
+  Unknown = 'unknown',
+  Website = 'website',
+  Snap = 'snap',
+}
+
 export type SubjectMetadata = PermissionSubjectMetadata & {
   [key: string]: Json;
   // TODO:TS4.4 make optional
   name: string | null;
+  type: SubjectType | null;
   extensionId: string | null;
   iconUrl: string | null;
 };
 
 type SubjectMetadataToAdd = PermissionSubjectMetadata & {
   name?: string | null;
+  type?: SubjectType | null;
   extensionId?: string | null;
   iconUrl?: string | null;
 } & Record<string, Json>;
@@ -44,7 +54,14 @@ export type GetSubjectMetadataState = {
   handler: () => SubjectMetadataControllerState;
 };
 
-export type SubjectMetadataControllerActions = GetSubjectMetadataState;
+export type GetSubjectMetadata = {
+  type: `${typeof controllerName}:getSubjectMetadata`;
+  handler: (origin: SubjectOrigin) => SubjectMetadata | undefined;
+};
+
+export type SubjectMetadataControllerActions =
+  | GetSubjectMetadataState
+  | GetSubjectMetadata;
 
 export type SubjectMetadataStateChange = {
   type: `${typeof controllerName}:stateChange`;
@@ -80,7 +97,7 @@ export class SubjectMetadataController extends BaseController<
 > {
   private subjectCacheLimit: number;
 
-  private subjectsWithoutPermissionsEcounteredSinceStartup: Set<string>;
+  private subjectsWithoutPermissionsEncounteredSinceStartup: Set<string>;
 
   private subjectHasPermissions: GenericPermissionController['hasPermissions'];
 
@@ -110,7 +127,12 @@ export class SubjectMetadataController extends BaseController<
 
     this.subjectHasPermissions = hasPermissions;
     this.subjectCacheLimit = subjectCacheLimit;
-    this.subjectsWithoutPermissionsEcounteredSinceStartup = new Set();
+    this.subjectsWithoutPermissionsEncounteredSinceStartup = new Set();
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getSubjectMetadata`,
+      this.getSubjectMetadata.bind(this),
+    );
   }
 
   /**
@@ -118,7 +140,7 @@ export class SubjectMetadataController extends BaseController<
    * encountered since startup, so as to not prematurely reach the cache limit.
    */
   clearState(): void {
-    this.subjectsWithoutPermissionsEcounteredSinceStartup.clear();
+    this.subjectsWithoutPermissionsEncounteredSinceStartup.clear();
     this.update((_draftState) => {
       return { ...defaultState };
     });
@@ -143,20 +165,22 @@ export class SubjectMetadataController extends BaseController<
       extensionId: metadata.extensionId || null,
       iconUrl: metadata.iconUrl || null,
       name: metadata.name || null,
+      type: metadata.type || null,
     };
 
     let originToForget: string | null = null;
     // We only delete the oldest encountered subject from the cache, again to
     // ensure that the user's experience isn't degraded by missing icons etc.
     if (
-      this.subjectsWithoutPermissionsEcounteredSinceStartup.size >=
+      this.subjectsWithoutPermissionsEncounteredSinceStartup.size >=
       this.subjectCacheLimit
     ) {
-      const cachedOrigin = this.subjectsWithoutPermissionsEcounteredSinceStartup
-        .values()
-        .next().value;
+      const cachedOrigin =
+        this.subjectsWithoutPermissionsEncounteredSinceStartup
+          .values()
+          .next().value;
 
-      this.subjectsWithoutPermissionsEcounteredSinceStartup.delete(
+      this.subjectsWithoutPermissionsEncounteredSinceStartup.delete(
         cachedOrigin,
       );
 
@@ -165,7 +189,7 @@ export class SubjectMetadataController extends BaseController<
       }
     }
 
-    this.subjectsWithoutPermissionsEcounteredSinceStartup.add(origin);
+    this.subjectsWithoutPermissionsEncounteredSinceStartup.add(origin);
 
     this.update((draftState) => {
       // Typecast: ts(2589)
@@ -174,6 +198,16 @@ export class SubjectMetadataController extends BaseController<
         delete draftState.subjectMetadata[originToForget];
       }
     });
+  }
+
+  /**
+   * Gets the subject metadata for the given origin, if any.
+   *
+   * @param origin - The origin for which to get the subject metadata.
+   * @returns The subject metadata, if any, or `undefined` otherwise.
+   */
+  getSubjectMetadata(origin: SubjectOrigin): SubjectMetadata | undefined {
+    return this.state.subjectMetadata[origin];
   }
 
   /**
