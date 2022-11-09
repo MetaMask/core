@@ -93,6 +93,14 @@ workspace_basename(WorkspaceCwd, WorkspaceBasename) :-
   atomic_list_concat(Parts, '/', WorkspaceCwd),
   last(Parts, WorkspaceBasename).
 
+% True if and only if WorkspacePackageName can unify with the name of the
+% package which the workspace represents (which comes from the directory where
+% the package is located). Assumes that the package is not in a sub-workspace
+% and is not private.
+workspace_package_name(WorkspaceCwd, WorkspacePackageName) :-
+  workspace_basename(WorkspaceCwd, WorkspaceBasename),
+  atom_concat('@metamask/', WorkspaceBasename, WorkspacePackageName).
+
 %%%%%
 % Constraints
 %%%%%
@@ -105,8 +113,7 @@ workspace_basename(WorkspaceCwd, WorkspaceBasename) :-
 % must be called "@metamask/foo").
 gen_enforced_field(WorkspaceCwd, 'name', WorkspacePackageName) :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
-  workspace_basename(WorkspaceCwd, WorkspaceBasename),
-  atom_concat('@metamask/', WorkspaceBasename, WorkspacePackageName).
+  workspace_package_name(WorkspaceCwd, WorkspacePackageName).
 
 % "description" is required for all packages.
 \+ gen_enforced_field(WorkspaceCwd, 'description', null).
@@ -190,6 +197,13 @@ gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', 'https://registry.npm
   \+ workspace_field(WorkspaceCwd, 'private', true).
 gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
+
+% The "changelog:validate" script for each package must follow a specific
+% format.
+gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', ProperChangelogValidationScript) :-
+  \+ workspace_field(WorkspaceCwd, 'private', true),
+  workspace_package_name(WorkspaceCwd, WorkspacePackageName),
+  atomic_list_concat(['../../scripts/validate-changelog.sh ', WorkspacePackageName], ProperChangelogValidationScript).
 
 % All dependency ranges must be recognizable.
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a range optionally starting with ^ or ~', DependencyType) :-

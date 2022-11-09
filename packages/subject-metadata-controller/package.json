@@ -21,7 +21,7 @@
     "dist/"
   ],
   "scripts": {
-    "changelog:validate": "../../scripts/validate-changelog.sh",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/subject-metadata-controller",
     "doc": "../../scripts/doc.sh",
     "test": "jest",
     "test:watch": "jest --watch"
@@ -33,7 +33,7 @@
     "immer": "^9.0.6"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^2.6.0",
+    "@metamask/auto-changelog": "^3.0.0",
     "@types/jest": "^26.0.22",
     "deepmerge": "^4.2.2",
     "jest": "^26.4.2",

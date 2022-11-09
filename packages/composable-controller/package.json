@@ -21,7 +21,7 @@
     "dist/"
   ],
   "scripts": {
-    "changelog:validate": "../../scripts/validate-changelog.sh",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/composable-controller",
     "doc": "../../scripts/doc.sh",
     "test": "jest",
     "test:watch": "jest --watch"
@@ -32,7 +32,7 @@
   "devDependencies": {
     "@metamask/address-book-controller": "workspace:~",
     "@metamask/assets-controllers": "workspace:~",
-    "@metamask/auto-changelog": "^2.6.0",
+    "@metamask/auto-changelog": "^3.0.0",
     "@metamask/controller-utils": "workspace:~",
     "@metamask/ens-controller": "workspace:~",
     "@metamask/network-controller": "workspace:~",

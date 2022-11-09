@@ -21,7 +21,7 @@
     "dist/"
   ],
   "scripts": {
-    "changelog:validate": "../../scripts/validate-changelog.sh",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/assets-controllers",
     "doc": "../../scripts/doc.sh",
     "test": "jest",
     "test:watch": "jest --watch"
@@ -50,7 +50,7 @@
     "web3": "^0.20.7"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^2.6.0",
+    "@metamask/auto-changelog": "^3.0.0",
     "@types/jest": "^26.0.22",
     "@types/node": "^14.14.31",
     "@types/web3": "^1.0.6",
