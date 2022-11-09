@@ -49,20 +49,20 @@ function getSubjectMetadataControllerMessenger() {
  *
  * @param origin - The subject's origin
  * @param name - Optional subject name
- * @param type - Optional subject type
+ * @param subjectType - Optional subject type
  * @param opts - Optional extra options for the metadata
  * @returns The created metadata object
  */
 function getSubjectMetadata(
   origin: string,
   name: string | null = null,
-  type: SubjectType | null = null,
+  subjectType: SubjectType | null = null,
   opts?: Record<string, Json>,
 ) {
   return {
     origin,
     name,
-    type,
+    subjectType,
     iconUrl: null,
     extensionId: null,
     ...opts,
