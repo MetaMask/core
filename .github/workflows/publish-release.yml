@@ -23,7 +23,7 @@ jobs:
             ./packages/**/dist
             ./node_modules/.yarn-state.yml
           key: ${{ github.sha }}
-      - uses: MetaMask/action-publish-release@b0b8a39e72e6746bbc3e372d25e55a5f6295842c
+      - uses: MetaMask/action-publish-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: yarn --immutable
