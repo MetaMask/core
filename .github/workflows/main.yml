@@ -29,7 +29,11 @@ jobs:
     needs: lint-build-test
     if: startsWith(github.event.commits[0].author.name, 'github-actions')
     runs-on: ubuntu-latest
-    uses: MetaMask/action-is-release@v1
+    outputs:
+      IS_RELEASE: ${{ steps.is-release.outputs.IS_RELEASE }}
+    steps:
+      - uses: MetaMask/action-is-release@v1
+        id: is-release
 
   publish-release:
     name: Publish release
