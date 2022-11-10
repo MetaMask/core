@@ -1,6 +1,7 @@
 import { BN } from 'ethereumjs-util';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { Contract } from '@ethersproject/contracts';
+import { Web3Provider } from '@ethersproject/providers';
 import {
   BaseController,
   BaseConfig,
@@ -12,6 +13,7 @@ import { NetworkState } from '@metamask/network-controller';
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
 import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
+import { ERC20Standard } from './Standards/ERC20Standard';
 
 /**
  * Check if token detection is enabled for certain networks
@@ -62,7 +64,7 @@ export class AssetsContractController extends BaseController<
   AssetsContractConfig,
   BaseState
 > {
-  private _provider?: StaticWeb3Provider;
+  private _provider?: Web3Provider;
 
   private erc721Standard?: ERC721Standard;
 
@@ -129,7 +131,7 @@ export class AssetsContractController extends BaseController<
    */
   set provider(provider: any) {
     const chainId = parseInt(this.config.chainId, 10);
-    this._provider = new StaticWeb3Provider(provider, chainId);
+    this._provider = new Web3Provider(provider, chainId);
     this.erc721Standard = new ERC721Standard(this._provider);
     this.erc1155Standard = new ERC1155Standard(this._provider);
     this.erc20Standard = new ERC20Standard(this._provider);

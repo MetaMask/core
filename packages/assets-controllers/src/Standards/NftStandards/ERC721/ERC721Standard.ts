@@ -7,12 +7,13 @@ import {
   ERC721_ENUMERABLE_INTERFACE_ID,
   ERC721,
 } from '@metamask/controller-utils';
+import { Web3Provider } from '@ethersproject/providers';
 import { getFormattedIpfsUrl } from '../../../assetsUtil';
 
 export class ERC721Standard {
-  private provider: StaticWeb3Provider;
+  private provider: Web3Provider;
 
-  constructor(provider: StaticWeb3Provider) {
+  constructor(provider: Web3Provider) {
     this.provider = provider;
   }
 

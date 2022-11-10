@@ -1,12 +1,12 @@
 import HttpProvider from 'ethjs-provider-http';
 import nock from 'nock';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
+import { Web3Provider } from '@ethersproject/providers';
 import { ERC721Standard } from './ERC721Standard';
 
 const MAINNET_PROVIDER_HTTP = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
-const MAINNET_PROVIDER = new StaticWeb3Provider(MAINNET_PROVIDER_HTTP, 1);
 const ERC721_GODSADDRESS = '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab';
 const CRYPTO_KITTIES_ADDRESS = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
 const ERC721_ENSADDRESS = '0x57f1887a8bf19b14fc0df6fd9b2acc9af147ea85';
@@ -17,6 +17,12 @@ describe('ERC721Standard', () => {
   let erc721Standard: ERC721Standard;
 
   beforeAll(() => {
+    const MAINNET_PROVIDER = new Web3Provider(MAINNET_PROVIDER_HTTP, 1);
+    // Mock out detectNetwork function for cleaner tests, Ethers calls this a bunch of times because the Web3Provider is paranoid.
+    MAINNET_PROVIDER.detectNetwork = async () => ({
+      name: 'mainnet',
+      chainId: 1,
+    });
     erc721Standard = new ERC721Standard(MAINNET_PROVIDER);
     nock.disableNetConnect();
   });

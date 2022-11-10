@@ -557,7 +557,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC1155_COLLECTIBLE_ADDRESS.toLowerCase(),
+              to: ERC1155_NFT_ADDRESS.toLowerCase(),
               data: '0x06fdde03',
             },
             'latest',
@@ -575,7 +575,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC1155_COLLECTIBLE_ADDRESS.toLowerCase(),
+              to: ERC1155_NFT_ADDRESS.toLowerCase(),
               data: '0x95d89b41',
             },
             'latest',
@@ -593,7 +593,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC1155_COLLECTIBLE_ADDRESS.toLowerCase(),
+              to: ERC1155_NFT_ADDRESS.toLowerCase(),
               data: '0x01ffc9a75b5e139f00000000000000000000000000000000000000000000000000000000',
             },
             'latest',
@@ -611,7 +611,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC1155_COLLECTIBLE_ADDRESS.toLowerCase(),
+              to: ERC1155_NFT_ADDRESS.toLowerCase(),
               data: '0x0e89341c5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
             },
             'latest',
@@ -1493,7 +1493,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC1155_COLLECTIBLE_ADDRESS.toLowerCase(),
+              to: ERC1155_NFT_ADDRESS.toLowerCase(),
               data: '0x6352211e5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
             },
             'latest',
@@ -1510,7 +1510,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC1155_COLLECTIBLE_ADDRESS.toLowerCase(),
+              to: ERC1155_NFT_ADDRESS.toLowerCase(),
               data: '0x00fdd58e0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
             },
             'latest',
@@ -1542,7 +1542,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC1155_COLLECTIBLE_ADDRESS.toLowerCase(),
+              to: ERC1155_NFT_ADDRESS.toLowerCase(),
               data: '0x6352211e5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
             },
             'latest',
@@ -1559,7 +1559,7 @@ describe('NftController', () => {
           method: 'eth_call',
           params: [
             {
-              to: ERC1155_COLLECTIBLE_ADDRESS.toLowerCase(),
+              to: ERC1155_NFT_ADDRESS.toLowerCase(),
               data: '0x00fdd58e00000000000000000000000000000000000000000000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
             },
             'latest',

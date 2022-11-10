@@ -1,6 +1,7 @@
 import { abiERC1155 } from '@metamask/metamask-eth-abis';
 import { Contract } from '@ethersproject/contracts';
 import { BN } from 'ethereumjs-util';
+import { Web3Provider } from '@ethersproject/providers';
 import {
   ERC1155,
   ERC1155_INTERFACE_ID,
@@ -8,12 +9,12 @@ import {
   ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
   timeoutFetch,
 } from '@metamask/controller-utils';
-import { getFormattedIpfsUrl } from '../../../assetsUtil';
+import { getFormattedIpfsUrl, ethersBigNumberToBN } from '../../../assetsUtil';
 
 export class ERC1155Standard {
-  private provider: StaticWeb3Provider;
+  private provider: Web3Provider;
 
-  constructor(provider: StaticWeb3Provider) {
+  constructor(provider: Web3Provider) {
     this.provider = provider;
   }
 

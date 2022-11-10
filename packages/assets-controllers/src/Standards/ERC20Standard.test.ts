@@ -1,12 +1,11 @@
+import { Web3Provider } from '@ethersproject/providers';
 import HttpProvider from 'ethjs-provider-http';
 import nock from 'nock';
-import { StaticWeb3Provider } from '../../StaticWeb3Provider';
 import { ERC20Standard } from './ERC20Standard';
 
 const MAINNET_PROVIDER_HTTP = new HttpProvider(
   'https://mainnet.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
 );
-const MAINNET_PROVIDER = new StaticWeb3Provider(MAINNET_PROVIDER_HTTP, 1);
 const ERC20_MATIC_ADDRESS = '0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0';
 const MKR_ADDRESS = '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2';
 const AMBIRE_ADDRESS = '0xa07D75aacEFd11b425AF7181958F0F85c312f143';
@@ -15,6 +14,12 @@ describe('ERC20Standard', () => {
   let erc20Standard: ERC20Standard;
 
   beforeAll(() => {
+    const MAINNET_PROVIDER = new Web3Provider(MAINNET_PROVIDER_HTTP, 1);
+    // Mock out detectNetwork function for cleaner tests, Ethers calls this a bunch of times because the Web3Provider is paranoid.
+    MAINNET_PROVIDER.detectNetwork = async () => ({
+      name: 'mainnet',
+      chainId: 1,
+    });
     erc20Standard = new ERC20Standard(MAINNET_PROVIDER);
     nock.disableNetConnect();
   });
@@ -79,7 +84,7 @@ describe('ERC20Standard', () => {
         method: 'eth_call',
         params: [
           {
-            to: MKR_ADDRESS,
+            to: MKR_ADDRESS.toLowerCase(),
             data: '0x313ce567',
           },
           'latest',
@@ -97,7 +102,7 @@ describe('ERC20Standard', () => {
         method: 'eth_call',
         params: [
           {
-            to: MKR_ADDRESS,
+            to: MKR_ADDRESS.toLowerCase(),
             data: '0x95d89b41',
           },
           'latest',
@@ -125,7 +130,7 @@ describe('ERC20Standard', () => {
         method: 'eth_call',
         params: [
           {
-            to: AMBIRE_ADDRESS,
+            to: AMBIRE_ADDRESS.toLowerCase(),
             data: '0x95d89b41',
           },
           'latest',
@@ -138,7 +143,7 @@ describe('ERC20Standard', () => {
         method: 'eth_call',
         params: [
           {
-            to: AMBIRE_ADDRESS,
+            to: AMBIRE_ADDRESS.toLowerCase(),
             data: '0x313ce567',
           },
           'latest',
