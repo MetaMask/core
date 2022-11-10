@@ -17,11 +17,6 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ./node_modules/.yarn-state.yml
-          key: ${{ github.sha }}
       - run: yarn --immutable
 
   lint:
@@ -38,11 +33,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ./node_modules/.yarn-state.yml
-          key: ${{ github.sha }}
+      - run: yarn --immutable
       - run: yarn lint
       - run: yarn changelog:validate
       - name: Require clean working directory
@@ -67,11 +58,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ./node_modules/.yarn-state.yml
-          key: ${{ github.sha }}
+      - run: yarn --immutable
       - run: yarn build
       - name: Require clean working directory
         shell: bash
@@ -95,11 +82,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ./node_modules/.yarn-state.yml
-          key: ${{ github.sha }}
+      - run: yarn --immutable
       - run: yarn test --maxWorkers=1
       - name: Require clean working directory
         shell: bash
