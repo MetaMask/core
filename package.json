@@ -22,7 +22,7 @@
     "lint:misc": "prettier '**/*.json' '**/*.md' '!**/CHANGELOG.md' '!**/CHANGELOG.old.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore",
     "prepack": "./scripts/prepack.sh",
     "setup": "yarn install",
-    "test": "yarn workspaces foreach --verbose run test"
+    "test": "yarn workspaces foreach --parallel --verbose run test"
   },
   "simple-git-hooks": {
     "pre-push": "yarn lint"
