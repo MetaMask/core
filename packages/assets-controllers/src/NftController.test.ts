@@ -18,6 +18,7 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import { AssetsContractController } from './AssetsContractController';
 import { NftController } from './NftController';
 import { getFormattedIpfsUrl } from './assetsUtil';
+import { Network } from '@ethersproject/providers';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
@@ -44,6 +45,21 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
   `ipfs://${DEPRESSIONIST_CID_V1}`,
   true,
 );
+
+// Mock out detectNetwork function for cleaner tests, Ethers calls this a bunch of times because the Web3Provider is paranoid.
+jest.mock('@ethersproject/providers', () => ({
+  ...jest.requireActual('@ethersproject/providers'),
+  Web3Provider: class MockWeb3Provider extends jest.requireActual(
+    '@ethersproject/providers',
+  ).Web3Provider {
+    detectNetwork(): Promise<Network> {
+      return Promise.resolve({
+        name: 'mainnet',
+        chainId: 1,
+      });
+    }
+  },
+}));
 
 /**
  * Setup a test controller instance.
