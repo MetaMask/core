@@ -47,7 +47,9 @@ jobs:
       - name: Cache compiled JavaScript
         uses: actions/cache@v3
         with:
-          path: ./packages/**/dist
+          path: |
+            ./packages/**/dist
+            ./node_modules/.yarn-state.yml
           key: ${{ github.sha }}
       - run: yarn --immutable
       - run: yarn build
@@ -67,14 +69,13 @@ jobs:
       - name: Restore compiled JavaScript
         uses: actions/cache@v3
         with:
-          path: ./packages/**/dist
+          path: |
+            ./packages/**/dist
+            ./node_modules/.yarn-state.yml
           key: ${{ github.sha }}
-      - name: Configure NPM to skip prepublishOnly
-        # Set `ignore-scripts` to skip `prepublishOnly` because the release was built already in the previous job
-        run: npm config set ignore-scripts true
       - name: Dry Run Publish
         # omit npm-token token to perform dry run publish
-        uses: MetaMask/action-npm-publish@v1
+        uses: MetaMask/action-npm-publish@v2
         env:
           SKIP_PREPACK: true
 
@@ -94,13 +95,12 @@ jobs:
       - name: Restore compiled JavaScript
         uses: actions/cache@v3
         with:
-          path: ./packages/**/dist
+          path: |
+            ./packages/**/dist
+            ./node_modules/.yarn-state.yml
           key: ${{ github.sha }}
-      - name: Configure NPM to skip prepublishOnly
-        # Set `ignore-scripts` to skip `prepublishOnly` because the release was built already in the previous job
-        run: npm config set ignore-scripts true
       - name: Publish
-        uses: MetaMask/action-npm-publish@v1
+        uses: MetaMask/action-npm-publish@v2
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
         env:
