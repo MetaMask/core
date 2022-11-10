@@ -4,7 +4,8 @@ on:
   workflow_call:
 
 jobs:
-  lint-build-test:
+  prepare:
+    name: Prepare
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -17,9 +18,59 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: yarn
       - run: yarn --immutable
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: yarn
       - run: yarn lint
       - run: yarn changelog:validate
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        node-version: [14.x, 16.x]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: yarn
       - run: yarn build
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi
+
+  test:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
       - run: yarn test --maxWorkers=1
       - name: Require clean working directory
         shell: bash
