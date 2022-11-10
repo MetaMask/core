@@ -130,8 +130,7 @@ export class AssetsContractController extends BaseController<
    * @property provider - Provider used to create a new underlying Web3 instance
    */
   set provider(provider: any) {
-    const chainId = parseInt(this.config.chainId, 10);
-    this._provider = new Web3Provider(provider, chainId);
+    this._provider = new Web3Provider(provider);
     this.erc721Standard = new ERC721Standard(this._provider);
     this.erc1155Standard = new ERC1155Standard(this._provider);
     this.erc20Standard = new ERC20Standard(this._provider);
