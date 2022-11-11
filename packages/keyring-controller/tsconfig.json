@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../message-manager"
+    },
+    {
+      "path": "../preferences-controller"
+    }
+  ],
+  "include": ["../../types", "./src", "./tests"]
+}

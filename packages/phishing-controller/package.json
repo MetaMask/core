@@ -1,0 +1,56 @@
+{
+  "name": "@metamask/phishing-controller",
+  "version": "0.0.0",
+  "description": "Maintains a periodically updated list of approved and unapproved website origins",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/phishing-controller#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/controllers/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/controllers.git"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build:docs": "typedoc",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/phishing-controller",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@metamask/base-controller": "workspace:~",
+    "@metamask/controller-utils": "workspace:~",
+    "@types/punycode": "^2.1.0",
+    "eth-phishing-detect": "^1.2.0",
+    "isomorphic-fetch": "^3.0.0",
+    "punycode": "^2.1.1"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^3.0.0",
+    "@types/jest": "^26.0.22",
+    "deepmerge": "^4.2.2",
+    "jest": "^26.4.2",
+    "nock": "^13.0.7",
+    "sinon": "^9.2.4",
+    "ts-jest": "^26.5.2",
+    "typedoc": "^0.22.15",
+    "typedoc-plugin-missing-exports": "^0.22.6",
+    "typescript": "~4.6.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

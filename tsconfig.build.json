@@ -1,10 +1,60 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "declaration": true,
-    "declarationDir": "./dist",
-    "outDir": "./dist",
-    "rootDir": "./src"
-  },
-  "exclude": ["**/*.test.ts"]
+  "references": [
+    {
+      "path": "./packages/address-book-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/announcement-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/approval-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/assets-controllers/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/base-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/composable-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/controller-utils/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/ens-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/gas-fee-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/keyring-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/message-manager/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/notification-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/permission-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/phishing-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/preferences-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/rate-limit-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/subject-metadata-controller/tsconfig.build.json"
+    }
+  ],
+  "files": [],
+  "include": []
 }

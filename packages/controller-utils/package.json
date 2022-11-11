@@ -1,0 +1,57 @@
+{
+  "name": "@metamask/controller-utils",
+  "version": "0.0.0",
+  "description": "Data and convenience functions shared by multiple packages",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/controller-utils#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/controllers/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/controllers.git"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build:docs": "typedoc",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/controller-utils",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@metamask/base-controller": "workspace:~",
+    "eth-ens-namehash": "^2.0.8",
+    "eth-rpc-errors": "^4.0.0",
+    "ethereumjs-util": "^7.0.10",
+    "ethjs-unit": "^0.1.6",
+    "fast-deep-equal": "^3.1.3",
+    "isomorphic-fetch": "^3.0.0"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^3.0.0",
+    "@types/jest": "^26.0.22",
+    "abort-controller": "^3.0.0",
+    "deepmerge": "^4.2.2",
+    "jest": "^26.4.2",
+    "nock": "^13.0.7",
+    "ts-jest": "^26.5.2",
+    "typedoc": "^0.22.15",
+    "typedoc-plugin-missing-exports": "^0.22.6",
+    "typescript": "~4.6.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

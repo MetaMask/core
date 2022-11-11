@@ -1,0 +1,74 @@
+{
+  "name": "@metamask/assets-controllers",
+  "version": "0.0.0",
+  "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/assets-controllers#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/controllers/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/controllers.git"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build:docs": "typedoc",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/assets-controllers",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@ethersproject/abi": "^5.7.0",
+    "@ethersproject/contracts": "^5.7.0",
+    "@ethersproject/providers": "^5.7.0",
+    "@metamask/base-controller": "workspace:~",
+    "@metamask/contract-metadata": "^1.35.0",
+    "@metamask/controller-utils": "workspace:~",
+    "@metamask/metamask-eth-abis": "3.0.0",
+    "@metamask/network-controller": "workspace:~",
+    "@metamask/preferences-controller": "workspace:~",
+    "@types/uuid": "^8.3.0",
+    "abort-controller": "^3.0.0",
+    "async-mutex": "^0.2.6",
+    "babel-runtime": "^6.26.0",
+    "eth-query": "^2.1.2",
+    "eth-rpc-errors": "^4.0.0",
+    "ethereumjs-util": "^7.0.10",
+    "immer": "^9.0.6",
+    "multiformats": "^9.5.2",
+    "single-call-balance-checker-abi": "^1.0.0",
+    "uuid": "^8.3.2",
+    "web3": "^0.20.7"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^3.0.0",
+    "@types/jest": "^26.0.22",
+    "@types/node": "^14.14.31",
+    "@types/web3": "^1.0.6",
+    "deepmerge": "^4.2.2",
+    "ethjs-provider-http": "^0.1.6",
+    "jest": "^26.4.2",
+    "nock": "^13.0.7",
+    "sinon": "^9.2.4",
+    "ts-jest": "^26.5.2",
+    "typedoc": "^0.22.15",
+    "typedoc-plugin-missing-exports": "^0.22.6",
+    "typescript": "~4.6.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

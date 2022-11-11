@@ -24,3 +24,6 @@ docs
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# typescript
+*.tsbuildinfo

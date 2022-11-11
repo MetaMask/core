@@ -1,0 +1,64 @@
+{
+  "name": "@metamask/transaction-controller",
+  "version": "0.0.0",
+  "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/transaction-controller#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/controllers/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/controllers.git"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build:docs": "typedoc",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-controller",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@ethereumjs/common": "^2.3.1",
+    "@ethereumjs/tx": "^3.2.1",
+    "@metamask/base-controller": "workspace:~",
+    "@metamask/controller-utils": "workspace:~",
+    "@metamask/network-controller": "workspace:~",
+    "async-mutex": "^0.2.6",
+    "babel-runtime": "^6.26.0",
+    "eth-method-registry": "1.1.0",
+    "eth-query": "^2.1.2",
+    "eth-rpc-errors": "^4.0.0",
+    "ethereumjs-util": "^7.0.10",
+    "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^3.0.0",
+    "@types/jest": "^26.0.22",
+    "@types/node": "^14.14.31",
+    "deepmerge": "^4.2.2",
+    "ethjs-provider-http": "^0.1.6",
+    "isomorphic-fetch": "^3.0.0",
+    "jest": "^26.4.2",
+    "sinon": "^9.2.4",
+    "ts-jest": "^26.5.2",
+    "typedoc": "^0.22.15",
+    "typedoc-plugin-missing-exports": "^0.22.6",
+    "typescript": "~4.6.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
