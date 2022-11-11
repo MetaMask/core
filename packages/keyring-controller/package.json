@@ -22,9 +22,10 @@
   ],
   "scripts": {
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/keyring-controller",
-    "doc": "../../scripts/doc.sh",
+    "doc": "typedoc",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "doc:clean": "rimraf docs"
   },
   "dependencies": {
     "@keystonehq/metamask-airgapped-keyring": "^0.6.1",

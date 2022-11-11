@@ -22,9 +22,10 @@
   ],
   "scripts": {
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-controller",
-    "doc": "../../scripts/doc.sh",
+    "doc": "typedoc",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "doc:clean": "rimraf docs"
   },
   "dependencies": {
     "@ethereumjs/common": "^2.3.1",

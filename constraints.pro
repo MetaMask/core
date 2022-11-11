@@ -181,29 +181,28 @@ gen_enforced_field(WorkspaceCwd, 'files', ['dist/']) :-
 gen_enforced_field(WorkspaceCwd, 'files', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
-% "engines.node" must be ">=14.0.0" for all packages.
-gen_enforced_field(WorkspaceCwd, 'engines.node', '>=14.0.0').
-
-% "publishConfig.access" must be "public" for workspace packages and unset
-% for the root.
-gen_enforced_field(WorkspaceCwd, 'publishConfig.access', 'public') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
-gen_enforced_field(WorkspaceCwd, 'publishConfig.access', null) :-
-  workspace_field(WorkspaceCwd, 'private', true).
-
-% "publishConfig.registry" must be "https://registry.npmjs.org" for all
-% workspace packages and unset for the root.
-gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', 'https://registry.npmjs.org/') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
-gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', null) :-
-  workspace_field(WorkspaceCwd, 'private', true).
-
 % The "changelog:validate" script for each package must follow a specific
 % format.
 gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', ProperChangelogValidationScript) :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
   workspace_package_name(WorkspaceCwd, WorkspacePackageName),
   atomic_list_concat(['../../scripts/validate-changelog.sh ', WorkspacePackageName], ProperChangelogValidationScript).
+
+% All workspace packages must have the same "doc" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.doc', 'typedoc') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+
+% All workspace packages must have the same "doc:clean" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.doc:clean', 'rimraf docs') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+
+% All workspace packages must have the same "test" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+
+% All workspace packages must have the same "test:watch" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.test:watch', 'jest --watch') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
 
 % All dependency ranges must be recognizable.
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a range optionally starting with ^ or ~', DependencyType) :-
@@ -234,3 +233,20 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, DependencyType) :-
 % to be present if eth-query is present.
 gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, 'eth-query', _, DependencyType).
+
+% "engines.node" must be ">=14.0.0" for all packages.
+gen_enforced_field(WorkspaceCwd, 'engines.node', '>=14.0.0').
+
+% "publishConfig.access" must be "public" for workspace packages and unset
+% for the root.
+gen_enforced_field(WorkspaceCwd, 'publishConfig.access', 'public') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+gen_enforced_field(WorkspaceCwd, 'publishConfig.access', null) :-
+  workspace_field(WorkspaceCwd, 'private', true).
+
+% "publishConfig.registry" must be "https://registry.npmjs.org" for all
+% workspace packages and unset for the root.
+gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', 'https://registry.npmjs.org/') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', null) :-
+  workspace_field(WorkspaceCwd, 'private', true).
