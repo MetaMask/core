@@ -23,7 +23,6 @@
   "scripts": {
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/announcement-controller",
     "doc": "typedoc",
-    "doc:clean": "rimraf docs",
     "test": "jest",
     "test:watch": "jest --watch"
   },

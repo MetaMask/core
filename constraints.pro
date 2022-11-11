@@ -192,10 +192,6 @@ gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', ProperChangelogVa
 gen_enforced_field(WorkspaceCwd, 'scripts.doc', 'typedoc') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 
-% All workspace packages must have the same "doc:clean" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.doc:clean', 'rimraf docs') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
-
 % All workspace packages must have the same "test" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).

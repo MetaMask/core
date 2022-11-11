@@ -16,7 +16,6 @@
     "build:watch": "yarn run build --watch",
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
     "doc": "yarn workspaces foreach --parallel --interlaced --verbose run doc",
-    "doc:clean": "yarn workspaces foreach --parallel --interlaced --verbose run doc:clean",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn constraints",
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn constraints --fix",
