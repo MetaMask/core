@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "esModuleInterop": true,
+    "lib": ["ES2017", "DOM"],
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    /**
+     * Here we ensure that TypeScript resolves `@metamask/*` imports to the
+     * uncompiled source code for packages that live in this repo.
+     *
+     * NOTE: This must be synchronized with the `moduleNameMapper` option in
+     * `jest.config.packages.js`.
+     */
+    "paths": {
+      "@metamask/*": ["../*/src"]
+    },
+    "strict": true,
+    "target": "es6"
+  }
+}

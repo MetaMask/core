@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.packages.json",
+  "compilerOptions": {
+    "declaration": true,
+    "inlineSources": true,
+    "sourceMap": true
+  },
+  "exclude": ["./jest.config.packages.ts", "**/*.test.ts", "**/jest.config.ts"]
+}
