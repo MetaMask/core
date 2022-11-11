@@ -2,7 +2,7 @@
   "compilerOptions": {
     "composite": true,
     "esModuleInterop": true,
-    "lib": ["ES2020", "DOM"],
+    "lib": ["ES2017", "DOM"],
     "module": "CommonJS",
     "moduleResolution": "node",
     /**
