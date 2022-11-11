@@ -6,9 +6,8 @@ import {
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 
 /**
- * @type ContactEntry
+ * ContactEntry representation.
  *
- * ContactEntry representation
  * @property address - Hex address of a recipient account
  * @property name - Nickname associated with this address
  * @property importTime - Data time when an account as created/imported
