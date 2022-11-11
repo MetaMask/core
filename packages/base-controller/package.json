@@ -23,9 +23,9 @@
   "scripts": {
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/base-controller",
     "doc": "typedoc",
+    "doc:clean": "rimraf docs",
     "test": "jest",
-    "test:watch": "jest --watch",
-    "doc:clean": "rimraf docs"
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "immer": "^9.0.6"

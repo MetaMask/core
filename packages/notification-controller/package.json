@@ -23,9 +23,9 @@
   "scripts": {
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/notification-controller",
     "doc": "typedoc",
+    "doc:clean": "rimraf docs",
     "test": "jest",
-    "test:watch": "jest --watch",
-    "doc:clean": "rimraf docs"
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@metamask/base-controller": "workspace:~",
