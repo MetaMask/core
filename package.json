@@ -12,10 +12,10 @@
   ],
   "scripts": {
     "build": "tsc --build tsconfig.build.json --verbose",
-    "build:clean": "rimraf './**/*.tsbuildinfo' './dist'",
+    "build:clean": "rimraf dist '**/*.tsbuildinfo' && yarn build",
     "build:watch": "yarn run build --watch",
+    "build:docs": "yarn workspaces foreach --parallel --interlaced --verbose run doc",
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
-    "doc": "yarn workspaces foreach --parallel --interlaced --verbose run doc",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn constraints",
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn constraints --fix",
