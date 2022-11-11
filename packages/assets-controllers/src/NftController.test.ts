@@ -47,19 +47,21 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
 );
 
 // Mock out detectNetwork function for cleaner tests, Ethers calls this a bunch of times because the Web3Provider is paranoid.
-jest.mock('@ethersproject/providers', () => ({
-  ...jest.requireActual('@ethersproject/providers'),
-  Web3Provider: class MockWeb3Provider extends jest.requireActual(
-    '@ethersproject/providers',
-  ).Web3Provider {
+jest.mock('@ethersproject/providers', () => {
+  const providers = jest.requireActual('@ethersproject/providers');
+  const MockWeb3Provider = class extends providers.Web3Provider {
     detectNetwork(): Promise<Network> {
       return Promise.resolve({
         name: 'mainnet',
         chainId: 1,
       });
     }
-  },
-}));
+  };
+  return {
+    ...providers,
+    Web3Provider: MockWeb3Provider,
+  };
+});
 
 /**
  * Setup a test controller instance.

@@ -4,7 +4,7 @@ import { BN, toUtf8 } from 'ethereumjs-util';
 import { AbiCoder } from '@ethersproject/abi';
 import { Web3Provider } from '@ethersproject/providers';
 import { ERC20, hexToBN } from '@metamask/controller-utils';
-import { ethersBigNumberToBN } from '../../assetUtil';
+import { ethersBigNumberToBN } from '../assetsUtil';
 
 export class ERC20Standard {
   private provider: Web3Provider;
