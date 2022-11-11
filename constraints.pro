@@ -181,16 +181,16 @@ gen_enforced_field(WorkspaceCwd, 'files', ['dist/']) :-
 gen_enforced_field(WorkspaceCwd, 'files', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
+% All workspace packages must have the same "build:docs" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.build:docs', 'typedoc') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+
 % The "changelog:validate" script for each package must follow a specific
 % format.
 gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', ProperChangelogValidationScript) :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
   workspace_package_name(WorkspaceCwd, WorkspacePackageName),
   atomic_list_concat(['../../scripts/validate-changelog.sh ', WorkspacePackageName], ProperChangelogValidationScript).
-
-% All workspace packages must have the same "doc" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.doc', 'typedoc') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
 
 % All workspace packages must have the same "test" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest') :-

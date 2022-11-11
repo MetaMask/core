@@ -21,8 +21,8 @@
     "dist/"
   ],
   "scripts": {
+    "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/approval-controller",
-    "doc": "typedoc",
     "test": "jest",
     "test:watch": "jest --watch"
   },
