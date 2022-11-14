@@ -1381,7 +1381,6 @@ __metadata:
     "@types/jest": ^26.0.22
     "@types/node": ^14.14.31
     "@types/uuid": ^8.3.0
-    "@types/web3": ^1.0.6
     abort-controller: ^3.0.0
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
@@ -2170,15 +2169,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/bn.js@npm:*":
-  version: 5.1.1
-  resolution: "@types/bn.js@npm:5.1.1"
-  dependencies:
-    "@types/node": "*"
-  checksum: e50ed2dd3abe997e047caf90e0352c71e54fc388679735217978b4ceb7e336e51477791b715f49fd77195ac26dd296c7bad08a3be9750e235f9b2e1edb1b51c2
-  languageName: node
-  linkType: hard
-
 "@types/bn.js@npm:^4.11.3":
   version: 4.11.6
   resolution: "@types/bn.js@npm:4.11.6"
@@ -2438,27 +2428,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/underscore@npm:*":
-  version: 1.11.4
-  resolution: "@types/underscore@npm:1.11.4"
-  checksum: db9f8486bc851b732259e51f42d62aad1ae2158be5724612dc125ece5f5d61c51447f9dea28284c2a0f79cb95e788d01cb5ce97709880019213e69fab0dd1696
-  languageName: node
-  linkType: hard
-
 "@types/uuid@npm:^8.3.0":
   version: 8.3.0
   resolution: "@types/uuid@npm:8.3.0"
   checksum: 0f46b15020b9c252473fb327a6491fd7d238c7b5bbaebd32195a0de178db040f6abb96902507ba25dd4a673cdd9cc28b8880512dba54561e8bc60d8f326c1e30
-  languageName: node
-  linkType: hard
-
-"@types/web3@npm:^1.0.6":
-  version: 1.0.20
-  resolution: "@types/web3@npm:1.0.20"
-  dependencies:
-    "@types/bn.js": "*"
-    "@types/underscore": "*"
-  checksum: d0c8e101650baf12d054ed978164a653359fc68ccf06783d7fc9bf3d65dcbad2c52a87b22b07ecd7814860e1d318dfb462b8ec2ad317660d1bbd9954b050e7b7
   languageName: node
   linkType: hard
 
