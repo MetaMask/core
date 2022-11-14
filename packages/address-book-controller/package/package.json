@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/rate-limit-controller",
-  "version": "1.0.0",
-  "description": "Contains logic for rate-limiting API endpoints by requesting origin",
+  "name": "@metamask/address-book-controller",
+  "version": "0.0.0",
+  "description": "Manages a list of recipient addresses associated with nicknames",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/rate-limit-controller#readme",
+  "homepage": "https://github.com/MetaMask/controllers/tree/main/packages/address-book-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/controllers/issues"
   },
@@ -22,19 +22,16 @@
   ],
   "scripts": {
     "build:docs": "typedoc",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/rate-limit-controller",
-    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
-    "publish:preview": "yarn npm publish --tag preview",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/address-book-controller",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:~",
-    "eth-rpc-errors": "^4.0.0",
-    "immer": "^9.0.6"
+    "@metamask/base-controller": "../base-controller/package.tgz",
+    "@metamask/controller-utils": "../controller-utils/package.tgz"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.1.0",
+    "@metamask/auto-changelog": "^3.0.0",
     "@types/jest": "^26.0.22",
     "deepmerge": "^4.2.2",
     "jest": "^26.4.2",
