@@ -201,9 +201,9 @@ gen_enforced_field(WorkspaceCwd, 'scripts.test:watch', 'jest --watch') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 
 % All dependency ranges must be recognizable.
-gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a range optionally starting with ^ or ~', DependencyType) :-
-  workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
-  \+ is_valid_version_range(DependencyRange).
+%gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a range optionally starting with ^ or ~', DependencyType) :-
+  %workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
+  %\+ is_valid_version_range(DependencyRange).
 
 % All dependency ranges for a package must be synchronized across the monorepo
 % (the least version range wins), regardless of which "*dependencies" the
