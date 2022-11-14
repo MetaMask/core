@@ -1507,7 +1507,7 @@ __metadata:
   resolution: "@metamask/controllers-monorepo@workspace:."
   dependencies:
     "@lavamoat/allow-scripts": ^2.0.2
-    "@metamask/create-release-branch": ^1.0.0
+    "@metamask/create-release-branch": ^1.0.1
     "@metamask/eslint-config": ^9.0.0
     "@metamask/eslint-config-jest": ^9.0.0
     "@metamask/eslint-config-nodejs": ^9.0.0
@@ -1531,9 +1531,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/create-release-branch@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@metamask/create-release-branch@npm:1.0.0"
+"@metamask/create-release-branch@npm:^1.0.1":
+  version: 1.0.1
+  resolution: "@metamask/create-release-branch@npm:1.0.1"
   dependencies:
     "@metamask/action-utils": ^0.0.2
     "@metamask/utils": ^3.0.3
@@ -1547,7 +1547,7 @@ __metadata:
     yargs: ^17.5.1
   bin:
     create-release-branch: bin/create-release-branch.js
-  checksum: e720f0cc2d0ba13246368891f667b55992093b10c751548af344943cb5146775261d1ca1c2c5789bd01a34bd76adbeb4717cdad6173ded6ca24b5d4167343f13
+  checksum: 9da926ee4c183eedaf7fb42ef36fb1b4edf9b83a573e68978d6027ba9af160206ad0065f3d943d1243b1f650b32bb02115ec1389aaa9ef9fb2aa69891dbf4312
   languageName: node
   linkType: hard
 
