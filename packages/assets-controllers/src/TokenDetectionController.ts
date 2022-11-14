@@ -229,7 +229,7 @@ export class TokenDetectionController extends BaseController<
       return;
     }
     const { tokens } = this.getTokensState();
-    const { selectedAddress } = this.config;
+    const { selectedAddress, chainId } = this.config;
 
     const tokensAddresses = tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
@@ -294,7 +294,10 @@ export class TokenDetectionController extends BaseController<
         }
 
         if (tokensToAdd.length) {
-          await this.addDetectedTokens(tokensToAdd);
+          await this.addDetectedTokens(tokensToAdd, {
+            selectedAddress,
+            chainId,
+          });
         }
       });
     }
