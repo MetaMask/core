@@ -3,7 +3,7 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { BN, toUtf8 } from 'ethereumjs-util';
 import { AbiCoder } from '@ethersproject/abi';
 import { Web3Provider } from '@ethersproject/providers';
-import { ERC20, hexToBN } from '@metamask/controller-utils';
+import { ERC20 } from '@metamask/controller-utils';
 import { ethersBigNumberToBN } from '../assetsUtil';
 
 export class ERC20Standard {
@@ -33,16 +33,17 @@ export class ERC20Standard {
    * @returns Promise resolving to the 'decimals'.
    */
   async getTokenDecimals(address: string): Promise<string> {
-    // Signature for calling `decimals()`
-    const payload = { to: address, data: '0x313ce567' };
-    const result = await this.provider.call(payload);
-    const resultString = hexToBN(result).toString();
-    // We treat empty string or 0 as invalid
-    if (resultString.length > 0 && resultString !== '0') {
-      return resultString;
+    const contract = new Contract(address, abiERC20, this.provider);
+    try {
+      const decimals = await contract.decimals();
+      return decimals.toString();
+    } catch (err: any) {
+      // Mirror previous implementation
+      if (err.message.includes('call revert exception')) {
+        throw new Error('Failed to parse token decimals');
+      }
+      throw err;
     }
-
-    throw new Error('Failed to parse token decimals');
   }
 
   /**
