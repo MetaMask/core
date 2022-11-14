@@ -1585,6 +1585,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fphishing-controller%40workspace%3Apackages%2Fphishing-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fphishing-controller%40workspace%3Apackages%2Fphishing-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
 "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fpreferences-controller%40workspace%3Apackages%2Fpreferences-controller":
   version: 0.0.0
   resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fpreferences-controller%40workspace%3Apackages%2Fpreferences-controller"
@@ -1621,7 +1630,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/base-controller@workspace:*, @metamask/base-controller@workspace:packages/base-controller, @metamask/base-controller@~0.0.0":
+"@metamask/base-controller@workspace:packages/base-controller, @metamask/base-controller@~0.0.0":
   version: 0.0.0-use.local
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
@@ -1832,6 +1841,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fphishing-controller%40workspace%3Apackages%2Fphishing-controller":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fphishing-controller%40workspace%3Apackages%2Fphishing-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
 "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fpreferences-controller%40workspace%3Apackages%2Fpreferences-controller":
   version: 0.0.0
   resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fpreferences-controller%40workspace%3Apackages%2Fpreferences-controller"
@@ -1862,7 +1886,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@workspace:*, @metamask/controller-utils@workspace:packages/controller-utils, @metamask/controller-utils@~0.0.0":
+"@metamask/controller-utils@workspace:packages/controller-utils, @metamask/controller-utils@~0.0.0":
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
@@ -2305,8 +2329,8 @@ __metadata:
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:*"
-    "@metamask/controller-utils": "workspace:*"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/controller-utils": ../controller-utils/package.tgz
     "@types/jest": ^26.0.22
     "@types/punycode": ^2.1.0
     deepmerge: ^4.2.2
