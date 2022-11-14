@@ -29,9 +29,9 @@
   "dependencies": {
     "@ethereumjs/common": "^2.3.1",
     "@ethereumjs/tx": "^3.2.1",
-    "@metamask/base-controller": "workspace:~",
-    "@metamask/controller-utils": "workspace:~",
-    "@metamask/network-controller": "workspace:~",
+    "@metamask/base-controller": "../base-controller/package.tgz",
+    "@metamask/controller-utils": "../controller-utils/package.tgz",
+    "@metamask/network-controller": "../network-controller/package.tgz",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
     "eth-method-registry": "1.1.0",

@@ -1310,13 +1310,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/address-book-controller@workspace:packages/address-book-controller, @metamask/address-book-controller@workspace:~":
+"@metamask/address-book-controller@file:../address-book-controller/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller":
+  version: 0.0.0
+  resolution: "@metamask/address-book-controller@file:../address-book-controller/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    "@metamask/controller-utils": ~0.0.0
+  checksum: 3b0789832f3760dd07ac8f8e2aabe3d64a8cac68ce74fbe2d4fa231bec0e5159b34b9391f20d93f86a6d9e2a5cadb0f745cf3c0209612de218a6a807092a5357
+  languageName: node
+  linkType: hard
+
+"@metamask/address-book-controller@workspace:packages/address-book-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/address-book-controller@workspace:packages/address-book-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/controller-utils": ../controller-utils/package.tgz
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     jest: ^26.4.2
@@ -1332,7 +1342,7 @@ __metadata:
   resolution: "@metamask/announcement-controller@workspace:packages/announcement-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     jest: ^26.4.2
@@ -1343,12 +1353,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/approval-controller@workspace:packages/approval-controller, @metamask/approval-controller@workspace:~":
+"@metamask/approval-controller@file:../approval-controller/package.tgz::locator=%40metamask%2Fpermission-controller%40workspace%3Apackages%2Fpermission-controller":
+  version: 0.0.0
+  resolution: "@metamask/approval-controller@file:../approval-controller/package.tgz::locator=%40metamask%2Fpermission-controller%40workspace%3Apackages%2Fpermission-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-rpc-errors: ^4.0.0
+    immer: ^9.0.6
+    nanoid: ^3.1.31
+  checksum: 263c3a16d162c02125e152b24b65198ac3a9de2dc8f8fb0685e0b14817e9c4e37d66b9915f4c76e18f699d600a98d5ce886ed83e083a45bf7fa47ab5db32f7ea
+  languageName: node
+  linkType: hard
+
+"@metamask/approval-controller@workspace:packages/approval-controller, @metamask/approval-controller@~0.0.0":
   version: 0.0.0-use.local
   resolution: "@metamask/approval-controller@workspace:packages/approval-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     eth-rpc-errors: ^4.0.0
@@ -1363,7 +1385,36 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controllers@workspace:packages/assets-controllers, @metamask/assets-controllers@workspace:~":
+"@metamask/assets-controllers@file:../assets-controllers/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller":
+  version: 0.0.0
+  resolution: "@metamask/assets-controllers@file:../assets-controllers/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller"
+  dependencies:
+    "@ethersproject/abi": ^5.7.0
+    "@ethersproject/bignumber": ^5.7.0
+    "@ethersproject/contracts": ^5.7.0
+    "@ethersproject/providers": ^5.7.0
+    "@metamask/base-controller": ~0.0.0
+    "@metamask/contract-metadata": ^1.35.0
+    "@metamask/controller-utils": ~0.0.0
+    "@metamask/metamask-eth-abis": 3.0.0
+    "@metamask/network-controller": ~0.0.0
+    "@metamask/preferences-controller": ~0.0.0
+    "@types/uuid": ^8.3.0
+    abort-controller: ^3.0.0
+    async-mutex: ^0.2.6
+    babel-runtime: ^6.26.0
+    eth-query: ^2.1.2
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    immer: ^9.0.6
+    multiformats: ^9.5.2
+    single-call-balance-checker-abi: ^1.0.0
+    uuid: ^8.3.2
+  checksum: 9fe925ca917e0f38b60816612e827b21b2055431f26de68672ce08376219b42b05e4822cc3191776f931d492c35eb713f781e7b8d4b6238613c51f26717ce0de
+  languageName: node
+  linkType: hard
+
+"@metamask/assets-controllers@workspace:packages/assets-controllers":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
@@ -1372,12 +1423,12 @@ __metadata:
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
     "@metamask/contract-metadata": ^1.35.0
-    "@metamask/controller-utils": "workspace:~"
+    "@metamask/controller-utils": ../controller-utils/package.tgz
     "@metamask/metamask-eth-abis": 3.0.0
-    "@metamask/network-controller": "workspace:~"
-    "@metamask/preferences-controller": "workspace:~"
+    "@metamask/network-controller": ../network-controller/package.tgz
+    "@metamask/preferences-controller": ../preferences-controller/package.tgz
     "@types/jest": ^26.0.22
     "@types/node": ^14.14.31
     "@types/uuid": ^8.3.0
@@ -1417,7 +1468,169 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/base-controller@workspace:packages/base-controller, @metamask/base-controller@workspace:~":
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Faddress-book-controller%40workspace%3Apackages%2Faddress-book-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Faddress-book-controller%40workspace%3Apackages%2Faddress-book-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fannouncement-controller%40workspace%3Apackages%2Fannouncement-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fannouncement-controller%40workspace%3Apackages%2Fannouncement-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fapproval-controller%40workspace%3Apackages%2Fapproval-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fapproval-controller%40workspace%3Apackages%2Fapproval-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fcontroller-utils%40workspace%3Apackages%2Fcontroller-utils":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fcontroller-utils%40workspace%3Apackages%2Fcontroller-utils"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fens-controller%40workspace%3Apackages%2Fens-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fens-controller%40workspace%3Apackages%2Fens-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fgas-fee-controller%40workspace%3Apackages%2Fgas-fee-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fgas-fee-controller%40workspace%3Apackages%2Fgas-fee-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fkeyring-controller%40workspace%3Apackages%2Fkeyring-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fkeyring-controller%40workspace%3Apackages%2Fkeyring-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fmessage-manager%40workspace%3Apackages%2Fmessage-manager":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fmessage-manager%40workspace%3Apackages%2Fmessage-manager"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fnetwork-controller%40workspace%3Apackages%2Fnetwork-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fnetwork-controller%40workspace%3Apackages%2Fnetwork-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fnotification-controller%40workspace%3Apackages%2Fnotification-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fnotification-controller%40workspace%3Apackages%2Fnotification-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fpermission-controller%40workspace%3Apackages%2Fpermission-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fpermission-controller%40workspace%3Apackages%2Fpermission-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fphishing-controller%40workspace%3Apackages%2Fphishing-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fphishing-controller%40workspace%3Apackages%2Fphishing-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fpreferences-controller%40workspace%3Apackages%2Fpreferences-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fpreferences-controller%40workspace%3Apackages%2Fpreferences-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Frate-limit-controller%40workspace%3Apackages%2Frate-limit-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Frate-limit-controller%40workspace%3Apackages%2Frate-limit-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fsubject-metadata-controller%40workspace%3Apackages%2Fsubject-metadata-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Fsubject-metadata-controller%40workspace%3Apackages%2Fsubject-metadata-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Ftransaction-controller%40workspace%3Apackages%2Ftransaction-controller":
+  version: 0.0.0
+  resolution: "@metamask/base-controller@file:../base-controller/package.tgz::locator=%40metamask%2Ftransaction-controller%40workspace%3Apackages%2Ftransaction-controller"
+  dependencies:
+    immer: ^9.0.6
+  checksum: a6b4a46db97eafcc4dbac6c2b433f7e49ba5b86fbc38724846bf231dbb89d785868961a1a2f63be2ba2baa2f1144b8200e537f22c02fdac28fce5cdf151e5aaa
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@workspace:packages/base-controller, @metamask/base-controller@~0.0.0":
   version: 0.0.0-use.local
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
@@ -1451,14 +1664,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/composable-controller@workspace:packages/composable-controller"
   dependencies:
-    "@metamask/address-book-controller": "workspace:~"
-    "@metamask/assets-controllers": "workspace:~"
+    "@metamask/address-book-controller": ../address-book-controller/package.tgz
+    "@metamask/assets-controllers": ../assets-controllers/package.tgz
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
-    "@metamask/ens-controller": "workspace:~"
-    "@metamask/network-controller": "workspace:~"
-    "@metamask/preferences-controller": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/controller-utils": ../controller-utils/package.tgz
+    "@metamask/ens-controller": ../ens-controller/package.tgz
+    "@metamask/network-controller": ../network-controller/package.tgz
+    "@metamask/preferences-controller": ../preferences-controller/package.tgz
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     immer: ^9.0.6
@@ -1478,12 +1691,207 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@workspace:packages/controller-utils, @metamask/controller-utils@workspace:~":
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Faddress-book-controller%40workspace%3Apackages%2Faddress-book-controller":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Faddress-book-controller%40workspace%3Apackages%2Faddress-book-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fens-controller%40workspace%3Apackages%2Fens-controller":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fens-controller%40workspace%3Apackages%2Fens-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fgas-fee-controller%40workspace%3Apackages%2Fgas-fee-controller":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fgas-fee-controller%40workspace%3Apackages%2Fgas-fee-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fkeyring-controller%40workspace%3Apackages%2Fkeyring-controller":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fkeyring-controller%40workspace%3Apackages%2Fkeyring-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fmessage-manager%40workspace%3Apackages%2Fmessage-manager":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fmessage-manager%40workspace%3Apackages%2Fmessage-manager"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fnetwork-controller%40workspace%3Apackages%2Fnetwork-controller":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fnetwork-controller%40workspace%3Apackages%2Fnetwork-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fnotification-controller%40workspace%3Apackages%2Fnotification-controller":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fnotification-controller%40workspace%3Apackages%2Fnotification-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fpermission-controller%40workspace%3Apackages%2Fpermission-controller":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fpermission-controller%40workspace%3Apackages%2Fpermission-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fphishing-controller%40workspace%3Apackages%2Fphishing-controller":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fphishing-controller%40workspace%3Apackages%2Fphishing-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fpreferences-controller%40workspace%3Apackages%2Fpreferences-controller":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Fpreferences-controller%40workspace%3Apackages%2Fpreferences-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
+"@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Ftransaction-controller%40workspace%3Apackages%2Ftransaction-controller":
+  version: 0.0.0
+  resolution: "@metamask/controller-utils@file:../controller-utils/package.tgz::locator=%40metamask%2Ftransaction-controller%40workspace%3Apackages%2Ftransaction-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    eth-ens-namehash: ^2.0.8
+    eth-rpc-errors: ^4.0.0
+    ethereumjs-util: ^7.0.10
+    ethjs-unit: ^0.1.6
+    fast-deep-equal: ^3.1.3
+    isomorphic-fetch: ^3.0.0
+  checksum: 5f586fb7d63bc0752af5bcb81ade0f58b0353f9ca0d202a910c46f65db63948dc273d97e0a8bae77263d226880594097765f499aed0ed8e18e5b8a486c5b5eb9
+  languageName: node
+  linkType: hard
+
+"@metamask/controller-utils@workspace:packages/controller-utils, @metamask/controller-utils@~0.0.0":
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
     "@types/jest": ^26.0.22
     abort-controller: ^3.0.0
     deepmerge: ^4.2.2
@@ -1551,13 +1959,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/ens-controller@workspace:packages/ens-controller, @metamask/ens-controller@workspace:~":
+"@metamask/ens-controller@file:../ens-controller/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller":
+  version: 0.0.0
+  resolution: "@metamask/ens-controller@file:../ens-controller/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    "@metamask/controller-utils": ~0.0.0
+  checksum: bbadc9fa2449e1a257ec3460d2b2736a850248c6e7475b9e8cfc2153d857f7a0ca10feb308a510e5853f53824f29a680c0a7464305155f23a2450e77cff90fca
+  languageName: node
+  linkType: hard
+
+"@metamask/ens-controller@workspace:packages/ens-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/ens-controller@workspace:packages/ens-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/controller-utils": ../controller-utils/package.tgz
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     jest: ^26.4.2
@@ -1648,9 +2066,9 @@ __metadata:
   resolution: "@metamask/gas-fee-controller@workspace:packages/gas-fee-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
-    "@metamask/network-controller": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/controller-utils": ../controller-utils/package.tgz
+    "@metamask/network-controller": ../network-controller/package.tgz
     "@types/jest": ^26.0.22
     "@types/jest-when": ^2.7.3
     "@types/uuid": ^8.3.0
@@ -1681,10 +2099,10 @@ __metadata:
     "@keystonehq/bc-ur-registry-eth": ^0.9.0
     "@keystonehq/metamask-airgapped-keyring": ^0.6.1
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
-    "@metamask/message-manager": "workspace:~"
-    "@metamask/preferences-controller": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/controller-utils": ../controller-utils/package.tgz
+    "@metamask/message-manager": ../message-manager/package.tgz
+    "@metamask/preferences-controller": ../preferences-controller/package.tgz
     "@types/jest": ^26.0.22
     async-mutex: ^0.2.6
     deepmerge: ^4.2.2
@@ -1702,13 +2120,28 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/message-manager@workspace:packages/message-manager, @metamask/message-manager@workspace:~":
+"@metamask/message-manager@file:../message-manager/package.tgz::locator=%40metamask%2Fkeyring-controller%40workspace%3Apackages%2Fkeyring-controller":
+  version: 0.0.0
+  resolution: "@metamask/message-manager@file:../message-manager/package.tgz::locator=%40metamask%2Fkeyring-controller%40workspace%3Apackages%2Fkeyring-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    "@metamask/controller-utils": ~0.0.0
+    "@types/uuid": ^8.3.0
+    eth-sig-util: ^3.0.0
+    ethereumjs-util: ^7.0.10
+    jsonschema: ^1.2.4
+    uuid: ^8.3.2
+  checksum: be357d3b024ac2301d9dbf7ca0ce88e89e8a3e7bf70acb9cba3ff3f6afb621ff847703523cee88d99400c9fa9bcac2e67394c99653c39ffe6903cbdfe78ec51f
+  languageName: node
+  linkType: hard
+
+"@metamask/message-manager@workspace:packages/message-manager":
   version: 0.0.0-use.local
   resolution: "@metamask/message-manager@workspace:packages/message-manager"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/controller-utils": ../controller-utils/package.tgz
     "@types/jest": ^26.0.22
     "@types/uuid": ^8.3.0
     deepmerge: ^4.2.2
@@ -1731,13 +2164,77 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/network-controller@workspace:packages/network-controller, @metamask/network-controller@workspace:~":
+"@metamask/network-controller@file:../network-controller/package.tgz::locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers":
+  version: 0.0.0
+  resolution: "@metamask/network-controller@file:../network-controller/package.tgz::locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    "@metamask/controller-utils": ~0.0.0
+    async-mutex: ^0.2.6
+    babel-runtime: ^6.26.0
+    eth-json-rpc-infura: ^5.1.0
+    eth-query: ^2.1.2
+    immer: ^9.0.6
+    web3-provider-engine: ^16.0.3
+  checksum: 04351ddce7f9d1424f48d4c8c688ba99a57d1b7a720885e74b651641df4cf818de0275c0304005b8678e28e760da9a699b7caf0f4344d1234498753582920599
+  languageName: node
+  linkType: hard
+
+"@metamask/network-controller@file:../network-controller/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller":
+  version: 0.0.0
+  resolution: "@metamask/network-controller@file:../network-controller/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    "@metamask/controller-utils": ~0.0.0
+    async-mutex: ^0.2.6
+    babel-runtime: ^6.26.0
+    eth-json-rpc-infura: ^5.1.0
+    eth-query: ^2.1.2
+    immer: ^9.0.6
+    web3-provider-engine: ^16.0.3
+  checksum: 04351ddce7f9d1424f48d4c8c688ba99a57d1b7a720885e74b651641df4cf818de0275c0304005b8678e28e760da9a699b7caf0f4344d1234498753582920599
+  languageName: node
+  linkType: hard
+
+"@metamask/network-controller@file:../network-controller/package.tgz::locator=%40metamask%2Fgas-fee-controller%40workspace%3Apackages%2Fgas-fee-controller":
+  version: 0.0.0
+  resolution: "@metamask/network-controller@file:../network-controller/package.tgz::locator=%40metamask%2Fgas-fee-controller%40workspace%3Apackages%2Fgas-fee-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    "@metamask/controller-utils": ~0.0.0
+    async-mutex: ^0.2.6
+    babel-runtime: ^6.26.0
+    eth-json-rpc-infura: ^5.1.0
+    eth-query: ^2.1.2
+    immer: ^9.0.6
+    web3-provider-engine: ^16.0.3
+  checksum: 04351ddce7f9d1424f48d4c8c688ba99a57d1b7a720885e74b651641df4cf818de0275c0304005b8678e28e760da9a699b7caf0f4344d1234498753582920599
+  languageName: node
+  linkType: hard
+
+"@metamask/network-controller@file:../network-controller/package.tgz::locator=%40metamask%2Ftransaction-controller%40workspace%3Apackages%2Ftransaction-controller":
+  version: 0.0.0
+  resolution: "@metamask/network-controller@file:../network-controller/package.tgz::locator=%40metamask%2Ftransaction-controller%40workspace%3Apackages%2Ftransaction-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    "@metamask/controller-utils": ~0.0.0
+    async-mutex: ^0.2.6
+    babel-runtime: ^6.26.0
+    eth-json-rpc-infura: ^5.1.0
+    eth-query: ^2.1.2
+    immer: ^9.0.6
+    web3-provider-engine: ^16.0.3
+  checksum: 04351ddce7f9d1424f48d4c8c688ba99a57d1b7a720885e74b651641df4cf818de0275c0304005b8678e28e760da9a699b7caf0f4344d1234498753582920599
+  languageName: node
+  linkType: hard
+
+"@metamask/network-controller@workspace:packages/network-controller, @metamask/network-controller@~0.0.0":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/controller-utils": ../controller-utils/package.tgz
     "@types/jest": ^26.0.22
     async-mutex: ^0.2.6
     babel-runtime: ^6.26.0
@@ -1760,8 +2257,8 @@ __metadata:
   resolution: "@metamask/notification-controller@workspace:packages/notification-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/controller-utils": ../controller-utils/package.tgz
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     immer: ^9.0.6
@@ -1784,14 +2281,32 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/permission-controller@workspace:packages/permission-controller, @metamask/permission-controller@workspace:~":
+"@metamask/permission-controller@file:../permission-controller/package.tgz::locator=%40metamask%2Fsubject-metadata-controller%40workspace%3Apackages%2Fsubject-metadata-controller":
+  version: 0.0.0
+  resolution: "@metamask/permission-controller@file:../permission-controller/package.tgz::locator=%40metamask%2Fsubject-metadata-controller%40workspace%3Apackages%2Fsubject-metadata-controller"
+  dependencies:
+    "@metamask/approval-controller": ~0.0.0
+    "@metamask/base-controller": ~0.0.0
+    "@metamask/controller-utils": ~0.0.0
+    "@metamask/types": ^1.1.0
+    "@types/deep-freeze-strict": ^1.1.0
+    deep-freeze-strict: ^1.1.1
+    eth-rpc-errors: ^4.0.0
+    immer: ^9.0.6
+    json-rpc-engine: ^6.1.0
+    nanoid: ^3.1.31
+  checksum: 567d8037486bde506d77290c2acc8b81a116e479b205a7b2c21262290432068e2c722056ec20167541097bcdda49495ccddaf5618a924a24651cc2c55d8dca62
+  languageName: node
+  linkType: hard
+
+"@metamask/permission-controller@workspace:packages/permission-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/permission-controller@workspace:packages/permission-controller"
   dependencies:
-    "@metamask/approval-controller": "workspace:~"
+    "@metamask/approval-controller": ../approval-controller/package.tgz
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/controller-utils": ../controller-utils/package.tgz
     "@metamask/types": ^1.1.0
     "@types/deep-freeze-strict": ^1.1.0
     "@types/jest": ^26.0.22
@@ -1814,8 +2329,8 @@ __metadata:
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/controller-utils": ../controller-utils/package.tgz
     "@types/jest": ^26.0.22
     "@types/punycode": ^2.1.0
     deepmerge: ^4.2.2
@@ -1832,13 +2347,43 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/preferences-controller@workspace:packages/preferences-controller, @metamask/preferences-controller@workspace:~":
+"@metamask/preferences-controller@file:../preferences-controller/package.tgz::locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers":
+  version: 0.0.0
+  resolution: "@metamask/preferences-controller@file:../preferences-controller/package.tgz::locator=%40metamask%2Fassets-controllers%40workspace%3Apackages%2Fassets-controllers"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    "@metamask/controller-utils": ~0.0.0
+  checksum: 9e2296dbaa2565ca61d9e0372f75aa0f5cdf191c4afb4cc15dda0b01c1a68acd88625b90e93025649a4a4d258ff1544503398961dbcc891f71b43c653d6a7cd9
+  languageName: node
+  linkType: hard
+
+"@metamask/preferences-controller@file:../preferences-controller/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller":
+  version: 0.0.0
+  resolution: "@metamask/preferences-controller@file:../preferences-controller/package.tgz::locator=%40metamask%2Fcomposable-controller%40workspace%3Apackages%2Fcomposable-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    "@metamask/controller-utils": ~0.0.0
+  checksum: 9e2296dbaa2565ca61d9e0372f75aa0f5cdf191c4afb4cc15dda0b01c1a68acd88625b90e93025649a4a4d258ff1544503398961dbcc891f71b43c653d6a7cd9
+  languageName: node
+  linkType: hard
+
+"@metamask/preferences-controller@file:../preferences-controller/package.tgz::locator=%40metamask%2Fkeyring-controller%40workspace%3Apackages%2Fkeyring-controller":
+  version: 0.0.0
+  resolution: "@metamask/preferences-controller@file:../preferences-controller/package.tgz::locator=%40metamask%2Fkeyring-controller%40workspace%3Apackages%2Fkeyring-controller"
+  dependencies:
+    "@metamask/base-controller": ~0.0.0
+    "@metamask/controller-utils": ~0.0.0
+  checksum: 9e2296dbaa2565ca61d9e0372f75aa0f5cdf191c4afb4cc15dda0b01c1a68acd88625b90e93025649a4a4d258ff1544503398961dbcc891f71b43c653d6a7cd9
+  languageName: node
+  linkType: hard
+
+"@metamask/preferences-controller@workspace:packages/preferences-controller, @metamask/preferences-controller@~0.0.0":
   version: 0.0.0-use.local
   resolution: "@metamask/preferences-controller@workspace:packages/preferences-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/controller-utils": ../controller-utils/package.tgz
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     jest: ^26.4.2
@@ -1854,7 +2399,7 @@ __metadata:
   resolution: "@metamask/rate-limit-controller@workspace:packages/rate-limit-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     eth-rpc-errors: ^4.0.0
@@ -1879,8 +2424,8 @@ __metadata:
   resolution: "@metamask/subject-metadata-controller@workspace:packages/subject-metadata-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/permission-controller": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/permission-controller": ../permission-controller/package.tgz
     "@metamask/types": ^1.1.0
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
@@ -1900,9 +2445,9 @@ __metadata:
     "@ethereumjs/common": ^2.3.1
     "@ethereumjs/tx": ^3.2.1
     "@metamask/auto-changelog": ^3.0.0
-    "@metamask/base-controller": "workspace:~"
-    "@metamask/controller-utils": "workspace:~"
-    "@metamask/network-controller": "workspace:~"
+    "@metamask/base-controller": ../base-controller/package.tgz
+    "@metamask/controller-utils": ../controller-utils/package.tgz
+    "@metamask/network-controller": ../network-controller/package.tgz
     "@types/jest": ^26.0.22
     "@types/node": ^14.14.31
     async-mutex: ^0.2.6

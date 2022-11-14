@@ -27,8 +27,8 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:~",
-    "@metamask/controller-utils": "workspace:~",
+    "@metamask/base-controller": "../base-controller/package.tgz",
+    "@metamask/controller-utils": "../controller-utils/package.tgz",
     "@types/punycode": "^2.1.0",
     "eth-phishing-detect": "^1.2.0",
     "isomorphic-fetch": "^3.0.0",

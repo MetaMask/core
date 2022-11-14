@@ -27,7 +27,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:~",
+    "@metamask/base-controller": "../base-controller/package.tgz",
     "eth-ens-namehash": "^2.0.8",
     "eth-rpc-errors": "^4.0.0",
     "ethereumjs-util": "^7.0.10",

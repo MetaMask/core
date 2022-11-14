@@ -27,8 +27,8 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:~",
-    "@metamask/permission-controller": "workspace:~",
+    "@metamask/base-controller": "../base-controller/package.tgz",
+    "@metamask/permission-controller": "../permission-controller/package.tgz",
     "@metamask/types": "^1.1.0",
     "immer": "^9.0.6"
   },

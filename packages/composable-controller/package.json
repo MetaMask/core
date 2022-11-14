@@ -27,16 +27,16 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:~"
+    "@metamask/base-controller": "../base-controller/package.tgz"
   },
   "devDependencies": {
-    "@metamask/address-book-controller": "workspace:~",
-    "@metamask/assets-controllers": "workspace:~",
+    "@metamask/address-book-controller": "../address-book-controller/package.tgz",
+    "@metamask/assets-controllers": "../assets-controllers/package.tgz",
     "@metamask/auto-changelog": "^3.0.0",
-    "@metamask/controller-utils": "workspace:~",
-    "@metamask/ens-controller": "workspace:~",
-    "@metamask/network-controller": "workspace:~",
-    "@metamask/preferences-controller": "workspace:~",
+    "@metamask/controller-utils": "../controller-utils/package.tgz",
+    "@metamask/ens-controller": "../ens-controller/package.tgz",
+    "@metamask/network-controller": "../network-controller/package.tgz",
+    "@metamask/preferences-controller": "../preferences-controller/package.tgz",
     "@types/jest": "^26.0.22",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",

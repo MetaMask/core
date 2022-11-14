@@ -27,7 +27,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:~"
+    "@metamask/base-controller": "../base-controller/package.tgz"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.0.0",
