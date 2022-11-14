@@ -86,7 +86,8 @@ export class ERC1155Standard {
     tokenId: string,
   ): Promise<BN> => {
     const contract = new Contract(contractAddress, abiERC1155, this.provider);
-    return contract.balanceOf(address, tokenId).then(ethersBigNumberToBN);
+    const balance = await contract.balanceOf(address, tokenId);
+    return ethersBigNumberToBN(balance);
   };
 
   /**
