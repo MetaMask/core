@@ -1510,7 +1510,7 @@ __metadata:
     "@lavamoat/allow-scripts": ^2.0.2
     "@metamask/create-release-branch": ^1.0.0
     "@metamask/eslint-config": ^9.0.0
-    "@metamask/eslint-config-jest": ^9.0.0
+    "@metamask/eslint-config-jest": ^10.0.0
     "@metamask/eslint-config-nodejs": ^9.0.0
     "@metamask/eslint-config-typescript": ^9.0.1
     "@typescript-eslint/eslint-plugin": ^4.33.0
@@ -1569,14 +1569,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eslint-config-jest@npm:^9.0.0":
-  version: 9.0.0
-  resolution: "@metamask/eslint-config-jest@npm:9.0.0"
+"@metamask/eslint-config-jest@npm:^10.0.0":
+  version: 10.0.0
+  resolution: "@metamask/eslint-config-jest@npm:10.0.0"
   peerDependencies:
-    "@metamask/eslint-config": ^9.0.0
-    eslint: ^7.23.0
-    eslint-plugin-jest: ^24.1.3
-  checksum: 74ddc7953691cc1e5fe76616fa7e0aaff3c671fae0187851bb90122662cd6a1346ae92ff1f3c28cc1beeeb31a8e86e6ca99062313e7674792a42ab56309efd20
+    "@metamask/eslint-config": ^10.0.0
+    eslint: ^8.21.0
+    eslint-plugin-jest: ^26.8.2
+  checksum: 60a6f849d21cefef6956680b9dd229d76b961ac6d291de3d5eb0df401e08fcb849b65feecef00a3506e254b967d615c63cca7ca4145acc110e084d49cc6c6f13
   languageName: node
   linkType: hard
 
