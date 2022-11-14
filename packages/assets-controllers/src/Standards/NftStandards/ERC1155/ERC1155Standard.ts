@@ -1,4 +1,7 @@
 import { abiERC1155 } from '@metamask/metamask-eth-abis';
+import { Contract } from '@ethersproject/contracts';
+import { BN } from 'ethereumjs-util';
+import { Web3Provider } from '@ethersproject/providers';
 import {
   ERC1155,
   ERC1155_INTERFACE_ID,
@@ -6,15 +9,13 @@ import {
   ERC1155_TOKEN_RECEIVER_INTERFACE_ID,
   timeoutFetch,
 } from '@metamask/controller-utils';
-import { getFormattedIpfsUrl } from '../../../assetsUtil';
-
-import { Web3 } from '../../standards-types';
+import { getFormattedIpfsUrl, ethersBigNumberToBN } from '../../../assetsUtil';
 
 export class ERC1155Standard {
-  private web3: Web3;
+  private provider: Web3Provider;
 
-  constructor(web3: Web3) {
-    this.web3 = web3;
+  constructor(provider: Web3Provider) {
+    this.provider = provider;
   }
 
   /**
@@ -67,17 +68,8 @@ export class ERC1155Standard {
    * @returns Promise resolving to the 'tokenURI'.
    */
   getTokenURI = async (address: string, tokenId: string): Promise<string> => {
-    const contract = this.web3.eth.contract(abiERC1155).at(address);
-    return new Promise<string>((resolve, reject) => {
-      contract.uri(tokenId, (error: Error, result: string) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+    const contract = new Contract(address, abiERC1155, this.provider);
+    return contract.uri(tokenId);
   };
 
   /**
@@ -92,18 +84,10 @@ export class ERC1155Standard {
     contractAddress: string,
     address: string,
     tokenId: string,
-  ): Promise<number> => {
-    const contract = this.web3.eth.contract(abiERC1155).at(contractAddress);
-    return new Promise<number>((resolve, reject) => {
-      contract.balanceOf(address, tokenId, (error: Error, result: number) => {
-        /* istanbul ignore if */
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(result);
-      });
-    });
+  ): Promise<BN> => {
+    const contract = new Contract(contractAddress, abiERC1155, this.provider);
+    const balance = await contract.balanceOf(address, tokenId);
+    return ethersBigNumberToBN(balance);
   };
 
   /**
@@ -125,7 +109,7 @@ export class ERC1155Standard {
     id: string,
     value: string,
   ): Promise<void> => {
-    const contract = this.web3.eth.contract(abiERC1155).at(operator);
+    const contract = new Contract(operator, abiERC1155, this.provider);
     return new Promise<void>((resolve, reject) => {
       contract.transferSingle(
         operator,
@@ -156,20 +140,8 @@ export class ERC1155Standard {
     address: string,
     interfaceId: string,
   ): Promise<boolean> => {
-    const contract = this.web3.eth.contract(abiERC1155).at(address);
-    return new Promise<boolean>((resolve, reject) => {
-      contract.supportsInterface(
-        interfaceId,
-        (error: Error, result: boolean) => {
-          /* istanbul ignore if */
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve(result);
-        },
-      );
-    });
+    const contract = new Contract(address, abiERC1155, this.provider);
+    return contract.supportsInterface(interfaceId);
   };
 
   /**

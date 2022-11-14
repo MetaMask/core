@@ -1,6 +1,7 @@
 import { BN } from 'ethereumjs-util';
-import Web3 from 'web3';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
+import { Contract } from '@ethersproject/contracts';
+import { Web3Provider } from '@ethersproject/providers';
 import {
   BaseController,
   BaseConfig,
@@ -63,7 +64,7 @@ export class AssetsContractController extends BaseController<
   AssetsContractConfig,
   BaseState
 > {
-  private web3: any;
+  private _provider?: Web3Provider;
 
   private erc721Standard?: ERC721Standard;
 
@@ -129,10 +130,10 @@ export class AssetsContractController extends BaseController<
    * @property provider - Provider used to create a new underlying Web3 instance
    */
   set provider(provider: any) {
-    this.web3 = new Web3(provider);
-    this.erc721Standard = new ERC721Standard(this.web3);
-    this.erc1155Standard = new ERC1155Standard(this.web3);
-    this.erc20Standard = new ERC20Standard(this.web3);
+    this._provider = new Web3Provider(provider);
+    this.erc721Standard = new ERC721Standard(this._provider);
+    this.erc1155Standard = new ERC1155Standard(this._provider);
+    this.erc20Standard = new ERC20Standard(this._provider);
   }
 
   get provider() {
@@ -336,7 +337,7 @@ export class AssetsContractController extends BaseController<
     userAddress: string,
     nftAddress: string,
     nftId: string,
-  ): Promise<number> {
+  ): Promise<BN> {
     if (this.erc1155Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
@@ -395,34 +396,24 @@ export class AssetsContractController extends BaseController<
     const contractAddress =
       SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID[this.config.chainId];
 
-    const contract = this.web3.eth
-      .contract(abiSingleCallBalancesContract)
-      .at(contractAddress);
-    return new Promise<BalanceMap>((resolve, reject) => {
-      contract.balances(
-        [selectedAddress],
-        tokensToDetect,
-        (error: Error, result: BN[]) => {
-          /* istanbul ignore if */
-          if (error) {
-            reject(error);
-            return;
-          }
-          const nonZeroBalances: BalanceMap = {};
-          /* istanbul ignore else */
-          if (result.length > 0) {
-            tokensToDetect.forEach((tokenAddress, index) => {
-              const balance: BN = result[index];
-              /* istanbul ignore else */
-              if (String(balance) !== '0') {
-                nonZeroBalances[tokenAddress] = balance;
-              }
-            });
-          }
-          resolve(nonZeroBalances);
-        },
-      );
-    });
+    const contract = new Contract(
+      contractAddress,
+      abiSingleCallBalancesContract,
+      this._provider,
+    );
+    const result = await contract.balances([selectedAddress], tokensToDetect);
+    const nonZeroBalances: BalanceMap = {};
+    /* istanbul ignore else */
+    if (result.length > 0) {
+      tokensToDetect.forEach((tokenAddress, index) => {
+        const balance: BN = result[index];
+        /* istanbul ignore else */
+        if (String(balance) !== '0') {
+          nonZeroBalances[tokenAddress] = balance;
+        }
+      });
+    }
+    return nonZeroBalances;
   }
 }
 

@@ -5,6 +5,8 @@ import {
   isValidHexAddress,
   GANACHE_CHAIN_ID,
 } from '@metamask/controller-utils';
+import { BigNumber } from '@ethersproject/bignumber';
+import { BN, stripHexPrefix } from 'ethereumjs-util';
 import { Nft, NftMetadata } from './NftController';
 import { Token } from './TokenRatesController';
 
@@ -247,4 +249,14 @@ export function addUrlProtocolPrefix(urlString: string): string {
     return `https://${urlString}`;
   }
   return urlString;
+}
+
+/**
+ * Converts an Ethers BigNumber to a BN.
+ *
+ * @param bigNumber - An Ethers BigNumber instance.
+ * @returns A BN object.
+ */
+export function ethersBigNumberToBN(bigNumber: BigNumber): BN {
+  return new BN(stripHexPrefix(bigNumber.toHexString()), 'hex');
 }
