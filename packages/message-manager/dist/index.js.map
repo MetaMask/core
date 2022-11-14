@@ -1,0 +1,1 @@
+{"version":3,"file":"index.js","sourceRoot":"","sources":["../src/index.ts"],"names":[],"mappings":";;;;;;;;;;;;;;;;AAAA,mDAAiC;AACjC,2DAAyC;AACzC,wDAAsC","sourcesContent":["export * from './MessageManager';\nexport * from './PersonalMessageManager';\nexport * from './TypedMessageManager';\n"]}
