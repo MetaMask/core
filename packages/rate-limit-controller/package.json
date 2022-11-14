@@ -27,7 +27,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:~",
+    "@metamask/base-controller": "../base-controller/package.tgz",
     "eth-rpc-errors": "^4.0.0",
     "immer": "^9.0.6"
   },
