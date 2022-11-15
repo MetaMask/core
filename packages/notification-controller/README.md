@@ -1,6 +1,6 @@
 # `@metamask/notification-controller`
 
-Manages display of notifications within MetaMask (Flask only).
+Manages display of notifications within MetaMask.
 
 ## Installation
 
