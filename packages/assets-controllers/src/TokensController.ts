@@ -317,6 +317,7 @@ export class TokensController extends BaseController<
       const newDetectedTokens = detectedTokens.filter(
         (token) => token.address.toLowerCase() !== address.toLowerCase(),
       );
+
       const { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens } =
         this._getNewAllTokensState({
           newTokens,
@@ -452,7 +453,7 @@ export class TokensController extends BaseController<
     const releaseLock = await this.mutex.acquire();
     const { tokens, detectedTokens, ignoredTokens } = this.state;
     const newTokens: Token[] = [...tokens];
-    const newDetectedTokens: Token[] = [...detectedTokens];
+    let newDetectedTokens: Token[] = [...detectedTokens];
 
     try {
       incomingDetectedTokens.forEach((tokenToAdd) => {
@@ -508,6 +509,13 @@ export class TokensController extends BaseController<
           detectionChainId,
         },
       );
+
+      const { chainId, selectedAddress } = this.config;
+      // if the newly added detectedTokens were detected on (and therefore added to) a different chainId/selectedAddress than the currently configured combo
+      // the newDetectedTokens (which should contain the detectedTokens on the current chainId/address combo) needs to be repointed to the current chainId/address pair
+      // if the detectedTokens were detected on the current chainId/address then this won't change anything.
+      newDetectedTokens =
+        newAllDetectedTokens?.[chainId]?.[selectedAddress] || [];
 
       this.update({
         tokens: newTokens,
@@ -733,7 +741,7 @@ export class TokensController extends BaseController<
     const chainIdToAddTokens = detectionChainId ?? chainId;
 
     let newAllTokens = allTokens;
-    if (newTokens) {
+    if (newTokens?.length) {
       const networkTokens = allTokens[chainIdToAddTokens];
       const newNetworkTokens = {
         ...networkTokens,
@@ -746,7 +754,7 @@ export class TokensController extends BaseController<
     }
 
     let newAllIgnoredTokens = allIgnoredTokens;
-    if (newIgnoredTokens) {
+    if (newIgnoredTokens?.length) {
       const networkIgnoredTokens = allIgnoredTokens[chainIdToAddTokens];
       const newIgnoredNetworkTokens = {
         ...networkIgnoredTokens,
@@ -759,7 +767,7 @@ export class TokensController extends BaseController<
     }
 
     let newAllDetectedTokens = allDetectedTokens;
-    if (newDetectedTokens) {
+    if (newDetectedTokens?.length) {
       const networkDetectedTokens = allDetectedTokens[chainIdToAddTokens];
       const newDetectedNetworkTokens = {
         ...networkDetectedTokens,

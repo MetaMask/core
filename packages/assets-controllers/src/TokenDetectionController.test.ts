@@ -7,7 +7,7 @@ import {
   NetworkControllerProviderChangeEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
-import { NetworksChainId } from '@metamask/controller-utils';
+import { NetworksChainId, MAINNET } from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { TokensController } from './TokensController';
@@ -270,11 +270,12 @@ describe('TokenDetectionController', () => {
   });
 
   it('should detect tokens correctly on supported networks', async () => {
-    tokenDetection.configure({
-      selectedAddress: '0x1',
-      chainId: NetworksChainId.mainnet,
-      isDetectionEnabledForNetwork: true,
-    });
+    sinon
+      .stub(tokensController, '_instantiateNewEthersProvider')
+      .callsFake(() => null);
+
+    preferences.update({ selectedAddress: '0x1' });
+    network.setProviderType(MAINNET);
 
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
@@ -284,9 +285,12 @@ describe('TokenDetectionController', () => {
   });
 
   it('should update detectedTokens when new tokens are detected', async () => {
-    tokenDetection.configure({
-      selectedAddress: '0x1',
-    });
+    sinon
+      .stub(tokensController, '_instantiateNewEthersProvider')
+      .callsFake(() => null);
+
+    preferences.update({ selectedAddress: '0x1' });
+    network.setProviderType(MAINNET);
 
     await tokenDetection.start();
 
@@ -370,9 +374,12 @@ describe('TokenDetectionController', () => {
   });
 
   it('should not autodetect tokens that exist in the ignoreList', async () => {
-    tokenDetection.configure({
-      selectedAddress: '0x1',
-    });
+    sinon
+      .stub(tokensController, '_instantiateNewEthersProvider')
+      .callsFake(() => null);
+
+    preferences.update({ selectedAddress: '0x1' });
+    network.setProviderType(MAINNET);
 
     await tokenDetection.start();
 
@@ -403,6 +410,8 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     preferences.setSelectedAddress('0x0001');
+    network.setProviderType(MAINNET);
+
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
     });

@@ -706,6 +706,66 @@ describe('TokensController', () => {
 
       stub.restore();
     });
+
+    it('should add tokens to the correct chainId/selectedAddress on which they were detected even if its not the currently configured chainId/selectedAddress', async () => {
+      const stub = stubCreateEthers(tokensController, false);
+
+      const DETECTED_ADDRESS = '0xDetectedAddress';
+      const DETECTED_CHAINID = '0xDetectedChainId';
+
+      const CONFIGURED_ADDRESS = '0xabc';
+      const CONFIGURED_NETWORK = 'rinkeby';
+      preferences.update({ selectedAddress: CONFIGURED_ADDRESS });
+      network.setProviderType(CONFIGURED_NETWORK);
+
+      const detectedToken: Token = {
+        address: '0x01',
+        symbol: 'barA',
+        decimals: 2,
+        aggregators: [],
+        isERC721: false,
+        image:
+          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x01.png',
+      };
+
+      const directlyAddedToken: Token = {
+        address: '0x02',
+        decimals: 5,
+        symbol: 'B',
+        image:
+          'https://static.metaswap.codefi.network/api/v1/tokenIcons/1/0x02.png',
+        isERC721: false,
+        aggregators: [],
+      };
+
+      // detectionDetails object is passed as second arg with details about where token was detected
+      await tokensController.addDetectedTokens([detectedToken], {
+        selectedAddress: DETECTED_ADDRESS,
+        chainId: DETECTED_CHAINID,
+      });
+
+      // will add token to currently configured chainId/selectedAddress
+      await tokensController.addToken(
+        directlyAddedToken.address,
+        directlyAddedToken.symbol,
+        directlyAddedToken.decimals,
+        directlyAddedToken.image,
+      );
+
+      expect(tokensController.state.allDetectedTokens).toStrictEqual({
+        [DETECTED_CHAINID]: {
+          [DETECTED_ADDRESS]: [detectedToken],
+        },
+      });
+
+      expect(tokensController.state.allTokens).toStrictEqual({
+        [NetworksChainId[CONFIGURED_NETWORK]]: {
+          [CONFIGURED_ADDRESS]: [directlyAddedToken],
+        },
+      });
+
+      stub.restore();
+    });
   });
 
   describe('addTokens method', function () {
