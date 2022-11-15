@@ -1,6 +1,6 @@
 # `@metamask/notification-controller`
 
-Manages display of the "What's New" messages in MetaMask.
+Manages display of notifications within MetaMask.
 
 ## Installation
 
