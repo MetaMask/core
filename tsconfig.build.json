@@ -53,6 +53,9 @@
     },
     {
       "path": "./packages/subject-metadata-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/transaction-controller/tsconfig.build.json"
     }
   ],
   "files": [],
