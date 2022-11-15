@@ -82,8 +82,8 @@ describe('KeyringController', () => {
     expect(keyringController.state.keyrings).not.toStrictEqual([]);
     const keyring = keyringController.state.keyrings[0];
     expect(keyring.accounts).not.toStrictEqual([]);
-    expect(keyring.index).toStrictEqual(0);
-    expect(keyring.type).toStrictEqual('HD Key Tree');
+    expect(keyring.index).toBe(0);
+    expect(keyring.type).toBe('HD Key Tree');
   });
 
   it('should add new account', async () => {
@@ -177,11 +177,11 @@ describe('KeyringController', () => {
       account,
     );
     expect(newPrivateKey).not.toBe('');
-    expect(() => keyringController.exportAccount('', account)).toThrow(
+    expect(async () => keyringController.exportAccount('', account)).toThrow(
       'Invalid password',
     );
 
-    expect(() =>
+    expect(async () =>
       keyringController.exportAccount('JUNK_VALUE', account),
     ).toThrow('Invalid password');
 
@@ -631,7 +631,7 @@ describe('KeyringController', () => {
       unsignedEthTx,
       account,
     );
-    expect(signedTx.v).not.toBeUndefined();
+    expect(signedTx.v).toBeDefined();
     expect(signedTx).not.toBe('');
   });
 
@@ -992,7 +992,7 @@ describe('KeyringController', () => {
         tx,
         account,
       );
-      expect(signedTx.v).not.toBeUndefined();
+      expect(signedTx.v).toBeDefined();
       expect(signedTx).not.toBe('');
     });
 

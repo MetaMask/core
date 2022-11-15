@@ -160,28 +160,30 @@ export default async function fetchBlockFeeHistory<Percentile extends number>({
   );
 
   const blockChunks = await Promise.all(
-    requestChunkSpecifiers.map(({ numberOfBlocks, endBlockNumber }, i) => {
-      return i === requestChunkSpecifiers.length - 1
-        ? makeRequestForChunk({
-            ethQuery,
-            numberOfBlocks,
-            endBlockNumber,
-            percentiles,
-            includeNextBlock,
-          })
-        : makeRequestForChunk({
-            ethQuery,
-            numberOfBlocks,
-            endBlockNumber,
-            percentiles,
-            includeNextBlock: false,
-          });
-    }),
+    requestChunkSpecifiers.map(
+      async ({ numberOfBlocks, endBlockNumber }, i) => {
+        return i === requestChunkSpecifiers.length - 1
+          ? makeRequestForChunk({
+              ethQuery,
+              numberOfBlocks,
+              endBlockNumber,
+              percentiles,
+              includeNextBlock,
+            })
+          : makeRequestForChunk({
+              ethQuery,
+              numberOfBlocks,
+              endBlockNumber,
+              percentiles,
+              includeNextBlock: false,
+            });
+      },
+    ),
   );
 
-  return blockChunks.reduce(
+  return blockChunks.reduce<FeeHistoryBlock<Percentile>[]>(
     (array, blocks) => [...array, ...blocks],
-    [] as FeeHistoryBlock<Percentile>[],
+    [],
   );
 }
 
@@ -214,12 +216,12 @@ function buildExistingFeeHistoryBlock<Percentile extends number>({
 }): ExistingFeeHistoryBlock<Percentile> {
   const gasUsedRatio = gasUsedRatios[blockIndex];
   const priorityFeesForEachPercentile = priorityFeePercentileGroups[blockIndex];
-  const priorityFeesByPercentile = percentiles.reduce(
+  const priorityFeesByPercentile = percentiles.reduce<Record<Percentile, BN>>(
     (obj, percentile, percentileIndex) => {
       const priorityFee = priorityFeesForEachPercentile[percentileIndex];
       return { ...obj, [percentile]: fromHex(priorityFee) };
     },
-    {} as Record<Percentile, BN>,
+    {},
   );
 
   return {

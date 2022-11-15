@@ -233,16 +233,17 @@ function deriveStateFromMetadata<S extends Record<string, Json>>(
   metadata: StateMetadata<S>,
   metadataProperty: 'anonymous' | 'persist',
 ): Record<string, Json> {
-  return Object.keys(state).reduce((persistedState, key) => {
-    const propertyMetadata = metadata[key as keyof S][metadataProperty];
-    const stateProperty = state[key];
-    if (typeof propertyMetadata === 'function') {
-      persistedState[key as string] = propertyMetadata(
-        stateProperty as S[keyof S],
-      );
-    } else if (propertyMetadata) {
-      persistedState[key as string] = stateProperty;
-    }
-    return persistedState;
-  }, {} as Record<string, Json>);
+  return Object.keys(state).reduce<Record<string, Json>>(
+    (persistedState, key) => {
+      const propertyMetadata = metadata[key as keyof S][metadataProperty];
+      const stateProperty = state[key];
+      if (typeof propertyMetadata === 'function') {
+        persistedState[key] = propertyMetadata(stateProperty as S[keyof S]);
+      } else if (propertyMetadata) {
+        persistedState[key] = stateProperty;
+      }
+      return persistedState;
+    },
+    {},
+  );
 }

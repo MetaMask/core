@@ -121,7 +121,7 @@ export class TokensController extends BaseController<
   TokensConfig,
   TokensState
 > {
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
   private ethersProvider: any;
 

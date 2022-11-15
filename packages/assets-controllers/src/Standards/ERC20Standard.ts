@@ -7,7 +7,7 @@ import { ERC20 } from '@metamask/controller-utils';
 import { ethersBigNumberToBN } from '../assetsUtil';
 
 export class ERC20Standard {
-  private provider: Web3Provider;
+  private readonly provider: Web3Provider;
 
   constructor(provider: Web3Provider) {
     this.provider = provider;

@@ -169,9 +169,9 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
-    expect(controller.state.conversionRate).toStrictEqual(0);
+    expect(controller.state.conversionRate).toBe(0);
     await controller.updateExchangeRate();
-    expect(controller.state.conversionRate).toStrictEqual(10);
+    expect(controller.state.conversionRate).toBe(10);
 
     controller.destroy();
   });
@@ -201,10 +201,10 @@ describe('CurrencyRateController', () => {
 
     await controller.setNativeCurrency('DAI');
     await controller.updateExchangeRate();
-    expect(controller.state.conversionRate).toStrictEqual(1);
+    expect(controller.state.conversionRate).toBe(1);
     await controller.updateExchangeRate();
     await controller.setNativeCurrency(TESTNET_TICKER_SYMBOLS.RINKEBY);
-    expect(controller.state.conversionRate).toStrictEqual(10);
+    expect(controller.state.conversionRate).toBe(10);
 
     controller.destroy();
   });
@@ -217,9 +217,9 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
-    expect(controller.state.conversionRate).toStrictEqual(0);
+    expect(controller.state.conversionRate).toBe(0);
     await controller.setCurrentCurrency('CAD');
-    expect(controller.state.conversionRate).toStrictEqual(10);
+    expect(controller.state.conversionRate).toBe(10);
 
     controller.destroy();
   });
@@ -232,9 +232,9 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
-    expect(controller.state.conversionRate).toStrictEqual(0);
+    expect(controller.state.conversionRate).toBe(0);
     await controller.setNativeCurrency('xDAI');
-    expect(controller.state.conversionRate).toStrictEqual(10);
+    expect(controller.state.conversionRate).toBe(10);
 
     controller.destroy();
   });
@@ -272,7 +272,7 @@ describe('CurrencyRateController', () => {
 
     await controller.updateExchangeRate();
 
-    expect(controller.state.conversionRate).toStrictEqual(2000.42);
+    expect(controller.state.conversionRate).toBe(2000.42);
 
     controller.destroy();
   });

@@ -80,15 +80,15 @@ export class CurrencyRateController extends BaseControllerV2<
   CurrencyRateState,
   CurrencyRateMessenger
 > {
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
   private intervalId?: ReturnType<typeof setTimeout>;
 
-  private intervalDelay;
+  private readonly intervalDelay;
 
-  private fetchExchangeRate;
+  private readonly fetchExchangeRate;
 
-  private includeUsdRate;
+  private readonly includeUsdRate;
 
   /**
    * Creates a CurrencyRateController instance.
@@ -184,9 +184,9 @@ export class CurrencyRateController extends BaseControllerV2<
   private async startPolling(): Promise<void> {
     this.stopPolling();
     // TODO: Expose polling currency rate update errors
-    await safelyExecute(() => this.updateExchangeRate());
+    await safelyExecute(async () => this.updateExchangeRate());
     this.intervalId = setInterval(async () => {
-      await safelyExecute(() => this.updateExchangeRate());
+      await safelyExecute(async () => this.updateExchangeRate());
     }, this.intervalDelay);
   }
 

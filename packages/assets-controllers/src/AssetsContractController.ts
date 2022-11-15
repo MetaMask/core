@@ -178,7 +178,7 @@ export class AssetsContractController extends BaseController<
    * @param index - An NFT counter less than `balanceOf(selectedAddress)`.
    * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
    */
-  getERC721NftTokenId(
+  async getERC721NftTokenId(
     address: string,
     selectedAddress: string,
     index: number,

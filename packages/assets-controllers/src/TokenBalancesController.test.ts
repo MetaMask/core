@@ -199,9 +199,7 @@ describe('TokenBalancesController', () => {
     const mytoken = getToken(tokenBalances, address);
     expect(mytoken?.balanceError).toBeInstanceOf(Error);
     expect(mytoken?.balanceError).toHaveProperty('message', errorMsg);
-    expect(
-      tokenBalances.state.contractBalances[address].toNumber(),
-    ).toStrictEqual(0);
+    expect(tokenBalances.state.contractBalances[address].toNumber()).toBe(0);
 
     getERC20BalanceOfStub.returns(new BN(1));
     await tokenBalances.updateBalances();

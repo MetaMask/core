@@ -52,7 +52,7 @@ export class AccountTrackerController extends BaseController<
 > {
   private ethQuery: any;
 
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
   private handle?: ReturnType<typeof setTimeout>;
 
@@ -61,10 +61,10 @@ export class AccountTrackerController extends BaseController<
     const addresses = Object.keys(this.getIdentities());
     const existing = Object.keys(accounts);
     const newAddresses = addresses.filter(
-      (address) => existing.indexOf(address) === -1,
+      (address) => !existing.includes(address),
     );
     const oldAddresses = existing.filter(
-      (address) => addresses.indexOf(address) === -1,
+      (address) => !addresses.includes(address),
     );
     newAddresses.forEach((address) => {
       accounts[address] = { balance: '0x0' };
@@ -81,7 +81,7 @@ export class AccountTrackerController extends BaseController<
    */
   override name = 'AccountTrackerController';
 
-  private getIdentities: () => PreferencesState['identities'];
+  private readonly getIdentities: () => PreferencesState['identities'];
 
   /**
    * Creates an AccountTracker instance.
@@ -174,7 +174,7 @@ export class AccountTrackerController extends BaseController<
     addresses: string[],
   ): Promise<Record<string, { balance: string }>> {
     return await Promise.all(
-      addresses.map((address): Promise<[string, string] | undefined> => {
+      addresses.map(async (address): Promise<[string, string] | undefined> => {
         return safelyExecuteWithTimeout(async () => {
           const balance = await query(this.ethQuery, 'getBalance', [address]);
           return [address, balance];

@@ -116,9 +116,9 @@ export class NetworkController extends BaseControllerV2<
 
   private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 
-  private infuraProjectId: string | undefined;
+  private readonly infuraProjectId: string | undefined;
 
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
   constructor({ messenger, state, infuraProjectId }: NetworkControllerOptions) {
     super({
@@ -377,7 +377,7 @@ export class NetworkController extends BaseControllerV2<
     this.refreshNetwork();
   }
 
-  getEIP1559Compatibility() {
+  async getEIP1559Compatibility() {
     const { properties = {} } = this.state;
 
     if (!properties.isEIP1559Compatible) {

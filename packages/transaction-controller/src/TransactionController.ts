@@ -274,9 +274,9 @@ export class TransactionController extends BaseController<
 
   private handle?: ReturnType<typeof setTimeout>;
 
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
-  private getNetworkState: () => NetworkState;
+  private readonly getNetworkState: () => NetworkState;
 
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
@@ -345,7 +345,7 @@ export class TransactionController extends BaseController<
     };
   }
 
-  private normalizeTokenTx = (
+  private readonly normalizeTokenTx = (
     txMeta: EtherscanTransactionMeta,
     currentNetworkID: string,
     currentChainId: string,
@@ -461,7 +461,7 @@ export class TransactionController extends BaseController<
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
     this.handle && clearTimeout(this.handle);
-    await safelyExecute(() => this.queryTransactionStatuses());
+    await safelyExecute(async () => this.queryTransactionStatuses());
     this.handle = setTimeout(() => {
       this.poll(this.config.interval);
     }, this.config.interval);
@@ -1038,7 +1038,7 @@ export class TransactionController extends BaseController<
     const { provider, network: currentNetworkID } = this.getNetworkState();
     const { chainId: currentChainId } = provider;
     let gotUpdates = false;
-    await safelyExecute(() =>
+    await safelyExecute(async () =>
       Promise.all(
         transactions.map(async (meta, index) => {
           // Using fallback to networkID only when there is no chainId present.
@@ -1131,7 +1131,7 @@ export class TransactionController extends BaseController<
 
     const supportedNetworkIds = ['1', '3', '4', '42'];
     /* istanbul ignore next */
-    if (supportedNetworkIds.indexOf(currentNetworkID) === -1) {
+    if (!supportedNetworkIds.includes(currentNetworkID)) {
       return undefined;
     }
 

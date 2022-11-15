@@ -70,7 +70,7 @@ export class MessageManager extends AbstractMessageManager<
    * @param req - The original request object possibly containing the origin.
    * @returns Promise resolving to the raw data of the signature request.
    */
-  addUnapprovedMessageAsync(
+  async addUnapprovedMessageAsync(
     messageParams: MessageParams,
     req?: OriginalRequest,
   ): Promise<string> {
@@ -138,7 +138,7 @@ export class MessageManager extends AbstractMessageManager<
    * @param messageParams - The messageParams to modify.
    * @returns Promise resolving to the messageParams with the metamaskId property removed.
    */
-  prepMessageForSigning(
+  async prepMessageForSigning(
     messageParams: MessageParamsMetamask,
   ): Promise<MessageParams> {
     delete messageParams.metamaskId;

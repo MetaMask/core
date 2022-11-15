@@ -718,7 +718,7 @@ describe('PermissionController', () => {
           method: 'wallet_getSecret_foo',
           context: { origin: 'github.com' },
         }),
-      ).toStrictEqual('Hello, secret friend "foo"!');
+      ).toBe('Hello, secret friend "foo"!');
     });
 
     it('throws an error if the requested permission target is not a restricted method', () => {
@@ -828,14 +828,14 @@ describe('PermissionController', () => {
           'metamask.io',
           PermissionNames.wallet_getSecretArray,
         ),
-      ).toStrictEqual(true);
+      ).toBe(true);
 
       expect(
         controller.hasPermission(
           'metamask.io',
           PermissionNames.wallet_getSecretObject,
         ),
-      ).toStrictEqual(false);
+      ).toBe(false);
     });
 
     it('correctly indicates whether an origin has a namespaced permission', () => {
@@ -853,14 +853,14 @@ describe('PermissionController', () => {
           'metamask.io',
           PermissionNames.wallet_getSecret_('kabob'),
         ),
-      ).toStrictEqual(true);
+      ).toBe(true);
 
       expect(
         controller.hasPermission(
           'metamask.io',
           PermissionNames.wallet_getSecret_('falafel'),
         ),
-      ).toStrictEqual(false);
+      ).toBe(false);
     });
   });
 
@@ -868,8 +868,8 @@ describe('PermissionController', () => {
     it('correctly indicates whether an origin has any permissions', () => {
       const controller = getDefaultPermissionControllerWithState();
 
-      expect(controller.hasPermissions('metamask.io')).toStrictEqual(true);
-      expect(controller.hasPermissions('foo.bar')).toStrictEqual(false);
+      expect(controller.hasPermissions('metamask.io')).toBe(true);
+      expect(controller.hasPermissions('foo.bar')).toBe(false);
     });
   });
 
@@ -1281,7 +1281,7 @@ describe('PermissionController', () => {
           PermissionNames.wallet_getSecretArray,
           CaveatTypes.filterArrayResponse,
         ),
-      ).toStrictEqual(false);
+      ).toBe(false);
 
       expect(
         controller.hasCaveat(
@@ -1289,7 +1289,7 @@ describe('PermissionController', () => {
           PermissionNames.wallet_getSecretObject,
           CaveatTypes.filterObjectResponse,
         ),
-      ).toStrictEqual(true);
+      ).toBe(true);
 
       expect(
         controller.hasCaveat(
@@ -1297,7 +1297,7 @@ describe('PermissionController', () => {
           PermissionNames.wallet_getSecret_('foo'),
           CaveatTypes.noopCaveat,
         ),
-      ).toStrictEqual(true);
+      ).toBe(true);
     });
 
     it('throws an error if no corresponding permission exists', () => {
@@ -4152,7 +4152,7 @@ describe('PermissionController', () => {
           PermissionNames.wallet_doubleNumber,
           [10],
         ),
-      ).toStrictEqual(20);
+      ).toBe(20);
     });
 
     it('executes a namespaced restricted method', async () => {
@@ -4171,7 +4171,7 @@ describe('PermissionController', () => {
           origin,
           PermissionNames.wallet_getSecret_('foo'),
         ),
-      ).toStrictEqual('Hello, secret friend "foo"!');
+      ).toBe('Hello, secret friend "foo"!');
     });
 
     it('executes a restricted method with a caveat', async () => {
@@ -4299,7 +4299,7 @@ describe('PermissionController', () => {
         },
       });
 
-      expect(hasProperty(controller.state.subjects, 'foo')).toStrictEqual(true);
+      expect(hasProperty(controller.state.subjects, 'foo')).toBe(true);
 
       messenger.call('PermissionController:clearPermissions');
       expect(clearStateSpy).toHaveBeenCalledTimes(1);
@@ -4424,7 +4424,7 @@ describe('PermissionController', () => {
           'foo',
           PermissionNames.wallet_getSecretArray,
         ),
-      ).toStrictEqual(false);
+      ).toBe(false);
 
       controller.grantPermissions({
         subject: { origin: 'foo' },
@@ -4439,7 +4439,7 @@ describe('PermissionController', () => {
           'foo',
           PermissionNames.wallet_getSecretArray,
         ),
-      ).toStrictEqual(true);
+      ).toBe(true);
 
       expect(
         messenger.call(
@@ -4447,7 +4447,7 @@ describe('PermissionController', () => {
           'foo',
           PermissionNames.wallet_getSecretObject,
         ),
-      ).toStrictEqual(false);
+      ).toBe(false);
 
       expect(hasPermissionSpy).toHaveBeenCalledTimes(3);
       expect(hasPermissionSpy).toHaveBeenNthCalledWith(
@@ -4480,9 +4480,9 @@ describe('PermissionController', () => {
       >(options);
       const hasPermissionsSpy = jest.spyOn(controller, 'hasPermissions');
 
-      expect(
-        messenger.call('PermissionController:hasPermissions', 'foo'),
-      ).toStrictEqual(false);
+      expect(messenger.call('PermissionController:hasPermissions', 'foo')).toBe(
+        false,
+      );
 
       controller.grantPermissions({
         subject: { origin: 'foo' },
@@ -4491,9 +4491,9 @@ describe('PermissionController', () => {
         },
       });
 
-      expect(
-        messenger.call('PermissionController:hasPermissions', 'foo'),
-      ).toStrictEqual(true);
+      expect(messenger.call('PermissionController:hasPermissions', 'foo')).toBe(
+        true,
+      );
       expect(hasPermissionsSpy).toHaveBeenCalledTimes(2);
       expect(hasPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
       expect(hasPermissionsSpy).toHaveBeenNthCalledWith(2, 'foo');
@@ -4554,15 +4554,15 @@ describe('PermissionController', () => {
         'revokeAllPermissions',
       );
 
-      expect(
-        controller.hasPermission('foo', 'wallet_getSecretArray'),
-      ).toStrictEqual(true);
+      expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
+        true,
+      );
 
       messenger.call('PermissionController:revokeAllPermissions', 'foo');
 
-      expect(
-        controller.hasPermission('foo', 'wallet_getSecretArray'),
-      ).toStrictEqual(false);
+      expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
+        false,
+      );
       expect(revokeAllPermissionsSpy).toHaveBeenCalledTimes(1);
       expect(revokeAllPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
     });
@@ -4588,18 +4588,18 @@ describe('PermissionController', () => {
         'revokePermissionForAllSubjects',
       );
 
-      expect(
-        controller.hasPermission('foo', 'wallet_getSecretArray'),
-      ).toStrictEqual(true);
+      expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
+        true,
+      );
 
       messenger.call(
         'PermissionController:revokePermissionForAllSubjects',
         'wallet_getSecretArray',
       );
 
-      expect(
-        controller.hasPermission('foo', 'wallet_getSecretArray'),
-      ).toStrictEqual(false);
+      expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
+        false,
+      );
       expect(revokePermissionForAllSubjectsSpy).toHaveBeenCalledTimes(1);
       expect(revokePermissionForAllSubjectsSpy).toHaveBeenNthCalledWith(
         1,
@@ -4623,9 +4623,9 @@ describe('PermissionController', () => {
       });
 
       expect(result).toHaveProperty('wallet_getSecretArray');
-      expect(
-        controller.hasPermission('foo', 'wallet_getSecretArray'),
-      ).toStrictEqual(true);
+      expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
+        true,
+      );
     });
 
     it('action: PermissionsController:requestPermissions', async () => {
@@ -4757,7 +4757,7 @@ describe('PermissionController', () => {
         method: 'wallet_unrestrictedMethod',
       });
 
-      expect(response.result).toStrictEqual('success');
+      expect(response.result).toBe('success');
     });
 
     it('throws an error if the subject has an invalid "origin" property', async () => {

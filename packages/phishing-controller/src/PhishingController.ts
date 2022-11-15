@@ -284,7 +284,7 @@ export class PhishingController extends BaseController<
     input: RequestInfo,
   ): Promise<ResponseType | null> {
     const response = await safelyExecute(
-      () => fetch(input, { cache: 'no-cache' }),
+      async () => fetch(input, { cache: 'no-cache' }),
       true,
     );
 

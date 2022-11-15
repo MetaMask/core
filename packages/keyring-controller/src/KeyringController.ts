@@ -137,22 +137,22 @@ export class KeyringController extends BaseController<
   KeyringConfig,
   KeyringState
 > {
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
   /**
    * Name of this controller used during composition
    */
   override name = 'KeyringController';
 
-  private removeIdentity: PreferencesController['removeIdentity'];
+  private readonly removeIdentity: PreferencesController['removeIdentity'];
 
-  private syncIdentities: PreferencesController['syncIdentities'];
+  private readonly syncIdentities: PreferencesController['syncIdentities'];
 
-  private updateIdentities: PreferencesController['updateIdentities'];
+  private readonly updateIdentities: PreferencesController['updateIdentities'];
 
-  private setSelectedAddress: PreferencesController['setSelectedAddress'];
+  private readonly setSelectedAddress: PreferencesController['setSelectedAddress'];
 
-  private setAccountLabel?: PreferencesController['setAccountLabel'];
+  private readonly setAccountLabel?: PreferencesController['setAccountLabel'];
 
   #keyring: typeof Keyring;
 
@@ -329,7 +329,7 @@ export class KeyringController extends BaseController<
    * @param address - Address to export.
    * @returns Promise resolving to the private key for an address.
    */
-  exportAccount(password: string, address: string): Promise<string> {
+  async exportAccount(password: string, address: string): Promise<string> {
     if (this.validatePassword(password)) {
       return this.#keyring.exportAccount(address);
     }
@@ -341,7 +341,7 @@ export class KeyringController extends BaseController<
    *
    * @returns A promise resolving to an array of addresses.
    */
-  getAccounts(): Promise<string[]> {
+  async getAccounts(): Promise<string[]> {
     return this.#keyring.getAccounts();
   }
 
@@ -420,7 +420,7 @@ export class KeyringController extends BaseController<
    *
    * @returns Promise resolving to current state.
    */
-  setLocked(): Promise<KeyringMemState> {
+  async setLocked(): Promise<KeyringMemState> {
     return this.#keyring.setLocked();
   }
 

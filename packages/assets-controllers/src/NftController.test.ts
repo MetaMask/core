@@ -50,7 +50,7 @@ const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
 jest.mock('@ethersproject/providers', () => {
   const providers = jest.requireActual('@ethersproject/providers');
   const MockWeb3Provider = class extends providers.Web3Provider {
-    detectNetwork(): Promise<Network> {
+    async detectNetwork(): Promise<Network> {
       return Promise.resolve({
         name: 'mainnet',
         chainId: 1,

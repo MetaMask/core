@@ -57,11 +57,11 @@ describe('util', () => {
 
   describe('toHex', () => {
     it('converts a BN to a hex string prepended with "0x"', () => {
-      expect(util.toHex(new BN(4919))).toStrictEqual('0x1337');
+      expect(util.toHex(new BN(4919))).toBe('0x1337');
     });
 
     it('parses a string as a number in decimal format and converts it to a hex string prepended with "0x"', () => {
-      expect(util.toHex('4919')).toStrictEqual('0x1337');
+      expect(util.toHex('4919')).toBe('0x1337');
     });
 
     it('throws an error if given a string with decimals', () => {
@@ -69,7 +69,7 @@ describe('util', () => {
     });
 
     it('converts a number to a hex string prepended with "0x"', () => {
-      expect(util.toHex(4919)).toStrictEqual('0x1337');
+      expect(util.toHex(4919)).toBe('0x1337');
     });
 
     it('throws an error if given a float', () => {
@@ -77,7 +77,7 @@ describe('util', () => {
     });
 
     it('does nothing to a string that is already a "0x"-prepended hex value', () => {
-      expect(util.toHex('0x1337')).toStrictEqual('0x1337');
+      expect(util.toHex('0x1337')).toBe('0x1337');
     });
 
     it('throws an error if given a non-"0x"-prepended string that is not a valid hex value', () => {
@@ -256,15 +256,15 @@ describe('util', () => {
     });
 
     it('should resolve', async () => {
-      const response = await util.safelyExecuteWithTimeout(() => {
+      const response = await util.safelyExecuteWithTimeout(async () => {
         return new Promise((res) => setTimeout(() => res('response'), 200));
       });
-      expect(response).toStrictEqual('response');
+      expect(response).toBe('response');
     });
 
     it('should timeout', async () => {
       expect(
-        await util.safelyExecuteWithTimeout(() => {
+        await util.safelyExecuteWithTimeout(async () => {
           return new Promise((res) => setTimeout(res, 800));
         }),
       ).toBeUndefined();
@@ -300,7 +300,7 @@ describe('util', () => {
 
   it('messageHexToString', () => {
     const str = util.hexToText('68656c6c6f207468657265');
-    expect(str).toStrictEqual('hello there');
+    expect(str).toBe('hello there');
   });
 
   it('isSmartContractCode', () => {
@@ -354,31 +354,31 @@ describe('util', () => {
   describe('normalizeEnsName', () => {
     it('should normalize with valid 2LD', async () => {
       let valid = util.normalizeEnsName('metamask.eth');
-      expect(valid).toStrictEqual('metamask.eth');
+      expect(valid).toBe('metamask.eth');
       valid = util.normalizeEnsName('foobar1.eth');
-      expect(valid).toStrictEqual('foobar1.eth');
+      expect(valid).toBe('foobar1.eth');
       valid = util.normalizeEnsName('foo-bar.eth');
-      expect(valid).toStrictEqual('foo-bar.eth');
+      expect(valid).toBe('foo-bar.eth');
       valid = util.normalizeEnsName('1-foo-bar.eth');
-      expect(valid).toStrictEqual('1-foo-bar.eth');
+      expect(valid).toBe('1-foo-bar.eth');
     });
 
     it('should normalize with valid 2LD and "test" TLD', async () => {
       const valid = util.normalizeEnsName('metamask.test');
-      expect(valid).toStrictEqual('metamask.test');
+      expect(valid).toBe('metamask.test');
     });
 
     it('should normalize with valid 2LD and 3LD', async () => {
       let valid = util.normalizeEnsName('a.metamask.eth');
-      expect(valid).toStrictEqual('a.metamask.eth');
+      expect(valid).toBe('a.metamask.eth');
       valid = util.normalizeEnsName('aa.metamask.eth');
-      expect(valid).toStrictEqual('aa.metamask.eth');
+      expect(valid).toBe('aa.metamask.eth');
       valid = util.normalizeEnsName('a-a.metamask.eth');
-      expect(valid).toStrictEqual('a-a.metamask.eth');
+      expect(valid).toBe('a-a.metamask.eth');
       valid = util.normalizeEnsName('1-a.metamask.eth');
-      expect(valid).toStrictEqual('1-a.metamask.eth');
+      expect(valid).toBe('1-a.metamask.eth');
       valid = util.normalizeEnsName('1-2.metamask.eth');
-      expect(valid).toStrictEqual('1-2.metamask.eth');
+      expect(valid).toBe('1-2.metamask.eth');
     });
 
     it('should return null with invalid 2LD', async () => {
@@ -482,19 +482,19 @@ describe('util', () => {
 
   describe('convertHexToDecimal', () => {
     it('should convert hex price to decimal', () => {
-      expect(util.convertHexToDecimal('0x50fd51da')).toStrictEqual(1358778842);
+      expect(util.convertHexToDecimal('0x50fd51da')).toBe(1358778842);
     });
 
     it('should return zero when undefined', () => {
-      expect(util.convertHexToDecimal(undefined)).toStrictEqual(0);
+      expect(util.convertHexToDecimal(undefined)).toBe(0);
     });
 
     it('should return a decimal string as the same decimal number', () => {
-      expect(util.convertHexToDecimal('1611')).toStrictEqual(1611);
+      expect(util.convertHexToDecimal('1611')).toBe(1611);
     });
 
     it('should return 0 when passed an invalid hex string', () => {
-      expect(util.convertHexToDecimal('0x12398u12')).toStrictEqual(0);
+      expect(util.convertHexToDecimal('0x12398u12')).toBe(0);
     });
   });
 

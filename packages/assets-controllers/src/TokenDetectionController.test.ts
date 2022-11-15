@@ -197,7 +197,7 @@ describe('TokenDetectionController', () => {
 
     sinon
       .stub(tokensController, '_detectIsERC721')
-      .callsFake(() => Promise.resolve(false));
+      .callsFake(async () => Promise.resolve(false));
   });
 
   afterEach(() => {
@@ -244,15 +244,15 @@ describe('TokenDetectionController', () => {
 
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
-    ).toStrictEqual(true);
+    ).toBe(true);
     tokenDetection.configure({ chainId: SupportedTokenDetectionNetworks.bsc });
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
-    ).toStrictEqual(true);
+    ).toBe(true);
     tokenDetection.configure({ chainId: NetworksChainId.ropsten });
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
-    ).toStrictEqual(false);
+    ).toBe(false);
   });
 
   it('should not autodetect while not on supported networks', async () => {

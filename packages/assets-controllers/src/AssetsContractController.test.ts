@@ -115,8 +115,8 @@ describe('AssetsContractController', () => {
       ERC20_UNI_ADDRESS,
       '0x202637dAAEfbd7f131f90338a4A6c69F6Cd5CE91',
     );
-    expect(UNIBalance.toString(16)).not.toStrictEqual('0');
-    expect(UNINoBalance.toString(16)).toStrictEqual('0');
+    expect(UNIBalance.toString(16)).not.toBe('0');
+    expect(UNINoBalance.toString(16)).toBe('0');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -128,7 +128,7 @@ describe('AssetsContractController', () => {
       '0x9a90bd8d1149a88b42a99cf62215ad955d6f498a',
       0,
     );
-    expect(tokenId).not.toStrictEqual(0);
+    expect(tokenId).not.toBe(0);
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -164,7 +164,7 @@ describe('AssetsContractController', () => {
       ERC721_GODS_ADDRESS,
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
-    expect(standardAndDetails.standard).toStrictEqual('ERC721');
+    expect(standardAndDetails.standard).toBe('ERC721');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -175,7 +175,7 @@ describe('AssetsContractController', () => {
       ERC1155_ADDRESS,
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
-    expect(standardAndDetails.standard).toStrictEqual('ERC1155');
+    expect(standardAndDetails.standard).toBe('ERC1155');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -186,7 +186,7 @@ describe('AssetsContractController', () => {
       ERC20_UNI_ADDRESS,
       TEST_ACCOUNT_PUBLIC_ADDRESS,
     );
-    expect(standardAndDetails.standard).toStrictEqual('ERC20');
+    expect(standardAndDetails.standard).toBe('ERC20');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -197,7 +197,7 @@ describe('AssetsContractController', () => {
       ERC721_GODS_ADDRESS,
       '0',
     );
-    expect(tokenId).toStrictEqual('https://api.godsunchained.com/card/0');
+    expect(tokenId).toBe('https://api.godsunchained.com/card/0');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -220,7 +220,7 @@ describe('AssetsContractController', () => {
     const { assetsContract, messenger } = setupControllers();
     assetsContract.configure({ provider: MAINNET_PROVIDER });
     const name = await assetsContract.getERC721AssetName(ERC721_GODS_ADDRESS);
-    expect(name).toStrictEqual('Gods Unchained');
+    expect(name).toBe('Gods Unchained');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -230,7 +230,7 @@ describe('AssetsContractController', () => {
     const symbol = await assetsContract.getERC721AssetSymbol(
       ERC721_GODS_ADDRESS,
     );
-    expect(symbol).toStrictEqual('GODS');
+    expect(symbol).toBe('GODS');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -248,7 +248,7 @@ describe('AssetsContractController', () => {
     const decimals = await assetsContract.getERC20TokenDecimals(
       ERC20_DAI_ADDRESS,
     );
-    expect(Number(decimals)).toStrictEqual(18);
+    expect(Number(decimals)).toBe(18);
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -259,7 +259,7 @@ describe('AssetsContractController', () => {
       ERC721_GODS_ADDRESS,
       '148332',
     );
-    expect(tokenId).not.toStrictEqual('');
+    expect(tokenId).not.toBe('');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -278,7 +278,7 @@ describe('AssetsContractController', () => {
       ERC20_DAI_ADDRESS,
       [ERC20_DAI_ADDRESS],
     );
-    expect(balances[ERC20_DAI_ADDRESS]).not.toBeUndefined();
+    expect(balances[ERC20_DAI_ADDRESS]).toBeDefined();
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -292,7 +292,7 @@ describe('AssetsContractController', () => {
       ERC20_DAI_ADDRESS,
       [ERC20_DAI_ADDRESS],
     );
-    expect(balances[ERC20_DAI_ADDRESS]).not.toBeUndefined();
+    expect(balances[ERC20_DAI_ADDRESS]).toBeDefined();
 
     network.setProviderType('localhost');
 

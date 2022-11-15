@@ -75,7 +75,7 @@ describe('ERC20Standard', () => {
     const maticDecimals = await erc20Standard.getTokenDecimals(
       ERC20_MATIC_ADDRESS,
     );
-    expect(maticDecimals.toString()).toStrictEqual('18');
+    expect(maticDecimals.toString()).toBe('18');
   });
 
   it('should support non-standard ERC20 symbols and decimals', async () => {

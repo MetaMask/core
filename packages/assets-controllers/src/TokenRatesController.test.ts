@@ -243,7 +243,7 @@ describe('TokenRatesController', () => {
     expect(Object.keys(controller.state.contractExchangeRates)).toContain(
       ADDRESS,
     );
-    expect(controller.state.contractExchangeRates[ADDRESS]).toStrictEqual(0);
+    expect(controller.state.contractExchangeRates[ADDRESS]).toBe(0);
   });
 
   it('should handle balance not found in API', async () => {
@@ -291,7 +291,7 @@ describe('TokenRatesController', () => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     tokenStateChangeListener!({ tokens: [], detectedTokens: [] });
     // FIXME: This is now being called twice
-    expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
+    expect(updateExchangeRatesStub.callCount).toBe(2);
   });
 
   it('should update exchange rates when native currency changes', async () => {
@@ -317,7 +317,7 @@ describe('TokenRatesController', () => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     currencyRateStateChangeListener!({ nativeCurrency: 'dai' });
     // FIXME: This is now being called twice
-    expect(updateExchangeRatesStub.callCount).toStrictEqual(2);
+    expect(updateExchangeRatesStub.callCount).toBe(2);
   });
 
   it('should update exchange rates when native currency is not supported by coingecko', async () => {

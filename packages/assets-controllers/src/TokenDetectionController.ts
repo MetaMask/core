@@ -49,13 +49,13 @@ export class TokenDetectionController extends BaseController<
    */
   override name = 'TokenDetectionController';
 
-  private getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+  private readonly getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
-  private addDetectedTokens: TokensController['addDetectedTokens'];
+  private readonly addDetectedTokens: TokensController['addDetectedTokens'];
 
-  private getTokensState: () => TokensState;
+  private readonly getTokensState: () => TokensState;
 
-  private getTokenListState: () => TokenListState;
+  private readonly getTokenListState: () => TokenListState;
 
   /**
    * Creates a TokenDetectionController instance.

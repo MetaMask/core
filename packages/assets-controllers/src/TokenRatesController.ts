@@ -228,7 +228,7 @@ export class TokenRatesController extends BaseController<
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
     this.handle && clearTimeout(this.handle);
-    await safelyExecute(() => this.updateExchangeRates());
+    await safelyExecute(async () => this.updateExchangeRates());
     this.handle = setTimeout(() => {
       this.poll(this.config.interval);
     }, this.config.interval);
@@ -242,7 +242,7 @@ export class TokenRatesController extends BaseController<
    * @param _chainId - The current chain ID.
    */
   set chainId(_chainId: string) {
-    !this.disabled && safelyExecute(() => this.updateExchangeRates());
+    !this.disabled && safelyExecute(async () => this.updateExchangeRates());
   }
 
   get chainId() {
@@ -258,7 +258,7 @@ export class TokenRatesController extends BaseController<
    */
   set tokens(tokens: Token[]) {
     this.tokenList = tokens;
-    !this.disabled && safelyExecute(() => this.updateExchangeRates());
+    !this.disabled && safelyExecute(async () => this.updateExchangeRates());
   }
 
   get tokens() {

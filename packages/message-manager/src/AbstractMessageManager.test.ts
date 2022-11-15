@@ -10,7 +10,7 @@ class AbstractTestManager extends AbstractMessageManager<
   TypedMessageParams,
   TypedMessageParamsMetamask
 > {
-  prepMessageForSigning(
+  async prepMessageForSigning(
     messageParams: TypedMessageParamsMetamask,
   ): Promise<TypedMessageParams> {
     delete messageParams.metamaskId;
@@ -162,7 +162,7 @@ describe('AbstractTestManager', () => {
     const controller = new AbstractTestManager();
     controller.addMessage(firstMessage);
     controller.addMessage(secondMessage);
-    expect(controller.getUnapprovedMessagesCount()).toStrictEqual(2);
+    expect(controller.getUnapprovedMessagesCount()).toBe(2);
     expect(controller.getUnapprovedMessages()).toStrictEqual({
       [firstMessage.id]: firstMessage,
       [secondMessage.id]: secondMessage,
@@ -190,7 +190,7 @@ describe('AbstractTestManager', () => {
     if (!message) {
       throw new Error('"message" is falsy');
     }
-    expect(message.status).toStrictEqual('approved');
+    expect(message.status).toBe('approved');
   });
 
   describe('setMessageStatus', () => {
@@ -204,11 +204,11 @@ describe('AbstractTestManager', () => {
         type: 'type',
       });
       const messageBefore = controller.getMessage(messageId);
-      expect(messageBefore?.status).toStrictEqual('status');
+      expect(messageBefore?.status).toBe('status');
 
       controller.setMessageStatus(messageId, 'newstatus');
       const messageAfter = controller.getMessage(messageId);
-      expect(messageAfter?.status).toStrictEqual('newstatus');
+      expect(messageAfter?.status).toBe('newstatus');
     });
 
     it('should throw an error if message is not found', () => {

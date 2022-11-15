@@ -89,16 +89,16 @@ export class RestrictedControllerMessenger<
   AllowedAction extends string,
   AllowedEvent extends string,
 > {
-  private controllerMessenger: ControllerMessenger<
+  private readonly controllerMessenger: ControllerMessenger<
     ActionConstraint,
     EventConstraint
   >;
 
-  private controllerName: N;
+  private readonly controllerName: N;
 
-  private allowedActions: AllowedAction[] | null;
+  private readonly allowedActions: AllowedAction[] | null;
 
-  private allowedEvents: AllowedEvent[] | null;
+  private readonly allowedEvents: AllowedEvent[] | null;
 
   /**
    * Constructs a restricted controller messenger
@@ -354,14 +354,14 @@ export class ControllerMessenger<
   Action extends ActionConstraint,
   Event extends EventConstraint,
 > {
-  private actions = new Map<Action['type'], unknown>();
+  private readonly actions = new Map<Action['type'], unknown>();
 
-  private events = new Map<Event['type'], EventSubscriptionMap>();
+  private readonly events = new Map<Event['type'], EventSubscriptionMap>();
 
   /**
    * A cache of selector return values for their respective handlers.
    */
-  private eventPayloadCache = new Map<
+  private readonly eventPayloadCache = new Map<
     GenericEventHandler,
     unknown | undefined
   >();

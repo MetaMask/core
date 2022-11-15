@@ -208,12 +208,12 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toStrictEqual(1);
+    expect(listener1.callCount).toBe(1);
     expect(listener1.firstCall.args).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
     ]);
-    expect(listener2.callCount).toStrictEqual(1);
+    expect(listener2.callCount).toBe(1);
     expect(listener2.firstCall.args).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
@@ -240,7 +240,7 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toStrictEqual(1);
+    expect(listener1.callCount).toBe(1);
     expect(listener1.firstCall.args).toStrictEqual([
       { count: 1 },
       [{ op: 'replace', path: [], value: { count: 1 } }],
@@ -266,7 +266,7 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toStrictEqual(0);
+    expect(listener1.callCount).toBe(0);
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
@@ -289,7 +289,7 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toStrictEqual(0);
+    expect(listener1.callCount).toBe(0);
   });
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
@@ -331,8 +331,8 @@ describe('BaseController', () => {
       return { count: 1 };
     });
 
-    expect(listener1.callCount).toStrictEqual(0);
-    expect(listener2.callCount).toStrictEqual(0);
+    expect(listener1.callCount).toBe(0);
+    expect(listener2.callCount).toBe(0);
   });
 });
 
@@ -797,7 +797,7 @@ describe('getPersistentState', () => {
       visitorController.addVisitor('B');
       visitorController.addVisitor('C'); // this should trigger an overflow
 
-      expect(visitorOverflowController.state.maxVisitors).toStrictEqual(2);
+      expect(visitorOverflowController.state.maxVisitors).toBe(2);
       expect(visitorController.state.visitors).toHaveLength(0);
     });
   });

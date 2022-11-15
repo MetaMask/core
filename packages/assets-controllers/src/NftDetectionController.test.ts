@@ -257,9 +257,9 @@ describe('NftDetectionController', () => {
 
   it('should detect mainnet correctly', () => {
     nftDetection.configure({ networkType: MAINNET });
-    expect(nftDetection.isMainnet()).toStrictEqual(true);
+    expect(nftDetection.isMainnet()).toBe(true);
     nftDetection.configure({ networkType: ROPSTEN });
-    expect(nftDetection.isMainnet()).toStrictEqual(false);
+    expect(nftDetection.isMainnet()).toBe(false);
   });
 
   it('should not autodetect while not on mainnet', async () => {
@@ -417,7 +417,7 @@ describe('NftDetectionController', () => {
     nftDetection.configure({ selectedAddress: '0x12' });
     nftController.configure({ selectedAddress: '0x12' });
     await new Promise((res) => setTimeout(() => res(true), 1000));
-    expect(nftDetection.config.selectedAddress).toStrictEqual('0x12');
+    expect(nftDetection.config.selectedAddress).toBe('0x12');
 
     expect(
       nftController.state.allNfts[nftDetection.config.selectedAddress]?.[
@@ -728,7 +728,7 @@ describe('NftDetectionController', () => {
       selectedAddress,
     });
 
-    await expect(() => nftDetection.detectNfts()).rejects.toThrow(
+    await expect(async () => nftDetection.detectNfts()).rejects.toThrow(
       'UNEXPECTED ERROR',
     );
   });

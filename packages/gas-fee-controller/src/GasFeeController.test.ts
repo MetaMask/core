@@ -258,9 +258,11 @@ describe('GasFeeController', () => {
           mockedDetermineGasFeeCalculations.mockReset();
 
           mockDetermineGasFeeCalculationsReturnValues.forEach((returnValue) => {
-            mockedDetermineGasFeeCalculations.mockImplementationOnce(() => {
-              return Promise.resolve(returnValue);
-            });
+            mockedDetermineGasFeeCalculations.mockImplementationOnce(
+              async () => {
+                return Promise.resolve(returnValue);
+              },
+            );
           });
         });
 
@@ -496,7 +498,7 @@ describe('GasFeeController', () => {
           {},
         );
 
-        expect(gasFeeController.state.gasEstimateType).toStrictEqual('none');
+        expect(gasFeeController.state.gasEstimateType).toBe('none');
       });
     });
 

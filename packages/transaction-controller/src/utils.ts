@@ -66,7 +66,7 @@ export function normalizeTransaction(transaction: Transaction) {
   const normalizedTransaction: Transaction = { from: '' };
   let key: keyof Transaction;
   for (key in NORMALIZERS) {
-    if (transaction[key as keyof Transaction]) {
+    if (transaction[key]) {
       normalizedTransaction[key] = NORMALIZERS[key](transaction[key]) as never;
     }
   }

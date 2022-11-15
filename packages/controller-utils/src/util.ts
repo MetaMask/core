@@ -413,7 +413,7 @@ export function normalizeEnsName(ensName: string): string | null {
  * @param args - Arguments to send.
  * @returns Promise resolving the request.
  */
-export function query(
+export async function query(
   ethQuery: any,
   method: string,
   args: any[] = [],

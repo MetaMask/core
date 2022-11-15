@@ -12,7 +12,7 @@ import {
 import { getFormattedIpfsUrl, ethersBigNumberToBN } from '../../../assetsUtil';
 
 export class ERC1155Standard {
-  private provider: Web3Provider;
+  private readonly provider: Web3Provider;
 
   constructor(provider: Web3Provider) {
     this.provider = provider;
@@ -136,7 +136,7 @@ export class ERC1155Standard {
    * @param interfaceId - Interface identifier.
    * @returns Promise resolving to whether the contract implements `interfaceID`.
    */
-  private contractSupportsInterface = async (
+  private readonly contractSupportsInterface = async (
     address: string,
     interfaceId: string,
   ): Promise<boolean> => {

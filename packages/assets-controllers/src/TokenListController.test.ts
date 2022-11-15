@@ -86,13 +86,11 @@ const sampleMainnetTokenList = [
   },
 ];
 
-const sampleMainnetTokensChainsCache = sampleMainnetTokenList.reduce(
-  (output, current) => {
+const sampleMainnetTokensChainsCache =
+  sampleMainnetTokenList.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as TokenListMap,
-);
+  }, {});
 
 const sampleWithDuplicateSymbols = [
   {
@@ -118,10 +116,10 @@ const sampleWithDuplicateSymbols = [
 ];
 
 const sampleWithDuplicateSymbolsTokensChainsCache =
-  sampleWithDuplicateSymbols.reduce((output, current) => {
+  sampleWithDuplicateSymbols.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  }, {} as TokenListMap);
+  }, {});
 
 const sampleWithLessThan3OccurencesResponse = [
   {
@@ -172,12 +170,15 @@ const sampleWithLessThan3OccurencesResponse = [
 ];
 
 const sampleWith3OrMoreOccurrences =
-  sampleWithLessThan3OccurencesResponse.reduce((output, token) => {
-    if (token.occurrences >= 3) {
-      output[token.address] = token;
-    }
-    return output;
-  }, {} as TokenListMap);
+  sampleWithLessThan3OccurencesResponse.reduce<TokenListMap>(
+    (output, token) => {
+      if (token.occurrences >= 3) {
+        output[token.address] = token;
+      }
+      return output;
+    },
+    {},
+  );
 
 const sampleBinanceTokenList = [
   {
@@ -290,13 +291,11 @@ const sampleSingleChainState = {
   },
 };
 
-const sampleBinanceTokensChainsCache = sampleBinanceTokenList.reduce(
-  (output, current) => {
+const sampleBinanceTokensChainsCache =
+  sampleBinanceTokenList.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as TokenListMap,
-);
+  }, {});
 
 const sampleTwoChainState = {
   tokenList: {

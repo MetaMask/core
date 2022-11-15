@@ -196,11 +196,11 @@ export class NftDetectionController extends BaseController<
    */
   override name = 'NftDetectionController';
 
-  private getOpenSeaApiKey: () => string | undefined;
+  private readonly getOpenSeaApiKey: () => string | undefined;
 
-  private addNft: NftController['addNft'];
+  private readonly addNft: NftController['addNft'];
 
-  private getNftState: () => NftState;
+  private readonly getNftState: () => NftState;
 
   /**
    * Creates an NftDetectionController instance.
