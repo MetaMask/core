@@ -1,31 +1,26 @@
-import { RestrictedControllerMessenger } from 'src/ControllerMessenger';
-import { BaseController } from '../BaseControllerV2';
 import type { Patch } from 'immer';
+import {
+  BaseControllerV2,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 
 type ViewedAnnouncement = {
   [id: number]: boolean;
-}
+};
 
 type Announcement = {
   id: number;
   date: string;
-}
+};
 
 type StateAnnouncement = Announcement & { isShown: boolean };
-
-/**
- * A map of announcement ids to Announcement objects
- */
-type AnnouncementMap = {
-  [id: number]: Announcement;
-}
 
 /**
  * A map of announcement ids to StateAnnouncement objects
  */
 export type StateAnnouncementMap = {
   [id: number]: StateAnnouncement;
-}
+};
 
 /**
  * Announcement state will hold all the seen and unseen announcements
@@ -35,11 +30,8 @@ export type AnnouncementState = {
   announcements: StateAnnouncementMap;
 };
 
-
 export type AnnouncementControllerActions = GetAnnouncementState;
 export type AnnouncementControllerEvents = AnnouncementStateChange;
-
-
 
 export type GetAnnouncementState = {
   type: `${typeof controllerName}:getState`;
@@ -61,8 +53,8 @@ const metadata = {
   announcements: {
     persist: true,
     anonymous: false,
-  }
-}
+  },
+};
 
 export type AnnouncementControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -72,46 +64,52 @@ export type AnnouncementControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
-
 /**
  * Controller for managing in-app announcements.
  */
-export class AnnouncementController extends BaseController<
+export class AnnouncementController extends BaseControllerV2<
   typeof controllerName,
   AnnouncementState,
   AnnouncementControllerMessenger
->
-{
+> {
   /**
    * Creates a AnnouncementController instance.
    *
-   * @param messenger - Messenger used to communicate with BaseV2 controller.
-   * @param state - Initial state to set on this controller.
+   * @param args - The arguments to this function.
+   * @param args.messenger - Messenger used to communicate with BaseV2 controller.
+   * @param args.state - Initial state to set on this controller.
    */
-  constructor({ messenger, state }: { messenger: AnnouncementControllerMessenger, state?: AnnouncementState }) {
+  constructor({
+    messenger,
+    state,
+  }: {
+    messenger: AnnouncementControllerMessenger;
+    state?: AnnouncementState;
+  }) {
     const mergedState = { ...defaultState, ...state };
     super({ messenger, metadata, name: controllerName, state: mergedState });
     this._addAnnouncements(mergedState.announcements);
   }
 
-  /**    
+  /**
    * Compares the announcements in state with the announcements from file
    * to check if there are any new announcements
    * if yes, the new announcement will be added to the state with a flag indicating
    * that the announcement is not seen by the user.
-   * 
-   * @param allAnnouncements - all announcements to 
+   *
+   * @param allAnnouncements - all announcements to
    */
   private _addAnnouncements(allAnnouncements: StateAnnouncementMap): void {
     const newAnnouncements: StateAnnouncementMap = {};
     this.update(({ announcements }) => {
       Object.values(allAnnouncements).forEach(
         (announcement: StateAnnouncement) => {
-          newAnnouncements[announcement.id] =
-            announcements[announcement.id] || { ...announcement, isShown: false };
+          newAnnouncements[announcement.id] = announcements[
+            announcement.id
+          ] || { ...announcement, isShown: false };
         },
       );
-      announcements = newAnnouncements
+      announcements = newAnnouncements;
     });
   }
 
