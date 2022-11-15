@@ -104,6 +104,7 @@ export default function createStreamMiddleware(options: Options = {}) {
     const context = idMap[res.id as unknown as string];
     if (!context) {
       console.warn(`StreamMiddleware - Unknown response id "${res.id}"`);
+      return;
     }
 
     delete idMap[res.id as unknown as string];
