@@ -568,25 +568,28 @@ export default class SmartTransactionsController extends BaseController<
       console.error('ethers error', e);
     }
     const nonceLock = await this.getNonceLock(txParams?.from);
-    const nonce = hexlify(nonceLock.nextNonce);
-    if (txParams && !txParams?.nonce) {
-      txParams.nonce = nonce;
+    try {
+      const nonce = hexlify(nonceLock.nextNonce);
+      if (txParams && !txParams?.nonce) {
+        txParams.nonce = nonce;
+      }
+      const { nonceDetails } = nonceLock;
+
+      this.updateSmartTransaction({
+        chainId,
+        nonceDetails,
+        metamaskNetworkId,
+        preTxBalance,
+        status: SmartTransactionStatuses.PENDING,
+        time,
+        txParams,
+        uuid: data.uuid,
+        cancellable: true,
+      });
+    } finally {
+      nonceLock.releaseLock();
     }
-    const { nonceDetails } = nonceLock;
 
-    this.updateSmartTransaction({
-      chainId,
-      nonceDetails,
-      metamaskNetworkId,
-      preTxBalance,
-      status: SmartTransactionStatuses.PENDING,
-      time,
-      txParams,
-      uuid: data.uuid,
-      cancellable: true,
-    });
-
-    nonceLock.releaseLock();
     return data;
   }
 
