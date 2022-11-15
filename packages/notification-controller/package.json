@@ -1,7 +1,7 @@
 {
   "name": "@metamask/notification-controller",
   "version": "0.0.0",
-  "description": "Manages display of notifications within MetaMask (Flask only)",
+  "description": "Manages display of notifications within MetaMask",
   "keywords": [
     "MetaMask",
     "Ethereum"
