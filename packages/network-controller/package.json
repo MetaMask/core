@@ -23,6 +23,8 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-controller",
+    "publish-preview": "yarn npm publish --tag preview",
+    "set-prerelease-version": "../../scripts/set-prerelease-version.sh",
     "test": "jest",
     "test:watch": "jest --watch"
   },

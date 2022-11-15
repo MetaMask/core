@@ -1,0 +1,28 @@
+name: Publish a preview build
+
+on: issue_comment
+
+jobs:
+  publish-preview:
+    permissions:
+      contents: write
+    if: ${{ github.event.issue.pull_request && github.event.action == 'created' && startsWith(github.event.comment.body, '@metamaskbot publish-preview') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.sha }}
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: '.nvmrc'
+          cache: yarn
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@MetaMask'
+      - run: yarn --immutable
+      - run: yarn set-preview-versions
+      - run: yarn build
+      - name: Publish preview build
+        run: yarn publish-previews
+        env:
+          YARN_NPM_AUTH_TOKEN: ${{ secrets.GITHUB_NPM_TOKEN }}

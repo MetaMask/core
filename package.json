@@ -21,6 +21,8 @@
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn constraints --fix",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!**/CHANGELOG.md' '!**/CHANGELOG.old.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore",
     "prepack": "./scripts/prepack.sh",
+    "publish-previews": "yarn workspaces foreach --parallel run publish-preview",
+    "set-preview-versions": "yarn workspaces foreach --parallel run set-prerelease-version \"$(git rev-parse --short HEAD)\"",
     "setup": "yarn install",
     "test": "yarn workspaces foreach --parallel --verbose run test"
   },
