@@ -20,7 +20,7 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@MetaMask'
       - run: yarn --immutable
-      - run: yarn set-preview-versions
+      - run: yarn prepare-preview-builds
       - run: yarn build
       - name: Publish preview build
         run: yarn publish-previews

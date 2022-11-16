@@ -24,7 +24,7 @@
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/gas-fee-controller",
     "publish-preview": "yarn npm publish --tag preview",
-    "set-prerelease-version": "../../scripts/set-prerelease-version.sh",
+    "prepare-preview-build": "../../scripts/prepare-preview-build.sh",
     "test": "jest",
     "test:watch": "jest --watch"
   },
