@@ -24,7 +24,7 @@ jobs:
     name: Publish build preview
     needs: is-fork-pull-request
     permissions:
-      contents: write
+      pull-requests: write
     # This ensures we don't publish on forks. We can't trust forks with this token.
     if: ${{ needs.is-fork-pull-request.outputs.IS_FORK == 'false' }}
     runs-on: ubuntu-latest
