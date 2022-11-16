@@ -13,7 +13,10 @@ jobs:
       IS_FORK: ${{ steps.is-release.outputs.IS_FORK }}
     steps:
       - name: Determine whether this PR is from a fork
-        run: echo "IS_FORK=$(gh pr view --json isCrossRepository --jq '.isCrossRepository' {{ github.event.issue.number }} )" >> "$GITHUB_OUTPUT"
+        run: echo "IS_FORK=$(gh pr view --json isCrossRepository --jq '.isCrossRepository' "${PR_NUMBER}" )" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
 
   publish-preview:
     name: Publish build preview
@@ -25,7 +28,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout pull request
-        run: hub pr checkout ${{ github.event.issue.number }}
+        run: hub pr checkout "${PR_NUMBER}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
