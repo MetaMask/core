@@ -185,12 +185,12 @@ gen_enforced_field(WorkspaceCwd, 'files', null) :-
 gen_enforced_field(WorkspaceCwd, 'scripts.build:docs', 'typedoc') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 
-% All workspace packages must have the same "prepare-preview-build" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.prepare-preview-build', '../../scripts/prepare-preview-build.sh') :-
+% All workspace packages must have the same "prepare-manifest:preview" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.prepare-manifest:preview', '../../scripts/prepare-preview-manifest.sh') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 
-% All workspace packages must have the same "publish-preview" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.publish-preview', 'yarn npm publish --tag preview') :-
+% All workspace packages must have the same "publish:preview" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.publish:preview', 'yarn npm publish --tag preview') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 
 % The "changelog:validate" script for each package must follow a specific
