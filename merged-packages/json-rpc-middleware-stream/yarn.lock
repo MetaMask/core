@@ -652,9 +652,9 @@
   integrity sha512-vD2DcC0ffJj1w2y1Lu0OU39wHmlPEd2tCDW04Bm6Kf4LyRnCHCezTsS8yzeSJ+4so7XP+TITuR5FGJRWxPb+GA==
 
 "@metamask/auto-changelog@^3.0.0":
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/@metamask/auto-changelog/-/auto-changelog-3.0.0.tgz#ac55d9093179ab4a6c46323550436cc9d8a76dd6"
-  integrity sha512-yr2ZI7t8SZHcZ0lw1pc5d9mKPasyqIqJ+b9Q70Q7YMqDIc+jgy6j5WtLI/BxbnHkxdVHXQq0GMf5+k1aY4F5gg==
+  version "3.1.0"
+  resolved "https://registry.yarnpkg.com/@metamask/auto-changelog/-/auto-changelog-3.1.0.tgz#d4d6bc7b9a1244a2e6a8ff1f818540b6491d8d88"
+  integrity sha512-o+4XljQzTvd46ML+PRyCNv3B9EbFf6JjaaueB2+v/aWSf97pp6FmjEXSPwaUzQQhl9GkaZj8himpanT62Nv9Aw==
   dependencies:
     diff "^5.0.0"
     execa "^5.1.1"
