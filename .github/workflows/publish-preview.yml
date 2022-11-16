@@ -25,4 +25,4 @@ jobs:
       - name: Publish preview build
         run: yarn publish-previews
         env:
-          YARN_NPM_AUTH_TOKEN: ${{ secrets.GITHUB_NPM_TOKEN }}
+          YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
