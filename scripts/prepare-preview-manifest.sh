@@ -5,9 +5,14 @@ set -euo pipefail
 # This script prepares a package to be published as a preview build
 # to GitHub Packages.
 
+if [[ $# -eq 0 ]]; then
+  echo "Missing commit hash."
+  exit 1
+fi
+
 # We use the short commit hash as the prerelease version. This ensures each
 # preview build is unique and can be linked to a specific commit.
-shorthash="$(git rev-parse --short HEAD)"
+shorthash="$1"
 
 # The prerelease version is overwritten, preserving the non-prerelease portion
 # of the version. Technically we'd want to bump the non-prerelease portion as

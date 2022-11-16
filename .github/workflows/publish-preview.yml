@@ -40,9 +40,18 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@MetaMask'
       - run: yarn --immutable
-      - run: yarn prepare-preview-builds
+      - name: Get commit SHA
+        id: commit-sha
+        run: echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+      - run: yarn prepare-preview-builds ${{ steps.commit-sha.output.COMMIT_SHA }}
       - run: yarn build
       - name: Publish preview build
         run: yarn publish-previews
         env:
           YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
+      - name: Post build preview in comment
+        run: hub pr comment "${PR_NUMBER}" -b "Packages published as '[current-version]-${COMMIT_SHA}'"
+        env:
+          COMMIT_SHA: ${{ steps.commit-sha.output.COMMIT_SHA }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
