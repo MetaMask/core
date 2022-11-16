@@ -13,7 +13,7 @@ jobs:
       IS_FORK: ${{ steps.is-release.outputs.IS_FORK }}
     steps:
       - name: Determine whether this PR is from a fork
-        run: echo "IS_FORK=$(gh pr view --json isCrossRepository --jq '.isCrossRepository' {{ github.event.issue.number }} )"
+        run: echo "IS_FORK=$(gh pr view --json isCrossRepository --jq '.isCrossRepository' {{ github.event.issue.number }} )" >> "$GITHUB_OUTPUT"
 
   publish-preview:
     name: Publish build preview
