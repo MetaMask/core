@@ -1,12 +1,14 @@
 name: Publish a preview build
 
-on: issue_comment
+on:
+  issue_comment:
+    types: created
 
 jobs:
   publish-preview:
     permissions:
       contents: write
-    if: ${{ github.event.issue.pull_request && github.event.action == 'created' && startsWith(github.event.comment.body, '@metamaskbot publish-preview') }}
+    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot publish-preview') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
