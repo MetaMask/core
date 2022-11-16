@@ -23,8 +23,8 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/composable-controller",
-    "publish-preview": "yarn npm publish --tag preview",
     "prepare-preview-build": "../../scripts/prepare-preview-build.sh",
+    "publish-preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"
   },
