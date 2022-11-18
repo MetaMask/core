@@ -77,8 +77,8 @@ class CountController extends BaseController<
     return res;
   }
 
-  rollback(inversePatches: Patch[]) {
-    super.rollback(inversePatches);
+  applyPatches(patches: Patch[]) {
+    super.applyPatches(patches);
   }
 
   destroy() {
@@ -216,7 +216,7 @@ describe('BaseController', () => {
     );
   });
 
-  it('should allow for rolling back state changes', () => {
+  it('should allow for applying immer patches to state', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
       name: 'CountController',
@@ -228,7 +228,7 @@ describe('BaseController', () => {
       draft.count += 1;
     });
 
-    controller.rollback(returnObj.inversePatches);
+    controller.applyPatches(returnObj.inversePatches);
 
     expect(controller.state).toStrictEqual({ count: 0 });
   });

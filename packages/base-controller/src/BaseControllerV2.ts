@@ -174,20 +174,19 @@ export class BaseController<
   }
 
   /**
-   * Rolls back controller state. Accepts an array of inverse patches
-   * that are applied to the current state. The inverse patches come from the
-   * update function itself.
+   * Applies immer patches to the current state. The patches come from the
+   * update function itself and can either be normal or inverse patches
    *
-   * @param inversePatches - An array of immer patches that are to be applied to rollback
-   * changes made in a previous update.
+   * @param patches - An array of immer patches that are to be applied to make
+   * or undo changes.
    */
-  protected rollback(inversePatches: Patch[]) {
-    const nextState = applyPatches(this.internalState, inversePatches);
+  protected applyPatches(patches: Patch[]) {
+    const nextState = applyPatches(this.internalState, patches);
     this.internalState = nextState;
     this.messagingSystem.publish(
       `${this.name}:stateChange` as Namespaced<N, any>,
       nextState,
-      inversePatches,
+      patches,
     );
   }
 
