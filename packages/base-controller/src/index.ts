@@ -10,7 +10,6 @@ export {
   StateDeriver,
   StateMetadata,
   StatePropertyMetadata,
-  Json,
   getAnonymizedState,
   getPersistentState,
 } from './BaseControllerV2';

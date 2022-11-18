@@ -4,10 +4,5 @@
     "baseUrl": "./",
     "lib": ["ES2017", "DOM"]
   },
-  "references": [
-    {
-      "path": "../base-controller"
-    }
-  ],
   "include": ["../../types", "./src"]
 }

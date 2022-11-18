@@ -5,5 +5,10 @@
     "outDir": "./dist",
     "rootDir": "./src"
   },
+  "references": [
+    {
+      "path": "../controller-utils/tsconfig.build.json"
+    }
+  ],
   "include": ["../../types", "./src"]
 }
