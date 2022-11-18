@@ -73,7 +73,12 @@ class CountController extends BaseController<
       state: Draft<CountControllerState>,
     ) => void | CountControllerState,
   ) {
-    super.update(callback);
+    const res = super.update(callback);
+    return res;
+  }
+
+  rollback(inversePatches: Patch[]) {
+    super.rollback(inversePatches);
   }
 
   destroy() {
@@ -170,6 +175,29 @@ describe('BaseController', () => {
     expect(controller.state).toStrictEqual({ count: 1 });
   });
 
+  it('should return next state, patches and inverse patches after an update', () => {
+    const controller = new CountController({
+      messenger: getCountMessenger(),
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: countControllerStateMetadata,
+    });
+
+    const returnObj = controller.update((draft) => {
+      draft.count += 1;
+    });
+
+    expect(returnObj).not.toBeUndefined();
+    expect(returnObj.nextState).toStrictEqual({ count: 1 });
+    expect(returnObj.patches).toStrictEqual([
+      { op: 'replace', path: ['count'], value: 1 },
+    ]);
+
+    expect(returnObj.inversePatches).toStrictEqual([
+      { op: 'replace', path: ['count'], value: 0 },
+    ]);
+  });
+
   it('should throw an error if update callback modifies draft and returns value', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
@@ -186,6 +214,23 @@ describe('BaseController', () => {
     }).toThrow(
       '[Immer] An immer producer returned a new value *and* modified its draft. Either return a new value *or* modify the draft.',
     );
+  });
+
+  it('should allow for rolling back state changes', () => {
+    const controller = new CountController({
+      messenger: getCountMessenger(),
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: countControllerStateMetadata,
+    });
+
+    const returnObj = controller.update((draft) => {
+      draft.count += 1;
+    });
+
+    controller.rollback(returnObj.inversePatches);
+
+    expect(controller.state).toStrictEqual({ count: 0 });
   });
 
   it('should inform subscribers of state changes', () => {

@@ -146,10 +146,10 @@ export class BaseController<
    *
    * @param callback - Callback for updating state, passed a draft state
    * object. Return a new state object or mutate the draft to update state.
-   * @returns A tuple of the next state, patches applied in the update and inverse patches to 
+   * @returns An object that has the next state, patches applied in the update and inverse patches to 
    * rollback the update.
    */
-  protected update(callback: (state: Draft<S>) => void | S): [S, Patch[], Patch[]] {
+  protected update(callback: (state: Draft<S>) => void | S): {nextState: S, patches: Patch[], inversePatches: Patch[]} {
     // We run into ts2589, "infinite type depth", if we don't cast
     // produceWithPatches here.
     const [nextState, patches, inversePatches] = (
@@ -166,7 +166,7 @@ export class BaseController<
       patches,
     );
 
-    return [nextState, patches, inversePatches];
+    return { nextState, patches, inversePatches };
   }
 
   /**
