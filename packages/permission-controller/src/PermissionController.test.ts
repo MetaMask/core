@@ -6,8 +6,8 @@ import {
   HasApprovalRequest,
   RejectRequest as RejectApprovalRequest,
 } from '@metamask/approval-controller';
-import { Json, ControllerMessenger } from '@metamask/base-controller';
-import { hasProperty, isPlainObject } from '@metamask/controller-utils';
+import { ControllerMessenger } from '@metamask/base-controller';
+import { Json, hasProperty, isPlainObject } from '@metamask/controller-utils';
 import * as errors from './errors';
 import { EndowmentGetterParams } from './Permission';
 import {

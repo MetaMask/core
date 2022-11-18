@@ -9,7 +9,7 @@ import {
 import { fromWei, toWei } from 'ethjs-unit';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
-import { Json } from '@metamask/base-controller';
+import type { Json } from './types';
 
 const TIMEOUT_ERROR = new Error('timeout');
 

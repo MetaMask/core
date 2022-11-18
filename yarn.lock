@@ -1349,6 +1349,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:~"
+    "@metamask/controller-utils": "workspace:~"
     "@types/jest": ^26.0.22
     deepmerge: ^4.2.2
     eth-rpc-errors: ^4.0.0
@@ -1422,6 +1423,7 @@ __metadata:
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
+    "@metamask/controller-utils": "workspace:~"
     "@types/jest": ^26.0.22
     "@types/sinon": ^9.0.10
     deepmerge: ^4.2.2
@@ -1483,7 +1485,6 @@ __metadata:
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
-    "@metamask/base-controller": "workspace:~"
     "@types/jest": ^26.0.22
     abort-controller: ^3.0.0
     deepmerge: ^4.2.2
@@ -1880,6 +1881,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": "workspace:~"
+    "@metamask/controller-utils": "workspace:~"
     "@metamask/permission-controller": "workspace:~"
     "@metamask/types": ^1.1.0
     "@types/jest": ^26.0.22
