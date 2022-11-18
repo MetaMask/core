@@ -27,6 +27,7 @@ jobs:
   is-release:
     name: Determine whether this is a release merge commit
     needs: lint-build-test
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       IS_RELEASE: ${{ steps.is-release.outputs.IS_RELEASE }}
