@@ -146,10 +146,14 @@ export class BaseController<
    *
    * @param callback - Callback for updating state, passed a draft state
    * object. Return a new state object or mutate the draft to update state.
-   * @returns An object that has the next state, patches applied in the update and inverse patches to 
+   * @returns An object that has the next state, patches applied in the update and inverse patches to
    * rollback the update.
    */
-  protected update(callback: (state: Draft<S>) => void | S): {nextState: S, patches: Patch[], inversePatches: Patch[]} {
+  protected update(callback: (state: Draft<S>) => void | S): {
+    nextState: S;
+    patches: Patch[];
+    inversePatches: Patch[];
+  } {
     // We run into ts2589, "infinite type depth", if we don't cast
     // produceWithPatches here.
     const [nextState, patches, inversePatches] = (
@@ -172,9 +176,9 @@ export class BaseController<
   /**
    * Rolls back controller state. Accepts an array of inverse patches
    * that are applied to the current state. The inverse patches come from the
-   * update function itself.  
+   * update function itself.
    *
-   * @param inversePatches - An array of immer patches that are to be applied to rollback 
+   * @param inversePatches - An array of immer patches that are to be applied to rollback
    * changes made in a previous update.
    */
   protected rollback(inversePatches: Patch[]) {
