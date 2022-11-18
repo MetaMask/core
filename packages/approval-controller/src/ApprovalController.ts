@@ -4,8 +4,8 @@ import { nanoid } from 'nanoid';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
-  Json,
 } from '@metamask/base-controller';
+import { Json } from '@metamask/controller-utils';
 import { ApprovalRequestNotFoundError } from './errors';
 
 const controllerName = 'ApprovalController';

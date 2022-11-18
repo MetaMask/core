@@ -12,7 +12,6 @@ import {
 } from '@metamask/approval-controller';
 import {
   BaseControllerV2,
-  Json,
   StateMetadata,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
@@ -21,6 +20,7 @@ import {
   isNonEmptyArray,
   isPlainObject,
   isValidJson,
+  Json,
   NonEmptyArray,
 } from '@metamask/controller-utils';
 import {
