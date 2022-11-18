@@ -7,6 +7,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/controllers.git"
   },
+  "files": [],
   "workspaces": [
     "packages/*"
   ],
