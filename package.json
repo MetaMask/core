@@ -7,6 +7,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/controllers.git"
   },
+  "files": [],
   "workspaces": [
     "packages/*"
   ],
@@ -16,6 +17,7 @@
     "build:docs": "yarn workspaces foreach --parallel --interlaced --verbose run build:docs",
     "build:watch": "yarn run build --watch",
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
+    "generate-dependency-graph": "ts-node scripts/generate-dependency-graph.ts",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn constraints",
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn constraints --fix",
@@ -36,6 +38,7 @@
     "@metamask/eslint-config-jest": "^9.0.0",
     "@metamask/eslint-config-nodejs": "^9.0.0",
     "@metamask/eslint-config-typescript": "^9.0.1",
+    "@types/node": "^14.14.31",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
     "eslint": "^7.24.0",
@@ -46,12 +49,15 @@
     "eslint-plugin-jsdoc": "^36.1.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^3.4.1",
+    "execa": "^5.0.0",
     "isomorphic-fetch": "^3.0.0",
     "prettier": "^2.6.2",
     "prettier-plugin-packagejson": "^2.2.17",
     "rimraf": "^3.0.2",
     "simple-git-hooks": "^2.8.0",
-    "typescript": "~4.6.3"
+    "ts-node": "^10.9.1",
+    "typescript": "~4.6.3",
+    "which": "^3.0.0"
   },
   "packageManager": "yarn@3.2.1",
   "engines": {
