@@ -175,7 +175,7 @@ export class BaseController<
 
   /**
    * Applies immer patches to the current state. The patches come from the
-   * update function itself and can either be normal or inverse patches
+   * update function itself and can either be normal or inverse patches.
    *
    * @param patches - An array of immer patches that are to be applied to make
    * or undo changes.
