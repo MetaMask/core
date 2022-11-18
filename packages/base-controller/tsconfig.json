@@ -3,5 +3,10 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
+  "references": [
+    {
+      "path": "../controller-utils"
+    }
+  ],
   "include": ["../../types", "./src"]
 }

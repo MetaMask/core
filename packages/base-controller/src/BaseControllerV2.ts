@@ -4,6 +4,8 @@ import { enablePatches, produceWithPatches } from 'immer';
 // eslint-disable-next-line no-duplicate-imports
 import type { Draft, Patch } from 'immer';
 
+import type { Json } from '@metamask/controller-utils';
+
 import type {
   RestrictedControllerMessenger,
   Namespaced,
@@ -60,14 +62,6 @@ export interface StatePropertyMetadata<T extends Json> {
   persist: boolean | StateDeriver<T>;
   anonymous: boolean | StateDeriver<T>;
 }
-
-export type Json =
-  | null
-  | boolean
-  | number
-  | string
-  | Json[]
-  | { [prop: string]: Json };
 
 /**
  * Controller class that provides state management, subscriptions, and state metadata
