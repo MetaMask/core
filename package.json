@@ -16,6 +16,7 @@
     "build:docs": "yarn workspaces foreach --parallel --interlaced --verbose run build:docs",
     "build:watch": "yarn run build --watch",
     "changelog:validate": "yarn workspaces foreach --parallel --interlaced --verbose run changelog:validate",
+    "generate-dependency-graph": "ts-node scripts/generate-dependency-graph.ts",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn constraints",
     "lint:eslint": "eslint . --cache --ext js,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn constraints --fix",
@@ -52,6 +53,11 @@
     "rimraf": "^3.0.2",
     "simple-git-hooks": "^2.8.0",
     "typescript": "~4.6.3"
+  },
+  "devDependencies": {
+    "execa": "^5.0.0",
+    "ts-node": "^10.9.1",
+    "which": "^3.0.0"
   },
   "packageManager": "yarn@3.2.1",
   "engines": {

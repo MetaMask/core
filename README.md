@@ -26,6 +26,13 @@ This is a monorepo that houses the following packages. Please refer to the READM
 - [`@metamask/subject-metadata-controller`](packages/subject-metadata-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 
+Here is a graph that shows the dependencies among all packages:
+
+![Dependency graph](assets/dependency-graph.png)
+
+> **Note**
+> To regenerate this graph, run `yarn generate-dependency-graph`.
+
 ## Contributing
 
 ### Setup

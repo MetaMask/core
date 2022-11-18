@@ -43,6 +43,16 @@ module.exports = {
         ],
       },
     },
+    {
+      files: ['scripts/*.ts'],
+      rules: {
+        // Even though the root package is unpublished, we still want to import
+        // published packages.
+        'node/no-unpublished-import': 'off',
+        // All scripts will have shebangs.
+        'node/shebang': 'off',
+      },
+    },
   ],
   rules: {
     // Left disabled because various properties throughough this repo are snake_case because the
