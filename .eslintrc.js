@@ -43,6 +43,13 @@ module.exports = {
         ],
       },
     },
+    {
+      files: ['scripts/*.ts'],
+      rules: {
+        // All scripts will have shebangs.
+        'node/shebang': 'off',
+      },
+    },
   ],
   rules: {
     // Left disabled because various properties throughough this repo are snake_case because the
