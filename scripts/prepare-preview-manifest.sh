@@ -18,7 +18,7 @@ shorthash="$1"
 # of the version. Technically we'd want to bump the non-prerelease portion as
 # well if we wanted this to be SemVer-compliant, but it was simpler not to.
 # This is just for testing, it doesn't need to strictly follow SemVer.
-jq --raw-output ".version |= split(\"-\")[0] + \"-${shorthash}\"" ./package.json > temp.json
+jq --raw-output ".version |= split(\"-\")[0] + \"-preview.${shorthash}\"" ./package.json > temp.json
 
 # The registry is updated here because the manifest publish config always takes
 # precedence, and cannot be overwritten from the command-line.
