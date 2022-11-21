@@ -23,11 +23,14 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/approval-controller",
+    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
+    "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
     "@metamask/base-controller": "workspace:~",
+    "@metamask/controller-utils": "workspace:~",
     "eth-rpc-errors": "^4.0.0",
     "immer": "^9.0.6",
     "nanoid": "^3.1.31"

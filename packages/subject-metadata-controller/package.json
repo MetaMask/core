@@ -23,6 +23,8 @@
   "scripts": {
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/subject-metadata-controller",
+    "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
+    "publish:preview": "yarn npm publish --tag preview",
     "test": "jest",
     "test:watch": "jest --watch"
   },
@@ -34,6 +36,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
+    "@metamask/controller-utils": "workspace:~",
     "@types/jest": "^26.0.22",
     "deepmerge": "^4.2.2",
     "jest": "^26.4.2",

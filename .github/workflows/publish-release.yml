@@ -2,6 +2,9 @@ name: Publish Release
 
 on:
   workflow_call:
+    secrets:
+      NPM_TOKEN:
+        required: true
 
 jobs:
   publish-release:

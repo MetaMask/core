@@ -27,7 +27,7 @@ jobs:
   is-release:
     name: Determine whether this is a release merge commit
     needs: lint-build-test
-    if: startsWith(github.event.commits[0].author.name, 'github-actions')
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       IS_RELEASE: ${{ steps.is-release.outputs.IS_RELEASE }}
@@ -42,6 +42,8 @@ jobs:
     permissions:
       contents: write
     uses: ./.github/workflows/publish-release.yml
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   all-jobs-pass:
     name: All jobs pass
