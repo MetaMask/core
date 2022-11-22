@@ -286,7 +286,7 @@ export class PhishingController extends BaseController<
 
     this.detector = new PhishingDetector(configs);
     this.update({
-      phishing: configs,      
+      phishing: configs,
     });
   }
 
