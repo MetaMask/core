@@ -1,7 +1,7 @@
 import { Contract } from '@ethersproject/contracts';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { BN, toUtf8 } from 'ethereumjs-util';
-import { decode } from '@metamask/abi-utils';
+import { decodeSingle } from '@metamask/abi-utils';
 
 import { Web3Provider } from '@ethersproject/providers';
 import { ERC20 } from '@metamask/controller-utils';
@@ -59,10 +59,7 @@ export class ERC20Standard {
     const result = (await this.provider.call(payload)) as `0x${string}`;
     // Parse as string - treat empty string as failure
     try {
-      const decoded = decode(['string'], result)[0] as string;
-      if (decoded?.length > 0) {
-        return decoded;
-      }
+      return decodeSingle('string', result) as string;
     } catch {
       // Ignore error
     }
