@@ -143,7 +143,7 @@ export class PhishingController extends BaseController<
     };
 
     this.initialize();
-    this.detector = new PhishingDetector(this.state.phishing);    
+    this.detector = new PhishingDetector(this.state.phishing);
   }
 
   /**
@@ -222,7 +222,7 @@ export class PhishingController extends BaseController<
       this.updatePhishingLists();
     }
   }
-  
+
   /**
    * Update the phishing configuration.
    *
@@ -247,8 +247,8 @@ export class PhishingController extends BaseController<
       // Set `lastFetched` even for failed requests to prevent server from being overwhelmed with
       // traffic after a network disruption.
       this.update({
-        lastFetched: Date.now()
-      })
+        lastFetched: Date.now(),
+      });
     }
 
     // Correctly shaping MetaMask config.
