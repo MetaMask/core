@@ -4,7 +4,7 @@ A collection of platform-agnostic modules for creating secure data models for cr
 
 ## Modules
 
-This is a monorepo that houses the following packages. Please refer to the READMEs for these packages for installation and usage instructions:
+This repo houses the following packages, which you can examine for installation and usage instructions:
 
 - [`@metamask/address-book-controller`](packages/address-book-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
@@ -26,12 +26,22 @@ This is a monorepo that houses the following packages. Please refer to the READM
 - [`@metamask/subject-metadata-controller`](packages/subject-metadata-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 
-Here is a graph that shows the dependencies among all packages:
+Or, in graph form:
 
 ![Dependency graph](assets/dependency-graph.png)
 
 > **Note**
 > To regenerate this graph, run `yarn generate-dependency-graph`.
+
+## Architecture
+
+This is a monorepo that houses multiple packages published under the `@metamask` namespace on NPM. Here are some topics you may find useful when developing:
+
+- [What is a controller and how are they used?](docs/what.md)
+- [Why we're using a monorepo](docs/why.md)
+- [How the monorepo works](docs/how.md)
+- [Common tasks you may need to perform when working on a package](docs/common-tasks.md)
+- [How to test in-progress changes to a package within a project](docs/preview-builds.md)
 
 ## Contributing
 
@@ -41,17 +51,17 @@ Here is a graph that shows the dependencies among all packages:
   - If you are using [nvm](https://github.com/creationix/nvm#installation) (recommended) running `nvm use` will automatically choose the right node version for you.
 - Install [Yarn v3](https://yarnpkg.com/getting-started/install).
 - Run `yarn install` to install dependencies and run any required post-install scripts.
-- Run `yarn simple-git-hooks` to add a [Git hook](https://github.com/toplenboren/simple-git-hooks#what-is-a-git-hook) which will ensure that all files pass the linter before you push a branch.
+- Run `yarn simple-git-hooks` to add a [Git hook](https://github.com/toplenboren/simple-git-hooks#what-is-a-git-hook) to your local development environment which will ensure that all files pass the linter before you push a branch.
 
 ### Testing and Linting
 
-Run `yarn test` to run tests for all packages. Run `yarn workspace <package-name> run test` to run tests for a single package.
+Run `yarn test` to run tests for all packages. Run `yarn workspace <package-name> run test` to run tests for a single package (where `<package-name>` is the published name of a package, e.g. `@metamask/announcement-controller`, not its location within the monorepo, e.g. `packages/announcement-controller`).
 
 Run `yarn lint` to lint all files and show possible violations, or run `yarn lint:fix` to fix any automatically fixable violations.
 
 ### Release & Publishing
 
-This project follows a unique release process. The [`create-release-branch`](https://github.com/MetaMask/create-release-branch) tool and [`action-publish-release`](https://github.com/MetaMask/action-publish-release) GitHub action are used to automate the release process; see those repositories for more information about how they work.
+This project follows a process which is unique to this repo. The [`create-release-branch`](https://github.com/MetaMask/create-release-branch) tool and [`action-publish-release`](https://github.com/MetaMask/action-publish-release) GitHub action are used to automate the release process; see those repositories for more information about how they work.
 
 1. To begin the release process, run `create-release-branch`, specifying the packages you want to release. This tool will bump versions and update changelogs across the monorepo automatically, then create a new branch for you.
 
