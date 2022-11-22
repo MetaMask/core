@@ -233,6 +233,38 @@ describe('BaseController', () => {
     expect(controller.state).toStrictEqual({ count: 0 });
   });
 
+  it('should inform subscribers of state changes as a result of applying patches', () => {
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
+    const controller = new CountController({
+      messenger: getCountMessenger(controllerMessenger),
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: countControllerStateMetadata,
+    });
+    const listener1 = sinon.stub();
+
+    controllerMessenger.subscribe('CountController:stateChange', listener1);
+    const { inversePatches } = controller.update(() => {
+      return { count: 1 };
+    });
+
+    controller.applyPatches(inversePatches);
+
+    expect(listener1.callCount).toStrictEqual(2);
+    expect(listener1.firstCall.args).toStrictEqual([
+      { count: 1 },
+      [{ op: 'replace', path: [], value: { count: 1 } }],
+    ]);
+
+    expect(listener1.secondCall.args).toStrictEqual([
+      { count: 0 },
+      [{ op: 'replace', path: [], value: { count: 0 } }],
+    ]);
+  });
+
   it('should inform subscribers of state changes', () => {
     const controllerMessenger = new ControllerMessenger<
       never,
