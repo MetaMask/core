@@ -317,6 +317,7 @@ export class TokensController extends BaseController<
       const newDetectedTokens = detectedTokens.filter(
         (token) => token.address.toLowerCase() !== address.toLowerCase(),
       );
+
       const { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens } =
         this._getNewAllTokensState({
           newTokens,
@@ -441,12 +442,18 @@ export class TokensController extends BaseController<
    * Adds a batch of detected tokens to the stored token list.
    *
    * @param incomingDetectedTokens - Array of detected tokens to be added or updated.
+   * @param detectionDetails - An object containing the chain ID and address of the currently selected network on which the incomingDetectedTokens were detected.
+   * @param detectionDetails.selectedAddress - the account address on which the incomingDetectedTokens were detected.
+   * @param detectionDetails.chainId - the chainId on which the incomingDetectedTokens were detected.
    */
-  async addDetectedTokens(incomingDetectedTokens: Token[]) {
+  async addDetectedTokens(
+    incomingDetectedTokens: Token[],
+    detectionDetails?: { selectedAddress: string; chainId: string },
+  ) {
     const releaseLock = await this.mutex.acquire();
     const { tokens, detectedTokens, ignoredTokens } = this.state;
     const newTokens: Token[] = [...tokens];
-    const newDetectedTokens: Token[] = [...detectedTokens];
+    let newDetectedTokens: Token[] = [...detectedTokens];
 
     try {
       incomingDetectedTokens.forEach((tokenToAdd) => {
@@ -491,12 +498,24 @@ export class TokensController extends BaseController<
         }
       });
 
+      const { selectedAddress: detectionAddress, chainId: detectionChainId } =
+        detectionDetails || {};
+
       const { newAllTokens, newAllDetectedTokens } = this._getNewAllTokensState(
         {
           newTokens,
           newDetectedTokens,
+          detectionAddress,
+          detectionChainId,
         },
       );
+
+      const { chainId, selectedAddress } = this.config;
+      // if the newly added detectedTokens were detected on (and therefore added to) a different chainId/selectedAddress than the currently configured combo
+      // the newDetectedTokens (which should contain the detectedTokens on the current chainId/address combo) needs to be repointed to the current chainId/address pair
+      // if the detectedTokens were detected on the current chainId/address then this won't change anything.
+      newDetectedTokens =
+        newAllDetectedTokens?.[chainId]?.[selectedAddress] || [];
 
       this.update({
         tokens: newTokens,
@@ -697,53 +716,66 @@ export class TokensController extends BaseController<
    * @param params.newTokens - The new tokens to set for the current network and selected account.
    * @param params.newIgnoredTokens - The new ignored tokens to set for the current network and selected account.
    * @param params.newDetectedTokens - The new detected tokens to set for the current network and selected account.
+   * @param params.detectionAddress - The address on which the detected tokens to add were detected.
+   * @param params.detectionChainId - The chainId on which the detected tokens to add were detected.
    * @returns The updated `allTokens` and `allIgnoredTokens` state.
    */
   _getNewAllTokensState(params: {
     newTokens?: Token[];
     newIgnoredTokens?: string[];
     newDetectedTokens?: Token[];
+    detectionAddress?: string;
+    detectionChainId?: string;
   }) {
-    const { newTokens, newIgnoredTokens, newDetectedTokens } = params;
+    const {
+      newTokens,
+      newIgnoredTokens,
+      newDetectedTokens,
+      detectionAddress,
+      detectionChainId,
+    } = params;
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const { chainId, selectedAddress } = this.config;
 
+    const userAddressToAddTokens = detectionAddress ?? selectedAddress;
+    const chainIdToAddTokens = detectionChainId ?? chainId;
+
     let newAllTokens = allTokens;
-    if (newTokens) {
-      const networkTokens = allTokens[chainId];
+    if (newTokens?.length) {
+      const networkTokens = allTokens[chainIdToAddTokens];
       const newNetworkTokens = {
         ...networkTokens,
-        ...{ [selectedAddress]: newTokens },
+        ...{ [userAddressToAddTokens]: newTokens },
       };
       newAllTokens = {
         ...allTokens,
-        ...{ [chainId]: newNetworkTokens },
+        ...{ [chainIdToAddTokens]: newNetworkTokens },
       };
     }
 
     let newAllIgnoredTokens = allIgnoredTokens;
-    if (newIgnoredTokens) {
-      const networkIgnoredTokens = allIgnoredTokens[chainId];
+    if (newIgnoredTokens?.length) {
+      const networkIgnoredTokens = allIgnoredTokens[chainIdToAddTokens];
       const newIgnoredNetworkTokens = {
         ...networkIgnoredTokens,
-        ...{ [selectedAddress]: newIgnoredTokens },
+        ...{ [userAddressToAddTokens]: newIgnoredTokens },
       };
       newAllIgnoredTokens = {
         ...allIgnoredTokens,
-        ...{ [chainId]: newIgnoredNetworkTokens },
+        ...{ [chainIdToAddTokens]: newIgnoredNetworkTokens },
       };
     }
 
     let newAllDetectedTokens = allDetectedTokens;
-    if (newDetectedTokens) {
-      const networkDetectedTokens = allDetectedTokens[chainId];
+    if (newDetectedTokens?.length) {
+      const networkDetectedTokens = allDetectedTokens[chainIdToAddTokens];
       const newDetectedNetworkTokens = {
         ...networkDetectedTokens,
-        ...{ [selectedAddress]: newDetectedTokens },
+        ...{ [userAddressToAddTokens]: newDetectedTokens },
       };
       newAllDetectedTokens = {
         ...allDetectedTokens,
-        ...{ [chainId]: newDetectedNetworkTokens },
+        ...{ [chainIdToAddTokens]: newDetectedNetworkTokens },
       };
     }
     return { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens };
