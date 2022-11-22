@@ -1,4 +1,4 @@
-import { enablePatches, produceWithPatches } from 'immer';
+import { enablePatches, produceWithPatches, applyPatches } from 'immer';
 
 // Imported separately because only the type is used
 // eslint-disable-next-line no-duplicate-imports
@@ -146,18 +146,42 @@ export class BaseController<
    *
    * @param callback - Callback for updating state, passed a draft state
    * object. Return a new state object or mutate the draft to update state.
+   * @returns An object that has the next state, patches applied in the update and inverse patches to
+   * rollback the update.
    */
-  protected update(callback: (state: Draft<S>) => void | S) {
+  protected update(callback: (state: Draft<S>) => void | S): {
+    nextState: S;
+    patches: Patch[];
+    inversePatches: Patch[];
+  } {
     // We run into ts2589, "infinite type depth", if we don't cast
     // produceWithPatches here.
-    // The final, omitted member of the returned tuple are the inverse patches.
-    const [nextState, patches] = (
+    const [nextState, patches, inversePatches] = (
       produceWithPatches as unknown as (
         state: S,
         cb: typeof callback,
       ) => [S, Patch[], Patch[]]
     )(this.internalState, callback);
 
+    this.internalState = nextState;
+    this.messagingSystem.publish(
+      `${this.name}:stateChange` as Namespaced<N, any>,
+      nextState,
+      patches,
+    );
+
+    return { nextState, patches, inversePatches };
+  }
+
+  /**
+   * Applies immer patches to the current state. The patches come from the
+   * update function itself and can either be normal or inverse patches.
+   *
+   * @param patches - An array of immer patches that are to be applied to make
+   * or undo changes.
+   */
+  protected applyPatches(patches: Patch[]) {
+    const nextState = applyPatches(this.internalState, patches);
     this.internalState = nextState;
     this.messagingSystem.publish(
       `${this.name}:stateChange` as Namespaced<N, any>,
