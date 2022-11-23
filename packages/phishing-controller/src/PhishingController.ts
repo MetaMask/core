@@ -216,10 +216,10 @@ export class PhishingController extends BaseController<
     }
   }
 
-  maybeUpdatePhishingLists() {
+  async maybeUpdatePhishingLists() {
     const phishingListsAreOutOfDate = this.isOutOfDate();
     if (phishingListsAreOutOfDate) {
-      this.updatePhishingLists();
+      await this.updatePhishingLists();
     }
   }
 

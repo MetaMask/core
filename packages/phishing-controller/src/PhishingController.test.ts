@@ -69,6 +69,56 @@ describe('PhishingController', () => {
     expect(nockScope.isDone()).toBe(false);
   });
 
+  describe('maybeUpdatePhishingLists', () => {
+    it('should not be out of date immediately after maybeUpdatePhishingLists is called', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      clock.tick(10);
+      expect(controller.isOutOfDate()).toBe(true);
+      await controller.maybeUpdatePhishingLists();
+      expect(controller.isOutOfDate()).toBe(false);
+    });
+
+    it('should not be out of date after maybeUpdatePhishingLists is called but before refresh interval has passed', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      clock.tick(10);
+      expect(controller.isOutOfDate()).toBe(true);
+      await controller.maybeUpdatePhishingLists();
+      clock.tick(5);
+      expect(controller.isOutOfDate()).toBe(false);
+    });
+
+    it('should still be out of date while update is in progress', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      clock.tick(10);
+      await controller.maybeUpdatePhishingLists();
+      expect(controller.isOutOfDate()).toBe(false);
+      clock.tick(10);
+      expect(controller.isOutOfDate()).toBe(true);
+      // do not wait
+      controller.maybeUpdatePhishingLists();
+      expect(controller.isOutOfDate()).toBe(true);
+      await controller.maybeUpdatePhishingLists();
+      expect(controller.isOutOfDate()).toBe(false);
+      clock.tick(10);
+      expect(controller.isOutOfDate()).toBe(true);
+    });
+
+    it('should not call update if it is out of date', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      const updateSpy = sinon.spy(controller, 'updatePhishingLists');
+      expect(controller.isOutOfDate()).toBe(false);
+      await controller.maybeUpdatePhishingLists();
+      expect(updateSpy.calledOnce).toBe(false);
+      clock.tick(10);
+      await controller.maybeUpdatePhishingLists();
+      expect(updateSpy.calledOnce).toBe(true);
+    });
+  });
+
   describe('isOutOfDate', () => {
     it('should not be out of date upon construction', () => {
       sinon.useFakeTimers();
