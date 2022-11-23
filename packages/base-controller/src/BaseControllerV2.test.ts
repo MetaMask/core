@@ -73,7 +73,12 @@ class CountController extends BaseController<
       state: Draft<CountControllerState>,
     ) => void | CountControllerState,
   ) {
-    super.update(callback);
+    const res = super.update(callback);
+    return res;
+  }
+
+  applyPatches(patches: Patch[]) {
+    super.applyPatches(patches);
   }
 
   destroy() {
@@ -170,6 +175,29 @@ describe('BaseController', () => {
     expect(controller.state).toStrictEqual({ count: 1 });
   });
 
+  it('should return next state, patches and inverse patches after an update', () => {
+    const controller = new CountController({
+      messenger: getCountMessenger(),
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: countControllerStateMetadata,
+    });
+
+    const returnObj = controller.update((draft) => {
+      draft.count += 1;
+    });
+
+    expect(returnObj).not.toBeUndefined();
+    expect(returnObj.nextState).toStrictEqual({ count: 1 });
+    expect(returnObj.patches).toStrictEqual([
+      { op: 'replace', path: ['count'], value: 1 },
+    ]);
+
+    expect(returnObj.inversePatches).toStrictEqual([
+      { op: 'replace', path: ['count'], value: 0 },
+    ]);
+  });
+
   it('should throw an error if update callback modifies draft and returns value', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
@@ -186,6 +214,55 @@ describe('BaseController', () => {
     }).toThrow(
       '[Immer] An immer producer returned a new value *and* modified its draft. Either return a new value *or* modify the draft.',
     );
+  });
+
+  it('should allow for applying immer patches to state', () => {
+    const controller = new CountController({
+      messenger: getCountMessenger(),
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: countControllerStateMetadata,
+    });
+
+    const returnObj = controller.update((draft) => {
+      draft.count += 1;
+    });
+
+    controller.applyPatches(returnObj.inversePatches);
+
+    expect(controller.state).toStrictEqual({ count: 0 });
+  });
+
+  it('should inform subscribers of state changes as a result of applying patches', () => {
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      CountControllerEvent
+    >();
+    const controller = new CountController({
+      messenger: getCountMessenger(controllerMessenger),
+      name: 'CountController',
+      state: { count: 0 },
+      metadata: countControllerStateMetadata,
+    });
+    const listener1 = sinon.stub();
+
+    controllerMessenger.subscribe('CountController:stateChange', listener1);
+    const { inversePatches } = controller.update(() => {
+      return { count: 1 };
+    });
+
+    controller.applyPatches(inversePatches);
+
+    expect(listener1.callCount).toStrictEqual(2);
+    expect(listener1.firstCall.args).toStrictEqual([
+      { count: 1 },
+      [{ op: 'replace', path: [], value: { count: 1 } }],
+    ]);
+
+    expect(listener1.secondCall.args).toStrictEqual([
+      { count: 0 },
+      [{ op: 'replace', path: [], value: { count: 0 } }],
+    ]);
   });
 
   it('should inform subscribers of state changes', () => {
