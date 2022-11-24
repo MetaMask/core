@@ -103,7 +103,7 @@ describe('PhishingController', () => {
       expect(controller.isOutOfDate()).toBe(true);
     });
 
-    it('should not call update if it is out of date', async () => {
+    it('should call update only if it is out of date, otherwise it should not call update', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_CONFIG_FILE)
         .reply(200, {
