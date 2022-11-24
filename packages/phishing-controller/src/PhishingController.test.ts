@@ -93,14 +93,11 @@ describe('PhishingController', () => {
       const clock = sinon.useFakeTimers();
       const controller = new PhishingController({ refreshInterval: 10 });
       clock.tick(10);
-      await controller.maybeUpdatePhishingLists();
-      expect(controller.isOutOfDate()).toBe(false);
-      clock.tick(10);
-      expect(controller.isOutOfDate()).toBe(true);
       // do not wait
-      controller.maybeUpdatePhishingLists();
+      const maybeUpdatePhisingListPromise =
+        controller.maybeUpdatePhishingLists();
       expect(controller.isOutOfDate()).toBe(true);
-      await controller.maybeUpdatePhishingLists();
+      await maybeUpdatePhisingListPromise;
       expect(controller.isOutOfDate()).toBe(false);
       clock.tick(10);
       expect(controller.isOutOfDate()).toBe(true);
