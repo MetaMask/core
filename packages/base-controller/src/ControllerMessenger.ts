@@ -1,34 +1,40 @@
-type ActionHandler<Action, ActionType> = (
+export type ActionHandler<Action, ActionType> = (
   ...args: ExtractActionParameters<Action, ActionType>
 ) => ExtractActionResponse<Action, ActionType>;
-type ExtractActionParameters<Action, T> = Action extends {
+export type ExtractActionParameters<Action, T> = Action extends {
   type: T;
   handler: (...args: infer H) => any;
 }
   ? H
   : never;
-type ExtractActionResponse<Action, T> = Action extends {
+export type ExtractActionResponse<Action, T> = Action extends {
   type: T;
   handler: (...args: any) => infer H;
 }
   ? H
   : never;
 
-type ExtractEventHandler<Event, T> = Event extends { type: T; payload: infer P }
+export type ExtractEventHandler<Event, T> = Event extends {
+  type: T;
+  payload: infer P;
+}
   ? P extends unknown[]
     ? (...payload: P) => void
     : never
   : never;
-type ExtractEventPayload<Event, T> = Event extends { type: T; payload: infer P }
+export type ExtractEventPayload<Event, T> = Event extends {
+  type: T;
+  payload: infer P;
+}
   ? P
   : never;
 
-type GenericEventHandler = (...args: unknown[]) => void;
+export type GenericEventHandler = (...args: unknown[]) => void;
 
-type SelectorFunction<Args extends unknown[], ReturnValue> = (
+export type SelectorFunction<Args extends unknown[], ReturnValue> = (
   ...args: Args
 ) => ReturnValue;
-type SelectorEventHandler<SelectorReturnValue> = (
+export type SelectorEventHandler<SelectorReturnValue> = (
   newValue: SelectorReturnValue,
   previousValue: SelectorReturnValue | undefined,
 ) => void;
