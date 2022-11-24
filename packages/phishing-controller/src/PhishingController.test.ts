@@ -104,15 +104,51 @@ describe('PhishingController', () => {
     });
 
     it('should not call update if it is out of date', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_CONFIG_FILE)
+        .reply(200, {
+          blacklist: ['this-should-not-be-in-default-blacklist.com'],
+          fuzzylist: [],
+          tolerance: 0,
+          whitelist: ['this-should-not-be-in-default-whitelist.com'],
+          version: 0,
+        })
+        .get(PHISHFORT_HOTLIST_FILE)
+        .reply(200, []);
       const clock = sinon.useFakeTimers();
       const controller = new PhishingController({ refreshInterval: 10 });
-      const updateSpy = sinon.spy(controller, 'updatePhishingLists');
       expect(controller.isOutOfDate()).toBe(false);
       await controller.maybeUpdatePhishingLists();
-      expect(updateSpy.calledOnce).toBe(false);
+      expect(
+        controller.test('this-should-not-be-in-default-blacklist.com'),
+      ).toMatchObject({
+        result: false,
+        type: 'all',
+      });
+
+      expect(
+        controller.test('this-should-not-be-in-default-whitelist.com'),
+      ).toMatchObject({
+        result: false,
+        type: 'all',
+      });
+
       clock.tick(10);
       await controller.maybeUpdatePhishingLists();
-      expect(updateSpy.calledOnce).toBe(true);
+
+      expect(
+        controller.test('this-should-not-be-in-default-blacklist.com'),
+      ).toMatchObject({
+        result: true,
+        type: 'blocklist',
+      });
+
+      expect(
+        controller.test('this-should-not-be-in-default-whitelist.com'),
+      ).toMatchObject({
+        result: false,
+        type: 'allowlist',
+      });
     });
   });
 
