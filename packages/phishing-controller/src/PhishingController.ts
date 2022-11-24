@@ -216,6 +216,12 @@ export class PhishingController extends BaseController<
     }
   }
 
+  /**
+   * Conditionally update the phishing configuration.
+   *
+   * If the phishing configuration is out of date, this function will call `updatePhishingLists`
+   * to update the configuration.
+   */
   async maybeUpdatePhishingLists() {
     const phishingListsAreOutOfDate = this.isOutOfDate();
     if (phishingListsAreOutOfDate) {
