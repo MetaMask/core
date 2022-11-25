@@ -70,6 +70,22 @@ describe('PhishingController', () => {
   });
 
   describe('maybeUpdatePhishingLists', () => {
+    let nockScope: nock.Scope;
+
+    beforeEach(() => {
+      nockScope = nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_CONFIG_FILE)
+        .reply(200, {
+          blacklist: ['this-should-not-be-in-default-blacklist.com'],
+          fuzzylist: [],
+          tolerance: 0,
+          whitelist: ['this-should-not-be-in-default-whitelist.com'],
+          version: 0,
+        })
+        .get(PHISHFORT_HOTLIST_FILE)
+        .reply(200, []);
+    });
+
     it('should not be out of date immediately after maybeUpdatePhishingLists is called', async () => {
       const clock = sinon.useFakeTimers();
       const controller = new PhishingController({ refreshInterval: 10 });
@@ -77,6 +93,8 @@ describe('PhishingController', () => {
       expect(controller.isOutOfDate()).toBe(true);
       await controller.maybeUpdatePhishingLists();
       expect(controller.isOutOfDate()).toBe(false);
+
+      expect(nockScope.isDone()).toBe(true);
     });
 
     it('should not be out of date after maybeUpdatePhishingLists is called but before refresh interval has passed', async () => {
@@ -87,6 +105,7 @@ describe('PhishingController', () => {
       await controller.maybeUpdatePhishingLists();
       clock.tick(5);
       expect(controller.isOutOfDate()).toBe(false);
+      expect(nockScope.isDone()).toBe(true);
     });
 
     it('should still be out of date while update is in progress', async () => {
@@ -101,20 +120,10 @@ describe('PhishingController', () => {
       expect(controller.isOutOfDate()).toBe(false);
       clock.tick(10);
       expect(controller.isOutOfDate()).toBe(true);
+      expect(nockScope.isDone()).toBe(true);
     });
 
     it('should call update only if it is out of date, otherwise it should not call update', async () => {
-      nock(PHISHING_CONFIG_BASE_URL)
-        .get(METAMASK_CONFIG_FILE)
-        .reply(200, {
-          blacklist: ['this-should-not-be-in-default-blacklist.com'],
-          fuzzylist: [],
-          tolerance: 0,
-          whitelist: ['this-should-not-be-in-default-whitelist.com'],
-          version: 0,
-        })
-        .get(PHISHFORT_HOTLIST_FILE)
-        .reply(200, []);
       const clock = sinon.useFakeTimers();
       const controller = new PhishingController({ refreshInterval: 10 });
       expect(controller.isOutOfDate()).toBe(false);
@@ -149,6 +158,8 @@ describe('PhishingController', () => {
         result: false,
         type: 'allowlist',
       });
+
+      expect(nockScope.isDone()).toBe(true);
     });
   });
 
