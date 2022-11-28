@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [1.0.1]
-### Uncategorized
+### Fixed
 - Fix race condition where some token detections can get mistakenly added to the wrong account ([#956](https://github.com/MetaMask/controllers/pull/956))
 
 ## [1.0.0]

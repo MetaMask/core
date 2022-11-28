@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [1.1.0]
-### Uncategorized
-- Export action and event handler types ([#987](https://github.com/MetaMask/controllers/pull/987))
-- Add `applyPatches` function to BaseControllerV2 ([#980](https://github.com/MetaMask/controllers/pull/980))
+### Added
+- `update` function updated to expose patches, added `applyPatches` function to BaseControllerV2 ([#980](https://github.com/MetaMask/controllers/pull/980))
+
+### Changed
+- Action and event handler types are now exported ([#987](https://github.com/MetaMask/controllers/pull/987))
 
 ## [1.0.0]
 ### Added
