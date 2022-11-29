@@ -55,7 +55,7 @@ This is a monorepo that houses multiple packages published under the `@metamask`
 
 ### Testing and Linting
 
-Run `yarn test` to run tests for all packages. Run `yarn workspace <package-name> run test` to run tests for a single package (where `<package-name>` is the published name of a package, e.g. `@metamask/announcement-controller`, not its location within the monorepo, e.g. `packages/announcement-controller`).
+Run `yarn test` to run tests for all packages. Run `yarn workspace <package-name> run test` to run tests for a single package (where `<package-name>` is the `name` field in its `package.json`, e.g. `@metamask/announcement-controller` rather than its location within the monorepo `packages/announcement-controller`).
 
 Run `yarn lint` to lint all files and show possible violations, or run `yarn lint:fix` to fix any automatically fixable violations.
 
