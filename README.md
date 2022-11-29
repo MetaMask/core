@@ -4,7 +4,7 @@ A collection of platform-agnostic modules for creating secure data models for cr
 
 ## Modules
 
-This repo houses the following packages, which you can examine for installation and usage instructions:
+This repository houses the following packages:
 
 - [`@metamask/address-book-controller`](packages/address-book-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
