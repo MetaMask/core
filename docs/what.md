@@ -4,8 +4,7 @@ If you've come here from the [README](../README.md), you already know that this 
 
 The short answer is that it's our solution to managing and disseminating state changes within our products.
 
-Every application needs to manage state. Some state is temporary. Perhaps the
-user is on a screen which keeps track of whether a button is clickable/tappable depending on whether a request is taking place; but as soon as the user leaves that screen, that information is discarded. But some state is more permanent. Perhaps a screen needs to reuse information that was gathered on a previous screen, in which case the state is cached in memory; or perhaps the entire application needs to load all of the user's data when it starts, in which case the state is persisted to disk. Either way, we need a place to store that state, and that's where controllers come into play.
+Every application needs to manage state. Some state is temporary. Perhaps the user is on a screen which keeps track of whether a button is clickable/tappable depending on whether a request is taking place; but as soon as the user leaves that screen, that information is discarded. But some state is more permanent. Perhaps a screen needs to reuse information that was gathered on a previous screen, in which case the state is cached in memory; or perhaps the entire application needs to load all of the user's data when it starts, in which case the state is persisted to disk. Either way, we need a place to store that state, and that's where controllers come into play.
 
 Currently, there are two styles of creating controllers which we've dubbed [BaseController v1](../packages/base-controller/src/BaseController.ts) and [BaseController v2](../packages/base-controller/src/BaseControllerV2.ts). Both versions offer the same set of basic functionality:
 
