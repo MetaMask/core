@@ -69,6 +69,100 @@ describe('PhishingController', () => {
     expect(nockScope.isDone()).toBe(false);
   });
 
+  describe('maybeUpdatePhishingLists', () => {
+    let nockScope: nock.Scope;
+
+    beforeEach(() => {
+      nockScope = nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_CONFIG_FILE)
+        .reply(200, {
+          blacklist: ['this-should-not-be-in-default-blacklist.com'],
+          fuzzylist: [],
+          tolerance: 0,
+          whitelist: ['this-should-not-be-in-default-whitelist.com'],
+          version: 0,
+        })
+        .get(PHISHFORT_HOTLIST_FILE)
+        .reply(200, []);
+    });
+
+    it('should not be out of date immediately after maybeUpdatePhishingLists is called', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      clock.tick(10);
+      expect(controller.isOutOfDate()).toBe(true);
+      await controller.maybeUpdatePhishingLists();
+      expect(controller.isOutOfDate()).toBe(false);
+
+      expect(nockScope.isDone()).toBe(true);
+    });
+
+    it('should not be out of date after maybeUpdatePhishingLists is called but before refresh interval has passed', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      clock.tick(10);
+      expect(controller.isOutOfDate()).toBe(true);
+      await controller.maybeUpdatePhishingLists();
+      clock.tick(5);
+      expect(controller.isOutOfDate()).toBe(false);
+      expect(nockScope.isDone()).toBe(true);
+    });
+
+    it('should still be out of date while update is in progress', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      clock.tick(10);
+      // do not wait
+      const maybeUpdatePhisingListPromise =
+        controller.maybeUpdatePhishingLists();
+      expect(controller.isOutOfDate()).toBe(true);
+      await maybeUpdatePhisingListPromise;
+      expect(controller.isOutOfDate()).toBe(false);
+      clock.tick(10);
+      expect(controller.isOutOfDate()).toBe(true);
+      expect(nockScope.isDone()).toBe(true);
+    });
+
+    it('should call update only if it is out of date, otherwise it should not call update', async () => {
+      const clock = sinon.useFakeTimers();
+      const controller = new PhishingController({ refreshInterval: 10 });
+      expect(controller.isOutOfDate()).toBe(false);
+      await controller.maybeUpdatePhishingLists();
+      expect(
+        controller.test('this-should-not-be-in-default-blacklist.com'),
+      ).toMatchObject({
+        result: false,
+        type: 'all',
+      });
+
+      expect(
+        controller.test('this-should-not-be-in-default-whitelist.com'),
+      ).toMatchObject({
+        result: false,
+        type: 'all',
+      });
+
+      clock.tick(10);
+      await controller.maybeUpdatePhishingLists();
+
+      expect(
+        controller.test('this-should-not-be-in-default-blacklist.com'),
+      ).toMatchObject({
+        result: true,
+        type: 'blocklist',
+      });
+
+      expect(
+        controller.test('this-should-not-be-in-default-whitelist.com'),
+      ).toMatchObject({
+        result: false,
+        type: 'allowlist',
+      });
+
+      expect(nockScope.isDone()).toBe(true);
+    });
+  });
+
   describe('isOutOfDate', () => {
     it('should not be out of date upon construction', () => {
       sinon.useFakeTimers();
