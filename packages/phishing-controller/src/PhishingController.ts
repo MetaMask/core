@@ -83,6 +83,7 @@ export interface PhishingConfig extends BaseConfig {
 export interface PhishingState extends BaseState {
   phishing: EthPhishingDetectConfig[];
   whitelist: string[];
+  lastFetched: number;
 }
 
 export const PHISHING_CONFIG_BASE_URL =
@@ -103,8 +104,6 @@ export class PhishingController extends BaseController<
   PhishingState
 > {
   private detector: any;
-
-  private lastFetched = 0;
 
   #inProgressUpdate: Promise<void> | undefined;
 
@@ -140,9 +139,11 @@ export class PhishingController extends BaseController<
         },
       ],
       whitelist: [],
+      lastFetched: 0,
     };
-    this.detector = new PhishingDetector(this.defaultState.phishing);
+
     this.initialize();
+    this.detector = new PhishingDetector(this.state.phishing);
   }
 
   /**
@@ -160,7 +161,7 @@ export class PhishingController extends BaseController<
    * @returns Whether an update is needed
    */
   isOutOfDate() {
-    return Date.now() - this.lastFetched >= this.config.refreshInterval;
+    return Date.now() - this.state.lastFetched >= this.config.refreshInterval;
   }
 
   /**
@@ -216,6 +217,19 @@ export class PhishingController extends BaseController<
   }
 
   /**
+   * Conditionally update the phishing configuration.
+   *
+   * If the phishing configuration is out of date, this function will call `updatePhishingLists`
+   * to update the configuration.
+   */
+  async maybeUpdatePhishingLists() {
+    const phishingListsAreOutOfDate = this.isOutOfDate();
+    if (phishingListsAreOutOfDate) {
+      await this.updatePhishingLists();
+    }
+  }
+
+  /**
    * Update the phishing configuration.
    *
    * This should only be called from the `updatePhishingLists` function, which is a wrapper around
@@ -238,7 +252,9 @@ export class PhishingController extends BaseController<
     } finally {
       // Set `lastFetched` even for failed requests to prevent server from being overwhelmed with
       // traffic after a network disruption.
-      this.lastFetched = Date.now();
+      this.update({
+        lastFetched: Date.now(),
+      });
     }
 
     // Correctly shaping MetaMask config.
