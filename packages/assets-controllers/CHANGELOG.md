@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1]
+### Fixed
+- Fix race condition where some token detections can get mistakenly added to the wrong account ([#956](https://github.com/MetaMask/controllers/pull/956))
+
 ## [1.0.0]
 ### Added
 - Initial release
@@ -18,5 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/controllers/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@1.0.1...HEAD
+[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@1.0.0...@metamask/assets-controllers@1.0.1
 [1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/assets-controllers@1.0.0
