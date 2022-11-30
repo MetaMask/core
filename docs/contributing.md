@@ -39,7 +39,7 @@ If you're a MetaMask engineer, you can create these preview versions via draft p
 5. Switch back to your project locally and update `package.json` by replacing the versions for the packages you've changed in your PR using the new version format (e.g. `1.2.3-e2df9b4` instead of `~1.2.3`), then run `yarn install`.
 6. Repeat steps 3-5 after pushing new changes to your PR to generate and use new preview versions.
 
-#### As an external contributor
+#### As an independent contributor
 
 If you're a contributor and you've forked this repository, you can create preview versions for a branch (or any arbitrary commit) via scripts:
 
