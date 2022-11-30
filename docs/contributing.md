@@ -23,7 +23,7 @@
 
 When developing changes to packages within this repository that a different project depends upon, you may wish to load those changes into the project and test them locally or in CI before publishing proper releases of those packages. To solve that problem, this repository provides a mechanism to publish "preview" versions of packages to GitHub Package Registry. These versions can then be used in the project like any other version, provided the project is configured to use that registry.
 
-#### As a MetaMask engineer
+#### As a MetaMask contributor
 
 If you're a MetaMask engineer, you can create these preview versions via draft pull requests:
 
