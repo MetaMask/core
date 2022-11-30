@@ -1,5 +1,5 @@
 import nock from 'nock';
-import { NetworkState } from '@metamask/controllers';
+import { NetworkState } from '@metamask/network-controller';
 import SmartTransactionsController, {
   DEFAULT_INTERVAL,
 } from './SmartTransactionsController';

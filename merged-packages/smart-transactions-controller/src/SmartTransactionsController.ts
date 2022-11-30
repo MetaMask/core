@@ -2,9 +2,9 @@ import {
   BaseConfig,
   BaseController,
   BaseState,
-  NetworkState,
-  util,
-} from '@metamask/controllers';
+} from '@metamask/base-controller';
+import { safelyExecute } from '@metamask/controller-utils';
+import { NetworkState } from '@metamask/network-controller';
 import { BigNumber } from 'bignumber.js';
 import { BigNumber as ethersBigNumber } from '@ethersproject/bignumber';
 import { Web3Provider } from '@ethersproject/providers';
@@ -35,8 +35,6 @@ import {
   incrementNonceInHex,
 } from './utils';
 import { CHAIN_IDS } from './constants';
-
-const { safelyExecute } = util;
 
 const SECOND = 1000;
 export const DEFAULT_INTERVAL = SECOND * 5;
