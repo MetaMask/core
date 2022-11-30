@@ -8,9 +8,9 @@
 - Run `yarn install` to install dependencies and run any required post-install scripts.
 - Run `yarn simple-git-hooks` to add a [Git hook](https://github.com/toplenboren/simple-git-hooks#what-is-a-git-hook) to your local development environment which will ensure that all files pass linting before you push a branch.
 
-### Testing
+## Testing
 
-#### Running unit tests
+### Running unit tests
 
 - Run `yarn workspace <workspaceName> run test` to run all tests for a package.
 - Run `yarn workspace <workspaceName> run jest --no-coverage <file>` to run a test file within the context of a package.
@@ -19,7 +19,7 @@
 > **Note**  
 > `workspaceName` here is the `name` field within a package's `package.json`, e.g., `@metamask/announcement-controller`, not the directory where it is located, e.g., `packages/announcement-controller`.
 
-#### Integrating with other projects
+### Integrating with other projects
 
 When developing changes to packages within this repository that a different project depends upon, you may wish to load those changes into the project and test them locally or in CI before publishing proper releases of those packages. To solve that problem, this repository provides a mechanism to publish "preview" versions of packages to GitHub Package Registry. These versions can then be used in the project like any other version, provided the project is configured to use that registry.
 
@@ -53,13 +53,13 @@ When developing changes to packages within this repository that a different proj
 7. If you make any new changes to your project, repeat steps 3-5 to generate and use new preview versions.
 8. As changes will have been made to this repository due to steps 4-5, make sure to clear out those changes after you've completed testing.
 
-### Linting
+## Linting
 
 Run `yarn lint` to lint all files and show possible violations.
 
 Run `yarn lint:fix` to fix any automatically fixable violations.
 
-### Performing operations across the monorepo
+## Performing operations across the monorepo
 
 This repository relies on Yarn's [workspaces feature](https://yarnpkg.com/features/workspaces) to provide a way to work with packages individually and collectively. Refer to the documentation for the following Yarn commands for more information:
 
@@ -69,7 +69,7 @@ This repository relies on Yarn's [workspaces feature](https://yarnpkg.com/featur
 > **Note**  
 > `workspaceName` in the Yarn documentation is the `name` field within a package's `package.json`, e.g., `@metamask/announcement-controller`, not the directory where it is located, e.g., `packages/announcement-controller`.
 
-### Releasing
+## Releasing
 
 The [`create-release-branch`](https://github.com/MetaMask/create-release-branch) tool and [`action-publish-release`](https://github.com/MetaMask/action-publish-release) GitHub action are used to automate the release process.
 
