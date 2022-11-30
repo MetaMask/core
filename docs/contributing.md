@@ -1,6 +1,6 @@
 # Contributing to the monorepo
 
-### Getting started
+## Getting started
 
 - Install [Node.js](https://nodejs.org) version 14.
   - If you're using [NVM](https://github.com/creationix/nvm#installation) (recommended), `nvm use` will ensure that the right version is installed.
