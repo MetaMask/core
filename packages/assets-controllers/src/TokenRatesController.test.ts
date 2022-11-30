@@ -453,7 +453,7 @@ describe('TokenRatesController', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await networkChangeListener!({
-      provider: { chainId: '4' },
+      providerConfig: { chainId: '4' },
     });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion

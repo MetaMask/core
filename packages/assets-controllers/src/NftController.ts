@@ -952,8 +952,8 @@ export class NftController extends BaseController<NftConfig, NftState> {
       },
     );
 
-    onNetworkStateChange(({ provider }) => {
-      const { chainId } = provider;
+    onNetworkStateChange(({ providerConfig }) => {
+      const { chainId } = providerConfig;
       this.configure({ chainId });
     });
   }

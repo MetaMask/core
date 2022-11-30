@@ -10,7 +10,7 @@ import { safelyExecute } from '@metamask/controller-utils';
 import type {
   NetworkControllerGetEthQueryAction,
   NetworkControllerGetProviderConfigAction,
-  NetworkControllerProviderChangeEvent,
+  NetworkControllerProviderConfigChangeEvent,
   NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
@@ -216,10 +216,10 @@ type GasFeeMessenger = RestrictedControllerMessenger<
   | GetGasFeeState
   | NetworkControllerGetProviderConfigAction
   | NetworkControllerGetEthQueryAction,
-  GasFeeStateChange | NetworkControllerProviderChangeEvent,
+  GasFeeStateChange | NetworkControllerProviderConfigChangeEvent,
   | NetworkControllerGetProviderConfigAction['type']
   | NetworkControllerGetEthQueryAction['type'],
-  NetworkControllerProviderChangeEvent['type']
+  NetworkControllerProviderConfigChangeEvent['type']
 >;
 
 const defaultState: GasFeeState = {
@@ -353,14 +353,14 @@ export class GasFeeController extends BaseControllerV2<
       );
 
       this.messagingSystem.subscribe(
-        'NetworkController:providerChange',
-        async (provider) => {
+        'NetworkController:providerConfigChange',
+        async (newProviderConfig) => {
           this.ethQuery = this.messagingSystem.call(
             'NetworkController:getEthQuery',
           );
 
-          if (this.currentChainId !== provider.chainId) {
-            this.currentChainId = provider.chainId;
+          if (this.currentChainId !== newProviderConfig.chainId) {
+            this.currentChainId = newProviderConfig.chainId;
             await this.resetPolling();
           }
         },

@@ -53,7 +53,7 @@ export type NetworkProperties = {
 export type NetworkState = {
   network: string;
   isCustomNetwork: boolean;
-  provider: ProviderConfig;
+  providerConfig: ProviderConfig;
   properties: NetworkProperties;
 };
 
@@ -68,8 +68,8 @@ export type NetworkControllerStateChangeEvent = {
   payload: [NetworkState, Patch[]];
 };
 
-export type NetworkControllerProviderChangeEvent = {
-  type: `NetworkController:providerChange`;
+export type NetworkControllerProviderConfigChangeEvent = {
+  type: `NetworkController:providerConfigChange`;
   payload: [ProviderConfig];
 };
 
@@ -86,7 +86,8 @@ export type NetworkControllerGetEthQueryAction = {
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
   NetworkControllerGetProviderConfigAction | NetworkControllerGetEthQueryAction,
-  NetworkControllerStateChangeEvent | NetworkControllerProviderChangeEvent,
+  | NetworkControllerStateChangeEvent
+  | NetworkControllerProviderConfigChangeEvent,
   string,
   string
 >;
@@ -100,7 +101,7 @@ export type NetworkControllerOptions = {
 const defaultState: NetworkState = {
   network: 'loading',
   isCustomNetwork: false,
-  provider: { type: MAINNET, chainId: NetworksChainId.mainnet },
+  providerConfig: { type: MAINNET, chainId: NetworksChainId.mainnet },
   properties: { isEIP1559Compatible: false },
 };
 
@@ -136,7 +137,7 @@ export class NetworkController extends BaseControllerV2<
           persist: true,
           anonymous: false,
         },
-        provider: {
+        providerConfig: {
           persist: true,
           anonymous: false,
         },
@@ -148,7 +149,7 @@ export class NetworkController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${this.name}:getProviderConfig`,
       () => {
-        return this.state.provider;
+        return this.state.providerConfig;
       },
     );
 
@@ -197,7 +198,7 @@ export class NetworkController extends BaseControllerV2<
       state.network = 'loading';
       state.properties = {};
     });
-    const { rpcTarget, type, chainId, ticker } = this.state.provider;
+    const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId, ticker);
     this.lookupNetwork();
   }
@@ -286,7 +287,8 @@ export class NetworkController extends BaseControllerV2<
    */
   set providerConfig(providerConfig: ProviderConfig) {
     this.internalProviderConfig = providerConfig;
-    const { type, rpcTarget, chainId, ticker, nickname } = this.state.provider;
+    const { type, rpcTarget, chainId, ticker, nickname } =
+      this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
     this.registerProvider();
     this.lookupNetwork();
@@ -320,8 +322,8 @@ export class NetworkController extends BaseControllerV2<
           });
 
           this.messagingSystem.publish(
-            `NetworkController:providerChange`,
-            this.state.provider,
+            `NetworkController:providerConfigChange`,
+            this.state.providerConfig,
           );
         } finally {
           releaseLock();
@@ -344,11 +346,11 @@ export class NetworkController extends BaseControllerV2<
         : 'ETH';
 
     this.update((state) => {
-      state.provider.type = type;
-      state.provider.ticker = ticker;
-      state.provider.chainId = NetworksChainId[type];
-      state.provider.rpcTarget = undefined;
-      state.provider.nickname = undefined;
+      state.providerConfig.type = type;
+      state.providerConfig.ticker = ticker;
+      state.providerConfig.chainId = NetworksChainId[type];
+      state.providerConfig.rpcTarget = undefined;
+      state.providerConfig.nickname = undefined;
     });
     this.refreshNetwork();
   }
@@ -368,11 +370,11 @@ export class NetworkController extends BaseControllerV2<
     nickname?: string,
   ) {
     this.update((state) => {
-      state.provider.type = RPC;
-      state.provider.rpcTarget = rpcTarget;
-      state.provider.chainId = chainId;
-      state.provider.ticker = ticker;
-      state.provider.nickname = nickname;
+      state.providerConfig.type = RPC;
+      state.providerConfig.rpcTarget = rpcTarget;
+      state.providerConfig.chainId = chainId;
+      state.providerConfig.ticker = ticker;
+      state.providerConfig.nickname = nickname;
     });
     this.refreshNetwork();
   }

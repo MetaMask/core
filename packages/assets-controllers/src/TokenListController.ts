@@ -7,7 +7,7 @@ import {
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import {
-  NetworkControllerProviderChangeEvent,
+  NetworkControllerProviderConfigChangeEvent,
   NetworkState,
   ProviderConfig,
 } from '@metamask/network-controller';
@@ -62,9 +62,10 @@ export type GetTokenListState = {
 type TokenListMessenger = RestrictedControllerMessenger<
   typeof name,
   GetTokenListState,
-  TokenListStateChange | NetworkControllerProviderChangeEvent,
+  TokenListStateChange | NetworkControllerProviderConfigChangeEvent,
   never,
-  TokenListStateChange['type'] | NetworkControllerProviderChangeEvent['type']
+  | TokenListStateChange['type']
+  | NetworkControllerProviderConfigChangeEvent['type']
 >;
 
 const metadata = {
@@ -146,9 +147,9 @@ export class TokenListController extends BaseControllerV2<
         // this check for "provider" is for testing purposes, since in the extension this callback will receive
         // an object typed as NetworkState but within repo we can only simulate as if the callback receives an
         // object typed as ProviderConfig
-        if ('provider' in networkStateOrProviderConfig) {
+        if ('providerConfig' in networkStateOrProviderConfig) {
           await this.#onNetworkStateChangeCallback(
-            networkStateOrProviderConfig.provider,
+            networkStateOrProviderConfig.providerConfig,
           );
         } else {
           await this.#onNetworkStateChangeCallback(
@@ -158,7 +159,7 @@ export class TokenListController extends BaseControllerV2<
       });
     } else {
       this.messagingSystem.subscribe(
-        'NetworkController:providerChange',
+        'NetworkController:providerConfigChange',
         async (providerConfig) => {
           await this.#onNetworkStateChangeCallback(providerConfig);
         },

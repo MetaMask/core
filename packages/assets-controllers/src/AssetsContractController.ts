@@ -114,9 +114,9 @@ export class AssetsContractController extends BaseController<
     });
 
     onNetworkStateChange((networkState) => {
-      if (this.config.chainId !== networkState.provider.chainId) {
+      if (this.config.chainId !== networkState.providerConfig.chainId) {
         this.configure({
-          chainId: networkState.provider.chainId,
+          chainId: networkState.providerConfig.chainId,
         });
       }
     });
