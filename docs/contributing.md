@@ -23,7 +23,9 @@
 
 When developing changes to packages within this repository that a different project depends upon, you may wish to load those changes into the project and test them locally or in CI before publishing proper releases of those packages. To solve that problem, this repository provides a mechanism to publish "preview" versions of packages to GitHub Package Registry. These versions can then be used in the project like any other version, provided the project is configured to use that registry.
 
-**If you're a MetaMask engineer,** you can create these preview versions via draft pull requests:
+#### As a MetaMask engineer
+
+If you're a MetaMask engineer, you can create these preview versions via draft pull requests:
 
 1. Navigate to your settings within GitHub and [create a classic access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `packages:read` scope.
 2. Switch to your project locally and add a `.npmrc` file with the following content, filling in the appropriate areas:
@@ -37,7 +39,9 @@ When developing changes to packages within this repository that a different proj
 5. Switch back to your project locally and update `package.json` by replacing the versions for the packages you've changed in your PR using the new version format (e.g. `1.2.3-e2df9b4` instead of `~1.2.3`), then run `yarn install`.
 6. Repeat steps 3-5 after pushing new changes to your PR to generate and use new preview versions.
 
-**If you're a contributor** and you've forked this repository, you can create preview versions for a branch (or any arbitrary commit) via scripts:
+#### As an external contributor
+
+If you're a contributor and you've forked this repository, you can create preview versions for a branch (or any arbitrary commit) via scripts:
 
 1. Navigate to your settings within GitHub and [create a **classic** access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `packages:read` scope.
 2. Switch to your project locally and add a `.npmrc` file with the following content, filling in the appropriate areas:
