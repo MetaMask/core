@@ -40,7 +40,7 @@ describe('TokensController', () => {
       name: 'NetworkController',
       allowedEvents: [
         'NetworkController:stateChange',
-        'NetworkController:providerChange',
+        'NetworkController:providerConfigChange',
       ],
       allowedActions: [],
     });
@@ -55,7 +55,7 @@ describe('TokensController', () => {
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', (state, patch) => {
           const touchesProviderConfig = patch.find(
-            (p) => p.path[0] === 'provider',
+            (p) => p.path[0] === 'providerConfig',
           );
           if (touchesProviderConfig) {
             listener(state);
@@ -346,7 +346,7 @@ describe('TokensController', () => {
     preferences.update({ selectedAddress: address });
     expect(preferences.state.selectedAddress).toStrictEqual(address);
     network.setProviderType(networkType);
-    expect(network.state.provider.type).toStrictEqual(networkType);
+    expect(network.state.providerConfig.type).toStrictEqual(networkType);
   });
 
   describe('ignoredTokens', () => {

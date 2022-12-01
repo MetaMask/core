@@ -4,7 +4,7 @@ import { BN } from 'ethereumjs-util';
 import {
   NetworkController,
   NetworkControllerMessenger,
-  NetworkControllerProviderChangeEvent,
+  NetworkControllerProviderConfigChangeEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import { NetworksChainId, MAINNET } from '@metamask/controller-utils';
@@ -86,7 +86,7 @@ const sampleTokenB: Token = {
 type MainControllerMessenger = ControllerMessenger<
   GetTokenListState,
   | TokenListStateChange
-  | NetworkControllerProviderChangeEvent
+  | NetworkControllerProviderConfigChangeEvent
   | NetworkControllerStateChangeEvent
 >;
 
@@ -100,7 +100,7 @@ const setupNetworkController = (
   const networkMessenger = controllerMessenger.getRestricted({
     name: 'NetworkController',
     allowedEvents: [
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
       'NetworkController:stateChange',
     ],
     allowedActions: [],
@@ -122,7 +122,7 @@ const setupTokenListController = (
     allowedActions: [],
     allowedEvents: [
       'TokenListController:stateChange',
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     ],
   });
 
@@ -468,7 +468,7 @@ describe('TokenDetectionController', () => {
     tokenDetection.stop();
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await networkStateChangeListener!({
-      provider: { chainId: polygonDecimalChainId },
+      providerConfig: { chainId: polygonDecimalChainId },
     });
 
     expect(getBalancesInSingleCallMock.called).toBe(false);
@@ -572,7 +572,7 @@ describe('TokenDetectionController', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await networkStateChangeListener!({
-      provider: { chainId: NetworksChainId.mainnet },
+      providerConfig: { chainId: NetworksChainId.mainnet },
     });
 
     expect(getBalancesInSingleCallMock.called).toBe(true);

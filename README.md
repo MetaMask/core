@@ -9,7 +9,7 @@ This repository houses the following packages:
 - [`@metamask/address-book-controller`](packages/address-book-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
-- [`@metamask/assets-controller`](packages/assets-controller)
+- [`@metamask/assets-controllers`](packages/assets-controllers)
 - [`@metamask/base-controller`](packages/base-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)

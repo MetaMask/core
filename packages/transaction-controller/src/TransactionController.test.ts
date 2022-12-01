@@ -134,7 +134,7 @@ const MOCK_NETWORK = {
     network: '3',
     isCustomNetwork: false,
     properties: { isEIP1559Compatible: false },
-    provider: {
+    providerConfig: {
       type: 'ropsten' as NetworkType,
       chainId: NetworksChainId.ropsten,
     },
@@ -147,7 +147,7 @@ const MOCK_NETWORK_CUSTOM = {
     network: '10',
     isCustomNetwork: true,
     properties: { isEIP1559Compatible: false },
-    provider: {
+    providerConfig: {
       type: 'rpc' as NetworkType,
       chainId: '10',
     },
@@ -157,7 +157,7 @@ const MOCK_NETWORK_CUSTOM = {
 const MOCK_NETWORK_WITHOUT_CHAIN_ID = {
   getProvider: () => PROVIDER,
   isCustomNetwork: false,
-  state: { network: '3', provider: { type: 'ropsten' as NetworkType } },
+  state: { network: '3', providerConfig: { type: 'ropsten' as NetworkType } },
   subscribe: () => undefined,
 };
 const MOCK_MAINNET_NETWORK = {
@@ -166,7 +166,7 @@ const MOCK_MAINNET_NETWORK = {
     network: '1',
     isCustomNetwork: false,
     properties: { isEIP1559Compatible: false },
-    provider: {
+    providerConfig: {
       type: 'mainnet' as NetworkType,
       chainId: NetworksChainId.mainnet,
     },
@@ -179,7 +179,7 @@ const MOCK_CUSTOM_NETWORK = {
     network: '80001',
     isCustomNetwork: true,
     properties: { isEIP1559Compatible: false },
-    provider: {
+    providerConfig: {
       type: 'rpc' as NetworkType,
       chainId: '80001',
     },
@@ -507,7 +507,7 @@ describe('TransactionController', () => {
     );
 
     expect(controller.state.transactions[0].chainId).toBe(
-      MOCK_NETWORK.state.provider.chainId,
+      MOCK_NETWORK.state.providerConfig.chainId,
     );
 
     expect(controller.state.transactions[0].status).toBe(
@@ -546,7 +546,7 @@ describe('TransactionController', () => {
     );
 
     expect(controller.state.transactions[0].chainId).toBe(
-      MOCK_MAINNET_NETWORK.state.provider.chainId,
+      MOCK_MAINNET_NETWORK.state.providerConfig.chainId,
     );
 
     expect(controller.state.transactions[0].status).toBe(
@@ -585,7 +585,7 @@ describe('TransactionController', () => {
     );
 
     expect(controller.state.transactions[0].chainId).toBe(
-      MOCK_NETWORK_CUSTOM.state.provider.chainId,
+      MOCK_NETWORK_CUSTOM.state.providerConfig.chainId,
     );
 
     expect(controller.state.transactions[0].status).toBe(

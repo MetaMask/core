@@ -105,7 +105,7 @@ export class TokenDetectionController extends BaseController<
     state?: Partial<BaseState>,
   ) {
     const {
-      provider: { chainId: defaultChainId },
+      providerConfig: { chainId: defaultChainId },
     } = getNetworkState();
     const { useTokenDetection: defaultUseTokenDetection } =
       getPreferencesState();
@@ -159,7 +159,7 @@ export class TokenDetectionController extends BaseController<
       }
     });
 
-    onNetworkStateChange(({ provider: { chainId } }) => {
+    onNetworkStateChange(({ providerConfig: { chainId } }) => {
       const { chainId: currentChainId } = this.config;
       const isDetectionEnabledForNetwork =
         isTokenDetectionSupportedForNetwork(chainId);

@@ -3,7 +3,7 @@ import nock from 'nock';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   NetworkController,
-  NetworkControllerProviderChangeEvent,
+  NetworkControllerProviderConfigChangeEvent,
 } from '@metamask/network-controller';
 import { NetworksChainId } from '@metamask/controller-utils';
 import {
@@ -473,7 +473,7 @@ const expiredCacheExistingState: TokenListState = {
 
 type MainControllerMessenger = ControllerMessenger<
   GetTokenListState,
-  TokenListStateChange | NetworkControllerProviderChangeEvent
+  TokenListStateChange | NetworkControllerProviderConfigChangeEvent
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {
@@ -485,7 +485,7 @@ const setupNetworkController = (
 ) => {
   const networkMessenger = controllerMessenger.getRestricted({
     name: 'NetworkController',
-    allowedEvents: ['NetworkController:providerChange'],
+    allowedEvents: ['NetworkController:providerConfigChange'],
     allowedActions: [],
   });
 
@@ -505,7 +505,7 @@ const getRestrictedMessenger = (
     allowedActions: [],
     allowedEvents: [
       'TokenListController:stateChange',
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     ],
   });
 
@@ -536,7 +536,7 @@ describe('TokenListController', () => {
 
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -586,7 +586,7 @@ describe('TokenListController', () => {
 
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -607,7 +607,7 @@ describe('TokenListController', () => {
 
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -627,7 +627,7 @@ describe('TokenListController', () => {
 
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -645,7 +645,7 @@ describe('TokenListController', () => {
       chainId: NetworksChainId.mainnet,
       onNetworkStateChange: (callback) =>
         controllerMessenger.subscribe(
-          'NetworkController:providerChange',
+          'NetworkController:providerConfigChange',
           callback,
         ),
       preventPollingOnNetworkRestart: false,
@@ -663,7 +663,7 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual({});
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -692,7 +692,7 @@ describe('TokenListController', () => {
 
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -723,7 +723,7 @@ describe('TokenListController', () => {
 
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -758,7 +758,7 @@ describe('TokenListController', () => {
     expect(tokenListMock.calledThrice).toBe(true);
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -784,7 +784,7 @@ describe('TokenListController', () => {
     expect(tokenListMock.called).toBe(true);
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -812,7 +812,7 @@ describe('TokenListController', () => {
     controller.destroy();
     tokenListMock.restore();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -852,7 +852,7 @@ describe('TokenListController', () => {
       );
       controller.destroy();
       controllerMessenger.clearEventSubscriptions(
-        'NetworkController:providerChange',
+        'NetworkController:providerConfigChange',
       );
     } finally {
       controller.destroy();
@@ -892,7 +892,7 @@ describe('TokenListController', () => {
     );
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -919,7 +919,7 @@ describe('TokenListController', () => {
     );
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -966,7 +966,7 @@ describe('TokenListController', () => {
     ).toStrictEqual(sampleWithDuplicateSymbolsTokensChainsCache);
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -994,7 +994,7 @@ describe('TokenListController', () => {
     ).toStrictEqual(sampleWith3OrMoreOccurrences);
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -1026,7 +1026,7 @@ describe('TokenListController', () => {
     );
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -1061,7 +1061,7 @@ describe('TokenListController', () => {
     );
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -1127,7 +1127,7 @@ describe('TokenListController', () => {
 
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -1149,7 +1149,7 @@ describe('TokenListController', () => {
 
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
-      'NetworkController:providerChange',
+      'NetworkController:providerConfigChange',
     );
   });
 
@@ -1206,7 +1206,7 @@ describe('TokenListController', () => {
         messenger.clearEventSubscriptions('TokenListController:stateChange');
         controller.destroy();
         controllerMessenger.clearEventSubscriptions(
-          'NetworkController:providerChange',
+          'NetworkController:providerConfigChange',
         );
         resolve();
       });
