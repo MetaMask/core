@@ -254,7 +254,10 @@ export class TokensController extends BaseController<
     });
   }
 
-  _instantiateNewEthersProvider(): any {
+  _instantiateNewEthersProvider(): Web3Provider | undefined {
+    if (this.config.provider === undefined) {
+      return undefined;
+    }
     return new Web3Provider(this.config?.provider);
   }
 

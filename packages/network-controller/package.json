@@ -31,17 +31,21 @@
   "dependencies": {
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
+    "@metamask/eth-json-rpc-infura": "^7.0.0",
     "@metamask/swappable-obj-proxy": "^2.1.0",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
+    "eth-block-tracker": "^6.1.0",
     "eth-json-rpc-infura": "^5.1.0",
+    "eth-json-rpc-middleware": "^9.0.1",
     "eth-query": "^2.1.2",
     "immer": "^9.0.6",
-    "web3-provider-engine": "^16.0.3"
+    "json-rpc-engine": "^6.1.0"
   },
   "devDependencies": {
     "@json-rpc-specification/meta-schema": "^1.0.6",
     "@metamask/auto-changelog": "^3.1.0",
+    "@metamask/safe-event-emitter": "^2.0.0",
     "@types/jest": "^26.0.22",
     "@types/lodash": "^4.14.191",
     "deepmerge": "^4.2.2",

@@ -17,6 +17,16 @@ import {
   NetworksChainId,
   NetworkType,
 } from '@metamask/controller-utils';
+import { JsonRpcEngine, JsonRpcMiddleware } from 'json-rpc-engine';
+import {
+  providerFromEngine,
+  SafeEventEmitterProvider,
+} from 'eth-json-rpc-middleware';
+import { PollingBlockTracker } from 'eth-block-tracker';
+import createInfuraClient, {
+  InfuraNetworkType,
+} from './clients/createInfuraClient';
+import createJsonRpcClient from './clients/createJsonRpcClient';
 
 /**
  * @type ProviderConfig
@@ -133,9 +143,9 @@ export class NetworkController extends BaseControllerV2<
 > {
   private ethQuery: EthQuery;
 
-  private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
-
   private infuraProjectId: string | undefined;
+
+  private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 
   private mutex = new Mutex();
 
@@ -189,8 +199,6 @@ export class NetworkController extends BaseControllerV2<
     type: NetworkType,
     rpcTarget?: string,
     chainId?: string,
-    ticker?: string,
-    nickname?: string,
   ) {
     this.update((state) => {
       state.isCustomNetwork = this.getIsCustomNetwork(chainId);
@@ -206,8 +214,7 @@ export class NetworkController extends BaseControllerV2<
         this.setupStandardProvider(LOCALHOST_RPC_URL);
         break;
       case RPC:
-        rpcTarget &&
-          this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
+        rpcTarget && this.setupStandardProvider(rpcTarget, chainId as string);
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
@@ -230,8 +237,9 @@ export class NetworkController extends BaseControllerV2<
       state.network = 'loading';
       state.networkDetails = {};
     });
-    const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
-    this.initializeProvider(type, rpcTarget, chainId, ticker);
+
+    const { rpcTarget, type, chainId } = this.state.providerConfig;
+    this.initializeProvider(type, rpcTarget, chainId);
     this.lookupNetwork();
   }
 
@@ -245,22 +253,20 @@ export class NetworkController extends BaseControllerV2<
   }
 
   private setupInfuraProvider(type: NetworkType) {
-    const infuraProvider = createInfuraProvider({
-      network: type,
-      projectId: this.infuraProjectId,
-    });
-    const infuraSubprovider = new Subprovider(infuraProvider);
-    const config = {
-      ...this.internalProviderConfig,
-      ...{
-        dataSubprovider: infuraSubprovider,
-        engineParams: {
-          blockTrackerProvider: infuraProvider,
-          pollingInterval: 12000,
-        },
-      },
-    };
-    this.updateProvider(createMetamaskProvider(config));
+    const { networkMiddleware, blockTracker } = createInfuraClient(
+      type as InfuraNetworkType,
+      this.infuraProjectId as string,
+    );
+    this.updateProvider(networkMiddleware, blockTracker);
+  }
+
+  private setupStandardProvider(rpcTarget: string, chainId?: string) {
+    const { networkMiddleware, blockTracker } = createJsonRpcClient(
+      rpcTarget,
+      chainId,
+    );
+
+    this.updateProvider(networkMiddleware, blockTracker);
   }
 
   private getIsCustomNetwork(chainId?: string) {
@@ -272,43 +278,36 @@ export class NetworkController extends BaseControllerV2<
     );
   }
 
-  private setupStandardProvider(
-    rpcTarget: string,
-    chainId?: string,
-    ticker?: string,
-    nickname?: string,
+  // extensions network controller saves a copy of the blockTracker.
+  // need to figure out if we migrate this functionality or not.
+  private updateProvider(
+    networkMiddleware: JsonRpcMiddleware<unknown, unknown>,
+    blockTracker: PollingBlockTracker,
   ) {
-    const config = {
-      ...this.internalProviderConfig,
-      ...{
-        chainId,
-        engineParams: { pollingInterval: 12000 },
-        nickname,
-        rpcUrl: rpcTarget,
-        ticker,
-      },
-    };
-    this.updateProvider(createMetamaskProvider(config));
-  }
-
-  private updateProvider(provider: Provider) {
     this.safelyStopProvider(this.#provider);
+
+    const engine = new JsonRpcEngine();
+    engine.push(networkMiddleware);
+    const provider = providerFromEngine(engine);
+
     this.#setProviderAndBlockTracker({
       provider,
-      blockTracker: provider._blockTracker,
+      blockTracker,
     });
     this.registerProvider();
   }
 
   private safelyStopProvider(provider: Provider | undefined) {
     setTimeout(() => {
-      provider?.stop();
+      provider?.removeAllListeners();
     }, 500);
   }
 
   private verifyNetwork() {
     this.state.network === 'loading' && this.lookupNetwork();
   }
+
+  blockTracker: PollingBlockTracker | undefined;
 
   /**
    * Sets a new configuration for web3-provider-engine.
@@ -319,10 +318,11 @@ export class NetworkController extends BaseControllerV2<
    */
   set providerConfig(providerConfig: ProviderConfig) {
     this.internalProviderConfig = providerConfig;
-    const { type, rpcTarget, chainId, ticker, nickname } =
-      this.state.providerConfig;
-    this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
-    this.registerProvider();
+    const { type, rpcTarget, chainId } = {
+      ...this.internalProviderConfig,
+      ...this.state.providerConfig,
+    };
+    this.initializeProvider(type, rpcTarget, chainId);
     this.lookupNetwork();
   }
 
@@ -388,7 +388,7 @@ export class NetworkController extends BaseControllerV2<
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
       type in TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL &&
-      TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
+        TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
         ? TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type]
         : 'ETH';
 

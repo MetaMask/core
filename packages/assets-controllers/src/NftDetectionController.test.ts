@@ -400,7 +400,7 @@ describe('NftDetectionController', () => {
 
     expect(
       nftController.state.allNfts[nftDetection.config.selectedAddress]?.[
-        chainId
+      chainId
       ],
     ).toBeUndefined();
   });

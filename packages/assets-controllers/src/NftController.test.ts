@@ -13,7 +13,7 @@ import {
   ERC1155,
   OPENSEA_API_URL,
   ERC721,
-  NetworksChainId,
+  NetworksChainId
 } from '@metamask/controller-utils';
 import { Network } from '@ethersproject/providers';
 import { AssetsContractController } from './AssetsContractController';
@@ -787,6 +787,7 @@ describe('NftController', () => {
 
     it('should add NFT by provider type', async () => {
       const { nftController, changeNetwork } = setupController();
+
       const { selectedAddress } = nftController.config;
       sinon
         .stub(nftController, 'getNftInformation' as any)
@@ -799,13 +800,13 @@ describe('NftController', () => {
 
       expect(
         nftController.state.allNfts[selectedAddress]?.[
-          NetworksChainId[GOERLI.type]
+        NetworksChainId[GOERLI.type]
         ],
       ).toBeUndefined();
 
       expect(
         nftController.state.allNfts[selectedAddress][
-          NetworksChainId[SEPOLIA.type]
+        NetworksChainId[SEPOLIA.type]
         ][0],
       ).toStrictEqual({
         address: '0x01',
