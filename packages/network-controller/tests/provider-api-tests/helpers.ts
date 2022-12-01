@@ -1,17 +1,20 @@
 /* eslint-disable node/no-process-env */
+import EthQuery from 'eth-query';
 import nock, { Scope as NockScope } from 'nock';
 import sinon from 'sinon';
 import {
   JSONRPCResponse,
   JSONRPCResponseResult,
 } from '@json-rpc-specification/meta-schema';
-import { ControllerMessenger } from '@metamask/base-controller';
 import { NetworkType } from '@metamask/controller-utils';
+import { JsonRpcEngine } from 'json-rpc-engine';
+import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
+import { EthQuery as TEthQuery } from '../../src/NetworkController';
 import {
-  NetworkController,
-  EthQuery,
-  NetworkControllerMessenger,
-} from '../../src/NetworkController';
+  createInfuraClient,
+  InfuraNetworkType,
+} from '../../src/clients/createInfuraClient';
+import { createJsonRpcClient } from '../../src/clients/createJsonRpcClient';
 
 /**
  * A dummy value for the `infuraProjectId` option that `createInfuraClient`
@@ -33,12 +36,11 @@ const MOCK_RPC_URL = 'http://foo.com';
  */
 const DEFAULT_LATEST_BLOCK_NUMBER = '0x42';
 
-const DEFAULT_BLOCK = {
-  baseFeePerGas: '0x7e89323d0',
-  hash: '0x4a32aed26c09820a35756b58b4b68f2613c1ee12a8d7ecb63d7313b99811ab07',
-  number: DEFAULT_LATEST_BLOCK_NUMBER,
-  timestamp: '0x63c84fb3',
-};
+/**
+ * A reference to the original `setTimeout` function so that we can use it even
+ * when using fake timers.
+ */
+const originalSetTimeout = setTimeout;
 
 /**
  * If you're having trouble writing a test and you're wondering why the test
@@ -71,68 +73,10 @@ function buildScopeForMockingRequests(rpcUrl: string) {
   });
 }
 
-type MockBlockTrackerRequestOptions = {
-  /**
-   * A nock scope (a set of mocked requests scoped to a certain base url).
-   */
-  nockScope: NockScope;
-  /**
-   * The block number that the block tracker should report, as a 0x-prefixed hex string.
-   */
-  blockNumber: string;
-
-  block: any;
-};
-
-const mockNextBlockTrackerRequest = ({
-  nockScope,
-  blockNumber = DEFAULT_LATEST_BLOCK_NUMBER,
-  block = DEFAULT_BLOCK,
-}: MockBlockTrackerRequestOptions) => {
-  // eslint-disable-next-line
-  mockRpcCall({
-    nockScope,
-    request: { method: 'eth_blockNumber', params: [] },
-    response: { result: blockNumber },
-  });
-
-  // eslint-disable-next-line
-  mockRpcCall({
-    nockScope,
-    request: { method: 'eth_getBlockByNumber', params: [blockNumber, false] },
-    response: {
-      result: { ...block, number: blockNumber, hash: `0x${Math.random()}` },
-    },
-  });
-};
-
-const mockAllBlockTrackerRequests = ({
-  nockScope,
-  blockNumber = DEFAULT_LATEST_BLOCK_NUMBER,
-  block = DEFAULT_BLOCK,
-}: MockBlockTrackerRequestOptions) => {
-  (
-    mockRpcCall({ // eslint-disable-line
-      nockScope,
-      request: { method: 'eth_blockNumber', params: [] },
-      response: { result: blockNumber },
-    }) as NockScope
-  ).persist();
-
-  (
-    mockRpcCall({ // eslint-disable-line
-      nockScope,
-      request: { method: 'eth_getBlockByNumber', params: [blockNumber, false] },
-      response: {
-        result: { ...block, number: blockNumber, hash: `0x${Math.random()}` },
-      },
-    }) as NockScope
-  ).persist();
-};
-
 type Request = { method: string; params?: any[] };
 type Response = {
   id?: number | string;
+  jsonrpc?: '2.0';
   error?: any;
   result?: any;
   httpStatus?: number;
@@ -242,10 +186,56 @@ const mockRpcCall = ({
   return nockRequest;
 };
 
+type MockBlockTrackerRequestOptions = {
+  /**
+   * A nock scope (a set of mocked requests scoped to a certain base url).
+   */
+  nockScope: NockScope;
+  /**
+   * The block number that the block tracker should report, as a 0x-prefixed hex string.
+   */
+  blockNumber: string;
+
+  block: any;
+};
+
+const mockNextBlockTrackerRequest = async ({
+  nockScope,
+  blockNumber = DEFAULT_LATEST_BLOCK_NUMBER,
+}: MockBlockTrackerRequestOptions) => {
+  mockRpcCall({
+    nockScope,
+    request: { method: 'eth_blockNumber', params: [] },
+    response: { result: blockNumber },
+  });
+};
+
+const mockAllBlockTrackerRequests = ({
+  nockScope,
+  blockNumber = DEFAULT_LATEST_BLOCK_NUMBER,
+}: MockBlockTrackerRequestOptions) => {
+  (
+    mockRpcCall({ // eslint-disable-line
+      nockScope,
+      request: { method: 'eth_blockNumber', params: [] },
+      response: { result: blockNumber },
+    }) as NockScope
+  ).persist();
+
+  (
+    mockRpcCall({ // eslint-disable-line
+      nockScope,
+      request: { method: 'eth_getBlockByNumber', params: [blockNumber, false] },
+      response: {
+        result: { number: blockNumber },
+      },
+    }) as NockScope
+  ).persist();
+};
+
 const makeRpcCall = (
-  ethQuery: EthQuery,
+  ethQuery: TEthQuery,
   request: Request,
-  clock: any,
 ): Promise<JSONRPCResponseResult> => {
   return new Promise((resolve, reject) => {
     debug('[makeRpcCall] making ethQuery request', request);
@@ -257,20 +247,16 @@ const makeRpcCall = (
         resolve(result);
       }
     });
-    clock.next(); // causes stoplight to 'complete' the await
-    const numTimers = clock.countTimers();
-    if (numTimers > 1) {
-      clock.next(); // causes stoplight to 'complete' the await
-    }
   });
 };
 
 export type ProviderType = 'infura' | 'custom';
 
 export type MockOptions = {
+  infuraNetwork?: InfuraNetworkType;
   providerType: ProviderType;
-  infuraNetwork?: NetworkType;
   customRpcUrl?: string;
+  customChainId?: string;
 };
 
 export type MockCommunications = {
@@ -278,13 +264,13 @@ export type MockCommunications = {
   mockAllBlockTrackerRequests: (options?: any) => void;
   mockRpcCall: (arg0: CurriedMockRpcCallOptions) => MockRpcCallResult;
   rpcUrl: string;
-  infuraNetwork: NetworkType;
+  infuraNetwork: InfuraNetworkType;
 };
 
 export const withMockedCommunications = async (
   {
     providerType,
-    infuraNetwork = NetworkType.mainnet,
+    infuraNetwork = 'mainnet',
     customRpcUrl = MOCK_RPC_URL,
   }: MockOptions,
   fn: (comms: MockCommunications) => Promise<void>,
@@ -337,7 +323,6 @@ export const waitForNextBlockTracker = (
   return prom;
 };
 
-const originalSetTimeout = setTimeout;
 export const waitForPromiseToBeFulfilledAfterRunningAllTimers = async (
   promise: any,
   clock: any,
@@ -369,53 +354,38 @@ export const withNetworkClient = async (
     providerType,
     infuraNetwork = NetworkType.mainnet,
     customRpcUrl = MOCK_RPC_URL,
+    customChainId = '0x1',
   }: MockOptions,
   fn: (client: MockNetworkClient) => Promise<any>,
 ): Promise<any> => {
-  const messenger: NetworkControllerMessenger =
-    new ControllerMessenger().getRestricted({
-      name: 'NetworkController',
-      allowedEvents: ['NetworkController:providerConfigChange'],
-      allowedActions: ['NetworkController:getEthQuery'],
-    });
-
+  // Faking timers ends up doing two things:
+  // 1. Halting the block tracker (which depends on `setTimeout` to periodically
+  // request the latest block) set up in `eth-json-rpc-middleware`
+  // 2. Halting the retry logic in `@metamask/eth-json-rpc-infura` (which also
+  // depends on `setTimeout`)
   const clock = sinon.useFakeTimers();
 
-  const controller = new NetworkController({
-    messenger,
-    infuraProjectId: MOCK_INFURA_PROJECT_ID,
-    trackMetaMetricsEvent: jest.fn(),
-  });
+  // The JSON-RPC client wraps `eth_estimateGas` so that it takes 2 seconds longer
+  // than it usually would to complete. Or at least it should — this doesn't
+  // appear to be working correctly. Unset `IN_TEST` on `process.env` to prevent
+  // this behavior.
+  const inTest = process.env.IN_TEST;
+  delete process.env.IN_TEST;
+  const clientUnderTest =
+    providerType === 'infura'
+      ? createInfuraClient(infuraNetwork, MOCK_INFURA_PROJECT_ID)
+      : createJsonRpcClient(customRpcUrl, customChainId);
+  process.env.IN_TEST = inTest;
 
-  const getEIP1559CompatibilityMock = jest
-    .spyOn(controller, 'getEIP1559Compatibility')
-    .mockImplementation(async () => {
-      return true;
-    });
+  const { networkMiddleware, blockTracker } = clientUnderTest;
 
-  const lookupNetworkMock = jest
-    .spyOn(controller, 'lookupNetwork')
-    .mockImplementation(() => {
-      return Promise.resolve();
-    });
-
-  if (providerType === 'infura') {
-    await controller.setProviderType(infuraNetwork);
-  } else {
-    await controller.upsertNetworkConfiguration(
-      {
-        rpcUrl: customRpcUrl,
-        chainId: '0x9999',
-        ticker: 'TEST',
-      },
-      { referrer: 'https://test-dapp.com', source: 'dapp', setActive: true },
-    );
-  }
-  const ethQuery = messenger.call('NetworkController:getEthQuery');
-  const { provider, blockTracker } = controller.getProviderAndBlockTracker();
+  const engine = new JsonRpcEngine();
+  engine.push(networkMiddleware);
+  const provider = providerFromEngine(engine);
+  const ethQuery = new EthQuery(provider);
 
   const curriedMakeRpcCall = (request: Request) =>
-    makeRpcCall(ethQuery, request, clock);
+    makeRpcCall(ethQuery, request);
   const makeRpcCallsInSeries = async (requests: Request[]) => {
     const responses = [];
     for (const request of requests) {
@@ -434,10 +404,8 @@ export const withNetworkClient = async (
   try {
     return await fn(client);
   } finally {
-    getEIP1559CompatibilityMock.mockRestore();
-    lookupNetworkMock.mockRestore();
-    blockTracker.removeAllListeners();
-    provider.stop();
+    await blockTracker.destroy();
+
     clock.restore();
   }
 };

@@ -1,18 +1,13 @@
 import { inspect, isDeepStrictEqual } from 'util';
 import EventEmitter from 'events';
-import type {
-  ProviderEngine,
-  RpcPayload,
-  RpcResponse,
-} from 'web3-provider-engine';
-
+import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider/dist/safe-event-emitter-provider';
+import {
+  JsonRpcEngine,
+  JsonRpcRequest,
+  JsonRpcResponse,
+} from 'json-rpc-engine';
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
-
-/**
- * The payload that `sendAsync` takes.
- */
-type SendAsyncPayload<P> = RpcPayload<P> | RpcPayload<P>[];
 
 /**
  * An object that allows specifying the behavior of a specific invocation of
@@ -83,7 +78,7 @@ class FakeBlockTracker extends EventEmitter {}
  * for any RPC methods that are accessed can be supplied via an API that is more
  * succinct than using Jest's mocking API.
  */
-export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
+export class FakeProvider extends SafeEventEmitterProvider {
   calledStubs: FakeProviderStub[];
 
   #originalStubs: FakeProviderStub[];
@@ -105,7 +100,7 @@ export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
    * of specific invocations of `sendAsync` matching a `method`.
    */
   constructor({ stubs = [] }: FakeProviderEngineOptions) {
-    super();
+    super({ engine: new JsonRpcEngine() });
     this.#originalStubs = stubs;
     this.#stubs = this.#originalStubs.slice();
     this.calledStubs = [];
@@ -117,9 +112,20 @@ export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
     this.#isStopped = true;
   }
 
-  sendAsync<P, V>(
-    payload: SendAsyncPayload<P>,
-    callback: (error: unknown, response: RpcResponse<RpcPayload<P>, V>) => void,
+  send = <P>(payload: JsonRpcRequest<P>) => {
+    return this.#handleSend(payload);
+  };
+
+  sendAsync = <P>(
+    payload: JsonRpcRequest<P>,
+    callback: (error: unknown, response: any) => void,
+  ) => {
+    return this.#handleSend(payload, callback);
+  };
+
+  #handleSend<P>(
+    payload: JsonRpcRequest<P>,
+    callback?: (error: unknown, response: any) => void,
   ) {
     if (Array.isArray(payload)) {
       throw new Error("Arrays aren't supported");
@@ -135,9 +141,9 @@ export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
 
     if (this.#isStopped) {
       console.warn(`The provider has been stopped, yet sendAsync has somehow been called. If this
-were not a fake provider, it's likely nothing would happen and the request would
-be sent anyway, but this probably means you have a test that ran an asynchronous
-operation that was not fulfilled before the test ended.`);
+  were not a fake provider, it's likely nothing would happen and the request would
+  be sent anyway, but this probably means you have a test that ran an asynchronous
+  operation that was not fulfilled before the test ended.`);
       return;
     }
 
@@ -148,7 +154,18 @@ operation that was not fulfilled before the test ended.`);
         this.#stubs.splice(index, 1);
       }
 
-      if (stub.delay) {
+      if (callback === undefined) {
+        let res, err;
+        this.#handleRequest(stub, (e, r) => {
+          err = e;
+          res = r;
+        });
+        console.warn(
+          'got result or error but not doing anything with it',
+          err,
+          res,
+        );
+      } else if (stub.delay) {
         originalSetTimeout(() => {
           this.#handleRequest(stub, callback);
         }, stub.delay);
@@ -179,9 +196,9 @@ operation that was not fulfilled before the test ended.`);
     }
   }
 
-  #handleRequest<P, V>(
+  #handleRequest<P>(
     stub: FakeProviderStub,
-    callback: (error: unknown, response: RpcResponse<RpcPayload<P>, V>) => void,
+    callback: (error: unknown, response: JsonRpcResponse<P>) => void,
   ) {
     if ('implementation' in stub) {
       stub.implementation();
