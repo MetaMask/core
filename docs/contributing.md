@@ -10,8 +10,6 @@
 
 ## Testing
 
-### Running unit tests
-
 - Run `yarn workspace <workspaceName> run test` to run all tests for a package.
 - Run `yarn workspace <workspaceName> run jest --no-coverage <file>` to run a test file within the context of a package.
 - Run `yarn test` to run tests for all packages.
@@ -19,11 +17,11 @@
 > **Note**  
 > `workspaceName` here is the `name` field within a package's `package.json`, e.g., `@metamask/announcement-controller`, not the directory where it is located, e.g., `packages/announcement-controller`.
 
-### Integrating with other projects
+## Using controllers in other projects during development/testing
 
 When developing changes to packages within this repository that a different project depends upon, you may wish to load those changes into the project and test them locally or in CI before publishing proper releases of those packages. To solve that problem, this repository provides a mechanism to publish "preview" versions of packages to GitHub Package Registry. These versions can then be used in the project like any other version, provided the project is configured to use that registry.
 
-#### As a MetaMask contributor
+### As a MetaMask contributor
 
 If you're a MetaMask contributor, you can create these preview versions via draft pull requests:
 
@@ -34,12 +32,12 @@ If you're a MetaMask contributor, you can create these preview versions via draf
    //npm.pkg.github.com/:_authToken=<your personal access token>
    ```
    Make sure not to commit this file.
-3. Go to GitHub and open up a pull request for this repository (for the extension or mobile app, this needs to be a draft PR), then post a comment on the PR with the text `@metamask-bot preview-build`. (This triggers the `publish-preview` GitHub action.)
+3. Go to GitHub and open up a pull request for this repository, then post a comment on the PR with the text `@metamask-bot preview-build`. (This triggers the `publish-preview` GitHub action.)
 4. After a few minutes, you will see a new comment indicating that all packages have been published with the format `<package name>-<commit id>`.
 5. Switch back to your project locally and update `package.json` by replacing the versions for the packages you've changed in your PR using the new version format (e.g. `1.2.3-e2df9b4` instead of `~1.2.3`), then run `yarn install`.
 6. Repeat steps 3-5 after pushing new changes to your PR to generate and use new preview versions.
 
-#### As an independent contributor
+### As an independent contributor
 
 If you're a contributor and you've forked this repository, you can create preview versions for a branch (or any arbitrary commit) via scripts:
 
@@ -51,11 +49,10 @@ If you're a contributor and you've forked this repository, you can create previe
    ```
    Make sure not to commit this file.
 3. Open the `package.json` for each package that you want to publish and change the scope in the name from `@metamask` to `@<your GitHub username>`.
-4. Switch to your fork of this repository locally and run `commit_sha=$(git rev-parse --short HEAD)`. This generates the identifier appended to all package versions to associate them with the current commit. (Alternatively, you can set `commit_sha` to any arbitrary commit id.)
-5. Run `yarn prepare-preview-builds $commit_sha && yarn build && yarn publish-previews` to generate preview versions for all packages and publish them to GitHub Package Registry.
-6. Switch back to your project and update `package.json` by replacing the versions for all packages you've updated using the version + the value of `$commit_sha` above (e.g. `1.2.3-e2df9b4` instead of `~1.2.3`), then run `yarn install`.
-7. If you make any new changes to your project, repeat steps 3-5 to generate and use new preview versions.
-8. As changes will have been made to this repository due to steps 4-5, make sure to clear out those changes after you've completed testing.
+4. Switch to your fork of this repository locally and run `yarn prepare-preview-builds $(git rev-parse --short HEAD) && yarn build && yarn publish-previews` to generate preview versions for all packages based on the current branch and publish them to GitHub Package Registry. Take note of the version that is published; it should look like `1.2.3-e2df9b4` instead of `1.2.3`.
+5. Switch back to your project and update `package.json` by replacing the versions for all packages you've changed using the version that was output in the previous step, then run `yarn install`.
+6. If you make any new changes to your project, repeat steps 3-5 to generate and use new preview versions.
+7. As changes will have been made to this repository due to steps 4-5, make sure to clear out those changes after you've completed testing.
 
 ## Linting
 
@@ -107,6 +104,8 @@ The [`create-release-branch`](https://github.com/MetaMask/create-release-branch)
 4. **"Squash & Merge" the release.**
 
    This step triggers the [`publish-release` GitHub action](https://github.com/MetaMask/action-publish-release) workflow to tag the final release commit and publish the release on GitHub.
+
+   Pay attention to the box you see when you press the green button and ensure that the final name of the commit follows the pattern "Release \<new version\>".
 
 5. **Publish the release on NPM.**
 
