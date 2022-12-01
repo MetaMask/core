@@ -25,7 +25,7 @@ When developing changes to packages within this repository that a different proj
 
 #### As a MetaMask contributor
 
-If you're a MetaMask engineer, you can create these preview versions via draft pull requests:
+If you're a MetaMask contributor, you can create these preview versions via draft pull requests:
 
 1. Navigate to your settings within GitHub and [create a classic access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token#creating-a-personal-access-token-classic). Make sure to give this token the `packages:read` scope.
 2. Switch to your project locally and add a `.npmrc` file with the following content, filling in the appropriate areas:
