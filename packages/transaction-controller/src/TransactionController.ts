@@ -508,7 +508,7 @@ export class TransactionController extends BaseController<
     origin?: string,
     deviceConfirmedOn?: WalletDevice,
   ): Promise<Result> {
-    const { provider, network } = this.getNetworkState();
+    const { providerConfig, network } = this.getNetworkState();
     const { transactions } = this.state;
     transaction = normalizeTransaction(transaction);
     validateTransaction(transaction);
@@ -516,7 +516,7 @@ export class TransactionController extends BaseController<
     const transactionMeta: TransactionMeta = {
       id: random(),
       networkID: network,
-      chainId: provider.chainId,
+      chainId: providerConfig.chainId,
       origin,
       status: TransactionStatus.unapproved as TransactionStatus.unapproved,
       time: Date.now(),
@@ -593,7 +593,7 @@ export class TransactionController extends BaseController<
   getCommonConfiguration(): Common {
     const {
       network: networkId,
-      provider: { type: chain, chainId, nickname: name },
+      providerConfig: { type: chain, chainId, nickname: name },
     } = this.getNetworkState();
 
     if (chain !== RPC) {
@@ -620,8 +620,8 @@ export class TransactionController extends BaseController<
   async approveTransaction(transactionID: string) {
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
-    const { provider } = this.getNetworkState();
-    const { chainId: currentChainId } = provider;
+    const { providerConfig } = this.getNetworkState();
+    const { chainId: currentChainId } = providerConfig;
     const index = transactions.findIndex(({ id }) => transactionID === id);
     const transactionMeta = transactions[index];
     const { nonce } = transactionMeta.transaction;
@@ -1035,8 +1035,9 @@ export class TransactionController extends BaseController<
    */
   async queryTransactionStatuses() {
     const { transactions } = this.state;
-    const { provider, network: currentNetworkID } = this.getNetworkState();
-    const { chainId: currentChainId } = provider;
+    const { providerConfig, network: currentNetworkID } =
+      this.getNetworkState();
+    const { chainId: currentChainId } = providerConfig;
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
@@ -1095,8 +1096,9 @@ export class TransactionController extends BaseController<
       this.update({ transactions: [] });
       return;
     }
-    const { provider, network: currentNetworkID } = this.getNetworkState();
-    const { chainId: currentChainId } = provider;
+    const { providerConfig, network: currentNetworkID } =
+      this.getNetworkState();
+    const { chainId: currentChainId } = providerConfig;
     const newTransactions = this.state.transactions.filter(
       ({ networkID, chainId }) => {
         // Using fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
@@ -1125,8 +1127,9 @@ export class TransactionController extends BaseController<
     address: string,
     opt?: FetchAllOptions,
   ): Promise<string | void> {
-    const { provider, network: currentNetworkID } = this.getNetworkState();
-    const { chainId: currentChainId, type: networkType } = provider;
+    const { providerConfig, network: currentNetworkID } =
+      this.getNetworkState();
+    const { chainId: currentChainId, type: networkType } = providerConfig;
     const { transactions } = this.state;
 
     const supportedNetworkIds = ['1', '3', '4', '42'];

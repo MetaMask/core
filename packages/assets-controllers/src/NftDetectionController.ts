@@ -267,10 +267,10 @@ export class NftDetectionController extends BaseController<
       }
     });
 
-    onNetworkStateChange(({ provider }) => {
+    onNetworkStateChange(({ providerConfig }) => {
       this.configure({
-        networkType: provider.type,
-        chainId: provider.chainId as NftDetectionConfig['chainId'],
+        networkType: providerConfig.type,
+        chainId: providerConfig.chainId as NftDetectionConfig['chainId'],
       });
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;
