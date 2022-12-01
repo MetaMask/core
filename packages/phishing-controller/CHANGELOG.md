@@ -7,12 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [1.1.0]
+### Added
+- Add method to conditionally update the phishing lists ([#986](https://github.com/MetaMask/controllers/pull/986))
+
 ### Changed
 - Relax dependencies on `@metamask/base-controller` and `@metamask/controller-utils` (use `^` instead of `~`) ([#998](https://github.com/MetaMask/controllers/pull/998))
 - Expose `lastFetched` in PhishingController state ([#986](https://github.com/MetaMask/controllers/pull/986))
-
-### Added
-- Add method to conditionally update the phishing lists ([#986](https://github.com/MetaMask/controllers/pull/986))
 
 ## [1.0.0]
 ### Added
