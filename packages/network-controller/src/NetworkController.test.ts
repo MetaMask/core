@@ -19,7 +19,7 @@ const setupController = (
     infuraProjectId: 'foo',
     state: {
       network: '0',
-      provider: {
+      providerConfig: {
         type: pType,
         chainId: NetworksChainId[pType],
       },
@@ -38,7 +38,7 @@ describe('NetworkController', () => {
   beforeEach(() => {
     messenger = new ControllerMessenger().getRestricted({
       name: 'NetworkController',
-      allowedEvents: ['NetworkController:providerChange'],
+      allowedEvents: ['NetworkController:providerConfigChange'],
       allowedActions: [],
     });
   });
@@ -57,7 +57,7 @@ describe('NetworkController', () => {
       network: 'loading',
       isCustomNetwork: false,
       properties: { isEIP1559Compatible: false },
-      provider: {
+      providerConfig: {
         type: 'mainnet',
         chainId: '1',
       },
@@ -91,7 +91,7 @@ describe('NetworkController', () => {
       infuraProjectId: 'foo',
       state: {
         network: '0',
-        provider: {
+        providerConfig: {
           rpcTarget: RPC_TARGET,
           type: 'rpc',
           chainId: '10',
@@ -111,7 +111,7 @@ describe('NetworkController', () => {
       infuraProjectId: 'foo',
       state: {
         network: '0',
-        provider: {
+        providerConfig: {
           rpcTarget: RPC_TARGET,
           type: 'rpc',
           chainId: NetworksChainId.mainnet,
@@ -128,14 +128,14 @@ describe('NetworkController', () => {
   it('should set new RPC target', () => {
     const controller = new NetworkController({ messenger });
     controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
-    expect(controller.state.provider.rpcTarget).toBe(RPC_TARGET);
+    expect(controller.state.providerConfig.rpcTarget).toBe(RPC_TARGET);
     expect(controller.state.isCustomNetwork).toBe(false);
   });
 
   it('should set new provider type', () => {
     const controller = new NetworkController({ messenger });
     controller.setProviderType('localhost');
-    expect(controller.state.provider.type).toBe('localhost');
+    expect(controller.state.providerConfig.type).toBe('localhost');
     expect(controller.state.isCustomNetwork).toBe(false);
   });
 
@@ -145,11 +145,11 @@ describe('NetworkController', () => {
       infuraProjectId: '123',
     });
     controller.setProviderType('goerli' as NetworkType);
-    expect(controller.state.provider.type).toBe('goerli');
-    expect(controller.state.provider.ticker).toBe('GoerliETH');
+    expect(controller.state.providerConfig.type).toBe('goerli');
+    expect(controller.state.providerConfig.ticker).toBe('GoerliETH');
     expect(controller.state.isCustomNetwork).toBe(false);
-    expect(controller.state.provider.rpcTarget).toBeUndefined();
-    expect(controller.state.provider.nickname).toBeUndefined();
+    expect(controller.state.providerConfig.rpcTarget).toBeUndefined();
+    expect(controller.state.providerConfig.nickname).toBeUndefined();
   });
 
   it('should set mainnet provider type', () => {
@@ -158,11 +158,11 @@ describe('NetworkController', () => {
       infuraProjectId: '123',
     });
     controller.setProviderType('mainnet' as NetworkType);
-    expect(controller.state.provider.type).toBe('mainnet');
-    expect(controller.state.provider.ticker).toBe('ETH');
+    expect(controller.state.providerConfig.type).toBe('mainnet');
+    expect(controller.state.providerConfig.ticker).toBe('ETH');
     expect(controller.state.isCustomNetwork).toBe(false);
-    expect(controller.state.provider.rpcTarget).toBeUndefined();
-    expect(controller.state.provider.nickname).toBeUndefined();
+    expect(controller.state.providerConfig.rpcTarget).toBeUndefined();
+    expect(controller.state.providerConfig.nickname).toBeUndefined();
   });
 
   it('should set rpcTarget and nickname props to undefined when set a provider type', () => {
@@ -172,11 +172,11 @@ describe('NetworkController', () => {
     });
     controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
     controller.setProviderType('mainnet' as NetworkType);
-    expect(controller.state.provider.type).toBe('mainnet');
-    expect(controller.state.provider.ticker).toBe('ETH');
+    expect(controller.state.providerConfig.type).toBe('mainnet');
+    expect(controller.state.providerConfig.ticker).toBe('ETH');
     expect(controller.state.isCustomNetwork).toBe(false);
-    expect(controller.state.provider.rpcTarget).toBeUndefined();
-    expect(controller.state.provider.nickname).toBeUndefined();
+    expect(controller.state.providerConfig.rpcTarget).toBeUndefined();
+    expect(controller.state.providerConfig.nickname).toBeUndefined();
   });
 
   it('should throw when setting an unrecognized provider type', () => {
@@ -207,16 +207,16 @@ describe('NetworkController', () => {
       infuraProjectId: '341eacb578dd44a1a049cbc5f6fd4035',
       messenger,
     };
-    const event = 'NetworkController:providerChange';
+    const event = 'NetworkController:providerConfigChange';
     const controller = new NetworkController(testConfig);
 
     await new Promise((resolve) => {
-      const handleProviderChange = () => {
+      const handleProviderConfigChange = () => {
         expect(controller.state.network !== 'loading').toBe(true);
-        messenger.unsubscribe(event, handleProviderChange);
+        messenger.unsubscribe(event, handleProviderConfigChange);
         resolve('');
       };
-      messenger.subscribe(event, handleProviderChange);
+      messenger.subscribe(event, handleProviderConfigChange);
 
       controller.providerConfig = {} as ProviderConfig;
     });

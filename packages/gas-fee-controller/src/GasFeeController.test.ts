@@ -4,7 +4,7 @@ import {
   NetworkController,
   NetworkControllerGetEthQueryAction,
   NetworkControllerGetProviderConfigAction,
-  NetworkControllerProviderChangeEvent,
+  NetworkControllerProviderConfigChangeEvent,
 } from '@metamask/network-controller';
 import {
   GAS_ESTIMATE_TYPES,
@@ -32,7 +32,7 @@ type MainControllerMessenger = ControllerMessenger<
   | GetGasFeeState
   | NetworkControllerGetProviderConfigAction
   | NetworkControllerGetEthQueryAction,
-  GasFeeStateChange | NetworkControllerProviderChangeEvent
+  GasFeeStateChange | NetworkControllerProviderConfigChangeEvent
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {
@@ -44,7 +44,7 @@ const setupNetworkController = (
 ) => {
   const networkMessenger = controllerMessenger.getRestricted({
     name: 'NetworkController',
-    allowedEvents: ['NetworkController:providerChange'],
+    allowedEvents: ['NetworkController:providerConfigChange'],
     allowedActions: [
       'NetworkController:getProviderConfig',
       'NetworkController:getEthQuery',
@@ -68,7 +68,7 @@ const getRestrictedMessenger = (
       'NetworkController:getProviderConfig',
       'NetworkController:getEthQuery',
     ],
-    allowedEvents: ['NetworkController:providerChange'],
+    allowedEvents: ['NetworkController:providerConfigChange'],
   });
 
   return messenger;

@@ -238,10 +238,10 @@ export class TokensController extends BaseController<
       });
     });
 
-    onNetworkStateChange(({ provider }) => {
+    onNetworkStateChange(({ providerConfig }) => {
       const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
       const { selectedAddress } = this.config;
-      const { chainId } = provider;
+      const { chainId } = providerConfig;
       this.abortController.abort();
       this.abortController = new WhatwgAbortController();
       this.configure({ chainId });
