@@ -29,8 +29,8 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "workspace:~",
-    "@metamask/controller-utils": "workspace:~",
+    "@metamask/base-controller": "workspace:^",
+    "@metamask/controller-utils": "workspace:^",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
     "eth-json-rpc-infura": "^5.1.0",
