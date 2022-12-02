@@ -277,6 +277,44 @@ describe('CurrencyRateController', () => {
     controller.destroy();
   });
 
+  it('should fetch exchange rates after calling setNativeCurrency if start has been called', async () => {
+    const fetchExchangeRateStub = sinon.stub().resolves({});
+    const messenger = getRestrictedMessenger();
+    const controller = new CurrencyRateController({
+      includeUsdRate: true,
+      fetchExchangeRate: fetchExchangeRateStub,
+      messenger,
+    });
+
+    await controller.setNativeCurrency('XYZ');
+
+    expect(
+      fetchExchangeRateStub.alwaysCalledWithExactly('usd', 'XYZ', true),
+    ).toBe(true);
+
+    controller.destroy();
+  });
+
+  it('should NOT fetch exchange rates after calling setNativeCurrency if stop has been called', async () => {
+    const fetchExchangeRateStub = sinon.stub().resolves({});
+    const messenger = getRestrictedMessenger();
+    const controller = new CurrencyRateController({
+      includeUsdRate: true,
+      fetchExchangeRate: fetchExchangeRateStub,
+      messenger,
+    });
+    controller.stop();
+
+    await controller.setNativeCurrency('XYZ');
+
+    expect(
+      fetchExchangeRateStub.notCalled,
+    ).toBe(true);
+
+    controller.destroy();
+  });
+
+
   it('should throw unexpected errors', async () => {
     const cryptoCompareHost = 'https://min-api.cryptocompare.com';
     nock(cryptoCompareHost)

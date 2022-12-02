@@ -90,6 +90,8 @@ export class CurrencyRateController extends BaseControllerV2<
 
   private includeUsdRate;
 
+  #enabled;
+
   /**
    * Creates a CurrencyRateController instance.
    *
@@ -99,6 +101,7 @@ export class CurrencyRateController extends BaseControllerV2<
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
    * @param options.fetchExchangeRate - Fetches the exchange rate from an external API. This option is primarily meant for use in unit tests.
+   * @param options.enabled - A boolean that controls whether or not network requests can be made by the controller.
    */
   constructor({
     includeUsdRate = false,
@@ -122,12 +125,14 @@ export class CurrencyRateController extends BaseControllerV2<
     this.includeUsdRate = includeUsdRate;
     this.intervalDelay = interval;
     this.fetchExchangeRate = fetchExchangeRate;
+    this.#enabled = true;
   }
 
   /**
    * Start polling for the currency rate.
    */
   async start() {
+    this.#enabled = true;
     await this.startPolling();
   }
 
@@ -135,6 +140,7 @@ export class CurrencyRateController extends BaseControllerV2<
    * Stop polling for the currency rate.
    */
   stop() {
+    this.#enabled = false;
     this.stopPolling();
   }
 
@@ -196,6 +202,9 @@ export class CurrencyRateController extends BaseControllerV2<
    * @returns The controller state.
    */
   async updateExchangeRate(): Promise<CurrencyRateState | void> {
+    if (!this.#enabled) {
+      return;
+    }
     const releaseLock = await this.mutex.acquire();
     const {
       currentCurrency: stateCurrentCurrency,
