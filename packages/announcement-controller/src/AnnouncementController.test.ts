@@ -10,18 +10,6 @@ import {
 const name = 'AnnouncementController';
 
 /**
- * Constructs a unrestricted controller messenger.
- *
- * @returns A unrestricted controller messenger.
- */
-function getUnrestrictedMessenger() {
-  return new ControllerMessenger<
-    AnnouncementControllerActions,
-    AnnouncementControllerEvents
-  >();
-}
-
-/**
  * Constructs a restricted controller messenger.
  *
  * @returns A restricted controller messenger.
@@ -31,14 +19,9 @@ function getRestrictedMessenger() {
     AnnouncementControllerActions,
     AnnouncementControllerEvents
   >();
-  return controllerMessenger.getRestricted<
-    typeof name,
-    never,
-    never
-  >(
-    {
-      name,
-    });
+  return controllerMessenger.getRestricted<typeof name, never, never>({
+    name,
+  });
 }
 const allAnnouncements = {
   1: {
@@ -66,7 +49,7 @@ const allAnnouncements2 = {
   3: {
     id: 3,
     date: '12/8/2020',
-    isShown: false
+    isShown: false,
   },
 };
 const state1: AnnouncementControllerState = {
@@ -109,9 +92,9 @@ describe('announcement controller', () => {
     const controller = new AnnouncementController({
       messenger: getRestrictedMessenger(),
       state: state1,
-      allAnnouncements: allAnnouncements
+      allAnnouncements,
     });
-    expect(Object.keys(controller.state.announcements)).toHaveLength(2)
+    expect(Object.keys(controller.state.announcements)).toHaveLength(2);
     const expectedStateNotifications: StateAnnouncementMap = {
       1: {
         ...allAnnouncements[1],
@@ -129,7 +112,7 @@ describe('announcement controller', () => {
     const controller = new AnnouncementController({
       messenger: getRestrictedMessenger(),
       state: state2,
-      allAnnouncements: allAnnouncements
+      allAnnouncements,
     });
     expect(Object.keys(controller.state.announcements)).toHaveLength(3);
     expect(controller.state.announcements[1].isShown).toBe(true);
@@ -142,7 +125,7 @@ describe('announcement controller', () => {
       const controller = new AnnouncementController({
         messenger: getRestrictedMessenger(),
         state: state2,
-        allAnnouncements: allAnnouncements2
+        allAnnouncements: allAnnouncements2,
       });
       controller.updateViewed({ 1: true });
       expect(controller.state.announcements[1].isShown).toBe(true);
@@ -154,7 +137,7 @@ describe('announcement controller', () => {
       const controller = new AnnouncementController({
         messenger: getRestrictedMessenger(),
         state: state2,
-        allAnnouncements: allAnnouncements2
+        allAnnouncements: allAnnouncements2,
       });
       controller.updateViewed({ 2: true, 3: true });
       expect(controller.state.announcements[1].isShown).toBe(false);

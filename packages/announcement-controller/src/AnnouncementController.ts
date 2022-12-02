@@ -30,8 +30,10 @@ export type AnnouncementControllerState = {
   announcements: StateAnnouncementMap;
 };
 
-export type AnnouncementControllerActions = AnnouncementControllerGetStateAction;
-export type AnnouncementControllerEvents = AnnouncementControllerStateChangeEvent;
+export type AnnouncementControllerActions =
+  AnnouncementControllerGetStateAction;
+export type AnnouncementControllerEvents =
+  AnnouncementControllerStateChangeEvent;
 
 export type AnnouncementControllerGetStateAction = {
   type: `${typeof controllerName}:getState`;
@@ -79,12 +81,12 @@ export class AnnouncementController extends BaseControllerV2<
    * @param args - The arguments to this function.
    * @param args.messenger - Messenger used to communicate with BaseV2 controller.
    * @param args.state - Initial state to set on this controller.
-   * @param args.allAnnouncements
+   * @param args.allAnnouncements - Announcements to be passed through to #addAnnouncements
    */
   constructor({
     messenger,
     state,
-    allAnnouncements
+    allAnnouncements,
   }: {
     messenger: AnnouncementControllerMessenger;
     state?: AnnouncementControllerState;
@@ -107,8 +109,10 @@ export class AnnouncementController extends BaseControllerV2<
     this.update(({ announcements }) => {
       Object.values(allAnnouncements).forEach(
         (announcement: StateAnnouncement) => {
-          announcements[announcement.id] = allAnnouncements[announcement.id] ?? announcement;
-        });
+          announcements[announcement.id] =
+            allAnnouncements[announcement.id] ?? announcement;
+        },
+      );
     });
   }
 
