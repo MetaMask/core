@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0]
 ### Changed
-- **BREAKING:** Update `getNetworkState` constructor option such that it takes an object with `providerConfig` property rather than `providerConfig` ([#995](https://github.com/MetaMask/controllers/pull/995))
+- **BREAKING:** Update `getNetworkState` constructor option to take an object with `providerConfig` property rather than `providerConfig` ([#995](https://github.com/MetaMask/controllers/pull/995))
 - Relax dependency on `@metamask/base-controller`, `@metamask/controller-utils`, and `@metamask/network-controller` (use `^` instead of `~`) ([#998](https://github.com/MetaMask/controllers/pull/998))
 
 ## [1.0.0]
