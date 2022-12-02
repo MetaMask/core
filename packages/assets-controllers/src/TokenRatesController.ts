@@ -191,7 +191,7 @@ export class TokenRatesController extends BaseController<
   ) {
     super(config, state);
     this.defaultConfig = {
-      disabled: true,
+      disabled: false,
       interval: 3 * 60 * 1000,
       nativeCurrency: 'eth',
       chainId: '',
@@ -203,7 +203,9 @@ export class TokenRatesController extends BaseController<
       contractExchangeRates: {},
     };
     this.initialize();
-    this.configure({ disabled: false }, false, false);
+    if(config?.disabled === true){
+      this.configure({ disabled: true }, false, false);
+    }
     onTokensStateChange(({ tokens, detectedTokens }) => {
       this.configure({ tokens: [...tokens, ...detectedTokens] });
     });
