@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0]
 ### Changed
-- Relax dependencies on `@metamask/base-controller`, `@metamask/controller-utils`, `@metamask/network-controller`, and `@metamask/preferences-controller` (use `^` instead of `~`) ([#998](https://github.com/MetaMask/controllers/pull/998))
 - **BREAKING:** Update `onNetworkStateChange`, a constructor option for several controllers, such that it takes an object with a `providerConfig` property instead of `provider` ([#995](https://github.com/MetaMask/controllers/pull/995))
   - This affects:
     - AssetsContractController
@@ -19,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - TokenRatesController
     - TokenController
 - **BREAKING:** [TokenDetectionController] Update `getNetworkState` constructor option such that it takes an object with `providerConfig` property rather than `providerConfig` ([#995](https://github.com/MetaMask/controllers/pull/995))
+- Relax dependencies on `@metamask/base-controller`, `@metamask/controller-utils`, `@metamask/network-controller`, and `@metamask/preferences-controller` (use `^` instead of `~`) ([#998](https://github.com/MetaMask/controllers/pull/998))
 
 ## [1.0.1]
 ### Fixed
