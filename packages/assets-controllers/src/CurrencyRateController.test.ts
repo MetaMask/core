@@ -307,13 +307,10 @@ describe('CurrencyRateController', () => {
 
     await controller.setNativeCurrency('XYZ');
 
-    expect(
-      fetchExchangeRateStub.notCalled,
-    ).toBe(true);
+    expect(fetchExchangeRateStub.notCalled).toBe(true);
 
     controller.destroy();
   });
-
 
   it('should throw unexpected errors', async () => {
     const cryptoCompareHost = 'https://min-api.cryptocompare.com';
