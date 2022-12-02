@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.1]
 ### Changed
 - Relax dependencies on `@metamask/base-controller`, `@metamask/controller-utils`, and `@metamask/network-controller` (use `^` instead of `~`) ([#998](https://github.com/MetaMask/controllers/pull/998))
-- Align with changes to `@metamask/network-controller`'s `NetworkState` type (`provider` -> `providerConfig`) ([#995](https://github.com/MetaMask/controllers/pull/995))
+- **BREAKING:** Bump `@metamask/network-controller` to 2.0.0 ([#995](https://github.com/MetaMask/controllers/pull/995))
+  - GasFeeController now expects NetworkController to respond to `NetworkController:providerChangeConfig` (previously `NetworkController:providerChange`). If you are depending directly on `@metamask/network-controller`, you should update your version to at least 2.0.0 as well.
 
 ## [1.0.0]
 ### Added
