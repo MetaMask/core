@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1]
+### Changed
+- Relax dependency on `@metamask/base-controller` (use `^` instead of `~`) ([#998](https://github.com/MetaMask/controllers/pull/998))
+
 ## [1.0.0]
 ### Added
 - Initial release
@@ -14,5 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/rate-limit-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/rate-limit-controller@1.0.1...HEAD
+[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/rate-limit-controller@1.0.0...@metamask/rate-limit-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/rate-limit-controller@1.0.0
