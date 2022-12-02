@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.1]
+## [2.0.0]
 ### Changed
 - **BREAKING:** Bump `@metamask/network-controller` to 2.0.0 ([#995](https://github.com/MetaMask/controllers/pull/995))
   - GasFeeController now expects NetworkController to respond to `NetworkController:providerChangeConfig` (previously `NetworkController:providerChange`). If you are depending directly on `@metamask/network-controller`, you should update your version to at least 2.0.0 as well.
@@ -20,6 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/gas-fee-controller@1.0.1...HEAD
-[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/gas-fee-controller@1.0.0...@metamask/gas-fee-controller@1.0.1
+[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/gas-fee-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/gas-fee-controller@1.0.0...@metamask/gas-fee-controller@2.0.0
 [1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/gas-fee-controller@1.0.0
