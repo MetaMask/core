@@ -54,7 +54,7 @@ const defaultState = {
 const metadata = {
   announcements: {
     persist: true,
-    anonymous: false,
+    anonymous: true,
   },
 };
 
