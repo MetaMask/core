@@ -6,10 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.1]
+## [2.0.0]
 ### Changed
 - Relax dependency on `@metamask/base-controller`, `@metamask/controller-utils`, and `@metamask/network-controller` (use `^` instead of `~`) ([#998](https://github.com/MetaMask/controllers/pull/998))
-- Align with changes to `@metamask/network-controller`'s `NetworkState` type (`provider` -> `providerConfig`) ([#995](https://github.com/MetaMask/controllers/pull/995))
+- **BREAKING:** Update `getNetworkState` constructor option such that it takes an object with `providerConfig` property rather than `providerConfig` ([#995](https://github.com/MetaMask/controllers/pull/995))
 
 ## [1.0.0]
 ### Added
@@ -20,6 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/transaction-controller@1.0.1...HEAD
-[1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/transaction-controller@1.0.0...@metamask/transaction-controller@1.0.1
+[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/transaction-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/transaction-controller@1.0.0...@metamask/transaction-controller@2.0.0
 [1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/transaction-controller@1.0.0

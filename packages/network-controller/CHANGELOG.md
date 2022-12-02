@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.0]
 ### Changed
 - Relax dependencies on `@metamask/base-controller` and `@metamask/controller-utils` (use `^` instead of `~`) ([#998](https://github.com/MetaMask/controllers/pull/998))
-- Rename `provider` in `NetworkState` to `providerConfig` ([#995](https://github.com/MetaMask/controllers/pull/995))
+- **BREAKING:** Update type of state object by renaming `provider` property to `providerConfig` ([#995](https://github.com/MetaMask/controllers/pull/995))
+  - Consumers are recommended to add a state migration for this change.
+- **BREAKING:** Rename `NetworkController:providerChange` messenger event to `NetworkController:providerConfigChange` ([#995](https://github.com/MetaMask/controllers/pull/995))
 
 ## [1.0.0]
 ### Added
