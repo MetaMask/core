@@ -203,7 +203,7 @@ export class TokenRatesController extends BaseController<
       contractExchangeRates: {},
     };
     this.initialize();
-    if (config?.disabled === true) {
+    if (config?.disabled) {
       this.configure({ disabled: true }, false, false);
     }
 
