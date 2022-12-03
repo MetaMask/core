@@ -124,7 +124,7 @@ export class CurrencyRateController extends BaseControllerV2<
     this.includeUsdRate = includeUsdRate;
     this.intervalDelay = interval;
     this.fetchExchangeRate = fetchExchangeRate;
-    this.#enabled = true;
+    this.#enabled = false;
   }
 
   /**
@@ -202,7 +202,7 @@ export class CurrencyRateController extends BaseControllerV2<
    */
   async updateExchangeRate(): Promise<CurrencyRateState | void> {
     if (!this.#enabled) {
-      return null;
+      return this.state;
     }
     const releaseLock = await this.mutex.acquire();
     const {

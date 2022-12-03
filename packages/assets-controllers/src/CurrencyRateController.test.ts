@@ -169,6 +169,7 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
+    controller.start();
     expect(controller.state.conversionRate).toStrictEqual(0);
     await controller.updateExchangeRate();
     expect(controller.state.conversionRate).toStrictEqual(10);
@@ -198,7 +199,7 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
-
+    controller.start();
     await controller.setNativeCurrency('DAI');
     await controller.updateExchangeRate();
     expect(controller.state.conversionRate).toStrictEqual(1);
@@ -217,6 +218,7 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
+    controller.start();
     expect(controller.state.conversionRate).toStrictEqual(0);
     await controller.setCurrentCurrency('CAD');
     expect(controller.state.conversionRate).toStrictEqual(10);
@@ -232,6 +234,7 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
+    controller.start();
     expect(controller.state.conversionRate).toStrictEqual(0);
     await controller.setNativeCurrency('xDAI');
     expect(controller.state.conversionRate).toStrictEqual(10);
@@ -248,7 +251,7 @@ describe('CurrencyRateController', () => {
       messenger,
       state: { currentCurrency: 'xyz' },
     });
-
+    controller.start();
     await controller.updateExchangeRate();
 
     expect(
@@ -269,7 +272,7 @@ describe('CurrencyRateController', () => {
       messenger,
       state: { currentCurrency: 'xyz' },
     });
-
+    controller.start();
     await controller.updateExchangeRate();
 
     expect(controller.state.conversionRate).toStrictEqual(2000.42);
@@ -286,6 +289,7 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
+    controller.start();
     await controller.setNativeCurrency('XYZ');
 
     expect(
@@ -303,8 +307,9 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
+    controller.start();
     controller.stop();
-
+    fetchExchangeRateStub.resetHistory();
     await controller.setNativeCurrency('XYZ');
 
     expect(fetchExchangeRateStub.notCalled).toBe(true);
@@ -327,7 +332,7 @@ describe('CurrencyRateController', () => {
       messenger,
       state: { currentCurrency: 'xyz' },
     });
-
+    controller.start();
     await expect(controller.updateExchangeRate()).rejects.toThrow(
       'this method has been deprecated',
     );
@@ -349,7 +354,7 @@ describe('CurrencyRateController', () => {
       messenger,
       state: { currentCurrency: 'xyz' },
     });
-
+    controller.start();
     await controller.updateExchangeRate();
     expect(controller.state.conversionRate).toBeNull();
     controller.destroy();
@@ -369,7 +374,7 @@ describe('CurrencyRateController', () => {
       messenger,
       state: existingState,
     });
-
+    controller.start();
     await controller.updateExchangeRate();
 
     expect(controller.state).toStrictEqual({
