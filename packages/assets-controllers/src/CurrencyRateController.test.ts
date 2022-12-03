@@ -277,7 +277,7 @@ describe('CurrencyRateController', () => {
     controller.destroy();
   });
 
-  it('should fetch exchange rates after calling setNativeCurrency if start has been called', async () => {
+  it('should fetch exchange rates after calling setNativeCurrency by default', async () => {
     const fetchExchangeRateStub = sinon.stub().resolves({});
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
