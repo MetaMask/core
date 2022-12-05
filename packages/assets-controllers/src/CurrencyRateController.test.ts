@@ -298,7 +298,21 @@ describe('CurrencyRateController', () => {
 
     controller.destroy();
   });
+  it('should NOT fetch exchange rates after calling setNativeCurrency if start has not been called', async () => {
+    const fetchExchangeRateStub = sinon.stub().resolves({});
+    const messenger = getRestrictedMessenger();
+    const controller = new CurrencyRateController({
+      includeUsdRate: true,
+      fetchExchangeRate: fetchExchangeRateStub,
+      messenger,
+    });
+    fetchExchangeRateStub.resetHistory();
+    await controller.setNativeCurrency('XYZ');
 
+    expect(fetchExchangeRateStub.notCalled).toBe(true);
+
+    controller.destroy();
+  });
   it('should NOT fetch exchange rates after calling setNativeCurrency if stop has been called', async () => {
     const fetchExchangeRateStub = sinon.stub().resolves({});
     const messenger = getRestrictedMessenger();
