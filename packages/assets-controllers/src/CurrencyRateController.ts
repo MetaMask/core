@@ -90,7 +90,10 @@ export class CurrencyRateController extends BaseControllerV2<
 
   private includeUsdRate;
 
-  #enabled; // A boolean that controls whether or not network requests can be made by the controller.
+  /**
+   * A boolean that controls whether or not network requests can be made by the controller
+   */
+  #enabled;
 
   /**
    * Creates a CurrencyRateController instance.
