@@ -1434,6 +1434,8 @@ __metadata:
     typedoc-plugin-missing-exports: ^0.22.6
     typescript: ~4.6.3
     uuid: ^8.3.2
+  peerDependencies:
+    "@metamask/network-controller": "workspace:^"
   languageName: unknown
   linkType: soft
 
@@ -1707,6 +1709,8 @@ __metadata:
     typedoc-plugin-missing-exports: ^0.22.6
     typescript: ~4.6.3
     uuid: ^8.3.2
+  peerDependencies:
+    "@metamask/network-controller": "workspace:^"
   languageName: unknown
   linkType: soft
 
@@ -1844,6 +1848,8 @@ __metadata:
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
     typescript: ~4.6.3
+  peerDependencies:
+    "@metamask/approval-controller": "workspace:^"
   languageName: unknown
   linkType: soft
 
