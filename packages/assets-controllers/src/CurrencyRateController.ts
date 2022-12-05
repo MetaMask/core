@@ -209,6 +209,7 @@ export class CurrencyRateController extends BaseControllerV2<
    */
   async updateExchangeRate(): Promise<CurrencyRateState | void> {
     if (!this.#enabled) {
+      console.info('[CurrencyRateController] Not updating exchange rate since network requests have been disabled');
       return this.state;
     }
     const releaseLock = await this.mutex.acquire();
