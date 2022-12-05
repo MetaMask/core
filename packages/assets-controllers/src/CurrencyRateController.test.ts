@@ -325,7 +325,7 @@ describe('CurrencyRateController', () => {
     controller.destroy();
   });
 
-  it('should fetch exchange rates after calling setNativeCurrency by default', async () => {
+  it('should fetch exchange rates after starting and again after calling setNativeCurrency', async () => {
     const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
