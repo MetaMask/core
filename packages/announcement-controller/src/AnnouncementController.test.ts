@@ -57,12 +57,12 @@ const state1: AnnouncementControllerState = {
     1: {
       id: 1,
       date: '12/8/2020',
-      isShown: false,
+      isShown: true,
     },
     2: {
       id: 2,
       date: '12/8/2020',
-      isShown: false,
+      isShown: true,
     },
   },
 };
@@ -111,8 +111,8 @@ describe('announcement controller', () => {
   it('should add new announcement to state and a new announcement should be created with isShown as false', () => {
     const controller = new AnnouncementController({
       messenger: getRestrictedMessenger(),
-      state: state2,
-      allAnnouncements,
+      state: state1,
+      allAnnouncements: allAnnouncements2,
     });
     expect(Object.keys(controller.state.announcements)).toHaveLength(3);
     expect(controller.state.announcements[1].isShown).toBe(true);

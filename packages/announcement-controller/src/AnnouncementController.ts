@@ -110,7 +110,7 @@ export class AnnouncementController extends BaseControllerV2<
       Object.values(allAnnouncements).forEach(
         (announcement: StateAnnouncement) => {
           announcements[announcement.id] =
-            allAnnouncements[announcement.id] ?? announcement;
+            announcements[announcement.id] ?? announcement;
         },
       );
     });
