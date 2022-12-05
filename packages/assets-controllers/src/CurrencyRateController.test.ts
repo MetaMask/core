@@ -34,8 +34,23 @@ const getStubbedDate = () => {
   return new Date('2019-04-07T10:20:30Z').getTime();
 };
 
+/**
+ * Resolve all pending promises.
+ * This method is used for async tests that use fake timers.
+ * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
+ */
+function flushPromises(): Promise<unknown> {
+  return new Promise(jest.requireActual('timers').setImmediate);
+}
+
 describe('CurrencyRateController', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
   afterEach(() => {
+    jest.useRealTimers();
+
     nock.cleanAll();
     sinon.restore();
   });
@@ -91,33 +106,40 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
+    jest.advanceTimersByTime(200);
+    await flushPromises();
+
     expect(fetchExchangeRateStub.called).toBe(false);
 
     controller.destroy();
   });
 
   it('should poll and update rate in the right interval', async () => {
-    const fetchExchangeRateStub = sinon.stub();
+    const fetchExchangeRateStub = jest.fn();
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
+
     await controller.start();
 
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 1));
-    expect(fetchExchangeRateStub.called).toBe(true);
-    expect(fetchExchangeRateStub.calledTwice).toBe(false);
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(fetchExchangeRateStub.calledTwice).toBe(true);
+    jest.advanceTimersByTime(99);
+    await flushPromises();
+
+    expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(1);
+    await flushPromises();
+
+    expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
     controller.destroy();
   });
 
   it('should not poll after being stopped', async () => {
-    const fetchExchangeRateStub = sinon.stub();
+    const fetchExchangeRateStub = jest.fn();
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
@@ -128,17 +150,19 @@ describe('CurrencyRateController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(fetchExchangeRateStub.called).toBe(true);
-    expect(fetchExchangeRateStub.calledTwice).toBe(false);
+    expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(fetchExchangeRateStub.calledTwice).toBe(false);
+    jest.advanceTimersByTime(150);
+    await flushPromises();
+
+    expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 
     controller.destroy();
   });
 
   it('should poll correctly after being started, stopped, and started again', async () => {
-    const fetchExchangeRateStub = sinon.stub();
+    const fetchExchangeRateStub = jest.fn();
+
     const messenger = getRestrictedMessenger();
     const controller = new CurrencyRateController({
       interval: 100,
@@ -149,16 +173,19 @@ describe('CurrencyRateController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(fetchExchangeRateStub.called).toBe(true);
-    expect(fetchExchangeRateStub.calledTwice).toBe(false);
+    expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 
-    controller.start();
+    await controller.start();
 
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 1));
-    expect(fetchExchangeRateStub.calledTwice).toBe(true);
-    expect(fetchExchangeRateStub.calledThrice).toBe(false);
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(fetchExchangeRateStub.calledThrice).toBe(true);
+    jest.advanceTimersByTime(1);
+    await flushPromises();
+
+    expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
+
+    jest.advanceTimersByTime(99);
+    await flushPromises();
+
+    expect(fetchExchangeRateStub).toHaveBeenCalledTimes(3);
   });
 
   it('should update exchange rate', async () => {
@@ -169,9 +196,11 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
-    controller.start();
+
     expect(controller.state.conversionRate).toStrictEqual(0);
-    await controller.updateExchangeRate();
+
+    await controller.start();
+
     expect(controller.state.conversionRate).toStrictEqual(10);
 
     controller.destroy();
@@ -199,12 +228,16 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
-    controller.start();
+
+    expect(controller.state.conversionRate).toStrictEqual(0);
+
+    await controller.start();
     await controller.setNativeCurrency('DAI');
-    await controller.updateExchangeRate();
+
     expect(controller.state.conversionRate).toStrictEqual(1);
-    await controller.updateExchangeRate();
+
     await controller.setNativeCurrency(TESTNET_TICKER_SYMBOLS.RINKEBY);
+
     expect(controller.state.conversionRate).toStrictEqual(10);
 
     controller.destroy();
@@ -218,10 +251,16 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
-    controller.start();
-    expect(controller.state.conversionRate).toStrictEqual(0);
+
+    expect(controller.state.currentCurrency).toStrictEqual('usd');
+
+    await controller.start();
+
+    expect(controller.state.currentCurrency).toStrictEqual('usd');
+
     await controller.setCurrentCurrency('CAD');
-    expect(controller.state.conversionRate).toStrictEqual(10);
+
+    expect(controller.state.currentCurrency).toStrictEqual('CAD');
 
     controller.destroy();
   });
@@ -234,10 +273,16 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
-    controller.start();
-    expect(controller.state.conversionRate).toStrictEqual(0);
+
+    expect(controller.state.nativeCurrency).toStrictEqual('ETH');
+
+    await controller.start();
+
+    expect(controller.state.nativeCurrency).toStrictEqual('ETH');
+
     await controller.setNativeCurrency('xDAI');
-    expect(controller.state.conversionRate).toStrictEqual(10);
+
+    expect(controller.state.nativeCurrency).toStrictEqual('xDAI');
 
     controller.destroy();
   });
@@ -251,8 +296,7 @@ describe('CurrencyRateController', () => {
       messenger,
       state: { currentCurrency: 'xyz' },
     });
-    controller.start();
-    await controller.updateExchangeRate();
+    await controller.start();
 
     expect(
       fetchExchangeRateStub.alwaysCalledWithExactly('xyz', 'ETH', true),
@@ -272,8 +316,7 @@ describe('CurrencyRateController', () => {
       messenger,
       state: { currentCurrency: 'xyz' },
     });
-    controller.start();
-    await controller.updateExchangeRate();
+    await controller.start();
 
     expect(controller.state.conversionRate).toStrictEqual(2000.42);
 
@@ -289,15 +332,25 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    controller.start();
+    await controller.start();
     await controller.setNativeCurrency('XYZ');
 
-    expect(
-      fetchExchangeRateStub.alwaysCalledWithExactly('usd', 'XYZ', true),
-    ).toBe(true);
+    expect(fetchExchangeRateStub.calledTwice).toBe(true);
+    expect(fetchExchangeRateStub.getCall(0).args).toStrictEqual([
+      'usd',
+      'ETH',
+      true,
+    ]);
+
+    expect(fetchExchangeRateStub.getCall(1).args).toStrictEqual([
+      'usd',
+      'XYZ',
+      true,
+    ]);
 
     controller.destroy();
   });
+
   it('should NOT fetch exchange rates after calling setNativeCurrency if start has not been called', async () => {
     const fetchExchangeRateStub = sinon.stub().resolves({});
     const messenger = getRestrictedMessenger();
@@ -313,6 +366,7 @@ describe('CurrencyRateController', () => {
 
     controller.destroy();
   });
+
   it('should NOT fetch exchange rates after calling setNativeCurrency if stop has been called', async () => {
     const fetchExchangeRateStub = sinon.stub().resolves({});
     const messenger = getRestrictedMessenger();
@@ -321,7 +375,7 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
-    controller.start();
+    await controller.start();
     controller.stop();
     fetchExchangeRateStub.resetHistory();
     await controller.setNativeCurrency('XYZ');
@@ -346,10 +400,13 @@ describe('CurrencyRateController', () => {
       messenger,
       state: { currentCurrency: 'xyz' },
     });
-    controller.start();
+
+    await controller.start();
+
     await expect(controller.updateExchangeRate()).rejects.toThrow(
       'this method has been deprecated',
     );
+
     controller.destroy();
   });
 
@@ -368,9 +425,11 @@ describe('CurrencyRateController', () => {
       messenger,
       state: { currentCurrency: 'xyz' },
     });
-    controller.start();
-    await controller.updateExchangeRate();
+
+    await controller.start();
+
     expect(controller.state.conversionRate).toBeNull();
+
     controller.destroy();
   });
 
@@ -388,8 +447,8 @@ describe('CurrencyRateController', () => {
       messenger,
       state: existingState,
     });
-    controller.start();
-    await controller.updateExchangeRate();
+
+    await controller.start();
 
     expect(controller.state).toStrictEqual({
       conversionDate: null,
