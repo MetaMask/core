@@ -1,6 +1,7 @@
 import getCreateRandomId from 'json-rpc-random-id';
 import { JsonRpcNotification, JsonRpcSuccess } from 'json-rpc-engine';
-import { BaseBlockTracker, Provider } from './BaseBlockTracker';
+import { BaseBlockTracker } from './BaseBlockTracker';
+import { Provider } from './types';
 
 const createRandomId = getCreateRandomId();
 

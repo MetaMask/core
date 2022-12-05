@@ -1,18 +1,10 @@
 import SafeEventEmitter from '@metamask/safe-event-emitter';
-import { JsonRpcRequest, JsonRpcResponse } from 'json-rpc-engine';
 
 const sec = 1000;
 
 const calculateSum = (accumulator: number, currentValue: number) =>
   accumulator + currentValue;
 const blockTrackerEvents: (string | symbol)[] = ['sync', 'latest'];
-
-export interface Provider extends SafeEventEmitter {
-  sendAsync: <T, U>(
-    req: JsonRpcRequest<T>,
-    cb: (err: Error, response: JsonRpcResponse<U>) => void,
-  ) => void;
-}
 
 interface BaseBlockTrackerArgs {
   blockResetDuration?: number;

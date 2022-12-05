@@ -1,8 +1,9 @@
 import getCreateRandomId from 'json-rpc-random-id';
 import pify from 'pify';
 import { JsonRpcRequest } from 'json-rpc-engine';
-import { BaseBlockTracker, Provider } from './BaseBlockTracker';
+import { BaseBlockTracker } from './BaseBlockTracker';
 import { projectLogger, createModuleLogger } from './logging-utils';
+import { Provider } from './types';
 
 const log = createModuleLogger(projectLogger, 'polling-block-tracker');
 const createRandomId = getCreateRandomId();
