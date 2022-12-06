@@ -34,11 +34,21 @@ const getStubbedDate = () => {
 };
 
 /**
- * Resolve all pending promises.
- * This method is used for async tests that use fake timers.
+ * Using fake timers on async tests.
  * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
+ *
+ * @param ms - The number of milliseconds to advance the fake timer.
  */
-function flushPromises(): Promise<unknown> {
+async function advanceTimersByTimeAsync(ms: number) {
+  jest.advanceTimersByTime(ms);
+
+  await flushPromises();
+}
+
+/**
+ * Resolve all pending promises.
+ */
+async function flushPromises(): Promise<unknown> {
   return new Promise(jest.requireActual('timers').setImmediate);
 }
 
@@ -100,8 +110,7 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    jest.advanceTimersByTime(200);
-    await flushPromises();
+    await advanceTimersByTimeAsync(200);
 
     expect(fetchExchangeRateStub).not.toHaveBeenCalled();
 
@@ -119,13 +128,11 @@ describe('CurrencyRateController', () => {
 
     await controller.start();
 
-    jest.advanceTimersByTime(99);
-    await flushPromises();
+    await advanceTimersByTimeAsync(99);
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 
-    jest.advanceTimersByTime(1);
-    await flushPromises();
+    await advanceTimersByTimeAsync(1);
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
@@ -147,8 +154,7 @@ describe('CurrencyRateController', () => {
     // called once upon initial start
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 
-    jest.advanceTimersByTime(150);
-    await flushPromises();
+    await advanceTimersByTimeAsync(150);
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 
@@ -172,13 +178,11 @@ describe('CurrencyRateController', () => {
 
     await controller.start();
 
-    jest.advanceTimersByTime(1);
-    await flushPromises();
+    await advanceTimersByTimeAsync(1);
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
-    jest.advanceTimersByTime(99);
-    await flushPromises();
+    await advanceTimersByTimeAsync(99);
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(3);
   });
