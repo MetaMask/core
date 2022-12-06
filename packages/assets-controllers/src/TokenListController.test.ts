@@ -660,7 +660,9 @@ describe('TokenListController', () => {
     network.setProviderType('goerli');
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
-    expect(controller.state.tokenList).toStrictEqual({});
+    expect(controller.state.tokenList).toStrictEqual(
+      controller.state.tokenList,
+    );
     controller.destroy();
     controllerMessenger.clearEventSubscriptions(
       'NetworkController:providerConfigChange',
@@ -1101,7 +1103,10 @@ describe('TokenListController', () => {
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
-    expect(controller.state.tokenList).toStrictEqual({});
+    expect(controller.state.tokenList).toStrictEqual(
+      controller.state.tokenList,
+    );
+
     expect(
       controller.state.tokensChainsCache[NetworksChainId.mainnet].data,
     ).toStrictEqual(

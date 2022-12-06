@@ -227,6 +227,7 @@ describe('NftDetectionController', () => {
   });
 
   it('should poll and detect NFTs on interval while on mainnet', async () => {
+    const getOwnerNfts = sinon.stub();
     await new Promise((resolve) => {
       const mockNfts = sinon.stub(
         NftDetectionController.prototype,
@@ -244,6 +245,8 @@ describe('NftDetectionController', () => {
           getNftState: () => nftController.state,
         },
         { interval: 10 },
+        {},
+        getOwnerNfts,
       );
       nftsDetectionController.configure({ disabled: false });
       nftsDetectionController.start();
@@ -252,6 +255,7 @@ describe('NftDetectionController', () => {
         expect(mockNfts.calledTwice).toBe(true);
         resolve('');
       }, 15);
+      nftsDetectionController.disabled = true;
     });
   });
 
@@ -263,12 +267,13 @@ describe('NftDetectionController', () => {
   });
 
   it('should not autodetect while not on mainnet', async () => {
+    const getOwnerNfts = sinon.stub();
     await new Promise((resolve) => {
       const mockNfts = sinon.stub(
         NftDetectionController.prototype,
         'detectNfts',
       );
-      new NftDetectionController(
+      const nftsDetectionController = new NftDetectionController(
         {
           onNftsStateChange: (listener) => nftController.subscribe(listener),
           onPreferencesStateChange: (listener) =>
@@ -280,9 +285,12 @@ describe('NftDetectionController', () => {
           getNftState: () => nftController.state,
         },
         { interval: 10, networkType: ROPSTEN },
+        {},
+        getOwnerNfts,
       );
       expect(mockNfts.called).toBe(false);
       resolve('');
+      nftsDetectionController.disabled = true;
     });
   });
 

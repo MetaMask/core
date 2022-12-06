@@ -7,13 +7,11 @@ import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import {
   MAINNET,
-  OPENSEA_PROXY_URL,
-  OPENSEA_API_URL,
   NetworkType,
-  fetchWithErrorHandling,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type { NftController, NftState, NftMetadata } from './NftController';
+import { getOwnerNfts as defaultGetOwnerNfts } from './owner-nfts';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -137,59 +135,7 @@ export class NftDetectionController extends BaseController<
 > {
   private intervalId?: ReturnType<typeof setTimeout>;
 
-  private getOwnerNftApi({
-    address,
-    offset,
-    useProxy,
-  }: {
-    address: string;
-    offset: number;
-    useProxy: boolean;
-  }) {
-    return useProxy
-      ? `${OPENSEA_PROXY_URL}/assets?owner=${address}&offset=${offset}&limit=50`
-      : `${OPENSEA_API_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
-  }
-
-  private async getOwnerNfts(address: string) {
-    let nftApiResponse: { assets: ApiNft[] };
-    let nfts: ApiNft[] = [];
-    const openSeaApiKey = this.getOpenSeaApiKey();
-    let offset = 0;
-    let pagingFinish = false;
-    /* istanbul ignore if */
-    do {
-      nftApiResponse = await fetchWithErrorHandling({
-        url: this.getOwnerNftApi({ address, offset, useProxy: true }),
-        timeout: 15000,
-      });
-
-      if (openSeaApiKey && !nftApiResponse) {
-        nftApiResponse = await fetchWithErrorHandling({
-          url: this.getOwnerNftApi({
-            address,
-            offset,
-            useProxy: false,
-          }),
-          options: { headers: { 'X-API-KEY': openSeaApiKey } },
-          timeout: 15000,
-          // catch 403 errors (in case API key is down we don't want to blow up)
-          errorCodesToCatch: [403],
-        });
-      }
-
-      if (!nftApiResponse) {
-        return nfts;
-      }
-
-      nftApiResponse?.assets?.length !== 0
-        ? (nfts = [...nfts, ...nftApiResponse.assets])
-        : (pagingFinish = true);
-      offset += 50;
-    } while (!pagingFinish);
-
-    return nfts;
-  }
+  private getOwnerNfts: typeof defaultGetOwnerNfts;
 
   /**
    * Name of this controller used during composition
@@ -214,6 +160,7 @@ export class NftDetectionController extends BaseController<
    * @param options.getNftState - Gets the current state of the Assets controller.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
+   * @param getOwnerNfts - Gets the NFTs that owner have on his wallet
    */
   constructor(
     {
@@ -236,8 +183,10 @@ export class NftDetectionController extends BaseController<
     },
     config?: Partial<NftDetectionConfig>,
     state?: Partial<BaseState>,
+    getOwnerNfts = defaultGetOwnerNfts,
   ) {
     super(config, state);
+    this.getOwnerNfts = getOwnerNfts;
     this.defaultConfig = {
       interval: DEFAULT_INTERVAL,
       networkType: MAINNET,
@@ -332,13 +281,14 @@ export class NftDetectionController extends BaseController<
       return;
     }
     const { selectedAddress, chainId } = this.config;
+    const openSeaApiKey = this.getOpenSeaApiKey();
 
     /* istanbul ignore else */
     if (!selectedAddress) {
       return;
     }
 
-    const apiNfts = await this.getOwnerNfts(selectedAddress);
+    const apiNfts = await this.getOwnerNfts(selectedAddress, openSeaApiKey);
     const addNftPromises = apiNfts.map(async (nft: ApiNft) => {
       const {
         token_id,
