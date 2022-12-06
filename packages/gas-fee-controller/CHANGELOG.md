@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [2.0.1]
-### Uncategorized
-- Add peer dependencies between packages ([#1003](https://github.com/MetaMask/controllers/pull/1003))
+### Fixed
+- This package will now warn if a required package is not present ([#1003](https://github.com/MetaMask/controllers/pull/1003))
 
 ## [2.0.0]
 ### Changed

@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.0.0]
-### Uncategorized
-- Allow network requests in instances of the CurrencyRate and TokenRate controllers to be disabled ([#1002](https://github.com/MetaMask/controllers/pull/1002))
-- Add peer dependencies between packages ([#1003](https://github.com/MetaMask/controllers/pull/1003))
+### Changed
+- **BREAKING:** A new private property, controlled by the `start` and `stop` methods, is added to the CurrencyRateController: `enabled`. When this is false, no network requests will be made from the controller. Previously, setNativeCurrency or setCurrentCurrency would trigger a network request. That is now prevented if `enabled` is false. ([#1002](https://github.com/MetaMask/controllers/pull/1002))
+
+### Fixed
+- The TokenRatesController no longer overwrites the `disabled` config property passed to the constructor, allowing the controller to be instantiated with `config.disabled` set to either true or false. ([#1002](https://github.com/MetaMask/controllers/pull/1002))
+- This package will now warn if a required package is not present ([#1003](https://github.com/MetaMask/controllers/pull/1003))
 
 ## [2.0.0]
 ### Changed
