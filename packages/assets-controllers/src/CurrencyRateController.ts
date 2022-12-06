@@ -91,6 +91,11 @@ export class CurrencyRateController extends BaseControllerV2<
   private includeUsdRate;
 
   /**
+   * A boolean that controls whether or not network requests can be made by the controller
+   */
+  #enabled;
+
+  /**
    * Creates a CurrencyRateController instance.
    *
    * @param options - Constructor options.
@@ -122,12 +127,15 @@ export class CurrencyRateController extends BaseControllerV2<
     this.includeUsdRate = includeUsdRate;
     this.intervalDelay = interval;
     this.fetchExchangeRate = fetchExchangeRate;
+    this.#enabled = false;
   }
 
   /**
    * Start polling for the currency rate.
    */
   async start() {
+    this.#enabled = true;
+
     await this.startPolling();
   }
 
@@ -135,6 +143,8 @@ export class CurrencyRateController extends BaseControllerV2<
    * Stop polling for the currency rate.
    */
   stop() {
+    this.#enabled = false;
+
     this.stopPolling();
   }
 
@@ -184,9 +194,11 @@ export class CurrencyRateController extends BaseControllerV2<
   private async startPolling(): Promise<void> {
     this.stopPolling();
     // TODO: Expose polling currency rate update errors
-    await safelyExecute(() => this.updateExchangeRate());
+
+    await safelyExecute(async () => await this.updateExchangeRate());
+
     this.intervalId = setInterval(async () => {
-      await safelyExecute(() => this.updateExchangeRate());
+      await safelyExecute(async () => await this.updateExchangeRate());
     }, this.intervalDelay);
   }
 
@@ -196,6 +208,12 @@ export class CurrencyRateController extends BaseControllerV2<
    * @returns The controller state.
    */
   async updateExchangeRate(): Promise<CurrencyRateState | void> {
+    if (!this.#enabled) {
+      console.info(
+        '[CurrencyRateController] Not updating exchange rate since network requests have been disabled',
+      );
+      return this.state;
+    }
     const releaseLock = await this.mutex.acquire();
     const {
       currentCurrency: stateCurrentCurrency,
@@ -227,11 +245,14 @@ export class CurrencyRateController extends BaseControllerV2<
         currentCurrency !== '' &&
         nativeCurrency !== ''
       ) {
-        ({ conversionRate, usdConversionRate } = await this.fetchExchangeRate(
+        const fetchExchangeRateResponse = await this.fetchExchangeRate(
           currentCurrency,
           nativeCurrencyForExchangeRate,
           this.includeUsdRate,
-        ));
+        );
+
+        conversionRate = fetchExchangeRateResponse.conversionRate;
+        usdConversionRate = fetchExchangeRateResponse.usdConversionRate;
         conversionDate = Date.now() / 1000;
       }
     } catch (error) {
