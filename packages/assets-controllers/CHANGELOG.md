@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+### Changed
+- **BREAKING:** A new private property, controlled by the `start` and `stop` methods, is added to the CurrencyRateController: `enabled`. When this is false, no network requests will be made from the controller. Previously, setNativeCurrency or setCurrentCurrency would trigger a network request. That is now prevented if `enabled` is false. ([#1002](https://github.com/MetaMask/controllers/pull/1002))
+
+### Fixed
+- The TokenRatesController no longer overwrites the `disabled` config property passed to the constructor, allowing the controller to be instantiated with `config.disabled` set to either true or false. ([#1002](https://github.com/MetaMask/controllers/pull/1002))
+- This package will now warn if a required package is not present ([#1003](https://github.com/MetaMask/controllers/pull/1003))
+
 ## [2.0.0]
 ### Changed
 - **BREAKING:** Update `onNetworkStateChange`, a constructor option for several controllers, to take an object with a `providerConfig` property instead of `provider` ([#995](https://github.com/MetaMask/controllers/pull/995))
@@ -36,7 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/controllers/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@2.0.0...@metamask/assets-controllers@3.0.0
 [2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@1.0.1...@metamask/assets-controllers@2.0.0
 [1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@1.0.0...@metamask/assets-controllers@1.0.1
 [1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/assets-controllers@1.0.0
