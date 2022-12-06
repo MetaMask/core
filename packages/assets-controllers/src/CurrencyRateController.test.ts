@@ -39,7 +39,7 @@ const getStubbedDate = () => {
  *
  * @param ms - The number of milliseconds to advance the fake timer.
  */
-async function advanceTimersByTimeAsync(ms: number) {
+async function advanceTimersByTimeAsync(ms: number): Promise<void> {
   jest.advanceTimersByTime(ms);
 
   await flushPromises();
