@@ -70,7 +70,6 @@ module.exports = {
     'no-negated-condition': 'off',
     'no-new': 'off',
     'no-param-reassign': 'off',
-    'node/prefer-global/text-decoder': 'off',
     radix: 'off',
     'require-atomic-updates': 'off',
     'jsdoc/match-description': [
