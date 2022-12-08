@@ -13,6 +13,13 @@ type Announcement = {
   date: string;
 };
 
+/**
+ * A map of announcement ids to Announcement objects
+ */
+export type AnnouncementMap = {
+  [id: number]: Announcement;
+}
+
 type StateAnnouncement = Announcement & { isShown: boolean };
 
 /**
@@ -74,7 +81,6 @@ export class AnnouncementController extends BaseControllerV2<
   AnnouncementControllerState,
   AnnouncementControllerMessenger
 > {
-  // allAnnouncements: StateAnnouncementMap;
   /**
    * Creates a AnnouncementController instance.
    *
@@ -90,7 +96,7 @@ export class AnnouncementController extends BaseControllerV2<
   }: {
     messenger: AnnouncementControllerMessenger;
     state?: AnnouncementControllerState;
-    allAnnouncements: StateAnnouncementMap;
+    allAnnouncements: AnnouncementMap;
   }) {
     const mergedState = { ...defaultState, ...state };
     super({ messenger, metadata, name: controllerName, state: mergedState });
@@ -105,12 +111,13 @@ export class AnnouncementController extends BaseControllerV2<
    *
    * @param allAnnouncements - all announcements to compare with the announcements from state
    */
-  #addAnnouncements(allAnnouncements: StateAnnouncementMap): void {
-    this.update(({ announcements }) => {
+  #addAnnouncements(allAnnouncements: AnnouncementMap): void {
+    this.update((state) => {
       Object.values(allAnnouncements).forEach(
-        (announcement: StateAnnouncement) => {
-          announcements[announcement.id] =
-            announcements[announcement.id] ?? announcement;
+        (allAnouncement: Announcement) => {
+          state.announcements[allAnouncement.id] =
+            state.announcements[allAnouncement.id] ??
+            { ...allAnouncement, isShown: false };
         },
       );
     });

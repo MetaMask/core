@@ -5,6 +5,7 @@ import {
   StateAnnouncementMap,
   AnnouncementControllerActions,
   AnnouncementControllerEvents,
+  AnnouncementMap,
 } from './AnnouncementController';
 
 const name = 'AnnouncementController';
@@ -23,33 +24,28 @@ function getRestrictedMessenger() {
     name,
   });
 }
-const allAnnouncements = {
+const allAnnouncements: AnnouncementMap = {
   1: {
     id: 1,
     date: '12/8/2020',
-    isShown: true,
   },
   2: {
     id: 2,
-    date: '12/8/2020',
-    isShown: true,
+    date: '12/8/2020'
   },
 };
-const allAnnouncements2 = {
+const allAnnouncements2: AnnouncementMap = {
   1: {
     id: 1,
     date: '12/8/2020',
-    isShown: false,
   },
   2: {
     id: 2,
     date: '12/8/2020',
-    isShown: false,
   },
   3: {
     id: 3,
     date: '12/8/2020',
-    isShown: false,
   },
 };
 const state1: AnnouncementControllerState = {
@@ -91,16 +87,17 @@ describe('announcement controller', () => {
   it('should add announcement to state', () => {
     const controller = new AnnouncementController({
       messenger: getRestrictedMessenger(),
-      state: state1,
       allAnnouncements,
     });
     expect(Object.keys(controller.state.announcements)).toHaveLength(2);
     const expectedStateNotifications: StateAnnouncementMap = {
       1: {
         ...allAnnouncements[1],
+        isShown: false,
       },
       2: {
         ...allAnnouncements[2],
+        isShown:false,
       },
     };
     expect(controller.state.announcements).toStrictEqual(
