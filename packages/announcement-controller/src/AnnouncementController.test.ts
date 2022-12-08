@@ -31,7 +31,7 @@ const allAnnouncements: AnnouncementMap = {
   },
   2: {
     id: 2,
-    date: '12/8/2020'
+    date: '12/8/2020',
   },
 };
 const allAnnouncements2: AnnouncementMap = {
@@ -97,7 +97,7 @@ describe('announcement controller', () => {
       },
       2: {
         ...allAnnouncements[2],
-        isShown:false,
+        isShown: false,
       },
     };
     expect(controller.state.announcements).toStrictEqual(

@@ -18,7 +18,7 @@ type Announcement = {
  */
 export type AnnouncementMap = {
   [id: number]: Announcement;
-}
+};
 
 type StateAnnouncement = Announcement & { isShown: boolean };
 
@@ -115,9 +115,9 @@ export class AnnouncementController extends BaseControllerV2<
     this.update((state) => {
       Object.values(allAnnouncements).forEach(
         (allAnouncement: Announcement) => {
-          state.announcements[allAnouncement.id] =
-            state.announcements[allAnouncement.id] ??
-            { ...allAnouncement, isShown: false };
+          state.announcements[allAnouncement.id] = state.announcements[
+            allAnouncement.id
+          ] ?? { ...allAnouncement, isShown: false };
         },
       );
     });
