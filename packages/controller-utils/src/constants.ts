@@ -8,6 +8,30 @@ export const IPFS_DEFAULT_GATEWAY_URL = 'https://cloudflare-ipfs.com/ipfs/';
 // NETWORKS ID
 export const RINKEBY_CHAIN_ID = '4';
 export const GANACHE_CHAIN_ID = '1337';
+const NetworkNicknames = {
+  goerli: 'goerli',
+  localhost: 'localhost',
+  mainnet: 'mainnet',
+  sepolia: 'sepolia',
+} as const;
+export const Networks = {
+  [NetworkNicknames.goerli]: {
+    networkId: 5,
+    isDefault: true,
+  },
+  [NetworkNicknames.localhost]: {
+    networkId: 1337,
+    isDefault: true,
+  },
+  [NetworkNicknames.mainnet]: {
+    networkId: 1,
+    isDefault: true,
+  },
+  [NetworkNicknames.sepolia]: {
+    networkId: 11155111,
+    isDefault: true,
+  },
+} as const;
 
 // TOKEN STANDARDS
 export const ERC721 = 'ERC721';
