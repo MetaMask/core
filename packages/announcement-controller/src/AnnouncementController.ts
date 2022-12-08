@@ -114,10 +114,10 @@ export class AnnouncementController extends BaseControllerV2<
   #addAnnouncements(allAnnouncements: AnnouncementMap): void {
     this.update((state) => {
       Object.values(allAnnouncements).forEach(
-        (allAnouncement: Announcement) => {
-          state.announcements[allAnouncement.id] = state.announcements[
-            allAnouncement.id
-          ] ?? { ...allAnouncement, isShown: false };
+        (announcement: Announcement) => {
+          state.announcements[announcement.id] = state.announcements[
+            announcement.id
+          ] ?? { ...announcement, isShown: false };
         },
       );
     });
