@@ -1130,7 +1130,6 @@ describe('KeyringController', () => {
 
   describe('Ledger Keyring', () => {
     let ledgerKeyring: LedgerKeyring;
-    let defaultAccount: { address: string; balance: string };
     preferences = new PreferencesController();
 
     beforeEach(async () => {
@@ -1157,10 +1156,12 @@ describe('KeyringController', () => {
         signPersonalMessage: sinon.stub(),
       });
 
-      defaultAccount = await keyringController.unlockDefaultLedgerAccount();
+      await keyringController.unlockLedgerDefaultAccount();
     });
 
     it('should unlock default account from Ledger', async () => {
+      const defaultAccount =
+        await keyringController.unlockLedgerDefaultAccount();
       expect(defaultAccount.address).toBe(
         '0xe908e4378431418759b4f87b4bf7966e8aaa5cf2',
       );
@@ -1177,7 +1178,7 @@ describe('KeyringController', () => {
       const data =
         '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
 
-      const account = await ledgerKeyring.getDefaultAccount();
+      const account = await ledgerKeyring?.getDefaultAccount();
       const signature = await keyringController.signMessage({
         data,
         from: account,
@@ -1202,7 +1203,7 @@ describe('KeyringController', () => {
       const data =
         '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
 
-      const account = await ledgerKeyring.getDefaultAccount();
+      const account = await ledgerKeyring?.getDefaultAccount();
       const signature = await keyringController.signPersonalMessage({
         data,
         from: account,
@@ -1253,7 +1254,7 @@ describe('KeyringController', () => {
         v: new BN('3'),
       } as any);
 
-      const account = await ledgerKeyring.getDefaultAccount();
+      const account = await ledgerKeyring?.getDefaultAccount();
 
       const { r, s, v } = await keyringController.signTransaction(tx, account);
       expect(r.toString()).toBe('1');
@@ -1263,7 +1264,7 @@ describe('KeyringController', () => {
       confirmSignatureStub.reset();
     });
 
-    it('should throw if typed data versions is not V4', async () => {
+    it('should throw if typed data verions is not V4', async () => {
       const typedMsgParams = [
         {
           name: 'Message',
@@ -1298,12 +1299,7 @@ describe('KeyringController', () => {
     });
 
     it('should sign typed data for V4 with Ledger Keyring', async () => {
-      const msgParams: TypedMessage<{
-        EIP712Domain: MessageTypeProperty[];
-        Group: MessageTypeProperty[];
-        Mail: MessageTypeProperty[];
-        Person: MessageTypeProperty[];
-      }> = {
+      const msgParams = {
         domain: {
           chainId: 1,
           name: 'Ether Mail',
@@ -1367,7 +1363,7 @@ describe('KeyringController', () => {
         SignTypedDataVersion.V4,
       );
       const recovered = recoverTypedSignature_v4({
-        data: msgParams,
+        data: msgParams as any,
         sig: signature as string,
       });
       expect(account).toBe(recovered);
@@ -1389,76 +1385,6 @@ describe('KeyringController', () => {
       );
 
       expect(keyring).toBe(KeyringTypes.ledger);
-    });
-
-    it('should execute openEthereumAppOnLedger properly', async () => {
-      sinon.stub(ledgerKeyring, 'openEthApp');
-      const openEthAppSpy = jest.spyOn(ledgerKeyring, 'openEthApp');
-      await keyringController.openEthereumAppOnLedger();
-      expect(openEthAppSpy).toHaveBeenCalled();
-    });
-
-    it('should execute closeRunningAppOnLedger properly if appName is BOLOS', async () => {
-      const getAppAndVersionStub = sinon.stub(
-        ledgerKeyring,
-        'getAppAndVersion',
-      );
-      const appNameAndVersion = {
-        appName: 'BOLOS',
-        version: 'mock_version',
-      };
-      getAppAndVersionStub.resolves(appNameAndVersion);
-      sinon.stub(ledgerKeyring, 'quitApp');
-      const quitApp = jest.spyOn(ledgerKeyring, 'quitApp');
-      await keyringController.closeRunningAppOnLedger();
-      expect(quitApp).not.toHaveBeenCalled();
-    });
-
-    it('should execute closeRunningAppOnLedger properly if appName is not BOLOS', async () => {
-      const getAppAndVersionStub = sinon.stub(
-        ledgerKeyring,
-        'getAppAndVersion',
-      );
-      const appNameAndVersion = {
-        appName: 'mock_app_name',
-        version: 'mock_version',
-      };
-      getAppAndVersionStub.resolves(appNameAndVersion);
-      sinon.stub(ledgerKeyring, 'quitApp');
-      const quitApp = jest.spyOn(ledgerKeyring, 'quitApp');
-      await keyringController.closeRunningAppOnLedger();
-      expect(quitApp).toHaveBeenCalled();
-    });
-
-    it('should retrieve the default account from the LedgerKeyring', async () => {
-      const { address, balance } =
-        await keyringController.unlockDefaultLedgerAccount();
-      expect(address).toBe(defaultAccount.address);
-      expect(balance).toBe(defaultAccount.balance);
-    });
-
-    it('should return the existing LedgerKeyring or create a new one', async () => {
-      const keyring = await keyringController.getLedgerKeyring();
-      expect(keyring).toBe(ledgerKeyring);
-    });
-
-    it('should return the app name after connecting the Ledger hardware', async () => {
-      const transportMock = new Transport();
-      const deviceIdMock = '0000';
-      const getAppAndVersionStub = sinon.stub(
-        ledgerKeyring,
-        'getAppAndVersion',
-      );
-      const appNameAndVersion = {
-        appName: 'mock_app_name',
-        version: 'mock_version',
-      };
-      getAppAndVersionStub.resolves(appNameAndVersion);
-      const response = await keyringController.connectLedgerHardware(
-        transportMock,
-        deviceIdMock,
-      );
-      expect(response).toBe(appNameAndVersion.appName);
     });
   });
 });

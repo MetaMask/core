@@ -805,7 +805,7 @@ export class KeyringController extends BaseController<
    *
    * @returns The default (first) account on the device
    */
-  async unlockDefaultLedgerAccount(): Promise<{
+  async unlockLedgerDefaultAccount(): Promise<{
     address: string;
     balance: string;
   }> {
@@ -815,10 +815,10 @@ export class KeyringController extends BaseController<
     const newAccounts = await this.#keyring.getAccounts();
 
     this.updateIdentities(newAccounts);
-    newAccounts.forEach((address: string) => {
+    newAccounts.forEach((address: string, index: number) => {
       if (!oldAccounts.includes(address)) {
         if (this.setAccountLabel) {
-          this.setAccountLabel(address, `${keyring.getName()} 1`);
+          this.setAccountLabel(address, `${keyring.getName()} ${index + 1}`);
         }
         this.setSelectedAddress(address);
       }
@@ -836,7 +836,7 @@ export class KeyringController extends BaseController<
   /**
    * Automatically opens the Ethereum app on the Ledger device.
    */
-  async openEthereumAppOnLedger(): Promise<void> {
+  async openEthereumApp(): Promise<void> {
     const keyring = await this.getLedgerKeyring();
     await keyring.openEthApp();
   }
@@ -844,7 +844,7 @@ export class KeyringController extends BaseController<
   /**
    * Automatically closes the current app on the Ledger device.
    */
-  async closeRunningAppOnLedger(): Promise<void> {
+  async closeRunningApp(): Promise<void> {
     const keyring = await this.getLedgerKeyring();
     const { appName } = await keyring.getAppAndVersion();
 
