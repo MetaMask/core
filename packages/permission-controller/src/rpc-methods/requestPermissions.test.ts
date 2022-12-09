@@ -19,6 +19,7 @@ describe('requestPermissions RPC method', () => {
       });
 
     const engine = new JsonRpcEngine();
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     engine.push((req, res, next, end) =>
       implementation(req as any, res as any, next, end, {
         requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
@@ -53,6 +54,7 @@ describe('requestPermissions RPC method', () => {
     engine.push(
       createAsyncMiddleware(
         (req, res, next) =>
+          // eslint-disable-next-line @typescript-eslint/no-misused-promises
           implementation(req as any, res as any, next, end, {
             requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
           }) as any,
@@ -77,6 +79,7 @@ describe('requestPermissions RPC method', () => {
     const mockRequestPermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     engine.push((req, res, next, end) =>
       implementation(req as any, res as any, next, end, {
         requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
@@ -110,6 +113,7 @@ describe('requestPermissions RPC method', () => {
     const mockRequestPermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     engine.push((req, res, next, end) =>
       implementation(req as any, res as any, next, end, {
         requestPermissionsForOrigin: mockRequestPermissionsForOrigin,

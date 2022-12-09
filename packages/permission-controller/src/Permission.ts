@@ -5,8 +5,8 @@ import { nanoid } from 'nanoid';
 import { CaveatConstraint } from './Caveat';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Caveat } from './Caveat';
-import type { PermissionController } from './PermissionController';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { PermissionController } from './PermissionController';
 
 /**
  * The origin of a subject.
@@ -35,6 +35,7 @@ export type PermissionConstraint = {
    * It is required by the standard, but we make it optional since there is only
    * one context in our usage (i.e. the user's MetaMask instance).
    */
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   readonly '@context'?: NonEmptyArray<string>;
 
   // TODO:TS4.4 Make optional

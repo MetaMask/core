@@ -9,8 +9,8 @@ type UnauthorizedArg = {
 /**
  * Utility function for building an "unauthorized" error.
  *
- * @param opts - Optional arguments that add extra context
- * @returns The built error
+ * @param opts - Optional arguments that add extra context.
+ * @returns The built error.
  */
 export function unauthorized(opts: UnauthorizedArg) {
   return ethErrors.provider.unauthorized({
@@ -25,7 +25,7 @@ export function unauthorized(opts: UnauthorizedArg) {
  *
  * @param method - The method in question.
  * @param data - Optional data for context.
- * @returns The built error
+ * @returns The built error.
  */
 export function methodNotFound(method: string, data?: unknown) {
   const message = `The method "${method}" does not exist / is not available.`;
@@ -45,8 +45,8 @@ type InvalidParamsArg = {
 /**
  * Utility function for building an "invalid params" error.
  *
- * @param opts - Optional arguments that add extra context
- * @returns The built error
+ * @param opts - Optional arguments that add extra context.
+ * @returns The built error.
  */
 export function invalidParams(opts: InvalidParamsArg) {
   return ethErrors.rpc.invalidParams({
@@ -58,8 +58,8 @@ export function invalidParams(opts: InvalidParamsArg) {
 /**
  * Utility function for building an "user rejected request" error.
  *
- * @param data - Optional data to add extra context
- * @returns The built error
+ * @param data - Optional data to add extra context.
+ * @returns The built error.
  */
 export function userRejectedRequest<Data extends Record<string, unknown>>(
   data?: Data,
@@ -70,9 +70,9 @@ export function userRejectedRequest<Data extends Record<string, unknown>>(
 /**
  * Utility function for building an internal error.
  *
- * @param message - The error message
- * @param data - Optional data to add extra context
- * @returns The built error
+ * @param message - The error message.
+ * @param data - Optional data to add extra context.
+ * @returns The built error.
  */
 export function internalError<Data extends Record<string, unknown>>(
   message: string,

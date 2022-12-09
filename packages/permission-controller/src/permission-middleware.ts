@@ -19,7 +19,7 @@ import { internalError } from './errors';
 import type { PermissionController } from './PermissionController';
 
 type PermissionMiddlewareFactoryOptions = {
-  executeRestrictedMethod: GenericPermissionController['_executeRestrictedMethod'];
+  executeRestrictedMethod: GenericPermissionController['#executeRestrictedMethod'];
   getRestrictedMethod: GenericPermissionController['getRestrictedMethod'];
   isUnrestrictedMethod: (method: string) => boolean;
 };
@@ -40,8 +40,8 @@ type PermissionMiddlewareFactoryOptions = {
  * will be executed. Otherwise, an "unauthorized" error will be returned.
  *
  * @param options - Options bag.
- * @param options.executeRestrictedMethod - {@link PermissionController._executeRestrictedMethod}.
- * @param options.getRestrictedMethod - {@link PermissionController.getRestrictedMethod}.
+ * @param options.executeRestrictedMethod - A {@link PermissionController.#executeRestrictedMethod}.
+ * @param options.getRestrictedMethod - A {@link PermissionController.getRestrictedMethod}.
  * @param options.isUnrestrictedMethod - A function that checks whether a
  * particular method is unrestricted.
  * @returns A permission middleware factory function.

@@ -16,7 +16,7 @@ export const requestPermissionsHandler: PermittedHandlerExport<
   [RequestedPermissions],
   PermissionConstraint[]
 > = {
-  methodNames: [MethodNames.requestPermissions],
+  methodNames: [MethodNames.RequestPermissions],
   implementation: requestPermissionsImplementation,
   hookNames: {
     requestPermissionsForOrigin: true,
@@ -37,13 +37,13 @@ export type RequestPermissionsHooks = {
 /**
  * Request Permissions implementation to be used in JsonRpcEngine middleware.
  *
- * @param req - The JsonRpcEngine request
- * @param res - The JsonRpcEngine result object
- * @param _next - JsonRpcEngine next() callback - unused
- * @param end - JsonRpcEngine end() callback
- * @param options - Method hooks passed to the method implementation
- * @param options.requestPermissionsForOrigin - The specific method hook needed for this method implementation
- * @returns A promise that resolves to nothing
+ * @param req - The JsonRpcEngine request.
+ * @param res - The JsonRpcEngine result object.
+ * @param _next - JsonRpcEngine next() callback - unused.
+ * @param end - JsonRpcEngine end() callback.
+ * @param options - Method hooks passed to the method implementation.
+ * @param options.requestPermissionsForOrigin - The specific method hook needed for this method implementation.
+ * @returns A promise that resolves to nothing.
  */
 async function requestPermissionsImplementation(
   req: JsonRpcRequest<[RequestedPermissions]>,

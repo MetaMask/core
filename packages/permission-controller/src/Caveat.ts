@@ -259,10 +259,10 @@ export function isRestrictedMethodCaveatSpecification(
  * Note that all caveat functions (i.e. the argument and return value of the
  * decorator) must be awaited.
  *
- * @param methodImplementation - The restricted method implementation
- * @param permission - The origin's potential permission
- * @param caveatSpecifications - All caveat implementations
- * @returns The decorated method implementation
+ * @param methodImplementation - The restricted method implementation.
+ * @param permission - The origin's potential permission.
+ * @param caveatSpecifications - All caveat implementations.
+ * @returns The decorated method implementation.
  */
 export function decorateWithCaveats<
   CaveatSpecifications extends CaveatSpecificationConstraint,
