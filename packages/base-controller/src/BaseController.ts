@@ -165,7 +165,9 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    * @returns `true` if a listener is found and unsubscribed.
    */
   unsubscribe(listener: Listener<S>) {
-    const index = this.#internalListeners.findIndex((cb) => listener === cb);
+    const index = this.#internalListeners.findIndex(
+      (callback) => listener === callback,
+    );
     index > -1 && this.#internalListeners.splice(index, 1);
     return index > -1;
   }

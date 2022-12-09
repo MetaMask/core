@@ -133,7 +133,7 @@ export class RateLimitController<
     type: ApiType,
     ...args: Parameters<RateLimitedApis[ApiType]>
   ): Promise<ReturnType<RateLimitedApis[ApiType]>> {
-    if (this.isRateLimited(type, origin)) {
+    if (this.#isRateLimited(type, origin)) {
       throw ethErrors.rpc.limitExceeded({
         message: `"${type}" is currently rate-limited. Please try again later.`,
       });
@@ -156,7 +156,7 @@ export class RateLimitController<
    * @param origin - The origin trying to access the API.
    * @returns `true` if rate-limited, and `false` otherwise.
    */
-  private isRateLimited(api: keyof RateLimitedApis, origin: string) {
+  #isRateLimited(api: keyof RateLimitedApis, origin: string) {
     return this.state.requests[api][origin] >= this.#rateLimitCount;
   }
 

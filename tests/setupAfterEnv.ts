@@ -48,8 +48,8 @@ expect.extend({
         promise,
         treatUnresolvedAfter(TIME_TO_WAIT_UNTIL_UNRESOLVED),
       ]);
-    } catch (e) {
-      rejectionValue = e;
+    } catch (error) {
+      rejectionValue = error;
     }
 
     return resolutionValue === UNRESOLVED

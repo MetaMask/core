@@ -70,7 +70,7 @@ function calculateEstimatesForPriorityLevel(
         ? block.priorityFeesByPercentile[settings.percentile]
         : null;
     })
-    .filter(BN.isBN);
+    .filter(BN.isBN.bind(BN));
   const medianPriorityFee = medianOf(priorityFees);
   const adjustedPriorityFee = medianPriorityFee
     .mul(settings.priorityFeePercentageMultiplier)

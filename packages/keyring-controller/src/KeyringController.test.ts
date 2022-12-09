@@ -155,9 +155,9 @@ describe('KeyringController', () => {
     expect(initialSeedWord).not.toBe(currentSeedWord);
   });
 
-  it('should set locked correctly', () => {
+  it('should set locked correctly', async () => {
     expect(keyringController.isUnlocked()).toBe(true);
-    keyringController.setLocked();
+    await keyringController.setLocked();
     expect(keyringController.isUnlocked()).toBe(false);
   });
 
@@ -902,7 +902,7 @@ describe('KeyringController', () => {
         ),
       );
 
-      const msg =
+      const message =
         '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","version":"1","chainId":4,"verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"},"message":{"from":{"name":"Cow","wallet":"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},"to":{"name":"Bob","wallet":"0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},"contents":"Hello, Bob!"}}';
 
       const qrKeyring = signProcessKeyringController.state.keyrings.find(
@@ -911,13 +911,13 @@ describe('KeyringController', () => {
       const account = qrKeyring?.accounts[0] || '';
       const signature = await signProcessKeyringController.signTypedMessage(
         {
-          data: msg,
+          data: message,
           from: account,
         },
         SignTypedDataVersion.V3,
       );
       const recovered = recoverTypedSignature({
-        data: JSON.parse(msg),
+        data: JSON.parse(message),
         signature,
         version: SignTypedDataVersion.V3,
       });
@@ -933,7 +933,7 @@ describe('KeyringController', () => {
         ),
       );
 
-      const msg =
+      const message =
         '{"domain":{"chainId":"4","name":"Ether Mail","verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC","version":"1"},"message":{"contents":"Hello, Bob!","from":{"name":"Cow","wallets":["0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826","0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF"]},"to":[{"name":"Bob","wallets":["0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB","0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57","0xB0B0b0b0b0b0B000000000000000000000000000"]}]},"primaryType":"Mail","types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Group":[{"name":"name","type":"string"},{"name":"members","type":"Person[]"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person[]"},{"name":"contents","type":"string"}],"Person":[{"name":"name","type":"string"},{"name":"wallets","type":"address[]"}]}}';
 
       const qrKeyring = signProcessKeyringController.state.keyrings.find(
@@ -941,11 +941,11 @@ describe('KeyringController', () => {
       );
       const account = qrKeyring?.accounts[0] || '';
       const signature = await signProcessKeyringController.signTypedMessage(
-        { data: msg, from: account },
+        { data: message, from: account },
         SignTypedDataVersion.V4,
       );
       const recovered = recoverTypedSignature({
-        data: JSON.parse(msg),
+        data: JSON.parse(message),
         signature,
         version: SignTypedDataVersion.V4,
       });
@@ -986,8 +986,8 @@ describe('KeyringController', () => {
             MAINNET,
             {
               name: 'rinkeby',
-              chainId: parseInt('4'),
-              networkId: parseInt('4'),
+              chainId: parseInt('4', NaN),
+              networkId: parseInt('4', NaN),
             },
             'london',
           ),

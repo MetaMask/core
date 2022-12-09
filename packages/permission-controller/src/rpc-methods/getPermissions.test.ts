@@ -10,6 +10,7 @@ describe('getPermissions RPC method', () => {
     });
 
     const engine = new JsonRpcEngine();
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     engine.push((req, res, next, end) =>
       implementation(req as any, res as any, next, end, {
         getPermissionsForOrigin: mockGetPermissionsForOrigin,
@@ -32,6 +33,7 @@ describe('getPermissions RPC method', () => {
       .mockImplementationOnce(() => null);
 
     const engine = new JsonRpcEngine();
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     engine.push((req, res, next, end) =>
       implementation(req as any, res as any, next, end, {
         getPermissionsForOrigin: mockGetPermissionsForOrigin,

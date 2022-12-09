@@ -87,7 +87,7 @@ export class AnnouncementController extends BaseControllerV2<
    * @param args - The arguments to this function.
    * @param args.messenger - Messenger used to communicate with BaseV2 controller.
    * @param args.state - Initial state to set on this controller.
-   * @param args.allAnnouncements - Announcements to be passed through to #addAnnouncements
+   * @param args.allAnnouncements - Announcements to be passed through to #addAnnouncements.
    */
   constructor({
     messenger,
@@ -109,7 +109,7 @@ export class AnnouncementController extends BaseControllerV2<
    * if yes, the new announcement will be added to the state with a flag indicating
    * that the announcement is not seen by the user.
    *
-   * @param allAnnouncements - all announcements to compare with the announcements from state
+   * @param allAnnouncements - All announcements to compare with the announcements from state.
    */
   #addAnnouncements(allAnnouncements: AnnouncementMap): void {
     this.update((state) => {

@@ -220,12 +220,17 @@ describe('approval controller', () => {
   });
 
   describe('get', () => {
-    it('gets entry', () => {
+    it('gets entry', async () => {
       const approvalController = new ApprovalController({
         messenger: getRestrictedMessenger(),
         showApprovalRequest: sinon.spy(),
       });
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
+      await approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+      });
+
       expect(approvalController.get('foo')).toStrictEqual({
         id: 'foo',
         origin: 'bar.baz',
@@ -235,13 +240,17 @@ describe('approval controller', () => {
       });
     });
 
-    it('returns undefined for non-existing entry', () => {
+    it('returns undefined for non-existing entry', async () => {
       const approvalController = new ApprovalController({
         messenger: getRestrictedMessenger(),
         showApprovalRequest: sinon.spy(),
       });
 
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
+      await approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'type',
+      });
 
       expect(approvalController.get('fizz')).toBeUndefined();
 
@@ -253,7 +262,7 @@ describe('approval controller', () => {
 
   describe('getApprovalCount', () => {
     let approvalController: ApprovalController;
-    let addWithCatch: (args: any) => void;
+    let addWithCatch: (args: any) => Promise<unknown>;
 
     beforeEach(() => {
       approvalController = new ApprovalController({
@@ -283,10 +292,10 @@ describe('approval controller', () => {
       ).toThrow(getApprovalCountParamsError());
     });
 
-    it('gets the count when specifying origin and type', () => {
-      addWithCatch({ id: '1', origin: 'origin1', type: TYPE });
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
-      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+    it('gets the count when specifying origin and type', async () => {
+      await addWithCatch({ id: '1', origin: 'origin1', type: TYPE });
+      await addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
+      await addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
 
       expect(
         approvalController.getApprovalCount({ origin: 'origin1', type: TYPE }),
@@ -343,10 +352,10 @@ describe('approval controller', () => {
       ).toBe(0);
     });
 
-    it('gets the count when specifying origin only', () => {
-      addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
-      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+    it('gets the count when specifying origin only', async () => {
+      await addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
+      await addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
+      await addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
 
       expect(approvalController.getApprovalCount({ origin: 'origin1' })).toBe(
         2,
@@ -361,10 +370,10 @@ describe('approval controller', () => {
       );
     });
 
-    it('gets the count when specifying type only', () => {
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
-      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
-      addWithCatch({ id: '4', origin: 'origin2', type: 'type2' });
+    it('gets the count when specifying type only', async () => {
+      await addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
+      await addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+      await addWithCatch({ id: '4', origin: 'origin2', type: 'type2' });
 
       expect(approvalController.getApprovalCount({ type: 'type1' })).toBe(2);
 
@@ -375,7 +384,7 @@ describe('approval controller', () => {
   });
 
   describe('getTotalApprovalCount', () => {
-    it('gets the total approval count', () => {
+    it('gets the total approval count', async () => {
       const approvalController = new ApprovalController({
         messenger: getRestrictedMessenger(),
         showApprovalRequest: sinon.spy(),
@@ -385,13 +394,13 @@ describe('approval controller', () => {
       const addWithCatch = async (args: any) =>
         approvalController.add(args).catch(() => undefined);
 
-      addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
+      await addWithCatch({ id: '1', origin: 'origin1', type: 'type0' });
       expect(approvalController.getTotalApprovalCount()).toBe(1);
 
-      addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
+      await addWithCatch({ id: '2', origin: 'origin1', type: 'type1' });
       expect(approvalController.getTotalApprovalCount()).toBe(2);
 
-      addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
+      await addWithCatch({ id: '3', origin: 'origin2', type: 'type1' });
       expect(approvalController.getTotalApprovalCount()).toBe(3);
 
       approvalController.reject('2', new Error('foo'));
@@ -438,62 +447,98 @@ describe('approval controller', () => {
       ).toThrow(getInvalidHasTypeError());
     });
 
-    it('returns true for existing entry by id', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+    it('returns true for existing entry by id', async () => {
+      await approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
 
       expect(approvalController.has({ id: 'foo' })).toBe(true);
     });
 
-    it('returns true for existing entry by origin', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+    it('returns true for existing entry by origin', async () => {
+      await approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
 
       expect(approvalController.has({ origin: 'bar.baz' })).toBe(true);
     });
 
-    it('returns true for existing entry by origin and type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
+    it('returns true for existing entry by origin and type', async () => {
+      await approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+      });
 
       expect(
         approvalController.has({ origin: 'bar.baz', type: 'myType' }),
       ).toBe(true);
     });
 
-    it('returns true for existing type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
+    it('returns true for existing type', async () => {
+      await approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+      });
 
       expect(approvalController.has({ type: 'myType' })).toBe(true);
     });
 
-    it('returns false for non-existing entry by id', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+    it('returns false for non-existing entry by id', async () => {
+      await approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
 
       expect(approvalController.has({ id: 'fizz' })).toBe(false);
     });
 
-    it('returns false for non-existing entry by origin', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+    it('returns false for non-existing entry by origin', async () => {
+      await approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
 
       expect(approvalController.has({ origin: 'fizz.buzz' })).toBe(false);
     });
 
-    it('returns false for non-existing entry by existing origin and non-existing type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
+    it('returns false for non-existing entry by existing origin and non-existing type', async () => {
+      await approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: TYPE,
+      });
 
       expect(
         approvalController.has({ origin: 'bar.baz', type: 'myType' }),
       ).toBe(false);
     });
 
-    it('returns false for non-existing entry by non-existing origin and existing type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
+    it('returns false for non-existing entry by non-existing origin and existing type', async () => {
+      await approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+      });
 
       expect(
         approvalController.has({ origin: 'fizz.buzz', type: 'myType' }),
       ).toBe(false);
     });
 
-    it('returns false for non-existing entry by type', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType1' });
+    it('returns false for non-existing entry by type', async () => {
+      await approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType1',
+      });
 
       expect(approvalController.has({ type: 'myType2' })).toBe(false);
     });
@@ -730,8 +775,12 @@ describe('approval controller', () => {
       });
     });
 
-    it('deletes entry', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
+    it('deletes entry', async () => {
+      await approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'type',
+      });
 
       (approvalController as any)._delete('foo');
 
@@ -743,9 +792,18 @@ describe('approval controller', () => {
       ).toBe(true);
     });
 
-    it('deletes one entry out of many without side-effects', () => {
-      approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type1' });
-      approvalController.add({ id: 'fizz', origin: 'bar.baz', type: 'type2' });
+    it('deletes one entry out of many without side-effects', async () => {
+      await approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'type1',
+      });
+
+      await approvalController.add({
+        id: 'fizz',
+        origin: 'bar.baz',
+        type: 'type2',
+      });
 
       (approvalController as any)._delete('fizz');
 
@@ -956,12 +1014,12 @@ function getApprovalCountParamsError() {
  * @returns An Error.
  */
 function getError(message: string, code?: number) {
-  const err: any = {
+  const error: any = {
     name: 'Error',
     message,
   };
   if (code !== undefined) {
-    err.code = code;
+    error.code = code;
   }
-  return err;
+  return error;
 }

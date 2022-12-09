@@ -161,7 +161,7 @@ export class NetworkController extends BaseControllerV2<
     );
   }
 
-  private initializeProvider(
+  #initializeProvider(
     type: NetworkType,
     rpcTarget?: string,
     chainId?: string,
@@ -169,7 +169,7 @@ export class NetworkController extends BaseControllerV2<
     nickname?: string,
   ) {
     this.update((state) => {
-      state.isCustomNetwork = this.getIsCustomNetwork(chainId);
+      state.isCustomNetwork = this.#getIsCustomNetwork(chainId);
     });
 
     switch (type) {
@@ -178,37 +178,37 @@ export class NetworkController extends BaseControllerV2<
       case 'rinkeby':
       case 'goerli':
       case 'ropsten':
-        this.setupInfuraProvider(type);
+        this.#setupInfuraProvider(type);
         break;
       case 'localhost':
-        this.setupStandardProvider(LOCALHOST_RPC_URL);
+        this.#setupStandardProvider(LOCALHOST_RPC_URL);
         break;
       case RPC:
         rpcTarget &&
-          this.setupStandardProvider(rpcTarget, chainId, ticker, nickname);
+          this.#setupStandardProvider(rpcTarget, chainId, ticker, nickname);
         break;
       default:
         throw new Error(`Unrecognized network type: '${type}'`);
     }
-    this.getEIP1559Compatibility();
+    this.getEIP1559Compatibility().catch(console.error);
   }
 
-  private refreshNetwork() {
+  #refreshNetwork() {
     this.update((state) => {
       state.network = 'loading';
       state.properties = {};
     });
     const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
-    this.initializeProvider(type, rpcTarget, chainId, ticker);
-    this.lookupNetwork();
+    this.#initializeProvider(type, rpcTarget, chainId, ticker);
+    this.lookupNetwork().catch(console.error);
   }
 
-  private registerProvider() {
-    this.provider.on('error', this.verifyNetwork.bind(this));
+  #registerProvider() {
+    this.provider.on('error', this.#verifyNetwork.bind(this));
     this.#ethQuery = new EthQuery(this.provider);
   }
 
-  private setupInfuraProvider(type: NetworkType) {
+  #setupInfuraProvider(type: NetworkType) {
     const infuraProvider = createInfuraProvider({
       network: type,
       projectId: this.#infuraProjectId,
@@ -224,10 +224,10 @@ export class NetworkController extends BaseControllerV2<
         },
       },
     };
-    this.updateProvider(createMetamaskProvider(config));
+    this.#updateProvider(createMetamaskProvider(config));
   }
 
-  private getIsCustomNetwork(chainId?: string) {
+  #getIsCustomNetwork(chainId?: string) {
     return (
       chainId !== NetworksChainId.mainnet &&
       chainId !== NetworksChainId.kovan &&
@@ -238,7 +238,7 @@ export class NetworkController extends BaseControllerV2<
     );
   }
 
-  private setupStandardProvider(
+  #setupStandardProvider(
     rpcTarget: string,
     chainId?: string,
     ticker?: string,
@@ -254,22 +254,22 @@ export class NetworkController extends BaseControllerV2<
         ticker,
       },
     };
-    this.updateProvider(createMetamaskProvider(config));
+    this.#updateProvider(createMetamaskProvider(config));
   }
 
-  private updateProvider(provider: any) {
-    this.safelyStopProvider(this.provider);
+  #updateProvider(provider: any) {
+    this.#safelyStopProvider(this.provider);
     this.provider = provider;
-    this.registerProvider();
+    this.#registerProvider();
   }
 
-  private safelyStopProvider(provider: any) {
+  #safelyStopProvider(provider: any) {
     setTimeout(() => {
       provider?.stop();
     }, 500);
   }
 
-  private verifyNetwork() {
+  #verifyNetwork() {
     this.state.network === 'loading' && this.lookupNetwork();
   }
 
@@ -289,9 +289,9 @@ export class NetworkController extends BaseControllerV2<
     this.#internalProviderConfig = providerConfig;
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
-    this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
-    this.registerProvider();
-    this.lookupNetwork();
+    this.#initializeProvider(type, rpcTarget, chainId, ticker, nickname);
+    this.#registerProvider();
+    this.lookupNetwork().catch(console.error);
   }
 
   get providerConfig() {
@@ -303,7 +303,7 @@ export class NetworkController extends BaseControllerV2<
    */
   async lookupNetwork() {
     /* istanbul ignore if */
-    if (!this.#ethQuery || !this.#ethQuery.sendAsync) {
+    if (!this.#ethQuery?.sendAsync) {
       return;
     }
     const releaseLock = await this.#mutex.acquire();
@@ -352,7 +352,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.rpcTarget = undefined;
       state.providerConfig.nickname = undefined;
     });
-    this.refreshNetwork();
+    this.#refreshNetwork();
   }
 
   /**
@@ -376,7 +376,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.ticker = ticker;
       state.providerConfig.nickname = nickname;
     });
-    this.refreshNetwork();
+    this.#refreshNetwork();
   }
 
   async getEIP1559Compatibility() {

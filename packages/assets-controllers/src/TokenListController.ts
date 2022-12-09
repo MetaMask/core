@@ -239,8 +239,8 @@ export class TokenListController extends BaseControllerV2<
    */
   async #startPolling(): Promise<void> {
     await safelyExecute(async () => this.fetchTokenList());
-    this.#intervalId = setInterval(async () => {
-      await safelyExecute(async () => this.fetchTokenList());
+    this.#intervalId = setInterval(() => {
+      safelyExecute(async () => this.fetchTokenList()).catch(console.error);
     }, this.#intervalDelay);
   }
 

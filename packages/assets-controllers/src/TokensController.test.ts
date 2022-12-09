@@ -56,7 +56,7 @@ describe('TokensController', () => {
       onNetworkStateChange: (listener) =>
         messenger.subscribe('NetworkController:stateChange', (state, patch) => {
           const touchesProviderConfig = patch.find(
-            (p) => p.path[0] === 'providerConfig',
+            (_patch) => _patch.path[0] === 'providerConfig',
           );
           if (touchesProviderConfig) {
             listener(state);
@@ -951,6 +951,7 @@ describe('TokensController', () => {
         'Invalid decimals "-1": must be 0 <= 36.',
       );
 
+      // eslint-disable-next-line require-atomic-updates
       asset.decimals = 37;
       const result2 = tokensController.watchAsset(asset, type);
       await expect(result2).rejects.toThrow(

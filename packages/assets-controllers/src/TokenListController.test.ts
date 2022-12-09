@@ -1190,7 +1190,7 @@ describe('TokenListController', () => {
     await new Promise((resolve: any) => {
       messenger.subscribe('TokenListController:stateChange', (_, patch) => {
         const tokenListChanged = patch.find(
-          (p) => Object.keys(p.value.tokenList).length !== 0,
+          (_patch) => Object.keys(_patch.value.tokenList).length !== 0,
         );
         if (!tokenListChanged) {
           return;
