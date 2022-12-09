@@ -652,7 +652,7 @@ describe('TokenListController', () => {
       interval: 100,
       messenger,
     });
-    controller.start();
+    await controller.start();
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,

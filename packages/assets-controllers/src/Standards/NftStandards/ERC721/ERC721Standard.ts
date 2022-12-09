@@ -12,10 +12,10 @@ import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { getFormattedIpfsUrl } from '../../../assetsUtil';
 
 export class ERC721Standard {
-  private readonly provider: Web3Provider;
+  readonly #provider: Web3Provider;
 
   constructor(provider: Web3Provider) {
-    this.provider = provider;
+    this.#provider = provider;
   }
 
   /**
@@ -27,7 +27,7 @@ export class ERC721Standard {
   contractSupportsMetadataInterface = async (
     address: string,
   ): Promise<boolean> => {
-    return this.contractSupportsInterface(
+    return this.#contractSupportsInterface(
       address,
       ERC721_METADATA_INTERFACE_ID,
     );
@@ -42,7 +42,7 @@ export class ERC721Standard {
   contractSupportsEnumerableInterface = async (
     address: string,
   ): Promise<boolean> => {
-    return this.contractSupportsInterface(
+    return this.#contractSupportsInterface(
       address,
       ERC721_ENUMERABLE_INTERFACE_ID,
     );
@@ -57,7 +57,7 @@ export class ERC721Standard {
   contractSupportsBase721Interface = async (
     address: string,
   ): Promise<boolean> => {
-    return this.contractSupportsInterface(address, ERC721_INTERFACE_ID);
+    return this.#contractSupportsInterface(address, ERC721_INTERFACE_ID);
   };
 
   /**
@@ -73,7 +73,7 @@ export class ERC721Standard {
     selectedAddress: string,
     index: number,
   ): Promise<string> => {
-    const contract = new Contract(address, abiERC721, this.provider);
+    const contract = new Contract(address, abiERC721, this.#provider);
     return contract.tokenOfOwnerByIndex(selectedAddress, index);
   };
 
@@ -85,7 +85,7 @@ export class ERC721Standard {
    * @returns Promise resolving to the 'tokenURI'.
    */
   getTokenURI = async (address: string, tokenId: string): Promise<string> => {
-    const contract = new Contract(address, abiERC721, this.provider);
+    const contract = new Contract(address, abiERC721, this.#provider);
     const supportsMetadata = await this.contractSupportsMetadataInterface(
       address,
     );
@@ -102,7 +102,7 @@ export class ERC721Standard {
    * @returns Promise resolving to the 'name'.
    */
   getAssetName = async (address: string): Promise<string> => {
-    const contract = new Contract(address, abiERC721, this.provider);
+    const contract = new Contract(address, abiERC721, this.#provider);
     return contract.name();
   };
 
@@ -113,7 +113,7 @@ export class ERC721Standard {
    * @returns Promise resolving to the 'symbol'.
    */
   getAssetSymbol = async (address: string): Promise<string> => {
-    const contract = new Contract(address, abiERC721, this.provider);
+    const contract = new Contract(address, abiERC721, this.#provider);
     return contract.symbol();
   };
 
@@ -125,7 +125,7 @@ export class ERC721Standard {
    * @returns Promise resolving to the owner address.
    */
   async getOwnerOf(address: string, tokenId: string): Promise<string> {
-    const contract = new Contract(address, abiERC721, this.provider);
+    const contract = new Contract(address, abiERC721, this.#provider);
     return contract.ownerOf(tokenId);
   }
 
@@ -136,19 +136,19 @@ export class ERC721Standard {
    * @param interfaceId - Interface identifier.
    * @returns Promise resolving to whether the contract implements `interfaceID`.
    */
-  private readonly contractSupportsInterface = async (
+  readonly #contractSupportsInterface = async (
     address: string,
     interfaceId: string,
   ): Promise<boolean> => {
-    const contract = new Contract(address, abiERC721, this.provider);
+    const contract = new Contract(address, abiERC721, this.#provider);
     try {
       return await contract.supportsInterface(interfaceId);
-    } catch (err: any) {
+    } catch (error: any) {
       // Mirror previous implementation
-      if (err.message.includes('call revert exception')) {
+      if (error.message.includes('call revert exception')) {
         return false;
       }
-      throw err;
+      throw error;
     }
   };
 
@@ -157,7 +157,7 @@ export class ERC721Standard {
    *
    * @param address - Asset contract address.
    * @param ipfsGateway - The user's preferred IPFS gateway.
-   * @param tokenId - tokenId of a given token in the contract.
+   * @param tokenId - `tokenId` of a given token in the contract.
    * @returns Promise resolving an object containing the standard, tokenURI, symbol and name of the given contract/tokenId pair.
    */
   getDetails = async (

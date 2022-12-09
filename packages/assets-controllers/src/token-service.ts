@@ -96,6 +96,7 @@ async function queryApi(
   apiURL: string,
   abortSignal: AbortSignal,
   timeout: number,
+  // eslint-disable-next-line no-restricted-globals
 ): Promise<Response | undefined> {
   const fetchOptions: RequestInit = {
     referrer: apiURL,
@@ -105,6 +106,7 @@ async function queryApi(
     signal: abortSignal,
     cache: 'default',
   };
+  // eslint-disable-next-line no-restricted-globals
   fetchOptions.headers = new window.Headers();
   fetchOptions.headers.set('Content-Type', 'application/json');
   try {
@@ -124,6 +126,7 @@ async function queryApi(
  * @returns The response JSON data.
  * @throws Will throw if the response includes an error.
  */
+// eslint-disable-next-line no-restricted-globals
 async function parseJsonResponse(apiResponse: Response): Promise<unknown> {
   const responseObj = await apiResponse.json();
   // api may return errors as json without setting an error http status code

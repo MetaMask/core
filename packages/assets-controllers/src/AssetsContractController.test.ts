@@ -51,7 +51,7 @@ describe('AssetsContractController', () => {
   it('should set default config', () => {
     const { assetsContract, messenger } = setupControllers();
     expect(assetsContract.config).toStrictEqual({
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      chainId: SupportedTokenDetectionNetworks.Mainnet,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       provider: undefined,
     });
@@ -61,7 +61,7 @@ describe('AssetsContractController', () => {
   it('should update the ipfsGateWay config value when this value is changed in the preferences controller', () => {
     const { assetsContract, messenger, preferences } = setupControllers();
     expect(assetsContract.config).toStrictEqual({
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      chainId: SupportedTokenDetectionNetworks.Mainnet,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       provider: undefined,
     });
@@ -69,7 +69,7 @@ describe('AssetsContractController', () => {
     preferences.setIpfsGateway('newIPFSGateWay');
     expect(assetsContract.config).toStrictEqual({
       ipfsGateway: 'newIPFSGateWay',
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      chainId: SupportedTokenDetectionNetworks.Mainnet,
       provider: undefined,
     });
 

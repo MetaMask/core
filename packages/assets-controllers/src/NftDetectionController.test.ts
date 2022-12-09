@@ -39,6 +39,7 @@ describe('NftDetectionController', () => {
       allowedActions: [],
     });
 
+    // eslint-disable-next-line no-new
     new NetworkController({
       messenger,
       infuraProjectId: 'potato',
@@ -228,27 +229,24 @@ describe('NftDetectionController', () => {
   });
 
   it('should poll and detect NFTs on interval while on mainnet', async () => {
+    const mockNfts = sinon.stub(NftDetectionController.prototype, 'detectNfts');
+    const nftsDetectionController = new NftDetectionController(
+      {
+        onNftsStateChange: (listener) => nftController.subscribe(listener),
+        onPreferencesStateChange: (listener) => preferences.subscribe(listener),
+        onNetworkStateChange: (listener) =>
+          messenger.subscribe('NetworkController:stateChange', listener),
+        getOpenSeaApiKey: () => nftController.openSeaApiKey,
+        addNft: nftController.addNft.bind(nftController),
+        getNftState: () => nftController.state,
+      },
+      { interval: 10 },
+    );
+    nftsDetectionController.configure({ disabled: false });
+    await nftsDetectionController.start();
+    expect(mockNfts.calledOnce).toBe(true);
+
     await new Promise((resolve) => {
-      const mockNfts = sinon.stub(
-        NftDetectionController.prototype,
-        'detectNfts',
-      );
-      const nftsDetectionController = new NftDetectionController(
-        {
-          onNftsStateChange: (listener) => nftController.subscribe(listener),
-          onPreferencesStateChange: (listener) =>
-            preferences.subscribe(listener),
-          onNetworkStateChange: (listener) =>
-            messenger.subscribe('NetworkController:stateChange', listener),
-          getOpenSeaApiKey: () => nftController.openSeaApiKey,
-          addNft: nftController.addNft.bind(nftController),
-          getNftState: () => nftController.state,
-        },
-        { interval: 10 },
-      );
-      nftsDetectionController.configure({ disabled: false });
-      nftsDetectionController.start();
-      expect(mockNfts.calledOnce).toBe(true);
       setTimeout(() => {
         expect(mockNfts.calledTwice).toBe(true);
         resolve('');
@@ -269,6 +267,8 @@ describe('NftDetectionController', () => {
         NftDetectionController.prototype,
         'detectNfts',
       );
+
+      // eslint-disable-next-line no-new
       new NftDetectionController(
         {
           onNftsStateChange: (listener) => nftController.subscribe(listener),
@@ -414,7 +414,7 @@ describe('NftDetectionController', () => {
     const { chainId } = nftDetection.config;
 
     nftController.configure({ selectedAddress: '0x9' });
-    nftDetection.detectNfts();
+    await nftDetection.detectNfts();
     nftDetection.configure({ selectedAddress: '0x12' });
     nftController.configure({ selectedAddress: '0x12' });
     await new Promise((res) => setTimeout(() => res(true), 1000));
@@ -435,7 +435,7 @@ describe('NftDetectionController', () => {
       selectedAddress,
     });
     const { chainId } = nftController.config;
-    nftDetection.detectNfts();
+    await nftDetection.detectNfts();
     expect(
       nftController.state.allNfts[selectedAddress]?.[chainId],
     ).toBeUndefined();
@@ -449,7 +449,7 @@ describe('NftDetectionController', () => {
       selectedAddress,
     });
     const { chainId } = nftController.config;
-    nftDetection.detectNfts();
+    await nftDetection.detectNfts();
     expect(
       nftController.state.allNfts[selectedAddress]?.[chainId],
     ).toBeUndefined();

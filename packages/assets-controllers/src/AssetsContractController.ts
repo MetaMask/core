@@ -23,13 +23,13 @@ import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
  * @returns Whether the current network supports token detection
  */
 export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<string, string> = {
-  [SupportedTokenDetectionNetworks.mainnet]:
+  [SupportedTokenDetectionNetworks.Mainnet]:
     '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
-  [SupportedTokenDetectionNetworks.bsc]:
+  [SupportedTokenDetectionNetworks.Bsc]:
     '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
-  [SupportedTokenDetectionNetworks.polygon]:
+  [SupportedTokenDetectionNetworks.Polygon]:
     '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
-  [SupportedTokenDetectionNetworks.avax]:
+  [SupportedTokenDetectionNetworks.Avax]:
     '0xD023D153a0DFa485130ECFdE2FAA7e612EF94818',
 };
 
@@ -65,13 +65,13 @@ export class AssetsContractController extends BaseController<
   AssetsContractConfig,
   BaseState
 > {
-  private _provider?: Web3Provider;
+  #provider?: Web3Provider;
 
-  private erc721Standard?: ERC721Standard;
+  #erc721Standard?: ERC721Standard;
 
-  private erc1155Standard?: ERC1155Standard;
+  #erc1155Standard?: ERC1155Standard;
 
-  private erc20Standard?: ERC20Standard;
+  #erc20Standard?: ERC20Standard;
 
   /**
    * Name of this controller used during composition
@@ -106,7 +106,7 @@ export class AssetsContractController extends BaseController<
     this.defaultConfig = {
       provider: undefined,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      chainId: SupportedTokenDetectionNetworks.Mainnet,
     };
     this.initialize();
 
@@ -126,15 +126,16 @@ export class AssetsContractController extends BaseController<
   /**
    * Sets a new provider.
    *
-   * TODO: Replace this wth a method.
+   * TODO: Replace this with a method.
    *
-   * @property provider - Provider used to create a new underlying Web3 instance
+   * @property provider - Provider used to create a new underlying Web3
+   * instance.
    */
   set provider(provider: any) {
-    this._provider = new Web3Provider(provider);
-    this.erc721Standard = new ERC721Standard(this._provider);
-    this.erc1155Standard = new ERC1155Standard(this._provider);
-    this.erc20Standard = new ERC20Standard(this._provider);
+    this.#provider = new Web3Provider(provider);
+    this.#erc721Standard = new ERC721Standard(this.#provider);
+    this.#erc1155Standard = new ERC1155Standard(this.#provider);
+    this.#erc20Standard = new ERC20Standard(this.#provider);
   }
 
   get provider() {
@@ -152,10 +153,10 @@ export class AssetsContractController extends BaseController<
     address: string,
     selectedAddress: string,
   ): Promise<BN> {
-    if (!this.erc20Standard) {
+    if (!this.#erc20Standard) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
-    return this.erc20Standard.getBalanceOf(address, selectedAddress);
+    return this.#erc20Standard.getBalanceOf(address, selectedAddress);
   }
 
   /**
@@ -165,10 +166,10 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the 'decimals'.
    */
   async getERC20TokenDecimals(address: string): Promise<string> {
-    if (this.erc20Standard === undefined) {
+    if (this.#erc20Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
-    return await this.erc20Standard.getTokenDecimals(address);
+    return await this.#erc20Standard.getTokenDecimals(address);
   }
 
   /**
@@ -184,10 +185,10 @@ export class AssetsContractController extends BaseController<
     selectedAddress: string,
     index: number,
   ): Promise<string> {
-    if (this.erc721Standard === undefined) {
+    if (this.#erc721Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
-    return this.erc721Standard.getNftTokenId(address, selectedAddress, index);
+    return this.#erc721Standard.getNftTokenId(address, selectedAddress, index);
   }
 
   /**
@@ -211,9 +212,9 @@ export class AssetsContractController extends BaseController<
     balance?: BN | undefined;
   }> {
     if (
-      this.erc721Standard === undefined ||
-      this.erc1155Standard === undefined ||
-      this.erc20Standard === undefined
+      this.#erc721Standard === undefined ||
+      this.#erc1155Standard === undefined ||
+      this.#erc20Standard === undefined
     ) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
@@ -223,7 +224,7 @@ export class AssetsContractController extends BaseController<
     // ERC721
     try {
       return {
-        ...(await this.erc721Standard.getDetails(
+        ...(await this.#erc721Standard.getDetails(
           tokenAddress,
           ipfsGateway,
           tokenId,
@@ -236,7 +237,7 @@ export class AssetsContractController extends BaseController<
     // ERC1155
     try {
       return {
-        ...(await this.erc1155Standard.getDetails(
+        ...(await this.#erc1155Standard.getDetails(
           tokenAddress,
           ipfsGateway,
           tokenId,
@@ -249,7 +250,7 @@ export class AssetsContractController extends BaseController<
     // ERC20
     try {
       return {
-        ...(await this.erc20Standard.getDetails(tokenAddress, userAddress)),
+        ...(await this.#erc20Standard.getDetails(tokenAddress, userAddress)),
       };
     } catch {
       // Ignore
@@ -266,10 +267,10 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the 'tokenURI'.
    */
   async getERC721TokenURI(address: string, tokenId: string): Promise<string> {
-    if (this.erc721Standard === undefined) {
+    if (this.#erc721Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
-    return this.erc721Standard.getTokenURI(address, tokenId);
+    return this.#erc721Standard.getTokenURI(address, tokenId);
   }
 
   /**
@@ -279,10 +280,10 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the 'name'.
    */
   async getERC721AssetName(address: string): Promise<string> {
-    if (this.erc721Standard === undefined) {
+    if (this.#erc721Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
-    return this.erc721Standard.getAssetName(address);
+    return this.#erc721Standard.getAssetName(address);
   }
 
   /**
@@ -292,10 +293,10 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the 'symbol'.
    */
   async getERC721AssetSymbol(address: string): Promise<string> {
-    if (this.erc721Standard === undefined) {
+    if (this.#erc721Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
-    return this.erc721Standard.getAssetSymbol(address);
+    return this.#erc721Standard.getAssetSymbol(address);
   }
 
   /**
@@ -306,10 +307,10 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the owner address.
    */
   async getERC721OwnerOf(address: string, tokenId: string): Promise<string> {
-    if (this.erc721Standard === undefined) {
+    if (this.#erc721Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
-    return this.erc721Standard.getOwnerOf(address, tokenId);
+    return this.#erc721Standard.getOwnerOf(address, tokenId);
   }
 
   /**
@@ -320,10 +321,10 @@ export class AssetsContractController extends BaseController<
    * @returns Promise resolving to the 'tokenURI'.
    */
   async getERC1155TokenURI(address: string, tokenId: string): Promise<string> {
-    if (this.erc1155Standard === undefined) {
+    if (this.#erc1155Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
-    return this.erc1155Standard.getTokenURI(address, tokenId);
+    return this.#erc1155Standard.getTokenURI(address, tokenId);
   }
 
   /**
@@ -339,10 +340,10 @@ export class AssetsContractController extends BaseController<
     nftAddress: string,
     nftId: string,
   ): Promise<BN> {
-    if (this.erc1155Standard === undefined) {
+    if (this.#erc1155Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
-    return await this.erc1155Standard.getBalanceOf(
+    return await this.#erc1155Standard.getBalanceOf(
       nftAddress,
       userAddress,
       nftId,
@@ -366,10 +367,10 @@ export class AssetsContractController extends BaseController<
     nftId: string,
     qty: string,
   ): Promise<void> {
-    if (this.erc1155Standard === undefined) {
+    if (this.#erc1155Standard === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
-    return await this.erc1155Standard.transferSingle(
+    return await this.#erc1155Standard.transferSingle(
       nftAddress,
       senderAddress,
       recipientAddress,
@@ -400,7 +401,7 @@ export class AssetsContractController extends BaseController<
     const contract = new Contract(
       contractAddress,
       abiSingleCallBalancesContract,
-      this._provider,
+      this.#provider,
     );
     const result = await contract.balances([selectedAddress], tokensToDetect);
     const nonZeroBalances: BalanceMap = {};

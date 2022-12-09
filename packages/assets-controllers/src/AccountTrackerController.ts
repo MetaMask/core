@@ -50,15 +50,15 @@ export class AccountTrackerController extends BaseController<
   AccountTrackerConfig,
   AccountTrackerState
 > {
-  private ethQuery: any;
+  #ethQuery: any;
 
-  private readonly mutex = new Mutex();
+  readonly #mutex = new Mutex();
 
-  private handle?: ReturnType<typeof setTimeout>;
+  #handle?: ReturnType<typeof setTimeout>;
 
-  private syncAccounts() {
+  #syncAccounts() {
     const { accounts } = this.state;
-    const addresses = Object.keys(this.getIdentities());
+    const addresses = Object.keys(this.#getIdentities());
     const existing = Object.keys(accounts);
     const newAddresses = addresses.filter(
       (address) => !existing.includes(address),
@@ -81,7 +81,7 @@ export class AccountTrackerController extends BaseController<
    */
   override name = 'AccountTrackerController';
 
-  private readonly getIdentities: () => PreferencesState['identities'];
+  readonly #getIdentities: () => PreferencesState['identities'];
 
   /**
    * Creates an AccountTracker instance.
@@ -111,11 +111,11 @@ export class AccountTrackerController extends BaseController<
     };
     this.defaultState = { accounts: {} };
     this.initialize();
-    this.getIdentities = getIdentities;
+    this.#getIdentities = getIdentities;
     onPreferencesStateChange(() => {
-      this.refresh();
+      this.refresh().catch(console.error);
     });
-    this.poll();
+    this.poll().catch(console.error);
   }
 
   /**
@@ -126,7 +126,7 @@ export class AccountTrackerController extends BaseController<
    * @param provider - Provider used to create a new underlying EthQuery instance.
    */
   set provider(provider: any) {
-    this.ethQuery = new EthQuery(provider);
+    this.#ethQuery = new EthQuery(provider);
   }
 
   get provider() {
@@ -139,13 +139,13 @@ export class AccountTrackerController extends BaseController<
    * @param interval - Polling interval trigger a 'refresh'.
    */
   async poll(interval?: number): Promise<void> {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
+    this.#handle && clearTimeout(this.#handle);
     await this.refresh();
-    this.handle = setTimeout(() => {
+    this.#handle = setTimeout(() => {
       releaseLock();
-      this.poll(this.config.interval);
+      this.poll(this.config.interval).catch(console.error);
     }, this.config.interval);
   }
 
@@ -153,13 +153,15 @@ export class AccountTrackerController extends BaseController<
    * Refreshes all accounts in the current keychain.
    */
   refresh = async () => {
-    this.syncAccounts();
+    this.#syncAccounts();
     const accounts = { ...this.state.accounts };
     for (const address in accounts) {
-      await safelyExecuteWithTimeout(async () => {
-        const balance = await query(this.ethQuery, 'getBalance', [address]);
-        accounts[address] = { balance: BNToHex(balance) };
-      });
+      if (Object.prototype.hasOwnProperty.call(accounts, address)) {
+        await safelyExecuteWithTimeout(async () => {
+          const balance = await query(this.#ethQuery, 'getBalance', [address]);
+          accounts[address] = { balance: BNToHex(balance) };
+        });
+      }
     }
     this.update({ accounts });
   };
@@ -167,8 +169,8 @@ export class AccountTrackerController extends BaseController<
   /**
    * Sync accounts balances with some additional addresses.
    *
-   * @param addresses - the additional addresses, may be hardware wallet addresses.
-   * @returns accounts - addresses with synced balance
+   * @param addresses - The additional addresses, may be hardware wallet addresses.
+   * @returns Addresses with synced balance.
    */
   async syncBalanceWithAddresses(
     addresses: string[],
@@ -176,7 +178,7 @@ export class AccountTrackerController extends BaseController<
     return await Promise.all(
       addresses.map(async (address): Promise<[string, string] | undefined> => {
         return safelyExecuteWithTimeout(async () => {
-          const balance = await query(this.ethQuery, 'getBalance', [address]);
+          const balance = await query(this.#ethQuery, 'getBalance', [address]);
           return [address, balance];
         });
       }),

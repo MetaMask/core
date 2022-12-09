@@ -252,7 +252,7 @@ describe('assetsUtil', () => {
     it('returns true for Mainnet', () => {
       expect(
         assetsUtil.isTokenDetectionSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.mainnet,
+          assetsUtil.SupportedTokenDetectionNetworks.Mainnet,
         ),
       ).toBe(true);
     });
@@ -260,7 +260,7 @@ describe('assetsUtil', () => {
     it('returns true for custom network such as BSC', () => {
       expect(
         assetsUtil.isTokenDetectionSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.bsc,
+          assetsUtil.SupportedTokenDetectionNetworks.Bsc,
         ),
       ).toBe(true);
     });
@@ -274,7 +274,7 @@ describe('assetsUtil', () => {
     it('returns true for Mainnet when chainId is passed as a decimal string', () => {
       expect(
         assetsUtil.isTokenListSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.mainnet,
+          assetsUtil.SupportedTokenDetectionNetworks.Mainnet,
         ),
       ).toBe(true);
     });
@@ -292,7 +292,7 @@ describe('assetsUtil', () => {
     it('returns true for custom network such as Polygon', () => {
       expect(
         assetsUtil.isTokenListSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.polygon,
+          assetsUtil.SupportedTokenDetectionNetworks.Polygon,
         ),
       ).toBe(true);
     });

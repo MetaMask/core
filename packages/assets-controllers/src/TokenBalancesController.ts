@@ -44,16 +44,16 @@ export class TokenBalancesController extends BaseController<
   TokenBalancesConfig,
   TokenBalancesState
 > {
-  private handle?: ReturnType<typeof setTimeout>;
+  #handle?: ReturnType<typeof setTimeout>;
 
   /**
    * Name of this controller used during composition
    */
   override name = 'TokenBalancesController';
 
-  private readonly getSelectedAddress: () => PreferencesState['selectedAddress'];
+  readonly #getSelectedAddress: () => PreferencesState['selectedAddress'];
 
-  private readonly getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
+  readonly #getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
 
   /**
    * Creates a TokenBalancesController instance.
@@ -89,11 +89,11 @@ export class TokenBalancesController extends BaseController<
     this.initialize();
     onTokensStateChange(({ tokens, detectedTokens }) => {
       this.configure({ tokens: [...tokens, ...detectedTokens] });
-      this.updateBalances();
+      this.updateBalances().catch(console.error);
     });
-    this.getSelectedAddress = getSelectedAddress;
-    this.getERC20BalanceOf = getERC20BalanceOf;
-    this.poll();
+    this.#getSelectedAddress = getSelectedAddress;
+    this.#getERC20BalanceOf = getERC20BalanceOf;
+    this.poll().catch(console.error);
   }
 
   /**
@@ -103,10 +103,10 @@ export class TokenBalancesController extends BaseController<
    */
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
+    this.#handle && clearTimeout(this.#handle);
     await safelyExecute(async () => this.updateBalances());
-    this.handle = setTimeout(() => {
-      this.poll(this.config.interval);
+    this.#handle = setTimeout(() => {
+      this.poll(this.config.interval).catch(console.error);
     }, this.config.interval);
   }
 
@@ -120,16 +120,18 @@ export class TokenBalancesController extends BaseController<
     const { tokens } = this.config;
     const newContractBalances: { [address: string]: BN } = {};
     for (const i in tokens) {
-      const { address } = tokens[i];
-      try {
-        newContractBalances[address] = await this.getERC20BalanceOf(
-          address,
-          this.getSelectedAddress(),
-        );
-        tokens[i].balanceError = null;
-      } catch (error) {
-        newContractBalances[address] = new BN(0);
-        tokens[i].balanceError = error;
+      if (Object.hasOwnProperty.call(tokens, i)) {
+        const { address } = tokens[i];
+        try {
+          newContractBalances[address] = await this.#getERC20BalanceOf(
+            address,
+            this.#getSelectedAddress(),
+          );
+          tokens[i].balanceError = null;
+        } catch (error) {
+          newContractBalances[address] = new BN(0);
+          tokens[i].balanceError = error;
+        }
       }
     }
     this.update({ contractBalances: newContractBalances });

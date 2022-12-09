@@ -8,10 +8,10 @@ import { BN, toUtf8 } from 'ethereumjs-util';
 import { ethersBigNumberToBN } from '../assetsUtil';
 
 export class ERC20Standard {
-  private readonly provider: Web3Provider;
+  readonly #provider: Web3Provider;
 
   constructor(provider: Web3Provider) {
-    this.provider = provider;
+    this.#provider = provider;
   }
 
   /**
@@ -22,7 +22,7 @@ export class ERC20Standard {
    * @returns Promise resolving to BN object containing balance for current account on specific asset contract.
    */
   async getBalanceOf(address: string, selectedAddress: string): Promise<BN> {
-    const contract = new Contract(address, abiERC20, this.provider);
+    const contract = new Contract(address, abiERC20, this.#provider);
     const balance = await contract.balanceOf(selectedAddress);
     return ethersBigNumberToBN(balance);
   }
@@ -34,16 +34,16 @@ export class ERC20Standard {
    * @returns Promise resolving to the 'decimals'.
    */
   async getTokenDecimals(address: string): Promise<string> {
-    const contract = new Contract(address, abiERC20, this.provider);
+    const contract = new Contract(address, abiERC20, this.#provider);
     try {
       const decimals = await contract.decimals();
       return decimals.toString();
-    } catch (err: any) {
+    } catch (error: any) {
       // Mirror previous implementation
-      if (err.message.includes('call revert exception')) {
+      if (error.message.includes('call revert exception')) {
         throw new Error('Failed to parse token decimals');
       }
-      throw err;
+      throw error;
     }
   }
 
@@ -56,7 +56,7 @@ export class ERC20Standard {
   async getTokenSymbol(address: string): Promise<string> {
     // Signature for calling `symbol()`
     const payload = { to: address, data: '0x95d89b41' };
-    const result = await this.provider.call(payload);
+    const result = await this.#provider.call(payload);
 
     const abiCoder = new AbiCoder();
 

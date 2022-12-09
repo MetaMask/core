@@ -80,7 +80,7 @@ describe('AccountTrackerController', () => {
     expect(result[address].balance).toBe('0x10');
   });
 
-  it('should sync addresses', () => {
+  it('should sync addresses', async () => {
     const controller = new AccountTrackerController(
       {
         onPreferencesStateChange: sinon.stub(),
@@ -96,7 +96,7 @@ describe('AccountTrackerController', () => {
         },
       },
     );
-    controller.refresh();
+    await controller.refresh();
     expect(controller.state.accounts).toStrictEqual({
       baz: { balance: '0x0' },
     });

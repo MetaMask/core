@@ -89,7 +89,7 @@ export const formatAggregatorNames = (aggregators: string[]) => {
  * @param params - Object that contains chainID and tokenAddress.
  * @param params.chainId - ChainID of network in decimal or hexadecimal format.
  * @param params.tokenAddress - Address of token in mixed or lowercase.
- * @returns Formatted image url
+ * @returns Formatted image url.
  */
 export const formatIconUrlWithProxy = ({
   chainId,
@@ -140,17 +140,17 @@ export function validateTokenToWatch(token: Token) {
  * Networks where token detection is supported - Values are in decimal format
  */
 export enum SupportedTokenDetectionNetworks {
-  mainnet = '1',
-  bsc = '56',
-  polygon = '137',
-  avax = '43114',
+  Mainnet = '1',
+  Bsc = '56',
+  Polygon = '137',
+  Avax = '43114',
 }
 
 /**
  * Check if token detection is enabled for certain networks.
  *
- * @param chainId - ChainID of network
- * @returns Whether the current network supports token detection
+ * @param chainId - ChainID of network.
+ * @returns Whether the current network supports token detection.
  */
 export function isTokenDetectionSupportedForNetwork(chainId: string): boolean {
   return Object.values<string>(SupportedTokenDetectionNetworks).includes(
@@ -160,10 +160,11 @@ export function isTokenDetectionSupportedForNetwork(chainId: string): boolean {
 
 /**
  * Check if token list polling is enabled for a given network.
- * Currently this method is used to support e2e testing for consumers of this package.
+ * Currently, this method is used to support e2e testing for consumers of this
+ * package.
  *
- * @param chainId - ChainID of network
- * @returns Whether the current network supports tokenlists
+ * @param chainId - ChainID of network.
+ * @returns Whether the current network supports token lists.
  */
 export function isTokenListSupportedForNetwork(chainId: string): boolean {
   const chainIdDecimal = convertHexToDecimal(chainId).toString();
@@ -176,8 +177,8 @@ export function isTokenListSupportedForNetwork(chainId: string): boolean {
 /**
  * Removes IPFS protocol prefix from input string.
  *
- * @param ipfsUrl - An IPFS url (e.g. ipfs://{content id})
- * @returns IPFS content identifier and (possibly) path in a string
+ * @param ipfsUrl - An IPFS url (e.g. ipfs://{content id}).
+ * @returns IPFS content identifier and (possibly) path in a string.
  * @throws Will throw if the url passed is not IPFS.
  */
 export function removeIpfsProtocolPrefix(ipfsUrl: string) {
@@ -193,7 +194,7 @@ export function removeIpfsProtocolPrefix(ipfsUrl: string) {
 /**
  * Extracts content identifier and path from an input string.
  *
- * @param ipfsUrl - An IPFS URL minus the IPFS protocol prefix
+ * @param ipfsUrl - An IPFS URL minus the IPFS protocol prefix.
  * @returns IFPS content identifier (cid) and sub path as string.
  * @throws Will throw if the url passed is not ipfs.
  */
@@ -206,8 +207,8 @@ export function getIpfsCIDv1AndPath(ipfsUrl: string): {
   // check if there is a path
   // (CID is everything preceding first forward slash, path is everything after)
   const index = url.indexOf('/');
-  const cid = index !== -1 ? url.substring(0, index) : url;
-  const path = index !== -1 ? url.substring(index) : undefined;
+  const cid = index === -1 ? url : url.substring(0, index);
+  const path = index === -1 ? undefined : url.substring(index);
 
   // We want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
   // because most cid v0s appear to be incompatible with IPFS subdomains

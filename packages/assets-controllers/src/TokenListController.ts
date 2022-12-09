@@ -89,17 +89,17 @@ export class TokenListController extends BaseControllerV2<
   TokenListState,
   TokenListMessenger
 > {
-  private readonly mutex = new Mutex();
+  readonly #mutex = new Mutex();
 
-  private intervalId?: ReturnType<typeof setTimeout>;
+  #intervalId?: ReturnType<typeof setTimeout>;
 
-  private readonly intervalDelay: number;
+  readonly #intervalDelay: number;
 
-  private readonly cacheRefreshThreshold: number;
+  readonly #cacheRefreshThreshold: number;
 
-  private chainId: string;
+  #chainId: string;
 
-  private abortController: WhatwgAbortController;
+  #abortController: WhatwgAbortController;
 
   /**
    * Creates a TokenListController instance.
@@ -138,24 +138,24 @@ export class TokenListController extends BaseControllerV2<
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.intervalDelay = interval;
-    this.cacheRefreshThreshold = cacheRefreshThreshold;
-    this.chainId = chainId;
+    this.#intervalDelay = interval;
+    this.#cacheRefreshThreshold = cacheRefreshThreshold;
+    this.#chainId = chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
-    this.abortController = new WhatwgAbortController();
+    this.#abortController = new WhatwgAbortController();
     if (onNetworkStateChange) {
-      onNetworkStateChange(async (networkStateOrProviderConfig) => {
+      onNetworkStateChange((networkStateOrProviderConfig) => {
         // this check for "provider" is for testing purposes, since in the extension this callback will receive
         // an object typed as NetworkState but within repo we can only simulate as if the callback receives an
         // object typed as ProviderConfig
         if ('providerConfig' in networkStateOrProviderConfig) {
-          await this.#onNetworkStateChangeCallback(
+          this.#onNetworkStateChangeCallback(
             networkStateOrProviderConfig.providerConfig,
-          );
+          ).catch(console.error);
         } else {
-          await this.#onNetworkStateChangeCallback(
+          this.#onNetworkStateChangeCallback(
             networkStateOrProviderConfig,
-          );
+          ).catch(console.error);
         }
       });
     } else {
@@ -171,13 +171,13 @@ export class TokenListController extends BaseControllerV2<
   /**
    * Updates state and restart polling when updates are received through NetworkController subscription.
    *
-   * @param providerConfig - the configuration for a provider containing critical network info.
+   * @param providerConfig - The configuration for a provider containing critical network info.
    */
   async #onNetworkStateChangeCallback(providerConfig: ProviderConfig) {
-    if (this.chainId !== providerConfig.chainId) {
-      this.abortController.abort();
-      this.abortController = new WhatwgAbortController();
-      this.chainId = providerConfig.chainId;
+    if (this.#chainId !== providerConfig.chainId) {
+      this.#abortController.abort();
+      this.#abortController = new WhatwgAbortController();
+      this.#chainId = providerConfig.chainId;
       if (this.state.preventPollingOnNetworkRestart) {
         this.clearingTokenListData();
       } else {
@@ -185,7 +185,7 @@ export class TokenListController extends BaseControllerV2<
         this.update(() => {
           return {
             ...this.state,
-            tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
+            tokenList: this.state.tokensChainsCache[this.#chainId]?.data || {},
           };
         });
         await this.restart();
@@ -197,25 +197,25 @@ export class TokenListController extends BaseControllerV2<
    * Start polling for the token list.
    */
   async start() {
-    if (!isTokenListSupportedForNetwork(this.chainId)) {
+    if (!isTokenListSupportedForNetwork(this.#chainId)) {
       return;
     }
-    await this.startPolling();
+    await this.#startPolling();
   }
 
   /**
    * Restart polling for the token list.
    */
   async restart() {
-    this.stopPolling();
-    await this.startPolling();
+    this.#stopPolling();
+    await this.#startPolling();
   }
 
   /**
    * Stop polling for the token list.
    */
   stop() {
-    this.stopPolling();
+    this.#stopPolling();
   }
 
   /**
@@ -225,30 +225,30 @@ export class TokenListController extends BaseControllerV2<
    */
   override destroy() {
     super.destroy();
-    this.stopPolling();
+    this.#stopPolling();
   }
 
-  private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+  #stopPolling() {
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
     }
   }
 
   /**
    * Starts a new polling interval.
    */
-  private async startPolling(): Promise<void> {
+  async #startPolling(): Promise<void> {
     await safelyExecute(async () => this.fetchTokenList());
-    this.intervalId = setInterval(async () => {
+    this.#intervalId = setInterval(async () => {
       await safelyExecute(async () => this.fetchTokenList());
-    }, this.intervalDelay);
+    }, this.#intervalDelay);
   }
 
   /**
    * Fetching token list from the Token Service API.
    */
   async fetchTokenList(): Promise<void> {
-    const releaseLock = await this.mutex.acquire();
+    const releaseLock = await this.#mutex.acquire();
     try {
       const { tokensChainsCache } = this.state;
       let tokenList: TokenListMap = {};
@@ -261,12 +261,12 @@ export class TokenListController extends BaseControllerV2<
       } else {
         // Fetch fresh token list
         const tokensFromAPI: TokenListToken[] = await safelyExecute(async () =>
-          fetchTokenList(this.chainId, this.abortController.signal),
+          fetchTokenList(this.#chainId, this.#abortController.signal),
         );
 
         if (!tokensFromAPI) {
           // Fallback to expired cached tokens
-          tokenList = { ...(tokensChainsCache[this.chainId]?.data || {}) };
+          tokenList = { ...(tokensChainsCache[this.#chainId]?.data || {}) };
 
           this.update(() => {
             return {
@@ -301,7 +301,7 @@ export class TokenListController extends BaseControllerV2<
             ...token,
             aggregators: formatAggregatorNames(token.aggregators),
             iconUrl: formatIconUrlWithProxy({
-              chainId: this.chainId,
+              chainId: this.#chainId,
               tokenAddress: token.address,
             }),
           };
@@ -310,7 +310,7 @@ export class TokenListController extends BaseControllerV2<
       }
       const updatedTokensChainsCache: TokensChainsCache = {
         ...tokensChainsCache,
-        [this.chainId]: {
+        [this.#chainId]: {
           timestamp: Date.now(),
           data: tokenList,
         },
@@ -336,11 +336,11 @@ export class TokenListController extends BaseControllerV2<
    */
   async fetchFromCache(): Promise<TokenListMap | null> {
     const { tokensChainsCache }: TokenListState = this.state;
-    const dataCache = tokensChainsCache[this.chainId];
+    const dataCache = tokensChainsCache[this.#chainId];
     const now = Date.now();
     if (
       dataCache?.data &&
-      now - dataCache?.timestamp < this.cacheRefreshThreshold
+      now - dataCache?.timestamp < this.#cacheRefreshThreshold
     ) {
       return dataCache.data;
     }
@@ -363,7 +363,7 @@ export class TokenListController extends BaseControllerV2<
   /**
    * Updates preventPollingOnNetworkRestart from extension.
    *
-   * @param shouldPreventPolling - Determine whether to prevent polling on network change
+   * @param shouldPreventPolling - Determine whether to prevent polling on network change.
    */
   updatePreventPollingOnNetworkRestart(shouldPreventPolling: boolean): void {
     this.update(() => {

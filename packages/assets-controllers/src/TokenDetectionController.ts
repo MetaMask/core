@@ -43,20 +43,20 @@ export class TokenDetectionController extends BaseController<
   TokenDetectionConfig,
   BaseState
 > {
-  private intervalId?: ReturnType<typeof setTimeout>;
+  #intervalId?: ReturnType<typeof setTimeout>;
 
   /**
    * Name of this controller used during composition
    */
   override name = 'TokenDetectionController';
 
-  private readonly getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+  readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
-  private readonly addDetectedTokens: TokensController['addDetectedTokens'];
+  readonly #addDetectedTokens: TokensController['addDetectedTokens'];
 
-  private readonly getTokensState: () => TokensState;
+  readonly #getTokensState: () => TokensState;
 
-  private readonly getTokenListState: () => TokenListState;
+  readonly #getTokenListState: () => TokenListState;
 
   /**
    * Creates a TokenDetectionController instance.
@@ -124,16 +124,16 @@ export class TokenDetectionController extends BaseController<
     };
 
     this.initialize();
-    this.getTokensState = getTokensState;
-    this.getTokenListState = getTokenListState;
-    this.addDetectedTokens = addDetectedTokens;
-    this.getBalancesInSingleCall = getBalancesInSingleCall;
+    this.#getTokensState = getTokensState;
+    this.#getTokenListState = getTokenListState;
+    this.#addDetectedTokens = addDetectedTokens;
+    this.#getBalancesInSingleCall = getBalancesInSingleCall;
 
     onTokenListStateChange(({ tokenList }) => {
       const hasTokens = Object.keys(tokenList).length;
 
       if (hasTokens) {
-        this.detectTokens();
+        this.detectTokens().catch(console.error);
       }
     });
 
@@ -156,7 +156,7 @@ export class TokenDetectionController extends BaseController<
         useTokenDetection &&
         (isSelectedAddressChanged || isDetectionChangedFromPreferences)
       ) {
-        this.detectTokens();
+        this.detectTokens().catch(console.error);
       }
     });
 
@@ -172,7 +172,7 @@ export class TokenDetectionController extends BaseController<
       });
 
       if (isDetectionEnabledForNetwork && isChainIdChanged) {
-        this.detectTokens();
+        this.detectTokens().catch(console.error);
       }
     });
   }
@@ -182,7 +182,7 @@ export class TokenDetectionController extends BaseController<
    */
   async start() {
     this.configure({ disabled: false });
-    await this.startPolling();
+    await this.#startPolling();
   }
 
   /**
@@ -190,12 +190,12 @@ export class TokenDetectionController extends BaseController<
    */
   stop() {
     this.configure({ disabled: true });
-    this.stopPolling();
+    this.#stopPolling();
   }
 
-  private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+  #stopPolling() {
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
     }
   }
 
@@ -204,12 +204,12 @@ export class TokenDetectionController extends BaseController<
    *
    * @param interval - An interval on which to poll.
    */
-  private async startPolling(interval?: number): Promise<void> {
+  async #startPolling(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
-    this.stopPolling();
+    this.#stopPolling();
     await this.detectTokens();
-    this.intervalId = setInterval(async () => {
-      await this.detectTokens();
+    this.#intervalId = setInterval(() => {
+      this.detectTokens().catch(console.error);
     }, this.config.interval);
   }
 
@@ -229,13 +229,13 @@ export class TokenDetectionController extends BaseController<
     ) {
       return;
     }
-    const { tokens } = this.getTokensState();
+    const { tokens } = this.#getTokensState();
     const { selectedAddress, chainId } = this.config;
 
     const tokensAddresses = tokens.map(
       /* istanbul ignore next*/ (token) => token.address.toLowerCase(),
     );
-    const { tokenList } = this.getTokenListState();
+    const { tokenList } = this.#getTokenListState();
     const tokensToDetect: string[] = [];
     for (const address in tokenList) {
       if (!tokensAddresses.includes(address)) {
@@ -260,15 +260,19 @@ export class TokenDetectionController extends BaseController<
       }
 
       await safelyExecute(async () => {
-        const balances = await this.getBalancesInSingleCall(
+        const balances = await this.#getBalancesInSingleCall(
           selectedAddress,
           tokensSlice,
         );
         const tokensToAdd: Token[] = [];
         for (const tokenAddress in balances) {
+          if (!Object.hasOwnProperty.call(balances, tokenAddress)) {
+            continue;
+          }
+
           let ignored;
           /* istanbul ignore else */
-          const { ignoredTokens } = this.getTokensState();
+          const { ignoredTokens } = this.#getTokensState();
           if (ignoredTokens.length) {
             ignored = ignoredTokens.find(
               (ignoredTokenAddress) =>
@@ -278,7 +282,7 @@ export class TokenDetectionController extends BaseController<
           const caseInsensitiveTokenKey =
             Object.keys(tokenList).find(
               (i) => i.toLowerCase() === tokenAddress.toLowerCase(),
-            ) || '';
+            ) ?? '';
 
           if (ignored === undefined) {
             const { decimals, symbol, aggregators, iconUrl } =
@@ -295,7 +299,7 @@ export class TokenDetectionController extends BaseController<
         }
 
         if (tokensToAdd.length) {
-          await this.addDetectedTokens(tokensToAdd, {
+          await this.#addDetectedTokens(tokensToAdd, {
             selectedAddress,
             chainId,
           });

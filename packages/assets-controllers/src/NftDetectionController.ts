@@ -136,9 +136,9 @@ export class NftDetectionController extends BaseController<
   NftDetectionConfig,
   BaseState
 > {
-  private intervalId?: ReturnType<typeof setTimeout>;
+  #intervalId?: ReturnType<typeof setTimeout>;
 
-  private getOwnerNftApi({
+  #getOwnerNftApi({
     address,
     offset,
     useProxy,
@@ -152,22 +152,22 @@ export class NftDetectionController extends BaseController<
       : `${OPENSEA_API_URL}/assets?owner=${address}&offset=${offset}&limit=50`;
   }
 
-  private async getOwnerNfts(address: string) {
+  async #getOwnerNfts(address: string) {
     let nftApiResponse: { assets: ApiNft[] };
     let nfts: ApiNft[] = [];
-    const openSeaApiKey = this.getOpenSeaApiKey();
+    const openSeaApiKey = this.#getOpenSeaApiKey();
     let offset = 0;
     let pagingFinish = false;
     /* istanbul ignore if */
     do {
       nftApiResponse = await fetchWithErrorHandling({
-        url: this.getOwnerNftApi({ address, offset, useProxy: true }),
+        url: this.#getOwnerNftApi({ address, offset, useProxy: true }),
         timeout: 15000,
       });
 
       if (openSeaApiKey && !nftApiResponse) {
         nftApiResponse = await fetchWithErrorHandling({
-          url: this.getOwnerNftApi({
+          url: this.#getOwnerNftApi({
             address,
             offset,
             useProxy: false,
@@ -183,9 +183,9 @@ export class NftDetectionController extends BaseController<
         return nfts;
       }
 
-      nftApiResponse?.assets?.length !== 0
-        ? (nfts = [...nfts, ...nftApiResponse.assets])
-        : (pagingFinish = true);
+      nftApiResponse?.assets?.length === 0
+        ? (pagingFinish = true)
+        : (nfts = [...nfts, ...nftApiResponse.assets]);
       offset += 50;
     } while (!pagingFinish);
 
@@ -197,11 +197,11 @@ export class NftDetectionController extends BaseController<
    */
   override name = 'NftDetectionController';
 
-  private readonly getOpenSeaApiKey: () => string | undefined;
+  readonly #getOpenSeaApiKey: () => string | undefined;
 
-  private readonly addNft: NftController['addNft'];
+  readonly #addNft: NftController['addNft'];
 
-  private readonly getNftState: () => NftState;
+  readonly #getNftState: () => NftState;
 
   /**
    * Creates an NftDetectionController instance.
@@ -247,7 +247,7 @@ export class NftDetectionController extends BaseController<
       disabled: true,
     };
     this.initialize();
-    this.getNftState = getNftState;
+    this.#getNftState = getNftState;
     onPreferencesStateChange(({ selectedAddress, useNftDetection }) => {
       const { selectedAddress: previouslySelectedAddress, disabled } =
         this.config;
@@ -261,7 +261,7 @@ export class NftDetectionController extends BaseController<
 
       if (useNftDetection !== undefined) {
         if (useNftDetection) {
-          this.start();
+          this.start().catch(console.error);
         } else {
           this.stop();
         }
@@ -274,8 +274,8 @@ export class NftDetectionController extends BaseController<
         chainId: providerConfig.chainId as NftDetectionConfig['chainId'],
       });
     });
-    this.getOpenSeaApiKey = getOpenSeaApiKey;
-    this.addNft = addNft;
+    this.#getOpenSeaApiKey = getOpenSeaApiKey;
+    this.#addNft = addNft;
   }
 
   /**
@@ -286,19 +286,19 @@ export class NftDetectionController extends BaseController<
       return;
     }
 
-    await this.startPolling();
+    await this.#startPolling();
   }
 
   /**
    * Stop polling for the currency rate.
    */
   stop() {
-    this.stopPolling();
+    this.#stopPolling();
   }
 
-  private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+  #stopPolling() {
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
     }
   }
 
@@ -307,12 +307,12 @@ export class NftDetectionController extends BaseController<
    *
    * @param interval - An interval on which to poll.
    */
-  private async startPolling(interval?: number): Promise<void> {
+  async #startPolling(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
-    this.stopPolling();
+    this.#stopPolling();
     await this.detectNfts();
-    this.intervalId = setInterval(async () => {
-      await this.detectNfts();
+    this.#intervalId = setInterval(() => {
+      this.detectNfts().catch(console.error);
     }, this.config.interval);
   }
 
@@ -339,7 +339,7 @@ export class NftDetectionController extends BaseController<
       return;
     }
 
-    const apiNfts = await this.getOwnerNfts(selectedAddress);
+    const apiNfts = await this.#getOwnerNfts(selectedAddress);
     const addNftPromises = apiNfts.map(async (nft: ApiNft) => {
       const {
         token_id,
@@ -361,13 +361,13 @@ export class NftDetectionController extends BaseController<
 
       let ignored;
       /* istanbul ignore else */
-      const { ignoredNfts } = this.getNftState();
+      const { ignoredNfts } = this.#getNftState();
       if (ignoredNfts.length) {
-        ignored = ignoredNfts.find((c) => {
+        ignored = ignoredNfts.find((contract) => {
           /* istanbul ignore next */
           return (
-            c.address === toChecksumHexAddress(address) &&
-            c.tokenId === token_id
+            contract.address === toChecksumHexAddress(address) &&
+            contract.tokenId === token_id
           );
         });
       }
@@ -395,7 +395,7 @@ export class NftDetectionController extends BaseController<
           last_sale && { lastSale: last_sale },
         );
 
-        await this.addNft(address, token_id, nftMetadata, {
+        await this.#addNft(address, token_id, nftMetadata, {
           userAddress: selectedAddress,
           chainId: chainId as string,
         });

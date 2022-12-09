@@ -67,6 +67,7 @@ describe('TokenBalancesController', () => {
         TokenBalancesController.prototype,
         'updateBalances',
       );
+      // eslint-disable-next-line no-new
       new TokenBalancesController(
         {
           onTokensStateChange: sinon.stub(),
@@ -113,7 +114,7 @@ describe('TokenBalancesController', () => {
     );
     await new Promise<void>((resolve) => {
       setTimeout(() => {
-        tokenBalances.poll(1338);
+        tokenBalances.poll(1338).catch(console.error);
         expect(mock.called).toBe(true);
         resolve();
       }, 100);
@@ -128,6 +129,7 @@ describe('TokenBalancesController', () => {
         allowedActions: [],
       });
 
+    // eslint-disable-next-line no-new
     new NetworkController({
       messenger,
       infuraProjectId: 'potato',

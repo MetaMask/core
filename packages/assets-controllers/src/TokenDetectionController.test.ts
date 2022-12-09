@@ -223,14 +223,15 @@ describe('TokenDetectionController', () => {
   });
 
   it('should poll and detect tokens on interval while on supported networks', async () => {
-    await new Promise(async (resolve) => {
-      const mockTokens = sinon.stub(tokenDetection, 'detectTokens');
-      tokenDetection.configure({
-        interval: 10,
-      });
-      await tokenDetection.start();
+    const mockTokens = sinon.stub(tokenDetection, 'detectTokens');
+    tokenDetection.configure({
+      interval: 10,
+    });
+    await tokenDetection.start();
 
-      expect(mockTokens.calledOnce).toBe(true);
+    expect(mockTokens.calledOnce).toBe(true);
+
+    await new Promise((resolve) => {
       setTimeout(() => {
         expect(mockTokens.calledTwice).toBe(true);
         resolve('');
@@ -240,13 +241,13 @@ describe('TokenDetectionController', () => {
 
   it('should detect supported networks correctly', () => {
     tokenDetection.configure({
-      chainId: SupportedTokenDetectionNetworks.mainnet,
+      chainId: SupportedTokenDetectionNetworks.Mainnet,
     });
 
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
     ).toBe(true);
-    tokenDetection.configure({ chainId: SupportedTokenDetectionNetworks.bsc });
+    tokenDetection.configure({ chainId: SupportedTokenDetectionNetworks.Bsc });
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
     ).toBe(true);
@@ -468,7 +469,7 @@ describe('TokenDetectionController', () => {
 
     tokenDetection.stop();
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await networkStateChangeListener!({
+    networkStateChangeListener!({
       providerConfig: { chainId: polygonDecimalChainId },
     });
 
@@ -502,7 +503,7 @@ describe('TokenDetectionController', () => {
     );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenListStateChangeListener!({ tokenList: {} });
+    tokenListStateChangeListener!({ tokenList: {} });
 
     expect(getBalancesInSingleCallMock.called).toBe(false);
   });
@@ -535,7 +536,7 @@ describe('TokenDetectionController', () => {
     );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await preferencesStateChangeListener!({
+    preferencesStateChangeListener!({
       selectedAddress: '0x1',
       useTokenDetection: true,
     });
@@ -565,14 +566,14 @@ describe('TokenDetectionController', () => {
       {
         disabled: false,
         isDetectionEnabledFromPreferences: true,
-        chainId: SupportedTokenDetectionNetworks.polygon,
+        chainId: SupportedTokenDetectionNetworks.Polygon,
         isDetectionEnabledForNetwork: true,
         selectedAddress: '0x1',
       },
     );
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await networkStateChangeListener!({
+    networkStateChangeListener!({
       providerConfig: { chainId: NetworksChainId.mainnet },
     });
 

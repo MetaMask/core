@@ -64,6 +64,11 @@ module.exports = {
             format: null,
           },
           {
+            selector: 'parameter',
+            modifiers: ['destructured'],
+            format: ['camelCase', 'snake_case'],
+          },
+          {
             selector: 'typeLike',
             format: ['PascalCase'],
           },
@@ -80,6 +85,9 @@ module.exports = {
           },
         ],
 
+        // This rule is causing a lot of false positives, and is not worth the
+        // effort to fix.
+        '@typescript-eslint/restrict-template-expressions': 'off',
         '@typescript-eslint/require-await': 'off',
       },
     },

@@ -156,6 +156,8 @@ describe('TokenRatesController', () => {
     const pollSpy = jest.spyOn(TokenRatesController.prototype, 'poll');
     const interval = 100;
     const times = 5;
+
+    // eslint-disable-next-line no-new
     new TokenRatesController(
       {
         onTokensStateChange: jest.fn(),
@@ -206,7 +208,7 @@ describe('TokenRatesController', () => {
     );
     await new Promise<void>((resolve) => {
       setTimeout(() => {
-        controller.poll(1338);
+        controller.poll(1338).catch(console.error);
         expect(mock.called).toBe(true);
         resolve();
       }, 100);
@@ -214,6 +216,7 @@ describe('TokenRatesController', () => {
   });
 
   it('should update all rates', async () => {
+    // eslint-disable-next-line no-new
     new NetworkController({ messenger });
     const preferences = new PreferencesController();
     const tokensController = new TokensController({
@@ -362,7 +365,7 @@ describe('TokenRatesController', () => {
     await controller.configure({ chainId: '137', nativeCurrency: 'MATIC' });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
+    tokenStateChangeListener!({
       tokens: [
         {
           address: '0x02',
@@ -425,7 +428,7 @@ describe('TokenRatesController', () => {
     await controller.configure({ chainId: '1', nativeCurrency: 'ETH' });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
+    tokenStateChangeListener!({
       tokens: [
         {
           address: '0x02',
@@ -453,12 +456,12 @@ describe('TokenRatesController', () => {
     });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await networkChangeListener!({
+    networkChangeListener!({
       providerConfig: { chainId: '4' },
     });
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
+    tokenStateChangeListener!({
       tokens: [],
       detectedTokens: [],
     });
@@ -497,7 +500,7 @@ describe('TokenRatesController', () => {
     expect(controller.state.contractExchangeRates).toStrictEqual({});
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await tokenStateChangeListener!({
+    tokenStateChangeListener!({
       detectedTokens: [
         {
           address: '0x02',
