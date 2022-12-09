@@ -17,10 +17,10 @@ async function main() {
     '--json',
   ]);
   const packages = stdout.split('\n').map((line) => JSON.parse(line));
-  const packageManifestsPaths = packages.map(({ location }) =>
+  const packageManifestPaths = packages.map(({ location }) =>
     path.join(location, 'package.json'),
   );
-  for (const manifestPath of packageManifestsPaths) {
+  for (const manifestPath of packageManifestPaths) {
     const rawManifest = await fs.promises.readFile(manifestPath, {
       encoding: 'utf8',
     });
