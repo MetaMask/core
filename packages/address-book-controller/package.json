@@ -32,12 +32,12 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
+    "@metamask/preferences-controller": "workspace:^",
     "@metamask/utils": "^3.3.1",
     "immer": "^9.0.6"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.1.0",
-    "@metamask/preferences-controller": "workspace:^",
     "@types/jest": "^26.0.22",
     "deepmerge": "^4.2.2",
     "jest": "^26.4.2",
