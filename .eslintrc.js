@@ -29,18 +29,6 @@ module.exports = {
         // disabled due to incompatibility with Record<string, unknown>
         // See https://github.com/Microsoft/TypeScript/issues/15300#issuecomment-702872440
         '@typescript-eslint/consistent-type-definitions': 'off',
-
-        // Modified to include the 'ignoreRestSiblings' option
-        // TODO: Migrate this rule change back into `@metamask/eslint-config`
-        '@typescript-eslint/no-unused-vars': [
-          'error',
-          {
-            vars: 'all',
-            args: 'all',
-            argsIgnorePattern: '[_]+',
-            ignoreRestSiblings: true,
-          },
-        ],
       },
     },
     {
