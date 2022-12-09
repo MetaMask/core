@@ -108,15 +108,15 @@ export class PreferencesController extends BaseController<
   addIdentities(addresses: string[]) {
     const { identities } = this.state;
     addresses.forEach((address) => {
-      address = toChecksumHexAddress(address);
-      if (identities[address]) {
+      const checksumAddress = toChecksumHexAddress(address);
+      if (identities[checksumAddress]) {
         return;
       }
       const identityCount = Object.keys(identities).length;
 
-      identities[address] = {
+      identities[checksumAddress] = {
         name: `Account ${identityCount + 1}`,
-        address,
+        address: checksumAddress,
         importTime: Date.now(),
       };
     });
@@ -129,14 +129,14 @@ export class PreferencesController extends BaseController<
    * @param address - Address of the identity to remove.
    */
   removeIdentity(address: string) {
-    address = toChecksumHexAddress(address);
+    const checksumAddress = toChecksumHexAddress(address);
     const { identities } = this.state;
-    if (!identities[address]) {
+    if (!identities[checksumAddress]) {
       return;
     }
-    delete identities[address];
+    delete identities[checksumAddress];
     this.update({ identities: { ...identities } });
-    if (address === this.state.selectedAddress) {
+    if (checksumAddress === this.state.selectedAddress) {
       this.update({ selectedAddress: Object.keys(identities)[0] });
     }
   }
@@ -148,10 +148,10 @@ export class PreferencesController extends BaseController<
    * @param label - New label to assign.
    */
   setAccountLabel(address: string, label: string) {
-    address = toChecksumHexAddress(address);
+    const checksumAddress = toChecksumHexAddress(address);
     const { identities } = this.state;
-    identities[address] = identities[address] || {};
-    identities[address].name = label;
+    identities[checksumAddress] = identities[checksumAddress] ?? {};
+    identities[checksumAddress].name = label;
     this.update({ identities: { ...identities } });
   }
 
@@ -174,14 +174,14 @@ export class PreferencesController extends BaseController<
    * @returns Newly-selected address after syncing.
    */
   syncIdentities(addresses: string[]) {
-    addresses = addresses.map((address: string) =>
+    const checksumAddresses = addresses.map((address: string) =>
       toChecksumHexAddress(address),
     );
     const { identities, lostIdentities } = this.state;
     const newlyLost: { [address: string]: ContactEntry } = {};
 
     for (const identity in identities) {
-      if (!addresses.includes(identity)) {
+      if (!checksumAddresses.includes(identity)) {
         newlyLost[identity] = identities[identity];
         delete identities[identity];
       }
@@ -189,7 +189,9 @@ export class PreferencesController extends BaseController<
 
     if (Object.keys(newlyLost).length > 0) {
       for (const key in newlyLost) {
-        lostIdentities[key] = newlyLost[key];
+        if (Object.hasOwnProperty.call(newlyLost, key)) {
+          lostIdentities[key] = newlyLost[key];
+        }
       }
     }
 
@@ -197,10 +199,10 @@ export class PreferencesController extends BaseController<
       identities: { ...identities },
       lostIdentities: { ...lostIdentities },
     });
-    this.addIdentities(addresses);
+    this.addIdentities(checksumAddresses);
 
-    if (!addresses.includes(this.state.selectedAddress)) {
-      this.update({ selectedAddress: addresses[0] });
+    if (!checksumAddresses.includes(this.state.selectedAddress)) {
+      this.update({ selectedAddress: checksumAddresses[0] });
     }
 
     return this.state.selectedAddress;
@@ -214,11 +216,11 @@ export class PreferencesController extends BaseController<
    * @param addresses - List of addresses to use as a basis for each identity.
    */
   updateIdentities(addresses: string[]) {
-    addresses = addresses.map((address: string) =>
+    const checksumAddresses = addresses.map((address: string) =>
       toChecksumHexAddress(address),
     );
     const oldIdentities = this.state.identities;
-    const identities = addresses.reduce(
+    const identities = checksumAddresses.reduce(
       (ids: { [address: string]: ContactEntry }, address, index) => {
         ids[address] = oldIdentities[address] || {
           address,
