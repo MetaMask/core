@@ -92,11 +92,11 @@ export class AddressBookController extends BaseController<
    * @returns Whether the entry was deleted.
    */
   delete(chainId: string, address: string) {
-    address = toChecksumHexAddress(address);
+    const checksumAddress = toChecksumHexAddress(address);
     if (
-      !isValidHexAddress(address) ||
+      !isValidHexAddress(checksumAddress) ||
       !this.state.addressBook[chainId] ||
-      !this.state.addressBook[chainId][address]
+      !this.state.addressBook[chainId][checksumAddress]
     ) {
       return false;
     }
@@ -122,13 +122,13 @@ export class AddressBookController extends BaseController<
    * @returns Boolean indicating if the address was successfully set.
    */
   set(address: string, name: string, chainId = '1', memo = '') {
-    address = toChecksumHexAddress(address);
-    if (!isValidHexAddress(address)) {
+    const checksumAddress = toChecksumHexAddress(address);
+    if (!isValidHexAddress(checksumAddress)) {
       return false;
     }
 
     const entry = {
-      address,
+      address: checksumAddress,
       chainId,
       isEns: false,
       memo,
@@ -146,7 +146,7 @@ export class AddressBookController extends BaseController<
         ...this.state.addressBook,
         [chainId]: {
           ...this.state.addressBook[chainId],
-          [address]: entry,
+          [checksumAddress]: entry,
         },
       },
     });
