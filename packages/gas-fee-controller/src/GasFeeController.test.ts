@@ -198,6 +198,7 @@ describe('GasFeeController', () => {
       .fn()
       .mockReturnValue(false),
     legacyAPIEndpoint = 'http://legacy.endpoint/<chain_id>',
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     EIP1559APIEndpoint = 'http://eip-1559.endpoint/<chain_id>',
     clientId,
     getChainId,
@@ -206,6 +207,7 @@ describe('GasFeeController', () => {
     getIsEIP1559Compatible?: jest.Mock<Promise<boolean>>;
     getCurrentNetworkLegacyGasAPICompatibility?: jest.Mock<boolean>;
     legacyAPIEndpoint?: string;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     EIP1559APIEndpoint?: string;
     clientId?: string;
   } = {}) {

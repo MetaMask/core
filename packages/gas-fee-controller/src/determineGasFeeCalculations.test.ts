@@ -7,7 +7,7 @@ import {
   calculateTimeEstimate,
 } from './gas-util';
 import {
-  unknownString,
+  UnknownString,
   GasFeeEstimates,
   LegacyGasPriceEstimate,
   EthGasPriceEstimate,
@@ -115,7 +115,7 @@ function buildMockDataForFetchEthGasPriceEstimate(): EthGasPriceEstimate {
 function buildMockDataForCalculateTimeEstimate(): EstimatedGasFeeTimeBounds {
   return {
     lowerTimeBound: null,
-    upperTimeBound: 'unknown' as unknownString,
+    upperTimeBound: 'unknown' as UnknownString,
   };
 }
 

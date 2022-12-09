@@ -99,16 +99,16 @@ export type ExtractPercentileFrom<T> = T extends FeeHistoryBlock<infer P>[]
 const MAX_NUMBER_OF_BLOCKS_PER_ETH_FEE_HISTORY_CALL = 1024;
 
 /**
- * Uses `eth_feeHistory` (an EIP-1559 feature) to obtain information about gas fees from a range of
- * blocks that have occurred recently on a network.
+ * Uses `eth_feeHistory` (an EIP-1559 feature) to obtain information about gas
+ * fees from a range of blocks that have occurred recently on a network.
  *
  * To learn more, see these resources:
  *
- * - <https://infura.io/docs/ethereum#operation/eth_feeHistory>
- * - <https://github.com/zsfelfoldi/feehistory/blob/main/docs/feeHistory.md>
- * - <https://github.com/ethereum/go-ethereum/blob/57a3fab8a75eeb9c2f4fab770b73b51b9fe672c5/eth/gasprice/feehistory.go#L180>
- * - <https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1559.md>
- * - <https://gas-api.metaswap.codefi.network/testFeeHistory>
+ * - <https://infura.io/docs/ethereum#operation/eth_feeHistory>.
+ * - <https://github.com/zsfelfoldi/feehistory/blob/main/docs/feeHistory.md>.
+ * - <https://github.com/ethereum/go-ethereum/blob/57a3fab8a75eeb9c2f4fab770b73b51b9fe672c5/eth/gasprice/feehistory.go#L180>.
+ * - <https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1559.md>.
+ * - <https://gas-api.metaswap.codefi.network/testFeeHistory>.
  *
  * @param args - The arguments to this function.
  * @param args.ethQuery - An EthQuery instance that wraps a provider for the network in question.
@@ -221,7 +221,9 @@ function buildExistingFeeHistoryBlock<Percentile extends number>({
       const priorityFee = priorityFeesForEachPercentile[percentileIndex];
       return { ...obj, [percentile]: fromHex(priorityFee) };
     },
-    {},
+    // Without this, the return type of `reduce` is inferred improperly.
+    // eslint-disable-next-line @typescript-eslint/prefer-reduce-type-parameter
+    {} as Record<Percentile, BN>,
   );
 
   return {
@@ -258,7 +260,7 @@ function buildNextFeeHistoryBlock({
 /**
  * Uses eth_feeHistory to request historical data about a group of blocks (max size 1024).
  *
- * @param args - The arguments
+ * @param args - The arguments.
  * @param args.ethQuery - An EthQuery instance.
  * @param args.numberOfBlocks - The number of blocks in the chunk. Must be at most 1024, as this is
  * the maximum that `eth_feeHistory` can return in one call.
@@ -348,6 +350,7 @@ function determineRequestChunkSpecifiers(
   totalNumberOfBlocks: number,
 ): RequestChunkSpecifier[] {
   if (endBlockNumber.lt(new BN(totalNumberOfBlocks))) {
+    // eslint-disable-next-line no-param-reassign
     totalNumberOfBlocks = endBlockNumber.toNumber();
   }
 

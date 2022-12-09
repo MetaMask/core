@@ -10,7 +10,7 @@ import {
   GasFeeEstimates,
   EthGasPriceEstimate,
   EstimatedGasFeeTimeBounds,
-  unknownString,
+  UnknownString,
   LegacyGasPriceEstimate,
 } from './GasFeeController';
 
@@ -19,11 +19,11 @@ const makeClientIdHeader = (clientId: string) => ({ 'X-Client-Id': clientId });
 /**
  * Convert a decimal GWEI value to a decimal string rounded to the nearest WEI.
  *
- * @param n - The input GWEI amount, as a decimal string or a number.
+ * @param value - The input GWEI amount, as a decimal string or a number.
  * @returns The decimal string GWEI amount.
  */
-export function normalizeGWEIDecimalNumbers(n: string | number) {
-  const numberAsWEIHex = gweiDecToWEIBN(n).toString(16);
+export function normalizeGWEIDecimalNumbers(value: string | number) {
+  const numberAsWEIHex = gweiDecToWEIBN(value).toString(16);
   const numberAsGWEI = weiHexToGweiDec(numberAsWEIHex).toString(10);
   return numberAsGWEI;
 }
@@ -164,7 +164,7 @@ export function calculateTimeEstimate(
 
   if (effectiveMaxPriorityFee.lt(lowMaxPriorityFeeInWEI)) {
     lowerTimeBound = null;
-    upperTimeBound = 'unknown' as unknownString;
+    upperTimeBound = 'unknown' as UnknownString;
   } else if (
     effectiveMaxPriorityFee.gte(lowMaxPriorityFeeInWEI) &&
     effectiveMaxPriorityFee.lt(mediumMaxPriorityFeeInWEI)
