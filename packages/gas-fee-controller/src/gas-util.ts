@@ -1,10 +1,11 @@
-import { BN } from 'ethereumjs-util';
 import {
   query,
   handleFetch,
   gweiDecToWEIBN,
   weiHexToGweiDec,
 } from '@metamask/controller-utils';
+import { BN } from 'ethereumjs-util';
+
 import {
   GasFeeEstimates,
   EthGasPriceEstimate,

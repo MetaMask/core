@@ -1,18 +1,19 @@
-import * as sinon from 'sinon';
-import { BN } from 'ethereumjs-util';
+import { ControllerMessenger } from '@metamask/base-controller';
 import {
   NetworkController,
   NetworkControllerMessenger,
 } from '@metamask/network-controller';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
-import { TokensController } from './TokensController';
-import { Token } from './TokenRatesController';
+import { BN } from 'ethereumjs-util';
+import * as sinon from 'sinon';
+
 import { AssetsContractController } from './AssetsContractController';
 import {
   BN as exportedBn,
   TokenBalancesController,
 } from './TokenBalancesController';
+import { Token } from './TokenRatesController';
+import { TokensController } from './TokensController';
 
 const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
   return sinon.stub(ctrl, '_createEthersContract').callsFake(() => {
@@ -199,9 +200,7 @@ describe('TokenBalancesController', () => {
     const mytoken = getToken(tokenBalances, address);
     expect(mytoken?.balanceError).toBeInstanceOf(Error);
     expect(mytoken?.balanceError).toHaveProperty('message', errorMsg);
-    expect(
-      tokenBalances.state.contractBalances[address].toNumber(),
-    ).toStrictEqual(0);
+    expect(tokenBalances.state.contractBalances[address].toNumber()).toBe(0);
 
     getERC20BalanceOfStub.returns(new BN(1));
     await tokenBalances.updateBalances();

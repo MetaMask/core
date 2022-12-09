@@ -1,16 +1,17 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
+import { ControllerMessenger } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
-import { PreferencesController } from '@metamask/preferences-controller';
+import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import {
   NetworkController,
   NetworkControllerMessenger,
 } from '@metamask/network-controller';
-import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
-import { ControllerMessenger } from '@metamask/base-controller';
-import { TokensController } from './TokensController';
-import { Token } from './TokenRatesController';
+import { PreferencesController } from '@metamask/preferences-controller';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
 import { TOKEN_END_POINT_API } from './token-service';
+import { Token } from './TokenRatesController';
+import { TokensController } from './TokensController';
 
 jest.mock('uuid', () => {
   return {

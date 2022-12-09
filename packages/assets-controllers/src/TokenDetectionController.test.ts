@@ -1,16 +1,23 @@
-import * as sinon from 'sinon';
-import nock from 'nock';
-import { BN } from 'ethereumjs-util';
+import { ControllerMessenger } from '@metamask/base-controller';
+import { NetworksChainId, MAINNET } from '@metamask/controller-utils';
 import {
   NetworkController,
   NetworkControllerMessenger,
   NetworkControllerProviderConfigChangeEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
-import { NetworksChainId, MAINNET } from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
-import { TokensController } from './TokensController';
+import { BN } from 'ethereumjs-util';
+import nock from 'nock';
+import * as sinon from 'sinon';
+
+import { AssetsContractController } from './AssetsContractController';
+import {
+  formatAggregatorNames,
+  isTokenDetectionSupportedForNetwork,
+  SupportedTokenDetectionNetworks,
+} from './assetsUtil';
+import { TOKEN_END_POINT_API } from './token-service';
 import { TokenDetectionController } from './TokenDetectionController';
 import {
   TokenListController,
@@ -18,14 +25,8 @@ import {
   TokenListStateChange,
   TokenListToken,
 } from './TokenListController';
-import { AssetsContractController } from './AssetsContractController';
-import {
-  formatAggregatorNames,
-  isTokenDetectionSupportedForNetwork,
-  SupportedTokenDetectionNetworks,
-} from './assetsUtil';
 import { Token } from './TokenRatesController';
-import { TOKEN_END_POINT_API } from './token-service';
+import { TokensController } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -197,7 +198,7 @@ describe('TokenDetectionController', () => {
 
     sinon
       .stub(tokensController, '_detectIsERC721')
-      .callsFake(() => Promise.resolve(false));
+      .callsFake(async () => Promise.resolve(false));
   });
 
   afterEach(() => {
@@ -244,15 +245,15 @@ describe('TokenDetectionController', () => {
 
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
-    ).toStrictEqual(true);
+    ).toBe(true);
     tokenDetection.configure({ chainId: SupportedTokenDetectionNetworks.bsc });
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
-    ).toStrictEqual(true);
+    ).toBe(true);
     tokenDetection.configure({ chainId: NetworksChainId.ropsten });
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
-    ).toStrictEqual(false);
+    ).toBe(false);
   });
 
   it('should not autodetect while not on supported networks', async () => {

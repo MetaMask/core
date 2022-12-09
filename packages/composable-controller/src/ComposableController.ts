@@ -24,9 +24,9 @@ export type ComposableControllerRestrictedMessenger =
  * Controller that can be used to compose multiple controllers together.
  */
 export class ComposableController extends BaseController<never, any> {
-  private controllers: ControllerList = [];
+  private readonly controllers: ControllerList = [];
 
-  private messagingSystem?: ComposableControllerRestrictedMessenger;
+  private readonly messagingSystem?: ComposableControllerRestrictedMessenger;
 
   /**
    * Name of this controller used during composition
@@ -45,10 +45,10 @@ export class ComposableController extends BaseController<never, any> {
   ) {
     super(
       undefined,
-      controllers.reduce((state, controller) => {
+      controllers.reduce<any>((state, controller) => {
         state[controller.name] = controller.state;
         return state;
-      }, {} as any),
+      }, {}),
     );
     this.initialize();
     this.controllers = controllers;
@@ -60,12 +60,9 @@ export class ComposableController extends BaseController<never, any> {
           this.update({ [name]: state });
         });
       } else if (this.messagingSystem) {
-        (this.messagingSystem.subscribe as any)(
-          `${name}:stateChange`,
-          (state: any) => {
-            this.update({ [name]: state });
-          },
-        );
+        this.messagingSystem.subscribe(`${name}:stateChange`, (state: any) => {
+          this.update({ [name]: state });
+        });
       } else {
         throw new Error(
           `Messaging system required if any BaseControllerV2 controllers are used`,

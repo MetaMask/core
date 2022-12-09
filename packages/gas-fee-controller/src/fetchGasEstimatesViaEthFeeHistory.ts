@@ -1,10 +1,11 @@
-import { fromWei } from 'ethjs-unit';
 import { GWEI } from '@metamask/controller-utils';
-import { GasFeeEstimates } from './GasFeeController';
-import { EthQuery } from './fetchGasEstimatesViaEthFeeHistory/types';
+import { fromWei } from 'ethjs-unit';
+
 import fetchBlockFeeHistory from './fetchBlockFeeHistory';
-import fetchLatestBlock from './fetchGasEstimatesViaEthFeeHistory/fetchLatestBlock';
 import calculateGasFeeEstimatesForPriorityLevels from './fetchGasEstimatesViaEthFeeHistory/calculateGasFeeEstimatesForPriorityLevels';
+import fetchLatestBlock from './fetchGasEstimatesViaEthFeeHistory/fetchLatestBlock';
+import { EthQuery } from './fetchGasEstimatesViaEthFeeHistory/types';
+import { GasFeeEstimates } from './GasFeeController';
 
 /**
  * Generates gas fee estimates based on gas fees that have been used in the recent past so that

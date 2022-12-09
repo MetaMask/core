@@ -1,5 +1,3 @@
-import type { Patch } from 'immer';
-import { Json } from '@metamask/types';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
@@ -9,6 +7,8 @@ import type {
   PermissionSubjectMetadata,
   HasPermissions,
 } from '@metamask/permission-controller';
+import { Json } from '@metamask/types';
+import type { Patch } from 'immer';
 
 const controllerName = 'SubjectMetadataController';
 
@@ -100,11 +100,11 @@ export class SubjectMetadataController extends BaseControllerV2<
   SubjectMetadataControllerState,
   SubjectMetadataControllerMessenger
 > {
-  private subjectCacheLimit: number;
+  private readonly subjectCacheLimit: number;
 
-  private subjectsWithoutPermissionsEncounteredSinceStartup: Set<string>;
+  private readonly subjectsWithoutPermissionsEncounteredSinceStartup: Set<string>;
 
-  private subjectHasPermissions: GenericPermissionController['hasPermissions'];
+  private readonly subjectHasPermissions: GenericPermissionController['hasPermissions'];
 
   constructor({
     messenger,
@@ -198,7 +198,7 @@ export class SubjectMetadataController extends BaseControllerV2<
 
     this.update((draftState) => {
       // Typecast: ts(2589)
-      draftState.subjectMetadata[origin] = newMetadata as any;
+      draftState.subjectMetadata[origin] = newMetadata;
       if (typeof originToForget === 'string') {
         delete draftState.subjectMetadata[originToForget];
       }
@@ -222,7 +222,7 @@ export class SubjectMetadataController extends BaseControllerV2<
     this.update((draftState) => {
       return SubjectMetadataController.getTrimmedState(
         // Typecast: ts(2589)
-        draftState as any,
+        draftState,
         this.subjectHasPermissions,
       );
     });

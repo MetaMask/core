@@ -1,13 +1,13 @@
 import {
-  normalizeEnsName,
-  isValidHexAddress,
-  toChecksumHexAddress,
-} from '@metamask/controller-utils';
-import {
   BaseController,
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
+import {
+  normalizeEnsName,
+  isValidHexAddress,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
 
 /**
  * @type ContactEntry

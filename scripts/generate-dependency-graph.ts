@@ -1,9 +1,9 @@
 #!yarn ts-node
 
+import execa from 'execa';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import execa from 'execa';
 import which from 'which';
 
 /**

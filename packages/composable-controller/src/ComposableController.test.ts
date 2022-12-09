@@ -1,12 +1,9 @@
-import * as sinon from 'sinon';
-import type { Patch } from 'immer';
+import { AddressBookController } from '@metamask/address-book-controller';
 import {
   TokensController,
   NftController,
   AssetsContractController,
 } from '@metamask/assets-controllers';
-import { AddressBookController } from '@metamask/address-book-controller';
-import { EnsController } from '@metamask/ens-controller';
 import {
   BaseController,
   BaseState,
@@ -14,13 +11,17 @@ import {
   ControllerMessenger,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { PreferencesController } from '@metamask/preferences-controller';
+import { NetworksChainId } from '@metamask/controller-utils';
+import { EnsController } from '@metamask/ens-controller';
 import {
   NetworkController,
   NetworkControllerMessenger,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
-import { NetworksChainId } from '@metamask/controller-utils';
+import { PreferencesController } from '@metamask/preferences-controller';
+import type { Patch } from 'immer';
+import * as sinon from 'sinon';
+
 import {
   ComposableController,
   ComposableControllerRestrictedMessenger,

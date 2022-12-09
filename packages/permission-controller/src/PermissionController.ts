@@ -1,9 +1,4 @@
 /* eslint-enable @typescript-eslint/no-unused-vars */
-import { Mutable } from '@metamask/types';
-import deepFreeze from 'deep-freeze-strict';
-import { castDraft, Draft, Patch } from 'immer';
-import { nanoid } from 'nanoid';
-import { EthereumRpcError } from 'eth-rpc-errors';
 import {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
@@ -23,6 +18,12 @@ import {
   Json,
   NonEmptyArray,
 } from '@metamask/controller-utils';
+import { Mutable } from '@metamask/types';
+import deepFreeze from 'deep-freeze-strict';
+import { EthereumRpcError } from 'eth-rpc-errors';
+import { castDraft, Draft, Patch } from 'immer';
+import { nanoid } from 'nanoid';
+
 import {
   CaveatConstraint,
   CaveatSpecificationConstraint,
@@ -648,7 +649,11 @@ export class PermissionController<
 
         // Check if the target key is the empty string, ends with "_", or ends
         // with "*" but not "_*"
-        if (!targetKey || /_$/u.test(targetKey) || /[^_]\*$/u.test(targetKey)) {
+        if (
+          !targetKey ||
+          targetKey.endsWith('_') ||
+          /[^_]\*$/u.test(targetKey)
+        ) {
           throw new Error(`Invalid permission target key: "${targetKey}"`);
         }
 
@@ -700,7 +705,7 @@ export class PermissionController<
 
     this.messagingSystem.registerActionHandler(
       `${controllerName}:getEndowments` as const,
-      (origin: string, targetName: string, requestData?: unknown) =>
+      async (origin: string, targetName: string, requestData?: unknown) =>
         this.getEndowments(origin, targetName, requestData),
     );
 
@@ -732,8 +737,10 @@ export class PermissionController<
 
     this.messagingSystem.registerActionHandler(
       `${controllerName}:requestPermissions` as const,
-      (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
-        this.requestPermissions(subject, permissions),
+      async (
+        subject: PermissionSubjectMetadata,
+        permissions: RequestedPermissions,
+      ) => this.requestPermissions(subject, permissions),
     );
 
     this.messagingSystem.registerActionHandler(

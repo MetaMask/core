@@ -1,5 +1,6 @@
-import nock from 'nock';
 import { AbortController as WhatwgAbortController } from 'abort-controller';
+import nock from 'nock';
+
 import {
   fetchTokenList,
   fetchTokenMetadata,

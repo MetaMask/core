@@ -3,17 +3,18 @@ import {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import type { NetworkState } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
 import {
   safelyExecute,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
-import type { TokensController, TokensState } from './TokensController';
+import type { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+
 import type { AssetsContractController } from './AssetsContractController';
-import { Token } from './TokenRatesController';
+import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import { TokenListState } from './TokenListController';
+import { Token } from './TokenRatesController';
+import type { TokensController, TokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -49,13 +50,13 @@ export class TokenDetectionController extends BaseController<
    */
   override name = 'TokenDetectionController';
 
-  private getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+  private readonly getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
-  private addDetectedTokens: TokensController['addDetectedTokens'];
+  private readonly addDetectedTokens: TokensController['addDetectedTokens'];
 
-  private getTokensState: () => TokensState;
+  private readonly getTokensState: () => TokensState;
 
-  private getTokenListState: () => TokenListState;
+  private readonly getTokenListState: () => TokenListState;
 
   /**
    * Creates a TokenDetectionController instance.

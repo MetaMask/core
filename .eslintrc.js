@@ -1,6 +1,9 @@
 module.exports = {
   root: true,
   extends: ['@metamask/eslint-config', '@metamask/eslint-config-nodejs'],
+  parserOptions: {
+    tsconfigRootDir: __dirname,
+  },
   ignorePatterns: [
     '!.eslintrc.js',
     '!jest.config.js',
@@ -44,26 +47,6 @@ module.exports = {
     // names come from external sources or must comply with standards
     // e.g. `txreceipt_status`, `signTypedData_v4`, `token_id`
     camelcase: 'off',
-
-    // TODO: re-enble most of these rules
-    'function-paren-newline': 'off',
-    'guard-for-in': 'off',
-    'implicit-arrow-linebreak': 'off',
-    'import/no-anonymous-default-export': 'off',
-    'import/no-unassigned-import': 'off',
-    'lines-around-comment': 'off',
-    'no-async-promise-executor': 'off',
-    'no-case-declarations': 'off',
-    'no-invalid-this': 'off',
-    'no-negated-condition': 'off',
-    'no-new': 'off',
-    'no-param-reassign': 'off',
-    radix: 'off',
-    'require-atomic-updates': 'off',
-    'jsdoc/match-description': [
-      'error',
-      { matchDescription: '^[A-Z`\\d_][\\s\\S]*[.?!`>)}]$' },
-    ],
   },
   settings: {
     'import/resolver': {

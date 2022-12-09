@@ -1,9 +1,3 @@
-import EthQuery from 'eth-query';
-import Subprovider from 'web3-provider-engine/subproviders/provider';
-import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
-import createMetamaskProvider from 'web3-provider-engine/zero';
-import { Mutex } from 'async-mutex';
-import type { Patch } from 'immer';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
@@ -15,6 +9,12 @@ import {
   NetworksChainId,
   NetworkType,
 } from '@metamask/controller-utils';
+import { Mutex } from 'async-mutex';
+import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
+import EthQuery from 'eth-query';
+import type { Patch } from 'immer';
+import Subprovider from 'web3-provider-engine/subproviders/provider';
+import createMetamaskProvider from 'web3-provider-engine/zero';
 
 /**
  * @type ProviderConfig
@@ -117,9 +117,9 @@ export class NetworkController extends BaseControllerV2<
 
   private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 
-  private infuraProjectId: string | undefined;
+  private readonly infuraProjectId: string | undefined;
 
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
   constructor({ messenger, state, infuraProjectId }: NetworkControllerOptions) {
     super({
@@ -379,7 +379,7 @@ export class NetworkController extends BaseControllerV2<
     this.refreshNetwork();
   }
 
-  getEIP1559Compatibility() {
+  async getEIP1559Compatibility() {
     const { properties = {} } = this.state;
 
     if (!properties.isEIP1559Compatible) {

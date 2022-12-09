@@ -1,3 +1,4 @@
+import ensNamehash from 'eth-ens-namehash';
 import {
   addHexPrefix,
   isValidAddress,
@@ -7,8 +8,8 @@ import {
   stripHexPrefix,
 } from 'ethereumjs-util';
 import { fromWei, toWei } from 'ethjs-unit';
-import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
+
 import type { Json } from './types';
 
 const TIMEOUT_ERROR = new Error('timeout');
@@ -413,7 +414,7 @@ export function normalizeEnsName(ensName: string): string | null {
  * @param args - Arguments to send.
  * @returns Promise resolving the request.
  */
-export function query(
+export async function query(
   ethQuery: any,
   method: string,
   args: any[] = [],

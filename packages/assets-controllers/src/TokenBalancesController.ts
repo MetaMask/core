@@ -1,4 +1,3 @@
-import { BN } from 'ethereumjs-util';
 import {
   BaseController,
   BaseConfig,
@@ -6,9 +5,11 @@ import {
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import type { PreferencesState } from '@metamask/preferences-controller';
+import { BN } from 'ethereumjs-util';
+
+import type { AssetsContractController } from './AssetsContractController';
 import { Token } from './TokenRatesController';
 import { TokensState } from './TokensController';
-import type { AssetsContractController } from './AssetsContractController';
 
 // TODO: Remove this export in the next major release
 export { BN };
@@ -50,9 +51,9 @@ export class TokenBalancesController extends BaseController<
    */
   override name = 'TokenBalancesController';
 
-  private getSelectedAddress: () => PreferencesState['selectedAddress'];
+  private readonly getSelectedAddress: () => PreferencesState['selectedAddress'];
 
-  private getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
+  private readonly getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
 
   /**
    * Creates a TokenBalancesController instance.
@@ -103,7 +104,7 @@ export class TokenBalancesController extends BaseController<
   async poll(interval?: number): Promise<void> {
     interval && this.configure({ interval }, false, false);
     this.handle && clearTimeout(this.handle);
-    await safelyExecute(() => this.updateBalances());
+    await safelyExecute(async () => this.updateBalances());
     this.handle = setTimeout(() => {
       this.poll(this.config.interval);
     }, this.config.interval);

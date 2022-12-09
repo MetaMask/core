@@ -1,5 +1,5 @@
-import { abiERC721 } from '@metamask/metamask-eth-abis';
 import { Contract } from '@ethersproject/contracts';
+import { Web3Provider } from '@ethersproject/providers';
 import {
   timeoutFetch,
   ERC721_INTERFACE_ID,
@@ -7,11 +7,12 @@ import {
   ERC721_ENUMERABLE_INTERFACE_ID,
   ERC721,
 } from '@metamask/controller-utils';
-import { Web3Provider } from '@ethersproject/providers';
+import { abiERC721 } from '@metamask/metamask-eth-abis';
+
 import { getFormattedIpfsUrl } from '../../../assetsUtil';
 
 export class ERC721Standard {
-  private provider: Web3Provider;
+  private readonly provider: Web3Provider;
 
   constructor(provider: Web3Provider) {
     this.provider = provider;
@@ -135,7 +136,7 @@ export class ERC721Standard {
    * @param interfaceId - Interface identifier.
    * @returns Promise resolving to whether the contract implements `interfaceID`.
    */
-  private contractSupportsInterface = async (
+  private readonly contractSupportsInterface = async (
     address: string,
     interfaceId: string,
   ): Promise<boolean> => {

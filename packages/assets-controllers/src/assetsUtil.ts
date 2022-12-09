@@ -1,12 +1,13 @@
-import { ethErrors } from 'eth-rpc-errors';
-import { CID } from 'multiformats/cid';
+import { BigNumber } from '@ethersproject/bignumber';
 import {
   convertHexToDecimal,
   isValidHexAddress,
   GANACHE_CHAIN_ID,
 } from '@metamask/controller-utils';
-import { BigNumber } from '@ethersproject/bignumber';
+import { ethErrors } from 'eth-rpc-errors';
 import { BN, stripHexPrefix } from 'ethereumjs-util';
+import { CID } from 'multiformats/cid';
+
 import { Nft, NftMetadata } from './NftController';
 import { Token } from './TokenRatesController';
 

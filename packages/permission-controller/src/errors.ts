@@ -1,4 +1,5 @@
 import { errorCodes, ethErrors, EthereumRpcError } from 'eth-rpc-errors';
+
 import { PermissionType } from './Permission';
 
 type UnauthorizedArg = {

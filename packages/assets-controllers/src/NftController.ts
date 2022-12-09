@@ -1,13 +1,8 @@
-import { EventEmitter } from 'events';
-import { BN, stripHexPrefix } from 'ethereumjs-util';
-import { Mutex } from 'async-mutex';
 import {
   BaseController,
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
-import type { NetworkState } from '@metamask/network-controller';
 import {
   safelyExecute,
   handleFetch,
@@ -24,14 +19,20 @@ import {
   OPENSEA_TEST_API_URL,
   NetworkType,
 } from '@metamask/controller-utils';
+import type { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import { Mutex } from 'async-mutex';
+import { BN, stripHexPrefix } from 'ethereumjs-util';
+import { EventEmitter } from 'events';
+
+import type { AssetsContractController } from './AssetsContractController';
+import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
 import type {
   ApiNft,
   ApiNftCreator,
   ApiNftContract,
   ApiNftLastSale,
 } from './NftDetectionController';
-import type { AssetsContractController } from './AssetsContractController';
-import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
 
 /**
  * @type Nft
@@ -169,7 +170,7 @@ const ALL_NFTS_CONTRACTS_STATE_KEY = 'allNftContracts';
  * Controller that stores assets and exposes convenience methods
  */
 export class NftController extends BaseController<NftConfig, NftState> {
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
   private getNftApi({
     contractAddress,
@@ -850,19 +851,19 @@ export class NftController extends BaseController<NftConfig, NftState> {
    */
   override name = 'NftController';
 
-  private getERC721AssetName: AssetsContractController['getERC721AssetName'];
+  private readonly getERC721AssetName: AssetsContractController['getERC721AssetName'];
 
-  private getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
+  private readonly getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
 
-  private getERC721TokenURI: AssetsContractController['getERC721TokenURI'];
+  private readonly getERC721TokenURI: AssetsContractController['getERC721TokenURI'];
 
-  private getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
+  private readonly getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
 
-  private getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
+  private readonly getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
 
-  private getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
+  private readonly getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
 
-  private onNftAdded?: (data: {
+  private readonly onNftAdded?: (data: {
     address: string;
     symbol: string | undefined;
     tokenId: string;
@@ -1142,7 +1143,7 @@ export class NftController extends BaseController<NftConfig, NftState> {
 
     nft.isCurrentlyOwned = isOwned;
 
-    if (batch === true) {
+    if (batch) {
       return nft;
     }
 

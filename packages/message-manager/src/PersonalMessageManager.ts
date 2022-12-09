@@ -1,5 +1,5 @@
 import { v1 as random } from 'uuid';
-import { normalizeMessageData, validateSignMessageData } from './utils';
+
 import {
   AbstractMessageManager,
   AbstractMessage,
@@ -7,6 +7,7 @@ import {
   AbstractMessageParamsMetamask,
   OriginalRequest,
 } from './AbstractMessageManager';
+import { normalizeMessageData, validateSignMessageData } from './utils';
 
 /**
  * @type Message
@@ -71,7 +72,7 @@ export class PersonalMessageManager extends AbstractMessageManager<
    * @param req - The original request object possibly containing the origin.
    * @returns Promise resolving to the raw data of the signature request.
    */
-  addUnapprovedMessageAsync(
+  async addUnapprovedMessageAsync(
     messageParams: PersonalMessageParams,
     req?: OriginalRequest,
   ): Promise<string> {
@@ -142,7 +143,7 @@ export class PersonalMessageManager extends AbstractMessageManager<
    * @param messageParams - The messageParams to modify.
    * @returns Promise resolving to the messageParams with the metamaskId property removed.
    */
-  prepMessageForSigning(
+  async prepMessageForSigning(
     messageParams: PersonalMessageParamsMetamask,
   ): Promise<PersonalMessageParams> {
     delete messageParams.metamaskId;

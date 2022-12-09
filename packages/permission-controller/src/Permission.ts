@@ -1,11 +1,12 @@
+import { NonEmptyArray } from '@metamask/controller-utils';
 import { Json } from '@metamask/types';
 import { nanoid } from 'nanoid';
-import { NonEmptyArray } from '@metamask/controller-utils';
+
 import { CaveatConstraint } from './Caveat';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { Caveat } from './Caveat';
 import type { PermissionController } from './PermissionController';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { Caveat } from './Caveat';
 
 /**
  * The origin of a subject.

@@ -1,9 +1,9 @@
-import { EventEmitter } from 'events';
 import {
   BaseController,
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
+import { EventEmitter } from 'events';
 
 /**
  * @type OriginalRequest
@@ -207,7 +207,7 @@ export abstract class AbstractMessageManager<
    * plus data added by MetaMask.
    * @returns Promise resolving to the messageParams with the metamaskId property removed.
    */
-  approveMessage(messageParams: PM): Promise<P> {
+  async approveMessage(messageParams: PM): Promise<P> {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this.setMessageStatusApproved(messageParams.metamaskId);

@@ -8,14 +8,15 @@ import {
 } from 'json-rpc-engine';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { JsonRpcEngine } from 'json-rpc-engine';
-import { internalError } from './errors';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { PermissionController } from './PermissionController';
+
 import {
   GenericPermissionController,
   PermissionSubjectMetadata,
   RestrictedMethodParameters,
 } from '.';
+import { internalError } from './errors';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { PermissionController } from './PermissionController';
 
 type PermissionMiddlewareFactoryOptions = {
   executeRestrictedMethod: GenericPermissionController['_executeRestrictedMethod'];

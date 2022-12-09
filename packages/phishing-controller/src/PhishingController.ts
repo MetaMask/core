@@ -1,12 +1,12 @@
-import { toASCII } from 'punycode/';
-import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
-import PhishingDetector from 'eth-phishing-detect/src/detector';
 import {
   BaseController,
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
+import DEFAULT_PHISHING_RESPONSE from 'eth-phishing-detect/src/config.json';
+import PhishingDetector from 'eth-phishing-detect/src/detector';
+import { toASCII } from 'punycode/';
 
 /**
  * @type EthPhishingResponse
@@ -300,7 +300,7 @@ export class PhishingController extends BaseController<
     input: RequestInfo,
   ): Promise<ResponseType | null> {
     const response = await safelyExecute(
-      () => fetch(input, { cache: 'no-cache' }),
+      async () => fetch(input, { cache: 'no-cache' }),
       true,
     );
 

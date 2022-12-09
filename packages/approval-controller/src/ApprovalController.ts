@@ -1,11 +1,12 @@
-import type { Patch } from 'immer';
-import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
-import { nanoid } from 'nanoid';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { Json } from '@metamask/controller-utils';
+import { EthereumRpcError, ethErrors } from 'eth-rpc-errors';
+import type { Patch } from 'immer';
+import { nanoid } from 'nanoid';
+
 import { ApprovalRequestNotFoundError } from './errors';
 
 const controllerName = 'ApprovalController';
@@ -153,11 +154,11 @@ export class ApprovalController extends BaseControllerV2<
   ApprovalControllerState,
   ApprovalControllerMessenger
 > {
-  private _approvals: Map<string, ApprovalCallbacks>;
+  private readonly _approvals: Map<string, ApprovalCallbacks>;
 
-  private _origins: Map<string, Set<string>>;
+  private readonly _origins: Map<string, Set<string>>;
 
-  private _showApprovalRequest: () => void;
+  private readonly _showApprovalRequest: () => void;
 
   /**
    * Construct an Approval controller.
@@ -198,7 +199,7 @@ export class ApprovalController extends BaseControllerV2<
 
     this.messagingSystem.registerActionHandler(
       `${controllerName}:addRequest` as const,
-      (opts: AddApprovalOptions, shouldShowRequest: boolean) => {
+      async (opts: AddApprovalOptions, shouldShowRequest: boolean) => {
         if (shouldShowRequest) {
           return this.addAndShowApprovalRequest(opts);
         }
@@ -238,7 +239,7 @@ export class ApprovalController extends BaseControllerV2<
    * if any.
    * @returns The approval promise.
    */
-  addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown> {
+  async addAndShowApprovalRequest(opts: AddApprovalOptions): Promise<unknown> {
     const promise = this._add(
       opts.origin,
       opts.type,
@@ -265,7 +266,7 @@ export class ApprovalController extends BaseControllerV2<
    * if any.
    * @returns The approval promise.
    */
-  add(opts: AddApprovalOptions): Promise<unknown> {
+  async add(opts: AddApprovalOptions): Promise<unknown> {
     return this._add(opts.origin, opts.type, opts.id, opts.requestData);
   }
 
@@ -426,7 +427,7 @@ export class ApprovalController extends BaseControllerV2<
    * @param requestData - The request data associated with the approval request.
    * @returns The approval promise.
    */
-  private _add(
+  private async _add(
     origin: string,
     type: string,
     id: string = nanoid(),

@@ -1,4 +1,11 @@
 import determineGasFeeCalculations from './determineGasFeeCalculations';
+import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
+import {
+  fetchGasEstimates,
+  fetchLegacyGasPriceEstimates,
+  fetchEthGasPriceEstimate,
+  calculateTimeEstimate,
+} from './gas-util';
 import {
   unknownString,
   GasFeeEstimates,
@@ -6,13 +13,6 @@ import {
   EthGasPriceEstimate,
   EstimatedGasFeeTimeBounds,
 } from './GasFeeController';
-import {
-  fetchGasEstimates,
-  fetchLegacyGasPriceEstimates,
-  fetchEthGasPriceEstimate,
-  calculateTimeEstimate,
-} from './gas-util';
-import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 
 jest.mock('./gas-util');
 jest.mock('./fetchGasEstimatesViaEthFeeHistory');

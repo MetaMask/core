@@ -1,4 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+
 import {
   AnnouncementControllerState,
   AnnouncementController,

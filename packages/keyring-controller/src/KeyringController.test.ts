@@ -1,17 +1,18 @@
-import { bufferToHex } from 'ethereumjs-util';
+import Common from '@ethereumjs/common';
+import { TransactionFactory } from '@ethereumjs/tx';
+import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
+import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
+import { MAINNET } from '@metamask/controller-utils';
 import {
   recoverPersonalSignature,
   recoverTypedSignature,
   SignTypedDataVersion,
 } from '@metamask/eth-sig-util';
-import * as sinon from 'sinon';
-import Common from '@ethereumjs/common';
-import { TransactionFactory } from '@ethereumjs/tx';
-import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
-import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
-import * as uuid from 'uuid';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { MAINNET } from '@metamask/controller-utils';
+import { bufferToHex } from 'ethereumjs-util';
+import * as sinon from 'sinon';
+import * as uuid from 'uuid';
+
 import MockEncryptor from '../tests/mocks/mockEncryptor';
 import {
   AccountImportStrategy,
@@ -80,8 +81,8 @@ describe('KeyringController', () => {
     expect(keyringController.state.keyrings).not.toStrictEqual([]);
     const keyring = keyringController.state.keyrings[0];
     expect(keyring.accounts).not.toStrictEqual([]);
-    expect(keyring.index).toStrictEqual(0);
-    expect(keyring.type).toStrictEqual('HD Key Tree');
+    expect(keyring.index).toBe(0);
+    expect(keyring.type).toBe('HD Key Tree');
   });
 
   it('should add new account', async () => {
@@ -175,11 +176,11 @@ describe('KeyringController', () => {
       account,
     );
     expect(newPrivateKey).not.toBe('');
-    expect(() => keyringController.exportAccount('', account)).toThrow(
+    expect(async () => keyringController.exportAccount('', account)).toThrow(
       'Invalid password',
     );
 
-    expect(() =>
+    expect(async () =>
       keyringController.exportAccount('JUNK_VALUE', account),
     ).toThrow('Invalid password');
 
@@ -632,7 +633,7 @@ describe('KeyringController', () => {
       unsignedEthTx,
       account,
     );
-    expect(signedTx.v).not.toBeUndefined();
+    expect(signedTx.v).toBeDefined();
     expect(signedTx).not.toBe('');
   });
 
@@ -996,7 +997,7 @@ describe('KeyringController', () => {
         tx,
         account,
       );
-      expect(signedTx.v).not.toBeUndefined();
+      expect(signedTx.v).toBeDefined();
       expect(signedTx).not.toBe('');
     });
 

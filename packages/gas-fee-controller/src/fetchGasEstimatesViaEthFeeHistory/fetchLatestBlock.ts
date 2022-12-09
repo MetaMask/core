@@ -1,4 +1,5 @@
 import { query, fromHex } from '@metamask/controller-utils';
+
 import { EthBlock, EthQuery } from './types';
 
 /**

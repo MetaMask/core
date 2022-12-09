@@ -63,5 +63,8 @@
     }
   ],
   "files": [],
-  "include": []
+  "include": [
+    "tests",
+    "scripts"
+  ]
 }

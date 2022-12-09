@@ -1,4 +1,5 @@
 import { timeoutFetch } from '@metamask/controller-utils';
+
 import { isTokenListSupportedForNetwork } from './assetsUtil';
 
 export const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';

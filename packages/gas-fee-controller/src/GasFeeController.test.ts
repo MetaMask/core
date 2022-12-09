@@ -1,4 +1,3 @@
-import * as sinon from 'sinon';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   NetworkController,
@@ -6,6 +5,9 @@ import {
   NetworkControllerGetProviderConfigAction,
   NetworkControllerProviderConfigChangeEvent,
 } from '@metamask/network-controller';
+import * as sinon from 'sinon';
+
+import determineGasFeeCalculations from './determineGasFeeCalculations';
 import {
   GAS_ESTIMATE_TYPES,
   GasFeeController,
@@ -16,7 +18,6 @@ import {
   GasFeeStateLegacy,
   GetGasFeeState,
 } from './GasFeeController';
-import determineGasFeeCalculations from './determineGasFeeCalculations';
 
 jest.mock('./determineGasFeeCalculations');
 
@@ -258,9 +259,11 @@ describe('GasFeeController', () => {
           mockedDetermineGasFeeCalculations.mockReset();
 
           mockDetermineGasFeeCalculationsReturnValues.forEach((returnValue) => {
-            mockedDetermineGasFeeCalculations.mockImplementationOnce(() => {
-              return Promise.resolve(returnValue);
-            });
+            mockedDetermineGasFeeCalculations.mockImplementationOnce(
+              async () => {
+                return Promise.resolve(returnValue);
+              },
+            );
           });
         });
 
@@ -496,7 +499,7 @@ describe('GasFeeController', () => {
           {},
         );
 
-        expect(gasFeeController.state.gasEstimateType).toStrictEqual('none');
+        expect(gasFeeController.state.gasEstimateType).toBe('none');
       });
     });
 

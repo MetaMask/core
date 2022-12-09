@@ -1,8 +1,8 @@
-import type { Patch } from 'immer';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
+import type { Patch } from 'immer';
 
 type ViewedAnnouncement = {
   [id: number]: boolean;

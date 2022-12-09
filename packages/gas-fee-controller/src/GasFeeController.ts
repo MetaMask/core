@@ -1,7 +1,3 @@
-import type { Patch } from 'immer';
-import EthQuery from 'eth-query';
-import { v1 as random } from 'uuid';
-import { isHexString } from 'ethereumjs-util';
 import {
   BaseControllerV2,
   RestrictedControllerMessenger,
@@ -14,14 +10,19 @@ import type {
   NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
+import EthQuery from 'eth-query';
+import { isHexString } from 'ethereumjs-util';
+import type { Patch } from 'immer';
+import { v1 as random } from 'uuid';
+
+import determineGasFeeCalculations from './determineGasFeeCalculations';
+import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 import {
   fetchGasEstimates,
   fetchLegacyGasPriceEstimates,
   fetchEthGasPriceEstimate,
   calculateTimeEstimate,
 } from './gas-util';
-import determineGasFeeCalculations from './determineGasFeeCalculations';
-import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 
 const GAS_FEE_API = 'https://mock-gas-server.herokuapp.com/';
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
@@ -240,25 +241,25 @@ export class GasFeeController extends BaseControllerV2<
 > {
   private intervalId?: ReturnType<typeof setTimeout>;
 
-  private intervalDelay;
+  private readonly intervalDelay;
 
-  private pollTokens: Set<string>;
+  private readonly pollTokens: Set<string>;
 
-  private legacyAPIEndpoint: string;
+  private readonly legacyAPIEndpoint: string;
 
-  private EIP1559APIEndpoint: string;
+  private readonly EIP1559APIEndpoint: string;
 
-  private getCurrentNetworkEIP1559Compatibility;
+  private readonly getCurrentNetworkEIP1559Compatibility;
 
-  private getCurrentNetworkLegacyGasAPICompatibility;
+  private readonly getCurrentNetworkLegacyGasAPICompatibility;
 
-  private getCurrentAccountEIP1559Compatibility;
+  private readonly getCurrentAccountEIP1559Compatibility;
 
   private currentChainId;
 
   private ethQuery: any;
 
-  private clientId?: string;
+  private readonly clientId?: string;
 
   /**
    * Creates a GasFeeController instance.
@@ -500,7 +501,7 @@ export class GasFeeController extends BaseControllerV2<
     }
 
     this.intervalId = setInterval(async () => {
-      await safelyExecute(() => this._fetchGasFeeEstimateData());
+      await safelyExecute(async () => this._fetchGasFeeEstimateData());
     }, this.intervalDelay);
   }
 

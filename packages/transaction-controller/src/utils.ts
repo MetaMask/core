@@ -1,10 +1,11 @@
-import { addHexPrefix, isHexString } from 'ethereumjs-util';
 import {
   MAINNET,
   convertHexToDecimal,
   handleFetch,
   isValidHexAddress,
 } from '@metamask/controller-utils';
+import { addHexPrefix, isHexString } from 'ethereumjs-util';
+
 import {
   Transaction,
   FetchAllOptions,
@@ -66,7 +67,7 @@ export function normalizeTransaction(transaction: Transaction) {
   const normalizedTransaction: Transaction = { from: '' };
   let key: keyof Transaction;
   for (key in NORMALIZERS) {
-    if (transaction[key as keyof Transaction]) {
+    if (transaction[key]) {
       normalizedTransaction[key] = NORMALIZERS[key](transaction[key]) as never;
     }
   }

@@ -3,10 +3,10 @@ import type {
   PendingJsonRpcResponse,
   PermittedHandlerExport,
 } from '@metamask/types';
-import { MethodNames } from '../utils';
 
 import type { PermissionConstraint } from '../Permission';
 import type { SubjectPermissions } from '../PermissionController';
+import { MethodNames } from '../utils';
 
 export const getPermissionsHandler: PermittedHandlerExport<
   GetPermissionsHooks,

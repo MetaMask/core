@@ -1,26 +1,25 @@
-import { EventEmitter } from 'events';
-import contractsMap from '@metamask/contract-metadata';
-import { abiERC721 } from '@metamask/metamask-eth-abis';
-import { v1 as random } from 'uuid';
-import { Mutex } from 'async-mutex';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import { AbortController as WhatwgAbortController } from 'abort-controller';
 import {
   BaseController,
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
-import type { NetworkState } from '@metamask/network-controller';
+import contractsMap from '@metamask/contract-metadata';
 import {
   NetworkType,
   toChecksumHexAddress,
   MAINNET,
   ERC721_INTERFACE_ID,
 } from '@metamask/controller-utils';
-import type { Token } from './TokenRatesController';
-import { TokenListToken } from './TokenListController';
+import { abiERC721 } from '@metamask/metamask-eth-abis';
+import type { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import { AbortController as WhatwgAbortController } from 'abort-controller';
+import { Mutex } from 'async-mutex';
+import { EventEmitter } from 'events';
+import { v1 as random } from 'uuid';
+
 import {
   formatAggregatorNames,
   formatIconUrlWithProxy,
@@ -30,6 +29,8 @@ import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
 } from './token-service';
+import { TokenListToken } from './TokenListController';
+import type { Token } from './TokenRatesController';
 
 /**
  * @type TokensConfig
@@ -121,7 +122,7 @@ export class TokensController extends BaseController<
   TokensConfig,
   TokensState
 > {
-  private mutex = new Mutex();
+  private readonly mutex = new Mutex();
 
   private ethersProvider: any;
 

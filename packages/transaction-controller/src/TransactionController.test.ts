@@ -1,13 +1,8 @@
-import * as sinon from 'sinon';
-import HttpProvider from 'ethjs-provider-http';
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
-import { ESTIMATE_GAS_ERROR } from './utils';
-import {
-  TransactionController,
-  TransactionStatus,
-  TransactionMeta,
-} from './TransactionController';
+import HttpProvider from 'ethjs-provider-http';
+import * as sinon from 'sinon';
+
 import {
   ethTxsMock,
   tokenTxsMock,
@@ -16,6 +11,12 @@ import {
   txsInStateWithOutdatedGasDataMock,
   txsInStateWithOutdatedStatusAndGasDataMock,
 } from './mocks/txsMock';
+import {
+  TransactionController,
+  TransactionStatus,
+  TransactionMeta,
+} from './TransactionController';
+import { ESTIMATE_GAS_ERROR } from './utils';
 
 jest.mock('uuid', () => {
   return {
@@ -101,7 +102,7 @@ jest.mock('eth-query', () =>
 function mockFetchWithStaticResponse(data: any) {
   return jest
     .spyOn(global, 'fetch')
-    .mockImplementation(() =>
+    .mockImplementation(async () =>
       Promise.resolve(new Response(JSON.stringify(data))),
     );
 }
@@ -116,7 +117,7 @@ function mockFetchWithStaticResponse(data: any) {
 function mockFetchWithDynamicResponse(dataForUrl: any) {
   return jest
     .spyOn(global, 'fetch')
-    .mockImplementation((key) =>
+    .mockImplementation(async (key) =>
       Promise.resolve(new Response(JSON.stringify(dataForUrl[key.toString()]))),
     );
 }
@@ -1012,8 +1013,8 @@ describe('TransactionController', () => {
     const ethTransaction = controller.state.transactions.find(
       ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
     ) || { id: '' };
-    expect(tokenTransaction?.id).toStrictEqual('token-transaction-id');
-    expect(ethTransaction?.id).toStrictEqual('eth-transaction-id');
+    expect(tokenTransaction?.id).toBe('token-transaction-id');
+    expect(ethTransaction?.id).toBe('eth-transaction-id');
   });
 
   it('should fetch all the transactions from an address, including incoming transactions, in mainnet from block', async () => {
@@ -1082,8 +1083,8 @@ describe('TransactionController', () => {
     const ethTransaction = controller.state.transactions.find(
       ({ transactionHash }) => transactionHash === ETHER_TRANSACTION_HASH,
     ) || { transaction: { gasUsed: '0x0' } };
-    expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
-    expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
+    expect(tokenTransaction?.transaction.gasUsed).toBe('21000');
+    expect(ethTransaction?.transaction.gasUsed).toBe('0x5208');
   });
 
   it('should fetch and updated all transactions with outdated status and gas data regarding the data provided by the remote source in mainnet', async () => {
@@ -1111,8 +1112,8 @@ describe('TransactionController', () => {
     ) || { status: TransactionStatus.failed, transaction: { gasUsed: '0x0' } };
     expect(tokenTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
     expect(ethTransaction?.status).toStrictEqual(TransactionStatus.confirmed);
-    expect(tokenTransaction?.transaction.gasUsed).toStrictEqual('21000');
-    expect(ethTransaction?.transaction.gasUsed).toStrictEqual('0x5208');
+    expect(tokenTransaction?.transaction.gasUsed).toBe('21000');
+    expect(ethTransaction?.transaction.gasUsed).toBe('0x5208');
   });
 
   it('should return', async () => {
@@ -1145,7 +1146,7 @@ describe('TransactionController', () => {
       name: 'Eth To Token Swap Input',
     });
 
-    expect(registry.registryMethod).toStrictEqual(
+    expect(registry.registryMethod).toBe(
       'ethToTokenSwapInput(uint256,uint256)',
     );
   });

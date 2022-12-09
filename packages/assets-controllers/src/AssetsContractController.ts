@@ -1,5 +1,3 @@
-import { BN } from 'ethereumjs-util';
-import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import {
@@ -7,13 +5,16 @@ import {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import { NetworkState } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
+import { BN } from 'ethereumjs-util';
+import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
+
 import { SupportedTokenDetectionNetworks } from './assetsUtil';
-import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
-import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC20Standard } from './Standards/ERC20Standard';
+import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
+import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
 
 /**
  * Check if token detection is enabled for certain networks
@@ -178,7 +179,7 @@ export class AssetsContractController extends BaseController<
    * @param index - An NFT counter less than `balanceOf(selectedAddress)`.
    * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
    */
-  getERC721NftTokenId(
+  async getERC721NftTokenId(
     address: string,
     selectedAddress: string,
     index: number,

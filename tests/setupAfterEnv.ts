@@ -13,7 +13,9 @@ const TIME_TO_WAIT_UNTIL_UNRESOLVED = 100;
  * this function.
  * @returns A promise that resolves to a symbol.
  */
-const treatUnresolvedAfter = (duration: number): Promise<typeof UNRESOLVED> => {
+const treatUnresolvedAfter = async (
+  duration: number,
+): Promise<typeof UNRESOLVED> => {
   return new Promise((resolve) => {
     originalSetTimeout(resolve, duration, UNRESOLVED);
   });

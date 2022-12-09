@@ -1,14 +1,15 @@
-import { ethErrors } from 'eth-rpc-errors';
+import { isPlainObject } from '@metamask/controller-utils';
 import type {
   JsonRpcEngineEndCallback,
   JsonRpcRequest,
   PendingJsonRpcResponse,
   PermittedHandlerExport,
 } from '@metamask/types';
-import { isPlainObject } from '@metamask/controller-utils';
-import { MethodNames } from '../utils';
+import { ethErrors } from 'eth-rpc-errors';
+
 import { invalidParams } from '../errors';
 import type { PermissionConstraint, RequestedPermissions } from '../Permission';
+import { MethodNames } from '../utils';
 
 export const requestPermissionsHandler: PermittedHandlerExport<
   RequestPermissionsHooks,
