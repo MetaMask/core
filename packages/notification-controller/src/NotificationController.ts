@@ -137,8 +137,8 @@ export class NotificationController extends BaseControllerV2<
   /**
    * Shows a notification.
    *
-   * @param origin - The origin trying to send a notification
-   * @param message - A message to show on the notification
+   * @param origin - The origin trying to send a notification.
+   * @param message - A message to show on the notification.
    */
   show(origin: string, message: string) {
     const id = nanoid();
@@ -157,7 +157,7 @@ export class NotificationController extends BaseControllerV2<
   /**
    * Dimisses a list of notifications.
    *
-   * @param ids - A list of notification IDs
+   * @param ids - A list of notification IDs.
    */
   dismiss(ids: string[]) {
     this.update((state) => {
@@ -172,7 +172,7 @@ export class NotificationController extends BaseControllerV2<
   /**
    * Marks a list of notifications as read.
    *
-   * @param ids - A list of notification IDs
+   * @param ids - A list of notification IDs.
    */
   markRead(ids: string[]) {
     this.update((state) => {
