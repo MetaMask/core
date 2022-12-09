@@ -77,9 +77,9 @@ describe('NetworkController', () => {
 
   (
     ['kovan', 'rinkeby', 'ropsten', 'mainnet', 'localhost'] as NetworkType[]
-  ).forEach((n) => {
-    it(`should create a provider instance for ${n} infura network`, () => {
-      const networkController = setupController(n, messenger);
+  ).forEach((networkType) => {
+    it(`should create a provider instance for ${networkType} infura network`, () => {
+      const networkController = setupController(networkType, messenger);
       expect(networkController.provider instanceof Web3ProviderEngine).toBe(
         true,
       );
@@ -115,7 +115,7 @@ describe('NetworkController', () => {
         providerConfig: {
           rpcTarget: RPC_TARGET,
           type: 'rpc',
-          chainId: NetworksChainId.Mainnet,
+          chainId: NetworksChainId.mainnet,
         },
       },
       messenger,
@@ -128,7 +128,7 @@ describe('NetworkController', () => {
 
   it('should set new RPC target', () => {
     const controller = new NetworkController({ messenger });
-    controller.setRpcTarget(RPC_TARGET, NetworksChainId.Rpc);
+    controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
     expect(controller.state.providerConfig.rpcTarget).toBe(RPC_TARGET);
     expect(controller.state.isCustomNetwork).toBe(false);
   });
@@ -171,7 +171,7 @@ describe('NetworkController', () => {
       messenger,
       infuraProjectId: '123',
     });
-    controller.setRpcTarget(RPC_TARGET, NetworksChainId.Rpc);
+    controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
     controller.setProviderType('mainnet' as NetworkType);
     expect(controller.state.providerConfig.type).toBe('mainnet');
     expect(controller.state.providerConfig.ticker).toBe('ETH');

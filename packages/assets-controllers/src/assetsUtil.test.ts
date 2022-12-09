@@ -116,20 +116,20 @@ describe('assetsUtil', () => {
     it('should format icon url with Codefi proxy correctly when passed chainId as a decimal string', () => {
       const linkTokenAddress = '0x514910771af9ca656af840dff83e8264ecf986ca';
       const formattedIconUrl = assetsUtil.formatIconUrlWithProxy({
-        chainId: NetworksChainId.Mainnet,
+        chainId: NetworksChainId.mainnet,
         tokenAddress: linkTokenAddress,
       });
-      const expectedValue = `https://static.metaswap.codefi.network/api/v1/tokenIcons/${NetworksChainId.Mainnet}/${linkTokenAddress}.png`;
+      const expectedValue = `https://static.metaswap.codefi.network/api/v1/tokenIcons/${NetworksChainId.mainnet}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
     });
 
     it('should format icon url with Codefi proxy correctly when passed chainId as a hexadecimal string', () => {
       const linkTokenAddress = '0x514910771af9ca656af840dff83e8264ecf986ca';
       const formattedIconUrl = assetsUtil.formatIconUrlWithProxy({
-        chainId: `0x${Number(NetworksChainId.Mainnet).toString(16)}`,
+        chainId: `0x${Number(NetworksChainId.mainnet).toString(16)}`,
         tokenAddress: linkTokenAddress,
       });
-      const expectedValue = `https://static.metaswap.codefi.network/api/v1/tokenIcons/${NetworksChainId.Mainnet}/${linkTokenAddress}.png`;
+      const expectedValue = `https://static.metaswap.codefi.network/api/v1/tokenIcons/${NetworksChainId.mainnet}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
     });
   });
@@ -299,7 +299,7 @@ describe('assetsUtil', () => {
 
     it('returns false for testnets such as Ropsten', () => {
       expect(
-        assetsUtil.isTokenListSupportedForNetwork(NetworksChainId.Ropsten),
+        assetsUtil.isTokenListSupportedForNetwork(NetworksChainId.ropsten),
       ).toBe(false);
     });
   });

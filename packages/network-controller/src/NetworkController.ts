@@ -101,7 +101,7 @@ export type NetworkControllerOptions = {
 const defaultState: NetworkState = {
   network: 'loading',
   isCustomNetwork: false,
-  providerConfig: { type: MAINNET, chainId: NetworksChainId.Mainnet },
+  providerConfig: { type: MAINNET, chainId: NetworksChainId.mainnet },
   properties: { isEIP1559Compatible: false },
 };
 
@@ -113,13 +113,13 @@ export class NetworkController extends BaseControllerV2<
   NetworkState,
   NetworkControllerMessenger
 > {
-  private ethQuery: EthQuery;
+  #ethQuery: EthQuery;
 
-  private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
+  #internalProviderConfig: ProviderConfig = {} as ProviderConfig;
 
-  private readonly infuraProjectId: string | undefined;
+  readonly #infuraProjectId: string | undefined;
 
-  private readonly mutex = new Mutex();
+  readonly #mutex = new Mutex();
 
   constructor({ messenger, state, infuraProjectId }: NetworkControllerOptions) {
     super({
@@ -145,7 +145,7 @@ export class NetworkController extends BaseControllerV2<
       messenger,
       state: { ...defaultState, ...state },
     });
-    this.infuraProjectId = infuraProjectId;
+    this.#infuraProjectId = infuraProjectId;
     this.messagingSystem.registerActionHandler(
       `${this.name}:getProviderConfig`,
       () => {
@@ -156,7 +156,7 @@ export class NetworkController extends BaseControllerV2<
     this.messagingSystem.registerActionHandler(
       `${this.name}:getEthQuery`,
       () => {
-        return this.ethQuery;
+        return this.#ethQuery;
       },
     );
   }
@@ -205,17 +205,17 @@ export class NetworkController extends BaseControllerV2<
 
   private registerProvider() {
     this.provider.on('error', this.verifyNetwork.bind(this));
-    this.ethQuery = new EthQuery(this.provider);
+    this.#ethQuery = new EthQuery(this.provider);
   }
 
   private setupInfuraProvider(type: NetworkType) {
     const infuraProvider = createInfuraProvider({
       network: type,
-      projectId: this.infuraProjectId,
+      projectId: this.#infuraProjectId,
     });
     const infuraSubprovider = new Subprovider(infuraProvider);
     const config = {
-      ...this.internalProviderConfig,
+      ...this.#internalProviderConfig,
       ...{
         dataSubprovider: infuraSubprovider,
         engineParams: {
@@ -229,12 +229,12 @@ export class NetworkController extends BaseControllerV2<
 
   private getIsCustomNetwork(chainId?: string) {
     return (
-      chainId !== NetworksChainId.Mainnet &&
-      chainId !== NetworksChainId.Kovan &&
-      chainId !== NetworksChainId.Rinkeby &&
-      chainId !== NetworksChainId.Goerli &&
-      chainId !== NetworksChainId.Ropsten &&
-      chainId !== NetworksChainId.Localhost
+      chainId !== NetworksChainId.mainnet &&
+      chainId !== NetworksChainId.kovan &&
+      chainId !== NetworksChainId.rinkeby &&
+      chainId !== NetworksChainId.goerli &&
+      chainId !== NetworksChainId.ropsten &&
+      chainId !== NetworksChainId.localhost
     );
   }
 
@@ -245,7 +245,7 @@ export class NetworkController extends BaseControllerV2<
     nickname?: string,
   ) {
     const config = {
-      ...this.internalProviderConfig,
+      ...this.#internalProviderConfig,
       ...{
         chainId,
         engineParams: { pollingInterval: 12000 },
@@ -286,7 +286,7 @@ export class NetworkController extends BaseControllerV2<
    * @param providerConfig - The web3-provider-engine configuration.
    */
   set providerConfig(providerConfig: ProviderConfig) {
-    this.internalProviderConfig = providerConfig;
+    this.#internalProviderConfig = providerConfig;
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
@@ -303,11 +303,11 @@ export class NetworkController extends BaseControllerV2<
    */
   async lookupNetwork() {
     /* istanbul ignore if */
-    if (!this.ethQuery || !this.ethQuery.sendAsync) {
+    if (!this.#ethQuery || !this.#ethQuery.sendAsync) {
       return;
     }
-    const releaseLock = await this.mutex.acquire();
-    this.ethQuery.sendAsync(
+    const releaseLock = await this.#mutex.acquire();
+    this.#ethQuery.sendAsync(
       { method: 'net_version' },
       (error: Error, network: string) => {
         try {
@@ -383,11 +383,11 @@ export class NetworkController extends BaseControllerV2<
     const { properties = {} } = this.state;
 
     if (!properties.isEIP1559Compatible) {
-      if (typeof this.ethQuery?.sendAsync !== 'function') {
+      if (typeof this.#ethQuery?.sendAsync !== 'function') {
         return Promise.resolve(true);
       }
       return new Promise((resolve, reject) => {
-        this.ethQuery.sendAsync(
+        this.#ethQuery.sendAsync(
           { method: 'eth_getBlockByNumber', params: ['latest', false] },
           (error: Error, block: Block) => {
             if (error) {

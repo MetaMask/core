@@ -137,7 +137,7 @@ const MOCK_NETWORK = {
     properties: { isEIP1559Compatible: false },
     providerConfig: {
       type: 'ropsten' as NetworkType,
-      chainId: NetworksChainId.Ropsten,
+      chainId: NetworksChainId.ropsten,
     },
   },
   subscribe: () => undefined,
@@ -169,7 +169,7 @@ const MOCK_MAINNET_NETWORK = {
     properties: { isEIP1559Compatible: false },
     providerConfig: {
       type: 'mainnet' as NetworkType,
-      chainId: NetworksChainId.Mainnet,
+      chainId: NetworksChainId.mainnet,
     },
   },
   subscribe: () => undefined,
