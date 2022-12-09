@@ -255,7 +255,7 @@ describe('AddressBookController', () => {
   });
 
   describe('when syncWithRpcChanges is true', () => {
-    it('should detect changes to RPC entry chain IDs and reassign all of the address book entries from old chains to new chains', async () => {
+    it('should detect changes to RPC entry chain IDs and reassign all of the addresses associated with old chain IDs to new chain IDs', async () => {
       const callbacks: {
         onPreferencesStateChangeCallback?: OnPreferencesStateChangeCallback;
       } = {};
@@ -332,7 +332,7 @@ describe('AddressBookController', () => {
       });
     });
 
-    it('should use the current chain ID as the original chain ID if the changed RPC entry did not have a chain ID, then gained one', async () => {
+    it('should use the current network ID as the original chain ID if the changed RPC entry did not have a chain ID, then gained one', async () => {
       const callbacks: {
         onPreferencesStateChangeCallback?: OnPreferencesStateChangeCallback;
       } = {};
@@ -418,7 +418,7 @@ describe('AddressBookController', () => {
       });
     });
 
-    it('should not update any address book entries if the changed RPC entry did not have a chain ID, then gained one, but the current chain ID cannot be determined', async () => {
+    it('should not migrate addresses for a changed RPC entry if did not have a chain ID, then gained one, but the current network ID cannot be determined', async () => {
       const callbacks: {
         onPreferencesStateChangeCallback?: OnPreferencesStateChangeCallback;
       } = {};
@@ -504,7 +504,7 @@ describe('AddressBookController', () => {
       });
     });
 
-    it('should not remove address book entries corresponding to the chain ID of an RPC entry if it was unset', async () => {
+    it('should not remove addresses for an RPC entry if its chain ID was unset', async () => {
       const callbacks: {
         onPreferencesStateChangeCallback?: OnPreferencesStateChangeCallback;
       } = {};
@@ -563,7 +563,7 @@ describe('AddressBookController', () => {
       });
     });
 
-    it('should not remove address book entries corresponding to the chain ID of an RPC entry if the endpoint was removed', async () => {
+    it('should not remove addresses for a removed RPC entry', async () => {
       const callbacks: {
         onPreferencesStateChangeCallback?: OnPreferencesStateChangeCallback;
       } = {};
@@ -635,7 +635,7 @@ describe('AddressBookController', () => {
       });
     });
 
-    it('should not reassign address book entries corresponding to the chain ID of an RPC entry if anything but its chain ID was changed', async () => {
+    it('should not reassign addresses for an RPC entry if anything but its chain ID was changed', async () => {
       const callbacks: {
         onPreferencesStateChangeCallback?: OnPreferencesStateChangeCallback;
       } = {};
@@ -714,7 +714,7 @@ describe('AddressBookController', () => {
       });
     });
 
-    it('should not remove address book entries corresponding to the former chain ID of an RPC entry if other RPC entries existed which used the same chain ID', async () => {
+    it('should not remove addresses for an RPC entry whose chain ID changed if other RPC entries existed at the time of change which used the same chain ID', async () => {
       const callbacks: {
         onPreferencesStateChangeCallback?: OnPreferencesStateChangeCallback;
       } = {};
@@ -816,7 +816,7 @@ describe('AddressBookController', () => {
     });
 
     [1, 5, 1337, 11155111].forEach((defaultChainId) => {
-      it(`should not remove address book entries for the chain ID ${defaultChainId} if it is the old chain ID and it is a default network`, async () => {
+      it(`should not remove addresses for an RPC entry whose chain ID was changed from ${defaultChainId} if it referred to a default network`, async () => {
         const callbacks: {
           onPreferencesStateChangeCallback?: OnPreferencesStateChangeCallback;
         } = {};
@@ -919,7 +919,7 @@ describe('AddressBookController', () => {
         });
       });
 
-      it(`should not remove address book entries for the current chain ID if the changed RPC entry did not have a chain ID, then gained one, and the current chain ID is the default network ${defaultChainId}`, async () => {
+      it(`should not remove addresses for an RPC entry if it did not have a chain ID, then gained on, and the current chain ID is the default network ${defaultChainId}`, async () => {
         const callbacks: {
           onPreferencesStateChangeCallback?: OnPreferencesStateChangeCallback;
         } = {};
@@ -1022,7 +1022,7 @@ describe('AddressBookController', () => {
       });
     });
 
-    it('should log an error if responding to preferences state change fails in some way', async () => {
+    it('should log an error if the whole callback responding to preferences state changes fails in some way', async () => {
       const callbacks: {
         onPreferencesStateChangeCallback?: OnPreferencesStateChangeCallback;
       } = {};
@@ -1086,7 +1086,7 @@ describe('AddressBookController', () => {
       expect(result).toBeUndefined();
     });
 
-    it('should not overwrite existing address book entries that are filed under the new chain ID', async () => {
+    it('should not overwrite existing address book entries that are already filed under a chain ID that an RPC entry was changed to', async () => {
       const callbacks: {
         onPreferencesStateChangeCallback?: OnPreferencesStateChangeCallback;
       } = {};
@@ -1165,7 +1165,7 @@ describe('AddressBookController', () => {
   });
 
   describe('when syncWithRpcChanges is false', () => {
-    it('should not update any address book entries even if the chain ID of an RPC entry has changed', async () => {
+    it('should not migrate any addresses even if the chain ID of an RPC entry has changed', async () => {
       const callbacks: {
         onPreferencesStateChangeCallback?: OnPreferencesStateChangeCallback;
       } = {};
