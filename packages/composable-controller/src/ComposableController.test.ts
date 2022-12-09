@@ -225,7 +225,7 @@ describe('ComposableController', () => {
           network: 'loading',
           isCustomNetwork: false,
           properties: { isEIP1559Compatible: false },
-          providerConfig: { type: 'mainnet', chainId: NetworksChainId.mainnet },
+          providerConfig: { type: 'mainnet', chainId: NetworksChainId.Mainnet },
         },
         PreferencesController: {
           featureFlags: {},
@@ -285,7 +285,7 @@ describe('ComposableController', () => {
         network: 'loading',
         isCustomNetwork: false,
         properties: { isEIP1559Compatible: false },
-        providerConfig: { type: 'mainnet', chainId: NetworksChainId.mainnet },
+        providerConfig: { type: 'mainnet', chainId: NetworksChainId.Mainnet },
         selectedAddress: '',
         useTokenDetection: true,
         useNftDetection: false,

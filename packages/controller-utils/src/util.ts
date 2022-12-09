@@ -20,6 +20,7 @@ const TIMEOUT_ERROR = new Error('timeout');
  * @param inputBn - BN instance to convert to a hex string.
  * @returns A '0x'-prefixed hex string.
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export function BNToHex(inputBn: any) {
   return addHexPrefix(inputBn.toString(16));
 }
@@ -45,15 +46,15 @@ export function fractionBN(
 /**
  * Used to convert a base-10 number from GWEI to WEI. Can handle numbers with decimal parts.
  *
- * @param n - The base 10 number to convert to WEI.
+ * @param number - The base 10 number to convert to WEI.
  * @returns The number in WEI, as a BN.
  */
-export function gweiDecToWEIBN(n: number | string) {
-  if (Number.isNaN(n)) {
+export function gweiDecToWEIBN(number: number | string) {
+  if (Number.isNaN(number)) {
     return new BN(0);
   }
 
-  const parts = n.toString().split('.');
+  const parts = number.toString().split('.');
   const wholePart = parts[0] || '0';
   let decimalPart = parts[1] || '';
 
@@ -81,11 +82,11 @@ export function gweiDecToWEIBN(n: number | string) {
 /**
  * Used to convert values from wei hex format to dec gwei format.
  *
- * @param hex - The value in hex wei.
+ * @param hexadecimal - The value in hex wei.
  * @returns The value in dec gwei as string.
  */
-export function weiHexToGweiDec(hex: string) {
-  const hexWei = new BN(stripHexPrefix(hex), 16);
+export function weiHexToGweiDec(hexadecimal: string) {
+  const hexWei = new BN(stripHexPrefix(hexadecimal), 16);
   return fromWei(hexWei, 'gwei').toString(10);
 }
 
@@ -131,17 +132,17 @@ export function hexToBN(inputHex: string) {
 /**
  * A helper function that converts hex data to human readable string.
  *
- * @param hex - The hex string to convert to string.
+ * @param hexadecimal - The hex string to convert to string.
  * @returns A human readable string conversion.
  */
-export function hexToText(hex: string) {
+export function hexToText(hexadecimal: string) {
   try {
-    const stripped = stripHexPrefix(hex);
+    const stripped = stripHexPrefix(hexadecimal);
     const buff = Buffer.from(stripped, 'hex');
     return buff.toString('utf8');
-  } catch (e) {
+  } catch (error) {
     /* istanbul ignore next */
-    return hex;
+    return hexadecimal;
   }
 }
 
@@ -323,11 +324,11 @@ export async function handleFetch(request: string, options?: RequestInit) {
 /**
  * Execute fetch and return object response, log if known error thrown, otherwise rethrow error.
  *
- * @param request - the request options object
+ * @param request - The request options object.
  * @param request.url - The request url to query.
  * @param request.options - The fetch options.
- * @param request.timeout - Timeout to fail request
- * @param request.errorCodesToCatch - array of error codes for errors we want to catch in a particular context
+ * @param request.timeout - Timeout to fail request.
+ * @param request.errorCodesToCatch - Array of error codes for errors we want to catch in a particular context.
  * @returns The fetch response JSON data or undefined (if error occurs).
  */
 export async function fetchWithErrorHandling({
@@ -346,6 +347,7 @@ export async function fetchWithErrorHandling({
     if (timeout) {
       result = Promise.race([
         await handleFetch(url, options),
+        // eslint-disable-next-line no-restricted-globals
         new Promise<Response>((_, reject) =>
           setTimeout(() => {
             reject(TIMEOUT_ERROR);
@@ -355,8 +357,8 @@ export async function fetchWithErrorHandling({
     } else {
       result = await handleFetch(url, options);
     }
-  } catch (e) {
-    logOrRethrowError(e, errorCodesToCatch);
+  } catch (error) {
+    logOrRethrowError(error, errorCodesToCatch);
   }
   return result;
 }
@@ -373,9 +375,11 @@ export async function timeoutFetch(
   url: string,
   options?: RequestInit,
   timeout = 500,
+  // eslint-disable-next-line no-restricted-globals
 ): Promise<Response> {
   return Promise.race([
     successfulFetch(url, options),
+    // eslint-disable-next-line no-restricted-globals
     new Promise<Response>((_, reject) =>
       setTimeout(() => {
         reject(TIMEOUT_ERROR);
@@ -420,7 +424,7 @@ export async function query(
   args: any[] = [],
 ): Promise<any> {
   return new Promise((resolve, reject) => {
-    const cb = (error: Error, result: any) => {
+    const callback = (error: Error, result: any) => {
       if (error) {
         reject(error);
         return;
@@ -429,9 +433,9 @@ export async function query(
     };
 
     if (typeof ethQuery[method] === 'function') {
-      ethQuery[method](...args, cb);
+      ethQuery[method](...args, callback);
     } else {
-      ethQuery.sendAsync({ method, params: args }, cb);
+      ethQuery.sendAsync({ method, params: args }, callback);
     }
   });
 }
@@ -439,8 +443,8 @@ export async function query(
 /**
  * Converts valid hex strings to decimal numbers, and handles unexpected arg types.
  *
- * @param value - a string that is either a hexadecimal with `0x` prefix or a decimal string.
- * @returns a decimal number.
+ * @param value - A string that is either a hexadecimal with `0x` prefix or a decimal string.
+ * @returns A decimal number.
  */
 export const convertHexToDecimal = (
   value: string | undefined = '0x0',
@@ -457,13 +461,15 @@ type PlainObject = Record<number | string | symbol, unknown>;
 /**
  * Determines whether a value is a "plain" object.
  *
- * @param value - A value to check
- * @returns True if the passed value is a plain object
+ * @param value - A value to check.
+ * @returns True if the passed value is a plain object.
  */
+// TODO: Use `@metamask/utils`.
 export function isPlainObject(value: unknown): value is PlainObject {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+// TODO: Use `@metamask/utils`.
 export const hasProperty = (
   object: PlainObject,
   key: string | number | symbol,
@@ -474,6 +480,7 @@ export const hasProperty = (
  *
  * @template T - The non-empty array member type.
  */
+// TODO: Use `@metamask/utils`.
 export type NonEmptyArray<T> = [T, ...T[]];
 
 /**
@@ -483,6 +490,7 @@ export type NonEmptyArray<T> = [T, ...T[]];
  * @param value - The value to check.
  * @returns Whether the value is a non-empty array.
  */
+// TODO: Use `@metamask/utils`.
 export function isNonEmptyArray<T>(value: T[]): value is NonEmptyArray<T> {
   return Array.isArray(value) && value.length > 0;
 }
@@ -493,6 +501,7 @@ export function isNonEmptyArray<T>(value: T[]): value is NonEmptyArray<T> {
  * @param value - The value to check.
  * @returns Whether the value is valid JSON.
  */
+// TODO: Use `@metamask/utils`.
 export function isValidJson(value: unknown): value is Json {
   try {
     return deepEqual(value, JSON.parse(JSON.stringify(value)));
@@ -504,8 +513,8 @@ export function isValidJson(value: unknown): value is Json {
 /**
  * Utility method to log if error is a common fetch error and otherwise rethrow it.
  *
- * @param error - Caught error that we should either rethrow or log to console
- * @param codesToCatch - array of error codes for errors we want to catch and log in a particular context
+ * @param error - Caught error that we should either rethrow or log to console.
+ * @param codesToCatch - Array of error codes for errors we want to catch and log in a particular context.
  */
 function logOrRethrowError(error: any, codesToCatch: number[] = []) {
   if (!error) {

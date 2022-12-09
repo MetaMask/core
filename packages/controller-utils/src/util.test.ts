@@ -127,6 +127,7 @@ describe('util', () => {
         123456000000600,
       );
       expect(util.gweiDecToWEIBN(1.000000016025).toNumber()).toBe(1000000016);
+      // eslint-disable-next-line @typescript-eslint/no-loss-of-precision
       expect(util.gweiDecToWEIBN(1.0000000160000028).toNumber()).toBe(
         1000000016,
       );
@@ -435,7 +436,8 @@ describe('util', () => {
     describe('when the given method exists directly on the EthQuery', () => {
       it('should call the method on the EthQuery and, if it is successful, return a promise that resolves to the result', async () => {
         const ethQuery = {
-          getBlockByHash: (blockId: any, cb: any) => cb(null, { id: blockId }),
+          getBlockByHash: (blockId: any, callback: any) =>
+            callback(null, { id: blockId }),
         };
         const result = await util.query(ethQuery, 'getBlockByHash', ['0x1234']);
         expect(result).toStrictEqual({ id: '0x1234' });
@@ -443,8 +445,8 @@ describe('util', () => {
 
       it('should call the method on the EthQuery and, if it errors, return a promise that is rejected with the error', async () => {
         const ethQuery = {
-          getBlockByHash: (_blockId: any, cb: any) =>
-            cb(new Error('uh oh'), null),
+          getBlockByHash: (_blockId: any, callback: any) =>
+            callback(new Error('uh oh'), null),
         };
         await expect(
           util.query(ethQuery, 'getBlockByHash', ['0x1234']),
@@ -455,9 +457,9 @@ describe('util', () => {
     describe('when the given method does not exist directly on the EthQuery', () => {
       it('should use sendAsync to call the RPC endpoint and, if it is successful, return a promise that resolves to the result', async () => {
         const ethQuery = {
-          sendAsync: ({ method, params }: any, cb: any) => {
+          sendAsync: ({ method, params }: any, callback: any) => {
             if (method === 'eth_getBlockByHash') {
-              return cb(null, { id: params[0] });
+              return callback(null, { id: params[0] });
             }
             throw new Error(`Unsupported method ${method}`);
           },
@@ -470,8 +472,8 @@ describe('util', () => {
 
       it('should use sendAsync to call the RPC endpoint and, if it errors, return a promise that is rejected with the error', async () => {
         const ethQuery = {
-          sendAsync: (_args: any, cb: any) => {
-            cb(new Error('uh oh'), null);
+          sendAsync: (_args: any, callback: any) => {
+            callback(new Error('uh oh'), null);
           },
         };
         await expect(
@@ -517,7 +519,9 @@ describe('util', () => {
 
     it('returns true for objects', () => {
       expect(util.isPlainObject({ foo: 'bar' })).toBe(true);
-      expect(util.isPlainObject({ foo: 'bar', test: { num: 5 } })).toBe(true);
+      expect(util.isPlainObject({ foo: 'bar', test: { number: 5 } })).toBe(
+        true,
+      );
     });
   });
 
@@ -555,7 +559,7 @@ describe('util', () => {
     });
 
     it('returns true for valid JSON', () => {
-      expect(util.isValidJson({ foo: 'bar', test: { num: 5 } })).toBe(true);
+      expect(util.isValidJson({ foo: 'bar', test: { number: 5 } })).toBe(true);
     });
   });
 });

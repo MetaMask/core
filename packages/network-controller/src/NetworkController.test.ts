@@ -115,7 +115,7 @@ describe('NetworkController', () => {
         providerConfig: {
           rpcTarget: RPC_TARGET,
           type: 'rpc',
-          chainId: NetworksChainId.mainnet,
+          chainId: NetworksChainId.Mainnet,
         },
       },
       messenger,
@@ -128,7 +128,7 @@ describe('NetworkController', () => {
 
   it('should set new RPC target', () => {
     const controller = new NetworkController({ messenger });
-    controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
+    controller.setRpcTarget(RPC_TARGET, NetworksChainId.Rpc);
     expect(controller.state.providerConfig.rpcTarget).toBe(RPC_TARGET);
     expect(controller.state.isCustomNetwork).toBe(false);
   });
@@ -171,7 +171,7 @@ describe('NetworkController', () => {
       messenger,
       infuraProjectId: '123',
     });
-    controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
+    controller.setRpcTarget(RPC_TARGET, NetworksChainId.Rpc);
     controller.setProviderType('mainnet' as NetworkType);
     expect(controller.state.providerConfig.type).toBe('mainnet');
     expect(controller.state.providerConfig.ticker).toBe('ETH');

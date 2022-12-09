@@ -101,7 +101,7 @@ export type NetworkControllerOptions = {
 const defaultState: NetworkState = {
   network: 'loading',
   isCustomNetwork: false,
-  providerConfig: { type: MAINNET, chainId: NetworksChainId.mainnet },
+  providerConfig: { type: MAINNET, chainId: NetworksChainId.Mainnet },
   properties: { isEIP1559Compatible: false },
 };
 
@@ -229,12 +229,12 @@ export class NetworkController extends BaseControllerV2<
 
   private getIsCustomNetwork(chainId?: string) {
     return (
-      chainId !== NetworksChainId.mainnet &&
-      chainId !== NetworksChainId.kovan &&
-      chainId !== NetworksChainId.rinkeby &&
-      chainId !== NetworksChainId.goerli &&
-      chainId !== NetworksChainId.ropsten &&
-      chainId !== NetworksChainId.localhost
+      chainId !== NetworksChainId.Mainnet &&
+      chainId !== NetworksChainId.Kovan &&
+      chainId !== NetworksChainId.Rinkeby &&
+      chainId !== NetworksChainId.Goerli &&
+      chainId !== NetworksChainId.Ropsten &&
+      chainId !== NetworksChainId.Localhost
     );
   }
 

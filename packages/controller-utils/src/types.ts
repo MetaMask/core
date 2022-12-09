@@ -11,15 +11,16 @@ export type NetworkType =
   | 'rpc';
 
 export enum NetworksChainId {
-  mainnet = '1',
-  kovan = '42',
-  rinkeby = '4',
-  goerli = '5',
-  ropsten = '3',
-  localhost = '',
-  rpc = '',
+  Mainnet = '1',
+  Kovan = '42',
+  Rinkeby = '4',
+  Goerli = '5',
+  Ropsten = '3',
+  Localhost = '',
+  Rpc = '',
 }
 
+// TODO: Use `@metamask/utils`.
 export type Json =
   | null
   | boolean

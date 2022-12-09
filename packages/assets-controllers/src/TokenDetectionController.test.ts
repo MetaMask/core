@@ -128,7 +128,7 @@ const setupTokenListController = (
   });
 
   const tokenList = new TokenListController({
-    chainId: NetworksChainId.mainnet,
+    chainId: NetworksChainId.Mainnet,
     preventPollingOnNetworkRestart: false,
     messenger: tokenListMessenger,
   });
@@ -151,14 +151,14 @@ describe('TokenDetectionController', () => {
 
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
-      .get(`/tokens/${NetworksChainId.mainnet}`)
+      .get(`/tokens/${NetworksChainId.Mainnet}`)
       .reply(200, sampleTokenList)
       .get(
-        `/token/${NetworksChainId.mainnet}?address=${tokenAFromList.address}`,
+        `/token/${NetworksChainId.Mainnet}?address=${tokenAFromList.address}`,
       )
       .reply(200, tokenAFromList)
       .get(
-        `/token/${NetworksChainId.mainnet}?address=${tokenBFromList.address}`,
+        `/token/${NetworksChainId.Mainnet}?address=${tokenBFromList.address}`,
       )
       .reply(200, tokenBFromList)
       .persist();
@@ -216,7 +216,7 @@ describe('TokenDetectionController', () => {
       interval: DEFAULT_INTERVAL,
       selectedAddress: '',
       disabled: true,
-      chainId: NetworksChainId.mainnet,
+      chainId: NetworksChainId.Mainnet,
       isDetectionEnabledForNetwork: true,
       isDetectionEnabledFromPreferences: true,
     });
@@ -251,7 +251,7 @@ describe('TokenDetectionController', () => {
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
     ).toBe(true);
-    tokenDetection.configure({ chainId: NetworksChainId.ropsten });
+    tokenDetection.configure({ chainId: NetworksChainId.Ropsten });
     expect(
       isTokenDetectionSupportedForNetwork(tokenDetection.config.chainId),
     ).toBe(false);
@@ -260,7 +260,7 @@ describe('TokenDetectionController', () => {
   it('should not autodetect while not on supported networks', async () => {
     tokenDetection.configure({
       selectedAddress: '0x1',
-      chainId: NetworksChainId.goerli,
+      chainId: NetworksChainId.Goerli,
       isDetectionEnabledForNetwork: false,
     });
 
@@ -458,7 +458,7 @@ describe('TokenDetectionController', () => {
         isDetectionEnabledForNetwork: true,
         isDetectionEnabledFromPreferences: true,
         selectedAddress: '0x1',
-        chainId: NetworksChainId.mainnet,
+        chainId: NetworksChainId.Mainnet,
       },
     );
 
@@ -574,7 +574,7 @@ describe('TokenDetectionController', () => {
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     networkStateChangeListener!({
-      providerConfig: { chainId: NetworksChainId.mainnet },
+      providerConfig: { chainId: NetworksChainId.Mainnet },
     });
 
     expect(getBalancesInSingleCallMock.called).toBe(true);
