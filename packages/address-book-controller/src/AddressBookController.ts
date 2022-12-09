@@ -294,12 +294,13 @@ export class AddressBookController extends BaseController<
   #determineStatePatchesForFrequentRpcChanges(
     frequentRpcChanges: FrequentRpcChange[],
   ): Patch[] {
-    return frequentRpcChanges.flatMap((frequentRpcChange) => {
+    return frequentRpcChanges.reduce<Patch[]>((array, frequentRpcChange) => {
       return [
+        ...array,
         ...this.#copyAddressBookEntriesToNewChainId(frequentRpcChange),
         ...this.#removeAddressBookForOriginalChainId(frequentRpcChange),
       ];
-    });
+    }, []);
   }
 
   /**
