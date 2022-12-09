@@ -198,14 +198,14 @@ describe('KeyringController', () => {
   it('should import account with strategy privateKey', async () => {
     await expect(
       keyringController.importAccountWithStrategy(
-        AccountImportStrategy.privateKey,
+        AccountImportStrategy.PrivateKey,
         [],
       ),
     ).rejects.toThrow('Cannot import an empty key.');
 
     await expect(
       keyringController.importAccountWithStrategy(
-        AccountImportStrategy.privateKey,
+        AccountImportStrategy.PrivateKey,
         ['123'],
       ),
     ).rejects.toThrow(
@@ -214,7 +214,7 @@ describe('KeyringController', () => {
 
     await expect(
       keyringController.importAccountWithStrategy(
-        AccountImportStrategy.privateKey,
+        AccountImportStrategy.PrivateKey,
         ['0xblahblah'],
       ),
     ).rejects.toThrow('Cannot import invalid private key.');
@@ -222,7 +222,7 @@ describe('KeyringController', () => {
     const address = '0x51253087e6f8358b5f10c0a94315d69db3357859';
     const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
     const obj = await keyringController.importAccountWithStrategy(
-      AccountImportStrategy.privateKey,
+      AccountImportStrategy.PrivateKey,
       [privateKey],
     );
     const modifiedState = {
@@ -235,14 +235,14 @@ describe('KeyringController', () => {
   it('should not import account with strategy privateKey if wrong data is provided', async () => {
     await expect(
       keyringController.importAccountWithStrategy(
-        AccountImportStrategy.privateKey,
+        AccountImportStrategy.PrivateKey,
         [],
       ),
     ).rejects.toThrow('Cannot import an empty key.');
 
     await expect(
       keyringController.importAccountWithStrategy(
-        AccountImportStrategy.privateKey,
+        AccountImportStrategy.PrivateKey,
         ['123'],
       ),
     ).rejects.toThrow(
@@ -254,7 +254,7 @@ describe('KeyringController', () => {
     const somePassword = 'holachao123';
 
     await expect(
-      keyringController.importAccountWithStrategy(AccountImportStrategy.json, [
+      keyringController.importAccountWithStrategy(AccountImportStrategy.Json, [
         '',
         somePassword,
       ]),
@@ -262,7 +262,7 @@ describe('KeyringController', () => {
 
     const address = '0xb97c80fab7a3793bbe746864db80d236f1345ea7';
     const obj = await keyringController.importAccountWithStrategy(
-      AccountImportStrategy.json,
+      AccountImportStrategy.Json,
       [input, somePassword],
     );
     const newKeyring = { accounts: [address], type: 'Simple Key Pair' };
@@ -287,7 +287,7 @@ describe('KeyringController', () => {
     const somePassword = 'holachao12';
 
     await expect(
-      keyringController.importAccountWithStrategy(AccountImportStrategy.json, [
+      keyringController.importAccountWithStrategy(AccountImportStrategy.Json, [
         input,
         somePassword,
       ]),
@@ -296,7 +296,7 @@ describe('KeyringController', () => {
 
   it('should import account with strategy json empty password', async () => {
     await expect(
-      keyringController.importAccountWithStrategy(AccountImportStrategy.json, [
+      keyringController.importAccountWithStrategy(AccountImportStrategy.Json, [
         input,
         '',
       ]),
@@ -316,7 +316,7 @@ describe('KeyringController', () => {
 
   it('should remove account', async () => {
     await keyringController.importAccountWithStrategy(
-      AccountImportStrategy.privateKey,
+      AccountImportStrategy.PrivateKey,
       [privateKey],
     );
     const finalState = await keyringController.removeAccount(
@@ -327,7 +327,7 @@ describe('KeyringController', () => {
 
   it('should not remove account if wrong address is provided', async () => {
     await keyringController.importAccountWithStrategy(
-      AccountImportStrategy.privateKey,
+      AccountImportStrategy.PrivateKey,
       [privateKey],
     );
 
@@ -680,7 +680,7 @@ describe('KeyringController', () => {
     const listener = sinon.stub();
     keyringController.subscribe(listener);
     await keyringController.importAccountWithStrategy(
-      AccountImportStrategy.privateKey,
+      AccountImportStrategy.PrivateKey,
       [privateKey],
     );
     expect(listener.called).toBe(true);
@@ -805,7 +805,7 @@ describe('KeyringController', () => {
       await signProcessKeyringController.unlockQRHardwareWalletAccount(2);
 
       const qrKeyring = signProcessKeyringController.state.keyrings.find(
-        (keyring) => keyring.type === KeyringTypes.qr,
+        (keyring) => keyring.type === KeyringTypes.Qr,
       );
       expect(qrKeyring?.accounts).toHaveLength(3);
     });
@@ -822,7 +822,7 @@ describe('KeyringController', () => {
       const data =
         '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0';
       const qrKeyring = signProcessKeyringController.state.keyrings.find(
-        (keyring) => keyring.type === KeyringTypes.qr,
+        (keyring) => keyring.type === KeyringTypes.Qr,
       );
       const account = qrKeyring?.accounts[0] || '';
       const signature = await signProcessKeyringController.signMessage({
@@ -845,7 +845,7 @@ describe('KeyringController', () => {
         Buffer.from('Example `personal_sign` message', 'utf8'),
       );
       const qrKeyring = signProcessKeyringController.state.keyrings.find(
-        (keyring) => keyring.type === KeyringTypes.qr,
+        (keyring) => keyring.type === KeyringTypes.Qr,
       );
       const account = qrKeyring?.accounts[0] || '';
       const signature = await signProcessKeyringController.signPersonalMessage({
@@ -878,7 +878,7 @@ describe('KeyringController', () => {
         },
       ];
       const qrKeyring = signProcessKeyringController.state.keyrings.find(
-        (keyring) => keyring.type === KeyringTypes.qr,
+        (keyring) => keyring.type === KeyringTypes.Qr,
       );
       const account = qrKeyring?.accounts[0] || '';
       const signature = await signProcessKeyringController.signTypedMessage(
@@ -906,7 +906,7 @@ describe('KeyringController', () => {
         '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","version":"1","chainId":4,"verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"},"message":{"from":{"name":"Cow","wallet":"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},"to":{"name":"Bob","wallet":"0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},"contents":"Hello, Bob!"}}';
 
       const qrKeyring = signProcessKeyringController.state.keyrings.find(
-        (keyring) => keyring.type === KeyringTypes.qr,
+        (keyring) => keyring.type === KeyringTypes.Qr,
       );
       const account = qrKeyring?.accounts[0] || '';
       const signature = await signProcessKeyringController.signTypedMessage(
@@ -937,7 +937,7 @@ describe('KeyringController', () => {
         '{"domain":{"chainId":"4","name":"Ether Mail","verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC","version":"1"},"message":{"contents":"Hello, Bob!","from":{"name":"Cow","wallets":["0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826","0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF"]},"to":[{"name":"Bob","wallets":["0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB","0xB0BdaBea57B0BDABeA57b0bdABEA57b0BDabEa57","0xB0B0b0b0b0b0B000000000000000000000000000"]}]},"primaryType":"Mail","types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Group":[{"name":"name","type":"string"},{"name":"members","type":"Person[]"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person[]"},{"name":"contents","type":"string"}],"Person":[{"name":"name","type":"string"},{"name":"wallets","type":"address[]"}]}}';
 
       const qrKeyring = signProcessKeyringController.state.keyrings.find(
-        (keyring) => keyring.type === KeyringTypes.qr,
+        (keyring) => keyring.type === KeyringTypes.Qr,
       );
       const account = qrKeyring?.accounts[0] || '';
       const signature = await signProcessKeyringController.signTypedMessage(
@@ -962,7 +962,7 @@ describe('KeyringController', () => {
       );
 
       const qrKeyring = signProcessKeyringController.state.keyrings.find(
-        (keyring) => keyring.type === KeyringTypes.qr,
+        (keyring) => keyring.type === KeyringTypes.Qr,
       );
       const account = qrKeyring?.accounts[0] || '';
       const tx = TransactionFactory.fromTxData(
@@ -1076,11 +1076,11 @@ describe('KeyringController', () => {
         signProcessKeyringController.state.keyrings[0].accounts[0];
       expect(
         await signProcessKeyringController.getAccountKeyringType(hdAccount),
-      ).toBe(KeyringTypes.hd);
+      ).toBe(KeyringTypes.Hd);
 
       expect(
         await signProcessKeyringController.getAccountKeyringType(qrAccount),
-      ).toBe(KeyringTypes.qr);
+      ).toBe(KeyringTypes.Qr);
     });
 
     it("should call qr keyring's methods", async () => {
