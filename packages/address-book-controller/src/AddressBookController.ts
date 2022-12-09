@@ -198,18 +198,27 @@ export class AddressBookController extends BaseController<
 
   /**
    * Initialization step which optionally listens to changes to frequent RPC
-   * chain IDs in {@link PreferencesController}) state and ensures that
+   * chain IDs in {@link PreferencesController} state and ensures that
    * addresses are filed under the correct chain.
    */
   #handleChainIdChanges() {
-    const { getProvider } = this.config;
+    const { syncWithRpcChanges, onPreferencesStateChange, getProvider } =
+      this.config;
 
-    if (
-      this.config.syncWithRpcChanges &&
-      this.config.onPreferencesStateChange !== undefined &&
-      getProvider !== undefined
-    ) {
-      this.config.onPreferencesStateChange(
+    if (syncWithRpcChanges) {
+      if (onPreferencesStateChange === undefined) {
+        throw new Error(
+          'onPreferencesStateChange is required along with syncWithRpcChanges.',
+        );
+      }
+
+      if (getProvider === undefined) {
+        throw new Error(
+          'getProvider is required along with syncWithRpcChanges.',
+        );
+      }
+
+      onPreferencesStateChange(
         (newPreferencesState, previousPreferencesState) => {
           return this.#handlePreferencesStateChange(
             previousPreferencesState,

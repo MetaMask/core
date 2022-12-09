@@ -514,6 +514,9 @@ describe('AddressBookController', () => {
           onPreferencesStateChange: (callback) => {
             callbacks.onPreferencesStateChangeCallback = callback;
           },
+          getProvider: () => {
+            return buildFakeProvider();
+          },
         },
         {
           addressBook: {
@@ -1161,6 +1164,25 @@ describe('AddressBookController', () => {
           },
         },
       });
+    });
+
+    it('throws if onPreferencesStateChange is not provided', () => {
+      expect(() => {
+        new AddressBookController({ syncWithRpcChanges: true });
+      }).toThrow(
+        'onPreferencesStateChange is required along with syncWithRpcChanges.',
+      );
+    });
+
+    it('throws if getProvider is not provided', () => {
+      expect(() => {
+        new AddressBookController({
+          syncWithRpcChanges: true,
+          onPreferencesStateChange: (_callback) => {
+            // do nothing
+          },
+        });
+      }).toThrow('getProvider is required along with syncWithRpcChanges.');
     });
   });
 
