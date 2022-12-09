@@ -168,7 +168,7 @@ export class RateLimitController<
    */
   #recordRequest(api: keyof RateLimitedApis, origin: string) {
     this.update((state) => {
-      const previous = state.requests[api][origin] ?? 0;
+      const previous: number = state.requests[api][origin] ?? 0;
       state.requests[api][origin] = previous + 1;
 
       if (previous === 0) {

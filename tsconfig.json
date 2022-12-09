@@ -64,8 +64,5 @@
     }
   ],
   "files": [],
-  "include": [
-    "tests",
-    "scripts"
-  ]
+  "include": ["tests", "scripts"]
 }
