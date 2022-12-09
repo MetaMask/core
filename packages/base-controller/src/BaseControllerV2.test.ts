@@ -48,17 +48,11 @@ type CountMessenger = RestrictedControllerMessenger<
  * @returns A restricted controller messenger for the Count controller.
  */
 function getCountMessenger(
-  controllerMessenger?: ControllerMessenger<
+  controllerMessenger: ControllerMessenger<
     CountControllerAction,
     CountControllerEvent
-  >,
+  > = new ControllerMessenger<CountControllerAction, CountControllerEvent>(),
 ): CountMessenger {
-  if (!controllerMessenger) {
-    controllerMessenger = new ControllerMessenger<
-      CountControllerAction,
-      CountControllerEvent
-    >();
-  }
   return controllerMessenger.getRestricted<'CountController', never, never>({
     name: countControllerName,
   });
@@ -74,8 +68,7 @@ class CountController extends BaseController<
       state: Draft<CountControllerState>,
     ) => void | CountControllerState,
   ) {
-    const res = super.update(callback);
-    return res;
+    return super.update(callback);
   }
 
   applyPatches(patches: Patch[]) {
@@ -108,6 +101,8 @@ describe('BaseController', () => {
       CountControllerAction,
       CountControllerEvent
     >();
+
+    // eslint-disable-next-line no-new
     new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: countControllerName,
@@ -375,6 +370,8 @@ describe('BaseController', () => {
       never,
       CountControllerEvent
     >();
+
+    // eslint-disable-next-line no-new
     new CountController({
       messenger: getCountMessenger(controllerMessenger),
       name: 'CountController',

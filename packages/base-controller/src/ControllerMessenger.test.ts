@@ -51,8 +51,8 @@ describe('ControllerMessenger', () => {
       },
     );
 
-    controllerMessenger.registerActionHandler('concat', (s: string) => {
-      message += s;
+    controllerMessenger.registerActionHandler('concat', (value: string) => {
+      message += value;
     });
 
     controllerMessenger.call('reset', 'hello');
@@ -491,8 +491,8 @@ describe('RestrictedControllerMessenger', () => {
 
     restrictedControllerMessenger.registerActionHandler(
       'MessageController:concat',
-      (s: string) => {
-        message += s;
+      (value: string) => {
+        message += value;
       },
     );
 

@@ -51,15 +51,15 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    */
   name = 'BaseController';
 
-  private readonly initialConfig: C;
+  readonly #initialConfig: C;
 
-  private readonly initialState: S;
+  readonly #initialState: S;
 
-  private internalConfig: C = this.defaultConfig;
+  #internalConfig: C = this.defaultConfig;
 
-  private internalState: S = this.defaultState;
+  #internalState: S = this.defaultState;
 
-  private readonly internalListeners: Listener<S>[] = [];
+  readonly #internalListeners: Listener<S>[] = [];
 
   /**
    * Creates a BaseController instance. Both initial state and initial
@@ -70,8 +70,8 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    */
   constructor(config: Partial<C> = {} as C, state: Partial<S> = {} as S) {
     // Use assign since generics can't be spread: https://git.io/vpRhY
-    this.initialState = state as S;
-    this.initialConfig = config as C;
+    this.#initialState = state as S;
+    this.#initialConfig = config as C;
   }
 
   /**
@@ -82,10 +82,10 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    * @returns This controller instance.
    */
   protected initialize() {
-    this.internalState = this.defaultState;
-    this.internalConfig = this.defaultConfig;
-    this.configure(this.initialConfig);
-    this.update(this.initialState);
+    this.#internalState = this.defaultState;
+    this.#internalConfig = this.defaultConfig;
+    this.configure(this.#initialConfig);
+    this.update(this.#initialState);
     return this;
   }
 
@@ -95,7 +95,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    * @returns The current configuration.
    */
   get config() {
-    return this.internalConfig;
+    return this.#internalConfig;
   }
 
   /**
@@ -104,7 +104,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    * @returns The current state.
    */
   get state() {
-    return this.internalState;
+    return this.#internalState;
   }
 
   /**
@@ -116,20 +116,20 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    */
   configure(config: Partial<C>, overwrite = false, fullUpdate = true) {
     if (fullUpdate) {
-      this.internalConfig = overwrite
+      this.#internalConfig = overwrite
         ? (config as C)
-        : Object.assign(this.internalConfig, config);
+        : Object.assign(this.#internalConfig, config);
 
-      for (const key in this.internalConfig) {
-        if (typeof this.internalConfig[key] !== 'undefined') {
-          (this as any)[key as string] = this.internalConfig[key];
+      for (const key in this.#internalConfig) {
+        if (typeof this.#internalConfig[key] !== 'undefined') {
+          (this as any)[key as string] = this.#internalConfig[key];
         }
       }
     } else {
       for (const key in config) {
         /* istanbul ignore else */
-        if (typeof this.internalConfig[key] !== 'undefined') {
-          this.internalConfig[key] = config[key] as any;
+        if (typeof this.#internalConfig[key] !== 'undefined') {
+          this.#internalConfig[key] = config[key] as any;
           (this as any)[key as string] = config[key];
         }
       }
@@ -144,8 +144,8 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
       return;
     }
 
-    this.internalListeners.forEach((listener) => {
-      listener(this.internalState);
+    this.#internalListeners.forEach((listener) => {
+      listener(this.#internalState);
     });
   }
 
@@ -155,7 +155,7 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    * @param listener - The callback triggered when state changes.
    */
   subscribe(listener: Listener<S>) {
-    this.internalListeners.push(listener);
+    this.#internalListeners.push(listener);
   }
 
   /**
@@ -165,8 +165,8 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    * @returns `true` if a listener is found and unsubscribed.
    */
   unsubscribe(listener: Listener<S>) {
-    const index = this.internalListeners.findIndex((cb) => listener === cb);
-    index > -1 && this.internalListeners.splice(index, 1);
+    const index = this.#internalListeners.findIndex((cb) => listener === cb);
+    index > -1 && this.#internalListeners.splice(index, 1);
     return index > -1;
   }
 
@@ -177,9 +177,9 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
    * @param overwrite - Overwrite state instead of merging.
    */
   update(state: Partial<S>, overwrite = false) {
-    this.internalState = overwrite
+    this.#internalState = overwrite
       ? Object.assign({}, state as S)
-      : Object.assign({}, this.internalState, state);
+      : Object.assign({}, this.#internalState, state);
     this.notify();
   }
 }

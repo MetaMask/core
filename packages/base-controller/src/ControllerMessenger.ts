@@ -95,16 +95,16 @@ export class RestrictedControllerMessenger<
   AllowedAction extends string,
   AllowedEvent extends string,
 > {
-  private readonly controllerMessenger: ControllerMessenger<
+  readonly #controllerMessenger: ControllerMessenger<
     ActionConstraint,
     EventConstraint
   >;
 
-  private readonly controllerName: N;
+  readonly #controllerName: N;
 
-  private readonly allowedActions: AllowedAction[] | null;
+  readonly #allowedActions: AllowedAction[] | null;
 
-  private readonly allowedEvents: AllowedEvent[] | null;
+  readonly #allowedEvents: AllowedEvent[] | null;
 
   /**
    * Constructs a restricted controller messenger
@@ -135,10 +135,10 @@ export class RestrictedControllerMessenger<
     allowedActions?: AllowedAction[];
     allowedEvents?: AllowedEvent[];
   }) {
-    this.controllerMessenger = controllerMessenger;
-    this.controllerName = name;
-    this.allowedActions = allowedActions || null;
-    this.allowedEvents = allowedEvents || null;
+    this.#controllerMessenger = controllerMessenger;
+    this.#controllerName = name;
+    this.#allowedActions = allowedActions ?? null;
+    this.#allowedEvents = allowedEvents ?? null;
   }
 
   /**
@@ -159,12 +159,14 @@ export class RestrictedControllerMessenger<
     handler: ActionHandler<Action, T>,
   ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!action.startsWith(`${this.controllerName}:`)) {
+    if (!action.startsWith(`${this.#controllerName}:`)) {
       throw new Error(
-        `Only allowed registering action handlers prefixed by '${this.controllerName}:'`,
+        `Only allowed registering action handlers prefixed by '${
+          this.#controllerName
+        }:'`,
       );
     }
-    this.controllerMessenger.registerActionHandler(action, handler);
+    this.#controllerMessenger.registerActionHandler(action, handler);
   }
 
   /**
@@ -179,12 +181,14 @@ export class RestrictedControllerMessenger<
    */
   unregisterActionHandler<T extends Namespaced<N, Action['type']>>(action: T) {
     /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!action.startsWith(`${this.controllerName}:`)) {
+    if (!action.startsWith(`${this.#controllerName}:`)) {
       throw new Error(
-        `Only allowed unregistering action handlers prefixed by '${this.controllerName}:'`,
+        `Only allowed unregistering action handlers prefixed by '${
+          this.#controllerName
+        }:'`,
       );
     }
-    this.controllerMessenger.unregisterActionHandler(action);
+    this.#controllerMessenger.unregisterActionHandler(action);
   }
 
   /**
@@ -207,12 +211,12 @@ export class RestrictedControllerMessenger<
     ...params: ExtractActionParameters<Action, T>
   ): ExtractActionResponse<Action, T> {
     /* istanbul ignore next */ // Branches unreachable with valid types
-    if (this.allowedActions === null) {
+    if (this.#allowedActions === null) {
       throw new Error('No actions allowed');
-    } else if (!this.allowedActions.includes(action)) {
+    } else if (!this.#allowedActions.includes(action)) {
       throw new Error(`Action missing from allow list: ${action}`);
     }
-    return this.controllerMessenger.call(action, ...params);
+    return this.#controllerMessenger.call(action, ...params);
   }
 
   /**
@@ -232,12 +236,12 @@ export class RestrictedControllerMessenger<
     ...payload: ExtractEventPayload<Event, E>
   ) {
     /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!event.startsWith(`${this.controllerName}:`)) {
+    if (!event.startsWith(`${this.#controllerName}:`)) {
       throw new Error(
-        `Only allowed publishing events prefixed by '${this.controllerName}:'`,
+        `Only allowed publishing events prefixed by '${this.#controllerName}:'`,
       );
     }
-    this.controllerMessenger.publish(event, ...payload);
+    this.#controllerMessenger.publish(event, ...payload);
   }
 
   /**
@@ -288,16 +292,16 @@ export class RestrictedControllerMessenger<
     selector?: SelectorFunction<ExtractEventPayload<Event, E>, V>,
   ) {
     /* istanbul ignore next */ // Branches unreachable with valid types
-    if (this.allowedEvents === null) {
+    if (this.#allowedEvents === null) {
       throw new Error('No events allowed');
-    } else if (!this.allowedEvents.includes(event)) {
+    } else if (!this.#allowedEvents.includes(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
 
     if (selector) {
-      return this.controllerMessenger.subscribe(event, handler, selector);
+      return this.#controllerMessenger.subscribe(event, handler, selector);
     }
-    return this.controllerMessenger.subscribe(event, handler);
+    return this.#controllerMessenger.subscribe(event, handler);
   }
 
   /**
@@ -317,12 +321,12 @@ export class RestrictedControllerMessenger<
     handler: ExtractEventHandler<Event, E>,
   ) {
     /* istanbul ignore next */ // Branches unreachable with valid types
-    if (this.allowedEvents === null) {
+    if (this.#allowedEvents === null) {
       throw new Error('No events allowed');
-    } else if (!this.allowedEvents.includes(event)) {
+    } else if (!this.#allowedEvents.includes(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
-    this.controllerMessenger.unsubscribe(event, handler);
+    this.#controllerMessenger.unsubscribe(event, handler);
   }
 
   /**
@@ -337,12 +341,12 @@ export class RestrictedControllerMessenger<
    */
   clearEventSubscriptions<E extends Namespaced<N, Event['type']>>(event: E) {
     /* istanbul ignore if */ // Branch unreachable with valid types
-    if (!event.startsWith(`${this.controllerName}:`)) {
+    if (!event.startsWith(`${this.#controllerName}:`)) {
       throw new Error(
-        `Only allowed clearing events prefixed by '${this.controllerName}:'`,
+        `Only allowed clearing events prefixed by '${this.#controllerName}:'`,
       );
     }
-    this.controllerMessenger.clearEventSubscriptions(event);
+    this.#controllerMessenger.clearEventSubscriptions(event);
   }
 }
 
@@ -360,14 +364,14 @@ export class ControllerMessenger<
   Action extends ActionConstraint,
   Event extends EventConstraint,
 > {
-  private readonly actions = new Map<Action['type'], unknown>();
+  readonly #actions = new Map<Action['type'], unknown>();
 
-  private readonly events = new Map<Event['type'], EventSubscriptionMap>();
+  readonly #events = new Map<Event['type'], EventSubscriptionMap>();
 
   /**
    * A cache of selector return values for their respective handlers.
    */
-  private readonly eventPayloadCache = new Map<
+  readonly #eventPayloadCache = new Map<
     GenericEventHandler,
     unknown | undefined
   >();
@@ -387,12 +391,12 @@ export class ControllerMessenger<
     actionType: T,
     handler: ActionHandler<Action, T>,
   ) {
-    if (this.actions.has(actionType)) {
+    if (this.#actions.has(actionType)) {
       throw new Error(
         `A handler for ${actionType} has already been registered`,
       );
     }
-    this.actions.set(actionType, handler);
+    this.#actions.set(actionType, handler);
   }
 
   /**
@@ -404,7 +408,7 @@ export class ControllerMessenger<
    * @template T - A type union of Action type strings.
    */
   unregisterActionHandler<T extends Action['type']>(actionType: T) {
-    this.actions.delete(actionType);
+    this.#actions.delete(actionType);
   }
 
   /**
@@ -413,7 +417,7 @@ export class ControllerMessenger<
    * This prevents all actions from being called.
    */
   clearActions() {
-    this.actions.clear();
+    this.#actions.clear();
   }
 
   /**
@@ -433,7 +437,7 @@ export class ControllerMessenger<
     actionType: T,
     ...params: ExtractActionParameters<Action, T>
   ): ExtractActionResponse<Action, T> {
-    const handler = this.actions.get(actionType) as ActionHandler<Action, T>;
+    const handler = this.#actions.get(actionType) as ActionHandler<Action, T>;
     if (!handler) {
       throw new Error(`A handler for ${actionType} has not been registered`);
     }
@@ -454,16 +458,16 @@ export class ControllerMessenger<
     eventType: E,
     ...payload: ExtractEventPayload<Event, E>
   ) {
-    const subscribers = this.events.get(eventType);
+    const subscribers = this.#events.get(eventType);
 
     if (subscribers) {
       for (const [handler, selector] of subscribers.entries()) {
         if (selector) {
-          const previousValue = this.eventPayloadCache.get(handler);
+          const previousValue = this.#eventPayloadCache.get(handler);
           const newValue = selector(...payload);
 
           if (newValue !== previousValue) {
-            this.eventPayloadCache.set(handler, newValue);
+            this.#eventPayloadCache.set(handler, newValue);
             handler(newValue, previousValue);
           }
         } else {
@@ -516,10 +520,10 @@ export class ControllerMessenger<
     handler: ExtractEventHandler<Event, E>,
     selector?: SelectorFunction<ExtractEventPayload<Event, E>, V>,
   ): void {
-    let subscribers = this.events.get(eventType);
+    let subscribers = this.#events.get(eventType);
     if (!subscribers) {
       subscribers = new Map();
-      this.events.set(eventType, subscribers);
+      this.#events.set(eventType, subscribers);
     }
 
     subscribers.set(handler, selector);
@@ -539,15 +543,15 @@ export class ControllerMessenger<
     eventType: E,
     handler: ExtractEventHandler<Event, E>,
   ) {
-    const subscribers = this.events.get(eventType);
+    const subscribers = this.#events.get(eventType);
 
-    if (!subscribers || !subscribers.has(handler)) {
+    if (!subscribers?.has(handler)) {
       throw new Error(`Subscription not found for event: ${eventType}`);
     }
 
     const selector = subscribers.get(handler);
     if (selector) {
-      this.eventPayloadCache.delete(handler);
+      this.#eventPayloadCache.delete(handler);
     }
 
     subscribers.delete(handler);
@@ -562,7 +566,7 @@ export class ControllerMessenger<
    * @template E - A type union of Event type strings.
    */
   clearEventSubscriptions<E extends Event['type']>(eventType: E) {
-    this.events.delete(eventType);
+    this.#events.delete(eventType);
   }
 
   /**
@@ -571,7 +575,7 @@ export class ControllerMessenger<
    * This will remove all subscribed handlers for all events.
    */
   clearSubscriptions() {
-    this.events.clear();
+    this.#events.clear();
   }
 
   /**
