@@ -117,7 +117,9 @@ export abstract class AbstractMessageManager<
    * @param message - A Message that will replace an existing Message (with the id) in this.messages.
    */
   protected updateMessage(message: M) {
-    const index = this.messages.findIndex((msg) => message.id === msg.id);
+    const index = this.messages.findIndex(
+      (_message) => message.id === _message.id,
+    );
     /* istanbul ignore next */
     if (index !== -1) {
       this.messages[index] = message;

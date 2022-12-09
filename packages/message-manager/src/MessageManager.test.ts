@@ -78,8 +78,8 @@ describe('PersonalMessageManager', () => {
       expect(unapprovedMessages[keys[0]].status).toBe('signed');
     });
     controller.setMessageStatusSigned(keys[0], rawSig);
-    const sig = await result;
-    expect(sig).toBe(rawSig);
+    const signature = await result;
+    expect(signature).toBe(rawSig);
   });
 
   it('should throw when unapproved finishes', async () => {
