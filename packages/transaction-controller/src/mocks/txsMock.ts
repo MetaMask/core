@@ -374,7 +374,7 @@ export const txsInStateMock = (
   {
     id: 'token-transaction-id',
     chainId: '1',
-    status: TransactionStatus.confirmed,
+    status: TransactionStatus.Confirmed,
     time: 1615497996125,
     transaction: {
       from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -392,7 +392,7 @@ export const txsInStateMock = (
   {
     id: 'eth-transaction-id',
     chainId: '1',
-    status: TransactionStatus.confirmed,
+    status: TransactionStatus.Confirmed,
     time: 1615497996125,
     transaction: {
       from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -416,7 +416,7 @@ export const txsInStateWithOutdatedStatusMock = (
   {
     id: 'token-transaction-id',
     chainId: '1',
-    status: TransactionStatus.rejected,
+    status: TransactionStatus.Rejected,
     time: 1615497996125,
     transaction: {
       from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -434,7 +434,7 @@ export const txsInStateWithOutdatedStatusMock = (
   {
     id: 'eth-transaction-id',
     chainId: '1',
-    status: TransactionStatus.rejected,
+    status: TransactionStatus.Rejected,
     time: 1615497996125,
     transaction: {
       from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -458,7 +458,7 @@ export const txsInStateWithOutdatedGasDataMock = (
   {
     id: 'token-transaction-id',
     chainId: '1',
-    status: TransactionStatus.confirmed,
+    status: TransactionStatus.Confirmed,
     time: 1615497996125,
     transaction: {
       from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -476,7 +476,7 @@ export const txsInStateWithOutdatedGasDataMock = (
   {
     id: 'eth-transaction-id',
     chainId: '1',
-    status: TransactionStatus.confirmed,
+    status: TransactionStatus.Confirmed,
     time: 1615497996125,
     transaction: {
       from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -500,7 +500,7 @@ export const txsInStateWithOutdatedStatusAndGasDataMock = (
   {
     id: 'token-transaction-id',
     chainId: '1',
-    status: TransactionStatus.rejected,
+    status: TransactionStatus.Rejected,
     time: 1615497996125,
     transaction: {
       from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
@@ -518,7 +518,7 @@ export const txsInStateWithOutdatedStatusAndGasDataMock = (
   {
     id: 'eth-transaction-id',
     chainId: '1',
-    status: TransactionStatus.rejected,
+    status: TransactionStatus.Rejected,
     time: 1615497996125,
     transaction: {
       from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',

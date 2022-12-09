@@ -155,21 +155,21 @@ export const isEIP1559Transaction = (transaction: Transaction): boolean => {
  * @param networkType - Network type of desired network.
  * @param address - Address to get the transactions from.
  * @param txHistoryLimit - The maximum number of transactions to fetch.
- * @param opt - Object that can contain fromBlock and Etherscan service API key.
+ * @param options - Object that can contain fromBlock and Etherscan service API key.
  * @returns Responses for both ETH and ERC20 token transactions.
  */
 export async function handleTransactionFetch(
   networkType: string,
   address: string,
   txHistoryLimit: number,
-  opt?: FetchAllOptions,
+  options?: FetchAllOptions,
 ): Promise<[{ [result: string]: [] }, { [result: string]: [] }]> {
   // transactions
   const urlParams = {
     module: 'account',
     address,
-    startBlock: opt?.fromBlock,
-    apikey: opt?.etherscanApiKey,
+    startBlock: options?.fromBlock,
+    apikey: options?.etherscanApiKey,
     offset: txHistoryLimit.toString(),
     order: 'desc',
   };
