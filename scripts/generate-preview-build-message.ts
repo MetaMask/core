@@ -2,6 +2,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import execa from 'execa';
 
 /**
  * Write a preview build message to the path "preview-build-message.txt".
@@ -9,16 +10,15 @@ import path from 'path';
 async function main() {
   const packageMap: Record<string, string> = {};
 
-  const packagesDirectory = path.resolve(__dirname, '../packages');
-  const packageEntries = await fs.promises.readdir(packagesDirectory, {
-    withFileTypes: true,
-  });
-  const packageDirectories = packageEntries.filter((entry) =>
-    entry.isDirectory(),
-  );
-  const packageDirectoryNames = packageDirectories.map((entry) => entry.name);
-  const packageManifestsPaths = packageDirectoryNames.map((name) =>
-    path.join(packagesDirectory, name, 'package.json'),
+  const { stdout } = await execa('yarn', [
+    'workspaces',
+    'list',
+    '--no-private',
+    '--json',
+  ]);
+  const packages = stdout.split('\n').map((line) => JSON.parse(line));
+  const packageManifestsPaths = packages.map(({ location }) =>
+    path.join(location, 'package.json'),
   );
   for (const manifestPath of packageManifestsPaths) {
     const rawManifest = await fs.promises.readFile(manifestPath, {
