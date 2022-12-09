@@ -1,72 +1,106 @@
+import type { Patch } from 'immer';
 import {
-  BaseController,
-  BaseConfig,
-  BaseState,
+  BaseControllerV2,
+  RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 
-interface ViewedAnnouncement {
+type ViewedAnnouncement = {
   [id: number]: boolean;
-}
+};
 
-interface Announcement {
+type Announcement = {
   id: number;
   date: string;
-}
-
-interface StateAnnouncement extends Announcement {
-  isShown: boolean;
-}
+};
 
 /**
  * A map of announcement ids to Announcement objects
  */
-interface AnnouncementMap {
+export type AnnouncementMap = {
   [id: number]: Announcement;
-}
+};
+
+type StateAnnouncement = Announcement & { isShown: boolean };
 
 /**
  * A map of announcement ids to StateAnnouncement objects
  */
-export interface StateAnnouncementMap {
+export type StateAnnouncementMap = {
   [id: number]: StateAnnouncement;
-}
-
-/**
- * AnnouncementConfig will hold the active announcements
- */
-export interface AnnouncementConfig extends BaseConfig {
-  allAnnouncements: AnnouncementMap;
-}
+};
 
 /**
  * Announcement state will hold all the seen and unseen announcements
  * that are still active
  */
-export interface AnnouncementState extends BaseState {
+export type AnnouncementControllerState = {
   announcements: StateAnnouncementMap;
-}
+};
+
+export type AnnouncementControllerActions =
+  AnnouncementControllerGetStateAction;
+export type AnnouncementControllerEvents =
+  AnnouncementControllerStateChangeEvent;
+
+export type AnnouncementControllerGetStateAction = {
+  type: `${typeof controllerName}:getState`;
+  handler: () => AnnouncementControllerState;
+};
+
+export type AnnouncementControllerStateChangeEvent = {
+  type: `${typeof controllerName}:stateChange`;
+  payload: [AnnouncementControllerState, Patch[]];
+};
+
+const controllerName = 'AnnouncementController';
 
 const defaultState = {
   announcements: {},
 };
 
+const metadata = {
+  announcements: {
+    persist: true,
+    anonymous: true,
+  },
+};
+
+export type AnnouncementControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  AnnouncementControllerActions,
+  AnnouncementControllerEvents,
+  never,
+  never
+>;
+
 /**
  * Controller for managing in-app announcements.
  */
-export class AnnouncementController extends BaseController<
-  AnnouncementConfig,
-  AnnouncementState
+export class AnnouncementController extends BaseControllerV2<
+  typeof controllerName,
+  AnnouncementControllerState,
+  AnnouncementControllerMessenger
 > {
   /**
    * Creates a AnnouncementController instance.
    *
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param args - The arguments to this function.
+   * @param args.messenger - Messenger used to communicate with BaseV2 controller.
+   * @param args.state - Initial state to set on this controller.
+   * @param args.allAnnouncements - Announcements to be passed through to #addAnnouncements
    */
-  constructor(config: AnnouncementConfig, state?: AnnouncementState) {
-    super(config, state || defaultState);
-    this.initialize();
-    this._addAnnouncements();
+  constructor({
+    messenger,
+    state,
+    allAnnouncements,
+  }: {
+    messenger: AnnouncementControllerMessenger;
+    state?: AnnouncementControllerState;
+    allAnnouncements: AnnouncementMap;
+  }) {
+    const mergedState = { ...defaultState, ...state };
+    super({ messenger, metadata, name: controllerName, state: mergedState });
+    this.#addAnnouncements(allAnnouncements);
   }
 
   /**
@@ -74,23 +108,17 @@ export class AnnouncementController extends BaseController<
    * to check if there are any new announcements
    * if yes, the new announcement will be added to the state with a flag indicating
    * that the announcement is not seen by the user.
+   *
+   * @param allAnnouncements - all announcements to compare with the announcements from state
    */
-  private _addAnnouncements(): void {
-    const newAnnouncements: StateAnnouncementMap = {};
-    const { allAnnouncements } = this.config;
-    Object.values(allAnnouncements).forEach(
-      (announcement: StateAnnouncement) => {
-        newAnnouncements[announcement.id] = this.state.announcements[
+  #addAnnouncements(allAnnouncements: AnnouncementMap): void {
+    this.update((state) => {
+      Object.values(allAnnouncements).forEach((announcement: Announcement) => {
+        state.announcements[announcement.id] = state.announcements[
           announcement.id
-        ]
-          ? this.state.announcements[announcement.id]
-          : {
-              ...announcement,
-              isShown: false,
-            };
-      },
-    );
-    this.update({ announcements: newAnnouncements });
+        ] ?? { ...announcement, isShown: false };
+      });
+    });
   }
 
   /**
@@ -100,11 +128,10 @@ export class AnnouncementController extends BaseController<
    * @param viewedIds - The announcement IDs to mark as viewed.
    */
   updateViewed(viewedIds: ViewedAnnouncement): void {
-    const stateAnnouncements = this.state.announcements;
-
-    for (const id of Object.keys(viewedIds).map(Number)) {
-      stateAnnouncements[id].isShown = viewedIds[id];
-    }
-    this.update({ announcements: stateAnnouncements }, true);
+    this.update(({ announcements }) => {
+      for (const id of Object.keys(viewedIds).map(Number)) {
+        announcements[id].isShown = viewedIds[id];
+      }
+    });
   }
 }
