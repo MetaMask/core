@@ -30,7 +30,7 @@ async function main() {
   }
 
   const previewBuildMessage = `
-Preview builds have been published. [See these instructions]() for more information about preview builds.
+Preview builds have been published. [See these instructions](https://github.com/MetaMask/controllers/blob/main/docs/contributing.md#using-controllers-in-other-projects-during-developmenttesting) for more information about preview builds.
 
 <details>
 
