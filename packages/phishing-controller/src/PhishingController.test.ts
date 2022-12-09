@@ -65,6 +65,7 @@ describe('PhishingController', () => {
       .get(PHISHFORT_HOTLIST_FILE)
       .reply(200, []);
 
+    // eslint-disable-next-line no-new
     new PhishingController({});
 
     expect(nockScope.isDone()).toBe(false);
@@ -212,7 +213,7 @@ describe('PhishingController', () => {
       const clock = sinon.useFakeTimers();
       const controller = new PhishingController({ refreshInterval: 10 });
       await controller.updatePhishingLists();
-      await clock.tick(5);
+      clock.tick(5);
 
       expect(controller.isOutOfDate()).toBe(false);
     });

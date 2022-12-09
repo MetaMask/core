@@ -103,7 +103,7 @@ export class PhishingController extends BaseController<
   PhishingConfig,
   PhishingState
 > {
-  private detector: any;
+  #detector: any;
 
   #inProgressUpdate: Promise<void> | undefined;
 
@@ -143,13 +143,13 @@ export class PhishingController extends BaseController<
     };
 
     this.initialize();
-    this.detector = new PhishingDetector(this.state.phishing);
+    this.#detector = new PhishingDetector(this.state.phishing);
   }
 
   /**
    * Set the interval at which the phishing list will be refetched. Fetching will only occur on the next call to test/bypass. For immediate update to the phishing list, call updatePhishingLists directly.
    *
-   * @param interval - the new interval, in ms.
+   * @param interval - The new interval, in ms.
    */
   setRefreshInterval(interval: number) {
     this.configure({ refreshInterval: interval }, false, false);
@@ -158,7 +158,7 @@ export class PhishingController extends BaseController<
   /**
    * Determine if an update to the phishing configuration is needed.
    *
-   * @returns Whether an update is needed
+   * @returns Whether an update is needed.
    */
   isOutOfDate() {
     return Date.now() - this.state.lastFetched >= this.config.refreshInterval;
@@ -179,7 +179,7 @@ export class PhishingController extends BaseController<
     if (this.state.whitelist.indexOf(punycodeOrigin) !== -1) {
       return { result: false, type: 'all' }; // Same as whitelisted match returned by detector.check(...).
     }
-    return this.detector.check(punycodeOrigin);
+    return this.#detector.check(punycodeOrigin);
   }
 
   /**
@@ -246,8 +246,8 @@ export class PhishingController extends BaseController<
     let phishfortHotlist;
     try {
       [metamaskConfigLegacy, phishfortHotlist] = await Promise.all([
-        this.queryConfig<EthPhishingResponse>(METAMASK_CONFIG_URL),
-        this.queryConfig<string[]>(PHISHFORT_HOTLIST_URL),
+        this.#queryConfig<EthPhishingResponse>(METAMASK_CONFIG_URL),
+        this.#queryConfig<string[]>(PHISHFORT_HOTLIST_URL),
       ]);
     } finally {
       // Set `lastFetched` even for failed requests to prevent server from being overwhelmed with
@@ -273,7 +273,7 @@ export class PhishingController extends BaseController<
     // Correctly shaping PhishFort config.
     const phishfortConfig: EthPhishingDetectConfig = {
       allowlist: [],
-      blocklist: (phishfortHotlist || []).filter(
+      blocklist: (phishfortHotlist ?? []).filter(
         (i) => !metamaskConfig.blocklist.includes(i),
       ), // Removal of duplicates.
       fuzzylist: [],
@@ -290,13 +290,13 @@ export class PhishingController extends BaseController<
       return;
     }
 
-    this.detector = new PhishingDetector(configs);
+    this.#detector = new PhishingDetector(configs);
     this.update({
       phishing: configs,
     });
   }
 
-  private async queryConfig<ResponseType>(
+  async #queryConfig<ResponseType>(
     input: RequestInfo,
   ): Promise<ResponseType | null> {
     const response = await safelyExecute(
