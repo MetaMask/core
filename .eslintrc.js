@@ -79,6 +79,8 @@ module.exports = {
             leadingUnderscore: 'allow',
           },
         ],
+
+        '@typescript-eslint/require-await': 'off',
       },
     },
     {
