@@ -305,7 +305,7 @@ export class AddressBookController extends BaseController<
   /**
    * Returns a set of `immer` patches which, after being applied to the state,
    * will result in addresses filed under an old chain ID to also appear under a
-   * new chain IDs.
+   * new chain ID.
    *
    * @param frequentRpcChange - Represents an RPC entry whose chain ID has
    * changed.
