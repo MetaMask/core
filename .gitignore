@@ -11,6 +11,10 @@ package-lock.json
 .eslintcache
 
 .DS_STORE
+
+# Build preview message
+preview-build-message.txt
+
 packages/*/coverage
 packages/*/dist
 packages/*/docs
