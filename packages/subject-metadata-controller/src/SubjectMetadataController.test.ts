@@ -15,7 +15,7 @@ const controllerName = 'SubjectMetadataController';
 /**
  * Utility function for creating a controller messenger.
  *
- * @returns A tuple containing the messenger and a spy for the "hasPermission" action handler
+ * @returns A tuple containing the messenger and a spy for the "hasPermission" action handler.
  */
 function getSubjectMetadataControllerMessenger() {
   const controllerMessenger = new ControllerMessenger<
@@ -48,11 +48,11 @@ function getSubjectMetadataControllerMessenger() {
 /**
  * Utility function for building subject metadata.
  *
- * @param origin - The subject's origin
- * @param name - Optional subject name
- * @param subjectType - Optional subject type
- * @param opts - Optional extra options for the metadata
- * @returns The created metadata object
+ * @param origin - The subject's origin.
+ * @param name - Optional subject name.
+ * @param subjectType - Optional subject type.
+ * @param opts - Optional extra options for the metadata.
+ * @returns The created metadata object.
  */
 function getSubjectMetadata(
   origin: string,

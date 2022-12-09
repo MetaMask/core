@@ -100,11 +100,11 @@ export class SubjectMetadataController extends BaseControllerV2<
   SubjectMetadataControllerState,
   SubjectMetadataControllerMessenger
 > {
-  private readonly subjectCacheLimit: number;
+  readonly #subjectCacheLimit: number;
 
-  private readonly subjectsWithoutPermissionsEncounteredSinceStartup: Set<string>;
+  readonly #subjectsWithoutPermissionsEncounteredSinceStartup: Set<string>;
 
-  private readonly subjectHasPermissions: GenericPermissionController['hasPermissions'];
+  readonly #subjectHasPermissions: GenericPermissionController['hasPermissions'];
 
   constructor({
     messenger,
@@ -126,13 +126,13 @@ export class SubjectMetadataController extends BaseControllerV2<
       metadata: stateMetadata,
       messenger,
       state: {
-        ...SubjectMetadataController.getTrimmedState(state, hasPermissions),
+        ...SubjectMetadataController.#getTrimmedState(state, hasPermissions),
       },
     });
 
-    this.subjectHasPermissions = hasPermissions;
-    this.subjectCacheLimit = subjectCacheLimit;
-    this.subjectsWithoutPermissionsEncounteredSinceStartup = new Set();
+    this.#subjectHasPermissions = hasPermissions;
+    this.#subjectCacheLimit = subjectCacheLimit;
+    this.#subjectsWithoutPermissionsEncounteredSinceStartup = new Set();
 
     this.messagingSystem.registerActionHandler(
       `${this.name}:getSubjectMetadata`,
@@ -145,7 +145,7 @@ export class SubjectMetadataController extends BaseControllerV2<
    * encountered since startup, so as to not prematurely reach the cache limit.
    */
   clearState(): void {
-    this.subjectsWithoutPermissionsEncounteredSinceStartup.clear();
+    this.#subjectsWithoutPermissionsEncounteredSinceStartup.clear();
     this.update((_draftState) => {
       return { ...defaultState };
     });
@@ -154,7 +154,7 @@ export class SubjectMetadataController extends BaseControllerV2<
   /**
    * Stores domain metadata for the given origin (subject). Deletes metadata for
    * subjects without permissions in a FIFO manner once more than
-   * {@link SubjectMetadataController.subjectCacheLimit} distinct origins have
+   * {@link SubjectMetadataController.#subjectCacheLimit} distinct origins have
    * been added since boot.
    *
    * In order to prevent a degraded user experience,
@@ -177,24 +177,24 @@ export class SubjectMetadataController extends BaseControllerV2<
     // We only delete the oldest encountered subject from the cache, again to
     // ensure that the user's experience isn't degraded by missing icons etc.
     if (
-      this.subjectsWithoutPermissionsEncounteredSinceStartup.size >=
-      this.subjectCacheLimit
+      this.#subjectsWithoutPermissionsEncounteredSinceStartup.size >=
+      this.#subjectCacheLimit
     ) {
       const cachedOrigin =
-        this.subjectsWithoutPermissionsEncounteredSinceStartup
+        this.#subjectsWithoutPermissionsEncounteredSinceStartup
           .values()
           .next().value;
 
-      this.subjectsWithoutPermissionsEncounteredSinceStartup.delete(
+      this.#subjectsWithoutPermissionsEncounteredSinceStartup.delete(
         cachedOrigin,
       );
 
-      if (!this.subjectHasPermissions(cachedOrigin)) {
+      if (!this.#subjectHasPermissions(cachedOrigin)) {
         originToForget = cachedOrigin;
       }
     }
 
-    this.subjectsWithoutPermissionsEncounteredSinceStartup.add(origin);
+    this.#subjectsWithoutPermissionsEncounteredSinceStartup.add(origin);
 
     this.update((draftState) => {
       // Typecast: ts(2589)
@@ -220,10 +220,10 @@ export class SubjectMetadataController extends BaseControllerV2<
    */
   trimMetadataState(): void {
     this.update((draftState) => {
-      return SubjectMetadataController.getTrimmedState(
+      return SubjectMetadataController.#getTrimmedState(
         // Typecast: ts(2589)
         draftState,
-        this.subjectHasPermissions,
+        this.#subjectHasPermissions,
       );
     });
   }
@@ -241,9 +241,9 @@ export class SubjectMetadataController extends BaseControllerV2<
    * subject metadata, the returned object will be equivalent to the default
    * state of this controller.
    */
-  private static getTrimmedState(
+  static #getTrimmedState(
     state: Partial<SubjectMetadataControllerState>,
-    hasPermissions: SubjectMetadataController['subjectHasPermissions'],
+    hasPermissions: (origin: string) => boolean,
   ): SubjectMetadataControllerState {
     const { subjectMetadata = {} } = state;
 
