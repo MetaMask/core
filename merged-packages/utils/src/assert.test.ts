@@ -1,5 +1,6 @@
 import { string } from 'superstruct';
 import * as superstructModule from 'superstruct';
+
 import {
   assert,
   assertExhaustive,
@@ -18,7 +19,7 @@ describe('assert', () => {
     assert(item !== undefined);
 
     // This will fail to compile otherwise
-    expect(item.foo).toStrictEqual(1);
+    expect(item.foo).toBe(1);
   });
 
   it('throws', () => {
@@ -98,6 +99,7 @@ describe('assertStruct', () => {
 
   it('includes the value thrown in the message if it is not an error', () => {
     jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+      // eslint-disable-next-line @typescript-eslint/no-throw-literal
       throw 'foo.';
     });
 

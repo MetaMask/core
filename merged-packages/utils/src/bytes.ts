@@ -82,14 +82,14 @@ export function bytesToHex(bytes: Uint8Array): Hex {
   }
 
   const lookupTable = getPrecomputedHexValues();
-  const hex = new Array(bytes.length);
+  const hexadecimal = new Array(bytes.length);
 
   for (let i = 0; i < bytes.length; i++) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    hex[i] = lookupTable[bytes[i]!];
+    hexadecimal[i] = lookupTable[bytes[i]!];
   }
 
-  return add0x(hex.join(''));
+  return add0x(hexadecimal.join(''));
 }
 
 /**
@@ -105,8 +105,8 @@ export function bytesToHex(bytes: Uint8Array): Hex {
 export function bytesToBigInt(bytes: Uint8Array): bigint {
   assertIsBytes(bytes);
 
-  const hex = bytesToHex(bytes);
-  return BigInt(hex);
+  const hexadecimal = bytesToHex(bytes);
+  return BigInt(hexadecimal);
 }
 
 /**
@@ -226,8 +226,8 @@ export function bigIntToBytes(value: bigint): Uint8Array {
   assert(typeof value === 'bigint', 'Value must be a bigint.');
   assert(value >= BigInt(0), 'Value must be a non-negative bigint.');
 
-  const hex = value.toString(16);
-  return hexToBytes(hex);
+  const hexadecimal = value.toString(16);
+  return hexToBytes(hexadecimal);
 }
 
 /**
@@ -301,8 +301,8 @@ export function numberToBytes(value: number): Uint8Array {
     'Value is not a safe integer. Use `bigIntToBytes` instead.',
   );
 
-  const hex = value.toString(16);
-  return hexToBytes(hex);
+  const hexadecimal = value.toString(16);
+  return hexToBytes(hexadecimal);
 }
 
 /**
@@ -417,6 +417,10 @@ export function concatBytes(values: Bytes[]): Uint8Array {
  * @returns The {@link DataView}.
  */
 export function createDataView(bytes: Uint8Array): DataView {
+  // To maintain compatibility with Node.js, we need to check if the bytes are
+  // a Buffer. If so, we need to slice the buffer to get the underlying
+  // ArrayBuffer.
+  // eslint-disable-next-line no-restricted-globals
   if (typeof Buffer !== 'undefined' && bytes instanceof Buffer) {
     const buffer = bytes.buffer.slice(
       bytes.byteOffset,

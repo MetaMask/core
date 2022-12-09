@@ -1,4 +1,5 @@
 import { MockWritable } from 'stdio-mock';
+
 import { createProjectLogger, createModuleLogger } from './logging';
 
 describe('logging', () => {

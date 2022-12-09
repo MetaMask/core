@@ -1,18 +1,6 @@
 import * as superstructModule from 'superstruct';
 import { validate } from 'superstruct';
-import {
-  ARRAY_OF_DIFFRENT_KINDS_OF_NUMBERS,
-  COMPLEX_OBJECT,
-  JSON_FIXTURES,
-  JSON_RPC_ERROR_FIXTURES,
-  JSON_RPC_FAILURE_FIXTURES,
-  JSON_RPC_NOTIFICATION_FIXTURES,
-  JSON_RPC_PENDING_RESPONSE_FIXTURES,
-  JSON_RPC_REQUEST_FIXTURES,
-  JSON_RPC_RESPONSE_FIXTURES,
-  JSON_RPC_SUCCESS_FIXTURES,
-  NON_SERIALIZABLE_NESTED_OBJECT,
-} from './__fixtures__';
+
 import {
   assert,
   assertIsJsonRpcError,
@@ -34,15 +22,26 @@ import {
   JsonStruct,
   validateJsonAndGetSize,
 } from '.';
+import {
+  ARRAY_OF_DIFFRENT_KINDS_OF_NUMBERS,
+  COMPLEX_OBJECT,
+  JSON_FIXTURES,
+  JSON_RPC_ERROR_FIXTURES,
+  JSON_RPC_FAILURE_FIXTURES,
+  JSON_RPC_NOTIFICATION_FIXTURES,
+  JSON_RPC_PENDING_RESPONSE_FIXTURES,
+  JSON_RPC_REQUEST_FIXTURES,
+  JSON_RPC_RESPONSE_FIXTURES,
+  JSON_RPC_SUCCESS_FIXTURES,
+  NON_SERIALIZABLE_NESTED_OBJECT,
+} from './__fixtures__';
 
 describe('json', () => {
   describe('JsonStruct', () => {
     it('returns error message', () => {
       const [error] = validate(undefined, JsonStruct);
       assert(error !== undefined);
-      expect(error.message).toStrictEqual(
-        'Expected a valid JSON-serializable value',
-      );
+      expect(error.message).toBe('Expected a valid JSON-serializable value');
     });
   });
 
@@ -106,6 +105,7 @@ describe('json', () => {
 
     it('includes the value thrown in the message if it is not an error', () => {
       jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw 'oops';
       });
 
@@ -158,6 +158,7 @@ describe('json', () => {
 
     it('includes the value thrown in the message if it is not an error', () => {
       jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw 'oops';
       });
 
@@ -210,6 +211,7 @@ describe('json', () => {
 
     it('includes the value thrown in the message if it is not an error', () => {
       jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw 'oops';
       });
 
@@ -262,6 +264,7 @@ describe('json', () => {
 
     it('includes the value thrown in the message if it is not an error', () => {
       jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw 'oops';
       });
 
@@ -314,6 +317,7 @@ describe('json', () => {
 
     it('includes the value thrown in the message if it is not an error', () => {
       jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw 'oops';
       });
 
@@ -358,6 +362,7 @@ describe('json', () => {
 
     it('includes the value thrown in the message if it is not an error', () => {
       jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw 'oops';
       });
 
@@ -410,6 +415,7 @@ describe('json', () => {
 
     it('includes the value thrown in the message if it is not an error', () => {
       jest.spyOn(superstructModule, 'assert').mockImplementation(() => {
+        // eslint-disable-next-line @typescript-eslint/no-throw-literal
         throw 'oops';
       });
 
@@ -550,10 +556,10 @@ describe('json', () => {
       ).toStrictEqual([true, 73]);
     });
 
-    it('should return true for serialization and 1288 for a size of a complex nested object', () => {
+    it('should return true for serialization and 1280 for a size of a complex nested object', () => {
       expect(validateJsonAndGetSize(COMPLEX_OBJECT)).toStrictEqual([
         true,
-        1288,
+        1280,
       ]);
     });
 
@@ -571,7 +577,7 @@ describe('json', () => {
     it('should return false for serialization and 0 for size when non-serializable nested object was provided', () => {
       expect(
         NON_SERIALIZABLE_NESTED_OBJECT.levelOne.levelTwo.levelThree.levelFour.levelFive(),
-      ).toStrictEqual('anything');
+      ).toBe('anything');
 
       expect(
         validateJsonAndGetSize(NON_SERIALIZABLE_NESTED_OBJECT),
@@ -771,6 +777,7 @@ describe('json', () => {
       expect(validateJsonAndGetSize(123, true)).toStrictEqual([true, 0]);
       expect(validateJsonAndGetSize(undefined, true)).toStrictEqual([false, 0]);
 
+      /* eslint-disable @typescript-eslint/naming-convention */
       // Value: string escape ASCII
       const charToJson = {
         '"': '\\"',
@@ -808,6 +815,7 @@ describe('json', () => {
         '\x1E': '\\u001e',
         '\x1F': '\\u001f',
       };
+      /* eslint-enable @typescript-eslint/naming-convention */
 
       const chars = Object.keys(charToJson).join('');
       const charsReversed = Object.keys(charToJson).reverse().join('');
@@ -849,7 +857,7 @@ describe('json', () => {
       ];
 
       // eslint-disable-next-line guard-for-in
-      for (const strUnicode in stringEscapeUnicode) {
+      for (const strUnicode of stringEscapeUnicode) {
         expect(validateJsonAndGetSize(strUnicode, true)).toStrictEqual([
           true,
           0,

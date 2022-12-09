@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/consistent-type-definitions */
 
 import { expectAssignable, expectNotAssignable } from 'tsd';
+
 import type { Json } from '.';
 
 // Valid Json:
@@ -128,8 +129,8 @@ expectNotAssignable<Json>(a);
 
 // The Json type gets confused by classes. This class instance is valid Json,
 // but it's incompatible with the Json type.
-class B {
+class Foo {
   a!: number;
 }
-const b = new B();
-expectNotAssignable<Json>(b);
+const foo = new Foo();
+expectNotAssignable<Json>(foo);

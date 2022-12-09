@@ -1,4 +1,12 @@
 import {
+  BYTES_FIXTURES,
+  INVALID_BYTES_FIXTURES,
+  LARGE_BYTES_FIXTURES,
+  TWOS_COMPLEMENT_BYTES_FIXTURES,
+  UPPER_CASE_HEX_FIXTURES,
+  UTF_8_BYTES_FIXTURES,
+} from './__fixtures__';
+import {
   assertIsBytes,
   bigIntToBytes,
   bytesToBigInt,
@@ -15,14 +23,6 @@ import {
   stringToBytes,
   valueToBytes,
 } from './bytes';
-import {
-  BYTES_FIXTURES,
-  INVALID_BYTES_FIXTURES,
-  LARGE_BYTES_FIXTURES,
-  TWOS_COMPLEMENT_BYTES_FIXTURES,
-  UPPER_CASE_HEX_FIXTURES,
-  UTF_8_BYTES_FIXTURES,
-} from './__fixtures__/bytes';
 
 describe('isBytes', () => {
   it('returns true for a Node.js Buffer', () => {
@@ -55,15 +55,15 @@ describe('assertIsBytes', () => {
 describe('bytesToHex', () => {
   it.each(BYTES_FIXTURES)(
     'returns a hex string from a byte array',
-    ({ bytes, hex }) => {
-      expect(bytesToHex(bytes)).toBe(hex);
+    ({ bytes, hexadecimal }) => {
+      expect(bytesToHex(bytes)).toBe(hexadecimal);
     },
   );
 
   it.each(LARGE_BYTES_FIXTURES)(
     'returns a hex string from a large byte array',
-    ({ bytes, hex }) => {
-      expect(bytesToHex(bytes)).toBe(hex);
+    ({ bytes, hexadecimal }) => {
+      expect(bytesToHex(bytes)).toBe(hexadecimal);
     },
   );
 
@@ -173,22 +173,22 @@ describe('bytesToString', () => {
 describe('hexToBytes', () => {
   it.each(BYTES_FIXTURES)(
     'returns a byte array from a hex string',
-    ({ bytes, hex }) => {
-      expect(hexToBytes(hex)).toStrictEqual(bytes);
+    ({ bytes, hexadecimal }) => {
+      expect(hexToBytes(hexadecimal)).toStrictEqual(bytes);
     },
   );
 
   it.each(LARGE_BYTES_FIXTURES)(
     'returns a byte array from a large hex string',
-    ({ bytes, hex }) => {
-      expect(hexToBytes(hex)).toStrictEqual(bytes);
+    ({ bytes, hexadecimal }) => {
+      expect(hexToBytes(hexadecimal)).toStrictEqual(bytes);
     },
   );
 
   it.each(UPPER_CASE_HEX_FIXTURES)(
     'returns a byte array from an upper case hex string',
-    ({ bytes, hex }) => {
-      expect(hexToBytes(hex)).toStrictEqual(bytes);
+    ({ bytes, hexadecimal }) => {
+      expect(hexToBytes(hexadecimal)).toStrictEqual(bytes);
     },
   );
 
@@ -367,19 +367,19 @@ describe('stringToBytes', () => {
 describe('valueToBytes', () => {
   it.each(BYTES_FIXTURES)(
     'returns a byte array from a value',
-    ({ bigint, number, hex, bytes }) => {
+    ({ bigint, number, hexadecimal, bytes }) => {
       expect(valueToBytes(bigint)).toStrictEqual(bytes);
       expect(valueToBytes(number)).toStrictEqual(bytes);
-      expect(valueToBytes(hex)).toStrictEqual(bytes);
+      expect(valueToBytes(hexadecimal)).toStrictEqual(bytes);
       expect(valueToBytes(bytes)).toBe(bytes);
     },
   );
 
   it.each(LARGE_BYTES_FIXTURES)(
     'returns a byte array from a large value',
-    ({ bigint, hex, bytes }) => {
+    ({ bigint, hexadecimal, bytes }) => {
       expect(valueToBytes(bigint)).toStrictEqual(bytes);
-      expect(valueToBytes(hex)).toStrictEqual(bytes);
+      expect(valueToBytes(hexadecimal)).toStrictEqual(bytes);
       expect(valueToBytes(bytes)).toBe(bytes);
     },
   );

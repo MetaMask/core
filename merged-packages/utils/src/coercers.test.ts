@@ -4,9 +4,9 @@ import {
   NEGATIVE_INTEGERS,
   POSITIVE_INTEGERS,
 } from './__fixtures__';
+import { bytesToHex, hexToBytes } from './bytes';
 import { createBigInt, createBytes, createHex, createNumber } from './coercers';
 import { add0x } from './hex';
-import { bytesToHex, hexToBytes } from './bytes';
 
 describe('createNumber', () => {
   it.each(POSITIVE_INTEGERS)(

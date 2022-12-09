@@ -1063,18 +1063,18 @@ export const JSON_RPC_PENDING_RESPONSE_FIXTURES = {
 export const COMPLEX_OBJECT = {
   data: {
     account: {
-      __typename: 'Account',
+      typename: 'Account',
       registrations: [
         {
-          __typename: 'Registration',
+          typename: 'Registration',
           domain: {
-            __typename: 'Domain',
+            typename: 'Domain',
             isMigrated: true,
             labelName: 'mycrypto',
             labelhash:
               '0x9a781ca0d227debc3ee76d547c960b0803a6c9f58c6d3b4722f12ede7e6ef7c9',
             name: 'mycrypto.eth',
-            parent: { __typename: 'Domain', name: 'eth' },
+            parent: { typename: 'Domain', name: 'eth' },
           },
           expiryDate: '1754111315',
         },

@@ -1,4 +1,5 @@
 import { is, pattern, string, Struct } from 'superstruct';
+
 import { assert } from './assert';
 
 export type Hex = `0x${string}`;
@@ -58,32 +59,32 @@ export function assertIsStrictHexString(value: unknown): asserts value is Hex {
  * Add the `0x`-prefix to a hexadecimal string. If the string already has the
  * prefix, it is returned as-is.
  *
- * @param hex - The hexadecimal string to add the prefix to.
+ * @param hexadecimal - The hexadecimal string to add the prefix to.
  * @returns The prefixed hexadecimal string.
  */
-export function add0x(hex: string): Hex {
-  if (hex.startsWith('0x')) {
-    return hex as Hex;
+export function add0x(hexadecimal: string): Hex {
+  if (hexadecimal.startsWith('0x')) {
+    return hexadecimal as Hex;
   }
 
-  if (hex.startsWith('0X')) {
-    return `0x${hex.substring(2)}`;
+  if (hexadecimal.startsWith('0X')) {
+    return `0x${hexadecimal.substring(2)}`;
   }
 
-  return `0x${hex}`;
+  return `0x${hexadecimal}`;
 }
 
 /**
  * Remove the `0x`-prefix from a hexadecimal string. If the string doesn't have
  * the prefix, it is returned as-is.
  *
- * @param hex - The hexadecimal string to remove the prefix from.
+ * @param hexadecimal - The hexadecimal string to remove the prefix from.
  * @returns The un-prefixed hexadecimal string.
  */
-export function remove0x(hex: string): string {
-  if (hex.startsWith('0x') || hex.startsWith('0X')) {
-    return hex.substring(2);
+export function remove0x(hexadecimal: string): string {
+  if (hexadecimal.startsWith('0x') || hexadecimal.startsWith('0X')) {
+    return hexadecimal.substring(2);
   }
 
-  return hex;
+  return hexadecimal;
 }

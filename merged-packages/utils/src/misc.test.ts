@@ -52,7 +52,7 @@ describe('miscellaneous', () => {
         Symbol('foo'),
         [],
         () => undefined,
-        Promise.resolve,
+        Promise.resolve.bind(Promise),
         1,
         null,
         undefined,
@@ -84,8 +84,8 @@ describe('miscellaneous', () => {
         [
           [{ a: 1 }, 'a'],
           [{ [symbol]: 1 }, symbol],
-          [{ 2: 'b' }, 2],
-          [{ a: 1, 2: 'b', c: 'x' }, 'c'],
+          [{ two: 'b' }, 'two'],
+          [{ a: 1, two: 'b', c: 'x' }, 'c'],
         ] as const
       ).forEach(([objectValue, property]) => {
         expect(hasProperty(objectValue, property)).toBe(true);

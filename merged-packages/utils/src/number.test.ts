@@ -1,11 +1,11 @@
-import { bigIntToHex, hexToBigInt, hexToNumber, numberToHex } from './number';
 import { NUMBER_VALUES } from './__fixtures__';
+import { bigIntToHex, hexToBigInt, hexToNumber, numberToHex } from './number';
 
 describe('numberToHex', () => {
   it.each(NUMBER_VALUES)(
     'converts a number to a hex string',
-    ({ number, hex }) => {
-      expect(numberToHex(number)).toBe(hex);
+    ({ number, hexadecimal }) => {
+      expect(numberToHex(number)).toBe(hexadecimal);
     },
   );
 
@@ -39,8 +39,8 @@ describe('numberToHex', () => {
 describe('bigIntToHex', () => {
   it.each(NUMBER_VALUES)(
     'converts a bigint to a hex string',
-    ({ bigint, hex }) => {
-      expect(bigIntToHex(bigint)).toBe(hex);
+    ({ bigint, hexadecimal }) => {
+      expect(bigIntToHex(bigint)).toBe(hexadecimal);
     },
   );
 
@@ -65,8 +65,8 @@ describe('bigIntToHex', () => {
 describe('hexToNumber', () => {
   it.each(NUMBER_VALUES)(
     'converts a hex string to a number',
-    ({ number, hex }) => {
-      expect(hexToNumber(hex)).toBe(number);
+    ({ number, hexadecimal }) => {
+      expect(hexToNumber(hexadecimal)).toBe(number);
     },
   );
 
@@ -84,8 +84,8 @@ describe('hexToNumber', () => {
 describe('hexToBigInt', () => {
   it.each(NUMBER_VALUES)(
     'converts a hex string to a bigint',
-    ({ bigint, hex }) => {
-      expect(hexToBigInt(hex)).toBe(bigint);
+    ({ bigint, hexadecimal }) => {
+      expect(hexToBigInt(hexadecimal)).toBe(bigint);
     },
   );
 

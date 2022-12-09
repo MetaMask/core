@@ -9,9 +9,10 @@ import {
   StructError,
   union,
 } from 'superstruct';
-import { Hex, StrictHexStruct } from './hex';
+
 import { assert } from './assert';
 import { bytesToHex, hexToBytes } from './bytes';
+import { Hex, StrictHexStruct } from './hex';
 
 const NumberLikeStruct = union([number(), bigint(), string(), StrictHexStruct]);
 const NumberCoercer = coerce(number(), NumberLikeStruct, Number);
@@ -103,7 +104,9 @@ export function createBigInt(value: NumberLike): bigint {
     return create(value, BigIntCoercer);
   } catch (error) {
     if (error instanceof StructError) {
-      throw new Error(`Expected a number-like value, got "${error.value}".`);
+      throw new Error(
+        `Expected a number-like value, got "${String(error.value)}".`,
+      );
     }
 
     /* istanbul ignore next */
@@ -139,7 +142,9 @@ export function createBytes(value: BytesLike): Uint8Array {
     return create(value, BytesCoercer);
   } catch (error) {
     if (error instanceof StructError) {
-      throw new Error(`Expected a bytes-like value, got "${error.value}".`);
+      throw new Error(
+        `Expected a bytes-like value, got "${String(error.value)}".`,
+      );
     }
 
     /* istanbul ignore next */
@@ -178,7 +183,9 @@ export function createHex(value: BytesLike): Hex {
     return create(value, HexCoercer);
   } catch (error) {
     if (error instanceof StructError) {
-      throw new Error(`Expected a bytes-like value, got "${error.value}".`);
+      throw new Error(
+        `Expected a bytes-like value, got "${String(error.value)}".`,
+      );
     }
 
     /* istanbul ignore next */
