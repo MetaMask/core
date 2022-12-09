@@ -34,7 +34,7 @@ Preview builds have been published. [See these instructions](https://github.com/
 
 <details>
 
-<summary>Expand for full list of packages and versions:</summary>
+<summary>Expand for full list of packages and versions.</summary>
 
 
 \`\`\`
