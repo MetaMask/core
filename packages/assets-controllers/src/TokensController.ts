@@ -767,7 +767,7 @@ export class TokensController extends BaseController<
     }
 
     let newAllDetectedTokens = allDetectedTokens;
-    if (newDetectedTokens?.length) {
+    if (newDetectedTokens !== undefined) {
       const networkDetectedTokens = allDetectedTokens[chainIdToAddTokens];
       const newDetectedNetworkTokens = {
         ...networkDetectedTokens,
