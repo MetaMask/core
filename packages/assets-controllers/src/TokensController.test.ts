@@ -756,6 +756,7 @@ describe('TokensController', () => {
         [DETECTED_CHAINID]: {
           [DETECTED_ADDRESS]: [detectedToken],
         },
+        '4': { '0xabc': [] },
       });
 
       expect(tokensController.state.allTokens).toStrictEqual({
@@ -763,7 +764,6 @@ describe('TokensController', () => {
           [CONFIGURED_ADDRESS]: [directlyAddedToken],
         },
       });
-
       stub.restore();
     });
   });
@@ -850,6 +850,21 @@ describe('TokensController', () => {
           dummySelectedAddress
         ],
       ).toStrictEqual(dummyTokens);
+    });
+
+    it('should nest detectedTokens under chain ID and selected address when detectedTokens provided is an empty list', () => {
+      tokensController.configure({
+        selectedAddress: dummySelectedAddress,
+        chainId: NetworksChainId.mainnet,
+      });
+      const processedTokens = tokensController._getNewAllTokensState({
+        newDetectedTokens: [],
+      });
+      expect(
+        processedTokens.newAllDetectedTokens[NetworksChainId.mainnet][
+          dummySelectedAddress
+        ],
+      ).toStrictEqual([]);
     });
 
     it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', () => {
