@@ -1,6 +1,6 @@
-# Controllers
+# Core Monorepo
 
-A collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets.
+This monorepo is a collection of packages used across multiple MetaMask clients (e.g. [`metamask-extension`](https://github.com/MetaMask/metamask-extension/), [`metamask-mobile`](https://github.com/MetaMask/metamask-mobile/)).
 
 ## Modules
 

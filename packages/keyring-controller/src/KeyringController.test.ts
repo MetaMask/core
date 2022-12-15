@@ -307,7 +307,7 @@ describe('KeyringController', () => {
   /**
    * If there is only HD Key Tree keyring with 1 account and removeAccount is called passing that account
    * It deletes keyring object also from state - not sure if this is correct behavior.
-   * https://github.com/MetaMask/controllers/issues/801
+   * https://github.com/MetaMask/core/issues/801
    */
   it('should remove HD Key Tree keyring from state when single account associated with it is deleted', async () => {
     const account = initialState.keyrings[0].accounts[0];
@@ -385,7 +385,7 @@ describe('KeyringController', () => {
 
   /**
    * signPersonalMessage does not fail for empty data value
-   * https://github.com/MetaMask/controllers/issues/799
+   * https://github.com/MetaMask/core/issues/799
    */
   it('should sign personal message even if empty data is passed', async () => {
     const account = initialState.keyrings[0].accounts[0];
@@ -660,7 +660,7 @@ describe('KeyringController', () => {
 
   /**
    * Task added to improve check for valid transaction in signTransaction method
-   * https://github.com/MetaMask/controllers/issues/800
+   * https://github.com/MetaMask/core/issues/800
    */
   it('should not sign transaction if transaction is not valid', async () => {
     await expect(async () => {

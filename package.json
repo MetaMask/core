@@ -1,11 +1,11 @@
 {
-  "name": "@metamask/controllers-monorepo",
+  "name": "@metamask/core-monorepo",
   "version": "38.0.0",
   "private": true,
-  "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
+  "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
     "type": "git",
-    "url": "https://github.com/MetaMask/controllers.git"
+    "url": "https://github.com/MetaMask/core.git"
   },
   "files": [],
   "workspaces": [

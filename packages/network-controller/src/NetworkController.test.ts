@@ -203,7 +203,7 @@ describe('NetworkController', () => {
   it('should look up the network', async () => {
     const testConfig = {
       // This test needs a real project ID as it makes a test
-      // `eth_version` call; https://github.com/MetaMask/controllers/issues/1
+      // `eth_version` call; https://github.com/MetaMask/core/issues/1
       infuraProjectId: '341eacb578dd44a1a049cbc5f6fd4035',
       messenger,
     };
