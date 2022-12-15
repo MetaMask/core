@@ -756,7 +756,6 @@ describe('TokensController', () => {
         [DETECTED_CHAINID]: {
           [DETECTED_ADDRESS]: [detectedToken],
         },
-        '4': { '0xabc': [] },
       });
 
       expect(tokensController.state.allTokens).toStrictEqual({
@@ -852,11 +851,44 @@ describe('TokensController', () => {
       ).toStrictEqual(dummyTokens);
     });
 
-    it('should nest detectedTokens under chain ID and selected address when detectedTokens provided is an empty list', () => {
+    it('should nest allTokens under chain ID and selected address when detectedTokens provided is an empty list', async () => {
       tokensController.configure({
         selectedAddress: dummySelectedAddress,
         chainId: NetworksChainId.mainnet,
       });
+      await tokensController.addTokens(dummyTokens);
+      const processedTokens = tokensController._getNewAllTokensState({
+        newTokens: [],
+      });
+      expect(
+        processedTokens.newAllTokens[NetworksChainId.mainnet][
+          dummySelectedAddress
+        ],
+      ).toStrictEqual([]);
+    });
+
+    it('should nest allIgnoredTokens under chain ID and selected address when detectedTokens provided is an empty list', async () => {
+      tokensController.configure({
+        selectedAddress: dummySelectedAddress,
+        chainId: NetworksChainId.mainnet,
+      });
+      await tokensController.ignoreTokens(['0xabc']);
+      const processedTokens = tokensController._getNewAllTokensState({
+        newIgnoredTokens: [],
+      });
+      expect(
+        processedTokens.newAllIgnoredTokens[NetworksChainId.mainnet][
+          dummySelectedAddress
+        ],
+      ).toStrictEqual([]);
+    });
+
+    it('should nest allDetectedTokens under chain ID and selected address when detectedTokens provided is an empty list', async () => {
+      tokensController.configure({
+        selectedAddress: dummySelectedAddress,
+        chainId: NetworksChainId.mainnet,
+      });
+      await tokensController.addDetectedTokens(dummyTokens);
       const processedTokens = tokensController._getNewAllTokensState({
         newDetectedTokens: [],
       });
