@@ -176,7 +176,7 @@ gen_enforced_field(WorkspaceCwd, 'bugs.url', CorrectBugsUrl) :-
   repo_name(RepoUrl, RepoName),
   atomic_list_concat(['https://github.com/MetaMask/', RepoName, '/issues'], CorrectBugsUrl).
 % Non-published packages do not have a bugs URL.
-gen_enforced_field(WorkspaceCwd, 'homepage', null) :-
+gen_enforced_field(WorkspaceCwd, 'bugs.url', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
 % All packages must specify Git as the repository type.
