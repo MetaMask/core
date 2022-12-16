@@ -156,8 +156,13 @@ gen_enforced_field(WorkspaceCwd, 'repository.type', 'git').
 gen_enforced_field(WorkspaceCwd, 'repository.url', 'https://github.com/MetaMask/controllers.git').
 
 % "bugs.url" must be "https://github.com/MetaMask/controllers/issues" for all
-% packages.
-gen_enforced_field(WorkspaceCwd, 'bugs.url', 'https://github.com/MetaMask/controllers/issues').
+% workspace packages.
+gen_enforced_field(WorkspaceCwd, 'bugs.url', 'https://github.com/MetaMask/controllers/issues') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+
+% "bugs" must unset for the root.
+gen_enforced_field(WorkspaceCwd, 'bugs', null) :-
+  workspace_field(WorkspaceCwd, 'private', true).
 
 % "license" must be "MIT" for all workspace packages and unset for the root.
 gen_enforced_field(WorkspaceCwd, 'license', 'MIT') :-

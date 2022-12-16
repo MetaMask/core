@@ -3,9 +3,6 @@
   "version": "37.0.0",
   "private": true,
   "description": "Collection of platform-agnostic modules for creating secure data models for cryptocurrency wallets",
-  "bugs": {
-    "url": "https://github.com/MetaMask/controllers/issues"
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/controllers.git"
