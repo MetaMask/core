@@ -743,7 +743,7 @@ export class TokensController extends BaseController<
     let newAllTokens = allTokens;
     if (
       newTokens?.length ||
-      (newTokens !== undefined &&
+      (newTokens &&
         allTokens &&
         allTokens[chainIdToAddTokens] &&
         allTokens[chainIdToAddTokens][userAddressToAddTokens])
@@ -762,7 +762,7 @@ export class TokensController extends BaseController<
     let newAllIgnoredTokens = allIgnoredTokens;
     if (
       newIgnoredTokens?.length ||
-      (newIgnoredTokens !== undefined &&
+      (newIgnoredTokens &&
         allIgnoredTokens &&
         allIgnoredTokens[chainIdToAddTokens] &&
         allIgnoredTokens[chainIdToAddTokens][userAddressToAddTokens])
@@ -781,7 +781,7 @@ export class TokensController extends BaseController<
     let newAllDetectedTokens = allDetectedTokens;
     if (
       newDetectedTokens?.length ||
-      (newDetectedTokens !== undefined &&
+      (newDetectedTokens &&
         allDetectedTokens &&
         allDetectedTokens[chainIdToAddTokens] &&
         allDetectedTokens[chainIdToAddTokens][userAddressToAddTokens])
