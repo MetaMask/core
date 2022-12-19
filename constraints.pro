@@ -1,6 +1,6 @@
-%%%%%
+%===============================================================================
 % Utility predicates
-%%%%%
+%===============================================================================
 
 % True if and only if VersionRange is a value that we would expect to see
 % following a package in a "*dependencies" field within a `package.json`.
@@ -101,24 +101,42 @@ workspace_package_name(WorkspaceCwd, WorkspacePackageName) :-
   workspace_basename(WorkspaceCwd, WorkspaceBasename),
   atom_concat('@metamask/', WorkspaceBasename, WorkspacePackageName).
 
-%%%%%
-% Constraints
-%%%%%
+% True if RepoName can be unified with the repository name part of RepoUrl, a
+% complete URL for a repository on GitHub. This URL must include the ".git"
+% extension.
+repo_name(RepoUrl, RepoName) :-
+  Prefix = 'https://github.com/MetaMask/',
+  atom_length(Prefix, PrefixLength),
+  Suffix = '.git',
+  atom_length(Suffix, SuffixLength),
+  atom_length(RepoUrl, RepoUrlLength),
+  sub_atom(RepoUrl, 0, PrefixLength, After, Prefix),
+  sub_atom(RepoUrl, Before, SuffixLength, 0, Suffix),
+  Start is RepoUrlLength - After + 1,
+  End is Before + 1,
+  RepoNameLength is End - Start,
+  sub_atom(RepoUrl, PrefixLength, RepoNameLength, SuffixLength, RepoName).
 
-% "name" is required for all workspaces (including the root).
+%===============================================================================
+% Constraints
+%===============================================================================
+
+% All packages, published or otherwise, must have a name.
 \+ gen_enforced_field(WorkspaceCwd, 'name', null).
 
-% The name of the root package can be anything, but the name of a workspace
+% The name of the root package can be anything, but the name of a non-root
 % package must match its directory (e.g., a package located in "packages/foo"
 % must be called "@metamask/foo").
+%
+% NOTE: This assumes that the set of non-root workspaces is flat. Nested
+% workspaces will be added in a future change.
 gen_enforced_field(WorkspaceCwd, 'name', WorkspacePackageName) :-
-  \+ workspace_field(WorkspaceCwd, 'private', true),
+  WorkspaceCwd \= '.',
   workspace_package_name(WorkspaceCwd, WorkspacePackageName).
 
-% "description" is required for all packages.
+% All packages, published or otherwise, must have a description.
 \+ gen_enforced_field(WorkspaceCwd, 'description', null).
-
-% The value of "description" cannot end with a period.
+% The description cannot end with a period.
 gen_enforced_field(WorkspaceCwd, 'description', DescriptionWithoutTrailingPeriod) :-
   workspace_field(WorkspaceCwd, 'description', Description),
   atom_length(Description, Length),
@@ -131,100 +149,117 @@ gen_enforced_field(WorkspaceCwd, 'description', DescriptionWithoutTrailingPeriod
       DescriptionWithoutTrailingPeriod = Description
   ).
 
-% "keywords" must be the same across all workspace packages
-% (and must be unset for the root).
+% All published packages must have the same set of NPM keywords.
 gen_enforced_field(WorkspaceCwd, 'keywords', ['MetaMask', 'Ethereum']) :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
+% Non-published packages do not have any NPM keywords.
 gen_enforced_field(WorkspaceCwd, 'keywords', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
-% "homepage" must match the name of the package (based on the workspace
-% directory name) across all workspace packages (and must be unset for the
-% root).
+% The homepage of a published package must match its name (which is in turn
+% based on its workspace directory name).
 gen_enforced_field(WorkspaceCwd, 'homepage', CorrectHomepageUrl) :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
   workspace_basename(WorkspaceCwd, WorkspaceBasename),
-  atomic_list_concat(['https://github.com/MetaMask/controllers/tree/main/packages/', WorkspaceBasename, '#readme'], CorrectHomepageUrl).
+  workspace_field(WorkspaceCwd, 'repository.url', RepoUrl),
+  repo_name(RepoUrl, RepoName),
+  atomic_list_concat(['https://github.com/MetaMask/', RepoName, '/tree/main/packages/', WorkspaceBasename, '#readme'], CorrectHomepageUrl).
+% Non-published packages do not have a homepage.
 gen_enforced_field(WorkspaceCwd, 'homepage', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
-% "repository.type" must be "git" for all packages.
-gen_enforced_field(WorkspaceCwd, 'repository.type', 'git').
-
-% "repository.url" must be "https://github.com/MetaMask/controllers.git" for all
-% packages.
-gen_enforced_field(WorkspaceCwd, 'repository.url', 'https://github.com/MetaMask/controllers.git').
-
-% "bugs.url" must be "https://github.com/MetaMask/controllers/issues" for all
-% workspace packages.
-gen_enforced_field(WorkspaceCwd, 'bugs.url', 'https://github.com/MetaMask/controllers/issues') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
-
-% "bugs" must unset for the root.
+% The bugs URL of a published package must point to the Issues page for the
+% repository.
+gen_enforced_field(WorkspaceCwd, 'bugs.url', CorrectBugsUrl) :-
+  \+ workspace_field(WorkspaceCwd, 'private', true),
+  workspace_field(WorkspaceCwd, 'repository.url', RepoUrl),
+  repo_name(RepoUrl, RepoName),
+  atomic_list_concat(['https://github.com/MetaMask/', RepoName, '/issues'], CorrectBugsUrl).
+% Non-published packages must not have a bugs section.
 gen_enforced_field(WorkspaceCwd, 'bugs', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
-% "license" must be "MIT" for all workspace packages and unset for the root.
+% All packages must specify Git as the repository type.
+gen_enforced_field(WorkspaceCwd, 'repository.type', 'git').
+
+% All packages must match the URL of a repo within the MetaMask organization.
+gen_enforced_field(WorkspaceCwd, 'repository.url', 'https://github.com/MetaMask/<insert repo name here>.git') :-
+  workspace_field(WorkspaceCwd, 'repository.url', RepoUrl),
+  \+ repo_name(RepoUrl, _).
+% The repository URL for non-root packages must match the same URL used for the
+% root package.
+gen_enforced_field(WorkspaceCwd, 'repository.url', RepoUrl) :-
+  workspace_field('.', 'repository.url', RepoUrl),
+  repo_name(RepoUrl, _).
+  WorkspaceCwd \= '.'.
+
+% The license for all published packages must be MIT.
 gen_enforced_field(WorkspaceCwd, 'license', 'MIT') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
+% Non-published packages do not have a license.
 gen_enforced_field(WorkspaceCwd, 'license', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
-% "main" must be "dist/index.js" for workspace packages and unset for the
-% root.
+% The entrypoint for all published packages must be the same.
 gen_enforced_field(WorkspaceCwd, 'main', './dist/index.js') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
+% Non-published packages must not specify an entrypoint.
 gen_enforced_field(WorkspaceCwd, 'main', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
-% "types" must be "dist/index.d.ts" for workspace packages and unset for the
-% root.
+% The type definitions entrypoint for all publishable packages must be the same.
 gen_enforced_field(WorkspaceCwd, 'types', './dist/index.d.ts') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
+% Non-published packages must not specify a type definitions entrypoint.
 gen_enforced_field(WorkspaceCwd, 'types', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
-% "files" must be ["dist/"] for workspace packages and [] for the root.
+% The list of files included in published packages must only include files
+% generated during the build step.
 gen_enforced_field(WorkspaceCwd, 'files', ['dist/']) :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
+% The root package must specify an empty set of published files. (This is
+% required in order to be able to import anything in development-only scripts,
+% as otherwise the `node/no-unpublished-require` ESLint rule will disallow it.)
 gen_enforced_field(WorkspaceCwd, 'files', []) :-
-  workspace_field(WorkspaceCwd, 'private', true).
+  WorkspaceCwd = '.'.
 
-% All workspace packages must have the same "build:docs" script.
+% All non-root packages must have the same "build:docs" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.build:docs', 'typedoc') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
+  WorkspaceCwd \= '.'.
 
-% All workspace packages must have the same "prepare-manifest:preview" script.
+% All published packages must have the same "prepare-manifest:preview" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.prepare-manifest:preview', '../../scripts/prepare-preview-manifest.sh') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 
-% All workspace packages must have the same "publish:preview" script.
+% All published packages must have the same "publish:preview" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.publish:preview', 'yarn npm publish --tag preview') :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 
-% The "changelog:validate" script for each package must follow a specific
-% format.
+% The "changelog:validate" script for each published package must run a common
+% script with the name of the package as an argument.
 gen_enforced_field(WorkspaceCwd, 'scripts.changelog:validate', ProperChangelogValidationScript) :-
   \+ workspace_field(WorkspaceCwd, 'private', true),
   workspace_package_name(WorkspaceCwd, WorkspacePackageName),
   atomic_list_concat(['../../scripts/validate-changelog.sh ', WorkspacePackageName], ProperChangelogValidationScript).
 
-% All workspace packages must have the same "test" script.
+% All non-root packages must have the same "test" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
+  WorkspaceCwd \= '.'.
 
-% All workspace packages must have the same "test:watch" script.
+% All non-root packages must have the same "test:watch" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test:watch', 'jest --watch') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
+  WorkspaceCwd \= '.'.
 
-% All dependency ranges must be recognizable.
+% All dependency ranges must be recognizable (this makes it possible to apply
+% the next two rules effectively).
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a range optionally starting with ^ or ~', DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   \+ is_valid_version_range(DependencyRange).
 
 % All dependency ranges for a package must be synchronized across the monorepo
-% (the least version range wins), regardless of which "*dependencies" the
-% package appears.
+% (the least version range wins), regardless of which "*dependencies" field
+% where the package appears.
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, OtherDependencyRange, DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   workspace_has_dependency(OtherWorkspaceCwd, DependencyIdent, OtherDependencyRange, OtherDependencyType),
@@ -241,24 +276,21 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, DependencyType),
   DependencyType == 'devDependencies'.
 
+% All packages must specify a minimum Node version of 14.
+gen_enforced_field(WorkspaceCwd, 'engines.node', '>=14.0.0').
+
+% All published packages are public.
+gen_enforced_field(WorkspaceCwd, 'publishConfig.access', 'public') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+% All published packages are available on the NPM registry.
+gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', 'https://registry.npmjs.org/') :-
+  \+ workspace_field(WorkspaceCwd, 'private', true).
+% Non-published packages do not need to specify any publishing settings
+% whatsoever.
+gen_enforced_field(WorkspaceCwd, 'publishConfig', null) :-
+  workspace_field(WorkspaceCwd, 'private', true).
+
 % eth-query has an unlisted dependency on babel-runtime, so that package needs
 % to be present if eth-query is present.
 gen_enforced_dependency(WorkspaceCwd, 'babel-runtime', '^6.26.0', DependencyType) :-
   workspace_has_dependency(WorkspaceCwd, 'eth-query', _, DependencyType).
-
-% "engines.node" must be ">=14.0.0" for all packages.
-gen_enforced_field(WorkspaceCwd, 'engines.node', '>=14.0.0').
-
-% "publishConfig.access" must be "public" for workspace packages and unset
-% for the root.
-gen_enforced_field(WorkspaceCwd, 'publishConfig.access', 'public') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
-gen_enforced_field(WorkspaceCwd, 'publishConfig.access', null) :-
-  workspace_field(WorkspaceCwd, 'private', true).
-
-% "publishConfig.registry" must be "https://registry.npmjs.org" for all
-% workspace packages and unset for the root.
-gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', 'https://registry.npmjs.org/') :-
-  \+ workspace_field(WorkspaceCwd, 'private', true).
-gen_enforced_field(WorkspaceCwd, 'publishConfig.registry', null) :-
-  workspace_field(WorkspaceCwd, 'private', true).
