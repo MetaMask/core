@@ -213,7 +213,8 @@ gen_enforced_field(WorkspaceCwd, 'types', './dist/index.d.ts') :-
 gen_enforced_field(WorkspaceCwd, 'types', null) :-
   workspace_field(WorkspaceCwd, 'private', true).
 
-% The list of files included in published packages must be everything in `dist/`.
+% The list of files included in published packages must only include files
+% generated during the build step.
 gen_enforced_field(WorkspaceCwd, 'files', ['dist/']) :-
   \+ workspace_field(WorkspaceCwd, 'private', true).
 % The root package must specify an empty set of published files. (This is
@@ -221,10 +222,6 @@ gen_enforced_field(WorkspaceCwd, 'files', ['dist/']) :-
 % as otherwise the `node/no-unpublished-require` ESLint rule will disallow it.)
 gen_enforced_field(WorkspaceCwd, 'files', []) :-
   WorkspaceCwd = '.'.
-% All other non-published packages must not specify a set of published files.
-gen_enforced_field(WorkspaceCwd, 'files', null) :-
-  workspace_field(WorkspaceCwd, 'private', true),
-  WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "build:docs" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.build:docs', 'typedoc') :-
