@@ -52,8 +52,10 @@ jobs:
         run: yarn publish-previews
         env:
           YARN_NPM_AUTH_TOKEN: ${{ secrets.PUBLISH_PREVIEW_NPM_TOKEN }}
+      - name: Generate preview build message
+        run: yarn ts-node scripts/generate-preview-build-message.ts
       - name: Post build preview in comment
-        run: gh pr comment "${PR_NUMBER}" -b "Packages published as '[current-version]-preview.${COMMIT_SHA}'"
+        run: gh pr comment "${PR_NUMBER}" --body-file preview-build-message.txt
         env:
           COMMIT_SHA: ${{ steps.commit-sha.outputs.COMMIT_SHA }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

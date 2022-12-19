@@ -35,6 +35,7 @@
     "@metamask/auto-changelog": "^3.1.0",
     "@types/jest": "^26.0.22",
     "deepmerge": "^4.2.2",
+    "immer": "^9.0.6",
     "jest": "^26.4.2",
     "ts-jest": "^26.5.2",
     "typedoc": "^0.22.15",

@@ -763,7 +763,6 @@ describe('TokensController', () => {
           [CONFIGURED_ADDRESS]: [directlyAddedToken],
         },
       });
-
       stub.restore();
     });
   });
@@ -1193,6 +1192,65 @@ describe('TokensController', () => {
       expect(initialTokensSecond).toStrictEqual(tokensController.state.tokens);
 
       stub.restore();
+    });
+  });
+
+  describe('Clearing nested lists', function () {
+    const dummyTokens: Token[] = [
+      {
+        address: '0x01',
+        symbol: 'barA',
+        decimals: 2,
+        aggregators: [],
+        image: undefined,
+      },
+    ];
+    const selectedAddress = '0x1';
+    const tokenAddress = '0x01';
+
+    it('should clear nest allTokens under chain ID and selected address when an added token is ignored', async () => {
+      tokensController.configure({
+        selectedAddress,
+        chainId: NetworksChainId.mainnet,
+      });
+      await tokensController.addTokens(dummyTokens);
+      await tokensController.ignoreTokens(['0x01']);
+      expect(
+        tokensController.state.allTokens[NetworksChainId.mainnet][
+          selectedAddress
+        ],
+      ).toStrictEqual([]);
+    });
+
+    it('should clear nest allIgnoredTokens under chain ID and selected address when an ignored token is re-added', async () => {
+      tokensController.configure({
+        selectedAddress,
+        chainId: NetworksChainId.mainnet,
+      });
+      await tokensController.addTokens(dummyTokens);
+      await tokensController.ignoreTokens([tokenAddress]);
+      await tokensController.addTokens(dummyTokens);
+
+      expect(
+        tokensController.state.allIgnoredTokens[NetworksChainId.mainnet][
+          selectedAddress
+        ],
+      ).toStrictEqual([]);
+    });
+
+    it('should clear nest allDetectedTokens under chain ID and selected address when an detected token is added to tokens list', async () => {
+      tokensController.configure({
+        selectedAddress,
+        chainId: NetworksChainId.mainnet,
+      });
+      await tokensController.addDetectedTokens(dummyTokens);
+      await tokensController.addTokens(dummyTokens);
+
+      expect(
+        tokensController.state.allDetectedTokens[NetworksChainId.mainnet][
+          selectedAddress
+        ],
+      ).toStrictEqual([]);
     });
   });
 });

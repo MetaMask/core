@@ -741,7 +741,13 @@ export class TokensController extends BaseController<
     const chainIdToAddTokens = detectionChainId ?? chainId;
 
     let newAllTokens = allTokens;
-    if (newTokens?.length) {
+    if (
+      newTokens?.length ||
+      (newTokens &&
+        allTokens &&
+        allTokens[chainIdToAddTokens] &&
+        allTokens[chainIdToAddTokens][userAddressToAddTokens])
+    ) {
       const networkTokens = allTokens[chainIdToAddTokens];
       const newNetworkTokens = {
         ...networkTokens,
@@ -754,7 +760,13 @@ export class TokensController extends BaseController<
     }
 
     let newAllIgnoredTokens = allIgnoredTokens;
-    if (newIgnoredTokens?.length) {
+    if (
+      newIgnoredTokens?.length ||
+      (newIgnoredTokens &&
+        allIgnoredTokens &&
+        allIgnoredTokens[chainIdToAddTokens] &&
+        allIgnoredTokens[chainIdToAddTokens][userAddressToAddTokens])
+    ) {
       const networkIgnoredTokens = allIgnoredTokens[chainIdToAddTokens];
       const newIgnoredNetworkTokens = {
         ...networkIgnoredTokens,
@@ -767,7 +779,13 @@ export class TokensController extends BaseController<
     }
 
     let newAllDetectedTokens = allDetectedTokens;
-    if (newDetectedTokens?.length) {
+    if (
+      newDetectedTokens?.length ||
+      (newDetectedTokens &&
+        allDetectedTokens &&
+        allDetectedTokens[chainIdToAddTokens] &&
+        allDetectedTokens[chainIdToAddTokens][userAddressToAddTokens])
+    ) {
       const networkDetectedTokens = allDetectedTokens[chainIdToAddTokens];
       const newDetectedNetworkTokens = {
         ...networkDetectedTokens,
