@@ -2015,18 +2015,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^3.0.3":
-  version: 3.3.1
-  resolution: "@metamask/utils@npm:3.3.1"
-  dependencies:
-    "@types/debug": ^4.1.7
-    debug: ^4.3.4
-    superstruct: ^0.16.7
-  checksum: 5b6b6b54fdff4bc3f77b31ef50c23adca8fdf21d81d4f68d3d9c2b383b145cd61c2435f5ba0a11344484ae1f6d2355fab82eec58ce6b19eb35b476928b2e4ee6
-  languageName: node
-  linkType: hard
-
-"@metamask/utils@npm:^3.2.0, @metamask/utils@npm:^3.3.1":
+"@metamask/utils@npm:^3.0.3, @metamask/utils@npm:^3.2.0, @metamask/utils@npm:^3.3.1":
   version: 3.3.1
   resolution: "@metamask/utils@npm:3.3.1"
   dependencies:
@@ -11249,14 +11238,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"superstruct@npm:^0.16.7":
-  version: 0.16.7
-  resolution: "superstruct@npm:0.16.7"
-  checksum: c8c855ff6945da8a41048c6d236de7b1af5d4d9c31742b3ee54d65647c31597488620281f65e095d5efc9e2fbdaad529b8c8f2506c12569d428467c835a21477
-  languageName: node
-  linkType: hard
-
-"superstruct@npm:^0.16.7":
+"superstruct@npm:^0.16.5, superstruct@npm:^0.16.7":
   version: 0.16.7
   resolution: "superstruct@npm:0.16.7"
   checksum: c8c855ff6945da8a41048c6d236de7b1af5d4d9c31742b3ee54d65647c31597488620281f65e095d5efc9e2fbdaad529b8c8f2506c12569d428467c835a21477
