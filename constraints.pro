@@ -190,6 +190,7 @@ gen_enforced_field(WorkspaceCwd, 'repository.url', 'https://github.com/MetaMask/
 % root package.
 gen_enforced_field(WorkspaceCwd, 'repository.url', RepoUrl) :-
   workspace_field('.', 'repository.url', RepoUrl),
+  repo_name(RepoUrl, _).
   WorkspaceCwd \= '.'.
 
 % The license for all published packages must be MIT.
