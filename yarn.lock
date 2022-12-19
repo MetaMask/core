@@ -1448,6 +1448,7 @@ __metadata:
     "@metamask/metamask-eth-abis": 3.0.0
     "@metamask/network-controller": "workspace:^"
     "@metamask/preferences-controller": "workspace:^"
+    "@metamask/utils": ^3.3.1
     "@types/jest": ^26.0.22
     "@types/node": ^14.14.31
     "@types/uuid": ^8.3.0
@@ -2025,7 +2026,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^3.2.0":
+"@metamask/utils@npm:^3.2.0, @metamask/utils@npm:^3.3.1":
   version: 3.3.1
   resolution: "@metamask/utils@npm:3.3.1"
   dependencies:
