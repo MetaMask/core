@@ -3,7 +3,6 @@ import {
   recoverPersonalSignature,
   recoverTypedSignature,
   SignTypedDataVersion,
-  TypedDataV1,
 } from '@metamask/eth-sig-util';
 import * as sinon from 'sinon';
 import Common from '@ethereumjs/common';
@@ -451,7 +450,7 @@ describe('KeyringController', () => {
     );
     const recovered = recoverTypedSignature({
       data: typedMsgParams,
-      signature: signature as string,
+      signature,
       version: SignTypedDataVersion.V1,
     });
     expect(account).toBe(recovered);
@@ -502,7 +501,7 @@ describe('KeyringController', () => {
     );
     const recovered = recoverTypedSignature({
       data: msgParams as any,
-      signature: signature as string,
+      signature,
       version: SignTypedDataVersion.V3,
     });
     expect(account).toBe(recovered);
@@ -567,7 +566,7 @@ describe('KeyringController', () => {
     );
     const recovered = recoverTypedSignature({
       data: msgParams as any,
-      signature: signature as string,
+      signature,
       version: SignTypedDataVersion.V4,
     });
     expect(account).toBe(recovered);
@@ -886,8 +885,8 @@ describe('KeyringController', () => {
         SignTypedDataVersion.V1,
       );
       const recovered = recoverTypedSignature({
-        data: typedMsgParams as TypedDataV1,
-        signature: signature as string,
+        data: typedMsgParams,
+        signature,
         version: SignTypedDataVersion.V1,
       });
       expect(account.toLowerCase()).toBe(recovered.toLowerCase());
@@ -918,7 +917,7 @@ describe('KeyringController', () => {
       );
       const recovered = recoverTypedSignature({
         data: JSON.parse(msg),
-        signature: signature as string,
+        signature,
         version: SignTypedDataVersion.V3,
       });
       expect(account.toLowerCase()).toBe(recovered);
@@ -946,7 +945,7 @@ describe('KeyringController', () => {
       );
       const recovered = recoverTypedSignature({
         data: JSON.parse(msg),
-        signature: signature as string,
+        signature,
         version: SignTypedDataVersion.V4,
       });
       expect(account.toLowerCase()).toBe(recovered);

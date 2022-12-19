@@ -1747,7 +1747,6 @@ __metadata:
     async-mutex: ^0.2.6
     deepmerge: ^4.2.2
     eth-keyring-controller: ^7.0.2
-    eth-sig-util: ^3.0.0
     ethereumjs-util: ^7.0.10
     ethereumjs-wallet: ^1.0.1
     jest: ^26.4.2
