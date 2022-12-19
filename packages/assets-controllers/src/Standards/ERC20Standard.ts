@@ -56,7 +56,8 @@ export class ERC20Standard {
   async getTokenSymbol(address: string): Promise<string> {
     // Signature for calling `symbol()`
     const payload = { to: address, data: '0x95d89b41' };
-    const result = (await this.provider.call(payload)) as `0x${string}`;
+    const result = await this.provider.call(payload));
+    assertIsStrictHexString(result);
     // Parse as string - treat empty string as failure
     try {
       return decodeSingle('string', result) as string;
