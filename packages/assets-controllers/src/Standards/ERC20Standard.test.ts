@@ -153,7 +153,7 @@ describe('ERC20Standard', () => {
 
     // Some proxy contracts don't revert when requesting symbol() and decimals(), this test makes sure we handle those cases.
     await expect(erc20Standard.getTokenSymbol(AMBIRE_ADDRESS)).rejects.toThrow(
-      'Value must be a hexadecimal string, starting with \"0x\".',
+      'Value must be a hexadecimal string, starting with "0x".',
     );
 
     await expect(
