@@ -6,6 +6,7 @@ import { decodeSingle } from '@metamask/abi-utils';
 import { Web3Provider } from '@ethersproject/providers';
 import { ERC20 } from '@metamask/controller-utils';
 import { ethersBigNumberToBN } from '../assetsUtil';
+import { assertIsStrictHexString } from '@metamask/utils';
 
 export class ERC20Standard {
   private provider: Web3Provider;
@@ -56,11 +57,11 @@ export class ERC20Standard {
   async getTokenSymbol(address: string): Promise<string> {
     // Signature for calling `symbol()`
     const payload = { to: address, data: '0x95d89b41' };
-    const result = await this.provider.call(payload));
-    assertIsStrictHexString(result);
+    const result = await this.provider.call(payload);
+    assertIsStrictHexString(result)
     // Parse as string - treat empty string as failure
     try {
-      return decodeSingle('string', result) as string;
+      return decodeSingle('string', result);
     } catch {
       // Ignore error
     }
