@@ -8,9 +8,7 @@ import {
 import {
   normalize as normalizeAddress,
   signTypedData,
-  signTypedData_v4,
-  signTypedDataLegacy,
-} from 'eth-sig-util';
+} from '@metamask/eth-sig-util';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import Keyring from 'eth-keyring-controller';
 import { Mutex } from 'async-mutex';
@@ -481,17 +479,22 @@ export class KeyringController extends BaseController<
       const privateKeyBuffer = toBuffer(addHexPrefix(privateKey));
       switch (version) {
         case SignTypedDataVersion.V1:
-          // signTypedDataLegacy will throw if the data is invalid.
-          return signTypedDataLegacy(privateKeyBuffer, {
+          return signTypedData({
+            privateKey: privateKeyBuffer,
             data: messageParams.data as any,
+            version: SignTypedDataVersion.V1,
           });
         case SignTypedDataVersion.V3:
-          return signTypedData(privateKeyBuffer, {
+          return signTypedData({
+            privateKey: privateKeyBuffer,
             data: JSON.parse(messageParams.data as string),
+            version: SignTypedDataVersion.V3,
           });
         case SignTypedDataVersion.V4:
-          return signTypedData_v4(privateKeyBuffer, {
+          return signTypedData({
+            privateKey: privateKeyBuffer,
             data: JSON.parse(messageParams.data as string),
+            version: SignTypedDataVersion.V4,
           });
         default:
           throw new Error(`Unexpected signTypedMessage version: '${version}'`);

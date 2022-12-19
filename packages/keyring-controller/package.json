@@ -32,6 +32,7 @@
     "@keystonehq/metamask-airgapped-keyring": "^0.6.1",
     "@metamask/base-controller": "workspace:^",
     "@metamask/controller-utils": "workspace:^",
+    "@metamask/eth-sig-util": "^5.0.2",
     "@metamask/message-manager": "workspace:^",
     "@metamask/preferences-controller": "workspace:^",
     "async-mutex": "^0.2.6",
