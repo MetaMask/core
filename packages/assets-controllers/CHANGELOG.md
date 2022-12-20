@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [3.0.1]
-### Uncategorized
+### Changed
 - Export `isTokenDetectionSupportedForNetwork` function ([#1034](https://github.com/MetaMask/controllers/pull/1034))
-- DetectedTokens getting reloaded from allDetectedTokens even after the tokens are imported for a chain and selectedAddress ([#1015](https://github.com/MetaMask/controllers/pull/1015))
-- Bump @metamask/contract-metadata from 1.35.0 to 2.1.0 ([#1013](https://github.com/MetaMask/controllers/pull/1013))
+- Update `@metamask/contract-metadata` from 1.35.0 to 2.1.0 ([#1013](https://github.com/MetaMask/controllers/pull/1013))
+
+### Fixed
+- Fix token controller state updates ([#1015](https://github.com/MetaMask/controllers/pull/1015))
+  - Attempts to empty the list of "added", "ignored", or "detected" tokens were not saved in state correctly, resulting in that operation being undone after switching account or network.
 
 ## [3.0.0]
 ### Changed
