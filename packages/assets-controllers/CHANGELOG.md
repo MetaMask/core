@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.1]
+### Uncategorized
+- Export `isTokenDetectionSupportedForNetwork` function ([#1034](https://github.com/MetaMask/controllers/pull/1034))
+- DetectedTokens getting reloaded from allDetectedTokens even after the tokens are imported for a chain and selectedAddress ([#1015](https://github.com/MetaMask/controllers/pull/1015))
+- Bump @metamask/contract-metadata from 1.35.0 to 2.1.0 ([#1013](https://github.com/MetaMask/controllers/pull/1013))
+
 ## [3.0.0]
 ### Changed
 - **BREAKING:** A new private property, controlled by the `start` and `stop` methods, is added to the CurrencyRateController: `enabled`. When this is false, no network requests will be made from the controller. Previously, setNativeCurrency or setCurrentCurrency would trigger a network request. That is now prevented if `enabled` is false. ([#1002](https://github.com/MetaMask/controllers/pull/1002))
@@ -44,7 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/controllers/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@3.0.1...HEAD
+[3.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@3.0.0...@metamask/assets-controllers@3.0.1
 [3.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@2.0.0...@metamask/assets-controllers@3.0.0
 [2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@1.0.1...@metamask/assets-controllers@2.0.0
 [1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/assets-controllers@1.0.0...@metamask/assets-controllers@1.0.1

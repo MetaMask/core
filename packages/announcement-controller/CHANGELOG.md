@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+### Uncategorized
+- AnnouncementController migration to BaseControllerV2 ([#959](https://github.com/MetaMask/controllers/pull/959))
+
 ## [1.0.1]
 ### Changed
 - Relax dependency on `@metamask/base-controller` (use `^` instead of `~`) ([#998](https://github.com/MetaMask/controllers/pull/998))
@@ -18,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/announcement-controller@1.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/controllers/compare/@metamask/announcement-controller@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/controllers/compare/@metamask/announcement-controller@1.0.1...@metamask/announcement-controller@2.0.0
 [1.0.1]: https://github.com/MetaMask/controllers/compare/@metamask/announcement-controller@1.0.0...@metamask/announcement-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/controllers/releases/tag/@metamask/announcement-controller@1.0.0
