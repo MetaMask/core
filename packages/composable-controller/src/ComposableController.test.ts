@@ -5,7 +5,10 @@ import {
   NftController,
   AssetsContractController,
 } from '@metamask/assets-controllers';
-import { AddressBookController } from '@metamask/address-book-controller';
+import {
+  AddressBookController,
+  AddressType,
+} from '@metamask/address-book-controller';
 import { EnsController } from '@metamask/ens-controller';
 import {
   BaseController,
@@ -306,7 +309,7 @@ describe('ComposableController', () => {
               isEns: false,
               memo: '',
               name: 'foo',
-              addressType: '',
+              addressType: AddressType.unknown,
             },
           },
         },
@@ -337,7 +340,7 @@ describe('ComposableController', () => {
                 isEns: false,
                 memo: '',
                 name: 'foo',
-                addressType: '',
+                addressType: AddressType.unknown,
               },
             },
           },
