@@ -475,7 +475,7 @@ describe('KeyringController', () => {
           wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
         },
       },
-      primaryType: 'Mail',
+      primaryType: 'Mail' as const,
       types: {
         EIP712Domain: [
           { name: 'name', type: 'string' },
@@ -500,7 +500,7 @@ describe('KeyringController', () => {
       SignTypedDataVersion.V3,
     );
     const recovered = recoverTypedSignature({
-      data: msgParams as any,
+      data: msgParams,
       signature,
       version: SignTypedDataVersion.V3,
     });
@@ -535,7 +535,7 @@ describe('KeyringController', () => {
           },
         ],
       },
-      primaryType: 'Mail',
+      primaryType: 'Mail' as const,
       types: {
         EIP712Domain: [
           { name: 'name', type: 'string' },
@@ -565,7 +565,7 @@ describe('KeyringController', () => {
       SignTypedDataVersion.V4,
     );
     const recovered = recoverTypedSignature({
-      data: msgParams as any,
+      data: msgParams,
       signature,
       version: SignTypedDataVersion.V4,
     });
