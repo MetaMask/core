@@ -26,6 +26,7 @@ export interface ContactEntry {
 export enum AddressType {
   externallyOwnedAccounts = 'EXTERNALLY_OWNED_ACCOUNTS',
   contractAccounts = 'CONTRACT_ACCOUNTS',
+  unknown = 'UNKNOWN',
 }
 
 /**
@@ -45,7 +46,7 @@ export interface AddressBookEntry {
   chainId: string;
   memo: string;
   isEns: boolean;
-  addressType: string;
+  addressType: AddressType;
 }
 
 /**
@@ -124,17 +125,17 @@ export class AddressBookController extends BaseController<
    *
    * @param address - Recipient address to add or update.
    * @param name - Nickname to associate with this address.
+   * @param addressType - Contact's address type.
    * @param chainId - Chain id identifies the current chain.
    * @param memo - User's note about address.
-   * @param addressType - Contact's address type.
    * @returns Boolean indicating if the address was successfully set.
    */
   set(
     address: string,
     name: string,
+    addressType: AddressType,
     chainId = '1',
     memo = '',
-    addressType = '',
   ) {
     address = toChecksumHexAddress(address);
     if (!isValidHexAddress(address)) {
