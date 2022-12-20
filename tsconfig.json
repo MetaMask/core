@@ -63,5 +63,5 @@
     }
   ],
   "files": [],
-  "include": []
+  "include": ["./types"]
 }

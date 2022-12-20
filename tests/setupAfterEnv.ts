@@ -1,3 +1,5 @@
+import { inspect } from 'util';
+
 const UNRESOLVED = Symbol('timedOut');
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
@@ -60,8 +62,8 @@ expect.extend({
           message: () => {
             return `Expected promise to never resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it ${
               rejectionValue
-                ? `was rejected with ${rejectionValue}`
-                : `resolved with ${resolutionValue}`
+                ? `was rejected with ${inspect(rejectionValue)}`
+                : `resolved with ${inspect(resolutionValue)}`
             }`;
           },
           pass: false,

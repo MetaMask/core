@@ -1,6 +1,7 @@
 import EthQuery from 'eth-query';
 import Subprovider from 'web3-provider-engine/subproviders/provider';
 import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
+import type { ProviderEngine } from 'web3-provider-engine';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
@@ -73,6 +74,10 @@ export type NetworkControllerProviderConfigChangeEvent = {
   payload: [ProviderConfig];
 };
 
+export type NetworkControllerEvents =
+  | NetworkControllerStateChangeEvent
+  | NetworkControllerProviderConfigChangeEvent;
+
 export type NetworkControllerGetProviderConfigAction = {
   type: `NetworkController:getProviderConfig`;
   handler: () => ProviderConfig;
@@ -82,6 +87,10 @@ export type NetworkControllerGetEthQueryAction = {
   type: `NetworkController:getEthQuery`;
   handler: () => EthQuery;
 };
+
+export type NetworkControllerActions =
+  | NetworkControllerGetProviderConfigAction
+  | NetworkControllerGetEthQueryAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -104,6 +113,25 @@ const defaultState: NetworkState = {
   providerConfig: { type: MAINNET, chainId: NetworksChainId.mainnet },
   properties: { isEIP1559Compatible: false },
 };
+
+//                                                                                     setProviderType            setRpcTarget
+//                                                                                            └───────────┬────────────┘
+// set providerConfig                                                                               refreshNetwork
+//       │ │ └────────────────────────────────────────────┬──────────────────────────────────────────────┘ │
+//       │ │                                     initializeProvider                                        │
+//       │ │                  ┌─────────────────────────┘ │ └─────────────────────────┐                    │
+//       │ │          setupInfuraProvider        setupStandardProvider      getEIP1559Compatibility        │
+//       │ │                  └─────────────┬─────────────┘                                                │
+//       │ │                          updateProvider                                                       │
+//       │ └───────────────┬───────────────┘ └───────────────────────────────┐                             │
+//       │          registerProvider                                  this.provider = ...                  │
+//       │                 ⋮                                                                               │
+//       │   this.provider.on('error', ...)                                                                │
+//       │                 │                                                                               │
+//       │            verifyNetwork                                                                        │
+//       │                 └─────────────────────────────┐                                                 │
+//       └───────────────────────────────────────────────┼─────────────────────────────────────────────────┘
+//                                                 lookupNetwork
 
 /**
  * Controller that creates and manages an Ethereum network provider.
@@ -145,20 +173,27 @@ export class NetworkController extends BaseControllerV2<
       messenger,
       state: { ...defaultState, ...state },
     });
+
     this.infuraProjectId = infuraProjectId;
+
     this.messagingSystem.registerActionHandler(
       `${this.name}:getProviderConfig`,
       () => {
         return this.state.providerConfig;
       },
     );
-
     this.messagingSystem.registerActionHandler(
       `${this.name}:getEthQuery`,
       () => {
         return this.ethQuery;
       },
     );
+  }
+
+  destroy() {
+    // Prevent out-of-band calls to the provider
+    this.provider?.stop();
+    this.ethQuery = undefined;
   }
 
   private initializeProvider(
@@ -203,9 +238,9 @@ export class NetworkController extends BaseControllerV2<
     this.lookupNetwork();
   }
 
-  private registerProvider() {
-    this.provider.on('error', this.verifyNetwork.bind(this));
-    this.ethQuery = new EthQuery(this.provider);
+  private registerProvider(provider: ProviderEngine) {
+    provider.on('error', this.verifyNetwork.bind(this));
+    this.ethQuery = new EthQuery(provider);
   }
 
   private setupInfuraProvider(type: NetworkType) {
@@ -257,13 +292,13 @@ export class NetworkController extends BaseControllerV2<
     this.updateProvider(createMetamaskProvider(config));
   }
 
-  private updateProvider(provider: any) {
+  private updateProvider(provider: ProviderEngine) {
     this.safelyStopProvider(this.provider);
     this.provider = provider;
-    this.registerProvider();
+    this.registerProvider(provider);
   }
 
-  private safelyStopProvider(provider: any) {
+  private safelyStopProvider(provider: ProviderEngine | undefined) {
     setTimeout(() => {
       provider?.stop();
     }, 500);
@@ -276,7 +311,7 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Ethereum provider object for the current network
    */
-  provider: any;
+  provider: ProviderEngine | undefined;
 
   /**
    * Sets a new configuration for web3-provider-engine.
@@ -290,7 +325,9 @@ export class NetworkController extends BaseControllerV2<
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
-    this.registerProvider();
+    if (this.provider !== undefined) {
+      this.registerProvider(this.provider);
+    }
     this.lookupNetwork();
   }
 
@@ -302,11 +339,10 @@ export class NetworkController extends BaseControllerV2<
    * Refreshes the current network code.
    */
   async lookupNetwork() {
-    /* istanbul ignore if */
+    const releaseLock = await this.mutex.acquire();
     if (!this.ethQuery || !this.ethQuery.sendAsync) {
       return;
     }
-    const releaseLock = await this.mutex.acquire();
     this.ethQuery.sendAsync(
       { method: 'net_version' },
       (error: Error, network: string) => {
@@ -316,9 +352,7 @@ export class NetworkController extends BaseControllerV2<
           }
 
           this.update((state) => {
-            state.network = error
-              ? /* istanbul ignore next*/ 'loading'
-              : network;
+            state.network = error ? 'loading' : network;
           });
 
           this.messagingSystem.publish(
@@ -406,6 +440,7 @@ export class NetworkController extends BaseControllerV2<
         );
       });
     }
+
     return Promise.resolve(true);
   }
 }
