@@ -1,4 +1,3 @@
-/* eslint-enable @typescript-eslint/no-unused-vars */
 import {
   AcceptRequest as AcceptApprovalRequest,
   AddApprovalRequest,
@@ -583,7 +582,7 @@ export class PermissionController<
 
     this.#registerMessageHandlers();
     this.createPermissionMiddleware = getPermissionMiddlewareFactory({
-      executeRestrictedMethod: this.#executeRestrictedMethod.bind(this),
+      executeRestrictedMethod: this._executeRestrictedMethod.bind(this),
       getRestrictedMethod: this.getRestrictedMethod.bind(this),
       isUnrestrictedMethod: this.unrestrictedMethods.has.bind(
         this.unrestrictedMethods,
@@ -2201,7 +2200,7 @@ export class PermissionController<
     // Throws if the method does not exist
     const methodImplementation = this.getRestrictedMethod(targetName, origin);
 
-    const result = await this.#executeRestrictedMethod(
+    const result = await this._executeRestrictedMethod(
       methodImplementation,
       { origin },
       targetName,
@@ -2235,7 +2234,8 @@ export class PermissionController<
    * @param params - Params needed for executing the restricted method.
    * @returns The result of the restricted method implementation.
    */
-  #executeRestrictedMethod(
+  // eslint-disable-next-line no-restricted-syntax
+  private _executeRestrictedMethod(
     methodImplementation: RestrictedMethod<RestrictedMethodParameters, Json>,
     subject: PermissionSubjectMetadata,
     method: ExtractPermission<

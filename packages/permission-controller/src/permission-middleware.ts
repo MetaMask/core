@@ -15,11 +15,9 @@ import {
   RestrictedMethodParameters,
 } from '.';
 import { internalError } from './errors';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { PermissionController } from './PermissionController';
 
 type PermissionMiddlewareFactoryOptions = {
-  executeRestrictedMethod: GenericPermissionController['#executeRestrictedMethod'];
+  executeRestrictedMethod: GenericPermissionController['_executeRestrictedMethod'];
   getRestrictedMethod: GenericPermissionController['getRestrictedMethod'];
   isUnrestrictedMethod: (method: string) => boolean;
 };
