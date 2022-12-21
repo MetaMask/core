@@ -1216,7 +1216,7 @@ describe('TokensController', () => {
         chainId: NetworksChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
-      await tokensController.ignoreTokens(['0x01']);
+      tokensController.ignoreTokens(['0x01']);
       expect(
         tokensController.state.allTokens[NetworksChainId.mainnet][
           selectedAddress
@@ -1230,7 +1230,7 @@ describe('TokensController', () => {
         chainId: NetworksChainId.mainnet,
       });
       await tokensController.addTokens(dummyTokens);
-      await tokensController.ignoreTokens([tokenAddress]);
+      tokensController.ignoreTokens([tokenAddress]);
       await tokensController.addTokens(dummyTokens);
 
       expect(
