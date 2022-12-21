@@ -340,19 +340,20 @@ async function makeRequestForChunk<Percentile extends number>({
  *
  * @param endBlockNumber - The final block in the complete desired block range after all
  * `eth_feeHistory` requests have been made.
- * @param totalNumberOfBlocks - The total number of desired blocks after all `eth_feeHistory`
+ * @param givenTotalNumberOfBlocks - The total number of desired blocks after all `eth_feeHistory`
  * requests have been made.
  * @returns A set of arguments that can be used to make requests to `eth_feeHistory` in order to
  * retrieve all of the requested blocks, sorted from oldest block to newest block.
  */
 function determineRequestChunkSpecifiers(
   endBlockNumber: BN,
-  totalNumberOfBlocks: number,
+  givenTotalNumberOfBlocks: number,
 ): RequestChunkSpecifier[] {
-  if (endBlockNumber.lt(new BN(totalNumberOfBlocks))) {
-    // eslint-disable-next-line no-param-reassign
-    totalNumberOfBlocks = endBlockNumber.toNumber();
-  }
+  const totalNumberOfBlocks = endBlockNumber.lt(
+    new BN(givenTotalNumberOfBlocks),
+  )
+    ? endBlockNumber.toNumber()
+    : givenTotalNumberOfBlocks;
 
   const specifiers = [];
   for (
