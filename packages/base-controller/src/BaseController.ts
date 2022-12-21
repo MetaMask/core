@@ -168,7 +168,11 @@ export class BaseController<C extends BaseConfig, S extends BaseState> {
     const index = this.#internalListeners.findIndex(
       (callback) => listener === callback,
     );
-    index > -1 && this.#internalListeners.splice(index, 1);
+
+    if (index > -1) {
+      this.#internalListeners.splice(index, 1);
+    }
+
     return index > -1;
   }
 
