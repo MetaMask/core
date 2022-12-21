@@ -61,7 +61,10 @@ export class ERC20Standard {
     assertIsStrictHexString(result);
     // Parse as string - treat empty string as failure
     try {
-      return decodeSingle('string', result);
+      const decoded = decodeSingle('string', result);
+      if (decoded?.length > 0) {
+        return decoded;
+      }
     } catch {
       // Ignore error
     }
