@@ -7,7 +7,6 @@ import {
   calculateTimeEstimate,
 } from './gas-util';
 import {
-  UnknownString,
   GasFeeEstimates,
   LegacyGasPriceEstimate,
   EthGasPriceEstimate,
