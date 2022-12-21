@@ -138,6 +138,8 @@ export function hexToBN(inputHex: string) {
 export function hexToText(hexadecimal: string) {
   try {
     const stripped = stripHexPrefix(hexadecimal);
+    // TODO: Use `@metamask/utils` instead of `Buffer`.
+    // eslint-disable-next-line no-restricted-globals
     const buff = Buffer.from(stripped, 'hex');
     return buff.toString('utf8');
   } catch (error) {
@@ -347,7 +349,6 @@ export async function fetchWithErrorHandling({
     if (timeout) {
       result = Promise.race([
         await handleFetch(url, options),
-        // eslint-disable-next-line no-restricted-globals
         new Promise<Response>((_, reject) =>
           setTimeout(() => {
             reject(TIMEOUT_ERROR);
